@@ -782,12 +782,13 @@ export async function handleAIBackgroundResponseCompletedImpl(
         }
       }
 
-      // Show in-app notification with message preview
+      // Show in-app notification with message preview and mate category for profile image
       notificationStore.chatMessage(
         payload.chat_id,
         chatTitle,
         messagePreview,
-        undefined, // avatarUrl - could be set based on mate category in the future
+        undefined, // avatarUrl - not used, we use category-based profile images
+        category || undefined, // Pass mate category for profile image rendering
       );
     }
 

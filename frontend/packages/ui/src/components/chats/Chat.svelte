@@ -32,6 +32,7 @@
   import { modelsMetadata } from '../../data/modelsMetadata'; // For model name lookup in mentions
   import { matesMetadata } from '../../data/matesMetadata'; // For mate name lookup in mentions
   import { appSkillsStore } from '../../stores/appSkillsStore'; // For skill/focus/memory name lookup in mentions
+  import { skillPreviewService } from '../../services/skillPreviewService'; // For tracking skill usage in background chats
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -60,6 +61,9 @@
   let hasWaitingForUser = $state(false);
   let currentTypingMateInfo: AITypingStatus | null = $state(null);
   let lastMessage: Message | null = $state(null); // Declare lastMessage here
+  
+  // Track active skill usage for this chat's typing indicator (e.g., "Using Search...")
+  let activeSkillInfo: { appId: string; skillId: string } | null = $state(null);
   let typingStoreValue = $state<AITypingStatus>({ 
     isTyping: false, 
     category: null, 
@@ -92,6 +96,20 @@
   // Subscribe to aiTypingStore with proper cleanup
   let unsubscribeTypingStore: (() => void) | null = null;
   
+  // Handler for skill preview updates - tracks which app skill is currently processing for this chat
+  function handleSkillPreviewUpdate(event: Event): void {
+    const detail = (event as CustomEvent).detail;
+    if (!chat || detail.chat_id !== chat.chat_id) return;
+    
+    const { previewData } = detail;
+    if (previewData.status === 'processing') {
+      activeSkillInfo = { appId: previewData.app_id, skillId: previewData.skill_id };
+    } else {
+      // Skill finished/cancelled/error - clear the active skill
+      activeSkillInfo = null;
+    }
+  }
+  
   onMount(() => {
     unsubscribeTypingStore = aiTypingStore.subscribe(value => {
       // Update the typing store value (needed for reactive updates)
@@ -99,6 +117,9 @@
       // Only log in exceptional cases if needed for debugging
       typingStoreValue = value;
     });
+    
+    // Listen for skill preview updates to show "Using Search..." etc.
+    skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
   });
   
   onDestroy(() => {
@@ -106,6 +127,7 @@
       unsubscribeTypingStore();
       unsubscribeTypingStore = null;
     }
+    skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
   });
 
   function extractTextFromTiptap(jsonContent: TiptapJSON | null | undefined): string {
@@ -330,6 +352,7 @@
         console.debug(`[Chat] Clearing typing indicator for chat ${chat.chat_id}`);
       }
       currentTypingMateInfo = null; 
+      activeSkillInfo = null; // Clear skill info when typing ends
       
       // When typing ends, restore the category from chat metadata (stored in chatCategory)
       // This ensures the permanent category is displayed, not the typing indicator's category
@@ -341,9 +364,34 @@
     }
   });
 
+  // Check if the current model is a reasoning/thinking model
+  let isReasoningModel = $derived((() => {
+    if (!currentTypingMateInfo?.modelName) return false;
+    const model = modelsMetadata.find(m => m.name === currentTypingMateInfo!.modelName || m.id === currentTypingMateInfo!.modelName);
+    return model?.reasoning === true;
+  })());
+  
+  // Build the typing indicator text with support for:
+  // 1. App skill usage: "Using Search..." (when an app skill is actively processing)
+  // 2. Thinking model: "{mate} is thinking..." (when a reasoning model is in thinking phase)
+  // 3. Default: "{mate} is typing..." (standard typing indicator)
   let typingIndicatorInTitleView = $derived((() => {
     if (currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
       const mateName = $text(`mates.${currentTypingMateInfo.category}.text`);
+      
+      // Priority 1: Show active app skill usage (e.g., "Using Search...")
+      if (activeSkillInfo) {
+        const skillTranslationKey = `app_skills.${activeSkillInfo.appId}.${activeSkillInfo.skillId}.text`;
+        const skillName = $text(skillTranslationKey);
+        return $text('enter_message.using_skill.text').replace('{skill}', skillName);
+      }
+      
+      // Priority 2: Show "thinking" for reasoning models
+      if (isReasoningModel) {
+        return $text('enter_message.is_thinking.text').replace('{mate}', mateName);
+      }
+      
+      // Default: "{mate} is typing..."
       return $text('enter_message.is_typing.text').replace('{mate}', mateName);
     }
     return null;
@@ -1886,7 +1934,12 @@
               {/if}
             </div>
             {#if typingIndicatorInTitleView}
-              <span class="status-message">{typingIndicatorInTitleView}</span>
+              <span class="status-message typing-shimmer">
+                {#if activeSkillInfo}
+                  <span class="skill-icon icon_rounded {activeSkillInfo.appId}"></span>
+                {/if}
+                {typingIndicatorInTitleView}
+              </span>
             {:else if displayLabel && !currentTypingMateInfo} 
               <span class="status-message">
                 {displayLabel}{#if displayText && displayLabel !== $text('enter_message.draft_with_beginning.text').replace('{draft_beginning}', truncateText(draftTextContent, 30))}&nbsp;{truncateText(displayText, 60)}{/if}
@@ -2040,6 +2093,44 @@
   .status-message {
     font-size: 14px;
     color: var(--color-grey-60);
+  }
+
+  /* Gradient shimmer animation for typing indicator text in sidebar */
+  .status-message.typing-shimmer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-60) 0%,
+      var(--color-grey-40) 50%,
+      var(--color-grey-60) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: typing-shimmer 1.5s infinite linear;
+  }
+
+  /* Small inline app skill icon in typing indicator */
+  .status-message.typing-shimmer :global(.skill-icon) {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    /* Override text fill for the icon so it remains visible */
+    -webkit-text-fill-color: initial;
+  }
+
+  @keyframes typing-shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
   }
 
   .draft-content-as-title {

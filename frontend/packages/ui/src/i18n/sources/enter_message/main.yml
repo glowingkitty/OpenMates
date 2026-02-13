@@ -216,6 +216,52 @@ is_typing:
   cs: "{mate} píše..."
   sv: "{mate} skriver..."
   verified_by_human: []
+is_thinking:
+  context: Text shown in sidebar when a thinking/reasoning model is processing in a background chat
+  en: "{mate} is thinking..."
+  de: "{mate} denkt nach..."
+  zh: "{mate} 正在思考..."
+  es: "{mate} está pensando..."
+  fr: "{mate} réfléchit..."
+  pt: "{mate} está pensando..."
+  ru: "{mate} думает..."
+  ja: "{mate}が考え中..."
+  ko: "{mate} 생각 중..."
+  it: "{mate} sta pensando..."
+  tr: "{mate} düşünüyor..."
+  vi: "{mate} đang suy nghĩ..."
+  id: "{mate} sedang berpikir..."
+  pl: "{mate} myśli..."
+  nl: "{mate} is aan het nadenken..."
+  ar: "{mate} يفكر..."
+  hi: "{mate} सोच रहा है..."
+  th: "{mate} กำลังคิด..."
+  cs: "{mate} přemýšlí..."
+  sv: "{mate} tänker..."
+  verified_by_human: []
+using_skill:
+  context: Text shown in sidebar when an app skill is being used in a background chat (e.g. Using Search...)
+  en: "Using {skill}..."
+  de: "{skill} wird verwendet..."
+  zh: "正在使用{skill}..."
+  es: "Usando {skill}..."
+  fr: "Utilisation de {skill}..."
+  pt: "Usando {skill}..."
+  ru: "Используется {skill}..."
+  ja: "{skill}を使用中..."
+  ko: "{skill} 사용 중..."
+  it: "Usando {skill}..."
+  tr: "{skill} kullanılıyor..."
+  vi: "Đang sử dụng {skill}..."
+  id: "Menggunakan {skill}..."
+  pl: "Używanie {skill}..."
+  nl: "{skill} wordt gebruikt..."
+  ar: "استخدام {skill}..."
+  hi: "{skill} का उपयोग हो रहा है..."
+  th: "กำลังใช้ {skill}..."
+  cs: "Používání {skill}..."
+  sv: "Använder {skill}..."
+  verified_by_human: []
 draft:
   context: Text shown for drafts
   en: "Draft:"

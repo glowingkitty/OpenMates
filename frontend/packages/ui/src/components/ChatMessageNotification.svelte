@@ -1,13 +1,16 @@
 <!-- frontend/packages/ui/src/components/ChatMessageNotification.svelte -->
 <!--
     Chat message notification component for background chat messages.
-    Shows the chat title, message preview, avatar, and includes a reply input.
+    Shows the chat title, message preview, mate profile image, and includes a reply input.
     
-    Based on Figma design:
+    Features:
+    - Mate profile image based on category (like assistant messages in ReadonlyMessage)
+    - AI sparkle badge on profile image
     - 430px width or 100% viewport (with 5px margin on smaller screens)
     - var(--color-grey-20) background
-    - Auto-dismisses after 3 seconds unless user interacts
-    - Reply input with mention dropdown support (dropdown shows BELOW input)
+    - Auto-dismisses after duration unless user interacts (click/tap/hover)
+    - Reply input with Enter to send, Shift+Enter for newline
+    - Clicking anywhere on notification interrupts auto-dismiss timer
 -->
 <script lang="ts">
     import { slide } from 'svelte/transition';
@@ -19,8 +22,8 @@
     import StarterKit from '@tiptap/starter-kit';
     import Placeholder from '@tiptap/extension-placeholder';
     
-    // Note: icons.css is loaded globally via index.ts and +layout.svelte
-    // No need to import it here - global icon classes (clickable-icon, icon_*) are available
+    // Note: icons.css and mates.css are loaded globally via index.ts and +layout.svelte
+    // No need to import them here - global icon classes and mate-profile classes are available
     
     // Props using Svelte 5 runes
     let { notification }: { notification: Notification } = $props();
@@ -31,7 +34,7 @@
     let editorElement = $state<HTMLElement | null>(null);
     let editor: Editor | null = null;
     let isFocused = $state(false);
-    let dismissTimeout: ReturnType<typeof setTimeout> | null = null;
+    let userInteracted = $state(false); // Track if user has interacted (clicked/tapped) to interrupt auto-dismiss
     
     /**
      * Handle notification dismissal
@@ -41,15 +44,25 @@
     }
     
     /**
+     * Interrupt auto-dismiss when user clicks/taps anywhere on notification.
+     * Cancels the store-level auto-dismiss timer so the notification stays
+     * visible until explicitly dismissed by the user.
+     */
+    function handleNotificationInteraction(): void {
+        if (!userInteracted) {
+            userInteracted = true;
+            // Cancel the store-level auto-dismiss timer
+            notificationStore.cancelAutoDismiss(notification.id);
+        }
+    }
+    
+    /**
      * Handle clicking the reply button to expand input
      */
-    function handleReplyClick(): void {
+    function handleReplyClick(event: MouseEvent): void {
+        event.stopPropagation(); // Prevent navigating to chat
+        handleNotificationInteraction();
         isExpanded = true;
-        // Cancel auto-dismiss when user starts typing
-        if (dismissTimeout) {
-            clearTimeout(dismissTimeout);
-            dismissTimeout = null;
-        }
         // Focus the editor after expansion
         tick().then(() => {
             editor?.commands.focus();
@@ -57,9 +70,10 @@
     }
     
     /**
-     * Handle clicking on notification to navigate to chat
+     * Handle clicking on notification content to navigate to chat
      */
     function handleNotificationClick(): void {
+        handleNotificationInteraction();
         if (notification.chatId) {
             // Navigate to the chat using the correct hash format: #chat-id={chatId}
             window.location.hash = `chat-id=${notification.chatId}`;
@@ -88,21 +102,20 @@
      * Pause auto-dismiss when user hovers over notification
      */
     function handleMouseEnter(): void {
-        if (dismissTimeout) {
-            clearTimeout(dismissTimeout);
-            dismissTimeout = null;
-        }
+        // Cancel the store-level timer on hover
+        notificationStore.cancelAutoDismiss(notification.id);
     }
     
     /**
-     * Resume auto-dismiss when user leaves notification (if not expanded)
+     * Resume auto-dismiss when user leaves notification (only if not interacted and not expanded)
+     * Note: We don't restart the store timer here because we can't set store timers from here.
+     * If the user hasn't interacted (clicked/tapped), the notification will remain until the
+     * next hover-leave cycle. This is acceptable UX - hovering shows intent to interact.
      */
     function handleMouseLeave(): void {
-        if (!isExpanded && notification.duration) {
-            dismissTimeout = setTimeout(() => {
-                handleDismiss();
-            }, notification.duration);
-        }
+        // If user hasn't clicked/tapped and hasn't expanded the reply, they just hovered briefly.
+        // The auto-dismiss was already cancelled by hover. We don't restart it - hovering
+        // counts as an interaction signal and the notification should stay visible.
     }
     
     // Initialize TipTap editor for reply input
@@ -117,16 +130,12 @@
                     }),
                 ],
                 content: '',
-                onUpdate: ({ editor }) => {
-                    replyText = editor.getText();
+                onUpdate: ({ editor: ed }) => {
+                    replyText = ed.getText();
                 },
                 onFocus: () => {
                     isFocused = true;
-                    // Cancel auto-dismiss on focus
-                    if (dismissTimeout) {
-                        clearTimeout(dismissTimeout);
-                        dismissTimeout = null;
-                    }
+                    handleNotificationInteraction();
                 },
                 onBlur: () => {
                     isFocused = false;
@@ -135,7 +144,7 @@
                     attributes: {
                         class: 'notification-reply-editor',
                     },
-                    handleKeyDown: (view, event) => {
+                    handleKeyDown: (_view, event) => {
                         if (event.key === 'Enter' && !event.shiftKey) {
                             handleSendReply();
                             return true;
@@ -148,14 +157,12 @@
     });
     
     onDestroy(() => {
-        if (dismissTimeout) {
-            clearTimeout(dismissTimeout);
-        }
         editor?.destroy();
     });
 </script>
 
 <!-- Chat message notification wrapper -->
+<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
 <div
     class="notification notification-chat-message"
     class:expanded={isExpanded}
@@ -164,6 +171,7 @@
     aria-live="polite"
     onmouseenter={handleMouseEnter}
     onmouseleave={handleMouseLeave}
+    onclick={handleNotificationInteraction}
 >
     <!-- Header row with announcement icon, title, and close button -->
     <div class="notification-header">
@@ -178,22 +186,25 @@
         </button>
     </div>
     
-    <!-- Content row with avatar and message -->
+    <!-- Content row with mate profile image and message -->
     <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div class="notification-content" onclick={handleNotificationClick}>
         <div class="notification-avatar">
             {#if notification.avatarUrl}
                 <img src={notification.avatarUrl} alt="" class="avatar-image" />
+            {:else if notification.category}
+                <!-- Mate profile image based on category (like assistant messages) -->
+                <div class="mate-profile notification-mate-profile {notification.category}"></div>
             {:else}
                 <!-- Default mate avatar with user icon -->
                 <div class="avatar-placeholder">
                     <span class="clickable-icon icon_user avatar-user-icon"></span>
                 </div>
+                <!-- AI sparkle badge (only for non-mate-profile avatars, mate-profile has its own badge) -->
+                <div class="avatar-badge">
+                    <span class="clickable-icon icon_ai avatar-badge-icon"></span>
+                </div>
             {/if}
-            <!-- AI sparkle badge -->
-            <div class="avatar-badge">
-                <span class="clickable-icon icon_ai avatar-badge-icon"></span>
-            </div>
         </div>
         <div class="notification-message-wrapper">
             <span class="notification-message-primary">{notification.message}</span>
@@ -242,6 +253,9 @@
         border-radius: 12px;
         background-color: var(--color-grey-20);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        
+        /* Enable pointer events (parent container has pointer-events: none) */
+        pointer-events: auto;
         
         /* Animation for slide-in */
         animation: slideInFromTop 0.3s ease-out;
@@ -332,6 +346,31 @@
         height: 40px;
         border-radius: 50%;
         object-fit: cover;
+    }
+    
+    /* Mate profile image in notification - smaller than chat message (40px vs 60px) */
+    /* Uses global .mate-profile class from mates.css for category-based background images */
+    .notification-avatar :global(.notification-mate-profile) {
+        width: 40px;
+        height: 40px;
+        margin: 0;
+        opacity: 1;
+        animation: none;
+    }
+    
+    /* Adjust AI badge position for the smaller notification mate profile */
+    .notification-avatar :global(.notification-mate-profile)::after {
+        bottom: -4px;
+        right: -4px;
+        width: 16px;
+        height: 16px;
+    }
+    
+    .notification-avatar :global(.notification-mate-profile)::before {
+        bottom: -2px;
+        right: -2px;
+        width: 10px;
+        height: 10px;
     }
     
     .avatar-placeholder {
@@ -431,6 +470,7 @@
         font-size: 14px;
         line-height: 1.5;
         transition: box-shadow 0.2s ease;
+        cursor: text;
     }
     
     .notification-reply-input.focused {

@@ -59,6 +59,7 @@ export interface Notification {
   chatId?: string; // The chat ID for reply functionality
   chatTitle?: string; // The chat title to display
   avatarUrl?: string; // Avatar image URL for chat message notifications
+  category?: string; // Mate category for profile image (e.g., 'software_development')
 }
 
 /**
@@ -75,6 +76,7 @@ export interface NotificationOptions {
   chatId?: string;
   chatTitle?: string;
   avatarUrl?: string;
+  category?: string;
 }
 
 export interface NotificationState {
@@ -88,6 +90,9 @@ const initialState: NotificationState = {
 const { subscribe, update } = writable<NotificationState>(initialState);
 
 let notificationIdCounter = 0;
+
+// Track auto-dismiss timeouts so they can be paused/cancelled per notification
+const autoDismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export const notificationStore = {
   subscribe,
@@ -117,9 +122,10 @@ export const notificationStore = {
     });
 
     if (duration) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         notificationStore.removeNotification(id);
       }, duration);
+      autoDismissTimers.set(id, timer);
     }
     return id;
   },
@@ -147,9 +153,10 @@ export const notificationStore = {
     });
 
     if (newNotification.duration) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         notificationStore.removeNotification(id);
       }, newNotification.duration);
+      autoDismissTimers.set(id, timer);
     }
     return id;
   },
@@ -168,7 +175,25 @@ export const notificationStore = {
     });
   },
 
+  /**
+   * Cancel the auto-dismiss timer for a notification (e.g., when user clicks/taps).
+   * The notification will remain visible until explicitly dismissed.
+   */
+  cancelAutoDismiss: (id: string) => {
+    const timer = autoDismissTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      autoDismissTimers.delete(id);
+    }
+  },
+
   removeNotification: (id: string) => {
+    // Clean up any pending auto-dismiss timer
+    const timer = autoDismissTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      autoDismissTimers.delete(id);
+    }
     update((state) => {
       return {
         notifications: state.notifications.filter((n) => n.id !== id),
@@ -177,6 +202,9 @@ export const notificationStore = {
   },
 
   clearAllNotifications: () => {
+    // Clean up all auto-dismiss timers
+    autoDismissTimers.forEach((timer) => clearTimeout(timer));
+    autoDismissTimers.clear();
     update(() => {
       return {
         notifications: [],
@@ -282,6 +310,7 @@ export const notificationStore = {
     chatTitle: string,
     message: string,
     avatarUrl?: string,
+    category?: string,
   ) =>
     notificationStore.addNotificationWithOptions("chat_message", {
       title: chatTitle,
@@ -289,6 +318,7 @@ export const notificationStore = {
       chatId,
       chatTitle,
       avatarUrl,
+      category,
       duration: 10000, // 10 seconds - enough time to read the preview and decide to reply
       dismissible: true,
     }),
