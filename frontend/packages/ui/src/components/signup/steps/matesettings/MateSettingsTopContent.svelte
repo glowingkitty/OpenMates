@@ -10,9 +10,9 @@ step_8_top_content_svelte:
     mates_explainer:
         type: 'text'
         text:
-            - $text('settings.mates.text')
-            - $text('signup.you_can_customize_your_mates.text')
-            - $text('signup.click_toggle_to_open_settings.text')
+            - $text('settings.mates')
+            - $text('signup.you_can_customize_your_mates')
+            - $text('signup.click_toggle_to_open_settings')
         purpose:
             - 'Explains how to customize digital team mates settings'
         bigger_context:
@@ -25,9 +25,9 @@ step_8_top_content_svelte:
     settings_block:
         type: 'settings_block'
         text:
-            - $text('signup.default_settings.text')
-            - $text('settings.mates.text')
-            - $text('settings.ai_providers.text')
+            - $text('signup.default_settings')
+            - $text('settings.mates')
+            - $text('settings.ai_providers')
         purpose:
             - 'Quick access to Mates and AI provider settings.'
         processing:
@@ -117,26 +117,26 @@ step_8_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size mates"></div>
-        <h2 class="signup-menu-title">{@html $text('settings.mates.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('settings.mates')}</h2>
     </div>
     
     <div class="text-block">
-        {@html $text('signup.you_can_customize_your_mates.text')}
+        {@html $text('signup.you_can_customize_your_mates')}
         <span class="break-line"></span>
         <span class="break-line mobile-hidden"></span>
-        <mark>{@html $text('signup.click_toggle_to_open_settings.text')}</mark>
+        <mark>{@html $text('signup.click_toggle_to_open_settings')}</mark>
     </div>
     
     <div class="settings-block">
         <div class="settings-header">
-            <div class="default-settings-text">{@html $text('signup.default_settings.text')}</div>
+            <div class="default-settings-text">{@html $text('signup.default_settings')}</div>
         </div>
 
         <!-- Mates Setting Item -->
         <SettingsItem 
             type="submenu" 
             icon="mates" 
-            title={$text('settings.mates.text')}
+            title={$text('settings.mates')}
             onClick={() => handleSettingsClick('mates')}
             hasToggle={true}
             checked={matesToggleOn}
@@ -147,7 +147,7 @@ step_8_top_content_svelte:
         <SettingsItem 
             type="submenu" 
             icon="app-ai" 
-            subtitleTop={$text('signup.ai_providers.text')}
+            subtitleTop={$text('signup.ai_providers')}
             onClick={() => handleSettingsClick('apps')}
             hasToggle={true}
             checked={aiProvidersToggleOn}
@@ -160,7 +160,7 @@ step_8_top_content_svelte:
                     type="nested"
                     icon={`provider-${provider.name.toLowerCase()}`}
                     title={provider.name}
-                    subtitleBottom={$text('signup.location_company_server.text', { 
+                    subtitleBottom={$text('signup.location_company_server', { 
                         values: { 
                             company_region: provider.company_region, 
                             server_region: provider.server_region 

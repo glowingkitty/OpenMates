@@ -10,8 +10,8 @@ step_10_top_content_svelte:
     credits_amount_header:
         type: 'text'
         text:
-            - $text('signup.amount_currency.text') with amount and currency icon
-            - $text('signup.for_chatting_and_apps.text')
+            - $text('signup.amount_currency') with amount and currency icon
+            - $text('signup.for_chatting_and_apps')
         purpose:
             - 'Display the amount of credits the user will receive'
         bigger_context:
@@ -176,7 +176,7 @@ step_10_top_content_svelte:
             <div class="top-container">
                 <div class="header-content">
                     <div class="primary-text">
-                        {@html $text('signup.amount_currency.text')
+                        {@html $text('signup.amount_currency')
                             .replace('{currency}', '<span class="coin-icon-inline"></span>')
                             .replace('{amount}', formatNumber(credits_amount))}
                     </div>
@@ -189,7 +189,7 @@ step_10_top_content_svelte:
                         <div class="success-message-container">
                             <div class="success-icon-large"></div>
                             <div class="success-text">
-                                {@html $text('signup.gift_card_redeemed_success.text')}
+                                {@html $text('signup.gift_card_redeemed_success')}
                             </div>
                         </div>
                     </div>
@@ -201,7 +201,7 @@ step_10_top_content_svelte:
                 <div class="header-content">
                     <div class="success-icon"></div>
                     <div class="primary-text">
-                        {@html $text('signup.purchase_successful.text')}
+                        {@html $text('signup.purchase_successful')}
                     </div>
                 </div>
             </div>
@@ -228,7 +228,7 @@ step_10_top_content_svelte:
         <div class="top-container">
             <div class="header-content">
                 <div class="primary-text">
-                    {@html $text('signup.amount_currency.text')
+                    {@html $text('signup.amount_currency')
                         .replace('{currency}', '<span class="coin-icon-inline"></span>')
                         .replace('{amount}', formatNumber(credits_amount))}
                 </div>

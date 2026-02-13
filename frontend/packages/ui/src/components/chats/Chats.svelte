@@ -2327,7 +2327,7 @@ async function updateChatListFromDBInternal(force = false) {
                 // Get the chat to hide
                 const chatToHide = await chatDB.getChat(chatIdToHideAfterInlineUnlock);
                 if (!chatToHide) {
-                    inlineUnlockError = $text('chats.hidden_chats.unlock_error.text', {
+                    inlineUnlockError = $text('chats.hidden_chats.unlock_error', {
                         default: 'Error: Chat not found'
                     });
                     inlineUnlockLoading = false;
@@ -2342,7 +2342,7 @@ async function updateChatListFromDBInternal(force = false) {
                         chatKey = await decryptChatKeyWithMasterKey(chatToHide.encrypted_chat_key);
                     } catch (error) {
                         console.error('[Chats] Error decrypting chat key for hiding:', error);
-                        inlineUnlockError = $text('chats.hidden_chats.unlock_error.text', {
+                        inlineUnlockError = $text('chats.hidden_chats.unlock_error', {
                             default: 'Error decrypting chat key'
                         });
                         inlineUnlockLoading = false;
@@ -2351,7 +2351,7 @@ async function updateChatListFromDBInternal(force = false) {
                 }
                 
                 if (!chatKey) {
-                    inlineUnlockError = $text('chats.hidden_chats.unlock_error.text', {
+                    inlineUnlockError = $text('chats.hidden_chats.unlock_error', {
                         default: 'Error: Chat key not found'
                     });
                     inlineUnlockLoading = false;
@@ -2361,7 +2361,7 @@ async function updateChatListFromDBInternal(force = false) {
                 // Encrypt chat key with the password (this doesn't unlock, just encrypts)
                 const encryptedChatKey = await hiddenChatService.encryptChatKeyWithCode(chatKey, inlineUnlockCode);
                 if (!encryptedChatKey) {
-                    inlineUnlockError = $text('chats.hidden_chats.unlock_error.text', {
+                    inlineUnlockError = $text('chats.hidden_chats.unlock_error', {
                         default: 'Error encrypting chat'
                     });
                     inlineUnlockLoading = false;
@@ -2403,7 +2403,7 @@ async function updateChatListFromDBInternal(force = false) {
                 await updateChatListFromDB(true);
             } else {
                 // Incorrect password (some chats decrypted but not all, or other error)
-                inlineUnlockError = $text('chats.hidden_chats.incorrect_password.text', {
+                inlineUnlockError = $text('chats.hidden_chats.incorrect_password', {
                     default: 'Incorrect password. Please try again.'
                 });
                 inlineUnlockCode = ''; // Clear password on error
@@ -2411,7 +2411,7 @@ async function updateChatListFromDBInternal(force = false) {
             }
         } catch (error) {
             console.error('[Chats] Error unlocking hidden chats:', error);
-            inlineUnlockError = $text('chats.hidden_chats.unlock_error.text', {
+            inlineUnlockError = $text('chats.hidden_chats.unlock_error', {
                 default: 'An error occurred. Please try again.'
             });
             inlineUnlockCode = '';
@@ -2882,7 +2882,7 @@ async function updateChatListFromDBInternal(force = false) {
 							console.debug('[Chats] Selected all chats:', selectedChatIds.size);
 						}}
 					>
-						{$text('chats.select_all.text')}
+						{$text('chats.select_all')}
 					</button>
 					<button
 						class="select-mode-button"
@@ -2892,7 +2892,7 @@ async function updateChatListFromDBInternal(force = false) {
 							console.debug('[Chats] Unselected all chats');
 						}}
 					>
-						{$text('chats.unselect_all.text')}
+						{$text('chats.unselect_all')}
 					</button>
 					<button
 						class="select-mode-button cancel"
@@ -2903,12 +2903,12 @@ async function updateChatListFromDBInternal(force = false) {
 							console.debug('[Chats] Exited select mode and cleared selection');
 						}}
 					>
-						{$text('chats.cancel.text')}
+						{$text('chats.cancel')}
 					</button>
 				{:else}
 					<button
 						class="clickable-icon icon_close top-button right"
-						aria-label={$text('activity.close.text')}
+						aria-label={$text('activity.close')}
 						onclick={handleClose}
 						use:tooltip
 					></button>
@@ -2930,7 +2930,7 @@ async function updateChatListFromDBInternal(force = false) {
 			<div class="show-hidden-chats-container">
 				<div class="syncing-inline-indicator" aria-live="polite">
 					<span class="clickable-icon icon_reload syncing-icon"></span>
-					<span class="syncing-text">{$text('activity.syncing.text')}</span>
+					<span class="syncing-text">{$text('activity.syncing')}</span>
 				</div>
 			</div>
 		{:else if !hiddenChatState.isUnlocked}
@@ -2950,7 +2950,7 @@ async function updateChatListFromDBInternal(force = false) {
 						}}
 					>
 						<span class="clickable-icon icon_hidden"></span>
-						<span>{$text('chats.hidden_chats.show_hidden_chats.text', { default: 'Show hidden chats' })}</span>
+						<span>{$text('chats.hidden_chats.show_hidden_chats', { default: 'Show hidden chats' })}</span>
 					</button>
 				</div>
 			{:else}
@@ -2959,12 +2959,12 @@ async function updateChatListFromDBInternal(force = false) {
 					<div class="overscroll-unlock-content">
 						<p class="overscroll-unlock-label">
 							<span class="clickable-icon icon_hidden"></span>
-							<span>{$text('chats.hidden_chats.show_hidden_chats.text', { default: 'Show hidden chats' })}</span>
+							<span>{$text('chats.hidden_chats.show_hidden_chats', { default: 'Show hidden chats' })}</span>
 						</p>
 						{#if $authStore.isAuthenticated}
 							<!-- Authenticated users: show unlock form -->
 							<p class="overscroll-unlock-info" style="font-size: 12px; color: var(--color-grey-60); margin-bottom: 8px;">
-								{$text('chats.hidden_chats.password_info.text', { default: 'Each unique password can be used to hide/show different chats.' })}
+								{$text('chats.hidden_chats.password_info', { default: 'Each unique password can be used to hide/show different chats.' })}
 							</p>
 							<form onsubmit={handleInlineUnlock}>
 								<div class="overscroll-unlock-input-wrapper">
@@ -2984,7 +2984,7 @@ async function updateChatListFromDBInternal(force = false) {
 											inlineUnlockCode = value;
 											inlineUnlockError = ''; // Clear error on input
 										}}
-										placeholder={$text('chats.hidden_chats.password_placeholder.text', { default: 'Enter password (4-30 characters)' })}
+										placeholder={$text('chats.hidden_chats.password_placeholder', { default: 'Enter password (4-30 characters)' })}
 										maxlength="30"
 										disabled={inlineUnlockLoading}
 									/>
@@ -3000,14 +3000,14 @@ async function updateChatListFromDBInternal(force = false) {
 									{#if inlineUnlockLoading}
 										<span class="loading-spinner"></span>
 									{:else}
-										{$text('chats.hidden_chats.unlock_button.text', { default: 'Unlock' })}
+										{$text('chats.hidden_chats.unlock_button', { default: 'Unlock' })}
 									{/if}
 								</button>
 							</form>
 						{:else}
 							<!-- Non-authenticated users: show placeholder message -->
 							<p class="overscroll-unlock-info">
-								<span>{$text('chats.hidden_chats.login_required.text')}</span>
+								<span>{$text('chats.hidden_chats.login_required')}</span>
 							</p>
 						{/if}
 						<button
@@ -3019,7 +3019,7 @@ async function updateChatListFromDBInternal(force = false) {
 								inlineUnlockError = '';
 								chatIdToHideAfterInlineUnlock = null;
 							}}
-							aria-label={$text('activity.close.text', { default: 'Close' })}
+							aria-label={$text('activity.close', { default: 'Close' })}
 						></button>
 					</div>
 				</div>
@@ -3027,7 +3027,7 @@ async function updateChatListFromDBInternal(force = false) {
 		{/if}
 		
 		{#if !allChats || allChats.length === 0}
-			<div class="no-chats-indicator">{$text('activity.no_chats.text')}</div>
+			<div class="no-chats-indicator">{$text('activity.no_chats')}</div>
 		{:else}
 			<!-- Hidden chats section (shown when unlocked) - reusing overscroll-unlock-container styling -->
 			{#if hiddenChatState.isUnlocked}
@@ -3035,7 +3035,7 @@ async function updateChatListFromDBInternal(force = false) {
 					<div class="overscroll-unlock-content">
 						<p class="overscroll-unlock-label">
 							<span class="clickable-icon icon_hidden"></span>
-							<span>{$text('chats.hidden_chats.title.text')}:</span>
+							<span>{$text('chats.hidden_chats.title')}:</span>
 						</p>
 						{#if hiddenChats.length > 0}
 							<div class="chat-groups">
@@ -3081,7 +3081,7 @@ async function updateChatListFromDBInternal(force = false) {
 						{:else}
 							<!-- Show "No hidden chats" message when section is unlocked but empty -->
 							<div class="no-hidden-chats-message">
-								<p>{$text('chats.hidden_chats.no_hidden_chats.text', { default: 'No hidden chats' })}</p>
+								<p>{$text('chats.hidden_chats.no_hidden_chats', { default: 'No hidden chats' })}</p>
 							</div>
 						{/if}
 						<!-- Single lock button at the bottom -->
@@ -3095,7 +3095,7 @@ async function updateChatListFromDBInternal(force = false) {
 							}}
 						>
 							<div class="clickable-icon icon_lock"></div>
-							<span>{$text('chats.hidden_chats.lock.text')}</span>
+							<span>{$text('chats.hidden_chats.lock')}</span>
 						</button>
 					</div>
 				</div>
@@ -3237,7 +3237,7 @@ async function updateChatListFromDBInternal(force = false) {
 							{#if loadingMoreChats}
 								...
 							{:else}
-								{$text('chats.loadMore.button.text')}
+								{$text('chats.loadMore.button')}
 							{/if}
 						</button>
 					</div>

@@ -1,5 +1,5 @@
-name_translation_key: ai.text
-description_translation_key: ai.description.text
+name_translation_key: ai
+description_translation_key: ai.description
 icon_image: |
   ai.svg
 last_updated: "2025-11-12"
@@ -20,8 +20,8 @@ provider_display_order:
 
 settings_and_memories:
   - id: communication_style
-    name_translation_key: ai.communication_style.text
-    description_translation_key: ai.communication_style.description.text
+    name_translation_key: ai.communication_style
+    description_translation_key: ai.communication_style.description
     type: single
     stage: production
     schema:
@@ -54,8 +54,8 @@ settings_and_memories:
         - verbosity
 
   - id: learning_preferences
-    name_translation_key: ai.learning_preferences.text
-    description_translation_key: ai.learning_preferences.description.text
+    name_translation_key: ai.learning_preferences
+    description_translation_key: ai.learning_preferences.description
     type: list
     stage: production
     schema:
@@ -94,8 +94,8 @@ settings_and_memories:
         - preference_strength
 
   - id: interaction_preferences
-    name_translation_key: ai.interaction_preferences.text
-    description_translation_key: ai.interaction_preferences.description.text
+    name_translation_key: ai.interaction_preferences
+    description_translation_key: ai.interaction_preferences.description
     type: single
     stage: planning
     schema:
@@ -133,8 +133,8 @@ settings_and_memories:
 
 skills:
   - id: ask
-    name_translation_key: ai.ask.text
-    description_translation_key: ai.ask.description.text
+    name_translation_key: ai.ask
+    description_translation_key: ai.ask.description
     stage: production
     class_path: |
       ai.skills.ask_skill.AskSkill

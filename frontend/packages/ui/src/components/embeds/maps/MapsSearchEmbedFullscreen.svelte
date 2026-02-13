@@ -111,11 +111,11 @@
   });
   
   // Get skill name from translations (matches preview)
-  let skillName = $derived($text('embeds.search.text') || 'Search');
+  let skillName = $derived($text('embeds.search') || 'Search');
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
-    `${$text('embeds.via.text') || 'via'} ${provider}`
+    `${$text('embeds.via') || 'via'} ${provider}`
   );
   
   /**
@@ -393,11 +393,11 @@
     
     {#if ctx.isLoadingChildren}
       <div class="loading-state">
-        <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+        <p>{$text('embeds.loading') || 'Loading...'}</p>
       </div>
     {:else if placeResults.length === 0}
       <div class="no-results">
-        <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
+        <p>{$text('embeds.no_results') || 'No search results available.'}</p>
       </div>
     {:else}
       <!-- Desktop: Side-by-side layout (list left, map right) -->
@@ -457,7 +457,7 @@
         <!-- Map container -->
         <div class="map-container" class:mobile={isMobile} bind:this={mapContainer}>
           {#if !map}
-            <div class="map-loading">{$text('embeds.loading_map.text') || 'Loading map...'}</div>
+            <div class="map-loading">{$text('embeds.loading_map') || 'Loading map...'}</div>
           {/if}
         </div>
       </div>

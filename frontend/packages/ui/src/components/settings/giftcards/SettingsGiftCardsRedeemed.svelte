@@ -58,7 +58,7 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
             redeemedCards = data.redeemed_cards || [];
         } catch (error) {
             console.error('Error fetching redeemed gift cards:', error);
-            errorMessage = $text('settings.gift_cards.error_fetch_failed.text');
+            errorMessage = $text('settings.gift_cards.error_fetch_failed');
             notificationStore.error(errorMessage);
         } finally {
             isLoading = false;
@@ -71,15 +71,15 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
 </script>
 
 {#if isLoading}
-    <div class="loading-message">{$text('settings.gift_cards.loading.text')}</div>
+    <div class="loading-message">{$text('settings.gift_cards.loading')}</div>
 {:else if errorMessage}
     <div class="error-message">{errorMessage}</div>
     <button class="retry-button" onclick={fetchRedeemedCards}>
-        {$text('settings.gift_cards.retry.text')}
+        {$text('settings.gift_cards.retry')}
     </button>
 {:else if redeemedCards.length === 0}
     <div class="empty-state">
-        <p>{$text('settings.gift_cards.redeemed_empty.text')}</p>
+        <p>{$text('settings.gift_cards.redeemed_empty')}</p>
     </div>
 {:else}
     <!-- List of redeemed gift cards -->
@@ -88,7 +88,7 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
             type="nested"
             icon="subsetting_icon subsetting_icon_coins"
             title={card.gift_card_code}
-            subtitle={`${formatCredits(card.credits_value)} ${$text('settings.gift_cards.credits.text')} - ${formatDate(card.redeemed_at)}`}
+            subtitle={`${formatCredits(card.credits_value)} ${$text('settings.gift_cards.credits')} - ${formatDate(card.redeemed_at)}`}
         />
     {/each}
 {/if}

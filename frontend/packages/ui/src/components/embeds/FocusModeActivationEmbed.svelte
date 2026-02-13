@@ -46,7 +46,7 @@
     focusId: string;
     /** App ID that owns the focus mode */
     appId: string;
-    /** Translated display name of the focus mode (translation key like 'jobs.career_insights.text') */
+    /** Translated display name of the focus mode (translation key like 'jobs.career_insights') */
     focusModeName: string;
     /**
      * Whether this focus mode is already active on the chat (from server/IndexedDB state).
@@ -100,7 +100,7 @@
   let isRejected = $state(wasAlreadyRejected);
   let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
-  // Resolve the focus mode name — may be a translation key like "jobs.career_insights.text"
+  // Resolve the focus mode name — may be a translation key like "jobs.career_insights"
   // or a pre-resolved display name from the backend like "Career Insights"
   let focusFallbackName = $derived(
     focusModeName.split('.').slice(-2, -1)[0]?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || focusModeName
@@ -119,9 +119,9 @@
       return '';
     }
     if (isActivated) {
-      return $text('embeds.focus_mode.activated.text', { default: 'Focus activated' });
+      return $text('embeds.focus_mode.activated', { default: 'Focus activated' });
     }
-    return $text('embeds.focus_mode.activating.text', {
+    return $text('embeds.focus_mode.activating', {
       default: `Activate in ${countdownValue} sec ...`,
       values: { seconds: String(countdownValue) }
     });
@@ -306,7 +306,7 @@
   <!-- Helper text below the bar during countdown -->
   {#if !isActivated}
     <div class="reject-hint">
-      {$text('embeds.focus_mode.reject_hint.text', {
+      {$text('embeds.focus_mode.reject_hint', {
         default: 'Click or press ESC to prevent focus mode &\ncontinue regular chat'
       })}
     </div>

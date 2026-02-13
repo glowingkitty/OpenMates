@@ -160,7 +160,7 @@
   let filteredRowCount = $derived(displayRows.length);
   
   // Build skill name for BasicInfosBar
-  let skillName = $derived.by(() => renderTitle || $text('embeds.table.text'));
+  let skillName = $derived.by(() => renderTitle || $text('embeds.table'));
   
   // Build status text
   let statusText = $derived.by(() => {

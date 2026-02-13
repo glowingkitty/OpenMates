@@ -112,7 +112,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     }
 
     async function revokeDevice(deviceId: string) {
-        if (!confirm($text('settings.developers_devices_confirm_revoke.text'))) {
+        if (!confirm($text('settings.developers_devices_confirm_revoke'))) {
             return;
         }
 
@@ -155,10 +155,10 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 
     function getAccessTypeLabel(accessType: string): string {
         const labels: Record<string, string> = {
-            'rest_api': $text('settings.developers_devices_access_type_rest_api.text'),
-            'cli': $text('settings.developers_devices_access_type_cli.text'),
-            'pip': $text('settings.developers_devices_access_type_pip.text'),
-            'npm': $text('settings.developers_devices_access_type_npm.text')
+            'rest_api': $text('settings.developers_devices_access_type_rest_api'),
+            'cli': $text('settings.developers_devices_access_type_cli'),
+            'pip': $text('settings.developers_devices_access_type_pip'),
+            'npm': $text('settings.developers_devices_access_type_npm')
         };
         return labels[accessType] || accessType;
     }
@@ -178,7 +178,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     // Save renamed device
     async function saveRename(deviceId: string) {
         if (!editingDeviceName.trim()) {
-            error = $text('settings.developers_devices_rename_empty_error.text');
+            error = $text('settings.developers_devices_rename_empty_error');
             return;
         }
 
@@ -223,18 +223,18 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 </script>
 
 <div class="devices-container">
-    <h2 class="page-title">{$text('settings.developers_devices_text.text')}</h2>
-    <p class="page-description">{$text('settings.developers_devices_description.text')}</p>
+    <h2 class="page-title">{$text('settings.developers_devices_text')}</h2>
+    <p class="page-description">{$text('settings.developers_devices_description')}</p>
 
     {#if error}
         <div class="error-message">{error}</div>
     {/if}
 
     {#if loading}
-        <div class="loading">{$text('settings.developers_devices_loading.text')}</div>
+        <div class="loading">{$text('settings.developers_devices_loading')}</div>
     {:else if devices.length === 0}
         <div class="empty-state">
-            <p>{$text('settings.developers_devices_no_devices.text')}</p>
+            <p>{$text('settings.developers_devices_no_devices')}</p>
         </div>
     {:else}
         <div class="devices-list">
@@ -249,7 +249,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                                         type="text"
                                         class="device-name-input"
                                         bind:value={editingDeviceName}
-                                        placeholder={$text('settings.developers_devices_name_placeholder.text')}
+                                        placeholder={$text('settings.developers_devices_name_placeholder')}
                                         disabled={processingDeviceId === device.id}
                                     />
                                     <div class="device-name-actions">
@@ -258,14 +258,14 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                                             onclick={() => saveRename(device.id)}
                                             disabled={processingDeviceId === device.id}
                                         >
-                                            {processingDeviceId === device.id ? $text('settings.developers_devices_processing.text') : $text('settings.developers_devices_save.text')}
+                                            {processingDeviceId === device.id ? $text('settings.developers_devices_processing') : $text('settings.developers_devices_save')}
                                         </button>
                                         <button
                                             class="btn btn-cancel"
                                             onclick={() => cancelEdit()}
                                             disabled={processingDeviceId === device.id}
                                         >
-                                            {$text('settings.developers_devices_cancel.text')}
+                                            {$text('settings.developers_devices_cancel')}
                                         </button>
                                     </div>
                                 </div>
@@ -283,20 +283,20 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                         </div>
                         <div class="device-status">
                             {#if device.approved_at}
-                                <span class="status-badge approved">{$text('settings.developers_devices_status_approved.text')}</span>
+                                <span class="status-badge approved">{$text('settings.developers_devices_status_approved')}</span>
                             {:else}
-                                <span class="status-badge pending">{$text('settings.developers_devices_status_pending.text')}</span>
+                                <span class="status-badge pending">{$text('settings.developers_devices_status_pending')}</span>
                             {/if}
                         </div>
                     </div>
 
                     <div class="device-details">
                         <div class="detail-row">
-                            <span class="detail-label">{$text('settings.developers_devices_first_access.text')}:</span>
+                            <span class="detail-label">{$text('settings.developers_devices_first_access')}:</span>
                             <span class="detail-value">{formatDate(device.first_access_at)}</span>
                         </div>
                         <div class="detail-row">
-                            <span class="detail-label">{$text('settings.developers_devices_last_access.text')}:</span>
+                            <span class="detail-label">{$text('settings.developers_devices_last_access')}:</span>
                             <span class="detail-value">{formatDate(device.last_access_at)}</span>
                         </div>
                     </div>
@@ -308,7 +308,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                                 onclick={() => startEdit(device)}
                                 disabled={processingDeviceId === device.id}
                             >
-                                {$text('settings.developers_devices_rename.text')}
+                                {$text('settings.developers_devices_rename')}
                             </button>
                             {#if !device.approved_at}
                                 <button
@@ -316,7 +316,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                                     onclick={() => approveDevice(device.id)}
                                     disabled={processingDeviceId === device.id}
                                 >
-                                    {processingDeviceId === device.id ? $text('settings.developers_devices_processing.text') : $text('settings.developers_devices_approve.text')}
+                                    {processingDeviceId === device.id ? $text('settings.developers_devices_processing') : $text('settings.developers_devices_approve')}
                                 </button>
                             {/if}
                             <button
@@ -324,7 +324,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                                 onclick={() => revokeDevice(device.id)}
                                 disabled={processingDeviceId === device.id}
                             >
-                                {processingDeviceId === device.id ? $text('settings.developers_devices_processing.text') : $text('settings.developers_devices_revoke.text')}
+                                {processingDeviceId === device.id ? $text('settings.developers_devices_processing') : $text('settings.developers_devices_revoke')}
                             </button>
                         {/if}
                     </div>

@@ -68,17 +68,17 @@ Security Notes:
             
             // Get the appropriate translation based on the login method
             if (loginMethod === 'password') {
-                loginSecretText = $text('signup.password.text');
+                loginSecretText = $text('signup.password');
             } else if (loginMethod === 'passkey') {
-                loginSecretText = $text('signup.passkey.text');
+                loginSecretText = $text('signup.passkey');
             } else if (loginMethod === 'security_key') {
-                loginSecretText = $text('signup.security_key.text');
+                loginSecretText = $text('signup.security_key');
             } else {
-                loginSecretText = $text('signup.password.text');
+                loginSecretText = $text('signup.password');
             }
         } catch (error) {
             console.error("Error retrieving login method:", error);
-            loginSecretText = $text('signup.password.text');
+            loginSecretText = $text('signup.password');
         }
         
         // Auto-generate recovery key immediately on mount
@@ -102,7 +102,7 @@ Security Notes:
             // Step 2: Get the user's email (needed for lookup hash context)
             const email = cryptoService.getEmailDecryptedWithMasterKey();
             if (!email) {
-                errorMessage = $text('signup.recovery_key_error_email.text');
+                errorMessage = $text('signup.recovery_key_error_email');
                 console.error('[RECOVERY_KEY] Could not retrieve email');
                 loading = false;
                 return;
@@ -111,7 +111,7 @@ Security Notes:
             // Step 3: Get the master key that needs to be wrapped
             const masterKey = await cryptoService.getKeyFromStorage();
             if (!masterKey) {
-                errorMessage = $text('signup.recovery_key_error_encryption_key.text');
+                errorMessage = $text('signup.recovery_key_error_encryption_key');
                 console.error('[RECOVERY_KEY] Could not retrieve master key');
                 loading = false;
                 return;
@@ -120,7 +120,7 @@ Security Notes:
             // Step 4: Get the user's email salt for lookup hash generation
             const userEmailSalt = cryptoService.getEmailSalt();
             if (!userEmailSalt) {
-                errorMessage = $text('signup.recovery_key_error_encryption_data.text');
+                errorMessage = $text('signup.recovery_key_error_encryption_data');
                 console.error('[RECOVERY_KEY] Email salt is required');
                 loading = false;
                 return;
@@ -150,7 +150,7 @@ Security Notes:
             
         } catch (err) {
             console.error('[RECOVERY_KEY] Error generating recovery key:', err);
-            errorMessage = $text('signup.recovery_key_error_generic.text');
+            errorMessage = $text('signup.recovery_key_error_generic');
             loading = false;
         }
     }
@@ -174,9 +174,9 @@ Security Notes:
         const result = await copyRecoveryKeyToClipboard(recoveryKey);
         if (result.success) {
             hasCopied = true;
-            notificationStore.success($text('enter_message.press_and_hold_menu.copied_to_clipboard.text'), 3000);
+            notificationStore.success($text('enter_message.press_and_hold_menu.copied_to_clipboard'), 3000);
         } else {
-            notificationStore.error($text('signup.copy_failed.text'), 3000);
+            notificationStore.error($text('signup.copy_failed'), 3000);
         }
     }
     
@@ -203,7 +203,7 @@ Security Notes:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size warning"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.recovery_key.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.recovery_key')}</h2>
     </div>
 
     <div class="recovery-content" in:fade>
@@ -211,25 +211,25 @@ Security Notes:
             <!-- Loading state while generating -->
             <div class="loading-container">
                 <div class="spinner"></div>
-                <p class="loading-text">{$text('signup.generating_recovery_key.text')}</p>
+                <p class="loading-text">{$text('signup.generating_recovery_key')}</p>
             </div>
         {:else if errorMessage}
             <!-- Error state with retry option -->
             <div class="error-container">
                 <p class="error-text">{errorMessage}</p>
                 <button class="retry-button" onclick={handleRetry}>
-                    {$text('login.retry.text')}
+                    {$text('login.retry')}
                 </button>
             </div>
         {:else}
             <!-- Success state - show key and save options -->
             <div class="description-text">
-                {@html $text('signup.recovery_key_save_description.text').replace('{login_secret}', loginSecretText)}
+                {@html $text('signup.recovery_key_save_description').replace('{login_secret}', loginSecretText)}
             </div>
 
             <!-- Save options -->
             <div class="save-options">
-                <p class="save-instruction">{$text('signup.choose_how_to_save.text')}</p>
+                <p class="save-instruction">{$text('signup.choose_how_to_save')}</p>
                 
                 <div class="save-buttons">
                     <!-- Download button -->
@@ -237,11 +237,11 @@ Security Notes:
                         class="save-button"
                         class:used={hasDownloaded}
                         onclick={handleDownload}
-                        aria-label={$text('enter_message.press_and_hold_menu.download.text')}
+                        aria-label={$text('enter_message.press_and_hold_menu.download')}
                         use:tooltip
                     >
                         <div class="clickable-icon icon_download" style="width: 24px; height: 24px"></div>
-                        <span>{$text('signup.download.text')}</span>
+                        <span>{$text('signup.download')}</span>
                         {#if hasDownloaded}
                             <span class="check-mark">✓</span>
                         {/if}
@@ -252,11 +252,11 @@ Security Notes:
                         class="save-button"
                         class:used={hasCopied}
                         onclick={handleCopy}
-                        aria-label={$text('signup.copy.text')}
+                        aria-label={$text('signup.copy')}
                         use:tooltip
                     >
                         <div class="clickable-icon icon_copy" style="width: 24px; height: 24px"></div>
-                        <span>{$text('signup.copy.text')}</span>
+                        <span>{$text('signup.copy')}</span>
                         {#if hasCopied}
                             <span class="check-mark">✓</span>
                         {/if}
@@ -267,11 +267,11 @@ Security Notes:
                         class="save-button"
                         class:used={hasPrinted}
                         onclick={handlePrint}
-                        aria-label={$text('signup.print.text')}
+                        aria-label={$text('signup.print')}
                         use:tooltip
                     >
                         <span class="print-icon">🖨️</span>
-                        <span>{$text('signup.print.text')}</span>
+                        <span>{$text('signup.print')}</span>
                         {#if hasPrinted}
                             <span class="check-mark">✓</span>
                         {/if}

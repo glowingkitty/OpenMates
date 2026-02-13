@@ -201,13 +201,13 @@
      */
     function getCategoryDisplayName(categoryKey: string): string {
         const translationMap: Record<string, string> = {
-            'top_picks': 'settings.app_store.categories.explore_discover.text',
-            'most_used': 'settings.app_store.categories.most_used.text',
-            'new_apps': 'settings.app_store.categories.new_apps.text',
-            'for_work': 'settings.app_store.categories.for_work.text',
-            'for_everyday_life': 'settings.app_store.categories.for_everyday_life.text'
+            'top_picks': 'settings.app_store.categories.explore_discover',
+            'most_used': 'settings.app_store.categories.most_used',
+            'new_apps': 'settings.app_store.categories.new_apps',
+            'for_work': 'settings.app_store.categories.for_work',
+            'for_everyday_life': 'settings.app_store.categories.for_everyday_life'
         };
-        const translationKey = translationMap[categoryKey] || 'settings.app_store.categories.other.text';
+        const translationKey = translationMap[categoryKey] || 'settings.app_store.categories.other';
         return $text(translationKey);
     }
     
@@ -440,7 +440,7 @@
             settingsPath: 'app_store/all',
             direction: 'forward',
             icon: 'app',
-            title: $text('settings.app_store.show_all_apps.text')
+            title: $text('settings.app_store.show_all_apps')
         });
     }
     
@@ -504,7 +504,7 @@
             <SettingsItem 
                 type="submenu"
                 icon="app"
-                title={$text('settings.app_store.show_all_apps.text')}
+                title={$text('settings.app_store.show_all_apps')}
                 onClick={showAllApps}
             />
         </div>

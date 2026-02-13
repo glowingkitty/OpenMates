@@ -335,7 +335,7 @@
     {#if embedCredits !== null && embedCredits > 0}
       <div class="embed-credits">
         <div class="clickable-icon icon_coins"></div>
-        {formatCredits(embedCredits)} {$text('chats.context_menu.credits.text', { default: 'credits' })}
+        {formatCredits(embedCredits)} {$text('chats.context_menu.credits', { default: 'credits' })}
       </div>
     {/if}
     
@@ -346,7 +346,7 @@
         onclick={(event) => handleButtonClick('view', event)}
       >
         <div class="clickable-icon icon_fullscreen"></div>
-        {$text('embeds.context_menu.view.text', { default: 'View' })}
+        {$text('embeds.context_menu.view', { default: 'View' })}
       </button>
     {/if}
 
@@ -357,7 +357,7 @@
         onclick={(event) => handleButtonClick('share', event)}
       >
         <div class="clickable-icon icon_share"></div>
-        {$text('embeds.context_menu.share.text', { default: 'Share' })}
+        {$text('embeds.context_menu.share', { default: 'Share' })}
       </button>
     {/if}
 
@@ -368,7 +368,7 @@
         onclick={(event) => handleButtonClick('copy', event)}
       >
         <div class="clickable-icon icon_copy"></div>
-        {$text('embeds.context_menu.copy.text', { default: 'Copy' })}
+        {$text('embeds.context_menu.copy', { default: 'Copy' })}
       </button>
     {/if}
 
@@ -379,7 +379,7 @@
         onclick={(event) => handleButtonClick('download', event)}
       >
         <div class="clickable-icon icon_download"></div>
-        {$text('embeds.context_menu.download.text', { default: 'Download' })}
+        {$text('embeds.context_menu.download', { default: 'Download' })}
       </button>
     {/if}
 
@@ -390,7 +390,7 @@
         onclick={(event) => handleButtonClick('deactivate', event)}
       >
         <div class="clickable-icon icon_pause"></div>
-        {$text('embeds.context_menu.deactivate.text', { default: 'Deactivate' })}
+        {$text('embeds.context_menu.deactivate', { default: 'Deactivate' })}
       </button>
     {/if}
 
@@ -401,7 +401,7 @@
         onclick={(event) => handleButtonClick('details', event)}
       >
         <div class="clickable-icon icon_info"></div>
-        {$text('embeds.context_menu.details.text', { default: 'Details' })}
+        {$text('embeds.context_menu.details', { default: 'Details' })}
       </button>
     {/if}
   </div>

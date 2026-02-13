@@ -35,7 +35,7 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath: 'server/software-update',
             direction: 'forward',
             icon: 'download',
-            title: $text('settings.software_updates.text'),
+            title: $text('settings.software_updates'),
             translationKey: 'settings.software_updates'
         });
 
@@ -52,7 +52,7 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath: 'server/community-suggestions',
             direction: 'forward',
             icon: 'users',
-            title: $text('settings.server.community_suggestions.text'),
+            title: $text('settings.server.community_suggestions'),
             translationKey: 'settings.server.community_suggestions'
         });
 
@@ -69,7 +69,7 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath: 'server/stats',
             direction: 'forward',
             icon: 'usage',
-            title: $text('settings.server.stats.text'),
+            title: $text('settings.server.stats'),
             translationKey: 'settings.server.stats'
         });
 
@@ -86,7 +86,7 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath: 'server/gift-cards',
             direction: 'forward',
             icon: 'gift_cards',
-            title: $text('settings.server.gift_cards.text'),
+            title: $text('settings.server.gift_cards'),
             translationKey: 'settings.server.gift_cards'
         });
 
@@ -117,25 +117,25 @@ changes to the documentation (to keep the documentation up to date).
 {#if currentView === 'main'}
     <SettingsItem
         icon="download"
-        title={$text('settings.software_updates.text')}
+        title={$text('settings.software_updates')}
         onClick={() => showSoftwareUpdateSettings()}
     />
     <SettingsItem
         icon="users"
-        title={$text('settings.server.community_suggestions.text')}
+        title={$text('settings.server.community_suggestions')}
         subtitleTop="Manage demo chats from community-shared conversations"
         onClick={() => showCommunitySuggestions()}
     />
     <SettingsItem
         icon="usage"
-        title={$text('settings.server.stats.text')}
+        title={$text('settings.server.stats')}
         subtitleTop="View global server usage and growth metrics"
         onClick={() => showStatsSettings()}
     />
     <SettingsItem
         icon="gift_cards"
-        title={$text('settings.server.gift_cards.text')}
-        subtitleTop={$text('settings.server.gift_cards.subtitle.text')}
+        title={$text('settings.server.gift_cards')}
+        subtitleTop={$text('settings.server.gift_cards.subtitle')}
         onClick={() => showGiftCardGenerator()}
     />
 {:else if currentView === 'softwareUpdate' && childComponent}

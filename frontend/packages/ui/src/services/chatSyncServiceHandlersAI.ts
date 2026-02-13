@@ -736,7 +736,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
       let messagePreview = "New AI response ready";
       if (
         payload.full_content &&
-        payload.full_content !== "chat.an_error_occured.text"
+        payload.full_content !== "chat.an_error_occured"
       ) {
         // Strip markdown formatting for a clean preview
         const plainText = payload.full_content

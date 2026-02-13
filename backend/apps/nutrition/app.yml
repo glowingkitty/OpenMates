@@ -1,5 +1,5 @@
-name_translation_key: nutrition.text
-description_translation_key: nutrition.description.text
+name_translation_key: nutrition
+description_translation_key: nutrition.description
 icon_image: |
   nutrition.svg
 category: personal

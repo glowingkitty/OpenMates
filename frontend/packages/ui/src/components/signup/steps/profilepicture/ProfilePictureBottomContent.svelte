@@ -34,7 +34,7 @@
         
         if (data.status === 'error') {
             if (data.detail === "Image not allowed") {
-                errorMessage = $text('settings.profile_image_not_allowed.text');
+                errorMessage = $text('settings.profile_image_not_allowed');
                 showWarning = true;
 
                 if (data.reject_count === 3) {  // Show last warning on 3rd attempt
@@ -52,7 +52,7 @@
                         }, WARNING_DISPLAY_TIME);
                     }, 300); // Wait for fade out to complete
                     
-                    errorMessage = $text('settings.last_warning_image_not_allowed.text');
+                    errorMessage = $text('settings.last_warning_image_not_allowed');
                 }
                 throw new Error(data.detail);
             }
@@ -150,14 +150,14 @@
 
         if (file) {
             if (file.size > MAX_FILE_SIZE) {
-                errorMessage = $text('signup.image_too_large.text');
+                errorMessage = $text('signup.image_too_large');
                 showWarning = true;
                 input.value = ''; // Clear the input
                 return;
             }
 
             if (!file.type.match(/^image\/(jpeg|png)$/)) {
-                errorMessage = $text('signup.image_wrong_filetype.text');
+                errorMessage = $text('signup.image_wrong_filetype');
                 showWarning = true;
                 input.value = ''; // Clear the input
                 return;
@@ -182,7 +182,7 @@
             />
             <span class="file-upload-button" class:error={showWarning}>
                 <div class="file-icon"></div>
-                <span class="upload-text">{@html $text('signup.upload_profile_image.text')}</span>
+                <span class="upload-text">{@html $text('signup.upload_profile_image')}</span>
             </span>
         </label>
         {#if showWarning && errorMessage && !showLastWarning}
@@ -192,7 +192,7 @@
         {/if}
     {:else if showLastWarning}
         <div class="warning-message" transition:fade={{ duration: 300 }}>
-            {@html $text('settings.last_warning_image_not_allowed.text')}
+            {@html $text('settings.last_warning_image_not_allowed')}
         </div>
     {/if}
 </div>

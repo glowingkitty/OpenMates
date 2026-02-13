@@ -131,7 +131,7 @@
                         <div class="user-info">
                             <div class="menu-username">{username}</div>
                             {#if is_admin}
-                                <div class="admin-badge">{$text('common.admin.text')}</div>
+                                <div class="admin-badge">{$text('common.admin')}</div>
                             {/if}
                         </div>
                     </div>
@@ -139,27 +139,27 @@
                     <div class="menu-items">
                         <a href="/settings/profile" class="menu-item">
                             <div class="clickable-icon icon_settings"></div>
-                            <span>{$text('settings.settings.text')}</span>
+                            <span>{$text('settings.settings')}</span>
                         </a>
                         
                         <button class="menu-item" onclick={logout} disabled={isLoggingOut}>
                             <div class="clickable-icon icon_logout"></div>
-                            <span>{$text('settings.logout.text')}</span>
+                            <span>{$text('settings.logout')}</span>
                         </button>
                         
                         <button class="menu-item" onclick={logoutAll} disabled={isLoggingOut}>
                             <div class="clickable-icon icon_logout_all"></div>
-                            <span>{$text('settings.logout_all.text')}</span>
+                            <span>{$text('settings.logout_all')}</span>
                         </button>
                     </div>
                 </div>
             {/if}
         {:else}
             <a href="/login" class="login-button">
-                {$text('login.login_button.text')}
+                {$text('login.login_button')}
             </a>
             <a href="/signup" class="signup-button">
-                {$text('signup.sign_up.text')}
+                {$text('signup.sign_up')}
             </a>
         {/if}
     </div>

@@ -1,5 +1,5 @@
-name_translation_key: reminder.text
-description_translation_key: reminder.description.text
+name_translation_key: reminder
+description_translation_key: reminder.description
 icon_image: reminder.svg
 category: productivity
 last_updated: "2026-02-04"
@@ -22,8 +22,8 @@ instructions:
 
 skills:
   - id: set-reminder
-    name_translation_key: reminder.set_reminder.text
-    description_translation_key: reminder.set_reminder.description.text
+    name_translation_key: reminder.set_reminder
+    description_translation_key: reminder.set_reminder.description
     preprocessor_hint: >
       Create a one-time or recurring reminder for the user.
     stage: production
@@ -129,8 +129,8 @@ skills:
         - timezone
 
   - id: list-reminders
-    name_translation_key: reminder.list_reminders.text
-    description_translation_key: reminder.list_reminders.description.text
+    name_translation_key: reminder.list_reminders
+    description_translation_key: reminder.list_reminders.description
     preprocessor_hint: >
       Show the user's existing scheduled reminders.
     stage: production
@@ -149,8 +149,8 @@ skills:
           description: "Filter reminders by status. 'pending' shows only upcoming reminders."
 
   - id: cancel-reminder
-    name_translation_key: reminder.cancel_reminder.text
-    description_translation_key: reminder.cancel_reminder.description.text
+    name_translation_key: reminder.cancel_reminder
+    description_translation_key: reminder.cancel_reminder.description
     preprocessor_hint: >
       Cancel or delete an existing reminder.
     stage: production

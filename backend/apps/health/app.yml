@@ -1,13 +1,13 @@
-name_translation_key: health.text
-description_translation_key: health.description.text
+name_translation_key: health
+description_translation_key: health.description
 icon_image: |
   heart.svg
 category: personal
 last_updated: '2025-11-12'
 settings_and_memories:
   - id: appointments
-    name_translation_key: health.appointments.text
-    description_translation_key: health.appointments.description.text
+    name_translation_key: health.appointments
+    description_translation_key: health.appointments.description
     type: list
     stage: production
     schema:
@@ -56,8 +56,8 @@ settings_and_memories:
       - appointment_type
       - date
   - id: medical_history
-    name_translation_key: health.medical_history.text
-    description_translation_key: health.medical_history.description.text
+    name_translation_key: health.medical_history
+    description_translation_key: health.medical_history.description
     type: list
     stage: production
     schema:
@@ -100,8 +100,8 @@ settings_and_memories:
       - name
       - date
   - id: symptoms_log
-    name_translation_key: health.symptoms_log.text
-    description_translation_key: health.symptoms_log.description.text
+    name_translation_key: health.symptoms_log
+    description_translation_key: health.symptoms_log.description
     type: list
     stage: planning
     schema:
@@ -135,8 +135,8 @@ settings_and_memories:
       - symptom
       - date_onset
   - id: sleep_diary
-    name_translation_key: health.sleep_diary.text
-    description_translation_key: health.sleep_diary.description.text
+    name_translation_key: health.sleep_diary
+    description_translation_key: health.sleep_diary.description
     type: list
     stage: planning
     schema:
@@ -174,8 +174,8 @@ settings_and_memories:
       - date
 skills:
   - id: search_appointments
-    name_translation_key: health.search_appointments.text
-    description_translation_key: health.search_appointments.description.text
+    name_translation_key: health.search_appointments
+    description_translation_key: health.search_appointments.description
     stage: planning
     class_path: |
       skills.search_appointments.SearchAppointmentsSkill
@@ -183,25 +183,25 @@ skills:
       - Jameda
       - Doctolib
   - id: create_report
-    name_translation_key: health.create_report.text
-    description_translation_key: health.create_report.description.text
+    name_translation_key: health.create_report
+    description_translation_key: health.create_report.description
     stage: planning
 focuses:
   - id: prepare_doctor_report
-    name_translation_key: health.prepare_doctor_report.text
-    description_translation_key: health.prepare_doctor_report.description.text
+    name_translation_key: health.prepare_doctor_report
+    description_translation_key: health.prepare_doctor_report.description
     stage: planning
   - id: health_insights
-    name_translation_key: health.health_insights.text
-    description_translation_key: health.health_insights.description.text
+    name_translation_key: health.health_insights
+    description_translation_key: health.health_insights.description
     stage: planning
     process:
       - ""
     systemprompt: |
       You are a health expert.
   - id: prepare_doctor_appointment
-    name_translation_key: health.prepare_doctor_appointment.text
-    description_translation_key: health.prepare_doctor_appointment.description.text
+    name_translation_key: health.prepare_doctor_appointment
+    description_translation_key: health.prepare_doctor_appointment.description
     stage: planning
     process:
       - discusses what symptoms one had in recent weeks and months, even if one doesn't see connections between them

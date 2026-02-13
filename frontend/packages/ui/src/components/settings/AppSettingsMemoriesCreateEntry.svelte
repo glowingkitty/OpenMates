@@ -184,10 +184,10 @@
         if (Object.keys(userInputProperties).length === 0) {
             // Generic form validation (fallback when no schema)
             if (!formState.itemKey || String(formState.itemKey).trim() === '') {
-                return $text('settings.app_settings_memories.item_key_required.text') || 'Item key is required';
+                return $text('settings.app_settings_memories.item_key_required') || 'Item key is required';
             }
             if (!formState.itemValue || String(formState.itemValue).trim() === '') {
-                return $text('settings.app_settings_memories.item_value_required.text') || 'Item value is required';
+                return $text('settings.app_settings_memories.item_value_required') || 'Item value is required';
             }
             return null;
         }
@@ -392,17 +392,17 @@
         <div class="error">
             <p>Error: {!app ? 'App not found' : 'Category not found'}</p>
             <p>App ID: {appId}, Category ID: {categoryId}</p>
-            <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app.text')}</button>
+            <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else if !isAuthenticated}
         <div class="error">
-            <p>{$text('settings.app_settings_memories.authentication_required.text') || 'Authentication required'}</p>
-            <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app.text')}</button>
+            <p>{$text('settings.app_settings_memories.authentication_required') || 'Authentication required'}</p>
+            <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
         <!-- Category description at the top -->
         <div class="header">
-            <h1>{$text('settings.app_settings_memories.add_entry.text')}</h1>
+            <h1>{$text('settings.app_settings_memories.add_entry')}</h1>
             {#if categoryDescription}
                 <p class="description">{categoryDescription}</p>
             {/if}
@@ -471,7 +471,7 @@
                 <!-- Generic form: Fallback when no schema is defined -->
                 <div class="form-group">
                     <label for="item-key">
-                        {$text('settings.app_settings_memories.item_key.text')}
+                        {$text('settings.app_settings_memories.item_key')}
                         <span class="required">*</span>
                     </label>
                     <input
@@ -486,7 +486,7 @@
 
                 <div class="form-group">
                     <label for="settings-group">
-                        {$text('settings.app_settings_memories.settings_group.text')}
+                        {$text('settings.app_settings_memories.settings_group')}
                     </label>
                     <input
                         id="settings-group"
@@ -500,7 +500,7 @@
 
                 <div class="form-group">
                     <label for="item-value">
-                        {$text('settings.app_settings_memories.item_value.text')}
+                        {$text('settings.app_settings_memories.item_value')}
                         <span class="required">*</span>
                     </label>
                     <textarea
@@ -520,14 +520,14 @@
 
             <div class="form-footer">
                 <button class="cancel-btn" onclick={handleCancel} disabled={isCreating}>
-                    {$text('settings.app_settings_memories.cancel.text')}
+                    {$text('settings.app_settings_memories.cancel')}
                 </button>
                 <button
                     class="create-btn"
                     onclick={handleCreateEntry}
                     disabled={isCreating}
                 >
-                    {isCreating ? $text('settings.app_settings_memories.creating.text') : $text('settings.app_settings_memories.add_entry.text')}
+                    {isCreating ? $text('settings.app_settings_memories.creating') : $text('settings.app_settings_memories.add_entry')}
                 </button>
             </div>
         </div>

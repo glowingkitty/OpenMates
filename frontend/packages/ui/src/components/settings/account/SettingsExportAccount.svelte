@@ -59,10 +59,10 @@ Allows users to export all their data as a ZIP file with YML format
         exportProgress = progress;
         
         if (progress.phase === 'complete') {
-            successMessage = $text('settings.account.export_success.text');
+            successMessage = $text('settings.account.export_success');
             isExporting = false;
         } else if (progress.phase === 'error') {
-            errorMessage = progress.error || $text('settings.account.export_failed.text');
+            errorMessage = progress.error || $text('settings.account.export_failed');
             isExporting = false;
         }
     }
@@ -73,7 +73,7 @@ Allows users to export all their data as a ZIP file with YML format
     async function startExport(): Promise<void> {
         // Check authentication
         if (!$authStore.isAuthenticated) {
-            errorMessage = $text('settings.account.export_requires_login.text');
+            errorMessage = $text('settings.account.export_requires_login');
             return;
         }
         
@@ -87,7 +87,7 @@ Allows users to export all their data as a ZIP file with YML format
             await exportAllUserData(handleProgress);
         } catch (error) {
             console.error('[SettingsExportAccount] Export failed:', error);
-            errorMessage = error instanceof Error ? error.message : $text('settings.account.export_failed.text');
+            errorMessage = error instanceof Error ? error.message : $text('settings.account.export_failed');
             isExporting = false;
         }
     }
@@ -105,33 +105,33 @@ Allows users to export all their data as a ZIP file with YML format
 <div class="export-account-container">
     <!-- Header -->
     <div class="export-header">
-        <h2>{$text('settings.account.export_title.text')}</h2>
-        <p class="description">{$text('settings.account.export_description.text')}</p>
+        <h2>{$text('settings.account.export_title')}</h2>
+        <p class="description">{$text('settings.account.export_description')}</p>
     </div>
 
     <!-- What's Included Section -->
     <div class="info-box">
-        <h3>{$text('settings.account.export_includes_title.text')}</h3>
+        <h3>{$text('settings.account.export_includes_title')}</h3>
         <ul class="includes-list">
             <li>
                 <div class="icon icon_chat"></div>
-                <span>{$text('settings.account.export_includes_chats.text')}</span>
+                <span>{$text('settings.account.export_includes_chats')}</span>
             </li>
             <li>
                 <div class="icon icon_document"></div>
-                <span>{$text('settings.account.export_includes_invoices.text')}</span>
+                <span>{$text('settings.account.export_includes_invoices')}</span>
             </li>
             <li>
                 <div class="icon icon_stats"></div>
-                <span>{$text('settings.account.export_includes_usage.text')}</span>
+                <span>{$text('settings.account.export_includes_usage')}</span>
             </li>
             <li>
                 <div class="icon icon_settings"></div>
-                <span>{$text('settings.account.export_includes_settings.text')}</span>
+                <span>{$text('settings.account.export_includes_settings')}</span>
             </li>
             <li>
                 <div class="icon icon_user"></div>
-                <span>{$text('settings.account.export_includes_profile.text')}</span>
+                <span>{$text('settings.account.export_includes_profile')}</span>
             </li>
         </ul>
     </div>
@@ -139,7 +139,7 @@ Allows users to export all their data as a ZIP file with YML format
     <!-- GDPR Notice -->
     <div class="gdpr-notice">
         <div class="icon icon_info"></div>
-        <p>{$text('settings.account.export_gdpr_notice.text')}</p>
+        <p>{$text('settings.account.export_gdpr_notice')}</p>
     </div>
 
     <!-- Export Progress -->
@@ -184,7 +184,7 @@ Allows users to export all their data as a ZIP file with YML format
                 class="btn btn-secondary"
                 onclick={resetState}
             >
-                {$text('settings.account.export_another.text')}
+                {$text('settings.account.export_another')}
             </button>
         {:else}
             <button
@@ -194,10 +194,10 @@ Allows users to export all their data as a ZIP file with YML format
             >
                 {#if isExporting}
                     <span class="loading-spinner"></span>
-                    {$text('settings.account.exporting.text')}
+                    {$text('settings.account.exporting')}
                 {:else}
                     <div class="icon icon_download"></div>
-                    {$text('settings.account.export_button.text')}
+                    {$text('settings.account.export_button')}
                 {/if}
             </button>
         {/if}
@@ -206,7 +206,7 @@ Allows users to export all their data as a ZIP file with YML format
     <!-- Login Required Notice (for non-authenticated users) -->
     {#if !$authStore.isAuthenticated}
         <div class="login-notice">
-            <p>{$text('settings.account.export_login_required.text')}</p>
+            <p>{$text('settings.account.export_login_required')}</p>
         </div>
     {/if}
 </div>

@@ -86,7 +86,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
             settingsPath: `billing/${path}`,
             direction: 'forward',
             icon: iconName,
-            title: $text(`settings.billing.${translationKey}.text`)
+            title: $text(`settings.billing.${translationKey}`)
         });
     }
 
@@ -100,7 +100,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     <div class="balance-display">
         <span class="coin-icon"></span>
         <span class="balance-amount">{formatCredits(currentCredits)}</span>
-        <span class="balance-label">{$text('settings.billing.credits.text')}</span>
+        <span class="balance-label">{$text('settings.billing.credits')}</span>
     </div>
 </div>
 
@@ -108,7 +108,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <SettingsItem
     type="submenu"
     icon="subsetting_icon subsetting_icon_coins"
-    title={$text('settings.billing.buy_credits.text')}
+    title={$text('settings.billing.buy_credits')}
     onClick={() => navigateToSubview('buy-credits')}
 />
 
@@ -116,7 +116,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <SettingsItem
     type="submenu"
     icon="subsetting_icon subsetting_icon_reload"
-    title={$text('settings.billing.auto_topup.text')}
+    title={$text('settings.billing.auto_topup')}
     onClick={() => navigateToSubview('auto-topup')}
 />
 
@@ -124,7 +124,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <SettingsItem
     type="submenu"
     icon="subsetting_icon subsetting_icon_document"
-    title={$text('settings.billing.invoices.text')}
+    title={$text('settings.billing.invoices')}
     onClick={() => navigateToSubview('invoices')}
 />
 

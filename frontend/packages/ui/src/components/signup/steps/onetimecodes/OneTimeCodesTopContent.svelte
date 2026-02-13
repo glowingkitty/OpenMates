@@ -10,11 +10,11 @@ step_4_top_content_svelte:
     tfa_explainer:
         type: 'text + visuals'
         text:
-            - $text('signup.secure_your_account.text')
-            - $text('signup.prevent_access.text')
-            - $text('signup.free.text')
-            - $text('signup.fast_to_setup.text')
-            - $text('signup.max_security.text')
+            - $text('signup.secure_your_account')
+            - $text('signup.prevent_access')
+            - $text('signup.free')
+            - $text('signup.fast_to_setup')
+            - $text('signup.max_security')
         visuals:
             - 'Three checkmark icons. One for each of the three features (free, fast to setup, max security)'
         purpose:
@@ -29,7 +29,7 @@ step_4_top_content_svelte:
             - '/signup/2fa'
     add_to_2fa_app_button:
         type: 'button'
-        text: $text('signup.add_to_2fa_app.text')
+        text: $text('signup.add_to_2fa_app')
         purpose:
             - 'Uses deep linking to open the 2FA app on the user device and add the user account to the 2FA app'
         processing:
@@ -45,7 +45,7 @@ step_4_top_content_svelte:
             - '/signup/2fa'
     scan_via_2fa_app_button:
         type: 'button'
-        text: $text('signup.scan_via_2fa_app.text')
+        text: $text('signup.scan_via_2fa_app')
         purpose:
             - 'Opens the QR code for the user to scan with their 2FA app, to add the user account to the 2FA app'
         processing:
@@ -64,7 +64,7 @@ step_4_top_content_svelte:
             - '/signup/2fa'
     copy_secret_button:
         type: 'button'
-        text: $text('signup.copy_secret.text')
+        text: $text('signup.copy_secret')
         purpose:
             - 'Copies the secret key to the user clipboard, to manually add the user account to the 2FA app'
         processing:
@@ -316,50 +316,50 @@ step_4_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size tfa"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.one_time_codes.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.one_time_codes')}</h2>
     </div>
     
     {#if !setupComplete}
     <!-- Hide prevent-access-text when showing secret code so user can see the key for manual copying -->
     <div class="prevent-access-text" class:fade-out={showSecretCode}>
-        {$text('signup.prevent_access.text')}
+        {$text('signup.prevent_access')}
     </div>
     
     <!-- Hide features when showing secret code so user can see the key for manual copying -->
     <div class="features" class:fade-out={showSecretCode}>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.free.text')}</span>
+            <span>{@html $text('signup.free')}</span>
         </div>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.fast_to_setup.text')}</span>
+            <span>{@html $text('signup.fast_to_setup')}</span>
         </div>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.max_security.text')}</span>
+            <span>{@html $text('signup.max_security')}</span>
         </div>
     </div>
     {:else} 
     <!-- This block executes when setup IS complete -->
     <!-- Hide prevent-access-text when showing QR code OR secret code so user can see the relevant content -->
     <div class="prevent-access-text" class:fade-out={(showQrCode || showSecretCode) && !$userProfile.tfa_enabled}>
-        {$text('signup.prevent_access.text')}
+        {$text('signup.prevent_access')}
     </div>
     
     <!-- Hide features when showing QR code OR secret code so user can see the relevant content -->
     <div class="features" class:fade-out={(showQrCode || showSecretCode) && !$userProfile.tfa_enabled}>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.free.text')}</span>
+            <span>{@html $text('signup.free')}</span>
         </div>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.fast_to_setup.text')}</span>
+            <span>{@html $text('signup.fast_to_setup')}</span>
         </div>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.max_security.text')}</span>
+            <span>{@html $text('signup.max_security')}</span>
         </div>
     </div>
     {/if} <!-- End of {#if !setupComplete}{:else} block -->
@@ -371,7 +371,7 @@ step_4_top_content_svelte:
              <div class="button-row">
                  <button class="text-button with-icon" onclick={handleResetTFA}>
                     <span class="button-icon restore-icon"></span> <!-- Assuming a restore/reset icon exists -->
-                    <span>{@html $text('signup.reset_tfa.text')}</span>
+                    <span>{@html $text('signup.reset_tfa')}</span>
                 </button>
              </div>
         </div>
@@ -390,27 +390,27 @@ step_4_top_content_svelte:
             <div class="button-row" class:move-up={showQrCode}>
                 <button class="text-button with-icon" onclick={handleDeepLink} disabled={!otpauthUrl}>
                     <span class="button-icon open-icon"></span>
-                    <span>{@html $text('signup.add_to_2fa_app.text')}</span>
+                    <span>{@html $text('signup.add_to_2fa_app')}</span>
                 </button>
             </div>
             
             <div class="button-row" class:move-up={showQrCode}>
-                <span class="or-text">{@html $text('signup.or.text')}</span>
+                <span class="or-text">{@html $text('signup.or')}</span>
                 <button class="text-button with-icon" onclick={toggleQrCode} disabled={!qrCodeSvg}>
                     <span class="button-icon camera-icon"></span>
-                    <span>{@html $text('signup.scan_via_2fa_app.text')}</span>
+                    <span>{@html $text('signup.scan_via_2fa_app')}</span>
                 </button>
             </div>
 
             <div class="button-row">
-                <span class="or-text">{@html $text('signup.or.text')}</span>
+                <span class="or-text">{@html $text('signup.or')}</span>
                 <button class="text-button with-icon" onclick={copySecret} disabled={!secret}>
                     <span class="button-icon copy-icon"></span>
                     <span>
                         {#if showCopiedText}
-                            {$text('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
+                            {$text('enter_message.press_and_hold_menu.copied_to_clipboard')}
                         {:else}
-                            {$text('signup.copy_secret.text')}
+                            {$text('signup.copy_secret')}
                         {/if}
                     </span>
                 </button>
@@ -419,7 +419,7 @@ step_4_top_content_svelte:
             <!-- Secret code display - shown when user clicks copy for manual selection -->
             {#if showSecretCode && secret}
             <div class="secret-code-container" transition:fade>
-                <div class="secret-code-label">{$text('signup.your_secret_key.text')}</div>
+                <div class="secret-code-label">{$text('signup.your_secret_key')}</div>
                 <input 
                     type="text" 
                     class="secret-code-input" 
@@ -429,7 +429,7 @@ step_4_top_content_svelte:
                     aria-label="2FA Secret Key"
                 />
                 <button class="hide-secret-button" onclick={toggleSecretCode}>
-                    {$text('signup.hide_secret.text')}
+                    {$text('signup.hide_secret')}
                 </button>
             </div>
             {/if}

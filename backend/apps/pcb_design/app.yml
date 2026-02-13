@@ -1,5 +1,5 @@
-name_translation_key: pcb_design.text
-description_translation_key: pcb_design.description.text
+name_translation_key: pcb_design
+description_translation_key: pcb_design.description
 icon_image: |
   pcbdesign.svg
 # Icon colors are defined in theme.css instead of here
@@ -8,8 +8,8 @@ last_updated: "2025-11-12"
 
 focuses:
   - id: create_schematic
-    name_translation_key: pcb_design.create_schematic.text
-    description_translation_key: pcb_design.create_schematic.description.text
+    name_translation_key: pcb_design.create_schematic
+    description_translation_key: pcb_design.create_schematic.description
     stage: planning
     process:
       - ask users clearifying question to make the requirements clear and create requirements.md file
@@ -19,8 +19,8 @@ focuses:
     systemprompt: |
       You are a PCB design expert.
   - id: create_layout
-    name_translation_key: pcb_design.create_layout.text
-    description_translation_key: pcb_design.create_layout.description.text
+    name_translation_key: pcb_design.create_layout
+    description_translation_key: pcb_design.create_layout.description
     stage: planning
     process:
       - ask users clearifying question to make the requirements clear and create requirements.md file

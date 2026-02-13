@@ -95,7 +95,7 @@ async def login(
                 # This must be identical in all aspects (message, timing, structure) to prevent enumeration
                 return LoginResponse(
                     success=False, 
-                    message="login.recovery_key_wrong.text"  # Same message for both non-existent and wrong key
+                    message="login.recovery_key_wrong"  # Same message for both non-existent and wrong key
                 )
             
             # For password login, we can still log failed attempts (but only after checking if it's recovery key)
@@ -158,7 +158,7 @@ async def login(
             logger.info("Authentication failed with 2FA code provided - returning generic error to prevent enumeration")
             return LoginResponse(
                 success=False, 
-                message="login.code_wrong.text", 
+                message="login.code_wrong", 
                 tfa_required=True  # Keep them on 2FA screen
             )
             
@@ -542,7 +542,7 @@ async def login(
         # Ensure tfa_code is provided if we reach this stage
         if not login_data.tfa_code:
              logger.warning(f"2FA code missing in request for user {user_id} despite tfa_required being implied.")
-             return LoginResponse(success=False, message="login.code_required.text", tfa_required=True)
+             return LoginResponse(success=False, message="login.code_required", tfa_required=True)
 
         try:
             # --- Sub-Scenario 3a: Verify using OTP Code ---
@@ -576,7 +576,7 @@ async def login(
 
                 if not encrypted_tfa_secret or not vault_key_id:
                     logger.error(f"Missing encrypted_tfa_secret or vault_key_id for user {user_id} during OTP verification.")
-                    return LoginResponse(success=False, message="login.code_verification_error.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_verification_error", tfa_required=True)
 
                 # Decrypt the TFA secret
                 try:
@@ -591,7 +591,7 @@ async def login(
                     # Handle cases where secret isn't found or decryption failed
                     logger.error(f"Could not retrieve or decrypt TFA secret for user {user_id} during OTP verification.")
                     # Don't reveal specific error, keep user on 2FA screen
-                    return LoginResponse(success=False, message="login.code_verification_error.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_verification_error", tfa_required=True)
 
                 # Verify the code using the directly fetched secret
                 totp = pyotp.TOTP(decrypted_secret)
@@ -607,7 +607,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="login.code_wrong.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_wrong", tfa_required=True)
                 
                 # OTP Code is valid! Finalize the login.
                 logger.info("OTP code verified successfully. Finalizing login.")
@@ -744,7 +744,7 @@ async def login(
                 except Exception as e:
                     logger.error(f"Error SHA hashing provided backup code for user {user_id}: {e}", exc_info=True)
                     # Treat as invalid code if hashing fails
-                    return LoginResponse(success=False, message="login.code_processing_error.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_processing_error", tfa_required=True)
 
                 # Step 2: Check cache for recently used backup code SHA hash (user-specific)
                 used_code_cache_key = f"used_backup_code:{user_id}:{provided_code_sha_hash}"
@@ -763,7 +763,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="login.code_wrong.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_wrong", tfa_required=True)
                 
                 logger.info(f"Provided backup code's SHA hash not found in recently used cache for user {user_id}.")
 
@@ -773,7 +773,7 @@ async def login(
                 # Handle cases where hashes couldn't be fetched or parsed
                 if hashed_codes_from_directus is None:
                      logger.error(f"Could not retrieve or parse backup code hashes from Directus for user {user_id}.")
-                     return LoginResponse(success=False, message="login.code_verification_error.text", tfa_required=True)
+                     return LoginResponse(success=False, message="login.code_verification_error", tfa_required=True)
                     
                 # Check if list is empty (no codes configured or all used)
                 if not hashed_codes_from_directus:
@@ -788,7 +788,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="login.no_backup_codes_remaining.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.no_backup_codes_remaining", tfa_required=True)
 
                 # Step 4: Verify the plain text code against Directus Argon2 hashes
                 logger.info(f"Attempting to verify plain text backup code against Directus Argon2 hashes. Provided code: '{login_data.tfa_code[:1]}***'") # Log only first char
@@ -807,7 +807,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="login.code_wrong.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_wrong", tfa_required=True)
 
                 # Step 5: Backup Code is valid! Add its SHA hash to Cache, Remove Argon2 hash from Directus, Finalize login.
                 logger.info(f"Backup code verified successfully against Directus Argon2 hashes for user {user_id}. Processing...")
@@ -829,7 +829,7 @@ async def login(
                      # Return an error, preventing the code from being removed from Directus
                      return LoginResponse(
                          success=False,
-                         message="login.security_state_update_failed.text",
+                         message="login.security_state_update_failed",
                          tfa_required=True
                      )
                 else:
@@ -853,7 +853,7 @@ async def login(
                     # Return an error and keep the user on the 2FA screen
                     return LoginResponse(
                         success=False,
-                        message="login.backup_code_processing_failed.text",
+                        message="login.backup_code_processing_failed",
                         tfa_required=True
                     )
                 

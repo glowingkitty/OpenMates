@@ -18,7 +18,7 @@ type TranslationFunction = (key: string) => string;
  * 
  * Demo chats MUST use translation keys (no hardcoded text allowed).
  * Legal chats build content from translation keys - they construct markdown from i18n keys.
- * Translation keys should be in format: 'demo_chats.{chat_name}.{field}.text'
+ * Translation keys should be in format: 'demo_chats.{chat_name}.{field}'
  * 
  * For legal documents, the lastUpdated date is stored in TypeScript metadata (single source of truth)
  * and formatted using Intl.DateTimeFormat for the user's locale.

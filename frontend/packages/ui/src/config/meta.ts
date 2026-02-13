@@ -187,14 +187,14 @@ export async function loadMetaTags(): Promise<void> {
 
     // Update defaultMeta
     defaultMeta = {
-      title: metaData.metadata.default.title?.text || "OpenMates",
-      description: metaData.metadata.default.description?.text || "",
+      title: (typeof metaData.metadata.default.title === "string" ? metaData.metadata.default.title : "OpenMates"),
+      description: (typeof metaData.metadata.default.description === "string" ? metaData.metadata.default.description : ""),
       image: "/images/og-image.jpg",
       imageWidth: 1200,
       imageHeight: 630,
       url: "https://openmates.org",
       type: "website",
-      keywords: (metaData.metadata.default.keywords?.text || "")
+      keywords: (typeof metaData.metadata.default.keywords === "string" ? metaData.metadata.default.keywords : "")
         .split(", ")
         .filter(Boolean),
       author: "OpenMates Team",
@@ -212,7 +212,7 @@ export async function loadMetaTags(): Promise<void> {
         if (!obj || typeof obj !== "object") return fallback;
         obj = obj[key];
       }
-      return obj?.text || fallback;
+      return (typeof obj === "string") ? obj : fallback;
     };
 
     // Update pageMeta with safe property access

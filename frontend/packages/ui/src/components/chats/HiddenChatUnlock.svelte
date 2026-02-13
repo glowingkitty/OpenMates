@@ -66,7 +66,7 @@
         try {
             // Check if locked out
             if (lockoutState.isLockedOut) {
-                errorMessage = $text('chats.hidden_chats.lockout_message.text', {
+                errorMessage = $text('chats.hidden_chats.lockout_message', {
                     default: `Too many failed attempts. Please wait ${lockoutState.lockoutRemainingSeconds} seconds.`
                 });
                 isLoading = false;
@@ -76,7 +76,7 @@
             // First-time setup: require confirmation
             if (isFirstTime) {
                 if (!isValidPassword(password)) {
-                    errorMessage = $text('chats.hidden_chats.invalid_password_format.text', {
+                    errorMessage = $text('chats.hidden_chats.invalid_password_format', {
                         default: 'Please enter a password between 4 and 30 characters'
                     });
                     isLoading = false;
@@ -84,7 +84,7 @@
                 }
 
                 if (password !== confirmPassword) {
-                    errorMessage = $text('chats.hidden_chats.passwords_dont_match.text', {
+                    errorMessage = $text('chats.hidden_chats.passwords_dont_match', {
                         default: 'Passwords do not match'
                     });
                     isLoading = false;
@@ -95,7 +95,7 @@
             } else {
                 // Unlock: validate password format
                 if (!isValidPassword(password)) {
-                    errorMessage = $text('chats.hidden_chats.invalid_password_format.text', {
+                    errorMessage = $text('chats.hidden_chats.invalid_password_format', {
                         default: 'Please enter a password between 4 and 30 characters'
                     });
                     isLoading = false;
@@ -115,7 +115,7 @@
                 // Get the chat to hide
                 const chatToHide = await chatDB.getChat(chatIdToHide);
                 if (!chatToHide) {
-                    errorMessage = $text('chats.hidden_chats.unlock_error.text', {
+                    errorMessage = $text('chats.hidden_chats.unlock_error', {
                         default: 'Error: Chat not found'
                     });
                     isLoading = false;
@@ -130,7 +130,7 @@
                         chatKey = await decryptChatKeyWithMasterKey(chatToHide.encrypted_chat_key);
                     } catch (error) {
                         console.error('[HiddenChatUnlock] Error decrypting chat key for hiding:', error);
-                        errorMessage = $text('chats.hidden_chats.unlock_error.text', {
+                        errorMessage = $text('chats.hidden_chats.unlock_error', {
                             default: 'Error decrypting chat key'
                         });
                         isLoading = false;
@@ -139,7 +139,7 @@
                 }
                 
                 if (!chatKey) {
-                    errorMessage = $text('chats.hidden_chats.unlock_error.text', {
+                    errorMessage = $text('chats.hidden_chats.unlock_error', {
                         default: 'Error: Chat key not found'
                     });
                     isLoading = false;
@@ -149,7 +149,7 @@
                 // Encrypt chat key with the password (this doesn't unlock, just encrypts)
                 const encryptedChatKey = await hiddenChatService.encryptChatKeyWithCode(chatKey, password);
                 if (!encryptedChatKey) {
-                    errorMessage = $text('chats.hidden_chats.unlock_error.text', {
+                    errorMessage = $text('chats.hidden_chats.unlock_error', {
                         default: 'Error encrypting chat'
                     });
                     isLoading = false;
@@ -179,11 +179,11 @@
             if (result.success) {
                 // Show success notification
                 if (chatIdToHide) {
-                    notificationStore.success($text('chats.hidden_chats.unlocked_and_hiding.text', {
+                    notificationStore.success($text('chats.hidden_chats.unlocked_and_hiding', {
                         default: 'Chat hidden and unlocked successfully'
                     }));
                 } else {
-                    notificationStore.success($text('chats.hidden_chats.unlocked.text', {
+                    notificationStore.success($text('chats.hidden_chats.unlocked', {
                         default: 'Hidden chats unlocked successfully'
                     }));
                 }
@@ -196,11 +196,11 @@
             } else {
                 // Show appropriate error message based on whether any chats were decrypted
                 if (result.decryptedCount === 0) {
-                    errorMessage = $text('chats.hidden_chats.no_hidden_chats_unlocked.text', {
+                    errorMessage = $text('chats.hidden_chats.no_hidden_chats_unlocked', {
                         default: 'No hidden chats unlocked. The password may be incorrect or no chats are encrypted with this password.'
                     });
             } else {
-                errorMessage = $text('chats.hidden_chats.incorrect_password.text', {
+                errorMessage = $text('chats.hidden_chats.incorrect_password', {
                     default: 'Incorrect password. Please try again.'
                 });
                 }
@@ -210,7 +210,7 @@
             }
         } catch (error: any) {
             console.error('[HiddenChatUnlock] Error unlocking:', error);
-            errorMessage = error.message || $text('chats.hidden_chats.unlock_error.text', {
+            errorMessage = error.message || $text('chats.hidden_chats.unlock_error', {
                 default: 'An error occurred. Please try again.'
             });
         } finally {
@@ -261,8 +261,8 @@
             <div class="modal-header">
                 <h3>
                     {isFirstTime 
-                        ? $text('chats.hidden_chats.set_password_title.text', { default: 'Set Hidden Chat Password' })
-                        : $text('chats.hidden_chats.unlock_title.text', { default: 'Unlock Hidden Chats' })
+                        ? $text('chats.hidden_chats.set_password_title', { default: 'Set Hidden Chat Password' })
+                        : $text('chats.hidden_chats.unlock_title', { default: 'Unlock Hidden Chats' })
                     }
                 </h3>
                 <button class="close-btn" onclick={handleClose}>✕</button>
@@ -271,10 +271,10 @@
             <div class="modal-content">
                 <p class="description">
                     {isFirstTime
-                        ? $text('chats.hidden_chats.set_password_description.text', {
+                        ? $text('chats.hidden_chats.set_password_description', {
                             default: 'Enter a password (4-30 characters) to protect your hidden chats. This password is separate from your login password. Each unique password can be used to hide/show different chats.'
                         })
-                        : $text('chats.hidden_chats.unlock_description.text', {
+                        : $text('chats.hidden_chats.unlock_description', {
                             default: 'Enter your password (4-30 characters) to unlock hidden chats. Each unique password can be used to hide/show different chats.'
                         })
                     }
@@ -283,7 +283,7 @@
                 <form onsubmit={handleSubmit}>
                     <div class="input-group">
                         <label for="password-input">
-                            {$text('chats.hidden_chats.password_label.text', { default: 'Password' })}
+                            {$text('chats.hidden_chats.password_label', { default: 'Password' })}
                         </label>
                         <input
                             id="password-input"
@@ -291,7 +291,7 @@
                             type="password"
                             bind:value={password}
                             oninput={handlePasswordInput}
-                            placeholder={$text('chats.hidden_chats.password_placeholder.text', { default: 'Enter password' })}
+                            placeholder={$text('chats.hidden_chats.password_placeholder', { default: 'Enter password' })}
                             maxlength="30"
                             autocomplete="off"
                             class:error={!!errorMessage}
@@ -302,7 +302,7 @@
                     {#if isFirstTime}
                         <div class="input-group">
                             <label for="confirm-password-input">
-                                {$text('chats.hidden_chats.confirm_password_label.text', { default: 'Confirm Password' })}
+                                {$text('chats.hidden_chats.confirm_password_label', { default: 'Confirm Password' })}
                             </label>
                             <input
                                 id="confirm-password-input"
@@ -310,7 +310,7 @@
                                 type="password"
                                 bind:value={confirmPassword}
                                 oninput={handleConfirmPasswordInput}
-                                placeholder={$text('chats.hidden_chats.password_placeholder.text', { default: 'Enter password' })}
+                                placeholder={$text('chats.hidden_chats.password_placeholder', { default: 'Enter password' })}
                                 maxlength="30"
                                 autocomplete="off"
                                 class:error={!!errorMessage}
@@ -327,7 +327,7 @@
 
                     {#if lockoutState.isLockedOut}
                         <div class="lockout-message">
-                            {$text('chats.hidden_chats.lockout_message.text', {
+                            {$text('chats.hidden_chats.lockout_message', {
                                 default: `Too many failed attempts. Please wait ${lockoutState.lockoutRemainingSeconds} seconds.`
                             })}
                         </div>
@@ -340,7 +340,7 @@
                             onclick={handleClose}
                             disabled={isLoading}
                         >
-                            {$text('chats.hidden_chats.cancel.text', { default: 'Cancel' })}
+                            {$text('chats.hidden_chats.cancel', { default: 'Cancel' })}
                         </button>
                         <button
                             type="submit"
@@ -351,8 +351,8 @@
                                 <span class="loading-spinner"></span>
                             {:else}
                                 {isFirstTime
-                                    ? $text('chats.hidden_chats.set_password_button.text', { default: 'Set Password' })
-                                    : $text('chats.hidden_chats.unlock_button.text', { default: 'Unlock' })
+                                    ? $text('chats.hidden_chats.set_password_button', { default: 'Set Password' })
+                                    : $text('chats.hidden_chats.unlock_button', { default: 'Unlock' })
                                 }
                             {/if}
                         </button>

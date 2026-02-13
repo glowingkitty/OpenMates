@@ -184,10 +184,10 @@ Usage Settings - View usage statistics and export usage data
             const diffHours = Math.floor(diffMs / 3600000);
             const diffDays = Math.floor(diffMs / 86400000);
 
-            if (diffMins < 1) return $text('settings.usage.just_now.text');
-            if (diffMins < 60) return `${diffMins} ${$text('settings.usage.minutes_ago.text')}`;
-            if (diffHours < 24) return `${diffHours} ${$text('settings.usage.hours_ago.text')}`;
-            if (diffDays < 30) return `${diffDays} ${$text('settings.usage.days_ago.text')}`;
+            if (diffMins < 1) return $text('settings.usage.just_now');
+            if (diffMins < 60) return `${diffMins} ${$text('settings.usage.minutes_ago')}`;
+            if (diffHours < 24) return `${diffHours} ${$text('settings.usage.hours_ago')}`;
+            if (diffDays < 30) return `${diffDays} ${$text('settings.usage.days_ago')}`;
             
             return formatDate(timestamp);
         } catch {
@@ -296,7 +296,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     // Look up the skill's name_translation_key from static app metadata.
-    // Returns the correct key (e.g. "app_skills.travel.search_connections.text") or null if not found.
+    // Returns the correct key (e.g. "app_skills.travel.search_connections") or null if not found.
     function getSkillTranslationKey(appId: string, skillId: string): string | null {
         const app = appsMetadata[appId];
         if (!app?.skills) return null;
@@ -308,7 +308,7 @@ Usage Settings - View usage statistics and export usage data
     function getEntryDisplayName(entry: UsageEntry): string {
         if (entry.app_id && entry.skill_id) {
             // Look up skill translation key from app metadata (correct approach)
-            const appKey = `apps.${entry.app_id}.text`;
+            const appKey = `apps.${entry.app_id}`;
             const skillTranslationKey = getSkillTranslationKey(entry.app_id, entry.skill_id);
             try {
                 const appName = $text(appKey);
@@ -321,7 +321,7 @@ Usage Settings - View usage statistics and export usage data
         if (entry.type) {
             return entry.type;
         }
-        return $text('settings.usage.unknown_activity.text');
+        return $text('settings.usage.unknown_activity');
     }
 
     // Get icon for usage entry
@@ -423,7 +423,7 @@ Usage Settings - View usage statistics and export usage data
             if (error instanceof Error) {
                 errorMessage = error.message;
             } else {
-                errorMessage = $text('settings.usage.error_loading.text');
+                errorMessage = $text('settings.usage.error_loading');
             }
             hasMoreMonths = false;
         } finally {
@@ -477,7 +477,7 @@ Usage Settings - View usage statistics and export usage data
             if (error instanceof Error) {
                 errorMessage = error.message;
             } else {
-                errorMessage = $text('settings.usage.error_loading.text');
+                errorMessage = $text('settings.usage.error_loading');
             }
             usageEntries = [];
         } finally {
@@ -559,7 +559,7 @@ Usage Settings - View usage statistics and export usage data
             if (error instanceof Error) {
                 errorMessage = error.message;
             } else {
-                errorMessage = $text('settings.usage.error_loading.text');
+                errorMessage = $text('settings.usage.error_loading');
             }
             dailyOverview = [];
             hasMoreDays = false;
@@ -623,10 +623,10 @@ Usage Settings - View usage statistics and export usage data
             yesterday.setDate(yesterday.getDate() - 1);
             
             if (date.getTime() === today.getTime()) {
-                return $text('settings.usage.today.text');
+                return $text('settings.usage.today');
             }
             if (date.getTime() === yesterday.getTime()) {
-                return $text('settings.usage.yesterday.text');
+                return $text('settings.usage.yesterday');
             }
             
             // Format as localized date
@@ -804,7 +804,7 @@ Usage Settings - View usage statistics and export usage data
     // Exports ALL usage entries for the current time frame (chats, apps, and API keys)
     async function exportToCSV() {
         try {
-            notificationStore.info($text('settings.usage.exporting.text'));
+            notificationStore.info($text('settings.usage.exporting'));
             
             // Build export URL with current time frame (no type filter - exports everything)
             const params = new URLSearchParams({
@@ -846,20 +846,20 @@ Usage Settings - View usage statistics and export usage data
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
             
-            notificationStore.success($text('settings.usage.export_success.text'));
+            notificationStore.success($text('settings.usage.export_success'));
         } catch (error) {
             console.error('Error exporting usage:', error);
             if (error instanceof Error) {
                 notificationStore.error(error.message);
             } else {
-                notificationStore.error($text('settings.usage.export_error.text'));
+                notificationStore.error($text('settings.usage.export_error'));
             }
         }
     }
 
     // Export usage data as PDF (placeholder - would need PDF library)
     async function exportToPDF() {
-        notificationStore.info($text('settings.usage.pdf_coming_soon.text'));
+        notificationStore.info($text('settings.usage.pdf_coming_soon'));
         // TODO: Implement PDF export using a library like jsPDF
     }
 
@@ -1192,7 +1192,7 @@ Usage Settings - View usage statistics and export usage data
      */
     function getAppName(appId: string): string {
         try {
-            return $text(`apps.${appId}.text`);
+            return $text(`apps.${appId}`);
         } catch {
             return appId;
         }
@@ -1249,7 +1249,7 @@ Usage Settings - View usage statistics and export usage data
             // prefixFromBackend remains false - this is from fallback, so we'll shorten it
         }
         
-        const title = name && name.length > 0 ? name : $text('settings.usage.api_key_details.text');
+        const title = name && name.length > 0 ? name : $text('settings.usage.api_key_details');
         // Backend always provides a shortened prefix, so display it as-is without further shortening
         // If no prefix available, show empty subtitle (title will be "API key")
         const subtitle = prefix || '';
@@ -1360,16 +1360,16 @@ Usage Settings - View usage statistics and export usage data
 <!-- Header with Export button -->
 <div class="usage-header">
     <div class="header-content">
-        <h2 class="header-title">{$text('settings.usage.title.text')}</h2>
+        <h2 class="header-title">{$text('settings.usage.title')}</h2>
         <button 
             class="export-button"
             onclick={exportToCSV}
-            title={$text('settings.usage.export.text')}
+            title={$text('settings.usage.export')}
         >
-            {$text('settings.usage.export.text')}
+            {$text('settings.usage.export')}
         </button>
     </div>
-    <p class="header-description">{$text('settings.usage.description.text')}</p>
+    <p class="header-description">{$text('settings.usage.description')}</p>
 </div>
 
 <!-- Category tabs - simple clickable icons -->
@@ -1378,8 +1378,8 @@ Usage Settings - View usage statistics and export usage data
         class="tab-icon-button"
         class:active={activeTab === 'overview'}
         onclick={() => activeTab = 'overview'}
-        title={$text('settings.usage.tab_overview.text')}
-        aria-label={$text('settings.usage.tab_overview.text')}
+        title={$text('settings.usage.tab_overview')}
+        aria-label={$text('settings.usage.tab_overview')}
     >
         <Icon name="usage" type="default" size="24px" />
     </button>
@@ -1387,8 +1387,8 @@ Usage Settings - View usage statistics and export usage data
         class="tab-icon-button"
         class:active={activeTab === 'chats'}
         onclick={() => activeTab = 'chats'}
-        title={$text('settings.usage.tab_chats.text')}
-        aria-label={$text('settings.usage.tab_chats.text')}
+        title={$text('settings.usage.tab_chats')}
+        aria-label={$text('settings.usage.tab_chats')}
     >
         <Icon name="chat" type="default" size="24px" />
     </button>
@@ -1396,8 +1396,8 @@ Usage Settings - View usage statistics and export usage data
         class="tab-icon-button"
         class:active={activeTab === 'apps'}
         onclick={() => activeTab = 'apps'}
-        title={$text('settings.usage.tab_apps.text')}
-        aria-label={$text('settings.usage.tab_apps.text')}
+        title={$text('settings.usage.tab_apps')}
+        aria-label={$text('settings.usage.tab_apps')}
     >
         <Icon name="app" type="default" size="24px" />
     </button>
@@ -1405,8 +1405,8 @@ Usage Settings - View usage statistics and export usage data
         class="tab-icon-button"
         class:active={activeTab === 'api'}
         onclick={() => activeTab = 'api'}
-        title={$text('settings.usage.tab_api.text')}
-        aria-label={$text('settings.usage.tab_api.text')}
+        title={$text('settings.usage.tab_api')}
+        aria-label={$text('settings.usage.tab_api')}
     >
         <Icon name="coding" type="default" size="24px" />
     </button>
@@ -1415,14 +1415,14 @@ Usage Settings - View usage statistics and export usage data
 {#if isLoading}
     <div class="loading-state">
         <div class="loading-spinner"></div>
-        <span>{$text('settings.usage.loading.text')}</span>
+        <span>{$text('settings.usage.loading')}</span>
     </div>
 {:else if errorMessage}
     <div class="error-message">{errorMessage}</div>
         <SettingsItem
             type="quickaction"
             icon="subsetting_icon subsetting_icon_reload"
-            title={$text('retry.text')}
+            title={$text('retry')}
             onClick={() => fetchUsageSummaries(activeTab, loadedMonths)}
         />
 {:else if activeTab === 'overview'}
@@ -1432,7 +1432,7 @@ Usage Settings - View usage statistics and export usage data
         <!-- LEVEL 2: Single entry detail view (model, tokens, credits breakdown) -->
         {#each [overviewSelectedEntry] as selEntry}
             {@const entryAppName = selEntry.app_id ? (() => {
-                try { return $text(`apps.${selEntry.app_id}.text`); }
+                try { return $text(`apps.${selEntry.app_id}`); }
                 catch { return selEntry.app_id; }
             })() : null}
             {@const entrySkillName = selEntry.skill_id && selEntry.app_id ? (() => {
@@ -1442,7 +1442,7 @@ Usage Settings - View usage statistics and export usage data
             })() : null}
             {@const entryDisplayName = entryAppName && entrySkillName 
                 ? `${entryAppName} - ${entrySkillName}` 
-                : entryAppName || selEntry.type || $text('settings.usage.unknown_activity.text')}
+                : entryAppName || selEntry.type || $text('settings.usage.unknown_activity')}
             {@const entryIconName = getEntryIcon(selEntry)}
             
             <div class="usage-detail-view">
@@ -1451,7 +1451,7 @@ Usage Settings - View usage statistics and export usage data
                     onclick={() => overviewSelectedEntry = null}
                 >
                     <div class="clickable-icon icon_back"></div>
-                    <span>{$text('settings.usage.back.text')}</span>
+                    <span>{$text('settings.usage.back')}</span>
                 </button>
                 
                 <div class="detail-header">
@@ -1468,7 +1468,7 @@ Usage Settings - View usage statistics and export usage data
                     <!-- Total credits with breakdown -->
                     {#if selEntry.credits}
                         <div class="entry-detail-row">
-                            <span class="entry-detail-label">{$text('settings.usage.total_credits_label.text')}</span>
+                            <span class="entry-detail-label">{$text('settings.usage.total_credits_label')}</span>
                             <span class="entry-detail-value">
                                 <span class="credits-amount">{formatCredits(selEntry.credits)}</span>
                                 <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
@@ -1478,16 +1478,16 @@ Usage Settings - View usage statistics and export usage data
                     <!-- Credit breakdown (system prompt / history / response) - only for AI Ask -->
                     {#if selEntry.credits_system_prompt || selEntry.credits_history || selEntry.credits_response}
                         <div class="entry-detail-row entry-detail-sub">
-                            <span class="entry-detail-label">{$text('settings.usage.credits_breakdown_label.text')}</span>
+                            <span class="entry-detail-label">{$text('settings.usage.credits_breakdown_label')}</span>
                             <span class="entry-detail-value entry-detail-breakdown">
                                 {#if selEntry.credits_system_prompt}
-                                    <span class="breakdown-item">{$text('settings.usage.credits_system_prompt_label.text')}: {formatCredits(selEntry.credits_system_prompt)}</span>
+                                    <span class="breakdown-item">{$text('settings.usage.credits_system_prompt_label')}: {formatCredits(selEntry.credits_system_prompt)}</span>
                                 {/if}
                                 {#if selEntry.credits_history}
-                                    <span class="breakdown-item">{$text('settings.usage.credits_history_label.text')}: {formatCredits(selEntry.credits_history)}</span>
+                                    <span class="breakdown-item">{$text('settings.usage.credits_history_label')}: {formatCredits(selEntry.credits_history)}</span>
                                 {/if}
                                 {#if selEntry.credits_response}
-                                    <span class="breakdown-item">{$text('settings.usage.credits_response_label.text')}: {formatCredits(selEntry.credits_response)}</span>
+                                    <span class="breakdown-item">{$text('settings.usage.credits_response_label')}: {formatCredits(selEntry.credits_response)}</span>
                                 {/if}
                             </span>
                         </div>
@@ -1497,7 +1497,7 @@ Usage Settings - View usage statistics and export usage data
                         {#each [selEntry.model_used.includes('/') ? selEntry.model_used.split('/')[0] : null] as providerPrefix}
                             {#if providerPrefix}
                                 <div class="entry-detail-row">
-                                    <span class="entry-detail-label">{$text('settings.usage.provider_label.text')}</span>
+                                    <span class="entry-detail-label">{$text('settings.usage.provider_label')}</span>
                                     <span class="entry-detail-value">{providerPrefix.charAt(0).toUpperCase() + providerPrefix.slice(1)}</span>
                                 </div>
                             {/if}
@@ -1506,46 +1506,46 @@ Usage Settings - View usage statistics and export usage data
                     <!-- Model name (after the slash) -->
                     {#if selEntry.model_used}
                         <div class="entry-detail-row">
-                            <span class="entry-detail-label">{$text('settings.usage.model_label.text')}</span>
+                            <span class="entry-detail-label">{$text('settings.usage.model_label')}</span>
                             <span class="entry-detail-value">{selEntry.model_used.includes('/') ? selEntry.model_used.split('/')[1] : selEntry.model_used}</span>
                         </div>
                     {/if}
                     <!-- Server provider (e.g., "AWS Bedrock", "Anthropic API") -->
                     {#if selEntry.server_provider}
                         <div class="entry-detail-row">
-                            <span class="entry-detail-label">{$text('settings.usage.server_provider_label.text')}</span>
+                            <span class="entry-detail-label">{$text('settings.usage.server_provider_label')}</span>
                             <span class="entry-detail-value">{selEntry.server_provider}</span>
                         </div>
                     {/if}
                     <!-- Server region (e.g., "EU", "US") -->
                     {#if selEntry.server_region}
                         <div class="entry-detail-row">
-                            <span class="entry-detail-label">{$text('settings.usage.server_region_label.text')}</span>
+                            <span class="entry-detail-label">{$text('settings.usage.server_region_label')}</span>
                             <span class="entry-detail-value">{selEntry.server_region}</span>
                         </div>
                     {/if}
                     <!-- Token breakdown - only for AI Ask entries -->
                     {#if selEntry.system_prompt_tokens}
                         <div class="entry-detail-row">
-                            <span class="entry-detail-label">{$text('settings.usage.system_prompt_tokens_label.text')}</span>
+                            <span class="entry-detail-label">{$text('settings.usage.system_prompt_tokens_label')}</span>
                             <span class="entry-detail-value">{selEntry.system_prompt_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.user_input_tokens}
                         <div class="entry-detail-row">
-                            <span class="entry-detail-label">{$text('settings.usage.user_input_tokens_label.text')}</span>
+                            <span class="entry-detail-label">{$text('settings.usage.user_input_tokens_label')}</span>
                             <span class="entry-detail-value">{selEntry.user_input_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.input_tokens}
                         <div class="entry-detail-row">
-                            <span class="entry-detail-label">{$text('settings.usage.input_tokens_label.text')}</span>
+                            <span class="entry-detail-label">{$text('settings.usage.input_tokens_label')}</span>
                             <span class="entry-detail-value">{selEntry.input_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.output_tokens}
                         <div class="entry-detail-row">
-                            <span class="entry-detail-label">{$text('settings.usage.output_tokens_label.text')}</span>
+                            <span class="entry-detail-label">{$text('settings.usage.output_tokens_label')}</span>
                             <span class="entry-detail-value">{selEntry.output_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
@@ -1574,7 +1574,7 @@ Usage Settings - View usage statistics and export usage data
                 }}
             >
                 <div class="clickable-icon icon_back"></div>
-                <span>{$text('settings.usage.back.text')}</span>
+                <span>{$text('settings.usage.back')}</span>
             </button>
             
             <div class="detail-header">
@@ -1596,17 +1596,17 @@ Usage Settings - View usage statistics and export usage data
             {#if isLoadingOverviewEntries}
                 <div class="loading-state">
                     <div class="loading-spinner"></div>
-                    <span>{$text('settings.usage.loading.text')}</span>
+                    <span>{$text('settings.usage.loading')}</span>
                 </div>
             {:else if overviewChatEntries.length === 0}
                 <div class="empty-state">
                     <div class="empty-icon"></div>
-                    <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                    <h4>{$text('settings.usage.no_usage_title')}</h4>
                 </div>
             {:else}
                 {#each overviewChatEntries as entry}
                     {@const oAppName = entry.app_id ? (() => {
-                        try { return $text(`apps.${entry.app_id}.text`); }
+                        try { return $text(`apps.${entry.app_id}`); }
                         catch { return entry.app_id; }
                     })() : null}
                     {@const oSkillName = entry.skill_id && entry.app_id ? (() => {
@@ -1616,7 +1616,7 @@ Usage Settings - View usage statistics and export usage data
                     })() : null}
                     {@const oDisplayName = oAppName && oSkillName 
                         ? `${oAppName} - ${oSkillName}` 
-                        : oAppName || entry.type || $text('settings.usage.unknown_activity.text')}
+                        : oAppName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const oEntryIcon = getEntryIcon(entry)}
                     
                     <button
@@ -1647,13 +1647,13 @@ Usage Settings - View usage statistics and export usage data
         {#if isLoadingDailyOverview}
             <div class="loading-state">
                 <div class="loading-spinner"></div>
-                <span>{$text('settings.usage.loading.text')}</span>
+                <span>{$text('settings.usage.loading')}</span>
             </div>
         {:else if dailyOverview.length === 0}
             <div class="empty-state">
                 <div class="empty-icon"></div>
-                <h4>{$text('settings.usage.no_usage_title.text')}</h4>
-                <p>{$text('settings.usage.no_usage_on_day.text')}</p>
+                <h4>{$text('settings.usage.no_usage_title')}</h4>
+                <p>{$text('settings.usage.no_usage_on_day')}</p>
             </div>
         {:else}
             {#each dailyOverview as day}
@@ -1668,7 +1668,7 @@ Usage Settings - View usage statistics and export usage data
                     
                     {#if day.items.length === 0}
                         <div class="overview-empty-day">
-                            <span class="overview-empty-text">{$text('settings.usage.no_usage_on_day.text')}</span>
+                            <span class="overview-empty-text">{$text('settings.usage.no_usage_on_day')}</span>
                         </div>
                     {:else}
                         {#each day.items as item}
@@ -1684,7 +1684,7 @@ Usage Settings - View usage statistics and export usage data
                                 {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle')}
                                 {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
                                 {@const IconComponent = isDeletedChat ? null : getLucideIcon(iconName)}
-                                {@const title = isDeletedChat ? $text('settings.usage.deleted_chat.text') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')}
+                                {@const title = isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')}
                                 
                                 <button
                                     type="button"
@@ -1735,7 +1735,7 @@ Usage Settings - View usage statistics and export usage data
                                         />
                                     </div>
                                     <div class="overview-item-content">
-                                        <div class="overview-item-title">{$text('settings.usage.api_key_label.text')}</div>
+                                        <div class="overview-item-title">{$text('settings.usage.api_key_label')}</div>
                                         <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
                                     </div>
                                     <div class="overview-item-credits">
@@ -1755,9 +1755,9 @@ Usage Settings - View usage statistics and export usage data
                     <button
                         class="show-more-button"
                         onclick={loadMoreDays}
-                        aria-label={$text('settings.usage.load_more_days.text')}
+                        aria-label={$text('settings.usage.load_more_days')}
                     >
-                        {$text('settings.usage.load_more_days.text')}
+                        {$text('settings.usage.load_more_days')}
                     </button>
                 </div>
             {/if}
@@ -1771,7 +1771,7 @@ Usage Settings - View usage statistics and export usage data
             onclick={() => selectedChatId = null}
         >
             <div class="clickable-icon icon_back"></div>
-            <span>{$text('settings.usage.back.text')}</span>
+            <span>{$text('settings.usage.back')}</span>
         </button>
         
         {#if selectedChatId}
@@ -1807,14 +1807,14 @@ Usage Settings - View usage statistics and export usage data
         {#if isLoadingDetails}
             <div class="loading-state">
                 <div class="loading-spinner"></div>
-                <span>{$text('settings.usage.loading.text')}</span>
+                <span>{$text('settings.usage.loading')}</span>
             </div>
         {:else}
         <div class="detail-entries">
             {#each usageEntries as entry}
                 {@const appName = entry.app_id ? (() => {
                     try {
-                        return $text(`apps.${entry.app_id}.text`);
+                        return $text(`apps.${entry.app_id}`);
                     } catch {
                         return entry.app_id;
                     }
@@ -1824,7 +1824,7 @@ Usage Settings - View usage statistics and export usage data
                     if (key) { try { return $text(key); } catch { return entry.skill_id; } }
                     return entry.skill_id;
                 })() : null}
-                {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity.text')}
+                {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity')}
                 {@const entryIcon = getEntryIcon(entry)}
                 
                 <div class="detail-entry">
@@ -1849,7 +1849,7 @@ Usage Settings - View usage statistics and export usage data
         
         <div class="detail-export">
             <button class="export-button" onclick={exportToCSV}>
-                {$text('settings.usage.export.text')}
+                {$text('settings.usage.export')}
             </button>
         </div>
     </div>
@@ -1866,12 +1866,12 @@ Usage Settings - View usage statistics and export usage data
                 }}
             >
                 <div class="clickable-icon icon_back"></div>
-                <span>{$text('settings.usage.back.text')}</span>
+                <span>{$text('settings.usage.back')}</span>
             </button>
             
             {#if selectedApiKeyHash && selectedApiKeyMonth}
                 {@const labelKey = `${selectedApiKeyHash}:${selectedApiKeyMonth}`}
-                {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details.text'), subtitle: '' }}
+                {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details'), subtitle: '' }}
                 
                 <div class="detail-header">
                     <div class="detail-icon-wrapper">
@@ -1886,7 +1886,7 @@ Usage Settings - View usage statistics and export usage data
                         {#if apiKeyLabel.subtitle}
                             <p>{apiKeyLabel.subtitle}</p>
                         {:else}
-                            <p>{$text('settings.usage.api_key_details.text')}</p>
+                            <p>{$text('settings.usage.api_key_details')}</p>
                         {/if}
                     </div>
                 </div>
@@ -1895,14 +1895,14 @@ Usage Settings - View usage statistics and export usage data
             {#if isLoadingDetails}
                 <div class="loading-state">
                     <div class="loading-spinner"></div>
-                    <span>{$text('settings.usage.loading.text')}</span>
+                    <span>{$text('settings.usage.loading')}</span>
                 </div>
             {:else}
             <div class="detail-entries">
                 {#each usageEntries as entry}
                     {@const appName = entry.app_id ? (() => {
                         try {
-                            return $text(`apps.${entry.app_id}.text`);
+                            return $text(`apps.${entry.app_id}`);
                         } catch {
                             return entry.app_id;
                         }
@@ -1912,7 +1912,7 @@ Usage Settings - View usage statistics and export usage data
                         if (key) { try { return $text(key); } catch { return entry.skill_id; } }
                         return entry.skill_id;
                     })() : null}
-                    {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity.text')}
+                    {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const entryIcon = getEntryIcon(entry)}
                     
                     <div class="detail-entry">
@@ -1946,7 +1946,7 @@ Usage Settings - View usage statistics and export usage data
                 }}
             >
                 <div class="clickable-icon icon_back"></div>
-                <span>{$text('settings.usage.back.text')}</span>
+                <span>{$text('settings.usage.back')}</span>
             </button>
             
             {#if selectedAppId}
@@ -1971,7 +1971,7 @@ Usage Settings - View usage statistics and export usage data
             {#if isLoadingDetails}
                 <div class="loading-state">
                     <div class="loading-spinner"></div>
-                    <span>{$text('settings.usage.loading.text')}</span>
+                    <span>{$text('settings.usage.loading')}</span>
                 </div>
             {:else}
             <div class="detail-entries">
@@ -1981,7 +1981,7 @@ Usage Settings - View usage statistics and export usage data
                         if (key) { try { return $text(key); } catch { return entry.skill_id; } }
                         return entry.skill_id;
                     })() : null}
-                    {@const displayName = skillName || entry.type || $text('settings.usage.unknown_activity.text')}
+                    {@const displayName = skillName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const entryIcon = getEntryIcon(entry)}
                     
                     <div class="detail-entry">
@@ -2009,12 +2009,12 @@ Usage Settings - View usage statistics and export usage data
         {#if isLoadingSummaries}
             <div class="loading-state">
                 <div class="loading-spinner"></div>
-                <span>{$text('settings.usage.loading.text')}</span>
+                <span>{$text('settings.usage.loading')}</span>
             </div>
         {:else if !hasChatSummaries}
             <div class="empty-state">
                 <div class="empty-icon"></div>
-                <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                <h4>{$text('settings.usage.no_usage_title')}</h4>
                 <p>No chat usage found. Try switching tabs.</p>
             </div>
         {:else}
@@ -2040,7 +2040,7 @@ Usage Settings - View usage statistics and export usage data
                         {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle')}
                         {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
                         {@const IconComponent = isDeletedChat ? null : getLucideIcon(iconName)}
-                        {@const title = isDeletedChat ? $text('settings.usage.deleted_chat.text') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')}
+                        {@const title = isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')}
                         
                         <button
                             type="button"
@@ -2051,7 +2051,7 @@ Usage Settings - View usage statistics and export usage data
                                 // Fetch details for this chat and month
                                 await fetchUsageDetails('chats', summary.chat_id, summary.month);
                             }}
-                            aria-label={$text('settings.usage.view_chat_details.text')}
+                            aria-label={$text('settings.usage.view_chat_details')}
                         >
                             <div class="chat-usage-icon-wrapper">
                                 {#if isDeletedChat}
@@ -2090,7 +2090,7 @@ Usage Settings - View usage statistics and export usage data
         {#if appsByMonth.size === 0}
             <div class="empty-state">
                 <div class="empty-icon"></div>
-                <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                <h4>{$text('settings.usage.no_usage_title')}</h4>
                 <p>No app usage found. Try switching tabs.</p>
             </div>
         {:else}
@@ -2118,7 +2118,7 @@ Usage Settings - View usage statistics and export usage data
                                 // Fetch details for this app and month
                                 await fetchUsageDetails('apps', summary.app_id, summary.month);
                             }}
-                            aria-label={$text('settings.usage.view_app_details.text')}
+                            aria-label={$text('settings.usage.view_app_details')}
                         >
                             <div class="app-usage-icon-wrapper">
                                 <Icon 
@@ -2144,12 +2144,12 @@ Usage Settings - View usage statistics and export usage data
         {#if isLoadingApiKeys || isLoadingSummaries}
             <div class="loading-state">
                 <div class="loading-spinner"></div>
-                <span>{$text('settings.usage.loading.text')}</span>
+                <span>{$text('settings.usage.loading')}</span>
             </div>
         {:else if apiKeysByMonth.size === 0}
             <div class="empty-state">
                 <div class="empty-icon"></div>
-                <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                <h4>{$text('settings.usage.no_usage_title')}</h4>
                 <p>No API key usage found. Try switching tabs.</p>
             </div>
         {:else}
@@ -2166,7 +2166,7 @@ Usage Settings - View usage statistics and export usage data
                     
                     {#each summaries as summary}
                         {@const labelKey = `${summary.api_key_hash}:${summary.month}`}
-                        {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details.text'), subtitle: '' }}
+                        {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details'), subtitle: '' }}
                         
                         <button
                             type="button"
@@ -2177,7 +2177,7 @@ Usage Settings - View usage statistics and export usage data
                                 // Fetch details for this API key and month
                                 await fetchUsageDetails('api', summary.api_key_hash, summary.month);
                             }}
-                            aria-label={$text('settings.usage.view_api_key_details.text')}
+                            aria-label={$text('settings.usage.view_api_key_details')}
                         >
                             <div class="api-key-usage-icon-wrapper">
                                 <Icon 
@@ -2207,7 +2207,7 @@ Usage Settings - View usage statistics and export usage data
         {#if processedEntries.length === 0 && usageEntries.length > 0}
             <div class="empty-state">
                 <div class="empty-icon"></div>
-                <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                <h4>{$text('settings.usage.no_usage_title')}</h4>
                 <p>No entries match the current filter. Try switching tabs.</p>
             </div>
         {:else}
@@ -2245,9 +2245,9 @@ Usage Settings - View usage statistics and export usage data
             <button
                 class="show-more-button"
                 onclick={showMoreMonths}
-                aria-label={$text('settings.usage.show_more.text')}
+                aria-label={$text('settings.usage.show_more')}
             >
-                {$text('settings.usage.show_more.text')}
+                {$text('settings.usage.show_more')}
             </button>
         </div>
     {/if}

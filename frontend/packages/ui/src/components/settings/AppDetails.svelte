@@ -170,7 +170,7 @@
                 <SettingsItem
                     type="heading"
                     icon="settings"
-                    title={$text('settings.app_store.settings_memories.title.text')}
+                    title={$text('settings.app_store.settings_memories.title')}
                 />
                 <div class="items-scroll-container">
                     <div class="items-scroll">
@@ -199,7 +199,7 @@
                 <SettingsItem 
                     type="heading"
                     icon="skill"
-                    title={$text('settings.app_store.skills.title.text')}
+                    title={$text('settings.app_store.skills.title')}
                 />
                 <div class="items-scroll-container">
                     <div class="items-scroll">
@@ -222,7 +222,7 @@
                 <SettingsItem 
                     type="heading"
                     icon="focus"
-                    title={$text('settings.app_store.focus_modes.title.text')}
+                    title={$text('settings.app_store.focus_modes.title')}
                 />
                 <div class="items-scroll-container">
                     <div class="items-scroll">

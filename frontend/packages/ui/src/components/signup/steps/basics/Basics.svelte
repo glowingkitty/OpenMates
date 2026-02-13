@@ -523,7 +523,7 @@
                     // Domain is blocked - show error immediately and prevent code from being sent
                     // Backend returns translation key in data.message, use $text() to load translated version
                     showEmailWarning = true;
-                    emailError = data.message ? $text(data.message) : $text('signup.domain_not_allowed.text');
+                    emailError = data.message ? $text(data.message) : $text('signup.domain_not_allowed');
                     if (emailInput && !isTouchDevice) {
                         emailInput.focus();
                     }
@@ -568,14 +568,14 @@
         }
 
         if (!email.includes('@')) {
-            emailError = $text('signup.at_missing.text');
+            emailError = $text('signup.at_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
         }
 
         if (!email.match(/\.[a-z]{2,}$/i)) {
-            emailError = $text('signup.domain_ending_missing.text');
+            emailError = $text('signup.domain_ending_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
@@ -598,27 +598,27 @@
         const normalizedUsername = username.normalize('NFC');
 
         if (normalizedUsername.length < 3) {
-            usernameError = $text('signup.username_too_short.text');
+            usernameError = $text('signup.username_too_short');
             showUsernameWarning = true;
             return false;
         }
 
         if (normalizedUsername.length > 20) {
-            usernameError = $text('signup.username_too_long.text');
+            usernameError = $text('signup.username_too_long');
             showUsernameWarning = true;
             return false;
         }
 
         // Check for at least one letter (including international letters)
         if (!/\p{L}/u.test(normalizedUsername)) {
-            usernameError = $text('signup.password_needs_letter.text');
+            usernameError = $text('signup.password_needs_letter');
             showUsernameWarning = true;
             return false;
         }
 
         // Allow letters (including international), numbers, dots, and underscoress        // Include specific Unicode ranges for Thai [\u0E00-\u0E7F]
         if (!/^[\p{L}\p{M}0-9._]+$/u.test(normalizedUsername)) {
-            usernameError = $text('signup.username_invalid_chars.text');
+            usernameError = $text('signup.username_invalid_chars');
             showUsernameWarning = true;
             return false;
         }
@@ -710,14 +710,14 @@
         }
 
         if (!email.includes('@')) {
-            newsletterEmailError = $text('signup.at_missing.text');
+            newsletterEmailError = $text('signup.at_missing');
             showNewsletterEmailWarning = true;
             isNewsletterEmailValidationPending = false;
             return;
         }
 
         if (!email.match(/\.[a-z]{2,}$/i)) {
-            newsletterEmailError = $text('signup.domain_ending_missing.text');
+            newsletterEmailError = $text('signup.domain_ending_missing');
             showNewsletterEmailWarning = true;
             isNewsletterEmailValidationPending = false;
             return;
@@ -751,7 +751,7 @@
         
         // Validate email before submission
         if (!newsletterEmail || !newsletterEmail.trim()) {
-            newsletterEmailError = $text('signup.at_missing.text');
+            newsletterEmailError = $text('signup.at_missing');
             showNewsletterEmailWarning = true;
             if (newsletterEmailInput && !isTouchDevice) {
                 newsletterEmailInput.focus();
@@ -801,18 +801,18 @@
             
             if (response.ok && data.success) {
                 // Show success message
-                newsletterSuccessMessage = data.message || $text('signup.newsletter.subscribe_success.text');
+                newsletterSuccessMessage = data.message || $text('signup.newsletter.subscribe_success');
                 // Clear email input
                 newsletterEmail = '';
                 newsletterEmailError = '';
                 showNewsletterEmailWarning = false;
             } else {
                 // Show error message from API or default error
-                newsletterErrorMessage = data.message || $text('signup.newsletter.subscribe_error.text');
+                newsletterErrorMessage = data.message || $text('signup.newsletter.subscribe_error');
             }
         } catch (error) {
             console.error('[Basics] Error subscribing to newsletter:', error);
-            newsletterErrorMessage = $text('signup.newsletter.subscribe_error.text');
+            newsletterErrorMessage = $text('signup.newsletter.subscribe_error');
         } finally {
             isNewsletterSubmitting = false;
         }
@@ -836,8 +836,8 @@
     // --- End Newsletter Subscription State ---
 </script>
 
-<h1><mark>{@html $text('signup.sign_up.text')}</mark></h1>
-<h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
+<h1><mark>{@html $text('signup.sign_up')}</mark></h1>
+<h2>{@html $text('login.to_chat_to_your')}<br><mark>{@html $text('login.digital_team_mates')}</mark></h2>
 
 <div class="form-container">
     {#if !isValidated && $requireInviteCode}
@@ -845,7 +845,7 @@
             <div class="input-group">
                 {#if isRateLimited}
                     <div class="rate-limit-message" transition:fade>
-                        {$text('signup.too_many_requests.text')}
+                        {$text('signup.too_many_requests')}
                     </div>
                 {:else}
                     <div class="input-wrapper">
@@ -856,13 +856,13 @@
                             bind:value={inviteCode}
                             oninput={handleInviteCodeInput}
                             onpaste={handlePaste}
-                            placeholder={$text('signup.enter_personal_invite_code.text')}
+                            placeholder={$text('signup.enter_personal_invite_code')}
                             maxlength="14"
                             disabled={isLoading}
                         />
                         {#if showWarning}
                             <InputWarning 
-                                message={$text('signup.code_is_invalid.text')}
+                                message={$text('signup.code_is_invalid')}
                                 autoHideDelay={0}
                             />
                         {/if}
@@ -871,7 +871,7 @@
                 {#if isLoading}
                     <div class="loading-message-container" transition:fade>
                         <div class="loading-message">
-                            {$text('signup.checking_code.text')}
+                            {$text('signup.checking_code')}
                         </div>
                     </div>
                 {/if}
@@ -887,7 +887,7 @@
                         bind:this={emailInput}
                         type="email" 
                         bind:value={email}
-                        placeholder={$text('login.email_placeholder.text')}
+                        placeholder={$text('login.email_placeholder')}
                         required
                         autocomplete="email"
                         class:error={!!emailError || emailAlreadyInUse}
@@ -913,7 +913,7 @@
                     {/if}
                     {#if emailAlreadyInUse}
                         <InputWarning 
-                            message={$text('signup.email_address_already_in_use.text')}
+                            message={$text('signup.email_address_already_in_use')}
                             autoHideDelay={0}
                         />
                     {/if}
@@ -927,7 +927,7 @@
                         bind:this={usernameInput}
                         type="text" 
                         bind:value={username}
-                        placeholder={$text('signup.enter_username.text')}
+                        placeholder={$text('signup.enter_username')}
                         required
                         autocomplete="username"
                         class:error={!!usernameError}
@@ -946,24 +946,24 @@
                     id="stayLoggedIn" 
                     name="stayLoggedIn" 
                     bind:checked={stayLoggedIn} 
-                    ariaLabel={$text('login.stay_logged_in.text')} 
+                    ariaLabel={$text('login.stay_logged_in')} 
                 />
-                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
+                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in')}</label>
             </div>
 
             <div class="agreement-row">
                 <Toggle bind:checked={subscribeToNewsletter} id="newsletter-subscribe-toggle" />
                 <label for="newsletter-subscribe-toggle" class="agreement-text">
-                    {@html $text('signup.subscribe_to_newsletter.text')}
+                    {@html $text('signup.subscribe_to_newsletter')}
                 </label>
             </div>
 
             <div class="agreement-row">
                 <Toggle bind:checked={termsAgreed} id="terms-agreed-toggle" />
                 <label for="terms-agreed-toggle" class="agreement-text">
-                    {$text('signup.agree_to.text')} 
+                    {$text('signup.agree_to')} 
                     <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
-                        <mark>{@html $text('signup.terms_of_service.text')}</mark>
+                        <mark>{@html $text('signup.terms_of_service')}</mark>
                     </a>
                 </label>
             </div>
@@ -971,9 +971,9 @@
             <div class="agreement-row">
                 <Toggle bind:checked={privacyAgreed} id="privacy-agreed-toggle" />
                 <label for="privacy-agreed-toggle" class="agreement-text">
-                    {$text('signup.agree_to.text')} 
+                    {$text('signup.agree_to')} 
                     <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
-                        <mark>{@html $text('signup.privacy_policy.text')}</mark>
+                        <mark>{@html $text('signup.privacy_policy')}</mark>
                     </a>
                 </label>
             </div>
@@ -984,7 +984,7 @@
     <!-- Newsletter Subscription Form (for users without invite code) -->
     <div class="newsletter-content">
         <p class="newsletter-text">
-            {$text('signup.newsletter.subscribe_text.text')}
+            {$text('signup.newsletter.subscribe_text')}
         </p>
         
         <div class="newsletter-form">
@@ -994,12 +994,12 @@
                     <input
                         bind:this={newsletterEmailInput}
                         type="email"
-                        placeholder={$text('signup.newsletter.email_placeholder.text')}
+                        placeholder={$text('signup.newsletter.email_placeholder')}
                         bind:value={newsletterEmail}
                         onkeypress={handleNewsletterKeyPress}
                         disabled={isNewsletterSubmitting}
                         class:error={!!newsletterEmailError}
-                        aria-label={$text('signup.newsletter.email_placeholder.text')}
+                        aria-label={$text('signup.newsletter.email_placeholder')}
                         autocomplete="email"
                     />
                     {#if showNewsletterEmailWarning && newsletterEmailError}
@@ -1017,12 +1017,12 @@
                     onclick={handleNewsletterSubscribe}
                     disabled={!isNewsletterFormValid || isNewsletterSubmitting}
                     class:loading={isNewsletterSubmitting}
-                    aria-label={$text('signup.newsletter.subscribe_button.text')}
+                    aria-label={$text('signup.newsletter.subscribe_button')}
                 >
                     {#if isNewsletterSubmitting}
-                        {$text('signup.newsletter.subscribing.text')}
+                        {$text('signup.newsletter.subscribing')}
                     {:else}
-                        {$text('signup.newsletter.subscribe_button.text')}
+                        {$text('signup.newsletter.subscribe_button')}
                     {/if}
                 </button>
             </div>
@@ -1045,7 +1045,7 @@
 {:else}
     {#if isRateLimited}
         <div class="rate-limit-message" transition:fade>
-            {$text('signup.too_many_requests.text')}
+            {$text('signup.too_many_requests')}
         </div>
     {:else}
         <div class="action-button-container">
@@ -1056,7 +1056,7 @@
                 onclick={handleSubmit}
                 transition:fade
             >
-                {isLoading ? $text('login.loading.text') : $text('signup.create_new_account.text')}
+                {isLoading ? $text('login.loading') : $text('signup.create_new_account')}
             </button>
         </div>
     {/if}

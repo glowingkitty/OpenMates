@@ -1613,7 +1613,7 @@
                use:tooltip 
                rel="noopener noreferrer" 
                class="help-button-container" 
-               aria-label={$_('documentation.open_documentation.text')}
+               aria-label={$_('documentation.open_documentation')}
             >
                 <div class="help-button"></div>
             </a>

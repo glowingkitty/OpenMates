@@ -207,7 +207,7 @@
             settingsPath: 'shared/share',
             direction: 'forward',
             icon: 'share',
-            title: $text('settings.share.share_chat.text')
+            title: $text('settings.share.share_chat')
         });
     }
     
@@ -284,11 +284,11 @@
 <div class="settings-shared-container">
     {#if !isAuthenticated}
         <div class="not-authenticated-message">
-            <p>{$text('settings.share.not_authenticated.text')}</p>
+            <p>{$text('settings.share.not_authenticated')}</p>
         </div>
     {:else if isLoading}
         <div class="loading-message">
-            <p>{$text('settings.share.loading.text')}</p>
+            <p>{$text('settings.share.loading')}</p>
         </div>
     {:else}
         <!-- Shared Section: Chats owned by user -->
@@ -296,12 +296,12 @@
             <SettingsItem
                 type="heading"
                 icon="share"
-                title={$text('settings.share.shared_section.text')}
+                title={$text('settings.share.shared_section')}
             />
             
             {#if ownedSharedChats.length === 0}
                 <div class="empty-state">
-                    <p>{$text('settings.share.no_shared_chats.text')}</p>
+                    <p>{$text('settings.share.no_shared_chats')}</p>
                 </div>
             {:else}
                 <div class="chat-list">
@@ -314,14 +314,14 @@
                                 iconType={metadata?.category ? 'category' : 'default'}
                                 category={metadata?.category}
                                 categoryIcon={metadata?.icon}
-                                title={metadata?.title || chat.title || $text('settings.share.untitled_chat.text')}
+                                title={metadata?.title || chat.title || $text('settings.share.untitled_chat')}
                                 onClick={() => navigateToShare(chat.chat_id)}
                             />
                             <button
                                 class="unshare-button"
                                 onclick={() => unshareChat(chat.chat_id)}
-                                title={$text('settings.share.unshare.text')}
-                                aria-label={$text('settings.share.unshare.text')}
+                                title={$text('settings.share.unshare')}
+                                aria-label={$text('settings.share.unshare')}
                             >
                                 <div class="icon settings_size icon_close"></div>
                             </button>
@@ -336,12 +336,12 @@
             <SettingsItem
                 type="heading"
                 icon="user"
-                title={$text('settings.share.shared_with_me_section.text')}
+                title={$text('settings.share.shared_with_me_section')}
             />
             
             {#if sharedWithMeChats.length === 0}
                 <div class="empty-state">
-                    <p>{$text('settings.share.no_shared_with_me_chats.text')}</p>
+                    <p>{$text('settings.share.no_shared_with_me_chats')}</p>
                 </div>
             {:else}
                 <div class="chat-list">
@@ -353,7 +353,7 @@
                             iconType={metadata?.category ? 'category' : 'default'}
                             category={metadata?.category}
                             categoryIcon={metadata?.icon}
-                            title={metadata?.title || chat.title || $text('settings.shared.untitled_chat.text')}
+                            title={metadata?.title || chat.title || $text('settings.shared.untitled_chat')}
                             onClick={() => {
                                 // Navigate to the chat
                                 activeChatStore.setActiveChat(chat.chat_id);

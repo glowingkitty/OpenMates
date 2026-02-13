@@ -21,7 +21,7 @@
 
     // --- Internal State ---
     let navigationPath: string[] = [];
-    let breadcrumbLabel = $text('settings.settings.text');
+    let breadcrumbLabel = $text('settings.settings');
     let fullBreadcrumbLabel = '';
     let shortBreadcrumbLabel = '';
     let navButtonElement;
@@ -102,7 +102,7 @@
     // Function to update breadcrumb label based on navigation path
     function updateBreadcrumbLabel() {
         if (navigationPath.length <= 0) {
-            breadcrumbLabel = $text('settings.settings.text');
+            breadcrumbLabel = $text('settings.settings');
             fullBreadcrumbLabel = breadcrumbLabel;
             return;
         }
@@ -111,12 +111,12 @@
         const pathLabels = [];
 
         // Always start with "Settings"
-        pathLabels.push($text('settings.settings.text'));
+        pathLabels.push($text('settings.settings'));
 
         // Add each path segment's translated name (except the last one which is current view)
         for (let i = 0; i < navigationPath.length - 1; i++) {
             const segment = navigationPath[i];
-            const translationKey = `settings.${segment}.text`;
+            const translationKey = `settings.${segment}`;
             pathLabels.push($text(translationKey));
         }
 
@@ -148,7 +148,7 @@
             const parentIcon = previousPathSegments[previousPathSegments.length - 1];
             // Build translation key for the previous path to get the correct title
             const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
-            const parentTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+            const parentTitleKey = `settings.${translationKeyParts.join('.')}`;
             const parentTitle = $text(parentTitleKey);
             dispatchNavigate(previousPath, 'backward', parentIcon, parentTitle);
         } else {
@@ -182,7 +182,7 @@
         } else {
             // Reset when back to main view
             navigationPath = [];
-            breadcrumbLabel = $text('settings.settings.text');
+            breadcrumbLabel = $text('settings.settings');
             fullBreadcrumbLabel = breadcrumbLabel; // Reset full label
             currentHelpLink = baseHelpLink;
             navButtonLeft = false;
@@ -211,7 +211,7 @@
     let breadcrumbs = $derived($settingsNavigationStore.breadcrumbs.map(crumb => ({
         ...crumb,
         // Apply translations to breadcrumb titles
-        title: crumb.translationKey ? $text(crumb.translationKey + '.text') : crumb.title
+        title: crumb.translationKey ? $text(crumb.translationKey) : crumb.title
     })));
 
     // Make breadcrumbLabel reactive to text store changes using Svelte 5 runes
@@ -230,7 +230,7 @@
             <button
                 class="nav-button left"
                 onclick={goBack}
-                aria-label={$text('settings.back.text')}
+                aria-label={$text('settings.back')}
                 bind:this={navButtonElement}
             >
                 <span class="icon icon_arrow_left"></span>
@@ -257,7 +257,7 @@
             target="_blank"
             rel="noopener noreferrer"
             class="nav-button right help-button"
-            aria-label={$text('documentation.open_documentation.text')}
+            aria-label={$text('documentation.open_documentation')}
             use:tooltip
         >
             <span class="icon icon_help"></span>
@@ -265,7 +265,7 @@
          <button
             class="nav-button right close-button"
             onclick={handleCloseMenu}
-            aria-label={$text('activity.close.text')}
+            aria-label={$text('activity.close')}
             use:tooltip
         >
             <span class="icon icon_close"></span>

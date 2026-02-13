@@ -1,5 +1,5 @@
-name_translation_key: travel.text
-description_translation_key: travel.description.text
+name_translation_key: travel
+description_translation_key: travel.description
 icon_image: |
   travel.svg
 category: personal
@@ -7,8 +7,8 @@ last_updated: "2025-11-12"
 settings_and_memories:
   # Trips: Planned or past trips with destination and dates
   - id: trips
-    name_translation_key: travel.trips.text
-    description_translation_key: travel.trips.description.text
+    name_translation_key: travel.trips
+    description_translation_key: travel.trips.description
     type: list
     stage: production
     example_translation_keys:
@@ -38,8 +38,8 @@ settings_and_memories:
         - destination
   # Preferred airlines: Airlines the user prefers to fly with
   - id: preferred_airlines
-    name_translation_key: travel.preferred_airlines.text
-    description_translation_key: travel.preferred_airlines.description.text
+    name_translation_key: travel.preferred_airlines
+    description_translation_key: travel.preferred_airlines.description
     type: list
     stage: production
     example_translation_keys:
@@ -57,8 +57,8 @@ settings_and_memories:
         - name
   # Preferred transport methods: How the user prefers to travel
   - id: preferred_transport_methods
-    name_translation_key: travel.preferred_transport_methods.text
-    description_translation_key: travel.preferred_transport_methods.description.text
+    name_translation_key: travel.preferred_transport_methods
+    description_translation_key: travel.preferred_transport_methods.description
     type: list
     stage: production
     example_translation_keys:
@@ -85,8 +85,8 @@ settings_and_memories:
   # (e.g., visiting beaches, exploring museums, hiking, trying local cuisine)
   # NOT for transport preferences or flight bookings — those are in preferred_transport_methods / preferred_airlines
   - id: preferred_activities
-    name_translation_key: travel.preferred_activities.text
-    description_translation_key: travel.preferred_activities.description.text
+    name_translation_key: travel.preferred_activities
+    description_translation_key: travel.preferred_activities.description
     type: list
     stage: production
     example_translation_keys:
@@ -105,8 +105,8 @@ settings_and_memories:
         - name
 skills:
   - id: search_connections
-    name_translation_key: app_skills.travel.search_connections.text
-    description_translation_key: app_skills.travel.search_connections.description.text
+    name_translation_key: app_skills.travel.search_connections
+    description_translation_key: app_skills.travel.search_connections.description
     preprocessor_hint: >
       Search specific flight/train connections for a particular date with details (airlines, times, stops, durations).
       Use when user specifies an exact travel date. Costs 25 credits per search.
@@ -232,8 +232,8 @@ skills:
   # Search Stays – hotel / hostel / accommodation search via Google Hotels
   # -----------------------------------------------------------------------
   - id: search_stays
-    name_translation_key: app_skills.travel.search_stays.text
-    description_translation_key: app_skills.travel.search_stays.description.text
+    name_translation_key: app_skills.travel.search_stays
+    description_translation_key: app_skills.travel.search_stays.description
     stage: production
     class_path: backend.apps.travel.skills.search_stays.SearchStaysSkill
     pricing:

@@ -192,7 +192,7 @@
             settingsPath: `app_store/${appId}/settings_memories/${categoryId}/create`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
-            title: $text('settings.app_settings_memories.add_entry.text')
+            title: $text('settings.app_settings_memories.add_entry')
         });
     }
     
@@ -260,7 +260,7 @@
         const now = Math.floor(Date.now() / 1000);
         const diff = now - timestamp;
         
-        if (diff < 60) return $text('settings.app_settings_memories.just_now.text') || 'Just now';
+        if (diff < 60) return $text('settings.app_settings_memories.just_now') || 'Just now';
         if (diff < 3600) {
             const mins = Math.floor(diff / 60);
             return `${mins}m ago`;
@@ -323,8 +323,8 @@
 <div class="app-settings-memories-category">
     {#if !app || !category}
         <div class="error">
-            <p>{$text('settings.app_store.category_not_found.text')}</p>
-            <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app.text')}</button>
+            <p>{$text('settings.app_store.category_not_found')}</p>
+            <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
         <!-- Category description at the top -->
@@ -340,7 +340,7 @@
                 <SettingsItem
                     type="submenu"
                     icon="create"
-                    title={$text('settings.app_settings_memories.add_entry.text')}
+                    title={$text('settings.app_settings_memories.add_entry')}
                     onClick={handleAddEntry}
                 />
             </div>
@@ -349,11 +349,11 @@
             <div class="entries-section">
                 {#if isInitialLoad}
                     <div class="loading">
-                        <p>{$text('settings.app_settings_memories.loading.text')}</p>
+                        <p>{$text('settings.app_settings_memories.loading')}</p>
                     </div>
                 {:else if allEntries.length === 0}
                     <div class="empty">
-                        <p>{$text('settings.app_settings_memories.no_settings.text')}</p>
+                        <p>{$text('settings.app_settings_memories.no_settings')}</p>
                     </div>
                 {:else}
                     <div class="entries-list">
@@ -376,7 +376,7 @@
             {#if exampleTranslationKeys.length > 0}
                 <div class="examples-only">
                     <div class="examples-section">
-                        <p class="examples-label">{$text('settings.app_settings_memories.examples_label.text')}</p>
+                        <p class="examples-label">{$text('settings.app_settings_memories.examples_label')}</p>
                         <div class="examples-list">
                             {#each exampleTranslationKeys as exampleKey}
                                 <div class="example-entry">

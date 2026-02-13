@@ -156,7 +156,7 @@
         <div class="info-message">
             <div class="info-icon">ℹ️</div>
             <p>
-                {$text('settings.tip.channel_id_required.text', { 
+                {$text('settings.tip.channel_id_required', { 
                     default: 'Channel ID is required to tip video creators. This feature will be available once the preview server is implemented, which will automatically provide channel information from video URLs.' 
                 })}
             </p>
@@ -165,12 +165,12 @@
     
     <!-- Tip description -->
     <div class="tip-description">
-        <p>{$text('settings.tip.description.text', { default: 'Tip the creator to support their work. 100% of your tip goes directly to the creator.' })}</p>
+        <p>{$text('settings.tip.description', { default: 'Tip the creator to support their work. 100% of your tip goes directly to the creator.' })}</p>
     </div>
     
     <!-- Tip amount section -->
     <div class="tip-amount-section">
-        <h3 class="section-title">{$text('settings.tip.amount.text', { default: 'Tip Amount' })}</h3>
+        <h3 class="section-title">{$text('settings.tip.amount', { default: 'Tip Amount' })}</h3>
         
         <!-- Slider container -->
         <div class="slider-container">
@@ -194,7 +194,7 @@
         <!-- Current tip amount display -->
         <div class="tip-amount-display">
             <span class="tip-amount-value">{formatCredits(tipAmount)}</span>
-            <span class="tip-amount-label">{$text('settings.tip.credits.text', { default: 'credits' })}</span>
+            <span class="tip-amount-label">{$text('settings.tip.credits', { default: 'credits' })}</span>
         </div>
     </div>
     
@@ -202,8 +202,8 @@
     <div class="balance-info">
         <div class="info-icon">💰</div>
         <p>
-            {$text('settings.tip.current_balance.text', { default: 'Your balance' })}: 
-            <strong>{formatCredits(currentCredits)}</strong> {$text('settings.tip.credits.text', { default: 'credits' })}
+            {$text('settings.tip.current_balance', { default: 'Your balance' })}: 
+            <strong>{formatCredits(currentCredits)}</strong> {$text('settings.tip.credits', { default: 'credits' })}
         </p>
     </div>
     
@@ -212,7 +212,7 @@
         <div class="insufficient-balance-warning">
             <div class="warning-icon">⚠️</div>
             <p>
-                {$text('settings.tip.insufficient_balance.text', { 
+                {$text('settings.tip.insufficient_balance', { 
                     default: 'Insufficient credits. You need {needed} more credits.',
                     values: { needed: formatCredits(tipAmount - currentCredits) }
                 })}
@@ -227,16 +227,16 @@
         disabled={isTipping || !ownerId || currentCredits < tipAmount || tipAmount < MIN_TIP || tipAmount > MAX_TIP}
     >
         {#if isTipping}
-            {$text('settings.tip.tipping.text', { default: 'Sending tip...' })}
+            {$text('settings.tip.tipping', { default: 'Sending tip...' })}
         {:else}
-            {$text('settings.tip.tip_creator.text', { default: 'Tip Creator' })}
+            {$text('settings.tip.tip_creator', { default: 'Tip Creator' })}
         {/if}
     </button>
     
     <!-- Info about tips -->
     <div class="tip-info">
         <div class="info-icon">ℹ️</div>
-        <p>{$text('settings.tip.tip_info.text', { default: 'Tips are reserved for creators and can be claimed when they sign up for a creator account. Tips remain available for 6 months.' })}</p>
+        <p>{$text('settings.tip.tip_info', { default: 'Tips are reserved for creators and can be claimed when they sign up for a creator account. Tips remain available for 6 months.' })}</p>
     </div>
     {/if}
 </div>

@@ -92,7 +92,7 @@
   // Extract title from content if not provided via props
   let displayTitle = $derived.by(() => {
     if (title) return title;
-    return extractDocumentTitle(htmlContent) || $text('embeds.document_snippet.text');
+    return extractDocumentTitle(htmlContent) || $text('embeds.document_snippet');
   });
   
   // Extract or generate filename for display
@@ -118,8 +118,8 @@
     if (wc === 0) return '';
     
     const wordText = wc === 1 
-      ? $text('embeds.document_word_singular.text')
-      : $text('embeds.document_word_plural.text');
+      ? $text('embeds.document_word_singular')
+      : $text('embeds.document_word_plural');
     
     return `${wc} ${wordText}`;
   });

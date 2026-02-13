@@ -107,8 +107,8 @@
   // Skill display - use correct translation key based on skillId
   let skillName = $derived(
     skillIdProp === 'generate_draft'
-      ? $text('embeds.image_generate_draft.text')
-      : $text('embeds.image_generate.text')
+      ? $text('embeds.image_generate_draft')
+      : $text('embeds.image_generate')
   );
   const skillIconName = 'ai';
   
@@ -299,7 +299,7 @@
         <!-- Error state -->
         <div class="error-container">
           <div class="error-icon">!</div>
-          <h3 class="error-title">{$text('embeds.image_generate.error.text')}</h3>
+          <h3 class="error-title">{$text('embeds.image_generate.error')}</h3>
           <p class="error-message">{error}</p>
         </div>
       {:else}
@@ -323,7 +323,7 @@
           {:else if isLoadingImage}
             <div class="image-loading">
               <div class="loading-spinner"></div>
-              <span class="loading-text">{$text('embeds.image_generate.loading.text')}</span>
+              <span class="loading-text">{$text('embeds.image_generate.loading')}</span>
             </div>
           {:else if imageError}
             <div class="error-container">
@@ -343,7 +343,7 @@
                 <img src={providerIconUrl} alt="" class="provider-icon" />
               {/if}
               <span class="generated-by-text">
-                {$text('embeds.image_generate.generated_by.text')} {modelDisplayName}
+                {$text('embeds.image_generate.generated_by')} {modelDisplayName}
               </span>
             </button>
           {/if}

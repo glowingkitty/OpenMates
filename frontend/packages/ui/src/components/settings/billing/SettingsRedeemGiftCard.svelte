@@ -20,7 +20,7 @@ This component wraps the GiftCardRedeem component and handles navigation after s
             settingsPath: 'billing/buy-credits/confirmation',
             direction: 'forward',
             icon: 'check',
-            title: $text('settings.billing.purchase_successful.text')
+            title: $text('settings.billing.purchase_successful')
         });
     }
 
@@ -32,7 +32,7 @@ This component wraps the GiftCardRedeem component and handles navigation after s
             settingsPath: 'billing',
             direction: 'back',
             icon: 'coins',
-            title: $text('settings.billing.text')
+            title: $text('settings.billing')
         });
     }
 </script>

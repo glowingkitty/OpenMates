@@ -15,8 +15,8 @@ import type { DemoChat } from '../../demo_chats/types';
 export const imprintChat: DemoChat = {
 	chat_id: 'legal-imprint',
 	slug: 'imprint',
-	title: 'legal.imprint.title.text', // Translation key - resolved at runtime
-	description: 'metadata.legal_imprint.description.text', // Translation key - resolved at runtime
+	title: 'legal.imprint.title', // Translation key - resolved at runtime
+	description: 'metadata.legal_imprint.description', // Translation key - resolved at runtime
 	keywords: ['imprint', 'impressum', 'legal notice', 'company', 'contact', 'legal'],
 	messages: [
 		{
@@ -30,11 +30,11 @@ export const imprintChat: DemoChat = {
 		}
 	],
 	follow_up_suggestions: [
-		'legal.imprint.follow_up_1.text',
-		'legal.imprint.follow_up_2.text',
-		'legal.imprint.follow_up_3.text',
-		'legal.imprint.follow_up_4.text',
-		'legal.imprint.follow_up_5.text'
+		'legal.imprint.follow_up_1',
+		'legal.imprint.follow_up_2',
+		'legal.imprint.follow_up_3',
+		'legal.imprint.follow_up_4',
+		'legal.imprint.follow_up_5'
 	],
 	
 	metadata: {

@@ -117,13 +117,13 @@ export function getPrintTranslations(): PrintTranslations {
     const $text = get(text);
     
     return {
-        title: $text('signup.recovery_key_print_title.text'),
-        warning: $text('signup.recovery_key_print_warning.text'),
-        storageTitle: $text('signup.recovery_key_print_storage_title.text'),
-        storage1: $text('signup.recovery_key_print_storage_1.text'),
-        storage2: $text('signup.recovery_key_print_storage_2.text'),
-        storage3: $text('signup.recovery_key_print_storage_3.text'),
-        storage4: $text('signup.recovery_key_print_storage_4.text')
+        title: $text('signup.recovery_key_print_title'),
+        warning: $text('signup.recovery_key_print_warning'),
+        storageTitle: $text('signup.recovery_key_print_storage_title'),
+        storage1: $text('signup.recovery_key_print_storage_1'),
+        storage2: $text('signup.recovery_key_print_storage_2'),
+        storage3: $text('signup.recovery_key_print_storage_3'),
+        storage4: $text('signup.recovery_key_print_storage_4')
     };
 }
 

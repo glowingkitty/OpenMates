@@ -1745,8 +1745,8 @@
                             // Get the current placeholder text using the text store
                             const key = (typeof window !== 'undefined' && 
                                         (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) ?
-                                'enter_message.placeholder.touch.text' :
-                                'enter_message.placeholder.desktop.text';
+                                'enter_message.placeholder.touch' :
+                                'enter_message.placeholder.desktop';
                             const newPlaceholderText = $text(key);
                             
                             // Update the placeholder data attribute on the editor element
@@ -1952,7 +1952,7 @@
             });
             
             // Show the queued message text in the UI
-            queuedMessageText = message || $text('enter_message.message_queued.text') || 'Press enter again to stop previous response';
+            queuedMessageText = message || $text('enter_message.message_queued') || 'Press enter again to stop previous response';
             
             // Auto-hide after 7 seconds
             setTimeout(() => {
@@ -2539,7 +2539,7 @@
             <button
                 class="clickable-icon icon_fullscreen fullscreen-button"
                 onclick={toggleFullscreen}
-                aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen.text') : $text('enter_message.fullscreen.enter_fullscreen.text')}
+                aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
                 use:tooltip
             ></button>
         {/if}
@@ -2592,8 +2592,8 @@
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
                 onclick={handleCancelAITask}
                 use:tooltip
-                title={$text('enter_message.stop.text')}
-                aria-label={$text('enter_message.stop.text')}
+                title={$text('enter_message.stop')}
+                aria-label={$text('enter_message.stop')}
                 transition:fade={{ duration: 300 }}
             >
                 <span class="clickable-icon icon_stop_processing"></span>

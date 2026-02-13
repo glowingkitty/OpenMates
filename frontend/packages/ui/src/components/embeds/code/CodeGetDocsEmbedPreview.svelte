@@ -216,7 +216,7 @@
   const skillIconName = 'docs';
 
   // Skill display name from translations
-  let skillName = $derived($text('embeds.get_docs.text') || 'Get Docs');
+  let skillName = $derived($text('embeds.get_docs') || 'Get Docs');
   
   // Debug logging to help trace data flow issues
   $effect(() => {

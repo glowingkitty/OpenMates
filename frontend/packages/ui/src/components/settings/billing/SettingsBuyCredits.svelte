@@ -45,7 +45,7 @@ Buy Credits - Credit tier selection
             settingsPath: `billing/buy-credits/payment`,
             direction: 'forward',
             icon: 'coins',
-            title: `${formatCredits(tier.credits)} ${$text('settings.billing.credits.text')}`
+            title: `${formatCredits(tier.credits)} ${$text('settings.billing.credits')}`
         });
     }
 </script>

@@ -259,28 +259,28 @@ When enabled, notifications are sent to the user's login email (from account set
         <div class="pwa-install-banner">
             <div class="pwa-install-header">
                 <span class="pwa-install-title">
-                    {$text('settings.chat.notifications.pwa_install_title.text', { 
+                    {$text('settings.chat.notifications.pwa_install_title', { 
                         default: 'Add to Home Screen to Enable Notifications' 
                     })}
                 </span>
             </div>
             <p class="pwa-install-desc">
-                {$text('settings.chat.notifications.pwa_install_desc.text', {
+                {$text('settings.chat.notifications.pwa_install_desc', {
                     default: 'Push notifications require the app to be installed on your device. Follow these steps:'
                 })}
             </p>
             <div class="pwa-install-steps">
-                <p>{$text('notifications.push.ios_install_step1.text', { default: '1. Tap the Share button in Safari' })}</p>
-                <p>{$text('notifications.push.ios_install_step2.text', { default: '2. Select "Add to Home Screen"' })}</p>
-                <p>{$text('notifications.push.ios_install_step3.text', { default: '3. Open OpenMates from your home screen' })}</p>
-                <p>{$text('notifications.push.ios_install_step4.text', { default: '4. Then you can enable notifications here' })}</p>
+                <p>{$text('notifications.push.ios_install_step1', { default: '1. Tap the Share button in Safari' })}</p>
+                <p>{$text('notifications.push.ios_install_step2', { default: '2. Select "Add to Home Screen"' })}</p>
+                <p>{$text('notifications.push.ios_install_step3', { default: '3. Open OpenMates from your home screen' })}</p>
+                <p>{$text('notifications.push.ios_install_step4', { default: '4. Then you can enable notifications here' })}</p>
             </div>
         </div>
     {:else if !isSupported}
         <!-- Truly unsupported browser/device -->
         <div class="warning-banner">
             <span class="warning-text">
-                {$text('settings.chat.notifications.not_supported.text', { 
+                {$text('settings.chat.notifications.not_supported', { 
                     default: 'Push notifications are not supported on this browser or device.' 
                 })}
             </span>
@@ -290,7 +290,7 @@ When enabled, notifications are sent to the user's login email (from account set
         <SettingsItem
             type="submenu"
             icon="subsetting_icon subsetting_icon_announcement"
-            title={$text('settings.chat.notifications.enable.text', { default: 'Push Notifications' })}
+            title={$text('settings.chat.notifications.enable', { default: 'Push Notifications' })}
             subtitleTop={permissionStatusText}
             hasToggle={true}
             checked={isEnabled && permission === 'granted'}
@@ -302,7 +302,7 @@ When enabled, notifications are sent to the user's login email (from account set
         {#if permission === 'denied'}
             <div class="info-banner">
                 <span class="info-text">
-                    {$text('settings.chat.notifications.denied_info.text', { 
+                    {$text('settings.chat.notifications.denied_info', { 
                         default: 'To enable notifications, please allow them in your browser settings and refresh the page.' 
                     })}
                 </span>
@@ -313,14 +313,14 @@ When enabled, notifications are sent to the user's login email (from account set
         {#if isEnabled && permission === 'granted'}
             <div class="category-section">
                 <h3 class="section-title">
-                    {$text('settings.chat.notifications.categories.text', { default: 'Notification Types' })}
+                    {$text('settings.chat.notifications.categories', { default: 'Notification Types' })}
                 </h3>
                 
                 <SettingsItem
                     type="submenu"
                     icon="subsetting_icon subsetting_icon_chat"
-                    title={$text('settings.chat.notifications.new_messages.text', { default: 'New Messages' })}
-                    subtitleTop={$text('settings.chat.notifications.new_messages_desc.text', { 
+                    title={$text('settings.chat.notifications.new_messages', { default: 'New Messages' })}
+                    subtitleTop={$text('settings.chat.notifications.new_messages_desc', { 
                         default: 'When an assistant completes a response' 
                     })}
                     hasToggle={true}
@@ -331,8 +331,8 @@ When enabled, notifications are sent to the user's login email (from account set
                 <SettingsItem
                     type="submenu"
                     icon="subsetting_icon subsetting_icon_cloud"
-                    title={$text('settings.chat.notifications.server_events.text', { default: 'Server Events' })}
-                    subtitleTop={$text('settings.chat.notifications.server_events_desc.text', { 
+                    title={$text('settings.chat.notifications.server_events', { default: 'Server Events' })}
+                    subtitleTop={$text('settings.chat.notifications.server_events_desc', { 
                         default: 'Connection issues and maintenance alerts' 
                     })}
                     hasToggle={true}
@@ -343,8 +343,8 @@ When enabled, notifications are sent to the user's login email (from account set
                 <SettingsItem
                     type="submenu"
                     icon="subsetting_icon subsetting_icon_download"
-                    title={$text('settings.chat.notifications.software_updates.text', { default: 'Software Updates' })}
-                    subtitleTop={$text('settings.chat.notifications.software_updates_desc.text', { 
+                    title={$text('settings.chat.notifications.software_updates', { default: 'Software Updates' })}
+                    subtitleTop={$text('settings.chat.notifications.software_updates_desc', { 
                         default: 'When new versions are available' 
                     })}
                     hasToggle={true}
@@ -360,13 +360,13 @@ When enabled, notifications are sent to the user's login email (from account set
     <!-- ================================================== -->
     <div class="email-section">
         <h3 class="section-title">
-            {$text('settings.chat.notifications.email_section.text', { default: 'Email Notifications' })}
+            {$text('settings.chat.notifications.email_section', { default: 'Email Notifications' })}
         </h3>
         
         <!-- Info banner explaining how email notifications work -->
         <div class="info-banner email-info">
             <span class="info-text">
-                {$text('settings.chat.notifications.email_how_it_works.text', { 
+                {$text('settings.chat.notifications.email_how_it_works', { 
                     default: "Email notifications are only sent when you're not actively using OpenMates on any device." 
                 })}
             </span>
@@ -377,8 +377,8 @@ When enabled, notifications are sent to the user's login email (from account set
         <SettingsItem
             type="submenu"
             icon="subsetting_icon subsetting_icon_email"
-            title={$text('settings.chat.notifications.email_enable.text', { default: 'Email Notifications' })}
-            subtitleTop={$text('settings.chat.notifications.email_enable_desc.text', { 
+            title={$text('settings.chat.notifications.email_enable', { default: 'Email Notifications' })}
+            subtitleTop={$text('settings.chat.notifications.email_enable_desc', { 
                 default: "Receive emails when you're offline" 
             })}
             hasToggle={true}
@@ -394,8 +394,8 @@ When enabled, notifications are sent to the user's login email (from account set
                 <SettingsItem
                     type="submenu"
                     icon="subsetting_icon subsetting_icon_chat"
-                    title={$text('settings.chat.notifications.email_ai_responses.text', { default: 'AI Responses' })}
-                    subtitleTop={$text('settings.chat.notifications.email_ai_responses_desc.text', { 
+                    title={$text('settings.chat.notifications.email_ai_responses', { default: 'AI Responses' })}
+                    subtitleTop={$text('settings.chat.notifications.email_ai_responses_desc', { 
                         default: "When an assistant completes a response while you're away" 
                     })}
                     hasToggle={true}
@@ -408,7 +408,7 @@ When enabled, notifications are sent to the user's login email (from account set
         <!-- Saving indicator -->
         {#if isSavingEmail}
             <div class="saving-indicator">
-                {$text('settings.chat.notifications.email_saving.text', { default: 'Saving...' })}
+                {$text('settings.chat.notifications.email_saving', { default: 'Saving...' })}
             </div>
         {/if}
     </div>
@@ -420,16 +420,16 @@ When enabled, notifications are sent to the user's login email (from account set
             <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
             <div class="ios-modal" onclick={(e) => e.stopPropagation()}>
                 <h3 class="ios-modal-title">
-                    {$text('notifications.push.ios_install_title.text', { default: 'Install OpenMates First' })}
+                    {$text('notifications.push.ios_install_title', { default: 'Install OpenMates First' })}
                 </h3>
                 <div class="ios-modal-content">
-                    <p>{$text('notifications.push.ios_install_step1.text', { default: '1. Tap the Share button in Safari' })}</p>
-                    <p>{$text('notifications.push.ios_install_step2.text', { default: '2. Select "Add to Home Screen"' })}</p>
-                    <p>{$text('notifications.push.ios_install_step3.text', { default: '3. Open OpenMates from your home screen' })}</p>
-                    <p>{$text('notifications.push.ios_install_step4.text', { default: '4. Then you can enable notifications' })}</p>
+                    <p>{$text('notifications.push.ios_install_step1', { default: '1. Tap the Share button in Safari' })}</p>
+                    <p>{$text('notifications.push.ios_install_step2', { default: '2. Select "Add to Home Screen"' })}</p>
+                    <p>{$text('notifications.push.ios_install_step3', { default: '3. Open OpenMates from your home screen' })}</p>
+                    <p>{$text('notifications.push.ios_install_step4', { default: '4. Then you can enable notifications' })}</p>
                 </div>
                 <button class="ios-modal-close" onclick={closeIOSInstructions}>
-                    {$text('common.close.text', { default: 'Close' })}
+                    {$text('common.close', { default: 'Close' })}
                 </button>
             </div>
         </div>

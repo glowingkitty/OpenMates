@@ -201,7 +201,7 @@ def resolve_translation(translation_service, translation_key: str, namespace: st
     
     Args:
         translation_service: TranslationService instance
-        translation_key: Translation key (e.g., "web.text" or "web.search.text")
+        translation_key: Translation key (e.g., "web" or "web.search")
         namespace: Namespace prefix (e.g., "app_skills", "apps", "app_focus_modes", "app_settings_memories")
         fallback: Fallback value if translation not found
     

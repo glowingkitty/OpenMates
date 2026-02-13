@@ -24,8 +24,8 @@ export const CustomPlaceholder = Placeholder.extend<PlaceholderOptions>({
                     // Get appropriate translation based on device type
                     // Use text store from @repo/ui which is reactive to language changes
                     const key = isTouchDevice() ? 
-                        'enter_message.placeholder.touch.text' : 
-                        'enter_message.placeholder.desktop.text';
+                        'enter_message.placeholder.touch' : 
+                        'enter_message.placeholder.desktop';
                     // Get the current value from the text store (reactive to language changes)
                     const translateFn = get(text);
                     return translateFn(key);

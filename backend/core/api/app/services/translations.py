@@ -224,8 +224,9 @@ class TranslationService:
                     text_value = text_value.rstrip('\n')
                 
                 # Build nested structure using dot-notation key
-                # Example: "at_missing" -> { at_missing: { text: "..." } }
-                # Example: "signup.at_missing" -> { signup: { at_missing: { text: "..." } } }
+                # Store the translation string directly (no wrapper object)
+                # Example: "at_missing" -> { at_missing: "..." }
+                # Example: "signup.at_missing" -> { signup: { at_missing: "..." } }
                 keys = key.split('.')
                 current = json_structure[namespace]
                 
@@ -235,9 +236,9 @@ class TranslationService:
                         current[k] = {}
                     current = current[k]
                 
-                # Set the final value
+                # Set the final value (string directly, no { text: ... } wrapper)
                 last_key = keys[-1]
-                current[last_key] = {'text': text_value}
+                current[last_key] = text_value
         
         logger.debug(f"Converted JSON structure for '{lang}': top-level keys: {list(json_structure.keys())}")
         if 'email' in json_structure:

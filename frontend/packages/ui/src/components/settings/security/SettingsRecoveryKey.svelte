@@ -197,7 +197,7 @@ Users should store them securely (offline, in a safe place).
      */
     function handleAuthFailed(message: string) {
         isAuthenticating = false;
-        errorMessage = message || $text('settings.security.recovery_key_auth_failed.text');
+        errorMessage = message || $text('settings.security.recovery_key_auth_failed');
         currentStep = 'overview';
     }
 
@@ -295,9 +295,9 @@ Users should store them securely (offline, in a safe place).
         const result = await copyRecoveryKeyToClipboard(newRecoveryKey);
         if (result.success) {
             hasCopied = true;
-            notificationStore.success($text('enter_message.press_and_hold_menu.copied_to_clipboard.text'), 3000);
+            notificationStore.success($text('enter_message.press_and_hold_menu.copied_to_clipboard'), 3000);
         } else {
-            notificationStore.error($text('signup.copy_failed.text'), 3000);
+            notificationStore.error($text('signup.copy_failed'), 3000);
         }
     }
 
@@ -327,7 +327,7 @@ Users should store them securely (offline, in a safe place).
         }
 
         if (!hasConfirmedStorage) {
-            errorMessage = $text('settings.security.recovery_key_confirm_required.text');
+            errorMessage = $text('settings.security.recovery_key_confirm_required');
             return;
         }
 
@@ -354,7 +354,7 @@ Users should store them securely (offline, in a safe place).
 
             if (response.ok && data.success) {
                 console.log('[SettingsRecoveryKey] Recovery key saved successfully');
-                successMessage = $text('settings.security.recovery_key_success.text');
+                successMessage = $text('settings.security.recovery_key_success');
                 hasRecoveryKey = true;
                 recoveryKeyTimestamp = Math.floor(Date.now() / 1000);
 
@@ -409,31 +409,31 @@ Users should store them securely (offline, in a safe place).
             onSuccess={handleAuthSuccess}
             onFailed={handleAuthFailed}
             onCancel={handleAuthCancel}
-            title={$text('settings.security.recovery_key_auth_title.text')}
-            description={$text('settings.security.recovery_key_auth_description.text')}
+            title={$text('settings.security.recovery_key_auth_title')}
+            description={$text('settings.security.recovery_key_auth_description')}
         />
     {:else if currentStep === 'generating'}
         <!-- Generating Step -->
         <div class="generating-container" in:fade>
             <div class="spinner"></div>
-            <p class="generating-text">{$text('settings.security.recovery_key_generating.text')}</p>
+            <p class="generating-text">{$text('settings.security.recovery_key_generating')}</p>
         </div>
     {:else if currentStep === 'save'}
         <!-- Save Step - User chooses how to save, then confirms via toggle -->
         <div class="save-container" in:fade>
             <div class="header">
                 <div class="icon header_size warning"></div>
-                <h2>{$text('settings.security.recovery_key_download_title.text')}</h2>
+                <h2>{$text('settings.security.recovery_key_download_title')}</h2>
             </div>
 
             <div class="warning-box">
                 <div class="warning-icon"></div>
-                <p>{$text('settings.security.recovery_key_warning.text')}</p>
+                <p>{$text('settings.security.recovery_key_warning')}</p>
             </div>
 
             <!-- Save options - same as signup flow -->
             <div class="save-options">
-                <p class="save-instruction">{$text('signup.choose_how_to_save.text')}</p>
+                <p class="save-instruction">{$text('signup.choose_how_to_save')}</p>
                 
                 <div class="save-buttons">
                     <!-- Download button -->
@@ -443,7 +443,7 @@ Users should store them securely (offline, in a safe place).
                         onclick={handleDownload}
                     >
                         <div class="clickable-icon icon_download" style="width: 24px; height: 24px"></div>
-                        <span>{$text('signup.download.text')}</span>
+                        <span>{$text('signup.download')}</span>
                         {#if hasDownloaded}
                             <span class="check-mark">✓</span>
                         {/if}
@@ -456,7 +456,7 @@ Users should store them securely (offline, in a safe place).
                         onclick={handleCopy}
                     >
                         <div class="clickable-icon icon_copy" style="width: 24px; height: 24px"></div>
-                        <span>{$text('signup.copy.text')}</span>
+                        <span>{$text('signup.copy')}</span>
                         {#if hasCopied}
                             <span class="check-mark">✓</span>
                         {/if}
@@ -469,7 +469,7 @@ Users should store them securely (offline, in a safe place).
                         onclick={handlePrint}
                     >
                         <span class="print-icon">🖨️</span>
-                        <span>{$text('signup.print.text')}</span>
+                        <span>{$text('signup.print')}</span>
                         {#if hasPrinted}
                             <span class="check-mark">✓</span>
                         {/if}
@@ -478,7 +478,7 @@ Users should store them securely (offline, in a safe place).
             </div>
 
             <div class="important-notice">
-                <p>{$text('settings.security.recovery_key_important_no_html.text')}</p>
+                <p>{$text('settings.security.recovery_key_important_no_html')}</p>
             </div>
 
             {#if errorMessage}
@@ -492,10 +492,10 @@ Users should store them securely (offline, in a safe place).
                 <div class="confirmation-row">
                     <Toggle bind:checked={hasConfirmedStorage} id="confirm-storage-toggle" />
                     <label for="confirm-storage-toggle" class="confirmation-text">
-                        {$text('signup.i_stored_recovery_key.text')}
+                        {$text('signup.i_stored_recovery_key')}
                     </label>
                 </div>
-                <p class="toggle-hint">{$text('signup.click_toggle_to_continue.text')}</p>
+                <p class="toggle-hint">{$text('signup.click_toggle_to_continue')}</p>
             </div>
 
             <!-- Action buttons -->
@@ -505,7 +505,7 @@ Users should store them securely (offline, in a safe place).
                     onclick={handleCancel}
                     disabled={isSaving}
                 >
-                    {$text('common.cancel.text')}
+                    {$text('common.cancel')}
                 </button>
                 <button
                     class="primary-button"
@@ -515,7 +515,7 @@ Users should store them securely (offline, in a safe place).
                     {#if isSaving}
                         <div class="button-spinner"></div>
                     {:else}
-                        {$text('common.continue.text')}
+                        {$text('common.continue')}
                     {/if}
                 </button>
             </div>
@@ -524,7 +524,7 @@ Users should store them securely (offline, in a safe place).
         <!-- Overview Step -->
         <div class="overview-container" in:fade>
             <div class="description">
-                <p>{$text('settings.security.recovery_key_description.text')}</p>
+                <p>{$text('settings.security.recovery_key_description')}</p>
             </div>
 
             {#if isLoading}
@@ -534,21 +534,21 @@ Users should store them securely (offline, in a safe place).
             {:else}
                 <div class="status-section">
                     <div class="status-row">
-                        <span class="status-label">{$text('settings.security.recovery_key_status.text')}</span>
+                        <span class="status-label">{$text('settings.security.recovery_key_status')}</span>
                         <span class="status-value" class:has-key={hasRecoveryKey}>
                             {#if hasRecoveryKey}
                                 <div class="status-icon checkmark-icon"></div>
-                                {$text('settings.security.recovery_key_set.text')}
+                                {$text('settings.security.recovery_key_set')}
                             {:else}
                                 <div class="status-icon warning-icon"></div>
-                                {$text('settings.security.recovery_key_not_set.text')}
+                                {$text('settings.security.recovery_key_not_set')}
                             {/if}
                         </span>
                     </div>
 
                     {#if hasRecoveryKey && formattedTimestamp()}
                         <div class="status-row">
-                            <span class="status-label">{$text('settings.security.recovery_key_last_updated.text')}</span>
+                            <span class="status-label">{$text('settings.security.recovery_key_last_updated')}</span>
                             <span class="status-value">{formattedTimestamp()}</span>
                         </div>
                     {/if}
@@ -569,16 +569,16 @@ Users should store them securely (offline, in a safe place).
                 <div class="action-section">
                     <button class="primary-button" onclick={startRegeneration}>
                         {#if hasRecoveryKey}
-                            {$text('settings.security.recovery_key_regenerate_button.text')}
+                            {$text('settings.security.recovery_key_regenerate_button')}
                         {:else}
-                            {$text('settings.security.recovery_key_create_button.text')}
+                            {$text('settings.security.recovery_key_create_button')}
                         {/if}
                     </button>
                     <p class="action-hint">
                         {#if hasRecoveryKey}
-                            {$text('settings.security.recovery_key_regenerate_hint.text')}
+                            {$text('settings.security.recovery_key_regenerate_hint')}
                         {:else}
-                            {$text('settings.security.recovery_key_create_hint.text')}
+                            {$text('settings.security.recovery_key_create_hint')}
                         {/if}
                     </p>
                 </div>

@@ -29,16 +29,16 @@
         <div class="center-container">
             <span class="clickable-icon icon_billing large-icon"></span>
             {#if showDelayedMessage}
-                <p class="processing-text color-grey-60">{@html $text('signup.payment_processing_delayed.text')}</p>
+                <p class="processing-text color-grey-60">{@html $text('signup.payment_processing_delayed')}</p>
             {:else}
-                <p class="processing-text color-grey-60">{@html $text('signup.processing_payment.text')}</p>
+                <p class="processing-text color-grey-60">{@html $text('signup.processing_payment')}</p>
             {/if}
         </div>
         
         <div class="bottom-container">
             <button type="button" class="text-button" onclick={handleSecurePaymentInfoClick}>
                 <span class="clickable-icon icon_lock inline-lock-icon"></span>
-                {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'Revolut')}
+                {@html $text('signup.secured_and_powered_by').replace('{provider}', 'Revolut')}
             </button>
         </div>
     </div>
@@ -48,17 +48,17 @@
             <span class="check-icon"></span>
             <!-- Conditional success text -->
             <p class="success-text color-grey-60">
-                {@html $text(isGift ? 'signup.enjoy_your_gift.text' : 'signup.purchase_successful.text')}
+                {@html $text(isGift ? 'signup.enjoy_your_gift' : 'signup.purchase_successful')}
             </p>
             <!-- Only show confirmation email text for actual purchases -->
             {#if !isGift}
-                <p class="confirmation-text color-grey-60">{@html $text('signup.you_will_receive_confirmation_soon.text')}</p>
+                <p class="confirmation-text color-grey-60">{@html $text('signup.you_will_receive_confirmation_soon')}</p>
             {/if}
         </div>
         
         {#if !isGift && !isGiftCard}
             <div class="bottom-container">
-                <p class="loading-text color-grey-60">{@html $text('login.loading.text')}</p>
+                <p class="loading-text color-grey-60">{@html $text('login.loading')}</p>
             </div>
         {/if}
     </div>

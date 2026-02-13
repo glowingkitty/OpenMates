@@ -10,9 +10,9 @@ step_5_top_content_svelte:
     backup_codes_explainer:
         type: 'text'
         text:
-            - $text('signup.backup_codes.text')
-            - $text('signup.dont_lose_access.text')
-            - $text('signup.store_backup_codes_safely.text')
+            - $text('signup.backup_codes')
+            - $text('signup.dont_lose_access')
+            - $text('signup.store_backup_codes_safely')
         purpose:
             - 'Explains the purpose of backup codes'
             - 'Asks user to store backup codes safely'
@@ -160,25 +160,25 @@ step_5_top_content_svelte:
     <div class="signup-header">
         <div class="icon header_size text"></div>
         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-        <h2 class="signup-menu-title">{@html $text('signup.backup_codes.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.backup_codes')}</h2>
     </div>
 
     {#if loading}
         <div class="loading-container" in:fade>
             <div class="spinner"></div>
-            <p class="loading-text">{$text('signup.loading_backup_codes.text')}</p>
+            <p class="loading-text">{$text('signup.loading_backup_codes')}</p>
         </div>
     {:else if error}
         <div class="error-container" in:fade>
             <p class="error-text">{errorMessage}</p>
             <button class="retry-button" onclick={handleRetry}>
-                {$text('login.retry.text')}
+                {$text('login.retry')}
             </button>
         </div>
     {:else}
         <div class="text-block" in:fade>
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-            {@html $text('signup.allows_you_to_log_in_without_tfa.text').replace('{tfa_app}', '')}
+            {@html $text('signup.allows_you_to_log_in_without_tfa').replace('{tfa_app}', '')}
             
             <!-- App name container similar to Login2FA.svelte -->
             <!-- <div class="app-name-container"> -->
@@ -192,20 +192,20 @@ step_5_top_content_svelte:
                     </span>
                 </p>
             {:else}
-                <span>{$text('signup.your_tfa_app.text')}</span>
+                <span>{$text('signup.your_tfa_app')}</span>
             {/if}
             <!-- </div> -->
         </div>
 
         <mark in:fade>
-            {$text('signup.store_backup_codes_safely.text')}
+            {$text('signup.store_backup_codes_safely')}
         </mark>
 
         {#if backupCodes.length > 0}
         <button
             class="clickable-icon icon_download download-button"
             onclick={downloadBackupCodes}
-            aria-label={$text('enter_message.press_and_hold_menu.download.text')}
+            aria-label={$text('enter_message.press_and_hold_menu.download')}
             use:tooltip
             transition:fade
         ></button>

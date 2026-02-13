@@ -73,14 +73,14 @@
         }
 
         if (!email.includes('@')) {
-            emailError = $text('signup.at_missing.text');
+            emailError = $text('signup.at_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
         }
 
         if (!email.match(/\.[a-z]{2,}$/i)) {
-            emailError = $text('signup.domain_ending_missing.text');
+            emailError = $text('signup.domain_ending_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
@@ -299,7 +299,7 @@
 <div class="email-lookup" in:fade={{ duration: 300 }}>
     {#if isRateLimited}
         <div class="rate-limit-message" in:fade={{ duration: 200 }}>
-            {$text('signup.too_many_requests.text')}
+            {$text('signup.too_many_requests')}
         </div>
     {:else}
         <form onsubmit={handleEmailLookup}>
@@ -309,10 +309,10 @@
                     id="stayLoggedIn"
                     name="stayLoggedIn"
                     bind:checked={stayLoggedIn}
-                    ariaLabel={$text('login.stay_logged_in.text')}
+                    ariaLabel={$text('login.stay_logged_in')}
                     on:change={handleToggleChange}
                 />
-                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
+                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in')}</label>
             </div>
 
             <!-- Passkey login button - second element -->
@@ -323,7 +323,7 @@
                     onclick={onCancelPasskey}
                 >
                     <span class="clickable-icon icon_mail"></span>
-                    {$text('login.login_with_email.text')}
+                    {$text('login.login_with_email')}
                 </button>
             {:else}
                 <button 
@@ -332,13 +332,13 @@
                     onclick={onPasskeyClick}
                 >
                     <span class="clickable-icon icon_passkey"></span>
-                    {$text('login.login_with_passkey.text')}
+                    {$text('login.login_with_passkey')}
                 </button>
             {/if}
 
             <!-- Or separator - third element -->
             <div class="divider">
-                <span>{$text('login.or.text')}</span>
+                <span>{$text('login.or')}</span>
             </div>
 
             <!-- Email field - fourth element -->
@@ -350,7 +350,7 @@
                         name="username"
                         bind:value={emailInputValue}
                         bind:this={emailInput}
-                        placeholder={$text('login.email_placeholder.text')}
+                        placeholder={$text('login.email_placeholder')}
                         required
                         autocomplete="username webauthn"
                         class:error={!!emailError || loginFailedWarning || $sessionExpiredWarning}
@@ -361,11 +361,11 @@
                         />
                     {:else if loginFailedWarning}
                         <InputWarning
-                            message={$text('login.login_failed.text')}
+                            message={$text('login.login_failed')}
                         />
                     {:else if $sessionExpiredWarning}
                         <InputWarning
-                            message={$text('login.session_expired.text')}
+                            message={$text('login.session_expired')}
                         />
                     {/if}
                 </div>
@@ -380,7 +380,7 @@
                 {#if isLoading}
                     <span class="loading-spinner"></span>
                 {:else}
-                    {$text('signup.continue.text')}
+                    {$text('signup.continue')}
                 {/if}
             </button>
         </form>

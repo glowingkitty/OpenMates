@@ -263,7 +263,7 @@
         console.error(`Booking link request failed: ${response.status}`);
         bookingState = 'error';
         notificationStore.error(
-          $text('embeds.booking_link_failed.text') || 'Could not load booking link. Try searching on Google Flights instead.'
+          $text('embeds.booking_link_failed') || 'Could not load booking link. Try searching on Google Flights instead.'
         );
         return;
       }
@@ -282,14 +282,14 @@
         console.log('No booking link available from SerpAPI');
         bookingState = 'error';
         notificationStore.error(
-          $text('embeds.booking_link_failed.text') || 'Could not load booking link. Try searching on Google Flights instead.'
+          $text('embeds.booking_link_failed') || 'Could not load booking link. Try searching on Google Flights instead.'
         );
       }
     } catch (err) {
       console.error('Booking link lookup failed:', err);
       bookingState = 'error';
       notificationStore.error(
-        $text('embeds.booking_link_failed.text') || 'Could not load booking link. Try searching on Google Flights instead.'
+        $text('embeds.booking_link_failed') || 'Could not load booking link. Try searching on Google Flights instead.'
       );
     }
   }
@@ -533,15 +533,15 @@
       const textContent = lines.join('\n').trim();
       await navigator.clipboard.writeText(textContent);
       console.debug('[TravelConnectionEmbedFullscreen] Copied flight details to clipboard');
-      notificationStore.success($text('embeds.copied_to_clipboard.text') || 'Copied to clipboard');
+      notificationStore.success($text('embeds.copied_to_clipboard') || 'Copied to clipboard');
     } catch (error) {
       console.error('[TravelConnectionEmbedFullscreen] Failed to copy flight details:', error);
-      notificationStore.error($text('embeds.copy_failed.text') || 'Failed to copy to clipboard');
+      notificationStore.error($text('embeds.copy_failed') || 'Failed to copy to clipboard');
     }
   }
   
   // Skill name for bottom bar
-  let skillName = $derived($text('app_skills.travel.search_connections.text') || 'Search');
+  let skillName = $derived($text('app_skills.travel.search_connections') || 'Search');
   
   // ---------------------------------------------------------------------------
   // PDF Download (jspdf)
@@ -964,7 +964,7 @@
         {#if bookingState === 'loaded' && resolvedBookingUrl}
           <!-- State: loaded — direct booking link available -->
           <button class="cta-button" onclick={handleOpenBookingUrl}>
-            {($text('embeds.book_on.text') || 'Book on {provider}').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
+            {($text('embeds.book_on') || 'Book on {provider}').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
           </button>
         {:else if bookingState === 'loading'}
           <!-- State: loading — spinner replaces the button in the same spot -->
@@ -974,12 +974,12 @@
         {:else if bookingState === 'error'}
           <!-- State: error — fallback to Google Flights search -->
           <button class="cta-button cta-fallback" onclick={handleOpenGoogleFlights}>
-            {$text('embeds.open_google_flights.text') || 'Open Google Flights'}
+            {$text('embeds.open_google_flights') || 'Open Google Flights'}
           </button>
         {:else if connection.booking_token && bookingState === 'idle'}
           <!-- State: idle — regular primary button to fetch the booking link -->
           <button class="cta-button" onclick={handleLoadBookingLink}>
-            {$text('embeds.get_booking_link.text') || 'Get booking link'}
+            {$text('embeds.get_booking_link') || 'Get booking link'}
           </button>
         {/if}
       </div>

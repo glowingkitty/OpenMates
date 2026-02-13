@@ -164,8 +164,8 @@
   const skillIconName = 'ai';
   let skillName = $derived(
     skillIdProp === 'generate_draft'
-      ? $text('embeds.image_generate_draft.text')
-      : $text('embeds.image_generate.text')
+      ? $text('embeds.image_generate_draft')
+      : $text('embeds.image_generate')
   );
   
   
@@ -313,7 +313,7 @@
         <!-- Error state -->
         <div class="error-state">
           <span class="error-icon">!</span>
-          <span class="error-text">{error || $text('embeds.image_generate.error.text')}</span>
+          <span class="error-text">{error || $text('embeds.image_generate.error')}</span>
         </div>
       {/if}
     </div>

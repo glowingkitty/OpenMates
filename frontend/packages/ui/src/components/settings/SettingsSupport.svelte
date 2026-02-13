@@ -21,7 +21,7 @@
             settingsPath: 'support/one-time',
             direction: 'forward',
             icon: 'coins',
-            title: $text('settings.support.one_time.text')
+            title: $text('settings.support.one_time')
         });
     }
 
@@ -33,7 +33,7 @@
             settingsPath: 'support/monthly',
             direction: 'forward',
             icon: 'calendar',
-            title: $text('settings.support.monthly.text')
+            title: $text('settings.support.monthly')
         });
     }
 
@@ -49,23 +49,23 @@
 <SettingsItem
     type="submenu"
     icon="subsetting_icon subsetting_icon_coins"
-    title={$text('settings.support.one_time.text')}
-    subtitleTop={$text('settings.support.one_time_description.text')}
+    title={$text('settings.support.one_time')}
+    subtitleTop={$text('settings.support.one_time_description')}
     onClick={openSupportOneTime}
 />
 
 <SettingsItem
     type="submenu"
     icon="subsetting_icon subsetting_icon_calendar"
-    title={$text('settings.support.monthly.text')}
-    subtitleTop={$text('settings.support.monthly_description.text')}
+    title={$text('settings.support.monthly')}
+    subtitleTop={$text('settings.support.monthly_description')}
     onClick={openSupportMonthly}
 />
 
 <SettingsItem
     type="submenu"
     icon="subsetting_icon subsetting_icon_volunteering"
-    title={$text('settings.support_sponsor_github.text')}
-    subtitleTop={$text('settings.support_sponsor_github_description.text')}
+    title={$text('settings.support_sponsor_github')}
+    subtitleTop={$text('settings.support_sponsor_github_description')}
     onClick={openGitHubSponsors}
 />

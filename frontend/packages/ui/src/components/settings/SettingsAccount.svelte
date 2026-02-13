@@ -31,7 +31,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
             settingsPath: 'account/timezone',
             direction: 'forward',
             icon: 'clock',
-            title: $text('settings.account.timezone.text')
+            title: $text('settings.account.timezone')
         });
     }
 
@@ -44,7 +44,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
             settingsPath: 'account/email',
             direction: 'forward',
             icon: 'mail',
-            title: $text('settings.account.email.text')
+            title: $text('settings.account.email')
         });
     }
 
@@ -57,7 +57,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
             settingsPath: 'account/security',
             direction: 'forward',
             icon: 'security',
-            title: $text('settings.account.security.text')
+            title: $text('settings.account.security')
         });
     }
 
@@ -71,7 +71,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
             settingsPath: 'account/export',
             direction: 'forward',
             icon: 'download',
-            title: $text('settings.account.export.text')
+            title: $text('settings.account.export')
         });
     }
 
@@ -84,7 +84,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
             settingsPath: 'account/delete',
             direction: 'forward',
             icon: 'delete',
-            title: $text('settings.account.delete.text')
+            title: $text('settings.account.delete')
         });
     }
 </script>
@@ -92,7 +92,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
 <SettingsItem 
     type="subsubmenu"
     icon="clock"
-    subtitle={$text('settings.account.timezone.text')}
+    subtitle={$text('settings.account.timezone')}
     title={getTimezoneDisplayLabel(currentTimezone)}
     onClick={navigateToTimezone}
 />
@@ -100,27 +100,27 @@ Account Settings - Main menu for account-related settings including Security, Ex
 <SettingsItem
     type="submenu"
     icon="mail"
-    title={$text('settings.account.email.text')}
+    title={$text('settings.account.email')}
     onClick={navigateToEmail}
 />
 
 <SettingsItem
     type="submenu"
     icon="security"
-    title={$text('settings.account.security.text')}
+    title={$text('settings.account.security')}
     onClick={navigateToSecurity}
 />
 
 <SettingsItem
     type="submenu"
     icon="download"
-    title={$text('settings.account.export.text')}
+    title={$text('settings.account.export')}
     onClick={navigateToExportData}
 />
 
 <SettingsItem
     type="submenu"
     icon="delete"
-    title={$text('settings.account.delete.text')}
+    title={$text('settings.account.delete')}
     onClick={navigateToDeleteAccount}
 />

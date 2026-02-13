@@ -56,14 +56,14 @@ changes to the documentation (to keep the documentation up to date).
         }
 
         if (!email.includes('@')) {
-            emailError = $text('signup.at_missing.text');
+            emailError = $text('signup.at_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
         }
 
         if (!email.match(/\.[a-z]{2,}$/i)) {
-            emailError = $text('signup.domain_ending_missing.text');
+            emailError = $text('signup.domain_ending_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
@@ -97,7 +97,7 @@ changes to the documentation (to keep the documentation up to date).
         
         // Validate email before submission
         if (!email || !email.trim()) {
-            emailError = $text('settings.newsletter_email_required.text');
+            emailError = $text('settings.newsletter_email_required');
             showEmailWarning = true;
             if (emailInput) {
                 emailInput.focus();
@@ -147,18 +147,18 @@ changes to the documentation (to keep the documentation up to date).
             
             if (response.ok && data.success) {
                 // Show success message
-                successMessage = data.message || $text('settings.newsletter_subscribe_success.text');
+                successMessage = data.message || $text('settings.newsletter_subscribe_success');
                 // Clear email input
                 email = '';
                 emailError = '';
                 showEmailWarning = false;
             } else {
                 // Show error message from API or default error
-                errorMessage = data.message || $text('settings.newsletter_subscribe_error.text');
+                errorMessage = data.message || $text('settings.newsletter_subscribe_error');
             }
         } catch (error) {
             console.error('[SettingsNewsletter] Error subscribing to newsletter:', error);
-            errorMessage = $text('settings.newsletter_subscribe_error.text');
+            errorMessage = $text('settings.newsletter_subscribe_error');
         } finally {
             isSubmitting = false;
         }
@@ -202,13 +202,13 @@ changes to the documentation (to keep the documentation up to date).
             const data = await response.json();
             
             if (response.ok && data.success) {
-                successMessage = data.message || $text('settings.newsletter_confirm_success.text');
+                successMessage = data.message || $text('settings.newsletter_confirm_success');
             } else {
-                errorMessage = data.message || $text('settings.newsletter_confirm_error.text');
+                errorMessage = data.message || $text('settings.newsletter_confirm_error');
             }
         } catch (error) {
             console.error('[SettingsNewsletter] Error confirming newsletter subscription:', error);
-            errorMessage = $text('settings.newsletter_confirm_error.text');
+            errorMessage = $text('settings.newsletter_confirm_error');
         } finally {
             isProcessingAction = false;
         }
@@ -235,13 +235,13 @@ changes to the documentation (to keep the documentation up to date).
             const data = await response.json();
             
             if (response.ok && data.success) {
-                successMessage = data.message || $text('settings.newsletter_unsubscribe_success.text');
+                successMessage = data.message || $text('settings.newsletter_unsubscribe_success');
             } else {
-                errorMessage = data.message || $text('settings.newsletter_unsubscribe_error.text');
+                errorMessage = data.message || $text('settings.newsletter_unsubscribe_error');
             }
         } catch (error) {
             console.error('[SettingsNewsletter] Error unsubscribing from newsletter:', error);
-            errorMessage = $text('settings.newsletter_unsubscribe_error.text');
+            errorMessage = $text('settings.newsletter_unsubscribe_error');
         } finally {
             isProcessingAction = false;
         }
@@ -272,13 +272,13 @@ changes to the documentation (to keep the documentation up to date).
             const data = await response.json();
             
             if (response.ok && data.success) {
-                successMessage = data.message || $text('settings.newsletter_block_success.text');
+                successMessage = data.message || $text('settings.newsletter_block_success');
             } else {
-                errorMessage = data.message || $text('settings.newsletter_block_error.text');
+                errorMessage = data.message || $text('settings.newsletter_block_error');
             }
         } catch (error) {
             console.error('[SettingsNewsletter] Error blocking email:', error);
-            errorMessage = $text('settings.newsletter_block_error.text');
+            errorMessage = $text('settings.newsletter_block_error');
         } finally {
             isProcessingAction = false;
         }
@@ -355,7 +355,7 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 <div class="newsletter-settings">
-    <p>{$text('settings.newsletter_description.text')}</p>
+    <p>{$text('settings.newsletter_description')}</p>
     
     <!-- Email input form -->
     <div class="newsletter-form">
@@ -365,12 +365,12 @@ changes to the documentation (to keep the documentation up to date).
                 <input
                     bind:this={emailInput}
                     type="email"
-                    placeholder={$text('settings.newsletter_email_placeholder.text')}
+                    placeholder={$text('settings.newsletter_email_placeholder')}
                     bind:value={email}
                     onkeypress={handleKeyPress}
                     disabled={isSubmitting}
                     class:error={!!emailError}
-                    aria-label={$text('settings.newsletter_email_placeholder.text')}
+                    aria-label={$text('settings.newsletter_email_placeholder')}
                     autocomplete="email"
                 />
                 {#if showEmailWarning && emailError}
@@ -385,12 +385,12 @@ changes to the documentation (to keep the documentation up to date).
             <button
                 onclick={handleSubscribe}
                 disabled={!isFormValid || isSubmitting}
-                aria-label={$text('settings.newsletter_subscribe_button.text')}
+                aria-label={$text('settings.newsletter_subscribe_button')}
             >
                 {#if isSubmitting}
-                    {$text('settings.newsletter_subscribing.text')}
+                    {$text('settings.newsletter_subscribing')}
                 {:else}
-                    {$text('settings.newsletter_subscribe_button.text')}
+                    {$text('settings.newsletter_subscribe_button')}
                 {/if}
             </button>
         </div>
@@ -398,7 +398,7 @@ changes to the documentation (to keep the documentation up to date).
         <!-- Processing action message (from email links) -->
         {#if isProcessingAction}
             <div class="message processing-message" role="alert">
-                {$text('settings.newsletter_processing.text')}
+                {$text('settings.newsletter_processing')}
             </div>
         {/if}
         
@@ -419,7 +419,7 @@ changes to the documentation (to keep the documentation up to date).
     
     <!-- Additional information -->
     <div class="newsletter-info">
-        <p class="info-text">{$text('settings.newsletter_info.text')}</p>
+        <p class="info-text">{$text('settings.newsletter_info')}</p>
     </div>
 </div>
 

@@ -106,7 +106,7 @@
                     type="text"
                     bind:value={otpCode}
                     oninput={handleInput}
-                    placeholder={$text('signup.enter_one_time_code.text')}
+                    placeholder={$text('signup.enter_one_time_code')}
                     inputmode="numeric"
                     maxlength="6"
                     disabled={isVerifying}
@@ -114,7 +114,7 @@
                     class:fade-out={isVerifying}
                 />
                 <div class="loading-text color-grey-80" class:fade-in={isVerifying}>
-                    {$text('login.loading.text')}
+                    {$text('login.loading')}
                 </div>
             </div>
         </div>

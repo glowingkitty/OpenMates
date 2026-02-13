@@ -14,8 +14,8 @@ import type { DemoChat } from "../types";
 export const whoDevelopsOpenmatesChat: DemoChat = {
   chat_id: "demo-who-develops-openmates",
   slug: "who-develops-openmates",
-  title: "demo_chats.who_develops_openmates.title.text",
-  description: "demo_chats.who_develops_openmates.description.text",
+  title: "demo_chats.who_develops_openmates.title",
+  description: "demo_chats.who_develops_openmates.description",
   keywords: [
     "creator",
     "developer",
@@ -30,14 +30,14 @@ export const whoDevelopsOpenmatesChat: DemoChat = {
     {
       id: "who-develops-openmates-1",
       role: "assistant",
-      content: "demo_chats.who_develops_openmates.message.text",
+      content: "demo_chats.who_develops_openmates.message",
       timestamp: new Date().toISOString(),
     },
   ],
   follow_up_suggestions: [
-    "demo_chats.who_develops_openmates.follow_up_1.text",
-    "demo_chats.who_develops_openmates.follow_up_2.text",
-    "demo_chats.who_develops_openmates.follow_up_3.text",
+    "demo_chats.who_develops_openmates.follow_up_1",
+    "demo_chats.who_develops_openmates.follow_up_2",
+    "demo_chats.who_develops_openmates.follow_up_3",
   ],
   metadata: {
     category: "openmates_official", // Official OpenMates category - shows favicon, not mate profile

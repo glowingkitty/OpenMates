@@ -15,9 +15,9 @@
 export interface AppMetadata {
   id: string;
   name?: string; // Optional: use name_translation_key for i18n
-  name_translation_key?: string; // Translation key for app name (e.g., "app_translations.web.text")
+  name_translation_key?: string; // Translation key for app name (e.g., "app_translations.web")
   description?: string; // Optional: use description_translation_key for i18n
-  description_translation_key?: string; // Translation key for app description (e.g., "app_translations.web.description.text")
+  description_translation_key?: string; // Translation key for app description (e.g., "app_translations.web.description")
   icon_image?: string;
   icon_colorgradient?: {
     start: string;

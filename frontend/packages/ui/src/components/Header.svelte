@@ -25,19 +25,19 @@
     let serverEdition = $state<string | null>(null);
     let serverEditionLabel = $derived(
         serverEdition === 'self_hosted'
-            ? $text('header.self_hosting_edition.text')
+            ? $text('header.self_hosting_edition')
             : serverEdition === 'development'
-              ? $text('header.development_server.text')
-              : $text('signup.version_title.text')
+              ? $text('header.development_server')
+              : $text('signup.version_title')
     );
 
     let headerDiv: HTMLElement;
 
     // Simplify the websiteNavItems - remove isTranslationsReady check using Svelte 5 runes
     let websiteNavItems = $derived([
-        { href: routes.home, text: $text('navigation.for_all.text') },
-        { href: routes.developers, text: $text('navigation.for_developers.text') },
-        { href: routes.docs.main, text: $text('navigation.docs.text') }
+        { href: routes.home, text: $text('navigation.for_all') },
+        { href: routes.developers, text: $text('navigation.for_developers') },
+        { href: routes.docs.main, text: $text('navigation.docs') }
     ].filter(item => item.href && isPageVisible(item.href)));
 
     interface NavItem {
@@ -47,9 +47,9 @@
 
     // Update the webAppNavItems based on login state using Svelte 5 runes
     let webAppNavItems = $derived(isLoggedIn ? [
-        // { href: '/app/chat', text: $t('navigation.chat.text') },
-        // { href: '/app/projects', text: $t('navigation.projects.text') },
-        // { href: '/app/workflows', text: $t('navigation.workflows.text') }
+        // { href: '/app/chat', text: $t('navigation.chat') },
+        // { href: '/app/projects', text: $t('navigation.projects') },
+        // { href: '/app/workflows', text: $t('navigation.workflows') }
     ] : []);
 
     // Define the type for social links
@@ -179,7 +179,7 @@
     });
 
     // Derive button text based on viewport size
-    let loginButtonText = $derived(isMobile ? $text('signup.sign_up.text') : `${$text('login.login.text')} / ${$text('signup.sign_up.text')}`);
+    let loginButtonText = $derived(isMobile ? $text('signup.sign_up') : `${$text('login.login')} / ${$text('signup.sign_up')}`);
 
     // Update menu toggle logic to consider the logging out state as well
     const toggleMenu = () => {
@@ -246,7 +246,7 @@
                         <button
                             class="clickable-icon icon_menu"
                             onclick={panelState.toggleChats}
-                            aria-label={$text('header.toggle_menu.text')}
+                            aria-label={$text('header.toggle_menu')}
                         ></button>
                     </div>
                     <div class="logo-container">
@@ -286,7 +286,7 @@
                         <button 
                             class="mobile-menu-button" 
                             onclick={toggleMobileMenu}
-                            aria-label={$text('header.toggle_menu.text')}
+                            aria-label={$text('header.toggle_menu')}
                         >
                             <div class:open={isMobileMenuOpen} class="hamburger">
                                 <span></span>

@@ -100,7 +100,7 @@
   let hasMoreRows = $derived(parsedTable.rowCount > MAX_PREVIEW_ROWS);
   
   // Build skill name for BasicInfosBar
-  let skillName = $derived.by(() => renderTitle || $text('embeds.table.text'));
+  let skillName = $derived.by(() => renderTitle || $text('embeds.table'));
   
   // Build status text: dimensions
   let statusText = $derived.by(() => {

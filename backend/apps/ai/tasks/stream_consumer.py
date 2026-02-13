@@ -954,9 +954,9 @@ async def _consume_main_processing_stream(
         language = preprocessing_result.output_language or "en"
         
         if preprocessing_result.rejection_reason == "harmful_or_illegal_detected":
-            predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected.text", language, {})
+            predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected", language, {})
         else:  # misuse_detected
-            predefined_response = translation_service.get_nested_translation("predefined_responses.misuse_detected.text", language, {})
+            predefined_response = translation_service.get_nested_translation("predefined_responses.misuse_detected", language, {})
         
         if not predefined_response:
             predefined_response = "I can't help with that request."
@@ -1220,7 +1220,7 @@ async def _consume_main_processing_stream(
                 # This ensures users never see technical error details
                 if chunk.strip().startswith("[ERROR"):
                     logger.warning(f"{log_prefix} Detected error message in stream chunk: {chunk[:200]}... Replacing with generic error message.")
-                    chunk = "chat.an_error_occured.text"
+                    chunk = "chat.an_error_occured"
                 
                 # Strip <tool_call>...</tool_call> XML blocks from text content
                 # Some LLMs (e.g., Qwen3) output tool calls as XML text in addition to proper function calling
@@ -2309,7 +2309,7 @@ async def _consume_main_processing_stream(
                 
                 # Get the translated fallback message
                 fallback_message = translation_service.get_nested_translation(
-                    "predefined_responses.processing_error_rephrase.text",
+                    "predefined_responses.processing_error_rephrase",
                     language,
                     {}
                 )
@@ -2554,7 +2554,7 @@ async def _consume_main_processing_stream(
         try:
             translation_service = TranslationService()
             disclaimer_text = translation_service.get_nested_translation(
-                f"disclaimers.{disclaimer_type}.text",
+                f"disclaimers.{disclaimer_type}",
                 user_language,
                 {}
             )

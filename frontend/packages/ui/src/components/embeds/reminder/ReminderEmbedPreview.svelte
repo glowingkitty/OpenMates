@@ -121,9 +121,9 @@
   // Build skill name for BasicInfosBar
   let skillName = $derived.by(() => {
     if (status === 'error' && error) {
-      return $text('apps.reminder.skills.set_reminder.text');
+      return $text('apps.reminder.skills.set_reminder');
     }
-    return $text('apps.reminder.skills.set_reminder.text');
+    return $text('apps.reminder.skills.set_reminder');
   });
   
   // Build status text - use default "Processing..." for processing state (handled by BasicInfosBar)
@@ -134,7 +134,7 @@
       return undefined;
     }
     if (status === 'error') {
-      return $text('embeds.reminder.error.text');
+      return $text('embeds.reminder.error');
     }
     if (triggerAtFormatted) {
       return triggerAtFormatted;
@@ -145,10 +145,10 @@
   // Get target type display text
   let targetTypeText = $derived.by(() => {
     if (targetType === 'new_chat') {
-      return $text('embeds.reminder.new_chat.text');
+      return $text('embeds.reminder.new_chat');
     }
     if (targetType === 'existing_chat') {
-      return $text('embeds.reminder.existing_chat.text');
+      return $text('embeds.reminder.existing_chat');
     }
     return '';
   });
@@ -254,7 +254,7 @@
               </span>
               {#if isRepeating}
                 <span class="badge repeat-badge">
-                  {$text('embeds.reminder.repeating.text')}
+                  {$text('embeds.reminder.repeating')}
                 </span>
               {/if}
             </div>
@@ -272,7 +272,7 @@
         <!-- Error state -->
         <div class="error-state">
           <span class="error-icon">&#10060;</span>
-          <span class="error-text">{error || $text('embeds.reminder.error_generic.text')}</span>
+          <span class="error-text">{error || $text('embeds.reminder.error_generic')}</span>
         </div>
       {/if}
     </div>

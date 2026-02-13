@@ -66,7 +66,7 @@ All values are client-side encrypted before storage.
                 settingsPath: 'privacy/hide-personal-data',
                 direction: 'backward',
                 icon: 'privacy',
-                title: $text('settings.privacy.privacy.hide_personal_data.text')
+                title: $text('settings.privacy.privacy.hide_personal_data')
             });
         } catch (error) {
             console.error('[SettingsAddCustomEntry] Failed to save custom entry:', error);
@@ -81,14 +81,14 @@ All values are client-side encrypted before storage.
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.privacy.form.title.text')}
+    title={$text('settings.privacy.privacy.form.title')}
 />
 
 <div class="form-field">
     <input
         type="text"
         class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.title.placeholder_custom.text')}
+        placeholder={$text('settings.privacy.privacy.form.title.placeholder_custom')}
         bind:value={title}
     />
 </div>
@@ -97,14 +97,14 @@ All values are client-side encrypted before storage.
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.privacy.form.text_to_hide.text')}
+    title={$text('settings.privacy.privacy.form.text_to_hide')}
 />
 
 <div class="form-field">
     <input
         type="text"
         class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.text_to_hide.placeholder_custom.text')}
+        placeholder={$text('settings.privacy.privacy.form.text_to_hide.placeholder_custom')}
         bind:value={textToHide}
     />
 </div>
@@ -112,7 +112,7 @@ All values are client-side encrypted before storage.
 <!-- Auto-generated placeholder preview -->
 {#if autoPlaceholder}
     <div class="placeholder-preview">
-        <span class="placeholder-label">{$text('settings.privacy.privacy.form.replace_with.text')}</span>
+        <span class="placeholder-label">{$text('settings.privacy.privacy.form.replace_with')}</span>
         <span class="placeholder-value">[{autoPlaceholder}]</span>
     </div>
 {/if}
@@ -132,7 +132,7 @@ All values are client-side encrypted before storage.
         disabled={!isValid || isSaving}
         onclick={handleSave}
     >
-        {$text('settings.privacy.privacy.form.save.text')}
+        {$text('settings.privacy.privacy.form.save')}
     </button>
 </div>
 

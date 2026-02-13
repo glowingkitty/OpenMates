@@ -105,8 +105,8 @@ class AppYAML(BaseModel):
     This is used for validating app configurations and for service discovery.
     """
     id: Optional[str] = None # Made id optional, will be derived if not present
-    name_translation_key: str # Translation key for app name (e.g., "app_translations.web.text") - required
-    description_translation_key: str # Translation key for app description (e.g., "apps.web.description.text") - required (no backwards compatibility)
+    name_translation_key: str # Translation key for app name (e.g., "app_translations.web") - required
+    description_translation_key: str # Translation key for app description (e.g., "apps.web.description") - required (no backwards compatibility)
     icon_image: Optional[str] = Field(default=None, pattern=r'.+\.svg$') # Filename ending with .svg
     icon_colorgradient: Optional[IconColorGradient] = None
     skills: List[AppSkillDefinition] = []

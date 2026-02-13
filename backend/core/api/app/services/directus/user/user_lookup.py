@@ -223,7 +223,7 @@ async def authenticate_user_by_lookup_hash(self, hashed_email: str, lookup_hash:
             
             if not users or len(users) == 0:
                 logger.info(f"No user found with matching hashed email")
-                return False, None, "login.email_or_password_wrong.text"
+                return False, None, "login.email_or_password_wrong"
                 
             user = users[0]
             user_id = user.get("id")
@@ -235,7 +235,7 @@ async def authenticate_user_by_lookup_hash(self, hashed_email: str, lookup_hash:
                 return True, user, "Authentication successful"
             else:
                 logger.warning(f"Invalid lookup hash for user {user_id}")
-                return False, None, "login.email_or_password_wrong.text"
+                return False, None, "login.email_or_password_wrong"
         else:
             error_msg = f"Failed to query user by hashed email: {response.status_code} - {response.text}"
             logger.error(error_msg)

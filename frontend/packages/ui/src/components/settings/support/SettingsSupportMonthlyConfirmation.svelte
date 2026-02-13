@@ -28,7 +28,7 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
             settingsPath: 'support',
             direction: 'backward',
             icon: 'support',
-            title: $text('settings.support.text')
+            title: $text('settings.support')
         });
     }
 </script>
@@ -38,7 +38,7 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
     <div class="success-icon-wrapper">
         <div class="success-icon"></div>
     </div>
-    <h2 class="success-title">{$text('settings.support.subscription_successful.text')}</h2>
+    <h2 class="success-title">{$text('settings.support.subscription_successful')}</h2>
 </div>
 
 <!-- Amount Display -->
@@ -46,15 +46,15 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
     <div class="amount-display">
         <span class="heart-icon"></span>
         <span class="amount-value">{formatCurrency(amount, currency)}</span>
-        <span class="amount-label">{$text('settings.support.per_month.text')}</span>
+        <span class="amount-label">{$text('settings.support.per_month')}</span>
     </div>
-    <p class="details-text">{$text('settings.support.monthly_confirmation_details.text')}</p>
+    <p class="details-text">{$text('settings.support.monthly_confirmation_details')}</p>
 </div>
 
 <!-- Action Button -->
 <div class="action-section">
     <button class="done-button" onclick={goBackToSupport}>
-        {$text('settings.support.done.text')}
+        {$text('settings.support.done')}
     </button>
 </div>
 

@@ -108,9 +108,9 @@
 	// Uses metadata.webapp keys from translations (en.json, de.json, etc.)
 	// $text() is reactive and will update when language changes
 	// If translations aren't loaded, $text() returns the key itself as fallback
-	let seoTitle = $derived($text('metadata.webapp.title.text'));
-	let seoDescription = $derived($text('metadata.webapp.description.text'));
-	let seoKeywords = $derived($text('metadata.default.keywords.text'));
+	let seoTitle = $derived($text('metadata.webapp.title'));
+	let seoDescription = $derived($text('metadata.webapp.description'));
+	let seoKeywords = $derived($text('metadata.default.keywords'));
 
 	// --- Reactive Computations ---
 
@@ -757,10 +757,10 @@
 				setTimeout(() => {
 					const t = get(text);
 					notificationStore.autoLogout(
-						t('login.auto_logout_notification.message.text'),
+						t('login.auto_logout_notification.message'),
 						undefined,
 						7000,
-						t('login.auto_logout_notification.title.text')
+						t('login.auto_logout_notification.title')
 					);
 					console.debug(
 						'[+page.svelte] Showed auto-logout notification for stayLoggedIn=false reload'

@@ -124,10 +124,10 @@
                 // Login successful with backup code
                 await handleSuccessfulLogin(data);
             } else {
-                if (data.message === 'login.code_wrong.text') {
-                    errorMessage = $text('login.code_wrong.text');
+                if (data.message === 'login.code_wrong') {
+                    errorMessage = $text('login.code_wrong');
                 } else {
-                    errorMessage = data.message || $text('login.code_wrong.text');
+                    errorMessage = data.message || $text('login.code_wrong');
                 }
             }
         } catch (error) {
@@ -162,19 +162,19 @@
         // If any required field is missing, show error instead of silently failing
         if (!data.user) {
             console.error('[EnterBackupCode] CRITICAL: Login response missing user object!');
-            errorMessage = $text('login.login_failed.text');
+            errorMessage = $text('login.login_failed');
             return;
         }
         
         if (!data.user.encrypted_key) {
             console.error('[EnterBackupCode] CRITICAL: Login response missing encrypted_key! User object keys:', Object.keys(data.user));
-            errorMessage = $text('login.login_failed.text');
+            errorMessage = $text('login.login_failed');
             return;
         }
         
         if (!data.user.salt) {
             console.error('[EnterBackupCode] CRITICAL: Login response missing salt! User object keys:', Object.keys(data.user));
-            errorMessage = $text('login.login_failed.text');
+            errorMessage = $text('login.login_failed');
             return;
         }
         
@@ -303,7 +303,7 @@
 <div class="backup-code-login" in:fade={{ duration: 300 }}>
     <div class="backup-code-section">
         <p class="backup-code-text">
-            {@html $text('login.enter_backup_code_description.text')}
+            {@html $text('login.enter_backup_code_description')}
         </p>
 
         <form onsubmit={handleSubmit}>
@@ -337,14 +337,14 @@
                 {#if isLoading}
                     <span class="loading-spinner"></span>
                 {:else}
-                    {$text('login.login_button.text')}
+                    {$text('login.login_button')}
                 {/if}
             </button>
         </form>
 
         <div class="backup-code-options">
             <button class="text-button" onclick={handleSwitchToOtp}>
-                {$text('login.use_authenticator_app.text')}
+                {$text('login.use_authenticator_app')}
             </button>
         </div>
     </div>
@@ -352,7 +352,7 @@
     <!-- Back to email button -->
     <div class="back-to-email">
         <button class="text-button" onclick={handleBackToEmail}>
-            {$text('login.login_with_another_account.text')}
+            {$text('login.login_with_another_account')}
         </button>
     </div>
 </div>

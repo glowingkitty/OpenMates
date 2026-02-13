@@ -240,17 +240,14 @@ function convertYamlToJson(yamlFiles, lang) {
             // This reverses the conversion done when creating YAML files
             textValue = convertNewlinesToBr(textValue);
             
-            // Build translation object
+            // Store the translation string directly (no wrapper object)
             // NOTE: We don't include 'context' in JSON output - it's only for YAML documentation
             // The JSON files are used at runtime and don't need context information
-            const translationObj = {
-                text: textValue
-            };
-            
+            //
             // Build nested structure using dot-notation key
-            // Example: "at_missing" -> { at_missing: { text: "...", context: "..." } }
-            // Example: "signup.at_missing" -> { signup: { at_missing: { text: "...", context: "..." } } }
-            setNestedValue(jsonStructure[namespace], key, translationObj);
+            // Example: "at_missing" -> { at_missing: "..." }
+            // Example: "signup.at_missing" -> { signup: { at_missing: "..." } }
+            setNestedValue(jsonStructure[namespace], key, textValue);
         }
     }
     

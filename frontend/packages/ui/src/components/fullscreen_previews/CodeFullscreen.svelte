@@ -75,7 +75,7 @@
         <button 
             class="close-button clickable-icon icon_fullscreen" 
             onclick={handleClose}
-            aria-label={$_('enter_message.exit_fullscreen.text')}
+            aria-label={$_('enter_message.exit_fullscreen')}
         ></button>
 
         <!-- Code content area -->

@@ -111,9 +111,9 @@
                 disabled={!canSubmit || isLoading || isButtonCooldown}
             >
                 {#if isLoading}
-                    {$text('login.loading.text')}
+                    {$text('login.loading')}
                 {:else}
-                    {(isSupportContribution ? $text('signup.send_amount.text') : $text('signup.buy_for.text'))
+                    {(isSupportContribution ? $text('signup.send_amount') : $text('signup.buy_for'))
                         .replace('{currency}', currency)
                         .replace(
                             '{amount}',
@@ -124,14 +124,14 @@
         {/if}
         
         <p class="vat-info color-grey-60">
-            {@html $text('signup.vat_info.text')}
+            {@html $text('signup.vat_info')}
         </p>
     </form>
     
     <div class="bottom-container">
         <button type="button" class="text-button" onclick={handleSecurePaymentInfoClick}>
             <span class="clickable-icon icon_lock inline-lock-icon"></span>
-            {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'Stripe')}
+            {@html $text('signup.secured_and_powered_by').replace('{provider}', 'Stripe')}
         </button>
     </div>
 </div>

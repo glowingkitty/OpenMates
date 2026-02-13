@@ -353,15 +353,15 @@
             disabled={!localIsFormValid || isLoading}
             onclick={handleContinue}
         >
-            {isLoading ? $text('login.loading.text') : $text('signup.continue.text')}
+            {isLoading ? $text('login.loading') : $text('signup.continue')}
         </button>
     </div>
     
     <div class="password-manager-info">
         <p class="password-manager-text">
-            {$text('signup.dont_have_password_manager_yet.text')}<br>
+            {$text('signup.dont_have_password_manager_yet')}<br>
             <a href="https://search.brave.com/search?q=best+password+manager" target="_blank" rel="noopener noreferrer" style="text-decoration: unset; color: unset;">
-                <mark>{$text('signup.click_here_to_show_password_managers.text')}</mark>
+                <mark>{$text('signup.click_here_to_show_password_managers')}</mark>
             </a>
         </p>
     </div>

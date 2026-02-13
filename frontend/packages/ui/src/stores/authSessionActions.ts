@@ -214,10 +214,10 @@ export async function checkAuth(
         // This is triggered when user logged in without "Stay logged in" and page was reloaded
         const $text = get(text);
         notificationStore.autoLogout(
-          $text("login.auto_logout_notification.message.text"),
+          $text("login.auto_logout_notification.message"),
           undefined, // No secondary message needed
           7000, // Show for 7 seconds so user can read the hint
-          $text("login.auto_logout_notification.title.text"),
+          $text("login.auto_logout_notification.title"),
         );
 
         // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone
@@ -512,10 +512,10 @@ export async function checkAuth(
         // This helps users understand they can avoid frequent logouts by enabling "Stay logged in"
         const $text = get(text);
         notificationStore.autoLogout(
-          $text("login.auto_logout_notification.message.text"),
+          $text("login.auto_logout_notification.message"),
           undefined, // No secondary message needed
           7000, // Show for 7 seconds so user can read the hint
-          $text("login.auto_logout_notification.title.text"),
+          $text("login.auto_logout_notification.title"),
         );
 
         // CRITICAL: If user is in signup flow, close signup interface and return to demo

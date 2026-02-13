@@ -85,12 +85,12 @@
         <!-- Header -->
         <div class="dialog-header">
             <div class="dialog-header-icon"></div>
-            <span id="permission-dialog-title">{$text('chat.permissions.title.text') || 'Permissions'}</span>
+            <span id="permission-dialog-title">{$text('chat.permissions.title') || 'Permissions'}</span>
         </div>
         
         <!-- Question -->
         <p class="dialog-question">
-            {$text('chat.permissions.question.text') || 'Include these App settings & memories in this chat, for a more personalized response?'}
+            {$text('chat.permissions.question') || 'Include these App settings & memories in this chat, for a more personalized response?'}
         </p>
         
         <!-- Categories list -->
@@ -116,8 +116,8 @@
                         <span class="category-name">{category.displayName}</span>
                         <span class="category-count">
                             {category.entryCount} {category.entryCount === 1 
-                                ? ($text('chat.permissions.entry_singular.text') || 'entry') 
-                                : ($text('chat.permissions.entry_plural.text') || 'entries')}
+                                ? ($text('chat.permissions.entry_singular') || 'entry') 
+                                : ($text('chat.permissions.entry_plural') || 'entries')}
                         </span>
                     </div>
                 </div>
@@ -134,7 +134,7 @@
                 {#if $permissionDialogLoading}
                     <span class="loading-spinner"></span>
                 {:else}
-                    {$text('chat.permissions.include_selected.text') || 'Include selected'}
+                    {$text('chat.permissions.include_selected') || 'Include selected'}
                 {/if}
             </button>
             <button 
@@ -142,7 +142,7 @@
                 onclick={handleExclude}
                 disabled={$permissionDialogLoading}
             >
-                {$text('chat.permissions.reject_all.text') || 'Reject all'}
+                {$text('chat.permissions.reject_all') || 'Reject all'}
             </button>
         </div>
     </div>

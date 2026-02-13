@@ -58,7 +58,7 @@ async def request_confirm_email_code(
                 )
                 return RequestEmailCodeResponse(
                     success=False,
-                    message="signup.domain_not_allowed.text",
+                    message="signup.domain_not_allowed",
                     error_code="DOMAIN_NOT_ALLOWED"
                 )
             logger.info(f"Email domain check passed: {email_domain}")

@@ -217,10 +217,10 @@
   });
   
   // Skill name from translations
-  let skillName = $derived($text('embeds.web_read.text'));
+  let skillName = $derived($text('embeds.web_read'));
   
   // "Open on {hostname}" button text - uses open_on_provider translation with hostname placeholder
-  let openButtonText = $derived($text('embeds.open_on_provider.text').replace('{provider}', hostname));
+  let openButtonText = $derived($text('embeds.open_on_provider').replace('{provider}', hostname));
   
   // Store rendered HTML for markdown
   // CRITICAL: Using object instead of Map for proper Svelte 5 reactivity
@@ -475,7 +475,7 @@
       {#if effectiveUrl}
         <!-- "Full viewing experience:" label -->
         <div class="full-view-label">
-          {$text('embeds.web_read_full_view.text')}
+          {$text('embeds.web_read_full_view')}
         </div>
         
         <!-- CTA Button: "Open on {hostname}" -->
@@ -490,7 +490,7 @@
       <!-- "Text only preview, via Firecrawl: X words" label - only show if we have content -->
       {#if totalWordCount() > 0}
         <div class="text-preview-label">
-          <span>{$text('embeds.web_read_text_preview.text')}</span>
+          <span>{$text('embeds.web_read_text_preview')}</span>
           <span>via Firecrawl: {totalWordCount().toLocaleString()} words</span>
         </div>
       {/if}
@@ -502,10 +502,10 @@
           {#if effectiveUrl}
             <div class="pending-content">
               <p class="pending-url">{effectiveUrl}</p>
-              <p class="pending-message">{$text('embeds.web_read_loading_content.text')}</p>
+              <p class="pending-message">{$text('embeds.web_read_loading_content')}</p>
             </div>
           {:else}
-            <p>{$text('embeds.web_read_no_content.text')}</p>
+            <p>{$text('embeds.web_read_no_content')}</p>
           {/if}
         </div>
       {:else}
@@ -518,11 +518,11 @@
                 </div>
               {:else if result.markdown}
                 <div class="markdown-loading">
-                  <p>{$text('embeds.web_read_loading_content.text')}</p>
+                  <p>{$text('embeds.web_read_loading_content')}</p>
                 </div>
               {:else}
                 <div class="no-content">
-                  <p>{$text('embeds.web_read_no_content.text')}</p>
+                  <p>{$text('embeds.web_read_no_content')}</p>
                 </div>
               {/if}
             </div>

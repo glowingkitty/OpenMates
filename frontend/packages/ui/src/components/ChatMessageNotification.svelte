@@ -227,7 +227,7 @@
                 disabled={!replyText.trim()}
                 aria-label="Send reply"
             >
-                {$text('enter_message.send.text', { default: 'Send' })}
+                {$text('enter_message.send', { default: 'Send' })}
             </button>
         </div>
     {:else}
@@ -236,7 +236,7 @@
             class="notification-reply-button"
             onclick={handleReplyClick}
         >
-            {$text('notifications.click_to_respond.text')}
+            {$text('notifications.click_to_respond')}
         </button>
     {/if}
 </div>

@@ -117,14 +117,14 @@
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
   let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
-  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured.text') || 'Processing failed.'));
+  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured') || 'Processing failed.'));
   
   // Skill name from translations
-  let skillName = $derived($text('app_skills.travel.search_stays.text') || 'Search stays');
+  let skillName = $derived($text('app_skills.travel.search_stays') || 'Search stays');
   
   // "via {provider}" text
   let viaProvider = $derived(
-    `${$text('embeds.via.text') || 'via'} ${provider}`
+    `${$text('embeds.via') || 'via'} ${provider}`
   );
   
   /**
@@ -265,18 +265,18 @@
     <!-- Error state -->
     {#if status === 'error'}
       <div class="error-state">
-        <div class="error-title">{$text('embeds.search_failed.text') || 'Search failed'}</div>
+        <div class="error-title">{$text('embeds.search_failed') || 'Search failed'}</div>
         <div class="error-message">{errorMessage}</div>
       </div>
     {:else}
       {#if stayResults.length === 0}
         {#if ctx.isLoadingChildren}
           <div class="loading-state">
-            <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+            <p>{$text('embeds.loading') || 'Loading...'}</p>
           </div>
         {:else}
           <div class="no-results">
-            <p>{$text('embeds.no_stays_found.text') || 'No stays found.'}</p>
+            <p>{$text('embeds.no_stays_found') || 'No stays found.'}</p>
           </div>
         {/if}
       {:else}
@@ -332,10 +332,10 @@
                 {#if stay.eco_certified || stay.free_cancellation}
                   <div class="stay-badges">
                     {#if stay.free_cancellation}
-                      <span class="badge badge-cancellation">{$text('embeds.free_cancellation.text') || 'Free cancellation'}</span>
+                      <span class="badge badge-cancellation">{$text('embeds.free_cancellation') || 'Free cancellation'}</span>
                     {/if}
                     {#if stay.eco_certified}
-                      <span class="badge badge-eco">{$text('embeds.eco_certified.text') || 'Eco-certified'}</span>
+                      <span class="badge badge-eco">{$text('embeds.eco_certified') || 'Eco-certified'}</span>
                     {/if}
                   </div>
                 {/if}
@@ -346,11 +346,11 @@
                     <span class="price-amount">
                       {stay.currency || 'EUR'} {Math.round(stay.extracted_rate_per_night || 0)}
                     </span>
-                    <span class="price-per-night">/{$text('embeds.night.text') || 'night'}</span>
+                    <span class="price-per-night">/{$text('embeds.night') || 'night'}</span>
                   {/if}
                   {#if stay.total_rate || stay.extracted_total_rate}
                     <span class="price-total">
-                      {stay.currency || 'EUR'} {Math.round(stay.extracted_total_rate || 0)} {$text('embeds.total.text') || 'total'}
+                      {stay.currency || 'EUR'} {Math.round(stay.extracted_total_rate || 0)} {$text('embeds.total') || 'total'}
                     </span>
                   {/if}
                 </div>

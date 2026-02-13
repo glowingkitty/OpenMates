@@ -90,8 +90,8 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
             return '';
         }
         return hasPassword 
-            ? $text('settings.account.password_change.text')
-            : $text('settings.account.password_add.text');
+            ? $text('settings.account.password_change')
+            : $text('settings.account.password_add');
     });
     
     /** 2FA menu item subtitle based on whether user has 2FA enabled */
@@ -102,9 +102,9 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
         if (has2FA) {
             return tfaAppName 
                 ? tfaAppName 
-                : $text('settings.security.tfa_enabled_short.text');
+                : $text('settings.security.tfa_enabled_short');
         }
-        return $text('settings.security.tfa_disabled_short.text');
+        return $text('settings.security.tfa_disabled_short');
     });
     
     /** Recovery Key menu item subtitle based on whether user has recovery key set */
@@ -113,8 +113,8 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
             return '';
         }
         return hasRecoveryKey 
-            ? $text('settings.security.recovery_key_set.text')
-            : $text('settings.security.recovery_key_not_set.text');
+            ? $text('settings.security.recovery_key_set')
+            : $text('settings.security.recovery_key_not_set');
     });
 
     // ========================================================================
@@ -130,7 +130,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
             settingsPath: 'account/security/passkeys',
             direction: 'forward',
             icon: 'passkeys',
-            title: $text('settings.account.passkeys.text')
+            title: $text('settings.account.passkeys')
         });
     }
 
@@ -140,8 +140,8 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
      */
     function navigateToPassword() {
         const title = hasPassword 
-            ? $text('settings.account.change_password.text')
-            : $text('settings.account.add_password.text');
+            ? $text('settings.account.change_password')
+            : $text('settings.account.add_password');
         
         dispatch('openSettings', {
             settingsPath: 'account/security/password',
@@ -160,7 +160,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
             settingsPath: 'account/security/2fa',
             direction: 'forward',
             icon: '2fa',
-            title: $text('settings.security.tfa_title.text')
+            title: $text('settings.security.tfa_title')
         });
     }
     
@@ -173,7 +173,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
             settingsPath: 'account/security/recovery-key',
             direction: 'forward',
             icon: 'recovery_key',
-            title: $text('settings.security.recovery_key_title.text')
+            title: $text('settings.security.recovery_key_title')
         });
     }
 </script>
@@ -182,7 +182,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
 <SettingsItem
     type="submenu"
     icon="passkeys"
-    title={$text('settings.account.passkeys.text')}
+    title={$text('settings.account.passkeys')}
     onClick={navigateToPasskeys}
 />
 
@@ -190,7 +190,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
 <SettingsItem
     type="submenu"
     icon="password"
-    title={$text('settings.account.password.text')}
+    title={$text('settings.account.password')}
     subtitle={passwordSubtitle()}
     onClick={navigateToPassword}
 />
@@ -199,7 +199,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
 <SettingsItem
     type="submenu"
     icon="tfa"
-    title={$text('settings.security.tfa_title.text')}
+    title={$text('settings.security.tfa_title')}
     subtitle={tfaSubtitle()}
     onClick={navigateTo2FA}
 />
@@ -208,7 +208,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
 <SettingsItem
     type="submenu"
     icon="recovery_key"
-    title={$text('settings.security.recovery_key_title.text')}
+    title={$text('settings.security.recovery_key_title')}
     subtitle={recoveryKeySubtitle()}
     onClick={navigateToRecoveryKey}
 />

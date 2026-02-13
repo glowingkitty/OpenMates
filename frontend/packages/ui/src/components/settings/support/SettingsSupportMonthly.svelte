@@ -70,11 +70,11 @@
     function validateEmailValue(value: string): string {
         if (!value) return 'Please enter your email address';
         if (value.length < 5) return 'Email address is too short';
-        if (!value.includes('@')) return $text('signup.at_missing.text');
+        if (!value.includes('@')) return $text('signup.at_missing');
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(value)) return 'Please enter a valid email address';
-        if (!value.match(/\.[a-z]{2,}$/i)) return $text('signup.domain_ending_missing.text');
+        if (!value.match(/\.[a-z]{2,}$/i)) return $text('signup.domain_ending_missing');
 
         return '';
     }
@@ -146,8 +146,8 @@
         <div class="disclaimer">
             <span class="clickable-icon icon_info"></span>
             <div>
-                <p>{$text('settings.support.disclaimer.text')}</p>
-                <p class="cancellation-info">{$text('settings.support.monthly.cancellation_info.text')}</p>
+                <p>{$text('settings.support.disclaimer')}</p>
+                <p class="cancellation-info">{$text('settings.support.monthly.cancellation_info')}</p>
             </div>
         </div>
     </div>
@@ -156,7 +156,7 @@
         <SettingsItem
             type="submenu"
             icon="subsetting_icon subsetting_icon_calendar"
-            title={formatCurrency(tier.amount, currency) + '/' + $text('settings.support.monthly.per_month.text')}
+            title={formatCurrency(tier.amount, currency) + '/' + $text('settings.support.monthly.per_month')}
             onClick={() => selectMonthlyTier(tier)}
         />
     {/each}
@@ -167,22 +167,22 @@
         <div class="back-button-container">
             <button class="back-button" onclick={backToTierSelection}>
                 <span class="clickable-icon icon_back"></span>
-                {$text('settings.support.back_to_amounts.text')}
+                {$text('settings.support.back_to_amounts')}
             </button>
         </div>
 
         <div class="selected-tier-info">
-            <h3>{formatCurrency(selectedTier.amount, currency)}/{$text('settings.support.monthly.per_month.text')}</h3>
+            <h3>{formatCurrency(selectedTier.amount, currency)}/{$text('settings.support.monthly.per_month')}</h3>
             <div class="recurring-info">
                 <span class="clickable-icon icon_reload"></span>
-                {$text('settings.support.monthly.recurring_notice.text')}
+                {$text('settings.support.monthly.recurring_notice')}
             </div>
         </div>
 
         {#if !isAuthenticated}
             <div class="email-field-container">
                 <div class="email-field-label">
-                    {$text('settings.support.email_label.text')}
+                    {$text('settings.support.email_label')}
                 </div>
                 <div class="input-wrapper">
                     <span class="clickable-icon icon_mail"></span>
@@ -190,7 +190,7 @@
                         bind:this={emailInput}
                         type="email"
                         bind:value={email}
-                        placeholder={$text('login.email_placeholder.text')}
+                        placeholder={$text('login.email_placeholder')}
                         required
                         autocomplete="email"
                         disabled={paymentStarted}
@@ -209,13 +209,13 @@
 
         <div class="cancellation-notice">
             <span class="clickable-icon icon_info"></span>
-            <p>{$text('settings.support.monthly.cancellation_details.text')}</p>
+            <p>{$text('settings.support.monthly.cancellation_details')}</p>
         </div>
 
         {#if !isAuthenticated}
             <div class="button-group">
                 <button class="primary-button" onclick={continueToPayment} disabled={!canContinue}>
-                    {$text('signup.continue.text')}
+                    {$text('signup.continue')}
                 </button>
                 {#if paymentStarted}
                     <button class="secondary-button" onclick={changeEmail}>

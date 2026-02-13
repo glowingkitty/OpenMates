@@ -66,24 +66,19 @@
      */
     function getOfflineText() {
         return {
-            message: $text(
-                'notifications.connection.offline_banner.text',
+            message: $text('notifications.connection.offline_banner',
                 { default: 'You are offline. Your chats are still available.' }
             ) as string,
-            title: $text(
-                'notifications.connection.offline_banner.title.text',
+            title: $text('notifications.connection.offline_banner.title',
                 { default: 'You are offline' }
             ) as string,
-            reconnectLabel: $text(
-                'notifications.connection.tap_to_reconnect.text',
+            reconnectLabel: $text('notifications.connection.tap_to_reconnect',
                 { default: 'Tap to reconnect' }
             ) as string,
-            reconnectingTitle: $text(
-                'notifications.connection.reconnecting.title.text',
+            reconnectingTitle: $text('notifications.connection.reconnecting.title',
                 { default: 'Reconnecting...' }
             ) as string,
-            reconnectingMessage: $text(
-                'notifications.connection.reconnecting.text',
+            reconnectingMessage: $text('notifications.connection.reconnecting',
                 { default: 'Attempting to reconnect to the server.' }
             ) as string,
         };

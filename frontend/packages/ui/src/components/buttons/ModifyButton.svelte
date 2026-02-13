@@ -16,7 +16,7 @@ changes to the documentation (to keep the documentation up to date).
 <button
     use:tooltip 
     class="modify-button" 
-    aria-label={$text('settings.modify.text')}
+    aria-label={$text('settings.modify')}
 ></button>
 
 <style>

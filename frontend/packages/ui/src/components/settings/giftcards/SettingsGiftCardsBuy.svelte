@@ -45,13 +45,13 @@ Buy Gift Cards - Credit tier selection for purchasing gift cards
             settingsPath: `gift_cards/buy/payment`,
             direction: 'forward',
             icon: 'coins',
-            title: `${formatCredits(tier.credits)} ${$text('settings.gift_cards.credits.text')}`
+            title: `${formatCredits(tier.credits)} ${$text('settings.gift_cards.credits')}`
         });
     }
 </script>
 
 <div class="info-message">
-    <p>{$text('settings.gift_cards.buy_info.text')}</p>
+    <p>{$text('settings.gift_cards.buy_info')}</p>
 </div>
 
 <!-- Credit Tier Selection as Menu Items -->

@@ -10,9 +10,9 @@ step_7_top_content_svelte:
     settings_explainer:
         type: 'text'
         text:
-            - $text('signup.settings.text')
-            - $text('signup.default_settings_balance.text')
-            - $text('signup.click_toggle_to_open_settings.text')
+            - $text('signup.settings')
+            - $text('signup.default_settings_balance')
+            - $text('signup.click_toggle_to_open_settings')
         purpose:
             - 'Explains how the default settings balance is set and how to modify the settings.'
         bigger_context:
@@ -25,10 +25,10 @@ step_7_top_content_svelte:
     settings_block:
         type: 'settings_block'
         text:
-            - $text('signup.default_settings.text')
-            - $text('settings.privacy.text')
-            - $text('settings.app_store.text')
-            - $text('settings.interface.text')
+            - $text('signup.default_settings')
+            - $text('settings.privacy')
+            - $text('settings.app_store')
+            - $text('settings.interface')
         purpose:
             - 'Quick access to Privacy, Apps and Interface settings.'
         processing:
@@ -116,25 +116,25 @@ step_7_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size settings"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.settings.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.settings')}</h2>
     </div>
     
     <div class="text-block">
-        {@html $text('signup.default_settings_balance.text')}
+        {@html $text('signup.default_settings_balance')}
         <span class="break-line"></span>
         <span class="break-line mobile-hidden"></span>
-        <mark>{@html $text('signup.click_toggle_to_open_settings.text')}</mark>
+        <mark>{@html $text('signup.click_toggle_to_open_settings')}</mark>
     </div>
     
     <div class="settings-block">
         <div class="settings-header">
-            <div class="default-settings-text">{@html $text('signup.default_settings.text')}</div>
+            <div class="default-settings-text">{@html $text('signup.default_settings')}</div>
         </div>
 
         <SettingsItem 
             type="submenu" 
             icon="privacy" 
-            title={$text('settings.privacy.text')}
+            title={$text('settings.privacy')}
             onClick={() => handleSettingsClick('privacy')}
             hasToggle={true}
             checked={privacyToggleOn}
@@ -143,7 +143,7 @@ step_7_top_content_svelte:
         <SettingsItem 
             type="submenu" 
             icon="app_store" 
-            title={$text('settings.app_store.text')}
+            title={$text('settings.app_store')}
             onClick={() => handleSettingsClick('app_store')}
             hasToggle={true}
             checked={appsToggleOn}
@@ -152,7 +152,7 @@ step_7_top_content_svelte:
         <SettingsItem 
             type="submenu" 
             icon="interface" 
-            title={$text('settings.interface.text')}
+            title={$text('settings.interface')}
             onClick={() => handleSettingsClick('interface')}
             hasToggle={true}
             checked={interfaceToggleOn}

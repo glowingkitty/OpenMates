@@ -1,13 +1,13 @@
-name_translation_key: plants.text
-description_translation_key: plants.description.text
+name_translation_key: plants
+description_translation_key: plants.description
 icon_image: |
   plants.svg
 category: personal
 last_updated: '2025-11-12'
 settings_and_memories:
   - id: my_plants
-    name_translation_key: plants.my_plants.text
-    description_translation_key: plants.my_plants.description.text
+    name_translation_key: plants.my_plants
+    description_translation_key: plants.my_plants.description
     type: list
     stage: planning
     schema:
@@ -62,8 +62,8 @@ settings_and_memories:
 skills: []
 focuses:
   - id: plant_care_guide
-    name_translation_key: plants.plant_care_guide.text
-    description_translation_key: plants.plant_care_guide.description.text
+    name_translation_key: plants.plant_care_guide
+    description_translation_key: plants.plant_care_guide.description
     stage: planning
     process:
       - asks about the plant you want help with (name, species, or description)

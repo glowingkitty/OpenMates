@@ -231,8 +231,8 @@
 
 <div class="api-keys-container">
     <div class="header">
-        <h2 class="title">{$text('settings.developers_api_keys.text')}</h2>
-        <p class="description">{$text('settings.developers_api_keys_description.text')}</p>
+        <h2 class="title">{$text('settings.developers_api_keys')}</h2>
+        <p class="description">{$text('settings.developers_api_keys_description')}</p>
 
         <button
             class="btn-create"

@@ -122,7 +122,7 @@
      * Get translated type label for a result.
      */
     function getTypeLabel(type: MentionType): string {
-        return $text(`enter_message.mention_dropdown.type_labels.${type}.text`);
+        return $text(`enter_message.mention_dropdown.type_labels.${type}`);
     }
 
     /**
@@ -149,11 +149,11 @@
     function getSubtitle(result: AnyMentionResult): string {
         // For models, subtitle is provider name - use translation template
         if (result.type === 'model') {
-            return $text('enter_message.mention_dropdown.from_provider.text').replace('{provider}', result.subtitle);
+            return $text('enter_message.mention_dropdown.from_provider').replace('{provider}', result.subtitle);
         }
         // For mates, use the mate description translation key
         if (result.type === 'mate') {
-            return $text(`mate_descriptions.${result.id}.text`);
+            return $text(`mate_descriptions.${result.id}`);
         }
         // For skills, focus modes, settings - resolve translation keys
         if (result.subtitle) {
@@ -209,12 +209,12 @@
         <!-- Header text -->
         <div class="mention-dropdown-header">
             <span class="header-text">
-                {$text('enter_message.mention_dropdown.header.text')}
+                {$text('enter_message.mention_dropdown.header')}
             </span>
             <a 
                 href="/#settings" 
                 class="settings-button" 
-                aria-label={$text('settings.settings.text')}
+                aria-label={$text('settings.settings')}
                 onclick={(e) => { e.stopPropagation(); }}
             >
                 <span class="clickable-icon icon_settings"></span>
@@ -272,7 +272,7 @@
                         href={getSettingsLink(result)}
                         class="row-settings-button" 
                         tabindex="-1"
-                        aria-label={$text('settings.settings.text')}
+                        aria-label={$text('settings.settings')}
                         onclick={(e) => e.stopPropagation()}
                     >
                         <span class="clickable-icon icon_settings"></span>
@@ -284,7 +284,7 @@
         <!-- Footer hint -->
         {#if query}
             <div class="mention-dropdown-footer">
-                {$text('enter_message.mention_dropdown.autocomplete_hint.text')}
+                {$text('enter_message.mention_dropdown.autocomplete_hint')}
             </div>
         {/if}
     </div>

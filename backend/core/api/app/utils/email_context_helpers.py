@@ -31,16 +31,16 @@ async def generate_report_access_mailto_link(
     logger.debug(f"Generating report access mailto link for type: {report_type}")
     try:
         # Common subject
-        subject_key = "email.email_subject_someone_accessed_my_account.text"
+        subject_key = "email.email_subject_someone_accessed_my_account"
         mailto_subject_template = translation_service.get_nested_translation(subject_key, language, {})
 
         # Select body template based on report type
         if report_type == 'new_device':
-            body_key = "email.email_body_someone_accessed_my_account_from_new_device.text"
+            body_key = "email.email_body_someone_accessed_my_account_from_new_device"
         elif report_type == 'backup_code':
-            body_key = "email.email_body_someone_accessed_my_account_backup_code.text"
+            body_key = "email.email_body_someone_accessed_my_account_backup_code"
         elif report_type == 'recovery_key':
-            body_key = "email.email_body_someone_accessed_my_account_recovery_key.text"
+            body_key = "email.email_body_someone_accessed_my_account_recovery_key"
         else:
             logger.error(f"Unsupported report_type '{report_type}' for mailto link generation.")
             return "" # Return empty string or raise error
@@ -129,8 +129,8 @@ async def prepare_new_device_login_context(
         country = ""
 
     # --- Device & OS Parsing ---
-    device_type_key = "email.unknown_device.text"
-    os_name_key = "email.unknown_os.text"
+    device_type_key = "email.unknown_device"
+    os_name_key = "email.unknown_os"
     os_name_raw = "Unknown OS"
 
     if user_agents:
@@ -138,9 +138,9 @@ async def prepare_new_device_login_context(
             ua = user_agents.parse(user_agent_string)
             os_name_raw = ua.os.family or os_name_raw
 
-            if ua.is_pc: device_type_key = "email.computer.text"
-            elif ua.is_tablet: device_type_key = "email.tablet.text"
-            elif ua.is_mobile: device_type_key = "email.phone.text"
+            if ua.is_pc: device_type_key = "email.computer"
+            elif ua.is_tablet: device_type_key = "email.tablet"
+            elif ua.is_mobile: device_type_key = "email.phone"
             # Add VR/VisionOS checks if needed based on library capabilities
 
             os_family = ua.os.family
@@ -151,7 +151,7 @@ async def prepare_new_device_login_context(
             elif os_family == "iOS": os_name_key, os_name_raw = "iOS", "iOS"
             elif os_family == "iPadOS": os_name_key, os_name_raw = "iPadOS", "iPadOS"
             # Add VisionOS check if needed
-            else: os_name_key = "email.unknown_os.text"
+            else: os_name_key = "email.unknown_os"
 
             logger.info(f"{log_prefix}Parsed UA: OS={os_name_raw}, TypeKey={device_type_key}")
 
@@ -161,15 +161,15 @@ async def prepare_new_device_login_context(
          logger.warning(f"{log_prefix}user-agents library not available. Using default device/OS keys.")
 
     device_type_translated = translation_service.get_nested_translation(device_type_key, language, {})
-    if os_name_key == "email.unknown_os.text":
+    if os_name_key == "email.unknown_os":
          os_name_translated = translation_service.get_nested_translation(os_name_key, language, {})
     else:
          os_name_translated = os_name_raw # Use the mapped raw name
 
     # --- Mailto Link Generation ---
     login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-    mailto_subject_template = translation_service.get_nested_translation("email.email_subject_someone_accessed_my_account.text", language, {})
-    mailto_body_template = translation_service.get_nested_translation("email.email_body_someone_accessed_my_account_from_new_device.text", language, {})
+    mailto_subject_template = translation_service.get_nested_translation("email.email_subject_someone_accessed_my_account", language, {})
+    mailto_body_template = translation_service.get_nested_translation("email.email_body_someone_accessed_my_account_from_new_device", language, {})
 
     mailto_body_formatted = mailto_body_template.format(
         login_time=login_time,
@@ -210,7 +210,7 @@ async def prepare_new_device_login_context(
         # Use final_location_name if city/country parsing failed but location is known (e.g., localhost)
         display_city = city if city != "Unknown" else final_location_name
         display_country = country if country != "Unknown" else ""
-        map_alt_text = translation_service.get_nested_translation("email.area_around.text", language, {}).format(city=display_city, country=display_country).replace("<br>", " ").strip()
+        map_alt_text = translation_service.get_nested_translation("email.area_around", language, {}).format(city=display_city, country=display_country).replace("<br>", " ").strip()
         
         # Ensure coordinates are valid floats before generating image
         if isinstance(final_latitude, (int, float)) and isinstance(final_longitude, (int, float)) and \
@@ -230,11 +230,11 @@ async def prepare_new_device_login_context(
         else:
              logger.warning(f"{log_prefix}Coordinates are invalid or not numbers (lat={final_latitude}, lon={final_longitude}). Skipping map image generation.")
              location_known = False # Treat as unknown if coords invalid
-             unknown_location_text = translation_service.get_nested_translation("email.from_unknown_location.text", language, {})
+             unknown_location_text = translation_service.get_nested_translation("email.from_unknown_location", language, {})
 
     else:
         logger.info(f"{log_prefix}Location is unknown. Getting 'unknown location' text.")
-        unknown_location_text = translation_service.get_nested_translation("email.from_unknown_location.text", language, {})
+        unknown_location_text = translation_service.get_nested_translation("email.from_unknown_location", language, {})
 
 
     # --- Prepare Final Context ---

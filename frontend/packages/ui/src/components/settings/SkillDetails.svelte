@@ -62,7 +62,7 @@
         // Never show "Free" - if no pricing provided, default to 1 credit minimum
         // This should not happen in practice since metadata generation always sets pricing
         if (!pricing) {
-            return `1 ${$text('settings.app_store.skills.pricing.credits.text')} per request`;
+            return `1 ${$text('settings.app_store.skills.pricing.credits')} per request`;
         }
         
         // Token-based pricing - return array for separate lines
@@ -70,10 +70,10 @@
         if (pricing.tokens) {
             const tokenParts: string[] = [];
             if (pricing.tokens.input) {
-                tokenParts.push(`${pricing.tokens.input.per_credit_unit} ${$text('settings.app_store.skills.pricing.token.text')} per ${$text('settings.app_store.skills.pricing.credits.text')} (${$text('settings.app_store.skills.pricing.input.text')})`);
+                tokenParts.push(`${pricing.tokens.input.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} per ${$text('settings.app_store.skills.pricing.credits')} (${$text('settings.app_store.skills.pricing.input')})`);
             }
             if (pricing.tokens.output) {
-                tokenParts.push(`${pricing.tokens.output.per_credit_unit} ${$text('settings.app_store.skills.pricing.token.text')} per ${$text('settings.app_store.skills.pricing.credits.text')} (${$text('settings.app_store.skills.pricing.output.text')})`);
+                tokenParts.push(`${pricing.tokens.output.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} per ${$text('settings.app_store.skills.pricing.credits')} (${$text('settings.app_store.skills.pricing.output')})`);
             }
             if (tokenParts.length > 0) {
                 return tokenParts;
@@ -85,21 +85,21 @@
         
         // Fixed pricing - default to "per request" if no unit specified
         if (pricing.fixed !== undefined) {
-            parts.push(`${pricing.fixed} ${$text('settings.app_store.skills.pricing.credits.text')} per request`);
+            parts.push(`${pricing.fixed} ${$text('settings.app_store.skills.pricing.credits')} per request`);
         }
         
         // Per unit pricing
         if (pricing.per_unit) {
-            const unitName = pricing.per_unit.unit_name || $text('settings.app_store.skills.pricing.unit.text');
-            parts.push(`${pricing.per_unit.credits} ${$text('settings.app_store.skills.pricing.credits.text')} / ${unitName}`);
+            const unitName = pricing.per_unit.unit_name || $text('settings.app_store.skills.pricing.unit');
+            parts.push(`${pricing.per_unit.credits} ${$text('settings.app_store.skills.pricing.credits')} / ${unitName}`);
         }
         
         // Per minute pricing
         if (pricing.per_minute !== undefined) {
-            parts.push(`${pricing.per_minute} ${$text('settings.app_store.skills.pricing.credits.text')} / ${$text('settings.app_store.skills.pricing.minute.text')}`);
+            parts.push(`${pricing.per_minute} ${$text('settings.app_store.skills.pricing.credits')} / ${$text('settings.app_store.skills.pricing.minute')}`);
         }
         
-        return parts.length > 0 ? parts.join(', ') : $text('settings.app_store.skills.pricing.free.text');
+        return parts.length > 0 ? parts.join(', ') : $text('settings.app_store.skills.pricing.free');
     }
     
     /**
@@ -141,8 +141,8 @@
 <div class="skill-details">
     {#if !app || !skill}
         <div class="error">
-            <p>{$text('settings.app_store.skill_not_found.text')}</p>
-            <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app.text')}</button>
+            <p>{$text('settings.app_store.skill_not_found')}</p>
+            <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
         <!-- Description section - no header, just show description directly -->
@@ -158,7 +158,7 @@
                 <SettingsItem 
                     type="heading"
                     icon="provider"
-                    title={$text('settings.app_store.skills.providers.text')}
+                    title={$text('settings.app_store.skills.providers')}
                 />
                 <div class="content">
                     <ul class="providers-list">
@@ -175,7 +175,7 @@
             <SettingsItem 
                 type="heading"
                 icon="credits"
-                title={$text('settings.app_store.skills.pricing.text')}
+                title={$text('settings.app_store.skills.pricing')}
             />
             <div class="content">
                 {#if Array.isArray(formattedPricing)}

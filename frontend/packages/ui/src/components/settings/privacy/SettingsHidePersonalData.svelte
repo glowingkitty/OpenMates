@@ -83,7 +83,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
             settingsPath: 'privacy/hide-personal-data/add-name',
             direction: 'forward',
             icon: 'user',
-            title: $text('settings.privacy.privacy.add_name.text')
+            title: $text('settings.privacy.privacy.add_name')
         });
     }
 
@@ -92,7 +92,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
             settingsPath: 'privacy/hide-personal-data/add-address',
             direction: 'forward',
             icon: 'maps',
-            title: $text('settings.privacy.privacy.add_address.text')
+            title: $text('settings.privacy.privacy.add_address')
         });
     }
 
@@ -101,7 +101,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
             settingsPath: 'privacy/hide-personal-data/add-birthday',
             direction: 'forward',
             icon: 'gift',
-            title: $text('settings.privacy.privacy.add_birthday.text')
+            title: $text('settings.privacy.privacy.add_birthday')
         });
     }
 
@@ -110,7 +110,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
             settingsPath: 'privacy/hide-personal-data/add-custom',
             direction: 'forward',
             icon: 'create',
-            title: $text('settings.privacy.privacy.add_custom_entry.text')
+            title: $text('settings.privacy.privacy.add_custom_entry')
         });
     }
 </script>
@@ -120,7 +120,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     <SettingsItem
         type="heading"
         icon="anonym"
-        title={$text('settings.privacy.privacy.hide_personal_data.text')}
+        title={$text('settings.privacy.privacy.hide_personal_data')}
         hasToggle={true}
         checked={masterEnabled}
         onClick={handleMasterToggle}
@@ -130,7 +130,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <!-- Description -->
 <div class="description-section">
     <p class="description-text">
-        {$text('settings.privacy.privacy.hide_personal_data.description.text')}
+        {$text('settings.privacy.privacy.hide_personal_data.description')}
     </p>
 </div>
 
@@ -138,7 +138,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="heading"
     icon="contact"
-    title={$text('settings.privacy.privacy.contacts.text')}
+    title={$text('settings.privacy.privacy.contacts')}
 />
 
 {#each contactEntries as entry (entry.id)}
@@ -157,7 +157,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     <SettingsItem
         type="subsubmenu"
         icon="create"
-        title={$text('settings.privacy.privacy.add_name.text')}
+        title={$text('settings.privacy.privacy.add_name')}
         onClick={navigateToAddName}
     />
 </div>
@@ -167,7 +167,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     <SettingsItem
         type="subsubmenu"
         icon="create"
-        title={$text('settings.privacy.privacy.add_address.text')}
+        title={$text('settings.privacy.privacy.add_address')}
         onClick={navigateToAddAddress}
     />
 </div>
@@ -177,7 +177,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     <SettingsItem
         type="subsubmenu"
         icon="create"
-        title={$text('settings.privacy.privacy.add_birthday.text')}
+        title={$text('settings.privacy.privacy.add_birthday')}
         onClick={navigateToAddBirthday}
     />
 </div>
@@ -186,13 +186,13 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="heading"
     icon="user"
-    title={$text('settings.privacy.privacy.for_everyone.text')}
+    title={$text('settings.privacy.privacy.for_everyone')}
 />
 
 <SettingsItem
     type="subsubmenu"
     icon="mail"
-    title={$text('settings.privacy.privacy.email_addresses.text')}
+    title={$text('settings.privacy.privacy.email_addresses')}
     hasToggle={true}
     checked={isCategoryOn('email_addresses')}
     onClick={() => handleCategoryToggle('email_addresses')}
@@ -201,7 +201,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="phone"
-    title={$text('settings.privacy.privacy.phone_numbers.text')}
+    title={$text('settings.privacy.privacy.phone_numbers')}
     hasToggle={true}
     checked={isCategoryOn('phone_numbers')}
     onClick={() => handleCategoryToggle('phone_numbers')}
@@ -210,7 +210,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="billing"
-    title={$text('settings.privacy.privacy.credit_card_numbers.text')}
+    title={$text('settings.privacy.privacy.credit_card_numbers')}
     hasToggle={true}
     checked={isCategoryOn('credit_card_numbers')}
     onClick={() => handleCategoryToggle('credit_card_numbers')}
@@ -219,7 +219,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="money"
-    title={$text('settings.privacy.privacy.iban_bank_account.text')}
+    title={$text('settings.privacy.privacy.iban_bank_account')}
     hasToggle={true}
     checked={isCategoryOn('iban_bank_account')}
     onClick={() => handleCategoryToggle('iban_bank_account')}
@@ -228,7 +228,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="billing"
-    title={$text('settings.privacy.privacy.tax_id_vat.text')}
+    title={$text('settings.privacy.privacy.tax_id_vat')}
     hasToggle={true}
     checked={isCategoryOn('tax_id_vat')}
     onClick={() => handleCategoryToggle('tax_id_vat')}
@@ -237,7 +237,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="coins"
-    title={$text('settings.privacy.privacy.crypto_wallets.text')}
+    title={$text('settings.privacy.privacy.crypto_wallets')}
     hasToggle={true}
     checked={isCategoryOn('crypto_wallets')}
     onClick={() => handleCategoryToggle('crypto_wallets')}
@@ -246,7 +246,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="lock"
-    title={$text('settings.privacy.privacy.social_security_numbers.text')}
+    title={$text('settings.privacy.privacy.social_security_numbers')}
     hasToggle={true}
     checked={isCategoryOn('social_security_numbers')}
     onClick={() => handleCategoryToggle('social_security_numbers')}
@@ -255,7 +255,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="lock"
-    title={$text('settings.privacy.privacy.passport_numbers.text')}
+    title={$text('settings.privacy.privacy.passport_numbers')}
     hasToggle={true}
     checked={isCategoryOn('passport_numbers')}
     onClick={() => handleCategoryToggle('passport_numbers')}
@@ -265,13 +265,13 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="heading"
     icon="coding"
-    title={$text('settings.privacy.privacy.for_developers.text')}
+    title={$text('settings.privacy.privacy.for_developers')}
 />
 
 <SettingsItem
     type="subsubmenu"
     icon="secret"
-    title={$text('settings.privacy.privacy.api_keys.text')}
+    title={$text('settings.privacy.privacy.api_keys')}
     hasToggle={true}
     checked={isCategoryOn('api_keys')}
     onClick={() => handleCategoryToggle('api_keys')}
@@ -280,7 +280,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="secret"
-    title={$text('settings.privacy.privacy.jwt_tokens.text')}
+    title={$text('settings.privacy.privacy.jwt_tokens')}
     hasToggle={true}
     checked={isCategoryOn('jwt_tokens')}
     onClick={() => handleCategoryToggle('jwt_tokens')}
@@ -289,7 +289,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="lock"
-    title={$text('settings.privacy.privacy.private_keys.text')}
+    title={$text('settings.privacy.privacy.private_keys')}
     hasToggle={true}
     checked={isCategoryOn('private_keys')}
     onClick={() => handleCategoryToggle('private_keys')}
@@ -298,7 +298,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="secret"
-    title={$text('settings.privacy.privacy.generic_secrets.text')}
+    title={$text('settings.privacy.privacy.generic_secrets')}
     hasToggle={true}
     checked={isCategoryOn('generic_secrets')}
     onClick={() => handleCategoryToggle('generic_secrets')}
@@ -307,7 +307,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="server"
-    title={$text('settings.privacy.privacy.ip_addresses.text')}
+    title={$text('settings.privacy.privacy.ip_addresses')}
     hasToggle={true}
     checked={isCategoryOn('ip_addresses')}
     onClick={() => handleCategoryToggle('ip_addresses')}
@@ -316,7 +316,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="server"
-    title={$text('settings.privacy.privacy.mac_addresses.text')}
+    title={$text('settings.privacy.privacy.mac_addresses')}
     hasToggle={true}
     checked={isCategoryOn('mac_addresses')}
     onClick={() => handleCategoryToggle('mac_addresses')}
@@ -325,7 +325,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="laptop"
-    title={$text('settings.privacy.privacy.user_at_hostname.text')}
+    title={$text('settings.privacy.privacy.user_at_hostname')}
     hasToggle={true}
     checked={isCategoryOn('user_at_hostname')}
     onClick={() => handleCategoryToggle('user_at_hostname')}
@@ -334,7 +334,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="subsubmenu"
     icon="home"
-    title={$text('settings.privacy.privacy.home_folder.text')}
+    title={$text('settings.privacy.privacy.home_folder')}
     hasToggle={true}
     checked={isCategoryOn('home_folder')}
     onClick={() => handleCategoryToggle('home_folder')}
@@ -344,7 +344,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="heading"
     icon="create"
-    title={$text('settings.privacy.privacy.custom.text')}
+    title={$text('settings.privacy.privacy.custom')}
 />
 
 {#each customEntries as entry (entry.id)}
@@ -362,14 +362,14 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     <SettingsItem
         type="subsubmenu"
         icon="create"
-        title={$text('settings.privacy.privacy.add_custom_entry.text')}
+        title={$text('settings.privacy.privacy.add_custom_entry')}
         onClick={navigateToAddCustomEntry}
     />
 </div>
 
 <!-- Encryption note -->
 <div class="encryption-note">
-    <p>{$text('settings.privacy.privacy.encryption_note.text')}</p>
+    <p>{$text('settings.privacy.privacy.encryption_note')}</p>
 </div>
 
 <style>

@@ -505,8 +505,8 @@
       // Store embed context on window for SettingsShare to pick up
       (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
       
-      // Build a translation key for the share title (e.g., 'settings.share.share_images_generate.text')
-      const shareTranslationKey = `settings.share.share_${appId}_${skillId || 'embed'}.text`;
+      // Build a translation key for the share title (e.g., 'settings.share.share_images_generate')
+      const shareTranslationKey = `settings.share.share_${appId}_${skillId || 'embed'}`;
       const shareTitle = `Share ${appId} ${skillId || 'embed'}`;
       
       // Navigate to share settings
@@ -671,8 +671,8 @@
             <button
               class="action-button chat-button"
               onclick={handleShowChatClick}
-              aria-label={$text('chat.show_chat.text', { default: 'Show Chat' })}
-              title={$text('chat.show_chat.text', { default: 'Show Chat' })}
+              aria-label={$text('chat.show_chat', { default: 'Show Chat' })}
+              title={$text('chat.show_chat', { default: 'Show Chat' })}
             >
               <span class="clickable-icon icon_chat"></span>
             </button>
@@ -696,8 +696,8 @@
           <button
             class="action-button share-button"
             onclick={handleShare}
-            aria-label={$text('chat.share.text') || 'Share'}
-            title={$text('chat.share.text') || 'Share'}
+            aria-label={$text('chat.share') || 'Share'}
+            title={$text('chat.share') || 'Share'}
           >
             <span class="clickable-icon icon_share"></span>
           </button>
@@ -733,8 +733,8 @@
             <button
               class="action-button report-issue-button"
               onclick={handleReportIssue}
-              aria-label={$text('header.report_issue.text') || 'Report Issue'}
-              title={$text('header.report_issue.text') || 'Report Issue'}
+              aria-label={$text('header.report_issue') || 'Report Issue'}
+              title={$text('header.report_issue') || 'Report Issue'}
             >
               <span class="clickable-icon icon_bug"></span>
             </button>

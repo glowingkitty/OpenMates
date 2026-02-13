@@ -142,7 +142,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     <!-- Enable/Disable Toggle -->
     <div class="toggle-section">
         <div class="toggle-header">
-            <span class="toggle-label">{$text('settings.billing.enable_low_balance.text')}</span>
+            <span class="toggle-label">{$text('settings.billing.enable_low_balance')}</span>
             <Toggle 
                 bind:checked={lowBalanceEnabled} 
                 disabled={isLoading}
@@ -152,7 +152,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
             />
         </div>
         <p class="help-text">
-            {$text('settings.billing.low_balance_help.text')}
+            {$text('settings.billing.low_balance_help')}
         </p>
     </div>
 
@@ -163,16 +163,16 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     {#if lowBalanceEnabled}
         <!-- Threshold Display (Fixed at 100 credits) -->
         <div class="form-group">
-            <label for="threshold">{$text('settings.billing.threshold.text')}</label>
+            <label for="threshold">{$text('settings.billing.threshold')}</label>
             <div class="fixed-value-display">
-                {formatCredits(lowBalanceThreshold)} {$text('settings.billing.credits.text')}
+                {formatCredits(lowBalanceThreshold)} {$text('settings.billing.credits')}
             </div>
             <p class="help-text">Auto top-up triggers when balance falls to or below {formatCredits(lowBalanceThreshold)} credits (fixed value)</p>
         </div>
 
         <!-- Amount Selection -->
         <div class="form-group">
-            <label for="amount">{$text('settings.billing.topup_amount.text')}</label>
+            <label for="amount">{$text('settings.billing.topup_amount')}</label>
             <select id="amount" bind:value={lowBalanceAmount} disabled={isLoading}>
                 {#each pricingTiers as tier}
                     <option value={tier.credits}>
@@ -185,7 +185,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
 
         <!-- Currency Selection -->
         <div class="form-group">
-            <label for="currency">{$text('settings.billing.currency.text')}</label>
+            <label for="currency">{$text('settings.billing.currency')}</label>
             <select id="currency" bind:value={lowBalanceCurrency} disabled={isLoading}>
                 <option value="EUR">EUR (€)</option>
                 <option value="USD">USD ($)</option>
@@ -211,7 +211,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         onclick={saveLowBalanceSettings}
         disabled={isLoading || (lowBalanceEnabled && !hasPaymentMethod)}
     >
-        {isLoading ? 'Saving...' : $text('settings.save.text')}
+        {isLoading ? 'Saving...' : $text('settings.save')}
     </button>
 
     {#if errorMessage}

@@ -32,10 +32,10 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         if (!prefix) return '';
         const upper = prefix.toUpperCase();
         if (!VALID_PREFIX_CHARS.test(upper)) {
-            return $text('settings.server.gift_cards.invalid_prefix.text');
+            return $text('settings.server.gift_cards.invalid_prefix');
         }
         if (upper.length > 4) {
-            return $text('settings.server.gift_cards.invalid_prefix.text');
+            return $text('settings.server.gift_cards.invalid_prefix');
         }
         return '';
     });
@@ -131,7 +131,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
             const allCodes = generatedCodes.map(c => c.code).join('\n');
             await navigator.clipboard.writeText(allCodes);
             copiedAll = true;
-            notificationStore.success($text('settings.server.gift_cards.copied.text'));
+            notificationStore.success($text('settings.server.gift_cards.copied'));
             // Reset copied state after 2 seconds
             setTimeout(() => {
                 copiedAll = false;
@@ -158,13 +158,13 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
 <div class="generator-container">
     <!-- Form Section -->
     <div class="form-section">
-        <h3 class="section-title">{$text('settings.server.gift_cards.title.text')}</h3>
-        <p class="section-subtitle">{$text('settings.server.gift_cards.subtitle.text')}</p>
+        <h3 class="section-title">{$text('settings.server.gift_cards.title')}</h3>
+        <p class="section-subtitle">{$text('settings.server.gift_cards.subtitle')}</p>
 
         <!-- Credits Value -->
         <div class="field-group">
             <label class="field-label" for="credits-value">
-                {$text('settings.server.gift_cards.credits_value.text')}
+                {$text('settings.server.gift_cards.credits_value')}
             </label>
             <input
                 id="credits-value"
@@ -181,7 +181,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         <!-- Quantity -->
         <div class="field-group">
             <label class="field-label" for="quantity">
-                {$text('settings.server.gift_cards.quantity.text')}
+                {$text('settings.server.gift_cards.quantity')}
             </label>
             <input
                 id="quantity"
@@ -198,8 +198,8 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         <!-- Custom Prefix -->
         <div class="field-group">
             <label class="field-label" for="prefix">
-                {$text('settings.server.gift_cards.prefix.text')}
-                <span class="optional-label">({$text('settings.server.gift_cards.optional.text')})</span>
+                {$text('settings.server.gift_cards.prefix')}
+                <span class="optional-label">({$text('settings.server.gift_cards.optional')})</span>
             </label>
             <input
                 id="prefix"
@@ -208,7 +208,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
                 value={prefix}
                 oninput={handlePrefixInput}
                 maxlength="4"
-                placeholder={$text('settings.server.gift_cards.prefix_placeholder.text')}
+                placeholder={$text('settings.server.gift_cards.prefix_placeholder')}
                 autocomplete="off"
                 spellcheck="false"
             />
@@ -216,7 +216,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
                 <span class="field-error">{prefixError}</span>
             {:else}
                 <span class="field-hint preview-hint">
-                    {$text('settings.server.gift_cards.prefix_preview.text')}: <span class="code-preview">{codePreview}</span>
+                    {$text('settings.server.gift_cards.prefix_preview')}: <span class="code-preview">{codePreview}</span>
                 </span>
             {/if}
         </div>
@@ -224,8 +224,8 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         <!-- Notes -->
         <div class="field-group">
             <label class="field-label" for="notes">
-                {$text('settings.server.gift_cards.notes.text')}
-                <span class="optional-label">({$text('settings.server.gift_cards.optional.text')})</span>
+                {$text('settings.server.gift_cards.notes')}
+                <span class="optional-label">({$text('settings.server.gift_cards.optional')})</span>
             </label>
             <input
                 id="notes"
@@ -233,7 +233,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
                 class="field-input"
                 bind:value={notes}
                 maxlength="500"
-                placeholder={$text('settings.server.gift_cards.notes_placeholder.text')}
+                placeholder={$text('settings.server.gift_cards.notes_placeholder')}
             />
         </div>
 
@@ -244,9 +244,9 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
             disabled={!isFormValid || isGenerating}
         >
             {#if isGenerating}
-                {$text('settings.server.gift_cards.generating.text')}
+                {$text('settings.server.gift_cards.generating')}
             {:else}
-                {$text('settings.server.gift_cards.generate.text')}
+                {$text('settings.server.gift_cards.generate')}
             {/if}
         </button>
 
@@ -260,7 +260,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         <div class="results-section">
             <div class="results-header">
                 <h3 class="results-title">
-                    {$text('settings.server.gift_cards.generated_codes.text')}
+                    {$text('settings.server.gift_cards.generated_codes')}
                     <span class="results-count">({generatedCodes.length})</span>
                 </h3>
                 {#if generatedCodes.length > 1}
@@ -270,10 +270,10 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
                     >
                         {#if copiedAll}
                             <span class="copied-icon"></span>
-                            {$text('settings.server.gift_cards.copied.text')}
+                            {$text('settings.server.gift_cards.copied')}
                         {:else}
                             <span class="copy-icon"></span>
-                            {$text('settings.server.gift_cards.copy_all.text')}
+                            {$text('settings.server.gift_cards.copy_all')}
                         {/if}
                     </button>
                 {/if}
@@ -289,7 +289,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
                         <button
                             class="btn-copy-code"
                             onclick={() => copySingleCode(card.code, index)}
-                            title={$text('settings.server.gift_cards.copy_code.text')}
+                            title={$text('settings.server.gift_cards.copy_code')}
                         >
                             {#if copiedIndex === index}
                                 <span class="copied-icon"></span>

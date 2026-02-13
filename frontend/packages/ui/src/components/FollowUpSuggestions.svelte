@@ -131,7 +131,7 @@
   <div class="suggestions-wrapper" transition:fade={{ duration: 200 }}>
     <div class="suggestions-header">
       {#key currentLocale}
-        {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
+        {touchDevice ? $text('chat.suggestions.header_tap') : $text('chat.suggestions.header_click')}
       {/key}
     </div>
     <div class="suggestions-container">

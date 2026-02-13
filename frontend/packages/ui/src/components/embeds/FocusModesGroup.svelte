@@ -203,7 +203,7 @@
           class="more-badge"
           onclick={handleMoreClick}
           type="button"
-          aria-label={$text('settings.app_store.plus_n_more.text', { values: { count: remainingCount } })}
+          aria-label={$text('settings.app_store.plus_n_more', { values: { count: remainingCount } })}
         >
           <span class="more-text">+ {remainingCount}</span>
         </button>

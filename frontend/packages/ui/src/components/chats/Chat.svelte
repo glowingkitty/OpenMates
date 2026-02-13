@@ -377,22 +377,22 @@
   // 3. Default: "{mate} is typing..." (standard typing indicator)
   let typingIndicatorInTitleView = $derived((() => {
     if (currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
-      const mateName = $text(`mates.${currentTypingMateInfo.category}.text`);
+      const mateName = $text(`mates.${currentTypingMateInfo.category}`);
       
       // Priority 1: Show active app skill usage (e.g., "Using Search...")
       if (activeSkillInfo) {
-        const skillTranslationKey = `app_skills.${activeSkillInfo.appId}.${activeSkillInfo.skillId}.text`;
+        const skillTranslationKey = `app_skills.${activeSkillInfo.appId}.${activeSkillInfo.skillId}`;
         const skillName = $text(skillTranslationKey);
-        return $text('enter_message.using_skill.text').replace('{skill}', skillName);
+        return $text('enter_message.using_skill').replace('{skill}', skillName);
       }
       
       // Priority 2: Show "thinking" for reasoning models
       if (isReasoningModel) {
-        return $text('enter_message.is_thinking.text').replace('{mate}', mateName);
+        return $text('enter_message.is_thinking').replace('{mate}', mateName);
       }
       
       // Default: "{mate} is typing..."
-      return $text('enter_message.is_typing.text').replace('{mate}', mateName);
+      return $text('enter_message.is_typing').replace('{mate}', mateName);
     }
     return null;
   })());
@@ -462,7 +462,7 @@
       // Public chats show draft status if there's a sessionStorage draft
       // Otherwise show no status line (no drafts, no sending status)
       if (draftTextContent) {
-        displayLabel = $text('enter_message.draft.text');
+        displayLabel = $text('enter_message.draft');
         displayText = draftTextContent;
       } else {
         displayLabel = '';
@@ -681,7 +681,7 @@
     if (hasWaitingForUser) {
       // Show "Waiting for user" label with the system message content as preview
       // (e.g., insufficient credits message), using draft-like design in the sidebar
-      displayLabel = $text('enter_message.waiting_for_user.text');
+      displayLabel = $text('enter_message.waiting_for_user');
       // Extract the system message content to show as preview text
       if (waitingForUserMessage.content) {
         displayText = typeof waitingForUserMessage.content === 'string' 
@@ -694,10 +694,10 @@
       // Sidebar always shows "Processing..." for both sending and processing states.
       // The detailed status steps (generating title, selecting mate, etc.) are shown
       // only in the ActiveChat centered overlay — the sidebar keeps it simple.
-      displayLabel = $text('enter_message.processing.text');
+      displayLabel = $text('enter_message.processing');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'waiting_for_internet') {
-      displayLabel = $text('enter_message.waiting_for_internet.text');
+      displayLabel = $text('enter_message.waiting_for_internet');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'failed') {
       displayLabel = 'Failed'; 
@@ -706,11 +706,11 @@
       // If there's a draft, display draft information
       if (cachedMetadata?.title) {
         // For titled chats with draft, use specific translation that includes the beginning
-        displayLabel = $text('enter_message.draft_with_beginning.text').replace('{draft_beginning}', truncateText(draftTextContent, 30));
+        displayLabel = $text('enter_message.draft_with_beginning').replace('{draft_beginning}', truncateText(draftTextContent, 30));
         displayText = ''; // The label itself contains the preview for this case
       } else {
         // For untitled chats with draft
-        displayLabel = $text('enter_message.draft.text');
+        displayLabel = $text('enter_message.draft');
         displayText = draftTextContent;
       }
     } else {
@@ -1803,7 +1803,7 @@
       {:else if isDraftOnly}
         <!-- Draft-only chat: left-aligned without mate profile -->
         <div class="draft-only-layout">
-          <span class="status-message">{$text('enter_message.draft.text')}</span>
+          <span class="status-message">{$text('enter_message.draft')}</span>
           <span class="draft-content-as-title">{truncateText(draftTextContent, 60)}</span>
         </div>
       {:else}
@@ -1916,10 +1916,10 @@
                 <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
               {:else if isWaitingForTitle}
                 <!-- Show "Processing..." as title when waiting for metadata -->
-                <span class="chat-title processing-title">{$text('enter_message.processing.text')}</span>
+                <span class="chat-title processing-title">{$text('enter_message.processing')}</span>
               {:else}
                 <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
-                <span class="chat-title">{@html $text('chat.untitled_chat.text')}</span>
+                <span class="chat-title">{@html $text('chat.untitled_chat')}</span>
               {/if}
               {#if chat.pinned}
                 <span class="pin-indicator">
@@ -1929,7 +1929,7 @@
               {#if chat.is_incognito}
                 <span class="incognito-label">
                   <span class="icon icon_incognito"></span>
-                  {$text('settings.incognito.text', { default: 'Incognito' })}
+                  {$text('settings.incognito', { default: 'Incognito' })}
                 </span>
               {/if}
             </div>
@@ -1942,7 +1942,7 @@
               </span>
             {:else if displayLabel && !currentTypingMateInfo} 
               <span class="status-message">
-                {displayLabel}{#if displayText && displayLabel !== $text('enter_message.draft_with_beginning.text').replace('{draft_beginning}', truncateText(draftTextContent, 30))}&nbsp;{truncateText(displayText, 60)}{/if}
+                {displayLabel}{#if displayText && displayLabel !== $text('enter_message.draft_with_beginning').replace('{draft_beginning}', truncateText(draftTextContent, 30))}&nbsp;{truncateText(displayText, 60)}{/if}
               </span>
             {:else if displayText && !currentTypingMateInfo} 
                <span class="status-message">{truncateText(displayText,60)}</span>

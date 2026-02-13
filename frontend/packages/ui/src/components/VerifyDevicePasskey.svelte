@@ -190,7 +190,7 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
                 dispatch('deviceVerified');
             } else {
                 console.warn('[VerifyDevicePasskey] Device verification failed:', verifyData.message);
-                errorMessage = verifyData.message || $text('login.verify_device_passkey_error.text');
+                errorMessage = verifyData.message || $text('login.verify_device_passkey_error');
             }
 
         } catch (error) {
@@ -201,10 +201,10 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
                     // User cancelled the WebAuthn prompt - not an error, just reset
                     errorMessage = null;
                 } else {
-                    errorMessage = $text('login.verify_device_passkey_error.text');
+                    errorMessage = $text('login.verify_device_passkey_error');
                 }
             } else {
-                errorMessage = $text('login.verify_device_passkey_error.text');
+                errorMessage = $text('login.verify_device_passkey_error');
             }
         } finally {
             isLoading = false;
@@ -230,12 +230,12 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
     {#if reason === 'location_change'}
         <div class="location-change-notice">
             <span class="icon icon_shield"></span>
-            <p>{$text('login.verify_device_location_change_notice.text')}</p>
+            <p>{$text('login.verify_device_location_change_notice')}</p>
         </div>
     {/if}
 
     <p class="verify-prompt">
-        {$text('login.verify_device_passkey_prompt.text')}
+        {$text('login.verify_device_passkey_prompt')}
     </p>
 
     <div class="action-area">
@@ -250,7 +250,7 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
                 disabled={isLoading}
             >
                 <span class="icon icon_passkey"></span>
-                {$text('login.verify_device_passkey_button.text')}
+                {$text('login.verify_device_passkey_button')}
             </button>
         {/if}
 
@@ -261,7 +261,7 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
 
     <div class="switch-account">
         <button type="button" onclick={handleSwitchToLogin} class="text-button">
-            {$text('login.login_with_another_account.text')}
+            {$text('login.login_with_another_account')}
         </button>
     </div>
 </div>

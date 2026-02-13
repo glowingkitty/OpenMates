@@ -923,7 +923,7 @@ key_name:
 
 ### Usage
 
-- **Frontend**: Use the `$text` store: `$text('filename.key_name.text')` (e.g., `$text('chats.context_menu.download.text')`)
+- **Frontend**: Use the `$text` store: `$text('filename.key_name')` (e.g., `$text('chats.context_menu.download')`)
 - **Backend**: Use `TranslationService` to resolve translations
 - **Metadata**: Use `name_translation_key` instead of hardcoded strings
 

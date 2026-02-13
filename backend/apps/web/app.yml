@@ -1,5 +1,5 @@
-name_translation_key: web.text
-description_translation_key: web.description.text
+name_translation_key: web
+description_translation_key: web.description
 icon_image: |
   web.svg
 category: work
@@ -7,8 +7,8 @@ last_updated: "2025-11-12"
 settings_and_memories:
   # Bookmarks: Simple URL storage, just need the URL
   - id: bookmarks
-    name_translation_key: web.bookmarks.text
-    description_translation_key: web.bookmarks.description.text
+    name_translation_key: web.bookmarks
+    description_translation_key: web.bookmarks.description
     type: list
     stage: production
     example_translation_keys:
@@ -25,8 +25,8 @@ settings_and_memories:
         - url
   # Favorite websites: Just URL, can be expanded later
   - id: favorite_websites
-    name_translation_key: web.favorite_websites.text
-    description_translation_key: web.favorite_websites.description.text
+    name_translation_key: web.favorite_websites
+    description_translation_key: web.favorite_websites.description
     type: list
     stage: development
     example_translation_keys:
@@ -43,8 +43,8 @@ settings_and_memories:
         - url
   # Read later: URL + optional notes
   - id: read_later
-    name_translation_key: web.read_later.text
-    description_translation_key: web.read_later.description.text
+    name_translation_key: web.read_later
+    description_translation_key: web.read_later.description
     type: list
     stage: production
     example_translation_keys:
@@ -80,8 +80,8 @@ instructions:
       - software_development
 skills:
   - id: search
-    name_translation_key: web.search.text
-    description_translation_key: web.search.description.text
+    name_translation_key: web.search
+    description_translation_key: web.search.description
     preprocessor_hint: >
       General web search for current information, prices, weather, facts, stocks, sports scores, etc.
       Use as a fallback when no specialized skill applies.
@@ -224,8 +224,8 @@ skills:
       required:
         - requests
   - id: read
-    name_translation_key: web.read.text
-    description_translation_key: web.read.description.text
+    name_translation_key: web.read
+    description_translation_key: web.read.description
     preprocessor_hint: >
       Read and extract content from a specific URL or webpage the user provided.
     stage: production
@@ -289,8 +289,8 @@ skills:
         - requests
 focuses:
   - id: check_reputation
-    name_translation_key: web.check_reputation.text
-    description_translation_key: web.check_reputation.description.text
+    name_translation_key: web.check_reputation
+    description_translation_key: web.check_reputation.description
     stage: planning
     process:
       - check if a business exist on trustpilot and what its rating is
@@ -299,8 +299,8 @@ focuses:
     systemprompt: |
       You are an expert on identifying scams vs legit businesses.
   - id: analyze_privacy
-    name_translation_key: web.analyze_privacy.text
-    description_translation_key: web.analyze_privacy.description.text
+    name_translation_key: web.analyze_privacy
+    description_translation_key: web.analyze_privacy.description
     stage: planning
     process:
       - gets the legal pages of a website
@@ -310,8 +310,8 @@ focuses:
     systemprompt: |
       You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
   - id: research
-    name_translation_key: web.research.text
-    description_translation_key: web.research.description.text
+    name_translation_key: web.research
+    description_translation_key: web.research.description
     stage: development
     preprocessor_hint: >
       Select when the user wants in-depth research on a topic, asks to investigate or analyze something thoroughly,
@@ -319,8 +319,8 @@ focuses:
     systemprompt: |
       You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand a topic comprehensively, including its causes, effects, and broader context.
   - id: deep_web_research
-    name_translation_key: web.deep_web_research.text
-    description_translation_key: web.deep_web_research.description.text
+    name_translation_key: web.deep_web_research
+    description_translation_key: web.deep_web_research.description
     stage: planning
     process:
       - asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms

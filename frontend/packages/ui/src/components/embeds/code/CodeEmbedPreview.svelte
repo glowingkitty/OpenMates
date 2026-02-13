@@ -130,7 +130,7 @@
       return pathParts[pathParts.length - 1];
     }
     // If no filename provided, use translation for "Code snippet"
-    return $text('embeds.code_snippet.text');
+    return $text('embeds.code_snippet');
   });
   
   // Build status text: line count + language (always use code_info.text format)
@@ -140,8 +140,8 @@
     
     // Build line count text with proper singular/plural handling
     const lineCountText = lineCount === 1 
-      ? $text('embeds.code_line_singular.text')
-      : $text('embeds.code_line_plural.text');
+      ? $text('embeds.code_line_singular')
+      : $text('embeds.code_line_plural');
     
     const languageToShow = displayLanguage;
     return languageToShow ? `${lineCount} ${lineCountText}, ${languageToShow}` : `${lineCount} ${lineCountText}`;
@@ -253,7 +253,7 @@
 	        <!-- Processing state -->
 	        <div class="processing-placeholder">
           <span class="processing-dot"></span>
-          <span class="processing-text">{$text('embeds.processing.text')}</span>
+          <span class="processing-text">{$text('embeds.processing')}</span>
         </div>
       {:else}
         <!-- Error/empty state -->

@@ -35,7 +35,7 @@ component:
     // State variables
     let isChecking = $state(true);
     let updateState = $state('idle'); // idle, installing, restarting, complete
-    let subtitleText = $state($text('settings.new_update_available.text'));
+    let subtitleText = $state($text('settings.new_update_available'));
     
     function handleInstallUpdate() {
         // Set installing state
@@ -50,7 +50,7 @@ component:
             setTimeout(() => {
                 // Transition to complete state
                 updateState = 'complete';
-                subtitleText = $text('settings.installed.text');
+                subtitleText = $text('settings.installed');
                 
                 // Reset state after showing completion message
                 setTimeout(() => {
@@ -71,7 +71,7 @@ component:
 {#if isChecking}
     <div class="checking-container" in:fade={{ duration: 300 }}>
         <span class="search-icon"></span>
-        <p class="checking-text">{$text('settings.checking_for_updates.text')}</p>
+        <p class="checking-text">{$text('settings.checking_for_updates')}</p>
     </div>
 {:else}
     <div in:fade={{ duration: 300 }}>
@@ -85,25 +85,25 @@ component:
         {#if updateState === 'idle'}
             <div class="install-button-container">
                 <button onclick={handleInstallUpdate}>
-                    {$text('settings.install.text')}
+                    {$text('settings.install')}
                 </button>
             </div>
 
-            <p class="restart-notice">{@html $text('settings.server_will_be_restarted.text')}</p>
+            <p class="restart-notice">{@html $text('settings.server_will_be_restarted')}</p>
         {:else if updateState === 'installing'}
             <div class="progress-container" in:fade={{ duration: 300 }}>
                 <span class="download-icon"></span>
-                <p class="progress-text">{$text('settings.installing_update.text')}</p>
+                <p class="progress-text">{$text('settings.installing_update')}</p>
             </div>
         {:else if updateState === 'restarting'}
             <div class="progress-container" in:fade={{ duration: 300 }}>
                 <span class="server-icon"></span>
-                <p class="progress-text">{$text('settings.restarting_server.text')}</p>
+                <p class="progress-text">{$text('settings.restarting_server')}</p>
             </div>
         {:else if updateState === 'complete'}
             <div class="progress-container" in:fade={{ duration: 300 }}>
                 <span class="check-icon"></span>
-                <p class="progress-text">{$text('settings.update_successful.text')}</p>
+                <p class="progress-text">{$text('settings.update_successful')}</p>
             </div>
         {/if}
     </div>

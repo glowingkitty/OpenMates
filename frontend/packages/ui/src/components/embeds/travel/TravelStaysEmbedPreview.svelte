@@ -105,7 +105,7 @@
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
-  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured.text') || 'Processing failed.'));
+  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured') || 'Processing failed.'));
   
   /**
    * Handle embed data updates from UnifiedEmbedPreview.
@@ -135,14 +135,14 @@
   }
   
   // Skill display name from translations
-  let skillName = $derived($text('app_skills.travel.search_stays.text') || 'Search stays');
+  let skillName = $derived($text('app_skills.travel.search_stays') || 'Search stays');
   
   // Skill icon
   const skillIconName = 'search';
   
   // Get "via {provider}" text
   let viaProvider = $derived(
-    `${$text('embeds.via.text') || 'via'} ${provider}`
+    `${$text('embeds.via') || 'via'} ${provider}`
   );
   
   /**
@@ -183,13 +183,13 @@
     const currency = flatResults[0]?.currency || 'EUR';
     const minPrice = Math.min(...prices);
     
-    const perNightText = $text('embeds.per_night.text') || '/night';
+    const perNightText = $text('embeds.per_night') || '/night';
     
     if (prices.length === 1) {
       return `${currency} ${Math.round(minPrice)} ${perNightText}`;
     }
     
-    return `${$text('embeds.from.text') || 'from'} ${currency} ${Math.round(minPrice)} ${perNightText}`;
+    return `${$text('embeds.from') || 'from'} ${currency} ${Math.round(minPrice)} ${perNightText}`;
   });
   
   // Handle stop button click
@@ -236,7 +236,7 @@
       <!-- Error state -->
       {#if status === 'error'}
         <div class="search-error">
-          <div class="search-error-title">{$text('embeds.search_failed.text') || 'Search failed'}</div>
+          <div class="search-error-title">{$text('embeds.search_failed') || 'Search failed'}</div>
           <div class="search-error-message">{errorMessage}</div>
         </div>
       {:else if status === 'finished'}
@@ -244,7 +244,7 @@
         <div class="search-results-info">
           {#if propertyCount > 0}
             <span class="property-count">
-              {propertyCount} {propertyCount === 1 ? ($text('embeds.stay.text') || 'stay') : ($text('embeds.stays.text') || 'stays')}
+              {propertyCount} {propertyCount === 1 ? ($text('embeds.stay') || 'stay') : ($text('embeds.stays') || 'stays')}
             </span>
           {/if}
           

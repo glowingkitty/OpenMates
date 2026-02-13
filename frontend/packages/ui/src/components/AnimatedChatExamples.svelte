@@ -41,13 +41,13 @@
                 sequence: [
                     {
                         type: 'user',
-                        text: $_('chat_examples.career.user_question.text'),
+                        text: $_('chat_examples.career.user_question'),
                         waitTime: 2500
                     },
                     {
                         type: 'started_focus',
                         appNames: ['Jobs'],
-                        focusName: $_('chat_examples.processing.career_insights.text'),
+                        focusName: $_('chat_examples.processing.career_insights'),
                         focusIcon: 'insights',
                         waitTime: 1500
                     },
@@ -59,7 +59,7 @@
                     {
                         type: 'mate',
                         mateName: 'Burton',
-                        text: $_('chat_examples.career.mate_response.text'),
+                        text: $_('chat_examples.career.mate_response'),
                         waitTime: 3000
                     }
                 ]
@@ -70,7 +70,7 @@
                 sequence: [
                     {
                         type: 'user',
-                        text: $_('chat_examples.events.user_question.text'),
+                        text: $_('chat_examples.events.user_question'),
                         waitTime: 2500
                     },
                     {
@@ -82,16 +82,16 @@
                     {
                         type: 'mate',
                         mateName: 'Lisa',
-                        text: $_('chat_examples.events.mate_response.text'),
+                        text: $_('chat_examples.events.mate_response'),
                         waitTime: 3000,
                         appCards: [
                             {
                                 component: EventAppCard,
                                 props: {
                                     size: 'small',
-                                    date: $_('chat_examples.events.calendar.today.text'),
+                                    date: $_('chat_examples.events.calendar.today'),
                                     time: '18:30',
-                                    eventName: $_('chat_examples.events.events.book_club.text'),
+                                    eventName: $_('chat_examples.events.events.book_club'),
                                     participants: 12,
                                     imageUrl: '@openmates/ui/static/images/examples/group1.jpg'
                                 }
@@ -100,9 +100,9 @@
                                 component: EventAppCard,
                                 props: {
                                     size: 'small',
-                                    date: $_('chat_examples.events.calendar.dec_15.text'),
+                                    date: $_('chat_examples.events.calendar.dec_15'),
                                     time: '19:00',
-                                    eventName: $_('chat_examples.events.events.tech_talk.text'),
+                                    eventName: $_('chat_examples.events.events.tech_talk'),
                                     participants: 76,
                                     imageUrl: '@openmates/ui/static/images/examples/group2.jpg'
                                 }
@@ -111,9 +111,9 @@
                                 component: EventAppCard,
                                 props: {
                                     size: 'small',
-                                    date: $_('chat_examples.events.calendar.dec_16.text'),
+                                    date: $_('chat_examples.events.calendar.dec_16'),
                                     time: '18:00',
-                                    eventName: $_('chat_examples.events.events.workshop.text'),
+                                    eventName: $_('chat_examples.events.events.workshop'),
                                     participants: 13,
                                     imageUrl: '@openmates/ui/static/images/examples/group2.jpg'
                                 }
@@ -128,13 +128,13 @@
                 sequence: [
                     {
                         type: 'user',
-                        text: $_('chat_examples.health.user_question.text'),
+                        text: $_('chat_examples.health.user_question'),
                         waitTime: 2500
                     },
                     {
                         type: 'mate',
                         mateName: 'Melvin',
-                        text: $_('chat_examples.health.mate_initial.text'),
+                        text: $_('chat_examples.health.mate_initial'),
                         waitTime: 2500
                     },
                     {
@@ -146,18 +146,18 @@
                     {
                         type: 'mate',
                         mateName: 'Melvin',
-                        text: $_('chat_examples.health.mate_response.text'),
+                        text: $_('chat_examples.health.mate_response'),
                         waitTime: 3000,
                         appCards: [
                                 {
                                     component: HealthAppCard,
                                     props: {
                                         size: 'large',
-                                        date: $_('chat_examples.health.calendar.wed.text'),
+                                        date: $_('chat_examples.health.calendar.wed'),
                                         start: '9:00',
                                         end: '10:00',
-                                        doctorName: $_('chat_examples.health.doctors.van_hausen.text'),
-                                        specialty: $_('chat_examples.health.doctors.specialty.text'),
+                                        doctorName: $_('chat_examples.health.doctors.van_hausen'),
+                                        specialty: $_('chat_examples.health.doctors.specialty'),
                                         rating: 4.2,
                                         ratingCount: 85,
                                         showCalendar: true,
@@ -170,11 +170,11 @@
                                     component: HealthAppCard,
                                     props: {
                                         size: 'large',
-                                        date: $_('chat_examples.health.calendar.thu.text'),
+                                        date: $_('chat_examples.health.calendar.thu'),
                                         start: '11:30',
                                         end: '12:30',
-                                        doctorName: $_('chat_examples.health.doctors.williams.text'),
-                                        specialty: $_('chat_examples.health.doctors.specialty.text'),
+                                        doctorName: $_('chat_examples.health.doctors.williams'),
+                                        specialty: $_('chat_examples.health.doctors.specialty'),
                                         rating: 4.8,
                                         ratingCount: 124,
                                         showCalendar: true,
@@ -187,11 +187,11 @@
                                     component: HealthAppCard,
                                     props: {
                                         size: 'large',
-                                        date: $_('chat_examples.health.calendar.fri.text'),
+                                        date: $_('chat_examples.health.calendar.fri'),
                                         start: '15:00',
                                         end: '16:00',
-                                        doctorName: $_('chat_examples.health.doctors.chen.text'),
-                                        specialty: $_('chat_examples.health.doctors.specialty.text'),
+                                        doctorName: $_('chat_examples.health.doctors.chen'),
+                                        specialty: $_('chat_examples.health.doctors.specialty'),
                                         rating: 4.6,
                                         ratingCount: 93,
                                         showCalendar: true,

@@ -688,7 +688,7 @@
   <div class="suggestions-wrapper" class:fade-out={fadeState === 'fading-out'} class:fade-in={fadeState === 'fading-in'}>
     <div class="suggestions-header">
       {#key currentLocale}
-        {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
+        {touchDevice ? $text('chat.suggestions.header_tap') : $text('chat.suggestions.header_click')}
       {/key}
     </div>
     <div class="carousel-container">

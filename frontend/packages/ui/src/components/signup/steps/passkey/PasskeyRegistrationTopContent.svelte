@@ -11,11 +11,11 @@
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size secret"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.passkey.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.passkey')}</h2>
     </div>
 
-    <h3 class="advice-title">{@html $text('signup.passkey_instruction_title.text')}</h3>
-    <p class="advice-text">{@html $text('signup.passkey_instruction_text.text')}</p>
+    <h3 class="advice-title">{@html $text('signup.passkey_instruction_title')}</h3>
+    <p class="advice-text">{@html $text('signup.passkey_instruction_text')}</p>
 </div>
 
 <style>

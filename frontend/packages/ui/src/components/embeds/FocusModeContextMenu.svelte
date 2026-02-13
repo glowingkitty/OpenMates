@@ -211,9 +211,9 @@
     >
       <div class="clickable-icon {isActivated ? 'icon_pause' : 'icon_close'}"></div>
       {#if isActivated}
-        {$text('embeds.focus_mode.context_menu.stop.text', { default: 'Stop Focus Mode' })}
+        {$text('embeds.focus_mode.context_menu.stop', { default: 'Stop Focus Mode' })}
       {:else}
-        {$text('embeds.focus_mode.context_menu.cancel.text', { default: 'Cancel' })}
+        {$text('embeds.focus_mode.context_menu.cancel', { default: 'Cancel' })}
       {/if}
     </button>
 
@@ -223,7 +223,7 @@
       onclick={(event) => handleButtonClick('details', event)}
     >
       <div class="clickable-icon icon_info"></div>
-      {$text('embeds.context_menu.details.text', { default: 'Details' })}
+      {$text('embeds.context_menu.details', { default: 'Details' })}
     </button>
   </div>
 {/if}

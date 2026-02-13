@@ -65,246 +65,246 @@ export function buildPrivacyPolicyContent(t: TranslationFunction, options: Legal
 	const lines: string[] = [];
 
 	// Title
-	lines.push(`# ${t('legal.privacy.title.text')}`);
+	lines.push(`# ${t('legal.privacy.title')}`);
 	lines.push('');
 	
 	// Last updated - format date using Intl.DateTimeFormat for the user's locale
 	// The date comes from TypeScript metadata (single source of truth)
 	const formattedDate = formatDateForLocale(options.lastUpdated, options.locale);
-	lines.push(`*${t('legal.privacy.last_updated.text')}: ${formattedDate}*`);
+	lines.push(`*${t('legal.privacy.last_updated')}: ${formattedDate}*`);
 	lines.push('');
 
 	// Section 1: Data Protection Overview
-	lines.push(`## ${t('legal.privacy.data_protection.heading.text')}`);
+	lines.push(`## ${t('legal.privacy.data_protection.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.data_protection.overview.text'));
+	lines.push(t('legal.privacy.data_protection.overview'));
 	lines.push('');
-	lines.push(t('legal.privacy.data_protection.website_vs_webapp.text'));
+	lines.push(t('legal.privacy.data_protection.website_vs_webapp'));
 	lines.push('');
 
 	// Section 2: Vercel
-	lines.push(`## ${t('legal.privacy.vercel.heading.text')}`);
+	lines.push(`## ${t('legal.privacy.vercel.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.vercel.description.text'));
+	lines.push(t('legal.privacy.vercel.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.vercel.privacy_policy_link.text')}: ${privacyPolicyLinks.vercel}`);
+	lines.push(`${t('legal.privacy.vercel.privacy_policy_link')}: ${privacyPolicyLinks.vercel}`);
 	lines.push('');
 
 	// Section 3: Web Application Services
-	lines.push(`## ${t('legal.privacy.webapp_services.heading.text')}`);
+	lines.push(`## ${t('legal.privacy.webapp_services.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.webapp_services.intro.text'));
+	lines.push(t('legal.privacy.webapp_services.intro'));
 	lines.push('');
 
 	// Section 3.1: Hetzner
-	lines.push(`### ${t('legal.privacy.hetzner.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.hetzner.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.hetzner.description.text'));
+	lines.push(t('legal.privacy.hetzner.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.hetzner.privacy_policy_link.text')}: ${privacyPolicyLinks.hetzner}`);
+	lines.push(`${t('legal.privacy.hetzner.privacy_policy_link')}: ${privacyPolicyLinks.hetzner}`);
 	lines.push('');
 
 	// Section 3.2: IP-API
-	lines.push(`### ${t('legal.privacy.ip_api.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.ip_api.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.ip_api.description.text'));
+	lines.push(t('legal.privacy.ip_api.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.ip_api.privacy_policy_link.text')}: ${privacyPolicyLinks.ipApi}`);
+	lines.push(`${t('legal.privacy.ip_api.privacy_policy_link')}: ${privacyPolicyLinks.ipApi}`);
 	lines.push('');
 
 	// Section 3.3: Brevo
-	lines.push(`### ${t('legal.privacy.brevo.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.brevo.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.brevo.description.text'));
+	lines.push(t('legal.privacy.brevo.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.brevo.privacy_policy_link.text')}: ${privacyPolicyLinks.brevo}`);
+	lines.push(`${t('legal.privacy.brevo.privacy_policy_link')}: ${privacyPolicyLinks.brevo}`);
 	lines.push('');
 
 	// Section 3.4: Sightengine
-	lines.push(`### ${t('legal.privacy.sightengine.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.sightengine.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.sightengine.description.text'));
+	lines.push(t('legal.privacy.sightengine.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.sightengine.privacy_policy_link.text')}: ${privacyPolicyLinks.sightengine}`);
+	lines.push(`${t('legal.privacy.sightengine.privacy_policy_link')}: ${privacyPolicyLinks.sightengine}`);
 	lines.push('');
 
 	// Section 3.5: Stripe
-	lines.push(`### ${t('legal.privacy.stripe.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.stripe.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.stripe.description.text'));
+	lines.push(t('legal.privacy.stripe.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.stripe.privacy_policy_link.text')}: ${privacyPolicyLinks.stripe}`);
+	lines.push(`${t('legal.privacy.stripe.privacy_policy_link')}: ${privacyPolicyLinks.stripe}`);
 	lines.push('');
 
 	// Section 3.6: Mistral
-	lines.push(`### ${t('legal.privacy.mistral.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.mistral.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.mistral.description.text'));
+	lines.push(t('legal.privacy.mistral.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.mistral.privacy_policy_link.text')}: ${privacyPolicyLinks.mistral}`);
+	lines.push(`${t('legal.privacy.mistral.privacy_policy_link')}: ${privacyPolicyLinks.mistral}`);
 	lines.push('');
 
 	// Section 3.7: AWS
-	lines.push(`### ${t('legal.privacy.aws.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.aws.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.aws.description.text'));
+	lines.push(t('legal.privacy.aws.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.aws.privacy_policy_link.text')}: ${privacyPolicyLinks.aws}`);
+	lines.push(`${t('legal.privacy.aws.privacy_policy_link')}: ${privacyPolicyLinks.aws}`);
 	lines.push('');
 
 	// Section 3.8: OpenRouter
-	lines.push(`### ${t('legal.privacy.openrouter.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.openrouter.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.openrouter.description.text'));
+	lines.push(t('legal.privacy.openrouter.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.openrouter.privacy_policy_link.text')}: ${privacyPolicyLinks.openrouter}`);
+	lines.push(`${t('legal.privacy.openrouter.privacy_policy_link')}: ${privacyPolicyLinks.openrouter}`);
 	lines.push('');
 
 	// Section 3.9: Cerebras
-	lines.push(`### ${t('legal.privacy.cerebras.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.cerebras.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.cerebras.description.text'));
+	lines.push(t('legal.privacy.cerebras.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.cerebras.privacy_policy_link.text')}: ${privacyPolicyLinks.cerebras}`);
+	lines.push(`${t('legal.privacy.cerebras.privacy_policy_link')}: ${privacyPolicyLinks.cerebras}`);
 	lines.push('');
 
 	// Section 3.10: Brave Search
-	lines.push(`### ${t('legal.privacy.brave.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.brave.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.brave.description.text'));
+	lines.push(t('legal.privacy.brave.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.brave.privacy_policy_link.text')}: ${privacyPolicyLinks.brave}`);
+	lines.push(`${t('legal.privacy.brave.privacy_policy_link')}: ${privacyPolicyLinks.brave}`);
 	lines.push('');
 
 	// Section 3.11: Webshare
-	lines.push(`### ${t('legal.privacy.webshare.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.webshare.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.webshare.description.text'));
+	lines.push(t('legal.privacy.webshare.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.webshare.privacy_policy_link.text')}: ${privacyPolicyLinks.webshare}`);
+	lines.push(`${t('legal.privacy.webshare.privacy_policy_link')}: ${privacyPolicyLinks.webshare}`);
 	lines.push('');
 
 	// Section 3.12: Google
-	lines.push(`### ${t('legal.privacy.google.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.google.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.google.description.text'));
+	lines.push(t('legal.privacy.google.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.google.privacy_policy_link.text')}: ${privacyPolicyLinks.google}`);
+	lines.push(`${t('legal.privacy.google.privacy_policy_link')}: ${privacyPolicyLinks.google}`);
 	lines.push('');
 
 	// Section 3.13: Firecrawl
-	lines.push(`### ${t('legal.privacy.firecrawl.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.firecrawl.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.firecrawl.description.text'));
+	lines.push(t('legal.privacy.firecrawl.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.firecrawl.privacy_policy_link.text')}: ${privacyPolicyLinks.firecrawl}`);
+	lines.push(`${t('legal.privacy.firecrawl.privacy_policy_link')}: ${privacyPolicyLinks.firecrawl}`);
 	lines.push('');
 
 	// Section 3.14: Groq
-	lines.push(`### ${t('legal.privacy.groq.heading.text')}`);
+	lines.push(`### ${t('legal.privacy.groq.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.groq.description.text'));
+	lines.push(t('legal.privacy.groq.description'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.groq.privacy_policy_link.text')}: ${privacyPolicyLinks.groq}`);
+	lines.push(`${t('legal.privacy.groq.privacy_policy_link')}: ${privacyPolicyLinks.groq}`);
 	lines.push('');
 
 	// Section 4: Security Measures
-	lines.push(`## ${t('legal.privacy.security_measures.heading.text')}`);
+	lines.push(`## ${t('legal.privacy.security_measures.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.security_measures.intro.text'));
+	lines.push(t('legal.privacy.security_measures.intro'));
 	lines.push('');
 	
-	lines.push(`### ${t('legal.privacy.security_measures.device_fingerprinting.subheading.text')}`);
+	lines.push(`### ${t('legal.privacy.security_measures.device_fingerprinting.subheading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.security_measures.device_fingerprinting.purpose.text'));
+	lines.push(t('legal.privacy.security_measures.device_fingerprinting.purpose'));
 	lines.push('');
-	lines.push(t('legal.privacy.security_measures.device_fingerprinting.storage.text'));
+	lines.push(t('legal.privacy.security_measures.device_fingerprinting.storage'));
 	lines.push('');
-	lines.push(t('legal.privacy.security_measures.device_fingerprinting.ip_logging.text'));
+	lines.push(t('legal.privacy.security_measures.device_fingerprinting.ip_logging'));
 	lines.push('');
 
 	// Section 5: Data Categories
-	lines.push(`## ${t('legal.privacy.data_categories.heading.text')}`);
+	lines.push(`## ${t('legal.privacy.data_categories.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.data_categories.intro.text'));
+	lines.push(t('legal.privacy.data_categories.intro'));
 	lines.push('');
-	lines.push(`- ${t('legal.privacy.data_categories.account.text')}`);
-	lines.push(`- ${t('legal.privacy.data_categories.usage.text')}`);
-	lines.push(`- ${t('legal.privacy.data_categories.content.text')}`);
-	lines.push(`- ${t('legal.privacy.data_categories.payments.text')}`);
-	lines.push(`- ${t('legal.privacy.data_categories.newsletter.text')}`);
+	lines.push(`- ${t('legal.privacy.data_categories.account')}`);
+	lines.push(`- ${t('legal.privacy.data_categories.usage')}`);
+	lines.push(`- ${t('legal.privacy.data_categories.content')}`);
+	lines.push(`- ${t('legal.privacy.data_categories.payments')}`);
+	lines.push(`- ${t('legal.privacy.data_categories.newsletter')}`);
 	lines.push('');
 
 	// Section 6: Data Retention
-	lines.push(`## ${t('legal.privacy.data_retention.heading.text')}`);
+	lines.push(`## ${t('legal.privacy.data_retention.heading')}`);
 	lines.push('');
-	lines.push(`- ${t('legal.privacy.data_retention.account.text')}`);
-	lines.push(`- ${t('legal.privacy.data_retention.usage_and_logs.text')}`);
-	lines.push(`- ${t('legal.privacy.data_retention.device_fingerprints.text')}`);
-	lines.push(`- ${t('legal.privacy.data_retention.content.text')}`);
-	lines.push(`- ${t('legal.privacy.data_retention.payments_and_invoices.text')}`);
+	lines.push(`- ${t('legal.privacy.data_retention.account')}`);
+	lines.push(`- ${t('legal.privacy.data_retention.usage_and_logs')}`);
+	lines.push(`- ${t('legal.privacy.data_retention.device_fingerprints')}`);
+	lines.push(`- ${t('legal.privacy.data_retention.content')}`);
+	lines.push(`- ${t('legal.privacy.data_retention.payments_and_invoices')}`);
 	lines.push('');
 
 	// Section 7: Legal Basis
-	lines.push(`## ${t('legal.privacy.legal_basis.heading.text')}`);
+	lines.push(`## ${t('legal.privacy.legal_basis.heading')}`);
 	lines.push('');
-	lines.push(`- ${t('legal.privacy.legal_basis.contract.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_basis.consent.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_basis.legitimate_interests.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_basis.legal_obligation.text')}`);
+	lines.push(`- ${t('legal.privacy.legal_basis.contract')}`);
+	lines.push(`- ${t('legal.privacy.legal_basis.consent')}`);
+	lines.push(`- ${t('legal.privacy.legal_basis.legitimate_interests')}`);
+	lines.push(`- ${t('legal.privacy.legal_basis.legal_obligation')}`);
 	lines.push('');
 
 	// Section 8: Legal Rights
-	lines.push(`## ${t('legal.privacy.legal_rights.heading.text')}`);
+	lines.push(`## ${t('legal.privacy.legal_rights.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.legal_rights.intro.text'));
+	lines.push(t('legal.privacy.legal_rights.intro'));
 	lines.push('');
 	
-	lines.push(`### ${t('legal.privacy.legal_rights.gdpr.subheading.text')}`);
+	lines.push(`### ${t('legal.privacy.legal_rights.gdpr.subheading')}`);
 	lines.push('');
-	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.access.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.rectification.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.erasure.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.restriction.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.portability.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.objection.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.withdraw_consent.text')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.access')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.rectification')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.erasure')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.restriction')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.portability')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.objection')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.gdpr.withdraw_consent')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.legal_rights.gdpr.exercise.text'));
+	lines.push(t('legal.privacy.legal_rights.gdpr.exercise'));
 	lines.push('');
 
-	lines.push(`### ${t('legal.privacy.legal_rights.ccpa_cpra.subheading.text')}`);
+	lines.push(`### ${t('legal.privacy.legal_rights.ccpa_cpra.subheading')}`);
 	lines.push('');
-	lines.push(`- ${t('legal.privacy.legal_rights.ccpa_cpra.right_to_know.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_rights.ccpa_cpra.right_to_delete.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_rights.ccpa_cpra.right_to_correct.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_rights.ccpa_cpra.right_to_opt_out_of_sale_or_sharing.text')}`);
-	lines.push(`- ${t('legal.privacy.legal_rights.ccpa_cpra.right_to_non_discrimination.text')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.ccpa_cpra.right_to_know')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.ccpa_cpra.right_to_delete')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.ccpa_cpra.right_to_correct')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.ccpa_cpra.right_to_opt_out_of_sale_or_sharing')}`);
+	lines.push(`- ${t('legal.privacy.legal_rights.ccpa_cpra.right_to_non_discrimination')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.legal_rights.ccpa_cpra.exercise.text'));
+	lines.push(t('legal.privacy.legal_rights.ccpa_cpra.exercise'));
 	lines.push('');
 
 	// Section 9: Discord Integration
-	lines.push(`## ${t('legal.privacy.discord_integration.heading.text')}`);
+	lines.push(`## ${t('legal.privacy.discord_integration.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.discord_integration.description.text'));
+	lines.push(t('legal.privacy.discord_integration.description'));
 	lines.push('');
-	lines.push(t('legal.privacy.discord_integration.admin_access.text'));
+	lines.push(t('legal.privacy.discord_integration.admin_access'));
 	lines.push('');
-	lines.push(`${t('legal.privacy.discord_integration.privacy_policy_link.text')}: ${privacyPolicyLinks.discord}`);
+	lines.push(`${t('legal.privacy.discord_integration.privacy_policy_link')}: ${privacyPolicyLinks.discord}`);
 	lines.push('');
 
 	// Section 10: Contact
-	lines.push(`## ${t('legal.privacy.contact.heading.text')}`);
+	lines.push(`## ${t('legal.privacy.contact.heading')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.contact.questions.text'));
+	lines.push(t('legal.privacy.contact.questions'));
 	lines.push('');
 	// Email and postal info are handled separately in the Svelte component, but we include email here
-	lines.push(`${t('legal.privacy.contact.email.text')}: contact@openmates.org`);
+	lines.push(`${t('legal.privacy.contact.email')}: contact@openmates.org`);
 	lines.push('');
-	lines.push(t('legal.privacy.contact.postal.text'));
+	lines.push(t('legal.privacy.contact.postal'));
 	lines.push('');
-	lines.push(t('legal.privacy.contact.controller.text'));
+	lines.push(t('legal.privacy.contact.controller'));
 	lines.push('');
 
 	return lines.join('\n');
@@ -320,111 +320,111 @@ export function buildTermsOfUseContent(t: TranslationFunction, options: LegalCon
 	const lines: string[] = [];
 
 	// Title
-	lines.push(`# ${t('legal.terms.title.text')}`);
+	lines.push(`# ${t('legal.terms.title')}`);
 	lines.push('');
 
 	// Last updated - format date using Intl.DateTimeFormat for the user's locale
 	// The date comes from TypeScript metadata (single source of truth)
 	const formattedDate = formatDateForLocale(options.lastUpdated, options.locale);
-	lines.push(`*${t('legal.terms.last_updated.text')}: ${formattedDate}*`);
+	lines.push(`*${t('legal.terms.last_updated')}: ${formattedDate}*`);
 	lines.push('');
 
 	// Section 1: Agreement
-	lines.push(`## 1. ${t('legal.terms.agreement.heading.text')}`);
+	lines.push(`## 1. ${t('legal.terms.agreement.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.agreement.description.text'));
+	lines.push(t('legal.terms.agreement.description'));
 	lines.push('');
 
 	// Section 2: About
-	lines.push(`## 2. ${t('legal.terms.about.heading.text')}`);
+	lines.push(`## 2. ${t('legal.terms.about.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.about.description.text'));
+	lines.push(t('legal.terms.about.description'));
 	lines.push('');
 
 	// Section 3: Intellectual Property
-	lines.push(`## 3. ${t('legal.terms.intellectual_property.heading.text')}`);
+	lines.push(`## 3. ${t('legal.terms.intellectual_property.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.intellectual_property.description.text'));
+	lines.push(t('legal.terms.intellectual_property.description'));
 	lines.push('');
 
 	// Section 4: Use License
-	lines.push(`## 4. ${t('legal.terms.use_license.heading.text')}`);
+	lines.push(`## 4. ${t('legal.terms.use_license.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.use_license.description.text'));
+	lines.push(t('legal.terms.use_license.description'));
 	lines.push('');
 	
 	// Prohibited Uses of OpenMates Service
-	lines.push(`### ${t('legal.terms.use_license.restrictions.service_use.heading.text')}`);
+	lines.push(`### ${t('legal.terms.use_license.restrictions.service_use.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.use_license.restrictions.service_use.description.text'));
+	lines.push(t('legal.terms.use_license.restrictions.service_use.description'));
 	lines.push('');
-	lines.push('- ' + t('legal.terms.use_license.restrictions.service_use.military.text'));
-	lines.push('- ' + t('legal.terms.use_license.restrictions.service_use.gambling.text'));
-	lines.push('- ' + t('legal.terms.use_license.restrictions.service_use.misinformation.text'));
-	lines.push('- ' + t('legal.terms.use_license.restrictions.service_use.scams.text'));
-	lines.push('- ' + t('legal.terms.use_license.restrictions.service_use.illegal.text'));
+	lines.push('- ' + t('legal.terms.use_license.restrictions.service_use.military'));
+	lines.push('- ' + t('legal.terms.use_license.restrictions.service_use.gambling'));
+	lines.push('- ' + t('legal.terms.use_license.restrictions.service_use.misinformation'));
+	lines.push('- ' + t('legal.terms.use_license.restrictions.service_use.scams'));
+	lines.push('- ' + t('legal.terms.use_license.restrictions.service_use.illegal'));
 	lines.push('');
 
 	// Section 5: AI Accuracy and Data Sharing
-	lines.push(`## 5. ${t('legal.terms.ai_accuracy.heading.text')}`);
+	lines.push(`## 5. ${t('legal.terms.ai_accuracy.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.ai_accuracy.description.text'));
+	lines.push(t('legal.terms.ai_accuracy.description'));
 	lines.push('');
-	lines.push(`### ${t('legal.terms.ai_accuracy_data_sharing_heading.text')}`);
+	lines.push(`### ${t('legal.terms.ai_accuracy_data_sharing_heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.ai_accuracy_data_sharing_text.text'));
+	lines.push(t('legal.terms.ai_accuracy_data_sharing_text'));
 	lines.push('');
 
 	// Section 6: Credits and Payments
-	lines.push(`## 6. ${t('legal.terms.credits.heading.text')}`);
+	lines.push(`## 6. ${t('legal.terms.credits.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.credits.description.text'));
+	lines.push(t('legal.terms.credits.description'));
 	lines.push('');
-	lines.push(t('legal.terms.credits.refund.text'));
+	lines.push(t('legal.terms.credits.refund'));
 	lines.push('');
 
 	// Section 7: Disclaimer
-	lines.push(`## 7. ${t('legal.terms.disclaimer.heading.text')}`);
+	lines.push(`## 7. ${t('legal.terms.disclaimer.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.disclaimer.description.text'));
+	lines.push(t('legal.terms.disclaimer.description'));
 	lines.push('');
 
 	// Section 8: Limitations
-	lines.push(`## 8. ${t('legal.terms.limitations.heading.text')}`);
+	lines.push(`## 8. ${t('legal.terms.limitations.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.limitations.description.text'));
+	lines.push(t('legal.terms.limitations.description'));
 	lines.push('');
-	lines.push('- ' + t('legal.terms.limitations.list.website_use.text'));
-	lines.push('- ' + t('legal.terms.limitations.list.ai_responses.text'));
-	lines.push('- ' + t('legal.terms.limitations.list.information.text'));
-	lines.push('- ' + t('legal.terms.limitations.list.technical.text'));
-	lines.push('- ' + t('legal.terms.limitations.list.data_loss.text'));
+	lines.push('- ' + t('legal.terms.limitations.list.website_use'));
+	lines.push('- ' + t('legal.terms.limitations.list.ai_responses'));
+	lines.push('- ' + t('legal.terms.limitations.list.information'));
+	lines.push('- ' + t('legal.terms.limitations.list.technical'));
+	lines.push('- ' + t('legal.terms.limitations.list.data_loss'));
 	lines.push('');
 
 	// Section 9: Service Availability
-	lines.push(`## 9. ${t('legal.terms.service_availability.heading.text')}`);
+	lines.push(`## 9. ${t('legal.terms.service_availability.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.service_availability.description.text'));
+	lines.push(t('legal.terms.service_availability.description'));
 	lines.push('');
 
 	// Section 10: Encryption Keys and Account Recovery
-	lines.push(`## 10. ${t('legal.terms.encryption_keys.heading.text')}`);
+	lines.push(`## 10. ${t('legal.terms.encryption_keys.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.encryption_keys.description.text'));
+	lines.push(t('legal.terms.encryption_keys.description'));
 	lines.push('');
 
 	// Section 11: Governing Law
-	lines.push(`## 11. ${t('legal.terms.governing_law.heading.text')}`);
+	lines.push(`## 11. ${t('legal.terms.governing_law.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.governing_law.explanation.text'));
+	lines.push(t('legal.terms.governing_law.explanation'));
 	lines.push('');
 
 	// Section 12: Contact
-	lines.push(`## 12. ${t('legal.terms.contact.heading.text')}`);
+	lines.push(`## 12. ${t('legal.terms.contact.heading')}`);
 	lines.push('');
-	lines.push(t('legal.terms.contact.intro.text'));
+	lines.push(t('legal.terms.contact.intro'));
 	lines.push('');
-	lines.push(`${t('legal.terms.contact.email_label.text')}: contact@openmates.org`);
+	lines.push(`${t('legal.terms.contact.email_label')}: contact@openmates.org`);
 	lines.push('');
 
 	return lines.join('\n');
@@ -439,11 +439,11 @@ export function buildImprintContent(t: TranslationFunction): string {
 	const lines: string[] = [];
 
 	// Title
-	lines.push(`# ${t('legal.imprint.title.text')}`);
+	lines.push(`# ${t('legal.imprint.title')}`);
 	lines.push('');
 
 	// Section: Information according to TMG
-	lines.push(`## ${t('legal.imprint.information_tmg.text')}`);
+	lines.push(`## ${t('legal.imprint.information_tmg')}`);
 	lines.push('');
 	// Display SVG images with contact information
 	// Images are in static/images/legal/ folder (1.svg, 2.svg, 3.svg, 4.svg)
@@ -457,9 +457,9 @@ export function buildImprintContent(t: TranslationFunction): string {
 	lines.push('');
 
 	// Section: Contact
-	lines.push(`## ${t('legal.imprint.contact.text')}`);
+	lines.push(`## ${t('legal.imprint.contact')}`);
 	lines.push('');
-	lines.push(`${t('legal.imprint.email.text')}: contact@openmates.org`);
+	lines.push(`${t('legal.imprint.email')}: contact@openmates.org`);
 	lines.push('');
 
 	return lines.join('\n');

@@ -25,7 +25,7 @@
 
     async function handleNewsletterSubscribe() {
         if (!newsletterEmail || !newsletterEmail.includes('@')) {
-            subscribeError = $text('newsletter.invalid_email.text');
+            subscribeError = $text('newsletter.invalid_email');
             return;
         }
 
@@ -57,11 +57,11 @@
                     showNewsletterForm = false;
                 }, 3000);
             } else {
-                subscribeError = result.message || $text('newsletter.subscribe_error.text');
+                subscribeError = result.message || $text('newsletter.subscribe_error');
             }
         } catch (error) {
             console.error('Newsletter subscription error:', error);
-            subscribeError = $text('newsletter.subscribe_error.text');
+            subscribeError = $text('newsletter.subscribe_error');
         } finally {
             isSubscribing = false;
         }
@@ -73,9 +73,9 @@
         <div class="discord-content">
             <p class="discord-text">
                 {#if showPersonalInviteMessage}
-                <mark><bold>{$text('signup.dont_have_personal_invite_code.text')}</bold></mark><br>
+                <mark><bold>{$text('signup.dont_have_personal_invite_code')}</bold></mark><br>
                 {/if}
-                {@html $text('signup.follow_us.text')}
+                {@html $text('signup.follow_us')}
             </p>
             <InstagramButton />
             <MastodonButton />
@@ -87,12 +87,12 @@
     <div class="newsletter-section" transition:fade>
         <div class="newsletter-content">
             <p class="newsletter-text">
-                {$text('newsletter.subscribe_text.text')}
+                {$text('newsletter.subscribe_text')}
             </p>
             
             {#if subscribeSuccess}
                 <div class="newsletter-success" transition:fade>
-                    {$text('newsletter.subscribe_success.text')}
+                    {$text('newsletter.subscribe_success')}
                 </div>
             {:else}
                 <form class="newsletter-form" onsubmit={(e) => { e.preventDefault(); handleNewsletterSubscribe(); }}>
@@ -100,7 +100,7 @@
                         <input
                             type="email"
                             bind:value={newsletterEmail}
-                            placeholder={$text('newsletter.email_placeholder.text')}
+                            placeholder={$text('newsletter.email_placeholder')}
                             disabled={isSubscribing}
                             class="newsletter-input"
                             required
@@ -111,7 +111,7 @@
                             class="newsletter-button"
                             class:loading={isSubscribing}
                         >
-                            {isSubscribing ? $text('newsletter.subscribing.text') : $text('newsletter.subscribe_button.text')}
+                            {isSubscribing ? $text('newsletter.subscribing') : $text('newsletter.subscribe_button')}
                         </button>
                     </div>
                     {#if subscribeError}

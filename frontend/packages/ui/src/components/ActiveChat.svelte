@@ -379,13 +379,13 @@
     // Pre-split welcome copy to avoid {@html} and keep translations XSS-safe.
     let welcomeHeadingParts = $derived.by(() => {
         const rawHeading = username
-            ? $text('chat.welcome.hey_user.text').replace('{username}', username)
-            : $text('chat.welcome.hey_guest.text');
+            ? $text('chat.welcome.hey_user').replace('{username}', username)
+            : $text('chat.welcome.hey_guest');
         return splitHtmlLineBreaks(rawHeading);
     });
 
     let welcomePromptParts = $derived.by(() => {
-        return splitHtmlLineBreaks($text('chat.welcome.what_do_you_need_help_with.text'));
+        return splitHtmlLineBreaks($text('chat.welcome.what_do_you_need_help_with'));
     });
     
     // State for current user ID (cached to avoid repeated DB lookups)
@@ -1977,13 +1977,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         const steps: { text: string; delay: number }[] = isNewChat
             ? [
-                { text: $text('enter_message.status.generating_title.text'), delay: 0 },
-                { text: $text('enter_message.status.selecting_mate.text'), delay: 1500 },
-                { text: $text('enter_message.status.selecting_model.text'), delay: 3000 },
+                { text: $text('enter_message.status.generating_title'), delay: 0 },
+                { text: $text('enter_message.status.selecting_mate'), delay: 1500 },
+                { text: $text('enter_message.status.selecting_model'), delay: 3000 },
               ]
             : [
-                { text: $text('enter_message.status.analyzing_message.text'), delay: 0 },
-                { text: $text('enter_message.status.selecting_model.text'), delay: 1500 },
+                { text: $text('enter_message.status.analyzing_message'), delay: 0 },
+                { text: $text('enter_message.status.selecting_model'), delay: 1500 },
               ];
 
         for (const step of steps) {
@@ -2422,7 +2422,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Show "Waiting for you..." if chat is paused waiting for user action
         // This is ALWAYS shown at the bottom (not part of the centered indicator flow)
         if (hasWaitingForUserMessage) {
-            const result = $text('enter_message.waiting_for_user.text');
+            const result = $text('enter_message.waiting_for_user');
             console.debug('[ActiveChat] Showing waiting_for_user indicator:', result);
             return [result]; // Single line
         }
@@ -2438,7 +2438,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // (processingPhase is null, meaning the centered indicator has faded out,
         //  but aiTypingStore still shows isTyping = true during streaming)
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
-            const mateName = $text('mates.' + currentTypingStatus.category + '.text');
+            const mateName = $text('mates.' + currentTypingStatus.category);
             const modelName = currentTypingStatus.modelName || ''; 
             const providerName = currentTypingStatus.providerName || '';
             const serverRegion = currentTypingStatus.serverRegion || '';
@@ -2458,7 +2458,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             //   Line 2: "Powered by {model_name}" (if available)
             //   Line 3: "via {provider} {flag}" (if available)
             const lines: string[] = [
-                $text('enter_message.is_typing.text').replace('{mate}', mateName)
+                $text('enter_message.is_typing').replace('{mate}', mateName)
             ];
             
             // Line 2: "Powered by {model_name}" — convert technical IDs to human-readable names
@@ -3278,7 +3278,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Start the centered status indicator immediately with "Sending..."
         processingPhase = {
             phase: 'sending',
-            statusLines: [$text('enter_message.sending.text')]
+            statusLines: [$text('enter_message.sending')]
         };
         console.debug('[ActiveChat] Processing phase set to SENDING', { isNewChat: isNewChatProcessing });
 
@@ -5237,7 +5237,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     });
                     
                     if (resolvedCategory) {
-                        const mateName = $text('mates.' + resolvedCategory + '.text');
+                        const mateName = $text('mates.' + resolvedCategory);
                         const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
                         const displayProviderName = resolvedProviderName || '';
                         const displayServerRegion = resolvedServerRegion || '';
@@ -5254,7 +5254,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const regionFlag = displayServerRegion ? getRegionFlag(displayServerRegion) : '';
                         
                         const lines: string[] = [
-                            $text('enter_message.is_typing.text').replace('{mate}', mateName)
+                            $text('enter_message.is_typing').replace('{mate}', mateName)
                         ];
                         // Line 2: model name
                         if (displayModelName) {
@@ -5681,7 +5681,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <div class="incognito-banner-icon">
                             <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
                         </div>
-                        <span class="incognito-banner-text">{$text('settings.incognito.text')}</span>
+                        <span class="incognito-banner-text">{$text('settings.incognito')}</span>
                     </div>
                 {/if}
                 
@@ -5695,13 +5695,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <div class="new-chat-button-wrapper new-chat-cta-wrapper">
                                     <button
                                         class="new-chat-cta-button"
-                                        aria-label={$text('chat.new_chat.text')}
+                                        aria-label={$text('chat.new_chat')}
                                         onclick={handleNewChatClick}
                                         in:fade={{ duration: 300 }}
                                         use:tooltip
                                     >
                                         <span class="clickable-icon icon_create new-chat-cta-icon"></span>
-                                        <span class="new-chat-cta-label">{$text('chat.new_chat.text')}</span>
+                                        <span class="new-chat-cta-label">{$text('chat.new_chat')}</span>
                                     </button>
                                 </div>
                             {/if}
@@ -5711,7 +5711,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_share top-button"
-                                        aria-label={$text('chat.share.text')}
+                                        aria-label={$text('chat.share')}
                                         onclick={handleShareChat}
                                         use:tooltip
                                         style="margin: 5px;"
@@ -5722,7 +5722,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <div class="new-chat-button-wrapper">
                                 <button
                                     class="clickable-icon icon_bug top-button"
-                                    aria-label={$text('header.report_issue.text')}
+                                    aria-label={$text('header.report_issue')}
                                     onclick={handleReportIssue}
                                     use:tooltip
                                     style="margin: 5px;"
@@ -5740,8 +5740,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'} top-button"
                                         class:pii-toggle-active={piiRevealed}
                                         aria-label={piiRevealed
-                                            ? $text('chat.pii_hide.text', { default: 'Hide sensitive data' })
-                                            : $text('chat.pii_show.text', { default: 'Show sensitive data' })}
+                                            ? $text('chat.pii_hide', { default: 'Hide sensitive data' })
+                                            : $text('chat.pii_show', { default: 'Show sensitive data' })}
                                         onclick={handleTogglePIIVisibility}
                                         use:tooltip
                                         style="margin: 5px;"
@@ -5755,7 +5755,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_minimize top-button"
-                                        aria-label={$text('chat.minimize.text', { default: 'Minimize' })}
+                                        aria-label={$text('chat.minimize', { default: 'Minimize' })}
                                         onclick={handleMinimizeChat}
                                         use:tooltip
                                         style="margin: 5px;"
@@ -5768,13 +5768,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <!-- Video call button -->
                             <!-- <button 
                                 class="clickable-icon icon_video_call top-button" 
-                                aria-label={$text('chat.start_video_call.text')}
+                                aria-label={$text('chat.start_video_call')}
                                 use:tooltip
                             ></button> -->
                             <!-- Audio call button -->
                             <!-- <button 
                                 class="clickable-icon icon_call top-button" 
-                                aria-label={$text('chat.start_audio_call.text')}
+                                aria-label={$text('chat.start_audio_call')}
                                 use:tooltip
                             ></button> -->
                         </div>
@@ -5798,7 +5798,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <!-- Subtitle: show "Continue where you left off" when resume chat exists,
                                          otherwise show the default "What do you need help with?" prompt -->
                                     {#if resumeChatData}
-                                        <p>{$text('chats.resume_last_chat.title.text', { default: 'Continue where you left off' })}</p>
+                                        <p>{$text('chats.resume_last_chat.title', { default: 'Continue where you left off' })}</p>
                                     {:else}
                                         <p>
                                             {#each welcomePromptParts as part, index}
@@ -5915,7 +5915,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
                                 </div>
                                 <span class="incognito-mode-applies-text">
-                                    {$text('settings.incognito_mode_applies_to_new_chats_only.text', { default: 'Incognito Mode applies to new chats only. Not this chat.' })}
+                                    {$text('settings.incognito_mode_applies_to_new_chats_only', { default: 'Incognito Mode applies to new chats only. Not this chat.' })}
                                 </span>
                             </div>
                         {/if}
@@ -5942,7 +5942,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {#if currentChat && !chatOwnershipResolved && $authStore.isAuthenticated}
                             <div class="read-only-indicator" transition:fade={{ duration: 200 }}>
                                 <div class="read-only-icon">🔒</div>
-                                <p class="read-only-text">{$text('chat.read_only_shared.text', { default: 'This shared chat is read-only. You cannot send messages.' })}</p>
+                                <p class="read-only-text">{$text('chat.read_only_shared', { default: 'This shared chat is read-only. You cannot send messages.' })}</p>
                             </div>
                         {/if}
 

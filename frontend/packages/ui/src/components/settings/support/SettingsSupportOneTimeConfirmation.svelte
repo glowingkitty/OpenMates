@@ -27,7 +27,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
             settingsPath: 'support',
             direction: 'backward',
             icon: 'support',
-            title: $text('settings.support.text')
+            title: $text('settings.support')
         });
     }
 </script>
@@ -37,7 +37,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
     <div class="success-icon-wrapper">
         <div class="success-icon"></div>
     </div>
-    <h2 class="success-title">{$text('settings.support.payment_successful.text')}</h2>
+    <h2 class="success-title">{$text('settings.support.payment_successful')}</h2>
 </div>
 
 <!-- Amount Display -->
@@ -45,15 +45,15 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
     <div class="amount-display">
         <span class="heart-icon"></span>
         <span class="amount-value">{formatCurrency(amount, currency)}</span>
-        <span class="amount-label">{$text('settings.support.one_time_contribution.text')}</span>
+        <span class="amount-label">{$text('settings.support.one_time_contribution')}</span>
     </div>
-    <p class="details-text">{$text('settings.support.one_time_confirmation_details.text')}</p>
+    <p class="details-text">{$text('settings.support.one_time_confirmation_details')}</p>
 </div>
 
 <!-- Action Button -->
 <div class="action-section">
     <button class="done-button" onclick={goBackToSupport}>
-        {$text('settings.support.done.text')}
+        {$text('settings.support.done')}
     </button>
 </div>
 

@@ -1,5 +1,5 @@
-name_translation_key: images.text
-description_translation_key: images.description.text
+name_translation_key: images
+description_translation_key: images.description
 icon_image: |
   image.svg
 category: work
@@ -7,8 +7,8 @@ last_updated: "2026-01-17"
 settings_and_memories:
   # Preferred styles: Image styles and aesthetics the user prefers
   - id: preferred_styles
-    name_translation_key: images.preferred_styles.text
-    description_translation_key: images.preferred_styles.description.text
+    name_translation_key: images.preferred_styles
+    description_translation_key: images.preferred_styles.description
     type: list
     stage: production
     example_translation_keys:
@@ -32,8 +32,8 @@ instructions:
       When you use the images-generate or images-generate_draft tool, the result will confirm the image is being generated. In your response, briefly acknowledge the request in a natural conversational way (e.g., "I'm generating that image for you now" or "Your image is being created"). Do NOT output any JSON, technical details, task IDs, embed IDs, or status codes. Keep it short and natural.
 skills:
   - id: generate
-    name_translation_key: images.generate.text
-    description_translation_key: images.generate.description.text
+    name_translation_key: images.generate
+    description_translation_key: images.generate.description
     preprocessor_hint: >
       Generate high-quality images from text prompts and/or reference images.
       Also use for: mockups, design concepts, visual mockup creation, logo mockups,
@@ -71,8 +71,8 @@ skills:
       required:
         - requests
   - id: generate_draft
-    name_translation_key: images.generate_draft.text
-    description_translation_key: images.generate_draft.description.text
+    name_translation_key: images.generate_draft
+    description_translation_key: images.generate_draft.description
     preprocessor_hint: >
       Quickly generate a draft/preview image from a text prompt.
       Also use for: quick mockups, rough design concepts, draft illustrations,
