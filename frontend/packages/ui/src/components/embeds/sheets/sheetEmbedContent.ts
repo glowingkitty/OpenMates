@@ -343,7 +343,7 @@ export async function tableToXlsx(
  * Convert a column index (0-based) to Excel column letter(s).
  * 0 → A, 1 → B, …, 25 → Z, 26 → AA, 27 → AB, etc.
  */
-function colIndexToLetter(index: number): string {
+export function colIndexToLetter(index: number): string {
   let result = "";
   let n = index;
   while (n >= 0) {

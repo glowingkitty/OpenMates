@@ -126,10 +126,14 @@
     
     if (data.decodedContent) {
       const c = data.decodedContent;
-      localTableContent = String(c.code || c.table || c.content || '');
+      // TOON content uses 'table' field; legacy/fallback uses 'code'
+      localTableContent = String(c.table || c.code || c.content || '');
       if (c.title) localTitle = String(c.title);
-      if (typeof c.rows === 'number') localRowCount = c.rows;
-      if (typeof c.cols === 'number') localColCount = c.cols;
+      // TOON content uses row_count/col_count; legacy uses rows/cols
+      if (typeof c.row_count === 'number') localRowCount = c.row_count;
+      else if (typeof c.rows === 'number') localRowCount = c.rows;
+      if (typeof c.col_count === 'number') localColCount = c.col_count;
+      else if (typeof c.cols === 'number') localColCount = c.cols;
     }
   }
 </script>
@@ -251,24 +255,25 @@
     50% { opacity: 1; }
   }
   
-  /* ── Table scroll container ─────────────────────────── */
+  /* ── Table scroll container — overflow hidden, no scrollbar ──
+     Preview is a static snapshot. Only fullscreen can scroll. */
   
   .table-scroll {
     width: 100%;
     flex: 1;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: hidden;
     background: #ffffff;
   }
   
-  /* ── Preview table — matches fullscreen spreadsheet style ── */
+  /* ── Preview table — edge-to-edge, fills available width ── */
   
   .preview-table {
     border-collapse: collapse;
     font-size: 11px;
     line-height: 1.3;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    white-space: nowrap;
+    width: 100%;
+    table-layout: fixed;
     background: #ffffff;
   }
   
@@ -285,13 +290,16 @@
     font-weight: 600;
     color: #202124;
     border-bottom: 2px solid #dadce0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
   .preview-table td {
     color: #3c4043;
-    max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
   .preview-table tbody tr:nth-child(even) td {

@@ -1947,25 +1947,19 @@ export class GroupRenderer implements EmbedRenderer {
     decodedContent: any = null,
     content: HTMLElement,
   ): Promise<void> {
-    // Use decoded content if available, otherwise fall back to item attributes
+    // Use decoded content if available, otherwise fall back to item attributes.
+    // The TOON content from the backend uses field names: title, table, row_count, col_count.
     const title = decodedContent?.title || item.title;
-    const rowCount = decodedContent?.rows || item.rows || 0;
-    const colCount = decodedContent?.cols || item.cols || 0;
+    const rowCount =
+      decodedContent?.row_count || decodedContent?.rows || item.rows || 0;
+    const colCount =
+      decodedContent?.col_count || decodedContent?.cols || item.cols || 0;
 
-    // For preview/stream embeds, get table content from item attributes (code attr).
-    // For real embeds (embed: ref), get table content from decodedContent (EmbedStore).
-    // stream: refs are used after reload (read mode) — content lives in item.code.
-    // preview: refs are used during live streaming (write mode) — content also in item.code.
-    let tableContent = "";
-    if (
-      item.contentRef?.startsWith("preview:") ||
-      item.contentRef?.startsWith("stream:")
-    ) {
-      tableContent = item.code || "";
-    } else {
-      tableContent =
-        decodedContent?.code || decodedContent?.table || item.code || "";
-    }
+    // Get table content (raw markdown) from decoded TOON content or item attributes.
+    // Real embeds (embed: ref) → table content from EmbedStore via decodedContent.
+    // Legacy ephemeral refs (stream:/preview:) → fallback to item.code attribute.
+    const tableContent =
+      decodedContent?.table || decodedContent?.code || item.code || "";
 
     // Determine status
     const status = item.status || (tableContent ? "finished" : "processing");

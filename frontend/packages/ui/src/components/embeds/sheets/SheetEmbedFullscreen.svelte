@@ -29,6 +29,7 @@
     formatTableDimensions, 
     tableToTSV,
     tableToXlsx,
+    colIndexToLetter,
   } from './sheetEmbedContent';
   
   /**
@@ -270,9 +271,9 @@
         {#if parsedTable.headers.length > 0}
           <table class="spreadsheet">
             <thead>
-              <tr>
-                <!-- Row number gutter header -->
-                <th class="row-num-header">
+              <!-- Column letter row (A, B, C...) — Excel-style -->
+              <tr class="col-letter-row">
+                <th class="row-num-header col-letter-gutter">
                   <!-- Filter toggle lives in the gutter -->
                   <button
                     class="filter-toggle"
@@ -286,6 +287,13 @@
                     </svg>
                   </button>
                 </th>
+                {#each Array.from({ length: parsedTable.headers.length }, (__, i) => i) as colIdx}
+                  <th class="col-letter">{colIndexToLetter(colIdx)}</th>
+                {/each}
+              </tr>
+              <!-- Data header row (actual column names) -->
+              <tr>
+                <th class="row-num-header"></th>
                 {#each parsedTable.headers as header, i}
                   <th
                     class="col-header"
@@ -343,12 +351,32 @@
      Always white background, thin grid lines, row numbers.
      ═══════════════════════════════════════════════════════════ */
   
+  /* ── Override parent UnifiedEmbedFullscreen backgrounds to white ── */
+  /* The parent overlay, content-area and bottom gradient default to
+     var(--color-grey-20) (dark grey). For the spreadsheet look we need
+     everything white. We target the parent classes via :global() from
+     within this component's scope. */
   .sheet-fullscreen {
     display: flex;
     flex-direction: column;
     width: 100%;
     height: 100%;
     overflow: hidden;
+  }
+  
+  /* Parent overlay container → white */
+  :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen)) {
+    background-color: #ffffff !important;
+  }
+  
+  /* Bottom gradient → fade to white instead of grey */
+  :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .bottom-gradient) {
+    background: linear-gradient(to bottom, transparent 0%, #ffffff 100%) !important;
+  }
+  
+  /* Top-bar button wrappers → white background to match */
+  :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .button-wrapper) {
+    background-color: #f0f0f0 !important;
   }
   
   /* ── Filter bar ────────────────────────────────────────── */
@@ -442,15 +470,40 @@
     color: #202124;
   }
   
-  /* ── Header row ──────────────────────────────────────── */
+  /* ── Header rows ─────────────────────────────────────── */
   
   .spreadsheet thead th {
     background: #f8f9fa;
     font-weight: 600;
     color: #202124;
     position: sticky;
-    top: 0;
     z-index: 2;
+  }
+  
+  /* Column letter row (A, B, C...) — sits at the very top */
+  .col-letter-row th {
+    top: 0;
+    border-bottom: 1px solid #dadce0;
+    font-weight: 500;
+    font-size: 11px;
+    color: #80868b;
+    padding: 2px 12px;
+    text-align: center;
+  }
+  
+  .col-letter-gutter {
+    /* Sticky in both directions (top + left) */
+    z-index: 3 !important;
+  }
+  
+  .col-letter {
+    user-select: none;
+  }
+  
+  /* Data header row — offset below the column-letter row */
+  .spreadsheet thead tr:nth-child(2) th {
+    /* Height of col-letter row: ~24px (2px padding + 11px font + borders) */
+    top: 25px;
     border-bottom: 2px solid #dadce0;
   }
   

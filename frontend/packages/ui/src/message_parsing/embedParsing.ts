@@ -404,7 +404,6 @@ function parseNonCodeBlockEmbeds(
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
-    const trimmedLine = line.trim();
     const event = stateMachine.processLine(line, i);
 
     // Skip lines inside code blocks
@@ -413,86 +412,12 @@ function parseNonCodeBlockEmbeds(
       continue;
     }
 
-    // Parse table blocks (GitHub-style markdown tables)
-    if (
-      EMBED_PATTERNS.TABLE_FENCE.test(trimmedLine) &&
-      event.event === "outside_block"
-    ) {
-      const id = generateUUID();
-      let title: string | undefined;
-      let tableContent = "";
-      let rows = 0;
-      let cols = 0;
-
-      // Check for title comment in previous lines
-      for (let j = Math.max(0, i - 3); j < i; j++) {
-        const titleMatch = lines[j].trim().match(EMBED_PATTERNS.TITLE_COMMENT);
-        if (titleMatch) {
-          title = titleMatch[1];
-          break;
-        }
-      }
-
-      // Parse table rows
-      let j = i;
-      while (
-        j < lines.length &&
-        EMBED_PATTERNS.TABLE_FENCE.test(lines[j].trim())
-      ) {
-        const row = lines[j].trim();
-        tableContent += row + "\n";
-        rows++;
-
-        // Count columns from first row
-        if (cols === 0) {
-          cols = row.split("|").filter((cell) => cell.trim()).length;
-        }
-        j++;
-      }
-
-      // Remove trailing newline
-      if (tableContent.endsWith("\n")) {
-        tableContent = tableContent.slice(0, -1);
-      }
-
-      if (rows > 0) {
-        if (mode === "write") {
-          embedNodes.push({
-            id,
-            type: "sheets-sheet",
-            status: "finished",
-            contentRef: `preview:sheets-sheet:${id}`,
-            title,
-            rows,
-            cols,
-            cellCount: rows * cols,
-            code: tableContent,
-          });
-          console.debug("[parseEmbedNodes] Created preview table embed:", {
-            id,
-            rows,
-            cols,
-          });
-        } else {
-          // In read mode, store table content in `code` attr so the renderer
-          // can display it after reload (stream: refs have no EmbedStore backing)
-          embedNodes.push({
-            id,
-            type: "sheets-sheet",
-            status: "finished",
-            contentRef: `stream:${id}`,
-            title,
-            rows,
-            cols,
-            cellCount: rows * cols,
-            code: tableContent,
-          });
-        }
-      }
-
-      i = j;
-      continue;
-    }
+    // NOTE: Table/sheet embeds are NO LONGER detected here.
+    // Tables are now converted to sheet embeds by the backend (stream_consumer.py),
+    // which replaces raw markdown tables with JSON embed references:
+    //   ```json\n{"type":"sheet","embed_id":"<uuid>"}\n```
+    // These are picked up by the JSON embed reference parsing in the code-block
+    // state machine above (case "block_closed" → embedRef.type === "sheet").
 
     // Parse URLs only in read mode (write mode URLs are handled by streamingSemantics)
     if (mode === "read" && event.event === "outside_block") {
