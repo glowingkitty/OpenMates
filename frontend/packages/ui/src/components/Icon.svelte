@@ -48,7 +48,6 @@
   const iconMappings: Record<string, string> = {
     'health': 'heart',
     'plants': 'plant',
-
     'events': 'event',
     'photos': 'image',
     'books': 'book',
