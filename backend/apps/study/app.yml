@@ -9,13 +9,14 @@ settings_and_memories:
     name_translation_key: study.learning_goals.text
     description_translation_key: study.learning_goals.description.text
     type: list
-    stage: planning
+    stage: production
     schema:
       type: object
       properties:
         topic:
           type: string
           description: Subject or topic to learn
+          is_title: true
         difficulty_level:
           type: string
           enum:

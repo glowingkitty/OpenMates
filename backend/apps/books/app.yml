@@ -5,12 +5,107 @@ icon_image: |
 category: personal
 last_updated: '2025-11-12'
 settings_and_memories:
-  - id: |
-      favorite_books
-    stage: planning
-  - id: |
-      currently_reading
-    stage: planning
+  - id: favorite_books
+    name_translation_key: books.favorite_books.text
+    description_translation_key: books.favorite_books.description.text
+    type: list
+    stage: production
+    example_translation_keys:
+      - "books.favorite_books.example_1.text"
+      - "books.favorite_books.example_2.text"
+      - "books.favorite_books.example_3.text"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Book title
+          is_title: true
+        author:
+          type: string
+          description: Author name(s)
+          is_subtitle: true
+        genre:
+          type: string
+          description: Genre or category (e.g., fiction, science, biography)
+        rating:
+          type: number
+          description: Your personal rating (0-10)
+        notes:
+          type: string
+          description: Personal notes or why you liked it
+      required:
+        - title
+  - id: currently_reading
+    name_translation_key: books.currently_reading.text
+    description_translation_key: books.currently_reading.description.text
+    type: list
+    stage: production
+    example_translation_keys:
+      - "books.currently_reading.example_1.text"
+      - "books.currently_reading.example_2.text"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Book title
+          is_title: true
+        author:
+          type: string
+          description: Author name(s)
+          is_subtitle: true
+        current_page:
+          type: integer
+          description: Current page or chapter you are on
+        total_pages:
+          type: integer
+          description: Total number of pages
+        started_date:
+          type: string
+          format: date
+          description: Date you started reading (YYYY-MM-DD)
+        notes:
+          type: string
+          description: Reading notes or thoughts so far
+      required:
+        - title
+  - id: to_read_list
+    name_translation_key: books.to_read_list.text
+    description_translation_key: books.to_read_list.description.text
+    type: list
+    stage: production
+    example_translation_keys:
+      - "books.to_read_list.example_1.text"
+      - "books.to_read_list.example_2.text"
+      - "books.to_read_list.example_3.text"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Book title
+          is_title: true
+        author:
+          type: string
+          description: Author name(s)
+          is_subtitle: true
+        genre:
+          type: string
+          description: Genre or category
+        priority:
+          type: string
+          enum:
+            - high
+            - medium
+            - low
+          description: Reading priority
+        reason:
+          type: string
+          description: Why you want to read it (recommendation, interest, etc.)
+      required:
+        - title
+
 skills:
   - id: translate
     name_translation_key: books.translate.text

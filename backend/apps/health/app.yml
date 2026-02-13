@@ -9,7 +9,7 @@ settings_and_memories:
     name_translation_key: health.appointments.text
     description_translation_key: health.appointments.description.text
     type: list
-    stage: planning
+    stage: production
     schema:
       type: object
       properties:
@@ -25,6 +25,7 @@ settings_and_memories:
           - vaccination
           - other
           description: Type of appointment
+          is_title: true
         doctor_name:
           type: string
           description: Name of the doctor or specialist
@@ -58,7 +59,7 @@ settings_and_memories:
     name_translation_key: health.medical_history.text
     description_translation_key: health.medical_history.description.text
     type: list
-    stage: planning
+    stage: production
     schema:
       type: object
       properties:
@@ -76,6 +77,7 @@ settings_and_memories:
         name:
           type: string
           description: Name of condition, medication, or surgery
+          is_title: true
         date:
           type: string
           format: date

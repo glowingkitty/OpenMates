@@ -1,0 +1,356 @@
+# Translations for books app settings and memories categories
+# See backend/apps/books/app.yml for the settings_and_memories definitions
+
+favorite_books:
+  context: Settings/memory name for favorite books
+  en: Favorite Books
+  de: Lieblingsbücher
+  zh: 最喜欢的书
+  es: Libros favoritos
+  fr: Livres préférés
+  pt: Livros favoritos
+  ru: Любимые книги
+  ja: お気に入りの本
+  ko: 좋아하는 책
+  it: Libri preferiti
+  tr: Favori kitaplar
+  vi: Sách yêu thích
+  id: Buku favorit
+  pl: Ulubione książki
+  nl: Favoriete boeken
+  ar: الكتب المفضلة
+  hi: पसंदीदा किताबें
+  th: หนังสือเล่มโปรด
+  cs: Oblíbené knihy
+  sv: Favoritböcker
+  verified_by_human:
+    - en
+    - de
+favorite_books.description:
+  context: Description for favorite books settings/memory
+  en: Books you loved and would recommend.
+  de: Bücher, die du geliebt hast und empfehlen würdest.
+  zh: 你喜爱并推荐的书籍。
+  es: Libros que te encantaron y recomendarías.
+  fr: Livres que vous avez aimés et recommanderiez.
+  pt: Livros que você amou e recomendaria.
+  ru: Книги, которые вам понравились и вы бы рекомендовали.
+  ja: 大好きでおすすめしたい本。
+  ko: 사랑하고 추천하고 싶은 책.
+  it: Libri che hai amato e consiglieresti.
+  tr: Sevdiğiniz ve tavsiye edeceğiniz kitaplar.
+  vi: Sách bạn yêu thích và muốn giới thiệu.
+  id: Buku yang Anda sukai dan rekomendasikan.
+  pl: Książki, które pokochałeś i polecasz.
+  nl: Boeken waar je van hield en zou aanbevelen.
+  ar: الكتب التي أحببتها وتنصح بها.
+  hi: किताबें जो आपको पसंद आईं और सुझाएंगे।
+  th: หนังสือที่คุณชอบและอยากแนะนำ
+  cs: Knihy, které jste milovali a doporučili byste.
+  sv: Böcker du älskat och skulle rekommendera.
+  verified_by_human:
+    - en
+    - de
+currently_reading:
+  context: Settings/memory name for currently reading
+  en: Currently Reading
+  de: Gerade am Lesen
+  zh: 正在阅读
+  es: Leyendo actualmente
+  fr: En cours de lecture
+  pt: Lendo atualmente
+  ru: Сейчас читаю
+  ja: 現在読んでいる本
+  ko: 현재 읽고 있는 책
+  it: Sto leggendo
+  tr: Şu anda okuyor
+  vi: Đang đọc
+  id: Sedang dibaca
+  pl: Aktualnie czytane
+  nl: Nu aan het lezen
+  ar: أقرأ حاليًا
+  hi: वर्तमान में पढ़ रहे हैं
+  th: กำลังอ่านอยู่
+  cs: Právě čtu
+  sv: Läser just nu
+  verified_by_human:
+    - en
+    - de
+currently_reading.description:
+  context: Description for currently reading settings/memory
+  en: Books you are currently reading.
+  de: Bücher, die du gerade liest.
+  zh: 你目前正在阅读的书。
+  es: Libros que estás leyendo actualmente.
+  fr: Livres que vous lisez actuellement.
+  pt: Livros que você está lendo atualmente.
+  ru: Книги, которые вы сейчас читаете.
+  ja: 現在読んでいる本。
+  ko: 현재 읽고 있는 책.
+  it: Libri che stai leggendo.
+  tr: Şu anda okuduğunuz kitaplar.
+  vi: Sách bạn đang đọc hiện tại.
+  id: Buku yang sedang Anda baca.
+  pl: Książki, które aktualnie czytasz.
+  nl: Boeken die je nu aan het lezen bent.
+  ar: الكتب التي تقرأها حاليًا.
+  hi: किताबें जो आप वर्तमान में पढ़ रहे हैं।
+  th: หนังสือที่คุณกำลังอ่านอยู่
+  cs: Knihy, které právě čtete.
+  sv: Böcker du läser just nu.
+  verified_by_human:
+    - en
+    - de
+to_read_list:
+  context: Settings/memory name for to read list
+  en: To Read List
+  de: Leseliste
+  zh: 阅读清单
+  es: Lista de lectura
+  fr: Liste de lecture
+  pt: Lista de leitura
+  ru: Список чтения
+  ja: 読書リスト
+  ko: 읽을 책 목록
+  it: Lista da leggere
+  tr: Okuma listesi
+  vi: Danh sách đọc
+  id: Daftar bacaan
+  pl: Lista do przeczytania
+  nl: Leeslijst
+  ar: قائمة القراءة
+  hi: पढ़ने की सूची
+  th: รายการหนังสือที่ต้องอ่าน
+  cs: Seznam ke čtení
+  sv: Att-läsa-lista
+  verified_by_human:
+    - en
+    - de
+to_read_list.description:
+  context: Description for to read list settings/memory
+  en: Books you want to read next.
+  de: Bücher, die du als nächstes lesen möchtest.
+  zh: 你接下来想阅读的书。
+  es: Libros que quieres leer próximamente.
+  fr: Livres que vous souhaitez lire ensuite.
+  pt: Livros que você quer ler em seguida.
+  ru: Книги, которые вы хотите прочитать далее.
+  ja: 次に読みたい本。
+  ko: 다음에 읽고 싶은 책.
+  it: Libri che vuoi leggere dopo.
+  tr: Sonra okumak istediğiniz kitaplar.
+  vi: Sách bạn muốn đọc tiếp.
+  id: Buku yang ingin Anda baca selanjutnya.
+  pl: Książki, które chcesz przeczytać jako następne.
+  nl: Boeken die je hierna wilt lezen.
+  ar: الكتب التي تريد قراءتها لاحقًا.
+  hi: किताबें जो आप आगे पढ़ना चाहते हैं।
+  th: หนังสือที่คุณอยากอ่านต่อไป
+  cs: Knihy, které chcete číst příště.
+  sv: Böcker du vill läsa härnäst.
+  verified_by_human:
+    - en
+    - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+favorite_books.example_1:
+  context: Example entry for favorite books (a classic novel)
+  en: "1984"
+  de: "1984"
+  zh: "1984"
+  es: "1984"
+  fr: "1984"
+  pt: "1984"
+  ru: "1984"
+  ja: "1984"
+  ko: "1984"
+  it: "1984"
+  tr: "1984"
+  vi: "1984"
+  id: "1984"
+  pl: "1984"
+  nl: "1984"
+  ar: "1984"
+  hi: "1984"
+  th: "1984"
+  cs: "1984"
+  sv: "1984"
+  verified_by_human:
+    - en
+    - de
+favorite_books.example_2:
+  context: Example entry for favorite books (a non-fiction book)
+  en: Sapiens
+  de: Sapiens
+  zh: 人类简史
+  es: Sapiens
+  fr: Sapiens
+  pt: Sapiens
+  ru: Sapiens
+  ja: サピエンス全史
+  ko: 사피엔스
+  it: Sapiens
+  tr: Sapiens
+  vi: Sapiens
+  id: Sapiens
+  pl: Sapiens
+  nl: Sapiens
+  ar: العاقل
+  hi: सेपियन्स
+  th: เซเปียนส์
+  cs: Sapiens
+  sv: Sapiens
+  verified_by_human:
+    - en
+    - de
+favorite_books.example_3:
+  context: Example entry for favorite books (a fantasy novel)
+  en: Dune
+  de: Der Wüstenplanet
+  zh: 沙丘
+  es: Dune
+  fr: Dune
+  pt: Duna
+  ru: Дюна
+  ja: デューン 砂の惑星
+  ko: 듄
+  it: Dune
+  tr: Dune
+  vi: Xứ cát
+  id: Dune
+  pl: Diuna
+  nl: Dune
+  ar: كثبان
+  hi: ड्यून
+  th: มหาศึกแห่งดูน
+  cs: Duna
+  sv: Dune
+  verified_by_human:
+    - en
+    - de
+currently_reading.example_1:
+  context: Example entry for currently reading
+  en: Project Hail Mary
+  de: Der Astronaut
+  zh: 挽救计划
+  es: Proyecto Hail Mary
+  fr: Projet Dernière Chance
+  pt: Projeto Hail Mary
+  ru: Проект «Аве Мария»
+  ja: プロジェクト・ヘイル・メアリー
+  ko: 프로젝트 헤일 메리
+  it: L'uomo di Marte
+  tr: Proje Hail Mary
+  vi: Dự án Hail Mary
+  id: Project Hail Mary
+  pl: Projekt Hail Mary
+  nl: Project Hail Mary
+  ar: مشروع هيل ماري
+  hi: प्रोजेक्ट हेल मैरी
+  th: โปรเจกต์เฮลแมรี
+  cs: Projekt Hail Mary
+  sv: Projekt Hail Mary
+  verified_by_human:
+    - en
+    - de
+currently_reading.example_2:
+  context: Example entry for currently reading
+  en: Atomic Habits
+  de: Die 1%-Methode
+  zh: 原子习惯
+  es: Hábitos atómicos
+  fr: Un rien peut tout changer
+  pt: Hábitos atômicos
+  ru: Атомные привычки
+  ja: ジェームズ・クリアー式 複利で伸びる1つの習慣
+  ko: 아주 작은 습관의 힘
+  it: Piccole abitudini per grandi cambiamenti
+  tr: Atomik Alışkanlıklar
+  vi: Thói quen nguyên tử
+  id: Atomic Habits
+  pl: Atomowe nawyki
+  nl: Atomic Habits
+  ar: العادات الذرية
+  hi: एटॉमिक हैबिट्स
+  th: Atomic Habits
+  cs: Atomové návyky
+  sv: Atomic Habits
+  verified_by_human:
+    - en
+    - de
+to_read_list.example_1:
+  context: Example entry for to read list
+  en: The Three-Body Problem
+  de: Die drei Sonnen
+  zh: 三体
+  es: El problema de los tres cuerpos
+  fr: Le Problème à trois corps
+  pt: O Problema dos Três Corpos
+  ru: Задача трёх тел
+  ja: 三体
+  ko: 삼체
+  it: Il problema dei tre corpi
+  tr: Üç Cisim Problemi
+  vi: Tam thể
+  id: The Three-Body Problem
+  pl: Problem trzech ciał
+  nl: Het drielichamenprobleem
+  ar: مشكلة الأجسام الثلاثة
+  hi: द थ्री-बॉडी प्रॉब्लम
+  th: ปัญหาสามร่าง
+  cs: Problém tří těles
+  sv: Trekroppsproblemet
+  verified_by_human:
+    - en
+    - de
+to_read_list.example_2:
+  context: Example entry for to read list
+  en: Thinking, Fast and Slow
+  de: Schnelles Denken, langsames Denken
+  zh: 思考，快与慢
+  es: Pensar rápido, pensar despacio
+  fr: Système 1 / Système 2
+  pt: Rápido e devagar
+  ru: Думай медленно... Решай быстро
+  ja: ファスト＆スロー
+  ko: 생각에 관한 생각
+  it: Pensieri lenti e veloci
+  tr: Hızlı ve Yavaş Düşünme
+  vi: Tư duy nhanh và chậm
+  id: Thinking, Fast and Slow
+  pl: Pułapki myślenia
+  nl: Ons feilbare denken
+  ar: التفكير بسرعة وببطء
+  hi: थिंकिंग, फ़ास्ट एंड स्लो
+  th: คิดเร็วและช้า
+  cs: Myšlení rychlé a pomalé
+  sv: Tänka, snabbt och långsamt
+  verified_by_human:
+    - en
+    - de
+to_read_list.example_3:
+  context: Example entry for to read list
+  en: Deep Work
+  de: Konzentriert arbeiten
+  zh: 深度工作
+  es: Trabajo profundo
+  fr: Deep Work
+  pt: Trabalho focado
+  ru: В работу с головой
+  ja: 大事なことに集中する
+  ko: 딥 워크
+  it: Deep Work
+  tr: Derin Çalışma
+  vi: Làm việc sâu
+  id: Deep Work
+  pl: Praca głęboka
+  nl: Deep Work
+  ar: العمل العميق
+  hi: डीप वर्क
+  th: ทำงานอย่างลึกซึ้ง
+  cs: Hluboká práce
+  sv: Deep Work
+  verified_by_human:
+    - en
+    - de

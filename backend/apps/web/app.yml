@@ -10,7 +10,7 @@ settings_and_memories:
     name_translation_key: web.bookmarks.text
     description_translation_key: web.bookmarks.description.text
     type: list
-    stage: development
+    stage: production
     example_translation_keys:
       - "web.bookmarks.example_1.text"
       - "web.bookmarks.example_2.text"
@@ -46,7 +46,7 @@ settings_and_memories:
     name_translation_key: web.read_later.text
     description_translation_key: web.read_later.description.text
     type: list
-    stage: development
+    stage: production
     example_translation_keys:
       - "web.read_later.example_1.text"
       - "web.read_later.example_2.text"

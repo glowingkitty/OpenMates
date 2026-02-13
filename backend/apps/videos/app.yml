@@ -9,7 +9,7 @@ settings_and_memories:
     name_translation_key: videos.to_watch_list.text
     description_translation_key: videos.to_watch_list.description.text
     type: list
-    stage: development
+    stage: production
     example_translation_keys:
       - "videos.to_watch_list.example_1.text"
       - "videos.to_watch_list.example_2.text"
