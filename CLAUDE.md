@@ -493,6 +493,28 @@ docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --no-log
 docker exec api python /app/backend/scripts/inspect_user.py <email_address>
 ```
 
+### Newsletter Inspection
+
+```bash
+# Summary counts (confirmed, pending, ignored, language breakdown)
+docker exec api python /app/backend/scripts/inspect_newsletter.py
+
+# Show all subscribers with decrypted emails
+docker exec api python /app/backend/scripts/inspect_newsletter.py --show-emails
+
+# Show pending (unconfirmed) subscriptions from cache
+docker exec api python /app/backend/scripts/inspect_newsletter.py --show-pending
+
+# Show monthly subscription timeline
+docker exec api python /app/backend/scripts/inspect_newsletter.py --timeline
+
+# Show everything
+docker exec api python /app/backend/scripts/inspect_newsletter.py --show-emails --show-pending --timeline
+
+# JSON output
+docker exec api python /app/backend/scripts/inspect_newsletter.py --json
+```
+
 ### AI Request Debugging
 
 ```bash
