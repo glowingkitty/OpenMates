@@ -56,7 +56,8 @@
  
   let draftTextContent = $state(''); 
   let displayLabel = $state('');     
-  let displayText = $state('');      
+  let displayText = $state('');
+  let hasWaitingForUser = $state(false);
   let currentTypingMateInfo: AITypingStatus | null = $state(null);
   let lastMessage: Message | null = $state(null); // Declare lastMessage here
   let typingStoreValue = $state<AITypingStatus>({ 
@@ -627,11 +628,20 @@
     // Handle sending, processing, waiting_for_internet, waiting_for_user, and failed states first as they take precedence
     // Check all messages (not just lastMessage) for waiting_for_user since the system message
     // may not be the last message in the array
-    const hasWaitingForUser = chat.messages?.some(m => m.status === 'waiting_for_user');
+    const waitingForUserMessage = chat.messages?.find(m => m.status === 'waiting_for_user');
+    hasWaitingForUser = !!waitingForUserMessage;
     if (hasWaitingForUser) {
-      // Show "Waiting for you..." when chat is paused for user action (e.g., insufficient credits)
+      // Show "Waiting for user" label with the system message content as preview
+      // (e.g., insufficient credits message), using draft-like design in the sidebar
       displayLabel = $text('enter_message.waiting_for_user.text');
-      displayText = '';
+      // Extract the system message content to show as preview text
+      if (waitingForUserMessage.content) {
+        displayText = typeof waitingForUserMessage.content === 'string' 
+          ? waitingForUserMessage.content 
+          : extractTextFromTiptap(waitingForUserMessage.content);
+      } else {
+        displayText = '';
+      }
     } else if (lastMessage?.status === 'sending') {
       displayLabel = $text('enter_message.sending.text');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
@@ -1710,7 +1720,15 @@
 >
   {#if chat}
     <div class="chat-item">
-      {#if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || lastMessage?.status === 'waiting_for_user' || chat.messages?.some(m => m.status === 'waiting_for_user') || isWaitingForTitle) && !currentTypingMateInfo}
+      {#if hasWaitingForUser && !currentTypingMateInfo}
+        <!-- Waiting for user action (e.g., insufficient credits): draft-like layout with label + message preview -->
+        <div class="draft-only-layout">
+          <span class="status-message waiting-for-user-label">{displayLabel}</span>
+          {#if displayText}
+            <span class="draft-content-as-title">{truncateText(displayText, 60)}</span>
+          {/if}
+        </div>
+      {:else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo}
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}

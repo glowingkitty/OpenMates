@@ -1353,7 +1353,7 @@ export async function sendCompletedAIResponseImpl(
       message: {
         message_id: aiMessage.message_id,
         chat_id: aiMessage.chat_id,
-        role: aiMessage.role, // 'assistant'
+        role: aiMessage.role, // 'assistant' or 'system' (for rejection messages like insufficient credits)
         created_at: aiMessage.created_at,
         status: aiMessage.status,
         user_message_id: aiMessage.user_message_id,
@@ -1391,8 +1391,26 @@ export async function sendCompletedAIResponseImpl(
       },
     );
 
-    // Use a different event type to avoid triggering AI processing
-    await webSocketService.sendMessage("ai_response_completed", payload);
+    // Route system messages (e.g., insufficient credits rejections) through the
+    // system message handler, since ai_response_completed only accepts role='assistant'.
+    if (aiMessage.role === "system") {
+      console.debug(
+        "[ChatSyncService:Senders] Routing system message through chat_system_message_added:",
+        { messageId: aiMessage.message_id, chatId: aiMessage.chat_id },
+      );
+      await webSocketService.sendMessage("chat_system_message_added", {
+        chat_id: aiMessage.chat_id,
+        message: {
+          message_id: aiMessage.message_id,
+          role: "system",
+          encrypted_content: encryptedFields.encrypted_content,
+          created_at: aiMessage.created_at,
+        },
+      });
+    } else {
+      // Use a different event type to avoid triggering AI processing
+      await webSocketService.sendMessage("ai_response_completed", payload);
+    }
 
     // Dispatch event so UI knows chat was updated
     serviceInstance.dispatchEvent(
