@@ -16,11 +16,15 @@
     import { slide } from 'svelte/transition';
     import { onDestroy, tick } from 'svelte';
     import { notificationStore, type Notification } from '../stores/notificationStore';
-    import { pendingNotificationReplyStore } from '../stores/pendingNotificationReplyStore';
     import { text } from '@repo/ui';
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
     import Placeholder from '@tiptap/extension-placeholder';
+    import { chatDB } from '../services/db';
+    import { chatSyncService } from '../services/chatSyncService';
+    import { websocketStatus } from '../stores/websocketStatusStore';
+    import { get } from 'svelte/store';
+    import type { Message } from '../types/chat';
     
     // Note: icons.css and mates.css are loaded globally via index.ts and +layout.svelte
     // No need to import them here - global icon classes and mate-profile classes are available
@@ -82,20 +86,69 @@
     }
     
     /**
-     * Handle sending the reply message
+     * Handle sending the reply message directly to the background chat.
+     * Sends via chatSyncService WITHOUT navigating to or switching the active chat.
+     * This follows the same IndexedDB save + WebSocket send flow as the normal message pipeline.
      */
     async function handleSendReply(): Promise<void> {
-        if (!replyText.trim() || !notification.chatId) return;
+        const trimmedText = replyText.trim();
+        if (!trimmedText || !notification.chatId) return;
         
-        // Store the reply text so the chat input can pick it up after navigation.
-        // Sending directly from the notification would bypass the full message pipeline
-        // (IndexedDB save, embed processing, encryption, etc.), so we navigate to the
-        // chat and let the standard input handle it.
-        pendingNotificationReplyStore.set(notification.chatId, replyText.trim());
+        const chatId = notification.chatId;
         
-        // Navigate to the chat using the correct hash format
-        window.location.hash = `chat-id=${notification.chatId}`;
-        handleDismiss();
+        try {
+            // 1. Look up the existing chat in IndexedDB
+            const existingChat = await chatDB.getChat(chatId);
+            if (!existingChat) {
+                console.error(`[ChatMessageNotification] Chat ${chatId} not found in IndexedDB, cannot send reply`);
+                return;
+            }
+            
+            // 2. Create message payload (same structure as sendHandlers.createMessagePayload)
+            const messageId = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
+            const wsStatus = get(websocketStatus);
+            const isConnected = wsStatus.status === 'connected';
+            const initialStatus: Message['status'] = isConnected ? 'sending' : 'waiting_for_internet';
+            
+            const messagePayload: Message = {
+                message_id: messageId,
+                chat_id: chatId,
+                role: 'user',
+                content: trimmedText,
+                status: initialStatus,
+                created_at: Math.floor(Date.now() / 1000),
+                sender_name: 'user',
+                encrypted_content: null,
+            };
+            
+            // 3. Save message to IndexedDB (chatDB handles encryption with chat key)
+            await chatDB.saveMessage(messagePayload);
+            
+            // 4. Update chat metadata (increment messages_v, update timestamps)
+            existingChat.messages_v = (existingChat.messages_v || 0) + 1;
+            existingChat.last_edited_overall_timestamp = messagePayload.created_at;
+            existingChat.updated_at = Math.floor(Date.now() / 1000);
+            await chatDB.updateChat(existingChat);
+            
+            // 5. Dismiss the notification immediately so user sees feedback
+            handleDismiss();
+            
+            // 6. Send message to backend via chatSyncService
+            // CRITICAL: Do NOT call sendSetActiveChat — we don't want to switch chats
+            await chatSyncService.sendNewMessage(messagePayload);
+            
+            // 7. Dispatch chatUpdated event so sidebar/chat list reflects the new message
+            window.dispatchEvent(new CustomEvent('chatUpdated', {
+                detail: { chat_id: chatId, chat: existingChat },
+                bubbles: true,
+                composed: true,
+            }));
+            
+            console.info(`[ChatMessageNotification] Reply sent to chat ${chatId} without switching active chat`);
+        } catch (error) {
+            console.error('[ChatMessageNotification] Error sending reply:', error);
+            notificationStore.error('Failed to send reply. Please try again.');
+        }
     }
     
     /**
