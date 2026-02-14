@@ -49,3 +49,74 @@ search.description:
     - en
     - de
 
+search.how_to_use.1:
+  context: Example instruction for news search skill - specific topic
+  en: "What's the latest news about the Mars mission?"
+  de: Was sind die neuesten Nachrichten zur Mars-Mission?
+  zh: 关于火星任务的最新消息是什么？
+  es: ¿Cuáles son las últimas noticias sobre la misión a Marte?
+  fr: Quelles sont les dernières nouvelles sur la mission Mars ?
+  pt: Quais são as últimas notícias sobre a missão a Marte?
+  ru: Какие последние новости о миссии на Марс?
+  ja: 火星ミッションに関する最新ニュースは？
+  ko: 화성 탐사 미션에 대한 최신 뉴스는 무엇인가요?
+  it: Quali sono le ultime notizie sulla missione su Marte?
+  tr: Mars görevi hakkındaki en son haberler neler?
+  vi: Tin tức mới nhất về sứ mệnh sao Hỏa là gì?
+  id: Apa berita terbaru tentang misi Mars?
+  pl: Jakie są najnowsze wiadomości o misji na Marsa?
+  nl: Wat is het laatste nieuws over de Mars-missie?
+  ar: ما هي آخر الأخبار حول مهمة المريخ؟
+  hi: मंगल मिशन के बारे में नवीनतम समाचार क्या हैं?
+  th: ข่าวล่าสุดเกี่ยวกับภารกิจดาวอังคารคืออะไร?
+  cs: Jaké jsou nejnovější zprávy o misi na Mars?
+  sv: Vad är de senaste nyheterna om Mars-uppdraget?
+  verified_by_human: [en, de]
+
+search.how_to_use.2:
+  context: Example instruction for news search skill - industry news
+  en: Search for news about renewable energy breakthroughs
+  de: Suche Nachrichten über Durchbrüche bei erneuerbaren Energien
+  zh: 搜索关于可再生能源突破的新闻
+  es: Busca noticias sobre avances en energías renovables
+  fr: Recherche des nouvelles sur les percées en énergie renouvelable
+  pt: Pesquise notícias sobre avanços em energia renovável
+  ru: Найди новости о прорывах в возобновляемой энергетике
+  ja: 再生可能エネルギーの突破に関するニュースを検索して
+  ko: 재생에너지 돌파구에 관한 뉴스를 검색해줘
+  it: Cerca notizie sulle scoperte nell'energia rinnovabile
+  tr: Yenilenebilir enerji atılımları hakkında haberleri ara
+  vi: Tìm tin tức về các đột phá năng lượng tái tạo
+  id: Cari berita tentang terobosan energi terbarukan
+  pl: Szukaj wiadomości o przełomach w energii odnawialnej
+  nl: Zoek nieuws over doorbraken in hernieuwbare energie
+  ar: ابحث عن أخبار حول إنجازات الطاقة المتجددة
+  hi: नवीकरणीय ऊर्जा में सफलताओं के बारे में समाचार खोजें
+  th: ค้นหาข่าวเกี่ยวกับความก้าวหน้าด้านพลังงานทดแทน
+  cs: Hledej zprávy o průlomech v obnovitelné energii
+  sv: Sök efter nyheter om genombrott inom förnybar energi
+  verified_by_human: [en, de]
+
+search.how_to_use.3:
+  context: Example instruction for news search skill - daily update
+  en: What happened today in the tech industry?
+  de: Was ist heute in der Tech-Branche passiert?
+  zh: 今天科技行业发生了什么？
+  es: ¿Qué pasó hoy en la industria tecnológica?
+  fr: Que s'est-il passé aujourd'hui dans l'industrie tech ?
+  pt: O que aconteceu hoje na indústria de tecnologia?
+  ru: Что произошло сегодня в технологической отрасли?
+  ja: 今日のテック業界で何があった？
+  ko: 오늘 기술 업계에서 무슨 일이 있었나요?
+  it: Cosa è successo oggi nel settore tecnologico?
+  tr: Bugün teknoloji sektöründe neler oldu?
+  vi: Hôm nay ngành công nghệ có gì mới?
+  id: Apa yang terjadi hari ini di industri teknologi?
+  pl: Co wydarzyło się dziś w branży technologicznej?
+  nl: Wat is er vandaag gebeurd in de techsector?
+  ar: ماذا حدث اليوم في صناعة التكنولوجيا؟
+  hi: आज टेक इंडस्ट्री में क्या हुआ?
+  th: วันนี้มีอะไรเกิดขึ้นในอุตสาหกรรมเทคโนโลยี?
+  cs: Co se dnes stalo v technologickém průmyslu?
+  sv: Vad hände idag i teknikbranschen?
+  verified_by_human: [en, de]

@@ -49,6 +49,78 @@ get_transcript.description:
     - en
     - de
 
+get_transcript.how_to_use.1:
+  context: Example instruction for get transcript skill - get transcript from URL
+  en: "Get the transcript of this YouTube video: https://youtube.com/watch?v=..."
+  de: "Hole das Transkript dieses YouTube-Videos: https://youtube.com/watch?v=..."
+  zh: "获取这个YouTube视频的文字记录：https://youtube.com/watch?v=..."
+  es: "Obtén la transcripción de este video de YouTube: https://youtube.com/watch?v=..."
+  fr: "Obtiens la transcription de cette vidéo YouTube : https://youtube.com/watch?v=..."
+  pt: "Obtenha a transcrição deste vídeo do YouTube: https://youtube.com/watch?v=..."
+  ru: "Получи транскрипт этого видео YouTube: https://youtube.com/watch?v=..."
+  ja: "このYouTube動画の文字起こしを取得して：https://youtube.com/watch?v=..."
+  ko: "이 YouTube 동영상의 자막을 가져와줘: https://youtube.com/watch?v=..."
+  it: "Ottieni la trascrizione di questo video YouTube: https://youtube.com/watch?v=..."
+  tr: "Bu YouTube videosunun transkriptini al: https://youtube.com/watch?v=..."
+  vi: "Lấy bản ghi của video YouTube này: https://youtube.com/watch?v=..."
+  id: "Dapatkan transkrip video YouTube ini: https://youtube.com/watch?v=..."
+  pl: "Pobierz transkrypcję tego filmu YouTube: https://youtube.com/watch?v=..."
+  nl: "Haal het transcript op van deze YouTube-video: https://youtube.com/watch?v=..."
+  ar: "احصل على نص هذا الفيديو على YouTube: https://youtube.com/watch?v=..."
+  hi: "इस YouTube वीडियो की प्रतिलिपि प्राप्त करें: https://youtube.com/watch?v=..."
+  th: "รับสำเนาของวิดีโอ YouTube นี้: https://youtube.com/watch?v=..."
+  cs: "Získej přepis tohoto YouTube videa: https://youtube.com/watch?v=..."
+  sv: "Hämta transkriptionen av denna YouTube-video: https://youtube.com/watch?v=..."
+  verified_by_human: [en, de]
+
+get_transcript.how_to_use.2:
+  context: Example instruction for get transcript skill - transcribe and analyze
+  en: Transcribe this lecture and highlight the key points
+  de: Transkribiere diese Vorlesung und hebe die wichtigsten Punkte hervor
+  zh: 转录这个讲座并突出重点内容
+  es: Transcribe esta conferencia y resalta los puntos clave
+  fr: Transcris cette conférence et mets en évidence les points clés
+  pt: Transcreva esta palestra e destaque os pontos principais
+  ru: Транскрибируй эту лекцию и выдели ключевые моменты
+  ja: この講義を文字起こしして、要点をハイライトして
+  ko: 이 강의를 자막으로 변환하고 핵심 포인트를 강조해줘
+  it: Trascrivi questa lezione e evidenzia i punti chiave
+  tr: Bu dersi transkribe et ve önemli noktaları vurgula
+  vi: Phiên âm bài giảng này và nêu bật các điểm chính
+  id: Transkripsikan kuliah ini dan soroti poin-poin utamanya
+  pl: Transkrybuj ten wykład i podkreśl kluczowe punkty
+  nl: Transcribeer dit college en markeer de belangrijkste punten
+  ar: انسخ هذه المحاضرة وأبرز النقاط الرئيسية
+  hi: इस व्याख्यान को ट्रांसक्राइब करें और मुख्य बिंदुओं को हाइलाइट करें
+  th: ถอดเสียงการบรรยายนี้และเน้นประเด็นสำคัญ
+  cs: Přepiš tuto přednášku a zvýrazni klíčové body
+  sv: Transkribera denna föreläsning och markera nyckelpunkterna
+  verified_by_human: [en, de]
+
+get_transcript.how_to_use.3:
+  context: Example instruction for get transcript skill - summarize from transcript
+  en: Get the transcript and summarize what they said about climate change
+  de: Hole das Transkript und fasse zusammen, was über den Klimawandel gesagt wurde
+  zh: 获取文字记录并总结他们关于气候变化的内容
+  es: Obtén la transcripción y resume lo que dijeron sobre el cambio climático
+  fr: Obtiens la transcription et résume ce qu'ils ont dit sur le changement climatique
+  pt: Obtenha a transcrição e resuma o que disseram sobre mudanças climáticas
+  ru: Получи транскрипт и подведи итог того, что было сказано об изменении климата
+  ja: 文字起こしを取得して、気候変動について話された内容を要約して
+  ko: 자막을 가져와서 기후 변화에 대해 말한 내용을 요약해줘
+  it: Ottieni la trascrizione e riassumi quello che hanno detto sul cambiamento climatico
+  tr: Transkripti al ve iklim değişikliği hakkında söylediklerini özetle
+  vi: Lấy bản ghi và tóm tắt những gì họ nói về biến đổi khí hậu
+  id: Dapatkan transkrip dan rangkum apa yang mereka katakan tentang perubahan iklim
+  pl: Pobierz transkrypcję i podsumuj, co powiedziano o zmianach klimatu
+  nl: Haal het transcript op en vat samen wat ze zeiden over klimaatverandering
+  ar: احصل على النص ولخص ما قالوه عن تغير المناخ
+  hi: प्रतिलिपि प्राप्त करें और जलवायु परिवर्तन के बारे में उन्होंने जो कहा उसका सारांश दें
+  th: รับสำเนาและสรุปสิ่งที่พวกเขาพูดเกี่ยวกับการเปลี่ยนแปลงสภาพภูมิอากาศ
+  cs: Získej přepis a shrň, co řekli o změně klimatu
+  sv: Hämta transkriptionen och sammanfatta vad de sa om klimatförändringarna
+  verified_by_human: [en, de]
+
 search:
   context: Skill name for search in Videos app
   en: Search
@@ -99,3 +171,75 @@ search.description:
   verified_by_human:
     - en
     - de
+
+search.how_to_use.1:
+  context: Example instruction for video search skill - learning
+  en: Find videos about learning to play guitar for beginners
+  de: Finde Videos zum Gitarrespielen lernen für Anfänger
+  zh: 查找适合初学者学习吉他的视频
+  es: Encuentra videos sobre aprender a tocar guitarra para principiantes
+  fr: Trouve des vidéos pour apprendre la guitare pour débutants
+  pt: Encontre vídeos sobre aprender a tocar violão para iniciantes
+  ru: Найди видео об обучении игре на гитаре для начинающих
+  ja: 初心者向けのギター演奏の学習動画を探して
+  ko: 초보자를 위한 기타 배우기 동영상을 찾아줘
+  it: Trova video su come imparare a suonare la chitarra per principianti
+  tr: Yeni başlayanlar için gitar çalmayı öğrenme videoları bul
+  vi: Tìm video về học chơi guitar cho người mới bắt đầu
+  id: Temukan video tentang belajar bermain gitar untuk pemula
+  pl: Znajdź filmy o nauce gry na gitarze dla początkujących
+  nl: Zoek video's over gitaar leren spelen voor beginners
+  ar: ابحث عن مقاطع فيديو حول تعلم العزف على الغيتار للمبتدئين
+  hi: शुरुआती लोगों के लिए गिटार बजाना सीखने के बारे में वीडियो खोजें
+  th: ค้นหาวิดีโอเกี่ยวกับการเรียนเล่นกีตาร์สำหรับผู้เริ่มต้น
+  cs: Najdi videa o učení se hry na kytaru pro začátečníky
+  sv: Hitta videor om att lära sig spela gitarr för nybörjare
+  verified_by_human: [en, de]
+
+search.how_to_use.2:
+  context: Example instruction for video search skill - talks
+  en: Search for TED talks about artificial intelligence
+  de: Suche TED-Talks über künstliche Intelligenz
+  zh: 搜索关于人工智能的TED演讲
+  es: Busca charlas TED sobre inteligencia artificial
+  fr: Recherche des conférences TED sur l'intelligence artificielle
+  pt: Pesquise palestras TED sobre inteligência artificial
+  ru: Найди выступления TED об искусственном интеллекте
+  ja: 人工知能に関するTEDトークを検索して
+  ko: 인공지능에 관한 TED 강연을 검색해줘
+  it: Cerca conferenze TED sull'intelligenza artificiale
+  tr: Yapay zekâ hakkında TED konuşmaları ara
+  vi: Tìm các bài nói chuyện TED về trí tuệ nhân tạo
+  id: Cari TED talks tentang kecerdasan buatan
+  pl: Znajdź wykłady TED o sztucznej inteligencji
+  nl: Zoek TED-talks over kunstmatige intelligentie
+  ar: ابحث عن محادثات TED حول الذكاء الاصطناعي
+  hi: आर्टिफिशियल इंटेलिजेंस के बारे में TED टॉक्स खोजें
+  th: ค้นหา TED talks เกี่ยวกับปัญญาประดิษฐ์
+  cs: Vyhledej přednášky TED o umělé inteligenci
+  sv: Sök efter TED-föreläsningar om artificiell intelligens
+  verified_by_human: [en, de]
+
+search.how_to_use.3:
+  context: Example instruction for video search skill - cooking
+  en: Find cooking videos for homemade pasta
+  de: Finde Kochvideos für selbstgemachte Pasta
+  zh: 查找自制意大利面的烹饪视频
+  es: Encuentra videos de cocina para pasta casera
+  fr: Trouve des vidéos de cuisine pour des pâtes maison
+  pt: Encontre vídeos de culinária para massa caseira
+  ru: Найди видео о приготовлении домашней пасты
+  ja: 自家製パスタの料理動画を探して
+  ko: 수제 파스타 요리 동영상을 찾아줘
+  it: Trova video di cucina per pasta fatta in casa
+  tr: Ev yapımı makarna için yemek videoları bul
+  vi: Tìm video nấu ăn về mì ý tự làm
+  id: Temukan video memasak untuk pasta buatan sendiri
+  pl: Znajdź filmy o gotowaniu domowego makaronu
+  nl: Zoek kookvideo's voor zelfgemaakte pasta
+  ar: ابحث عن مقاطع فيديو طبخ لصنع المعكرونة المنزلية
+  hi: घर पर बनी पास्ता के लिए कुकिंग वीडियो खोजें
+  th: ค้นหาวิดีโอทำอาหารสำหรับพาสต้าทำเอง
+  cs: Najdi videa o vaření domácích těstovin
+  sv: Hitta matlagningsvideor för hemgjord pasta
+  verified_by_human: [en, de]

@@ -48,3 +48,75 @@ search_locations_and_courses.description:
   verified_by_human:
     - en
     - de
+
+search_locations_and_courses.how_to_use.1:
+  context: Example instruction for fitness search skill - yoga classes
+  en: Find yoga classes near me this evening
+  de: Finde Yoga-Kurse in meiner Nähe heute Abend
+  zh: 查找今晚附近的瑜伽课程
+  es: Busca clases de yoga cerca de mí esta noche
+  fr: Trouve des cours de yoga près de moi ce soir
+  pt: Encontre aulas de yoga perto de mim esta noite
+  ru: Найдите занятия йогой рядом сегодня вечером
+  ja: 今晩近くのヨガクラスを検索
+  ko: 오늘 저녁 근처 요가 수업 찾기
+  it: Trova lezioni di yoga vicino a me stasera
+  tr: Bu akşam yakınımda yoga dersi bul
+  vi: Tìm lớp yoga gần tôi tối nay
+  id: Cari kelas yoga terdekat malam ini
+  pl: Znajdź zajęcia jogi w pobliżu dziś wieczorem
+  nl: Vind yogalessen bij mij in de buurt vanavond
+  ar: ابحث عن دروس يوغا بالقرب مني هذا المساء
+  hi: आज शाम मेरे पास योग क्लास खोजें
+  th: ค้นหาคลาสโยคะใกล้ฉันเย็นนี้
+  cs: Najděte lekce jógy poblíž dnes večer
+  sv: Hitta yogaklasser nära mig ikväll
+  verified_by_human: [en, de]
+
+search_locations_and_courses.how_to_use.2:
+  context: Example instruction for fitness search skill - gyms with pools
+  en: Search for gyms with swimming pools in Berlin
+  de: Suche Fitnessstudios mit Schwimmbädern in Berlin
+  zh: 搜索 Berlin 有游泳池的健身房
+  es: Busca gimnasios con piscinas en Berlin
+  fr: Recherche des salles de sport avec piscines à Berlin
+  pt: Pesquise academias com piscinas em Berlin
+  ru: Найдите спортзалы с бассейнами в Berlin
+  ja: Berlin のプール付きジムを検索
+  ko: Berlin에서 수영장이 있는 헬스장 검색
+  it: Cerca palestre con piscine a Berlin
+  tr: Berlin'de yüzme havuzlu spor salonları ara
+  vi: Tìm phòng gym có hồ bơi ở Berlin
+  id: Cari gym dengan kolam renang di Berlin
+  pl: Szukaj siłowni z basenami w Berlin
+  nl: Zoek sportscholen met zwembaden in Berlin
+  ar: ابحث عن صالات رياضية بها حمامات سباحة في Berlin
+  hi: Berlin में स्विमिंग पूल वाले जिम खोजें
+  th: ค้นหาฟิตเนสที่มีสระว่ายน้ำใน Berlin
+  cs: Hledejte posilovny s bazény v Berlin
+  sv: Sök gym med simbassänger i Berlin
+  verified_by_human: [en, de]
+
+search_locations_and_courses.how_to_use.3:
+  context: Example instruction for fitness search skill - pilates weekend
+  en: Are there any Pilates courses nearby this weekend?
+  de: Gibt es Pilates-Kurse in der Nähe dieses Wochenende?
+  zh: 这个周末附近有普拉提课程吗？
+  es: ¿Hay cursos de Pilates cerca este fin de semana?
+  fr: Y a-t-il des cours de Pilates à proximité ce week-end ?
+  pt: Há cursos de Pilates por perto neste fim de semana?
+  ru: Есть ли занятия пилатесом поблизости в эти выходные?
+  ja: 今週末近くにピラティスコースはありますか？
+  ko: 이번 주말 근처에 필라테스 수업이 있나요?
+  it: Ci sono corsi di Pilates nelle vicinanze questo fine settimana?
+  tr: Bu hafta sonu yakınlarda Pilates kursu var mı?
+  vi: Có khóa Pilates nào gần đây vào cuối tuần này không?
+  id: Apakah ada kursus Pilates terdekat akhir pekan ini?
+  pl: Czy w pobliżu są kursy Pilates w ten weekend?
+  nl: Zijn er Pilates-cursussen in de buurt dit weekend?
+  ar: هل هناك دورات بيلاتيس قريبة في نهاية هذا الأسبوع؟
+  hi: क्या इस सप्ताहांत पास में कोई पिलाटीज कोर्स है?
+  th: มีคอร์สพิลาทิสใกล้ๆ ช่วงสุดสัปดาห์นี้ไหม?
+  cs: Jsou v okolí tento víkend nějaké kurzy Pilates?
+  sv: Finns det Pilateskurser i närheten denna helg?
+  verified_by_human: [en, de]

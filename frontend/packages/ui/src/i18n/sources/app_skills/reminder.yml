@@ -44,6 +44,79 @@ set_reminder.description:
   cs: Vytvořte jednorázové nebo opakující se.
   sv: Skapa engångs- eller återkommande.
   verified_by_human: [en, de]
+
+set_reminder.how_to_use.1:
+  context: Example instruction for set reminder skill - one-time reminder
+  en: Remind me to call the dentist tomorrow at 10am
+  de: Erinnere mich morgen um 10 Uhr den Zahnarzt anzurufen
+  zh: 提醒我明天上午10点给牙医打电话
+  es: Recuérdame llamar al dentista mañana a las 10am
+  fr: Rappelle-moi d'appeler le dentiste demain à 10h
+  pt: Me lembre de ligar para o dentista amanhã às 10h
+  ru: Напомни мне позвонить стоматологу завтра в 10 утра
+  ja: 明日の午前10時に歯医者に電話するようリマインドして
+  ko: 내일 오전 10시에 치과에 전화하라고 알려줘
+  it: Ricordami di chiamare il dentista domani alle 10
+  tr: Yarın sabah 10'da dişçiyi aramayı hatırlat
+  vi: Nhắc tôi gọi nha sĩ vào 10 giờ sáng ngày mai
+  id: Ingatkan saya untuk menelepon dokter gigi besok jam 10 pagi
+  pl: Przypomnij mi zadzwonić do dentysty jutro o 10 rano
+  nl: Herinner me eraan morgen om 10 uur de tandarts te bellen
+  ar: ذكّرني بالاتصال بطبيب الأسنان غدًا الساعة 10 صباحًا
+  hi: मुझे कल सुबह 10 बजे डेंटिस्ट को कॉल करने की याद दिलाएं
+  th: เตือนฉันโทรหาหมอฟันพรุ่งนี้ตอน 10 โมงเช้า
+  cs: Připomeň mi zítra v 10 hodin zavolat zubaři
+  sv: Påminn mig att ringa tandläkaren imorgon kl. 10
+  verified_by_human: [en, de]
+
+set_reminder.how_to_use.2:
+  context: Example instruction for set reminder skill - recurring weekly
+  en: Set a weekly reminder for team standup every Monday at 9am
+  de: Setze eine wöchentliche Erinnerung für das Team-Standup jeden Montag um 9 Uhr
+  zh: 设置每周一上午9点的团队站会提醒
+  es: Establece un recordatorio semanal para el standup del equipo cada lunes a las 9am
+  fr: Définis un rappel hebdomadaire pour le standup d'équipe chaque lundi à 9h
+  pt: Defina um lembrete semanal para o standup da equipe toda segunda às 9h
+  ru: Установи еженедельное напоминание о стендапе команды каждый понедельник в 9 утра
+  ja: 毎週月曜日の午前9時にチームスタンドアップのリマインダーを設定して
+  ko: 매주 월요일 오전 9시에 팀 스탠드업 알림을 설정해줘
+  it: Imposta un promemoria settimanale per lo standup del team ogni lunedì alle 9
+  tr: Her pazartesi sabah 9'da takım toplantısı için haftalık hatırlatıcı ayarla
+  vi: Đặt nhắc nhở hàng tuần cho cuộc họp standup vào mỗi thứ Hai lúc 9 giờ sáng
+  id: Atur pengingat mingguan untuk standup tim setiap hari Senin jam 9 pagi
+  pl: Ustaw cotygodniowe przypomnienie o standupie zespołu w każdy poniedziałek o 9 rano
+  nl: Stel een wekelijkse herinnering in voor de teamstandup elke maandag om 9 uur
+  ar: عيّن تذكيرًا أسبوعيًا لاجتماع الفريق كل يوم اثنين الساعة 9 صباحًا
+  hi: हर सोमवार सुबह 9 बजे टीम स्टैंडअप के लिए साप्ताहिक अनुस्मारक सेट करें
+  th: ตั้งการแจ้งเตือนรายสัปดาห์สำหรับ standup ทีมทุกวันจันทร์เวลา 9 โมงเช้า
+  cs: Nastav týdenní připomínku na týmový standup každé pondělí v 9 hodin
+  sv: Ställ in en veckovis påminnelse för teamets standup varje måndag kl. 9
+  verified_by_human: [en, de]
+
+set_reminder.how_to_use.3:
+  context: Example instruction for set reminder skill - recurring interval
+  en: Remind me to water my plants every 3 days
+  de: Erinnere mich alle 3 Tage meine Pflanzen zu gießen
+  zh: 每3天提醒我给植物浇水
+  es: Recuérdame regar mis plantas cada 3 días
+  fr: Rappelle-moi d'arroser mes plantes tous les 3 jours
+  pt: Me lembre de regar minhas plantas a cada 3 dias
+  ru: Напоминай мне поливать растения каждые 3 дня
+  ja: 3日ごとに植物に水をやるようリマインドして
+  ko: 3일마다 화분에 물 주라고 알려줘
+  it: Ricordami di annaffiare le piante ogni 3 giorni
+  tr: Her 3 günde bir çiçeklerimi sulamayı hatırlat
+  vi: Nhắc tôi tưới cây mỗi 3 ngày
+  id: Ingatkan saya untuk menyiram tanaman setiap 3 hari
+  pl: Przypomnij mi podlewać rośliny co 3 dni
+  nl: Herinner me eraan om mijn planten elke 3 dagen water te geven
+  ar: ذكّرني بسقي نباتاتي كل 3 أيام
+  hi: मुझे हर 3 दिन में अपने पौधों को पानी देने की याद दिलाएं
+  th: เตือนฉันรดน้ำต้นไม้ทุก 3 วัน
+  cs: Připomeň mi zalévat rostliny každé 3 dny
+  sv: Påminn mig att vattna mina växter var tredje dag
+  verified_by_human: [en, de]
+
 list_reminders:
   context: Skill name for listing reminders
   en: List Reminders
@@ -90,6 +163,79 @@ list_reminders.description:
   cs: Zobrazit naplánované připomínky.
   sv: Visa dina schemalagda påminnelser.
   verified_by_human: [en, de]
+
+list_reminders.how_to_use.1:
+  context: Example instruction for list reminders skill - show all
+  en: Show me all my active reminders
+  de: Zeige mir alle meine aktiven Erinnerungen
+  zh: 显示我所有活跃的提醒
+  es: Muéstrame todos mis recordatorios activos
+  fr: Montre-moi tous mes rappels actifs
+  pt: Mostre todos os meus lembretes ativos
+  ru: Покажи все мои активные напоминания
+  ja: アクティブなリマインダーをすべて表示して
+  ko: 내 모든 활성 알림을 보여줘
+  it: Mostrami tutti i miei promemoria attivi
+  tr: Tüm aktif hatırlatıcılarımı göster
+  vi: Hiển thị tất cả nhắc nhở đang hoạt động của tôi
+  id: Tampilkan semua pengingat aktif saya
+  pl: Pokaż mi wszystkie moje aktywne przypomnienia
+  nl: Toon al mijn actieve herinneringen
+  ar: أظهر لي جميع تذكيراتي النشطة
+  hi: मेरे सभी सक्रिय अनुस्मारक दिखाएं
+  th: แสดงการแจ้งเตือนที่ใช้งานอยู่ทั้งหมดของฉัน
+  cs: Ukaž mi všechny moje aktivní připomínky
+  sv: Visa alla mina aktiva påminnelser
+  verified_by_human: [en, de]
+
+list_reminders.how_to_use.2:
+  context: Example instruction for list reminders skill - this week
+  en: What reminders do I have for this week?
+  de: Welche Erinnerungen habe ich für diese Woche?
+  zh: 这周我有哪些提醒？
+  es: ¿Qué recordatorios tengo para esta semana?
+  fr: Quels rappels ai-je pour cette semaine ?
+  pt: Quais lembretes eu tenho para esta semana?
+  ru: Какие у меня напоминания на эту неделю?
+  ja: 今週のリマインダーは何がある？
+  ko: 이번 주에 어떤 알림이 있나요?
+  it: Quali promemoria ho per questa settimana?
+  tr: Bu hafta için hatırlatıcılarım neler?
+  vi: Tuần này tôi có những nhắc nhở gì?
+  id: Pengingat apa saja yang saya miliki untuk minggu ini?
+  pl: Jakie mam przypomnienia na ten tydzień?
+  nl: Welke herinneringen heb ik voor deze week?
+  ar: ما التذكيرات التي لدي لهذا الأسبوع؟
+  hi: इस सप्ताह के लिए मेरे पास कौन से अनुस्मारक हैं?
+  th: สัปดาห์นี้ฉันมีการแจ้งเตือนอะไรบ้าง?
+  cs: Jaké připomínky mám na tento týden?
+  sv: Vilka påminnelser har jag den här veckan?
+  verified_by_human: [en, de]
+
+list_reminders.how_to_use.3:
+  context: Example instruction for list reminders skill - recurring
+  en: List all my recurring reminders
+  de: Liste alle meine wiederkehrenden Erinnerungen auf
+  zh: 列出我所有的重复提醒
+  es: Lista todos mis recordatorios recurrentes
+  fr: Liste tous mes rappels récurrents
+  pt: Liste todos os meus lembretes recorrentes
+  ru: Покажи все мои повторяющиеся напоминания
+  ja: 繰り返しのリマインダーをすべてリストして
+  ko: 내 반복 알림을 모두 나열해줘
+  it: Elenca tutti i miei promemoria ricorrenti
+  tr: Tüm tekrarlayan hatırlatıcılarımı listele
+  vi: Liệt kê tất cả nhắc nhở lặp lại của tôi
+  id: Daftarkan semua pengingat berulang saya
+  pl: Wylistuj wszystkie moje powtarzające się przypomnienia
+  nl: Geef al mijn terugkerende herinneringen weer
+  ar: اعرض جميع تذكيراتي المتكررة
+  hi: मेरे सभी आवर्ती अनुस्मारक सूचीबद्ध करें
+  th: แสดงรายการแจ้งเตือนที่เกิดซ้ำทั้งหมดของฉัน
+  cs: Vypiš všechny moje opakující se připomínky
+  sv: Lista alla mina återkommande påminnelser
+  verified_by_human: [en, de]
+
 cancel_reminder:
   context: Skill name for cancelling a reminder
   en: Cancel Reminder
@@ -135,4 +281,76 @@ cancel_reminder.description:
   th: ยกเลิกการแจ้งเตือนที่กำหนดไว้
   cs: Zrušit naplánovanou připomínku.
   sv: Avbryt en schemalagd påminnelse.
+  verified_by_human: [en, de]
+
+cancel_reminder.how_to_use.1:
+  context: Example instruction for cancel reminder skill - specific reminder
+  en: Cancel my dentist reminder
+  de: Lösche meine Zahnarzt-Erinnerung
+  zh: 取消我的牙医提醒
+  es: Cancela mi recordatorio del dentista
+  fr: Annule mon rappel chez le dentiste
+  pt: Cancele meu lembrete do dentista
+  ru: Отмени моё напоминание о стоматологе
+  ja: 歯医者のリマインダーをキャンセルして
+  ko: 치과 알림을 취소해줘
+  it: Annulla il mio promemoria del dentista
+  tr: Diş hekimi hatırlatıcımı iptal et
+  vi: Hủy nhắc nhở nha sĩ của tôi
+  id: Batalkan pengingat dokter gigi saya
+  pl: Anuluj moje przypomnienie o dentyście
+  nl: Annuleer mijn tandartsherinnering
+  ar: ألغِ تذكير طبيب الأسنان
+  hi: मेरा डेंटिस्ट अनुस्मारक रद्द करें
+  th: ยกเลิกการแจ้งเตือนหมอฟันของฉัน
+  cs: Zruš mou připomínku na zubaře
+  sv: Avbryt min tandläkarpåminnelse
+  verified_by_human: [en, de]
+
+cancel_reminder.how_to_use.2:
+  context: Example instruction for cancel reminder skill - remove recurring
+  en: Remove the weekly standup reminder
+  de: Entferne die wöchentliche Standup-Erinnerung
+  zh: 删除每周站会提醒
+  es: Elimina el recordatorio semanal del standup
+  fr: Supprime le rappel hebdomadaire du standup
+  pt: Remova o lembrete semanal do standup
+  ru: Удали еженедельное напоминание о стендапе
+  ja: 毎週のスタンドアップリマインダーを削除して
+  ko: 주간 스탠드업 알림을 제거해줘
+  it: Rimuovi il promemoria settimanale dello standup
+  tr: Haftalık toplantı hatırlatıcısını kaldır
+  vi: Xóa nhắc nhở standup hàng tuần
+  id: Hapus pengingat standup mingguan
+  pl: Usuń cotygodniowe przypomnienie o standupie
+  nl: Verwijder de wekelijkse standupherinnering
+  ar: أزل تذكير الاجتماع الأسبوعي
+  hi: साप्ताहिक स्टैंडअप अनुस्मारक हटाएं
+  th: ลบการแจ้งเตือน standup รายสัปดาห์
+  cs: Odstraň týdenní připomínku standupu
+  sv: Ta bort den veckovisa standup-påminnelsen
+  verified_by_human: [en, de]
+
+cancel_reminder.how_to_use.3:
+  context: Example instruction for cancel reminder skill - cancel by date
+  en: Cancel all reminders for tomorrow
+  de: Lösche alle Erinnerungen für morgen
+  zh: 取消明天的所有提醒
+  es: Cancela todos los recordatorios para mañana
+  fr: Annule tous les rappels pour demain
+  pt: Cancele todos os lembretes para amanhã
+  ru: Отмени все напоминания на завтра
+  ja: 明日のリマインダーをすべてキャンセルして
+  ko: 내일 알림을 모두 취소해줘
+  it: Annulla tutti i promemoria per domani
+  tr: Yarın için tüm hatırlatıcıları iptal et
+  vi: Hủy tất cả nhắc nhở cho ngày mai
+  id: Batalkan semua pengingat untuk besok
+  pl: Anuluj wszystkie przypomnienia na jutro
+  nl: Annuleer alle herinneringen voor morgen
+  ar: ألغِ جميع التذكيرات ليوم غد
+  hi: कल के सभी अनुस्मारक रद्द करें
+  th: ยกเลิกการแจ้งเตือนทั้งหมดสำหรับพรุ่งนี้
+  cs: Zruš všechny připomínky na zítra
+  sv: Avbryt alla påminnelser för imorgon
   verified_by_human: [en, de]

@@ -36,15 +36,6 @@
     );
     
     /**
-     * Get the translated skill name.
-     */
-    let skillName = $derived(
-        skill?.name_translation_key 
-            ? $text(skill.name_translation_key)
-            : skillId
-    );
-    
-    /**
      * Get the translated skill description.
      */
     let skillDescription = $derived(
@@ -109,6 +100,25 @@
     let formattedPricing = $derived(formatPricing(skill?.pricing));
     
     /**
+     * Get "How to use" example instructions for this skill.
+     * Derives translation keys from the skill's name_translation_key by appending .how_to_use.{1|2|3}.
+     * Only includes examples where a translation exists (key doesn't resolve to itself).
+     */
+    let howToUseExamples = $derived.by(() => {
+        if (!skill?.name_translation_key) return [];
+        const examples: string[] = [];
+        for (let i = 1; i <= 3; i++) {
+            const key = `${skill.name_translation_key}.how_to_use.${i}`;
+            const translated = $text(key);
+            // Only add if translation exists (not returning the key itself)
+            if (translated && translated !== key) {
+                examples.push(translated);
+            }
+        }
+        return examples;
+    });
+    
+    /**
      * Get icon name from icon_image filename.
      * Maps icon_image like "ai.svg" to icon name "ai" for the Icon component.
      * Also handles special cases:
@@ -149,6 +159,29 @@
         {#if skillDescription}
             <div class="description-section">
                 <p class="skill-description">{skillDescription}</p>
+            </div>
+        {/if}
+        
+        <!-- How to use section - horizontal scrollable example instructions -->
+        {#if howToUseExamples.length > 0}
+            <div class="section how-to-use-section">
+                <SettingsItem 
+                    type="heading"
+                    icon="skill"
+                    title={$text('settings.app_store.skills.how_to_use')}
+                />
+                <div class="how-to-use-scroll-container">
+                    <div class="how-to-use-scroll">
+                        {#each howToUseExamples as example}
+                            <div class="how-to-use-card">
+                                <svg class="quote-icon" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                                </svg>
+                                <p class="how-to-use-text">{example}</p>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
             </div>
         {/if}
         
@@ -244,6 +277,81 @@
         color: var(--color-grey-100);
     }
     
+    /* How to use section styles */
+    .how-to-use-section {
+        margin-top: 1.5rem;
+    }
+    
+    .how-to-use-scroll-container {
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 0.5rem;
+        margin-top: 0.75rem;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
+        transition: scrollbar-color 0.2s ease;
+    }
+    
+    .how-to-use-scroll-container:hover {
+        scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
+    }
+    
+    .how-to-use-scroll-container::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .how-to-use-scroll-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .how-to-use-scroll-container::-webkit-scrollbar-thumb {
+        background-color: rgba(128, 128, 128, 0.2);
+        border-radius: 4px;
+        border: 2px solid var(--color-grey-20);
+        transition: background-color 0.2s ease;
+    }
+    
+    .how-to-use-scroll-container:hover::-webkit-scrollbar-thumb {
+        background-color: rgba(128, 128, 128, 0.5);
+    }
+    
+    .how-to-use-scroll-container::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(128, 128, 128, 0.7);
+    }
+    
+    .how-to-use-scroll {
+        display: flex;
+        gap: 0.75rem;
+        padding-right: 1rem;
+        min-width: min-content;
+    }
+    
+    .how-to-use-card {
+        flex: 0 0 auto;
+        width: 260px;
+        padding: 1rem;
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-20);
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+    
+    .quote-icon {
+        flex-shrink: 0;
+        color: var(--color-grey-50);
+        opacity: 0.6;
+    }
+    
+    .how-to-use-text {
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: var(--color-grey-100);
+        word-break: break-word;
+    }
+
     .error {
         padding: 3rem;
         text-align: center;

@@ -48,6 +48,79 @@ search.description:
   verified_by_human:
     - en
     - de
+
+search.how_to_use.1:
+  context: Example instruction for web search skill - product search
+  en: Search for the best noise-cancelling headphones 2026
+  de: Suche die besten Noise-Cancelling-Kopfhörer 2026
+  zh: 搜索2026年最好的降噪耳机
+  es: Busca los mejores auriculares con cancelación de ruido 2026
+  fr: Recherche les meilleurs casques à réduction de bruit 2026
+  pt: Pesquise os melhores fones com cancelamento de ruído 2026
+  ru: Найди лучшие наушники с шумоподавлением 2026
+  ja: 2026年のベストノイズキャンセリングヘッドフォンを検索
+  ko: 2026년 최고의 노이즈 캔슬링 헤드폰 검색
+  it: Cerca le migliori cuffie con cancellazione del rumore 2026
+  tr: 2026'nın en iyi gürültü önleyici kulaklıklarını ara
+  vi: Tìm tai nghe chống ồn tốt nhất 2026
+  id: Cari headphone peredam kebisingan terbaik 2026
+  pl: Wyszukaj najlepsze słuchawki z redukcją szumów 2026
+  nl: Zoek de beste noise-cancelling koptelefoons 2026
+  ar: ابحث عن أفضل سماعات إلغاء الضوضاء 2026
+  hi: 2026 के सबसे अच्छे नॉइज़-कैंसलिंग हेडफ़ोन खोजें
+  th: ค้นหาหูฟังตัดเสียงรบกวนที่ดีที่สุดปี 2026
+  cs: Vyhledej nejlepší sluchátka s potlačením hluku 2026
+  sv: Sök efter de bästa brusreducerande hörlurarna 2026
+  verified_by_human: [en, de]
+
+search.how_to_use.2:
+  context: Example instruction for web search skill - reviews
+  en: Find reviews of the new iPhone
+  de: Finde Bewertungen zum neuen iPhone
+  zh: 查找新iPhone的评测
+  es: Encuentra reseñas del nuevo iPhone
+  fr: Trouve les avis sur le nouvel iPhone
+  pt: Encontre avaliações do novo iPhone
+  ru: Найди обзоры нового iPhone
+  ja: 新しいiPhoneのレビューを探して
+  ko: 새 iPhone 리뷰를 찾아주세요
+  it: Trova le recensioni del nuovo iPhone
+  tr: Yeni iPhone hakkında yorumları bul
+  vi: Tìm đánh giá về iPhone mới
+  id: Temukan ulasan tentang iPhone baru
+  pl: Znajdź recenzje nowego iPhone'a
+  nl: Vind reviews van de nieuwe iPhone
+  ar: ابحث عن مراجعات آيفون الجديد
+  hi: नए iPhone की समीक्षाएं खोजें
+  th: ค้นหารีวิว iPhone ใหม่
+  cs: Najdi recenze nového iPhonu
+  sv: Hitta recensioner av nya iPhone
+  verified_by_human: [en, de]
+
+search.how_to_use.3:
+  context: Example instruction for web search skill - lifestyle
+  en: Search for healthy meal prep ideas for beginners
+  de: Suche nach gesunden Meal-Prep-Ideen für Anfänger
+  zh: 搜索适合初学者的健康备餐创意
+  es: Busca ideas de preparación de comidas saludables para principiantes
+  fr: Recherche des idées de meal prep sain pour débutants
+  pt: Pesquise ideias de marmitas saudáveis para iniciantes
+  ru: Найди идеи здорового питания для начинающих
+  ja: 初心者向けの健康的な作り置きアイデアを検索
+  ko: 초보자를 위한 건강한 식사 준비 아이디어 검색
+  it: Cerca idee per meal prep salutari per principianti
+  tr: Yeni başlayanlar için sağlıklı yemek hazırlama fikirleri ara
+  vi: Tìm ý tưởng chuẩn bị bữa ăn lành mạnh cho người mới
+  id: Cari ide meal prep sehat untuk pemula
+  pl: Wyszukaj pomysły na zdrowe posiłki dla początkujących
+  nl: Zoek gezonde meal prep ideeën voor beginners
+  ar: ابحث عن أفكار تحضير وجبات صحية للمبتدئين
+  hi: शुरुआती लोगों के लिए स्वस्थ मील प्रेप आइडिया खोजें
+  th: ค้นหาไอเดียเตรียมอาหารเพื่อสุขภาพสำหรับมือใหม่
+  cs: Vyhledej nápady na zdravé jídlo pro začátečníky
+  sv: Sök efter hälsosamma måltidsidéer för nybörjare
+  verified_by_human: [en, de]
+
 read:
   context: Skill name for web read
   en: Read
@@ -98,3 +171,75 @@ read.description:
   verified_by_human:
     - en
     - de
+
+read.how_to_use.1:
+  context: Example instruction for web read skill - summarize article
+  en: "Read this article and summarize it: https://example.com/article"
+  de: "Lies diesen Artikel und fasse ihn zusammen: https://example.com/article"
+  zh: "阅读这篇文章并总结: https://example.com/article"
+  es: "Lee este artículo y resúmelo: https://example.com/article"
+  fr: "Lis cet article et résume-le: https://example.com/article"
+  pt: "Leia este artigo e resuma: https://example.com/article"
+  ru: "Прочитай эту статью и сделай краткое изложение: https://example.com/article"
+  ja: "この記事を読んで要約して: https://example.com/article"
+  ko: "이 기사를 읽고 요약해 주세요: https://example.com/article"
+  it: "Leggi questo articolo e riassumilo: https://example.com/article"
+  tr: "Bu makaleyi oku ve özetle: https://example.com/article"
+  vi: "Đọc bài viết này và tóm tắt: https://example.com/article"
+  id: "Baca artikel ini dan rangkum: https://example.com/article"
+  pl: "Przeczytaj ten artykuł i podsumuj go: https://example.com/article"
+  nl: "Lees dit artikel en vat het samen: https://example.com/article"
+  ar: "اقرأ هذا المقال ولخصه: https://example.com/article"
+  hi: "इस लेख को पढ़ें और सारांश दें: https://example.com/article"
+  th: "อ่านบทความนี้และสรุป: https://example.com/article"
+  cs: "Přečti tento článek a shrň ho: https://example.com/article"
+  sv: "Läs den här artikeln och sammanfatta: https://example.com/article"
+  verified_by_human: [en, de]
+
+read.how_to_use.2:
+  context: Example instruction for web read skill - extract specific info from URL
+  en: "What does Amazon say about their return policy? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  de: "Was sagt Amazon über ihre Rückgabebedingungen? https://www.amazon.de/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  zh: "亚马逊的退货政策是什么？ https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  es: "¿Qué dice Amazon sobre su política de devoluciones? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  fr: "Que dit Amazon sur sa politique de retour ? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  pt: "O que a Amazon diz sobre a política de devolução? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  ru: "Что Amazon говорит о политике возврата? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  ja: "Amazonの返品ポリシーについて教えて https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  ko: "아마존의 반품 정책은? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  it: "Cosa dice Amazon sulla politica di reso? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  tr: "Amazon iade politikası hakkında ne diyor? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  vi: "Amazon nói gì về chính sách đổi trả? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  id: "Apa yang Amazon katakan tentang kebijakan pengembalian? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  pl: "Co Amazon mówi o polityce zwrotów? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  nl: "Wat zegt Amazon over hun retourbeleid? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  ar: "ما سياسة الإرجاع في أمازون؟ https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  hi: "Amazon की वापसी नीति क्या है? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  th: "Amazon พูดอะไรเกี่ยวกับนโยบายการคืนสินค้า? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  cs: "Co říká Amazon o své politice vrácení? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  sv: "Vad säger Amazon om sin returpolicy? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  verified_by_human: [en, de]
+
+read.how_to_use.3:
+  context: Example instruction for web read skill - research from Wikipedia
+  en: Read the Wikipedia page about the Roman Empire and give me key facts
+  de: Lies den Wikipedia-Artikel über das Römische Reich und nenne mir die wichtigsten Fakten
+  zh: 阅读维基百科关于罗马帝国的页面并告诉我关键事实
+  es: Lee la página de Wikipedia sobre el Imperio Romano y dame los datos clave
+  fr: Lis la page Wikipédia sur l'Empire romain et donne-moi les faits clés
+  pt: Leia a página da Wikipédia sobre o Império Romano e me dê os fatos principais
+  ru: Прочитай страницу Википедии о Римской империи и дай ключевые факты
+  ja: ローマ帝国のウィキペディアページを読んで重要な事実を教えて
+  ko: 로마 제국에 대한 위키백과 페이지를 읽고 핵심 사실을 알려주세요
+  it: Leggi la pagina Wikipedia sull'Impero Romano e dammi i fatti principali
+  tr: Roma İmparatorluğu hakkındaki Vikipedi sayfasını oku ve önemli bilgileri ver
+  vi: Đọc trang Wikipedia về Đế chế La Mã và cho tôi các sự kiện chính
+  id: Baca halaman Wikipedia tentang Kekaisaran Romawi dan beri saya fakta utama
+  pl: Przeczytaj stronę Wikipedii o Imperium Rzymskim i podaj kluczowe fakty
+  nl: Lees de Wikipedia-pagina over het Romeinse Rijk en geef me de belangrijkste feiten
+  ar: اقرأ صفحة ويكيبيديا عن الإمبراطورية الرومانية وأعطني الحقائق الرئيسية
+  hi: रोमन साम्राज्य के बारे में विकिपीडिया पेज पढ़ें और मुझे मुख्य तथ्य बताएं
+  th: อ่านหน้าวิกิพีเดียเกี่ยวกับจักรวรรดิโรมันและบอกข้อเท็จจริงสำคัญ
+  cs: Přečti stránku Wikipedie o Římské říši a dej mi klíčová fakta
+  sv: Läs Wikipedia-sidan om Romarriket och ge mig de viktigaste fakta
+  verified_by_human: [en, de]

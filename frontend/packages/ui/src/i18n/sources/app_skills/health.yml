@@ -48,6 +48,79 @@ search_appointments.description:
   verified_by_human:
     - en
     - de
+
+search_appointments.how_to_use.1:
+  context: Example instruction for health search appointments skill - dermatologist
+  en: Find a dermatologist near me with availability this week
+  de: Finde einen Hautarzt in der Nähe mit Terminen diese Woche
+  zh: 查找附近本周有空的皮肤科医生
+  es: Busca un dermatólogo cerca con disponibilidad esta semana
+  fr: Trouve un dermatologue près de moi disponible cette semaine
+  pt: Encontre um dermatologista perto com disponibilidade esta semana
+  ru: Найдите дерматолога рядом со свободными записями на этой неделе
+  ja: 今週予約可能な近くの皮膚科医を検索
+  ko: 이번 주 예약 가능한 근처 피부과 찾기
+  it: Trova un dermatologo vicino con disponibilità questa settimana
+  tr: Bu hafta müsait yakınımdaki bir dermatolog bul
+  vi: Tìm bác sĩ da liễu gần tôi có lịch trống tuần này
+  id: Cari dokter kulit terdekat yang tersedia minggu ini
+  pl: Znajdź dermatologa w pobliżu z dostępnością w tym tygodniu
+  nl: Vind een dermatoloog in de buurt met beschikbaarheid deze week
+  ar: ابحث عن طبيب جلدية قريب لديه مواعيد هذا الأسبوع
+  hi: इस हफ्ते उपलब्धता वाले मेरे पास के त्वचा विशेषज्ञ खोजें
+  th: ค้นหาแพทย์ผิวหนังใกล้ฉันที่มีนัดว่างสัปดาห์นี้
+  cs: Najděte dermatologa poblíž s volnými termíny tento týden
+  sv: Hitta en hudläkare nära mig med tider denna vecka
+  verified_by_human: [en, de]
+
+search_appointments.how_to_use.2:
+  context: Example instruction for health search appointments skill - dentist
+  en: Search for available dentist appointments in Munich next Monday
+  de: Suche verfügbare Zahnarzttermine in München nächsten Montag
+  zh: 搜索下周一在 Munich 可用的牙医预约
+  es: Busca citas de dentista disponibles en Munich el próximo lunes
+  fr: Recherche des rendez-vous dentaires disponibles à Munich lundi prochain
+  pt: Pesquise consultas de dentista disponíveis em Munich na próxima segunda
+  ru: Найдите свободные записи к стоматологу в Munich на следующий понедельник
+  ja: 来週月曜日に Munich の空いている歯医者予約を検索
+  ko: 다음 월요일 Munich에서 예약 가능한 치과 찾기
+  it: Cerca appuntamenti dal dentista disponibili a Munich lunedì prossimo
+  tr: Munich'te gelecek Pazartesi müsait diş hekimi randevusu ara
+  vi: Tìm lịch hẹn nha sĩ có sẵn ở Munich vào thứ Hai tuần sau
+  id: Cari janji temu dokter gigi yang tersedia di Munich Senin depan
+  pl: Szukaj dostępnych wizyt u dentysty w Munich w następny poniedziałek
+  nl: Zoek beschikbare tandarts afspraken in Munich volgende maandag
+  ar: ابحث عن مواعيد طبيب أسنان متاحة في Munich يوم الاثنين القادم
+  hi: Munich में अगले सोमवार उपलब्ध दंत चिकित्सक अपॉइंटमेंट खोजें
+  th: ค้นหานัดหมายทันตแพทย์ที่มีใน Munich วันจันทร์หน้า
+  cs: Hledejte dostupné termíny u zubaře v Munich příští pondělí
+  sv: Sök lediga tandläkartider i Munich nästa måndag
+  verified_by_human: [en, de]
+
+search_appointments.how_to_use.3:
+  context: Example instruction for health search appointments skill - general practitioner
+  en: Are there any general practitioners with open slots tomorrow?
+  de: Gibt es Hausärzte mit freien Terminen morgen?
+  zh: 明天有空的全科医生吗？
+  es: ¿Hay médicos de cabecera con citas disponibles mañana?
+  fr: Y a-t-il des médecins généralistes disponibles demain ?
+  pt: Há clínicos gerais com horários livres amanhã?
+  ru: Есть ли свободные записи к терапевту на завтра?
+  ja: 明日空きのあるかかりつけ医はいますか？
+  ko: 내일 예약 가능한 일반의가 있나요?
+  it: Ci sono medici di base con disponibilità domani?
+  tr: Yarın müsait olan bir aile hekimi var mı?
+  vi: Có bác sĩ đa khoa nào còn lịch trống ngày mai không?
+  id: Apakah ada dokter umum yang tersedia besok?
+  pl: Czy są lekarze pierwszego kontaktu z wolnymi terminami jutro?
+  nl: Zijn er huisartsen met vrije plekken morgen?
+  ar: هل هناك أطباء عامون لديهم مواعيد متاحة غداً؟
+  hi: क्या कल कोई सामान्य चिकित्सक उपलब्ध हैं?
+  th: มีแพทย์ทั่วไปที่มีนัดว่างพรุ่งนี้ไหม?
+  cs: Jsou zítra k dispozici praktičtí lékaři s volnými termíny?
+  sv: Finns det allmänläkare med lediga tider imorgon?
+  verified_by_human: [en, de]
+
 create_report:
   context: Skill name for create report
   en: Create report
@@ -98,3 +171,75 @@ create_report.description:
   verified_by_human:
     - en
     - de
+
+create_report.how_to_use.1:
+  context: Example instruction for health create report skill - headaches
+  en: Create a report about my persistent headaches for my neurologist
+  de: Erstelle einen Bericht über meine anhaltenden Kopfschmerzen für meinen Neurologen
+  zh: 为我的神经科医生创建一份关于持续头痛的报告
+  es: Crea un informe sobre mis dolores de cabeza persistentes para mi neurólogo
+  fr: Crée un rapport sur mes maux de tête persistants pour mon neurologue
+  pt: Crie um relatório sobre minhas dores de cabeça persistentes para meu neurologista
+  ru: Составьте отчёт о моих постоянных головных болях для невролога
+  ja: 神経科医のために持続する頭痛のレポートを作成
+  ko: 신경과 의사를 위한 지속적인 두통 보고서 작성
+  it: Crea un rapporto sulle mie cefalee persistenti per il neurologo
+  tr: Nörologum için süregelen baş ağrılarım hakkında rapor oluştur
+  vi: Tạo báo cáo về đau đầu kéo dài cho bác sĩ thần kinh
+  id: Buat laporan tentang sakit kepala berkepanjangan untuk dokter saraf saya
+  pl: Utwórz raport o moich uporczywych bólach głowy dla neurologa
+  nl: Maak een rapport over mijn aanhoudende hoofdpijn voor mijn neuroloog
+  ar: أنشئ تقريرًا عن صداعي المستمر لطبيب الأعصاب
+  hi: मेरे न्यूरोलॉजिस्ट के लिए लगातार सिरदर्द की रिपोर्ट बनाएं
+  th: สร้างรายงานเกี่ยวกับอาการปวดหัวเรื้อรังสำหรับแพทย์ระบบประสาท
+  cs: Vytvořte zprávu o mých přetrvávajících bolestech hlavy pro neurologa
+  sv: Skapa en rapport om min ihållande huvudvärk för min neurolog
+  verified_by_human: [en, de]
+
+create_report.how_to_use.2:
+  context: Example instruction for health create report skill - back pain
+  en: Prepare a medical report about my recent back pain symptoms
+  de: Bereite einen medizinischen Bericht über meine kürzlichen Rückenschmerzen vor
+  zh: 准备一份关于我最近背痛症状的医疗报告
+  es: Prepara un informe médico sobre mis recientes síntomas de dolor de espalda
+  fr: Prépare un rapport médical sur mes récents symptômes de douleurs dorsales
+  pt: Prepare um relatório médico sobre meus sintomas recentes de dor nas costas
+  ru: Подготовьте медицинский отчёт о моих недавних болях в спине
+  ja: 最近の腰痛の症状についての医療レポートを準備
+  ko: 최근 허리 통증 증상에 대한 의료 보고서 준비
+  it: Prepara un rapporto medico sui miei recenti dolori alla schiena
+  tr: Son zamanlardaki sırt ağrısı belirtilerim hakkında tıbbi rapor hazırla
+  vi: Chuẩn bị báo cáo y tế về triệu chứng đau lưng gần đây
+  id: Siapkan laporan medis tentang gejala sakit punggung saya baru-baru ini
+  pl: Przygotuj raport medyczny o moich niedawnych objawach bólu pleców
+  nl: Bereid een medisch rapport voor over mijn recente rugpijnklachten
+  ar: أعد تقريرًا طبيًا عن أعراض آلام ظهري الأخيرة
+  hi: मेरी हालिया पीठ दर्द के लक्षणों की मेडिकल रिपोर्ट तैयार करें
+  th: เตรียมรายงานแพทย์เกี่ยวกับอาการปวดหลังล่าสุด
+  cs: Připravte lékařskou zprávu o mých nedávných bolestech zad
+  sv: Förbered en medicinsk rapport om mina senaste ryggsmärtor
+  verified_by_human: [en, de]
+
+create_report.how_to_use.3:
+  context: Example instruction for health create report skill - allergies
+  en: Write a report summarizing my allergy symptoms for my doctor
+  de: Schreibe einen Bericht, der meine Allergiesymptome für meinen Arzt zusammenfasst
+  zh: 写一份总结我过敏症状的报告给医生
+  es: Escribe un informe que resuma mis síntomas de alergia para mi médico
+  fr: Rédige un rapport résumant mes symptômes d'allergie pour mon médecin
+  pt: Escreva um relatório resumindo meus sintomas de alergia para meu médico
+  ru: Напишите отчёт с описанием моих симптомов аллергии для врача
+  ja: 医師のためにアレルギー症状をまとめたレポートを作成
+  ko: 의사를 위해 알레르기 증상을 요약한 보고서 작성
+  it: Scrivi un rapporto che riassuma i miei sintomi allergici per il medico
+  tr: Doktorum için alerji belirtilerimi özetleyen bir rapor yaz
+  vi: Viết báo cáo tóm tắt triệu chứng dị ứng cho bác sĩ
+  id: Tulis laporan yang merangkum gejala alergi saya untuk dokter
+  pl: Napisz raport podsumowujący moje objawy alergii dla lekarza
+  nl: Schrijf een rapport met een samenvatting van mijn allergiesymptomen voor mijn arts
+  ar: اكتب تقريرًا يلخص أعراض الحساسية لطبيبي
+  hi: मेरे डॉक्टर के लिए एलर्जी के लक्षणों का सारांश रिपोर्ट लिखें
+  th: เขียนรายงานสรุปอาการแพ้สำหรับแพทย์ของฉัน
+  cs: Napište zprávu shrnující mé alergické příznaky pro lékaře
+  sv: Skriv en rapport som sammanfattar mina allergisymtom för min läkare
+  verified_by_human: [en, de]

@@ -48,6 +48,79 @@ search_connections.description:
   verified_by_human:
     - en
     - de
+
+search_connections.how_to_use.1:
+  context: Example instruction for travel search connections skill - flights
+  en: Find flights from Berlin to Barcelona next Friday
+  de: Finde Flüge von Berlin nach Barcelona nächsten Freitag
+  zh: 查找下周五从 Berlin 到 Barcelona 的航班
+  es: Busca vuelos de Berlin a Barcelona el próximo viernes
+  fr: Trouve des vols de Berlin à Barcelona vendredi prochain
+  pt: Encontre voos de Berlin para Barcelona na próxima sexta-feira
+  ru: Найдите рейсы из Berlin в Barcelona в следующую пятницу
+  ja: 来週の金曜日に Berlin から Barcelona へのフライトを検索
+  ko: 다음 금요일 Berlin에서 Barcelona로 가는 항공편 찾기
+  it: Trova voli da Berlin a Barcelona venerdì prossimo
+  tr: Berlin'den Barcelona'ya önümüzdeki Cuma uçuşları bul
+  vi: Tìm chuyến bay từ Berlin đến Barcelona vào thứ Sáu tuần sau
+  id: Cari penerbangan dari Berlin ke Barcelona Jumat depan
+  pl: Znajdź loty z Berlin do Barcelona w następny piątek
+  nl: Vind vluchten van Berlin naar Barcelona volgende vrijdag
+  ar: اعثر على رحلات من Berlin إلى Barcelona يوم الجمعة القادم
+  hi: अगले शुक्रवार को Berlin से Barcelona की उड़ानें खोजें
+  th: ค้นหาเที่ยวบินจาก Berlin ไป Barcelona วันศุกร์หน้า
+  cs: Najděte lety z Berlin do Barcelona příští pátek
+  sv: Hitta flyg från Berlin till Barcelona nästa fredag
+  verified_by_human: [en, de]
+
+search_connections.how_to_use.2:
+  context: Example instruction for travel search connections skill - trains
+  en: Search for trains from Munich to Vienna on March 15
+  de: Suche Züge von München nach Wien am 15. März
+  zh: 搜索3月15日从 Munich 到 Vienna 的火车
+  es: Busca trenes de Munich a Vienna el 15 de marzo
+  fr: Recherche des trains de Munich à Vienna le 15 mars
+  pt: Pesquise trens de Munich para Vienna em 15 de março
+  ru: Найдите поезда из Munich в Vienna 15 марта
+  ja: 3月15日に Munich から Vienna への電車を検索
+  ko: 3월 15일 Munich에서 Vienna로 가는 기차 검색
+  it: Cerca treni da Munich a Vienna il 15 marzo
+  tr: 15 Mart'ta Munich'den Vienna'ya tren ara
+  vi: Tìm tàu từ Munich đến Vienna vào ngày 15 tháng 3
+  id: Cari kereta dari Munich ke Vienna pada 15 Maret
+  pl: Szukaj pociągów z Munich do Vienna 15 marca
+  nl: Zoek treinen van Munich naar Vienna op 15 maart
+  ar: ابحث عن قطارات من Munich إلى Vienna في 15 مارس
+  hi: 15 मार्च को Munich से Vienna की ट्रेनें खोजें
+  th: ค้นหา train จาก Munich ไป Vienna ในวันที่ 15 มีนาคม
+  cs: Vyhledejte vlaky z Munich do Vienna 15. března
+  sv: Sök tåg från Munich till Vienna den 15 mars
+  verified_by_human: [en, de]
+
+search_connections.how_to_use.3:
+  context: Example instruction for travel search connections skill - cheapest
+  en: What are the cheapest flights to Tokyo in April?
+  de: Was sind die günstigsten Flüge nach Tokio im April?
+  zh: 4月去 Tokyo 最便宜的航班有哪些？
+  es: ¿Cuáles son los vuelos más baratos a Tokyo en abril?
+  fr: Quels sont les vols les moins chers vers Tokyo en avril ?
+  pt: Quais são os voos mais baratos para Tokyo em abril?
+  ru: Какие самые дешёвые рейсы в Tokyo в апреле?
+  ja: 4月の Tokyo 行きの最安値フライトは？
+  ko: 4월 Tokyo 행 최저가 항공편은?
+  it: Quali sono i voli più economici per Tokyo ad aprile?
+  tr: Nisan'da Tokyo'ya en ucuz uçuşlar hangileri?
+  vi: Chuyến bay rẻ nhất đến Tokyo vào tháng 4 là gì?
+  id: Apa penerbangan termurah ke Tokyo di bulan April?
+  pl: Jakie są najtańsze loty do Tokyo w kwietniu?
+  nl: Wat zijn de goedkoopste vluchten naar Tokyo in april?
+  ar: ما هي أرخص رحلات الطيران إلى Tokyo في أبريل؟
+  hi: अप्रैल में Tokyo के सबसे सस्ते उड़ानें कौन सी हैं?
+  th: เที่ยวบินไป Tokyo ที่ถูกที่สุดในเดือนเมษายนมีอะไรบ้าง?
+  cs: Jaké jsou nejlevnější lety do Tokyo v dubnu?
+  sv: Vilka är de billigaste flygen till Tokyo i april?
+  verified_by_human: [en, de]
+
 price_calendar:
   context: Skill name for travel price calendar (monthly flight price heatmap)
   en: Price Calendar
@@ -76,3 +149,75 @@ search_stays.description:
   verified_by_human:
     - en
     - de
+
+search_stays.how_to_use.1:
+  context: Example instruction for travel search stays skill - hotels
+  en: Find hotels near the Eiffel Tower for 2 nights
+  de: Finde Hotels in der Nähe des Eiffelturms für 2 Nächte
+  zh: 在 Eiffel Tower 附近找住2晚的酒店
+  es: Busca hoteles cerca de la Eiffel Tower para 2 noches
+  fr: Trouve des hôtels près de la Eiffel Tower pour 2 nuits
+  pt: Encontre hotéis perto da Eiffel Tower para 2 noites
+  ru: Найдите отели рядом с Eiffel Tower на 2 ночи
+  ja: Eiffel Tower 近くで2泊のホテルを検索
+  ko: Eiffel Tower 근처 2박 호텔 찾기
+  it: Trova hotel vicino alla Eiffel Tower per 2 notti
+  tr: Eiffel Tower yakınında 2 gece için otel bul
+  vi: Tìm khách sạn gần Eiffel Tower cho 2 đêm
+  id: Cari hotel dekat Eiffel Tower untuk 2 malam
+  pl: Znajdź hotele w pobliżu Eiffel Tower na 2 noce
+  nl: Vind hotels bij de Eiffel Tower voor 2 nachten
+  ar: اعثر على فنادق قرب Eiffel Tower لمدة ليلتين
+  hi: Eiffel Tower के पास 2 रातों के लिए होटल खोजें
+  th: ค้นหาโรงแรมใกล้ Eiffel Tower สำหรับ 2 คืน
+  cs: Najděte hotely u Eiffel Tower na 2 noci
+  sv: Hitta hotell nära Eiffel Tower för 2 nätter
+  verified_by_human: [en, de]
+
+search_stays.how_to_use.2:
+  context: Example instruction for travel search stays skill - budget
+  en: Search for hostels in Barcelona under 50 euros per night
+  de: Suche Hostels in Barcelona unter 50 Euro pro Nacht
+  zh: 在 Barcelona 搜索每晚50欧元以下的青年旅舍
+  es: Busca hostales en Barcelona por menos de 50 euros por noche
+  fr: Recherche des auberges à Barcelona sous 50 euros la nuit
+  pt: Pesquise hostels em Barcelona por menos de 50 euros por noite
+  ru: Найдите хостелы в Barcelona до 50 евро за ночь
+  ja: Barcelona で1泊50ユーロ以下のホステルを検索
+  ko: Barcelona에서 1박 50유로 미만 호스텔 검색
+  it: Cerca ostelli a Barcelona sotto 50 euro a notte
+  tr: Barcelona'da gecelik 50 euro altı hosteller ara
+  vi: Tìm hostel ở Barcelona dưới 50 euro mỗi đêm
+  id: Cari hostel di Barcelona di bawah 50 euro per malam
+  pl: Szukaj hosteli w Barcelona poniżej 50 euro za noc
+  nl: Zoek hostels in Barcelona onder 50 euro per nacht
+  ar: ابحث عن نزل في Barcelona بأقل من 50 يورو لليلة
+  hi: Barcelona में 50 यूरो प्रति रात से कम के हॉस्टल खोजें
+  th: ค้นหา hostel ใน Barcelona ต่ำกว่า 50 ยูโรต่อคืน
+  cs: Vyhledejte hostely v Barcelona do 50 eur za noc
+  sv: Sök hostels i Barcelona under 50 euro per natt
+  verified_by_human: [en, de]
+
+search_stays.how_to_use.3:
+  context: Example instruction for travel search stays skill - family
+  en: Find family-friendly accommodations in Rome for Easter week
+  de: Finde familienfreundliche Unterkünfte in Rom für die Osterwoche
+  zh: 在 Rome 找 Easter 周适合家庭的住宿
+  es: Busca alojamientos familiares en Rome para la semana de Easter
+  fr: Trouve des hébergements adaptés aux familles à Rome pour la semaine de Easter
+  pt: Encontre acomodações para famílias em Rome para a semana de Easter
+  ru: Найдите семейные отели в Rome на неделю Easter
+  ja: Rome で Easter 週のファミリー向け宿泊施設を検索
+  ko: Rome에서 Easter 주에 가족 친화적 숙소 찾기
+  it: Trova alloggi per famiglie a Rome per la settimana di Easter
+  tr: Rome'da Easter haftası için aile dostu konaklama bul
+  vi: Tìm chỗ ở thân thiện với gia đình ở Rome cho tuần Easter
+  id: Cari akomodasi ramah keluarga di Rome untuk minggu Easter
+  pl: Znajdź przyjazne rodzinom noclegi w Rome na tydzień Easter
+  nl: Vind gezinsvriendelijke accommodaties in Rome voor de Easter week
+  ar: اعثر على إقامات مناسبة للعائلات في Rome لأسبوع Easter
+  hi: Rome में Easter सप्ताह के लिए परिवार के अनुकूल आवास खोजें
+  th: ค้นหาที่พักเหมาะสำหรับครอบครัวใน Rome สำหรับสัปดาห์ Easter
+  cs: Najděte ubytování vhodné pro rodiny v Rome na týden Easter
+  sv: Hitta familjevänliga boenden i Rome för Easter-veckan
+  verified_by_human: [en, de]

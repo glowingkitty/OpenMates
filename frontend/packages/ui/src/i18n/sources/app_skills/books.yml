@@ -48,3 +48,75 @@ translate.description:
   verified_by_human:
     - en
     - de
+
+translate.how_to_use.1:
+  context: Example instruction for books translate skill - classic book to German
+  en: Translate my eBook "The Little Prince" to German
+  de: Übersetze mein E-Book „Der kleine Prinz" ins Deutsche
+  zh: 将我的电子书《小王子》翻译成德语
+  es: Traduce mi eBook "El Principito" al alemán
+  fr: Traduis mon eBook « Le Petit Prince » en allemand
+  pt: Traduza meu eBook "O Pequeno Príncipe" para alemão
+  ru: Переведите мою книгу «Маленький принц» на немецкий
+  ja: 電子書籍「星の王子さま」をドイツ語に翻訳
+  ko: 전자책 "어린 왕자"를 독일어로 번역
+  it: Traduci il mio eBook "Il Piccolo Principe" in tedesco
+  tr: '"Küçük Prens" e-kitabımı Almancaya çevir'
+  vi: Dịch sách điện tử "Hoàng tử bé" sang tiếng Đức
+  id: Terjemahkan eBook "Pangeran Kecil" ke bahasa Jerman
+  pl: Przetłumacz mój eBook „Mały Książę" na niemiecki
+  nl: Vertaal mijn e-boek "De Kleine Prins" naar het Duits
+  ar: ترجم كتابي الإلكتروني "الأمير الصغير" إلى الألمانية
+  hi: मेरी ई-बुक "द लिटिल प्रिंस" का जर्मन में अनुवाद करें
+  th: แปลอีบุ๊ก "เจ้าชายน้อย" เป็นภาษาเยอรมัน
+  cs: Přeložte můj eBook „Malý princ" do němčiny
+  sv: Översätt min e-bok "Lille prinsen" till tyska
+  verified_by_human: [en, de]
+
+translate.how_to_use.2:
+  context: Example instruction for books translate skill - English to Spanish
+  en: Translate this book from English to Spanish
+  de: Übersetze dieses Buch von Englisch nach Spanisch
+  zh: 将这本书从英语翻译成西班牙语
+  es: Traduce este libro del inglés al español
+  fr: Traduis ce livre de l'anglais vers l'espagnol
+  pt: Traduza este livro de inglês para espanhol
+  ru: Переведите эту книгу с английского на испанский
+  ja: この本を英語からスペイン語に翻訳
+  ko: 이 책을 영어에서 스페인어로 번역
+  it: Traduci questo libro dall'inglese allo spagnolo
+  tr: Bu kitabı İngilizceden İspanyolcaya çevir
+  vi: Dịch cuốn sách này từ tiếng Anh sang tiếng Tây Ban Nha
+  id: Terjemahkan buku ini dari bahasa Inggris ke bahasa Spanyol
+  pl: Przetłumacz tę książkę z angielskiego na hiszpański
+  nl: Vertaal dit boek van Engels naar Spaans
+  ar: ترجم هذا الكتاب من الإنجليزية إلى الإسبانية
+  hi: इस किताब का अंग्रेजी से स्पेनिश में अनुवाद करें
+  th: แปลหนังสือนี้จากภาษาอังกฤษเป็นภาษาสเปน
+  cs: Přeložte tuto knihu z angličtiny do španělštiny
+  sv: Översätt den här boken från engelska till spanska
+  verified_by_human: [en, de]
+
+translate.how_to_use.3:
+  context: Example instruction for books translate skill - to French
+  en: Convert my English eBook to French
+  de: Konvertiere mein englisches E-Book ins Französische
+  zh: 将我的英文电子书转换为法语
+  es: Convierte mi eBook en inglés al francés
+  fr: Convertis mon eBook en anglais vers le français
+  pt: Converta meu eBook em inglês para francês
+  ru: Конвертируйте мою книгу на английском во французский
+  ja: 英語の電子書籍をフランス語に変換
+  ko: 영어 전자책을 프랑스어로 변환
+  it: Converti il mio eBook in inglese in francese
+  tr: İngilizce e-kitabımı Fransızcaya dönüştür
+  vi: Chuyển đổi sách điện tử tiếng Anh sang tiếng Pháp
+  id: Ubah eBook bahasa Inggris saya ke bahasa Prancis
+  pl: Przekonwertuj mój angielski eBook na francuski
+  nl: Zet mijn Engelse e-boek om naar het Frans
+  ar: حوّل كتابي الإلكتروني بالإنجليزية إلى الفرنسية
+  hi: मेरी अंग्रेजी ई-बुक को फ्रेंच में बदलें
+  th: แปลงอีบุ๊กภาษาอังกฤษเป็นภาษาฝรั่งเศส
+  cs: Převeďte můj anglický eBook do francouzštiny
+  sv: Konvertera min engelska e-bok till franska
+  verified_by_human: [en, de]

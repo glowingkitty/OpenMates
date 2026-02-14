@@ -273,6 +273,29 @@ skills.title:
   cs: Dovednosti
   sv: Färdigheter
   verified_by_human: []
+skills.how_to_use:
+  context: Section title for how to use examples on skill detail page
+  en: How to use
+  de: So verwendest du es
+  zh: 如何使用
+  es: Cómo usar
+  fr: Comment utiliser
+  pt: Como usar
+  ru: Как использовать
+  ja: 使い方
+  ko: 사용 방법
+  it: Come usare
+  tr: Nasıl kullanılır
+  vi: Cách sử dụng
+  id: Cara menggunakan
+  pl: Jak używać
+  nl: Hoe te gebruiken
+  ar: كيفية الاستخدام
+  hi: कैसे उपयोग करें
+  th: วิธีใช้
+  cs: Jak používat
+  sv: Hur man använder
+  verified_by_human: [en, de]
 skills.description:
   context: Label for skill description
   en: Description
