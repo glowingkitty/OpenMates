@@ -66,6 +66,15 @@ export const text: Readable<TranslateFunction> = browser
                   return missingPlaceholder(key);
               }
 
+              // Guard against non-string values from svelte-i18n.
+              // If a key points to an intermediate node (object) instead of a leaf string,
+              // $translate() may return that object. Without this check, it would render
+              // as "[object Object]" in the UI. Log the offending key for debugging.
+              if (typeof translated !== 'string') {
+                  console.error(`[i18n] $text('${key}') returned ${typeof translated} instead of string — check locale JSON structure`, translated);
+                  return missingPlaceholder(key);
+              }
+
               // Only sanitize if DOMPurify is loaded
               if (DOMPurify) {
                   return DOMPurify.sanitize(translated, {
