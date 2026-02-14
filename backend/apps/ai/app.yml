@@ -24,6 +24,9 @@ settings_and_memories:
     description_translation_key: ai.communication_style.description
     type: single
     stage: production
+    example_translation_keys:
+      - "ai.communication_style.example_1"
+      - "ai.communication_style.example_2"
     schema:
       type: object
       properties:
@@ -58,6 +61,9 @@ settings_and_memories:
     description_translation_key: ai.learning_preferences.description
     type: list
     stage: production
+    example_translation_keys:
+      - "ai.learning_preferences.example_1"
+      - "ai.learning_preferences.example_2"
     schema:
       type: object
       properties:

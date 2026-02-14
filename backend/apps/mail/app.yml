@@ -10,6 +10,9 @@ settings_and_memories:
   description_translation_key: mail.writing_styles.description
   type: list
   stage: planning
+  example_translation_keys:
+    - "mail.writing_styles.example_1"
+    - "mail.writing_styles.example_2"
   schema:
     type: object
     properties:

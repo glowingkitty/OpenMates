@@ -48,3 +48,53 @@ my_plants.description:
   verified_by_human:
     - en
     - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+my_plants.example_1:
+  context: Example entry for my plants (a popular houseplant)
+  en: Monstera Deliciosa
+  de: Monstera Deliciosa
+  zh: 龟背竹
+  es: Monstera Deliciosa
+  fr: Monstera Deliciosa
+  pt: Monstera Deliciosa
+  ru: Монстера деликатесная
+  ja: モンステラ・デリシオサ
+  ko: 몬스테라 델리시오사
+  it: Monstera Deliciosa
+  tr: Monstera Deliciosa
+  vi: Trầu bà lá xẻ
+  id: Monstera Deliciosa
+  pl: Monstera Deliciosa
+  nl: Monstera Deliciosa
+  ar: مونستيرا
+  hi: मॉन्स्टेरा डेलिसियोसा
+  th: มอนสเตร่า
+  cs: Monstera Deliciosa
+  sv: Monstera Deliciosa
+  verified_by_human: [en, de]
+
+my_plants.example_2:
+  context: Example entry for my plants (a common houseplant)
+  en: Snake Plant
+  de: Bogenhanf
+  zh: 虎尾兰
+  es: Lengua de suegra
+  fr: Langue de belle-mère
+  pt: Espada-de-são-jorge
+  ru: Сансевиерия
+  ja: サンスベリア
+  ko: 산세베리아
+  it: Sanseviera
+  tr: Paşa kılıcı
+  vi: Cây lưỡi hổ
+  id: Tanaman lidah mertua
+  pl: Sansewieria
+  nl: Vrouwentong
+  ar: نبات الثعبان
+  hi: स्नेक प्लांट
+  th: ลิ้นมังกร
+  cs: Zelenec
+  sv: Svärmorstunga
+  verified_by_human: [en, de]

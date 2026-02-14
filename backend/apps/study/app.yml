@@ -10,6 +10,9 @@ settings_and_memories:
     description_translation_key: study.learning_goals.description
     type: list
     stage: production
+    example_translation_keys:
+      - "study.learning_goals.example_1"
+      - "study.learning_goals.example_2"
     schema:
       type: object
       properties:

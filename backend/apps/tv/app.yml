@@ -10,6 +10,9 @@ settings_and_memories:
     description_translation_key: tv.watched_movies.description
     type: list
     stage: production
+    example_translation_keys:
+      - "tv.watched_movies.example_1"
+      - "tv.watched_movies.example_2"
     schema:
       type: object
       properties:
@@ -47,6 +50,9 @@ settings_and_memories:
     description_translation_key: tv.watched_tv_shows.description
     type: list
     stage: production
+    example_translation_keys:
+      - "tv.watched_tv_shows.example_1"
+      - "tv.watched_tv_shows.example_2"
     schema:
       type: object
       properties:
@@ -93,6 +99,9 @@ settings_and_memories:
     description_translation_key: tv.to_watch_list.description
     type: list
     stage: production
+    example_translation_keys:
+      - "tv.to_watch_list.example_1"
+      - "tv.to_watch_list.example_2"
     schema:
       type: object
       properties:

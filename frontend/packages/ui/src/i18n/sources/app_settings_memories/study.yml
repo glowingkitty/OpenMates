@@ -148,3 +148,53 @@ career_interests.description:
   verified_by_human:
     - en
     - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+learning_goals.example_1:
+  context: Example entry for learning goals (a language goal)
+  en: Spanish B2 level
+  de: Spanisch B2-Niveau
+  zh: 西班牙语B2水平
+  es: Español nivel B2
+  fr: Espagnol niveau B2
+  pt: Espanhol nível B2
+  ru: Испанский уровень B2
+  ja: スペイン語B2レベル
+  ko: 스페인어 B2 레벨
+  it: Spagnolo livello B2
+  tr: İspanyolca B2 seviyesi
+  vi: Tiếng Tây Ban Nha B2
+  id: Bahasa Spanyol tingkat B2
+  pl: Hiszpański poziom B2
+  nl: Spaans B2-niveau
+  ar: الإسبانية مستوى B2
+  hi: स्पेनिश B2 स्तर
+  th: ภาษาสเปนระดับ B2
+  cs: Španělština úroveň B2
+  sv: Spanska B2-nivå
+  verified_by_human: [en, de]
+
+learning_goals.example_2:
+  context: Example entry for learning goals (a technical skill)
+  en: Data Science basics
+  de: Data Science Grundlagen
+  zh: 数据科学基础
+  es: Fundamentos de ciencia de datos
+  fr: Bases de la science des données
+  pt: Fundamentos de ciência de dados
+  ru: Основы Data Science
+  ja: データサイエンスの基礎
+  ko: 데이터 사이언스 기초
+  it: Basi di Data Science
+  tr: Veri Bilimi temelleri
+  vi: Cơ bản về Khoa học dữ liệu
+  id: Dasar-dasar Data Science
+  pl: Podstawy Data Science
+  nl: Data Science basis
+  ar: أساسيات علوم البيانات
+  hi: डेटा साइंस मूल बातें
+  th: พื้นฐาน Data Science
+  cs: Základy Data Science
+  sv: Data Science grunderna
+  verified_by_human: [en, de]

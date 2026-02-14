@@ -10,6 +10,9 @@ settings_and_memories:
     description_translation_key: health.appointments.description
     type: list
     stage: production
+    example_translation_keys:
+      - "health.appointments.example_1"
+      - "health.appointments.example_2"
     schema:
       type: object
       properties:
@@ -60,6 +63,9 @@ settings_and_memories:
     description_translation_key: health.medical_history.description
     type: list
     stage: production
+    example_translation_keys:
+      - "health.medical_history.example_1"
+      - "health.medical_history.example_2"
     schema:
       type: object
       properties:

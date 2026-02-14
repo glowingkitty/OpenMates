@@ -140,3 +140,101 @@ interaction_preferences.description:
   cs: Jak upřednostňujete interakci s AI
   sv: Hur du föredrar att AI interagerar med dig
   verified_by_human: [en, de]
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+communication_style.example_1:
+  context: Example entry for communication style (professional preference)
+  en: Professional & concise
+  de: Professionell & prägnant
+  zh: 专业简洁
+  es: Profesional y conciso
+  fr: Professionnel et concis
+  pt: Profissional e conciso
+  ru: Профессиональный и краткий
+  ja: プロフェッショナルで簡潔
+  ko: 전문적이고 간결한
+  it: Professionale e conciso
+  tr: Profesyonel ve öz
+  vi: Chuyên nghiệp và ngắn gọn
+  id: Profesional dan ringkas
+  pl: Profesjonalny i zwięzły
+  nl: Professioneel en beknopt
+  ar: مهني وموجز
+  hi: पेशेवर और संक्षिप्त
+  th: มืออาชีพและกระชับ
+  cs: Profesionální a stručný
+  sv: Professionell och koncis
+  verified_by_human: [en, de]
+
+communication_style.example_2:
+  context: Example entry for communication style (casual preference)
+  en: Casual & friendly
+  de: Locker & freundlich
+  zh: 随意友好
+  es: Casual y amigable
+  fr: Décontracté et amical
+  pt: Casual e amigável
+  ru: Неформальный и дружелюбный
+  ja: カジュアルでフレンドリー
+  ko: 캐주얼하고 친근한
+  it: Informale e amichevole
+  tr: Rahat ve samimi
+  vi: Thoải mái và thân thiện
+  id: Santai dan ramah
+  pl: Swobodny i przyjazny
+  nl: Casual en vriendelijk
+  ar: غير رسمي وودود
+  hi: अनौपचारिक और मैत्रीपूर्ण
+  th: สบายๆ และเป็นมิตร
+  cs: Neformální a přátelský
+  sv: Avslappnad och vänlig
+  verified_by_human: [en, de]
+
+learning_preferences.example_1:
+  context: Example entry for learning preferences (visual learning)
+  en: Visual learner
+  de: Visueller Lerner
+  zh: 视觉学习者
+  es: Aprendizaje visual
+  fr: Apprenant visuel
+  pt: Aprendiz visual
+  ru: Визуальное обучение
+  ja: 視覚的学習者
+  ko: 시각적 학습자
+  it: Apprendimento visivo
+  tr: Görsel öğrenme
+  vi: Học qua hình ảnh
+  id: Belajar secara visual
+  pl: Wzrokowiec
+  nl: Visueel leren
+  ar: متعلم بصري
+  hi: दृश्य सीखने वाला
+  th: เรียนรู้แบบภาพ
+  cs: Vizuální učení
+  sv: Visuell inlärning
+  verified_by_human: [en, de]
+
+learning_preferences.example_2:
+  context: Example entry for learning preferences (hands-on learning)
+  en: Hands-on practice
+  de: Praktische Übungen
+  zh: 动手实践
+  es: Práctica práctica
+  fr: Pratique concrète
+  pt: Prática prática
+  ru: Практическое обучение
+  ja: ハンズオン練習
+  ko: 실습 중심
+  it: Pratica pratica
+  tr: Uygulamalı pratik
+  vi: Thực hành thực tế
+  id: Latihan langsung
+  pl: Praktyczne ćwiczenia
+  nl: Praktische oefening
+  ar: تعلم عملي
+  hi: व्यावहारिक अभ्यास
+  th: ฝึกปฏิบัติจริง
+  cs: Praktické cvičení
+  sv: Praktisk övning
+  verified_by_human: [en, de]

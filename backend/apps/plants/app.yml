@@ -10,6 +10,9 @@ settings_and_memories:
     description_translation_key: plants.my_plants.description
     type: list
     stage: planning
+    example_translation_keys:
+      - "plants.my_plants.example_1"
+      - "plants.my_plants.example_2"
     schema:
       type: object
       properties:
