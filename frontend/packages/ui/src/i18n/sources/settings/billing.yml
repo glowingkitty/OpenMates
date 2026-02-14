@@ -2254,3 +2254,8 @@ auto_topup_settings_help:
   cs: V Nastavení/Fakturace můžete kdykoli změnit nastavení automatického dobíjení.
   sv: I Inställningar/Fakturering kan du ändra inställningarna för automatisk påfyllning när som helst.
   verified_by_human: []
+invoices_error_loading:
+  context: Error message when fetching invoices fails
+  en: Error loading invoices
+  de: Fehler beim Laden der Rechnungen
+  verified_by_human: []

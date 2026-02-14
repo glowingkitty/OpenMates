@@ -1091,3 +1091,13 @@ click_to_enlarge_qr:
   cs: Klikněte na QR kód pro zvětšení
   sv: Klicka på QR-koden för att förstora
   verified_by_human: []
+sharing_embed:
+  context: Label in embed preview header during share configuration step
+  en: Sharing embed
+  de: Einbettung teilen
+  verified_by_human: []
+link_for_embed:
+  context: Label in embed preview header after share link has been created
+  en: Link for embed
+  de: Link für Einbettung
+  verified_by_human: []

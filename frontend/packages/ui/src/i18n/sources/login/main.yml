@@ -1951,3 +1951,13 @@ back:
   cs: Zpět
   sv: Tillbaka
   verified_by_human: []
+enter_backup_code_description:
+  context: Description text above backup code input form explaining how backup codes work
+  en: Enter one of your backup codes to sign in. Each code can only be used once.
+  de: Gib einen deiner Backup-Codes ein, um dich anzumelden. Jeder Code kann nur einmal verwendet werden.
+  verified_by_human: []
+use_authenticator_app:
+  context: Button text to switch from backup code entry back to authenticator app verification
+  en: Use authenticator app
+  de: Authenticator-App verwenden
+  verified_by_human: []

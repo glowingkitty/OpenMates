@@ -515,3 +515,13 @@ status.selecting_model:
   cs: Výběr AI modelu...
   sv: Väljer AI-modell...
   verified_by_human: []
+attachments.record_audio.hint:
+  context: Inline hint text shown next to the audio record button
+  en: Hold to record
+  de: Halten zum Aufnehmen
+  verified_by_human: []
+message_queued:
+  context: Fallback text shown when user sends a message while AI task is active
+  en: Message queued
+  de: Nachricht in Warteschlange
+  verified_by_human: []

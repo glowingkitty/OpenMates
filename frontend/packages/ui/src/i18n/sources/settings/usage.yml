@@ -1263,3 +1263,13 @@ deleted_chat:
   cs: Smazaný chat
   sv: Borttagen chatt
   verified_by_human: []
+view_app_details:
+  context: Aria-label on clickable app usage row for accessibility
+  en: View app details
+  de: App-Details anzeigen
+  verified_by_human: []
+view_api_key_details:
+  context: Aria-label on clickable API key usage row for accessibility
+  en: View API key details
+  de: API-Schlüssel-Details anzeigen
+  verified_by_human: []
