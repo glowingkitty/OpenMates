@@ -1,6 +1,12 @@
 # Security Settings Translations
 # Used in SecurityAuth.svelte and SettingsPassword.svelte
 
+security:
+  context: Security settings section title
+  en: Security
+  de: Sicherheit
+  verified_by_human: []
+
 # --- SecurityAuth Component ---
 auth_title:
   context: Title for security authentication modal

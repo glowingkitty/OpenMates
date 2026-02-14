@@ -1,3 +1,9 @@
+tip:
+  context: Tip settings section title
+  en: Tip
+  de: Trinkgeld
+  verified_by_human: []
+
 tip_creator:
   context: Navigation title for the tip settings page
   en: Tip Creator

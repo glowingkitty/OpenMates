@@ -1,3 +1,9 @@
+app_settings_memories:
+  context: App settings and memories section title
+  en: Settings & Memories
+  de: Einstellungen & Erinnerungen
+  verified_by_human: []
+
 item_key_required:
   context: Validation error when creating a memory entry without a key
   en: Entry key is required
