@@ -305,7 +305,7 @@
 <div class="record-overlay" transition:slide={{ duration: 200, axis: 'y' }}>
     <div class="record-content">
         <!-- Use $text for translation -->
-        <h2 class="header-text">{@html $text('enter_message.record_audio.release_to_finish.text') || 'Release to finish'}</h2>
+        <h2 class="header-text">{@html $text('enter_message.record_audio.release_to_finish')}</h2>
 
         <div class="controls-row">
             {#if isRecording}
@@ -321,7 +321,7 @@
             <!-- Cancel Indicator -->
             <div class="cancel-indicator">
                 <div class="cancel-x">✕</div>
-                <span>{@html $text('enter_message.record_audio.slide_left_to_cancel.text') || 'Slide left to cancel'}</span>
+                <span>{@html $text('enter_message.record_audio.slide_left_to_cancel')}</span>
             </div>
 
             <!-- Draggable Microphone -->

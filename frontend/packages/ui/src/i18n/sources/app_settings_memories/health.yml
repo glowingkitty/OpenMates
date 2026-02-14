@@ -198,3 +198,101 @@ sleep_diary.description:
   verified_by_human:
     - en
     - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+appointments.example_1:
+  context: Example entry for appointments (a type of doctor visit)
+  en: Dentist Dr. Mueller
+  de: Zahnarzt Dr. Mueller
+  zh: 牙医 Mueller 医生
+  es: Dentista Dr. Mueller
+  fr: Dentiste Dr. Mueller
+  pt: Dentista Dr. Mueller
+  ru: Стоматолог доктор Mueller
+  ja: 歯科医 Mueller 先生
+  ko: 치과의사 Mueller 박사
+  it: Dentista Dr. Mueller
+  tr: Diş hekimi Dr. Mueller
+  vi: Nha sĩ Dr. Mueller
+  id: Dokter gigi Dr. Mueller
+  pl: Dentysta Dr. Mueller
+  nl: Tandarts Dr. Mueller
+  ar: طبيب أسنان Dr. Mueller
+  hi: दंत चिकित्सक Dr. Mueller
+  th: ทันตแพทย์ Dr. Mueller
+  cs: Zubař Dr. Mueller
+  sv: Tandläkare Dr. Mueller
+  verified_by_human: [en, de]
+
+appointments.example_2:
+  context: Example entry for appointments (a routine checkup)
+  en: Eye exam checkup
+  de: Augenuntersuchung
+  zh: 眼科检查
+  es: Examen de la vista
+  fr: Examen de la vue
+  pt: Exame oftalmológico
+  ru: Проверка зрения
+  ja: 眼科検診
+  ko: 안과 검진
+  it: Visita oculistica
+  tr: Göz muayenesi
+  vi: Kiểm tra mắt
+  id: Pemeriksaan mata
+  pl: Badanie wzroku
+  nl: Oogcontrole
+  ar: فحص العيون
+  hi: आंखों की जांच
+  th: ตรวจสายตา
+  cs: Oční vyšetření
+  sv: Ögonundersökning
+  verified_by_human: [en, de]
+
+medical_history.example_1:
+  context: Example entry for medical history (an allergy)
+  en: Penicillin allergy
+  de: Penicillin-Allergie
+  zh: 青霉素过敏
+  es: Alergia a la penicilina
+  fr: Allergie à la pénicilline
+  pt: Alergia à penicilina
+  ru: Аллергия на пенициллин
+  ja: ペニシリンアレルギー
+  ko: 페니실린 알레르기
+  it: Allergia alla penicillina
+  tr: Penisilin alerjisi
+  vi: Dị ứng penicillin
+  id: Alergi penisilin
+  pl: Alergia na penicylinę
+  nl: Penicilline-allergie
+  ar: حساسية البنسلين
+  hi: पेनिसिलिन एलर्जी
+  th: แพ้ยาเพนิซิลลิน
+  cs: Alergie na penicilin
+  sv: Penicillinallergi
+  verified_by_human: [en, de]
+
+medical_history.example_2:
+  context: Example entry for medical history (a surgery)
+  en: Knee surgery 2023
+  de: Knieoperation 2023
+  zh: 2023年膝关节手术
+  es: Cirugía de rodilla 2023
+  fr: Chirurgie du genou 2023
+  pt: Cirurgia no joelho 2023
+  ru: Операция на колене 2023
+  ja: 膝の手術 2023
+  ko: 무릎 수술 2023
+  it: Chirurgia al ginocchio 2023
+  tr: Diz ameliyatı 2023
+  vi: Phẫu thuật đầu gối 2023
+  id: Operasi lutut 2023
+  pl: Operacja kolana 2023
+  nl: Knieoperatie 2023
+  ar: جراحة الركبة 2023
+  hi: घुटने की सर्जरी 2023
+  th: ผ่าตัดเข่า 2023
+  cs: Operace kolena 2023
+  sv: Knäoperation 2023
+  verified_by_human: [en, de]

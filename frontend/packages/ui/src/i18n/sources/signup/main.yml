@@ -6301,3 +6301,28 @@ recovery_key_print_storage_4:
   cs: NEUKLÁDEJTE společně s heslem
   sv: Förvara INTE tillsammans med ditt lösenord
   verified_by_human: []
+passkey_prf_not_supported:
+  context: Error message when WebAuthn PRF extension is not supported by the device
+  en: Your device doesn't support passkey encryption
+  de: Dein Gerät unterstützt keine Passkey-Verschlüsselung
+  verified_by_human: []
+dont_lose_access:
+  context: Warning text about backup codes importance
+  en: Don't lose access
+  de: Verliere nicht den Zugang
+  verified_by_human: []
+setup_2fa:
+  context: Button text for setting up two-factor authentication
+  en: Set up 2FA
+  de: 2FA einrichten
+  verified_by_human: []
+pricing_details_on_page_of_app_skill:
+  context: Text about pricing information location
+  en: Pricing details on the page of each app/skill
+  de: Preisdetails auf der Seite jeder App/Fähigkeit
+  verified_by_human: []
+open_app_settings:
+  context: Button text to open app settings
+  en: Open App Settings
+  de: App-Einstellungen öffnen
+  verified_by_human: []

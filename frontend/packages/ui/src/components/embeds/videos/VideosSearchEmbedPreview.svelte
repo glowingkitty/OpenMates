@@ -248,7 +248,7 @@
   }
   
   // Get skill name from translations
-  let skillName = $derived($text('embeds.search.text') || 'Search');
+  let skillName = $derived($text('embeds.search'));
   
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';
@@ -273,7 +273,7 @@
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
-    `${$text('embeds.via.text') || 'via'} ${provider}`
+    `${$text('embeds.via')} ${provider}`
   );
   
   // Get first 3 results with channel thumbnails for display (circular profile images)
@@ -358,7 +358,7 @@
           <!-- Remaining count - uses embeds.more_results translation with {count} placeholder -->
           {#if remainingCount > 0}
             <span class="remaining-count">
-              {$text('embeds.more_results.text').replace('{count}', String(remainingCount))}
+              {$text('embeds.more_results').replace('{count}', String(remainingCount))}
             </span>
           {/if}
         </div>

@@ -28,7 +28,7 @@ Gift Card Redeem - Component for redeeming gift card codes
     async function redeemCode() {
         // Validate input
         if (!giftCardCode.trim()) {
-            errorMessage = $text('settings.billing.gift_card.error.invalid.text');
+            errorMessage = $text('settings.billing.gift_card.error.invalid');
             return;
         }
 
@@ -61,7 +61,7 @@ Gift Card Redeem - Component for redeeming gift card codes
 
                 // Only show success message if not hidden (e.g., during signup we navigate away immediately)
                 if (!hideSuccessMessage) {
-                    successMessage = result.message || $text('settings.billing.gift_card.success.text');
+                    successMessage = result.message || $text('settings.billing.gift_card.success');
                 }
                 
                 // Dispatch success event - if hideSuccessMessage is true, dispatch immediately, otherwise wait to show message
@@ -74,11 +74,11 @@ Gift Card Redeem - Component for redeeming gift card codes
                 }, delay);
             } else {
                 console.error("Failed to redeem gift card:", result.message);
-                errorMessage = result.message || $text('settings.billing.gift_card.error.invalid.text');
+                errorMessage = result.message || $text('settings.billing.gift_card.error.invalid');
             }
         } catch (error) {
             console.error("Error redeeming gift card:", error);
-            errorMessage = $text('settings.billing.gift_card.error.invalid.text');
+            errorMessage = $text('settings.billing.gift_card.error.invalid');
         } finally {
             isRedeeming = false;
         }
@@ -107,14 +107,14 @@ Gift Card Redeem - Component for redeeming gift card codes
 <div class="gift-card-redeem-container">
     <div class="gift-card-form">
         <label class="gift-card-label" for="gift-card-code">
-            {@html $text('settings.billing.gift_card.enter_code.text')}
+            {@html $text('settings.billing.gift_card.enter_code')}
         </label>
         
         <input
             id="gift-card-code"
             type="text"
             class="gift-card-input"
-            placeholder={$text('settings.billing.gift_card.placeholder.text')}
+            placeholder={$text('settings.billing.gift_card.placeholder')}
             bind:value={giftCardCode}
             onkeypress={handleKeyPress}
             disabled={isRedeeming}
@@ -139,7 +139,7 @@ Gift Card Redeem - Component for redeeming gift card codes
                 onclick={handleCancel}
                 disabled={isRedeeming}
             >
-                {@html $text('settings.billing.gift_card.cancel.text')}
+                {@html $text('settings.billing.gift_card.cancel')}
             </button>
             
             <button
@@ -148,9 +148,9 @@ Gift Card Redeem - Component for redeeming gift card codes
                 disabled={isRedeeming || !giftCardCode.trim()}
             >
                 {#if isRedeeming}
-                    {@html $text('settings.billing.gift_card.redeem.text')}...
+                    {@html $text('settings.billing.gift_card.redeem')}...
                 {:else}
-                    {@html $text('settings.billing.gift_card.redeem.text')}
+                    {@html $text('settings.billing.gift_card.redeem')}
                 {/if}
             </button>
         </div>

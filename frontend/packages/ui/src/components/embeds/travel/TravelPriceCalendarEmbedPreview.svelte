@@ -106,7 +106,7 @@
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
-  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured.text') || 'Processing failed.'));
+  let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
   
   /**
    * Handle embed data updates from UnifiedEmbedPreview
@@ -134,7 +134,7 @@
   }
   
   // Skill display name from translations
-  let skillName = $derived($text('app_skills.travel.price_calendar.text') || 'Price Calendar');
+  let skillName = $derived($text('app_skills.travel.price_calendar'));
   
   // Skill icon
   const skillIconName = 'calendar';
@@ -203,7 +203,7 @@
     const days = firstResult.days_with_data || 0;
     const total = firstResult.total_days_in_month || 31;
     if (days === 0) return '';
-    return `${days} / ${total} ${$text('embeds.days.text') || 'days'}`;
+    return `${days} / ${total} ${$text('embeds.days')}`;
   });
   
   // Handle stop button click
@@ -250,12 +250,12 @@
       {/if}
       
       <!-- Provider -->
-      <div class="provider-text">{$text('embeds.via.text') || 'via'} Travelpayouts</div>
+      <div class="provider-text">{$text('embeds.via')} Travelpayouts</div>
       
       <!-- Error state -->
       {#if status === 'error'}
         <div class="calendar-error">
-          <div class="calendar-error-title">{$text('embeds.search_failed.text') || 'Search failed'}</div>
+          <div class="calendar-error-title">{$text('embeds.search_failed')}</div>
           <div class="calendar-error-message">{errorMessage}</div>
         </div>
       {:else if status === 'finished'}
@@ -270,7 +270,7 @@
           {/if}
           
           {#if !priceRange && !daysInfo && firstResult}
-            <span class="no-data-text">{$text('embeds.no_price_data.text') || 'No price data available'}</span>
+            <span class="no-data-text">{$text('embeds.no_price_data')}</span>
           {/if}
         </div>
       {/if}

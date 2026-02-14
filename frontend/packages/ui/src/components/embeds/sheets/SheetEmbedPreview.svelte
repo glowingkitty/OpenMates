@@ -4,14 +4,16 @@
   Preview component for Sheet/Table embeds.
   Uses UnifiedEmbedPreview as base and provides table-specific details content.
   
+  Design: Matches the fullscreen Excel/Google Sheets style
+  - Always white background regardless of dark mode
+  - Thin grey grid lines, light header row
+  - Horizontal scroll for wide tables (no squeezing columns)
+  - Shows first few preview rows with "+N more rows" indicator
+  
   Details content structure:
   - Processing: "Generating..." placeholder
   - Finished: Preview of first few rows of the table
   - Error: Empty placeholder with table icon
-  
-  Sizes:
-  - Desktop: 300x200px
-  - Mobile: 150x290px
 -->
 
 <script lang="ts">
@@ -55,7 +57,7 @@
     tableContent: tableContentProp = ''
   }: Props = $props();
   
-  // Local reactive state for embed data - can be updated via onEmbedDataUpdated callback
+  // Local reactive state — can be updated via onEmbedDataUpdated callback
   let localTableContent = $state<string>('');
   let localTitle = $state<string | undefined>(undefined);
   let localRowCount = $state<number>(0);
@@ -84,26 +86,21 @@
   // Maximum rows to show in preview
   const MAX_PREVIEW_ROWS = 4;
   
-  // Parse table content to extract markdown and metadata
+  // Parse table content
   let parsedContent = $derived.by(() => parseSheetEmbedContent(tableContent, { title }));
   let renderTitle = $derived(parsedContent.title);
   let parsedTable = $derived(parsedContent.parsedTable);
   
-  // Get actual row/col counts from parsed table if not provided
+  // Get actual row/col counts
   let actualRowCount = $derived(rowCount > 0 ? rowCount : parsedTable.rowCount);
   let actualColCount = $derived(colCount > 0 ? colCount : parsedTable.colCount);
   
-  // Get preview rows (first MAX_PREVIEW_ROWS rows)
+  // Get preview rows
   let previewRows = $derived(parsedTable.rows.slice(0, MAX_PREVIEW_ROWS));
   let hasMoreRows = $derived(parsedTable.rowCount > MAX_PREVIEW_ROWS);
   
   // Build skill name for BasicInfosBar
-  let skillName = $derived.by(() => {
-    if (renderTitle) {
-      return renderTitle;
-    }
-    return $text('embeds.table.text');
-  });
+  let skillName = $derived.by(() => renderTitle || $text('embeds.table'));
   
   // Build status text: dimensions
   let statusText = $derived.by(() => {
@@ -111,12 +108,10 @@
     return formatTableDimensions(actualRowCount, actualColCount);
   });
   
-  // Icon for tables
   const skillIconName = 'table';
   
   /**
    * Handle embed data updates from server
-   * Updates local state when embed status changes
    */
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
     console.debug('[SheetEmbedPreview] Received embed data update:', {
@@ -125,24 +120,20 @@
       hasContent: !!data.decodedContent
     });
     
-    // Update status
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
     }
     
-    // Update content from decoded TOON
     if (data.decodedContent) {
-      const content = data.decodedContent;
-      localTableContent = content.code || content.table || content.content || '';
-      if (content.title) {
-        localTitle = content.title;
-      }
-      if (typeof content.rows === 'number') {
-        localRowCount = content.rows;
-      }
-      if (typeof content.cols === 'number') {
-        localColCount = content.cols;
-      }
+      const c = data.decodedContent;
+      // TOON content uses 'table' field; legacy/fallback uses 'code'
+      localTableContent = String(c.table || c.code || c.content || '');
+      if (c.title) localTitle = String(c.title);
+      // TOON content uses row_count/col_count; legacy uses rows/cols
+      if (typeof c.row_count === 'number') localRowCount = c.row_count;
+      else if (typeof c.rows === 'number') localRowCount = c.rows;
+      if (typeof c.col_count === 'number') localColCount = c.col_count;
+      else if (typeof c.cols === 'number') localColCount = c.cols;
     }
   }
 </script>
@@ -165,32 +156,24 @@
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="sheet-preview" class:mobile={isMobileSnippet}>
       {#if status === 'processing'}
-        <!-- Processing state: show skeleton -->
+        <!-- Skeleton loading -->
         <div class="skeleton-table">
           <div class="skeleton-row header">
             <div class="skeleton-cell"></div>
             <div class="skeleton-cell"></div>
             <div class="skeleton-cell"></div>
           </div>
-          <div class="skeleton-row">
-            <div class="skeleton-cell"></div>
-            <div class="skeleton-cell"></div>
-            <div class="skeleton-cell"></div>
-          </div>
-          <div class="skeleton-row">
-            <div class="skeleton-cell"></div>
-            <div class="skeleton-cell"></div>
-            <div class="skeleton-cell"></div>
-          </div>
+          <div class="skeleton-row"><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div></div>
+          <div class="skeleton-row"><div class="skeleton-cell"></div><div class="skeleton-cell"></div><div class="skeleton-cell"></div></div>
         </div>
       {:else if status === 'finished' && parsedTable.headers.length > 0}
-        <!-- Finished state: show table preview -->
-        <div class="table-container">
+        <!-- Table preview — scrolls horizontally for wide tables -->
+        <div class="table-scroll">
           <table class="preview-table">
             <thead>
               <tr>
                 {#each parsedTable.headers as header}
-                  <th style:text-align={header.align || 'left'}>{header.content}</th>
+                  <th>{header.content}</th>
                 {/each}
               </tr>
             </thead>
@@ -198,7 +181,7 @@
               {#each previewRows as row}
                 <tr>
                   {#each row as cell}
-                    <td style:text-align={cell.align || 'left'}>{cell.content}</td>
+                    <td>{cell.content}</td>
                   {/each}
                 </tr>
               {/each}
@@ -223,42 +206,47 @@
 </UnifiedEmbedPreview>
 
 <style>
+  /* ═══════════════════════════════════════════════════════════
+     Sheet Preview — compact Excel-like table, always white.
+     ═══════════════════════════════════════════════════════════ */
+  
   .sheet-preview {
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 8px;
+    padding: 0;
     box-sizing: border-box;
+    background: #ffffff;
   }
   
-  .sheet-preview.mobile {
-    padding: 6px;
-  }
+  /* ── Skeleton loading ────────────────────────────────── */
   
-  /* Skeleton loading state */
   .skeleton-table {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     width: 100%;
+    padding: 6px;
+    box-sizing: border-box;
+    background: #fff;
   }
   
   .skeleton-row {
     display: flex;
-    gap: 4px;
+    gap: 3px;
   }
   
   .skeleton-row.header .skeleton-cell {
-    background: var(--color-grey-25, #e5e5e5);
+    background: #e8e8e8;
   }
   
   .skeleton-cell {
     flex: 1;
-    height: 20px;
-    background: var(--color-grey-15, #f0f0f0);
-    border-radius: 4px;
+    height: 18px;
+    background: #f0f0f0;
+    border-radius: 2px;
     animation: pulse 1.5s ease-in-out infinite;
   }
   
@@ -267,59 +255,78 @@
     50% { opacity: 1; }
   }
   
-  /* Table preview */
-  .table-container {
+  /* ── Table scroll container — overflow hidden, no scrollbar ──
+     Preview is a static snapshot. Only fullscreen can scroll. */
+  
+  .table-scroll {
     width: 100%;
+    flex: 1;
     overflow: hidden;
-    border-radius: 6px;
-    border: 1px solid var(--color-grey-20, #eaeaea);
-    background: var(--color-grey-5, #fafafa);
+    background: #ffffff;
   }
   
+  /* ── Preview table — edge-to-edge, fills available width ── */
+  
   .preview-table {
-    width: 100%;
     border-collapse: collapse;
     font-size: 11px;
     line-height: 1.3;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    width: 100%;
+    table-layout: fixed;
+    background: #ffffff;
   }
   
   .preview-table th,
   .preview-table td {
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--color-grey-15, #f0f0f0);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100px;
+    border: 1px solid #e2e2e2;
+    padding: 4px 8px;
+    text-align: left;
+    color: #202124;
   }
   
   .preview-table th {
-    background: var(--color-grey-15, #f0f0f0);
+    background: #f8f9fa;
     font-weight: 600;
-    color: var(--color-grey-80, #333);
+    color: #202124;
+    border-bottom: 2px solid #dadce0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
   .preview-table td {
-    color: var(--color-grey-70, #444);
+    color: #3c4043;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .preview-table tbody tr:nth-child(even) td {
+    background: #f8f9fb;
   }
   
   .preview-table tbody tr:last-child td {
     border-bottom: none;
   }
   
+  /* ── More rows indicator ────────────────────────────── */
+  
   .more-rows td {
     text-align: center !important;
-    padding: 4px 8px;
-    background: var(--color-grey-10, #f5f5f5);
+    padding: 3px 8px;
+    background: #f8f9fa !important;
+    border-top: 1px solid #e2e2e2;
   }
   
   .more-indicator {
-    color: var(--color-grey-50, #888);
+    color: #80868b;
     font-size: 10px;
     font-style: italic;
   }
   
-  /* Empty state */
+  /* ── Empty state ───────────────────────────────────── */
+  
   .empty-state {
     display: flex;
     align-items: center;
@@ -327,6 +334,7 @@
     width: 100%;
     height: 100%;
     min-height: 80px;
+    background: #fff;
   }
   
   .empty-icon {
@@ -334,50 +342,15 @@
     opacity: 0.5;
   }
   
-  /* Mobile adjustments */
+  /* ── Mobile ────────────────────────────────────────── */
+  
   .mobile .preview-table {
     font-size: 10px;
   }
   
   .mobile .preview-table th,
   .mobile .preview-table td {
-    padding: 4px 6px;
-    max-width: 60px;
-  }
-  
-  /* Dark mode support */
-  :global(.dark) .table-container {
-    background: var(--color-grey-90, #1a1a1a);
-    border-color: var(--color-grey-80, #333);
-  }
-  
-  :global(.dark) .preview-table th {
-    background: var(--color-grey-85, #252525);
-    color: var(--color-grey-20, #eaeaea);
-  }
-  
-  :global(.dark) .preview-table td {
-    color: var(--color-grey-30, #d0d0d0);
-  }
-  
-  :global(.dark) .preview-table th,
-  :global(.dark) .preview-table td {
-    border-bottom-color: var(--color-grey-80, #333);
-  }
-  
-  :global(.dark) .skeleton-cell {
-    background: var(--color-grey-80, #333);
-  }
-  
-  :global(.dark) .skeleton-row.header .skeleton-cell {
-    background: var(--color-grey-75, #404040);
-  }
-  
-  :global(.dark) .more-rows td {
-    background: var(--color-grey-85, #252525);
-  }
-  
-  :global(.dark) .more-indicator {
-    color: var(--color-grey-50, #888);
+    padding: 3px 6px;
+    max-width: 80px;
   }
 </style>

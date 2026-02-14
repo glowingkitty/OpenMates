@@ -17,10 +17,10 @@ test.afterEach(async ({}, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
 		console.log('\n--- DEBUG INFO ON FAILURE ---');
 		console.log('\n[RECENT CONSOLE LOGS]');
-		consoleLogs.slice(-20).forEach(log => console.log(log));
-		
+		consoleLogs.slice(-20).forEach((log) => console.log(log));
+
 		console.log('\n[RECENT NETWORK ACTIVITIES]');
-		networkActivities.slice(-20).forEach(activity => console.log(activity));
+		networkActivities.slice(-20).forEach((activity) => console.log(activity));
 		console.log('\n--- END DEBUG INFO ---\n');
 	}
 });
@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -122,7 +123,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// 7. Wait for redirect to chat
 	await page.waitForURL(/chat/);
-	
+
 	// Wait 5 seconds to ensure any demo/welcome chat is loaded
 	logChatCheckpoint('Waiting 5 seconds for initial chat to load...');
 	await page.waitForTimeout(5000);
@@ -162,13 +163,17 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const assistantResponse = page.locator('.message-wrapper.assistant');
 	// Increased timeout for AI response
 	await expect(assistantResponse.last()).toContainText('Berlin', { timeout: 45000 });
-	
+
 	await takeStepScreenshot(page, 'response-received');
 	logChatCheckpoint('Confirmed "Berlin" in assistant response.');
 
-	// 10. Delete the chat via context menu
-	logChatCheckpoint('Attempting to delete the chat...');
-	
+	// Verify no missing translations on the chat page
+	await assertNoMissingTranslations(page);
+	logChatCheckpoint('No missing translations detected.');
+
+	// 10. Verify chat title, icon, and category were generated (regression test for title_v race condition)
+	logChatCheckpoint('Verifying chat metadata (title, icon, category)...');
+
 	// Ensure sidebar is open (if on mobile/narrow screen)
 	const sidebarToggle = page.locator('.sidebar-toggle-button');
 	if (await sidebarToggle.isVisible()) {
@@ -179,7 +184,31 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Find the active chat in the sidebar
 	const activeChatItem = page.locator('.chat-item-wrapper.active');
 	await expect(activeChatItem).toBeVisible();
-	
+
+	// Wait for title to appear (title decryption + cache invalidation can take a moment)
+	const chatTitle = activeChatItem.locator('.chat-title');
+	await expect(chatTitle).toBeVisible({ timeout: 15000 });
+
+	// Title must NOT be a placeholder — it should be a real AI-generated title
+	const titleText = await chatTitle.textContent();
+	logChatCheckpoint(`Chat title text: "${titleText}"`);
+	expect(titleText).toBeTruthy();
+	expect(titleText!.trim()).not.toBe('');
+	expect(titleText!.toLowerCase()).not.toContain('untitled chat');
+	expect(titleText!.toLowerCase()).not.toContain('processing');
+
+	// Category icon circle should exist and NOT be the grey "missing-category" fallback
+	const categoryCircle = activeChatItem.locator('.category-circle');
+	await expect(categoryCircle).toBeVisible({ timeout: 10000 });
+	const missingCategory = activeChatItem.locator('.category-circle.missing-category');
+	await expect(missingCategory).not.toBeVisible();
+
+	await takeStepScreenshot(page, 'metadata-verified');
+	logChatCheckpoint('Chat metadata verified: title is real, category icon is present.');
+
+	// 11. Delete the chat via context menu
+	logChatCheckpoint('Attempting to delete the chat...');
+
 	// Right-click to open context menu
 	await activeChatItem.click({ button: 'right' });
 	await takeStepScreenshot(page, 'context-menu-open');

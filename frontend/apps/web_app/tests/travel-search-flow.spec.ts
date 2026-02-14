@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -429,6 +430,10 @@ test('travel connection search with fullscreen and connection detail interaction
 	logCheckpoint('Basic infos bar is visible on the search preview.');
 
 	await takeStepScreenshot(page, 'search-preview-verified');
+
+	// Verify no missing translations on the chat page with travel search results
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 
 	// ======================================================================
 	// STEP 3: Click the embed to open fullscreen

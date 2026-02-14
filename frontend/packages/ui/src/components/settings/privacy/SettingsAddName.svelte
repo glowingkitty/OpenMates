@@ -68,7 +68,7 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
                 settingsPath: 'privacy/hide-personal-data',
                 direction: 'backward',
                 icon: 'privacy',
-                title: $text('settings.privacy.privacy.hide_personal_data.text')
+                title: $text('settings.privacy.hide_personal_data')
             });
         } catch (error) {
             console.error('[SettingsAddName] Failed to save name entry:', error);
@@ -83,14 +83,14 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.privacy.form.title.text')}
+    title={$text('settings.privacy.form.title')}
 />
 
 <div class="form-field">
     <input
         type="text"
         class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.title.placeholder_name.text')}
+        placeholder={$text('settings.privacy.form.title.placeholder_name')}
         bind:value={title}
     />
 </div>
@@ -99,14 +99,14 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.privacy.form.text_to_hide.text')}
+    title={$text('settings.privacy.form.text_to_hide')}
 />
 
 <div class="form-field">
     <input
         type="text"
         class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.text_to_hide.placeholder_name.text')}
+        placeholder={$text('settings.privacy.form.text_to_hide.placeholder_name')}
         bind:value={textToHide}
     />
 </div>
@@ -126,7 +126,7 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
         disabled={!isValid || isSaving}
         onclick={handleSave}
     >
-        {$text('settings.privacy.privacy.form.save.text')}
+        {$text('settings.privacy.form.save')}
     </button>
 </div>
 

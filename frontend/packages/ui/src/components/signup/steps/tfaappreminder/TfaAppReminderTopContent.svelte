@@ -10,8 +10,8 @@ step_6_top_content_svelte:
     tfa_app_reminder_explainer:
         type: 'text + visual'
         text:
-            - $text('signup.2fa_app_reminder.text')
-            - $text('signup.in_case_you_forget.text')
+            - $text('signup.2fa_app_reminder')
+            - $text('signup.in_case_you_forget')
         visuals:
             - 'none interactive preview of 'login_2fa_svelte' 2FA interface during login, where user would usually enter 2FA code.'
         purpose:
@@ -70,11 +70,11 @@ step_6_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size reminder"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.2fa_app_reminder.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.2fa_app_reminder')}</h2>
     </div>
 
     <div class="text-block">
-        {@html $text('signup.in_case_you_forget.text')}
+        {@html $text('signup.in_case_you_forget')}
     </div>
 
     <div class="preview-container">

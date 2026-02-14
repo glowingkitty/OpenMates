@@ -77,13 +77,13 @@
     
     // Otherwise use default status text based on current status
     if (status === 'processing') {
-      return $text('embeds.processing.text');
+      return $text('embeds.processing');
     } else if (status === 'finished') {
-      return $text('embeds.completed.text');
+      return $text('embeds.completed');
     } else if (status === 'cancelled') {
-      return $text('embeds.cancelled.text');
+      return $text('embeds.cancelled');
     }
-    return $text('embeds.error.text');
+    return $text('embeds.error');
   });
   
   // Compute app gradient style using CSS variables from theme.css
@@ -132,8 +132,8 @@
       <button 
         class="stop-button"
         onclick={handleStopClick}
-        aria-label={$text('embeds.stop.text') || 'Stop'}
-        title={$text('embeds.stop.text') || 'Stop'}
+        aria-label={$text('embeds.stop')}
+        title={$text('embeds.stop')}
       >
         <span class="clickable-icon icon_stop_processing"></span>
       </button>
@@ -181,8 +181,8 @@
       <button 
         class="stop-button"
         onclick={handleStopClick}
-        aria-label={$text('embeds.stop.text') || 'Stop'}
-        title={$text('embeds.stop.text') || 'Stop'}
+        aria-label={$text('embeds.stop')}
+        title={$text('embeds.stop')}
       >
         <span class="clickable-icon icon_stop_processing"></span>
       </button>

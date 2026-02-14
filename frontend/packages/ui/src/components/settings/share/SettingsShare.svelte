@@ -325,6 +325,7 @@
                         id: embedId,
                         skillId: skillId as 'generate' | 'generate_draft',
                         prompt: decodedContent.prompt || '',
+                        model: decodedContent.model || '',
                         s3BaseUrl: decodedContent.s3_base_url || '',
                         files: decodedContent.files || undefined,
                         aesKey: decodedContent.aes_key || '',
@@ -516,14 +517,14 @@
      * Options: never, 1 min, 1 hour, 24 hours, 7 days, 14 days, 30 days, 90 days
      */
     const durationOptions: { value: ShareDuration; labelKey: string }[] = [
-        { value: 0, labelKey: 'settings.share.no_expiration.text' },
-        { value: 60, labelKey: 'settings.share.one_minute.text' },
-        { value: 3600, labelKey: 'settings.share.one_hour.text' },
-        { value: 86400, labelKey: 'settings.share.twenty_four_hours.text' },
-        { value: 604800, labelKey: 'settings.share.seven_days.text' },
-        { value: 1209600, labelKey: 'settings.share.fourteen_days.text' },
-        { value: 2592000, labelKey: 'settings.share.thirty_days.text' },
-        { value: 7776000, labelKey: 'settings.share.ninety_days.text' }
+        { value: 0, labelKey: 'settings.share.no_expiration' },
+        { value: 60, labelKey: 'settings.share.one_minute' },
+        { value: 3600, labelKey: 'settings.share.one_hour' },
+        { value: 86400, labelKey: 'settings.share.twenty_four_hours' },
+        { value: 604800, labelKey: 'settings.share.seven_days' },
+        { value: 1209600, labelKey: 'settings.share.fourteen_days' },
+        { value: 2592000, labelKey: 'settings.share.thirty_days' },
+        { value: 7776000, labelKey: 'settings.share.ninety_days' }
     ];
     
     // Two-step flow state: configure options first, then generate link
@@ -1543,7 +1544,7 @@
 {#if !hasShareableContent}
     <div class="no-chat-message" transition:fade={{ duration: 200 }}>
         <div class="icon settings_size shared"></div>
-        <p>{$text('settings.share.no_chat_selected.text')}</p>
+        <p>{$text('settings.share.no_chat_selected')}</p>
     </div>
 {:else}
     <!-- Two-Step Flow: Configuration Step -->
@@ -1554,7 +1555,7 @@
                 <!-- Embed Preview Display -->
                 <div class="embed-preview">
                     <div class="embed-preview-header">
-                        <span class="embed-preview-label">{$text('settings.share.sharing_embed.text', { default: 'Sharing:' })}</span>
+                        <span class="embed-preview-label">{$text('settings.share.sharing_embed')}</span>
                     </div>
                     <div class="embed-preview-content">
                         {#await embedPreviewData then previewResult}
@@ -1584,7 +1585,7 @@
                 <!-- Chat Info Display -->
                 <div class="chat-preview">
                     <div class="chat-preview-header">
-                        <span class="chat-preview-label">{$text('settings.share.sharing_chat.text', { default: 'Sharing:' })}</span>
+                        <span class="chat-preview-label">{$text('settings.share.sharing_chat')}</span>
                     </div>
                     <ChatComponent
                         chat={currentChat}
@@ -1600,9 +1601,9 @@
         <div class="share-description" transition:fade={{ duration: 200 }}>
             <p>
                 {#if isEmbedSharing}
-                    {$text('settings.share.share_embed_description.text')}
+                    {$text('settings.share.share_embed_description')}
                 {:else}
-                    {$text('settings.share.share_description.text')}
+                    {$text('settings.share.share_description')}
                 {/if}
             </p>
         </div>
@@ -1613,22 +1614,22 @@
             disabled={!canGenerateLink}
         >
             {#if isEmbedSharing}
-                {$text('settings.share.share_embed.text')}
+                {$text('settings.share.share_embed')}
             {:else}
-                {$text('settings.share.share_chat.text')}
+                {$text('settings.share.share_chat')}
             {/if}
         </button>
 
         <!-- Optional Share Settings Section -->
         <div class="share-options-section">
-            <h3 class="section-title">{$text('settings.share.optional_settings.text', { default: 'Optional Settings' })}</h3>
+            <h3 class="section-title">{$text('settings.share.optional_settings')}</h3>
 
             <!-- Share with Community Toggle (only for chats, not embeds) -->
             {#if !isEmbedSharing}
                 <div class="option-row">
                     <div class="option-label">
                         <div class="icon settings_size shared"></div>
-                        <span>{$text('settings.share.share_with_community.text', { default: 'Share with Community' })}</span>
+                        <span>{$text('settings.share.share_with_community')}</span>
                     </div>
                     <Toggle
                         bind:checked={shareWithCommunity}
@@ -1642,9 +1643,7 @@
                     <div class="community-info" transition:slide={{ duration: 200, easing: cubicOut }}>
                         <div class="info-icon">ℹ️</div>
                         <p>
-                            {$text('settings.share.share_with_community_info.text', { 
-                                default: 'If you select "Share with Community", your chat might also be selected to be shown to other users on the platform, as well as on social media and at events.' 
-                            })}
+                            {$text('settings.share.share_with_community_info')}
                         </p>
                     </div>
                 {/if}
@@ -1655,7 +1654,7 @@
                 <div class="option-row">
                     <div class="option-label">
                         <div class="icon settings_size {includeSensitiveData ? 'icon_visible' : 'icon_hidden'}"></div>
-                        <span>{$text('settings.share.include_sensitive_data.text', { default: 'Include sensitive data' })}</span>
+                        <span>{$text('settings.share.include_sensitive_data')}</span>
                     </div>
                     <Toggle
                         bind:checked={includeSensitiveData}
@@ -1669,7 +1668,7 @@
                     <div class="community-info warning" transition:slide={{ duration: 200, easing: cubicOut }}>
                         <div class="info-icon">&#9888;&#65039;</div>
                         <p>
-                            {$text('settings.share.include_sensitive_data_warning.text', { 
+                            {$text('settings.share.include_sensitive_data_warning', { 
                                 default: 'Your personal information (emails, phone numbers, etc.) will be included in the shared content. Only enable this if you trust all recipients.' 
                             })}
                         </p>
@@ -1681,7 +1680,7 @@
             <div class="option-row" class:disabled={isPasswordDisabled}>
                 <div class="option-label">
                     <div class="icon settings_size lock"></div>
-                    <span>{$text('settings.share.password_protection.text')}</span>
+                    <span>{$text('settings.share.password_protection')}</span>
                 </div>
                 <Toggle
                     bind:checked={isPasswordProtected}
@@ -1697,16 +1696,16 @@
                     <input
                         type="password"
                         bind:value={password}
-                        placeholder={$text('settings.share.password_placeholder.text')}
+                        placeholder={$text('settings.share.password_placeholder')}
                         maxlength="10"
                         class="password-input"
                         class:invalid={password.length > 10}
                     />
                     <p class="password-info">
                         {#if isEmbedSharing}
-                            {$text('settings.share.password_required_info_embed.text')}
+                            {$text('settings.share.password_required_info_embed')}
                         {:else}
-                            {$text('settings.share.password_required_info.text')}
+                            {$text('settings.share.password_required_info')}
                         {/if}
                     </p>
                 </div>
@@ -1716,7 +1715,7 @@
             <div class="option-row" class:disabled={isTimeLimitDisabled}>
                 <div class="option-label">
                     <div class="icon settings_size time"></div>
-                    <span>{$text('settings.share.time_limit.text')}</span>
+                    <span>{$text('settings.share.time_limit')}</span>
                 </div>
             </div>
 
@@ -1744,9 +1743,9 @@
                 <div class="info-icon">⏱️</div>
                 <p>
                     {#if isEmbedSharing}
-                        {$text('settings.share.expire_time_info_embed.text')}
+                        {$text('settings.share.expire_time_info_embed')}
                     {:else}
-                        {$text('settings.share.expire_time_info.text')}
+                        {$text('settings.share.expire_time_info')}
                     {/if}
                 </p>
             </div>
@@ -1756,9 +1755,9 @@
                 <div class="info-icon">🔒</div>
                 <p>
                     {#if isEmbedSharing}
-                        {$text('settings.share.encryption_info_embed.text')}
+                        {$text('settings.share.encryption_info_embed')}
                     {:else}
-                        {$text('settings.share.encryption_info.text')}
+                        {$text('settings.share.encryption_info')}
                     {/if}
                 </p>
             </div>
@@ -1772,7 +1771,7 @@
                 <!-- Embed Preview Display -->
                 <div class="embed-preview">
                     <div class="embed-preview-header">
-                        <span class="embed-preview-label">{$text('settings.share.link_for_embed.text', { default: 'Link for:' })}</span>
+                        <span class="embed-preview-label">{$text('settings.share.link_for_embed')}</span>
                     </div>
                     <div class="embed-preview-content">
                         {#await embedPreviewData then previewResult}
@@ -1802,7 +1801,7 @@
                 <!-- Chat Info Display -->
                 <div class="chat-preview">
                     <div class="chat-preview-header">
-                        <span class="chat-preview-label">{$text('settings.share.link_for_chat.text', { default: 'Link for:' })}</span>
+                        <span class="chat-preview-label">{$text('settings.share.link_for_chat')}</span>
                     </div>
                     <ChatComponent
                         chat={currentChat}
@@ -1822,19 +1821,19 @@
                 onclick={copyLinkToClipboard}
             >
                 <div class="copy-icon" class:icon_check={isCopied} class:icon_copy={!isCopied}></div>
-                <span>{isCopied ? $text('settings.share.link_copied.text') : $text('settings.share.click_to_copy.text')}</span>
+                <span>{isCopied ? $text('settings.share.link_copied') : $text('settings.share.click_to_copy')}</span>
             </button>
 
             <!-- Expiration Info (if time limit set) -->
             {#if selectedDuration > 0}
                 <p class="expiration-info">
-                    {$text('settings.share.link_will_expire_in.text')} {$text(durationOptions.find(d => d.value === selectedDuration)?.labelKey || '')}
+                    {$text('settings.share.link_will_expire_in')} {$text(durationOptions.find(d => d.value === selectedDuration)?.labelKey || '')}
                 </p>
             {/if}
 
             <!-- QR Code Section -->
             <div class="qr-code-section">
-                <h4 class="qr-code-title">{$text('settings.share.qr_code.text')}</h4>
+                <h4 class="qr-code-title">{$text('settings.share.qr_code')}</h4>
                 <button
                     class="qr-code-container clickable"
                     onclick={showQRCodeFullscreen}
@@ -1847,7 +1846,7 @@
                         <div class="qr-code-placeholder">Generating QR code...</div>
                     {/if}
                 </button>
-                <p class="qr-code-instruction">{$text('settings.share.click_to_enlarge_qr.text', { default: 'Click QR code to enlarge' })}</p>
+                <p class="qr-code-instruction">{$text('settings.share.click_to_enlarge_qr')}</p>
             </div>
 
             <!-- Back to Configuration Button (only shown for owned chats) -->
@@ -1856,7 +1855,7 @@
                     class="back-to-config-button"
                     onclick={backToConfiguration}
                 >
-                    {$text('settings.share.change_settings.text')}
+                    {$text('settings.share.change_settings')}
                 </button>
             {/if}
         </div>

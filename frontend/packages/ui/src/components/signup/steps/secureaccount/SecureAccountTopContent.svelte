@@ -579,17 +579,17 @@
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size secret"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.secure_your_account.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.secure_your_account')}</h2>
     </div>
 
     <div class="options-container">
-        <p class="instruction-text">{@html $text('signup.how_to_login.text')}</p>
+        <p class="instruction-text">{@html $text('signup.how_to_login')}</p>
         
         <!-- Passkey Option -->
         <div class="option-wrapper">
             <div class="recommended-badge">
                 <div class="thumbs-up-icon"></div>
-                <span>{@html $text('signup.recommended.text')}</span>
+                <span>{@html $text('signup.recommended')}</span>
             </div>
             <button
                 class="option-button"
@@ -603,13 +603,13 @@
                         <div class="clickable-icon icon_passkey" style="width: 30px; height: 30px"></div>
                     </div>
                     <div class="option-content">
-                        <h3 class="option-title">{@html $text('signup.passkey.text')}</h3>
+                        <h3 class="option-title">{@html $text('signup.passkey')}</h3>
                     </div>
                 </div>
                 <p class="option-description">
                     {isRegisteringPasskey
-                        ? $text('login.loading.text')
-                        : $text('signup.passkey_descriptor.text')}
+                        ? $text('login.loading')
+                        : $text('signup.passkey_descriptor')}
                 </p>
             </button>
         </div>
@@ -627,10 +627,10 @@
                     <div class="clickable-icon icon_password" style="width: 30px; height: 30px"></div>
                 </div>
                 <div class="option-content">
-                    <h3 class="option-title">{@html $text('signup.password.text')}</h3>
+                    <h3 class="option-title">{@html $text('signup.password')}</h3>
                 </div>
             </div>
-            <p class="option-description">{@html $text('signup.password_descriptor.text')}</p>
+            <p class="option-description">{@html $text('signup.password_descriptor')}</p>
         </button>
     </div>
 </div>

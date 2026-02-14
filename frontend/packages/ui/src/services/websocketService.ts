@@ -107,6 +107,8 @@ class WebSocketService extends EventTarget {
   private maxReconnectAttempts = 10;
   private reconnectInterval = 1000; // Start with 1 second
   private maxReconnectInterval = 5000; // Max 5 seconds (reduced from 30s for faster offline detection)
+  private periodicRetryIntervalId: ReturnType<typeof setInterval> | null = null;
+  private readonly PERIODIC_RETRY_INTERVAL = 30000; // 30 seconds between periodic retries after max attempts exhausted
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
   private connectionPromise: Promise<void> | null = null;
   private resolveConnectionPromise: (() => void) | null = null;
@@ -313,7 +315,7 @@ class WebSocketService extends EventTarget {
 
     // Prevent connection attempts during logout to avoid auth errors
     if (get(isLoggingOut) || get(forcedLogoutInProgress)) {
-      console.debug("[WebSocketService] Cannot connect: Logout in progress.");
+      console.info("[WebSocketService] Cannot connect: Logout in progress.");
       websocketStatus.setStatus("disconnected");
       return Promise.reject("Logout in progress");
     }
@@ -325,15 +327,15 @@ class WebSocketService extends EventTarget {
     const sessionId = getSessionId();
     const authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
 
-    // Enhanced debug logging for Safari/iPad troubleshooting
-    console.debug(
+    // Log auth token status at info level so it's visible in Loki for debugging connection issues
+    console.info(
       `[WebSocketService] Auth token retrieved: ${sanitizeTokenForLogging(authToken)}`,
     );
     if (!authToken) {
       console.warn(
         "[WebSocketService] No auth token found in sessionStorage - WebSocket connection will likely fail on Safari/iPad",
       );
-      console.debug(
+      console.info(
         "[WebSocketService] Checking sessionStorage keys:",
         typeof sessionStorage !== "undefined"
           ? Object.keys(sessionStorage)
@@ -342,7 +344,7 @@ class WebSocketService extends EventTarget {
     }
 
     this.url = getWebSocketUrl(sessionId, authToken || undefined);
-    console.debug(
+    console.info(
       `[WebSocketService] Attempting to connect to ${sanitizeUrlForLogging(this.url)}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ""}`,
     );
 
@@ -368,6 +370,7 @@ class WebSocketService extends EventTarget {
           this.reconnectAttempts = 0; // Reset on successful connection
           this.reconnectInterval = 1000; // Reset interval
           this.consecutiveAbnormalClosures = 0; // Reset auth failure counter on successful connection
+          this.stopPeriodicRetry(); // Stop periodic retry since we're now connected
           this.dispatchEvent(new CustomEvent("open"));
           websocketStatus.setStatus("connected"); // Update status
           this.startPing(); // Start pinging on successful connection
@@ -725,15 +728,16 @@ class WebSocketService extends EventTarget {
 
             setTimeout(() => this.connect(), delay);
           } else if (get(authStore).isAuthenticated) {
-            // Max reconnect attempts reached
+            // Max reconnect attempts reached — start periodic retry instead of giving up forever
             console.error(
-              "[WebSocketService] Max reconnect attempts reached. Giving up.",
+              "[WebSocketService] Max reconnect attempts reached. Starting periodic retry.",
             );
             websocketStatus.setError(
-              "Max reconnect attempts reached. Giving up.",
+              "Max reconnect attempts reached. Will keep retrying.",
               "error",
             );
             this.dispatchEvent(new CustomEvent("connection_failed_reconnect"));
+            this.startPeriodicRetry();
             if (
               this.rejectConnectionPromise &&
               this.connectionPromise &&
@@ -785,6 +789,7 @@ class WebSocketService extends EventTarget {
       this.ws = null;
     }
     this.stopPing(); // Stop pinging on disconnect
+    this.stopPeriodicRetry(); // Stop periodic retry on disconnect
     // Ensure status is set even if already disconnected
     websocketStatus.setStatus("disconnected");
     if (this.rejectConnectionPromise) {
@@ -862,15 +867,16 @@ class WebSocketService extends EventTarget {
                 setTimeout(() => this.connect(), delay);
               } else if (get(authStore).isAuthenticated) {
                 console.error(
-                  "[WebSocketService] Pong Timeout: Max reconnect attempts reached during direct attempt. Giving up.",
+                  "[WebSocketService] Pong Timeout: Max reconnect attempts reached during direct attempt. Starting periodic retry.",
                 );
                 websocketStatus.setError(
-                  "Max reconnect attempts reached after pong timeout.",
+                  "Max reconnect attempts reached after pong timeout. Will keep retrying.",
                   "error",
                 );
                 this.dispatchEvent(
                   new CustomEvent("connection_failed_reconnect"),
                 );
+                this.startPeriodicRetry();
               }
             }
           }, this.PONG_TIMEOUT);
@@ -891,6 +897,85 @@ class WebSocketService extends EventTarget {
       clearTimeout(this.pongTimeoutId);
       this.pongTimeoutId = null;
     }
+  }
+
+  /**
+   * Start periodic retry after max reconnect attempts are exhausted.
+   * Retries every 30 seconds indefinitely until connection succeeds or user logs out.
+   * This prevents users from being stuck in a permanent "offline" state.
+   */
+  private startPeriodicRetry(): void {
+    this.stopPeriodicRetry(); // Clear any existing interval
+    console.info(
+      `[WebSocketService] Starting periodic retry every ${this.PERIODIC_RETRY_INTERVAL / 1000}s after max reconnect attempts exhausted`,
+    );
+    this.periodicRetryIntervalId = setInterval(() => {
+      if (
+        get(authStore).isAuthenticated &&
+        !this.isConnected() &&
+        !this.connectionPromise
+      ) {
+        console.info(
+          "[WebSocketService] Periodic retry: attempting reconnection...",
+        );
+        this.reconnectAttempts = 0; // Reset so connect() doesn't immediately bail
+        this.connect().catch((err) => {
+          console.warn(
+            "[WebSocketService] Periodic retry: connection attempt failed:",
+            err,
+          );
+        });
+      } else if (!get(authStore).isAuthenticated) {
+        // User logged out, stop retrying
+        this.stopPeriodicRetry();
+      }
+    }, this.PERIODIC_RETRY_INTERVAL);
+  }
+
+  /**
+   * Stop periodic retry interval.
+   */
+  private stopPeriodicRetry(): void {
+    if (this.periodicRetryIntervalId !== null) {
+      clearInterval(this.periodicRetryIntervalId);
+      this.periodicRetryIntervalId = null;
+    }
+  }
+
+  /**
+   * Public method to manually trigger a reconnection attempt.
+   * Used by the OfflineBanner "Tap to reconnect" action.
+   * Resets reconnect attempts and stops periodic retry before connecting.
+   */
+  public retryConnection(): void {
+    if (this.isConnected()) {
+      console.info("[WebSocketService] retryConnection: already connected.");
+      return;
+    }
+    if (!get(authStore).isAuthenticated) {
+      console.warn(
+        "[WebSocketService] retryConnection: user not authenticated.",
+      );
+      return;
+    }
+    if (this.connectionPromise) {
+      console.info(
+        "[WebSocketService] retryConnection: connection attempt already in progress.",
+      );
+      return;
+    }
+    console.info(
+      "[WebSocketService] retryConnection: user-initiated reconnection attempt.",
+    );
+    this.stopPeriodicRetry();
+    this.reconnectAttempts = 0;
+    websocketStatus.setStatus("reconnecting");
+    this.connect().catch((err) => {
+      console.warn(
+        "[WebSocketService] retryConnection: connection attempt failed:",
+        err,
+      );
+    });
   }
 
   public isConnected(): boolean {

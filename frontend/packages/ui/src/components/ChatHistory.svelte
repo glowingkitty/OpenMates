@@ -4,7 +4,7 @@
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
   import { fade } from "svelte/transition";
-  import type { MessageStatus } from '../types/chat'; // Import global MessageStatus
+  import type { MessageStatus, ProcessingPhase } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
@@ -373,6 +373,7 @@
     messageInputHeight = 0,
     containerWidth = 0,
     currentChatId = undefined,
+    processingPhase = null,
     thinkingContentByTask = new Map(),
     settingsMemoriesSuggestions = [],
     rejectedSuggestionHashes = null,
@@ -382,6 +383,7 @@
     messageInputHeight?: number;
     containerWidth?: number;
     currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
+    processingPhase?: ProcessingPhase; // Current phase of the AI processing pipeline (sending → processing → typing → null)
     thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
     settingsMemoriesSuggestions?: SuggestedSettingsMemoryEntry[]; // Suggested settings/memories entries from AI post-processing
     rejectedSuggestionHashes?: string[] | null; // SHA-256 hashes of rejected suggestions for client-side filtering
@@ -510,25 +512,27 @@
     messages.some(m => m.status === 'streaming')
   );
   
-  // Detect if AI is processing (user message sent, waiting for first streaming chunk).
-  // Shows the centered ai.svg loading icon overlay. Hides once streaming starts.
-  let isAiProcessing = $derived(
-    messages.some(m => m.status === 'processing') && !messages.some(m => m.status === 'streaming')
-  );
+  // Whether to show the centered AI status overlay.
+  // Driven by processingPhase prop from ActiveChat (sending → processing → typing → null).
+  // The overlay shows status text during all phases and adds the AI icon during processing/typing.
+  let showCenteredIndicator = $derived(processingPhase !== null);
   
-  // Track previous streaming state to detect transitions
-  let wasStreaming = $state(false);
-
   // Whether the streaming spacer should be active.
   // The spacer ensures the scroll position remains valid after the user-message scroll
   // positions the user message near the top of the viewport. Without it, there wouldn't
   // be enough scrollable content to hold that scroll position.
-  // The spacer is activated when the user sends a message and stays active until streaming ends.
+  // The spacer is activated when the user sends a message and deactivated when:
+  //   - The AI response finishes (no streaming AND no processing phase), OR
+  //   - The safety timeout fires (belt-and-suspenders guard against stuck spacers)
   let isSpacerActive = $state(false);
 
   // The computed spacer height — fills remaining viewport below the AI response.
   // As the AI response grows, the spacer shrinks. Once the response fills the viewport, spacer = 0.
   let spacerHeight = $state(0);
+
+  // Safety timeout handle — ensures the spacer is never stuck indefinitely.
+  // Cleared when the spacer is deactivated normally; fires after 60s as a last resort.
+  let spacerSafetyTimeout: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Exposed function to add a new message to the chat.
@@ -571,6 +575,7 @@
     isSpacerActive = false;
     spacerHeight = 0;
     userHasScrolledAway = false;
+    if (spacerSafetyTimeout) { clearTimeout(spacerSafetyTimeout); spacerSafetyTimeout = null; }
     await tick();
     dispatch('messagesChange', { hasMessages: false });
   }
@@ -590,6 +595,7 @@
       isSpacerActive = false;
       spacerHeight = 0;
       userHasScrolledAway = false;
+      if (spacerSafetyTimeout) { clearTimeout(spacerSafetyTimeout); spacerSafetyTimeout = null; }
       showMessages = true; // Show the (empty) chat history
       if (outroResolve) {
         outroResolve(); // Resolve the promise
@@ -700,9 +706,11 @@
     dispatch('messagesStatusChanged', { messages });
   }
 
-  // ChatGPT-like scroll behavior: when user sends a message, scroll to position
-  // the BOTTOM of the user message near the top of the viewport (showing last 1-2 lines)
-  // This leaves maximum space below for the assistant's response to render
+  // ChatGPT-like scroll behavior: when user sends a message, scroll so that only
+  // the LAST LINE of the user message is visible at the top of the viewport.
+  // This leaves maximum space below for the assistant's response to render.
+  // The scroll target is computed dynamically from the actual rendered line height
+  // so it works correctly regardless of viewport width or message length.
   $effect(() => {
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
       isScrolling = true;
@@ -715,6 +723,20 @@
       // enough room to scroll the user message to the top.
       spacerHeight = container.clientHeight;
 
+      // Safety timeout: ensure the spacer is never stuck indefinitely.
+      // In normal operation the state-based cleanup deactivates it much sooner,
+      // but this guards against any edge case where the state signals are missed.
+      if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
+      spacerSafetyTimeout = setTimeout(() => {
+        if (isSpacerActive) {
+          console.warn('[ChatHistory] Spacer safety timeout fired — force-deactivating stuck spacer');
+          isSpacerActive = false;
+          spacerHeight = 0;
+          userHasScrolledAway = false;
+        }
+        spacerSafetyTimeout = null;
+      }, 60_000);
+
       // Wait for the spacer to render, then calculate and execute the scroll.
       tick().then(() => {
         setTimeout(() => {
@@ -723,15 +745,36 @@
             const containerRect = container.getBoundingClientRect();
             const messageRect = userMessageElement.getBoundingClientRect();
             
-            // Calculate scroll position to show the BOTTOM of the user message near the top.
-            // messageRect.bottom gives us the bottom edge of the message.
-            // We want the bottom of the message to be ~60px from the top of the viewport.
-            // This shows the last 1-2 lines of the user message with space below for the response.
-            const bottomOfMessage = messageRect.bottom - containerRect.top + container.scrollTop;
-            const scrollOffset = bottomOfMessage - 60; // 60px from top to show last lines
+            // Measure the actual rendered line height from a text paragraph inside the
+            // message bubble. This adapts to any font-size / line-height / viewport width.
+            // Falls back to 24px (16px * 1.5 line-height) if the element can't be found.
+            let lineHeight = 24;
+            const paragraph = userMessageElement.querySelector('.ProseMirror p');
+            if (paragraph) {
+              const computed = window.getComputedStyle(paragraph);
+              const parsed = parseFloat(computed.lineHeight);
+              if (!isNaN(parsed) && parsed > 0) {
+                lineHeight = parsed;
+              }
+            }
+
+            // We want the scroll position such that only the last line of text
+            // (plus the bubble's bottom padding/chrome) peeks above the viewport top.
+            // "visiblePortion" = one line of text + bubble bottom padding (12px) + 
+            //   bubble tail/shadow clearance (8px)
+            const visiblePortion = lineHeight + 20;
+
+            // topOfMessage in scroll coordinates (relative to container's scroll origin)
+            const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
+            // Total rendered height of the message wrapper element
+            const messageHeight = messageRect.height;
+
+            // Scroll so that the message is pushed up, leaving only visiblePortion showing.
+            // scrollTarget = topOfMessage + (messageHeight - visiblePortion)
+            const scrollTarget = topOfMessage + messageHeight - visiblePortion;
 
             container.scrollTo({
-              top: Math.max(0, scrollOffset), // Don't scroll to negative
+              top: Math.max(0, scrollTarget),
               behavior: 'smooth'
             });
 
@@ -749,17 +792,32 @@
     }
   });
 
-  // --- Streaming lifecycle: deactivate spacer when streaming ends ---
+  // --- Spacer lifecycle: deactivate when AI response is complete ---
+  // Uses direct state checks instead of transition detection (wasStreaming).
+  // The old approach tracked streaming start/end transitions, which failed when:
+  //   - Streaming never technically started (fast/cached/error responses)
+  //   - Svelte batched the streaming→completed transition in a single tick
+  // Now we simply check: is the spacer still needed? It's needed while either
+  // processingPhase is active (sending/processing/typing) or a message is streaming.
+  // Once both are false and the initial scroll animation is done, cleanup fires.
   $effect(() => {
-    if (isCurrentlyStreaming && !wasStreaming) {
-      // Streaming just started
-      wasStreaming = true;
-    } else if (!isCurrentlyStreaming && wasStreaming) {
-      // Streaming ended — deactivate spacer and reset
-      wasStreaming = false;
+    if (!isSpacerActive) return;
+
+    // The spacer is needed while we're waiting for or receiving the AI response.
+    // processingPhase covers: sending → processing → typing (set by ActiveChat)
+    // isCurrentlyStreaming covers: active streaming chunks arriving
+    const isWaitingForResponse = processingPhase !== null || isCurrentlyStreaming;
+
+    if (!isWaitingForResponse && !isScrolling) {
+      // Response is complete — deactivate spacer
       isSpacerActive = false;
       spacerHeight = 0;
       userHasScrolledAway = false;
+      // Clear safety timeout since spacer was deactivated normally
+      if (spacerSafetyTimeout) {
+        clearTimeout(spacerSafetyTimeout);
+        spacerSafetyTimeout = null;
+      }
     }
   });
 
@@ -1110,6 +1168,8 @@
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
+    // Clear spacer safety timeout
+    if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
     // Unsubscribe from PII visibility store
     unsubPiiVisibility();
   });
@@ -1203,13 +1263,39 @@
     
 </div>
 
-<!-- AI Processing Overlay: Centered ai.svg icon with shimmer animation.
+<!-- AI Status Overlay: Centered status indicator with progressive phase display.
      Positioned absolutely over the scroll container via the wrapper.
-     Shown when a user message is processing (waiting for AI) and no streaming has started yet.
-     Fades out when the assistant response begins streaming. -->
-{#if isAiProcessing}
+     Shows phased status text (Sending -> Processing steps -> Typing) with optional AI icon.
+     The AI icon only appears during processing and typing phases (when showIcon=true).
+     Fades out entirely when the assistant response begins streaming. -->
+{#if showCenteredIndicator && processingPhase}
     <div class="ai-processing-overlay" transition:fade={{ duration: 200 }}>
-        <div class="ai-processing-icon"></div>
+        <div class="ai-status-indicator">
+            <!-- AI icon: only shown when showIcon is true (processing and typing phases) -->
+            {#if processingPhase.phase !== 'sending' && processingPhase.showIcon}
+                <div class="ai-processing-icon" transition:fade={{ duration: 300 }}></div>
+            {/if}
+
+            <!-- Status text: shown during all phases with shimmer animation.
+                 Uses {#key} with absolute positioning so outgoing/incoming text
+                 crossfade in the same spot without shifting the layout. -->
+            <div class="ai-status-text-container">
+                {#key processingPhase.statusLines.join('|')}
+                    <div
+                        class="ai-status-text"
+                        class:phase-sending={processingPhase.phase === 'sending'}
+                        class:phase-processing={processingPhase.phase === 'processing'}
+                        class:phase-typing={processingPhase.phase === 'typing'}
+                        in:fade={{ duration: 200, delay: 150 }}
+                        out:fade={{ duration: 150 }}
+                    >
+                        {#each processingPhase.statusLines as line, index}
+                            <span class={index === 0 ? 'status-primary-line' : index === 1 ? 'status-secondary-line' : 'status-tertiary-line'}>{line}</span>
+                        {/each}
+                    </div>
+                {/key}
+            </div>
+        </div>
     </div>
 {/if}
 </div>
@@ -1327,7 +1413,7 @@
     max-width: 900px;
   }
 
-  /* AI Processing Overlay: Centered icon shown while waiting for AI response.
+  /* AI Status Overlay: Centered indicator shown during message processing lifecycle.
      Positioned absolutely over the scroll container (sibling, not child).
      This ensures it stays visually centered regardless of scroll position. */
   .ai-processing-overlay {
@@ -1343,9 +1429,18 @@
     z-index: 10;
   }
 
+  /* Vertical layout container for the AI icon and status text */
+  .ai-status-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* AI icon with shimmer animation — shown during processing and typing phases */
   .ai-processing-icon {
-    width: 64px;
-    height: 64px;
+    width: 56px;
+    height: 56px;
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');
     -webkit-mask-size: contain;
@@ -1364,6 +1459,66 @@
     );
     background-size: 200% 100%;
     animation: ai-processing-shimmer 1.5s infinite linear;
+  }
+
+  /* Fixed-size container for the status text — prevents layout shifts during crossfade.
+     The inner .ai-status-text is positioned absolutely so old and new text overlap
+     in the same spot during the {#key} transition. */
+  .ai-status-text-container {
+    position: relative;
+    width: 260px;
+    min-height: 3.6em; /* enough for 3 lines: typing + model + provider */
+  }
+
+  /* Status text below the AI icon — shows phase-specific messages.
+     Positioned absolutely within the container to prevent layout jumps during crossfade. */
+  .ai-status-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-style: italic;
+    text-align: center;
+  }
+
+  /* Shimmer text effect for all phases */
+  .ai-status-text.phase-sending,
+  .ai-status-text.phase-processing,
+  .ai-status-text.phase-typing {
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-60) 0%,
+      var(--color-grey-60) 40%,
+      var(--color-grey-40) 50%,
+      var(--color-grey-60) 60%,
+      var(--color-grey-60) 100%
+    );
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: ai-processing-shimmer 1.5s infinite linear;
+  }
+
+  /* Primary line (first line): slightly larger for emphasis */
+  .ai-status-text .status-primary-line {
+    font-size: 0.85rem;
+  }
+
+  /* Secondary line (e.g., model name): smaller, more subtle */
+  .ai-status-text .status-secondary-line {
+    font-size: 0.75rem;
+    opacity: 0.8;
+  }
+
+  /* Tertiary line (e.g., "via Provider 🇺🇸"): even smaller and more subtle */
+  .ai-status-text .status-tertiary-line {
+    font-size: 0.7rem;
+    opacity: 0.65;
   }
 
   @keyframes ai-processing-shimmer {

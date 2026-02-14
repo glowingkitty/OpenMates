@@ -113,7 +113,12 @@
     <meta name="twitter:image" content={image} />
 
     <!-- Additional Meta Tags -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <!-- maximum-scale=1 prevents iOS Safari/Firefox from auto-zooming when focusing inputs.
+         Without it, iOS zooms in on input focus and stays zoomed after keyboard dismiss.
+         iOS 10+ still allows manual pinch-zoom even with maximum-scale=1, so accessibility is preserved.
+         This MUST match the viewport tag in app.html - if this tag lacks maximum-scale=1,
+         it overrides app.html when svelte:head mounts, removing the zoom protection. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" />
     <link rel="canonical" href={url} />
 
     <!-- JSON-LD for rich snippets -->

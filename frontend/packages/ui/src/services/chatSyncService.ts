@@ -52,6 +52,8 @@ import * as chatUpdateHandlers from "./chatSyncServiceHandlersChatUpdates";
 import * as coreSyncHandlers from "./chatSyncServiceHandlersCoreSync";
 import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
 import * as senders from "./chatSyncServiceSenders";
+import { flushPendingEmbedOperations } from "./embedSenders";
+import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
@@ -141,6 +143,17 @@ export class ChatSynchronizationService extends EventTarget {
           this.activeAITasks.clear();
         }
 
+        // CRITICAL: Also clean up streaming/processing messages in ALL chats,
+        // not just the ones tracked in activeAITasks (which only tracks recent tasks).
+        // This handles edge cases where activeAITasks was cleared by a previous
+        // disconnect but messages remain stuck.
+        this._cleanupOrphanedStreamingMessages().catch((error) => {
+          console.error(
+            "[ChatSyncService] Error cleaning up orphaned streaming messages:",
+            error,
+          );
+        });
+
         // Stop periodic retry since we're now connected
         this.stopPendingMessageRetry();
 
@@ -149,6 +162,32 @@ export class ChatSynchronizationService extends EventTarget {
         this.retryPendingMessages().catch((error) => {
           console.error(
             "[ChatSyncService] Error retrying pending messages:",
+            error,
+          );
+        });
+
+        // Flush any encrypted embeds that couldn't be sent while offline
+        flushPendingEmbedOperations().catch((error) => {
+          console.error(
+            "[ChatSyncService] Error flushing pending embed operations:",
+            error,
+          );
+        });
+
+        // Flush any chat deletions that were queued while offline.
+        // This sends delete_chat for each pending ID and removes it from the queue.
+        // Must run before phased sync so the server knows about the deletions.
+        this.flushPendingChatDeletions().catch((error) => {
+          console.error(
+            "[ChatSyncService] Error flushing pending chat deletions:",
+            error,
+          );
+        });
+
+        // Flush any offline changes (drafts, etc.) that were queued during disconnect
+        sendOfflineChangesImpl().catch((error) => {
+          console.error(
+            "[ChatSyncService] Error sending offline changes:",
             error,
           );
         });
@@ -476,6 +515,7 @@ export class ChatSynchronizationService extends EventTarget {
       webSocketService.on("reminder_fired", (payload) =>
         module.handleReminderFiredImpl(this, payload),
       );
+
       // Handle pending AI response events (AI completed while user was offline)
       // Delivered from the pending delivery queue on WebSocket reconnect
       // Contains plaintext AI response; handler encrypts with chat key and persists
@@ -483,6 +523,78 @@ export class ChatSynchronizationService extends EventTarget {
         module.handlePendingAIResponseImpl(this, payload),
       );
     });
+
+    // Handle focus mode activated events (sent after auto-confirm task fires)
+    // Updates the local chatMetadataCache so the context menu shows the focus indicator
+    // in real-time without requiring a page refresh.
+    // IMPORTANT: Registered synchronously (not inside dynamic import .then()) to avoid
+    // a race condition where the WebSocket event arrives before the dynamic import resolves.
+    webSocketService.on("focus_mode_activated", async (payload) => {
+      try {
+        const chatId = payload?.chat_id;
+        const focusId = payload?.focus_id;
+        if (!chatId || !focusId) return;
+        console.debug("[ChatSyncService] Focus mode activated:", {
+          chatId,
+          focusId,
+        });
+
+        // The server sends the plaintext focus_id — we must encrypt it with the
+        // chat key (client-side AES-GCM) before storing, because encrypted_active_focus_id
+        // is an E2E encrypted field that chatMetadataCache decrypts with decryptWithChatKey().
+        const { chatDB } = await import("./db");
+        const chat = await chatDB.getChat(chatId);
+        if (chat) {
+          const chatKey = chatDB.getChatKey(chatId);
+          if (chatKey) {
+            const { encryptWithChatKey } = await import("./cryptoService");
+            const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
+            chat.encrypted_active_focus_id = encryptedFocusId;
+            await chatDB.updateChat(chat);
+            console.debug(
+              "[ChatSyncService] Encrypted and stored active focus ID in IndexedDB",
+            );
+
+            // CRITICAL: Invalidate the chatMetadataCache so the next read
+            // (e.g., from ChatContextMenu) decrypts the fresh encrypted_active_focus_id
+            // instead of returning stale cached data without activeFocusId.
+            const { chatMetadataCache } = await import("./chatMetadataCache");
+            chatMetadataCache.invalidateChat(chatId);
+            console.debug(
+              "[ChatSyncService] Invalidated chatMetadataCache for focus mode update",
+            );
+
+            // Send the client-encrypted value back to the server so it can persist
+            // the correctly encrypted value to Directus and cache. The server cannot
+            // encrypt with the chat key (E2E), so the client must provide it.
+            webSocketService.sendMessage("update_encrypted_active_focus_id", {
+              chat_id: chatId,
+              encrypted_active_focus_id: encryptedFocusId,
+            });
+            console.debug(
+              "[ChatSyncService] Sent encrypted_active_focus_id to server for persistence",
+            );
+          } else {
+            console.warn(
+              "[ChatSyncService] No chat key available for focus mode encryption",
+            );
+          }
+        }
+
+        // Dispatch event so ActiveChat and other components can react
+        this.dispatchEvent(
+          new CustomEvent("focusModeActivated", {
+            detail: { chat_id: chatId, focus_id: focusId },
+          }),
+        );
+      } catch (e) {
+        console.error(
+          "[ChatSyncService] Error handling focus_mode_activated:",
+          e,
+        );
+      }
+    });
+
     webSocketService.on("ai_message_ready", (payload) =>
       aiHandlers
         .handleAIMessageReadyImpl(this, payload as AIMessageReadyPayload)
@@ -964,6 +1076,41 @@ export class ChatSynchronizationService extends EventTarget {
     await senders.sendOfflineChangesImpl();
   }
 
+  /**
+   * Flush pending chat deletions that were queued while offline.
+   * Sends a delete_chat WebSocket message for each pending ID,
+   * then removes it from the pending queue on success.
+   * Called automatically on WebSocket reconnect.
+   */
+  public async flushPendingChatDeletions(): Promise<void> {
+    const { getPendingChatDeletions, removePendingChatDeletion } =
+      await import("./pendingChatDeletions");
+
+    const pendingIds = getPendingChatDeletions();
+    if (pendingIds.length === 0) return;
+
+    console.info(
+      `[ChatSyncService] Flushing ${pendingIds.length} pending chat deletion(s) to server...`,
+    );
+
+    for (const chatId of pendingIds) {
+      try {
+        await this.sendDeleteChat(chatId);
+        removePendingChatDeletion(chatId);
+        console.debug(
+          `[ChatSyncService] Successfully flushed pending deletion for chat ${chatId}`,
+        );
+      } catch (error) {
+        // If sending still fails (e.g., connection dropped again), leave it in the queue.
+        // It will be retried on the next reconnect.
+        console.warn(
+          `[ChatSyncService] Failed to flush pending deletion for chat ${chatId}, will retry later:`,
+          error,
+        );
+      }
+    }
+  }
+
   // Scroll position and read status sync methods
   public async sendScrollPositionUpdate(
     chat_id: string,
@@ -1023,6 +1170,23 @@ export class ChatSynchronizationService extends EventTarget {
         `[ChatSyncService] 2/4: Found ${allChats.length} chats locally in IndexedDB.`,
       );
 
+      // CRITICAL: Filter out chats that are pending server deletion.
+      // If we include them in client_chat_ids, the server won't re-send them (good).
+      // But if we DON'T include them, the server sees them as "new" and sends them back.
+      // Since these chats were already deleted from IndexedDB (optimistic delete),
+      // they won't be in allChats. However, as an extra safety measure, we also
+      // exclude any pending deletion IDs from the version map. The real protection
+      // is in the phased sync handlers (storeRecentChats/storeAllChats) which skip
+      // chats that are in the pending deletions set.
+      const { getPendingChatDeletionsSet } =
+        await import("./pendingChatDeletions");
+      const pendingDeletions = getPendingChatDeletionsSet();
+      if (pendingDeletions.size > 0) {
+        console.info(
+          `[ChatSyncService] Phased sync: ${pendingDeletions.size} chat(s) pending server deletion, will be excluded from sync`,
+        );
+      }
+
       const client_chat_versions: Record<
         string,
         { messages_v: number; title_v: number; draft_v: number }
@@ -1030,6 +1194,8 @@ export class ChatSynchronizationService extends EventTarget {
       const client_chat_ids: string[] = [];
 
       for (const chat of allChats) {
+        // Skip chats pending deletion - they should not appear in client state
+        if (pendingDeletions.has(chat.chat_id)) continue;
         client_chat_ids.push(chat.chat_id);
         client_chat_versions[chat.chat_id] = {
           messages_v: chat.messages_v || 0,
@@ -1141,6 +1307,49 @@ export class ChatSynchronizationService extends EventTarget {
 
   // NOTE: Phased sync handlers (handlePhase2RecentChats, handlePhase3FullSync, etc.)
   // and storage helpers (storeRecentChats, storeAllChats, etc.) are in chatSyncServiceHandlersPhasedSync.ts
+
+  /**
+   * Clean up messages stuck in 'streaming' or 'processing' status across ALL chats.
+   * This handles the case where the WebSocket disconnected during an AI stream,
+   * leaving messages in intermediate states. The subsequent phased sync will
+   * deliver the server-persisted (complete) version.
+   */
+  private async _cleanupOrphanedStreamingMessages(): Promise<void> {
+    try {
+      const allMessages = await chatDB.getAllMessages();
+      const orphaned = allMessages.filter(
+        (msg) =>
+          msg.status === "streaming" ||
+          (msg.status === "processing" && msg.role === "assistant"),
+      );
+
+      if (orphaned.length === 0) return;
+
+      console.warn(
+        `[ChatSyncService] Found ${orphaned.length} orphaned streaming/processing message(s) - finalizing to synced`,
+      );
+
+      for (const msg of orphaned) {
+        try {
+          const finalized = { ...msg, status: "synced" as const };
+          await chatDB.saveMessage(finalized);
+          console.info(
+            `[ChatSyncService] Finalized orphaned ${msg.status} message ${msg.message_id} in chat ${msg.chat_id}`,
+          );
+        } catch (error) {
+          console.error(
+            `[ChatSyncService] Error finalizing orphaned message ${msg.message_id}:`,
+            error,
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        "[ChatSyncService] Error in _cleanupOrphanedStreamingMessages:",
+        error,
+      );
+    }
+  }
 
   /**
    * Retry sending messages that are pending (status: 'waiting_for_internet' or 'sending')

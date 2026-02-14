@@ -263,18 +263,18 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
 <div class="auth-modal-overlay" onclick={handleCancel} onkeydown={(e) => e.key === 'Escape' && handleCancel()} role="dialog" aria-modal="true" aria-labelledby="auth-title">
     <div class="auth-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
         <div class="auth-header">
-            <h3 id="auth-title">{$text('settings.billing.payment_auth_title.text')}</h3>
+            <h3 id="auth-title">{$text('settings.billing.payment_auth_title')}</h3>
             <button class="close-btn" onclick={handleCancel} aria-label="Close">×</button>
         </div>
 
         <div class="auth-content">
             {#if isPasskeyLoading}
                 <div class="auth-loading">
-                    <p>{$text('settings.billing.passkey_authenticating.text')}</p>
+                    <p>{$text('settings.billing.passkey_authenticating')}</p>
                 </div>
             {:else if show2FAInput}
                 <div class="auth-2fa">
-                    <p>{$text('settings.billing.enter_2fa_code.text')}</p>
+                    <p>{$text('settings.billing.enter_2fa_code')}</p>
                     <input
                         type="text"
                         inputmode="numeric"
@@ -292,13 +292,13 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
                 </div>
             {:else if authMethod === 'passkey'}
                 <div class="auth-passkey">
-                    <p>{$text('settings.billing.passkey_prompt.text')}</p>
+                    <p>{$text('settings.billing.passkey_prompt')}</p>
                     <button
                         class="auth-btn"
                         onclick={handlePasskeyAuth}
                         disabled={isAuthenticating}
                     >
-                        {$text('settings.billing.authenticate_with_passkey.text')}
+                        {$text('settings.billing.authenticate_with_passkey')}
                     </button>
                 </div>
             {/if}

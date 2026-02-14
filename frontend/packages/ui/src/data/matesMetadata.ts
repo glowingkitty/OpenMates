@@ -4,7 +4,7 @@
 // This data is used for the @ mention dropdown to allow users to select specific mates.
 //
 // Mates are AI personas with expertise in specific domains.
-// Their display names are localized via translation keys (e.g., 'mates.software_development.text').
+// Their display names are localized via translation keys (e.g., 'mates.software_development').
 
 /**
  * Mate metadata structure for frontend display.
@@ -34,13 +34,13 @@ export interface MateMetadata {
  * Mates are ordered by typical usage popularity.
  * The id matches:
  * - CSS class: `.mate-profile.{id}` for profile images
- * - Translation key: `mates.{id}.text` for display name
+ * - Translation key: `mates.{id}` for display name
  */
 export const matesMetadata: MateMetadata[] = [
   {
     id: "software_development",
-    name_translation_key: "mates.software_development.text",
-    description_translation_key: "mate_descriptions.software_development.text",
+    name_translation_key: "mates.software_development",
+    description_translation_key: "mate_descriptions.software_development",
     profile_class: "software_development",
     expertise_icon: "code",
     search_names: [
@@ -56,8 +56,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "business_development",
-    name_translation_key: "mates.business_development.text",
-    description_translation_key: "mate_descriptions.business_development.text",
+    name_translation_key: "mates.business_development",
+    description_translation_key: "mate_descriptions.business_development",
     profile_class: "business_development",
     expertise_icon: "business",
     search_names: [
@@ -72,8 +72,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "life_coach_psychology",
-    name_translation_key: "mates.life_coach_psychology.text",
-    description_translation_key: "mate_descriptions.life_coach_psychology.text",
+    name_translation_key: "mates.life_coach_psychology",
+    description_translation_key: "mate_descriptions.life_coach_psychology",
     profile_class: "life_coach_psychology",
     expertise_icon: "psychology",
     search_names: [
@@ -90,8 +90,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "medical_health",
-    name_translation_key: "mates.medical_health.text",
-    description_translation_key: "mate_descriptions.medical_health.text",
+    name_translation_key: "mates.medical_health",
+    description_translation_key: "mate_descriptions.medical_health",
     profile_class: "medical_health",
     expertise_icon: "health",
     search_names: [
@@ -107,8 +107,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "legal_law",
-    name_translation_key: "mates.legal_law.text",
-    description_translation_key: "mate_descriptions.legal_law.text",
+    name_translation_key: "mates.legal_law",
+    description_translation_key: "mate_descriptions.legal_law",
     profile_class: "legal_law",
     expertise_icon: "law",
     search_names: ["leon", "legal", "law", "lawyer", "attorney", "contract"],
@@ -117,8 +117,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "finance",
-    name_translation_key: "mates.finance.text",
-    description_translation_key: "mate_descriptions.finance.text",
+    name_translation_key: "mates.finance",
+    description_translation_key: "mate_descriptions.finance",
     profile_class: "finance",
     expertise_icon: "finance",
     search_names: [
@@ -134,8 +134,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "design",
-    name_translation_key: "mates.design.text",
-    description_translation_key: "mate_descriptions.design.text",
+    name_translation_key: "mates.design",
+    description_translation_key: "mate_descriptions.design",
     profile_class: "design",
     expertise_icon: "design",
     search_names: [
@@ -152,8 +152,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "marketing_sales",
-    name_translation_key: "mates.marketing_sales.text",
-    description_translation_key: "mate_descriptions.marketing_sales.text",
+    name_translation_key: "mates.marketing_sales",
+    description_translation_key: "mate_descriptions.marketing_sales",
     profile_class: "marketing_sales",
     expertise_icon: "marketing",
     search_names: ["mark", "marketing", "sales", "advertising", "promotion"],
@@ -162,8 +162,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "science",
-    name_translation_key: "mates.science.text",
-    description_translation_key: "mate_descriptions.science.text",
+    name_translation_key: "mates.science",
+    description_translation_key: "mate_descriptions.science",
     profile_class: "science",
     expertise_icon: "science",
     search_names: [
@@ -180,8 +180,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "history",
-    name_translation_key: "mates.history.text",
-    description_translation_key: "mate_descriptions.history.text",
+    name_translation_key: "mates.history",
+    description_translation_key: "mate_descriptions.history",
     profile_class: "history",
     expertise_icon: "history",
     search_names: [
@@ -197,8 +197,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "cooking_food",
-    name_translation_key: "mates.cooking_food.text",
-    description_translation_key: "mate_descriptions.cooking_food.text",
+    name_translation_key: "mates.cooking_food",
+    description_translation_key: "mate_descriptions.cooking_food",
     profile_class: "cooking_food",
     expertise_icon: "cooking",
     search_names: [
@@ -215,9 +215,9 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "electrical_engineering",
-    name_translation_key: "mates.electrical_engineering.text",
+    name_translation_key: "mates.electrical_engineering",
     description_translation_key:
-      "mate_descriptions.electrical_engineering.text",
+      "mate_descriptions.electrical_engineering",
     profile_class: "electrical_engineering",
     expertise_icon: "engineering",
     search_names: [
@@ -233,8 +233,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "maker_prototyping",
-    name_translation_key: "mates.maker_prototyping.text",
-    description_translation_key: "mate_descriptions.maker_prototyping.text",
+    name_translation_key: "mates.maker_prototyping",
+    description_translation_key: "mate_descriptions.maker_prototyping",
     profile_class: "maker_prototyping",
     expertise_icon: "maker",
     search_names: [
@@ -250,8 +250,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "movies_tv",
-    name_translation_key: "mates.movies_tv.text",
-    description_translation_key: "mate_descriptions.movies_tv.text",
+    name_translation_key: "mates.movies_tv",
+    description_translation_key: "mate_descriptions.movies_tv",
     profile_class: "movies_tv",
     expertise_icon: "entertainment",
     search_names: [
@@ -268,8 +268,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "activism",
-    name_translation_key: "mates.activism.text",
-    description_translation_key: "mate_descriptions.activism.text",
+    name_translation_key: "mates.activism",
+    description_translation_key: "mate_descriptions.activism",
     profile_class: "activism",
     expertise_icon: "activism",
     search_names: [
@@ -285,8 +285,8 @@ export const matesMetadata: MateMetadata[] = [
   },
   {
     id: "general_knowledge",
-    name_translation_key: "mates.general_knowledge.text",
-    description_translation_key: "mate_descriptions.general_knowledge.text",
+    name_translation_key: "mates.general_knowledge",
+    description_translation_key: "mate_descriptions.general_knowledge",
     profile_class: "general_knowledge",
     expertise_icon: "general",
     search_names: [

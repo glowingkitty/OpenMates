@@ -189,7 +189,7 @@ class EmbedService:
             }
 
             # Cache placeholder embed
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             # SEND PLAINTEXT TOON TO CLIENT via WebSocket
             # This ensures the client has the embed data immediately to render the placeholder
@@ -326,7 +326,7 @@ class EmbedService:
             }
 
             # Cache
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             # Send plaintext TOON to client via WebSocket
             await self.send_embed_data_to_client(
@@ -361,6 +361,9 @@ class EmbedService:
                 f"{log_prefix} [FOCUS_MODE] Created focus mode activation embed {embed_id} "
                 f"for focus_id={focus_id} (app={app_id}, name={focus_mode_name})"
             )
+
+            # Schedule fallback persistence for focus mode activation embed
+            self._schedule_embed_persistence_fallback(embed_id)
 
             return {
                 "embed_id": embed_id,
@@ -456,7 +459,7 @@ class EmbedService:
             }
 
             # Cache placeholder embed
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             # SEND PLAINTEXT TOON TO CLIENT via WebSocket
             # This ensures the client has the embed data immediately to render the placeholder
@@ -590,7 +593,7 @@ class EmbedService:
                 )
 
             # Update cache
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             # Send updated content to client via WebSocket (only if not a duplicate finalization)
             if should_send_event:
@@ -618,10 +621,227 @@ class EmbedService:
                 )
 
             logger.debug(f"{log_prefix} Updated code embed {embed_id} with {len(code_content)} chars (status: {status})")
+
+            # Schedule fallback persistence when code embed is finalized
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
             return True
 
         except Exception as e:
             logger.error(f"{log_prefix} Error updating code embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
+    # Table/sheet embed methods (for markdown tables detected in AI responses)
+    # Mirrors the code embed pattern but uses type="sheet" with markdown table content.
+    # The frontend renders these as interactive spreadsheet-like previews.
+    # =========================================================================
+
+    async def create_table_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        title: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a "processing" table embed placeholder when a markdown table starts.
+        Mirrors create_code_embed_placeholder() but for type="sheet".
+        
+        The embed will be updated row-by-row as the table streams,
+        and finalized when the table ends (next non-table line).
+        
+        Returns:
+            Dictionary with embed_id and embed_reference, or None on failure.
+        """
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+
+            # Placeholder content — table markdown will be accumulated as rows stream
+            placeholder_content = {
+                "type": "sheet",
+                "table": "",           # Raw markdown table, accumulated row by row
+                "title": title or "",
+                "status": "processing",
+                "row_count": 0,
+                "col_count": 0,
+            }
+
+            placeholder_toon = encode(placeholder_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "sheet",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # Send plaintext TOON to client immediately so it can render the placeholder
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="sheet",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix
+            )
+
+            logger.info(f"{log_prefix} Created processing table embed placeholder {embed_id}")
+
+            embed_reference = json.dumps({
+                "type": "sheet",
+                "embed_id": embed_id
+            })
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating table embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_table_embed_content(
+        self,
+        embed_id: str,
+        table_content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "processing",
+        title: Optional[str] = None,
+        row_count: int = 0,
+        col_count: int = 0,
+        log_prefix: str = ""
+    ) -> bool:
+        """
+        Update table embed content as rows stream in.
+        Mirrors update_code_embed_content() but for table markdown.
+        
+        Args:
+            table_content: Accumulated markdown table so far (all rows including header + separator).
+            status: "processing" while streaming, "finished" when table ends.
+            title: Optional title extracted from HTML comment above the table.
+            row_count: Number of data rows (excluding header and separator).
+            col_count: Number of columns.
+        """
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Table embed {embed_id} not found in cache, cannot update")
+                return False
+
+            # Preserve existing title if not provided in this update
+            if not title:
+                existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+                if existing_toon:
+                    try:
+                        existing_content = decode(existing_toon)
+                        title = existing_content.get("title", "")
+                    except Exception:
+                        title = ""
+
+            updated_content = {
+                "type": "sheet",
+                "table": table_content,
+                "title": title or "",
+                "status": status,
+                "row_count": row_count,
+                "col_count": col_count,
+            }
+
+            updated_toon = encode(updated_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # Prevent duplicate finalization events
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = True
+            if status == "finished" and current_status == "finished":
+                should_send_event = False
+                logger.debug(
+                    f"{log_prefix} [EMBED_EVENT] Skipping duplicate send_embed_data for "
+                    f"already-finalized table embed {embed_id}"
+                )
+
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="sheet",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False
+                )
+
+            logger.debug(f"{log_prefix} Updated table embed {embed_id} ({row_count} rows, {col_count} cols, status: {status})")
+
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating table embed content: {e}", exc_info=True)
             return False
 
     # =========================================================================
@@ -709,7 +929,7 @@ class EmbedService:
             }
 
             # Cache placeholder embed
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             # Send plaintext TOON to client via WebSocket for immediate rendering
             await self.send_embed_data_to_client(
@@ -837,7 +1057,7 @@ class EmbedService:
                 )
 
             # Update cache
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             # Send updated content to client via WebSocket (only if not a duplicate finalization)
             if should_send_event:
@@ -860,6 +1080,11 @@ class EmbedService:
                 )
 
             logger.debug(f"{log_prefix} Updated document embed {embed_id} with {len(html_content)} chars, {word_count} words (status: {status})")
+
+            # Schedule fallback persistence when document embed is finalized
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
             return True
 
         except Exception as e:
@@ -1332,8 +1557,8 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
-            # Determine if this is a composite result (web search, places, events)
-            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections"]
+            # Determine if this is a composite result (web search, places, events, connections, stays)
+            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays"]
 
             child_embed_ids = []
 
@@ -1391,10 +1616,13 @@ class EmbedService:
                 # Maps search (app_id="maps", skill_id="search") should create "place" embeds
                 # Web search (app_id="web", skill_id="search") should create "website" embeds
                 # Travel search_connections should create "connection" embeds
+                # Travel search_stays should create "stay" embeds
                 if app_id == "maps" and skill_id == "search":
                     child_type = "place"
                 elif app_id == "travel" and skill_id == "search_connections":
                     child_type = "connection"
+                elif app_id == "travel" and skill_id == "search_stays":
+                    child_type = "stay"
                 elif skill_id == "search":
                     child_type = "website"  # Web search, news search, videos search
                 elif skill_id == "places_search":
@@ -1463,7 +1691,7 @@ class EmbedService:
                     child_embed_data["encrypted_content"] = encrypted_content
 
                     # Cache child embed (server-side, vault-encrypted)
-                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash)
+                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
                     # SEND PLAINTEXT TOON TO CLIENT via WebSocket
                     # CRITICAL: Pass parent_embed_id so child embeds can use parent's key (key inheritance - Option A)
@@ -1568,9 +1796,15 @@ class EmbedService:
                 )
 
                 # Update cache AFTER sending (overwrites placeholder with finished status)
-                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
                 logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds")
+
+                # Schedule fallback persistence for parent and all child embeds
+                # This ensures embeds are persisted even if the client doesn't send store_embed
+                self._schedule_embed_persistence_fallback(embed_id)
+                for cid in child_embed_ids:
+                    self._schedule_embed_persistence_fallback(cid)
 
                 return {
                     "embed_id": embed_id,
@@ -1657,9 +1891,12 @@ class EmbedService:
                 )
 
                 # Update cache AFTER sending (overwrites placeholder with finished status)
-                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
                 logger.info(f"{log_prefix} Updated single embed {embed_id}")
+
+                # Schedule fallback persistence for single embed
+                self._schedule_embed_persistence_fallback(embed_id)
 
                 return {
                     "embed_id": embed_id,
@@ -1708,14 +1945,8 @@ class EmbedService:
             None if update fails
         """
         try:
-            import hashlib
             from datetime import datetime
             from toon_format import encode
-            
-            # Hash sensitive IDs for privacy protection
-            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
-            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             # Retrieve original placeholder metadata (query, provider, etc.)
             # This ensures we preserve the original metadata when updating the embed
@@ -1746,37 +1977,21 @@ class EmbedService:
             # Calculate text length
             error_text_length_chars = len(error_content_toon)
             
-            # Encrypt with vault key
-            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
-                error_content_toon,
-                user_vault_key_id
-            )
-            
-            # Update embed in cache
             updated_at = int(datetime.now().timestamp())
-            updated_embed_data = {
-                "embed_id": embed_id,
-                "type": "app_skill_use",
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "hashed_chat_id": hashed_chat_id,
-                "hashed_message_id": hashed_message_id,
-                "hashed_task_id": hashed_task_id,
-                "status": "error",
-                "hashed_user_id": user_id_hash,
-                "is_private": False,
-                "is_shared": False,
-                "embed_ids": None,  # No child embeds
-                "encrypted_content": encrypted_content,
-                "text_length_chars": error_text_length_chars,
-                "created_at": updated_at,
-                "updated_at": updated_at
-            }
             
-            # Update cache (overwrites placeholder)
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+            # CLEANUP: Remove the "processing" placeholder from cache instead of
+            # storing an error embed. Failed embeds are wasted storage — the error
+            # is already logged and the client will hide the embed from the UI.
+            try:
+                await self.cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
+                logger.debug(f"{log_prefix} Removed processing placeholder for failed embed {embed_id} from cache")
+            except Exception as cache_err:
+                logger.warning(f"{log_prefix} Failed to remove embed {embed_id} from cache: {cache_err}")
             
-            # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+            # SEND PLAINTEXT TOON TO CLIENT via WebSocket so the client can:
+            # 1. Remove the in-memory processing placeholder
+            # 2. Track the error in _embedErrors for UI cleanup (hide embed, show error banner)
+            # 3. Skip persisting to IndexedDB (no store_embed sent back to server)
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="app_skill_use",
@@ -1840,14 +2055,8 @@ class EmbedService:
             Dictionary with embed_id and status if successful, None if update fails
         """
         try:
-            import hashlib
             from datetime import datetime
             from toon_format import encode
-            
-            # Hash sensitive IDs for privacy protection
-            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
-            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             # Retrieve original placeholder metadata (query, provider, etc.)
             original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
@@ -1874,37 +2083,19 @@ class EmbedService:
             
             cancelled_text_length_chars = len(cancelled_content_toon)
             
-            # Encrypt with vault key
-            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
-                cancelled_content_toon,
-                user_vault_key_id
-            )
-            
-            # Update embed in cache
             updated_at = int(datetime.now().timestamp())
-            updated_embed_data = {
-                "embed_id": embed_id,
-                "type": "app_skill_use",
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "hashed_chat_id": hashed_chat_id,
-                "hashed_message_id": hashed_message_id,
-                "hashed_task_id": hashed_task_id,
-                "status": "cancelled",
-                "hashed_user_id": user_id_hash,
-                "is_private": False,
-                "is_shared": False,
-                "embed_ids": None,
-                "encrypted_content": encrypted_content,
-                "text_length_chars": cancelled_text_length_chars,
-                "created_at": updated_at,
-                "updated_at": updated_at
-            }
             
-            # Update cache (overwrites placeholder)
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+            # CLEANUP: Remove the "processing" placeholder from cache instead of
+            # storing a cancelled embed. Failed/cancelled embeds are wasted storage.
+            try:
+                await self.cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
+                logger.debug(f"{log_prefix} Removed processing placeholder for cancelled embed {embed_id} from cache")
+            except Exception as cache_err:
+                logger.warning(f"{log_prefix} Failed to remove embed {embed_id} from cache: {cache_err}")
             
-            # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+            # SEND PLAINTEXT TOON TO CLIENT via WebSocket so the client can
+            # clean up the in-memory processing placeholder and update the UI.
+            # The client will NOT persist this to IndexedDB or send it back to Directus.
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="app_skill_use",
@@ -2073,6 +2264,11 @@ class EmbedService:
                     f"{log_prefix} [EMBED_EVENT] Published send_embed_data event for embed {embed_id} "
                     f"(status={status}, type={embed_type}, chat_id={chat_id}, message_id={message_id})"
                 )
+
+                # Track finished embeds as pending client encryption
+                if status == "finished":
+                    await self._track_pending_embed(user_id, embed_id, log_prefix)
+
                 return True
             else:
                 logger.warning(f"{log_prefix} Redis client not available, skipping send_embed_data event")
@@ -2081,6 +2277,36 @@ class EmbedService:
         except Exception as e:
             logger.error(f"{log_prefix} Error sending embed data to client: {e}", exc_info=True)
             return False
+
+    async def _track_pending_embed(
+        self,
+        user_id: str,
+        embed_id: str,
+        log_prefix: str = ""
+    ) -> None:
+        """
+        Add an embed to the pending encryption tracking set.
+
+        Called after a finished embed is published via Redis pub/sub. The embed
+        stays in the pending set until the client confirms encryption via store_embed,
+        at which point it is removed by the store_embed handler.
+
+        This enables reliable re-delivery on reconnect if the pub/sub message is lost.
+
+        Args:
+            user_id: User ID (UUID string)
+            embed_id: Embed ID to track
+            log_prefix: Logging prefix for context
+        """
+        try:
+            await self.cache_service.add_pending_embed(user_id, embed_id)
+        except Exception as e:
+            # Non-critical: don't fail embed delivery if tracking fails.
+            # The existing fallback task still provides a safety net.
+            logger.warning(
+                f"{log_prefix} [PENDING_EMBED] Failed to track embed {embed_id} "
+                f"as pending for user {user_id[:8]}...: {e}"
+            )
 
     async def create_embeds_from_skill_results(
         self,
@@ -2135,10 +2361,10 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
             
-            # Determine if this is a composite result (web search, places, events)
+            # Determine if this is a composite result (web search, places, events, connections, stays)
             # Check both app_id and skill_id to determine composite vs single
             # Maps search uses skill_id "search" but should create "place" embeds, not "website" embeds
-            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections"]
+            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays"]
             
             child_embed_ids = []
             
@@ -2147,10 +2373,13 @@ class EmbedService:
                 # Maps search (app_id="maps", skill_id="search") should create "place" embeds
                 # Web search (app_id="web", skill_id="search") should create "website" embeds
                 # Travel search_connections should create "connection" embeds
+                # Travel search_stays should create "stay" embeds
                 if app_id == "maps" and skill_id == "search":
                     child_type = "place"
                 elif app_id == "travel" and skill_id == "search_connections":
                     child_type = "connection"
+                elif app_id == "travel" and skill_id == "search_stays":
+                    child_type = "stay"
                 elif skill_id == "search":
                     child_type = "website"  # Web search, news search, videos search
                 elif skill_id == "places_search":
@@ -2204,7 +2433,7 @@ class EmbedService:
                     child_embed_data["encrypted_content"] = encrypted_content
                     
                     # Cache child embed (server-side, vault-encrypted)
-                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash)
+                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
                     
                     # CRITICAL: Send child embed to client via WebSocket for client-side encryption and storage
                     # Without this, child embeds only exist in server cache and won't be stored in Directus
@@ -2310,9 +2539,14 @@ class EmbedService:
                 )
                 
                 # Cache parent embed AFTER sending
-                await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash)
+                await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
                 
                 logger.info(f"{log_prefix} Created parent embed {parent_embed_id} with {len(child_embed_ids)} child embeds")
+
+                # Schedule fallback persistence for parent and all child embeds
+                self._schedule_embed_persistence_fallback(parent_embed_id)
+                for cid in child_embed_ids:
+                    self._schedule_embed_persistence_fallback(cid)
                 
                 # Generate embed reference JSON
                 # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
@@ -2417,9 +2651,12 @@ class EmbedService:
                 )
                 
                 # Cache embed AFTER sending
-                await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+                await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
                 
                 logger.info(f"{log_prefix} Created single embed {embed_id}")
+
+                # Schedule fallback persistence for single embed
+                self._schedule_embed_persistence_fallback(embed_id)
                 
                 # Generate embed reference JSON
                 # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
@@ -2447,7 +2684,9 @@ class EmbedService:
         embed_id: str,
         embed_data: Dict[str, Any],
         chat_id: str,
-        user_id_hash: str
+        user_id_hash: str,
+        user_vault_key_id: Optional[str] = None,
+        user_id: Optional[str] = None
     ) -> None:
         """
         Cache embed in Redis with vault encryption.
@@ -2457,10 +2696,23 @@ class EmbedService:
             embed_data: Embed data dictionary (already vault-encrypted)
             chat_id: Chat ID for indexing
             user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for fallback persistence.
+                              Stored in cache so the fallback Celery task can decrypt
+                              vault-encrypted content and re-send it to the client.
+            user_id: Plaintext user ID (UUID) for fallback re-send via WebSocket pub/sub.
         """
         try:
             # Cache key: embed:{embed_id} (global cache, one entry per embed)
             cache_key = f"embed:{embed_id}"
+            
+            # Include vault_key_id and user_id in cached data for fallback persistence support.
+            # The fallback task needs:
+            # - vault_key_id: to decrypt the vault-encrypted TOON content
+            # - user_id: to re-send the embed data to the client via WebSocket pub/sub
+            if user_vault_key_id and "vault_key_id" not in embed_data:
+                embed_data["vault_key_id"] = user_vault_key_id
+            if user_id and "user_id" not in embed_data:
+                embed_data["user_id"] = user_id
             
             # Store embed data (already encrypted with vault key)
             import json as json_lib
@@ -2483,3 +2735,40 @@ class EmbedService:
         except Exception as e:
             logger.error(f"Error caching embed {embed_id}: {e}", exc_info=True)
             # Don't fail embed creation if caching fails
+
+    def _schedule_embed_persistence_fallback(
+        self,
+        embed_id: str,
+        countdown_seconds: int = 60
+    ) -> None:
+        """
+        Schedule a delayed Celery task to check if an embed was persisted to Directus
+        by the client, and if not, persist the vault-encrypted version from Redis cache.
+        
+        This provides a server-side safety net for embed persistence when the client-to-server
+        store_embed round-trip fails (WebSocket disconnect, client crash, tab closure, etc.).
+        
+        Args:
+            embed_id: The embed ID to schedule fallback for
+            countdown_seconds: Delay in seconds before the task runs (default: 60).
+                              Must be long enough for the client to complete normal persistence,
+                              but short enough that it runs well before the 72h cache TTL.
+        """
+        try:
+            from backend.core.api.app.tasks.celery_config import app as celery_app
+            celery_app.send_task(
+                name="app.tasks.persistence_tasks.persist_embed_fallback",
+                kwargs={"embed_id": embed_id},
+                queue="persistence",
+                countdown=countdown_seconds,
+            )
+            logger.debug(
+                f"Scheduled embed fallback persistence for {embed_id} "
+                f"(countdown={countdown_seconds}s)"
+            )
+        except Exception as e:
+            # Non-critical: don't fail embed creation if scheduling fails.
+            # The normal client-side persistence may still succeed.
+            logger.warning(
+                f"Failed to schedule embed fallback persistence for {embed_id}: {e}"
+            )

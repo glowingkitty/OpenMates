@@ -364,8 +364,8 @@
                 logger.debug('Processing markdown text content:', inputContent.substring(0, 100) + '...');
                 
                 // Handle special translation keys
-                if (inputContent === 'chat.an_error_occured.text') {
-                    const translatedText = $text('chat.an_error_occured.text');
+                if (inputContent === 'chat.an_error_occured') {
+                    const translatedText = $text('chat.an_error_occured');
                     return parse_message(translatedText, 'read', { unifiedParsingEnabled: true });
                 }
 
@@ -412,9 +412,9 @@
                 if (firstParagraph?.type === 'paragraph' && firstParagraph?.content?.[0]?.type === 'text') {
                     const textContent = firstParagraph.content[0].text;
                     
-                    if (textContent === 'chat.an_error_occured.text') {
+                    if (textContent === 'chat.an_error_occured') {
                         // Replace the key with the translated text
-                        firstParagraph.content[0].text = $text('chat.an_error_occured.text');
+                        firstParagraph.content[0].text = $text('chat.an_error_occured');
                     } else if (isMarkdownContent(textContent)) {
                         // If the text content looks like markdown, parse it with unified parsing
                         logger.debug('Converting TipTap JSON with markdown text to proper markdown structure');

@@ -86,7 +86,7 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
             settingsPath: `billing/auto-topup/${path}`,
             direction: 'forward',
             icon: path,
-            title: $text(`settings.billing.${translationKey}.text`)
+            title: $text(`settings.billing.${translationKey}`)
         });
     }
 
@@ -98,19 +98,19 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
 <!-- On Low Balance Menu Item -->
 <SettingsItem
     icon="subsetting_icon subsetting_icon_low_balance"
-    title={$text('settings.billing.on_low_balance.text')}
+    title={$text('settings.billing.on_low_balance')}
     subtitle={lowBalanceEnabled 
-        ? `${$text('settings.enabled.text')} - ${$text('settings.billing.threshold.text')}: ${formatCredits(lowBalanceThreshold)}`
-        : $text('settings.disabled.text')}
+        ? `${$text('settings.enabled')} - ${$text('settings.billing.threshold')}: ${formatCredits(lowBalanceThreshold)}`
+        : $text('settings.disabled')}
     onClick={() => navigateToSubview('low-balance')}
 />
 
 <!-- Monthly Subscription Menu Item -->
 <SettingsItem
     icon="subsetting_icon subsetting_icon_calendar"
-    title={$text('settings.billing.monthly.text')}
+    title={$text('settings.billing.monthly')}
     subtitle={hasActiveSubscription && subscriptionDetails
-        ? `${$text('settings.active.text')} - ${formatCredits(subscriptionDetails.credits_amount || 0)} ${$text('settings.billing.credits.text')}/month${nextChargeDate ? ` • ${$text('settings.billing.next_charge.text')}: ${nextChargeDate.toLocaleDateString()}` : ''}`
-        : $text('settings.billing.no_subscription.text')}
+        ? `${$text('settings.active')} - ${formatCredits(subscriptionDetails.credits_amount || 0)} ${$text('settings.billing.credits')}/month${nextChargeDate ? ` • ${$text('settings.billing.next_charge')}: ${nextChargeDate.toLocaleDateString()}` : ''}`
+        : $text('settings.billing.no_subscription')}
     onClick={() => navigateToSubview('monthly')}
 />

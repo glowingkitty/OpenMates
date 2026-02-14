@@ -5659,3 +5659,13 @@ report_issue.copy_debug_info_hint:
   cs: Zkopíruje informace o zařízení, protokoly konzole a data IndexedDB do schránky pro lokální ladění
   sv: Kopierar enhetsinformation, konsolloggar och IndexedDB-data till urklipp för lokal felsökning
   verified_by_human: []
+logout_all:
+  context: Menu item to log out of all devices and sessions
+  en: Log out everywhere
+  de: Überall abmelden
+  verified_by_human: []
+tip.tip_creator:
+  context: Navigation title for the tip settings page
+  en: Tip Creator
+  de: Ersteller unterstützen
+  verified_by_human: []

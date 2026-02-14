@@ -585,6 +585,27 @@ export async function inspectChat(
     lines.push(
       `    ${chatMeta.encrypted_follow_up_request_suggestions ? "✓" : "✗"} Follow-up Suggestions ${chatMeta.encrypted_follow_up_request_suggestions ? `(${(chatMeta.encrypted_follow_up_request_suggestions as string).length} chars)` : ""}`,
     );
+    lines.push(
+      `    ${chatMeta.encrypted_active_focus_id ? "✓" : "✗"} Active Focus ID ${chatMeta.encrypted_active_focus_id ? `(${(chatMeta.encrypted_active_focus_id as string).length} chars)` : ""}`,
+    );
+
+    // Attempt to decrypt active focus ID for display
+    if (chatMeta.encrypted_active_focus_id) {
+      try {
+        const { chatDB } = await import("./db");
+        const chatKey = chatDB.getChatKey(chatId);
+        if (chatKey) {
+          const { decryptWithChatKey } = await import("./cryptoService");
+          const decryptedFocusId = await decryptWithChatKey(
+            chatMeta.encrypted_active_focus_id as string,
+            chatKey,
+          );
+          lines.push(`  Active Focus Mode:           ${decryptedFocusId}`);
+        }
+      } catch {
+        lines.push(`  Active Focus Mode:           (decryption failed)`);
+      }
+    }
   } else {
     lines.push("  ❌ Chat NOT FOUND in IndexedDB");
   }

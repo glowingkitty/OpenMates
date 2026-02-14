@@ -18,6 +18,16 @@ import type { EmbedKeyEntry } from "./embedStore";
 import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
 import { userDB } from "./userDB";
+import { activeChatStore } from "../stores/activeChatStore";
+
+/**
+ * Yield control back to the browser's main thread.
+ * This prevents long-running sync operations from blocking UI rendering,
+ * which is especially important on mobile devices with limited resources.
+ */
+function yieldToMainThread(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 /**
  * Handle Phase 2 completion (recent chats ready)
@@ -326,9 +336,40 @@ async function storeRecentChats(
     const userProfile = await userDB.getUserProfile();
     const currentUserId = userProfile?.user_id;
 
-    for (const chatItem of chats) {
+    // CRITICAL: Get pending deletions set to skip chats that were deleted locally
+    // while offline. Without this, the server would re-add the chat because it
+    // doesn't know about the deletion yet (the delete_chat WS message hasn't been sent).
+    const { getPendingChatDeletionsSet } =
+      await import("./pendingChatDeletions");
+    const pendingDeletions = getPendingChatDeletionsSet();
+
+    // PERFORMANCE FIX: Sort chats so the active chat is processed first.
+    // This ensures the currently-viewed chat renders without delay,
+    // while background chats are processed with UI thread yields between them.
+    const currentActiveChatId = activeChatStore.get();
+    const sortedChats = [...chats].sort((a, b) => {
+      if (a.chat_details.id === currentActiveChatId) return -1;
+      if (b.chat_details.id === currentActiveChatId) return 1;
+      return 0;
+    });
+
+    for (let i = 0; i < sortedChats.length; i++) {
+      const chatItem = sortedChats[i];
       const { chat_details, messages, server_message_count } = chatItem;
       const chatId = chat_details.id;
+
+      // Yield to the main thread between non-active chat saves to prevent UI jank
+      if (i > 0) {
+        await yieldToMainThread();
+      }
+
+      // Skip chats that are pending server deletion - do not re-add them
+      if (pendingDeletions.has(chatId)) {
+        console.info(
+          `[ChatSyncService] Phase 2 - Skipping chat ${chatId}: pending server deletion`,
+        );
+        continue;
+      }
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
@@ -512,9 +553,39 @@ async function storeAllChats(
     const userProfile = await userDB.getUserProfile();
     const currentUserId = userProfile?.user_id;
 
-    for (const chatItem of chats) {
+    // CRITICAL: Get pending deletions set to skip chats that were deleted locally
+    // while offline. Without this, the server would re-add the chat because it
+    // doesn't know about the deletion yet (the delete_chat WS message hasn't been sent).
+    const { getPendingChatDeletionsSet } =
+      await import("./pendingChatDeletions");
+    const pendingDeletions = getPendingChatDeletionsSet();
+
+    // PERFORMANCE FIX: Sort chats so the active chat is processed first.
+    // Same pattern as Phase 2 — prevents UI jank on mobile devices.
+    const currentActiveChatId = activeChatStore.get();
+    const sortedChats = [...chats].sort((a, b) => {
+      if (a.chat_details.id === currentActiveChatId) return -1;
+      if (b.chat_details.id === currentActiveChatId) return 1;
+      return 0;
+    });
+
+    for (let i = 0; i < sortedChats.length; i++) {
+      const chatItem = sortedChats[i];
       const { chat_details, messages, server_message_count } = chatItem;
       const chatId = chat_details.id;
+
+      // Yield to the main thread between non-active chat saves to prevent UI jank
+      if (i > 0) {
+        await yieldToMainThread();
+      }
+
+      // Skip chats that are pending server deletion - do not re-add them
+      if (pendingDeletions.has(chatId)) {
+        console.info(
+          `[ChatSyncService] Phase 3 - Skipping chat ${chatId}: pending server deletion`,
+        );
+        continue;
+      }
 
       console.debug(
         `[ChatSyncService] Processing chat ${chatId} with ${messages?.length || 0} messages`,
@@ -752,6 +823,15 @@ async function storeEmbedsBatch(
       if (!embed.embed_id) {
         console.warn(
           `[ChatSyncService] ${phaseName} - Skipping embed without embed_id`,
+        );
+        continue;
+      }
+
+      // Skip error/cancelled embeds — they are not displayed and should not
+      // be stored locally. The backend filters these out but this is a safety net.
+      if (embed.status === "error" || embed.status === "cancelled") {
+        console.debug(
+          `[ChatSyncService] ${phaseName} - Skipping ${embed.status} embed ${embed.embed_id}`,
         );
         continue;
       }

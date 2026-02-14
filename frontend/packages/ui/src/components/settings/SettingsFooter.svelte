@@ -116,86 +116,86 @@
 <div class="submenu-section">
     <!-- TODO Show again once docs are implemented -->
     <!-- <div class="submenu-group">
-        <h3>{@html $text('settings.docs.text')}</h3>
+        <h3>{@html $text('settings.docs')}</h3>
         <a 
             href={getWebsiteUrl('/docs/user-guide')} 
             class="submenu-link" 
             target="_blank" 
             rel="noopener noreferrer"
-        >{@html $text('settings.user_guide.text')}</a>
+        >{@html $text('settings.user_guide')}</a>
         <a 
             href={getWebsiteUrl('/docs/api-docs')} 
             class="submenu-link" 
             target="_blank" 
             rel="noopener noreferrer"
-        >{@html $text('settings.api_docs.text')}</a>
+        >{@html $text('settings.api_docs')}</a>
     </div> -->
 
     <!-- For everyone -->
     <div class="submenu-group">
-        <h3>{@html $text('footer.sections.for_everyone.text')}</h3>
+        <h3>{@html $text('footer.sections.for_everyone')}</h3>
         <a
             href={externalLinks.instagram}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.instagram.text')}</a>
+        >{@html $text('settings.instagram')}</a>
         <a
             href={externalLinks.discord}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.discord.text')}</a>
+        >{@html $text('settings.discord')}</a>
         <a
             href={externalLinks.meetup}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.meetup.text')}</a>
+        >{@html $text('settings.meetup')}</a>
         <a
             href={externalLinks.mastodon}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.mastodon.text')}</a>
+        >{@html $text('settings.mastodon')}</a>
         <a
             href={externalLinks.pixelfed}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.pixelfed.text')}</a>
+        >{@html $text('settings.pixelfed')}</a>
     </div>
 
     <!-- For developers -->
     <div class="submenu-group">
-        <h3>{@html $text('footer.sections.for_developers.text')}</h3>
+        <h3>{@html $text('footer.sections.for_developers')}</h3>
         <a
             href={getApiDocsUrl()}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.api_docs.text')}</a>
+        >{@html $text('settings.api_docs')}</a>
         <a
             href={externalLinks.github}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.github.text')}</a>
+        >{@html $text('settings.github')}</a>
         <a
             href={externalLinks.signal}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.signal.text')}</a>
+        >{@html $text('settings.signal')}</a>
     </div>
 
     <!-- Contact email -->
     <div class="submenu-group">
-        <h3>{@html $text('settings.contact.text')}</h3>
+        <h3>{@html $text('settings.contact')}</h3>
         <a
             href={externalLinks.email}
             class="submenu-link"
-        >{@html $text('settings.email.text')}</a>
+        >{@html $text('settings.email')}</a>
     </div>
 
     <!-- Legal section: Only show for non-self-hosted instances -->
@@ -205,22 +205,22 @@
     <!-- - No terms of service: no third-party service relationship exists -->
     {#if !isSelfHosted}
         <div class="submenu-group">
-            <h3>{@html $text('settings.legal.text')}</h3>
+            <h3>{@html $text('settings.legal')}</h3>
             <a 
                 href={getWebsiteUrl(externalLinks.legal.imprint)} 
                 class="submenu-link" 
                 onclick={(e) => handleLegalLinkClick(e, 'imprint')}
-            >{@html $text('settings.imprint.text')}</a>
+            >{@html $text('settings.imprint')}</a>
             <a 
                 href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} 
                 class="submenu-link" 
                 onclick={(e) => handleLegalLinkClick(e, 'privacy')}
-            >{@html $text('settings.privacy.text')}</a>
+            >{@html $text('settings.privacy')}</a>
             <a 
                 href={getWebsiteUrl(externalLinks.legal.terms)} 
                 class="submenu-link" 
                 onclick={(e) => handleLegalLinkClick(e, 'terms')}
-            >{@html $text('settings.terms_and_conditions.text')}</a>
+            >{@html $text('settings.terms_and_conditions')}</a>
         </div>
     {/if}
 

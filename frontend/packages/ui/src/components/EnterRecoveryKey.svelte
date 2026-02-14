@@ -108,10 +108,10 @@
                 // Recovery key login successful
                 await handleSuccessfulLogin(data);
             } else {
-                if (data.message === 'login.recovery_key_wrong.text') {
-                    errorMessage = $text('login.recovery_key_wrong.text');
+                if (data.message === 'login.recovery_key_wrong') {
+                    errorMessage = $text('login.recovery_key_wrong');
                 } else {
-                    errorMessage = data.message || $text('login.recovery_key_wrong.text');
+                    errorMessage = data.message || $text('login.recovery_key_wrong');
                 }
             }
         } catch (error) {
@@ -146,19 +146,19 @@
         // If any required field is missing, show error instead of silently failing
         if (!data.user) {
             console.error('[EnterRecoveryKey] CRITICAL: Login response missing user object!');
-            errorMessage = $text('login.login_failed.text');
+            errorMessage = $text('login.login_failed');
             return;
         }
         
         if (!data.user.encrypted_key) {
             console.error('[EnterRecoveryKey] CRITICAL: Login response missing encrypted_key! User object keys:', Object.keys(data.user));
-            errorMessage = $text('login.login_failed.text');
+            errorMessage = $text('login.login_failed');
             return;
         }
         
         if (!data.user.salt) {
             console.error('[EnterRecoveryKey] CRITICAL: Login response missing salt! User object keys:', Object.keys(data.user));
-            errorMessage = $text('login.login_failed.text');
+            errorMessage = $text('login.login_failed');
             return;
         }
         
@@ -290,7 +290,7 @@
     </div>
 
     <p class="recovery-key-text">
-        {@html $text('login.use_for_emergencies_only.text')}
+        {@html $text('login.use_for_emergencies_only')}
     </p>
 
     <form onsubmit={handleSubmit}>
@@ -302,7 +302,7 @@
                     type="password"
                     bind:value={recoveryKey}
                     oninput={handleRecoveryKeyInput}
-                    placeholder={$text('login.recoverykey_placeholder.text')}
+                    placeholder={$text('login.recoverykey_placeholder')}
                     autocomplete="off"
                     class:error={!!errorMessage}
                     style="font-family: monospace;"
@@ -323,7 +323,7 @@
             {#if isLoading}
                 <span class="loading-spinner"></span>
             {:else}
-                {$text('login.login_button.text')}
+                {$text('login.login_button')}
             {/if}
         </button>
     </form>
@@ -334,7 +334,7 @@
         <div>
             <button class="login-option-button" onclick={handleBackToEmail}>
                 <span class="clickable-icon icon_user"></span>
-                <mark>{$text('login.login_with_another_account.text')}</mark>
+                <mark>{$text('login.login_with_another_account')}</mark>
             </button>
         </div>
 
@@ -342,7 +342,7 @@
         <div>
             <button class="login-option-button" onclick={handleSwitchToPasswordAndTfa}>
                 <span class="clickable-icon icon_password"></span>
-                <mark>{$text('login.login_with_password_and_tfa.text')}</mark>
+                <mark>{$text('login.login_with_password_and_tfa')}</mark>
             </button>
         </div>
     </div>

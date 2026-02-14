@@ -45,3 +45,75 @@ ask.description:
   cs: Ptejte se textem, obrázky a dalšími médii.
   sv: Fråga med text, bilder och annat media.
   verified_by_human: [en, de]
+
+ask.how_to_use.1:
+  context: Example instruction for AI ask skill - general knowledge question
+  en: What are the pros and cons of remote work?
+  de: Was sind die Vor- und Nachteile von Remote-Arbeit?
+  zh: 远程工作的优缺点是什么？
+  es: ¿Cuáles son los pros y contras del trabajo remoto?
+  fr: Quels sont les avantages et inconvénients du télétravail ?
+  pt: Quais são os prós e contras do trabalho remoto?
+  ru: Каковы плюсы и минусы удалённой работы?
+  ja: リモートワークのメリットとデメリットは？
+  ko: 재택근무의 장단점은 무엇인가요?
+  it: Quali sono i pro e i contro del lavoro da remoto?
+  tr: Uzaktan çalışmanın artıları ve eksileri nelerdir?
+  vi: Ưu và nhược điểm của làm việc từ xa là gì?
+  id: Apa kelebihan dan kekurangan kerja jarak jauh?
+  pl: Jakie są zalety i wady pracy zdalnej?
+  nl: Wat zijn de voor- en nadelen van thuiswerken?
+  ar: ما هي إيجابيات وسلبيات العمل عن بُعد؟
+  hi: रिमोट वर्क के फायदे और नुकसान क्या हैं?
+  th: ข้อดีและข้อเสียของการทำงานทางไกลคืออะไร?
+  cs: Jaké jsou výhody a nevýhody práce na dálku?
+  sv: Vilka är fördelarna och nackdelarna med distansarbete?
+  verified_by_human: [en, de]
+
+ask.how_to_use.2:
+  context: Example instruction for AI ask skill - explain a concept
+  en: Explain quantum computing in simple terms
+  de: Erkläre Quantencomputing in einfachen Worten
+  zh: 用简单的语言解释量子计算
+  es: Explica la computación cuántica en términos simples
+  fr: Explique l'informatique quantique en termes simples
+  pt: Explique a computação quântica em termos simples
+  ru: Объясни квантовые вычисления простыми словами
+  ja: 量子コンピューティングを簡単に説明して
+  ko: 양자 컴퓨팅을 쉽게 설명해 주세요
+  it: Spiega il calcolo quantistico in parole semplici
+  tr: Kuantum bilişimi basit terimlerle açıkla
+  vi: Giải thích máy tính lượng tử bằng từ ngữ đơn giản
+  id: Jelaskan komputasi kuantum dengan istilah sederhana
+  pl: Wyjaśnij obliczenia kwantowe prostymi słowami
+  nl: Leg kwantumcomputing uit in eenvoudige termen
+  ar: اشرح الحوسبة الكمومية بعبارات بسيطة
+  hi: क्वांटम कंप्यूटिंग को सरल शब्दों में समझाइए
+  th: อธิบายการประมวลผลควอนตัมด้วยคำง่ายๆ
+  cs: Vysvětli kvantové počítání jednoduchými slovy
+  sv: Förklara kvantdatorer med enkla ord
+  verified_by_human: [en, de]
+
+ask.how_to_use.3:
+  context: Example instruction for AI ask skill - writing help
+  en: Help me write a professional email to my boss about a raise
+  de: Hilf mir, eine professionelle E-Mail an meinen Chef wegen einer Gehaltserhöhung zu schreiben
+  zh: 帮我写一封向老板要求加薪的专业邮件
+  es: Ayúdame a escribir un email profesional a mi jefe sobre un aumento
+  fr: Aide-moi à rédiger un email professionnel à mon patron pour une augmentation
+  pt: Me ajude a escrever um email profissional para meu chefe sobre um aumento
+  ru: Помоги мне написать профессиональное письмо начальнику о повышении зарплаты
+  ja: 上司に昇給について専門的なメールを書くのを手伝って
+  ko: 상사에게 급여 인상에 대한 전문적인 이메일을 쓰는 걸 도와주세요
+  it: Aiutami a scrivere un'email professionale al mio capo per un aumento
+  tr: Patronuma zam hakkında profesyonel bir e-posta yazmama yardım et
+  vi: Giúp tôi viết email chuyên nghiệp cho sếp về việc tăng lương
+  id: Bantu saya menulis email profesional kepada bos tentang kenaikan gaji
+  pl: Pomóż mi napisać profesjonalny email do szefa o podwyżkę
+  nl: Help me een professionele e-mail te schrijven aan mijn baas over een loonsverhoging
+  ar: ساعدني في كتابة بريد إلكتروني احترافي لمديري حول زيادة الراتب
+  hi: मेरे बॉस को वेतन वृद्धि के बारे में एक पेशेवर ईमेल लिखने में मदद करें
+  th: ช่วยเขียนอีเมลอย่างมืออาชีพถึงหัวหน้าเรื่องการขอขึ้นเงินเดือน
+  cs: Pomoz mi napsat profesionální email šéfovi o zvýšení platu
+  sv: Hjälp mig skriva ett professionellt mejl till min chef om löneförhöjning
+  verified_by_human: [en, de]

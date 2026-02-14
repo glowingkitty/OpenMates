@@ -83,7 +83,7 @@
                 onclick={(event) => handleMenuItemClick('delete', event)}
             >
                 <div class="clickable-icon icon_delete"></div>
-                {$_('enter_message.press_and_hold_menu.delete.text')}
+                {$_('enter_message.press_and_hold_menu.delete')}
             </button>
         {/if}
         
@@ -94,21 +94,21 @@
                 onclick={(event) => handleMenuItemClick('share', event)}
             >
                 <div class="clickable-icon icon_share"></div>
-                {$_('enter_message.press_and_hold_menu.share.text', { default: 'Share' })}
+                {$_('enter_message.press_and_hold_menu.share', { default: 'Share' })}
             </button>
             <button 
                 class="menu-item copy"
                 onclick={(event) => handleMenuItemClick('copy', event)}
             >
                 <div class="clickable-icon icon_copy"></div>
-                {$_('enter_message.press_and_hold_menu.copy.text', { default: 'Copy' })}
+                {$_('enter_message.press_and_hold_menu.copy', { default: 'Copy' })}
             </button>
             <button 
                 class="menu-item download"
                 onclick={(event) => handleMenuItemClick('download', event)}
             >
                 <div class="clickable-icon icon_download"></div>
-                {$_('enter_message.press_and_hold_menu.download.text')}
+                {$_('enter_message.press_and_hold_menu.download')}
             </button>
         {:else if type === 'video'}
             <!-- Video Embed: Share, Copy -->
@@ -117,14 +117,14 @@
                 onclick={(event) => handleMenuItemClick('share', event)}
             >
                 <div class="clickable-icon icon_share"></div>
-                {$_('enter_message.press_and_hold_menu.share.text', { default: 'Share' })}
+                {$_('enter_message.press_and_hold_menu.share', { default: 'Share' })}
             </button>
             <button 
                 class="menu-item copy"
                 onclick={(event) => handleMenuItemClick('copy', event)}
             >
                 <div class="clickable-icon icon_copy"></div>
-                {$_('enter_message.press_and_hold_menu.copy_link.text')}
+                {$_('enter_message.press_and_hold_menu.copy_link')}
             </button>
         {:else if type === 'web' || isYouTube}
             <button 
@@ -132,14 +132,14 @@
                 onclick={(event) => handleMenuItemClick('copy', event)}
             >
                 <div class="clickable-icon icon_copy"></div>
-                {$_('enter_message.press_and_hold_menu.copy_link.text')}
+                {$_('enter_message.press_and_hold_menu.copy_link')}
             </button>
             <button 
                 class="menu-item view"
                 onclick={(event) => handleView(event)}
             >
                 <div class="clickable-icon icon_fullscreen"></div>
-                {$_('enter_message.press_and_hold_menu.view.text')}
+                {$_('enter_message.press_and_hold_menu.view')}
             </button>
         {:else if type === 'pdf'}
             <button 
@@ -147,14 +147,14 @@
                 onclick={(event) => handleMenuItemClick('download', event)}
             >
                 <div class="clickable-icon icon_download"></div>
-                {$_('enter_message.press_and_hold_menu.download.text')}
+                {$_('enter_message.press_and_hold_menu.download')}
             </button>
             <button 
                 class="menu-item view"
                 onclick={(event) => handleView(event)}
             >
                 <div class="clickable-icon icon_fullscreen"></div>
-                {$_('enter_message.press_and_hold_menu.view.text')}
+                {$_('enter_message.press_and_hold_menu.view')}
             </button>
         {:else}
             {#if !isYouTube && (type === 'default' || type === 'pdf')}
@@ -163,7 +163,7 @@
                     onclick={(event) => handleMenuItemClick('download', event)}
                 >
                     <div class="clickable-icon icon_download"></div>
-                    {$_('enter_message.press_and_hold_menu.download.text')}
+                    {$_('enter_message.press_and_hold_menu.download')}
                 </button>
             {/if}
             <button 
@@ -171,7 +171,7 @@
                 onclick={(event) => handleView(event)}
             >
                 <div class="clickable-icon icon_fullscreen"></div>
-                {$_('enter_message.press_and_hold_menu.view.text')}
+                {$_('enter_message.press_and_hold_menu.view')}
             </button>
         {/if}
     </div>

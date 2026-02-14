@@ -10,7 +10,7 @@
     class="discord-button"
 >
     <span class="small-icon icon_discord"></span>
-    {$_('discord.join_server.text')}
+    {$_('discord.join_server')}
 </a>
 
 <style>

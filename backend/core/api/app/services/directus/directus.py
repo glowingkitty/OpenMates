@@ -362,6 +362,7 @@ class DirectusService:
             "public_key_cose": public_key_cose_b64,
             "aaguid": aaguid,
             "sign_count": 0,
+            "usage_count": 0,
             "registered_at": current_timestamp,
             "created_at": current_timestamp,
             "updated_at": current_timestamp,
@@ -413,11 +414,15 @@ class DirectusService:
         new_sign_count: int
     ) -> bool:
         """
-        Updates the sign_count and last_used_at timestamp for a passkey.
+        Updates the sign_count, usage_count, and last_used_at timestamp for a passkey.
+        
+        sign_count comes from the WebAuthn authenticator (many authenticators always return 0,
+        so it's only useful for clone detection, not for tracking actual usage).
+        usage_count is our own counter that reliably tracks how many times the passkey was used.
         
         Args:
             passkey_id: The passkey record ID
-            new_sign_count: The new sign count value
+            new_sign_count: The new sign count value from the authenticator
             
         Returns:
             True if update was successful, False otherwise
@@ -425,8 +430,17 @@ class DirectusService:
         # Use Unix timestamp (integer) for consistency with create_passkey
         # Directus will convert this to ISO format when returning via API
         current_timestamp = int(time.time())
+        
+        # First, get current usage_count to increment it
+        try:
+            current_passkey = await self.get_item("user_passkeys", passkey_id, {"fields": "usage_count"})
+            current_usage_count = current_passkey.get("usage_count", 0) if current_passkey else 0
+        except Exception:
+            current_usage_count = 0
+        
         update_data = {
             "sign_count": new_sign_count,
+            "usage_count": current_usage_count + 1,
             "last_used_at": current_timestamp
         }
         try:
@@ -505,7 +519,7 @@ class DirectusService:
         """
         params = {
             "filter[hashed_user_id][_eq]": hashed_user_id,
-            "fields": "id,credential_id,encrypted_device_name,registered_at,last_used_at,sign_count",
+            "fields": "id,credential_id,encrypted_device_name,registered_at,last_used_at,sign_count,usage_count",
             "sort": "-last_used_at"  # Most recently used first
         }
         try:
@@ -530,11 +544,12 @@ class DirectusService:
             - encrypted_device_name (for display, client decrypts)
             - registered_at (registration timestamp)
             - last_used_at (last usage timestamp)
-            - sign_count (usage counter)
+            - sign_count (WebAuthn authenticator counter, for clone detection)
+            - usage_count (application-level usage counter for display)
         """
         params = {
             "filter[user_id][_eq]": user_id,
-            "fields": "id,encrypted_device_name,registered_at,last_used_at,sign_count",
+            "fields": "id,encrypted_device_name,registered_at,last_used_at,sign_count,usage_count",
             "sort": "-last_used_at"  # Most recently used first
         }
         try:

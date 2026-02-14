@@ -37,7 +37,8 @@ const {
 	getSignupTestDomain,
 	getMailosaurServerId,
 	createMailosaurClient,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -389,4 +390,8 @@ test('completes full account recovery flow with same password', async ({
 	await page.waitForURL(/chat|demo/, { timeout: 60000 });
 	await takeStepScreenshot(page, 'login-success');
 	logRecoveryCheckpoint('Login successful after account recovery! Test complete.');
+
+	// Verify no missing translations after account recovery
+	await assertNoMissingTranslations(page);
+	logRecoveryCheckpoint('No missing translations detected.');
 });

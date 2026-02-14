@@ -83,11 +83,11 @@
         
         // Validate title
         if (!issueTitle || !issueTitle.trim()) {
-            titleError = $text('settings.report_issue.title_required.text');
+            titleError = $text('settings.report_issue.title_required');
             showTitleWarning = true;
             isValid = false;
         } else if (issueTitle.trim().length < 3) {
-            titleError = $text('settings.report_issue.title_too_short.text');
+            titleError = $text('settings.report_issue.title_too_short');
             showTitleWarning = true;
             isValid = false;
         } else {
@@ -98,7 +98,7 @@
         // Validate description (optional - but if provided, must be at least 10 characters)
         if (issueDescription && issueDescription.trim()) {
             if (issueDescription.trim().length < 10) {
-                descriptionError = $text('settings.report_issue.description_too_short.text');
+                descriptionError = $text('settings.report_issue.description_too_short');
                 showDescriptionWarning = true;
                 isValid = false;
             } else {
@@ -114,7 +114,7 @@
         // Validate email if provided (optional field)
         if (contactEmail && contactEmail.trim()) {
             if (!validateEmail(contactEmail)) {
-                emailError = $text('settings.report_issue.email_invalid.text');
+                emailError = $text('settings.report_issue.email_invalid');
                 showEmailWarning = true;
                 isValid = false;
             } else {
@@ -423,7 +423,7 @@
             }
             
             let data: ApiResponse;
-            const defaultErrorMessage = $text('settings.report_issue_error.text');
+            const defaultErrorMessage = $text('settings.report_issue_error');
             
             try {
                 const contentType = response.headers.get('content-type');
@@ -448,7 +448,7 @@
             
             if (response.ok && data.success) {
                 // Store issue ID separately so it can be displayed as a copyable element
-                const baseSuccessMessage = $text('settings.report_issue_success.text');
+                const baseSuccessMessage = $text('settings.report_issue_success');
                 successMessage = data.message || baseSuccessMessage;
                 submittedIssueId = data.issue_id || '';
                 issueIdCopied = false;
@@ -510,14 +510,14 @@
                     
                     // If we mapped field errors, show a general error message too
                     if (hasFieldErrors) {
-                        errorMessage = $text('settings.report_issue_error.text');
+                        errorMessage = $text('settings.report_issue_error');
                         notificationStore.error(
                             errorMessage,
                             10000
                         );
                     } else {
                         // Fallback: show first error message
-                        errorMessage = data.detail[0]?.msg || $text('settings.report_issue_error.text');
+                        errorMessage = data.detail[0]?.msg || $text('settings.report_issue_error');
                         notificationStore.error(
                             errorMessage,
                             10000
@@ -525,7 +525,7 @@
                     }
                 } else {
                     // Handle other API errors (non-validation errors)
-                    const apiErrorMessage = data.message || (typeof data.detail === 'string' ? data.detail : $text('settings.report_issue_error.text'));
+                    const apiErrorMessage = data.message || (typeof data.detail === 'string' ? data.detail : $text('settings.report_issue_error'));
                     errorMessage = apiErrorMessage;
                     notificationStore.error(
                         errorMessage,
@@ -535,7 +535,7 @@
             }
         } catch (error) {
             console.error('[SettingsReportIssue] Error submitting issue:', error);
-            errorMessage = $text('settings.report_issue_error.text');
+            errorMessage = $text('settings.report_issue_error');
             notificationStore.error(
                 errorMessage,
                 10000
@@ -575,7 +575,7 @@
     function handleDescriptionInput() {
         if (issueDescription && issueDescription.trim()) {
             if (issueDescription.trim().length < 10) {
-                descriptionError = $text('settings.report_issue.description_too_short.text');
+                descriptionError = $text('settings.report_issue.description_too_short');
                 showDescriptionWarning = true;
             } else {
                 descriptionError = '';
@@ -594,7 +594,7 @@
     function handleEmailInput() {
         if (contactEmail && contactEmail.trim()) {
             if (!validateEmail(contactEmail)) {
-                emailError = $text('settings.report_issue.email_invalid.text');
+                emailError = $text('settings.report_issue.email_invalid');
                 showEmailWarning = true;
             } else {
                 emailError = '';
@@ -647,7 +647,7 @@
             
             copyDebugInfoSuccess = true;
             notificationStore.success(
-                $text('settings.report_issue.copy_debug_info_success.text'),
+                $text('settings.report_issue.copy_debug_info_success'),
                 3000
             );
             
@@ -658,7 +658,7 @@
         } catch (error) {
             console.error('[SettingsReportIssue] Failed to copy debug info:', error);
             notificationStore.error(
-                $text('settings.report_issue.copy_debug_info_error.text'),
+                $text('settings.report_issue.copy_debug_info_error'),
                 5000
             );
         } finally {
@@ -710,24 +710,24 @@
 </script>
 
 <div class="report-issue-settings">
-    <p>{$text('settings.report_issue.description.text')}</p>
+    <p>{$text('settings.report_issue.description')}</p>
     
     <!-- Issue Report Form -->
     <div class="report-issue-form">
         <!-- Title Input -->
         <div class="input-group">
-            <label for="issue-title">{$text('settings.report_issue.title_label.text')}</label>
+            <label for="issue-title">{$text('settings.report_issue.title_label')}</label>
             <div class="input-wrapper">
                 <input
                     id="issue-title"
                     bind:this={titleInput}
                     type="text"
-                    placeholder={$text('settings.report_issue.title_placeholder.text')}
+                    placeholder={$text('settings.report_issue.title_placeholder')}
                     bind:value={issueTitle}
                     onkeypress={handleTitleKeyPress}
                     disabled={isSubmitting}
                     class:error={!!titleError}
-                    aria-label={$text('settings.report_issue.title_label.text')}
+                    aria-label={$text('settings.report_issue.title_label')}
                     required
                 />
                 {#if showTitleWarning && titleError}
@@ -740,17 +740,17 @@
         
         <!-- Description Input -->
         <div class="input-group">
-            <label for="issue-description">{$text('settings.report_issue.description_label.text')}</label>
+            <label for="issue-description">{$text('settings.report_issue.description_label')}</label>
             <div class="input-wrapper">
                 <textarea
                     id="issue-description"
                     bind:this={descriptionInput}
-                    placeholder={$text('settings.report_issue.description_placeholder.text')}
+                    placeholder={$text('settings.report_issue.description_placeholder')}
                     bind:value={issueDescription}
                     oninput={handleDescriptionInput}
                     disabled={isSubmitting}
                     class:error={!!descriptionError}
-                    aria-label={$text('settings.report_issue.description_label.text')}
+                    aria-label={$text('settings.report_issue.description_label')}
                     rows="5"
                 ></textarea>
                 {#if showDescriptionWarning && descriptionError}
@@ -765,32 +765,32 @@
         {#if hasActiveChatOrEmbed}
             <div class="toggle-group">
                 <div class="toggle-row">
-                    <label for="share-chat-toggle">{$text('settings.report_issue.share_chat_label.text')}</label>
+                    <label for="share-chat-toggle">{$text('settings.report_issue.share_chat_label')}</label>
                     <Toggle
                         id="share-chat-toggle"
                         bind:checked={shareChatEnabled}
                         disabled={isSubmitting}
-                        ariaLabel={$text('settings.report_issue.share_chat_label.text')}
+                        ariaLabel={$text('settings.report_issue.share_chat_label')}
                     />
                 </div>
-                <p class="input-hint">{$text('settings.report_issue.share_chat_hint.text')}</p>
+                <p class="input-hint">{$text('settings.report_issue.share_chat_hint')}</p>
             </div>
         {/if}
         
         <!-- Contact Email Input (Optional) -->
         <div class="input-group">
-            <label for="contact-email">{$text('settings.report_issue.email_label.text')}</label>
+            <label for="contact-email">{$text('settings.report_issue.email_label')}</label>
             <div class="input-wrapper">
                 <input
                     id="contact-email"
                     bind:this={emailInput}
                     type="email"
-                    placeholder={$text('settings.report_issue.email_placeholder.text')}
+                    placeholder={$text('settings.report_issue.email_placeholder')}
                     bind:value={contactEmail}
                     oninput={handleEmailInput}
                     disabled={isSubmitting}
                     class:error={!!emailError}
-                    aria-label={$text('settings.report_issue.email_label.text')}
+                    aria-label={$text('settings.report_issue.email_label')}
                 />
                 {#if showEmailWarning && emailError}
                     <InputWarning
@@ -798,20 +798,20 @@
                     />
                 {/if}
             </div>
-            <p class="input-hint">{$text('settings.report_issue.email_hint.text')}</p>
+            <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
         </div>
         
         <!-- Signal Group Reminder -->
         <div class="signal-reminder">
             <p class="reminder-text">
-                {$text('settings.report_issue.signal_reminder.text')}{' '}
+                {$text('settings.report_issue.signal_reminder')}{' '}
                 <a
                     href={externalLinks.signal}
                     target="_blank"
                     rel="noopener noreferrer"
                     class="signal-link"
                 >
-                    {$text('settings.report_issue.signal_link.text')}
+                    {$text('settings.report_issue.signal_link')}
                 </a>
             </p>
         </div>
@@ -821,12 +821,12 @@
             <button
                 onclick={handleSubmit}
                 disabled={!isFormValid || isSubmitting}
-                aria-label={$text('settings.report_issue.submit_button.text')}
+                aria-label={$text('settings.report_issue.submit_button')}
             >
                 {#if isSubmitting}
-                    {$text('settings.report_issue.submitting.text')}
+                    {$text('settings.report_issue.submitting')}
                 {:else}
-                    {$text('settings.report_issue.submit_button.text')}
+                    {$text('settings.report_issue.submit_button')}
                 {/if}
             </button>
         </div>
@@ -837,19 +837,19 @@
                 {successMessage}
                 {#if submittedIssueId}
                     <div class="issue-id-container">
-                        <span class="issue-id-label">{$text('settings.report_issue.issue_id_label.text')}</span>
+                        <span class="issue-id-label">{$text('settings.report_issue.issue_id_label')}</span>
                         <div class="issue-id-copy-row">
                             <code class="issue-id-value">{submittedIssueId}</code>
                             <button
                                 class="issue-id-copy-button"
                                 class:copied={issueIdCopied}
                                 onclick={handleCopyIssueId}
-                                aria-label={$text('settings.report_issue.copy_issue_id.text')}
+                                aria-label={$text('settings.report_issue.copy_issue_id')}
                             >
                                 {#if issueIdCopied}
-                                    {$text('settings.report_issue.issue_id_copied.text')}
+                                    {$text('settings.report_issue.issue_id_copied')}
                                 {:else}
-                                    {$text('settings.report_issue.copy_issue_id.text')}
+                                    {$text('settings.report_issue.copy_issue_id')}
                                 {/if}
                             </button>
                         </div>
@@ -867,18 +867,18 @@
 
         <!-- Device Information Notice -->
         <div class="device-info-notice">
-            <h4>{$text('settings.report_issue.device_info.heading.text')}</h4>
+            <h4>{$text('settings.report_issue.device_info.heading')}</h4>
             <p class="notice-text">
-                {$text('settings.report_issue.device_info.description.text')}
+                {$text('settings.report_issue.device_info.description')}
             </p>
             <ul class="device-info-list">
-                <li><strong>{$text('settings.report_issue.device_info.browser_os_label.text')}:</strong> {deviceInfo.userAgent || 'Loading...'}</li>
-                <li><strong>{$text('settings.report_issue.device_info.screen_size_label.text')}:</strong> {deviceInfo.viewportWidth || 0} × {deviceInfo.viewportHeight || 0} pixels</li>
-                <li><strong>{$text('settings.report_issue.device_info.touch_support_label.text')}:</strong> {deviceInfo.isTouchEnabled ? 'Yes' : 'No'}</li>
+                <li><strong>{$text('settings.report_issue.device_info.browser_os_label')}:</strong> {deviceInfo.userAgent || 'Loading...'}</li>
+                <li><strong>{$text('settings.report_issue.device_info.screen_size_label')}:</strong> {deviceInfo.viewportWidth || 0} × {deviceInfo.viewportHeight || 0} pixels</li>
+                <li><strong>{$text('settings.report_issue.device_info.touch_support_label')}:</strong> {deviceInfo.isTouchEnabled ? 'Yes' : 'No'}</li>
             </ul>
             <p class="privacy-notice">
-                <strong>{$text('settings.report_issue.device_info.privacy_label.text')}:</strong>
-                {$text('settings.report_issue.device_info.privacy_body.text')}
+                <strong>{$text('settings.report_issue.device_info.privacy_label')}:</strong>
+                {$text('settings.report_issue.device_info.privacy_body')}
             </p>
             
             <!-- Copy Debug Info Button -->
@@ -888,18 +888,18 @@
                     class:success={copyDebugInfoSuccess}
                     onclick={handleCopyDebugInfo}
                     disabled={isCopyingDebugInfo}
-                    aria-label={$text('settings.report_issue.copy_debug_info_button.text')}
+                    aria-label={$text('settings.report_issue.copy_debug_info_button')}
                 >
                     {#if isCopyingDebugInfo}
-                        {$text('settings.report_issue.copy_debug_info_copying.text')}
+                        {$text('settings.report_issue.copy_debug_info_copying')}
                     {:else if copyDebugInfoSuccess}
-                        {$text('settings.report_issue.copy_debug_info_copied.text')}
+                        {$text('settings.report_issue.copy_debug_info_copied')}
                     {:else}
-                        {$text('settings.report_issue.copy_debug_info_button.text')}
+                        {$text('settings.report_issue.copy_debug_info_button')}
                     {/if}
                 </button>
                 <p class="copy-debug-info-hint">
-                    {$text('settings.report_issue.copy_debug_info_hint.text')}
+                    {$text('settings.report_issue.copy_debug_info_hint')}
                 </p>
             </div>
         </div>

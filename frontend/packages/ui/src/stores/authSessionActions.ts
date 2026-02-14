@@ -214,10 +214,10 @@ export async function checkAuth(
         // This is triggered when user logged in without "Stay logged in" and page was reloaded
         const $text = get(text);
         notificationStore.autoLogout(
-          $text("login.auto_logout_notification.message.text"),
+          $text("login.auto_logout_notification.message"),
           undefined, // No secondary message needed
           7000, // Show for 7 seconds so user can read the hint
-          $text("login.auto_logout_notification.title.text"),
+          $text("login.auto_logout_notification.title"),
         );
 
         // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone
@@ -512,10 +512,10 @@ export async function checkAuth(
         // This helps users understand they can avoid frequent logouts by enabling "Stay logged in"
         const $text = get(text);
         notificationStore.autoLogout(
-          $text("login.auto_logout_notification.message.text"),
+          $text("login.auto_logout_notification.message"),
           undefined, // No secondary message needed
           7000, // Show for 7 seconds so user can read the hint
-          $text("login.auto_logout_notification.title.text"),
+          $text("login.auto_logout_notification.title"),
         );
 
         // CRITICAL: If user is in signup flow, close signup interface and return to demo
@@ -616,6 +616,18 @@ export async function checkAuth(
             );
           }
 
+          // Clear any pending offline chat deletions from localStorage
+          try {
+            const { clearAllPendingChatDeletions } =
+              await import("../services/pendingChatDeletions");
+            clearAllPendingChatDeletions();
+          } catch (clearError) {
+            console.warn(
+              "[AuthSessionActions] Failed to clear pending chat deletions:",
+              clearError,
+            );
+          }
+
           // CRITICAL: Reset isLoggingOut flag after logout cleanup completes
           // This ensures the flag is reset even if logout was triggered by session expiration
           // Use a small delay to ensure all logout handlers have finished processing
@@ -691,6 +703,18 @@ export async function checkAuth(
             console.warn(
               "[AuthSessionActions] Failed to delete chatDB database during orphaned cleanup (may be blocked by open connections):",
               dbError,
+            );
+          }
+
+          // Clear any pending offline chat deletions from localStorage
+          try {
+            const { clearAllPendingChatDeletions } =
+              await import("../services/pendingChatDeletions");
+            clearAllPendingChatDeletions();
+          } catch (clearError) {
+            console.warn(
+              "[AuthSessionActions] Failed to clear pending chat deletions during orphaned cleanup:",
+              clearError,
             );
           }
 

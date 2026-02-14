@@ -478,6 +478,20 @@ async def _charge_skill_credits(
             logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}' returned 0 results, skipping billing.")
             return
         
+        # Skip charging if ALL results indicate failure (error/cancelled status).
+        # When a skill execution fails (HTTP error, rate limit, timeout, etc.),
+        # the results list contains dicts with status="error" or status="cancelled".
+        # Users should not be charged for failed executions.
+        # Note: the REST API flow (apps_api.py) already handles this via
+        # is_skill_execution_successful() — this mirrors that logic for the
+        # AI chat flow.
+        if all(
+            isinstance(r, dict) and r.get("status") in ("error", "cancelled")
+            for r in results
+        ):
+            logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}' failed — all {len(results)} result(s) have error/cancelled status, skipping billing.")
+            return
+        
         # Calculate credits based on skill execution
         # All skills use 'requests' array format - charge per request (units_processed)
         units_processed = None
@@ -1076,7 +1090,7 @@ async def handle_main_processing(
             if app_metadata_for_focus and app_metadata_for_focus.focuses:
                 for focus_def in app_metadata_for_focus.focuses:
                     if focus_def.id == focus_id_in_app:
-                        active_focus_prompt_text = focus_def.systemprompt
+                        active_focus_prompt_text = focus_def.system_prompt
                         break
         except Exception as e:
             logger.error(f"{log_prefix} Error processing active_focus_id '{request_data.active_focus_id}': {e}", exc_info=True)
@@ -1209,6 +1223,13 @@ async def handle_main_processing(
     # Track all tool calls for code block generation
     # This will be used to prepend a code block with skill input/output/metadata to the assistant response
     tool_calls_info: List[Dict[str, Any]] = []
+
+    # Track embed IDs that failed (error/cancelled) during skill execution.
+    # These will be yielded at the end of the stream so the stream_consumer can
+    # strip their embed references from the final message content.
+    # Without this, the message markdown would contain embed references for embeds
+    # that no longer exist, causing the client to re-request them on every page load.
+    failed_embed_ids: set[str] = set()
     
     # --- End of existing logic ---
 
@@ -1828,41 +1849,31 @@ async def handle_main_processing(
                 if app_id == "system":
                     if skill_id == "activate_focus_mode":
                         focus_id = parsed_args.get("focus_id")
-                        logger.info(f"{log_prefix} [FOCUS_MODE] Activating focus mode: {focus_id}")
+                        logger.info(f"{log_prefix} [FOCUS_MODE] LLM requested focus mode activation: {focus_id}")
                         
-                        # Update active_focus_id in request_data for this processing session
-                        request_data.active_focus_id = focus_id
-                        
-                        # Update cache with encrypted focus_id
-                        # The focus_id needs to be encrypted with the server-side encryption (vault key)
-                        encrypted_focus_id = None
-                        if cache_service and encryption_service:
-                            try:
-                                encrypted_focus_id = encryption_service.encrypt(focus_id)
-                                await cache_service.update_chat_active_focus_id(
-                                    user_id=request_data.user_id,
-                                    chat_id=request_data.chat_id,
-                                    encrypted_focus_id=encrypted_focus_id
-                                )
-                                logger.info(f"{log_prefix} [FOCUS_MODE] Updated cache with encrypted focus_id")
-                                
-                                # Dispatch Celery task to persist to Directus
-                                from backend.core.api.app.tasks.celery_config import app as celery_app_instance
-                                celery_app_instance.send_task(
-                                    'app.tasks.persistence_tasks.persist_chat_active_focus_id',
-                                    kwargs={
-                                        "chat_id": request_data.chat_id,
-                                        "encrypted_active_focus_id": encrypted_focus_id
-                                    },
-                                    queue='persistence'
-                                )
-                                logger.info(f"{log_prefix} [FOCUS_MODE] Dispatched Celery task to persist focus_id to Directus")
-                            except Exception as cache_error:
-                                logger.error(f"{log_prefix} [FOCUS_MODE] Error updating cache: {cache_error}", exc_info=True)
+                        # --- DEFERRED ACTIVATION ARCHITECTURE ---
+                        # Instead of immediately activating focus mode and re-invoking the LLM,
+                        # we store the pending context in Redis and schedule an auto-confirm
+                        # Celery task with countdown=6s. This gives the user 4 seconds to reject
+                        # (click or ESC on the countdown embed) before focus mode activates.
+                        #
+                        # Flow:
+                        # 1. Create and yield the focus mode embed (user sees countdown)
+                        # 2. Store pending activation context in Redis (30s TTL)
+                        # 3. Schedule auto-confirm task (fires in 6s)
+                        # 4. Yield special marker and return (task exits cleanly)
+                        # 5a. If no rejection within 6s → auto-confirm task activates focus mode
+                        #     and fires a new Celery task WITH focus prompt
+                        # 5b. If user rejects → WebSocket handler consumes pending context (GETDEL)
+                        #     and fires a new Celery task WITHOUT focus prompt
+                        #
+                        # DO NOT: set active_focus_id, update cache/Directus, inject focus prompt,
+                        # or re-invoke the LLM here. All of that happens in the continuation task.
                         
                         # --- Create focus mode activation embed ---
                         # This embed is rendered by the frontend as a countdown indicator
                         # (4-3-2-1) that the user can click to reject the focus mode.
+                        fm_embed_id = None
                         if cache_service and user_vault_key_id and directus_service:
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
@@ -1901,6 +1912,7 @@ async def handle_main_processing(
                                 )
                                 
                                 if fm_embed_data:
+                                    fm_embed_id = fm_embed_data.get("embed_id")
                                     # Yield the embed reference as a JSON code block so the frontend
                                     # can parse and render it inline in the message
                                     fm_embed_ref = fm_embed_data.get("embed_reference")
@@ -1908,7 +1920,7 @@ async def handle_main_processing(
                                         yield f"```json\n{fm_embed_ref}\n```\n\n"
                                         logger.info(
                                             f"{log_prefix} [FOCUS_MODE] Yielded focus mode activation embed "
-                                            f"(embed_id={fm_embed_data.get('embed_id')})"
+                                            f"(embed_id={fm_embed_id})"
                                         )
                             except Exception as embed_error:
                                 logger.error(
@@ -1916,45 +1928,76 @@ async def handle_main_processing(
                                     exc_info=True
                                 )
                         
-                        tool_result_content_str = json.dumps({
-                            "status": "activated",
-                            "focus_id": focus_id,
-                            "message": f"Focus mode '{focus_id}' has been activated. The system will now restart with specialized instructions for this focus mode."
-                        })
-                        
-                        # Add tool response to history
-                        tool_response_message = {
-                            "tool_call_id": tool_call_id,
-                            "role": "tool",
-                            "name": tool_name,
-                            "content": tool_result_content_str
-                        }
-                        current_message_history.append(tool_response_message)
-                        
-                        # Signal restart needed - break out of tool processing and restart main loop
-                        # The restart will rebuild the system prompt with the focus mode instructions
-                        logger.info(f"{log_prefix} [FOCUS_MODE] Restart required - will rebuild system prompt with focus mode '{focus_id}'")
-                        
-                        # Update the full_system_prompt with focus mode for restart
-                        # Find and load the focus mode prompt
+                        # --- Load focus mode prompt for storage in pending context ---
+                        focus_prompt_text = ""
                         try:
                             focus_app_id, focus_mode_id = focus_id.split('-', 1)
                             app_metadata_for_focus = discovered_apps_metadata.get(focus_app_id)
                             if app_metadata_for_focus and app_metadata_for_focus.focuses:
                                 for focus_def in app_metadata_for_focus.focuses:
                                     if focus_def.id == focus_mode_id:
-                                        focus_prompt = focus_def.systemprompt
-                                        if focus_prompt:
-                                            # Prepend focus mode prompt to system prompt
-                                            full_system_prompt = f"--- Active Focus: {focus_id} ---\n{focus_prompt}\n--- End Active Focus ---\n\n{full_system_prompt}"
-                                            logger.info(f"{log_prefix} [FOCUS_MODE] Injected focus mode prompt ({len(focus_prompt)} chars) into system prompt")
+                                        focus_prompt_text = focus_def.system_prompt or ""
+                                        logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt ({len(focus_prompt_text)} chars)")
                                         break
                         except Exception as e:
-                            logger.error(f"{log_prefix} [FOCUS_MODE] Error loading focus mode prompt: {e}", exc_info=True)
+                            logger.error(f"{log_prefix} [FOCUS_MODE] Error loading focus prompt: {e}", exc_info=True)
                         
-                        # Continue to next iteration with updated system prompt
-                        # The tool call was handled, continue processing
-                        continue
+                        # --- Store pending activation context in Redis ---
+                        # This context is consumed by either the auto-confirm task (happy path)
+                        # or the rejection WebSocket handler (user rejects)
+                        if cache_service:
+                            try:
+                                pending_context = {
+                                    "focus_id": focus_id,
+                                    "focus_prompt": focus_prompt_text,
+                                    "embed_id": fm_embed_id,
+                                    "chat_id": request_data.chat_id,
+                                    "message_id": request_data.message_id,
+                                    "user_id": request_data.user_id,
+                                    "user_id_hash": request_data.user_id_hash,
+                                    "mate_id": preprocessing_results.selected_mate_id or request_data.mate_id,  # Use preprocessor-selected mate, not the (typically None) request mate_id
+                                    "chat_has_title": request_data.chat_has_title,
+                                    "is_incognito": getattr(request_data, 'is_incognito', False),
+                                    "task_id": task_id,
+                                }
+                                await cache_service.store_pending_focus_activation(
+                                    chat_id=request_data.chat_id,
+                                    context=pending_context,
+                                )
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Stored pending focus activation context")
+                            except Exception as e:
+                                logger.error(f"{log_prefix} [FOCUS_MODE] Failed to store pending context: {e}", exc_info=True)
+                                # If we can't store, fall through — auto-confirm will no-op
+                        
+                        # --- Schedule auto-confirm Celery task ---
+                        # This task fires in 5 seconds (1s buffer over 4s client countdown).
+                        # If the user hasn't rejected by then, it activates focus mode and
+                        # fires a continuation task with focus prompt.
+                        try:
+                            from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+                            from backend.apps.ai.tasks.focus_mode_auto_confirm_task import FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN
+                            celery_app_instance.send_task(
+                                'apps.ai.tasks.focus_mode_auto_confirm',
+                                kwargs={
+                                    "chat_id": request_data.chat_id,
+                                },
+                                queue='app_ai',
+                                countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
+                            )
+                            logger.info(
+                                f"{log_prefix} [FOCUS_MODE] Scheduled auto-confirm task with "
+                                f"countdown={FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN}s"
+                            )
+                        except Exception as e:
+                            logger.error(f"{log_prefix} [FOCUS_MODE] Failed to schedule auto-confirm task: {e}", exc_info=True)
+                        
+                        # --- Yield special marker and return ---
+                        # The stream_consumer detects this marker and treats the empty stream
+                        # as expected (not an error). The actual LLM response will come from
+                        # the continuation task fired by auto-confirm or rejection handler.
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Yielding pending marker and returning — awaiting user decision")
+                        yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
+                        return
                         
                     elif skill_id == "deactivate_focus_mode":
                         previous_focus_id = request_data.active_focus_id
@@ -2301,6 +2344,7 @@ async def handle_main_processing(
                                     log_prefix=log_prefix
                                 )
                                 logger.info(f"{log_prefix} Updated embed {embed_id} status to 'error'")
+                                failed_embed_ids.add(embed_id)
                         except Exception as status_error:
                             logger.error(f"{log_prefix} Error updating embed status to error: {status_error}")
 
@@ -2779,6 +2823,7 @@ async def handle_main_processing(
                                                 logger.info(
                                                     f"{log_prefix} Updated placeholder {placeholder_embed_id} to error for request {request_id}"
                                                 )
+                                                failed_embed_ids.add(placeholder_embed_id)
                                         except Exception as error_update_error:
                                             logger.warning(
                                                 f"{log_prefix} Failed to update placeholder to error status: {error_update_error}"
@@ -2823,6 +2868,7 @@ async def handle_main_processing(
                                                 updated_error_embed["request_id"] = request_id
                                                 updated_error_embed["request_metadata"] = request_metadata
                                                 updated_embed_data_list.append(updated_error_embed)
+                                                failed_embed_ids.add(error_embed_id)
                                     continue
                                 
                                 # Request succeeded - update placeholder or create new embed (use normalized key)
@@ -3203,8 +3249,9 @@ async def handle_main_processing(
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
+                        error_eid = placeholder_embed_data.get('embed_id')
                         await embed_service.update_embed_status_to_error(
-                            embed_id=placeholder_embed_data.get('embed_id'),
+                            embed_id=error_eid,
                             app_id=app_id,
                             skill_id=skill_id,
                             error_message="Invalid JSON in function arguments",
@@ -3216,6 +3263,8 @@ async def handle_main_processing(
                             task_id=task_id,
                             log_prefix=log_prefix
                         )
+                        if error_eid:
+                            failed_embed_ids.add(error_eid)
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -3274,8 +3323,9 @@ async def handle_main_processing(
                         except ValueError:
                             app_id = "unknown"
                             skill_id = "unknown"
+                        error_eid2 = placeholder_embed_data.get('embed_id')
                         await embed_service.update_embed_status_to_error(
-                            embed_id=placeholder_embed_data.get('embed_id'),
+                            embed_id=error_eid2,
                             app_id=app_id,
                             skill_id=skill_id,
                             error_message="Invalid tool name format",
@@ -3287,6 +3337,8 @@ async def handle_main_processing(
                             task_id=task_id,
                             log_prefix=log_prefix
                         )
+                        if error_eid2:
+                            failed_embed_ids.add(error_eid2)
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -3334,8 +3386,9 @@ async def handle_main_processing(
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
+                        error_eid3 = placeholder_embed_data.get('embed_id')
                         await embed_service.update_embed_status_to_error(
-                            embed_id=placeholder_embed_data.get('embed_id'),
+                            embed_id=error_eid3,
                             app_id=app_id,
                             skill_id=skill_id,
                             error_message=str(e),
@@ -3347,6 +3400,8 @@ async def handle_main_processing(
                             task_id=task_id,
                             log_prefix=log_prefix
                         )
+                        if error_eid3:
+                            failed_embed_ids.add(error_eid3)
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -3408,6 +3463,17 @@ async def handle_main_processing(
         # Use a special dict marker that the stream consumer can detect
         yield {"__tool_calls_info__": tool_calls_info}
         logger.debug(f"{log_prefix} Yielding tool calls info for {len(tool_calls_info)} tool call(s)")
+
+    # Yield failed embed IDs so the stream consumer can strip their references
+    # from the final message content before persisting. Without this, the message
+    # would contain embed references for embeds that no longer exist, causing
+    # the client to re-request them on every page load.
+    if failed_embed_ids:
+        yield {"__failed_embed_ids__": failed_embed_ids}
+        logger.info(
+            f"{log_prefix} Yielding {len(failed_embed_ids)} failed embed ID(s) for content cleanup: "
+            f"{failed_embed_ids}"
+        )
 
     logger.info(f"{log_prefix} Main processing stream finished.")
 

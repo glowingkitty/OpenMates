@@ -25,26 +25,26 @@ crisis_support:
     - de
 crisis_support.description:
   context: Description for crisis support focus mode
-  en: Get support during a crisis or difficult time in your life and plan your next steps.
-  de: Erhalte Unterstützung während einer Krise oder schwierigen Zeit in deinem Leben und plane deine nächsten Schritte.
-  zh: 在你生活中的危机或困难时期获得支持，并规划你的下一步。
-  es: Obtén apoyo durante una crisis o momento difícil en tu vida y planifica tus próximos pasos.
-  fr: Obtenez du soutien pendant une crise ou une période difficile de votre vie et planifiez vos prochaines étapes.
-  pt: Obtenha suporte durante uma crise ou momento difícil em sua vida e planeje seus próximos passos.
-  ru: Получите поддержку во время кризиса или трудного периода в вашей жизни и спланируйте следующие шаги.
-  ja: 人生の危機や困難な時期にサポートを受け、次のステップを計画する。
-  ko: 인생의 위기나 어려운 시기에 지원을 받고 다음 단계를 계획하세요.
-  it: Ottieni supporto durante una crisi o un momento difficile della tua vita e pianifica i tuoi prossimi passi.
-  tr: Hayatınızdaki bir kriz veya zor dönemde destek alın ve sonraki adımlarınızı planlayın.
-  vi: Nhận hỗ trợ trong thời kỳ khủng hoảng hoặc khó khăn trong cuộc sống và lập kế hoạch cho các bước tiếp theo.
-  id: Dapatkan dukungan selama krisis atau masa sulit dalam hidup Anda dan rencanakan langkah selanjutnya.
-  pl: Uzyskaj wsparcie podczas kryzysu lub trudnego okresu w życiu i zaplanuj swoje kolejne kroki.
-  nl: Krijg ondersteuning tijdens een crisis of moeilijke tijd in je leven en plan je volgende stappen.
-  ar: احصل على الدعم أثناء أزمة أو وقت صعب في حياتك وخطط لخطواتك التالية.
-  hi: अपने जीवन में संकट या कठिन समय के दौरान सहायता प्राप्त करें और अपने अगले कदमों की योजना बनाएं।
-  th: รับการสนับสนุนในช่วงวิกฤตหรือช่วงเวลาที่ยากลำบากในชีวิตของคุณและวางแผนขั้นตอนต่อไป
-  cs: Získejte podporu během krize nebo obtížného období ve vašem životě a naplánujte své další kroky.
-  sv: Få stöd under en kris eller svår tid i ditt liv och planera dina nästa steg.
+  en: Get support in difficult times and plan ahead.
+  de: Unterstützung in schwierigen Zeiten und vorausplanen.
+  zh: 在困难时期获得支持并提前规划。
+  es: Obtén apoyo en momentos difíciles y planifica.
+  fr: Obtenez du soutien en temps difficile et planifiez.
+  pt: Apoio em momentos difíceis e planeje seus passos.
+  ru: Поддержка в трудные времена и планирование.
+  ja: 困難な時期にサポートを受け、先を計画する。
+  ko: 어려운 시기에 지원을 받고 계획을 세우세요.
+  it: Supporto nei momenti difficili e pianifica avanti.
+  tr: Zor zamanlarda destek alın ve ileriye planlayın.
+  vi: Nhận hỗ trợ khi khó khăn và lập kế hoạch.
+  id: Dapatkan dukungan saat sulit dan rencanakan.
+  pl: Wsparcie w trudnych chwilach i planowanie.
+  nl: Krijg steun in moeilijke tijden en plan vooruit.
+  ar: احصل على دعم في الأوقات الصعبة وخطط للمستقبل.
+  hi: कठिन समय में सहायता पाएं और योजना बनाएं।
+  th: รับการสนับสนุนในยามยากลำบากและวางแผนล่วงหน้า
+  cs: Podpora v obtížných časech a plánování dalšího.
+  sv: Få stöd i svåra tider och planera framåt.
   verified_by_human:
     - en
     - de
@@ -75,27 +75,26 @@ future_speaking:
     - de
 future_speaking.description:
   context: Description for future speaking focus mode
-  en: Start a future speaking session, a powerful life coaching technique.
-  de: Starte eine Zukunftsgesprächs-Sitzung, eine kraftvolle Lebensberatungstechnik.
-  zh: 开始一次未来对话，这是一种强大的生活指导技巧。
-  es: Inicia una sesión de hablar del futuro, una poderosa técnica de coaching de vida.
-  fr: Commencez une session de discussion sur l'avenir, une technique puissante de coaching de vie.
-  pt: Inicie uma sessão de falar sobre o futuro, uma técnica poderosa de coaching de vida.
-  ru: Начните сеанс разговора о будущем, мощную технику коучинга жизни.
-  ja: 強力なライフコーチングテクニックである未来について話すセッションを開始する。
-  ko: 강력한 라이프 코칭 기법인 미래 대화 세션을 시작하세요.
-  it: Inizia una sessione di parlare del futuro, una potente tecnica di life coaching.
-  tr: Güçlü bir yaşam koçluğu tekniği olan gelecek konuşması oturumu başlatın.
-  vi: Bắt đầu một buổi nói về tương lai, một kỹ thuật huấn luyện cuộc sống mạnh mẽ.
-  id: Mulai sesi berbicara masa depan, teknik bimbingan hidup yang kuat.
-  pl: Rozpocznij sesję rozmowy o przyszłości, potężną technikę coachingu życiowego.
-  nl: Start een toekomstgesprek, een krachtige levenscoachingtechniek.
-  ar: ابدأ جلسة التحدث عن المستقبل، وهي تقنية قوية للتدريب على الحياة.
-  hi: एक शक्तिशाली जीवन कोचिंग तकनीक, भविष्य की बातचीत सत्र शुरू करें।
-  th: เริ่มเซสชันการพูดคุยเกี่ยวกับอนาคต ซึ่งเป็นเทคนิคการโค้ชชีวิตที่มีประสิทธิภาพ
-  cs: Začněte sezení rozhovoru o budoucnosti, mocnou techniku life coachingu.
-  sv: Starta en framtidsamtalssession, en kraftfull livscoachingteknik.
+  en: A powerful life coaching technique.
+  de: Eine kraftvolle Lebensberatungstechnik.
+  zh: 一种强大的生活指导技巧。
+  es: Una poderosa técnica de coaching de vida.
+  fr: Une technique puissante de coaching de vie.
+  pt: Uma técnica poderosa de coaching de vida.
+  ru: Мощная техника коучинга жизни.
+  ja: 強力なライフコーチングテクニック。
+  ko: 강력한 라이프 코칭 기법.
+  it: Una potente tecnica di life coaching.
+  tr: Güçlü bir yaşam koçluğu tekniği.
+  vi: Kỹ thuật huấn luyện cuộc sống mạnh mẽ.
+  id: Teknik bimbingan hidup yang kuat.
+  pl: Potężna technika coachingu życiowego.
+  nl: Een krachtige levenscoachingtechniek.
+  ar: تقنية قوية للتدريب على الحياة.
+  hi: एक शक्तिशाली जीवन कोचिंग तकनीक।
+  th: เทคนิคการโค้ชชีวิตที่ทรงพลัง
+  cs: Mocná technika životního koučinku.
+  sv: En kraftfull livscoachingteknik.
   verified_by_human:
     - en
     - de
-

@@ -27,6 +27,7 @@ import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPrevie
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
+import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 
 // Track mounted components for cleanup
@@ -200,6 +201,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For travel price_calendar, render price calendar preview
       if (appId === "travel" && skillId === "price_calendar") {
         return this.renderTravelPriceCalendarComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For travel search_stays, render stays preview
+      if (appId === "travel" && skillId === "search_stays") {
+        return this.renderTravelStaysComponent(
           attrs,
           embedData,
           decodedContent,
@@ -751,6 +762,75 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render travel search_stays embed using Svelte component
+   */
+  private renderTravelStaysComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "Google";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(TravelStaysEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted TravelStaysEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting TravelStaysEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
    * Fallback HTML rendering for web search (used when Svelte mount fails)
    */
   private renderWebSearchHTML(
@@ -1257,6 +1337,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
     // Extract image-specific fields from decoded content
     const prompt = decodedContent?.prompt || "";
+    const model = decodedContent?.model || "";
     const s3BaseUrl = decodedContent?.s3_base_url || "";
     const files = decodedContent?.files || undefined;
     const aesKey = decodedContent?.aes_key || "";
@@ -1297,6 +1378,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           skillId: imageSkillId as "generate" | "generate_draft",
           prompt,
+          model,
           s3BaseUrl,
           files,
           aesKey,

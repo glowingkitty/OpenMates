@@ -80,6 +80,14 @@ message:
     By default, OpenMates automatically processes your request with the best fitting AI model, mate, app skills, app focus modes and settings & memories (after your consent). While allowing you to overwrite the auto selection at any time in the settings menu or by typing @ in your message.
 
 
+    ### 🤖 AI models
+
+
+    OpenMates automatically selects the best AI model for each of your requests — so you don't have to keep up with the ever changing landscape of new AI models. But if you want full control, simply type **@** in your message to choose a specific model yourself.
+
+    [[ai_models_group]]
+
+
     ## 🎓 Learning & inspiration
 
 
@@ -180,6 +188,14 @@ message:
 
 
     Standardmäßig verarbeitet OpenMates deine Anfrage automatisch mit dem am besten passenden KI-Modell, Mate, App-Fähigkeiten, App-Fokus-Modi und Einstellungen & Erinnerungen (nach deiner Zustimmung). Während du jederzeit die automatische Auswahl im Einstellungsmenü oder durch Eingabe von @ in deiner Nachricht überschreiben kannst.
+
+
+    ### 🤖 KI-Modelle
+
+
+    OpenMates wählt automatisch das beste KI-Modell für jede deiner Anfragen — damit du nicht mit der sich ständig verändernden Landschaft neuer KI-Modelle Schritt halten musst. Aber wenn du volle Kontrolle möchtest, tippe einfach **@** in deine Nachricht, um ein bestimmtes Modell selbst auszuwählen.
+
+    [[ai_models_group]]
 
 
     ## 🎓 Lernen & Inspiration
@@ -284,6 +300,14 @@ message:
     Por defecto, OpenMates procesa automáticamente tu solicitud con el modelo de IA más adecuado, compañero, habilidades de apps, modos de enfoque de apps y ajustes y memorias (después de tu consentimiento). Mientras te permite sobrescribir la selección automática en cualquier momento en el menú de ajustes o escribiendo @ en tu mensaje.
 
 
+    ### 🤖 Modelos de IA
+
+
+    OpenMates selecciona automáticamente el mejor modelo de IA para cada una de tus solicitudes — para que no tengas que seguir el ritmo del cambiante panorama de nuevos modelos de IA. Pero si quieres control total, simplemente escribe **@** en tu mensaje para elegir un modelo específico tú mismo.
+
+    [[ai_models_group]]
+
+
     ## 🎓 Aprendizaje e inspiración
 
 
@@ -386,6 +410,14 @@ message:
     Par défaut, OpenMates traite automatiquement votre demande avec le modèle d'IA le mieux adapté, le coéquipier, les compétences d'apps, les modes de focus d'apps et les paramètres et mémoires (après votre consentement). Tout en vous permettant de remplacer la sélection automatique à tout moment dans le menu des paramètres ou en tapant @ dans votre message.
 
 
+    ### 🤖 Modèles d'IA
+
+
+    OpenMates sélectionne automatiquement le meilleur modèle d'IA pour chacune de vos demandes — pour que vous n'ayez pas à suivre le paysage en constante évolution des nouveaux modèles d'IA. Mais si vous voulez un contrôle total, tapez simplement **@** dans votre message pour choisir vous-même un modèle spécifique.
+
+    [[ai_models_group]]
+
+
     ## 🎓 Apprentissage et inspiration
 
 
@@ -486,6 +518,14 @@ message:
 
 
     Per impostazione predefinita, OpenMates elabora automaticamente la tua richiesta con il modello di IA più adatto, il compagno, le competenze delle app, le modalità di focus delle app e le impostazioni e memorie (dopo il tuo consenso). Permettendoti di sovrascrivere la selezione automatica in qualsiasi momento nel menu delle impostazioni o digitando @ nel tuo messaggio.
+
+
+    ### 🤖 Modelli di IA
+
+
+    OpenMates seleziona automaticamente il miglior modello di IA per ciascuna delle tue richieste — così non devi stare al passo con il panorama in continua evoluzione dei nuovi modelli di IA. Ma se vuoi il pieno controllo, digita semplicemente **@** nel tuo messaggio per scegliere tu stesso un modello specifico.
+
+    [[ai_models_group]]
 
 
     ## 🎓 Apprendimento e ispirazione

@@ -10,7 +10,7 @@
     class="instagram-button"
 >
     <span class="small-icon icon_instagram"></span>
-    {@html $text('signup.open_instagram.text')}
+    {@html $text('signup.open_instagram')}
 </a>
 
 <style>

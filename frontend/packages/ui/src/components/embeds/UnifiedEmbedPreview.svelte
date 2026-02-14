@@ -139,6 +139,15 @@
       localStatus = newStatus;
     }
     
+    // CRITICAL: Do NOT refetch for error/cancelled embeds.
+    // Error embeds are never persisted to IndexedDB, so refetchFromStore() would
+    // call resolveEmbed() which would find nothing and re-request from server,
+    // creating an infinite loop. The status update above is sufficient for the UI.
+    if (newStatus === 'error' || newStatus === 'cancelled') {
+      console.debug(`[UnifiedEmbedPreview] Skipping refetch for ${newStatus} embed ${id}`);
+      return;
+    }
+    
     // Refetch from store to get full data and notify child components
     refetchFromStore();
   }

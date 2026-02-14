@@ -26,7 +26,7 @@
 </script>
 
 <div class="content">
-    <h2>{@html $text('chat.welcome.hey_user.text').replace('{username}', displayUsername)}</h2>
+    <h2>{@html $text('chat.welcome.hey_user').replace('{username}', displayUsername)}</h2>
     <div class="image-container">
         <div class="image-circle">
             {#if showImage}

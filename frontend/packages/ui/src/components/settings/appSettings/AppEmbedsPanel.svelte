@@ -506,11 +506,11 @@
     {#if embedsLoading}
         <div class="loading">
             <div class="spinner"></div>
-            <p>{$text('settings.app_embeds.loading.text')}</p>
+            <p>{$text('settings.app_embeds.loading')}</p>
         </div>
     {:else if sortedEmbeds.length === 0}
         <div class="empty">
-            <p>{$text('settings.app_embeds.no_embeds.text')}</p>
+            <p>{$text('settings.app_embeds.no_embeds')}</p>
         </div>
     {:else}
         <div class="embeds-list-container">

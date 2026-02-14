@@ -87,7 +87,7 @@
     {#if !app || !focusMode}
         <div class="error">
             <p>{$text('settings.app_store.focus_mode_not_found')}</p>
-            <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app.text')}</button>
+            <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
         <!-- Focus mode name header -->
@@ -101,7 +101,7 @@
                 <SettingsItem 
                     type="heading"
                     icon="description"
-                    title={$text('settings.app_store.focus_modes.description.text')}
+                    title={$text('settings.app_store.focus_modes.description')}
                 />
                 <div class="content">
                     <p>{focusModeDescription}</p>
@@ -110,7 +110,7 @@
         {:else}
             <div class="section">
                 <div class="no-description">
-                    <p>{$text('settings.app_store.focus_modes.no_description.text')}</p>
+                    <p>{$text('settings.app_store.focus_modes.no_description')}</p>
                 </div>
             </div>
         {/if}

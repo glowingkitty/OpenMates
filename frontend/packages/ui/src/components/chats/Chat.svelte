@@ -32,6 +32,7 @@
   import { modelsMetadata } from '../../data/modelsMetadata'; // For model name lookup in mentions
   import { matesMetadata } from '../../data/matesMetadata'; // For mate name lookup in mentions
   import { appSkillsStore } from '../../stores/appSkillsStore'; // For skill/focus/memory name lookup in mentions
+  import { skillPreviewService } from '../../services/skillPreviewService'; // For tracking skill usage in background chats
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -56,9 +57,13 @@
  
   let draftTextContent = $state(''); 
   let displayLabel = $state('');     
-  let displayText = $state('');      
+  let displayText = $state('');
+  let hasWaitingForUser = $state(false);
   let currentTypingMateInfo: AITypingStatus | null = $state(null);
   let lastMessage: Message | null = $state(null); // Declare lastMessage here
+  
+  // Track active skill usage for this chat's typing indicator (e.g., "Using Search...")
+  let activeSkillInfo: { appId: string; skillId: string } | null = $state(null);
   let typingStoreValue = $state<AITypingStatus>({ 
     isTyping: false, 
     category: null, 
@@ -91,6 +96,20 @@
   // Subscribe to aiTypingStore with proper cleanup
   let unsubscribeTypingStore: (() => void) | null = null;
   
+  // Handler for skill preview updates - tracks which app skill is currently processing for this chat
+  function handleSkillPreviewUpdate(event: Event): void {
+    const detail = (event as CustomEvent).detail;
+    if (!chat || detail.chat_id !== chat.chat_id) return;
+    
+    const { previewData } = detail;
+    if (previewData.status === 'processing') {
+      activeSkillInfo = { appId: previewData.app_id, skillId: previewData.skill_id };
+    } else {
+      // Skill finished/cancelled/error - clear the active skill
+      activeSkillInfo = null;
+    }
+  }
+  
   onMount(() => {
     unsubscribeTypingStore = aiTypingStore.subscribe(value => {
       // Update the typing store value (needed for reactive updates)
@@ -98,6 +117,9 @@
       // Only log in exceptional cases if needed for debugging
       typingStoreValue = value;
     });
+    
+    // Listen for skill preview updates to show "Using Search..." etc.
+    skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
   });
   
   onDestroy(() => {
@@ -105,6 +127,7 @@
       unsubscribeTypingStore();
       unsubscribeTypingStore = null;
     }
+    skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
   });
 
   function extractTextFromTiptap(jsonContent: TiptapJSON | null | undefined): string {
@@ -329,6 +352,7 @@
         console.debug(`[Chat] Clearing typing indicator for chat ${chat.chat_id}`);
       }
       currentTypingMateInfo = null; 
+      activeSkillInfo = null; // Clear skill info when typing ends
       
       // When typing ends, restore the category from chat metadata (stored in chatCategory)
       // This ensures the permanent category is displayed, not the typing indicator's category
@@ -340,10 +364,35 @@
     }
   });
 
+  // Check if the current model is a reasoning/thinking model
+  let isReasoningModel = $derived((() => {
+    if (!currentTypingMateInfo?.modelName) return false;
+    const model = modelsMetadata.find(m => m.name === currentTypingMateInfo!.modelName || m.id === currentTypingMateInfo!.modelName);
+    return model?.reasoning === true;
+  })());
+  
+  // Build the typing indicator text with support for:
+  // 1. App skill usage: "Using Search..." (when an app skill is actively processing)
+  // 2. Thinking model: "{mate} is thinking..." (when a reasoning model is in thinking phase)
+  // 3. Default: "{mate} is typing..." (standard typing indicator)
   let typingIndicatorInTitleView = $derived((() => {
     if (currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
-      const mateName = $text(`mates.${currentTypingMateInfo.category}.text`);
-      return $text('enter_message.is_typing.text').replace('{mate}', mateName);
+      const mateName = $text(`mates.${currentTypingMateInfo.category}`);
+      
+      // Priority 1: Show active app skill usage (e.g., "Using Search...")
+      if (activeSkillInfo) {
+        const skillTranslationKey = `app_skills.${activeSkillInfo.appId}.${activeSkillInfo.skillId}`;
+        const skillName = $text(skillTranslationKey);
+        return $text('enter_message.using_skill').replace('{skill}', skillName);
+      }
+      
+      // Priority 2: Show "thinking" for reasoning models
+      if (isReasoningModel) {
+        return $text('enter_message.is_thinking').replace('{mate}', mateName);
+      }
+      
+      // Default: "{mate} is typing..."
+      return $text('enter_message.is_typing').replace('{mate}', mateName);
     }
     return null;
   })());
@@ -413,7 +462,7 @@
       // Public chats show draft status if there's a sessionStorage draft
       // Otherwise show no status line (no drafts, no sending status)
       if (draftTextContent) {
-        displayLabel = $text('enter_message.draft.text');
+        displayLabel = $text('enter_message.draft');
         displayText = draftTextContent;
       } else {
         displayLabel = '';
@@ -627,21 +676,28 @@
     // Handle sending, processing, waiting_for_internet, waiting_for_user, and failed states first as they take precedence
     // Check all messages (not just lastMessage) for waiting_for_user since the system message
     // may not be the last message in the array
-    const hasWaitingForUser = chat.messages?.some(m => m.status === 'waiting_for_user');
+    const waitingForUserMessage = chat.messages?.find(m => m.status === 'waiting_for_user');
+    hasWaitingForUser = !!waitingForUserMessage;
     if (hasWaitingForUser) {
-      // Show "Waiting for you..." when chat is paused for user action (e.g., insufficient credits)
-      displayLabel = $text('enter_message.waiting_for_user.text');
-      displayText = '';
-    } else if (lastMessage?.status === 'sending') {
-      displayLabel = $text('enter_message.sending.text');
+      // Show "Waiting for user" label with the system message content as preview
+      // (e.g., insufficient credits message), using draft-like design in the sidebar
+      displayLabel = $text('enter_message.waiting_for_user');
+      // Extract the system message content to show as preview text
+      if (waitingForUserMessage.content) {
+        displayText = typeof waitingForUserMessage.content === 'string' 
+          ? waitingForUserMessage.content 
+          : extractTextFromTiptap(waitingForUserMessage.content);
+      } else {
+        displayText = '';
+      }
+    } else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing') {
+      // Sidebar always shows "Processing..." for both sending and processing states.
+      // The detailed status steps (generating title, selecting mate, etc.) are shown
+      // only in the ActiveChat centered overlay — the sidebar keeps it simple.
+      displayLabel = $text('enter_message.processing');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'waiting_for_internet') {
-      displayLabel = $text('enter_message.waiting_for_internet.text');
-      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
-    } else if (lastMessage?.status === 'processing') {
-      // Show "Processing..." if message is processing
-      // Note: isWaitingForTitle is checked separately in template to show "Processing..." as title
-      displayLabel = $text('enter_message.processing.text');
+      displayLabel = $text('enter_message.waiting_for_internet');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'failed') {
       displayLabel = 'Failed'; 
@@ -650,11 +706,11 @@
       // If there's a draft, display draft information
       if (cachedMetadata?.title) {
         // For titled chats with draft, use specific translation that includes the beginning
-        displayLabel = $text('enter_message.draft_with_beginning.text').replace('{draft_beginning}', truncateText(draftTextContent, 30));
+        displayLabel = $text('enter_message.draft_with_beginning').replace('{draft_beginning}', truncateText(draftTextContent, 30));
         displayText = ''; // The label itself contains the preview for this case
       } else {
         // For untitled chats with draft
-        displayLabel = $text('enter_message.draft.text');
+        displayLabel = $text('enter_message.draft');
         displayText = draftTextContent;
       }
     } else {
@@ -1674,7 +1730,7 @@
       }
       
       // REAL CHAT HANDLING (authenticated users): Delete from IndexedDB and server
-      // Step 1: Delete from IndexedDB (local deletion) FIRST
+      // Step 1: Delete from IndexedDB (local deletion) FIRST - optimistic delete
       console.debug('[Chat] Deleting chat from IndexedDB:', chatIdToDelete);
       await chatDB.deleteChat(chatIdToDelete);
       console.debug('[Chat] Chat deleted from IndexedDB:', chatIdToDelete);
@@ -1686,9 +1742,21 @@
       console.debug('[Chat] chatDeleted event dispatched for chat:', chatIdToDelete);
       
       // Step 3: Send delete request to server via chatSyncService
+      // If offline / WebSocket disconnected, queue the deletion for when we reconnect.
+      // The pending deletion is tracked in localStorage so phased sync won't re-add
+      // the chat from the server before the delete is confirmed.
       console.debug('[Chat] Sending delete request to server for chat:', chatIdToDelete);
-      await chatSyncService.sendDeleteChat(chatIdToDelete);
-      console.debug('[Chat] Delete request sent to server for chat:', chatIdToDelete);
+      try {
+        await chatSyncService.sendDeleteChat(chatIdToDelete);
+        console.debug('[Chat] Delete request sent to server for chat:', chatIdToDelete);
+      } catch (sendError) {
+        // Server delete failed (likely offline / WebSocket disconnected).
+        // Queue for retry on reconnect. The chat is already removed from IndexedDB
+        // and UI, so the user sees it as deleted immediately (optimistic delete).
+        console.warn('[Chat] Failed to send delete to server, queueing for reconnect:', chatIdToDelete, sendError);
+        const { addPendingChatDeletion } = await import('../../services/pendingChatDeletions');
+        addPendingChatDeletion(chatIdToDelete);
+      }
       
     } catch (error) {
       console.error('[Chat] Error deleting chat:', chatIdToDelete, error);
@@ -1710,7 +1778,15 @@
 >
   {#if chat}
     <div class="chat-item">
-      {#if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || lastMessage?.status === 'waiting_for_user' || chat.messages?.some(m => m.status === 'waiting_for_user') || isWaitingForTitle) && !currentTypingMateInfo}
+      {#if hasWaitingForUser && !currentTypingMateInfo}
+        <!-- Waiting for user action (e.g., insufficient credits): draft-like layout with label + message preview -->
+        <div class="draft-only-layout">
+          <span class="status-message waiting-for-user-label">{displayLabel}</span>
+          {#if displayText}
+            <span class="draft-content-as-title">{truncateText(displayText, 60)}</span>
+          {/if}
+        </div>
+      {:else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo}
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}
@@ -1727,7 +1803,7 @@
       {:else if isDraftOnly}
         <!-- Draft-only chat: left-aligned without mate profile -->
         <div class="draft-only-layout">
-          <span class="status-message">{$text('enter_message.draft.text')}</span>
+          <span class="status-message">{$text('enter_message.draft')}</span>
           <span class="draft-content-as-title">{truncateText(draftTextContent, 60)}</span>
         </div>
       {:else}
@@ -1840,10 +1916,10 @@
                 <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
               {:else if isWaitingForTitle}
                 <!-- Show "Processing..." as title when waiting for metadata -->
-                <span class="chat-title processing-title">{$text('enter_message.processing.text')}</span>
+                <span class="chat-title processing-title">{$text('enter_message.processing')}</span>
               {:else}
                 <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
-                <span class="chat-title">{@html $text('chat.untitled_chat.text')}</span>
+                <span class="chat-title">{@html $text('chat.untitled_chat')}</span>
               {/if}
               {#if chat.pinned}
                 <span class="pin-indicator">
@@ -1853,15 +1929,20 @@
               {#if chat.is_incognito}
                 <span class="incognito-label">
                   <span class="icon icon_incognito"></span>
-                  {$text('settings.incognito.text', { default: 'Incognito' })}
+                  {$text('settings.incognito')}
                 </span>
               {/if}
             </div>
             {#if typingIndicatorInTitleView}
-              <span class="status-message">{typingIndicatorInTitleView}</span>
+              <span class="status-message typing-shimmer">
+                {#if activeSkillInfo}
+                  <span class="skill-icon icon_rounded {activeSkillInfo.appId}"></span>
+                {/if}
+                {typingIndicatorInTitleView}
+              </span>
             {:else if displayLabel && !currentTypingMateInfo} 
               <span class="status-message">
-                {displayLabel}{#if displayText && displayLabel !== $text('enter_message.draft_with_beginning.text').replace('{draft_beginning}', truncateText(draftTextContent, 30))}&nbsp;{truncateText(displayText, 60)}{/if}
+                {displayLabel}{#if displayText && displayLabel !== $text('enter_message.draft_with_beginning').replace('{draft_beginning}', truncateText(draftTextContent, 30))}&nbsp;{truncateText(displayText, 60)}{/if}
               </span>
             {:else if displayText && !currentTypingMateInfo} 
                <span class="status-message">{truncateText(displayText,60)}</span>
@@ -2012,6 +2093,44 @@
   .status-message {
     font-size: 14px;
     color: var(--color-grey-60);
+  }
+
+  /* Gradient shimmer animation for typing indicator text in sidebar */
+  .status-message.typing-shimmer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-60) 0%,
+      var(--color-grey-40) 50%,
+      var(--color-grey-60) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: typing-shimmer 1.5s infinite linear;
+  }
+
+  /* Small inline app skill icon in typing indicator */
+  .status-message.typing-shimmer :global(.skill-icon) {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    /* Override text fill for the icon so it remains visible */
+    -webkit-text-fill-color: initial;
+  }
+
+  @keyframes typing-shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
   }
 
   .draft-content-as-title {

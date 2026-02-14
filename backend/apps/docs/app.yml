@@ -4,8 +4,8 @@
 
 # App metadata
 app_id: docs
-name_translation_key: docs.text
-description_translation_key: docs.description.text
+name_translation_key: docs
+description_translation_key: docs.description
 icon_image: |
   docs.svg
 category: productivity
@@ -39,14 +39,14 @@ focus_modes: []
 # Settings and memories for document generation preferences
 settings_and_memories:
   - id: writing_style
-    name_translation_key: docs.writing_style.text
-    description_translation_key: docs.writing_style.description.text
+    name_translation_key: docs.writing_style
+    description_translation_key: docs.writing_style.description
     type: list
     stage: production
     example_translation_keys:
-      - "docs.writing_style.example_1.text"
-      - "docs.writing_style.example_2.text"
-      - "docs.writing_style.example_3.text"
+      - "docs.writing_style.example_1"
+      - "docs.writing_style.example_2"
+      - "docs.writing_style.example_3"
     schema:
       type: object
       properties:

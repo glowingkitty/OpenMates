@@ -14,8 +14,8 @@ import type { DemoChat } from "../types";
 export const forEveryoneChat: DemoChat = {
   chat_id: "demo-for-everyone",
   slug: "for-everyone",
-  title: "demo_chats.for_everyone.title.text",
-  description: "demo_chats.for_everyone.description.text",
+  title: "demo_chats.for_everyone.title",
+  description: "demo_chats.for_everyone.description",
   keywords: [
     "AI assistant",
     "getting started",
@@ -30,14 +30,14 @@ export const forEveryoneChat: DemoChat = {
     {
       id: "for-everyone-1",
       role: "assistant",
-      content: "demo_chats.for_everyone.message.text",
+      content: "demo_chats.for_everyone.message",
       timestamp: new Date().toISOString(),
     },
   ],
   follow_up_suggestions: [
-    "demo_chats.for_everyone.follow_up_1.text",
-    "demo_chats.for_everyone.follow_up_2.text",
-    "demo_chats.for_everyone.follow_up_3.text",
+    "demo_chats.for_everyone.follow_up_1",
+    "demo_chats.for_everyone.follow_up_2",
+    "demo_chats.for_everyone.follow_up_3",
   ],
   metadata: {
     category: "openmates_official", // Official OpenMates category - shows favicon, not mate profile

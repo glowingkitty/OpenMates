@@ -24,7 +24,7 @@
 	let translatedDemoChat = $derived.by(() => {
 		// Access $locale to make this reactive to locale changes
 		const currentLocale = $locale;
-		// translateDemoChat uses get(_) internally, which reads from the locale store
+		// translateDemoChat uses get(text) internally, which reads from the locale store
 		// By accessing $locale here, we ensure this derived re-runs when locale changes
 		return translateDemoChat(initialDemoChat);
 	});

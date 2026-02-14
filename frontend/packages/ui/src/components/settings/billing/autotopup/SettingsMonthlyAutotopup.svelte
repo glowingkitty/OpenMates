@@ -279,13 +279,13 @@ Allows creating new subscriptions if user has a saved payment method
         <!-- Subscription View -->
         <div class="subscription-info">
             <div class="info-row">
-                <span class="info-label">{$text('settings.billing.status.text')}:</span>
+                <span class="info-label">{$text('settings.billing.status')}:</span>
                 <span class="status-badge {hasActiveSubscription ? 'active' : 'inactive'}">
                     {subscriptionDetails.status || 'unknown'}
                 </span>
             </div>
             <div class="info-row">
-                <span class="info-label">{$text('settings.billing.amount.text')}:</span>
+                <span class="info-label">{$text('settings.billing.amount')}:</span>
                 <span class="info-value">
                     <span class="coin-icon-small"></span>
                     {formatCredits(subscriptionDetails.credits_amount || 0)} credits/month
@@ -301,13 +301,13 @@ Allows creating new subscriptions if user has a saved payment method
                 </div>
             {/if}
             <div class="info-row">
-                <span class="info-label">{$text('settings.billing.price.text')}:</span>
+                <span class="info-label">{$text('settings.billing.price')}:</span>
                 <span class="info-value">
                     {formatCurrency(subscriptionDetails.price || 0, subscriptionDetails.currency || 'EUR')}/month
                 </span>
             </div>
             <div class="info-row">
-                <span class="info-label">{$text('settings.billing.next_charge.text')}:</span>
+                <span class="info-label">{$text('settings.billing.next_charge')}:</span>
                 <span class="info-value">{nextChargeDate ? nextChargeDate.toLocaleDateString() : '—'}</span>
             </div>
             <div class="info-row">
@@ -340,7 +340,7 @@ Allows creating new subscriptions if user has a saved payment method
 
         <div class="button-group">
             <button class="danger-button" onclick={cancelSubscription} disabled={isLoading}>
-                {$text('settings.billing.cancel.text')}
+                {$text('settings.billing.cancel')}
             </button>
         </div>
     {:else if showCreateForm}
@@ -414,7 +414,7 @@ Allows creating new subscriptions if user has a saved payment method
     {:else}
         <!-- No Subscription - Show Create Option -->
         <p class="info-text">
-            {$text('settings.billing.no_subscription.text')}
+            {$text('settings.billing.no_subscription')}
         </p>
         {#if hasPaymentMethod}
             <button class="primary-button" onclick={showCreateSubscriptionForm}>

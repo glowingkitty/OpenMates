@@ -23,17 +23,17 @@
 <div class="content" in:fade={{ duration: 300 }}>
     <div class="signup-header">
         <div class="icon header_size warning"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.passkey_prf_error_title.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.passkey_prf_error_title')}</h2>
     </div>
 
     <div class="error-container">
-        <p class="error-message">{@html $text('signup.passkey_prf_error_message.text')}</p>
+        <p class="error-message">{@html $text('signup.passkey_prf_error_message')}</p>
         
         <button 
             class="continue-button" 
             onclick={handleContinue}
         >
-            {@html $text('signup.continue.text')}
+            {@html $text('signup.continue')}
         </button>
     </div>
 </div>

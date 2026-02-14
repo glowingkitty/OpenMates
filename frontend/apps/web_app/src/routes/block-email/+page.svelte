@@ -85,7 +85,7 @@
 </script>
 
 <svelte:head>
-    <title>{$text('email.block_email.title.text')}</title>
+    <title>{$text('email.block_email.title')}</title>
 </svelte:head>
 
 <div class="page-container">
@@ -95,21 +95,21 @@
         <div class="content-wrapper">
             {#if isLoading}
                 <div class="status-message loading">
-                    <p>{$text('email.block_email.processing.text')}</p>
+                    <p>{$text('email.block_email.processing')}</p>
                 </div>
             {:else if isSuccess}
                 <div class="status-message success">
-                    <h1>{$text('email.block_email.success.title.text')}</h1>
-                    <p>{successMessage || $text('email.block_email.success.message.text')}</p>
+                    <h1>{$text('email.block_email.success.title')}</h1>
+                    <p>{successMessage || $text('email.block_email.success.message')}</p>
                 </div>
             {:else if errorMessage}
                 <div class="status-message error">
-                    <h1>{$text('email.block_email.error.title.text')}</h1>
+                    <h1>{$text('email.block_email.error.title')}</h1>
                     <p>{errorMessage}</p>
                 </div>
             {:else}
                 <div class="status-message">
-                    <p>{$text('email.block_email.loading.text')}</p>
+                    <p>{$text('email.block_email.loading')}</p>
                 </div>
             {/if}
         </div>

@@ -36,7 +36,7 @@ def _resolve_translation(
     
     Args:
         translation_service: TranslationService instance (can be None)
-        translation_key: Translation key (e.g., "web.search.text")
+        translation_key: Translation key (e.g., "web.search")
         namespace: Namespace prefix (e.g., "app_skills")
         fallback: Fallback value if translation not found
     

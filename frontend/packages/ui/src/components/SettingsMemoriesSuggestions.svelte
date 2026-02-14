@@ -339,7 +339,7 @@
     <!-- Header text with lock icon -->
     <div class="suggestions-header">
       <Icon name="lock" size="18px" />
-      <span>{$text("chat.settings_memories_suggestions.header.text")}</span>
+      <span>{$text("chat.settings_memories_suggestions.header")}</span>
     </div>
 
     <!-- Outer container panel wrapping all cards -->
@@ -373,19 +373,19 @@
                   class="action-btn reject-btn"
                   onclick={() => handleReject(suggestion)}
                   disabled={isProcessing}
-                  aria-label={$text("chat.settings_memories_suggestions.reject.text")}
+                  aria-label={$text("chat.settings_memories_suggestions.reject")}
                 >
                   <Icon name="close" size="17px" />
-                  <span>{$text("chat.settings_memories_suggestions.reject.text")}</span>
+                  <span>{$text("chat.settings_memories_suggestions.reject")}</span>
                 </button>
                 <button
                   class="action-btn add-btn"
                   onclick={() => handleAdd(suggestion)}
                   disabled={isProcessing}
-                  aria-label={$text("chat.settings_memories_suggestions.add.text")}
+                  aria-label={$text("chat.settings_memories_suggestions.add")}
                 >
                   <Icon name="create" size="17px" />
-                  <span>{$text("chat.settings_memories_suggestions.add.text")}</span>
+                  <span>{$text("chat.settings_memories_suggestions.add")}</span>
                 </button>
               </div>
             </div>
@@ -397,7 +397,7 @@
     <!-- Privacy notice with lock icon -->
     <div class="privacy-notice">
       <Icon name="lock" size="20px" />
-      <span>{$text("chat.settings_memories_suggestions.privacy_notice.text")}</span>
+      <span>{$text("chat.settings_memories_suggestions.privacy_notice")}</span>
     </div>
   </div>
 {/if}

@@ -65,32 +65,32 @@
     // Password strength validation
     function checkPasswordStrength(pwd: string): boolean {
         if (pwd.length < 8) {
-            passwordStrengthError = $text('signup.password_too_short.text');
+            passwordStrengthError = $text('signup.password_too_short');
             showPasswordStrengthWarning = true;
             return false;
         }
 
         if (pwd.length > 60) {
-            passwordStrengthError = $text('signup.password_too_long.text');
+            passwordStrengthError = $text('signup.password_too_long');
             showPasswordStrengthWarning = true;
             return false;
         }
 
         // Use Unicode categories for letter detection (includes international letters)
         if (!/\p{L}/u.test(pwd)) {
-            passwordStrengthError = $text('signup.password_needs_letter.text');
+            passwordStrengthError = $text('signup.password_needs_letter');
             showPasswordStrengthWarning = true;
             return false;
         }
 
         if (!/[0-9]/.test(pwd)) {
-            passwordStrengthError = $text('signup.password_needs_number.text');
+            passwordStrengthError = $text('signup.password_needs_number');
             showPasswordStrengthWarning = true;
             return false;
         }
 
         if (!/[^A-Za-z0-9\p{L}]/u.test(pwd)) {
-            passwordStrengthError = $text('signup.password_needs_special.text');
+            passwordStrengthError = $text('signup.password_needs_special');
             showPasswordStrengthWarning = true;
             return false;
         }
@@ -103,7 +103,7 @@
     // Password match validation
     const checkPasswordsMatch = debounce(() => {
         if (passwordRepeat && password !== passwordRepeat) {
-            passwordError = $text('signup.passwords_do_not_match.text');
+            passwordError = $text('signup.passwords_do_not_match');
             showPasswordMatchWarning = true;
         } else {
             passwordError = '';
@@ -154,11 +154,11 @@
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size password"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.password.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.password')}</h2>
     </div>
 
-    <h3 class="advice-title">{@html $text('signup.advice.text')}</h3>
-    <p class="advice-text">{@html $text('signup.use_your_password_manager.text')}</p>
+    <h3 class="advice-title">{@html $text('signup.advice')}</h3>
+    <p class="advice-text">{@html $text('signup.use_your_password_manager')}</p>
     
     
     <div class="form-container">
@@ -179,7 +179,7 @@
                         bind:this={passwordInput}
                         type="password" 
                         bind:value={password}
-                        placeholder={$text('login.password_placeholder.text')}
+                        placeholder={$text('login.password_placeholder')}
                         required
                         autocomplete="new-password"
                         class:error={!!passwordStrengthError}
@@ -199,7 +199,7 @@
                         bind:this={passwordRepeatInput}
                         type="password" 
                         bind:value={passwordRepeat}
-                        placeholder={$text('signup.repeat_password.text')}
+                        placeholder={$text('signup.repeat_password')}
                         required
                         maxlength="60"
                         autocomplete="new-password"

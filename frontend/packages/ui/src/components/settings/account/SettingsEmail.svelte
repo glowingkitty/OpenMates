@@ -29,7 +29,7 @@
         const result = await copyToClipboard(email);
         if (result.success) {
             isCopied = true;
-            notificationStore.success($text('settings.account.email.copied.text'));
+            notificationStore.success($text('settings.account.email.copied'));
             setTimeout(() => { isCopied = false; }, 2000);
         } else {
             console.error('[SettingsEmail] Failed to copy email:', result.error);
@@ -39,7 +39,7 @@
 
 <div class="settings-email">
     {#if isLoading}
-        <div class="loading">{$text('settings.account.email.loading.text')}</div>
+        <div class="loading">{$text('settings.account.email.loading')}</div>
     {:else if email}
         <!-- Email display row with icon, text, and copy button -->
         <div class="email-row">
@@ -48,7 +48,7 @@
                     <div class="icon settings_size mail"></div>
                 </div>
                 <div class="email-text">
-                    <div class="email-label">{$text('settings.account.email.current_email.text')}</div>
+                    <div class="email-label">{$text('settings.account.email.current_email')}</div>
                     <div class="email-address">{email}</div>
                 </div>
             </div>
@@ -67,10 +67,10 @@
         </div>
 
         <div class="info-box">
-            <p>{$text('settings.account.email.privacy_info.text')}</p>
+            <p>{$text('settings.account.email.privacy_info')}</p>
         </div>
     {:else}
-        <div class="error">{$text('settings.account.email.error_decrypting.text')}</div>
+        <div class="error">{$text('settings.account.email.error_decrypting')}</div>
     {/if}
 </div>
 

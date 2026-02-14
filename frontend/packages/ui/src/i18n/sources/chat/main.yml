@@ -654,3 +654,18 @@ pii_show:
   context: Tooltip for the PII toggle button when sensitive data is currently hidden (clicking will reveal it)
   en: Show sensitive data
   de: Sensible Daten anzeigen
+minimize:
+  context: Aria-label and tooltip for minimize button that hides chat panel in side-by-side layout
+  en: Minimize chat
+  de: Chat minimieren
+  verified_by_human: []
+read_only_shared:
+  context: Text shown in read-only indicator when viewing a shared chat you don't own
+  en: This is a shared chat. You can view messages but cannot reply.
+  de: Dies ist ein geteilter Chat. Du kannst Nachrichten lesen, aber nicht antworten.
+  verified_by_human: []
+show_chat:
+  context: Aria-label for button that restores chat panel after minimizing
+  en: Show chat
+  de: Chat anzeigen
+  verified_by_human: []

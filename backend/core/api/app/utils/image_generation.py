@@ -140,7 +140,7 @@ def generate_combined_map_preview(
         # --- Load i18n Text ---
         translation_service = TranslationService()
         # Use the lang parameter here and pass variables for proper translation replacement
-        text_line1 = translation_service.get_nested_translation('email.area_around.text', lang=lang, variables={"city": city, "country": country}).split("<br>")[0]
+        text_line1 = translation_service.get_nested_translation('email.area_around', lang=lang, variables={"city": city, "country": country}).split("<br>")[0]
         text_line2 = f"{city}, {country}"
 
         # --- 1. Generate Base Map ---

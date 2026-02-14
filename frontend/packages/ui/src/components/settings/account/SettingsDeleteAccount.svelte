@@ -92,7 +92,7 @@ Uses SecurityAuth component for passkey/2FA verification.
                 const data = await response.json();
                 canDeleteWithoutLogin = data.can_delete_without_login;
             } else {
-                errorMessage = $text('settings.account.delete_account_status_error.text');
+                errorMessage = $text('settings.account.delete_account_status_error');
             }
         } catch (error) {
             console.error('[SettingsDeleteAccount] Error checking status:', error);
@@ -103,7 +103,7 @@ Uses SecurityAuth component for passkey/2FA verification.
     }
 
     async function handleDeletionSuccess(customMessage?: string) {
-        successMessage = customMessage || $text('settings.account.delete_account_success.text');
+        successMessage = customMessage || $text('settings.account.delete_account_success');
         deletionScheduled = true;
         
         setTimeout(async () => {
@@ -235,7 +235,7 @@ Uses SecurityAuth component for passkey/2FA verification.
         if (!canProceed) return;
         
         if (!hasAnyAuthMethod) {
-            errorMessage = $text('settings.account.delete_account_no_auth_method.text');
+            errorMessage = $text('settings.account.delete_account_no_auth_method');
             return;
         }
 
@@ -304,12 +304,12 @@ Uses SecurityAuth component for passkey/2FA verification.
 <div class="delete-account-container">
     {#if isCheckingStatus || isLoadingPreview}
         <div class="loading-message">
-            <p>{$text('settings.account.delete_account_loading_preview.text')}</p>
+            <p>{$text('settings.account.delete_account_loading_preview')}</p>
         </div>
     {:else if !$authStore.isAuthenticated && canDeleteWithoutLogin}
         <div class="warning-box">
-            <h3>{$text('settings.account.delete_account_uncompleted_title.text')}</h3>
-            <p>{$text('settings.account.delete_account_uncompleted_message.text')}</p>
+            <h3>{$text('settings.account.delete_account_uncompleted_title')}</h3>
+            <p>{$text('settings.account.delete_account_uncompleted_message')}</p>
         </div>
 
         {#if errorMessage}
@@ -328,35 +328,35 @@ Uses SecurityAuth component for passkey/2FA verification.
                     disabled={isLoadingDeletion}
                 >
                     {#if isLoadingDeletion}
-                        {$text('settings.account.delete_account_deleting.text')}
+                        {$text('settings.account.delete_account_deleting')}
                     {:else}
-                        {$text('settings.account.delete_account_delete_button.text')}
+                        {$text('settings.account.delete_account_delete_button')}
                     {/if}
                 </button>
             </div>
         {/if}
     {:else if !$authStore.isAuthenticated && !canDeleteWithoutLogin && accountId}
         <div class="info-box">
-            <h3>{$text('settings.account.delete_account_login_required_title.text')}</h3>
-            <p>{$text('settings.account.delete_account_login_required_message.text')}</p>
+            <h3>{$text('settings.account.delete_account_login_required_title')}</h3>
+            <p>{$text('settings.account.delete_account_login_required_message')}</p>
         </div>
         <div class="action-buttons">
             <button class="retry-button" onclick={() => window.location.hash = 'login'}>
-                {$text('login.login.text')}
+                {$text('login.login')}
             </button>
         </div>
     {:else if previewData}
         {#if previewData.has_refundable_credits}
             <div class="info-box">
-                <h3>{$text('settings.account.delete_account_auto_refund_title.text')}</h3>
-                <p>{$text('settings.account.delete_account_refund_all_description.text')}</p>
+                <h3>{$text('settings.account.delete_account_auto_refund_title')}</h3>
+                <p>{$text('settings.account.delete_account_refund_all_description')}</p>
                 <ul class="refund-details">
                     <li>
-                        <strong>{$text('settings.account.delete_account_auto_refund_total_refund.text')}:</strong>
+                        <strong>{$text('settings.account.delete_account_auto_refund_total_refund')}:</strong>
                         {formatCurrency(previewData.auto_refunds.total_refund_amount_cents, previewData.auto_refunds.total_refund_currency)}
                     </li>
                     <li>
-                        <strong>{$text('settings.account.delete_account_refundable_credits.text')}:</strong>
+                        <strong>{$text('settings.account.delete_account_refundable_credits')}:</strong>
                         {formatCredits(previewData.refundable_credits)}
                     </li>
                 </ul>
@@ -365,21 +365,21 @@ Uses SecurityAuth component for passkey/2FA verification.
 
         {#if previewData.credits_from_gift_cards > 0}
             <div class="info-box">
-                <h3>{$text('settings.account.delete_account_gift_card_credits_title.text')}</h3>
-                <p>{$text('settings.account.delete_account_gift_card_credits_message.text').replace('{count}', formatCredits(previewData.credits_from_gift_cards))}</p>
+                <h3>{$text('settings.account.delete_account_gift_card_credits_title')}</h3>
+                <p>{$text('settings.account.delete_account_gift_card_credits_message').replace('{count}', formatCredits(previewData.credits_from_gift_cards))}</p>
             </div>
         {/if}
 
         <div class="warning-box">
-            <h3>{$text('settings.account.delete_account_data_deletion_warning_title.text')}</h3>
-            <p>{$text('settings.account.delete_account_data_deletion_warning_message.text')}</p>
+            <h3>{$text('settings.account.delete_account_data_deletion_warning_title')}</h3>
+            <p>{$text('settings.account.delete_account_data_deletion_warning_message')}</p>
             <div class="toggle-label">
                 <Toggle 
                     bind:checked={confirmDataDeletion}
                     disabled={isLoadingDeletion}
-                    ariaLabel={$text('settings.account.delete_account_data_deletion_warning_confirm.text')}
+                    ariaLabel={$text('settings.account.delete_account_data_deletion_warning_confirm')}
                 />
-                <span>{$text('settings.account.delete_account_data_deletion_warning_confirm.text')}</span>
+                <span>{$text('settings.account.delete_account_data_deletion_warning_confirm')}</span>
             </div>
         </div>
 
@@ -398,16 +398,16 @@ Uses SecurityAuth component for passkey/2FA verification.
                 disabled={!canProceed || isLoadingDeletion}
             >
                 {#if isLoadingDeletion}
-                    {$text('settings.account.delete_account_deleting.text')}
+                    {$text('settings.account.delete_account_deleting')}
                 {:else}
-                    {$text('settings.account.delete_account_delete_button.text')}
+                    {$text('settings.account.delete_account_delete_button')}
                 {/if}
             </button>
         </div>
     {:else if errorMessage}
         <div class="error-message">{errorMessage}</div>
         <button class="retry-button" onclick={fetchPreview}>
-            {$text('settings.account.delete_account_retry.text')}
+            {$text('settings.account.delete_account_retry')}
         </button>
     {/if}
 </div>
@@ -417,8 +417,8 @@ Uses SecurityAuth component for passkey/2FA verification.
         {hasPasskey}
         hasPassword={false}
         has2FA={has2FA}
-        title={$text('settings.account.delete_account_auth_title.text')}
-        description={$text('settings.account.delete_account_auth_description.text')}
+        title={$text('settings.account.delete_account_auth_title')}
+        description={$text('settings.account.delete_account_auth_description')}
         autoStart={true}
         onSuccess={handleAuthSuccess}
         onFailed={handleAuthFailed}

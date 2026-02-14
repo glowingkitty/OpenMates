@@ -1,6 +1,6 @@
 /**
  * Cache Manager Utility
- * 
+ *
  * Provides utilities to manage browser cache storage and handle quota exceeded errors.
  * This helps prevent QuotaExceededError from accumulating in service worker caches.
  */
@@ -10,26 +10,29 @@
  * Use this if you're experiencing QuotaExceededError issues
  */
 export async function clearAllServiceWorkerCaches(): Promise<void> {
-    try {
-        if ('caches' in self) {
-            const cacheNames = await caches.keys();
-            console.log(`[CacheManager] Found ${cacheNames.length} caches to clear:`, cacheNames);
-            
-            await Promise.all(
-                cacheNames.map(cacheName => {
-                    console.log(`[CacheManager] Deleting cache: ${cacheName}`);
-                    return caches.delete(cacheName);
-                })
-            );
-            
-            console.log('[CacheManager] ✅ All service worker caches cleared');
-        } else {
-            console.warn('[CacheManager] CacheStorage API not available');
-        }
-    } catch (error) {
-        console.error('[CacheManager] Error clearing caches:', error);
-        throw error;
+  try {
+    if ("caches" in self) {
+      const cacheNames = await caches.keys();
+      console.log(
+        `[CacheManager] Found ${cacheNames.length} caches to clear:`,
+        cacheNames,
+      );
+
+      await Promise.all(
+        cacheNames.map((cacheName) => {
+          console.log(`[CacheManager] Deleting cache: ${cacheName}`);
+          return caches.delete(cacheName);
+        }),
+      );
+
+      console.log("[CacheManager] ✅ All service worker caches cleared");
+    } else {
+      console.warn("[CacheManager] CacheStorage API not available");
     }
+  } catch (error) {
+    console.error("[CacheManager] Error clearing caches:", error);
+    throw error;
+  }
 }
 
 /**
@@ -37,28 +40,28 @@ export async function clearAllServiceWorkerCaches(): Promise<void> {
  * Note: This is an approximation as browsers don't provide exact cache sizes
  */
 export async function getCacheStorageInfo(): Promise<{
-    cacheCount: number;
-    cacheNames: string[];
+  cacheCount: number;
+  cacheNames: string[];
 }> {
-    try {
-        if ('caches' in self) {
-            const cacheNames = await caches.keys();
-            return {
-                cacheCount: cacheNames.length,
-                cacheNames
-            };
-        }
-        return {
-            cacheCount: 0,
-            cacheNames: []
-        };
-    } catch (error) {
-        console.error('[CacheManager] Error getting cache info:', error);
-        return {
-            cacheCount: 0,
-            cacheNames: []
-        };
+  try {
+    if ("caches" in self) {
+      const cacheNames = await caches.keys();
+      return {
+        cacheCount: cacheNames.length,
+        cacheNames,
+      };
     }
+    return {
+      cacheCount: 0,
+      cacheNames: [],
+    };
+  } catch (error) {
+    console.error("[CacheManager] Error getting cache info:", error);
+    return {
+      cacheCount: 0,
+      cacheNames: [],
+    };
+  }
 }
 
 /**
@@ -66,101 +69,178 @@ export async function getCacheStorageInfo(): Promise<{
  * @param cacheName - Name of the cache to clear
  */
 export async function clearCache(cacheName: string): Promise<boolean> {
-    try {
-        if ('caches' in self) {
-            const deleted = await caches.delete(cacheName);
-            if (deleted) {
-                console.log(`[CacheManager] ✅ Cleared cache: ${cacheName}`);
-            } else {
-                console.warn(`[CacheManager] Cache not found: ${cacheName}`);
-            }
-            return deleted;
-        }
-        return false;
-    } catch (error) {
-        console.error(`[CacheManager] Error clearing cache ${cacheName}:`, error);
-        return false;
+  try {
+    if ("caches" in self) {
+      const deleted = await caches.delete(cacheName);
+      if (deleted) {
+        console.log(`[CacheManager] ✅ Cleared cache: ${cacheName}`);
+      } else {
+        console.warn(`[CacheManager] Cache not found: ${cacheName}`);
+      }
+      return deleted;
     }
+    return false;
+  } catch (error) {
+    console.error(`[CacheManager] Error clearing cache ${cacheName}:`, error);
+    return false;
+  }
 }
 
 /**
  * Wraps a cache operation with quota error handling
  * If a QuotaExceededError occurs, it will attempt to clear old caches and retry
- * 
+ *
  * @param operation - The cache operation to perform
  * @param retryCount - Maximum number of retries (default: 1)
  */
 export async function withQuotaErrorHandling<T>(
-    operation: () => Promise<T>,
-    retryCount: number = 1
+  operation: () => Promise<T>,
+  retryCount: number = 1,
 ): Promise<T> {
-    try {
-        return await operation();
-    } catch (error) {
-        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-            console.warn('[CacheManager] QuotaExceededError detected, attempting to clear old caches...');
-            
-            if (retryCount > 0) {
-                // Clear old caches and retry
-                await clearAllServiceWorkerCaches();
-                
-                // Retry the operation
-                return await withQuotaErrorHandling(operation, retryCount - 1);
-            } else {
-                console.error('[CacheManager] QuotaExceededError persists after cache cleanup');
-                throw error;
-            }
-        }
-        // Re-throw non-quota errors
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "QuotaExceededError") {
+      console.warn(
+        "[CacheManager] QuotaExceededError detected, attempting to clear old caches...",
+      );
+
+      if (retryCount > 0) {
+        // Clear old caches and retry
+        await clearAllServiceWorkerCaches();
+
+        // Retry the operation
+        return await withQuotaErrorHandling(operation, retryCount - 1);
+      } else {
+        console.error(
+          "[CacheManager] QuotaExceededError persists after cache cleanup",
+        );
         throw error;
+      }
     }
+    // Re-throw non-quota errors
+    throw error;
+  }
 }
 
 /**
  * Forces service worker update on Safari/iOS
  * Safari is notorious for not updating service workers automatically.
  * This function explicitly checks for and installs service worker updates.
- * 
+ *
  * Call this on app initialization or when user navigates to ensure latest version.
  */
 export async function forceServiceWorkerUpdate(): Promise<void> {
-    if ('serviceWorker' in navigator) {
-        try {
-            const registration = await navigator.serviceWorker.getRegistration();
-            
-            if (registration) {
-                console.log('[CacheManager] Checking for service worker update...');
-                
-                // Force update check - Safari often ignores automatic updates
-                await registration.update();
-                
-                // If a new service worker is waiting, skip waiting and reload
-                if (registration.waiting) {
-                    console.log('[CacheManager] New service worker waiting, activating...');
-                    
-                    // Send skip waiting message to activate immediately
-                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                    
-                    // Wait a moment for the service worker to activate
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    
-                    // Reload the page to use the new service worker (optional, can be disabled)
-                    // Uncomment the line below if you want automatic reload on update
-                    // window.location.reload();
-                } else if (registration.installing) {
-                    console.log('[CacheManager] Service worker is installing, will activate when ready...');
-                } else {
-                    console.log('[CacheManager] Service worker is up to date');
-                }
-            } else {
-                console.log('[CacheManager] No service worker registration found');
-            }
-        } catch (error) {
-            console.error('[CacheManager] Error checking for service worker update:', error);
+  if ("serviceWorker" in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+
+      if (registration) {
+        console.log("[CacheManager] Checking for service worker update...");
+
+        // Force update check - Safari often ignores automatic updates
+        await registration.update();
+
+        // If a new service worker is waiting, skip waiting and reload
+        if (registration.waiting) {
+          console.log(
+            "[CacheManager] New service worker waiting, activating...",
+          );
+
+          // Send skip waiting message to activate immediately
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+
+          // Wait a moment for the service worker to activate
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // Reload the page to use the new service worker (optional, can be disabled)
+          // Uncomment the line below if you want automatic reload on update
+          // window.location.reload();
+        } else if (registration.installing) {
+          console.log(
+            "[CacheManager] Service worker is installing, will activate when ready...",
+          );
+        } else {
+          console.log("[CacheManager] Service worker is up to date");
         }
-    } else {
-        console.warn('[CacheManager] Service Worker API not available');
+      } else {
+        console.log("[CacheManager] No service worker registration found");
+      }
+    } catch (error) {
+      console.error(
+        "[CacheManager] Error checking for service worker update:",
+        error,
+      );
     }
+  } else {
+    console.warn("[CacheManager] Service Worker API not available");
+  }
+}
+
+/**
+ * Performs a clean app update by clearing all cached assets, activating any
+ * waiting service worker, and then navigating to the target URL (or reloading).
+ *
+ * This is the single orchestration point for update-triggered reloads.
+ * It ensures the user gets a completely fresh app state without stale assets.
+ *
+ * Sequence:
+ * 1. Clear all Service Worker caches (Cache Storage API)
+ * 2. Send SKIP_WAITING to any waiting SW so it activates immediately
+ * 3. Brief pause for SW activation
+ * 4. Navigate to targetUrl (full page load) or reload current page
+ *
+ * @param targetUrl - Optional URL to navigate to after cleanup. If omitted, reloads the current page.
+ */
+export async function performCleanUpdate(targetUrl?: string): Promise<void> {
+  console.log("[CacheManager] Performing clean update...");
+
+  try {
+    // Step 1: Clear all Service Worker caches so the fresh page load
+    // doesn't get served stale assets from the cache
+    await clearAllServiceWorkerCaches();
+  } catch (error) {
+    // Non-blocking: proceed with the reload even if cache clearing fails.
+    // The new SW + hashed filenames will still serve correct assets.
+    console.error(
+      "[CacheManager] Cache clearing failed, proceeding with reload:",
+      error,
+    );
+  }
+
+  try {
+    // Step 2: Activate any waiting service worker so it takes over immediately
+    // on the next page load, rather than waiting for all tabs to close.
+    // This is intentionally only done during an explicit update flow — not on
+    // every SW lifecycle event — to avoid interrupting active sync operations.
+    if ("serviceWorker" in navigator) {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration?.waiting) {
+        console.log(
+          "[CacheManager] Activating waiting service worker via SKIP_WAITING",
+        );
+        registration.waiting.postMessage({ type: "SKIP_WAITING" });
+
+        // Brief pause to let the SW activate before we reload
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    }
+  } catch (error) {
+    // Non-blocking: proceed with reload even if SW activation fails
+    console.error(
+      "[CacheManager] SW activation failed, proceeding with reload:",
+      error,
+    );
+  }
+
+  // Step 3: Navigate to fresh page (full page load, not client-side navigation)
+  if (targetUrl) {
+    console.log(`[CacheManager] Navigating to fresh page: ${targetUrl}`);
+    window.location.href = targetUrl;
+  } else {
+    console.log("[CacheManager] Reloading current page");
+    window.location.reload();
+  }
 }
 
 /**
@@ -168,16 +248,16 @@ export async function forceServiceWorkerUpdate(): Promise<void> {
  * Safari has different caching behavior and needs special handling
  */
 export function isSafari(): boolean {
-    if (typeof navigator === 'undefined') return false;
-    
-    // Check for Safari on iOS/iPadOS
-    const ua = navigator.userAgent.toLowerCase();
-    const isIOS = /iphone|ipad|ipod/.test(ua);
-    const isSafariUA = /safari/.test(ua) && !/chrome|crios|fxios/.test(ua);
-    
-    // Also check for standalone mode (PWA)
-    const isStandalone = (window.navigator as any).standalone === true;
-    
-    return (isIOS && isSafariUA) || isStandalone;
-}
+  if (typeof navigator === "undefined") return false;
 
+  // Check for Safari on iOS/iPadOS
+  const ua = navigator.userAgent.toLowerCase();
+  const isIOS = /iphone|ipad|ipod/.test(ua);
+  const isSafariUA = /safari/.test(ua) && !/chrome|crios|fxios/.test(ua);
+
+  // Also check for standalone mode (PWA)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isStandalone = (window.navigator as any).standalone === true;
+
+  return (isIOS && isSafariUA) || isStandalone;
+}

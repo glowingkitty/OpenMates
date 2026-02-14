@@ -40,7 +40,7 @@ export function updateBreadcrumbsWithLanguage(textStore) {
                 return {
                     ...crumb,
                     // Use the text store directly to get translations
-                    title: textStore(crumb.translationKey + '.text')
+                    title: textStore(crumb.translationKey)
                 };
             }
             return { ...crumb };  // Return a copy for reactivity

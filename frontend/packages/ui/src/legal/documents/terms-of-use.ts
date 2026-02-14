@@ -12,8 +12,8 @@ import type { DemoChat } from '../../demo_chats/types';
 export const termsOfUseChat: DemoChat = {
 	chat_id: 'legal-terms',
 	slug: 'terms',
-	title: 'legal.terms.title.text', // Translation key - resolved at runtime
-	description: 'metadata.legal_terms.description.text', // Translation key - resolved at runtime
+	title: 'legal.terms.title', // Translation key - resolved at runtime
+	description: 'metadata.legal_terms.description', // Translation key - resolved at runtime
 	keywords: ['terms', 'conditions', 'usage', 'rules', 'agreement', 'legal'],
 	messages: [
 		{
@@ -26,12 +26,12 @@ export const termsOfUseChat: DemoChat = {
 		}
 	],
 	follow_up_suggestions: [
-		'legal.terms.follow_up_1.text',
-		'legal.terms.follow_up_2.text',
-		'legal.terms.follow_up_3.text',
-		'legal.terms.follow_up_4.text',
-		'legal.terms.follow_up_5.text',
-		'legal.terms.follow_up_6.text'
+		'legal.terms.follow_up_1',
+		'legal.terms.follow_up_2',
+		'legal.terms.follow_up_3',
+		'legal.terms.follow_up_4',
+		'legal.terms.follow_up_5',
+		'legal.terms.follow_up_6'
 	],
 	metadata: {
 		category: 'openmates_official', // Official OpenMates category - shows favicon, not mate profile

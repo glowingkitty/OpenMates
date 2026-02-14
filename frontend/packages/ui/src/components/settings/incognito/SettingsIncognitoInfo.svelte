@@ -54,37 +54,37 @@ changes to the documentation (to keep the documentation up to date).
         <div class="info-icon">
             <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
         </div>
-        <h2 class="info-title">{$text('settings.incognito.text')}</h2>
+        <h2 class="info-title">{$text('settings.incognito')}</h2>
     </div>
 
     <div class="info-content">
         <p class="info-description">
-            {$text('settings.incognito_explainer_description.text')}
+            {$text('settings.incognito_explainer_description')}
         </p>
 
         <div class="info-features">
             <div class="info-feature">
                 <div class="feature-icon">✓</div>
                 <div class="feature-text">
-                    {$text('settings.incognito_explainer_feature_device_specific.text')}
+                    {$text('settings.incognito_explainer_feature_device_specific')}
                 </div>
             </div>
             <div class="info-feature">
                 <div class="feature-icon">✓</div>
                 <div class="feature-text">
-                    {$text('settings.incognito_explainer_feature_not_stored.text')}
+                    {$text('settings.incognito_explainer_feature_not_stored')}
                 </div>
             </div>
             <div class="info-feature">
                 <div class="feature-icon">✓</div>
                 <div class="feature-text">
-                    {$text('settings.incognito_explainer_feature_session_only.text')}
+                    {$text('settings.incognito_explainer_feature_session_only')}
                 </div>
             </div>
             <div class="info-feature">
                 <div class="feature-icon">⚠</div>
                 <div class="feature-text">
-                    {$text('settings.incognito_explainer_feature_no_recovery.text')}
+                    {$text('settings.incognito_explainer_feature_no_recovery')}
                 </div>
             </div>
         </div>
@@ -92,12 +92,12 @@ changes to the documentation (to keep the documentation up to date).
         <div class="info-warning">
             <div class="warning-icon">⚠</div>
             <div class="warning-content">
-                <p class="warning-title">{$text('settings.incognito_explainer_warning_title.text')}</p>
+                <p class="warning-title">{$text('settings.incognito_explainer_warning_title')}</p>
                 <p class="warning-text">
-                    {$text('settings.incognito_explainer_warning_providers.text')}
+                    {$text('settings.incognito_explainer_warning_providers')}
                 </p>
                 <p class="warning-text">
-                    {$text('settings.incognito_explainer_warning_personal_info.text')}
+                    {$text('settings.incognito_explainer_warning_personal_info')}
                 </p>
             </div>
         </div>
@@ -105,7 +105,7 @@ changes to the documentation (to keep the documentation up to date).
 
     <div class="info-footer">
         <button onclick={handleActivate}>
-            {$text('settings.incognito_explainer_understood.text')}
+            {$text('settings.incognito_explainer_understood')}
         </button>
     </div>
 </div>

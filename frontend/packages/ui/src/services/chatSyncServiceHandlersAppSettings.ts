@@ -1621,7 +1621,7 @@ export async function handlePendingAIResponseImpl(
     // Skip error responses - they shouldn't be persisted
     if (
       content.includes("[ERROR") ||
-      content === "chat.an_error_occured.text"
+      content === "chat.an_error_occured"
     ) {
       console.debug(
         `[ChatSyncService:PendingAI] Skipping error response for message ${message_id}`,

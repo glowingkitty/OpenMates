@@ -261,7 +261,7 @@
                     <button 
                         class="clickable-icon icon_close" 
                         onclick={stopCamera}
-                        aria-label={$text('cameraview.close.text')}
+                        aria-label={$text('cameraview.close')}
                         use:tooltip
                     ></button>
                     {#if isRecording}
@@ -274,7 +274,7 @@
                             class="control-button video-button"
                             class:recording={isRecording}
                             onclick={toggleRecording}
-                            aria-label={isRecording ? $text('cameraview.stoprecording.text') : $text('cameraview.startrecording.text')}
+                            aria-label={isRecording ? $text('cameraview.stoprecording') : $text('cameraview.startrecording')}
                             use:tooltip
                         >
                             <div class="video-button-inner"></div>
@@ -285,7 +285,7 @@
                             onclick={capturePhoto}
                             disabled={isRecording}
                             class:disabled={isRecording}
-                            aria-label={$text('cameraview.takephoto.text')}
+                            aria-label={$text('cameraview.takephoto')}
                             use:tooltip
                         >
                             <div class="photo-button-inner"></div>

@@ -157,29 +157,41 @@ async def _handle_phase1_sync(
         new_chat_suggestions = await _fetch_new_chat_suggestions(cache_service, directus_service, user_id)
         logger.info(f"Phase 1: Retrieved {len(new_chat_suggestions)} new chat suggestions")
         
-        # Get last opened chat from user profile
-        user_profile = await directus_service.get_user_profile(user_id)
-        if not user_profile[1]:  # user_profile returns (success, data, error)
-            logger.warning(f"Could not fetch user profile for Phase 1 sync: {user_id}")
-            # Still send suggestions even if profile fetch fails
-            await manager.send_personal_message(
-                {
-                    "type": "phase_1_last_chat_ready",
-                    "payload": {
-                        "chat_id": None,
-                        "chat_details": None,
-                        "messages": None,
-                        "new_chat_suggestions": new_chat_suggestions,
-                        "phase": "phase1",
-                        "already_synced": False
-                    }
-                },
-                user_id,
-                device_fingerprint_hash
-            )
-            return
+        # Get last opened chat from user profile.
+        # CACHE-FIRST: Try Redis cache first (kept up-to-date by set_active_chat handler),
+        # then fall back to Directus if cache miss. This avoids a Directus round-trip
+        # and ensures we always read the latest last_opened value.
+        last_opened_path = None
+        cached_user = await cache_service.get_user_by_id(user_id)
+        if cached_user:
+            last_opened_path = cached_user.get("last_opened")
+            logger.debug(f"Phase 1 sync: Got last_opened='{last_opened_path}' from cache for user {user_id}")
         
-        last_opened_path = user_profile[1].get("last_opened")
+        if not last_opened_path:
+            # Cache miss or no last_opened in cache — fall back to Directus
+            user_profile = await directus_service.get_user_profile(user_id)
+            if not user_profile[1]:  # user_profile returns (success, data, error)
+                logger.warning(f"Could not fetch user profile for Phase 1 sync: {user_id}")
+                # Still send suggestions even if profile fetch fails
+                await manager.send_personal_message(
+                    {
+                        "type": "phase_1_last_chat_ready",
+                        "payload": {
+                            "chat_id": None,
+                            "chat_details": None,
+                            "messages": None,
+                            "new_chat_suggestions": new_chat_suggestions,
+                            "phase": "phase1",
+                            "already_synced": False
+                        }
+                    },
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
+            
+            last_opened_path = user_profile[1].get("last_opened")
+            logger.debug(f"Phase 1 sync: Got last_opened='{last_opened_path}' from Directus for user {user_id}")
         if not last_opened_path:
             logger.info(f"No last opened path for user {user_id}, sending only suggestions")
             # Send suggestions without chat
@@ -202,6 +214,27 @@ async def _handle_phase1_sync(
         
         # Extract chat ID from path (assuming format like "/chat/chat-id")
         chat_id = last_opened_path.split("/")[-1] if "/" in last_opened_path else last_opened_path
+        
+        # Handle demo/legal/public chats — these are client-side-only static content, not real
+        # server-side chats. Treat them as "no last opened chat" and send suggestions only.
+        if chat_id.startswith("demo-") or chat_id.startswith("legal-"):
+            logger.info(f"Phase 1: Last opened was public/demo chat '{chat_id}', sending suggestions only")
+            await manager.send_personal_message(
+                {
+                    "type": "phase_1_last_chat_ready",
+                    "payload": {
+                        "chat_id": None,
+                        "chat_details": None,
+                        "messages": None,
+                        "new_chat_suggestions": new_chat_suggestions,
+                        "phase": "phase1",
+                        "already_synced": False
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
+            )
+            return
         
         # Handle "new" chat section - send only suggestions
         if chat_id == "new":
@@ -498,12 +531,14 @@ async def _handle_phase1_sync(
             # Fallback: try to get embeds from Directus if not in sync cache
             raw_embeds_data = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
         
-        # Filter and track sent embeds to prevent duplicates across phases
+        # Filter and track sent embeds to prevent duplicates across phases.
+        # Also skip error/cancelled embeds — they are not stored or displayed by the client.
         embeds_data = []
         if raw_embeds_data:
             for embed in raw_embeds_data:
                 embed_id = embed.get("embed_id")
-                if embed_id and embed_id not in sent_embed_ids:
+                embed_status = embed.get("status")
+                if embed_id and embed_id not in sent_embed_ids and embed_status not in ("error", "cancelled"):
                     embeds_data.append(embed)
                     sent_embed_ids.add(embed_id)
             logger.info(f"Phase 1: Sending {len(embeds_data)} embeds for chat {chat_id} (filtered from {len(raw_embeds_data)}, {len(sent_embed_ids)} total sent)")
@@ -906,8 +941,9 @@ async def _handle_phase2_sync(
                     if embeds:
                         for embed in embeds:
                             embed_id = embed.get("embed_id")
-                            # Skip if already sent in previous phases OR already added in this phase
-                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds:
+                            embed_status = embed.get("status")
+                            # Skip if already sent, already added in this phase, or error/cancelled
+                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds and embed_status not in ("error", "cancelled"):
                                 new_embeds[embed_id] = embed
                         logger.debug(f"Phase 2: Found {len(embeds)} embeds for chat {chat_id}")
                 except Exception as e:
@@ -1318,8 +1354,9 @@ async def _handle_phase3_sync(
                     if embeds:
                         for embed in embeds:
                             embed_id = embed.get("embed_id")
-                            # Skip if already sent in previous phases OR already added in this phase
-                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds:
+                            embed_status = embed.get("status")
+                            # Skip if already sent, already added in this phase, or error/cancelled
+                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds and embed_status not in ("error", "cancelled"):
                                 new_embeds[embed_id] = embed
                         logger.debug(f"Phase 3: Found {len(embeds)} embeds for chat {chat_id}")
                 except Exception as e:

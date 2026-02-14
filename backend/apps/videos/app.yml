@@ -1,19 +1,19 @@
-name_translation_key: videos.text
-description_translation_key: videos.description.text
+name_translation_key: videos
+description_translation_key: videos.description
 icon_image: |
   videos.svg
 category: personal
 last_updated: "2025-11-12"
 settings_and_memories:
   - id: to_watch_list
-    name_translation_key: videos.to_watch_list.text
-    description_translation_key: videos.to_watch_list.description.text
+    name_translation_key: videos.to_watch_list
+    description_translation_key: videos.to_watch_list.description
     type: list
-    stage: development
+    stage: production
     example_translation_keys:
-      - "videos.to_watch_list.example_1.text"
-      - "videos.to_watch_list.example_2.text"
-      - "videos.to_watch_list.example_3.text"
+      - "videos.to_watch_list.example_1"
+      - "videos.to_watch_list.example_2"
+      - "videos.to_watch_list.example_3"
     schema:
       type: object
       properties:
@@ -31,14 +31,14 @@ settings_and_memories:
         - name
         - url
   - id: subscribed_channels
-    name_translation_key: videos.subscribed_channels.text
-    description_translation_key: videos.subscribed_channels.description.text
+    name_translation_key: videos.subscribed_channels
+    description_translation_key: videos.subscribed_channels.description
     type: list
     stage: planning
     example_translation_keys:
-      - "videos.subscribed_channels.example_1.text"
-      - "videos.subscribed_channels.example_2.text"
-      - "videos.subscribed_channels.example_3.text"
+      - "videos.subscribed_channels.example_1"
+      - "videos.subscribed_channels.example_2"
+      - "videos.subscribed_channels.example_3"
     schema:
       type: object
       properties:
@@ -58,8 +58,8 @@ settings_and_memories:
         - url
 skills:
   - id: get_transcript
-    name_translation_key: videos.get_transcript.text
-    description_translation_key: videos.get_transcript.description.text
+    name_translation_key: videos.get_transcript
+    description_translation_key: videos.get_transcript.description
     preprocessor_hint: >
       Get the transcript/content of a specific YouTube video URL.
     stage: production
@@ -102,8 +102,8 @@ skills:
       required:
         - requests
   - id: search
-    name_translation_key: videos.search.text
-    description_translation_key: videos.search.description.text
+    name_translation_key: videos.search
+    description_translation_key: videos.search.description
     preprocessor_hint: >
       Search for videos, documentaries, tutorials, clips on the web.
     stage: production

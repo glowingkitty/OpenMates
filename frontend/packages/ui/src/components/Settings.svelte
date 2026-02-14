@@ -373,7 +373,7 @@ changes to the documentation (to keep the documentation up to date).
 
     // Track navigation path parts for breadcrumb-style navigation
     let navigationPath: string[] = $state([]);
-    let breadcrumbLabel = $state($text('settings.settings.text'));
+    let breadcrumbLabel = $state($text('settings.settings'));
     let fullBreadcrumbLabel = $state('');
     let navButtonElement: HTMLElement | undefined = $state();
     let currentPageInstance: CurrentSettingsPage | null = $state(null); // Reference to child component instance
@@ -445,7 +445,7 @@ changes to the documentation (to keep the documentation up to date).
     // Function to update breadcrumb label based on navigation path
     function updateBreadcrumbLabel() {
         if (navigationPath.length <= 0) {
-            breadcrumbLabel = $text('settings.settings.text');
+            breadcrumbLabel = $text('settings.settings');
             fullBreadcrumbLabel = breadcrumbLabel;
             return;
         }
@@ -454,7 +454,7 @@ changes to the documentation (to keep the documentation up to date).
         const pathLabels = [];
         
         // Always start with "Settings"
-        pathLabels.push($text('settings.settings.text'));
+        pathLabels.push($text('settings.settings'));
         
         // Track if we've already added the app name for app_store routes
         // This prevents duplicate app names when navigating to app_store/{appId}
@@ -475,7 +475,7 @@ changes to the documentation (to keep the documentation up to date).
             // Handle app_store routes specially - use actual app/skill names from metadata
             if (pathString === 'app_store') {
                 // This is the base app_store route - add "App Store" translation
-                const translationKey = 'settings.app_store.text';
+                const translationKey = 'settings.app_store';
                 pathLabels.push($text(translationKey));
             } else if (pathString.startsWith('app_store/') && pathString !== 'app_store/all') {
                 const pathParts = pathString.replace('app_store/', '').split('/');
@@ -529,13 +529,13 @@ changes to the documentation (to keep the documentation up to date).
                 if (!app) {
                     // Fallback to translation key if app not found
                     const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
-                    const translationKey = `settings.${translationKeyParts.join('.')}.text`;
+                    const translationKey = `settings.${translationKeyParts.join('.')}`;
                     pathLabels.push($text(translationKey));
                 }
             } else {
                 // For other routes, use translation keys
                 const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
-                const translationKey = `settings.${translationKeyParts.join('.')}.text`;
+                const translationKey = `settings.${translationKeyParts.join('.')}`;
                 pathLabels.push($text(translationKey));
             }
         }
@@ -668,7 +668,7 @@ changes to the documentation (to keep the documentation up to date).
                         activeSubMenuTitleKey = skill.name_translation_key;
                     } else {
                         // Fallback to app name if skill not found
-                        activeSubMenuTitleKey = `apps.${appId}.text`;
+                        activeSubMenuTitleKey = `apps.${appId}`;
                     }
                 } else if (pathParts.length === 3 && pathParts[1] === 'focus') {
                     // Focus mode route
@@ -677,7 +677,7 @@ changes to the documentation (to keep the documentation up to date).
                     if (focusMode && focusMode.name_translation_key) {
                         activeSubMenuTitleKey = focusMode.name_translation_key;
                     } else {
-                        activeSubMenuTitleKey = `apps.${appId}.text`;
+                        activeSubMenuTitleKey = `apps.${appId}`;
                     }
                 } else if (pathParts.length === 3 && pathParts[1] === 'settings_memories') {
                     // Settings/memories category route
@@ -686,13 +686,13 @@ changes to the documentation (to keep the documentation up to date).
                     if (category && category.name_translation_key) {
                         activeSubMenuTitleKey = category.name_translation_key;
                     } else {
-                        activeSubMenuTitleKey = `apps.${appId}.text`;
+                        activeSubMenuTitleKey = `apps.${appId}`;
                     }
                 } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
                     // Settings/memories create entry route
                     // Note: category lookup removed as it's not currently used
                     // Use "Add entry" translation for the create page
-                    activeSubMenuTitleKey = 'settings.app_settings_memories.add_entry.text';
+                    activeSubMenuTitleKey = 'settings.app_settings_memories.add_entry';
                 } else if (pathParts.length === 5 && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
                     // Settings/memories entry detail route
                     // The title is passed from the category page, use it directly
@@ -700,12 +700,12 @@ changes to the documentation (to keep the documentation up to date).
                     activeSubMenuTitleKey = ''; // Will be set from title below
                 } else {
                     // Regular app details route
-                    activeSubMenuTitleKey = `apps.${appId}.text`;
+                    activeSubMenuTitleKey = `apps.${appId}`;
                 }
             } else {
                 // Fallback if app not found
                 activeSubMenuIcon = icon || appId;
-                activeSubMenuTitleKey = `apps.${appId}.text`;
+                activeSubMenuTitleKey = `apps.${appId}`;
             }
         } else {
             // For other routes, use the provided icon and build translation key from path
@@ -713,23 +713,23 @@ changes to the documentation (to keep the documentation up to date).
             // Store the translation key instead of the translated text
             // Special handling for security sub-routes - skip "security" segment in translation key
             if (settingsPath === 'account/security/passkeys') {
-                activeSubMenuTitleKey = 'settings.account.passkeys.text';
+                activeSubMenuTitleKey = 'settings.account.passkeys';
             } else if (settingsPath === 'account/security/2fa') {
                 // Use security.yml translations for 2FA
-                activeSubMenuTitleKey = 'settings.security.tfa_title.text';
+                activeSubMenuTitleKey = 'settings.security.tfa_title';
             } else if (settingsPath === 'account/security/password') {
                 // Use account.yml translations for password
-                activeSubMenuTitleKey = 'settings.account.password.text';
+                activeSubMenuTitleKey = 'settings.account.password';
             } else if (settingsPath === 'account/security/recovery-key') {
                 // Use security.yml translations for recovery key
-                activeSubMenuTitleKey = 'settings.security.recovery_key_title.text';
+                activeSubMenuTitleKey = 'settings.security.recovery_key_title';
             } else if (settingsPath === 'shared/share') {
-                // Special case: 'shared/share' uses 'settings.share.text' (share is at root level, not nested)
-                activeSubMenuTitleKey = 'settings.share.text';
+                // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
+                activeSubMenuTitleKey = 'settings.share';
             } else {
                 // Build the translation key from the path
                 const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
-                activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+                activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}`;
             }
         }
 
@@ -739,7 +739,7 @@ changes to the documentation (to keep the documentation up to date).
             updateBreadcrumbLabel();
         } else {
             navigationPath = [];
-            breadcrumbLabel = $text('settings.settings.text');
+            breadcrumbLabel = $text('settings.settings');
         }
 
         // Reset submenu info visibility
@@ -789,7 +789,7 @@ changes to the documentation (to keep the documentation up to date).
                 showSubmenuInfo = false;
                 navButtonLeft = false;
                 navigationPath = [];
-                breadcrumbLabel = $text('settings.settings.text');
+                breadcrumbLabel = $text('settings.settings');
                 // currentHelpLink = baseHelpLink; // Help button disabled
                 
                 if (profileContainer) {
@@ -898,7 +898,7 @@ changes to the documentation (to keep the documentation up to date).
                     }
                 } else {
                     icon = appId;
-                    title = $text(`apps.${appId}.text`);
+                    title = $text(`apps.${appId}`);
                 }
             } else {
                 // For nested billing paths, determine the correct icon
@@ -917,7 +917,7 @@ changes to the documentation (to keep the documentation up to date).
                 
                 // Build the translation key for the previous view's title
                 const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
-                const titleKey = `settings.${translationKeyParts.join('.')}.text`;
+                const titleKey = `settings.${translationKeyParts.join('.')}`;
                 const translatedTitle = $text(titleKey);
                 title = translatedTitle;
             }
@@ -938,7 +938,7 @@ changes to the documentation (to keep the documentation up to date).
             showSubmenuInfo = false;
             navButtonLeft = false;
             navigationPath = [];
-            breadcrumbLabel = $text('settings.settings.text');
+            breadcrumbLabel = $text('settings.settings');
             
             if (profileContainer) {
                 profileContainer.classList.remove('submenu-active');
@@ -1002,7 +1002,7 @@ changes to the documentation (to keep the documentation up to date).
         	// Reset the active view to main when closing the menu
         	activeSettingsView = 'main';
         	navigationPath = [];
-        	breadcrumbLabel = $text('settings.settings.text');
+        	breadcrumbLabel = $text('settings.settings');
         	showSubmenuInfo = false;
         	navButtonLeft = false;
         	hideNavButton = false; // Reset hide nav button flag
@@ -1410,13 +1410,13 @@ changes to the documentation (to keep the documentation up to date).
                 const icon = pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0];
                 
                 // Build translation key from full path
-                // Special case: 'shared/share' uses 'settings.share.text' (share is at root level, not nested)
+                // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
                 let translationKey;
                 if (settingsPath === 'shared/share') {
-                    translationKey = 'settings.share.text';
+                    translationKey = 'settings.share';
                 } else {
                     const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
-                    translationKey = `settings.${translationKeyParts.join('.')}.text`;
+                    translationKey = `settings.${translationKeyParts.join('.')}`;
                 }
                 const title = $text(translationKey);
 
@@ -1466,7 +1466,7 @@ changes to the documentation (to keep the documentation up to date).
                 
                 // Get title from breadcrumb or translation
                 const title = breadcrumb.translationKey 
-                    ? $text(breadcrumb.translationKey + '.text')
+                    ? $text(breadcrumb.translationKey)
                     : breadcrumb.title;
                 
                 handleOpenSettings(new CustomEvent('openSettings', {
@@ -1570,7 +1570,7 @@ changes to the documentation (to keep the documentation up to date).
     		onkeydown={e => e.key === 'Enter' && toggleMenu()}
     		role="button"
     		tabindex="0"
-    		aria-label={$text('settings.open_settings_menu.text')}
+    		aria-label={$text('settings.open_settings_menu')}
     		bind:this={profileContainer}
     	>
             <!-- Show language icon when not logged in and menu is closed, user icon when menu is open -->
@@ -1595,7 +1595,7 @@ changes to the documentation (to keep the documentation up to date).
         <div class="close-icon-container" class:visible={isMenuVisible}>
             <button 
                 class="icon-button"
-                aria-label={$text('settings.close_settings_menu.text')}
+                aria-label={$text('settings.close_settings_menu')}
                 onclick={toggleMenu}
             >
                 <div class="clickable-icon icon_close"></div>
@@ -1640,7 +1640,7 @@ changes to the documentation (to keep the documentation up to date).
                 use:tooltip
                 rel="noopener noreferrer" 
                 class="help-button-container" 
-                aria-label={$text('documentation.open_documentation.text')}
+                aria-label={$text('documentation.open_documentation')}
             >
                 <div class="help-button"></div>
             </a> -->

@@ -1,21 +1,25 @@
-name_translation_key: study.text
-description_translation_key: study.description.text
+name_translation_key: study
+description_translation_key: study.description
 icon_image: |
   study.svg
 category: work
 last_updated: '2025-11-12'
 settings_and_memories:
   - id: learning_goals
-    name_translation_key: study.learning_goals.text
-    description_translation_key: study.learning_goals.description.text
+    name_translation_key: study.learning_goals
+    description_translation_key: study.learning_goals.description
     type: list
-    stage: planning
+    stage: production
+    example_translation_keys:
+      - "study.learning_goals.example_1"
+      - "study.learning_goals.example_2"
     schema:
       type: object
       properties:
         topic:
           type: string
           description: Subject or topic to learn
+          is_title: true
         difficulty_level:
           type: string
           enum:
@@ -26,23 +30,16 @@ settings_and_memories:
         deadline:
           type: string
           format: date
-          description: Target date to complete learning (YYYY-MM-DD)
-        priority:
+          description: Target date to complete (YYYY-MM-DD)
+        notes:
           type: string
-          enum:
-          - low
-          - medium
-          - high
-          description: Priority of this learning goal
-        description:
-          type: string
-          description: Detailed description of what to learn
+          description: Optional details, priority, or goals
       required:
       - topic
       - difficulty_level
   - id: education_history
-    name_translation_key: study.education_history.text
-    description_translation_key: study.education_history.description.text
+    name_translation_key: study.education_history
+    description_translation_key: study.education_history.description
     type: list
     stage: planning
     schema:
@@ -80,8 +77,8 @@ settings_and_memories:
       - degree_type
       - institution
   - id: career_interests
-    name_translation_key: study.career_interests.text
-    description_translation_key: study.career_interests.description.text
+    name_translation_key: study.career_interests
+    description_translation_key: study.career_interests.description
     type: list
     stage: planning
     schema:
@@ -112,8 +109,8 @@ settings_and_memories:
       - job_title
 focuses:
   - id: what_to_study
-    name_translation_key: study.what_to_study.text
-    description_translation_key: study.what_to_study.description.text
+    name_translation_key: study.what_to_study
+    description_translation_key: study.what_to_study.description
     stage: planning
     process:
       - asks about your interests, hobbies, and what subjects you naturally gravitate towards
@@ -128,8 +125,8 @@ focuses:
     systemprompt: |
       You are an expert education and career counselor. Your role is to help users discover the right degree and field of study through thoughtful, strategic questioning. Use the Socratic method to guide them toward self-discovery rather than just giving advice. Help them understand their true interests, strengths, and values. Ask follow-up questions to dig deeper and uncover patterns. Provide personalized recommendations based on their responses.
   - id: learn_topic
-    name_translation_key: study.learn_topic.text
-    description_translation_key: study.learn_topic.description.text
+    name_translation_key: study.learn_topic
+    description_translation_key: study.learn_topic.description
     stage: planning
     process:
       - asks what topic you want to learn
@@ -140,8 +137,8 @@ focuses:
     systemprompt: |
       You are an expert learning facilitator. Help users master new topics through structured learning, clear explanations, and strategic repetition.
   - id: test_knowledge
-    name_translation_key: study.test_knowledge.text
-    description_translation_key: study.test_knowledge.description.text
+    name_translation_key: study.test_knowledge
+    description_translation_key: study.test_knowledge.description
     stage: planning
     process:
       - asks which topic you want to be tested on
@@ -153,8 +150,8 @@ focuses:
     systemprompt: |
       You are an expert educator and assessor. Create challenging, fair questions that test deep understanding. Provide constructive feedback that helps users learn from their mistakes.
   - id: socratic_questioning
-    name_translation_key: study.socratic_questioning.text
-    description_translation_key: study.socratic_questioning.description.text
+    name_translation_key: study.socratic_questioning
+    description_translation_key: study.socratic_questioning.description
     stage: planning
     process:
       - asks what topic or concept you want to explore deeply

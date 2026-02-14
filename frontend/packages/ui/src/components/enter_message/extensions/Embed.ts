@@ -628,19 +628,20 @@ export const Embed = Node.create<EmbedOptions>({
               );
 
             if (hasGroupChanged) {
-              console.debug(
-                "[Embed] Group items changed, re-rendering group:",
-                {
-                  oldCount: oldGroupedItems.length,
-                  newCount: newGroupedItems.length,
-                  type: newAttrs.type,
-                },
-              );
+              console.debug("[Embed] Group items changed, updating group:", {
+                oldCount: oldGroupedItems.length,
+                newCount: newGroupedItems.length,
+                type: newAttrs.type,
+              });
 
               // Update current attrs before re-rendering
               currentAttrs = newAttrs;
 
-              // Re-render the group with new items
+              // Re-render the group with new items.
+              // GroupRenderer.render() will try an incremental DOM update first
+              // (only appending new items) before falling back to a full re-render.
+              // This avoids the visible "flash" caused by destroying and re-mounting
+              // every Svelte component on each streaming update.
               const groupRenderer = getEmbedRenderer(newAttrs.type);
               if (groupRenderer) {
                 const renderResult = groupRenderer.render({

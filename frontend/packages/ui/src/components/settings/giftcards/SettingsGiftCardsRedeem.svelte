@@ -20,7 +20,7 @@ Reuses the existing GiftCardRedeem component
             settingsPath: 'gift_cards/redeemed',
             direction: 'forward',
             icon: 'coins',
-            title: $text('settings.gift_cards.redeemed.text')
+            title: $text('settings.gift_cards.redeemed')
         });
     }
 
@@ -32,7 +32,7 @@ Reuses the existing GiftCardRedeem component
             settingsPath: 'gift_cards',
             direction: 'backward',
             icon: 'coins',
-            title: $text('settings.gift_cards.text')
+            title: $text('settings.gift_cards')
         });
     }
 </script>

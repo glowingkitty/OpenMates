@@ -77,7 +77,7 @@
 </script>
 
 <svelte:head>
-    <title>{$text('email.unsubscribe.title.text')}</title>
+    <title>{$text('email.unsubscribe.title')}</title>
 </svelte:head>
 
 <div class="page-container">
@@ -87,21 +87,21 @@
         <div class="content-wrapper">
             {#if isLoading}
                 <div class="status-message loading">
-                    <p>{$text('email.unsubscribe.processing.text')}</p>
+                    <p>{$text('email.unsubscribe.processing')}</p>
                 </div>
             {:else if isSuccess}
                 <div class="status-message success">
-                    <h1>{$text('email.unsubscribe.success.title.text')}</h1>
-                    <p>{successMessage || $text('email.unsubscribe.success.message.text')}</p>
+                    <h1>{$text('email.unsubscribe.success.title')}</h1>
+                    <p>{successMessage || $text('email.unsubscribe.success.message')}</p>
                 </div>
             {:else if errorMessage}
                 <div class="status-message error">
-                    <h1>{$text('email.unsubscribe.error.title.text')}</h1>
+                    <h1>{$text('email.unsubscribe.error.title')}</h1>
                     <p>{errorMessage}</p>
                 </div>
             {:else}
                 <div class="status-message">
-                    <p>{$text('email.unsubscribe.loading.text')}</p>
+                    <p>{$text('email.unsubscribe.loading')}</p>
                 </div>
             {/if}
         </div>

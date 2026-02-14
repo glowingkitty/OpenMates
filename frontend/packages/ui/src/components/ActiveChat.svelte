@@ -13,7 +13,7 @@
     import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { panelState } from '../stores/panelStateStore'; // Added import
-    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload
+    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
@@ -26,6 +26,7 @@
     import MapsSearchEmbedFullscreen from './embeds/maps/MapsSearchEmbedFullscreen.svelte';
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
     import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
+    import SheetEmbedFullscreen from './embeds/sheets/SheetEmbedFullscreen.svelte';
     import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
     import WebReadEmbedFullscreen from './embeds/web/WebReadEmbedFullscreen.svelte';
@@ -33,7 +34,9 @@
     import ReminderEmbedFullscreen from './embeds/reminder/ReminderEmbedFullscreen.svelte';
     import TravelSearchEmbedFullscreen from './embeds/travel/TravelSearchEmbedFullscreen.svelte';
     import TravelPriceCalendarEmbedFullscreen from './embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte';
+    import TravelStaysEmbedFullscreen from './embeds/travel/TravelStaysEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
+    import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
     import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
@@ -376,13 +379,13 @@
     // Pre-split welcome copy to avoid {@html} and keep translations XSS-safe.
     let welcomeHeadingParts = $derived.by(() => {
         const rawHeading = username
-            ? $text('chat.welcome.hey_user.text').replace('{username}', username)
-            : $text('chat.welcome.hey_guest.text');
+            ? $text('chat.welcome.hey_user').replace('{username}', username)
+            : $text('chat.welcome.hey_guest');
         return splitHtmlLineBreaks(rawHeading);
     });
 
     let welcomePromptParts = $derived.by(() => {
-        return splitHtmlLineBreaks($text('chat.welcome.what_do_you_need_help_with.text'));
+        return splitHtmlLineBreaks($text('chat.welcome.what_do_you_need_help_with'));
     });
     
     // State for current user ID (cached to avoid repeated DB lookups)
@@ -818,6 +821,15 @@
         console.debug('[ActiveChat] showEmbedFullscreen changed:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
     });
     
+    // --- Focus mode context menu state ---
+    let showFocusModeContextMenu = $state(false);
+    let focusModeContextMenuX = $state(0);
+    let focusModeContextMenuY = $state(0);
+    let focusModeContextMenuIsActivated = $state(false);
+    let focusModeContextMenuFocusId = $state('');
+    let focusModeContextMenuAppId = $state('');
+    let focusModeContextMenuFocusModeName = $state('');
+    
     // --- Focus mode event handlers ---
     
     /**
@@ -844,48 +856,120 @@
         } catch (e) {
             console.error('[ActiveChat] Error sending focus mode deactivation:', e);
         }
+        
+        // Clear the local encrypted_active_focus_id and invalidate the metadata cache
+        // so the ChatContextMenu immediately reflects the deactivation without waiting
+        // for a server round-trip or cache expiry.
+        try {
+            const chat = await chatDB.getChat(chatId);
+            if (chat) {
+                chat.encrypted_active_focus_id = null;
+                await chatDB.updateChat(chat);
+            }
+            const { chatMetadataCache } = await import('../services/chatMetadataCache');
+            chatMetadataCache.invalidateChat(chatId);
+            console.debug('[ActiveChat] Cleared local focus mode state and invalidated cache');
+        } catch (e) {
+            console.error('[ActiveChat] Error clearing local focus mode state:', e);
+        }
     }
     
     /**
-     * Add a system message to the chat indicating the focus mode was rejected.
-     * This is a local-only message for now (plaintext system event).
+     * Add a persisted system message to the chat indicating a focus mode state change.
+     * Encrypts with the chat key and sends via `chat_system_message_added` WebSocket
+     * so it's stored server-side and synced across devices.
+     * 
+     * @param focusId - The focus mode ID
+     * @param focusModeName - Display name for the focus mode
+     * @param action - 'rejected' or 'stopped'
      */
-    async function handleFocusModeRejectionSystemMessage(focusId: string, focusModeName: string) {
+    async function handleFocusModeSystemMessage(focusId: string, focusModeName: string, action: 'rejected' | 'stopped' = 'rejected') {
         const chatId = currentChat?.chat_id;
         if (!focusId || !chatId) return;
         const displayName = focusModeName || focusId;
-        const rejectionText = `Rejected ${displayName} focus mode.`;
+        const verb = action === 'stopped' ? 'Stopped' : 'Rejected';
+        const messageText = `${verb} ${displayName} focus mode.`;
         
-        console.debug('[ActiveChat] Adding focus mode rejection system message:', rejectionText);
+        console.debug('[ActiveChat] Adding focus mode system message:', messageText);
         
         try {
-            // Create a lightweight system-event message in the local chat messages
-            // This mirrors the pattern used by app settings/memories confirmations
-            const messageId = crypto.randomUUID();
-            const now = new Date().toISOString();
+            const { encryptWithChatKey } = await import('../services/cryptoService');
+            const { webSocketService } = await import('../services/websocketService');
+            const importedChatSyncService = (await import('../services/chatSyncService')).default;
             
+            // Generate message ID (format: last 10 chars of chat_id + uuid)
+            const chatIdSuffix = chatId.slice(-10);
+            const messageId = `${chatIdSuffix}-${crypto.randomUUID()}`;
+            const now = Math.floor(Date.now() / 1000);
+            
+            // Encrypt content with chat key (zero-knowledge architecture)
+            const chatKey = chatDB.getChatKey(chatId);
+            let encryptedContent: string | null = null;
+            
+            if (chatKey) {
+                encryptedContent = await encryptWithChatKey(messageText, chatKey);
+            }
+            
+            if (!chatKey || !encryptedContent) {
+                // Fallback: create local-only message if encryption fails (e.g., chat key not loaded)
+                console.warn('[ActiveChat] Cannot encrypt focus mode system message, creating local-only');
+                const localMessage = {
+                    message_id: messageId,
+                    chat_id: chatId,
+                    role: 'system' as const,
+                    content: messageText,
+                    created_at: now,
+                    status: 'sent' as const,
+                };
+                importedChatSyncService.dispatchEvent(
+                    new CustomEvent('chatUpdated', {
+                        detail: { chat_id: chatId, type: 'system_message_added', newMessage: localMessage },
+                    }),
+                );
+                return;
+            }
+            
+            // Create system message with encrypted content
             const systemMessage = {
                 message_id: messageId,
                 chat_id: chatId,
                 role: 'system' as const,
-                content: rejectionText,
+                content: messageText,
                 created_at: now,
-                status: 'sent' as const,
+                status: 'sending' as const,
+                encrypted_content: encryptedContent,
             };
             
-            // Dispatch a chatUpdated event so the message list picks it up
-            const chatSyncService = (await import('../services/chatSyncService')).default;
-            chatSyncService.dispatchEvent(
+            // Save to IndexedDB first
+            await chatDB.saveMessage(systemMessage);
+            
+            // Send encrypted content to server for persistence and cross-device sync
+            const payload = {
+                chat_id: chatId,
+                message: {
+                    message_id: messageId,
+                    role: 'system',
+                    encrypted_content: encryptedContent,
+                    created_at: now,
+                },
+            };
+            
+            await webSocketService.sendMessage('chat_system_message_added', payload);
+            
+            // Update status to synced
+            const syncedMessage = { ...systemMessage, status: 'synced' as const };
+            await chatDB.saveMessage(syncedMessage);
+            
+            // Dispatch UI update event
+            importedChatSyncService.dispatchEvent(
                 new CustomEvent('chatUpdated', {
-                    detail: {
-                        chat_id: chatId,
-                        type: 'system_message_added',
-                        newMessage: systemMessage,
-                    },
+                    detail: { chat_id: chatId, type: 'system_message_added', newMessage: syncedMessage },
                 }),
             );
+            
+            console.debug('[ActiveChat] Persisted focus mode system message:', messageId);
         } catch (e) {
-            console.error('[ActiveChat] Error creating focus mode rejection system message:', e);
+            console.error('[ActiveChat] Error creating focus mode system message:', e);
         }
     }
     
@@ -925,7 +1009,12 @@
         let finalEmbedData = embedData;
         let finalDecodedContent = decodedContent;
         
-        if (embedId) {
+        // Skip EmbedStore lookup for preview/stream embeds — these are ephemeral and their
+        // content is passed inline via the event's decodedContent. They have no backing
+        // entry in the EmbedStore. (Legacy path — new embeds use embed: refs.)
+        const isEphemeralEmbed = embedId && (embedId.startsWith('stream:') || embedId.startsWith('preview:'));
+        
+        if (embedId && !isEphemeralEmbed) {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
                 const freshEmbedData = await resolveEmbed(embedId) as EmbedResolverData | null;
@@ -961,15 +1050,15 @@
                         // Check decoded content keys
                         decodedContentKeys: finalDecodedContent ? Object.keys(finalDecodedContent) : []
                     });
-                } else if (!finalEmbedData) {
-                    // Only error if we have no data at all
+                } else if (!finalEmbedData && !finalDecodedContent) {
+                    // Only error if we have no data at all (neither from EmbedStore nor from event)
                     console.error('[ActiveChat] Embed not found in EmbedStore and no fallback data:', embedId);
                     return;
                 }
             } catch (error) {
                 console.error('[ActiveChat] Error loading embed for fullscreen:', error);
                 // Fall back to event data if available
-                if (!finalEmbedData) {
+                if (!finalEmbedData && !finalDecodedContent) {
                     return;
                 }
             }
@@ -997,6 +1086,9 @@
                 case 'video':
                 case 'videos-video':
                     return 'videos-video';
+                case 'sheet':
+                case 'sheets-sheet':
+                    return 'sheets-sheet';
                 default:
                     return t;
             }
@@ -1246,6 +1338,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function extractEmbedIdsFromMessages(messages: ChatMessageModel[]): string[] {
         const embedIds: string[] = [];
         
+        // Collect all embed IDs that are known to have errored.
+        // _embedErrors is populated by the embedUpdated event handler when
+        // an embed's status transitions to 'error' (see ~line 4998).
+        const errorEmbedIds = new Set<string>();
+        for (const msg of messages) {
+            const errors = (msg as MessageWithEmbedMeta)._embedErrors;
+            if (errors) {
+                for (const id of errors) {
+                    errorEmbedIds.add(id);
+                }
+            }
+        }
+        
         for (const message of messages) {
             // Get message content as markdown string
             let markdownContent = '';
@@ -1259,6 +1364,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Extract embed references from markdown content
             const refs = extractEmbedReferences(markdownContent);
             for (const ref of refs) {
+                // Skip error embeds — they are hidden from the UI and should
+                // not appear in fullscreen prev/next navigation.
+                if (errorEmbedIds.has(ref.embed_id)) {
+                    continue;
+                }
                 // Avoid duplicates
                 if (!embedIds.includes(ref.embed_id)) {
                     embedIds.push(ref.embed_id);
@@ -1827,6 +1937,71 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Note: Prefixed with underscore as linter reports unused, but it's used as a reactivity trigger
     let _aiTaskStateTrigger = 0;
 
+    // ─── Progressive AI Status Indicator ─────────────────────────────────
+    // Tracks the current phase of the message processing pipeline for the
+    // centered status indicator in ChatHistory.
+    // Lifecycle: sending → processing (timed steps) → typing → null (streaming)
+    let processingPhase = $state<ProcessingPhase>(null);
+    // Timers for the timed step progression during the 'processing' phase.
+    // Cleared when transitioning to typing or when the chat changes.
+    let processingStepTimers: ReturnType<typeof setTimeout>[] = [];
+    // Whether the current message being processed is for a new chat (no title yet).
+    // Determines which processing steps to show (new chat includes title generation).
+    let isNewChatProcessing = $state(false);
+
+    /**
+     * Clear all processing step timers and reset the processing phase.
+     * Called on chat switch, unmount, error, or when streaming begins.
+     */
+    function clearProcessingPhase() {
+        for (const timer of processingStepTimers) {
+            clearTimeout(timer);
+        }
+        processingStepTimers = [];
+        processingPhase = null;
+    }
+
+    /**
+     * Start the timed progression of processing step messages.
+     * For new chats: "Generating chat title..." → "Selecting optimal mate..." → "Selecting AI model..."
+     * For existing chats: "Analyzing your message..." → "Selecting AI model..."
+     * Each step transitions after ~1.5s. Steps are frontend-only (the backend does all
+     * preprocessing in a single LLM call). Timers are cleared if ai_typing_started arrives early.
+     */
+    function startProcessingStepProgression(isNewChat: boolean) {
+        // Clear any existing timers from a previous message
+        for (const timer of processingStepTimers) {
+            clearTimeout(timer);
+        }
+        processingStepTimers = [];
+
+        const steps: { text: string; delay: number }[] = isNewChat
+            ? [
+                { text: $text('enter_message.status.generating_title'), delay: 0 },
+                { text: $text('enter_message.status.selecting_mate'), delay: 1500 },
+                { text: $text('enter_message.status.selecting_model'), delay: 3000 },
+              ]
+            : [
+                { text: $text('enter_message.status.analyzing_message'), delay: 0 },
+                { text: $text('enter_message.status.selecting_model'), delay: 1500 },
+              ];
+
+        for (const step of steps) {
+            if (step.delay === 0) {
+                // Set the first step immediately
+                processingPhase = { phase: 'processing', statusLines: [step.text], showIcon: true };
+            } else {
+                const timer = setTimeout(() => {
+                    // Only update if still in processing phase (not already transitioned to typing/null)
+                    if (processingPhase?.phase === 'processing') {
+                        processingPhase = { phase: 'processing', statusLines: [step.text], showIcon: true };
+                    }
+                }, step.delay);
+                processingStepTimers.push(timer);
+            }
+        }
+    }
+
     // Track if the message input has content (draft) using $state
     let messageInputHasContent = $state(false);
     // Track live input text for incremental search in new chat suggestions
@@ -2023,6 +2198,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Map of task_id -> thinking content, streaming status, and signature metadata
     let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
     
+    // Track content prefixes for focus mode continuation streams.
+    // When a continuation task (after focus mode auto-confirm) streams to the same message_id,
+    // the existing message already contains the focus mode embed. The continuation's
+    // full_content_so_far only has the new LLM text. This Map stores the existing embed content
+    // as a prefix keyed by message_id, so it can be prepended to each streaming chunk.
+    // Entries are cleaned up when the final chunk is received.
+    const continuationContentPrefixes = new Map<string, string>();
+    
     // ===========================================
     // Embed Navigation Derived States
     // ===========================================
@@ -2216,80 +2399,49 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     });
 
-    // Reactive variable for typing indicator text
-    // Shows: "Sending..." when user message is being sent to server
-    // Then shows: "Processing..." when server received message and is processing
-    // Then shows: "{mate} is typing...<br>Powered by {model_name} via {provider_name}" when AI is responding
-    // Using Svelte 5 $derived for typing indicator text
-    let typingIndicatorText = $derived((() => {
+    // Reactive variable for typing indicator lines (shown at the bottom, above message input).
+    // PROGRESSIVE STATUS INDICATOR: The centered overlay (processingPhase) handles:
+    //   - "Sending..." → "Generating chat title..." → "Selecting AI model..." → "{Mate} is typing..."
+    // The bottom indicator only shows during STREAMING (when processingPhase is null but AI is still typing).
+    // Exception: "Waiting for you..." is always shown at the bottom (not part of the centered flow).
+    //
+    // Returns an array of lines matching the centered overlay format:
+    //   Line 1 (primary):   "{mate} is typing..."
+    //   Line 2 (secondary): "Powered by {model_name}"
+    //   Line 3 (tertiary):  "via {provider} {flag}"
+    let typingIndicatorLines = $derived((() => {
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
-        
-        // Check if there's a sending message (user message being sent to server)
-        const hasSendingMessage = currentMessages.some(m => 
-            m.role === 'user' && m.status === 'sending' && m.chat_id === currentChat?.chat_id
-        );
-        
-        // Check if there's a processing message (user message waiting for AI to start)
-        const hasProcessingMessage = currentMessages.some(m => 
-            m.role === 'user' && m.status === 'processing' && m.chat_id === currentChat?.chat_id
-        );
         
         // Check if there's a message in waiting_for_user state (e.g., insufficient credits, app settings permission)
         const hasWaitingForUserMessage = currentMessages.some(m => 
             m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
         );
         
-        // Debug logging for typing indicator
-        console.debug('[ActiveChat] Typing indicator check:', {
-            hasSendingMessage,
-            hasProcessingMessage,
-            hasWaitingForUserMessage,
-            isTyping: currentTypingStatus?.isTyping,
-            typingChatId: currentTypingStatus?.chatId,
-            currentChatId: currentChat?.chat_id,
-            category: currentTypingStatus?.category,
-            modelName: currentTypingStatus?.modelName,
-            providerName: currentTypingStatus?.providerName
-        });
-        
         // Show "Waiting for you..." if chat is paused waiting for user action
-        // (e.g., insufficient credits, app settings/memories permission)
+        // This is ALWAYS shown at the bottom (not part of the centered indicator flow)
         if (hasWaitingForUserMessage) {
-            const result = $text('enter_message.waiting_for_user.text');
+            const result = $text('enter_message.waiting_for_user');
             console.debug('[ActiveChat] Showing waiting_for_user indicator:', result);
-            return result;
+            return [result]; // Single line
         }
         
-        // Show "Sending..." if there's a user message being sent
-        if (hasSendingMessage) {
-            const result = $text('enter_message.sending.text');
-            console.debug('[ActiveChat] Showing sending indicator:', result);
-            return result;
+        // When the centered indicator is active (processingPhase is not null),
+        // hide the bottom typing indicator to avoid duplicate text.
+        // The centered overlay handles sending, processing steps, and typing phases.
+        if (processingPhase !== null) {
+            return [];
         }
         
-        // Show "Processing..." if there's a user message in processing state
-        if (hasProcessingMessage) {
-            const result = $text('enter_message.processing.text');
-            console.debug('[ActiveChat] Showing processing indicator:', result);
-            return result;
-        }
-        
-        // Show detailed AI typing indicator once AI has started responding
+        // Show detailed AI typing indicator once streaming has started
+        // (processingPhase is null, meaning the centered indicator has faded out,
+        //  but aiTypingStore still shows isTyping = true during streaming)
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
-            const mateName = $text('mates.' + currentTypingStatus.category + '.text');
-            // Use server name from provider config (falls back to "AI" if not provided)
-            // The backend should provide the server name (e.g., "Cerebras", "OpenRouter", "Mistral") 
-            // instead of generic "AI" - this comes from the provider config's server.name field
+            const mateName = $text('mates.' + currentTypingStatus.category);
             const modelName = currentTypingStatus.modelName || ''; 
             const providerName = currentTypingStatus.providerName || '';
             const serverRegion = currentTypingStatus.serverRegion || '';
-            
-            // If we don't have model or provider name, just show the typing indicator without "Powered by"
-            if (!modelName && !providerName) {
-                return $text('enter_message.is_typing.text').replace('{mate}', mateName);
-            }
             
             // Get region flag for display (e.g., "EU" -> "🇪🇺", "US" -> "🇺🇸", "APAC" -> "🌏")
             const getRegionFlag = (region: string): string => {
@@ -2301,46 +2453,50 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
             };
             
-            // Append region flag to provider name if available (e.g., "AWS Bedrock 🇪🇺")
-            const regionFlag = serverRegion ? getRegionFlag(serverRegion) : '';
-            const displayProviderName = regionFlag ? `${providerName} ${regionFlag}` : providerName;
+            // Build multi-line indicator matching the centered overlay format:
+            //   Line 1: "{mate} is typing..."
+            //   Line 2: "Powered by {model_name}" (if available)
+            //   Line 3: "via {provider} {flag}" (if available)
+            const lines: string[] = [
+                $text('enter_message.is_typing').replace('{mate}', mateName)
+            ];
             
-            // Use translation key with placeholders for model and provider names
-            // Format: "{mate} is typing...<br>Powered by {model_name} via {provider_name}"
-            // Apply getModelDisplayName to convert technical IDs (e.g., "gemini-3-pro-preview") to human-readable names ("Gemini 3 Pro")
+            // Line 2: "Powered by {model_name}" — convert technical IDs to human-readable names
             const displayModelName = modelName ? getModelDisplayName(modelName) : '';
-            const result = $text('enter_message.is_typing_powered_by.text')
-                .replace('{mate}', mateName)
-                .replace('{model_name}', displayModelName)
-                .replace('{provider_name}', displayProviderName);
+            if (displayModelName) {
+                lines.push(`Powered by ${displayModelName}`);
+            }
             
-            console.debug('[ActiveChat] AI typing indicator text generated:', result);
-            return result;
+            // Line 3: "via {provider} {flag}" — with country flag at the bottom
+            if (providerName) {
+                const regionFlag = serverRegion ? getRegionFlag(serverRegion) : '';
+                const providerLine = regionFlag ? `via ${providerName} ${regionFlag}` : `via ${providerName}`;
+                lines.push(providerLine);
+            }
+            
+            console.debug('[ActiveChat] AI typing indicator lines:', lines);
+            return lines;
         }
         console.debug('[ActiveChat] Typing indicator: no status to show');
-        return null; // No indicator
+        return []; // No indicator
     })());
 
-    // Split typing indicator into safe text lines for rendering without {@html}.
-    let typingIndicatorParts = $derived.by(() => {
-        return typingIndicatorText ? splitHtmlLineBreaks(typingIndicatorText) : [];
-    });
-
-    // Track the current status type for CSS styling (shimmer animation)
-    // Returns: 'sending' | 'processing' | 'typing' | null
+    // Track the current status type for CSS styling (shimmer animation) on the BOTTOM indicator.
+    // Returns: 'typing' | 'waiting_for_user' | null
+    // 'sending' and 'processing' are no longer shown at the bottom — they're in the centered overlay.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
         
-        const hasSendingMessage = currentMessages.some(m => 
-            m.role === 'user' && m.status === 'sending' && m.chat_id === currentChat?.chat_id
+        // "Waiting for you..." is always shown at the bottom
+        const hasWaitingForUserMessage = currentMessages.some(m => 
+            m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
         );
-        if (hasSendingMessage) return 'sending';
+        if (hasWaitingForUserMessage) return 'processing'; // Reuse 'processing' CSS class for shimmer effect
         
-        const hasProcessingMessage = currentMessages.some(m => 
-            m.role === 'user' && m.status === 'processing' && m.chat_id === currentChat?.chat_id
-        );
-        if (hasProcessingMessage) return 'processing';
+        // When centered indicator is active, bottom shows nothing
+        if (processingPhase !== null) return null;
         
+        // During streaming, show the typing shimmer
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id) {
             return 'typing';
         }
@@ -2472,6 +2628,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             isNewMessageInStream = true;
             previousContentLengthForPersistence = 0;
             newContentLengthForPersistence = newAiMessage.content.length;
+            
+            // ─── Progressive AI Status Indicator: Clear centered indicator on first chunk ─────
+            // The assistant response div is now being shown, so fade out the centered overlay.
+            // The bottom typing indicator (in ActiveChat template) will take over for the
+            // "{Mate} is typing..." display while streaming continues.
+            clearProcessingPhase();
+            console.debug('[ActiveChat] Processing phase cleared (first streaming chunk received)');
+            
             console.log(
                 `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
                 `seq: ${chunk.sequence} | ` +
@@ -2486,11 +2650,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const lengthDiff = newLength - previousLength;
             const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
             
+            // ─── Focus mode continuation: preserve existing embed content ─────
+            // When a focus mode continuation task streams to the same message_id, the existing
+            // message already has content (the focus mode activation embed). The continuation's
+            // full_content_so_far only contains the new LLM text, not the embed.
+            // Detect this case and capture the existing content as a prefix once,
+            // then prepend it to all subsequent full_content_so_far values.
+            // We check multiple conditions to handle timing races:
+            //   1. Message is 'synced' (normal case: first stream finalized, continuation starts)
+            //   2. Message has any status but contains a focus_mode_activation embed reference
+            //      (race case: continuation starts before/during first stream finalization)
+            if (targetMessage.content && chunk.full_content_so_far && !continuationContentPrefixes.has(chunk.message_id)) {
+                const hasFocusEmbed = targetMessage.content.includes('"type":"focus_mode_activation"') ||
+                                      targetMessage.content.includes('"type": "focus_mode_activation"');
+                if (targetMessage.status === 'synced' || hasFocusEmbed) {
+                    continuationContentPrefixes.set(chunk.message_id, targetMessage.content);
+                    console.debug(`[ActiveChat] Focus mode continuation detected — preserving existing content as prefix (${targetMessage.content.length} chars, status: ${targetMessage.status}) for message ${chunk.message_id}`);
+                }
+            }
+            
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
             if (chunk.full_content_so_far || chunk.sequence === 1) {
                 // CRITICAL: Store AI response as markdown string, not Tiptap JSON
-                targetMessage.content = chunk.full_content_so_far || '';
+                // If this is a continuation, prepend the preserved embed content
+                const prefix = continuationContentPrefixes.get(chunk.message_id) || '';
+                targetMessage.content = prefix + (chunk.full_content_so_far || '');
             }
             // If this is a rejection message, update role and status accordingly
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
@@ -2627,6 +2812,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         if (chunk.is_final_chunk) {
+            // Clean up continuation content prefix (if this was a focus mode continuation stream)
+            if (continuationContentPrefixes.has(chunk.message_id)) {
+                continuationContentPrefixes.delete(chunk.message_id);
+                console.debug(`[ActiveChat] Cleaned up continuation content prefix for message ${chunk.message_id}`);
+            }
+            
             console.log(
                 `[ActiveChat] 🏁 FINAL CHUNK PROCESSED | ` +
                 `seq: ${chunk.sequence} | ` +
@@ -2840,6 +3031,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             
             console.log(`[ActiveChat] 🧠 Created placeholder message for thinking | message_id: ${messageId}`);
             currentMessages = [...currentMessages, placeholderMessage];
+            
+            // ─── Progressive AI Status Indicator: Clear centered indicator when thinking starts ─────
+            // The thinking bubble is now visible in the chat, so the centered overlay must fade out.
+            // The bottom typing indicator will take over.
+            clearProcessingPhase();
+            console.debug('[ActiveChat] Processing phase cleared (thinking placeholder created)');
         }
         
         // Update thinking content map using message_id (same as task_id)
@@ -3072,6 +3269,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
 
+        // ─── Progressive AI Status Indicator: Start with 'sending' phase ─────
+        // Determine if this is a new chat (no title yet) to decide which processing
+        // steps to show later when ai_task_initiated arrives.
+        const chatForNewCheck = newChat || currentChat;
+        isNewChatProcessing = !chatForNewCheck?.title_v || chatForNewCheck.title_v === 0;
+        
+        // Start the centered status indicator immediately with "Sending..."
+        processingPhase = {
+            phase: 'sending',
+            statusLines: [$text('enter_message.sending')]
+        };
+        console.debug('[ActiveChat] Processing phase set to SENDING', { isNewChat: isNewChatProcessing });
+
         if (chatHistoryRef) {
             console.debug("[ActiveChat] handleSendMessage: Updating ChatHistory with messages:", currentMessages);
             chatHistoryRef.updateMessages(currentMessages);
@@ -3109,6 +3319,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         currentMessages = [];
         showWelcome = true; // Show welcome message for new chat
         isAtBottom = false; // Reset to hide action buttons for new chat (user needs to interact first)
+        
+        // Clear any active processing phase indicator
+        clearProcessingPhase();
         
         // Generate a new temporary chat ID for the new chat
         temporaryChatId = crypto.randomUUID();
@@ -3556,6 +3769,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
+        // Clear any active processing phase indicator from the previous chat
+        clearProcessingPhase();
+        
+        // Clear any leftover continuation content prefixes from the previous chat
+        continuationContentPrefixes.clear();
+        
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat
         if (showCodeFullscreen) {
@@ -3757,24 +3976,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
         
         // SANITIZE STALE MESSAGE STATUSES: After a page reload, messages may be stuck
-        // in transient states ('processing', 'sending') in IndexedDB if the AI task was
-        // dispatched but the worker never picked it up, or the page was closed mid-flight.
+        // in transient states ('processing', 'sending', 'streaming') in IndexedDB if the
+        // AI task was dispatched but the worker never picked it up, or the page was closed
+        // mid-flight (e.g., during focus mode countdown before continuation arrives).
         // Reset these to 'synced' so the typing indicator doesn't show permanently.
         // The phased sync will reconcile with the server's authoritative state.
         let sanitizedCount = 0;
         for (let i = 0; i < newMessages.length; i++) {
             const msg = newMessages[i];
+            // User messages stuck in processing/sending
             if (msg.role === 'user' && (msg.status === 'processing' || msg.status === 'sending')) {
                 newMessages[i] = { ...msg, status: 'synced' as const };
                 sanitizedCount++;
-                // Persist the corrected status to IndexedDB
                 chatDB.saveMessage(newMessages[i]).catch(error => {
                     console.error(`[ActiveChat] Error sanitizing stale ${msg.status} message ${msg.message_id}:`, error);
                 });
             }
+            // Assistant messages stuck in streaming (e.g., page reload during focus mode
+            // countdown before continuation task arrives). If the message has content
+            // (embed reference), transition to synced so the embed is visible. If empty,
+            // also transition so the typing indicator doesn't persist.
+            if (msg.role === 'assistant' && msg.status === 'streaming') {
+                newMessages[i] = { ...msg, status: 'synced' as const };
+                sanitizedCount++;
+                chatDB.saveMessage(newMessages[i]).catch(error => {
+                    console.error(`[ActiveChat] Error sanitizing stale streaming assistant message ${msg.message_id}:`, error);
+                });
+            }
         }
         if (sanitizedCount > 0) {
-            console.warn(`[ActiveChat] loadChat: Sanitized ${sanitizedCount} stale user message(s) from processing/sending to synced`);
+            console.warn(`[ActiveChat] loadChat: Sanitized ${sanitizedCount} stale message(s) to synced status`);
         }
 
         currentMessages = newMessages;
@@ -4376,13 +4607,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // --- Focus mode event listeners ---
         // Handle focus mode rejection (user clicked during countdown to cancel activation)
-        const focusModeRejectedHandler = (event: CustomEvent) => {
+        // With the deferred activation architecture, this sends "focus_mode_rejected" to the
+        // backend which consumes the pending context and fires a non-focus continuation task.
+        // If the auto-confirm already ran, it falls back to deactivating the already-active mode.
+        const focusModeRejectedHandler = async (event: CustomEvent) => {
             const { focusId, focusModeName } = event.detail || {};
+            const chatId = currentChat?.chat_id;
             console.debug('[ActiveChat] Focus mode rejected:', focusId, focusModeName);
-            // Dispatch deactivation to backend (clear cache + Directus)
-            handleFocusModeDeactivation(focusId);
-            // Add a system message indicating the rejection
-            handleFocusModeRejectionSystemMessage(focusId, focusModeName);
+            
+            // Send rejection to backend via WebSocket (new deferred activation protocol)
+            // The backend will either:
+            // a) Consume the pending context and fire a non-focus continuation task
+            // b) Fall back to deactivation if auto-confirm already ran
+            if (chatId && focusId) {
+                try {
+                    const { webSocketService } = await import('../services/websocketService');
+                    webSocketService.sendMessage('focus_mode_rejected', {
+                        chat_id: chatId,
+                        focus_id: focusId,
+                    });
+                    console.debug('[ActiveChat] Sent focus_mode_rejected to backend');
+                } catch (e) {
+                    console.error('[ActiveChat] Error sending focus_mode_rejected:', e);
+                }
+            }
+            
+            // Add a persisted system message indicating the rejection
+            handleFocusModeSystemMessage(focusId, focusModeName, 'rejected');
         };
         document.addEventListener('focusModeRejected', focusModeRejectedHandler as EventListenerCallback);
         
@@ -4401,6 +4652,39 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             handleFocusModeDetailsNavigation(focusId, appId);
         };
         document.addEventListener('focusModeDetailsRequested', focusModeDetailsHandler as EventListenerCallback);
+        
+        // Handle focus mode context menu (right-click or long-press on focus mode embed)
+        // Opens the FocusModeContextMenu component at the event coordinates.
+        const focusModeContextMenuHandler = (event: CustomEvent) => {
+            const { focusId, appId, focusModeName, isActivated, isRejected, event: originalEvent } = event.detail || {};
+            console.debug('[ActiveChat] Focus mode context menu requested:', { focusId, isActivated, isRejected });
+            
+            // Don't show context menu for already-rejected embeds
+            if (isRejected) return;
+            
+            // Get coordinates from the original mouse/touch event
+            let x = 0;
+            let y = 0;
+            if (originalEvent instanceof MouseEvent) {
+                x = originalEvent.clientX;
+                y = originalEvent.clientY;
+            } else if (originalEvent instanceof TouchEvent && originalEvent.touches.length > 0) {
+                x = originalEvent.touches[0].clientX;
+                y = originalEvent.touches[0].clientY;
+            } else if (originalEvent instanceof TouchEvent && originalEvent.changedTouches?.length > 0) {
+                x = originalEvent.changedTouches[0].clientX;
+                y = originalEvent.changedTouches[0].clientY;
+            }
+            
+            focusModeContextMenuX = x;
+            focusModeContextMenuY = y;
+            focusModeContextMenuIsActivated = !!isActivated;
+            focusModeContextMenuFocusId = focusId || '';
+            focusModeContextMenuAppId = appId || '';
+            focusModeContextMenuFocusModeName = focusModeName || '';
+            showFocusModeContextMenu = true;
+        };
+        document.addEventListener('focusModeContextMenu', focusModeContextMenuHandler as EventListenerCallback);
         
         // Add event listener for video PiP restore fullscreen events
         // This is triggered when user clicks the overlay on PiP video (via VideoIframe component)
@@ -4744,7 +5028,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
                 if (publicChat) {
                     // CRITICAL: Re-translate the chat with the new locale
-                    // translateDemoChat uses get(_) which reads from the locale store
+                    // translateDemoChat uses get(text) which reads from the locale store
                     // By waiting for waitLocale() and tick() above, we ensure translations are loaded and store is updated
                     const translatedChat = translateDemoChat(publicChat);
                     
@@ -4831,6 +5115,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         chatHistoryRef.updateMessages(currentMessages);
                     }
                 }
+                
+                // ─── Progressive AI Status Indicator: Transition to 'processing' phase ─────
+                // Start the timed step progression with appropriate steps for new/existing chat
+                startProcessingStepProgression(isNewChatProcessing);
+                console.debug('[ActiveChat] Processing phase set to PROCESSING', { isNewChat: isNewChatProcessing });
+                
                 _aiTaskStateTrigger++;
             }
         }) as EventListenerCallback;
@@ -4838,6 +5128,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
                 _aiTaskStateTrigger++;
+                
+                // ─── Progressive AI Status Indicator: Clear on task end (safety fallback) ─────
+                clearProcessingPhase();
                 
                 // FALLBACK: Mark ALL thinking entries as complete when AI task ends
                 // This ensures no thinking state is left in "streaming" mode after the task finishes
@@ -4866,7 +5159,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }) as EventListenerCallback;
 
         const aiTypingStartedHandler = (async (event: CustomEvent) => {
-            const { chat_id, user_message_id } = event.detail;
+            const { chat_id, user_message_id, category, model_name, provider_name, server_region, is_continuation } = event.detail;
+            console.log('[ActiveChat] aiTypingStartedHandler fired', { 
+                chat_id, 
+                currentChatId: currentChat?.chat_id,
+                eventPayload: { category, model_name, provider_name, server_region, is_continuation },
+                storeStatus: currentTypingStatus ? { 
+                    isTyping: currentTypingStatus.isTyping, 
+                    chatId: currentTypingStatus.chatId, 
+                    category: currentTypingStatus.category,
+                    modelName: currentTypingStatus.modelName,
+                    providerName: currentTypingStatus.providerName,
+                    serverRegion: currentTypingStatus.serverRegion
+                } : null
+            });
             if (chat_id === currentChat?.chat_id) {
                 const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
                 // Update user message status to synced from both 'processing' and 'waiting_for_user'
@@ -4884,6 +5190,84 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                     if (chatHistoryRef) {
                         chatHistoryRef.updateMessages(currentMessages);
+                    }
+                }
+                
+                // ─── Progressive AI Status Indicator: Transition to 'typing' phase ─────
+                // For continuation tasks (e.g., after focus mode auto-confirm), skip the centered
+                // typing indicator. The assistant message already exists (with the focus embed),
+                // so showing a centered "is typing..." overlay over it would be confusing.
+                // The bottom inline indicator will handle the typing status during streaming.
+                if (is_continuation) {
+                    console.debug('[ActiveChat] Skipping centered typing indicator for continuation task');
+                    // Ensure the centered indicator is cleared (in case it was somehow active)
+                    clearProcessingPhase();
+                } else {
+                    // Clear processing step timers and show the typing indicator with mate/model info.
+                    // This replaces the timed steps with the actual mate and model information from the server.
+                    for (const timer of processingStepTimers) {
+                        clearTimeout(timer);
+                    }
+                    processingStepTimers = [];
+                    
+                    // Build the typing phase with resolved text lines:
+                    //   Line 1: "{mate} is typing..."
+                    //   Line 2: model display name (e.g., "Gemini 3 Flash")
+                    //   Line 3: "via {provider} {flag}" (e.g., "via Google 🇺🇸")
+                    //
+                    // IMPORTANT: Use event.detail (the original WebSocket payload) as primary data source
+                    // for model/provider info, with the store as fallback. This avoids any potential
+                    // timing/reactivity issues where the $state variable hasn't updated yet when
+                    // the custom event handler fires.
+                    const resolvedCategory = category || currentTypingStatus?.category;
+                    const resolvedModelName = model_name || currentTypingStatus?.modelName;
+                    const resolvedProviderName = provider_name || currentTypingStatus?.providerName;
+                    const resolvedServerRegion = server_region || currentTypingStatus?.serverRegion;
+                    
+                    console.log('[ActiveChat] Typing phase transition data', {
+                        fromEvent: { category, model_name, provider_name, server_region },
+                        fromStore: { 
+                            category: currentTypingStatus?.category, 
+                            modelName: currentTypingStatus?.modelName, 
+                            providerName: currentTypingStatus?.providerName, 
+                            serverRegion: currentTypingStatus?.serverRegion 
+                        },
+                        resolved: { resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion },
+                        currentProcessingPhase: processingPhase?.phase
+                    });
+                    
+                    if (resolvedCategory) {
+                        const mateName = $text('mates.' + resolvedCategory);
+                        const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
+                        const displayProviderName = resolvedProviderName || '';
+                        const displayServerRegion = resolvedServerRegion || '';
+                        
+                        // Build region flag for display
+                        const getRegionFlag = (region: string): string => {
+                            switch (region) {
+                                case 'EU': return '🇪🇺';
+                                case 'US': return '🇺🇸';
+                                case 'APAC': return '🌏';
+                                default: return '';
+                            }
+                        };
+                        const regionFlag = displayServerRegion ? getRegionFlag(displayServerRegion) : '';
+                        
+                        const lines: string[] = [
+                            $text('enter_message.is_typing').replace('{mate}', mateName)
+                        ];
+                        // Line 2: model name
+                        if (displayModelName) {
+                            lines.push(displayModelName);
+                        }
+                        // Line 3: "via {provider} {flag}"
+                        if (displayProviderName) {
+                            const providerLine = regionFlag ? `via ${displayProviderName} ${regionFlag}` : `via ${displayProviderName}`;
+                            lines.push(providerLine);
+                        }
+                        
+                        processingPhase = { phase: 'typing', statusLines: lines, showIcon: true };
+                        console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length });
                     }
                 }
             }
@@ -4981,6 +5365,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // This will cause Tiptap to re-render embed NodeViews, which will now find
             // the embed data in the store and display the actual content instead of "Processing..."
             if (chatHistoryRef && currentMessages.length > 0) {
+                // CRITICAL: For error/cancelled embeds, check if the error is already tracked.
+                // If so, skip the re-render to prevent an infinite loop where:
+                //   error embed -> re-render -> resolveEmbed() -> request_embed -> send_embed_data(error)
+                //   -> embedUpdated(error) -> re-render -> ...
+                if (status === 'error' || status === 'cancelled') {
+                    const targetMsg = currentMessages.find(
+                        msg => msg.message_id === message_id || msg.status === 'streaming' || msg.role === 'assistant'
+                    );
+                    if (targetMsg) {
+                        const existingErrors: Set<string> = (targetMsg as MessageWithEmbedMeta)._embedErrors ?? new Set();
+                        if (existingErrors.has(embed_id)) {
+                            console.debug(`[ActiveChat] Error already tracked for embed ${embed_id}, skipping re-render to prevent loop`);
+                            return;
+                        }
+                    }
+                }
+                
                 // Create new message array references to force Svelte reactivity
                 // CRITICAL: We need to create NEW content objects to break reference equality
                 // so that ChatHistory detects the change and re-renders ReadOnlyMessage components
@@ -5198,6 +5599,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Remove embed and video PiP fullscreen listeners
             document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
             document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListenerCallback);
+            // Remove focus mode event listeners
+            document.removeEventListener('focusModeRejected', focusModeRejectedHandler as EventListenerCallback);
+            document.removeEventListener('focusModeDeactivated', focusModeDeactivatedHandler as EventListenerCallback);
+            document.removeEventListener('focusModeDetailsRequested', focusModeDetailsHandler as EventListenerCallback);
+            document.removeEventListener('focusModeContextMenu', focusModeContextMenuHandler as EventListenerCallback);
         };
     });
 
@@ -5215,6 +5621,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Unsubscribe from PII visibility store
         unsubPiiVisibility();
+        
+        // Clean up processing phase timers
+        clearProcessingPhase();
     });
 </script>
 
@@ -5272,7 +5681,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <div class="incognito-banner-icon">
                             <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
                         </div>
-                        <span class="incognito-banner-text">{$text('settings.incognito.text')}</span>
+                        <span class="incognito-banner-text">{$text('settings.incognito')}</span>
                     </div>
                 {/if}
                 
@@ -5286,13 +5695,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <div class="new-chat-button-wrapper new-chat-cta-wrapper">
                                     <button
                                         class="new-chat-cta-button"
-                                        aria-label={$text('chat.new_chat.text')}
+                                        aria-label={$text('chat.new_chat')}
                                         onclick={handleNewChatClick}
                                         in:fade={{ duration: 300 }}
                                         use:tooltip
                                     >
                                         <span class="clickable-icon icon_create new-chat-cta-icon"></span>
-                                        <span class="new-chat-cta-label">{$text('chat.new_chat.text')}</span>
+                                        <span class="new-chat-cta-label">{$text('chat.new_chat')}</span>
                                     </button>
                                 </div>
                             {/if}
@@ -5302,7 +5711,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_share top-button"
-                                        aria-label={$text('chat.share.text')}
+                                        aria-label={$text('chat.share')}
                                         onclick={handleShareChat}
                                         use:tooltip
                                         style="margin: 5px;"
@@ -5313,7 +5722,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <div class="new-chat-button-wrapper">
                                 <button
                                     class="clickable-icon icon_bug top-button"
-                                    aria-label={$text('header.report_issue.text')}
+                                    aria-label={$text('header.report_issue')}
                                     onclick={handleReportIssue}
                                     use:tooltip
                                     style="margin: 5px;"
@@ -5331,8 +5740,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'} top-button"
                                         class:pii-toggle-active={piiRevealed}
                                         aria-label={piiRevealed
-                                            ? $text('chat.pii_hide.text', { default: 'Hide sensitive data' })
-                                            : $text('chat.pii_show.text', { default: 'Show sensitive data' })}
+                                            ? $text('chat.pii_hide')
+                                            : $text('chat.pii_show')}
                                         onclick={handleTogglePIIVisibility}
                                         use:tooltip
                                         style="margin: 5px;"
@@ -5346,7 +5755,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_minimize top-button"
-                                        aria-label={$text('chat.minimize.text', { default: 'Minimize' })}
+                                        aria-label={$text('chat.minimize')}
                                         onclick={handleMinimizeChat}
                                         use:tooltip
                                         style="margin: 5px;"
@@ -5359,13 +5768,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <!-- Video call button -->
                             <!-- <button 
                                 class="clickable-icon icon_video_call top-button" 
-                                aria-label={$text('chat.start_video_call.text')}
+                                aria-label={$text('chat.start_video_call')}
                                 use:tooltip
                             ></button> -->
                             <!-- Audio call button -->
                             <!-- <button 
                                 class="clickable-icon icon_call top-button" 
-                                aria-label={$text('chat.start_audio_call.text')}
+                                aria-label={$text('chat.start_audio_call')}
                                 use:tooltip
                             ></button> -->
                         </div>
@@ -5389,7 +5798,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <!-- Subtitle: show "Continue where you left off" when resume chat exists,
                                          otherwise show the default "What do you need help with?" prompt -->
                                     {#if resumeChatData}
-                                        <p>{$text('chats.resume_last_chat.title.text', { default: 'Continue where you left off' })}</p>
+                                        <p>{$text('chats.resume_last_chat.title')}</p>
                                     {:else}
                                         <p>
                                             {#each welcomePromptParts as part, index}
@@ -5436,6 +5845,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         containerWidth={effectiveChatWidth}
                         currentChatId={currentChat?.chat_id}
+                        {processingPhase}
                         {thinkingContentByTask}
                         {settingsMemoriesSuggestions}
                         {rejectedSuggestionHashes}
@@ -5473,7 +5883,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                 <!-- Right side container for message input -->
                 <div class="message-input-wrapper">
-                    {#if typingIndicatorParts.length > 0}
+                    {#if typingIndicatorLines.length > 0}
                         <div 
                             class="typing-indicator"
                             class:status-sending={typingIndicatorStatusType === 'sending'}
@@ -5481,8 +5891,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             class:status-typing={typingIndicatorStatusType === 'typing'}
                             transition:fade={{ duration: 200 }}
                         >
-                            {#each typingIndicatorParts as part, index}
-                                <span>{part}</span>{#if index < typingIndicatorParts.length - 1}<br>{/if}
+                            {#each typingIndicatorLines as line, index}
+                                <span class={index === 0 ? 'indicator-primary-line' : index === 1 ? 'indicator-secondary-line' : 'indicator-tertiary-line'}>{line}</span>
                             {/each}
                         </div>
                     {/if}
@@ -5505,7 +5915,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
                                 </div>
                                 <span class="incognito-mode-applies-text">
-                                    {$text('settings.incognito_mode_applies_to_new_chats_only.text', { default: 'Incognito Mode applies to new chats only. Not this chat.' })}
+                                    {$text('settings.incognito_mode_applies_to_new_chats_only')}
                                 </span>
                             </div>
                         {/if}
@@ -5532,7 +5942,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {#if currentChat && !chatOwnershipResolved && $authStore.isAuthenticated}
                             <div class="read-only-indicator" transition:fade={{ duration: 200 }}>
                                 <div class="read-only-icon">🔒</div>
-                                <p class="read-only-text">{$text('chat.read_only_shared.text', { default: 'This shared chat is read-only. You cannot send messages.' })}</p>
+                                <p class="read-only-text">{$text('chat.read_only_shared')}</p>
                             </div>
                         {/if}
 
@@ -5689,6 +6099,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <TravelPriceCalendarEmbedFullscreen
                             query={embedFullscreenData.decodedContent?.query || ''}
                             results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results : []}
+                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                            errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {:else if appId === 'travel' && skillId === 'search_stays'}
+                        <!-- Travel Search Stays Fullscreen -->
+                        <TravelStaysEmbedFullscreen
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Google'}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
+                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
@@ -5923,6 +6351,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             onShowChat={handleShowChat}
                         />
                     {/if}
+                {:else if embedFullscreenData.embedType === 'sheets-sheet'}
+                    <!-- Sheet/Table Fullscreen -->
+                    <!-- TOON content uses: table (markdown), title, row_count, col_count -->
+                    <!-- Fallback to legacy fields (code, rows, cols) for backward compatibility -->
+                    {#if embedFullscreenData.decodedContent?.table || embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
+                        {@const sheetContent = coerceString(embedFullscreenData.decodedContent?.table ?? embedFullscreenData.decodedContent?.code ?? embedFullscreenData.attrs?.code, '')}
+                        {@const sheetTitle = coerceString(embedFullscreenData.decodedContent?.title ?? embedFullscreenData.attrs?.title, '')}
+                        {@const sheetRows = coerceNumber(embedFullscreenData.decodedContent?.row_count ?? embedFullscreenData.decodedContent?.rows ?? embedFullscreenData.attrs?.rows, 0)}
+                        {@const sheetCols = coerceNumber(embedFullscreenData.decodedContent?.col_count ?? embedFullscreenData.decodedContent?.cols ?? embedFullscreenData.attrs?.cols, 0)}
+                        <SheetEmbedFullscreen 
+                            tableContent={sheetContent}
+                            title={sheetTitle}
+                            rowCount={sheetRows}
+                            colCount={sheetCols}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {/if}
                 {:else if embedFullscreenData.embedType === 'videos-video'}
                     <!-- Video Fullscreen -->
                     <!-- Constructs VideoMetadata from decodedContent (backend TOON format: snake_case) -->
@@ -6032,6 +6484,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         </div>
     {/if}
 </div>
+
+<!-- Focus mode context menu (body-appended, shown on right-click/long-press on focus mode embeds) -->
+<FocusModeContextMenu
+    x={focusModeContextMenuX}
+    y={focusModeContextMenuY}
+    show={showFocusModeContextMenu}
+    isActivated={focusModeContextMenuIsActivated}
+    focusModeName={focusModeContextMenuFocusModeName}
+    onClose={() => { showFocusModeContextMenu = false; }}
+    onCancelOrStop={() => {
+        showFocusModeContextMenu = false;
+        if (focusModeContextMenuIsActivated) {
+            // Already activated — dispatch deactivation event (same as "Stop Focus Mode")
+            document.dispatchEvent(new CustomEvent('focusModeDeactivated', {
+                bubbles: true,
+                detail: { focusId: focusModeContextMenuFocusId, appId: focusModeContextMenuAppId },
+            }));
+            // Add "Stopped X focus mode." persisted system message
+            handleFocusModeSystemMessage(focusModeContextMenuFocusId, focusModeContextMenuFocusModeName, 'stopped');
+        } else {
+            // Still in countdown — dispatch rejection event (same as clicking to cancel)
+            document.dispatchEvent(new CustomEvent('focusModeRejected', {
+                bubbles: true,
+                detail: { focusId: focusModeContextMenuFocusId, focusModeName: focusModeContextMenuFocusModeName, appId: focusModeContextMenuAppId },
+            }));
+        }
+    }}
+    onDetails={() => {
+        showFocusModeContextMenu = false;
+        handleFocusModeDetailsNavigation(focusModeContextMenuFocusId, focusModeContextMenuAppId);
+    }}
+/>
 
 <style>
     /* 
@@ -6402,18 +6886,52 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .typing-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
         text-align: center;
         font-size: 0.8rem;
         color: var(--color-grey-60);
-        padding: 4px 0;
-        height: 20px; /* Allocate space to prevent layout shift */
+        padding: 6px 12px 4px;
         font-style: italic;
+        /* Gradient background so the text remains readable when positioned over chat messages.
+           Uses the page background color (--color-grey-0) fading from transparent at the top. */
+        background: linear-gradient(
+            to bottom,
+            transparent 0%,
+            var(--color-grey-0, #fff) 40%
+        );
+        position: relative;
+        z-index: 1;
     }
     
-    /* Shimmer animation for status indicators (Sending..., Processing..., is typing...) */
-    .typing-indicator.status-sending,
+    /* Primary line: "{mate} is typing..." — prominent */
+    .typing-indicator .indicator-primary-line {
+        font-size: 0.8rem;
+    }
+    
+    /* Secondary line: "Powered by {model}" — smaller, subtler */
+    .typing-indicator .indicator-secondary-line {
+        font-size: 0.7rem;
+        opacity: 0.8;
+    }
+    
+    /* Tertiary line: "via {provider} {flag}" — smallest, most subtle */
+    .typing-indicator .indicator-tertiary-line {
+        font-size: 0.65rem;
+        opacity: 0.65;
+    }
+    
+    /* Shimmer animation for the bottom typing indicator during streaming */
     .typing-indicator.status-processing,
     .typing-indicator.status-typing {
+        color: var(--color-grey-50);
+    }
+    
+    /* Apply shimmer to the text spans inside the typing indicator */
+    .typing-indicator.status-typing span,
+    .typing-indicator.status-processing span {
         background: linear-gradient(
             90deg,
             var(--color-grey-60) 0%,

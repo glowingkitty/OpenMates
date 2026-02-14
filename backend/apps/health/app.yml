@@ -1,18 +1,26 @@
-name_translation_key: health.text
-description_translation_key: health.description.text
+name_translation_key: health
+description_translation_key: health.description
 icon_image: |
   heart.svg
 category: personal
 last_updated: '2025-11-12'
 settings_and_memories:
   - id: appointments
-    name_translation_key: health.appointments.text
-    description_translation_key: health.appointments.description.text
+    name_translation_key: health.appointments
+    description_translation_key: health.appointments.description
     type: list
-    stage: planning
+    stage: production
+    example_translation_keys:
+      - "health.appointments.example_1"
+      - "health.appointments.example_2"
     schema:
       type: object
       properties:
+        title:
+          type: string
+          description: Auto-generated from type, where, and date
+          is_title: true
+          auto_generated: true
         appointment_type:
           type: string
           enum:
@@ -25,40 +33,27 @@ settings_and_memories:
           - vaccination
           - other
           description: Type of appointment
-        doctor_name:
+        where:
           type: string
-          description: Name of the doctor or specialist
-        clinic_name:
-          type: string
-          description: Name of the clinic or hospital
+          description: Doctor or clinic name
         date:
           type: string
           format: date
           description: YYYY-MM-DD
-        time:
-          type: string
-          format: time
-          description: HH:MM in 24-hour format
-        reason:
-          type: string
-          description: Reason for the appointment or procedure
-        location:
-          type: string
-          description: Address or location of the appointment
-        contact_phone:
-          type: string
-          description: Phone number of clinic/doctor
         notes:
           type: string
-          description: Additional notes, preparation instructions, or follow-up details
+          description: Optional notes (reason, location, contact, etc.)
       required:
       - appointment_type
       - date
   - id: medical_history
-    name_translation_key: health.medical_history.text
-    description_translation_key: health.medical_history.description.text
+    name_translation_key: health.medical_history
+    description_translation_key: health.medical_history.description
     type: list
-    stage: planning
+    stage: production
+    example_translation_keys:
+      - "health.medical_history.example_1"
+      - "health.medical_history.example_2"
     schema:
       type: object
       properties:
@@ -76,30 +71,21 @@ settings_and_memories:
         name:
           type: string
           description: Name of condition, medication, or surgery
+          is_title: true
         date:
           type: string
           format: date
           description: YYYY-MM-DD when it occurred or started
-        status:
-          type: string
-          enum:
-          - active
-          - resolved
-          - ongoing
-          description: Current status
         details:
           type: string
-          description: Details about the condition or treatment
-        doctor_name:
-          type: string
-          description: Name of attending doctor or specialist
+          description: Optional details (status, doctor, treatment notes)
       required:
       - condition_type
       - name
       - date
   - id: symptoms_log
-    name_translation_key: health.symptoms_log.text
-    description_translation_key: health.symptoms_log.description.text
+    name_translation_key: health.symptoms_log
+    description_translation_key: health.symptoms_log.description
     type: list
     stage: planning
     schema:
@@ -133,8 +119,8 @@ settings_and_memories:
       - symptom
       - date_onset
   - id: sleep_diary
-    name_translation_key: health.sleep_diary.text
-    description_translation_key: health.sleep_diary.description.text
+    name_translation_key: health.sleep_diary
+    description_translation_key: health.sleep_diary.description
     type: list
     stage: planning
     schema:
@@ -172,8 +158,8 @@ settings_and_memories:
       - date
 skills:
   - id: search_appointments
-    name_translation_key: health.search_appointments.text
-    description_translation_key: health.search_appointments.description.text
+    name_translation_key: health.search_appointments
+    description_translation_key: health.search_appointments.description
     stage: planning
     class_path: |
       skills.search_appointments.SearchAppointmentsSkill
@@ -181,25 +167,25 @@ skills:
       - Jameda
       - Doctolib
   - id: create_report
-    name_translation_key: health.create_report.text
-    description_translation_key: health.create_report.description.text
+    name_translation_key: health.create_report
+    description_translation_key: health.create_report.description
     stage: planning
 focuses:
   - id: prepare_doctor_report
-    name_translation_key: health.prepare_doctor_report.text
-    description_translation_key: health.prepare_doctor_report.description.text
+    name_translation_key: health.prepare_doctor_report
+    description_translation_key: health.prepare_doctor_report.description
     stage: planning
   - id: health_insights
-    name_translation_key: health.health_insights.text
-    description_translation_key: health.health_insights.description.text
+    name_translation_key: health.health_insights
+    description_translation_key: health.health_insights.description
     stage: planning
     process:
       - ""
     systemprompt: |
       You are a health expert.
   - id: prepare_doctor_appointment
-    name_translation_key: health.prepare_doctor_appointment.text
-    description_translation_key: health.prepare_doctor_appointment.description.text
+    name_translation_key: health.prepare_doctor_appointment
+    description_translation_key: health.prepare_doctor_appointment.description
     stage: planning
     process:
       - discusses what symptoms one had in recent weeks and months, even if one doesn't see connections between them

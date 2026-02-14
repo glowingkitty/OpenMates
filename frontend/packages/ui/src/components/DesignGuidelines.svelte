@@ -8,7 +8,7 @@
     let { sectionTitle = undefined }: { sectionTitle?: string | undefined } = $props();
     
     // Make section title reactive to locale changes using Svelte 5 runes
-    let actualTitle = $derived(sectionTitle || $_('design_guidelines.section_title.text'));
+    let actualTitle = $derived(sectionTitle || $_('design_guidelines.section_title'));
 
     onMount(() => {
         // No need to initialize content as translations are pre-processed
@@ -26,23 +26,23 @@
             <!-- Privacy Design Guideline -->
             <DesignGuideline
                 main_icon="icon_lock"
-                headline={$_('design_guidelines.privacy.headline.text')}
+                headline={$_('design_guidelines.privacy.headline')}
                 subheadings={[
                     {
                         icon: "icon_anonym",
-                        heading: $_('design_guidelines.privacy.anonymization.text'),
+                        heading: $_('design_guidelines.privacy.anonymization'),
                     },
                     {
                         icon: "icon_laptop",
-                        heading: $_('design_guidelines.privacy.local_processing.text'),
+                        heading: $_('design_guidelines.privacy.local_processing'),
                     },
                     {
                         icon: "icon_server",
-                        heading: $_('design_guidelines.privacy.self_hosting.text'),
+                        heading: $_('design_guidelines.privacy.self_hosting'),
                     }
                 ]}
-                text={$_('design_guidelines.privacy.text.text')}
-                subtext={$_('design_guidelines.privacy.subtext.text')}
+                text={$_('design_guidelines.privacy.text')}
+                subtext={$_('design_guidelines.privacy.subtext')}
             />
 
             <!-- Separator line -->
@@ -51,23 +51,23 @@
             <!-- Maximum Good Design Guideline -->
             <DesignGuideline
                 main_icon="icon_good"
-                headline="{$_('design_guidelines.maximum_good.headline_1.text')}<br>{$_('design_guidelines.maximum_good.headline_2.text')}"
+                headline="{$_('design_guidelines.maximum_good.headline_1')}<br>{$_('design_guidelines.maximum_good.headline_2')}"
                 subheadings={[
                     {
                         icon: "icon_open_source",
-                        heading: $_('design_guidelines.maximum_good.open_source.text'),
+                        heading: $_('design_guidelines.maximum_good.open_source'),
                     },
                     {
                         icon: "icon_ai",
-                        heading: $_('design_guidelines.maximum_good.provider_independent.text'),
+                        heading: $_('design_guidelines.maximum_good.provider_independent'),
                     },
                     {
                         icon: "icon_chat",
-                        heading: $_('design_guidelines.maximum_good.chat_anywhere.text'),
+                        heading: $_('design_guidelines.maximum_good.chat_anywhere'),
                     }
                 ]}
-                text={$_('design_guidelines.maximum_good.text.text')}
-                subtext={$_('design_guidelines.maximum_good.subtext.text')}
+                text={$_('design_guidelines.maximum_good.text')}
+                subtext={$_('design_guidelines.maximum_good.subtext')}
             />
         </section>
         <LargeSeparator />

@@ -149,3 +149,149 @@ to_watch_list.description:
     - en
     - de
 
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+watched_movies.example_1:
+  context: Example entry for watched movies (a classic sci-fi movie)
+  en: Inception
+  de: Inception
+  zh: 盗梦空间
+  es: Origen
+  fr: Inception
+  pt: A Origem
+  ru: Начало
+  ja: インセプション
+  ko: 인셉션
+  it: Inception
+  tr: Başlangıç
+  vi: Kẻ đánh cắp giấc mơ
+  id: Inception
+  pl: Incepcja
+  nl: Inception
+  ar: استهلال
+  hi: इन्सेप्शन
+  th: อินเซปชัน
+  cs: Počátek
+  sv: Inception
+  verified_by_human: [en, de]
+
+watched_movies.example_2:
+  context: Example entry for watched movies (a popular movie)
+  en: The Shawshank Redemption
+  de: Die Verurteilten
+  zh: 肖申克的救赎
+  es: Cadena perpetua
+  fr: Les Évadés
+  pt: Um Sonho de Liberdade
+  ru: Побег из Шоушенка
+  ja: ショーシャンクの空に
+  ko: 쇼생크 탈출
+  it: Le Ali della Libertà
+  tr: Esaretin Bedeli
+  vi: Nhà tù Shawshank
+  id: The Shawshank Redemption
+  pl: Skazani na Shawshank
+  nl: The Shawshank Redemption
+  ar: الخلاص من شاوشانك
+  hi: द शॉशैंक रिडेम्पशन
+  th: ชอว์แชงค์
+  cs: Vykoupení z věznice Shawshank
+  sv: Nyckeln till frihet
+  verified_by_human: [en, de]
+
+watched_tv_shows.example_1:
+  context: Example entry for watched TV shows (a popular drama)
+  en: Breaking Bad
+  de: Breaking Bad
+  zh: 绝命毒师
+  es: Breaking Bad
+  fr: Breaking Bad
+  pt: Breaking Bad
+  ru: Во все тяжкие
+  ja: ブレイキング・バッド
+  ko: 브레이킹 배드
+  it: Breaking Bad
+  tr: Breaking Bad
+  vi: Tập làm người xấu
+  id: Breaking Bad
+  pl: Breaking Bad
+  nl: Breaking Bad
+  ar: بريكينغ باد
+  hi: ब्रेकिंग बैड
+  th: บเรกกิ้ง แบด
+  cs: Perníkový táta
+  sv: Breaking Bad
+  verified_by_human: [en, de]
+
+watched_tv_shows.example_2:
+  context: Example entry for watched TV shows (a popular sci-fi show)
+  en: Stranger Things
+  de: Stranger Things
+  zh: 怪奇物语
+  es: Stranger Things
+  fr: Stranger Things
+  pt: Stranger Things
+  ru: Очень странные дела
+  ja: ストレンジャー・シングス
+  ko: 기묘한 이야기
+  it: Stranger Things
+  tr: Stranger Things
+  vi: Cậu bé mất tích
+  id: Stranger Things
+  pl: Stranger Things
+  nl: Stranger Things
+  ar: أشياء غريبة
+  hi: स्ट्रेंजर थिंग्स
+  th: สเตรนเจอร์ ธิงส์
+  cs: Stranger Things
+  sv: Stranger Things
+  verified_by_human: [en, de]
+
+to_watch_list.example_1:
+  context: Example entry for to watch list (a recent movie)
+  en: Oppenheimer
+  de: Oppenheimer
+  zh: 奥本海默
+  es: Oppenheimer
+  fr: Oppenheimer
+  pt: Oppenheimer
+  ru: Оппенгеймер
+  ja: オッペンハイマー
+  ko: 오펜하이머
+  it: Oppenheimer
+  tr: Oppenheimer
+  vi: Oppenheimer
+  id: Oppenheimer
+  pl: Oppenheimer
+  nl: Oppenheimer
+  ar: أوبنهايمر
+  hi: ओपनहाइमर
+  th: ออพเพนไฮเมอร์
+  cs: Oppenheimer
+  sv: Oppenheimer
+  verified_by_human: [en, de]
+
+to_watch_list.example_2:
+  context: Example entry for to watch list (a popular TV show)
+  en: The Bear
+  de: The Bear
+  zh: 熊家餐馆
+  es: The Bear
+  fr: The Bear
+  pt: O Urso
+  ru: Медведь
+  ja: ザ・ベア
+  ko: 더 베어
+  it: The Bear
+  tr: The Bear
+  vi: The Bear
+  id: The Bear
+  pl: The Bear
+  nl: The Bear
+  ar: ذا بير
+  hi: द बेयर
+  th: เดอะ แบร์
+  cs: The Bear
+  sv: The Bear
+  verified_by_human: [en, de]
+

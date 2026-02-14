@@ -107,7 +107,7 @@
     <div 
         class="progress-bar" 
         style="width: {progress}%"
-        aria-label={$_('audio.playback_progress.text')}
+        aria-label={$_('audio.playback_progress')}
         role="progressbar"
         aria-valuemin="0"
         aria-valuemax="100"
@@ -127,7 +127,7 @@
         </div>
         <button 
             class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
-            aria-label={isPlaying ? $_('audio.pause.text') : $_('audio.play.text')}
+            aria-label={isPlaying ? $_('audio.pause') : $_('audio.play')}
             onclick={handlePlayClick}
         ></button>
     </div>

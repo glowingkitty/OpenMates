@@ -1,6 +1,7 @@
 import type { DemoChat } from './types';
 import { get } from 'svelte/store';
-import { _, locale } from 'svelte-i18n';
+import { locale } from 'svelte-i18n';
+import { text } from '../i18n/translations';
 import { 
 	buildPrivacyPolicyContent, 
 	buildTermsOfUseContent, 
@@ -18,7 +19,7 @@ type TranslationFunction = (key: string) => string;
  * 
  * Demo chats MUST use translation keys (no hardcoded text allowed).
  * Legal chats build content from translation keys - they construct markdown from i18n keys.
- * Translation keys should be in format: 'demo_chats.{chat_name}.{field}.text'
+ * Translation keys should be in format: 'demo_chats.{chat_name}.{field}'
  * 
  * For legal documents, the lastUpdated date is stored in TypeScript metadata (single source of truth)
  * and formatted using Intl.DateTimeFormat for the user's locale.
@@ -27,7 +28,8 @@ type TranslationFunction = (key: string) => string;
  * @returns A new demo chat with translated content
  */
 export function translateDemoChat(demoChat: DemoChat): DemoChat {
-	const t = get(_) as TranslationFunction;
+	// Use our text store which auto-appends ".text" for the { text: value } JSON wrapper
+	const t = get(text) as TranslationFunction;
 	const currentLocale = get(locale) || 'en';
 	
 	// Legal chats (chat_id starts with 'legal-') build content from translation keys

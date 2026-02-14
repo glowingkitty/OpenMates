@@ -46,14 +46,26 @@
     focusId: string;
     /** App ID that owns the focus mode */
     appId: string;
-    /** Translated display name of the focus mode (translation key like 'jobs.career_insights.text') */
+    /** Translated display name of the focus mode (translation key like 'jobs.career_insights') */
     focusModeName: string;
+    /**
+     * Whether this focus mode is already active on the chat (from server/IndexedDB state).
+     * When true, the countdown is skipped entirely and the component shows the static
+     * "Focus activated" state immediately. This prevents the countdown from replaying
+     * every time the user revisits a chat where a focus mode was previously activated.
+     */
+    alreadyActive?: boolean;
     /** Callback when the user rejects the focus mode during countdown */
     onReject?: (focusId: string, focusModeName: string) => void;
     /** Callback when the user deactivates the focus mode via context menu */
     onDeactivate?: (focusId: string) => void;
     /** Callback to open focus mode details in settings */
     onDetails?: (focusId: string, appId: string) => void;
+    /**
+     * Callback when the user right-clicks or long-presses the embed.
+     * Opens the FocusModeContextMenu with Cancel/Stop/Details options.
+     */
+    onContextMenu?: (event: MouseEvent | TouchEvent, state: { isActivated: boolean; isRejected: boolean }) => void;
   }
 
   let {
@@ -61,9 +73,11 @@
     focusId,
     appId,
     focusModeName,
+    alreadyActive = false,
     onReject,
     onDeactivate: _onDeactivate,
-    onDetails: _onDetails
+    onDetails: _onDetails,
+    onContextMenu: _onContextMenu,
   }: Props = $props();
 
   // These props are used by the renderer for context menu dispatch;
@@ -74,9 +88,11 @@
   // Countdown duration in seconds
   const COUNTDOWN_SECONDS = 4;
 
-  // Check if this embed was already activated or rejected in a previous mount
-  const wasAlreadyActivated = activatedEmbedIds.has(id);
-  const wasAlreadyRejected = rejectedEmbedIds.has(id);
+  // Check if this embed was already activated or rejected in a previous mount.
+  // alreadyActive=true means the server/IndexedDB state confirms this focus mode
+  // is active on the chat, so we skip the countdown entirely (e.g., when revisiting a chat).
+  const wasAlreadyActivated = alreadyActive || activatedEmbedIds.has(id);
+  const wasAlreadyRejected = !alreadyActive && rejectedEmbedIds.has(id);
 
   // State
   let countdownValue = $state(wasAlreadyActivated ? 0 : COUNTDOWN_SECONDS);
@@ -84,11 +100,18 @@
   let isRejected = $state(wasAlreadyRejected);
   let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
-  // Resolve the focus mode name from translation key
-  // focusModeName comes as a translation key like "jobs.career_insights.text"
-  let displayName = $derived(
-    $text(focusModeName, { default: focusModeName.split('.').slice(-2, -1)[0]?.replace(/_/g, ' ') || focusModeName })
+  // Resolve the focus mode name — may be a translation key like "jobs.career_insights"
+  // or a pre-resolved display name from the backend like "Career Insights"
+  let focusFallbackName = $derived(
+    focusModeName.split('.').slice(-2, -1)[0]?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || focusModeName
   );
+  let displayName = $derived.by(() => {
+    const translated = $text(focusModeName);
+    // If $text returned the raw key (translation not found and default wasn't applied),
+    // fall back to the human-readable name
+    if (translated === focusModeName && focusFallbackName !== focusModeName) return focusFallbackName;
+    return translated || focusFallbackName;
+  });
 
   // Status text shown on the card
   let statusText = $derived.by(() => {
@@ -96,10 +119,9 @@
       return '';
     }
     if (isActivated) {
-      return $text('embeds.focus_mode.activated.text', { default: 'Focus activated' });
+      return $text('embeds.focus_mode.activated');
     }
-    return $text('embeds.focus_mode.activating.text', {
-      default: `Activate in ${countdownValue} sec ...`,
+    return $text('embeds.focus_mode.activating', {
       values: { seconds: String(countdownValue) }
     });
   });
@@ -151,11 +173,62 @@
   }
 
   /**
-   * Handle right-click / context menu on the embed
+   * Handle right-click / context menu on the embed.
+   * Opens the FocusModeContextMenu via the onContextMenu callback.
    */
   function handleContextMenu(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
+    _onContextMenu?.(event, { isActivated, isRejected });
+  }
+
+  // --- Long-press (touch) handling for mobile context menu ---
+  const LONG_PRESS_DURATION = 500;
+  const TOUCH_MOVE_THRESHOLD = 10;
+  let touchTimer: ReturnType<typeof setTimeout> | null = null;
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  function handleTouchStart(event: TouchEvent) {
+    if (event.touches.length !== 1) {
+      clearTouchTimer();
+      return;
+    }
+    const touch = event.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+
+    touchTimer = setTimeout(() => {
+      touchTimer = null;
+      // Prevent the subsequent touchend from triggering a click/reject
+      event.preventDefault();
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      _onContextMenu?.(event, { isActivated, isRejected });
+    }, LONG_PRESS_DURATION);
+  }
+
+  function handleTouchMove(event: TouchEvent) {
+    if (!touchTimer) return;
+    const touch = event.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchStartX);
+    const deltaY = Math.abs(touch.clientY - touchStartY);
+    if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+      clearTouchTimer();
+    }
+  }
+
+  function handleTouchEnd() {
+    clearTouchTimer();
+  }
+
+  function clearTouchTimer() {
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      touchTimer = null;
+    }
   }
 
   /**
@@ -198,6 +271,9 @@
     role={!isActivated ? 'button' : 'presentation'}
     tabindex={!isActivated ? 0 : -1}
     oncontextmenu={handleContextMenu}
+    ontouchstart={handleTouchStart}
+    ontouchmove={handleTouchMove}
+    ontouchend={handleTouchEnd}
     onclick={!isActivated ? handleRejectClick : undefined}
     onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!isActivated) handleRejectClick(); } }}
   >
@@ -229,7 +305,7 @@
   <!-- Helper text below the bar during countdown -->
   {#if !isActivated}
     <div class="reject-hint">
-      {$text('embeds.focus_mode.reject_hint.text', {
+      {$text('embeds.focus_mode.reject_hint', {
         default: 'Click or press ESC to prevent focus mode &\ncontinue regular chat'
       })}
     </div>

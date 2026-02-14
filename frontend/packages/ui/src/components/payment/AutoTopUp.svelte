@@ -376,13 +376,13 @@ Matches the design from the signup flow screenshot.
     <div class="icon settings_size refund">
     </div>
     <div class="header-text">
-        {$text('settings.billing.auto_topup.text')}
+        {$text('settings.billing.auto_topup')}
     </div>
 </div>
 
 <!-- Introductory text - matches screenshot exactly -->
 <div class="intro-text">
-    {@html $text('settings.billing.auto_topup_intro.text')}
+    {@html $text('settings.billing.auto_topup_intro')}
 </div>
 
 <!-- Low Balance Auto Top-Up Toggle -->
@@ -391,7 +391,7 @@ Matches the design from the signup flow screenshot.
         <Toggle bind:checked={lowBalanceEnabled} id="low-balance-toggle" disabled={isProcessing} on:change={handleLowBalanceToggleChange} />
         <div class="warning-icon"></div>
         <label for="low-balance-toggle" class="option-label">
-            {$text('settings.billing.on_low_balance.text')}
+            {$text('settings.billing.on_low_balance')}
         </label>
     </div>
     {#if lowBalanceEmailError}
@@ -399,7 +399,7 @@ Matches the design from the signup flow screenshot.
     {/if}
     {#if lowBalanceEnabled}
         <div class="option-description">
-            {@html $text('settings.billing.auto_topup_low_balance_description.text')
+            {@html $text('settings.billing.auto_topup_low_balance_description')
                 .replace('{lowbalancethreshold}', formatCredits(lowBalanceThreshold))
                 .replace('{credits}', formatCredits(lowBalanceAmount))
                 .replace('{price}', formatPrice(lowBalancePrice, currency))}
@@ -417,22 +417,22 @@ Matches the design from the signup flow screenshot.
         />
         <div class="calendar-icon"></div>
         <label for="monthly-toggle" class="option-label">
-            {$text('settings.billing.monthly.text')}
+            {$text('settings.billing.monthly')}
         </label>
     </div>
     {#if !paymentMethodSaved}
         <div class="error-message">
-            {$text('settings.billing.auto_topup_payment_method_error.text')}
+            {$text('settings.billing.auto_topup_payment_method_error')}
         </div>
     {:else if monthlyEnabled}
         <div class="option-description">
-            {$text('settings.billing.auto_topup_monthly_description.text')
+            {$text('settings.billing.auto_topup_monthly_description')
                 .replace('{credits}', formatCredits(totalCredits))
                 .replace('{price}', formatPrice(monthlyPrice, currency))}
             {#if bonusCredits > 0}
                 <div class="recommended-badge">
                     <div class="gift-icon"></div>
-                    <strong>{$text('settings.billing.auto_topup_bonus_credits.text')
+                    <strong>{$text('settings.billing.auto_topup_bonus_credits')
                         .replace('{bonuscredits}', formatCredits(bonusCredits))}</strong>
                 </div>
             {/if}
@@ -442,7 +442,7 @@ Matches the design from the signup flow screenshot.
 
 <!-- Help text -->
 <div class="help-text">
-    {$text('settings.billing.auto_topup_settings_help.text')}
+    {$text('settings.billing.auto_topup_settings_help')}
 </div>
 
 <!-- Finish Button -->
@@ -451,9 +451,9 @@ Matches the design from the signup flow screenshot.
     disabled={isProcessing}
 >
     {#if isProcessing}
-        {$text('signup.processing.text')}
+        {$text('signup.processing')}
     {:else}
-        {$text('signup.finish_setup.text')}
+        {$text('signup.finish_setup')}
     {/if}
 </button>
 

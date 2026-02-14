@@ -82,15 +82,15 @@
   let isCancelled = $state(false);
   
   // Build skill name for BasicInfosBar
-  let skillName = $derived($text('apps.reminder.skills.set_reminder.text'));
+  let skillName = $derived($text('apps.reminder.skills.set_reminder'));
   
   // Build status text
   let statusText = $derived.by(() => {
     if (isCancelled) {
-      return $text('embeds.reminder.cancelled.text');
+      return $text('embeds.reminder.cancelled');
     }
     if (error) {
-      return $text('embeds.error.text');
+      return $text('embeds.error');
     }
     if (triggerAtFormatted) {
       return triggerAtFormatted;
@@ -101,10 +101,10 @@
   // Get target type display text
   let targetTypeText = $derived.by(() => {
     if (targetType === 'new_chat') {
-      return $text('embeds.reminder.new_chat.text');
+      return $text('embeds.reminder.new_chat');
     }
     if (targetType === 'existing_chat') {
-      return $text('embeds.reminder.existing_chat.text');
+      return $text('embeds.reminder.existing_chat');
     }
     return '';
   });
@@ -150,12 +150,12 @@
         onReminderCancelled(reminderId);
       }
       
-      notificationStore.success($text('embeds.reminder.cancel_success.text'));
+      notificationStore.success($text('embeds.reminder.cancel_success'));
       console.debug('[ReminderEmbedFullscreen] Reminder cancelled successfully');
     } catch (err) {
       console.error('[ReminderEmbedFullscreen] Failed to cancel reminder:', err);
       cancelError = err instanceof Error ? err.message : 'Unknown error';
-      notificationStore.error($text('embeds.reminder.cancel_error.text'));
+      notificationStore.error($text('embeds.reminder.cancel_error'));
     } finally {
       isCancelling = false;
     }
@@ -186,15 +186,15 @@
         <!-- Error state -->
         <div class="error-container">
           <div class="error-icon">&#10060;</div>
-          <h3 class="error-title">{$text('embeds.reminder.error.text')}</h3>
+          <h3 class="error-title">{$text('embeds.reminder.error')}</h3>
           <p class="error-message">{error}</p>
         </div>
       {:else if isCancelled}
         <!-- Cancelled state -->
         <div class="cancelled-container">
           <div class="cancelled-icon">&#9989;</div>
-          <h3 class="cancelled-title">{$text('embeds.reminder.cancelled.text')}</h3>
-          <p class="cancelled-message">{$text('embeds.reminder.cancelled_message.text')}</p>
+          <h3 class="cancelled-title">{$text('embeds.reminder.cancelled')}</h3>
+          <p class="cancelled-message">{$text('embeds.reminder.cancelled_message')}</p>
         </div>
       {:else}
         <!-- Normal reminder display -->
@@ -206,7 +206,7 @@
               <div class="trigger-time-section">
                 <span class="trigger-icon">&#128337;</span>
                 <div class="trigger-info">
-                  <span class="trigger-label">{$text('embeds.reminder.scheduled_for.text')}</span>
+                  <span class="trigger-label">{$text('embeds.reminder.scheduled_for')}</span>
                   <span class="trigger-time">{triggerAtFormatted}</span>
                 </div>
               </div>
@@ -217,7 +217,7 @@
               <!-- Target type -->
               {#if targetType}
                 <div class="property-row">
-                  <span class="property-label">{$text('embeds.reminder.target_type.text')}</span>
+                  <span class="property-label">{$text('embeds.reminder.target_type')}</span>
                   <span class="property-value badge" class:new-chat={targetType === 'new_chat'} class:existing-chat={targetType === 'existing_chat'}>
                     {targetTypeText}
                   </span>
@@ -226,12 +226,12 @@
               
               <!-- Repeating status -->
               <div class="property-row">
-                <span class="property-label">{$text('embeds.reminder.repeating.text')}</span>
+                <span class="property-label">{$text('embeds.reminder.repeating')}</span>
                 <span class="property-value">
                   {#if isRepeating}
-                    <span class="badge repeat-badge">{$text('embeds.reminder.yes.text')}</span>
+                    <span class="badge repeat-badge">{$text('embeds.reminder.yes')}</span>
                   {:else}
-                    {$text('embeds.reminder.no.text')}
+                    {$text('embeds.reminder.no')}
                   {/if}
                 </span>
               </div>
@@ -239,7 +239,7 @@
               <!-- Reminder ID (for reference) -->
               {#if reminderId}
                 <div class="property-row">
-                  <span class="property-label">{$text('embeds.reminder.id.text')}</span>
+                  <span class="property-label">{$text('embeds.reminder.id')}</span>
                   <span class="property-value id-value">{reminderId.slice(0, 8)}...</span>
                 </div>
               {/if}
@@ -264,20 +264,20 @@
               >
                 {#if isCancelling}
                   <span class="spinner"></span>
-                  <span>{$text('embeds.reminder.cancelling.text')}</span>
+                  <span>{$text('embeds.reminder.cancelling')}</span>
                 {:else}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="15" y1="9" x2="9" y2="15"></line>
                     <line x1="9" y1="9" x2="15" y2="15"></line>
                   </svg>
-                  <span>{$text('embeds.reminder.cancel.text')}</span>
+                  <span>{$text('embeds.reminder.cancel')}</span>
                 {/if}
               </button>
             {:else if !isCancelled}
               <div class="inactive-notice">
                 <span class="notice-icon">&#8987;</span>
-                <span>{$text('embeds.reminder.already_fired.text')}</span>
+                <span>{$text('embeds.reminder.already_fired')}</span>
               </div>
             {/if}
           </div>

@@ -1,5 +1,5 @@
-name_translation_key: ai.text
-description_translation_key: ai.description.text
+name_translation_key: ai
+description_translation_key: ai.description
 icon_image: |
   ai.svg
 last_updated: "2025-11-12"
@@ -20,13 +20,20 @@ provider_display_order:
 
 settings_and_memories:
   - id: communication_style
-    name_translation_key: ai.communication_style.text
-    description_translation_key: ai.communication_style.description.text
+    name_translation_key: ai.communication_style
+    description_translation_key: ai.communication_style.description
     type: single
-    stage: planning
+    stage: production
+    example_translation_keys:
+      - "ai.communication_style.example_1"
+      - "ai.communication_style.example_2"
     schema:
       type: object
       properties:
+        title:
+          type: string
+          description: A descriptive name for this communication style (e.g., Work Mode, Casual Chat)
+          is_title: true
         tone:
           type: string
           enum:
@@ -44,24 +51,26 @@ settings_and_memories:
             - detailed
             - very_detailed
           description: How detailed responses should be
-        use_examples:
-          type: boolean
-          description: Whether to include examples in explanations
-        use_formatting:
-          type: boolean
-          description: Whether to use markdown formatting, lists, code blocks
       required:
+        - title
         - tone
         - verbosity
 
   - id: learning_preferences
-    name_translation_key: ai.learning_preferences.text
-    description_translation_key: ai.learning_preferences.description.text
+    name_translation_key: ai.learning_preferences
+    description_translation_key: ai.learning_preferences.description
     type: list
-    stage: planning
+    stage: production
+    example_translation_keys:
+      - "ai.learning_preferences.example_1"
+      - "ai.learning_preferences.example_2"
     schema:
       type: object
       properties:
+        title:
+          type: string
+          description: A name for this learning preference (e.g., Hands-on Learner, Visual Thinker)
+          is_title: true
         learning_type:
           type: string
           enum:
@@ -86,12 +95,13 @@ settings_and_memories:
           type: string
           description: Additional notes about this learning preference
       required:
+        - title
         - learning_type
         - preference_strength
 
   - id: interaction_preferences
-    name_translation_key: ai.interaction_preferences.text
-    description_translation_key: ai.interaction_preferences.description.text
+    name_translation_key: ai.interaction_preferences
+    description_translation_key: ai.interaction_preferences.description
     type: single
     stage: planning
     schema:
@@ -129,8 +139,8 @@ settings_and_memories:
 
 skills:
   - id: ask
-    name_translation_key: ai.ask.text
-    description_translation_key: ai.ask.description.text
+    name_translation_key: ai.ask
+    description_translation_key: ai.ask.description
     stage: production
     class_path: |
       ai.skills.ask_skill.AskSkill

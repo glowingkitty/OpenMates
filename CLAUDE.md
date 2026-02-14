@@ -87,10 +87,22 @@ OpenMates/
 - Explain key architecture decisions in comments
 - Link to relevant architecture docs where appropriate
 
+### Explicit Consent Required for Destructive/External Actions
+
+- **NEVER create pull requests** unless the user explicitly asks for one. No exceptions.
+- **NEVER merge branches** unless the user explicitly asks for it.
+- These actions affect production and other developers — they require clear, unambiguous user intent.
+
 ### Logging Rule
 
 - **Only remove debugging logs after the user confirms the issue is fixed**
 - Do not remove logs assuming you fixed the issue - wait for confirmation
+
+### Multiple Assistants (Concurrent Work)
+
+- **Several assistants may work on the codebase at the same time.** File content or git state can change between your turns.
+- **Re-read files before editing** if you haven’t touched them recently — another assistant may have changed them.
+- **Check git status** before committing; files may already be committed by another assistant. Only add and commit what you actually changed this session.
 
 ---
 
@@ -487,6 +499,28 @@ docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --no-log
 docker exec api python /app/backend/scripts/inspect_user.py <email_address>
 ```
 
+### Newsletter Inspection
+
+```bash
+# Summary counts (confirmed, pending, ignored, language breakdown)
+docker exec api python /app/backend/scripts/inspect_newsletter.py
+
+# Show all subscribers with decrypted emails
+docker exec api python /app/backend/scripts/inspect_newsletter.py --show-emails
+
+# Show pending (unconfirmed) subscriptions from cache
+docker exec api python /app/backend/scripts/inspect_newsletter.py --show-pending
+
+# Show monthly subscription timeline
+docker exec api python /app/backend/scripts/inspect_newsletter.py --timeline
+
+# Show everything
+docker exec api python /app/backend/scripts/inspect_newsletter.py --show-emails --show-pending --timeline
+
+# JSON output
+docker exec api python /app/backend/scripts/inspect_newsletter.py --json
+```
+
 ### AI Request Debugging
 
 ```bash
@@ -651,6 +685,8 @@ When creating tests (with consent), ensure they meet these criteria:
 - **Use stable selectors**: `data-testid` attributes, not CSS classes
 - **Be deterministic**: No flaky timing-dependent assertions
 - **Cover critical paths**: Signup, login, payment, core features
+- **Account for Vercel deployment delay**: After pushing frontend changes, Vercel takes up to **200 seconds** to deploy. E2E tests must wait for the deployment to complete before running against the live URL (e.g., poll the site or add an explicit delay).
+- **Ask the user on unexpected screens**: If a Playwright test encounters a completely unexpected screen (e.g., a different page/layout than anticipated after an action), **stop and ask the user how to proceed** instead of guessing or failing silently.
 
 ### Test Location Standards
 
@@ -884,6 +920,14 @@ key_name:
   verified_by_human: []
 ```
 
+### Generated Files - DO NOT Commit
+
+The JSON files in `frontend/packages/ui/src/i18n/locales/*.json` are **generated build artifacts** produced by `npm run build:translations`. They are already in `.gitignore`.
+
+- **NEVER edit** the `locales/*.json` files directly — they will be overwritten on the next build
+- **NEVER commit** them to git (even with `git add -f`)
+- **Only edit** the source `.yml` files in `frontend/packages/ui/src/i18n/sources/`
+
 ### Adding New Translations - Step by Step
 
 1. Open the appropriate `.yml` file in `frontend/packages/ui/src/i18n/sources/`
@@ -893,7 +937,7 @@ key_name:
 
 ### Usage
 
-- **Frontend**: Use the `$text` store: `$text('filename.key_name.text')` (e.g., `$text('chats.context_menu.download.text')`)
+- **Frontend**: Use the `$text` store: `$text('filename.key_name')` (e.g., `$text('chats.context_menu.download')`)
 - **Backend**: Use `TranslationService` to resolve translations
 - **Metadata**: Use `name_translation_key` instead of hardcoded strings
 

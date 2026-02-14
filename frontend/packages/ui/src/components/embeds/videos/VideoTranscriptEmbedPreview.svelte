@@ -305,7 +305,7 @@
   }
   
   // Get skill name from translations
-  let skillName = $derived($text('embeds.video_transcript.text') || 'Transcript');
+  let skillName = $derived($text('embeds.video_transcript'));
   
   // Map skillId to icon name
   const skillIconName = 'transcript';

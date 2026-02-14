@@ -90,6 +90,21 @@ async def handle_store_embed(
             updated_embed = await directus_service.embed.update_embed(embed_id, payload)
             if updated_embed:
                 logger.info(f"Successfully updated embed {embed_id} in Directus")
+                # Remove from pending embed tracking - client has confirmed encryption
+                try:
+                    await cache_service.remove_pending_embed(user_id, embed_id)
+                except Exception as e:
+                    logger.warning(f"Failed to remove embed {embed_id} from pending tracking: {e}")
+                # Reset cache TTL to standard (no longer needs extended TTL)
+                try:
+                    client = await cache_service.client
+                    if client:
+                        cache_key = f"embed:{embed_id}"
+                        existing = await client.get(cache_key)
+                        if existing:
+                            await client.expire(cache_key, 259200)  # 72 hours standard TTL
+                except Exception as e:
+                    logger.warning(f"Failed to reset cache TTL for embed {embed_id}: {e}")
             else:
                 logger.error(f"Failed to update embed {embed_id} in Directus")
         else:
@@ -98,6 +113,21 @@ async def handle_store_embed(
             created_embed = await directus_service.embed.create_embed(payload)
             if created_embed:
                 logger.info(f"Successfully created embed {embed_id} in Directus")
+                # Remove from pending embed tracking - client has confirmed encryption
+                try:
+                    await cache_service.remove_pending_embed(user_id, embed_id)
+                except Exception as e:
+                    logger.warning(f"Failed to remove embed {embed_id} from pending tracking: {e}")
+                # Reset cache TTL to standard (no longer needs extended TTL)
+                try:
+                    client = await cache_service.client
+                    if client:
+                        cache_key = f"embed:{embed_id}"
+                        existing = await client.get(cache_key)
+                        if existing:
+                            await client.expire(cache_key, 259200)  # 72 hours standard TTL
+                except Exception as e:
+                    logger.warning(f"Failed to reset cache TTL for embed {embed_id}: {e}")
             else:
                 logger.error(f"Failed to create embed {embed_id} in Directus")
 

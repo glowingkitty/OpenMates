@@ -217,7 +217,7 @@
             if (response.status === 429) {
                 console.warn('Rate limited when requesting recovery code');
                 notificationStore.error(
-                    $text('login.too_many_requests.text'),
+                    $text('login.too_many_requests'),
                     8000
                 );
                 return;
@@ -225,13 +225,13 @@
             
             // Always show success message to prevent email enumeration
             notificationStore.success(
-                $text('login.recovery_code_sent.text'),
+                $text('login.recovery_code_sent'),
                 6000
             );
         } catch (error) {
             console.error('Error requesting reset code:', error);
             notificationStore.error(
-                $text('login.error_occurred.text'),
+                $text('login.error_occurred'),
                 5000
             );
         } finally {
@@ -275,7 +275,7 @@
             }
         } catch (error) {
             console.error('Error verifying code:', error);
-            codeError = $text('login.error_occurred.text');
+            codeError = $text('login.error_occurred');
             notificationStore.error(codeError, 5000);
         } finally {
             isVerifying = false;
@@ -318,12 +318,12 @@
         passwordError = '';
         
         if (newPassword.length < 8) {
-            passwordError = $text('signup.password_too_short.text');
+            passwordError = $text('signup.password_too_short');
             return;
         }
         
         if (newPassword !== confirmPassword) {
-            passwordError = $text('signup.passwords_do_not_match.text');
+            passwordError = $text('signup.passwords_do_not_match');
             return;
         }
         
@@ -514,7 +514,7 @@
         } catch (error) {
             console.error('Error resetting account with password:', error);
             notificationStore.error(
-                $text('login.error_occurred.text'),
+                $text('login.error_occurred'),
                 5000
             );
             // CRITICAL: Reset currentStep so user isn't stuck on loading screen
@@ -628,7 +628,7 @@
                     webauthnError.message?.includes('PRF') || 
                     webauthnError.message?.includes('prf') ||
                     webauthnError.message?.toLowerCase().includes('extension')) {
-                    passkeyError = $text('signup.passkey_prf_not_supported.text');
+                    passkeyError = $text('signup.passkey_prf_not_supported');
                     notificationStore.error(passkeyError, 10000);
                     currentStep = 'setup';
                     isRegisteringPasskey = false;
@@ -671,7 +671,7 @@
             // Validate PRF results
             if (!prfResults) {
                 console.error('[AccountRecovery] PRF extension not found in client extension results');
-                passkeyError = $text('signup.passkey_prf_not_supported.text') || 
+                passkeyError = $text('signup.passkey_prf_not_supported') || 
                     'Your device does not support the required passkey security features. Please use password instead.';
                 notificationStore.error(passkeyError, 10000);
                 currentStep = 'setup';
@@ -681,7 +681,7 @@
             
             if (prfResults.enabled === false) {
                 console.error('[AccountRecovery] PRF extension explicitly disabled');
-                passkeyError = $text('signup.passkey_prf_not_supported.text') || 
+                passkeyError = $text('signup.passkey_prf_not_supported') || 
                     'Your device does not support the required passkey security features. Please use password instead.';
                 notificationStore.error(passkeyError, 10000);
                 currentStep = 'setup';
@@ -693,7 +693,7 @@
             const prfSignatureRaw = prfResults.results?.first;
             if (!prfSignatureRaw) {
                 console.error('[AccountRecovery] PRF signature not found in results');
-                passkeyError = $text('signup.passkey_prf_not_supported.text') || 
+                passkeyError = $text('signup.passkey_prf_not_supported') || 
                     'Your device does not support the required passkey security features. Please use password instead.';
                 notificationStore.error(passkeyError, 10000);
                 currentStep = 'setup';
@@ -883,7 +883,7 @@
     {#if currentStep === 'code'}
         <div class="step-content" transition:slide>
             <p class="info-text">
-                {$text('login.enter_code_sent.text')}
+                {$text('login.enter_code_sent')}
             </p>
             
             <div class="input-group">
@@ -914,7 +914,7 @@
                     <Toggle 
                         bind:checked={acknowledgeDataLoss}
                         id="acknowledge-data-loss"
-                        ariaLabel={$text('login.acknowledge_data_loss.text')}
+                        ariaLabel={$text('login.acknowledge_data_loss')}
                     />
                     <!-- Use span+onclick instead of label[for] to avoid double-label conflict
                          (Toggle.svelte already wraps its input in a <label>, so a second label
@@ -927,7 +927,7 @@
                         onclick={() => acknowledgeDataLoss = !acknowledgeDataLoss}
                         onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); acknowledgeDataLoss = !acknowledgeDataLoss; }}}
                     >
-                        {$text('login.acknowledge_data_loss.text')}
+                        {$text('login.acknowledge_data_loss')}
                     </span>
                 </div>
             </div>
@@ -939,7 +939,7 @@
                 {#if isVerifying}
                     <span class="loading-spinner"></span>
                 {:else}
-                    {$text('login.reset_account.text')}
+                    {$text('login.reset_account')}
                 {/if}
             </button>
             
@@ -948,7 +948,7 @@
                 onclick={requestResetCode}
                 disabled={isRequestingCode}
             >
-                {$text('login.resend_code.text')}
+                {$text('login.resend_code')}
             </button>
         </div>
         
@@ -956,7 +956,7 @@
         <div class="step-content" transition:slide>
             <div class="success-message">
                 <div class="check-icon">✓</div>
-                <span>{$text('login.code_verified.text')}</span>
+                <span>{$text('login.code_verified')}</span>
             </div>
             
             <!-- Show both passkey and password options -->
@@ -975,15 +975,15 @@
                     <div class="clickable-icon icon_passkey" style="width: 64px; height: 64px;"></div>
                 </div>
                 <p class="info-text">
-                    {$text('login.registering_passkey.text')}
+                    {$text('login.registering_passkey')}
                 </p>
                 <p class="info-text-secondary">
-                    {$text('login.follow_passkey_prompts.text')}
+                    {$text('login.follow_passkey_prompts')}
                 </p>
                 {#if passkeyError}
                     <span class="error-text">{passkeyError}</span>
                     <button class="secondary-button" onclick={backToMethodSelection}>
-                        {$text('login.try_another_method.text')}
+                        {$text('login.try_another_method')}
                     </button>
                 {/if}
             </div>
@@ -992,11 +992,11 @@
     {:else if currentStep === 'password'}
         <div class="step-content" transition:slide>
             <button class="back-button" onclick={backToMethodSelection}>
-                ← {$text('login.back.text')}
+                ← {$text('login.back')}
             </button>
             
             <p class="info-text">
-                {$text('signup.create_password.text')}
+                {$text('signup.create_password')}
             </p>
             
             <div class="input-group">
@@ -1006,7 +1006,7 @@
                         id="new-password"
                         type="password"
                         bind:value={newPassword}
-                        placeholder={$text('login.password_placeholder.text')}
+                        placeholder={$text('login.password_placeholder')}
                         disabled={isSettingUp}
                         minlength="8"
                         autocomplete="new-password"
@@ -1021,7 +1021,7 @@
                         id="confirm-password"
                         type="password"
                         bind:value={confirmPassword}
-                        placeholder={$text('signup.confirm_password.text')}
+                        placeholder={$text('signup.confirm_password')}
                         disabled={isSettingUp}
                         autocomplete="new-password"
                         onkeydown={(e) => e.key === 'Enter' && submitPassword()}
@@ -1040,9 +1040,9 @@
                     <span class="loading-spinner"></span>
                 {:else if !userHas2FA}
                     <!-- User needs to set up 2FA next -->
-                    {$text('login.continue.text')}
+                    {$text('login.continue')}
                 {:else}
-                    {$text('login.complete_reset.text')}
+                    {$text('login.complete_reset')}
                 {/if}
             </button>
         </div>
@@ -1051,16 +1051,16 @@
         <!-- 2FA Setup Step - Required for password users without existing 2FA -->
         <div class="step-content" transition:slide>
             <button class="back-button" onclick={() => currentStep = 'password'}>
-                ← {$text('login.back.text')}
+                ← {$text('login.back')}
             </button>
             
             <div class="tfa-setup-header">
                 <div class="icon header_size tfa"></div>
-                <h3>{$text('signup.one_time_codes.text')}</h3>
+                <h3>{$text('signup.one_time_codes')}</h3>
             </div>
             
             <p class="info-text">
-                {$text('signup.prevent_access.text')}
+                {$text('signup.prevent_access')}
             </p>
             
             <!-- QR Code Section -->
@@ -1074,14 +1074,14 @@
             <!-- Secret Key (for manual entry) -->
             {#if tfaSecret}
                 <div class="secret-key-container">
-                    <span class="secret-label">{$text('signup.or_enter_manually.text')}</span>
+                    <span class="secret-label">{$text('signup.or_enter_manually')}</span>
                     <code class="secret-key">{tfaSecret}</code>
                 </div>
             {/if}
             
             <!-- 2FA Code Input -->
             <div class="input-group">
-                <label for="tfa-code" class="input-label">{$text('signup.enter_one_time_code.text')}</label>
+                <label for="tfa-code" class="input-label">{$text('signup.enter_one_time_code')}</label>
                 <div class="input-wrapper">
                     <span class="clickable-icon icon_2fa"></span>
                     <input
@@ -1109,7 +1109,7 @@
             
             <!-- 2FA App Selection -->
             <div class="app-selection-section">
-                <span class="input-label">{$text('signup.which_2fa_app.text')}</span>
+                <span class="input-label">{$text('signup.which_2fa_app')}</span>
                 <div class="app-list" role="radiogroup" aria-label="Select 2FA app">
                     {#each tfaApps as app}
                         <button
@@ -1136,7 +1136,7 @@
                 {#if isVerifying2FA}
                     <span class="loading-spinner"></span>
                 {:else}
-                    {$text('login.complete_reset.text')}
+                    {$text('login.complete_reset')}
                 {/if}
             </button>
         </div>
@@ -1148,9 +1148,9 @@
                 <div class="resetting-icon">
                     <div class="loading-spinner large"></div>
                 </div>
-                <h3>{$text('login.resetting_account.text')}</h3>
+                <h3>{$text('login.resetting_account')}</h3>
                 <p class="info-text">
-                    {$text('login.resetting_account_description.text')}
+                    {$text('login.resetting_account_description')}
                 </p>
             </div>
         </div>
@@ -1158,12 +1158,12 @@
     {:else if currentStep === 'complete'}
         <div class="step-content" transition:slide>
             <div class="success-icon">✓</div>
-            <h3>{$text('login.account_reset_complete.text')}</h3>
+            <h3>{$text('login.account_reset_complete')}</h3>
             <p class="info-text">
-                {$text('login.you_can_now_login.text')}
+                {$text('login.you_can_now_login')}
             </p>
             <button onclick={backToLogin}>
-                {$text('login.go_to_login.text')}
+                {$text('login.go_to_login')}
             </button>
         </div>
     {/if}

@@ -98,8 +98,8 @@
     let tfaAppIconClass = $derived(currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined);
 
     // Reactive statements for backup mode using Svelte 5 runes
-    let inputPlaceholder = $derived(isBackupMode ? $text('login.enter_backup_code.text') : $text('signup.enter_one_time_code.text'));
-    let toggleButtonText = $derived(isBackupMode ? $text('login.login_with_tfa_app.text') : $text('login.login_with_backup_code.text'));
+    let inputPlaceholder = $derived(isBackupMode ? $text('login.enter_backup_code') : $text('signup.enter_one_time_code'));
+    let toggleButtonText = $derived(isBackupMode ? $text('login.login_with_tfa_app') : $text('login.login_with_backup_code'));
     let inputMaxLength = $derived(isBackupMode ? 14 : 6);
 
     // Validation using Svelte 5 runes - use local state variable
@@ -320,8 +320,8 @@
                     // Show TFA-specific error message only for TFA field
                     // SECURITY: Don't show error when message is "2FA required" - this prevents email enumeration
                     // The backend returns "2FA required" for failed authentication to prevent revealing account existence
-                    if (data.message === 'login.code_wrong.text') {
-                        tfaErrorMessage = $text('login.code_wrong.text');
+                    if (data.message === 'login.code_wrong') {
+                        tfaErrorMessage = $text('login.code_wrong');
                         errorMessage = null;
                     } else if (data.message === '2FA required') {
                         // Don't show error message - just show the 2FA input field
@@ -329,7 +329,7 @@
                         tfaErrorMessage = null;
                         errorMessage = null;
                     } else {
-                        tfaErrorMessage = data.message || $text('login.code_wrong.text');
+                        tfaErrorMessage = data.message || $text('login.code_wrong');
                         errorMessage = null;
                     }
                 } else {
@@ -408,7 +408,7 @@
                         console.debug('[PasswordAndTfaOtp] Auth failed, no user data (anti-enumeration). Keeping 2FA visible, showing password error.');
                         tfaRequiredState = true; // Keep 2FA field visible
                         // Show error on password field - the password/lookup_hash is likely wrong
-                        errorMessage = $text('login.email_or_password_wrong.text');
+                        errorMessage = $text('login.email_or_password_wrong');
                         tfaErrorMessage = null;
                     } else if (isTfaConfigured) {
                         // User data present and 2FA is configured
@@ -417,8 +417,8 @@
                         // Show TFA-specific error message only for TFA field
                         // SECURITY: Don't show error when message is "2FA required" - this prevents email enumeration
                         // The backend returns "2FA required" for failed authentication to prevent revealing account existence
-                        if (data.message === 'login.code_wrong.text') {
-                            tfaErrorMessage = $text('login.code_wrong.text');
+                        if (data.message === 'login.code_wrong') {
+                            tfaErrorMessage = $text('login.code_wrong');
                             errorMessage = null;
                         } else if (data.message === '2FA required') {
                             // Don't show error message - just show the 2FA input field
@@ -436,10 +436,10 @@
                 } else {
                     // tfa_required is false - handle regular error messages
                     // Show password/email error for password field
-                    if (data.message === 'login.email_or_password_wrong.text') {
-                        errorMessage = $text('login.email_or_password_wrong.text');
+                    if (data.message === 'login.email_or_password_wrong') {
+                        errorMessage = $text('login.email_or_password_wrong');
                     } else {
-                        errorMessage = data.message || $text('login.email_or_password_wrong.text');
+                        errorMessage = data.message || $text('login.email_or_password_wrong');
                     }
                     tfaErrorMessage = null;
                 }
@@ -476,19 +476,19 @@
         // If any required field is missing, show error instead of silently failing
         if (!data.user) {
             console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing user object!');
-            errorMessage = $text('login.login_failed.text');
+            errorMessage = $text('login.login_failed');
             return;
         }
         
         if (!data.user.encrypted_key) {
             console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing encrypted_key! User object keys:', Object.keys(data.user));
-            errorMessage = $text('login.login_failed.text');
+            errorMessage = $text('login.login_failed');
             return;
         }
         
         if (!data.user.salt) {
             console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing salt! User object keys:', Object.keys(data.user));
-            errorMessage = $text('login.login_failed.text');
+            errorMessage = $text('login.login_failed');
             return;
         }
         
@@ -733,7 +733,7 @@
                 
                 // Show success notification with instructions to login
                 notificationStore.success(
-                    $text('login.account_reset_complete_login_now.text'),
+                    $text('login.account_reset_complete_login_now'),
                     8000
                 );
                 
@@ -746,7 +746,7 @@
         />
     {:else if isRateLimited}
         <div class="rate-limit-message" in:fade={{ duration: 200 }}>
-            {$text('signup.too_many_requests.text')}
+            {$text('signup.too_many_requests')}
         </div>
     {:else}
         <!-- Combined password and 2FA form -->
@@ -775,7 +775,7 @@
                     bind:this={passwordInput}
                     type="password"
                     bind:value={password}
-                    placeholder={$text('login.password_placeholder.text')}
+                    placeholder={$text('login.password_placeholder')}
                     required
                     autocomplete="current-password"
                     class:error={!!errorMessage}
@@ -795,9 +795,9 @@
         <div class="check-2fa-container" class:hidden={isBackupMode}>
             <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
                 {#if isBackupMode}
-                    {@html $text('login.backup_code_is_single_use.text')}
+                    {@html $text('login.backup_code_is_single_use')}
                 {:else if currentDisplayedApp}
-                    <span class="app-name-inline">{@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', '')}</span>
+                    <span class="app-name-inline">{@html $text('login.check_your_2fa_app').replace('{tfa_app}', '')}</span>
                     <span class="app-name-inline">
                         {#if tfaAppIconClass}
                             <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}"></span>
@@ -805,7 +805,7 @@
                         <span class="{previewMode && !tfaAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
                     </span>
                 {:else}
-                    {@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', $text('login.your_tfa_app.text'))}
+                    {@html $text('login.check_your_2fa_app').replace('{tfa_app}', $text('login.your_tfa_app'))}
                 {/if}
             </p>
 
@@ -858,7 +858,7 @@
             {#if isLoading}
                 <span class="loading-spinner"></span>
             {:else}
-                {$text('login.login_button.text')}
+                {$text('login.login_button')}
             {/if}
         </button>
     </form>
@@ -870,7 +870,7 @@
         <div id="login-with-another-account" style={getStyle('login-with-another-account')}>
             <button class="login-option-button" onclick={handleBackToEmail}>
                 <span class="clickable-icon icon_user"></span>
-                <mark>{$text('login.login_with_another_account.text')}</mark>
+                <mark>{$text('login.login_with_another_account')}</mark>
             </button>
         </div>
 
@@ -892,7 +892,7 @@
         <div id="login-with-recoverykey" style={getStyle('login-with-recoverykey')}>
             <button class="login-option-button" onclick={handleSwitchToRecoveryKey}>
                 <span class="clickable-icon icon_warning"></span>
-                <mark>{$text('login.login_with_recovery_key.text')}</mark>
+                <mark>{$text('login.login_with_recovery_key')}</mark>
             </button>
         </div>
         
@@ -904,7 +904,7 @@
         <div id="cant-login">
             <button class="login-option-button cant-login-button" onclick={() => showAccountRecovery = true}>
                 <span class="clickable-icon icon_warning"></span>
-                <mark>{$text('login.cant_login.text')}</mark>
+                <mark>{$text('login.cant_login')}</mark>
             </button>
         </div>
         {/if}

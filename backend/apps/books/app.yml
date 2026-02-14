@@ -1,31 +1,113 @@
-name_translation_key: books.text
-description_translation_key: books.description.text
+name_translation_key: books
+description_translation_key: books.description
 icon_image: |
   book.svg
 category: personal
 last_updated: '2025-11-12'
 settings_and_memories:
-  - id: |
-      favorite_books
-    stage: planning
-  - id: |
-      currently_reading
-    stage: planning
+  - id: favorite_books
+    name_translation_key: books.favorite_books
+    description_translation_key: books.favorite_books.description
+    type: list
+    stage: production
+    example_translation_keys:
+      - "books.favorite_books.example_1"
+      - "books.favorite_books.example_2"
+      - "books.favorite_books.example_3"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Book title
+          is_title: true
+        author:
+          type: string
+          description: Author name(s)
+          is_subtitle: true
+        genre:
+          type: string
+          description: Genre or category (e.g., fiction, science, biography)
+        rating:
+          type: number
+          description: Your personal rating (0-10)
+        notes:
+          type: string
+          description: Personal notes or why you liked it
+      required:
+        - title
+  - id: currently_reading
+    name_translation_key: books.currently_reading
+    description_translation_key: books.currently_reading.description
+    type: list
+    stage: production
+    example_translation_keys:
+      - "books.currently_reading.example_1"
+      - "books.currently_reading.example_2"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Book title
+          is_title: true
+        author:
+          type: string
+          description: Author name(s)
+          is_subtitle: true
+        started_date:
+          type: string
+          format: date
+          description: Date you started (YYYY-MM-DD)
+        notes:
+          type: string
+          description: Optional reading notes
+      required:
+        - title
+  - id: to_read_list
+    name_translation_key: books.to_read_list
+    description_translation_key: books.to_read_list.description
+    type: list
+    stage: production
+    example_translation_keys:
+      - "books.to_read_list.example_1"
+      - "books.to_read_list.example_2"
+      - "books.to_read_list.example_3"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Book title
+          is_title: true
+        author:
+          type: string
+          description: Author name(s)
+          is_subtitle: true
+        genre:
+          type: string
+          description: Genre or category
+        notes:
+          type: string
+          description: Why you want to read it, priority, etc.
+      required:
+        - title
+
 skills:
   - id: translate
-    name_translation_key: books.translate.text
-    description_translation_key: books.translate.description.text
+    name_translation_key: books.translate
+    description_translation_key: books.translate.description
     stage: planning
     class_path: |
       skills.translate.TranslateSkill
 focuses:
   - id: book_recommendations
-    name_translation_key: books.book_recommendations.text
-    description_translation_key: books.book_recommendations.description.text
+    name_translation_key: books.book_recommendations
+    description_translation_key: books.book_recommendations.description
     stage: planning
   - id: book_discussion
-    name_translation_key: books.book_discussion.text
-    description_translation_key: books.book_discussion.description.text
+    name_translation_key: books.book_discussion
+    description_translation_key: books.book_discussion.description
     stage: planning
     process:
       - ""

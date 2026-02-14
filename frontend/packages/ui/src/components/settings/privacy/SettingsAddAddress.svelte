@@ -91,7 +91,7 @@ Based on Figma design for addresses section in hide personal data.
                 settingsPath: 'privacy/hide-personal-data',
                 direction: 'backward',
                 icon: 'privacy',
-                title: $text('settings.privacy.privacy.hide_personal_data.text')
+                title: $text('settings.privacy.hide_personal_data')
             });
         } catch (error) {
             console.error('[SettingsAddAddress] Failed to save address entry:', error);
@@ -106,14 +106,14 @@ Based on Figma design for addresses section in hide personal data.
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.privacy.form.title.text')}
+    title={$text('settings.privacy.form.title')}
 />
 
 <div class="form-field">
     <input
         type="text"
         class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.title.placeholder_address.text')}
+        placeholder={$text('settings.privacy.form.title.placeholder_address')}
         bind:value={title}
     />
 </div>
@@ -122,14 +122,14 @@ Based on Figma design for addresses section in hide personal data.
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.privacy.form.first_line.text')}
+    title={$text('settings.privacy.form.first_line')}
 />
 
 <div class="form-field">
     <input
         type="text"
         class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.first_line.placeholder.text')}
+        placeholder={$text('settings.privacy.form.first_line.placeholder')}
         bind:value={firstLine}
     />
 </div>
@@ -138,14 +138,14 @@ Based on Figma design for addresses section in hide personal data.
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.privacy.form.second_line.text')}
+    title={$text('settings.privacy.form.second_line')}
 />
 
 <div class="form-field">
     <input
         type="text"
         class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.second_line.placeholder.text')}
+        placeholder={$text('settings.privacy.form.second_line.placeholder')}
         bind:value={secondLine}
     />
 </div>
@@ -165,7 +165,7 @@ Based on Figma design for addresses section in hide personal data.
         disabled={!isValid || isSaving}
         onclick={handleSave}
     >
-        {$text('settings.privacy.privacy.form.save.text')}
+        {$text('settings.privacy.form.save')}
     </button>
 </div>
 

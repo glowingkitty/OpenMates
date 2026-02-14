@@ -77,10 +77,10 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     let authMethod = $derived(hasPasskey ? 'passkey' : (hasPassword ? 'password' : (has2FA ? '2fa' : null)));
     
     // Compute the default title if not provided
-    let displayTitle = $derived(title || $text('settings.security.auth_title.text'));
+    let displayTitle = $derived(title || $text('settings.security.auth_title'));
     
     // Compute the default description if not provided
-    let displayDescription = $derived(description || $text('settings.security.auth_description.text'));
+    let displayDescription = $derived(description || $text('settings.security.auth_description'));
 
     // ========================================================================
     // LIFECYCLE
@@ -482,16 +482,16 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 <!-- Passkey Loading State -->
                 <div class="auth-loading">
                     <div class="loading-spinner"></div>
-                    <p>{$text('settings.security.passkey_authenticating.text')}</p>
+                    <p>{$text('settings.security.passkey_authenticating')}</p>
                 </div>
             {:else if showPasswordInput}
                 <!-- Password Input -->
                 <div class="auth-password">
-                    <p>{$text('settings.security.enter_password.text')}</p>
+                    <p>{$text('settings.security.enter_password')}</p>
                     <input
                         type="password"
                         bind:value={password}
-                        placeholder={$text('settings.security.password_placeholder.text')}
+                        placeholder={$text('settings.security.password_placeholder')}
                         disabled={isPasswordLoading}
                         onkeydown={handlePasswordKeydown}
                         class="password-input"
@@ -507,19 +507,19 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         {#if isPasswordLoading}
                             <span class="loading-spinner-small"></span>
                         {/if}
-                        {$text('settings.security.verify_password.text')}
+                        {$text('settings.security.verify_password')}
                     </button>
                     
                     {#if hasPasskey}
                         <button class="switch-method-btn" onclick={switchToPasskey}>
-                            {$text('settings.security.use_passkey_instead.text')}
+                            {$text('settings.security.use_passkey_instead')}
                         </button>
                     {/if}
                 </div>
             {:else if show2FAInput}
                 <!-- 2FA Input -->
                 <div class="auth-2fa">
-                    <p>{$text('settings.security.enter_2fa_code.text')}</p>
+                    <p>{$text('settings.security.enter_2fa_code')}</p>
                     <input
                         type="text"
                         inputmode="numeric"
@@ -538,7 +538,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
             {:else if authMethod === 'passkey'}
                 <!-- Passkey Prompt (shown when autoStart is false or after error) -->
                 <div class="auth-passkey">
-                    <p>{$text('settings.security.passkey_prompt.text')}</p>
+                    <p>{$text('settings.security.passkey_prompt')}</p>
                     {#if errorMessage}
                         <p class="error-message">{errorMessage}</p>
                     {/if}
@@ -547,19 +547,19 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         onclick={handlePasskeyAuth}
                         disabled={isAuthenticating}
                     >
-                        {$text('settings.security.authenticate_with_passkey.text')}
+                        {$text('settings.security.authenticate_with_passkey')}
                     </button>
                     
                     {#if hasPassword}
                         <button class="switch-method-btn" onclick={switchToPassword}>
-                            {$text('settings.security.use_password_instead.text')}
+                            {$text('settings.security.use_password_instead')}
                         </button>
                     {/if}
                 </div>
             {:else}
                 <!-- No auth method available -->
                 <div class="no-auth">
-                    <p class="error-message">{$text('settings.security.no_auth_method.text')}</p>
+                    <p class="error-message">{$text('settings.security.no_auth_method')}</p>
                 </div>
             {/if}
         </div>

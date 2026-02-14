@@ -19,6 +19,45 @@ import { generateUUID } from "../message_parsing/utils";
 import { authStore } from "../stores/authState";
 import { get } from "svelte/store";
 
+/**
+ * Tracks embed IDs that are known to be in an error or cancelled state.
+ * This prevents the infinite loop where:
+ *   1. resolveEmbed() finds no embed in store
+ *   2. sends request_embed to server
+ *   3. server responds with send_embed_data (status=error)
+ *   4. client cleans up without persisting
+ *   5. embedUpdated triggers re-render -> back to step 1
+ *
+ * By tracking error embed IDs here, resolveEmbed() can return a synthetic
+ * error response instead of re-requesting from the server.
+ */
+const knownErrorEmbeds = new Map<
+  string,
+  { status: string; timestamp: number }
+>();
+
+/**
+ * Mark an embed as having an error/cancelled status.
+ * Called from chatSyncServiceHandlersAI when an error embed is received.
+ */
+export function markEmbedAsError(embedId: string, status: string): void {
+  knownErrorEmbeds.set(embedId, { status, timestamp: Date.now() });
+}
+
+/**
+ * Check if an embed is known to be in an error state.
+ */
+export function isEmbedKnownError(embedId: string): boolean {
+  return knownErrorEmbeds.has(embedId);
+}
+
+/**
+ * Clear error state for an embed (e.g., if it gets retried and succeeds).
+ */
+export function clearEmbedError(embedId: string): void {
+  knownErrorEmbeds.delete(embedId);
+}
+
 // TOON decoder (will be imported when available)
 // Using official @toon-format/toon package
 let toonDecode:
@@ -117,6 +156,18 @@ export async function resolveEmbed(
     if (cachedEmbed) {
       console.debug("[embedResolver] Found embed in EmbedStore:", embed_id);
       return cachedEmbed as EmbedData;
+    }
+
+    // Check if this embed is known to be in an error/cancelled state.
+    // This breaks the infinite loop: error embeds are never persisted to IndexedDB,
+    // so without this check, every render cycle would re-request them from the server,
+    // which would send them back with status=error, which would trigger another re-render.
+    const errorInfo = knownErrorEmbeds.get(embed_id);
+    if (errorInfo) {
+      console.debug(
+        `[embedResolver] Embed ${embed_id} is known ${errorInfo.status} (since ${new Date(errorInfo.timestamp).toISOString()}), returning null without re-requesting`,
+      );
+      return null;
     }
 
     // If not in any store, request from server via WebSocket (async, non-blocking)

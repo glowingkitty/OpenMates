@@ -1963,111 +1963,923 @@ image_generate.generated_by:
   cs: Vygenerováno pomocí
   sv: Genererat av
   verified_by_human: []
+image_generate.generating_via:
+  context: Text shown in the preview card during image generation, followed by the model name and a colon. E.g. "Generating via FLUX Schnell:"
+  en: Generating via
+  de: Generierung via
+  zh: 通过生成
+  es: Generando vía
+  fr: Génération via
+  pt: Gerando via
+  ru: Генерация через
+  ja: 生成中
+  ko: 생성 중
+  it: Generazione tramite
+  tr: Oluşturuluyor
+  vi: Đang tạo qua
+  id: Membuat via
+  pl: Generowanie przez
+  nl: Genereren via
+  ar: الإنشاء عبر
+  hi: के माध्यम से बनाना
+  th: กำลังสร้างผ่าน
+  cs: Generování přes
+  sv: Genererar via
+  verified_by_human: []
+image_generate.open_full_size:
+  context: Tooltip shown when hovering over the image in fullscreen view - clicking opens the full-size image in a new browser tab
+  en: Open full size image
+  de: Bild in voller Größe öffnen
+  zh: 查看完整尺寸图片
+  es: Abrir imagen en tamaño completo
+  fr: Ouvrir l'image en taille réelle
+  pt: Abrir imagem em tamanho real
+  ru: Открыть изображение в полном размере
+  ja: フルサイズの画像を開く
+  ko: 전체 크기 이미지 열기
+  it: Apri immagine a dimensione piena
+  tr: Tam boyut görseli aç
+  vi: Mở ảnh kích thước đầy đủ
+  id: Buka gambar ukuran penuh
+  pl: Otwórz obraz w pełnym rozmiarze
+  nl: Afbeelding op volledige grootte openen
+  ar: فتح الصورة بالحجم الكامل
+  hi: पूर्ण आकार की छवि खोलें
+  th: เปิดรูปภาพขนาดเต็ม
+  cs: Otevřít obrázek v plné velikosti
+  sv: Öppna bild i full storlek
+  verified_by_human: []
 context_menu.view:
   context: Context menu action to open embed in fullscreen view
   en: View
   de: Anzeigen
+  zh: 查看
+  es: Ver
+  fr: Voir
+  pt: Ver
+  ru: Просмотр
+  ja: 表示
+  ko: 보기
+  it: Visualizza
+  tr: Görüntüle
+  vi: Xem
+  id: Lihat
+  pl: Wyświetl
+  nl: Bekijken
+  ar: عرض
+  hi: देखें
+  th: ดู
+  cs: Zobrazit
+  sv: Visa
   verified_by_human: []
 context_menu.share:
   context: Context menu action to share an embed
   en: Share
   de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
   verified_by_human: []
 context_menu.copy:
   context: Context menu action to copy embed content
   en: Copy
   de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी करें
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
   verified_by_human: []
 context_menu.download:
   context: Context menu action to download embed content
   en: Download
   de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Скачать
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تحميل
+  hi: डाउनलोड करें
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: Ladda ner
   verified_by_human: []
 context_menu.deactivate:
   context: Context menu action to deactivate a focus mode
   en: Deactivate
   de: Deaktivieren
+  zh: 停用
+  es: Desactivar
+  fr: Désactiver
+  pt: Desativar
+  ru: Деактивировать
+  ja: 無効化
+  ko: 비활성화
+  it: Disattiva
+  tr: Devre dışı bırak
+  vi: Tắt
+  id: Nonaktifkan
+  pl: Dezaktywuj
+  nl: Deactiveren
+  ar: إلغاء التفعيل
+  hi: निष्क्रिय करें
+  th: ปิดใช้งาน
+  cs: Deaktivovat
+  sv: Inaktivera
   verified_by_human: []
 context_menu.details:
   context: Context menu action to view focus mode details in app store
   en: Details
   de: Details
+  zh: 详情
+  es: Detalles
+  fr: Détails
+  pt: Detalhes
+  ru: Подробности
+  ja: 詳細
+  ko: 상세정보
+  it: Dettagli
+  tr: Ayrıntılar
+  vi: Chi tiết
+  id: Detail
+  pl: Szczegóły
+  nl: Details
+  ar: تفاصيل
+  hi: विवरण
+  th: รายละเอียด
+  cs: Podrobnosti
+  sv: Detaljer
   verified_by_human: []
 focus_mode.activated:
   context: Status text shown on focus mode embed after activation completes
   en: Focus activated
   de: Fokus aktiviert
+  zh: 专注模式已激活
+  es: Enfoque activado
+  fr: Mode focus activé
+  pt: Foco ativado
+  ru: Фокус активирован
+  ja: フォーカスモード有効
+  ko: 포커스 활성화됨
+  it: Focus attivato
+  tr: Odak etkinleştirildi
+  vi: Đã kích hoạt chế độ tập trung
+  id: Fokus diaktifkan
+  pl: Tryb skupienia aktywowany
+  nl: Focus geactiveerd
+  ar: تم تفعيل وضع التركيز
+  hi: फोकस मोड सक्रिय
+  th: เปิดใช้งานโหมดโฟกัสแล้ว
+  cs: Režim zaměření aktivován
+  sv: Fokusläge aktiverat
   verified_by_human: []
 focus_mode.activating:
   context: Status text shown during focus mode countdown. {seconds} is replaced with the remaining seconds.
   en: "Activate in {seconds} sec ..."
   de: "Aktivierung in {seconds} Sek. ..."
+  zh: "{seconds} 秒后激活 ..."
+  es: "Activar en {seconds} seg ..."
+  fr: "Activation dans {seconds} sec ..."
+  pt: "Ativar em {seconds} seg ..."
+  ru: "Активация через {seconds} сек ..."
+  ja: "{seconds} 秒後に有効化 ..."
+  ko: "{seconds}초 후 활성화 ..."
+  it: "Attivazione tra {seconds} sec ..."
+  tr: "{seconds} sn içinde etkinleştir ..."
+  vi: "Kích hoạt sau {seconds} giây ..."
+  id: "Aktifkan dalam {seconds} detik ..."
+  pl: "Aktywacja za {seconds} sek ..."
+  nl: "Activeren over {seconds} sec ..."
+  ar: "تفعيل خلال {seconds} ثانية ..."
+  hi: "{seconds} सेकंड में सक्रिय करें ..."
+  th: "เปิดใช้งานใน {seconds} วินาที ..."
+  cs: "Aktivace za {seconds} s ..."
+  sv: "Aktiveras om {seconds} sek ..."
   verified_by_human: []
 focus_mode.reject_hint:
   context: "Helper text below the focus mode card during countdown explaining how to prevent activation. Uses \\n for line break."
   en: "Click or press ESC to prevent focus mode &\ncontinue regular chat"
   de: "Klicken oder ESC drücken um Fokus-Modus zu verhindern &\nnormal weiterzuchatten"
+  zh: "点击或按 ESC 取消专注模式 &\n继续常规聊天"
+  es: "Haz clic o pulsa ESC para cancelar el modo enfoque &\ny continuar el chat normal"
+  fr: "Cliquez ou appuyez sur ESC pour annuler le mode focus &\net continuer la conversation"
+  pt: "Clique ou pressione ESC para cancelar o modo foco &\ne continuar o chat normal"
+  ru: "Нажмите или ESC чтобы отменить режим фокуса &\nи продолжить обычный чат"
+  ja: "クリックまたはESCでフォーカスモードを解除 &\n通常チャットを続ける"
+  ko: "클릭하거나 ESC를 눌러 포커스 모드를 취소하고 &\n일반 채팅을 계속하세요"
+  it: "Clicca o premi ESC per annullare il focus &\ne continuare la chat normale"
+  tr: "Odak modunu iptal etmek için tıklayın veya ESC tuşuna basın &\nnormal sohbete devam edin"
+  vi: "Nhấp hoặc nhấn ESC để hủy chế độ tập trung &\nvà tiếp tục trò chuyện bình thường"
+  id: "Klik atau tekan ESC untuk membatalkan mode fokus &\ndan lanjutkan obrolan biasa"
+  pl: "Kliknij lub naciśnij ESC, aby anulować tryb skupienia &\ni kontynuować zwykły czat"
+  nl: "Klik of druk op ESC om focusmodus te annuleren &\nen door te gaan met de normale chat"
+  ar: "انقر أو اضغط ESC لإلغاء وضع التركيز &\nومتابعة الدردشة العادية"
+  hi: "फोकस मोड रद्द करने के लिए क्लिक करें या ESC दबाएं &\nऔर सामान्य चैट जारी रखें"
+  th: "คลิกหรือกด ESC เพื่อยกเลิกโหมดโฟกัส &\nและดำเนินการแชทปกติต่อ"
+  cs: "Klikněte nebo stiskněte ESC pro zrušení režimu zaměření &\na pokračujte v běžném chatu"
+  sv: "Klicka eller tryck ESC för att avbryta fokusläge &\noch fortsätta vanlig chatt"
   verified_by_human: []
 days:
   context: Label for number of days (e.g., "22 / 31 days")
   en: days
   de: Tage
-  verified_by_human:
-    - en
-    - de
+  zh: 天
+  es: días
+  fr: jours
+  pt: dias
+  ru: дней
+  ja: 日
+  ko: 일
+  it: giorni
+  tr: gün
+  vi: ngày
+  id: hari
+  pl: dni
+  nl: dagen
+  ar: أيام
+  hi: दिन
+  th: วัน
+  cs: dní
+  sv: dagar
+  verified_by_human: [en, de]
 cheapest:
   context: Label for the cheapest price in a price calendar
   en: Cheapest
   de: Günstigster
-  verified_by_human:
-    - en
-    - de
+  zh: 最便宜
+  es: Más barato
+  fr: Le moins cher
+  pt: Mais barato
+  ru: Самый дешёвый
+  ja: 最安値
+  ko: 최저가
+  it: Più economico
+  tr: En ucuz
+  vi: Rẻ nhất
+  id: Termurah
+  pl: Najtańszy
+  nl: Goedkoopst
+  ar: الأرخص
+  hi: सबसे सस्ता
+  th: ถูกที่สุด
+  cs: Nejlevnější
+  sv: Billigast
+  verified_by_human: [en, de]
 most_expensive:
   context: Label for the most expensive price in a price calendar
   en: Most expensive
   de: Teuerster
-  verified_by_human:
-    - en
-    - de
+  zh: 最贵
+  es: Más caro
+  fr: Le plus cher
+  pt: Mais caro
+  ru: Самый дорогой
+  ja: 最高値
+  ko: 최고가
+  it: Più costoso
+  tr: En pahalı
+  vi: Đắt nhất
+  id: Termahal
+  pl: Najdroższy
+  nl: Duurste
+  ar: الأغلى
+  hi: सबसे महंगा
+  th: แพงที่สุด
+  cs: Nejdražší
+  sv: Dyrast
+  verified_by_human: [en, de]
 coverage:
   context: Label for data coverage (how many days have price data)
   en: Coverage
   de: Abdeckung
-  verified_by_human:
-    - en
-    - de
+  zh: 覆盖范围
+  es: Cobertura
+  fr: Couverture
+  pt: Cobertura
+  ru: Покрытие
+  ja: カバー率
+  ko: 커버리지
+  it: Copertura
+  tr: Kapsam
+  vi: Phạm vi
+  id: Cakupan
+  pl: Pokrycie
+  nl: Dekking
+  ar: التغطية
+  hi: कवरेज
+  th: ความครอบคลุม
+  cs: Pokrytí
+  sv: Täckning
+  verified_by_human: [en, de]
 no_price_data:
   context: Message shown when no price data is available for a route
   en: No price data available for this route
   de: Keine Preisdaten für diese Strecke verfügbar
-  verified_by_human:
-    - en
-    - de
+  zh: 此航线暂无价格数据
+  es: No hay datos de precios disponibles para esta ruta
+  fr: Aucune donnée de prix disponible pour cet itinéraire
+  pt: Nenhum dado de preço disponível para esta rota
+  ru: Нет данных о ценах для этого маршрута
+  ja: このルートの料金データはありません
+  ko: 이 노선의 가격 데이터가 없습니다
+  it: Nessun dato di prezzo disponibile per questa tratta
+  tr: Bu rota için fiyat verisi bulunamadı
+  vi: Không có dữ liệu giá cho tuyến này
+  id: Tidak ada data harga untuk rute ini
+  pl: Brak danych cenowych dla tej trasy
+  nl: Geen prijsgegevens beschikbaar voor deze route
+  ar: لا توجد بيانات أسعار لهذا المسار
+  hi: इस मार्ग के लिए कोई मूल्य डेटा उपलब्ध नहीं है
+  th: ไม่มีข้อมูลราคาสำหรับเส้นทางนี้
+  cs: Pro tuto trasu nejsou k dispozici cenové údaje
+  sv: Inga prisuppgifter tillgängliga för denna rutt
+  verified_by_human: [en, de]
 price_calendar_note:
   context: Footnote explaining that price calendar prices are cached estimates
   en: Prices are cached estimates (~48h old). Search specific dates for live pricing.
   de: Preise sind zwischengespeicherte Schätzungen (~48h alt). Suche nach konkreten Daten für aktuelle Preise.
-  verified_by_human:
-    - en
-    - de
+  zh: 价格为缓存估算（约48小时前）。搜索具体日期以获取实时价格。
+  es: Los precios son estimaciones en caché (~48h). Busca fechas específicas para precios en tiempo real.
+  fr: Les prix sont des estimations en cache (~48h). Recherchez des dates spécifiques pour des tarifs en direct.
+  pt: Os preços são estimativas em cache (~48h). Pesquise datas específicas para preços em tempo real.
+  ru: Цены — кэшированные оценки (~48ч). Ищите конкретные даты для актуальных цен.
+  ja: 価格はキャッシュされた推定値（約48時間前）です。最新の価格は特定の日付で検索してください。
+  ko: 가격은 캐시된 추정값(~48시간 전)입니다. 실시간 요금은 특정 날짜로 검색하세요.
+  it: I prezzi sono stime memorizzate (~48h). Cerca date specifiche per prezzi aggiornati.
+  tr: Fiyatlar önbelleğe alınmış tahminlerdir (~48 saat). Güncel fiyatlar için belirli tarihleri arayın.
+  vi: Giá là ước tính được lưu bộ nhớ đệm (~48 giờ). Tìm kiếm ngày cụ thể để có giá trực tiếp.
+  id: Harga adalah perkiraan cache (~48 jam). Cari tanggal tertentu untuk harga terkini.
+  pl: Ceny to szacunki z pamięci podręcznej (~48h). Wyszukaj konkretne daty, aby uzyskać aktualne ceny.
+  nl: Prijzen zijn geschatte cachewaarden (~48u). Zoek specifieke datums voor actuele prijzen.
+  ar: الأسعار تقديرات مخزنة مؤقتاً (~48 ساعة). ابحث عن تواريخ محددة للحصول على أسعار حية.
+  hi: कीमतें कैश्ड अनुमान हैं (~48 घंटे पुरानी)। लाइव मूल्य के लिए विशिष्ट तिथियाँ खोजें।
+  th: ราคาเป็นการประมาณจากแคช (~48 ชม.) ค้นหาวันที่เฉพาะเพื่อดูราคาแบบเรียลไทม์
+  cs: Ceny jsou odhadované z mezipaměti (~48 h). Pro aktuální ceny vyhledejte konkrétní data.
+  sv: Priser är cachade uppskattningar (~48 tim). Sök specifika datum för aktuella priser.
+  verified_by_human: [en, de]
 get_booking_link:
   context: CTA button text for on-demand booking URL lookup (before loading)
   en: Get booking link
   de: Buchungslink laden
-  verified_by_human:
-    - en
-    - de
+  zh: 获取预订链接
+  es: Obtener enlace de reserva
+  fr: Obtenir le lien de réservation
+  pt: Obter link de reserva
+  ru: Получить ссылку на бронирование
+  ja: 予約リンクを取得
+  ko: 예약 링크 가져오기
+  it: Ottieni link di prenotazione
+  tr: Rezervasyon bağlantısını al
+  vi: Lấy liên kết đặt phòng
+  id: Dapatkan tautan pemesanan
+  pl: Pobierz link do rezerwacji
+  nl: Boekingslink ophalen
+  ar: الحصول على رابط الحجز
+  hi: बुकिंग लिंक प्राप्त करें
+  th: รับลิงก์จอง
+  cs: Získat odkaz na rezervaci
+  sv: Hämta bokningslänk
+  verified_by_human: [en, de]
 loading_booking:
   context: CTA button text while fetching booking URL from server
   en: Loading booking link...
   de: Buchungslink wird geladen...
-  verified_by_human:
-    - en
-    - de
+  zh: 正在加载预订链接...
+  es: Cargando enlace de reserva...
+  fr: Chargement du lien de réservation...
+  pt: Carregando link de reserva...
+  ru: Загрузка ссылки на бронирование...
+  ja: 予約リンクを読み込み中...
+  ko: 예약 링크 로딩 중...
+  it: Caricamento link di prenotazione...
+  tr: Rezervasyon bağlantısı yükleniyor...
+  vi: Đang tải liên kết đặt phòng...
+  id: Memuat tautan pemesanan...
+  pl: Ładowanie linku do rezerwacji...
+  nl: Boekingslink laden...
+  ar: جاري تحميل رابط الحجز...
+  hi: बुकिंग लिंक लोड हो रहा है...
+  th: กำลังโหลดลิงก์จอง...
+  cs: Načítání odkazu na rezervaci...
+  sv: Laddar bokningslänk...
+  verified_by_human: [en, de]
 booking_link_failed:
   context: Error notification shown when booking link lookup fails
   en: Could not load booking link. Try searching on Google Flights instead.
   de: Buchungslink konnte nicht geladen werden. Versuche stattdessen eine Suche auf Google Flights.
-  verified_by_human:
-    - en
-    - de
+  zh: 无法加载预订链接。请尝试在 Google Flights 上搜索。
+  es: No se pudo cargar el enlace de reserva. Intenta buscar en Google Flights.
+  fr: Impossible de charger le lien de réservation. Essayez de chercher sur Google Flights.
+  pt: Não foi possível carregar o link de reserva. Tente pesquisar no Google Flights.
+  ru: Не удалось загрузить ссылку на бронирование. Попробуйте поиск на Google Flights.
+  ja: 予約リンクを読み込めませんでした。Google Flightsで検索してみてください。
+  ko: 예약 링크를 불러올 수 없습니다. Google Flights에서 검색해 보세요.
+  it: Impossibile caricare il link di prenotazione. Prova a cercare su Google Flights.
+  tr: Rezervasyon bağlantısı yüklenemedi. Bunun yerine Google Flights'ta aramayı deneyin.
+  vi: Không thể tải liên kết đặt phòng. Hãy thử tìm kiếm trên Google Flights.
+  id: Tidak dapat memuat tautan pemesanan. Coba cari di Google Flights.
+  pl: Nie udało się załadować linku do rezerwacji. Spróbuj wyszukać na Google Flights.
+  nl: Boekingslink kon niet worden geladen. Probeer te zoeken op Google Flights.
+  ar: تعذر تحميل رابط الحجز. حاول البحث في Google Flights بدلاً من ذلك.
+  hi: बुकिंग लिंक लोड नहीं हो सका। इसके बजाय Google Flights पर खोजने का प्रयास करें।
+  th: ไม่สามารถโหลดลิงก์จองได้ ลองค้นหาใน Google Flights แทน
+  cs: Nepodařilo se načíst odkaz na rezervaci. Zkuste vyhledat na Google Flights.
+  sv: Kunde inte ladda bokningslänk. Prova att söka på Google Flights istället.
+  verified_by_human: [en, de]
+stay:
+  context: Singular label for a travel stay/accommodation result
+  en: stay
+  de: Unterkunft
+  zh: 住宿
+  es: alojamiento
+  fr: hébergement
+  pt: estadia
+  ru: проживание
+  ja: 宿泊施設
+  ko: 숙소
+  it: alloggio
+  tr: konaklama
+  vi: chỗ ở
+  id: penginapan
+  pl: nocleg
+  nl: verblijf
+  ar: إقامة
+  hi: ठहरने की जगह
+  th: ที่พัก
+  cs: ubytování
+  sv: boende
+  verified_by_human: [en, de]
+stays:
+  context: Plural label for travel stay/accommodation results
+  en: stays
+  de: Unterkünfte
+  zh: 住宿
+  es: alojamientos
+  fr: hébergements
+  pt: estadias
+  ru: проживания
+  ja: 宿泊施設
+  ko: 숙소
+  it: alloggi
+  tr: konaklamalar
+  vi: chỗ ở
+  id: penginapan
+  pl: noclegi
+  nl: verblijven
+  ar: إقامات
+  hi: ठहरने की जगहें
+  th: ที่พัก
+  cs: ubytování
+  sv: boenden
+  verified_by_human: [en, de]
+per_night:
+  context: Price suffix for nightly rate, e.g. 'EUR 120 /night'
+  en: /night
+  de: /Nacht
+  zh: /晚
+  es: /noche
+  fr: /nuit
+  pt: /noite
+  ru: /ночь
+  ja: /泊
+  ko: /박
+  it: /notte
+  tr: /gece
+  vi: /đêm
+  id: /malam
+  pl: /noc
+  nl: /nacht
+  ar: /ليلة
+  hi: /रात
+  th: /คืน
+  cs: /noc
+  sv: /natt
+  verified_by_human: [en, de]
+night:
+  context: Singular label for one night, e.g. '1 night'
+  en: night
+  de: Nacht
+  zh: 晚
+  es: noche
+  fr: nuit
+  pt: noite
+  ru: ночь
+  ja: 泊
+  ko: 박
+  it: notte
+  tr: gece
+  vi: đêm
+  id: malam
+  pl: noc
+  nl: nacht
+  ar: ليلة
+  hi: रात
+  th: คืน
+  cs: noc
+  sv: natt
+  verified_by_human: [en, de]
+total:
+  context: Label for total price, e.g. 'EUR 360 total'
+  en: total
+  de: gesamt
+  zh: 总计
+  es: total
+  fr: total
+  pt: total
+  ru: всего
+  ja: 合計
+  ko: 합계
+  it: totale
+  tr: toplam
+  vi: tổng
+  id: total
+  pl: łącznie
+  nl: totaal
+  ar: إجمالي
+  hi: कुल
+  th: ทั้งหมด
+  cs: celkem
+  sv: totalt
+  verified_by_human: [en, de]
+no_stays_found:
+  context: Message when no accommodation results were found
+  en: No stays found.
+  de: Keine Unterkünfte gefunden.
+  zh: 未找到住宿。
+  es: No se encontraron alojamientos.
+  fr: Aucun hébergement trouvé.
+  pt: Nenhuma estadia encontrada.
+  ru: Проживание не найдено.
+  ja: 宿泊施設が見つかりません。
+  ko: 숙소를 찾을 수 없습니다.
+  it: Nessun alloggio trovato.
+  tr: Konaklama bulunamadı.
+  vi: Không tìm thấy chỗ ở.
+  id: Tidak ada penginapan ditemukan.
+  pl: Nie znaleziono noclegów.
+  nl: Geen verblijven gevonden.
+  ar: لم يتم العثور على إقامات.
+  hi: कोई ठहरने की जगह नहीं मिली।
+  th: ไม่พบที่พัก
+  cs: Nebylo nalezeno žádné ubytování.
+  sv: Inga boenden hittades.
+  verified_by_human: [en, de]
+free_cancellation:
+  context: Badge text for hotels with free cancellation
+  en: Free cancellation
+  de: Kostenlose Stornierung
+  zh: 免费取消
+  es: Cancelación gratuita
+  fr: Annulation gratuite
+  pt: Cancelamento grátis
+  ru: Бесплатная отмена
+  ja: 無料キャンセル
+  ko: 무료 취소
+  it: Cancellazione gratuita
+  tr: Ücretsiz iptal
+  vi: Hủy miễn phí
+  id: Pembatalan gratis
+  pl: Bezpłatne anulowanie
+  nl: Gratis annulering
+  ar: إلغاء مجاني
+  hi: मुफ़्त रद्दीकरण
+  th: ยกเลิกฟรี
+  cs: Bezplatné storno
+  sv: Gratis avbokning
+  verified_by_human: [en, de]
+eco_certified:
+  context: Badge text for eco-certified hotels
+  en: Eco-certified
+  de: Umweltzertifiziert
+  zh: 环保认证
+  es: Eco-certificado
+  fr: Éco-certifié
+  pt: Eco-certificado
+  ru: Эко-сертифицировано
+  ja: エコ認証
+  ko: 친환경 인증
+  it: Eco-certificato
+  tr: Çevre sertifikalı
+  vi: Chứng nhận sinh thái
+  id: Bersertifikat ramah lingkungan
+  pl: Eko-certyfikat
+  nl: Eco-gecertificeerd
+  ar: شهادة بيئية
+  hi: इको-प्रमाणित
+  th: ได้รับการรับรองด้านสิ่งแวดล้อม
+  cs: Ekologicky certifikováno
+  sv: Miljöcertifierat
+  verified_by_human: [en, de]
+check_in:
+  context: Label for hotel check-in time
+  en: Check-in
+  de: Check-in
+  zh: 入住
+  es: Check-in
+  fr: Arrivée
+  pt: Check-in
+  ru: Заезд
+  ja: チェックイン
+  ko: 체크인
+  it: Check-in
+  tr: Giriş
+  vi: Nhận phòng
+  id: Check-in
+  pl: Zameldowanie
+  nl: Inchecken
+  ar: تسجيل الوصول
+  hi: चेक-इन
+  th: เช็คอิน
+  cs: Příjezd
+  sv: Incheckning
+  verified_by_human: [en, de]
+check_out:
+  context: Label for hotel check-out time
+  en: Check-out
+  de: Check-out
+  zh: 退房
+  es: Check-out
+  fr: Départ
+  pt: Check-out
+  ru: Выезд
+  ja: チェックアウト
+  ko: 체크아웃
+  it: Check-out
+  tr: Çıkış
+  vi: Trả phòng
+  id: Check-out
+  pl: Wymeldowanie
+  nl: Uitchecken
+  ar: تسجيل المغادرة
+  hi: चेक-आउट
+  th: เช็คเอาท์
+  cs: Odjezd
+  sv: Utcheckning
+  verified_by_human: [en, de]
+nearby:
+  context: Section heading for nearby places around a hotel
+  en: Nearby
+  de: In der Nähe
+  zh: 附近
+  es: Cercano
+  fr: À proximité
+  pt: Próximo
+  ru: Рядом
+  ja: 周辺
+  ko: 주변
+  it: Nelle vicinanze
+  tr: Yakında
+  vi: Gần đây
+  id: Terdekat
+  pl: W pobliżu
+  nl: In de buurt
+  ar: قريب
+  hi: आस-पास
+  th: ใกล้เคียง
+  cs: V okolí
+  sv: I närheten
+  verified_by_human: [en, de]
+view_on_google_hotels:
+  context: CTA button text to view a hotel on Google Hotels
+  en: View on Google Hotels
+  de: Auf Google Hotels ansehen
+  zh: 在 Google Hotels 上查看
+  es: Ver en Google Hotels
+  fr: Voir sur Google Hotels
+  pt: Ver no Google Hotels
+  ru: Смотреть на Google Hotels
+  ja: Google Hotelsで見る
+  ko: Google Hotels에서 보기
+  it: Vedi su Google Hotels
+  tr: Google Hotels'de görüntüle
+  vi: Xem trên Google Hotels
+  id: Lihat di Google Hotels
+  pl: Zobacz na Google Hotels
+  nl: Bekijken op Google Hotels
+  ar: عرض على Google Hotels
+  hi: Google Hotels पर देखें
+  th: ดูบน Google Hotels
+  cs: Zobrazit na Google Hotels
+  sv: Visa på Google Hotels
+  verified_by_human: [en, de]
+focus_mode.context_menu.stop:
+  context: Context menu button to stop an activated focus mode session
+  en: Stop
+  de: Stoppen
+  zh: 停止
+  es: Detener
+  fr: Arrêter
+  pt: Parar
+  ru: Остановить
+  ja: 停止
+  ko: 중지
+  it: Ferma
+  tr: Durdur
+  vi: Dừng
+  id: Hentikan
+  pl: Zatrzymaj
+  nl: Stoppen
+  ar: إيقاف
+  hi: रोकें
+  th: หยุด
+  cs: Zastavit
+  sv: Stoppa
+  verified_by_human: []
+focus_mode.context_menu.cancel:
+  context: Context menu button to cancel a focus mode that hasn't been activated
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []
+loading_map:
+  context: Loading placeholder text while map is being initialized
+  en: Loading map...
+  de: Karte wird geladen...
+  zh: 正在加载地图...
+  es: Cargando mapa...
+  fr: Chargement de la carte...
+  pt: Carregando mapa...
+  ru: Загрузка карты...
+  ja: 地図を読み込み中...
+  ko: 지도 로딩 중...
+  it: Caricamento mappa...
+  tr: Harita yükleniyor...
+  vi: Đang tải bản đồ...
+  id: Memuat peta...
+  pl: Ładowanie mapy...
+  nl: Kaart laden...
+  ar: جاري تحميل الخريطة...
+  hi: मानचित्र लोड हो रहा है...
+  th: กำลังโหลดแผนที่...
+  cs: Načítání mapy...
+  sv: Laddar karta...
+  verified_by_human: []
+place:
+  context: Singular noun for map search results count (e.g. "1 place")
+  en: place
+  de: Ort
+  zh: 个地点
+  es: lugar
+  fr: lieu
+  pt: local
+  ru: место
+  ja: 件
+  ko: 곳
+  it: luogo
+  tr: yer
+  vi: địa điểm
+  id: tempat
+  pl: miejsce
+  nl: plaats
+  ar: مكان
+  hi: स्थान
+  th: สถานที่
+  cs: místo
+  sv: plats
+  verified_by_human: []
+places:
+  context: Plural noun for map search results count (e.g. "5 places")
+  en: places
+  de: Orte
+  zh: 个地点
+  es: lugares
+  fr: lieux
+  pt: locais
+  ru: мест
+  ja: 件
+  ko: 곳
+  it: luoghi
+  tr: yer
+  vi: địa điểm
+  id: tempat
+  pl: miejsc
+  nl: plaatsen
+  ar: أماكن
+  hi: स्थान
+  th: สถานที่
+  cs: míst
+  sv: platser
+  verified_by_human: []
+youtube_video:
+  context: Fallback title when a YouTube video has no display title
+  en: YouTube video
+  de: YouTube-Video
+  zh: YouTube 视频
+  es: Video de YouTube
+  fr: Vidéo YouTube
+  pt: Vídeo do YouTube
+  ru: Видео YouTube
+  ja: YouTube動画
+  ko: YouTube 동영상
+  it: Video YouTube
+  tr: YouTube videosu
+  vi: Video YouTube
+  id: Video YouTube
+  pl: Film YouTube
+  nl: YouTube-video
+  ar: فيديو يوتيوب
+  hi: YouTube वीडियो
+  th: วิดีโอ YouTube
+  cs: Video na YouTube
+  sv: YouTube-video
+  verified_by_human: []
+video_by:
+  context: Prefix text before channel name in video metadata (e.g. "by ChannelName")
+  en: by
+  de: von
+  zh: 来自
+  es: por
+  fr: par
+  pt: por
+  ru: от
+  ja: 投稿者
+  ko: 게시자
+  it: di
+  tr: tarafından
+  vi: bởi
+  id: oleh
+  pl: od
+  nl: door
+  ar: بواسطة
+  hi: द्वारा
+  th: โดย
+  cs: od
+  sv: av
+  verified_by_human: []
+video_uploaded:
+  context: Label after formatted date in video metadata (e.g. "Jan 1, 2024 uploaded")
+  en: uploaded
+  de: hochgeladen
+  zh: 上传
+  es: subido
+  fr: publié
+  pt: enviado
+  ru: загружено
+  ja: アップロード
+  ko: 업로드됨
+  it: caricato
+  tr: yüklendi
+  vi: đã tải lên
+  id: diunggah
+  pl: przesłano
+  nl: geüpload
+  ar: تم الرفع
+  hi: अपलोड किया गया
+  th: อัปโหลดเมื่อ
+  cs: nahráno
+  sv: uppladdad
+  verified_by_human: []

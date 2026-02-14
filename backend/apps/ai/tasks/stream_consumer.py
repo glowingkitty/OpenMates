@@ -934,6 +934,10 @@ async def _consume_main_processing_stream(
     # This is used at the end to show a generic fallback message if the response would be empty
     fake_tool_calls_filtered = False
 
+    # Track embed IDs that failed during skill execution (received from main_processor)
+    # Their embed references will be stripped from the final message content before persistence
+    failed_embed_ids: set[str] = set()
+
     # Check for revocation before starting
     # Use AsyncResult to check task status
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
@@ -950,9 +954,9 @@ async def _consume_main_processing_stream(
         language = preprocessing_result.output_language or "en"
         
         if preprocessing_result.rejection_reason == "harmful_or_illegal_detected":
-            predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected.text", language, {})
+            predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected", language, {})
         else:  # misuse_detected
-            predefined_response = translation_service.get_nested_translation("predefined_responses.misuse_detected.text", language, {})
+            predefined_response = translation_service.get_nested_translation("predefined_responses.misuse_detected", language, {})
         
         if not predefined_response:
             predefined_response = "I can't help with that request."
@@ -1072,9 +1076,25 @@ async def _consume_main_processing_stream(
     # Title extracted from <!-- title: "..." --> comment in document HTML content
     current_document_title: Optional[str] = None
 
+    # Table/sheet embed tracking: detect markdown tables (|...|) and convert to embeds.
+    # Tables don't have explicit delimiters like code blocks (```). Instead, they are
+    # sequences of pipe-delimited lines (|col1|col2|). A table ends when we see a
+    # non-table line or end-of-stream. Each chunk can contain multiple lines.
+    in_table_block = False
+    current_table_content = ""         # Accumulated markdown table rows
+    current_table_embed_id: Optional[str] = None
+    current_table_title: Optional[str] = None
+    current_table_row_count = 0        # Data rows (excluding header + separator)
+    current_table_col_count = 0
+    # Buffer the line(s) immediately preceding a table for title comment detection
+    pre_table_lines: List[str] = []
+
     # Track if we're awaiting app settings/memories permission from user
     # When this is True, we should NOT send an error message for empty stream
     awaiting_app_settings_memories_permission = False
+    # Track if we're awaiting focus mode confirmation (deferred activation)
+    # Unlike app_settings, focus mode has embed content that needs to be finalized
+    awaiting_focus_mode_confirmation = False
     
     try:
         async for chunk in main_processing_stream:
@@ -1082,6 +1102,15 @@ async def _consume_main_processing_stream(
             if isinstance(chunk, dict) and "__tool_calls_info__" in chunk:
                 tool_calls_info = chunk["__tool_calls_info__"]
                 logger.debug(f"{log_prefix} Received tool calls info: {len(tool_calls_info) if tool_calls_info else 0} tool call(s)")
+                continue
+
+            # Check for failed embed IDs marker (special dict at end of stream)
+            # These are embed IDs that failed during skill execution (error/cancelled).
+            # Their references must be stripped from the final message content before persistence,
+            # otherwise the client would try to resolve them on every page load.
+            if isinstance(chunk, dict) and "__failed_embed_ids__" in chunk:
+                failed_embed_ids = chunk["__failed_embed_ids__"]
+                logger.info(f"{log_prefix} Received {len(failed_embed_ids)} failed embed ID(s) for content cleanup")
                 continue
             
             # Check for app settings/memories permission marker
@@ -1091,6 +1120,20 @@ async def _consume_main_processing_stream(
                 awaiting_app_settings_memories_permission = True
                 request_id = chunk.get("request_id", "unknown")
                 logger.info(f"{log_prefix} Awaiting app settings/memories permission from user (request_id: {request_id}). Task will complete without response.")
+                continue
+            
+            # Check for focus mode confirmation marker
+            # This is yielded by main_processor when the AI calls activate_focus_mode.
+            # Instead of activating immediately, the processor stores pending context
+            # in Redis and schedules an auto-confirm task. The task completes without
+            # an LLM response — the continuation will come from either the auto-confirm
+            # task (after countdown) or the rejection handler (if user rejects).
+            # Unlike app_settings_memories, focus mode has embed content that we need
+            # to finalize so the client can persist the message (embed survives reload).
+            if isinstance(chunk, dict) and "__awaiting_focus_mode_confirmation__" in chunk:
+                awaiting_focus_mode_confirmation = True
+                focus_id = chunk.get("focus_id", "unknown")
+                logger.info(f"{log_prefix} Awaiting focus mode confirmation for '{focus_id}'. Task will complete — continuation handled by auto-confirm or rejection.")
                 continue
             
             # Handle UnifiedStreamChunk for thinking models (Gemini, Anthropic)
@@ -1177,7 +1220,7 @@ async def _consume_main_processing_stream(
                 # This ensures users never see technical error details
                 if chunk.strip().startswith("[ERROR"):
                     logger.warning(f"{log_prefix} Detected error message in stream chunk: {chunk[:200]}... Replacing with generic error message.")
-                    chunk = "chat.an_error_occured.text"
+                    chunk = "chat.an_error_occured"
                 
                 # Strip <tool_call>...</tool_call> XML blocks from text content
                 # Some LLMs (e.g., Qwen3) output tool calls as XML text in addition to proper function calling
@@ -1975,6 +2018,140 @@ async def _consume_main_processing_stream(
                         # Don't include content in response (embed reference was already sent)
                         chunk = ""  # Empty chunk - content goes to embed, not message
                 
+                # ── Table/sheet embed detection ─────────────────────────────────
+                # Detect markdown tables (|...|) outside code blocks and convert
+                # them to sheet embeds, mirroring the code-block embed pipeline.
+                # Tables start when we see a pipe-delimited line and end when
+                # we see a non-table line (or end of stream).
+                if chunk and not in_code_block:
+                    import re as _re_table
+                    _TABLE_LINE_RE = _re_table.compile(r'^\s*\|.*\|\s*$')
+                    _TITLE_COMMENT_RE = _re_table.compile(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->')
+
+                    chunk_lines = chunk.split('\n')
+                    output_lines: List[str] = []  # Non-table lines to keep in the response
+
+                    for line in chunk_lines:
+                        is_table_line = bool(_TABLE_LINE_RE.match(line))
+
+                        if is_table_line and not in_table_block:
+                            # ── Table starts ─────────────────────────────
+                            in_table_block = True
+                            current_table_content = line + '\n'
+                            current_table_col_count = len([c for c in line.split('|') if c.strip()])
+                            current_table_row_count = 0  # header doesn't count; separator doesn't count
+                            current_table_title = None
+
+                            # Check recent output for title comment
+                            recent_text = '\n'.join(pre_table_lines[-3:]) if pre_table_lines else ''
+                            _title_match = _TITLE_COMMENT_RE.search(recent_text)
+                            if _title_match:
+                                current_table_title = _title_match.group(1)
+
+                            # Create embed placeholder
+                            if directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    _table_embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    _table_result = await _table_embed_service.create_table_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        title=current_table_title,
+                                        log_prefix=log_prefix
+                                    )
+                                    if _table_result:
+                                        current_table_embed_id = _table_result["embed_id"]
+                                        # Emit the embed reference instead of the raw table
+                                        output_lines.append(f"```json\n{_table_result['embed_reference']}\n```\n")
+                                        logger.info(f"{log_prefix} Created table embed placeholder {current_table_embed_id}")
+                                except Exception as e:
+                                    logger.error(f"{log_prefix} Error creating table embed placeholder: {e}", exc_info=True)
+                                    # Fall through: table content won't be captured as embed
+
+                        elif is_table_line and in_table_block:
+                            # ── Table continues (another row) ────────────
+                            current_table_content += line + '\n'
+                            # Count data rows (skip header=row 0, separator=row 1)
+                            total_lines = current_table_content.strip().count('\n') + 1
+                            current_table_row_count = max(0, total_lines - 2)
+
+                            # Send progressive update on every new row
+                            if current_table_embed_id and directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    _table_embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    await _table_embed_service.update_table_embed_content(
+                                        embed_id=current_table_embed_id,
+                                        table_content=current_table_content.rstrip('\n'),
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        title=current_table_title,
+                                        row_count=current_table_row_count,
+                                        col_count=current_table_col_count,
+                                        log_prefix=log_prefix
+                                    )
+                                except Exception as e:
+                                    logger.error(f"{log_prefix} Error updating table embed: {e}", exc_info=True)
+
+                        elif not is_table_line and in_table_block:
+                            # ── Table ends (non-table line encountered) ──
+                            # Finalize the table embed
+                            if current_table_embed_id and directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    _table_embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    await _table_embed_service.update_table_embed_content(
+                                        embed_id=current_table_embed_id,
+                                        table_content=current_table_content.rstrip('\n'),
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        title=current_table_title,
+                                        row_count=current_table_row_count,
+                                        col_count=current_table_col_count,
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.info(
+                                        f"{log_prefix} Finalized table embed {current_table_embed_id} "
+                                        f"({current_table_row_count} rows, {current_table_col_count} cols)"
+                                    )
+                                except Exception as e:
+                                    logger.error(f"{log_prefix} Error finalizing table embed: {e}", exc_info=True)
+
+                            # Reset table state
+                            in_table_block = False
+                            current_table_content = ""
+                            current_table_embed_id = None
+                            current_table_title = None
+                            current_table_row_count = 0
+                            current_table_col_count = 0
+
+                            # Keep this non-table line in the output
+                            output_lines.append(line)
+                            # Track as pre-table line for potential future title detection
+                            pre_table_lines.append(line)
+                            if len(pre_table_lines) > 5:
+                                pre_table_lines = pre_table_lines[-5:]
+
+                        else:
+                            # Normal non-table line, not in table block
+                            output_lines.append(line)
+                            pre_table_lines.append(line)
+                            if len(pre_table_lines) > 5:
+                                pre_table_lines = pre_table_lines[-5:]
+
+                    # Replace chunk with non-table output (table rows are consumed by the embed)
+                    chunk = '\n'.join(output_lines)
+
                 # Only add non-empty chunks to final response
                 if chunk:
                     final_response_chunks.append(chunk)
@@ -2074,6 +2251,32 @@ async def _consume_main_processing_stream(
         except Exception as e:
             logger.error(f"{log_prefix} Error finalizing interrupted embed: {e}", exc_info=True)
 
+    # Finalize any open table embed at end-of-stream
+    # (table was the last content and there was no trailing non-table line to trigger finalization)
+    if in_table_block and current_table_embed_id and directus_service and encryption_service and user_vault_key_id:
+        try:
+            from backend.core.api.app.services.embed_service import EmbedService
+            embed_service = EmbedService(cache_service, directus_service, encryption_service)
+            await embed_service.update_table_embed_content(
+                embed_id=current_table_embed_id,
+                table_content=current_table_content.rstrip('\n'),
+                chat_id=request_data.chat_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                user_vault_key_id=user_vault_key_id,
+                status="finished",
+                title=current_table_title,
+                row_count=current_table_row_count,
+                col_count=current_table_col_count,
+                log_prefix=log_prefix
+            )
+            logger.info(
+                f"{log_prefix} Finalized table embed {current_table_embed_id} at end-of-stream "
+                f"({current_table_row_count} rows, {current_table_col_count} cols)"
+            )
+        except Exception as e:
+            logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
+
     aggregated_response = "".join(final_response_chunks)
 
     # Ensure we never complete with an empty assistant message on server-side failures.
@@ -2090,6 +2293,7 @@ async def _consume_main_processing_stream(
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
         and not awaiting_app_settings_memories_permission
+        and not awaiting_focus_mode_confirmation
     ):
         if fake_tool_calls_filtered:
             # We filtered fake tool calls and the LLM didn't produce any other content
@@ -2105,7 +2309,7 @@ async def _consume_main_processing_stream(
                 
                 # Get the translated fallback message
                 fallback_message = translation_service.get_nested_translation(
-                    "predefined_responses.processing_error_rephrase.text",
+                    "predefined_responses.processing_error_rephrase",
                     language,
                     {}
                 )
@@ -2163,6 +2367,32 @@ async def _consume_main_processing_stream(
         # Return early - no message processing needed
         # The client will receive the permission request via WebSocket and show the dialog
         return "", False, False
+    
+    # Handle the case where we're awaiting focus mode confirmation (deferred activation).
+    # Unlike app_settings, the focus mode case has embed content (the focus mode activation
+    # embed reference) that we need to finalize so the client can persist the message.
+    # The continuation task (auto-confirm or rejection) will reuse the same message_id
+    # (via continuation_message_id) and append the LLM response to this message.
+    if awaiting_focus_mode_confirmation:
+        logger.info(
+            f"{log_prefix} Task completing with embed content only — awaiting focus mode confirmation. "
+            f"Publishing final marker so client can persist the embed message. "
+            f"Content length: {len(aggregated_response)} chars"
+        )
+        # Publish a final chunk with the embed content so the client:
+        # 1. Transitions the message from 'streaming' to 'synced'
+        # 2. Persists it to IndexedDB (embed survives page reload)
+        # The continuation task will target the same message_id and append the LLM response.
+        if cache_service and aggregated_response:
+            focus_final_payload = _create_redis_payload(
+                task_id, request_data, aggregated_response, stream_chunk_count + 1,
+                is_final=True
+            )
+            await _publish_to_redis(
+                cache_service, redis_channel_name, focus_final_payload, log_prefix,
+                f"Published focus-mode final marker (seq: {stream_chunk_count + 1}, content: {len(aggregated_response)} chars) to '{redis_channel_name}'"
+            )
+        return aggregated_response, False, False
     
     # IMPROVED LOGGING: Log the full streamed assistant message for debugging
     # This helps diagnose parsing issues, embed reference problems, and code block extraction
@@ -2282,6 +2512,32 @@ async def _consume_main_processing_stream(
             f"Tool results are handled via Embeds."
         )
     
+    # --- Strip Failed Embed References from Message Content ---
+    # When skill execution fails, the embed reference JSON block (```json\n{"type":"app_skill_use","embed_id":"..."}\n```)
+    # is already in the streamed content. If not removed, the client will try to resolve these
+    # embeds on every page load, hitting the server repeatedly for embeds that no longer exist.
+    # We strip them here before the content is persisted.
+    if failed_embed_ids and aggregated_response:
+        import re
+        stripped_count = 0
+        for failed_id in failed_embed_ids:
+            # Match the exact JSON code block pattern for this embed_id:
+            # ```json\n{...embed_id...}\n```
+            # Use a pattern that matches the entire code block containing this embed_id
+            pattern = r'```json\s*\n\s*\{[^}]*"embed_id"\s*:\s*"' + re.escape(failed_id) + r'"[^}]*\}\s*\n\s*```\s*\n*'
+            new_response = re.sub(pattern, '', aggregated_response)
+            if new_response != aggregated_response:
+                stripped_count += 1
+                aggregated_response = new_response
+        
+        if stripped_count > 0:
+            # Update final_response_chunks to reflect the cleanup
+            final_response_chunks = [aggregated_response]
+            logger.info(
+                f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
+                f"Failed embed IDs: {failed_embed_ids}"
+            )
+
     # --- Hardcoded Advice Disclaimer Injection ---
     # This is a HARDCODED safety mechanism that GUARANTEES disclaimers appear for sensitive topics.
     # We do NOT rely on the LLM to include these - they are injected deterministically based on
@@ -2298,7 +2554,7 @@ async def _consume_main_processing_stream(
         try:
             translation_service = TranslationService()
             disclaimer_text = translation_service.get_nested_translation(
-                f"disclaimers.{disclaimer_type}.text",
+                f"disclaimers.{disclaimer_type}",
                 user_language,
                 {}
             )

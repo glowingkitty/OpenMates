@@ -12,8 +12,8 @@ import type { DemoChat } from '../../demo_chats/types';
 export const privacyPolicyChat: DemoChat = {
 	chat_id: 'legal-privacy',
 	slug: 'privacy',
-	title: 'legal.privacy.title.text', // Translation key - resolved at runtime
-	description: 'metadata.legal_privacy.description.text', // Translation key - resolved at runtime
+	title: 'legal.privacy.title', // Translation key - resolved at runtime
+	description: 'metadata.legal_privacy.description', // Translation key - resolved at runtime
 	keywords: ['privacy', 'data protection', 'GDPR', 'encryption', 'security', 'zero-knowledge'],
 	messages: [
 		{
@@ -26,12 +26,12 @@ export const privacyPolicyChat: DemoChat = {
 		}
 	],
 	follow_up_suggestions: [
-		'legal.privacy.follow_up_1.text',
-		'legal.privacy.follow_up_2.text',
-		'legal.privacy.follow_up_3.text',
-		'legal.privacy.follow_up_4.text',
-		'legal.privacy.follow_up_5.text',
-		'legal.privacy.follow_up_6.text'
+		'legal.privacy.follow_up_1',
+		'legal.privacy.follow_up_2',
+		'legal.privacy.follow_up_3',
+		'legal.privacy.follow_up_4',
+		'legal.privacy.follow_up_5',
+		'legal.privacy.follow_up_6'
 	],
 	metadata: {
 		category: 'openmates_official', // Official OpenMates category - shows favicon, not mate profile

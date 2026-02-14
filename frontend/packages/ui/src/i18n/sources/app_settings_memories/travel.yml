@@ -175,26 +175,26 @@ preferred_activities:
     - de
 preferred_activities.description:
   context: Description for preferred travel activities at destinations (beaches, museums, hiking, etc.)
-  en: Activities and experiences you enjoy at travel destinations, like visiting beaches, exploring museums, or hiking.
-  de: Aktivitäten und Erlebnisse, die du an Reisezielen genießt, wie Strände besuchen, Museen erkunden oder Wandern.
-  zh: 你在旅行目的地喜欢的活动和体验，如海滩、博物馆或徒步旅行。
-  es: Actividades y experiencias que disfrutas en los destinos de viaje, como visitar playas, explorar museos o hacer senderismo.
-  fr: Activités et expériences que vous appréciez dans vos destinations de voyage, comme visiter des plages, explorer des musées ou faire de la randonnée.
-  pt: Atividades e experiências que você gosta em destinos de viagem, como visitar praias, explorar museus ou fazer trilhas.
-  ru: Занятия и впечатления, которые вам нравятся в путешествиях, например пляжи, музеи или пешие прогулки.
-  ja: ビーチ、博物館、ハイキングなど、旅行先で楽しむアクティビティや体験。
-  ko: 해변, 박물관, 하이킹 등 여행지에서 즐기는 활동과 경험.
-  it: Attività ed esperienze che ami nelle destinazioni di viaggio, come visitare spiagge, esplorare musei o fare escursioni.
-  tr: Plajları ziyaret etmek, müzeleri keşfetmek veya yürüyüş yapmak gibi seyahat destinasyonlarında sevdiğiniz aktiviteler.
-  vi: Các hoạt động và trải nghiệm bạn thích tại các điểm du lịch, như đi biển, tham quan bảo tàng hoặc đi bộ đường dài.
-  id: Aktivitas dan pengalaman yang Anda nikmati di destinasi wisata, seperti mengunjungi pantai, menjelajahi museum, atau mendaki.
-  pl: Aktywności i doświadczenia, które lubisz w miejscach podróży, jak plaże, muzea czy piesze wędrówki.
-  nl: Activiteiten en ervaringen die je leuk vindt op reisbestemmingen, zoals stranden bezoeken, musea verkennen of wandelen.
-  ar: الأنشطة والتجارب التي تستمتع بها في وجهات السفر، مثل زيارة الشواطئ واستكشاف المتاحف أو المشي لمسافات طويلة.
-  hi: यात्रा स्थलों पर आपकी पसंदीदा गतिविधियां और अनुभव, जैसे समुद्र तट, संग्रहालय या पैदल यात्रा।
-  th: กิจกรรมและประสบการณ์ที่คุณชอบในจุดหมายการเดินทาง เช่น ชายหาด พิพิธภัณฑ์ หรือเดินป่า
-  cs: Aktivity a zážitky, které si užíváte v cestovních destinacích, jako pláže, muzea nebo turistika.
-  sv: Aktiviteter och upplevelser du gillar på resmål, som stränder, museer eller vandring.
+  en: Your favorite travel activities and experiences.
+  de: Deine liebsten Reiseaktivitäten und Erlebnisse.
+  zh: 你最喜欢的旅行活动和体验。
+  es: Tus actividades y experiencias de viaje favoritas.
+  fr: Vos activités et expériences de voyage préférées.
+  pt: Suas atividades e experiências de viagem favoritas.
+  ru: Ваши любимые занятия и впечатления в путешествиях.
+  ja: お気に入りの旅行アクティビティと体験。
+  ko: 좋아하는 여행 활동과 경험.
+  it: Le tue attività ed esperienze di viaggio preferite.
+  tr: En sevdiğiniz seyahat aktiviteleri ve deneyimler.
+  vi: Hoạt động và trải nghiệm du lịch yêu thích của bạn.
+  id: Aktivitas dan pengalaman perjalanan favorit Anda.
+  pl: Twoje ulubione aktywności i doświadczenia podróżne.
+  nl: Je favoriete reisactiviteiten en ervaringen.
+  ar: أنشطتك وتجاربك المفضلة في السفر.
+  hi: आपकी पसंदीदा यात्रा गतिविधियां और अनुभव।
+  th: กิจกรรมและประสบการณ์การเดินทางที่คุณชื่นชอบ
+  cs: Vaše oblíbené cestovní aktivity a zážitky.
+  sv: Dina favoritreseaktiviteter och upplevelser.
   verified_by_human:
     - en
     - de

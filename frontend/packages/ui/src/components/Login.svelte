@@ -239,14 +239,14 @@
         }
 
         if (!email.includes('@')) {
-            emailError = $text('signup.at_missing.text');
+            emailError = $text('signup.at_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
         }
 
         if (!email.match(/\.[a-z]{2,}$/i)) {
-            emailError = $text('signup.domain_ending_missing.text');
+            emailError = $text('signup.domain_ending_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
@@ -2073,7 +2073,7 @@
         <div class="report-issue-button-wrapper">
             <button
                 class="clickable-icon icon_bug report-issue-button"
-                aria-label={$text('header.report_issue.text')}
+                aria-label={$text('header.report_issue')}
                 onclick={handleReportIssue}
                 use:tooltip
             >
@@ -2128,12 +2128,12 @@
                 {/if}
                 {#if isPolicyViolationLockout || isAccountDeleted}
                     <div class="content-area" in:fade={{ duration: 400 }}>
-                        <h1><mark>{@html $text('login.login.text')}</mark></h1>
-                        <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
+                        <h1><mark>{@html $text('login.login')}</mark></h1>
+                        <h2>{@html $text('login.to_chat_to_your')}<br><mark>{@html $text('login.digital_team_mates')}</mark></h2>
                         
                         <div class="form-container">
                             <p class="violation-message">
-                                {@html $text('settings.your_account_got_deleted.text')}
+                                {@html $text('settings.your_account_got_deleted')}
                             </p>
                         </div>
                     </div>
@@ -2148,19 +2148,19 @@
                                         // Already on login view, no action needed
                                     }}
                                 >
-                                    {$text('login.login.text')}
+                                    {$text('login.login')}
                                 </button>
                                 <button 
                                     class="tab-button"
                                     onclick={switchToSignup}
                                 >
-                                    {$text('signup.sign_up.text')}
+                                    {$text('signup.sign_up')}
                                 </button>
                             </div>
                         {/if}
                         
-                        <h1><mark>{@html $text('login.login.text')}</mark></h1>
-                        <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
+                        <h1><mark>{@html $text('login.login')}</mark></h1>
+                        <h2>{@html $text('login.to_chat_to_your')}<br><mark>{@html $text('login.digital_team_mates')}</mark></h2>
 
                         <div class="form-container">
                             {#if showVerifyDeviceView}
@@ -2196,15 +2196,15 @@
                                 </div>
                             {:else if isRateLimited}
                                 <div class="rate-limit-message" in:fade={{ duration: 200 }}>
-                                    {$text('signup.too_many_requests.text')}
+                                    {$text('signup.too_many_requests')}
                                 </div>
                             {:else if $isCheckingAuth && !serverConnectionError}
                                 <div class="checking-auth" in:fade={{ duration: 200 }}>
-                                    <p>{@html $text('login.loading.text')}</p>
+                                    <p>{@html $text('login.loading')}</p>
                                 </div>
                             {:else if serverConnectionError}
                                 <div class="connection-error" in:fade={{ duration: 200 }}>
-                                    <p>{@html $text('login.cant_connect_to_server.text')}</p>
+                                    <p>{@html $text('login.cant_connect_to_server')}</p>
                                     <button 
                                         class="retry-button"
                                         onclick={() => {
@@ -2213,7 +2213,7 @@
                                             checkAuth();
                                         }}
                                     >
-                                        {$text('login.retry.text')}
+                                        {$text('login.retry')}
                                     </button>
                                 </div>
                             {:else}
@@ -2229,7 +2229,7 @@
                                                 <div class="passkey-loading-icon">
                                                     <span class="clickable-icon icon_passkey" style="width: 64px; height: 64px;"></span>
                                                 </div>
-                                                <p class="passkey-loading-text">{$text('login.logging_in_with_passkey.text')}</p>
+                                                <p class="passkey-loading-text">{$text('login.logging_in_with_passkey')}</p>
                                             </div>
                                         {:else}
                                             <!-- Use EmailLookup component for email input -->
@@ -2264,7 +2264,7 @@
                                             <PasswordAndTfaOtp
                                                 {email}
                                                 bind:isLoading
-                                                errorMessage={loginErrorMessage || (loginFailedWarning ? $text('login.login_failed.text') : null)}
+                                                errorMessage={loginErrorMessage || (loginFailedWarning ? $text('login.login_failed') : null)}
                                                 {stayLoggedIn}
                                                 {tfaAppName}
                                                 tfa_required={tfaEnabled}
@@ -2330,7 +2330,7 @@
                                                 {password}
                                                 {stayLoggedIn}
                                                 bind:isLoading
-                                                errorMessage={loginErrorMessage || (loginFailedWarning ? $text('login.login_failed.text') : null)}
+                                                errorMessage={loginErrorMessage || (loginFailedWarning ? $text('login.login_failed') : null)}
                                                 on:loginSuccess={async (e) => {
                                                     console.log("Login success (backup code), in signup flow:", e.detail.inSignupFlow);
                                                     
@@ -2372,7 +2372,7 @@
                                                 {email}
                                                 {stayLoggedIn}
                                                 bind:isLoading
-                                                errorMessage={loginErrorMessage || (loginFailedWarning ? $text('login.login_failed.text') : null)}
+                                                errorMessage={loginErrorMessage || (loginFailedWarning ? $text('login.login_failed') : null)}
                                                 on:loginSuccess={async (e) => {
                                                     console.log("Login success (recovery key), in signup flow:", e.detail.inSignupFlow);
                                                     
@@ -2429,7 +2429,7 @@
                                     class="tab-button"
                                     onclick={switchToLogin}
                                 >
-                                    {$text('login.login.text')}
+                                    {$text('login.login')}
                                 </button>
                                 <button 
                                     class="tab-button active"
@@ -2437,7 +2437,7 @@
                                         // Already on signup view, no action needed
                                     }}
                                 >
-                                    {$text('signup.sign_up.text')}
+                                    {$text('signup.sign_up')}
                                 </button>
                             </div>
                         {/if}

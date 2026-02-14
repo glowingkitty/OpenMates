@@ -59,6 +59,14 @@ Props:
     type TfaStep = 'overview' | 'auth' | 'setup' | 'verify' | 'select-app' | 'backup-codes' | 'success';
     let currentStep = $state<TfaStep>('overview');
     
+    /**
+     * Flag to distinguish between the "Change App" flow (full 2FA re-setup)
+     * and the "Reset Backup Codes" flow (standalone code regeneration).
+     * When true, the auth step leads directly to backup code generation
+     * instead of the full QR/OTP/app-selection setup.
+     */
+    let isResetBackupCodesFlow = $state(false);
+    
     /** Loading states */
     let isLoading = $state(false);
     let isVerifying = $state(false);
@@ -188,19 +196,73 @@ Props:
     // ========================================================================
     
     /**
-     * Start 2FA setup - requires authentication first.
+     * Start 2FA setup (Change App) - requires authentication first.
      */
     function startSetup() {
+        isResetBackupCodesFlow = false;
         currentStep = 'auth';
         errorMessage = null;
     }
     
     /**
-     * Handle successful authentication, proceed to setup.
+     * Start Reset Backup Codes flow - requires authentication first.
+     * After auth, skips the full 2FA re-setup and goes directly to
+     * generating new backup codes via the standalone endpoint.
+     */
+    function startResetBackupCodes() {
+        isResetBackupCodesFlow = true;
+        currentStep = 'auth';
+        errorMessage = null;
+    }
+    
+    /**
+     * Reset (regenerate) backup codes via the standalone endpoint.
+     * Called after SecurityAuth verification when isResetBackupCodesFlow is true.
+     * Generates new codes server-side and displays them to the user.
+     */
+    async function resetBackupCodes() {
+        isLoading = true;
+        errorMessage = null;
+        
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.reset_backup_codes), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success && data.backup_codes) {
+                backupCodes = data.backup_codes;
+                currentStep = 'backup-codes';
+                console.log('[SettingsTwoFactorAuth] Backup codes reset successfully');
+            } else {
+                errorMessage = data.message || $text('settings.security.tfa_reset_codes_failed');
+                currentStep = 'overview';
+            }
+        } catch (error) {
+            console.error('[SettingsTwoFactorAuth] Error resetting backup codes:', error);
+            errorMessage = $text('settings.security.tfa_reset_codes_error');
+            currentStep = 'overview';
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    /**
+     * Handle successful authentication.
+     * Branches based on which flow initiated the auth:
+     * - Change App flow → proceed to full 2FA setup
+     * - Reset Backup Codes flow → call standalone endpoint
      */
     async function handleAuthSuccess() {
-        currentStep = 'setup';
-        await initiate2FASetup();
+        if (isResetBackupCodesFlow) {
+            await resetBackupCodes();
+        } else {
+            currentStep = 'setup';
+            await initiate2FASetup();
+        }
     }
     
     /**
@@ -210,6 +272,7 @@ Props:
     function handleAuthFailed(message: string) {
         console.error('[SettingsTwoFactorAuth] Authentication failed:', message);
         errorMessage = message;
+        isResetBackupCodesFlow = false;
         currentStep = 'overview';
     }
     
@@ -217,6 +280,7 @@ Props:
      * Handle authentication cancellation.
      */
     function handleAuthCancel() {
+        isResetBackupCodesFlow = false;
         currentStep = 'overview';
     }
     
@@ -248,12 +312,12 @@ Props:
                 generateQrCode(data.otpauth_url);
                 console.log('[SettingsTwoFactorAuth] 2FA setup initiated');
             } else {
-                errorMessage = data.message || $text('settings.security.tfa_setup_failed.text');
+                errorMessage = data.message || $text('settings.security.tfa_setup_failed');
                 console.error('[SettingsTwoFactorAuth] 2FA setup failed:', data.message);
             }
         } catch (error) {
             console.error('[SettingsTwoFactorAuth] Error initiating 2FA setup:', error);
-            errorMessage = $text('settings.security.tfa_setup_error.text');
+            errorMessage = $text('settings.security.tfa_setup_error');
         } finally {
             isLoading = false;
         }
@@ -283,12 +347,12 @@ Props:
                 // Proceed to app selection
                 currentStep = 'select-app';
             } else {
-                errorMessage = data.message || $text('settings.security.tfa_invalid_code.text');
+                errorMessage = data.message || $text('settings.security.tfa_invalid_code');
                 verificationCode = '';
             }
         } catch (error) {
             console.error('[SettingsTwoFactorAuth] Error verifying code:', error);
-            errorMessage = $text('settings.security.tfa_verify_error.text');
+            errorMessage = $text('settings.security.tfa_verify_error');
             verificationCode = '';
         } finally {
             isVerifying = false;
@@ -334,11 +398,11 @@ Props:
                 // Proceed to backup codes
                 await requestBackupCodes();
             } else {
-                errorMessage = data.message || $text('settings.security.tfa_save_app_failed.text');
+                errorMessage = data.message || $text('settings.security.tfa_save_app_failed');
             }
         } catch (error) {
             console.error('[SettingsTwoFactorAuth] Error saving app:', error);
-            errorMessage = $text('settings.security.tfa_save_app_error.text');
+            errorMessage = $text('settings.security.tfa_save_app_error');
         } finally {
             isLoading = false;
         }
@@ -364,11 +428,11 @@ Props:
                 currentStep = 'backup-codes';
                 console.log('[SettingsTwoFactorAuth] Backup codes received');
             } else {
-                errorMessage = data.message || $text('settings.security.tfa_backup_codes_failed.text');
+                errorMessage = data.message || $text('settings.security.tfa_backup_codes_failed');
             }
         } catch (error) {
             console.error('[SettingsTwoFactorAuth] Error requesting backup codes:', error);
-            errorMessage = $text('settings.security.tfa_backup_codes_error.text');
+            errorMessage = $text('settings.security.tfa_backup_codes_error');
         } finally {
             isLoading = false;
         }
@@ -398,7 +462,7 @@ Props:
                 has2FA = true;
                 
                 currentStep = 'success';
-                successMessage = $text('settings.security.tfa_setup_complete.text');
+                successMessage = $text('settings.security.tfa_setup_complete');
                 console.log('[SettingsTwoFactorAuth] 2FA setup complete');
                 
                 // Call the completion callback if provided (for embedded mode)
@@ -407,11 +471,11 @@ Props:
                     onSetupComplete();
                 }
             } else {
-                errorMessage = data.message || $text('settings.security.tfa_confirm_failed.text');
+                errorMessage = data.message || $text('settings.security.tfa_confirm_failed');
             }
         } catch (error) {
             console.error('[SettingsTwoFactorAuth] Error confirming codes:', error);
-            errorMessage = $text('settings.security.tfa_confirm_error.text');
+            errorMessage = $text('settings.security.tfa_confirm_error');
         } finally {
             isLoading = false;
         }
@@ -473,6 +537,7 @@ Props:
         currentStep = 'overview';
         errorMessage = null;
         successMessage = null;
+        isResetBackupCodesFlow = false;
         // Reset setup state
         tfaSecret = '';
         otpauthUrl = '';
@@ -481,6 +546,20 @@ Props:
         selectedApp = null;
         backupCodes = [];
         codesConfirmed = false;
+    }
+    
+    /**
+     * Confirm backup codes stored during the reset flow.
+     * Unlike the full setup flow, this just returns to overview with a success message
+     * (no need to call /confirm-codes-stored since there's no active setup cache).
+     */
+    function confirmResetCodesStored() {
+        if (!codesConfirmed) return;
+        
+        const msg = $text('settings.security.tfa_reset_codes_success');
+        returnToOverview();
+        // Re-set the success message after returnToOverview clears it
+        successMessage = msg;
     }
 
     /**
@@ -498,8 +577,8 @@ Props:
             {hasPasskey}
             {hasPassword}
             has2FA={tfaEnabled}
-            title={$text('settings.security.verify_identity.text')}
-            description={$text('settings.security.tfa_auth_required.text')}
+            title={$text('settings.security.verify_identity')}
+            description={$text('settings.security.tfa_auth_required')}
             autoStart={true}
             onSuccess={handleAuthSuccess}
             onFailed={handleAuthFailed}
@@ -513,11 +592,11 @@ Props:
                     <span class="icon icon_shield_check"></span>
                 </div>
                 <div class="status-info">
-                    <h3>{$text('settings.security.tfa_enabled.text')}</h3>
+                    <h3>{$text('settings.security.tfa_enabled')}</h3>
                     {#if tfaAppName}
-                        <p class="app-name">{$text('settings.security.tfa_app_used.text')}: {tfaAppName}</p>
+                        <p class="app-name">{$text('settings.security.tfa_app_used')}: {tfaAppName}</p>
                     {:else}
-                        <p class="app-name">{$text('settings.security.tfa_app_unknown.text')}</p>
+                        <p class="app-name">{$text('settings.security.tfa_app_unknown')}</p>
                     {/if}
                 </div>
             </div>
@@ -526,11 +605,14 @@ Props:
                 <div class="success-message">{successMessage}</div>
             {/if}
             
-            <p class="tfa-info">{$text('settings.security.tfa_cannot_disable.text')}</p>
+            <p class="tfa-info">{$text('settings.security.tfa_cannot_disable')}</p>
             
             <div class="action-buttons">
                 <button class="btn-primary" onclick={startSetup}>
-                    {$text('settings.security.tfa_change_app.text')}
+                    {$text('settings.security.tfa_change_app')}
+                </button>
+                <button class="btn-secondary" onclick={startResetBackupCodes}>
+                    {$text('settings.security.tfa_reset_backup_codes')}
                 </button>
             </div>
         </div>
@@ -539,8 +621,8 @@ Props:
         <!-- Setup State - Show QR Code -->
         <div class="tfa-setup">
             
-            <h3>{$text('settings.security.tfa_scan_qr.text')}</h3>
-            <p class="description">{$text('settings.security.tfa_scan_instructions.text')}</p>
+            <h3>{$text('settings.security.tfa_scan_qr')}</h3>
+            <p class="description">{$text('settings.security.tfa_scan_instructions')}</p>
             
             {#if isLoading}
                 <div class="loading-container">
@@ -557,17 +639,17 @@ Props:
                 </div>
                 
                 <div class="secret-container">
-                    <p class="secret-label">{$text('settings.security.tfa_secret_key.text')}</p>
+                    <p class="secret-label">{$text('settings.security.tfa_secret_key')}</p>
                     <div class="secret-value">
                         <code>{tfaSecret}</code>
                         <button class="copy-btn" onclick={copySecret}>
-                            {showCopiedText ? $text('common.copied.text') : $text('common.copy.text')}
+                            {showCopiedText ? $text('common.copied') : $text('common.copy')}
                         </button>
                     </div>
                 </div>
                 
                 <div class="code-input-section">
-                    <p>{$text('settings.security.tfa_enter_code.text')}</p>
+                    <p>{$text('settings.security.tfa_enter_code')}</p>
                     <input
                         type="text"
                         inputmode="numeric"
@@ -593,16 +675,16 @@ Props:
             {/if}
             
             <div class="help-link">
-                <span>{$text('settings.security.tfa_no_app.text')}</span>
+                <span>{$text('settings.security.tfa_no_app')}</span>
                 <a href="https://search.brave.com/search?q=best+free+2fa+otp+apps" target="_blank" rel="noopener">
-                    {$text('settings.security.tfa_find_apps.text')}
+                    {$text('settings.security.tfa_find_apps')}
                 </a>
             </div>
 
             <!-- Cancel button only shown when embedded (e.g., during password setup) -->
             {#if embedded && onCancel}
                 <button class="btn-cancel" onclick={onCancel}>
-                    {$text('common.cancel.text')}
+                    {$text('common.cancel')}
                 </button>
             {/if}
         </div>
@@ -610,8 +692,8 @@ Props:
     {:else if currentStep === 'select-app'}
         <!-- App Selection -->
         <div class="tfa-select-app">
-            <h3>{$text('settings.security.tfa_select_app.text')}</h3>
-            <p class="description">{$text('settings.security.tfa_select_app_description.text')}</p>
+            <h3>{$text('settings.security.tfa_select_app')}</h3>
+            <p class="description">{$text('settings.security.tfa_select_app_description')}</p>
             
             <div class="app-list">
                 {#each tfaApps as app}
@@ -641,13 +723,13 @@ Props:
                 {#if isLoading}
                     <div class="loading-spinner-small"></div>
                 {/if}
-                {$text('common.continue.text')}
+                {$text('common.continue')}
             </button>
 
             <!-- Cancel button only shown when embedded -->
             {#if embedded && onCancel}
                 <button class="btn-cancel" onclick={onCancel}>
-                    {$text('common.cancel.text')}
+                    {$text('common.cancel')}
                 </button>
             {/if}
         </div>
@@ -655,8 +737,8 @@ Props:
     {:else if currentStep === 'backup-codes'}
         <!-- Backup Codes -->
         <div class="tfa-backup-codes">
-            <h3>{$text('settings.security.tfa_backup_codes.text')}</h3>
-            <p class="description">{$text('settings.security.tfa_backup_codes_description.text')}</p>
+            <h3>{isResetBackupCodesFlow ? $text('settings.security.tfa_new_backup_codes') : $text('settings.security.tfa_backup_codes')}</h3>
+            <p class="description">{$text('settings.security.tfa_backup_codes_description')}</p>
             
             <div class="codes-container">
                 {#each backupCodes as code, i}
@@ -668,13 +750,13 @@ Props:
             </div>
             
             <button class="btn-secondary copy-codes-btn" onclick={copyBackupCodes}>
-                {showCopiedText ? $text('common.copied.text') : $text('settings.security.tfa_copy_codes.text')}
+                {showCopiedText ? $text('common.copied') : $text('settings.security.tfa_copy_codes')}
             </button>
             
             <div class="confirm-checkbox">
                 <label>
                     <input type="checkbox" bind:checked={codesConfirmed} />
-                    {$text('settings.security.tfa_confirm_codes_stored.text')}
+                    {$text('settings.security.tfa_confirm_codes_stored')}
                 </label>
             </div>
             
@@ -682,16 +764,28 @@ Props:
                 <div class="error-message">{errorMessage}</div>
             {/if}
             
-            <button
-                class="btn-primary"
-                onclick={confirmCodesStored}
-                disabled={!codesConfirmed || isLoading}
-            >
-                {#if isLoading}
-                    <div class="loading-spinner-small"></div>
-                {/if}
-                {$text('settings.security.tfa_complete_setup.text')}
-            </button>
+            {#if isResetBackupCodesFlow}
+                <!-- Reset flow: just confirm and go back to overview -->
+                <button
+                    class="btn-primary"
+                    onclick={confirmResetCodesStored}
+                    disabled={!codesConfirmed}
+                >
+                    {$text('common.done')}
+                </button>
+            {:else}
+                <!-- Full setup flow: confirm codes stored via API -->
+                <button
+                    class="btn-primary"
+                    onclick={confirmCodesStored}
+                    disabled={!codesConfirmed || isLoading}
+                >
+                    {#if isLoading}
+                        <div class="loading-spinner-small"></div>
+                    {/if}
+                    {$text('settings.security.tfa_complete_setup')}
+                </button>
+            {/if}
         </div>
         
     {:else if currentStep === 'success'}
@@ -700,13 +794,13 @@ Props:
             <div class="success-icon">
                 <span class="icon icon_check_circle"></span>
             </div>
-            <h3>{$text('settings.security.tfa_setup_complete.text')}</h3>
-            <p class="description">{$text('settings.security.tfa_setup_complete_description.text')}</p>
+            <h3>{$text('settings.security.tfa_setup_complete')}</h3>
+            <p class="description">{$text('settings.security.tfa_setup_complete_description')}</p>
             
             <!-- Only show done button when not embedded - parent handles navigation in embedded mode -->
             {#if !embedded}
                 <button class="btn-primary" onclick={returnToOverview}>
-                    {$text('common.done.text')}
+                    {$text('common.done')}
                 </button>
             {/if}
         </div>

@@ -46,7 +46,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
             settingsPath: 'privacy/hide-personal-data',
             direction: 'forward',
             icon: 'privacy',
-            title: $text('settings.privacy.hide_personal_data.text')
+            title: $text('settings.privacy.hide_personal_data')
         });
     }
 
@@ -58,7 +58,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
             settingsPath: `privacy/auto-deletion/${category}`,
             direction: 'forward',
             icon: 'delete',
-            title: $text(`settings.privacy.privacy.auto_deletion.${category}.text`)
+            title: $text(`settings.privacy.auto_deletion.${category}`)
         });
     }
 </script>
@@ -66,7 +66,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <!-- Privacy Policy Info -->
 <div class="privacy-description">
     <p class="description-text">
-        {$text('settings.privacy.privacy.description.text')}
+        {$text('settings.privacy.description')}
     </p>
     <a
         href="https://openmates.org/privacy"
@@ -74,7 +74,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
         rel="noopener noreferrer"
         class="privacy-link"
     >
-        {$text('settings.privacy.privacy.open_privacy_policy.text')}
+        {$text('settings.privacy.open_privacy_policy')}
     </a>
 </div>
 
@@ -82,15 +82,15 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="heading"
     icon="anonym"
-    title={$text('settings.privacy.privacy.anonymization.text')}
+    title={$text('settings.privacy.anonymization')}
 />
 
 <!-- Hide personal data — navigates to sub-page, has toggle -->
 <SettingsItem
     type="subsubmenu"
     icon="anonym"
-    subtitleTop={$text('settings.privacy.privacy.hide_personal_data.chats.text')}
-    title={$text('settings.privacy.privacy.hide_personal_data.text')}
+    subtitleTop={$text('settings.privacy.hide_personal_data.chats')}
+    title={$text('settings.privacy.hide_personal_data')}
     hasToggle={true}
     checked={hidePersonalDataEnabled}
     onClick={navigateToHidePersonalData}
@@ -100,8 +100,8 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="subsubmenu"
     icon="maps"
-    subtitleTop={$text('settings.privacy.privacy.maps_location.text')}
-    title={$text('settings.privacy.privacy.nearby_by_default.text')}
+    subtitleTop={$text('settings.privacy.maps_location')}
+    title={$text('settings.privacy.nearby_by_default')}
     hasToggle={true}
     checked={nearbyByDefault}
     onClick={() => nearbyByDefault = !nearbyByDefault}
@@ -111,13 +111,13 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="heading"
     icon="desktop"
-    title={$text('settings.privacy.privacy.device_permissions.text')}
+    title={$text('settings.privacy.device_permissions')}
 />
 
 <SettingsItem
     type="subsubmenu"
     icon="recordaudio"
-    title={$text('settings.privacy.privacy.microphone.text')}
+    title={$text('settings.privacy.microphone')}
     hasToggle={true}
     checked={microphoneEnabled}
     onClick={() => microphoneEnabled = !microphoneEnabled}
@@ -126,7 +126,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="subsubmenu"
     icon="camera"
-    title={$text('settings.privacy.privacy.camera.text')}
+    title={$text('settings.privacy.camera')}
     hasToggle={true}
     checked={cameraEnabled}
     onClick={() => cameraEnabled = !cameraEnabled}
@@ -135,7 +135,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="subsubmenu"
     icon="maps"
-    title={$text('settings.privacy.privacy.location.text')}
+    title={$text('settings.privacy.location')}
     hasToggle={true}
     checked={locationEnabled}
     onClick={() => locationEnabled = !locationEnabled}
@@ -145,15 +145,15 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="heading"
     icon="delete"
-    title={$text('settings.privacy.privacy.auto_deletion.text')}
+    title={$text('settings.privacy.auto_deletion')}
 />
 
 <!-- Chats — editable, has modify button -->
 <SettingsItem
     type="subsubmenu"
     icon="chat"
-    subtitleTop={$text('settings.privacy.privacy.auto_deletion.chats.text')}
-    title={$text('settings.privacy.privacy.auto_deletion.chats.value.text')}
+    subtitleTop={$text('settings.privacy.auto_deletion.chats')}
+    title={$text('settings.privacy.auto_deletion.chats.value')}
     hasModifyButton={true}
     onModifyClick={() => navigateToAutoDeletion('chats')}
 />
@@ -162,8 +162,8 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="subsubmenu"
     icon="files"
-    subtitleTop={$text('settings.privacy.privacy.auto_deletion.files.text')}
-    title={$text('settings.privacy.privacy.auto_deletion.files.value.text')}
+    subtitleTop={$text('settings.privacy.auto_deletion.files')}
+    title={$text('settings.privacy.auto_deletion.files.value')}
     hasModifyButton={true}
     onModifyClick={() => navigateToAutoDeletion('files')}
 />
@@ -172,8 +172,8 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="subsubmenu"
     icon="usage"
-    subtitleTop={$text('settings.privacy.privacy.auto_deletion.usage_data.text')}
-    title={$text('settings.privacy.privacy.auto_deletion.usage_data.value.text')}
+    subtitleTop={$text('settings.privacy.auto_deletion.usage_data')}
+    title={$text('settings.privacy.auto_deletion.usage_data.value')}
     hasModifyButton={true}
     onModifyClick={() => navigateToAutoDeletion('usage_data')}
 />
@@ -182,21 +182,21 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="subsubmenu"
     icon="log"
-    subtitleTop={$text('settings.privacy.privacy.auto_deletion.compliance_logs.text')}
-    title={$text('settings.privacy.privacy.auto_deletion.compliance_logs.value.text')}
+    subtitleTop={$text('settings.privacy.auto_deletion.compliance_logs')}
+    title={$text('settings.privacy.auto_deletion.compliance_logs.value')}
 />
 
 <!-- Invoices — NOT editable, no modify button -->
 <SettingsItem
     type="subsubmenu"
     icon="billing"
-    subtitleTop={$text('settings.privacy.privacy.auto_deletion.invoices.text')}
-    title={$text('settings.privacy.privacy.auto_deletion.invoices.value.text')}
+    subtitleTop={$text('settings.privacy.auto_deletion.invoices')}
+    title={$text('settings.privacy.auto_deletion.invoices.value')}
 />
 
 <!-- Compliance note -->
 <div class="compliance-note">
-    <p>{$text('settings.privacy.privacy.auto_deletion.compliance_note.text')}</p>
+    <p>{$text('settings.privacy.auto_deletion.compliance_note')}</p>
 </div>
 
 <style>

@@ -21,10 +21,10 @@ Chat Settings - Notification preferences and chat-related settings
     // "Disabled" when nothing is enabled.
     let notificationStatus = $derived(
         pushEnabled || emailEnabled
-            ? $text('settings.chat.notifications.enabled.text', { default: 'Enabled' })
+            ? $text('settings.chat.notifications.enabled')
             : $pushNotificationStore.permission === 'denied'
-                ? $text('settings.chat.notifications.blocked.text', { default: 'Blocked by browser' })
-                : $text('settings.chat.notifications.disabled.text', { default: 'Disabled' })
+                ? $text('settings.chat.notifications.blocked')
+                : $text('settings.chat.notifications.disabled')
     );
     
     /**
@@ -37,7 +37,7 @@ Chat Settings - Notification preferences and chat-related settings
             settingsPath: 'chat/notifications',
             direction: 'forward',
             icon: 'notification',
-            title: $text('settings.chat.notifications.text', { default: 'Notifications' })
+            title: $text('settings.chat.notifications')
         });
     }
 </script>
@@ -46,7 +46,7 @@ Chat Settings - Notification preferences and chat-related settings
     <SettingsItem
         type="submenu"
         icon="subsetting_icon subsetting_icon_announcement"
-        title={$text('settings.chat.notifications.text', { default: 'Notifications' })}
+        title={$text('settings.chat.notifications')}
         subtitleTop={notificationStatus}
         onClick={navigateToNotifications}
     />

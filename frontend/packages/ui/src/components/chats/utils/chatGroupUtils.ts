@@ -87,14 +87,14 @@ export function groupChats(chatsToGroup: ChatType[]): Record<string, ChatType[]>
  * @returns A localized string for the group title.
  */
 export function getLocalizedGroupTitle(groupKey: string, t: (key: string, options?: Record<string, unknown>) => string): string {
-    if (groupKey === 'intro') return t('activity.intro.text');
-    if (groupKey === 'examples') return t('activity.examples.text');
-    if (groupKey === 'legal') return t('activity.legal.text');
-    if (groupKey === 'shared_by_others') return t('activity.shared_by_others.text');
-    if (groupKey === 'today') return t('activity.today.text');
-    if (groupKey === 'yesterday') return t('activity.yesterday.text');
-    if (groupKey === 'previous_7_days') return t('activity.previous_7_days.text');
-    if (groupKey === 'previous_30_days') return t('activity.previous_30_days.text');
+    if (groupKey === 'intro') return t('activity.intro');
+    if (groupKey === 'examples') return t('activity.examples');
+    if (groupKey === 'legal') return t('activity.legal');
+    if (groupKey === 'shared_by_others') return t('activity.shared_by_others');
+    if (groupKey === 'today') return t('activity.today');
+    if (groupKey === 'yesterday') return t('activity.yesterday');
+    if (groupKey === 'previous_7_days') return t('activity.previous_7_days');
+    if (groupKey === 'previous_30_days') return t('activity.previous_30_days');
     
     if (groupKey.startsWith('month_')) {
         const parts = groupKey.split('_');

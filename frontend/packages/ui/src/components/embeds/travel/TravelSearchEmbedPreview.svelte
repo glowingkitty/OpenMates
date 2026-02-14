@@ -106,7 +106,7 @@
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
-  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured.text') || 'Processing failed.'));
+  let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
   
   /**
    * Handle embed data updates from UnifiedEmbedPreview
@@ -192,14 +192,14 @@
   }
   
   // Skill display name from translations
-  let skillName = $derived($text('app_skills.travel.search.text') || 'Search');
+  let skillName = $derived($text('app_skills.travel.search_connections'));
   
   // Skill icon
   const skillIconName = 'search';
   
   // Get "via {provider}" text
   let viaProvider = $derived(
-    `${$text('embeds.via.text') || 'via'} ${provider}`
+    `${$text('embeds.via')} ${provider}`
   );
   
   /**
@@ -265,7 +265,7 @@
       return `${currency} ${Math.round(minPrice)}`;
     }
     
-    return `${$text('embeds.from.text') || 'from'} ${currency} ${Math.round(minPrice)}`;
+    return `${$text('embeds.from')} ${currency} ${Math.round(minPrice)}`;
   });
   
   // Connection count display
@@ -320,7 +320,7 @@
       <!-- Error state -->
       {#if status === 'error'}
         <div class="search-error">
-          <div class="search-error-title">{$text('embeds.search_failed.text') || 'Search failed'}</div>
+          <div class="search-error-title">{$text('embeds.search_failed')}</div>
           <div class="search-error-message">{errorMessage}</div>
         </div>
       {:else if status === 'finished'}
@@ -328,7 +328,7 @@
         <div class="search-results-info">
           {#if connectionCount > 0}
             <span class="connection-count">
-              {connectionCount} {connectionCount === 1 ? ($text('embeds.connection.text') || 'connection') : ($text('embeds.connections.text') || 'connections')}
+              {connectionCount} {connectionCount === 1 ? $text('embeds.connection') : $text('embeds.connections')}
             </span>
           {/if}
           

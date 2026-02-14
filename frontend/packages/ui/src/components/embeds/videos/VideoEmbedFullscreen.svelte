@@ -253,7 +253,7 @@
   function formatViewCount(count: number | undefined): string {
     if (!count) return '';
     const formattedCount = formatCompactNumber(count);
-    return $text('embeds.video_views.text', { count: formattedCount });
+    return $text('embeds.video_views', { count: formattedCount });
   }
   
   /**
@@ -263,7 +263,7 @@
   function formatLikeCount(count: number | undefined): string {
     if (!count) return '';
     const formattedCount = formatCompactNumber(count);
-    return $text('embeds.video_likes.text', { count: formattedCount });
+    return $text('embeds.video_likes', { count: formattedCount });
   }
   
   /**
@@ -279,12 +279,12 @@
       const diffMs = now.getTime() - date.getTime();
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       
-      if (diffDays < 1) return $text('embeds.date_today.text');
-      if (diffDays === 1) return $text('embeds.date_yesterday.text');
-      if (diffDays < 7) return $text('embeds.date_days_ago.text', { count: diffDays });
-      if (diffDays < 30) return $text('embeds.date_weeks_ago.text', { count: Math.floor(diffDays / 7) });
-      if (diffDays < 365) return $text('embeds.date_months_ago.text', { count: Math.floor(diffDays / 30) });
-      return $text('embeds.date_years_ago.text', { count: Math.floor(diffDays / 365) });
+      if (diffDays < 1) return $text('embeds.date_today');
+      if (diffDays === 1) return $text('embeds.date_yesterday');
+      if (diffDays < 7) return $text('embeds.date_days_ago', { count: diffDays });
+      if (diffDays < 30) return $text('embeds.date_weeks_ago', { count: Math.floor(diffDays / 7) });
+      if (diffDays < 365) return $text('embeds.date_months_ago', { count: Math.floor(diffDays / 30) });
+      return $text('embeds.date_years_ago', { count: Math.floor(diffDays / 365) });
     } catch {
       return '';
     }
@@ -316,7 +316,7 @@
   
   // Shortened video title for BasicInfosBar (truncate if too long)
   let shortenedTitle = $derived.by(() => {
-    const titleToShorten = displayTitle || $text('embeds.youtube_video.text');
+    const titleToShorten = displayTitle || $text('embeds.youtube_video');
     // Max ~30 chars for preview layout in the info bar
     const maxLength = 30;
     if (titleToShorten.length <= maxLength) return titleToShorten;
@@ -387,7 +387,7 @@
       });
       
       // Navigate to tip settings
-      navigateToSettings('shared/tip', $text('settings.tip.tip_creator.text', { default: 'Tip Creator' }), 'tip', 'settings.tip.tip_creator.text');
+      navigateToSettings('shared/tip', $text('settings.tip.tip_creator'), 'tip', 'settings.tip.tip_creator');
       
       // Open settings panel if not already open
       panelState.openSettings();
@@ -535,7 +535,7 @@
           <button
             class="play-button-overlay"
             onclick={handlePlayClick}
-            aria-label={$text('embeds.video_play.text')}
+            aria-label={$text('embeds.video_play')}
             type="button"
           >
             <span class="play-icon"></span>
@@ -549,7 +549,7 @@
               class="tip-creator-button"
               onclick={handleTipCreator}
               type="button"
-              aria-label={$text('embeds.tip_creator.text')}
+              aria-label={$text('embeds.tip_creator')}
             >
               <span class="clickable-icon icon_volunteering"></span>
             </button>
@@ -559,7 +559,7 @@
               rel="noopener noreferrer"
               class="open-on-youtube-button"
             >
-              {$text('embeds.open_on_youtube.text')}
+              {$text('embeds.open_on_youtube')}
             </a>
             <!-- Picture-in-Picture button - only shown when video is playing -->
             {#if isVideoPlaying && videoId && embedUrl}
@@ -567,7 +567,7 @@
                 class="pip-button"
                 onclick={handleEnterPip}
                 type="button"
-                aria-label={$text('embeds.video_pip.text')}
+                aria-label={$text('embeds.video_pip')}
               >
                 <span class="clickable-icon icon_pip"></span>
               </button>
@@ -587,7 +587,7 @@
               class="tip-creator-button"
               onclick={handleTipCreator}
               type="button"
-              aria-label={$text('embeds.tip_creator.text')}
+              aria-label={$text('embeds.tip_creator')}
             >
               <span class="clickable-icon icon_volunteering"></span>
             </button>
@@ -597,7 +597,7 @@
               rel="noopener noreferrer"
               class="open-on-youtube-button"
             >
-              {$text('embeds.open_on_youtube.text')}
+              {$text('embeds.open_on_youtube')}
             </a>
             <!-- Picture-in-Picture button -->
             {#if videoId && embedUrl}
@@ -605,7 +605,7 @@
                 class="pip-button"
                 onclick={handleEnterPip}
                 type="button"
-                aria-label={$text('embeds.video_pip.text')}
+                aria-label={$text('embeds.video_pip')}
               >
                 <span class="clickable-icon icon_pip"></span>
               </button>
@@ -659,13 +659,13 @@
         <div class="video-metadata">
           <div class="video-meta-line">
             {#if channelName}
-              <span class="meta-text">{$text('embeds.video_by.text', { default: 'by' })} {channelName}</span>
+              <span class="meta-text">{$text('embeds.video_by')} {channelName}</span>
             {/if}
             {#if channelName && publishedAt}
               <span class="meta-separator">,</span>
             {/if}
             {#if publishedAt}
-              <span class="meta-text">{formatPublishedDate(publishedAt)} {$text('embeds.video_uploaded.text', { default: 'uploaded' })}</span>
+              <span class="meta-text">{formatPublishedDate(publishedAt)} {$text('embeds.video_uploaded')}</span>
             {/if}
           </div>
         </div>

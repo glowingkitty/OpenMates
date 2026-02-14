@@ -95,15 +95,15 @@ This ensures users can never have a password without 2FA enabled.
     /** Page title based on whether user has password */
     let pageTitle = $derived(
         hasPassword 
-            ? $text('settings.security.change_password.text')
-            : $text('settings.security.add_password.text')
+            ? $text('settings.security.change_password')
+            : $text('settings.security.add_password')
     );
     
     /** Page description based on whether user has password */
     let pageDescription = $derived(
         hasPassword 
-            ? $text('settings.security.change_password_description.text')
-            : $text('settings.security.add_password_description.text')
+            ? $text('settings.security.change_password_description')
+            : $text('settings.security.add_password_description')
     );
 
     // ========================================================================
@@ -163,7 +163,7 @@ This ensures users can never have a password without 2FA enabled.
      */
     function checkPasswordStrength(pwd: string) {
         if (pwd.length < 8) {
-            passwordStrengthError = $text('signup.password_too_short.text');
+            passwordStrengthError = $text('signup.password_too_short');
             showPasswordStrengthWarning = true;
             return;
         }
@@ -344,8 +344,8 @@ This ensures users can never have a password without 2FA enabled.
             
             // Show success
             successMessage = passwordData.isNewPassword 
-                ? $text('settings.security.password_added_success.text')
-                : $text('settings.security.password_changed_success.text');
+                ? $text('settings.security.password_added_success')
+                : $text('settings.security.password_changed_success');
             currentStep = 'success';
 
         } catch (error) {
@@ -384,7 +384,7 @@ This ensures users can never have a password without 2FA enabled.
                 // Clear pending data
                 pendingPasswordData = null;
                 // Success message is set by savePasswordToServer, but override for combined success
-                successMessage = $text('settings.security.password_and_tfa_success.text');
+                successMessage = $text('settings.security.password_and_tfa_success');
             } catch (error) {
                 console.error('[SettingsPassword] Failed to save password after 2FA setup:', error);
                 errorMessage = error instanceof Error ? error.message : 'Failed to save password';
@@ -393,7 +393,7 @@ This ensures users can never have a password without 2FA enabled.
             }
         } else {
             console.error('[SettingsPassword] No pending password data after 2FA setup - this should not happen');
-            successMessage = $text('settings.security.tfa_setup_complete.text');
+            successMessage = $text('settings.security.tfa_setup_complete');
             currentStep = 'success';
         }
     }
@@ -407,7 +407,7 @@ This ensures users can never have a password without 2FA enabled.
         // Clear pending password data - password will NOT be saved
         pendingPasswordData = null;
         // Show a message explaining why we're going back
-        errorMessage = $text('settings.security.tfa_required_for_password.text');
+        errorMessage = $text('settings.security.tfa_required_for_password');
         // Go back to password form
         currentStep = 'form';
     }
@@ -418,7 +418,7 @@ This ensures users can never have a password without 2FA enabled.
         <!-- Loading State -->
         <div class="loading-container">
             <div class="loading-spinner"></div>
-            <p>{$text('settings.security.loading.text')}</p>
+            <p>{$text('settings.security.loading')}</p>
         </div>
     {:else if currentStep === 'auth'}
         <!-- Authentication Step -->
@@ -430,15 +430,15 @@ This ensures users can never have a password without 2FA enabled.
 
             <div class="auth-info">
                 <div class="info-icon">🔐</div>
-                <p>{$text('settings.security.auth_required_for_password.text')}</p>
+                <p>{$text('settings.security.auth_required_for_password')}</p>
             </div>
 
             <SecurityAuth
                 {hasPasskey}
                 {hasPassword}
                 {has2FA}
-                title={$text('settings.security.verify_identity.text')}
-                description={$text('settings.security.verify_identity_description.text')}
+                title={$text('settings.security.verify_identity')}
+                description={$text('settings.security.verify_identity_description')}
                 autoStart={hasPasskey}
                 onSuccess={handleAuthSuccess}
                 onFailed={handleAuthFailed}
@@ -456,50 +456,50 @@ This ensures users can never have a password without 2FA enabled.
             <div class="password-form">
                 <!-- New Password Input -->
                 <div class="form-group">
-                    <label for="new-password">{$text('settings.security.new_password.text')}</label>
+                    <label for="new-password">{$text('settings.security.new_password')}</label>
                     <input
                         id="new-password"
                         type="password"
                         bind:value={newPassword}
-                        placeholder={$text('settings.security.new_password_placeholder.text')}
+                        placeholder={$text('settings.security.new_password_placeholder')}
                         disabled={isSubmitting}
                         class:error={passwordStrengthError}
                     />
                     {#if passwordStrengthError}
                         <span class="field-error">{passwordStrengthError}</span>
                     {:else if showPasswordStrengthWarning}
-                        <span class="field-warning">{$text('settings.security.password_strength_warning.text')}</span>
+                        <span class="field-warning">{$text('settings.security.password_strength_warning')}</span>
                     {/if}
                 </div>
 
                 <!-- Confirm Password Input -->
                 <div class="form-group">
-                    <label for="confirm-password">{$text('settings.security.confirm_password.text')}</label>
+                    <label for="confirm-password">{$text('settings.security.confirm_password')}</label>
                     <input
                         id="confirm-password"
                         type="password"
                         bind:value={confirmPassword}
-                        placeholder={$text('settings.security.confirm_password_placeholder.text')}
+                        placeholder={$text('settings.security.confirm_password_placeholder')}
                         disabled={isSubmitting}
                         class:error={confirmPassword && !passwordsMatch}
                     />
                     {#if confirmPassword && !passwordsMatch}
-                        <span class="field-error">{$text('signup.passwords_do_not_match.text')}</span>
+                        <span class="field-error">{$text('signup.passwords_do_not_match')}</span>
                     {/if}
                 </div>
 
                 <!-- Password Requirements -->
                 <div class="password-requirements">
-                    <p class="requirements-title">{$text('settings.security.password_requirements.text')}</p>
+                    <p class="requirements-title">{$text('settings.security.password_requirements')}</p>
                     <ul>
                         <li class:valid={newPassword.length >= 8}>
-                            {$text('settings.security.password_req_length.text')}
+                            {$text('settings.security.password_req_length')}
                         </li>
                         <li class:valid={/[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword)}>
-                            {$text('settings.security.password_req_case.text')}
+                            {$text('settings.security.password_req_case')}
                         </li>
                         <li class:valid={/[0-9]/.test(newPassword)}>
-                            {$text('settings.security.password_req_number.text')}
+                            {$text('settings.security.password_req_number')}
                         </li>
                     </ul>
                 </div>
@@ -522,8 +522,8 @@ This ensures users can never have a password without 2FA enabled.
                         <span class="loading-spinner-small"></span>
                     {/if}
                     {hasPassword 
-                        ? $text('settings.security.change_password_button.text')
-                        : $text('settings.security.add_password_button.text')}
+                        ? $text('settings.security.change_password_button')
+                        : $text('settings.security.add_password_button')}
                 </button>
             </div>
         </div>
@@ -531,13 +531,13 @@ This ensures users can never have a password without 2FA enabled.
         <!-- 2FA Setup Step - Required after adding new password -->
         <div class="tfa-setup-step">
             <div class="step-header">
-                <h2>{$text('settings.security.tfa_setup_required.text')}</h2>
-                <p class="description">{$text('settings.security.tfa_setup_required_description.text')}</p>
+                <h2>{$text('settings.security.tfa_setup_required')}</h2>
+                <p class="description">{$text('settings.security.tfa_setup_required_description')}</p>
             </div>
 
             <div class="tfa-info-banner">
                 <div class="info-icon">🔐</div>
-                <p>{$text('settings.security.password_needs_tfa.text')}</p>
+                <p>{$text('settings.security.password_needs_tfa')}</p>
             </div>
 
             <!-- Embedded 2FA setup component - auto-starts setup, skips auth (already authenticated) -->
@@ -554,11 +554,11 @@ This ensures users can never have a password without 2FA enabled.
         <!-- Success Step -->
         <div class="success-step">
             <div class="success-icon">✓</div>
-            <h2>{$text('settings.security.password_updated.text')}</h2>
+            <h2>{$text('settings.security.password_updated')}</h2>
             <p>{successMessage}</p>
             
             <button class="done-btn" onclick={resetForm}>
-                {$text('settings.security.change_password_again.text')}
+                {$text('settings.security.change_password_again')}
             </button>
         </div>
     {/if}

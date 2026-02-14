@@ -1,15 +1,18 @@
-name_translation_key: mail.text
-description_translation_key: mail.description.text
+name_translation_key: mail
+description_translation_key: mail.description
 icon_image: |
   mail.svg
 category: work
 last_updated: '2025-11-12'
 settings_and_memories:
 - id: writing_styles
-  name_translation_key: mail.writing_styles.text
-  description_translation_key: mail.writing_styles.description.text
+  name_translation_key: mail.writing_styles
+  description_translation_key: mail.writing_styles.description
   type: list
   stage: planning
+  example_translation_keys:
+    - "mail.writing_styles.example_1"
+    - "mail.writing_styles.example_2"
   schema:
     type: object
     properties:

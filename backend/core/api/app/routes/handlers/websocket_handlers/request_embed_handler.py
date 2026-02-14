@@ -124,6 +124,47 @@ async def handle_request_embed(
                 logger.info(f"{log_prefix}Sent finished embed data from Directus to user {user_id}")
                 return
 
+        # Handle error/cancelled embeds from cache: send error status to client
+        # without full vault decryption, and remove from cache to prevent repeated lookups.
+        # The client's embedResolver will mark this embed as a known error
+        # to prevent re-requesting it on every render cycle.
+        if cached and cached.get("status") in ("error", "cancelled"):
+            logger.info(
+                f"{log_prefix}Embed has status='{cached.get('status')}' in cache, "
+                f"sending error status to client and removing from cache"
+            )
+            error_payload = {
+                "event": "send_embed_data",
+                "type": "send_embed_data",
+                "event_for_client": "send_embed_data",
+                "payload": {
+                    "embed_id": embed_id,
+                    "type": cached.get("type") or "app_skill_use",
+                    "content": cached.get("encrypted_content", ""),
+                    "status": cached.get("status"),
+                    "chat_id": cached.get("chat_id") or cached.get("hashed_chat_id"),
+                    "message_id": cached.get("message_id") or cached.get("hashed_message_id"),
+                    "user_id": user_id,
+                    "embed_ids": cached.get("embed_ids"),
+                    "parent_embed_id": cached.get("parent_embed_id"),
+                    "is_private": cached.get("is_private", False),
+                    "is_shared": cached.get("is_shared", False),
+                }
+            }
+            await manager.send_personal_message(error_payload, user_id, device_fingerprint_hash)
+
+            # Remove the error embed from cache so we don't keep sending it
+            # on repeated requests. The client-side knownErrorEmbeds set will
+            # prevent the client from re-requesting after the first response.
+            try:
+                client = await cache_service.client
+                if client:
+                    await client.delete(f"embed:{embed_id}")
+                    logger.debug(f"{log_prefix}Removed error embed from cache")
+            except Exception as cache_err:
+                logger.warning(f"{log_prefix}Failed to remove error embed from cache: {cache_err}")
+            return
+
         if not cached:
             # If not in cache at all, check Directus as a last resort
             logger.warning(f"{log_prefix}Embed not found in cache, checking Directus")

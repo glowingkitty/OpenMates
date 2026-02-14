@@ -303,12 +303,18 @@ class ChatMethods:
 
     async def create_chat_in_directus(self, chat_metadata: Dict[str, Any]) -> tuple[Optional[Dict[str, Any]], bool]:
         """
-        Create a chat record in Directus.
+        Create a chat record in Directus using an upsert pattern.
+        
+        Tries to INSERT first. On duplicate key (race condition where another task already
+        created the chat), falls back to PATCH with any non-empty fields from the payload.
+        This eliminates the "duplicate key violates unique constraint" errors from the DB logs
+        and ensures metadata from the second task (e.g., encrypted_chat_key) is not lost.
         
         Returns:
             tuple[Optional[Dict], bool]: 
-                - (created_data, False) on success
-                - (None, True) if chat already exists (RECORD_NOT_UNIQUE error - race condition)
+                - (created_data, False) on success (created)
+                - (updated_data, True) if chat already existed and was updated (upsert fallback)
+                - (None, True) if chat already exists but update was unnecessary
                 - (None, False) on other failures
         """
         try:
@@ -317,7 +323,7 @@ class ChatMethods:
             success, result_data = await self.directus_service.create_item('chats', chat_metadata)
             if success and result_data:
                 logger.info(f"Chat created in Directus: {result_data.get('id')}")
-                if chat_id_val: # Check if chat_id_val is not None
+                if chat_id_val:
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
                 
                 # Update Global Stats (Incremental)
@@ -338,11 +344,41 @@ class ChatMethods:
                     error_text = result_data.get('text', '')
                     if 'RECORD_NOT_UNIQUE' in error_text or 'duplicate key' in error_text.lower():
                         is_duplicate = True
-                        logger.warning(
-                            f"⚠️ Chat {chat_id_val} creation returned duplicate key error - "
-                            f"chat was already created by another concurrent task (race condition). "
-                            f"This is expected and safe to proceed with message creation."
+                
+                if is_duplicate and chat_id_val:
+                    # UPSERT FALLBACK: Chat already exists — update it with any meaningful fields
+                    # from the payload that the existing record might be missing (e.g., encrypted_chat_key,
+                    # encrypted_title set by a concurrent metadata task).
+                    # Exclude 'id' and 'created_at' since those are immutable.
+                    fields_to_update = {
+                        k: v for k, v in chat_metadata.items()
+                        if k not in ('id', 'created_at') and v is not None and v != '' and v != 0
+                    }
+                    
+                    if fields_to_update:
+                        logger.info(
+                            f"Chat {chat_id_val} already exists (race condition). "
+                            f"Upserting with fields: {list(fields_to_update.keys())}"
                         )
+                        try:
+                            updated_data = await self.directus_service.update_item(
+                                'chats', chat_id_val, fields_to_update
+                            )
+                            if updated_data:
+                                await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
+                                return updated_data, True
+                        except Exception as update_err:
+                            logger.warning(
+                                f"Upsert fallback update failed for chat {chat_id_val}: {update_err}. "
+                                f"Chat exists, proceeding with message creation."
+                            )
+                    else:
+                        logger.info(
+                            f"Chat {chat_id_val} already exists (race condition). "
+                            f"No additional fields to update. Proceeding with message creation."
+                        )
+                    
+                    return None, True
                 
                 if not is_duplicate:
                     logger.error(f"Failed to create chat in Directus for {chat_id_val}. Details: {result_data}")
@@ -505,10 +541,19 @@ class ChatMethods:
                     
                 return result_data
             else:
-                # Check for duplicate key error (RECORD_NOT_UNIQUE)
-                if isinstance(result_data, dict) and 'RECORD_NOT_UNIQUE' in str(result_data.get('text', '')):
-                    logger.warning(f"⚠️ Message {message_id} already exists in Directus (RECORD_NOT_UNIQUE). Treating as success.")
-                    # Return a dummy dict with the ID to indicate "success" (already exists)
+                # Check for duplicate key error (RECORD_NOT_UNIQUE or raw PostgreSQL duplicate key)
+                is_duplicate_msg = False
+                if isinstance(result_data, dict):
+                    error_text = str(result_data.get('text', ''))
+                    if 'RECORD_NOT_UNIQUE' in error_text or 'duplicate key' in error_text.lower():
+                        is_duplicate_msg = True
+                
+                if is_duplicate_msg:
+                    logger.info(
+                        f"Message {message_id} already exists in Directus (duplicate key). "
+                        f"Treating as success for chat {chat_id_val}."
+                    )
+                    # Return a dict with the ID to indicate "success" (already exists)
                     return {"id": deterministic_id, "client_message_id": message_id}
                 
                 logger.error(f"Failed to create message in Directus for chat {chat_id_val}. Details: {result_data}")

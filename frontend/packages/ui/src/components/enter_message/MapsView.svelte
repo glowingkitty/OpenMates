@@ -965,8 +965,8 @@
     $effect(() => {
         if (isCurrentLocation) {
             locationIndicatorText = isPrecise ? 
-                ($text('enter_message.location.current_location.text') || 'Current location') : 
-                ($text('enter_message.location.current_area.text') || 'Current area');
+                $text('enter_message.location.current_location') : 
+                $text('enter_message.location.current_area');
         } else if (selectedLocationText) {
             // Always use two lines when we have selectedLocationText
             locationIndicatorText = selectedLocationText.subLine ? 
@@ -974,8 +974,8 @@
                 selectedLocationText.mainLine;
         } else {
             locationIndicatorText = isPrecise ? 
-                ($text('enter_message.location.selected_location.text') || 'Selected location') : 
-                ($text('enter_message.location.selected_area.text') || 'Selected area');
+                $text('enter_message.location.selected_location') : 
+                $text('enter_message.location.selected_area');
         }
     });
 </script>
@@ -987,11 +987,11 @@
 >
     {#if showPreciseToggle && !showResults}
         <div class="precise-toggle" transition:slide={{ duration: 300, axis: 'y' }}>
-            <span>{@html $text('enter_message.location.precise.text')}</span>
+            <span>{@html $text('enter_message.location.precise')}</span>
             <Toggle 
                 bind:checked={isPrecise}
                 name="precise-location"
-                ariaLabel={$text('enter_message.location.toggle_precise.text')}
+                ariaLabel={$text('enter_message.location.toggle_precise')}
             />
         </div>
     {/if}
@@ -1008,7 +1008,7 @@
                 transition:slide={{ duration: 200 }}
                 style="padding: 15px;"
             >
-                {$text('enter_message.location.select.text') || 'Select'}
+                {$text('enter_message.location.select')}
             </button>
         </div>
     {/if}
@@ -1020,7 +1020,7 @@
             <button 
                 class="clickable-icon icon_close" 
                 onclick={handleClose}
-                aria-label={$text('enter_message.location.close.text')}
+                aria-label={$text('enter_message.location.close')}
                 use:tooltip
             ></button>
 
@@ -1029,7 +1029,7 @@
                     type="text"
                     bind:value={searchQuery}
                     oninput={() => debouncedSearch(searchQuery)}
-                    placeholder={$text('enter_message.location.search_placeholder.text') || "Search location..."}
+                    placeholder={$text('enter_message.location.search_placeholder')}
                     class="search-input"
                 />
             </div>
@@ -1038,7 +1038,7 @@
                 class="clickable-icon icon_location"
                 onclick={getCurrentLocation}
                 disabled={isLoading}
-                aria-label={$text('enter_message.location.get_location.text')}
+                aria-label={$text('enter_message.location.get_location')}
                 use:tooltip
             >
             </button>
@@ -1048,7 +1048,7 @@
     {#if showResults && searchResults.length > 0}
         <div class="search-results-container" transition:slide={{ duration: 300 }}>
             <div class="search-results-header">
-                <h3>{@html $text('enter_message.location.search_results.text') || 'Search Results'}</h3>
+                <h3>{@html $text('enter_message.location.search_results')}</h3>
                 <button 
                     class="clickable-icon icon_close" 
                     onclick={() => {
@@ -1057,7 +1057,7 @@
                         searchResults = [];
                         removeSearchMarkers();
                     }}
-                    aria-label={$text('enter_message.location.close_search.text')}
+                    aria-label={$text('enter_message.location.close_search')}
                     use:tooltip
                 ></button>
             </div>

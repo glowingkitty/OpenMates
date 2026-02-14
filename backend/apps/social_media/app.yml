@@ -1,5 +1,5 @@
-name_translation_key: social_media.text
-description_translation_key: social_media.description.text
+name_translation_key: social_media
+description_translation_key: social_media.description
 icon_image: |
   social_media.svg
 category: work
@@ -8,7 +8,7 @@ last_updated: '2025-11-17'
 
 focuses:
   - id: content_calendar_strategist
-    name_translation_key: social_media.content_calendar_strategist.text
-    description_translation_key: social_media.content_calendar_strategist.description.text
+    name_translation_key: social_media.content_calendar_strategist
+    description_translation_key: social_media.content_calendar_strategist.description
     stage: planning
-    systemprompt_translation_key: social_media.content_calendar_strategist.systemprompt.text
+    systemprompt_translation_key: social_media.content_calendar_strategist.systemprompt

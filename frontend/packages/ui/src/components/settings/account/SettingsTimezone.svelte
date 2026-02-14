@@ -136,7 +136,7 @@
             // Update user profile store
             updateProfile({ timezone: newTimezone });
             
-            successMessage = $text('settings.account.timezone_saved.text');
+            successMessage = $text('settings.account.timezone_saved');
             
             // Clear success message after 3 seconds
             setTimeout(() => {
@@ -171,14 +171,14 @@
 
 <div class="settings-timezone">
     {#if isLoading}
-        <div class="loading">{$text('settings.account.timezone_loading.text')}</div>
+        <div class="loading">{$text('settings.account.timezone_loading')}</div>
     {:else}
         <!-- Current timezone display -->
         <div class="current-timezone-section">
             <SettingsItem
                 type="nested"
                 icon="clock"
-                title={$text('settings.account.timezone_current.text')}
+                title={$text('settings.account.timezone_current')}
                 subtitleTop={getTimezoneLabel(currentTimezone)}
             />
             
@@ -189,7 +189,7 @@
                         onclick={useBrowserTimezone}
                         disabled={isSaving}
                     >
-                        {$text('settings.account.timezone_use_browser.text')} ({getTimezoneLabel(browserTimezone)})
+                        {$text('settings.account.timezone_use_browser')} ({getTimezoneLabel(browserTimezone)})
                     </button>
                 </div>
             {/if}
@@ -226,7 +226,7 @@
         <!-- Show current timezone if not in predefined list -->
         {#if currentTimezone && !isKnownTimezone(currentTimezone)}
             <div class="timezone-group">
-                <h3 class="region-header">{$text('settings.account.timezone_other.text')}</h3>
+                <h3 class="region-header">{$text('settings.account.timezone_other')}</h3>
                 <div class="timezone-list">
                     <SettingsItem 
                         type="quickaction"
@@ -241,7 +241,7 @@
         {/if}
 
         <div class="info-box">
-            <p>{$text('settings.account.timezone_info.text')}</p>
+            <p>{$text('settings.account.timezone_info')}</p>
         </div>
     {/if}
 </div>

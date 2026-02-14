@@ -69,9 +69,9 @@
     let tierLabel = $derived.by(() => {
         if (!model) return '';
         switch (model.tier) {
-            case 'economy': return $text('settings.ai_ask.ai_ask_model_details.tier_economy.text');
-            case 'standard': return $text('settings.ai_ask.ai_ask_model_details.tier_standard.text');
-            case 'premium': return $text('settings.ai_ask.ai_ask_model_details.tier_premium.text');
+            case 'economy': return $text('settings.ai_ask.ai_ask_model_details.tier_economy');
+            case 'standard': return $text('settings.ai_ask.ai_ask_model_details.tier_standard');
+            case 'premium': return $text('settings.ai_ask.ai_ask_model_details.tier_premium');
             default: return model.tier;
         }
     });
@@ -84,10 +84,10 @@
         if (!model?.input_types) return '';
         return model.input_types.map(type => {
             switch (type) {
-                case 'text': return $text('settings.ai_ask.ai_ask_model_details.input_type_text.text');
-                case 'image': return $text('settings.ai_ask.ai_ask_model_details.input_type_image.text');
-                case 'video': return $text('settings.ai_ask.ai_ask_model_details.input_type_video.text');
-                case 'audio': return $text('settings.ai_ask.ai_ask_model_details.input_type_audio.text');
+                case 'text': return $text('settings.ai_ask.ai_ask_model_details.input_type_text');
+                case 'image': return $text('settings.ai_ask.ai_ask_model_details.input_type_image');
+                case 'video': return $text('settings.ai_ask.ai_ask_model_details.input_type_video');
+                case 'audio': return $text('settings.ai_ask.ai_ask_model_details.input_type_audio');
                 default: return type;
             }
         }).join(', ');
@@ -98,8 +98,8 @@
         if (!model?.output_types) return '';
         return model.output_types.map(type => {
             switch (type) {
-                case 'text': return $text('settings.ai_ask.ai_ask_model_details.output_type_text.text');
-                case 'image': return $text('settings.ai_ask.ai_ask_model_details.output_type_image.text');
+                case 'text': return $text('settings.ai_ask.ai_ask_model_details.output_type_text');
+                case 'image': return $text('settings.ai_ask.ai_ask_model_details.output_type_image');
                 default: return type;
             }
         }).join(', ');
@@ -208,8 +208,8 @@
 <div class="model-details">
     {#if !model}
         <div class="error">
-            <p>{$text('settings.ai_ask.ai_ask_model_details.model_not_found.text')}</p>
-            <button class="back-button" onclick={goBack}>← {$text('settings.ai_ask.ai_ask_model_details.back_to_models.text')}</button>
+            <p>{$text('settings.ai_ask.ai_ask_model_details.model_not_found')}</p>
+            <button class="back-button" onclick={goBack}>← {$text('settings.ai_ask.ai_ask_model_details.back_to_models')}</button>
         </div>
     {:else}
         <!-- Model header with logo, name, and main toggle -->
@@ -223,7 +223,7 @@
             </div>
             <div class="model-title-section">
                 <h1 class="model-name">{model.name}</h1>
-                <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider.text').replace('{provider}', model.provider_name)}</span>
+                <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider').replace('{provider}', model.provider_name)}</span>
             </div>
             {#if isAuthenticated}
                 <div 
@@ -256,12 +256,12 @@
             <SettingsItem 
                 type="heading"
                 icon="icon_info"
-                title={$text('settings.ai_ask.ai_ask_model_details.model_info.text')}
+                title={$text('settings.ai_ask.ai_ask_model_details.model_info')}
             />
             <div class="info-content">
                 <!-- Origin -->
                 <div class="info-row">
-                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.origin.text')}</span>
+                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.origin')}</span>
                     <span class="info-value">
                         <span class="country-flag">{getCountryFlag(model.country_origin)}</span>
                         {model.provider_name}
@@ -271,14 +271,14 @@
                 <!-- Release date -->
                 {#if formattedReleaseDate}
                     <div class="info-row">
-                        <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.release_date.text')}</span>
+                        <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.release_date')}</span>
                         <span class="info-value">{formattedReleaseDate}</span>
                     </div>
                 {/if}
                 
                 <!-- Tier -->
                 <div class="info-row">
-                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.tier.text')}</span>
+                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.tier')}</span>
                     <span class="info-value">
                         <span class="tier-badge tier-{tierClass}">{tierLabel}</span>
                     </span>
@@ -287,22 +287,22 @@
                 <!-- Reasoning model badge -->
                 {#if model.reasoning}
                     <div class="info-row">
-                        <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.type.text')}</span>
+                        <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.type')}</span>
                         <span class="info-value">
-                            <span class="reasoning-badge">{$text('settings.ai_ask.ai_ask_model_details.reasoning_model.text')}</span>
+                            <span class="reasoning-badge">{$text('settings.ai_ask.ai_ask_model_details.reasoning_model')}</span>
                         </span>
                     </div>
                 {/if}
                 
                 <!-- Input types -->
                 <div class="info-row">
-                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.input_types.text')}</span>
+                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.input_types')}</span>
                     <span class="info-value">{inputTypesDisplay}</span>
                 </div>
                 
                 <!-- Output types -->
                 <div class="info-row">
-                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.output_types.text')}</span>
+                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.output_types')}</span>
                     <span class="info-value">{outputTypesDisplay}</span>
                 </div>
             </div>
@@ -314,24 +314,24 @@
                 <SettingsItem 
                     type="heading"
                     icon="credits"
-                    title={$text('settings.ai_ask.ai_ask_model_details.pricing.text')}
+                    title={$text('settings.ai_ask.ai_ask_model_details.pricing')}
                 />
                 <div class="pricing-content">
                     {#if model.pricing.input_tokens_per_credit}
                         <div class="pricing-row">
                             <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
-                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_input.text')}</span>
+                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_input')}</span>
                             <span class="pricing-value">
-                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per.text')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
+                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
                             </span>
                         </div>
                     {/if}
                     {#if model.pricing.output_tokens_per_credit}
                         <div class="pricing-row">
                             <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
-                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_output.text')}</span>
+                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_output')}</span>
                             <span class="pricing-value">
-                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per.text')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens.text')}
+                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
                             </span>
                         </div>
                     {/if}
@@ -345,7 +345,7 @@
                 <SettingsItem 
                     type="heading"
                     icon="server"
-                    title={$text('settings.ai_ask.ai_ask_model_details.provider.text')}
+                    title={$text('settings.ai_ask.ai_ask_model_details.provider')}
                 />
                 
                 <div class="provider-list">
@@ -360,7 +360,7 @@
                             </div>
                             <div class="provider-info">
                                 <span class="provider-name">{server.name}</span>
-                                <span class="provider-region">{getRegionDisplay(server.region)} {$text('settings.ai_ask.ai_ask_model_details.servers.text').toLowerCase()}</span>
+                                <span class="provider-region">{getRegionDisplay(server.region)} {$text('settings.ai_ask.ai_ask_model_details.servers').toLowerCase()}</span>
                             </div>
                             {#if isAuthenticated}
                                 <div 

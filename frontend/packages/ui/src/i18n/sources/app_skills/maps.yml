@@ -48,3 +48,75 @@ search.description:
   verified_by_human:
     - en
     - de
+
+search.how_to_use.1:
+  context: Example instruction for maps search skill - restaurants
+  en: Find Italian restaurants near Alexanderplatz, Berlin
+  de: Finde italienische Restaurants am Alexanderplatz, Berlin
+  zh: 查找Berlin Alexanderplatz附近的意大利餐厅
+  es: Encuentra restaurantes italianos cerca de Alexanderplatz, Berlin
+  fr: Trouve des restaurants italiens près d'Alexanderplatz, Berlin
+  pt: Encontre restaurantes italianos perto de Alexanderplatz, Berlin
+  ru: Найди итальянские рестораны рядом с Alexanderplatz, Berlin
+  ja: Berlin、Alexanderplatz近くのイタリアンレストランを探して
+  ko: Berlin Alexanderplatz 근처 이탈리안 레스토랑을 찾아줘
+  it: Trova ristoranti italiani vicino ad Alexanderplatz, Berlin
+  tr: Alexanderplatz, Berlin yakınındaki İtalyan restoranlarını bul
+  vi: Tìm nhà hàng Ý gần Alexanderplatz, Berlin
+  id: Temukan restoran Italia di dekat Alexanderplatz, Berlin
+  pl: Znajdź włoskie restauracje w pobliżu Alexanderplatz, Berlin
+  nl: Zoek Italiaanse restaurants in de buurt van Alexanderplatz, Berlin
+  ar: ابحث عن مطاعم إيطالية بالقرب من Alexanderplatz، Berlin
+  hi: Alexanderplatz, Berlin के पास इतालवी रेस्तरां खोजें
+  th: ค้นหาร้านอาหารอิตาเลียนใกล้ Alexanderplatz, Berlin
+  cs: Najdi italské restaurace poblíž Alexanderplatz, Berlin
+  sv: Hitta italienska restauranger nära Alexanderplatz, Berlin
+  verified_by_human: [en, de]
+
+search.how_to_use.2:
+  context: Example instruction for maps search skill - workspaces
+  en: Search for coworking spaces in downtown Munich
+  de: Suche Coworking-Spaces in der Münchner Innenstadt
+  zh: 搜索Munich市中心的共享办公空间
+  es: Busca espacios de coworking en el centro de Munich
+  fr: Recherche des espaces de coworking dans le centre de Munich
+  pt: Pesquise espaços de coworking no centro de Munich
+  ru: Найди коворкинги в центре Munich
+  ja: Munich中心部のコワーキングスペースを検索して
+  ko: Munich 시내에서 코워킹 스페이스를 검색해줘
+  it: Cerca spazi di coworking nel centro di Munich
+  tr: Munich şehir merkezinde ortak çalışma alanları ara
+  vi: Tìm không gian làm việc chung ở trung tâm Munich
+  id: Cari ruang kerja bersama di pusat kota Munich
+  pl: Szukaj przestrzeni coworkingowych w centrum Munich
+  nl: Zoek coworkingruimtes in het centrum van Munich
+  ar: ابحث عن مساحات عمل مشتركة في وسط Munich
+  hi: Munich शहर के केंद्र में कोवर्किंग स्पेस खोजें
+  th: ค้นหาพื้นที่ทำงานร่วมในใจกลาง Munich
+  cs: Najdi coworkingové prostory v centru Munich
+  sv: Sök efter coworking-utrymmen i centrala Munich
+  verified_by_human: [en, de]
+
+search.how_to_use.3:
+  context: Example instruction for maps search skill - nearby services
+  en: Find pharmacies open now near me
+  de: Finde Apotheken in meiner Nähe, die jetzt geöffnet sind
+  zh: 查找我附近现在营业的药店
+  es: Encuentra farmacias abiertas ahora cerca de mí
+  fr: Trouve des pharmacies ouvertes maintenant près de moi
+  pt: Encontre farmácias abertas agora perto de mim
+  ru: Найди аптеки, открытые сейчас, рядом со мной
+  ja: 今開いている近くの薬局を探して
+  ko: 지금 영업 중인 근처 약국을 찾아줘
+  it: Trova farmacie aperte adesso vicino a me
+  tr: Yakınımda şu anda açık olan eczaneleri bul
+  vi: Tìm nhà thuốc đang mở gần tôi
+  id: Temukan apotek yang buka sekarang di dekat saya
+  pl: Znajdź apteki otwarte teraz w pobliżu
+  nl: Zoek apotheken die nu open zijn in mijn buurt
+  ar: ابحث عن صيدليات مفتوحة الآن بالقرب مني
+  hi: मेरे पास अभी खुली हुई फार्मेसी खोजें
+  th: ค้นหาร้านขายยาที่เปิดอยู่ใกล้ฉัน
+  cs: Najdi lékárny otevřené teď poblíž
+  sv: Hitta apotek som har öppet nu nära mig
+  verified_by_human: [en, de]

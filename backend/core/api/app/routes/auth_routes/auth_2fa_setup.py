@@ -8,6 +8,7 @@ from backend.core.api.app.schemas.auth_2fa import (
     BackupCodesResponse, ConfirmCodesStoredRequest, ConfirmCodesStoredResponse,
     Setup2FAProviderRequest, Setup2FAProviderResponse
 )
+from backend.core.api.app.models.user import User
 
 # Import services and dependencies
 from backend.core.api.app.services.directus import DirectusService
@@ -17,7 +18,8 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service,
     get_cache_service,
-    get_compliance_service
+    get_compliance_service,
+    get_current_user
 )
 # Import utils and common functions
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
@@ -281,24 +283,29 @@ async def verify_signup_2fa(
              logger.error(f"Failed to encrypt 2FA secret for user {user_id} during signup.")
              return VerifySignup2FAResponse(success=False, message="Failed to secure 2FA secret")
 
-        success = await directus_service.update_user(user_id, {
+        # Only update last_opened if user is currently in the signup flow
+        is_signup = user_data.get("last_opened", "").startswith("/signup")
+        update_fields = {
             "encrypted_tfa_secret": encrypted_secret,
             "tfa_last_used": current_time,
-            "last_opened": "/signup/tfa_app_reminder"
-        })
+        }
+        if is_signup:
+            update_fields["last_opened"] = "/signup/tfa_app_reminder"
+
+        success = await directus_service.update_user(user_id, update_fields)
 
         if not success:
-            logger.error("Failed to update user 2FA settings during signup verification")
+            logger.error("Failed to update user 2FA settings during verification")
             return VerifySignup2FAResponse(success=False, message="Failed to save 2FA settings")
 
-        cache_update_success = await cache_service.update_user(user_id, {
-            "tfa_enabled": True,
-            "last_opened": "/signup/tfa_app_reminder"
-            })
+        cache_fields = {"tfa_enabled": True}
+        if is_signup:
+            cache_fields["last_opened"] = "/signup/tfa_app_reminder"
+        cache_update_success = await cache_service.update_user(user_id, cache_fields)
         if not cache_update_success:
-             logger.warning(f"Failed to update cache for user {user_id} after 2FA signup verification, but Directus was updated.")
+             logger.warning(f"Failed to update cache for user {user_id} after 2FA verification, but Directus was updated.")
         else:
-             logger.info(f"Successfully updated cache for user {user_id} after 2FA signup verification.")
+             logger.info(f"Successfully updated cache for user {user_id} after 2FA verification (is_signup={is_signup}).")
 
         setup_data['tfa_added_to_app'] = True
         await cache_service.set(f"2fa_setup:{user_id}", setup_data, ttl=3600)
@@ -425,18 +432,24 @@ async def confirm_codes_stored(
         user_id = user_data.get("user_id")
         current_time = int(time.time())
 
-        success = await directus_service.update_user(user_id, {
+        # Only update last_opened if user is currently in the signup flow
+        is_signup = user_data.get("last_opened", "").startswith("/signup")
+        update_fields = {
             "consent_tfa_safely_stored_timestamp": current_time,
-            "last_opened": "/signup/recovery-key"
-        })
+        }
+        if is_signup:
+            update_fields["last_opened"] = "/signup/recovery-key"
+
+        success = await directus_service.update_user(user_id, update_fields)
 
         if not success:
-            logger.error("Failed to record confirmation timestamp or update last_opened")
+            logger.error("Failed to record confirmation timestamp")
             return ConfirmCodesStoredResponse(success=False, message="Failed to record your confirmation")
 
-        user_data["last_opened"] = "/signup/recovery-key"
+        if is_signup:
+            user_data["last_opened"] = "/signup/recovery-key"
         await cache_service.set_user(user_data, refresh_token=refresh_token)
-        logger.info(f"Updated user cache for {user_id} with last_opened=/signup/recovery-key")
+        logger.info(f"Updated user cache for {user_id} (is_signup={is_signup})")
 
         await cache_service.delete(f"2fa_setup:{user_id}")
         logger.info(f"Removed 2FA setup data from cache for user {user_id}")
@@ -492,24 +505,29 @@ async def setup_2fa_provider(
         tfa_app_name = provider_request.provider
         encrypted_app_name, _ = await encryption_service.encrypt_with_user_key(tfa_app_name, vault_key_id)
 
-        success = await directus_service.update_user(user_id, {
+        # Only update last_opened if user is currently in the signup flow
+        is_signup = user_data.get("last_opened", "").startswith("/signup")
+        update_fields = {
             "encrypted_tfa_app_name": encrypted_app_name,
-            "last_opened": "/signup/backup-codes"
-        })
+        }
+        if is_signup:
+            update_fields["last_opened"] = "/signup/backup-codes"
+
+        success = await directus_service.update_user(user_id, update_fields)
 
         if not success:
             logger.error("Failed to update user 2FA app name")
-            return Setup2FAProviderResponse(success=False, message="Failed to save 2FA app name or update step")
+            return Setup2FAProviderResponse(success=False, message="Failed to save 2FA app name")
 
         logger.info(f"Attempting to update cache for user {user_id} after setting 2FA provider.")
-        cache_update_success = await cache_service.update_user(user_id, {
-            "tfa_app_name": tfa_app_name,
-            "last_opened": "/signup/backup-codes"
-        })
+        cache_fields = {"tfa_app_name": tfa_app_name}
+        if is_signup:
+            cache_fields["last_opened"] = "/signup/backup-codes"
+        cache_update_success = await cache_service.update_user(user_id, cache_fields)
         if not cache_update_success:
              logger.warning(f"Failed to update cache for user {user_id} after setting 2FA provider, but Directus was updated.")
         else:
-            logger.info(f"Successfully updated cache for user {user_id} after setting 2FA provider.")
+            logger.info(f"Successfully updated cache for user {user_id} after setting 2FA provider (is_signup={is_signup}).")
 
         return Setup2FAProviderResponse(
             success=True,
@@ -519,3 +537,101 @@ async def setup_2fa_provider(
     except Exception as e:
         logger.error(f"Error in setup_2fa_provider: {str(e)}", exc_info=True)
         return Setup2FAProviderResponse(success=False, message="An error occurred while saving 2FA provider")
+
+
+@router.post("/reset-backup-codes", response_model=BackupCodesResponse)
+async def reset_backup_codes(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service)
+):
+    """
+    Reset (regenerate) backup codes for an authenticated user.
+
+    This is a standalone endpoint that generates new backup codes without
+    requiring the user to go through the full 2FA re-setup flow. The user
+    must already have 2FA enabled. SecurityAuth verification is handled
+    on the frontend before calling this endpoint.
+
+    Steps:
+    1. Verify user has 2FA enabled
+    2. Generate new backup codes
+    3. Hash and store them in Directus (replacing old codes)
+    4. Log compliance event
+    5. Return plaintext codes to the user (one-time display)
+    """
+    logger.info(f"Processing /setup/reset-backup-codes for user {current_user.id}")
+
+    try:
+        user_id = current_user.id
+
+        # Step 1: Verify user has 2FA enabled
+        success, user_profile, _ = await directus_service.get_user_profile(user_id)
+        if not success or not user_profile:
+            logger.error(f"Failed to get user profile for backup code reset, user_id: {user_id}")
+            return BackupCodesResponse(
+                success=False,
+                message="Failed to retrieve user profile",
+                backup_codes=[]
+            )
+
+        tfa_enabled = user_profile.get("tfa_enabled", False)
+        if not tfa_enabled:
+            logger.warning(f"User {user_id} attempted to reset backup codes without 2FA enabled")
+            return BackupCodesResponse(
+                success=False,
+                message="2FA must be enabled to reset backup codes",
+                backup_codes=[]
+            )
+
+        # Step 2: Generate new backup codes
+        backup_codes = generate_backup_codes()
+        hashed_codes = [hash_backup_code(code) for code in backup_codes]
+
+        # Step 3: Store hashed codes in Directus (replaces old codes)
+        update_success = await directus_service.update_user(user_id, {
+            "tfa_backup_codes_hashes": hashed_codes
+        })
+
+        if not update_success:
+            logger.error(f"Failed to store new backup codes for user {user_id}")
+            return BackupCodesResponse(
+                success=False,
+                message="Failed to save new backup codes. Please try again.",
+                backup_codes=[]
+            )
+
+        # Step 4: Invalidate user profile cache so the new codes are fresh
+        try:
+            await cache_service.delete(f"user_profile:{user_id}")
+            logger.info(f"Invalidated user profile cache for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Error invalidating cache for user {user_id}: {e}")
+            # Non-critical, continue
+
+        # Step 5: Log compliance event
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+        compliance_service.log_auth_event(
+            event_type="backup_codes_regenerated",
+            user_id=user_id,
+            ip_address=client_ip,
+            status="success"
+        )
+
+        logger.info(f"Backup codes reset successfully for user {user_id}")
+
+        return BackupCodesResponse(
+            success=True,
+            message="Backup codes regenerated successfully",
+            backup_codes=backup_codes
+        )
+
+    except Exception as e:
+        logger.error(f"Error in reset_backup_codes: {str(e)}", exc_info=True)
+        return BackupCodesResponse(
+            success=False,
+            message="An error occurred while resetting backup codes",
+            backup_codes=[]
+        )

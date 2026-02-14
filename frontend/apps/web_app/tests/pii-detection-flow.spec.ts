@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -790,6 +791,10 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	}
 
 	await takeStepScreenshot(page, 'pii-toggle-verified');
+
+	// Verify no missing translations on the chat page with PII UI elements
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 
 	// ======================================================================
 	// STEP 12: Delete the chat (cleanup)

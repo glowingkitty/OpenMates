@@ -91,6 +91,29 @@ def format_timestamp(ts: Optional[str]) -> str:
         return str(ts)
 
 
+def censor_email(email: Optional[str]) -> Optional[str]:
+    """
+    Censor an email address to protect user privacy.
+
+    Shows only the first 2 characters of the local part and the full domain.
+    Example: "john.doe@example.com" -> "jo***@example.com"
+
+    Args:
+        email: Full email address string, or None
+
+    Returns:
+        Censored email string, or None if input is None
+    """
+    if not email or '@' not in email:
+        return email
+    local, domain = email.rsplit('@', 1)
+    if len(local) <= 2:
+        censored_local = local[0] + '***' if local else '***'
+    else:
+        censored_local = local[:2] + '***'
+    return f"{censored_local}@{domain}"
+
+
 def truncate_string(s: str, max_len: int = 80) -> str:
     """
     Truncate a string to max_len characters, adding ellipsis if truncated.
@@ -451,7 +474,7 @@ def format_list_output(
             processed = issue.get('processed', False) or False
             created_at = format_timestamp(issue.get('created_at'))
             timestamp = format_timestamp(issue.get('timestamp'))
-            email = decrypted.get('contact_email') or 'N/A'
+            email = censor_email(decrypted.get('contact_email')) or 'N/A'
 
             # Status indicator
             status_emoji = "✅" if processed else "🔴"
@@ -553,8 +576,8 @@ def format_detail_output(
     if not issue:
         lines.append("  (skipped - issue not found)")
     else:
-        # Contact email
-        email = decrypted.get('contact_email')
+        # Contact email (censored for privacy)
+        email = censor_email(decrypted.get('contact_email'))
         if email:
             lines.append(f"  📧 Contact Email:      {email}")
         else:
@@ -619,7 +642,7 @@ def format_detail_output(
             lines.append(f"    Report Timestamp: {metadata.get('report_timestamp', 'N/A')}")
             lines.append(f"    Title:            {metadata.get('title', 'N/A')}")
             if metadata.get('contact_email'):
-                lines.append(f"    Contact Email:    {metadata.get('contact_email')}")
+                lines.append(f"    Contact Email:    {censor_email(metadata.get('contact_email'))}")
             if metadata.get('estimated_location'):
                 lines.append(f"    Est. Location:    {metadata.get('estimated_location')}")
 
@@ -750,12 +773,27 @@ def format_detail_json(
     Returns:
         JSON string
     """
+    # Censor email in decrypted fields for JSON output
+    censored_decrypted = dict(decrypted)
+    if censored_decrypted.get('contact_email'):
+        censored_decrypted['contact_email'] = censor_email(censored_decrypted['contact_email'])
+
+    # Censor email in S3 report metadata if present
+    censored_s3_report = s3_report
+    if s3_report:
+        import copy
+        censored_s3_report = copy.deepcopy(s3_report)
+        report = censored_s3_report.get('issue_report', censored_s3_report)
+        metadata = report.get('metadata', {})
+        if metadata.get('contact_email'):
+            metadata['contact_email'] = censor_email(metadata['contact_email'])
+
     output = {
         'issue_id': issue_id,
         'generated_at': datetime.now().isoformat(),
         'issue_metadata': issue,
-        'decrypted_fields': decrypted,
-        's3_report': s3_report
+        'decrypted_fields': censored_decrypted,
+        's3_report': censored_s3_report
     }
 
     return json.dumps(output, indent=2, default=str)
@@ -851,15 +889,23 @@ async def main():
                 decrypted_list.append(decrypted)
 
             if args.json:
+                # Censor emails in JSON list output
+                censored_decrypted_list = []
+                for d in decrypted_list:
+                    censored = dict(d)
+                    if censored.get('contact_email'):
+                        censored['contact_email'] = censor_email(censored['contact_email'])
+                    censored_decrypted_list.append(censored)
+
                 output_data = {
                     'generated_at': datetime.now().isoformat(),
                     'total': len(issues),
                     'issues': [
                         {
                             **issue,
-                            'decrypted': decrypted
+                            'decrypted': censored
                         }
-                        for issue, decrypted in zip(issues, decrypted_list)
+                        for issue, censored in zip(issues, censored_decrypted_list)
                     ]
                 }
                 print(json.dumps(output_data, indent=2, default=str))

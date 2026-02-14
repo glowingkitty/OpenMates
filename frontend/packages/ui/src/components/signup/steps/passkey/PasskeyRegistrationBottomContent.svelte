@@ -411,13 +411,13 @@
             disabled={isLoading}
             onclick={handleRegisterPasskey}
         >
-            {isLoading ? $text('login.loading.text') : $text('signup.create_passkey.text')}
+            {isLoading ? $text('login.loading') : $text('signup.create_passkey')}
         </button>
     </div>
     
     <div class="passkey-info">
         <p class="passkey-text">
-            {@html $text('signup.passkey_info.text')}
+            {@html $text('signup.passkey_info')}
         </p>
     </div>
 </div>

@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -504,6 +505,10 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
 	// Verify the response contains the expected answer
 	expect(response.toLowerCase()).toContain('berlin');
 	logCheckpoint('Verified response contains "Berlin".');
+
+	// Verify no missing translations on the chat page
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 
 	// Cleanup
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'qwen-cleanup');

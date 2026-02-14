@@ -18,6 +18,7 @@
         flushSaveDraft
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
+    import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
 
@@ -1744,8 +1745,8 @@
                             // Get the current placeholder text using the text store
                             const key = (typeof window !== 'undefined' && 
                                         (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) ?
-                                'enter_message.placeholder.touch.text' :
-                                'enter_message.placeholder.desktop.text';
+                                'enter_message.placeholder.touch' :
+                                'enter_message.placeholder.desktop';
                             const newPlaceholderText = $text(key);
                             
                             // Update the placeholder data attribute on the editor element
@@ -1951,7 +1952,7 @@
             });
             
             // Show the queued message text in the UI
-            queuedMessageText = message || $text('enter_message.message_queued.text') || 'Press enter again to stop previous response';
+            queuedMessageText = message || $text('enter_message.message_queued');
             
             // Auto-hide after 7 seconds
             setTimeout(() => {
@@ -2486,10 +2487,34 @@
         previousChatId = currentChatId;
     });
     
-    // Update active AI task status when currentChatId changes using $effect
+    // Update active AI task status when currentChatId changes using $effect.
+    // IMPORTANT: Must call updateActiveAITaskStatus() even when currentChatId is undefined
+    // (e.g. when navigating to a new chat) so that stale stop-button state is cleared.
     $effect(() => {
-        if (currentChatId !== undefined && chatSyncService) {
+        // Access currentChatId so Svelte tracks it as a dependency
+        const _chatId = currentChatId;
+        if (chatSyncService) {
             updateActiveAITaskStatus();
+        }
+    });
+
+    // Check for pending notification reply when chat ID changes.
+    // If the user typed a reply in a notification and hit send, the text
+    // was stored in pendingNotificationReplyStore. We pick it up here,
+    // populate the editor, and focus it so the user can review and send.
+    $effect(() => {
+        if (currentChatId && editor && !editor.isDestroyed) {
+            const pendingReply = pendingNotificationReplyStore.consume(currentChatId);
+            if (pendingReply) {
+                console.debug('[MessageInput] Populating editor with pending notification reply:', pendingReply);
+                tick().then(() => {
+                    if (editor && !editor.isDestroyed) {
+                        editor.commands.setContent(`<p>${pendingReply}</p>`);
+                        editor.commands.focus('end');
+                        hasContent = true;
+                    }
+                });
+            }
         }
     });
  
@@ -2518,7 +2543,7 @@
             <button
                 class="clickable-icon icon_fullscreen fullscreen-button"
                 onclick={toggleFullscreen}
-                aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen.text') : $text('enter_message.fullscreen.enter_fullscreen.text')}
+                aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
                 use:tooltip
             ></button>
         {/if}
@@ -2571,8 +2596,8 @@
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
                 onclick={handleCancelAITask}
                 use:tooltip
-                title={$text('enter_message.stop.text')}
-                aria-label={$text('enter_message.stop.text')}
+                title={$text('enter_message.stop')}
+                aria-label={$text('enter_message.stop')}
                 transition:fade={{ duration: 300 }}
             >
                 <span class="clickable-icon icon_stop_processing"></span>

@@ -107,8 +107,8 @@
   // Skill display - use correct translation key based on skillId
   let skillName = $derived(
     skillIdProp === 'generate_draft'
-      ? $text('embeds.image_generate_draft.text')
-      : $text('embeds.image_generate.text')
+      ? $text('embeds.image_generate_draft')
+      : $text('embeds.image_generate')
   );
   const skillIconName = 'ai';
   
@@ -299,7 +299,7 @@
         <!-- Error state -->
         <div class="error-container">
           <div class="error-icon">!</div>
-          <h3 class="error-title">{$text('embeds.image_generate.error.text')}</h3>
+          <h3 class="error-title">{$text('embeds.image_generate.error')}</h3>
           <p class="error-message">{error}</p>
         </div>
       {:else}
@@ -310,7 +310,9 @@
         <div class="image-section">
           {#if fullImageUrl}
             <div class="image-wrapper">
-              <img src={fullImageUrl} alt={prompt || 'Generated image'} class="full-image" />
+              <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" title={$text('embeds.image_generate.open_full_size')}>
+                <img src={fullImageUrl} alt={prompt || 'Generated image'} class="full-image" />
+              </a>
             </div>
           {:else if previewImageUrl && isLoadingImage}
             <!-- Progressive: show preview while full-res loads -->
@@ -323,7 +325,7 @@
           {:else if isLoadingImage}
             <div class="image-loading">
               <div class="loading-spinner"></div>
-              <span class="loading-text">{$text('embeds.image_generate.loading.text')}</span>
+              <span class="loading-text">{$text('embeds.image_generate.loading')}</span>
             </div>
           {:else if imageError}
             <div class="error-container">
@@ -343,7 +345,7 @@
                 <img src={providerIconUrl} alt="" class="provider-icon" />
               {/if}
               <span class="generated-by-text">
-                {$text('embeds.image_generate.generated_by.text')} {modelDisplayName}
+                {$text('embeds.image_generate.generated_by')} {modelDisplayName}
               </span>
             </button>
           {/if}
@@ -415,6 +417,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  
+  /* Clickable link wrapper for the image - opens full size in new tab */
+  .image-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    max-height: 100%;
+    cursor: pointer;
   }
   
   .full-image {

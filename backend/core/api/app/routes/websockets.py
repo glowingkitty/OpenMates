@@ -26,6 +26,7 @@ from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
 from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
 from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_focus_mode_deactivate # Handler for focus mode deactivation
+from .handlers.websocket_handlers.focus_mode_rejected_handler import handle_focus_mode_rejected # Handler for focus mode rejection during countdown
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
@@ -88,7 +89,7 @@ async def _check_user_offline_and_send_email(
     
     # Skip if response is an error message
     if response_preview and isinstance(response_preview, str):
-        if "[ERROR" in response_preview or response_preview == "chat.an_error_occured.text":
+        if "[ERROR" in response_preview or response_preview == "chat.an_error_occured":
             logger.debug(f"{log_prefix} Skipping email - response contains error")
             return
     
@@ -335,6 +336,35 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
+                    elif event_type == "focus_mode_activated":
+                        # Focus mode was auto-confirmed after countdown. Push the activation
+                        # event to all connected devices so the client can update its local
+                        # metadata (e.g., context menu focus indicator) in real-time.
+                        chat_id = payload.get("chat_id")
+                        focus_id = payload.get("focus_id")
+                        
+                        if chat_id and focus_id:
+                            user_connections = manager.get_connections_for_user(user_id)
+                            if user_connections:
+                                device_ids = list(user_connections.keys())
+                                for device_id in device_ids:
+                                    try:
+                                        await manager.send_personal_message(
+                                            {
+                                                "type": "focus_mode_activated",
+                                                "payload": {
+                                                    "chat_id": chat_id,
+                                                    "focus_id": focus_id,
+                                                }
+                                            },
+                                            user_id,
+                                            device_id
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Redis Listener: FAILED to send focus_mode_activated to device {device_id[:12]}...: {e}")
+                                logger.info(f"Redis Listener: Sent focus_mode_activated to user {user_id} for chat {chat_id} (focus: {focus_id})")
+                            else:
+                                logger.debug(f"Redis Listener: User {user_id} has no active connections for focus_mode_activated event")
                     elif event_type == "dismiss_app_settings_memories_dialog":
                         # User sent a new message without responding to the permission dialog
                         # Auto-reject the previous request and tell client to dismiss the dialog
@@ -439,11 +469,11 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                 if "[ERROR" in full_content:
                                     logger.warning(f"AI Stream Listener: Detected error in stream for chat {chat_id_from_payload}. Original error: {full_content}")
                                     # Overwrite with a generic key for the frontend
-                                    redis_payload["full_content_so_far"] = "chat.an_error_occured.text"
+                                    redis_payload["full_content_so_far"] = "chat.an_error_occured"
                                 elif full_content.strip() == standardized_error:
                                     # New standardized error format - already user-friendly, but convert to translation key for consistency
                                     logger.warning(f"AI Stream Listener: Detected standardized error in stream for chat {chat_id_from_payload}")
-                                    redis_payload["full_content_so_far"] = "chat.an_error_occured.text"
+                                    redis_payload["full_content_so_far"] = "chat.an_error_occured"
 
                             # CRITICAL: Send immediately - websocket.send_json() is fast (just queues message)
                             # This ensures chunks are forwarded as soon as they arrive from Redis
@@ -470,11 +500,11 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     if "[ERROR" in full_content:
                                         logger.warning(f"AI Stream Listener: Detected error in background stream for chat {chat_id_from_payload}. Original error: {full_content}")
                                         # Overwrite with a generic key for the frontend
-                                        full_content = "chat.an_error_occured.text"
+                                        full_content = "chat.an_error_occured"
                                     elif full_content.strip() == standardized_error:
                                         # New standardized error format - already user-friendly, but convert to translation key for consistency
                                         logger.warning(f"AI Stream Listener: Detected standardized error in background stream for chat {chat_id_from_payload}")
-                                        full_content = "chat.an_error_occured.text"
+                                        full_content = "chat.an_error_occured"
                                 
                                 # Send background completion event with full response
                                 background_completion_payload = {
@@ -992,11 +1022,11 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                             if "[ERROR" in text_content:
                                 logger.warning(f"AI Persisted Listener: Detected error in persisted message for chat {redis_payload.get('chat_id')}. Original error: {text_content}")
                                 # Overwrite with a generic key for the frontend
-                                message_content_for_client["content"]["content"][0]["content"][0]["text"] = "chat.an_error_occured.text"
+                                message_content_for_client["content"]["content"][0]["content"][0]["text"] = "chat.an_error_occured"
                             elif text_content.strip() == standardized_error:
                                 # New standardized error format - already user-friendly, but convert to translation key for consistency
                                 logger.warning(f"AI Persisted Listener: Detected standardized error in persisted message for chat {redis_payload.get('chat_id')}")
-                                message_content_for_client["content"]["content"][0]["content"][0]["text"] = "chat.an_error_occured.text"
+                                message_content_for_client["content"]["content"][0]["content"][0]["text"] = "chat.an_error_occured"
                     except (IndexError, KeyError, AttributeError) as e:
                         logger.debug(f"AI Persisted Listener: Could not find text content in message, structure may be different or not an error. Error: {e}")
 
@@ -1155,6 +1185,136 @@ async def _deliver_pending_reminders(
         logger.error(f"[PENDING_DELIVERY] Error delivering pending items: {e}", exc_info=True)
 
 
+async def _deliver_pending_embeds(
+    cache_service: CacheService,
+    encryption_service: EncryptionService,
+    manager: ConnectionManager,
+    user_id: str,
+    user_id_hash: str,
+    device_fingerprint_hash: str,
+):
+    """
+    Re-deliver any embeds that are pending client encryption.
+    Called as a background task after WebSocket connection is established.
+
+    Reads the pending_embed_encryption sorted set for this user, then for each
+    pending embed_id, reads the vault-encrypted data from cache, decrypts it,
+    and sends the plaintext TOON to the client via send_embed_data.
+    """
+    try:
+        # Brief delay to let client finish init (after pending reminders)
+        await asyncio.sleep(4)
+
+        pending_ids = await cache_service.get_pending_embed_ids(user_id)
+        if not pending_ids:
+            return
+
+        logger.info(
+            f"[PENDING_EMBEDS] Delivering {len(pending_ids)} pending embed(s) "
+            f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
+        )
+
+        delivered = 0
+        for embed_id in pending_ids:
+            try:
+                # Read vault-encrypted data from cache
+                client = await cache_service.client
+                if not client:
+                    break
+
+                cache_key = f"embed:{embed_id}"
+                embed_json = await client.get(cache_key)
+                if not embed_json:
+                    logger.warning(
+                        f"[PENDING_EMBEDS] Embed {embed_id} not found in cache (expired?). "
+                        f"Removing from pending set."
+                    )
+                    await cache_service.remove_pending_embed(user_id, embed_id)
+                    continue
+
+                embed_data = json.loads(
+                    embed_json.decode('utf-8') if isinstance(embed_json, bytes) else embed_json
+                )
+
+                # Only re-send finished embeds
+                if embed_data.get("status") != "finished":
+                    continue
+
+                # Decrypt vault-encrypted content
+                vault_key_id = embed_data.get("vault_key_id")
+                encrypted_content = embed_data.get("encrypted_content")
+                if not vault_key_id or not encrypted_content:
+                    logger.warning(
+                        f"[PENDING_EMBEDS] Embed {embed_id} missing vault_key_id or content. Skipping."
+                    )
+                    continue
+
+                plaintext_toon = await encryption_service.decrypt_with_user_key(
+                    encrypted_content, vault_key_id
+                )
+                if not plaintext_toon:
+                    logger.error(f"[PENDING_EMBEDS] Failed to decrypt embed {embed_id}. Skipping.")
+                    continue
+
+                # Build send_embed_data payload
+                now_ts = int(time.time())
+
+                embed_payload = {
+                    "embed_id": embed_id,
+                    "type": embed_data.get("type", "app_skill_use"),
+                    "content": plaintext_toon,
+                    "status": "finished",
+                    "chat_id": embed_data.get("chat_id", ""),
+                    "message_id": embed_data.get("message_id", ""),
+                    "user_id": user_id,
+                    "is_private": embed_data.get("is_private", False),
+                    "is_shared": embed_data.get("is_shared", False),
+                    "encryption_mode": embed_data.get("encryption_mode", "client"),
+                    "text_length_chars": embed_data.get("text_length_chars") or len(plaintext_toon),
+                    "createdAt": embed_data.get("created_at") or now_ts,
+                    "updatedAt": now_ts,
+                }
+
+                # Add optional fields
+                if embed_data.get("embed_ids") is not None:
+                    embed_payload["embed_ids"] = embed_data["embed_ids"]
+                if embed_data.get("parent_embed_id") is not None:
+                    embed_payload["parent_embed_id"] = embed_data["parent_embed_id"]
+                if embed_data.get("task_id") is not None:
+                    embed_payload["task_id"] = embed_data["task_id"]
+                if embed_data.get("text_preview") is not None:
+                    embed_payload["text_preview"] = embed_data["text_preview"]
+
+                # Send directly via WebSocket (not pub/sub)
+                await manager.send_personal_message(
+                    message={
+                        "type": "send_embed_data",
+                        "payload": embed_payload
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                delivered += 1
+
+                # Small delay between embeds to avoid overwhelming the client
+                await asyncio.sleep(0.1)
+
+            except Exception as e:
+                logger.error(
+                    f"[PENDING_EMBEDS] Error delivering embed {embed_id}: {e}",
+                    exc_info=True
+                )
+
+        if delivered > 0:
+            logger.info(
+                f"[PENDING_EMBEDS] Delivered {delivered}/{len(pending_ids)} pending embeds "
+                f"to user {user_id[:8]}..."
+            )
+
+    except Exception as e:
+        logger.error(f"[PENDING_EMBEDS] Error delivering pending embeds: {e}", exc_info=True)
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -1181,6 +1341,13 @@ async def websocket_endpoint(
     # This runs as a background task so it doesn't block the WebSocket message loop.
     asyncio.create_task(
         _deliver_pending_reminders(cache_service, manager, user_id, device_fingerprint_hash)
+    )
+
+    # Deliver any embeds pending client encryption (runs after reminders with extra delay)
+    asyncio.create_task(
+        _deliver_pending_embeds(
+            cache_service, encryption_service, manager, user_id, user_id_hash, device_fingerprint_hash
+        )
     )
     
     # NOTE: Pending app settings/memories permission requests are no longer re-delivered
@@ -1395,24 +1562,45 @@ async def websocket_endpoint(
                 manager.set_active_chat(user_id, device_fingerprint_hash, active_chat_id)
                 logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Set active chat to '{active_chat_id}'.")
                 
-                # Update user's last_opened field in Directus for Phase 1 sync
-                # This ensures the last opened chat is synced first on next login/reload
-                if active_chat_id:
-                    # Only update if a real chat is selected (not None/"new chat")
+                # Update user's last_opened field in both Redis cache AND Directus for Phase 1 sync.
+                # Redis cache is updated first (fast) so that subsequent reads (e.g. phased_sync_handler,
+                # cache warming on next login) always see the latest value without hitting Directus.
+                # Directus is updated second as the persistent source of truth.
+                #
+                # GUARD: Only persist real chat IDs (UUIDs or /chat/ paths).
+                # Demo/legal/public chats (e.g. "demo-for-everyone", "legal-privacy") are client-side-only
+                # static content that must NEVER overwrite the real last_opened value. The frontend should
+                # already filter these out, but this is a safety net.
+                import re
+                uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+                is_real_chat = (
+                    active_chat_id
+                    and not active_chat_id.startswith("demo-")
+                    and not active_chat_id.startswith("legal-")
+                    and (uuid_pattern.match(active_chat_id) or active_chat_id.startswith("/chat/"))
+                )
+                
+                if is_real_chat:
                     try:
-                        update_payload = {"last_opened": active_chat_id}
+                        update_payload = {"last_opened": active_chat_id, "signup_completed": True}
                         
-                        # Optimization: If the user is opening a chat, mark signup as completed
-                        import re
-                        uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
-                        if active_chat_id.startswith("/chat/") or uuid_pattern.match(active_chat_id):
-                            update_payload["signup_completed"] = True
-                            
+                        # Update Redis cache first (fast, ensures phased sync and cache warming
+                        # always read the latest last_opened without needing a Directus round-trip)
+                        try:
+                            await cache_service.update_user(user_id, update_payload)
+                            logger.debug(f"User {user_id}: Updated last_opened in cache to {active_chat_id}")
+                        except Exception as cache_err:
+                            logger.warning(f"User {user_id}: Failed to update last_opened in cache: {cache_err}")
+                            # Non-critical: Directus update below is the persistent fallback
+                        
+                        # Update Directus (persistent source of truth)
                         await directus_service.update_user(user_id, update_payload)
-                        logger.info(f"User {user_id}: Updated last_opened to chat {active_chat_id} (signup_completed: {update_payload.get('signup_completed', False)})")
+                        logger.info(f"User {user_id}: Updated last_opened to chat {active_chat_id}")
                     except Exception as e:
-                        logger.error(f"User {user_id}: Failed to update last_opened: {str(e)}")
+                        logger.error(f"User {user_id}: Failed to update last_opened in Directus: {str(e)}")
                         # Don't fail the whole operation if Directus update fails
+                elif active_chat_id:
+                    logger.debug(f"User {user_id}: Skipping last_opened update for non-real chat ID: {active_chat_id}")
                 else:
                     logger.debug(f"User {user_id}: Skipping last_opened update (no active chat)")
                 
@@ -1444,7 +1632,7 @@ async def websocket_endpoint(
                 )
             elif message_type == "chat_focus_mode_deactivate":
                 # Handle request to deactivate a focus mode for a chat
-                # Triggered when user rejects during countdown or clicks "Deactivate"
+                # Triggered when user clicks "Stop Focus Mode" in context menu
                 await handle_focus_mode_deactivate(
                     websocket=websocket,
                     manager=manager,
@@ -1453,6 +1641,45 @@ async def websocket_endpoint(
                     payload=payload,
                     cache_service=cache_service
                 )
+            elif message_type == "focus_mode_rejected":
+                # Handle user rejection of focus mode during the countdown
+                # Triggered when user clicks the embed or presses ESC within 4 seconds
+                # Consumes the pending activation context and fires a non-focus continuation task
+                await handle_focus_mode_rejected(
+                    websocket=websocket,
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                )
+            elif message_type == "update_encrypted_active_focus_id":
+                # Client sends the E2E-encrypted focus ID after receiving focus_mode_activated.
+                # The server cannot encrypt with the chat key, so the client encrypts and
+                # sends it back for cache + Directus persistence.
+                ueafi_chat_id = payload.get("chat_id")
+                ueafi_encrypted = payload.get("encrypted_active_focus_id")
+                if ueafi_chat_id and ueafi_encrypted:
+                    try:
+                        await cache_service.update_chat_active_focus_id(
+                            user_id=user_id,
+                            chat_id=ueafi_chat_id,
+                            encrypted_focus_id=ueafi_encrypted
+                        )
+                        from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+                        celery_app_instance.send_task(
+                            'app.tasks.persistence_tasks.persist_chat_active_focus_id',
+                            kwargs={
+                                "chat_id": ueafi_chat_id,
+                                "encrypted_active_focus_id": ueafi_encrypted
+                            },
+                            queue='persistence'
+                        )
+                        logger.debug(f"Updated encrypted_active_focus_id for chat {ueafi_chat_id} from client")
+                    except Exception as e:
+                        logger.error(f"Error updating encrypted_active_focus_id for chat {ueafi_chat_id}: {e}", exc_info=True)
             elif message_type == "ai_response_completed":
                 # Handle completed AI response sent by client for encrypted Directus storage
                 await handle_ai_response_completed(

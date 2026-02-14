@@ -33,6 +33,11 @@ user_passkeys:
       note: "Counter for detecting cloned authenticators (increments with each use)"
       required: true
       default: 0
+    usage_count:
+      type: integer
+      note: "Application-level counter tracking how many times this passkey has been used for authentication (independent of WebAuthn sign_count which many authenticators always report as 0)"
+      required: true
+      default: 0
     encrypted_device_name:
       type: string
       length: 512
@@ -52,4 +57,3 @@ user_passkeys:
       type: timestamp
       note: "Timestamp when the record was last updated"
       required: true
-

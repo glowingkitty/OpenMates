@@ -1434,3 +1434,18 @@ context_menu.delete_message:
   cs: Smazat
   sv: Ta bort
   verified_by_human: []
+context_menu.unhide:
+  context: Context menu action to unhide a hidden chat
+  en: Unhide
+  de: Einblenden
+  verified_by_human: []
+hidden_chats.no_hidden_chats:
+  context: Message shown when hidden chats section is empty
+  en: No hidden chats
+  de: Keine versteckten Chats
+  verified_by_human: []
+hidden_chats.no_hidden_chats_unlocked:
+  context: Error message when unlock attempt succeeds but no chats were decrypted
+  en: No hidden chats were unlocked. The password may be incorrect.
+  de: Es wurden keine versteckten Chats entsperrt. Das Passwort ist möglicherweise falsch.
+  verified_by_human: []

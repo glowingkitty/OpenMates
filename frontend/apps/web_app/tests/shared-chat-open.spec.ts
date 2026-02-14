@@ -11,7 +11,8 @@ const { test, expect } = require('@playwright/test');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
-	createStepScreenshotter
+	createStepScreenshotter,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 const consoleLogs: string[] = [];
@@ -241,7 +242,11 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 
 	await takeStepScreenshot(page, 'assistant-message-decrypted');
 
-	// Step 9: Final verification and screenshot
+	// Step 9: Verify no missing translations on the shared chat page
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
+
+	// Step 10: Final verification and screenshot
 	await takeStepScreenshot(page, 'test-complete');
 	logCheckpoint('Shared chat test completed successfully');
 });

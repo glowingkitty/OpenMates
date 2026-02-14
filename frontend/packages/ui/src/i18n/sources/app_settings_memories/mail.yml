@@ -48,3 +48,53 @@ writing_styles.description:
   verified_by_human:
     - en
     - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+writing_styles.example_1:
+  context: Example entry for writing styles (formal business style)
+  en: Formal business
+  de: Formell geschäftlich
+  zh: 正式商务
+  es: Formal de negocios
+  fr: Professionnel formel
+  pt: Formal de negócios
+  ru: Формальный деловой
+  ja: フォーマルビジネス
+  ko: 공식 비즈니스
+  it: Formale aziendale
+  tr: Resmi iş yazışması
+  vi: Thương mại trang trọng
+  id: Bisnis formal
+  pl: Formalny biznesowy
+  nl: Formeel zakelijk
+  ar: رسمي تجاري
+  hi: औपचारिक व्यापार
+  th: ธุรกิจทางการ
+  cs: Formální obchodní
+  sv: Formell affärs
+  verified_by_human: [en, de]
+
+writing_styles.example_2:
+  context: Example entry for writing styles (casual team style)
+  en: Casual team
+  de: Locker im Team
+  zh: 团队随意
+  es: Casual de equipo
+  fr: Équipe décontractée
+  pt: Equipe casual
+  ru: Неформальный командный
+  ja: カジュアルチーム
+  ko: 캐주얼 팀
+  it: Informale di team
+  tr: Rahat ekip
+  vi: Nhóm thoải mái
+  id: Tim santai
+  pl: Luźny zespołowy
+  nl: Casual team
+  ar: غير رسمي للفريق
+  hi: अनौपचारिक टीम
+  th: ทีมสบายๆ
+  cs: Neformální týmový
+  sv: Avslappnat team
+  verified_by_human: [en, de]

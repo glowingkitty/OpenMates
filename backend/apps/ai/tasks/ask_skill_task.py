@@ -1077,8 +1077,9 @@ async def _async_process_ai_skill_ask_task(
                 "provider_name": provider_name, # Add provider_name to the payload
                 "server_region": server_region, # Add server region to the payload (e.g., "EU", "US", "APAC")
                 # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
-                # When this is True, the user message was already persisted before the app settings/memories pause
-                "is_continuation": request_data.is_app_settings_memories_continuation,
+                # When this is True, the user message was already persisted before the app settings/memories
+                # or focus mode deferred activation pause
+                "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation,
             }
             
             # Log the complete typing payload for debugging
@@ -1338,6 +1339,11 @@ async def _async_process_ai_skill_ask_task(
                         category=msg_dict.get("category")
                     ))
                 
+                # Preserve the current task's selected mate for follow-up messages.
+                # Without this, the preprocessor would re-select a mate based on category,
+                # potentially switching to a different persona mid-conversation.
+                current_mate_id = preprocessing_result.selected_mate_id if preprocessing_result else None
+                
                 combined_request = AskSkillRequestType(
                     chat_id=combined_chat_id,
                     message_id=combined_message_id,
@@ -1345,7 +1351,7 @@ async def _async_process_ai_skill_ask_task(
                     user_id_hash=combined_user_id_hash or request_data.user_id_hash,
                     message_history=history_objects,
                     chat_has_title=combined_chat_has_title,
-                    mate_id=None,
+                    mate_id=current_mate_id,  # Preserve current mate instead of forcing re-selection
                     active_focus_id=combined_active_focus_id or request_data.active_focus_id,
                     user_preferences={}
                 )
@@ -1672,6 +1678,16 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         logger.error(f"[Task ID: {task_id}] Validation error for input data: {e}", exc_info=True)
         self.update_state(state='FAILURE', meta={'exc_type': 'ValidationError', 'exc_message': str(e.errors())})
         raise Ignore()
+
+    # Focus mode continuation: reuse the original task's message_id so that streaming
+    # chunks target the same assistant message (the one containing the focus mode embed).
+    # Without this, a new Celery task_id would create a separate message bubble.
+    if request_data.continuation_message_id:
+        logger.info(
+            f"[Task ID: {task_id}] Focus mode continuation — overriding message_id with "
+            f"original task_id: {request_data.continuation_message_id}"
+        )
+        task_id = request_data.continuation_message_id
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

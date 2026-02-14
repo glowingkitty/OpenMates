@@ -11,7 +11,7 @@ step_9_top_content_svelte:
         type: 'text'
         text:
             - 'Pay credits per use'
-            - $text('signup.for_chatting_and_apps.text')
+            - $text('signup.for_chatting_and_apps')
         purpose:
             - 'Explain that credits are needed to chat with the digital team mates and use apps.'
         bigger_context:
@@ -24,12 +24,12 @@ step_9_top_content_svelte:
     pay_per_use_explainer:
         type: 'text'
         text:
-            - $text('signup.only_pay_what_you_use.text')
-            - $text('signup.no_expiration_of_credits.text')
-            - $text('signup.no_subscription.text')
-            - $text('signup.no_ads.text')
-            - $text('signup.no_selling_of_user_data.text')
-            - $text('signup.pricing_details_on_page_of_app_skill.text')
+            - $text('signup.only_pay_what_you_use')
+            - $text('signup.no_expiration_of_credits')
+            - $text('signup.no_subscription')
+            - $text('signup.no_ads')
+            - $text('signup.no_selling_of_user_data')
+            - $text('signup.pricing_details_on_page_of_app_skill')
         purpose:
             - 'Explain the benefits of the pay per use model.'
         bigger_context:
@@ -41,7 +41,7 @@ step_9_top_content_svelte:
             - '/signup/pay-per-use'
     open_app_settings:
         type: 'button'
-        text: $text('signup.open_app_settings.text')
+        text: $text('signup.open_app_settings')
         processing:
             - 'User clicks on button'
             - 'Settings menu with App settings is opened.'
@@ -116,7 +116,7 @@ step_9_top_content_svelte:
     <div class="top-container">
         <div class="header-content">
             <div class="primary-text">
-                {@html $text('signup.pay_per_use.text').replace('{credits}', '<span class="coin-icon-inline"></span>')}
+                {@html $text('signup.pay_per_use').replace('{credits}', '<span class="coin-icon-inline"></span>')}
             </div>
         </div>
     </div>
@@ -133,36 +133,36 @@ step_9_top_content_svelte:
                     />
                 </div>
             {:else}
-                <div>{@html $text('signup.only_pay_what_you_use.text')}</div>
+                <div>{@html $text('signup.only_pay_what_you_use')}</div>
 
                 <div class="benefits-container">
                     <div class="benefit-item">
                         <div class="check-icon"></div>
-                        <div>{@html $text('signup.no_subscription.text')}</div>
+                        <div>{@html $text('signup.no_subscription')}</div>
                     </div>
                     <div class="benefit-item">
                         <div class="check-icon"></div>
-                        <div>{@html $text('signup.no_expiration_of_credits.text')}</div>
+                        <div>{@html $text('signup.no_expiration_of_credits')}</div>
                     </div>
                     <div class="benefit-item">
                         <div class="check-icon"></div>
-                        <div>{@html $text('signup.no_selling_of_user_data.text')}</div>
+                        <div>{@html $text('signup.no_selling_of_user_data')}</div>
                     </div>
                     <div class="benefit-item">
                         <div class="check-icon"></div>
-                        <div>{@html $text('signup.no_ads.text')}</div>
+                        <div>{@html $text('signup.no_ads')}</div>
                     </div>
                 </div>
                 
                 <div class="footer-container">
                     <!-- Gift Card Button -->
                     <button onclick={() => showGiftCardInput = true} class="text-button gift-card-button">
-                        {@html $text('settings.billing.gift_card.have_code.text')}
+                        {@html $text('settings.billing.gift_card.have_code')}
                     </button>
                     
                     <!-- App Store Link -->
                     <button onclick={openAppSettings} class="text-button">
-                        {@html $text('signup.prices_on_app_store_soon.text')}
+                        {@html $text('signup.prices_on_app_store_soon')}
                     </button>
                 </div>
             {/if}

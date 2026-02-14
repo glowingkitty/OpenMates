@@ -49,6 +49,78 @@ generate.description:
     - en
     - de
 
+generate.how_to_use.1:
+  context: Example instruction for image generation skill - landscape
+  en: Generate a sunset over a mountain lake in watercolor style
+  de: Generiere einen Sonnenuntergang über einem Bergsee im Aquarellstil
+  zh: 生成一幅水彩风格的山湖日落画
+  es: Genera un atardecer sobre un lago de montaña en estilo acuarela
+  fr: Génère un coucher de soleil sur un lac de montagne en style aquarelle
+  pt: Gere um pôr do sol sobre um lago de montanha em estilo aquarela
+  ru: Сгенерируй закат над горным озером в стиле акварели
+  ja: 水彩スタイルで山の湖に沈む夕日を生成して
+  ko: 수채화 스타일로 산속 호수 위의 일몰을 생성해줘
+  it: Genera un tramonto su un lago di montagna in stile acquerello
+  tr: Suluboya tarzında bir dağ gölü üzerinde gün batımı oluştur
+  vi: Tạo hình hoàng hôn trên hồ núi theo phong cách màu nước
+  id: Buat gambar matahari terbenam di atas danau pegunungan dengan gaya cat air
+  pl: Wygeneruj zachód słońca nad jeziorem górskim w stylu akwareli
+  nl: Genereer een zonsondergang over een bergmeer in aquarelstijl
+  ar: أنشئ صورة غروب فوق بحيرة جبلية بأسلوب الألوان المائية
+  hi: वॉटरकलर शैली में पहाड़ी झील पर सूर्यास्त की छवि बनाएं
+  th: สร้างภาพพระอาทิตย์ตกเหนือทะเลสาบบนภูเขาในสไตล์สีน้ำ
+  cs: Vygeneruj západ slunce nad horským jezerem ve stylu akvarelu
+  sv: Generera en solnedgång över en bergssjö i akvarellstil
+  verified_by_human: [en, de]
+
+generate.how_to_use.2:
+  context: Example instruction for image generation skill - logo design
+  en: "Create a minimalist logo for a coffee shop called 'Bean & Brew'"
+  de: "Erstelle ein minimalistisches Logo für ein Café namens 'Bean & Brew'"
+  zh: "为一家名为'Bean & Brew'的咖啡店创建一个极简风格的Logo"
+  es: "Crea un logotipo minimalista para una cafetería llamada 'Bean & Brew'"
+  fr: "Crée un logo minimaliste pour un café appelé 'Bean & Brew'"
+  pt: "Crie um logotipo minimalista para uma cafeteria chamada 'Bean & Brew'"
+  ru: "Создай минималистичный логотип для кофейни 'Bean & Brew'"
+  ja: "'Bean & Brew'というコーヒーショップのミニマリストなロゴを作成して"
+  ko: "'Bean & Brew'라는 커피숍의 미니멀한 로고를 만들어줘"
+  it: "Crea un logo minimalista per un caffè chiamato 'Bean & Brew'"
+  tr: "'Bean & Brew' adlı bir kafe için minimalist bir logo oluştur"
+  vi: "Tạo logo tối giản cho quán cà phê có tên 'Bean & Brew'"
+  id: "Buat logo minimalis untuk kedai kopi bernama 'Bean & Brew'"
+  pl: "Stwórz minimalistyczne logo dla kawiarni o nazwie 'Bean & Brew'"
+  nl: "Maak een minimalistisch logo voor een koffieshop genaamd 'Bean & Brew'"
+  ar: "أنشئ شعارًا بسيطًا لمقهى يسمى 'Bean & Brew'"
+  hi: "'Bean & Brew' नाम की कॉफी शॉप के लिए एक मिनिमलिस्ट लोगो बनाएं"
+  th: "สร้างโลโก้แบบมินิมอลสำหรับร้านกาแฟชื่อ 'Bean & Brew'"
+  cs: "Vytvoř minimalistické logo pro kavárnu s názvem 'Bean & Brew'"
+  sv: "Skapa en minimalistisk logotyp för ett kafé som heter 'Bean & Brew'"
+  verified_by_human: [en, de]
+
+generate.how_to_use.3:
+  context: Example instruction for image generation skill - interior scene
+  en: Generate a cozy reading nook with warm lighting and bookshelves
+  de: Generiere eine gemütliche Leseecke mit warmem Licht und Bücherregalen
+  zh: 生成一个温馨的阅读角落，配有暖色灯光和书架
+  es: Genera un acogedor rincón de lectura con iluminación cálida y estanterías
+  fr: Génère un coin lecture cosy avec un éclairage chaleureux et des étagères
+  pt: Gere um cantinho de leitura aconchegante com iluminação quente e estantes
+  ru: Сгенерируй уютный уголок для чтения с тёплым освещением и книжными полками
+  ja: 暖かい照明と本棚のある居心地の良い読書スペースを生成して
+  ko: 따뜻한 조명과 책장이 있는 아늑한 독서 공간을 생성해줘
+  it: Genera un angolo lettura accogliente con illuminazione calda e librerie
+  tr: Sıcak aydınlatma ve kitaplıklarla rahat bir okuma köşesi oluştur
+  vi: Tạo một góc đọc sách ấm cúng với ánh sáng ấm và giá sách
+  id: Buat sudut baca yang nyaman dengan pencahayaan hangat dan rak buku
+  pl: Wygeneruj przytulny kącik do czytania z ciepłym oświetleniem i regałami
+  nl: Genereer een gezellig leeshoekje met warme verlichting en boekenplanken
+  ar: أنشئ زاوية قراءة مريحة مع إضاءة دافئة ورفوف كتب
+  hi: गर्म रोशनी और बुकशेल्फ़ के साथ एक आरामदायक रीडिंग कॉर्नर बनाएं
+  th: สร้างมุมอ่านหนังสือที่อบอุ่นพร้อมแสงไฟอบอุ่นและชั้นหนังสือ
+  cs: Vygeneruj útulný čtecí koutek s teplým osvětlením a knihovnami
+  sv: Generera en mysig läshörna med varm belysning och bokhyllor
+  verified_by_human: [en, de]
+
 generate_draft:
   context: Skill name for draft image generation
   en: Generate Draft
@@ -100,3 +172,75 @@ generate_draft.description:
   verified_by_human:
     - en
     - de
+
+generate_draft.how_to_use.1:
+  context: Example instruction for draft image generation skill - fun concept
+  en: Quick draft of a cat wearing a space helmet
+  de: Schneller Entwurf einer Katze mit Weltraumhelm
+  zh: 快速草图：一只戴着太空头盔的猫
+  es: Borrador rápido de un gato usando un casco espacial
+  fr: Brouillon rapide d'un chat portant un casque spatial
+  pt: Rascunho rápido de um gato usando um capacete espacial
+  ru: Быстрый набросок кота в космическом шлеме
+  ja: 宇宙ヘルメットをかぶった猫の簡単な下書き
+  ko: 우주 헬멧을 쓴 고양이의 빠른 초안
+  it: Bozza veloce di un gatto con un casco spaziale
+  tr: Uzay kaskı takan bir kedinin hızlı taslağı
+  vi: Phác thảo nhanh một con mèo đội mũ bảo hiểm vũ trụ
+  id: Draf cepat kucing memakai helm luar angkasa
+  pl: Szybki szkic kota w hełmie kosmicznym
+  nl: Snel concept van een kat met een ruimtehelm
+  ar: مسودة سريعة لقطة ترتدي خوذة فضائية
+  hi: स्पेस हेलमेट पहने बिल्ली का त्वरित ड्राफ्ट
+  th: ร่างเร็วของแมวสวมหมวกอวกาศ
+  cs: Rychlý náčrt kočky s kosmickou helmou
+  sv: Snabbt utkast av en katt med rymdhjälm
+  verified_by_human: [en, de]
+
+generate_draft.how_to_use.2:
+  context: Example instruction for draft image generation skill - UI mockup
+  en: Sketch a layout for a mobile app login screen
+  de: Skizziere ein Layout für einen Anmeldebildschirm einer App
+  zh: 为手机应用登录界面绘制一个布局草图
+  es: Dibuja un boceto del diseño de una pantalla de inicio de sesión de una app
+  fr: Esquisse une mise en page pour un écran de connexion d'application mobile
+  pt: Esboce um layout para uma tela de login de aplicativo móvel
+  ru: Набросай макет экрана входа в мобильное приложение
+  ja: モバイルアプリのログイン画面のレイアウトをスケッチして
+  ko: 모바일 앱 로그인 화면의 레이아웃을 스케치해줘
+  it: Disegna un layout per una schermata di accesso di un'app mobile
+  tr: Mobil uygulama giriş ekranı için bir düzen taslağı çiz
+  vi: Phác thảo bố cục cho màn hình đăng nhập ứng dụng di động
+  id: Sketsa tata letak untuk layar login aplikasi seluler
+  pl: Naszkicuj układ ekranu logowania aplikacji mobilnej
+  nl: Schets een lay-out voor een inlogscherm van een mobiele app
+  ar: ارسم تخطيطًا لشاشة تسجيل دخول تطبيق جوال
+  hi: मोबाइल ऐप लॉगिन स्क्रीन के लिए एक लेआउट स्केच करें
+  th: ร่างเลย์เอาต์สำหรับหน้าจอเข้าสู่ระบบแอปมือถือ
+  cs: Nakresli rozložení přihlašovací obrazovky mobilní aplikace
+  sv: Skissa en layout för en inloggningsskärm i en mobilapp
+  verified_by_human: [en, de]
+
+generate_draft.how_to_use.3:
+  context: Example instruction for draft image generation skill - illustration
+  en: Draft a simple illustration of a tree in four seasons
+  de: Entwirf eine einfache Illustration eines Baums in vier Jahreszeiten
+  zh: 画一幅简单的四季树木插画草图
+  es: Haz un borrador de una ilustración simple de un árbol en cuatro estaciones
+  fr: Fais un brouillon d'une illustration simple d'un arbre en quatre saisons
+  pt: Faça um rascunho de uma ilustração simples de uma árvore nas quatro estações
+  ru: Набросай простую иллюстрацию дерева в четырёх временах года
+  ja: 四季の木のシンプルなイラストの下書きを作成して
+  ko: 사계절 나무의 간단한 일러스트 초안을 그려줘
+  it: Fai una bozza di un'illustrazione semplice di un albero nelle quattro stagioni
+  tr: Dört mevsimde bir ağacın basit bir çizim taslağını yap
+  vi: Phác thảo một hình minh họa đơn giản về một cái cây qua bốn mùa
+  id: Buat draf ilustrasi sederhana pohon dalam empat musim
+  pl: Naszkicuj prostą ilustrację drzewa w czterech porach roku
+  nl: Maak een concept van een eenvoudige illustratie van een boom in vier seizoenen
+  ar: ارسم مسودة رسم توضيحي بسيط لشجرة في أربعة فصول
+  hi: चार मौसमों में एक पेड़ का सरल चित्रण ड्राफ्ट करें
+  th: ร่างภาพประกอบง่ายๆ ของต้นไม้ในสี่ฤดูกาล
+  cs: Nakresli jednoduchý náčrt stromu ve čtyřech ročních obdobích
+  sv: Gör ett utkast av en enkel illustration av ett träd i fyra årstider
+  verified_by_human: [en, de]

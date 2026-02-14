@@ -9,7 +9,7 @@ changes to the documentation (to keep the documentation up to date).
 step_6_bottom_content_svelte:
     enter_app_name_input_field:
         type: 'input_field'
-        placeholder: $text('signup.click_to_enter_app_name.text')
+        placeholder: $text('signup.click_to_enter_app_name')
         purpose:
             - 'User can enter / search for the name of the 2FA app they use.'
         processing:
@@ -29,8 +29,8 @@ step_6_bottom_content_svelte:
     tfa_apps_search_results_block:
         type: 'search_results'
         text:
-            - $text('signup.safety_tip.text')
-            - $text('signup.separate_2fa_app.text')
+            - $text('signup.safety_tip')
+            - $text('signup.separate_2fa_app')
         purpose:
             - 'Shows search results for 2FA apps, based on user input. Or, if no search results, shows safety tip.'
         processing:
@@ -48,7 +48,7 @@ step_6_bottom_content_svelte:
             - '/signup/2fa-reminder'
     continue_button:
         type: 'button'
-        text: $text('signup.continue.text')
+        text: $text('signup.continue')
         purpose:
             - 'User clicks to continue to the next step of the signup process.'
         processing:
@@ -250,9 +250,9 @@ step_6_bottom_content_svelte:
                     <div class="safety-tip">
                         <div class="icon header_size warning"></div>
                         <div class="safety-tip-text">
-                            <strong>{@html $text('signup.safety_tip.text')}</strong>
+                            <strong>{@html $text('signup.safety_tip')}</strong>
                             <div class="safety-tip-subtext">
-                                {@html $text('signup.separate_2fa_app.text')}
+                                {@html $text('signup.separate_2fa_app')}
                             </div>
                         </div>
                     </div>
@@ -272,7 +272,7 @@ step_6_bottom_content_svelte:
                 oninput={handleInput}
                 onfocus={handleFocus}
                 onblur={handleBlur}
-                placeholder={$text('signup.click_to_enter_app_name.text')}
+                placeholder={$text('signup.click_to_enter_app_name')}
                 maxlength="40"
             />
         </div>
@@ -282,11 +282,11 @@ step_6_bottom_content_svelte:
     {/if}
     {#if showContinueButton}
         <button bind:this={continueButtonElement} class="continue-button" onclick={handleContinue} disabled={isLoading}>
-            {@html $text('signup.continue.text')}
+            {@html $text('signup.continue')}
         </button>
     {:else if isLoading && !errorMessage}
          <button bind:this={continueButtonElement} class="continue-button" disabled>
-            {@html $text('login.loading.text')}
+            {@html $text('login.loading')}
         </button>
     {/if}
 </div>

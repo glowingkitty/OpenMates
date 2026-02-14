@@ -25,27 +25,26 @@ plant_care_guide:
     - de
 plant_care_guide.description:
   context: Description for plant care guide focus mode
-  en: Get personalized care instructions for a specific plant. The AI will help you understand your plant's needs, identify issues, and provide tailored care recommendations.
-  de: Erhalte personalisierte Pflegeanweisungen für eine bestimmte Pflanze. Die KI hilft dir, die Bedürfnisse deiner Pflanze zu verstehen, Probleme zu identifizieren und maßgeschneiderte Pflegeempfehlungen zu geben.
-  zh: 获取特定植物的个性化护理说明。AI将帮助你了解植物的需求，识别问题，并提供量身定制的护理建议。
-  es: Obtén instrucciones de cuidado personalizadas para una planta específica. La IA te ayudará a entender las necesidades de tu planta, identificar problemas y proporcionar recomendaciones de cuidado personalizadas.
-  fr: Obtenez des instructions de soins personnalisées pour une plante spécifique. L'IA vous aidera à comprendre les besoins de votre plante, à identifier les problèmes et à fournir des recommandations de soins personnalisées.
-  pt: Obtenha instruções de cuidados personalizadas para uma planta específica. A IA ajudará você a entender as necessidades da sua planta, identificar problemas e fornecer recomendações de cuidados personalizadas.
-  ru: Получите персонализированные инструкции по уходу для конкретного растения. ИИ поможет вам понять потребности вашего растения, выявить проблемы и предоставить индивидуальные рекомендации по уходу.
-  ja: 特定の植物のためのパーソナライズされたケアの指示を取得する。AIが植物のニーズを理解し、問題を特定し、カスタマイズされたケアの推奨事項を提供するのを助けます。
-  ko: 특정 식물에 대한 개인화된 관리 지침을 받으세요. AI가 식물의 요구 사항을 이해하고, 문제를 식별하며, 맞춤형 관리 권장 사항을 제공하는 데 도움을 줍니다.
-  it: Ottieni istruzioni di cura personalizzate per una pianta specifica. L'IA ti aiuterà a capire le esigenze della tua pianta, identificare problemi e fornire raccomandazioni di cura su misura.
-  tr: Belirli bir bitki için kişiselleştirilmiş bakım talimatları alın. AI, bitkinizin ihtiyaçlarını anlamanıza, sorunları belirlemenize ve özel bakım önerileri sunmanıza yardımcı olacaktır.
-  vi: Nhận hướng dẫn chăm sóc cá nhân hóa cho một loại cây cụ thể. AI sẽ giúp bạn hiểu nhu cầu của cây, xác định vấn đề và cung cấp khuyến nghị chăm sóc phù hợp.
-  id: Dapatkan instruksi perawatan yang dipersonalisasi untuk tanaman tertentu. AI akan membantu Anda memahami kebutuhan tanaman Anda, mengidentifikasi masalah, dan memberikan rekomendasi perawatan yang disesuaikan.
-  pl: Uzyskaj spersonalizowane instrukcje pielęgnacji dla konkretnej rośliny. AI pomoże Ci zrozumieć potrzeby Twojej rośliny, zidentyfikować problemy i zapewnić dostosowane rekomendacje pielęgnacyjne.
-  nl: Krijg gepersonaliseerde verzorgingsinstructies voor een specifieke plant. De AI helpt je de behoeften van je plant te begrijpen, problemen te identificeren en op maat gemaakte verzorgingsaanbevelingen te geven.
-  ar: احصل على تعليمات رعاية مخصصة لنبات محدد. سيساعدك الذكاء الاصطناعي على فهم احتياجات نباتك وتحديد المشكلات وتقديم توصيات رعاية مخصصة.
-  hi: एक विशिष्ट पौधे के लिए व्यक्तिगत देखभाल निर्देश प्राप्त करें। AI आपको अपने पौधे की जरूरतों को समझने, समस्याओं की पहचान करने और अनुरूप देखभाल सिफारिशें प्रदान करने में मदद करेगा।
-  th: รับคำแนะนำการดูแลที่ปรับแต่งสำหรับพืชเฉพาะ AI จะช่วยให้คุณเข้าใจความต้องการของพืชของคุณ ระบุปัญหา และให้คำแนะนำการดูแลที่ปรับแต่ง
-  cs: Získejte personalizované pokyny pro péči o konkrétní rostlinu. AI vám pomůže pochopit potřeby vaší rostliny, identifikovat problémy a poskytnout přizpůsobená doporučení pro péči.
-  sv: Få personaliserade vårdinstruktioner för en specifik växt. AI hjälper dig att förstå din växts behov, identifiera problem och ge skräddarsydda vårdrekommendationer.
+  en: Get personalized care tips for your plant.
+  de: Personalisierte Pflegetipps für deine Pflanze.
+  zh: 获取植物的个性化护理建议。
+  es: Obtén consejos de cuidado para tu planta.
+  fr: Obtenez des conseils de soin pour votre plante.
+  pt: Dicas de cuidados personalizadas para sua planta.
+  ru: Персональные советы по уходу за вашим растением.
+  ja: 植物に合わせたケアのヒントを取得する。
+  ko: 식물에 맞는 맞춤형 관리 팁을 받으세요.
+  it: Consigli di cura personalizzati per la tua pianta.
+  tr: Bitkiniz için kişisel bakım ipuçları alın.
+  vi: Nhận mẹo chăm sóc cá nhân hóa cho cây của bạn.
+  id: Dapatkan tips perawatan personal untuk tanaman Anda.
+  pl: Spersonalizowane porady pielęgnacji Twojej rośliny.
+  nl: Gepersonaliseerde verzorgingstips voor je plant.
+  ar: احصل على نصائح رعاية مخصصة لنباتك.
+  hi: अपने पौधे के लिए व्यक्तिगत देखभाल टिप्स पाएं।
+  th: รับคำแนะนำการดูแลพืชแบบเฉพาะเจาะจง
+  cs: Personalizované tipy pro péči o vaši rostlinu.
+  sv: Få personliga skötselråd för din växt.
   verified_by_human:
     - en
     - de
-

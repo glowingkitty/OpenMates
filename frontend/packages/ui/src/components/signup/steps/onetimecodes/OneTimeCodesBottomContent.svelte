@@ -9,7 +9,7 @@ changes to the documentation (to keep the documentation up to date).
 step_4_bottom_content_svelte:
     password_input_field:
         type: 'input_field'
-        placeholder: $text('login.password_placeholder.text')
+        placeholder: $text('login.password_placeholder')
         purpose:
             - 'Collects user password required by Directus for 2FA setup'
         processing:
@@ -25,7 +25,7 @@ step_4_bottom_content_svelte:
             - '/signup/2fa'
     setup_2fa_button:
         type: 'button'
-        text: $text('signup.setup_2fa.text')
+        text: $text('signup.setup_2fa')
         purpose:
             - 'Submits the password to initiate 2FA setup'
         processing:
@@ -42,7 +42,7 @@ step_4_bottom_content_svelte:
             - '/signup/2fa'
     enter_2fa_code_input_field:
         type: 'input_field'
-        placeholder: $text('signup.enter_one_time_code.text')
+        placeholder: $text('signup.enter_one_time_code')
         purpose:
             - 'Verifies the 2FA code, to setup 2FA for the user account.'
         processing:
@@ -60,7 +60,7 @@ step_4_bottom_content_svelte:
             - '/signup/2fa'
     click_to_show_free_2fa_apps_button:
         type: 'button'
-        text: $text('signup.click_here_to_show_free_2fa_apps.text')
+        text: $text('signup.click_here_to_show_free_2fa_apps')
         purpose:
             - 'User clicks and is forwarded to the documentation page about 2FA (which should include links to free 2FA apps)'
         processing:
@@ -212,7 +212,7 @@ step_4_bottom_content_svelte:
                 name="otp-code"
                 bind:value={otpCode}
                 oninput={handleInput}
-                placeholder={$text('signup.enter_one_time_code.text')}
+                placeholder={$text('signup.enter_one_time_code')}
                 inputmode="numeric"
                 maxlength="6"
                 disabled={verifying}
@@ -231,10 +231,10 @@ step_4_bottom_content_svelte:
 
     <!-- Always show the 2FA apps information -->
     <div class="resend-section">
-        <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app.text')}</span>
+        <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app')}</span>
         <!-- <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button"> -->
         <a href={getAppStoreUrl()} target="_blank" class="text-button">
-            {$text('signup.click_here_to_show_free_2fa_apps.text')}
+            {$text('signup.click_here_to_show_free_2fa_apps')}
         </a>
     </div>
 </div>

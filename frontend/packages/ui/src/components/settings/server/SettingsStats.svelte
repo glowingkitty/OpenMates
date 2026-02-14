@@ -459,69 +459,69 @@
     <SettingsItem 
         type="heading"
         icon="usage"
-        subtitleTop={$text('settings.server_stats.description.text')}
-        title={$text('settings.server_stats.title.text')}
+        subtitleTop={$text('settings.server_stats.description')}
+        title={$text('settings.server_stats.title')}
     />
 
     {#if isLoading}
         <div class="loading">
             <div class="spinner"></div>
-            <p>{$text('settings.server_stats.loading.text')}</p>
+            <p>{$text('settings.server_stats.loading')}</p>
         </div>
     {:else if error}
         <div class="error">
             <div class="error-icon">⚠️</div>
             <p>{error}</p>
-            <button onclick={loadStats} class="btn btn-primary">{$text('settings.server_stats.try_again.text')}</button>
+            <button onclick={loadStats} class="btn btn-primary">{$text('settings.server_stats.try_again')}</button>
         </div>
     {:else}
         <!-- Key Metrics Cards Row -->
         <div class="metrics-row">
             <div class="metric-card">
-                <span class="metric-label">{$text('settings.server_stats.total_users.text')}</span>
+                <span class="metric-label">{$text('settings.server_stats.total_users')}</span>
                 <span class="metric-value">{formatNumber(currentStats.total_regular_users || 0)}</span>
             </div>
             <div class="metric-card">
-                <span class="metric-label">{$text('settings.server_stats.active_subscriptions.text')}</span>
+                <span class="metric-label">{$text('settings.server_stats.active_subscriptions')}</span>
                 <span class="metric-value">{formatNumber(currentStats.active_subscriptions || 0)}</span>
             </div>
             <div class="metric-card">
-                <span class="metric-label">{$text('settings.server_stats.total_liability.text')}</span>
+                <span class="metric-label">{$text('settings.server_stats.total_liability')}</span>
                 <span class="metric-value">{formatLiabilityInEur(currentStats.liability_total || 0)}</span>
             </div>
             <div class="metric-card">
-                <span class="metric-label">{$text('settings.server_stats.newsletter_subscribers.text')}</span>
+                <span class="metric-label">{$text('settings.server_stats.newsletter_subscribers')}</span>
                 <span class="metric-value">{formatNumber(newsletterSubscribersCount)}</span>
             </div>
         </div>
 
         <!-- Today's Activity Summary -->
         <div class="today-summary">
-            <h3>{$text('settings.server_stats.latest_activity.text', { date: currentStats.date ? formatDateFull(currentStats.date) : 'Today' })}</h3>
+            <h3>{$text('settings.server_stats.latest_activity', { date: currentStats.date ? formatDateFull(currentStats.date) : 'Today' })}</h3>
             <div class="summary-grid">
                 <div class="summary-item">
                     <span class="value">{formatNumber(currentStats.new_users_registered || 0)}</span>
-                    <span class="label">{$text('settings.server_stats.new_registrations.text')}</span>
+                    <span class="label">{$text('settings.server_stats.new_registrations')}</span>
                 </div>
                 <div class="summary-item">
                     <span class="value">{formatNumber(currentStats.new_users_finished_signup || 0)}</span>
-                    <span class="label">{$text('settings.server_stats.finished_signup.text')}</span>
+                    <span class="label">{$text('settings.server_stats.finished_signup')}</span>
                 </div>
                 <div class="summary-item">
                     <span class="value">{formatCurrency(currentStats.income_eur_cents)}</span>
-                    <span class="label">{$text('settings.server_stats.income.text')}</span>
+                    <span class="label">{$text('settings.server_stats.income')}</span>
                 </div>
                 <div class="summary-item">
                     <span class="value">{formatNumber(currentStats.credits_sold || 0)}</span>
-                    <span class="label">{$text('settings.server_stats.credits_sold.text')}</span>
+                    <span class="label">{$text('settings.server_stats.credits_sold')}</span>
                 </div>
                 <div class="summary-item">
                     <span class="value">{formatNumber(currentStats.credits_used || 0)}</span>
-                    <span class="label">{$text('settings.server_stats.credits_used.text')}</span>
+                    <span class="label">{$text('settings.server_stats.credits_used')}</span>
                 </div>
                 <div class="summary-item">
                     <span class="value">{formatNumber(currentStats.messages_sent || 0)}</span>
-                    <span class="label">{$text('settings.server_stats.messages_sent.text')}</span>
+                    <span class="label">{$text('settings.server_stats.messages_sent')}</span>
                 </div>
             </div>
         </div>
@@ -529,35 +529,35 @@
         <!-- Daily Chart Section -->
         <div class="chart-section">
             <div class="chart-header">
-                <h3>{$text('settings.server_stats.daily_history.text')}</h3>
+                <h3>{$text('settings.server_stats.daily_history')}</h3>
                 <div class="metric-tabs">
                     <button 
                         class="tab" 
                         class:active={activeMetric === 'messages'}
                         onclick={() => activeMetric = 'messages'}
                     >
-                        {$text('settings.server_stats.messages.text')}
+                        {$text('settings.server_stats.messages')}
                     </button>
                     <button 
                         class="tab" 
                         class:active={activeMetric === 'credits_used'}
                         onclick={() => activeMetric = 'credits_used'}
                     >
-                        {$text('settings.server_stats.credits_used.text')}
+                        {$text('settings.server_stats.credits_used')}
                     </button>
                     <button 
                         class="tab" 
                         class:active={activeMetric === 'users'}
                         onclick={() => activeMetric = 'users'}
                     >
-                        {$text('settings.server_stats.new_users.text')}
+                        {$text('settings.server_stats.new_users')}
                     </button>
                     <button 
                         class="tab" 
                         class:active={activeMetric === 'income'}
                         onclick={() => activeMetric = 'income'}
                     >
-                        {$text('settings.server_stats.income.text')}
+                        {$text('settings.server_stats.income')}
                     </button>
                 </div>
             </div>
@@ -655,35 +655,35 @@
         <!-- Monthly Chart Section -->
         <div class="chart-section">
             <div class="chart-header">
-                <h3>{$text('settings.server_stats.monthly_history.text')}</h3>
+                <h3>{$text('settings.server_stats.monthly_history')}</h3>
                 <div class="metric-tabs">
                     <button 
                         class="tab" 
                         class:active={activeMonthlyMetric === 'income'}
                         onclick={() => activeMonthlyMetric = 'income'}
                     >
-                        {$text('settings.server_stats.income.text')}
+                        {$text('settings.server_stats.income')}
                     </button>
                     <button 
                         class="tab" 
                         class:active={activeMonthlyMetric === 'credits_used'}
                         onclick={() => activeMonthlyMetric = 'credits_used'}
                     >
-                        {$text('settings.server_stats.credits_used.text')}
+                        {$text('settings.server_stats.credits_used')}
                     </button>
                     <button 
                         class="tab" 
                         class:active={activeMonthlyMetric === 'messages'}
                         onclick={() => activeMonthlyMetric = 'messages'}
                     >
-                        {$text('settings.server_stats.messages.text')}
+                        {$text('settings.server_stats.messages')}
                     </button>
                     <button 
                         class="tab" 
                         class:active={activeMonthlyMetric === 'users'}
                         onclick={() => activeMonthlyMetric = 'users'}
                     >
-                        {$text('settings.server_stats.new_users.text')}
+                        {$text('settings.server_stats.new_users')}
                     </button>
                 </div>
             </div>

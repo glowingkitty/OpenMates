@@ -2,7 +2,7 @@
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
-import { storeEmbed } from "./embedResolver"; // Import storeEmbed
+import { storeEmbed, markEmbedAsError } from "./embedResolver"; // Import storeEmbed and markEmbedAsError
 import { chatMetadataCache } from "./chatMetadataCache"; // Import for cache invalidation after post-processing
 import { chatListCache } from "./chatListCache"; // Import for cache invalidation when metadata arrives
 import type { EmbedType } from "../message_parsing/types";
@@ -610,16 +610,6 @@ export async function handleAIBackgroundResponseCompletedImpl(
       await processEmbedsFromContent(payload.full_content);
     }
 
-    // Process embeds from full content
-    if (payload.full_content) {
-      await processEmbedsFromContent(payload.full_content);
-    }
-
-    // Process embeds from full content
-    if (payload.full_content) {
-      await processEmbedsFromContent(payload.full_content);
-    }
-
     // CRITICAL: Retrieve thinking content from buffer if available
     // Thinking content was buffered separately via aiThinkingChunk/aiThinkingComplete events
     // and must be attached to the final message for persistence and cross-device sync.
@@ -729,6 +719,79 @@ export async function handleAIBackgroundResponseCompletedImpl(
       }),
     );
 
+    // Show notification and increment unread count for background chat completion.
+    // This is a background handler (chat is not active), so always show the notification.
+    // The activeChatStore check is a safety guard in case the user switched back
+    // to this chat between the server sending the event and us processing it.
+    const activeChatId = activeChatStore.get();
+    if (activeChatId !== payload.chat_id) {
+      console.debug(
+        `[ChatSyncService:AI] Showing notification for background chat ${payload.chat_id} (active: ${activeChatId})`,
+      );
+
+      // Increment unread count for this chat
+      unreadMessagesStore.incrementUnread(payload.chat_id);
+
+      // Extract a preview from the AI response content (first ~120 chars, strip markdown)
+      let messagePreview = "New AI response ready";
+      if (
+        payload.full_content &&
+        payload.full_content !== "chat.an_error_occured"
+      ) {
+        // Strip markdown formatting for a clean preview
+        const plainText = payload.full_content
+          .replace(/#{1,6}\s+/g, "") // Remove headings
+          .replace(/\*\*(.+?)\*\*/g, "$1") // Remove bold
+          .replace(/\*(.+?)\*/g, "$1") // Remove italic
+          .replace(/`{1,3}[^`]*`{1,3}/g, "") // Remove code
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Links -> text
+          .replace(/!\[[^\]]*\]\([^)]+\)/g, "") // Remove images
+          .replace(/>\s+/g, "") // Remove blockquotes
+          .replace(/[-*+]\s+/g, "") // Remove list markers
+          .replace(/\n+/g, " ") // Collapse newlines
+          .trim();
+        if (plainText.length > 0) {
+          messagePreview =
+            plainText.length > 120
+              ? plainText.substring(0, 120) + "..."
+              : plainText;
+        }
+      }
+
+      // Get the decrypted chat title if available
+      let chatTitle = "New message";
+      if (chat.title) {
+        chatTitle = chat.title;
+      } else if (chat.encrypted_title) {
+        // Try to decrypt the title for the notification
+        try {
+          const { decryptWithChatKey } = await import("./cryptoService");
+          const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+          const decryptedTitle = await decryptWithChatKey(
+            chat.encrypted_title,
+            chatKey,
+          );
+          if (decryptedTitle) {
+            chatTitle = decryptedTitle;
+          }
+        } catch (titleError) {
+          console.debug(
+            "[ChatSyncService:AI] Could not decrypt chat title for notification, using fallback:",
+            titleError,
+          );
+        }
+      }
+
+      // Show in-app notification with message preview and mate category for profile image
+      notificationStore.chatMessage(
+        payload.chat_id,
+        chatTitle,
+        messagePreview,
+        undefined, // avatarUrl - not used, we use category-based profile images
+        category || undefined, // Pass mate category for profile image rendering
+      );
+    }
+
     console.info(
       `[ChatSyncService:AI] Background AI response processing completed for chat ${payload.chat_id}`,
     );
@@ -810,6 +873,11 @@ export async function handleAITypingStartedImpl( // Changed to async
       console.error(
         `[ChatSyncService:AI] Chat ${payload.chat_id} not found for processing`,
       );
+      // CRITICAL: Still dispatch the typing event so the UI transitions to the typing phase
+      // with model/provider info even if the chat isn't found in local storage yet
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTypingStarted", { detail: payload }),
+      );
       return;
     }
 
@@ -817,6 +885,10 @@ export async function handleAITypingStartedImpl( // Changed to async
     if (isIncognitoChat) {
       console.debug(
         `[ChatSyncService:AI] Skipping metadata processing for incognito chat ${payload.chat_id}`,
+      );
+      // CRITICAL: Still dispatch the typing event so the UI transitions to the typing phase
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTypingStarted", { detail: payload }),
       );
       return;
     }
@@ -1325,55 +1397,11 @@ export async function handleAIMessageReadyImpl(
       `[ChatSyncService:AI] AI Task ${payload.message_id} for chat ${payload.chat_id} considered ended due to 'ai_message_ready'.`,
     );
 
-    // Check if this message is for a background chat (not currently active)
-    // If so, show a notification and increment unread count
-    const activeChatId = activeChatStore.get();
-    if (activeChatId !== payload.chat_id) {
-      console.debug(
-        `[ChatSyncService:AI] AI message completed for background chat ${payload.chat_id} (active: ${activeChatId})`,
-      );
-
-      // Increment unread count for this chat
-      unreadMessagesStore.incrementUnread(payload.chat_id);
-
-      // Try to get chat title and message preview for the notification
-      try {
-        const chat = await chatDB.getChat(payload.chat_id);
-        if (chat) {
-          // Get decrypted title if available
-          let chatTitle = "New message";
-          if (chat.title) {
-            chatTitle = chat.title;
-          } else if (chat.encrypted_title) {
-            // The title will be decrypted by the chatMetadataCache in Chat.svelte
-            // For notification, we use a generic title for now
-            chatTitle = "Chat"; // TODO: Decrypt title if needed
-          }
-
-          // Show notification for background chat message
-          // Message preview would come from the AI response - for now use generic text
-          // The actual message content isn't available here yet (it's in the payload)
-          notificationStore.chatMessage(
-            payload.chat_id,
-            chatTitle,
-            "New AI response ready", // TODO: Extract preview from message content when available
-            undefined, // avatarUrl - could be set based on mate category
-          );
-        }
-      } catch (error) {
-        console.warn(
-          "[ChatSyncService:AI] Error fetching chat for notification:",
-          error,
-        );
-        // Still show a notification even if we can't get chat details
-        notificationStore.chatMessage(
-          payload.chat_id,
-          "New message",
-          "New AI response ready",
-          undefined,
-        );
-      }
-    }
+    // NOTE: Background chat notifications (unread count + toast) are handled in
+    // handleAIBackgroundResponseCompletedImpl, which fires on the 'ai_background_response_completed'
+    // WebSocket event. That handler has access to the full AI response content for the preview.
+    // This handler ('ai_message_ready') is kept for forward-compatibility but does not
+    // duplicate the notification logic to avoid double notifications.
   }
 }
 
@@ -2636,9 +2664,61 @@ export async function handleSendEmbedDataImpl(
           },
         }),
       );
+    } else if (
+      embedData.status === "error" ||
+      embedData.status === "cancelled"
+    ) {
+      // ============================================================
+      // ERROR/CANCELLED STATUS: Clean up only, no persistence
+      // ============================================================
+      // Failed/cancelled embeds are NOT stored in IndexedDB or Directus.
+      // The backend has already removed the processing placeholder from its cache.
+      // We just need to:
+      // 1. Mark embed as error in the embedResolver's knownErrorEmbeds set
+      //    (CRITICAL: prevents infinite loop where resolveEmbed() re-requests
+      //    error embeds from the server on every render cycle)
+      // 2. Remove the in-memory processing placeholder
+      // 3. Dispatch embedUpdated so ActiveChat tracks it in _embedErrors
+      // 4. The UI will hide the embed and show the error banner
+      console.info(
+        `[ChatSyncService:AI] Embed ${embedData.embed_id} has status="${embedData.status}" — ` +
+          `cleaning up without persisting (failed embeds are not stored)`,
+      );
+
+      // Mark as known error FIRST so resolveEmbed() won't re-request it
+      markEmbedAsError(embedData.embed_id, embedData.status);
+
+      try {
+        const { embedStore } = await import("./embedStore");
+        const embedRef = `embed:${embedData.embed_id}`;
+        // Remove the "processing" placeholder from memory cache
+        embedStore.removeFromMemoryCache(embedRef);
+        console.debug(
+          `[ChatSyncService:AI] Removed processing placeholder for ${embedData.status} embed ${embedData.embed_id} from memory cache`,
+        );
+      } catch (err) {
+        console.warn(
+          `[ChatSyncService:AI] Failed to remove ${embedData.status} embed from memory cache:`,
+          err,
+        );
+      }
+
+      // Dispatch event so ActiveChat can track the error and update the UI
+      serviceInstance.dispatchEvent(
+        new CustomEvent("embedUpdated", {
+          detail: {
+            embed_id: embedData.embed_id,
+            chat_id: embedData.chat_id,
+            message_id: embedData.message_id,
+            status: embedData.status,
+            child_embed_ids: embedData.embed_ids,
+            isProcessing: false,
+          },
+        }),
+      );
     } else {
       // ============================================================
-      // FINALIZED STATUS (completed/error/cancelled/etc): Full encryption and persistence
+      // FINALIZED STATUS (completed/etc): Full encryption and persistence
       // ============================================================
       // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
       // The same send_embed_data event may be received multiple times (e.g., duplicate WebSocket messages)

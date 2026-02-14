@@ -76,13 +76,13 @@
         <!-- <button
             class="clickable-icon icon_files"
             onclick={handleFileSelectClick}
-            aria-label={$text('enter_message.attachments.attach_files.text')}
+            aria-label={$text('enter_message.attachments.attach_files')}
             use:tooltip
         ></button> -->
         <!-- <button
             class="clickable-icon icon_maps"
             onclick={handleLocationClick}
-            aria-label={$text('enter_message.attachments.share_location.text')}
+            aria-label={$text('enter_message.attachments.share_location')}
             use:tooltip
         ></button> -->
     </div>
@@ -91,7 +91,7 @@
         <!-- <button
             class="clickable-icon icon_camera"
             onclick={handleCameraClick}
-            aria-label={$text('enter_message.attachments.take_photo.text')}
+            aria-label={$text('enter_message.attachments.take_photo')}
             use:tooltip
         ></button>
 
@@ -112,7 +112,7 @@
             on:mouseleave={handleRecordMouseLeave}
             on:touchstart|preventDefault={handleRecordTouchStart}
             on:touchend={handleRecordTouchEnd}
-            aria-label={$text('enter_message.attachments.record_audio.text')}
+            aria-label={$text('enter_message.attachments.record_audio')}
             use:tooltip
         >
             <div class="clickable-icon icon_recordaudio"></div>
@@ -123,18 +123,18 @@
                 <button
                     class="send-button"
                     onclick={handleSendMessageClick}
-                    aria-label={$text('enter_message.send.text')}
+                    aria-label={$text('enter_message.send')}
                 >
-                   {$text('enter_message.send.text')}
+                   {$text('enter_message.send')}
                 </button>
             {:else}
                 <!-- Show "Sign up" button for non-authenticated users -->
                 <button
                     class="send-button"
                     onclick={handleSignUpClick}
-                    aria-label={$text('signup.sign_up.text')}
+                    aria-label={$text('signup.sign_up')}
                 >
-                   {$text('signup.sign_up.text')}
+                   {$text('signup.sign_up')}
                 </button>
             {/if}
         {/if}

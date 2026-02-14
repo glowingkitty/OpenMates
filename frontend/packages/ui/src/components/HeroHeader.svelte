@@ -99,28 +99,28 @@
             <!-- The visually hidden text helps with copy selection -->
             <span class="visually-hidden">{capitalize(currentApp)} </span>
             <Icon name={currentApp} type="app" size="67.98px" />
-            {$text('team_mates.text')}
+            {$text('team_mates.team_mates')}
           </span>
         {:else}
-          {$text('digital_team_mates.text')}
+          {$text('digital_team_mates.digital_team_mates')}
         {/if}
-        <mark><br>{@html $text('for_all_of_us.text')}</mark>
+        <mark><br>{@html $text('for_all_of_us.for_all_of_us')}</mark>
       </h1>
       <p class="text-center platform-text">
-        {$text('platforms.via.text')}
+        {$text('platforms.via')}
         <span class="platform-wrapper">
-          <span class="visually-hidden">{@html $text('platforms.web.text')}, </span>
+          <span class="visually-hidden">{@html $text('platforms.web')}, </span>
           <span class="small-icon icon_web"></span>
         </span>
         <span class="platform-wrapper">
-          <span class="visually-hidden">{@html $text('platforms.mattermost.text')}, </span>
+          <span class="visually-hidden">{@html $text('platforms.mattermost')}, </span>
           <span class="small-icon icon_mattermost"></span>
         </span>
         <span class="platform-wrapper">
-          <span class="visually-hidden">{@html $text('platforms.discord.text')}</span>
+          <span class="visually-hidden">{@html $text('platforms.discord')}</span>
           <span class="small-icon icon_discord"></span>
         </span>
-        {$text('platforms.and_more.text')}
+        {$text('platforms.and_more')}
       </p>
       <div class="chat-container header">
         <!-- Bind the local variable "currentApp" to update on chat events -->

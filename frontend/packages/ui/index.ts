@@ -63,6 +63,7 @@ export * from "./src/stores/userProfile"; // Export the user profile store for a
 export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTranslations)
 export * from "./src/stores/notificationStore"; // Export notification store for displaying notifications
 export * from "./src/stores/unreadMessagesStore"; // Export unread messages store for tracking unread chat messages
+export * from "./src/stores/pendingNotificationReplyStore"; // Export pending notification reply store for notification-to-chat reply flow
 export * from "./src/stores/mostUsedAppsStore"; // Export most used apps store for App Store
 export * from "./src/stores/newsletterActionStore"; // Export newsletter action store for email link actions
 export * from "./src/stores/serverStatusStore"; // Export server status store for self-hosted detection
@@ -133,6 +134,8 @@ export {
   CHUNK_ERROR_MESSAGE,
   CHUNK_ERROR_NOTIFICATION_DURATION,
 } from "./src/utils/chunkErrorHandler";
+// Utils - export clean update function for cache-clearing reloads on app updates
+export { performCleanUpdate } from "./src/utils/cacheManager";
 
 // Styles
 export * from "./src/styles/constants";

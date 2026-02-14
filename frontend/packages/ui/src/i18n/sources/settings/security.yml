@@ -1,6 +1,12 @@
 # Security Settings Translations
 # Used in SecurityAuth.svelte and SettingsPassword.svelte
 
+security:
+  context: Security settings section title
+  en: Security
+  de: Sicherheit
+  verified_by_human: []
+
 # --- SecurityAuth Component ---
 auth_title:
   context: Title for security authentication modal
@@ -1822,6 +1828,123 @@ tfa_disable_error:
   th: เกิดข้อผิดพลาดขณะปิดใช้งาน 2FA
   cs: Při zakázání 2FA došlo k chybě.
   sv: Ett fel uppstod vid inaktivering av 2FA.
+  verified_by_human: []
+
+# --- Reset Backup Codes (standalone, without full 2FA re-setup) ---
+tfa_reset_backup_codes:
+  context: Button to reset/regenerate backup codes in 2FA settings overview
+  en: Reset Backup Codes
+  de: Backup-Codes zurücksetzen
+  zh: 重置备份码
+  es: Restablecer códigos de respaldo
+  fr: Réinitialiser les codes de secours
+  pt: Redefinir códigos de backup
+  ru: Сбросить резервные коды
+  ja: バックアップコードをリセット
+  ko: 백업 코드 재설정
+  it: Reimposta codici di backup
+  tr: Yedek kodları sıfırla
+  vi: Đặt lại mã dự phòng
+  id: Atur ulang kode cadangan
+  pl: Zresetuj kody zapasowe
+  nl: Back-upcodes resetten
+  ar: إعادة تعيين رموز النسخ الاحتياطي
+  hi: बैकअप कोड रीसेट करें
+  th: รีเซ็ตรหัสสำรอง
+  cs: Resetovat záložní kódy
+  sv: Återställ säkerhetskoder
+  verified_by_human: []
+tfa_new_backup_codes:
+  context: Heading shown when displaying newly generated backup codes after reset
+  en: New Backup Codes
+  de: Neue Backup-Codes
+  zh: 新备份码
+  es: Nuevos códigos de respaldo
+  fr: Nouveaux codes de secours
+  pt: Novos códigos de backup
+  ru: Новые резервные коды
+  ja: 新しいバックアップコード
+  ko: 새 백업 코드
+  it: Nuovi codici di backup
+  tr: Yeni yedek kodlar
+  vi: Mã dự phòng mới
+  id: Kode cadangan baru
+  pl: Nowe kody zapasowe
+  nl: Nieuwe back-upcodes
+  ar: رموز نسخ احتياطي جديدة
+  hi: नए बैकअप कोड
+  th: รหัสสำรองใหม่
+  cs: Nové záložní kódy
+  sv: Nya säkerhetskoder
+  verified_by_human: []
+tfa_reset_codes_success:
+  context: Success message after backup codes have been reset
+  en: Your backup codes have been reset successfully. Store them in a safe place.
+  de: Ihre Backup-Codes wurden erfolgreich zurückgesetzt. Bewahren Sie sie an einem sicheren Ort auf.
+  zh: 您的备份码已成功重置。请将它们保存在安全的地方。
+  es: Tus códigos de respaldo se han restablecido exitosamente. Guárdalos en un lugar seguro.
+  fr: Vos codes de secours ont été réinitialisés avec succès. Conservez-les dans un endroit sûr.
+  pt: Seus códigos de backup foram redefinidos com sucesso. Guarde-os em um local seguro.
+  ru: Ваши резервные коды были успешно сброшены. Сохраните их в безопасном месте.
+  ja: バックアップコードが正常にリセットされました。安全な場所に保管してください。
+  ko: 백업 코드가 성공적으로 재설정되었습니다. 안전한 곳에 보관하세요.
+  it: I tuoi codici di backup sono stati reimpostati con successo. Conservali in un luogo sicuro.
+  tr: Yedek kodlarınız başarıyla sıfırlandı. Güvenli bir yerde saklayın.
+  vi: Mã dự phòng của bạn đã được đặt lại thành công. Hãy lưu trữ chúng ở nơi an toàn.
+  id: Kode cadangan Anda telah berhasil diatur ulang. Simpan di tempat yang aman.
+  pl: Twoje kody zapasowe zostały pomyślnie zresetowane. Przechowuj je w bezpiecznym miejscu.
+  nl: Uw back-upcodes zijn succesvol gereset. Bewaar ze op een veilige plaats.
+  ar: تمت إعادة تعيين رموز النسخ الاحتياطي بنجاح. قم بتخزينها في مكان آمن.
+  hi: आपके बैकअप कोड सफलतापूर्वक रीसेट कर दिए गए हैं। उन्हें सुरक्षित स्थान पर रखें।
+  th: รหัสสำรองของคุณถูกรีเซ็ตเรียบร้อยแล้ว เก็บรักษาไว้ในที่ปลอดภัย
+  cs: Vaše záložní kódy byly úspěšně resetovány. Uložte je na bezpečné místo.
+  sv: Dina säkerhetskoder har återställts framgångsrikt. Förvara dem på en säker plats.
+  verified_by_human: []
+tfa_reset_codes_failed:
+  context: Error when backend returns failure during backup code reset
+  en: Failed to reset backup codes. Please try again.
+  de: Backup-Codes konnten nicht zurückgesetzt werden. Bitte versuchen Sie es erneut.
+  zh: 重置备份码失败。请重试。
+  es: Error al restablecer los códigos de respaldo. Inténtalo de nuevo.
+  fr: Échec de la réinitialisation des codes de secours. Veuillez réessayer.
+  pt: Falha ao redefinir os códigos de backup. Tente novamente.
+  ru: Не удалось сбросить резервные коды. Пожалуйста, попробуйте снова.
+  ja: バックアップコードのリセットに失敗しました。もう一度お試しください。
+  ko: 백업 코드 재설정에 실패했습니다. 다시 시도해 주세요.
+  it: Impossibile reimpostare i codici di backup. Riprova.
+  tr: Yedek kodlar sıfırlanamadı. Lütfen tekrar deneyin.
+  vi: Không thể đặt lại mã dự phòng. Vui lòng thử lại.
+  id: Gagal mengatur ulang kode cadangan. Silakan coba lagi.
+  pl: Nie udało się zresetować kodów zapasowych. Spróbuj ponownie.
+  nl: Het resetten van back-upcodes is mislukt. Probeer het opnieuw.
+  ar: فشل في إعادة تعيين رموز النسخ الاحتياطي. يرجى المحاولة مرة أخرى.
+  hi: बैकअप कोड रीसेट करने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถรีเซ็ตรหัสสำรองได้ กรุณาลองอีกครั้ง
+  cs: Resetování záložních kódů se nezdařilo. Zkuste to prosím znovu.
+  sv: Det gick inte att återställa säkerhetskoderna. Försök igen.
+  verified_by_human: []
+tfa_reset_codes_error:
+  context: Generic error when resetting backup codes fails unexpectedly
+  en: An error occurred while resetting backup codes.
+  de: Beim Zurücksetzen der Backup-Codes ist ein Fehler aufgetreten.
+  zh: 重置备份码时发生错误。
+  es: Ocurrió un error al restablecer los códigos de respaldo.
+  fr: Une erreur s'est produite lors de la réinitialisation des codes de secours.
+  pt: Ocorreu um erro ao redefinir os códigos de backup.
+  ru: Произошла ошибка при сбросе резервных кодов.
+  ja: バックアップコードのリセット中にエラーが発生しました。
+  ko: 백업 코드 재설정 중 오류가 발생했습니다.
+  it: Si è verificato un errore durante la reimpostazione dei codici di backup.
+  tr: Yedek kodlar sıfırlanırken bir hata oluştu.
+  vi: Đã xảy ra lỗi khi đặt lại mã dự phòng.
+  id: Terjadi kesalahan saat mengatur ulang kode cadangan.
+  pl: Wystąpił błąd podczas resetowania kodów zapasowych.
+  nl: Er is een fout opgetreden bij het resetten van de back-upcodes.
+  ar: حدث خطأ أثناء إعادة تعيين رموز النسخ الاحتياطي.
+  hi: बैकअप कोड रीसेट करते समय एक त्रुटि हुई।
+  th: เกิดข้อผิดพลาดขณะรีเซ็ตรหัสสำรอง
+  cs: Při resetování záložních kódů došlo k chybě.
+  sv: Ett fel uppstod vid återställning av säkerhetskoder.
   verified_by_human: []
 
 # --- Recovery Key Settings ---

@@ -48,6 +48,79 @@ get_docs.description:
   verified_by_human:
     - en
     - de
+
+get_docs.how_to_use.1:
+  context: Example instruction for get docs skill - explore API capabilities
+  en: Based on the docs, what can I do with the Miro API?
+  de: Was kann ich laut der Dokumentation mit der Miro API machen?
+  zh: 根据文档，我可以用Miro API做什么？
+  es: Según la documentación, ¿qué puedo hacer con la API de Miro?
+  fr: D'après la documentation, que puis-je faire avec l'API Miro ?
+  pt: Com base na documentação, o que posso fazer com a API do Miro?
+  ru: Судя по документации, что я могу сделать с Miro API?
+  ja: ドキュメントに基づいて、Miro APIで何ができますか？
+  ko: 문서를 기반으로 Miro API로 무엇을 할 수 있나요?
+  it: In base alla documentazione, cosa posso fare con l'API di Miro?
+  tr: Belgelere göre Miro API ile neler yapabilirim?
+  vi: Dựa trên tài liệu, tôi có thể làm gì với Miro API?
+  id: Berdasarkan dokumentasi, apa yang bisa saya lakukan dengan Miro API?
+  pl: Na podstawie dokumentacji, co mogę zrobić z Miro API?
+  nl: Wat kan ik volgens de documentatie doen met de Miro API?
+  ar: بناءً على الوثائق، ماذا يمكنني فعله مع Miro API؟
+  hi: डॉक्स के अनुसार, मैं Miro API के साथ क्या कर सकता हूँ?
+  th: จากเอกสาร ฉันสามารถทำอะไรกับ Miro API ได้บ้าง?
+  cs: Co mohu podle dokumentace dělat s Miro API?
+  sv: Baserat på dokumentationen, vad kan jag göra med Miro API?
+  verified_by_human: [en, de]
+
+get_docs.how_to_use.2:
+  context: Example instruction for get docs skill - setup guide from docs
+  en: Using the Stripe docs, how do I set up subscriptions?
+  de: Wie richte ich laut Stripe-Dokumentation Abonnements ein?
+  zh: 根据Stripe文档，如何设置订阅？
+  es: Según la documentación de Stripe, ¿cómo configuro las suscripciones?
+  fr: En utilisant la documentation Stripe, comment configurer les abonnements ?
+  pt: Usando a documentação do Stripe, como configuro assinaturas?
+  ru: Используя документацию Stripe, как настроить подписки?
+  ja: Stripeのドキュメントを使って、サブスクリプションはどう設定しますか？
+  ko: Stripe 문서를 사용하여 구독을 어떻게 설정하나요?
+  it: Usando la documentazione di Stripe, come configuro gli abbonamenti?
+  tr: Stripe belgelerini kullanarak abonelikleri nasıl ayarlarım?
+  vi: Sử dụng tài liệu Stripe, làm thế nào để thiết lập đăng ký?
+  id: Menggunakan dokumentasi Stripe, bagaimana cara mengatur langganan?
+  pl: Korzystając z dokumentacji Stripe, jak skonfigurować subskrypcje?
+  nl: Hoe stel ik abonnementen in met de Stripe-documentatie?
+  ar: باستخدام وثائق Stripe، كيف أقوم بإعداد الاشتراكات؟
+  hi: Stripe डॉक्स का उपयोग करके, मैं सब्सक्रिप्शन कैसे सेट करूँ?
+  th: จากเอกสาร Stripe ฉันจะตั้งค่าการสมัครสมาชิกอย่างไร?
+  cs: Jak pomocí dokumentace Stripe nastavím předplatné?
+  sv: Hur ställer jag in prenumerationer med Stripe-dokumentationen?
+  verified_by_human: [en, de]
+
+get_docs.how_to_use.3:
+  context: Example instruction for get docs skill - best practices
+  en: What are the best practices for error handling in FastAPI?
+  de: Was sind die Best Practices für Fehlerbehandlung in FastAPI?
+  zh: FastAPI中错误处理的最佳实践是什么？
+  es: ¿Cuáles son las mejores prácticas para el manejo de errores en FastAPI?
+  fr: Quelles sont les bonnes pratiques de gestion des erreurs dans FastAPI ?
+  pt: Quais são as melhores práticas para tratamento de erros no FastAPI?
+  ru: Каковы лучшие практики обработки ошибок в FastAPI?
+  ja: FastAPIでのエラーハンドリングのベストプラクティスは何ですか？
+  ko: FastAPI에서 오류 처리의 모범 사례는 무엇인가요?
+  it: Quali sono le best practice per la gestione degli errori in FastAPI?
+  tr: FastAPI'de hata yönetimi için en iyi uygulamalar nelerdir?
+  vi: Các phương pháp tốt nhất để xử lý lỗi trong FastAPI là gì?
+  id: Apa saja praktik terbaik untuk penanganan error di FastAPI?
+  pl: Jakie są najlepsze praktyki obsługi błędów w FastAPI?
+  nl: Wat zijn de best practices voor foutafhandeling in FastAPI?
+  ar: ما هي أفضل الممارسات للتعامل مع الأخطاء في FastAPI؟
+  hi: FastAPI में एरर हैंडलिंग के लिए सर्वोत्तम प्रथाएं क्या हैं?
+  th: แนวทางปฏิบัติที่ดีที่สุดสำหรับการจัดการข้อผิดพลาดใน FastAPI คืออะไร?
+  cs: Jaké jsou osvědčené postupy pro zpracování chyb ve FastAPI?
+  sv: Vilka är bästa praxis för felhantering i FastAPI?
+  verified_by_human: [en, de]
+
 clean_repo:
   context: Skill name for clean repo
   en: Clean repo

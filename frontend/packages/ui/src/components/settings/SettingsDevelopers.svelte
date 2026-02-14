@@ -29,7 +29,7 @@ Developers Settings - API keys management and developer tools
             settingsPath: 'developers/api-keys',
             direction: 'forward',
             icon: 'api-keys',
-            title: $text('settings.developers_api_keys.text')
+            title: $text('settings.developers_api_keys')
         });
     }
 
@@ -41,7 +41,7 @@ Developers Settings - API keys management and developer tools
             settingsPath: 'developers/devices',
             direction: 'forward',
             icon: 'devices',
-            title: $text('settings.developers_devices_text.text')
+            title: $text('settings.developers_devices_text')
         });
     }
 
@@ -57,23 +57,23 @@ Developers Settings - API keys management and developer tools
     <SettingsItem
         type="submenu"
         icon="subsetting_icon subsetting_icon_key"
-        title={$text('settings.developers_api_keys.text')}
-        subtitleTop={$text('settings.developers_api_keys_description.text')}
+        title={$text('settings.developers_api_keys')}
+        subtitleTop={$text('settings.developers_api_keys_description')}
         onClick={navigateToApiKeys}
     />
 
     <SettingsItem
         type="submenu"
         icon="subsetting_icon subsetting_icon_devices"
-        title={$text('settings.developers_devices_text.text')}
-        subtitleTop={$text('settings.developers_devices_description.text')}
+        title={$text('settings.developers_devices_text')}
+        subtitleTop={$text('settings.developers_devices_description')}
         onClick={navigateToDevices}
     />
 
     <SettingsItem
         type="submenu"
         icon="subsetting_icon subsetting_icon_document"
-        title={$text('settings.api_docs.text')}
+        title={$text('settings.api_docs')}
         subtitleTop=""
         onClick={openApiDocs}
     />

@@ -1,16 +1,21 @@
 // Document enhancement with embed nodes
 // Handles replacing json_embed blocks with actual embed nodes in TipTap documents
 
-import { EmbedNodeAttributes } from './types';
+import { EmbedNodeAttributes } from "./types";
 
 // Special marker to indicate a duplicate embed reference that should be removed from the document
-const DUPLICATE_EMBED_MARKER = Symbol('DUPLICATE_EMBED');
+const DUPLICATE_EMBED_MARKER = Symbol("DUPLICATE_EMBED");
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // TipTap document structure types (loosely typed to accommodate various node types)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TipTapDocument = { content?: TipTapNode[] } & Record<string, any>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type TipTapNode = { type: string; content?: TipTapNode[]; text?: string; attrs?: Record<string, any> } & Record<string, any>;
+type TipTapNode = {
+  type: string;
+  content?: TipTapNode[];
+  text?: string;
+  attrs?: Record<string, any>;
+} & Record<string, any>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * Enhance a TipTap document with unified embed nodes
@@ -19,106 +24,170 @@ type TipTapNode = { type: string; content?: TipTapNode[]; text?: string; attrs?:
  * @param mode - 'write' or 'read' mode
  * @returns Enhanced TipTap document with unified embed nodes
  */
-export function enhanceDocumentWithEmbeds(doc: TipTapDocument, embedNodes: EmbedNodeAttributes[], mode: 'write' | 'read'): TipTapDocument {
+export function enhanceDocumentWithEmbeds(
+  doc: TipTapDocument,
+  embedNodes: EmbedNodeAttributes[],
+  mode: "write" | "read",
+): TipTapDocument {
   if (!doc || !doc.content) {
     return doc;
   }
-  
+
   // For json_embed blocks, we need to replace them in the text, not just append
   let modifiedContent = [...doc.content];
-  
+
   // Track which embed_ids have already been rendered to handle duplicate references
   // This happens when the backend sends the same embed reference multiple times in a message
   // (e.g., skill placeholders appearing twice due to streaming concatenation)
   const renderedEmbedIds = new Set<string>();
-  
-  console.debug('[enhanceDocumentWithEmbeds] Processing document with', embedNodes.length, 'individual embed nodes');
-  
+
+  console.debug(
+    "[enhanceDocumentWithEmbeds] Processing document with",
+    embedNodes.length,
+    "individual embed nodes",
+  );
+
   // Find and replace embed blocks with embed nodes
-  modifiedContent = modifiedContent.map(node => {
+  modifiedContent = modifiedContent.map((node) => {
     // Handle code blocks that should be replaced with embed nodes
     // In write mode, replace codeBlocks with PREVIEW embed nodes for visual rendering
     // These preview embeds are temporary and don't create EmbedStore entries
-    if (node.type === 'codeBlock') {
+    if (node.type === "codeBlock") {
       // Try to match this code block with an embed node
-      const matchResult = findMatchingEmbedForCodeBlock(node, embedNodes, renderedEmbedIds);
-      
+      const matchResult = findMatchingEmbedForCodeBlock(
+        node,
+        embedNodes,
+        renderedEmbedIds,
+      );
+
       // Check if this is a duplicate embed reference that should be removed
       if (matchResult === DUPLICATE_EMBED_MARKER) {
-        console.debug('[enhanceDocumentWithEmbeds] Removing duplicate embed reference from document');
+        console.debug(
+          "[enhanceDocumentWithEmbeds] Removing duplicate embed reference from document",
+        );
         return null; // Will be filtered out below
       }
-      
+
       const matchingEmbed = matchResult;
       if (matchingEmbed) {
         // In write mode, replace with preview embeds (contentRef starts with 'preview:')
         // These are temporary visual previews that will be converted to real embeds server-side
-        if (mode === 'write' && matchingEmbed.contentRef?.startsWith('preview:')) {
-          console.debug('[enhanceDocumentWithEmbeds] Replacing codeBlock with preview embed in write mode:', matchingEmbed);
+        if (
+          mode === "write" &&
+          matchingEmbed.contentRef?.startsWith("preview:")
+        ) {
+          console.debug(
+            "[enhanceDocumentWithEmbeds] Replacing codeBlock with preview embed in write mode:",
+            matchingEmbed,
+          );
           // Wrap embed in a paragraph since embed is an inline node and codeBlock is block-level
           return {
-            type: 'paragraph',
+            type: "paragraph",
             content: [
               {
-                type: 'embed',
-                attrs: matchingEmbed
-              }
-            ]
+                type: "embed",
+                attrs: matchingEmbed,
+              },
+            ],
           };
         }
-        
+
         // In read mode, replace with real embed nodes (from assistant responses)
-        if (mode === 'read' || matchingEmbed.contentRef?.startsWith('embed:') || matchingEmbed.contentRef?.startsWith('stream:')) {
-          console.debug('[enhanceDocumentWithEmbeds] Replacing codeBlock with embed node:', matchingEmbed);
+        if (
+          mode === "read" ||
+          matchingEmbed.contentRef?.startsWith("embed:") ||
+          matchingEmbed.contentRef?.startsWith("stream:")
+        ) {
+          console.debug(
+            "[enhanceDocumentWithEmbeds] Replacing codeBlock with embed node:",
+            matchingEmbed,
+          );
           return {
-            type: 'paragraph',
+            type: "paragraph",
             content: [
               {
-                type: 'embed',
-                attrs: matchingEmbed
-              }
-            ]
+                type: "embed",
+                attrs: matchingEmbed,
+              },
+            ],
           };
         }
       }
-      
+
       // CRITICAL: In write mode, if there's no matching embed (e.g., unclosed code block),
       // convert the codeBlock back to a plain text paragraph to avoid TipTap schema errors.
       // TipTap's schema doesn't include 'codeBlock' as a valid node type in write mode.
       // The raw markdown will be preserved as text, and decorations will handle highlighting.
-      if (mode === 'write') {
-        const codeText = node.content?.[0]?.text || '';
-        const language = node.attrs?.language || '';
-        
+      if (mode === "write") {
+        const codeText = node.content?.[0]?.text || "";
+        const language = node.attrs?.language || "";
+
         // Reconstruct the raw markdown code block syntax
         // This preserves the user's input as plain text
-        const rawMarkdown = language 
-          ? `\`\`\`${language}\n${codeText}`  // Unclosed code block with language
-          : `\`\`\`\n${codeText}`;             // Unclosed code block without language
-        
-        console.debug('[enhanceDocumentWithEmbeds] Converting unclosed codeBlock to paragraph in write mode:', {
-          language,
-          codeTextLength: codeText.length
-        });
-        
+        const rawMarkdown = language
+          ? `\`\`\`${language}\n${codeText}` // Unclosed code block with language
+          : `\`\`\`\n${codeText}`; // Unclosed code block without language
+
+        console.debug(
+          "[enhanceDocumentWithEmbeds] Converting unclosed codeBlock to paragraph in write mode:",
+          {
+            language,
+            codeTextLength: codeText.length,
+          },
+        );
+
         return {
-          type: 'paragraph',
+          type: "paragraph",
           content: [
             {
-              type: 'text',
-              text: rawMarkdown
-            }
-          ]
+              type: "text",
+              text: rawMarkdown,
+            },
+          ],
         };
       }
     }
 
+    // Handle table nodes that should be replaced with sheets-sheet embed nodes
+    // markdown-it creates { type: "table", content: [tableRow...] } nodes from markdown tables.
+    // parseEmbedNodes() detects these tables and creates sheets-sheet embed attributes,
+    // but without this handler the native table node passes through unchanged.
+    if (node.type === "table") {
+      const matchingEmbed = findMatchingEmbedForTable(node, embedNodes);
+
+      if (matchingEmbed) {
+        console.debug(
+          "[enhanceDocumentWithEmbeds] Replacing table with sheets-sheet embed:",
+          {
+            embedId: matchingEmbed.id,
+            rows: matchingEmbed.rows,
+            cols: matchingEmbed.cols,
+            mode,
+          },
+        );
+        return {
+          type: "paragraph",
+          content: [
+            {
+              type: "embed",
+              attrs: matchingEmbed,
+            },
+          ],
+        };
+      }
+
+      // No matching embed found - keep the native table node as-is
+      // This can happen if parseEmbedNodes() didn't detect this table
+      // (e.g., malformed or single-row table)
+      return node;
+    }
+
     // Handle paragraphs containing json_embed blocks in text
-    if (node.type === 'paragraph' && node.content) {
+    if (node.type === "paragraph" && node.content) {
       const newParagraphContent = [];
 
       for (const contentNode of node.content) {
-        if (contentNode.type === 'text' && contentNode.text) {
+        if (contentNode.type === "text" && contentNode.text) {
           // CRITICAL FIX: Only process text nodes that don't have marks (like bold, italic, link)
           // If the node has marks, preserve them as-is - they contain important formatting info
           // Only call splitTextByJsonEmbedBlocks for plain text that might contain json_embed blocks
@@ -127,7 +196,10 @@ export function enhanceDocumentWithEmbeds(doc: TipTapDocument, embedNodes: Embed
             newParagraphContent.push(contentNode);
           } else {
             // Plain text - check for json_embed blocks
-            const parts = splitTextByJsonEmbedBlocks(contentNode.text, embedNodes);
+            const parts = splitTextByJsonEmbedBlocks(
+              contentNode.text,
+              embedNodes,
+            );
             newParagraphContent.push(...parts);
           }
         } else {
@@ -137,26 +209,42 @@ export function enhanceDocumentWithEmbeds(doc: TipTapDocument, embedNodes: Embed
 
       return {
         ...node,
-        content: newParagraphContent
+        content: newParagraphContent,
       };
     }
     return node;
   });
-  
+
   // Filter out null nodes (duplicate embed references that were marked for removal)
-  modifiedContent = modifiedContent.filter(node => node !== null);
-  
-  // SECOND PASS: Clean up JSON embed references that appear as plain text in paragraphs
+  modifiedContent = modifiedContent.filter((node) => node !== null);
+
+  // SECOND PASS: Clean up JSON embed references that appear as plain text in paragraphs.
   // This handles cases where markdown code fences weren't properly recognized (e.g., due to
   // excessive indentation in lists), leaving the JSON embed reference as plain text.
-  // At this point, renderedEmbedIds contains all embed_ids that were matched with codeBlocks.
-  if (renderedEmbedIds.size > 0) {
-    modifiedContent = cleanupJsonEmbedReferencesInParagraphs(modifiedContent, renderedEmbedIds);
+  //
+  // We collect ALL known embed_ids for cleanup — both those matched via codeBlock replacement
+  // (renderedEmbedIds) AND those detected by parseEmbedNodes() (from the embedNodes array).
+  // This is critical because when markdown-it fails to create a codeBlock (e.g., indented fences),
+  // the embed_id won't be in renderedEmbedIds, but it IS in embedNodes with contentRef="embed:<id>".
+  // Without including these, the raw JSON text like {"type":"code","embed_id":"..."} leaks through.
+  const allKnownEmbedIds = new Set(renderedEmbedIds);
+  for (const embed of embedNodes) {
+    if (embed.contentRef?.startsWith("embed:")) {
+      const embedId = embed.contentRef.substring(6); // strip 'embed:' prefix
+      allKnownEmbedIds.add(embedId);
+    }
   }
-  
+
+  if (allKnownEmbedIds.size > 0) {
+    modifiedContent = cleanupJsonEmbedReferencesInParagraphs(
+      modifiedContent,
+      allKnownEmbedIds,
+    );
+  }
+
   return {
     ...doc,
-    content: modifiedContent
+    content: modifiedContent,
   };
 }
 
@@ -164,76 +252,99 @@ export function enhanceDocumentWithEmbeds(doc: TipTapDocument, embedNodes: Embed
  * Recursively clean up JSON embed references in paragraphs throughout the document.
  * This removes JSON strings like {"type": "code", "embed_id": "..."} from text when
  * the embed has already been rendered (via a codeBlock replacement).
- * 
+ *
  * @param nodes - Array of TipTap nodes to process
  * @param renderedEmbedIds - Set of embed_ids that have already been rendered
  * @returns Cleaned array of nodes
  */
-function cleanupJsonEmbedReferencesInParagraphs(nodes: TipTapNode[], renderedEmbedIds: Set<string>): TipTapNode[] {
-  return nodes.map(node => {
+function cleanupJsonEmbedReferencesInParagraphs(
+  nodes: TipTapNode[],
+  renderedEmbedIds: Set<string>,
+): TipTapNode[] {
+  return nodes.map((node) => {
     // Process list items recursively (they can contain paragraphs with embed references)
-    if (node.type === 'listItem' && node.content) {
+    if (node.type === "listItem" && node.content) {
       return {
         ...node,
-        content: cleanupJsonEmbedReferencesInParagraphs(node.content, renderedEmbedIds)
+        content: cleanupJsonEmbedReferencesInParagraphs(
+          node.content,
+          renderedEmbedIds,
+        ),
       };
     }
-    
+
     // Process lists recursively
-    if ((node.type === 'bulletList' || node.type === 'orderedList') && node.content) {
+    if (
+      (node.type === "bulletList" || node.type === "orderedList") &&
+      node.content
+    ) {
       return {
         ...node,
-        content: cleanupJsonEmbedReferencesInParagraphs(node.content, renderedEmbedIds)
+        content: cleanupJsonEmbedReferencesInParagraphs(
+          node.content,
+          renderedEmbedIds,
+        ),
       };
     }
-    
+
     // Process blockquotes recursively
-    if (node.type === 'blockquote' && node.content) {
+    if (node.type === "blockquote" && node.content) {
       return {
         ...node,
-        content: cleanupJsonEmbedReferencesInParagraphs(node.content, renderedEmbedIds)
+        content: cleanupJsonEmbedReferencesInParagraphs(
+          node.content,
+          renderedEmbedIds,
+        ),
       };
     }
-    
+
     // Clean up JSON embed references in paragraph text content
-    if (node.type === 'paragraph' && node.content) {
-      const cleanedContent = node.content.map(contentNode => {
-        if (contentNode.type === 'text' && contentNode.text) {
-          const cleanedText = removeRenderedJsonEmbedReferences(contentNode.text, renderedEmbedIds);
-          if (cleanedText !== contentNode.text) {
-            console.debug('[cleanupJsonEmbedReferencesInParagraphs] Cleaned JSON embed references from text:', {
-              originalLength: contentNode.text.length,
-              cleanedLength: cleanedText.length,
-              removed: contentNode.text.length - cleanedText.length
-            });
+    if (node.type === "paragraph" && node.content) {
+      const cleanedContent = node.content
+        .map((contentNode) => {
+          if (contentNode.type === "text" && contentNode.text) {
+            const cleanedText = removeRenderedJsonEmbedReferences(
+              contentNode.text,
+              renderedEmbedIds,
+            );
+            if (cleanedText !== contentNode.text) {
+              console.debug(
+                "[cleanupJsonEmbedReferencesInParagraphs] Cleaned JSON embed references from text:",
+                {
+                  originalLength: contentNode.text.length,
+                  cleanedLength: cleanedText.length,
+                  removed: contentNode.text.length - cleanedText.length,
+                },
+              );
+            }
+            // If the cleaned text is empty or only whitespace, return null to filter it out
+            if (!cleanedText || !cleanedText.trim()) {
+              return null;
+            }
+            return {
+              ...contentNode,
+              text: cleanedText,
+            };
           }
-          // If the cleaned text is empty or only whitespace, return null to filter it out
-          if (!cleanedText || !cleanedText.trim()) {
-            return null;
-          }
-          return {
-            ...contentNode,
-            text: cleanedText
-          };
-        }
-        return contentNode;
-      }).filter(n => n !== null);
-      
+          return contentNode;
+        })
+        .filter((n) => n !== null);
+
       // If paragraph is now empty, return null to potentially filter it out
       if (cleanedContent.length === 0) {
         // Keep empty paragraphs for spacing
         return {
           ...node,
-          content: []
+          content: [],
         };
       }
-      
+
       return {
         ...node,
-        content: cleanedContent
+        content: cleanedContent,
       };
     }
-    
+
     return node;
   });
 }
@@ -246,17 +357,17 @@ function cleanupJsonEmbedReferencesInParagraphs(nodes: TipTapNode[], renderedEmb
  * @returns The matching embed node, DUPLICATE_EMBED_MARKER for duplicates, or null
  */
 function findMatchingEmbedForCodeBlock(
-  codeBlockNode: TipTapNode, 
+  codeBlockNode: TipTapNode,
   embedNodes: EmbedNodeAttributes[],
-  renderedEmbedIds: Set<string>
+  renderedEmbedIds: Set<string>,
 ): EmbedNodeAttributes | typeof DUPLICATE_EMBED_MARKER | null {
   // Extract text content from the code block
-  const codeText = codeBlockNode.content?.[0]?.text || '';
+  const codeText = codeBlockNode.content?.[0]?.text || "";
 
-  console.debug('[findMatchingEmbedForCodeBlock] Checking code block:', {
+  console.debug("[findMatchingEmbedForCodeBlock] Checking code block:", {
     codeText: codeText.substring(0, 100),
     hasContent: !!codeText,
-    embedNodesCount: embedNodes.length
+    embedNodesCount: embedNodes.length,
   });
 
   if (!codeText.trim()) {
@@ -267,110 +378,131 @@ function findMatchingEmbedForCodeBlock(
   try {
     const parsed = JSON.parse(codeText.trim());
 
-    console.debug('[findMatchingEmbedForCodeBlock] Parsed JSON:', parsed);
+    console.debug("[findMatchingEmbedForCodeBlock] Parsed JSON:", parsed);
 
     // Check if this is an embed reference with type and embed_id
     if (parsed.type && parsed.embed_id) {
       const embedId = parsed.embed_id;
-      
+
       // CRITICAL FIX: Check if this embed_id has already been rendered
       // This handles duplicate embed references in the message content
       // (which can happen when the backend streams embed references multiple times)
       if (renderedEmbedIds.has(embedId)) {
-        console.debug('[findMatchingEmbedForCodeBlock] Duplicate embed reference detected, marking for removal:', {
-          type: parsed.type,
-          embed_id: embedId
-        });
+        console.debug(
+          "[findMatchingEmbedForCodeBlock] Duplicate embed reference detected, marking for removal:",
+          {
+            type: parsed.type,
+            embed_id: embedId,
+          },
+        );
         return DUPLICATE_EMBED_MARKER;
       }
-      
+
       // Find matching embed node by checking contentRef
-      const matchingEmbed = embedNodes.find(node => {
+      const matchingEmbed = embedNodes.find((node) => {
         const expectedContentRef = `embed:${embedId}`;
-        console.debug('[findMatchingEmbedForCodeBlock] Comparing:', {
+        console.debug("[findMatchingEmbedForCodeBlock] Comparing:", {
           expectedContentRef,
           nodeContentRef: node.contentRef,
-          matches: node.contentRef === expectedContentRef
+          matches: node.contentRef === expectedContentRef,
         });
         return node.contentRef === expectedContentRef;
       });
 
       if (matchingEmbed) {
-        console.debug('[findMatchingEmbedForCodeBlock] Found matching embed for JSON block:', {
-          type: parsed.type,
-          embed_id: embedId,
-          embedNodeId: matchingEmbed.id,
-          embedNodeType: matchingEmbed.type
-        });
-        
+        console.debug(
+          "[findMatchingEmbedForCodeBlock] Found matching embed for JSON block:",
+          {
+            type: parsed.type,
+            embed_id: embedId,
+            embedNodeId: matchingEmbed.id,
+            embedNodeType: matchingEmbed.type,
+          },
+        );
+
         // Mark this embed_id as rendered to detect future duplicates
         renderedEmbedIds.add(embedId);
-        
+
         // NOTE: We no longer remove from the array with splice() because:
         // 1. The same embed_id can appear multiple times in the message (backend bug)
         // 2. Instead, we use renderedEmbedIds Set to track what's been rendered
         // 3. Duplicates are marked for removal from the document
-        
+
         return matchingEmbed;
       } else {
         // No matching embed found - this could be because:
         // 1. The embed wasn't created by parseEmbedNodes (bug)
         // 2. Or this is a duplicate and the Set check above didn't catch it
         //    (shouldn't happen with the current fix)
-        console.warn('[findMatchingEmbedForCodeBlock] No matching embed found for:', {
-          type: parsed.type,
-          embed_id: embedId,
-          availableEmbeds: embedNodes.map(n => ({ id: n.id, type: n.type, contentRef: n.contentRef }))
-        });
+        console.warn(
+          "[findMatchingEmbedForCodeBlock] No matching embed found for:",
+          {
+            type: parsed.type,
+            embed_id: embedId,
+            availableEmbeds: embedNodes.map((n) => ({
+              id: n.id,
+              type: n.type,
+              contentRef: n.contentRef,
+            })),
+          },
+        );
       }
     }
   } catch {
     // Not JSON, might be a regular code block - this is expected for actual code blocks
-    console.debug('[findMatchingEmbedForCodeBlock] Not JSON, treating as code block');
+    console.debug(
+      "[findMatchingEmbedForCodeBlock] Not JSON, treating as code block",
+    );
   }
 
   // Check if this is a code-code embed (code snippet with language)
   // Match by checking if there's a code-code embed with similar content
-  const codeEmbeds = embedNodes.filter(node => node.type === 'code-code');
+  const codeEmbeds = embedNodes.filter((node) => node.type === "code-code");
   if (codeEmbeds.length > 0) {
     const codeBlockLanguage = codeBlockNode.attrs?.language;
-    
+
     // For preview embeds (contentRef starts with 'preview:'), match by language AND code content
     // For real embeds, match by language only (content is in EmbedStore)
-    const matchingCodeEmbed = codeEmbeds.find(embed => {
+    const matchingCodeEmbed = codeEmbeds.find((embed) => {
       // Match language: both undefined/empty, or both the same value
-      const embedLanguage = embed.language || '';
-      const blockLanguage = codeBlockLanguage || '';
+      const embedLanguage = embed.language || "";
+      const blockLanguage = codeBlockLanguage || "";
       const languageMatch = embedLanguage === blockLanguage;
-      
+
       // If it's a preview embed, also match by code content
-      if (embed.contentRef?.startsWith('preview:')) {
-        const embedCode = embed.code || '';
+      if (embed.contentRef?.startsWith("preview:")) {
+        const embedCode = embed.code || "";
         const codeBlockText = codeText.trim();
         const contentMatch = embedCode.trim() === codeBlockText;
-        
-        console.debug('[findMatchingEmbedForCodeBlock] Preview embed comparison:', {
-          embedLanguage,
-          blockLanguage,
-          languageMatch,
-          embedCodeLength: embedCode.trim().length,
-          codeBlockTextLength: codeBlockText.length,
-          contentMatch
-        });
-        
+
+        console.debug(
+          "[findMatchingEmbedForCodeBlock] Preview embed comparison:",
+          {
+            embedLanguage,
+            blockLanguage,
+            languageMatch,
+            embedCodeLength: embedCode.trim().length,
+            codeBlockTextLength: codeBlockText.length,
+            contentMatch,
+          },
+        );
+
         return languageMatch && contentMatch;
       }
-      
+
       // For real embeds, just match by language
       return languageMatch;
     });
 
     if (matchingCodeEmbed) {
-      console.debug('[findMatchingEmbedForCodeBlock] Found matching code embed:', {
-        language: matchingCodeEmbed.language,
-        embedNodeId: matchingCodeEmbed.id,
-        isPreview: matchingCodeEmbed.contentRef?.startsWith('preview:')
-      });
+      console.debug(
+        "[findMatchingEmbedForCodeBlock] Found matching code embed:",
+        {
+          language: matchingCodeEmbed.language,
+          embedNodeId: matchingCodeEmbed.id,
+          isPreview: matchingCodeEmbed.contentRef?.startsWith("preview:"),
+        },
+      );
       // Remove from array to prevent reuse
       const index = embedNodes.indexOf(matchingCodeEmbed);
       if (index > -1) {
@@ -384,33 +516,222 @@ function findMatchingEmbedForCodeBlock(
 }
 
 /**
+ * Extract markdown table text from a TipTap table node.
+ * Reconstructs the markdown representation from the TipTap table/tableRow/tableHeader/tableCell structure.
+ * @param tableNode - The TipTap table node
+ * @returns Reconstructed markdown table string
+ */
+function extractTableTextFromNode(tableNode: TipTapNode): string {
+  if (!tableNode.content) return "";
+
+  const rows: string[] = [];
+  let isFirstRow = true;
+
+  for (const rowNode of tableNode.content) {
+    if (rowNode.type !== "tableRow" || !rowNode.content) continue;
+
+    const cells: string[] = [];
+    let isHeader = false;
+
+    for (const cellNode of rowNode.content) {
+      if (cellNode.type === "tableHeader" || cellNode.type === "tableCell") {
+        if (cellNode.type === "tableHeader") isHeader = true;
+
+        // Extract text from cell content (paragraphs containing text nodes)
+        let cellText = "";
+        if (cellNode.content) {
+          for (const child of cellNode.content) {
+            if (child.type === "paragraph" && child.content) {
+              for (const textNode of child.content) {
+                if (textNode.type === "text" && textNode.text) {
+                  cellText += textNode.text;
+                }
+              }
+            } else if (child.type === "text" && child.text) {
+              cellText += child.text;
+            }
+          }
+        }
+        cells.push(cellText.trim());
+      }
+    }
+
+    rows.push("| " + cells.join(" | ") + " |");
+
+    // After the header row, insert a separator row
+    if (isFirstRow && isHeader) {
+      const separator = cells.map(() => "---").join(" | ");
+      rows.push("| " + separator + " |");
+    }
+    isFirstRow = false;
+  }
+
+  return rows.join("\n");
+}
+
+/**
+ * Find a matching sheets-sheet embed node for a TipTap table node.
+ * Matches by comparing the reconstructed markdown text from the table node
+ * against the stored content in sheets-sheet embeds.
+ * @param tableNode - The TipTap table node
+ * @param embedNodes - Array of embed nodes to search
+ * @returns The matching sheets-sheet embed node, or null
+ */
+function findMatchingEmbedForTable(
+  tableNode: TipTapNode,
+  embedNodes: EmbedNodeAttributes[],
+): EmbedNodeAttributes | null {
+  // Filter to only sheets-sheet embeds
+  const sheetEmbeds = embedNodes.filter((node) => node.type === "sheets-sheet");
+
+  if (sheetEmbeds.length === 0) {
+    return null;
+  }
+
+  // Extract text from the TipTap table node to compare against embed content
+  const tableText = extractTableTextFromNode(tableNode);
+  if (!tableText.trim()) {
+    return null;
+  }
+
+  // Normalize whitespace for comparison: collapse runs of whitespace, trim cells
+  const normalizeForComparison = (text: string): string => {
+    return text
+      .split("\n")
+      .map((line) =>
+        line
+          .split("|")
+          .map((cell) => cell.trim())
+          .join("|"),
+      )
+      .filter((line) => {
+        // Skip separator rows (e.g., |---|---|)
+        const stripped = line.replace(/[|\s-]/g, "");
+        return stripped.length > 0;
+      })
+      .join("\n")
+      .toLowerCase();
+  };
+
+  const normalizedTableText = normalizeForComparison(tableText);
+
+  console.debug(
+    "[findMatchingEmbedForTable] Looking for matching sheet embed:",
+    {
+      tableTextPreview: tableText.substring(0, 200),
+      sheetEmbedsCount: sheetEmbeds.length,
+    },
+  );
+
+  // Match by content similarity
+  for (let i = 0; i < sheetEmbeds.length; i++) {
+    const embed = sheetEmbeds[i];
+
+    // For preview embeds, compare using the stored code content
+    if (embed.code) {
+      const normalizedEmbedCode = normalizeForComparison(embed.code);
+      if (normalizedEmbedCode === normalizedTableText) {
+        console.debug(
+          "[findMatchingEmbedForTable] Found matching sheet embed by content:",
+          {
+            embedId: embed.id,
+            contentRef: embed.contentRef,
+          },
+        );
+        // Remove from array to prevent reuse
+        embedNodes.splice(embedNodes.indexOf(embed), 1);
+        return embed;
+      }
+    }
+
+    // For stream embeds (read mode), match by row/col count since content is in EmbedStore
+    if (
+      embed.contentRef?.startsWith("stream:") &&
+      embed.rows !== undefined &&
+      embed.cols !== undefined
+    ) {
+      // Count rows and cols from the table node
+      const tableRows = tableNode.content?.filter((n) => n.type === "tableRow");
+      const nodeRowCount = tableRows ? tableRows.length : 0;
+      // Subtract header row for data row count comparison
+      // The embed.rows from parseEmbedNodes counts data rows (total - header - separator)
+      // but TipTap table node rows include the header row
+      const nodeDataRowCount = nodeRowCount > 0 ? nodeRowCount - 1 : 0;
+      const firstRow = tableRows?.[0];
+      const nodeColCount = firstRow?.content?.length || 0;
+
+      if (
+        (embed.rows === nodeDataRowCount || embed.rows === nodeRowCount) &&
+        embed.cols === nodeColCount
+      ) {
+        console.debug(
+          "[findMatchingEmbedForTable] Found matching sheet embed by dimensions:",
+          {
+            embedId: embed.id,
+            embedRows: embed.rows,
+            embedCols: embed.cols,
+            nodeRows: nodeRowCount,
+            nodeCols: nodeColCount,
+          },
+        );
+        embedNodes.splice(embedNodes.indexOf(embed), 1);
+        return embed;
+      }
+    }
+  }
+
+  // Fallback: if there's exactly one unmatched sheet embed, use it
+  // This handles edge cases where normalization differs slightly
+  if (sheetEmbeds.length === 1) {
+    const embed = sheetEmbeds[0];
+    console.debug(
+      "[findMatchingEmbedForTable] Using single remaining sheet embed as fallback:",
+      {
+        embedId: embed.id,
+      },
+    );
+    embedNodes.splice(embedNodes.indexOf(embed), 1);
+    return embed;
+  }
+
+  console.debug(
+    "[findMatchingEmbedForTable] No matching sheet embed found for table",
+  );
+  return null;
+}
+
+/**
  * Remove JSON embed references from text content when the embed has already been rendered.
  * This handles cases where markdown code fences aren't properly recognized (e.g., due to
  * excessive indentation in lists), leaving the JSON embed reference as plain text.
- * 
+ *
  * Matches patterns like: {"type": "code", "embed_id": "uuid"}
- * 
+ *
  * IMPORTANT: This function must preserve whitespace in text that does NOT contain JSON
  * embed references. Only remove/trim whitespace that is directly adjacent to the removed
  * JSON references, not leading/trailing whitespace of the entire text.
- * 
+ *
  * @param text - The text content that may contain JSON embed references
  * @param renderedEmbedIds - Set of embed_ids that have already been rendered
  * @returns Cleaned text with matched JSON references removed
  */
-function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<string>): string {
+function removeRenderedJsonEmbedReferences(
+  text: string,
+  renderedEmbedIds: Set<string>,
+): string {
   if (!text || renderedEmbedIds.size === 0) {
     return text;
   }
-  
+
   // First, remove entire fenced ```json blocks that contain rendered embed references.
   // This prevents leaving stray fence markers (```json / ```) in the text when the
   // embed was already rendered as a node, especially in indented list contexts.
   const fencedJsonRegex = /```json[\s\S]*?```/gi;
   let fencedResult = text;
   let fencedMatch: RegExpExecArray | null;
-  const fencedMatches: { fullMatch: string; embedId: string; index: number }[] = [];
-  
+  const fencedMatches: { fullMatch: string; embedId: string; index: number }[] =
+    [];
+
   while ((fencedMatch = fencedJsonRegex.exec(text)) !== null) {
     const fencedBlock = fencedMatch[0];
     const embedIdMatch = fencedBlock.match(/"embed_id"\s*:\s*"([a-f0-9-]+)"/i);
@@ -418,36 +739,41 @@ function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<s
       fencedMatches.push({
         fullMatch: fencedBlock,
         embedId: embedIdMatch[1],
-        index: fencedMatch.index
+        index: fencedMatch.index,
       });
-      console.debug('[removeRenderedJsonEmbedReferences] Removing fenced JSON embed block:', {
-        embedId: embedIdMatch[1],
-        matchLength: fencedBlock.length
-      });
+      console.debug(
+        "[removeRenderedJsonEmbedReferences] Removing fenced JSON embed block:",
+        {
+          embedId: embedIdMatch[1],
+          matchLength: fencedBlock.length,
+        },
+      );
     }
   }
-  
+
   // Remove fenced matches in reverse order to preserve indices
   for (let i = fencedMatches.length - 1; i >= 0; i--) {
     const { fullMatch, index } = fencedMatches[i];
     const before = fencedResult.substring(0, index);
     const after = fencedResult.substring(index + fullMatch.length);
     // Keep surrounding whitespace stable to avoid collapsing adjacent markdown
-    fencedResult = before.trimEnd() + (after ? '\n' + after.replace(/^[\s\n]*/, '') : '');
+    fencedResult =
+      before.trimEnd() + (after ? "\n" + after.replace(/^[\s\n]*/, "") : "");
   }
-  
+
   // Continue cleanup on the possibly trimmed string
   const jsonText = fencedResult;
-  
+
   // Match JSON objects that look like embed references: {"type": "...", "embed_id": "uuid"}
   // This regex matches JSON-like strings with type and embed_id fields
   // We use a non-greedy match to handle multiple references in the same text
-  const jsonEmbedRefRegex = /\{[\s]*"type"[\s]*:[\s]*"[^"]*"[\s]*,[\s]*"embed_id"[\s]*:[\s]*"([a-f0-9-]+)"[\s]*(?:,[\s]*[^}]*)?\}/gi;
-  
+  const jsonEmbedRefRegex =
+    /\{[\s]*"type"[\s]*:[\s]*"[^"]*"[\s]*,[\s]*"embed_id"[\s]*:[\s]*"([a-f0-9-]+)"[\s]*(?:,[\s]*[^}]*)?\}/gi;
+
   let result = jsonText;
   let match;
   const matches: { fullMatch: string; embedId: string; index: number }[] = [];
-  
+
   // Collect all matches first
   while ((match = jsonEmbedRefRegex.exec(jsonText)) !== null) {
     const embedId = match[1];
@@ -455,15 +781,18 @@ function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<s
       matches.push({
         fullMatch: match[0],
         embedId,
-        index: match.index
+        index: match.index,
       });
-      console.debug('[removeRenderedJsonEmbedReferences] Found rendered JSON embed reference to remove:', {
-        embedId,
-        matchLength: match[0].length
-      });
+      console.debug(
+        "[removeRenderedJsonEmbedReferences] Found rendered JSON embed reference to remove:",
+        {
+          embedId,
+          matchLength: match[0].length,
+        },
+      );
     }
   }
-  
+
   // CRITICAL FIX: If no matches found, return the original text UNCHANGED
   // Do NOT trim text that has no JSON embed references - this preserves spaces around
   // bold/italic/link formatting that is essential for proper rendering
@@ -471,19 +800,19 @@ function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<s
     // Return the post-fenced cleanup string to preserve any removed fenced blocks.
     return jsonText;
   }
-  
+
   // Remove matches in reverse order to preserve indices
   for (let i = matches.length - 1; i >= 0; i--) {
     const { fullMatch, index } = matches[i];
     // Remove the JSON reference and any trailing newlines/whitespace
     const beforeMatch = result.substring(0, index);
     const afterMatch = result.substring(index + fullMatch.length);
-    
+
     // Clean up whitespace around the removed reference
-    const cleanedAfter = afterMatch.replace(/^[\s\n]*/, '');
-    result = beforeMatch.trimEnd() + (cleanedAfter ? '\n' + cleanedAfter : '');
+    const cleanedAfter = afterMatch.replace(/^[\s\n]*/, "");
+    result = beforeMatch.trimEnd() + (cleanedAfter ? "\n" + cleanedAfter : "");
   }
-  
+
   // Only trim if we actually removed something, and only trim the final result
   // (at this point we know there were JSON references, so trimming is safe)
   return result.trim();
@@ -495,125 +824,150 @@ function removeRenderedJsonEmbedReferences(text: string, renderedEmbedIds: Set<s
  * @param embedNodes - Array of embed nodes to use for replacement
  * @returns Array of text nodes and embed nodes
  */
-function splitTextByJsonEmbedBlocks(text: string, embedNodes: EmbedNodeAttributes[]): TipTapNode[] {
+function splitTextByJsonEmbedBlocks(
+  text: string,
+  embedNodes: EmbedNodeAttributes[],
+): TipTapNode[] {
   const result = [];
-  
+
   // Filter to only get website embed nodes that came from json_embed blocks
-  const webEmbedNodes = embedNodes.filter(node => node.type === 'web-website');
-  
+  const webEmbedNodes = embedNodes.filter(
+    (node) => node.type === "web-website",
+  );
+
   // If no web embed nodes, return the original text
   if (webEmbedNodes.length === 0) {
     result.push({
-      type: 'text',
-      text: text
+      type: "text",
+      text: text,
     });
     return result;
   }
-  
+
   // Find all json_embed blocks in the text and match them with embed nodes
   const jsonEmbedRegex = /```json_embed\n[\s\S]*?\n```/g;
-  const embedMatches: { match: RegExpExecArray; embedNode: EmbedNodeAttributes }[] = [];
+  const embedMatches: {
+    match: RegExpExecArray;
+    embedNode: EmbedNodeAttributes;
+  }[] = [];
   let match;
-  
+
   // Reset regex lastIndex to ensure we get all matches
   jsonEmbedRegex.lastIndex = 0;
-  
+
   while ((match = jsonEmbedRegex.exec(text)) !== null) {
     try {
       // Extract and parse the json content to match with the right embed node
       const jsonContent = match[0].match(/```json_embed\n([\s\S]*?)\n```/)?.[1];
       if (jsonContent) {
         const parsed = JSON.parse(jsonContent);
-        
+
         // Find the corresponding embed node by URL (use the first available match)
         // Remove used embed nodes to handle multiple instances of the same URL correctly
-        const correspondingEmbedNodeIndex = webEmbedNodes.findIndex(node => node.url === parsed.url);
+        const correspondingEmbedNodeIndex = webEmbedNodes.findIndex(
+          (node) => node.url === parsed.url,
+        );
         if (correspondingEmbedNodeIndex !== -1) {
-          const correspondingEmbedNode = webEmbedNodes[correspondingEmbedNodeIndex];
+          const correspondingEmbedNode =
+            webEmbedNodes[correspondingEmbedNodeIndex];
           // Remove the used embed node to prevent reuse
           webEmbedNodes.splice(correspondingEmbedNodeIndex, 1);
-          
+
           embedMatches.push({ match, embedNode: correspondingEmbedNode });
-          console.debug('[splitTextByJsonEmbedBlocks] Matched json_embed block with embed node:', {
-            url: parsed.url,
-            embedNodeId: correspondingEmbedNode.id,
-            remainingEmbedNodes: webEmbedNodes.length
-          });
+          console.debug(
+            "[splitTextByJsonEmbedBlocks] Matched json_embed block with embed node:",
+            {
+              url: parsed.url,
+              embedNodeId: correspondingEmbedNode.id,
+              remainingEmbedNodes: webEmbedNodes.length,
+            },
+          );
         } else {
-          console.warn('[splitTextByJsonEmbedBlocks] No matching embed node found for URL:', parsed.url);
+          console.warn(
+            "[splitTextByJsonEmbedBlocks] No matching embed node found for URL:",
+            parsed.url,
+          );
         }
       }
     } catch (error) {
-      console.warn('[splitTextByJsonEmbedBlocks] Error parsing json_embed block:', error);
+      console.warn(
+        "[splitTextByJsonEmbedBlocks] Error parsing json_embed block:",
+        error,
+      );
       // Still try to match by order if parsing fails and we have remaining nodes
       if (webEmbedNodes.length > 0) {
         const fallbackEmbedNode = webEmbedNodes.shift()!; // Remove the first available node
         embedMatches.push({ match, embedNode: fallbackEmbedNode });
-        console.debug('[splitTextByJsonEmbedBlocks] Used fallback matching for json_embed block');
+        console.debug(
+          "[splitTextByJsonEmbedBlocks] Used fallback matching for json_embed block",
+        );
       }
     }
   }
-  
+
   // If no matches found, return original text
   if (embedMatches.length === 0) {
     result.push({
-      type: 'text',
-      text: text
+      type: "text",
+      text: text,
     });
     return result;
   }
-  
+
   // Sort matches by position to process them in order
   embedMatches.sort((a, b) => a.match.index - b.match.index);
-  
+
   let lastIndex = 0;
-  
+
   for (const { match, embedNode } of embedMatches) {
     // Add text before the json_embed block
     if (match.index > lastIndex) {
       const beforeText = text.substring(lastIndex, match.index);
-      if (beforeText.trim() || beforeText.includes('\n')) {
+      if (beforeText.trim() || beforeText.includes("\n")) {
         result.push({
-          type: 'text',
-          text: beforeText
+          type: "text",
+          text: beforeText,
         });
       }
     }
-    
-    console.debug('[splitTextByJsonEmbedBlocks] Replacing json_embed block with embed node:', embedNode);
-    
+
+    console.debug(
+      "[splitTextByJsonEmbedBlocks] Replacing json_embed block with embed node:",
+      embedNode,
+    );
+
     // Add the corresponding embed node
     result.push({
-      type: 'embed',
-      attrs: embedNode
+      type: "embed",
+      attrs: embedNode,
     });
-    
+
     // Add a hard break after the embed to force cursor to next line
     result.push({
-      type: 'hardBreak'
+      type: "hardBreak",
     });
-    
+
     lastIndex = match.index + match[0].length;
   }
-  
+
   // Add remaining text after the last json_embed block
   if (lastIndex < text.length) {
     const afterText = text.substring(lastIndex);
-    if (afterText.trim() || afterText.includes('\n')) {
+    if (afterText.trim() || afterText.includes("\n")) {
       result.push({
-        type: 'text',
-        text: afterText
+        type: "text",
+        text: afterText,
       });
     }
   }
-  
+
   // If no content was added, ensure we have at least the original text
   if (result.length === 0) {
     result.push({
-      type: 'text',
-      text: text
+      type: "text",
+      text: text,
     });
   }
-  
+
   return result;
 }

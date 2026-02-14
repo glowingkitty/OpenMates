@@ -20,7 +20,7 @@ Gift Cards Settings - Main menu for gift card operations
             settingsPath: `gift_cards/${path}`,
             direction: 'forward',
             icon: iconName,
-            title: $text(`settings.gift_cards.${translationKey}.text`)
+            title: $text(`settings.gift_cards.${translationKey}`)
         });
     }
 </script>
@@ -29,7 +29,7 @@ Gift Cards Settings - Main menu for gift card operations
 <SettingsItem
     type="submenu"
     icon="subsetting_icon subsetting_icon_coins"
-    title={$text('settings.gift_cards.redeem.text')}
+    title={$text('settings.gift_cards.redeem')}
     onClick={() => navigateToSubview('redeem')}
 />
 
@@ -37,7 +37,7 @@ Gift Cards Settings - Main menu for gift card operations
 <SettingsItem
     type="submenu"
     icon="subsetting_icon subsetting_icon_coins"
-    title={$text('settings.gift_cards.redeemed.text')}
+    title={$text('settings.gift_cards.redeemed')}
     onClick={() => navigateToSubview('redeemed')}
 />
 
@@ -45,6 +45,6 @@ Gift Cards Settings - Main menu for gift card operations
 <SettingsItem
     type="submenu"
     icon="subsetting_icon subsetting_icon_coins"
-    title={$text('settings.gift_cards.buy.text')}
+    title={$text('settings.gift_cards.buy')}
     onClick={() => navigateToSubview('buy')}
 />

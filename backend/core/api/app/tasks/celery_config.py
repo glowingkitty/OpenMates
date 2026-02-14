@@ -807,6 +807,7 @@ _EXPLICIT_TASK_ROUTES = {
     # AI App tasks
     "apps.ai.tasks.skill_ask": "app_ai",
     "apps.ai.tasks.rate_limit_followup": "app_ai",
+    "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
     
     # Health check tasks
     "health_check.check_all_providers": "health_check",
@@ -843,6 +844,8 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.persistence_tasks.persist_encrypted_chat_metadata": "persistence",
     "app.tasks.persistence_tasks.persist_new_chat_suggestions": "persistence",
     "app.tasks.persistence_tasks.append_rejected_suggestion_hash": "persistence",
+    "app.tasks.persistence_tasks.persist_embed_fallback": "persistence",
+    "app.tasks.persistence_tasks.process_pending_embeds": "persistence",
     
     # User cache tasks
     "app.tasks.user_cache_tasks.warm_user_cache": "user_init",
@@ -1025,6 +1028,13 @@ app.conf.beat_schedule = {
         'task': 'reminder.audit_pending_deliveries',
         'schedule': crontab(hour='*/6', minute=15),  # Every 6 hours at :15
         'options': {'queue': 'reminder'},  # Route to reminder queue
+    },
+    # Pending embed encryption safety net - re-delivers pending embeds to connected clients
+    # and refreshes cache TTLs to prevent data loss
+    'process-pending-embeds': {
+        'task': 'app.tasks.persistence_tasks.process_pending_embeds',
+        'schedule': timedelta(seconds=300),  # Every 5 minutes
+        'options': {'queue': 'persistence'},
     },
 }
 app.conf.timezone = 'UTC'

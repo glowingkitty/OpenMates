@@ -112,11 +112,7 @@
       const category = app.settings_and_memories.find(sm => sm.id === cat.itemType);
       if (category?.name_translation_key) {
         // Use the translation key to get localized name
-        // Ensure the key ends with .text as required
-        const translationKey = category.name_translation_key.endsWith('.text') 
-          ? category.name_translation_key 
-          : `${category.name_translation_key}.text`;
-        const translated = $text(translationKey);
+        const translated = $text(category.name_translation_key);
         if (translated && translated !== translationKey) {
           return translated;
         }
@@ -183,7 +179,7 @@
   let displayName = $derived(role === 'user' ? '' : 
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
                     category === 'openmates_official' ? 'OpenMates' :
-                    category ? $text(`mates.${category}.text`, { default: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }) :
+                    category ? $text(`mates.${category}`) :
                     'Assistant');
 
   // animated prop is now included in the main $props() call above
@@ -240,7 +236,7 @@
   function handleReportBadAnswer() {
     if (!original_message) return;
 
-    const title = $text('chat.report_bad_answer.title.text');
+    const title = $text('chat.report_bad_answer.title');
 
     reportIssueStore.set({
       title: title,
@@ -252,7 +248,7 @@
     
     // Paste a translated retry prompt into the message input so the user can
     // immediately ask the assistant to try again with web search / app skills.
-    const retryText = $text('chat.report_bad_answer.retry_message.text');
+    const retryText = $text('chat.report_bad_answer.retry_message');
     if (retryText) {
       window.dispatchEvent(new CustomEvent('setRetryMessage', { detail: { text: retryText } }));
     }
@@ -739,7 +735,7 @@
       embedContext.type === 'code' ? 'Share Code' :
       'Share Embed';
 
-    navigateToSettings('shared/share', shareTitle, 'share', 'settings.share.share_embed.text');
+    navigateToSettings('shared/share', shareTitle, 'share', 'settings.share.share_embed');
     settingsDeepLink.set('shared/share');
     panelState.openSettings();
   }
@@ -1366,8 +1362,8 @@
 
   // Add reactive statement to handle status changes using $derived (Svelte 5 runes mode)
   // Note: 'processing' status is NOT shown under the message - it's shown in the typing indicator area instead
-  let messageStatusText = $derived(status === 'sending' ? $text('enter_message.sending.text') :
-                      status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet.text') : '');
+  let messageStatusText = $derived(status === 'sending' ? $text('enter_message.sending') :
+                      status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet') : '');
 
   // Functions for handling truncated message display
   async function handleShowFullMessage() {
@@ -1418,7 +1414,7 @@
     <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
   {/if}
 
-  <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile}>
+  <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile} class:mobile-compact={role === 'user' && shouldStackMobile}>
     <div 
       bind:this={messageContentElement}
       class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}" 
@@ -1486,9 +1482,9 @@
                 disabled={isLoadingFullContent}
               >
                 {#if isLoadingFullContent}
-                  {$text('chat.loading.text')}
+                  {$text('chat.loading')}
                 {:else}
-                  {$text('chat.show_full_message.text')}
+                  {$text('chat.show_full_message')}
                 {/if}
               </button>
             {:else}
@@ -1496,7 +1492,7 @@
                 class="hide-full-message-btn"
                 onclick={handleHideFullMessage}
               >
-                {$text('chat.hide_full_message.text')}
+                {$text('chat.hide_full_message')}
               </button>
             {/if}
           </div>
@@ -1569,19 +1565,19 @@
     </div>
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
-        <button class="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by.text', { values: { model: getModelDisplayName(model_name) } })}</button>
+        <button class="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
         <button 
           class="report-bad-answer-btn" 
           class:hovered={isReportHovered}
           onmouseenter={() => isReportHovered = true}
           onmouseleave={() => isReportHovered = false}
           onclick={handleReportBadAnswer}
-          aria-label={$text('chat.report_bad_answer.button_text.text')}
+          aria-label={$text('chat.report_bad_answer.button_text')}
         >
           <div class="clickable-icon icon_thumbsdown"></div>
           {#if isReportHovered}
             <span class="report-text" in:fade={{ duration: 150 }}>
-              {$text('chat.report_bad_answer.button_text.text')}
+              {$text('chat.report_bad_answer.button_text')}
             </span>
           {/if}
         </button>
@@ -1590,9 +1586,9 @@
     {#if role === 'assistant' && hasEmbedErrors}
       <div class="embed-error-banner">
         <span class="embed-error-text">
-          {$text('chat.embed_error.message.text')}
+          {$text('chat.embed_error.message')}
           <span class="embed-error-link" onclick={handleReportEmbedError} onkeydown={(e) => { if (e.key === 'Enter') handleReportEmbedError(); }} role="button" tabindex="0">
-            {$text('chat.embed_error.report_link.text')}
+            {$text('chat.embed_error.report_link')}
           </span>
         </span>
       </div>
@@ -1609,7 +1605,7 @@
     {#if role === 'user' && appSettingsMemoriesResponse}
       <div class="app-settings-memories-summary">
         {#if appSettingsMemoriesResponse.action === 'included' && appSettingsMemoriesResponse.categories}
-          <span class="summary-label">{$text('chat.permissions.included_summary.text') || 'Included App settings & memories'}:</span>
+          <span class="summary-label">{$text('chat.permissions.included_summary')}:</span>
           <div class="summary-categories">
             {#each appSettingsMemoriesResponse.categories as cat}
               <button 
@@ -1633,7 +1629,7 @@
             {/each}
           </div>
         {:else if appSettingsMemoriesResponse.action === 'rejected'}
-          <span class="summary-rejected">{$text('chat.permissions.rejected_summary.text') || 'Rejected App settings & memories request.'}</span>
+          <span class="summary-rejected">{$text('chat.permissions.rejected_summary')}</span>
         {/if}
       </div>
     {/if}

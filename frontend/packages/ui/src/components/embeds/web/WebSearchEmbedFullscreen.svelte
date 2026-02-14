@@ -165,14 +165,14 @@
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
   let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
-  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured.text') || 'Processing failed.'));
+  let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
   
   // Get skill name from translations (matches preview)
-  let skillName = $derived($text('embeds.search.text') || 'Search');
+  let skillName = $derived($text('embeds.search'));
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
-    `${$text('embeds.via.text') || 'via'} ${provider}`
+    `${$text('embeds.via')} ${provider}`
   );
   
   /**
@@ -435,11 +435,11 @@
       {#if webResults.length === 0}
         {#if ctx.isLoadingChildren}
           <div class="loading-state">
-            <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+            <p>{$text('embeds.loading')}</p>
           </div>
         {:else}
           <div class="no-results">
-            <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
+            <p>{$text('embeds.no_results')}</p>
           </div>
         {/if}
       {:else}

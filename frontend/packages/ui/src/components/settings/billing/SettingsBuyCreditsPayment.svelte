@@ -233,7 +233,7 @@ Supports both saved payment methods and new payment form
                     settingsPath: 'billing/buy-credits/confirmation',
                     direction: 'forward',
                     icon: 'check',
-                    title: $text('settings.billing.purchase_successful.text')
+                    title: $text('settings.billing.purchase_successful')
                 });
             } else {
                 throw new Error('Payment was not successful');
@@ -259,7 +259,7 @@ Supports both saved payment methods and new payment form
                 settingsPath: 'billing/buy-credits/confirmation',
                 direction: 'forward',
                 icon: 'check',
-                title: $text('settings.billing.purchase_successful.text')
+                title: $text('settings.billing.purchase_successful')
             });
         }
     }
@@ -267,12 +267,12 @@ Supports both saved payment methods and new payment form
 
 {#if isLoadingPaymentMethods}
     <div class="loading-container">
-        <p>{$text('settings.billing.loading_payment_methods.text')}</p>
+        <p>{$text('settings.billing.loading_payment_methods')}</p>
     </div>
 {:else if hasSavedPaymentMethods && !showPaymentForm}
     <!-- Show saved payment methods -->
     <div class="payment-methods-container">
-        <h3>{$text('settings.billing.select_payment_method.text')}</h3>
+        <h3>{$text('settings.billing.select_payment_method')}</h3>
         
         <div class="payment-methods-list">
             {#each paymentMethods as paymentMethod (paymentMethod.id)}
@@ -287,7 +287,7 @@ Supports both saved payment methods and new payment form
                     <Toggle
                         checked={selectedPaymentMethodId === paymentMethod.id}
                         on:change={(e) => handlePaymentMethodToggle(paymentMethod.id, e.detail.checked)}
-                        ariaLabel={$text('settings.billing.select_payment_method.text')}
+                        ariaLabel={$text('settings.billing.select_payment_method')}
                     />
                 </div>
             {/each}
@@ -297,7 +297,7 @@ Supports both saved payment methods and new payment form
             class="add-payment-method-btn"
             onclick={handleAddPaymentMethod}
         >
-            {$text('settings.billing.add_payment_method.text')}
+            {$text('settings.billing.add_payment_method')}
         </button>
 
         <button
@@ -306,7 +306,7 @@ Supports both saved payment methods and new payment form
             onclick={handleBuyNow}
             disabled={!selectedPaymentMethodId || isProcessingPayment}
         >
-            {isProcessingPayment ? $text('settings.billing.processing.text') : $text('settings.billing.buy_now.text')}
+            {isProcessingPayment ? $text('settings.billing.processing') : $text('settings.billing.buy_now')}
         </button>
     </div>
 

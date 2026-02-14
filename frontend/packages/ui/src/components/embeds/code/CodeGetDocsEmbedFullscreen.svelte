@@ -184,10 +184,10 @@
   });
   
   // Skill name from translations
-  let skillName = $derived($text('embeds.get_docs.text') || 'Get Docs');
+  let skillName = $derived($text('embeds.get_docs'));
   
   // "Open on Context7" button text
-  let openButtonText = $derived($text('embeds.open_on_provider.text').replace('{provider}', 'Context7'));
+  let openButtonText = $derived($text('embeds.open_on_provider').replace('{provider}', 'Context7'));
   
   // Store rendered HTML for markdown
   // CRITICAL: Using object instead of Map for proper Svelte 5 reactivity
@@ -428,7 +428,7 @@
       (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
       
       // Navigate to share settings
-      navigateToSettings('shared/share', 'Share', 'share', 'settings.share.text');
+      navigateToSettings('shared/share', 'Share', 'share', 'settings.share');
       settingsDeepLink.set('shared/share');
       panelState.openSettings();
       
@@ -504,10 +504,10 @@
           {:else if localLibrary}
             <div class="pending-content">
               <p class="pending-library">{localLibrary}</p>
-              <p class="pending-message">{$text('embeds.get_docs_loading.text')}</p>
+              <p class="pending-message">{$text('embeds.get_docs_loading')}</p>
             </div>
           {:else}
-            <p>{$text('embeds.get_docs_no_content.text')}</p>
+            <p>{$text('embeds.get_docs_no_content')}</p>
           {/if}
         </div>
       {:else}
@@ -521,11 +521,11 @@
               </div>
             {:else if isRenderingMarkdown}
               <div class="markdown-loading">
-                <p>{$text('embeds.get_docs_loading.text')}</p>
+                <p>{$text('embeds.get_docs_loading')}</p>
               </div>
             {:else}
               <div class="no-content">
-                <p>{$text('embeds.get_docs_no_content.text')}</p>
+                <p>{$text('embeds.get_docs_no_content')}</p>
               </div>
             {/if}
           </div>

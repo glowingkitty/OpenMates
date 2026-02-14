@@ -13,6 +13,9 @@
         type AnyMentionResult,
         type MentionType
     } from './services/mentionSearchService';
+    import type { SkillMentionResult, FocusModeMentionResult, SettingsMemoryMentionResult } from './services/mentionSearchService';
+    import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
+    import { panelState } from '../../stores/panelStateStore';
 
     // --- Props ---
     interface Props {
@@ -122,7 +125,7 @@
      * Get translated type label for a result.
      */
     function getTypeLabel(type: MentionType): string {
-        return $text(`enter_message.mention_dropdown.type_labels.${type}.text`);
+        return $text(`enter_message.mention_dropdown.type_labels.${type}`);
     }
 
     /**
@@ -149,11 +152,11 @@
     function getSubtitle(result: AnyMentionResult): string {
         // For models, subtitle is provider name - use translation template
         if (result.type === 'model') {
-            return $text('enter_message.mention_dropdown.from_provider.text').replace('{provider}', result.subtitle);
+            return $text('enter_message.mention_dropdown.from_provider').replace('{provider}', result.subtitle);
         }
         // For mates, use the mate description translation key
         if (result.type === 'mate') {
-            return $text(`mate_descriptions.${result.id}.text`);
+            return $text(`mate_descriptions.${result.id}`);
         }
         // For skills, focus modes, settings - resolve translation keys
         if (result.subtitle) {
@@ -163,34 +166,68 @@
     }
 
     /**
-     * Get the settings link for a result based on its type.
-     * - Models: /#settings (general settings for now)
-     * - Mates: /#settings (mate-specific deep link added later)
-     * - Skills: /#app-store/app-{appId}/skills
-     * - Focus modes: /#app-store/app-{appId}/focus-modes
-     * - Settings/memories: /#app-store/app-{appId}/memories
+     * Get the settings deep link path for a result based on its type.
+     * Returns the path to pass to settingsDeepLink.set() for programmatic navigation.
+     * Uses the same deep link format as the rest of the codebase (e.g., ChatMessage.svelte).
+     *
+     * - Models: app_store/ai/skill/ask/model/{model_id}
+     * - Mates: main (no mate-specific settings page yet)
+     * - Skills: app_store/{appId}/skill/{skillId}
+     * - Focus modes: app_store/{appId}/focus/{focusModeId}
+     * - Settings/memories: app_store/{appId}/settings_memories/{memoryId}
      */
-    function getSettingsLink(result: AnyMentionResult): string {
+    function getSettingsPath(result: AnyMentionResult): string {
         switch (result.type) {
             case 'model':
-                return '/#settings';
+                // Deep link to AI model detail page in the AI Ask skill settings
+                return `app_store/ai/skill/ask/model/${result.id}`;
             case 'mate':
-                return '/#settings';
+                // No mate-specific settings page yet — open main settings
+                return 'main';
             case 'skill': {
-                const skillResult = result as import('./services/mentionSearchService').SkillMentionResult;
-                return `/#app-store/app-${skillResult.appId}/skills`;
+                const skillResult = result as SkillMentionResult;
+                const skillId = result.id.split(':')[1] || result.id;
+                return `app_store/${skillResult.appId}/skill/${skillId}`;
             }
             case 'focus_mode': {
-                const focusResult = result as import('./services/mentionSearchService').FocusModeMentionResult;
-                return `/#app-store/app-${focusResult.appId}/focus-modes`;
+                const focusResult = result as FocusModeMentionResult;
+                const focusModeId = result.id.split(':')[1] || result.id;
+                return `app_store/${focusResult.appId}/focus/${focusModeId}`;
             }
             case 'settings_memory': {
-                const memoryResult = result as import('./services/mentionSearchService').SettingsMemoryMentionResult;
-                return `/#app-store/app-${memoryResult.appId}/memories`;
+                const memoryResult = result as SettingsMemoryMentionResult;
+                const memoryId = result.id.split(':')[1] || result.id;
+                return `app_store/${memoryResult.appId}/settings_memories/${memoryId}`;
             }
             default:
-                return '/#settings';
+                return 'main';
         }
+    }
+
+    /**
+     * Navigate to settings for a specific mention result.
+     * Uses programmatic navigation (settingsDeepLink + panelState) instead of hash links
+     * to avoid the deep link handler's hyphen-to-underscore normalization which would
+     * corrupt model IDs like "claude-opus-4-6".
+     */
+    function handleSettingsNavigation(result: AnyMentionResult, event: MouseEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+        const path = getSettingsPath(result);
+        settingsDeepLink.set(path);
+        panelState.openSettings();
+        onclose?.();
+    }
+
+    /**
+     * Navigate to the main settings page (header settings button).
+     */
+    function handleHeaderSettingsClick(event: MouseEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+        settingsDeepLink.set('main');
+        panelState.openSettings();
+        onclose?.();
     }
 </script>
 
@@ -209,25 +246,26 @@
         <!-- Header text -->
         <div class="mention-dropdown-header">
             <span class="header-text">
-                {$text('enter_message.mention_dropdown.header.text')}
+                {$text('enter_message.mention_dropdown.header')}
             </span>
-            <a 
-                href="/#settings" 
+            <button 
                 class="settings-button" 
-                aria-label={$text('settings.settings.text')}
-                onclick={(e) => { e.stopPropagation(); }}
+                aria-label={$text('settings.settings')}
+                onclick={handleHeaderSettingsClick}
             >
                 <span class="clickable-icon icon_settings"></span>
-            </a>
+            </button>
         </div>
 
         <!-- Results list -->
         <div class="mention-results">
             {#each results as result, index (result.id)}
-                <button
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <div
                     class="mention-result"
                     class:selected={index === selectedIndex}
                     role="option"
+                    tabindex="-1"
                     aria-selected={index === selectedIndex}
                     onclick={(e) => handleResultClick(result, e)}
                     onmouseenter={() => handleMouseEnter(index)}
@@ -267,24 +305,23 @@
                         <span class="result-subtitle">{getSubtitle(result)}</span>
                     </div>
 
-                    <!-- Settings icon for each row -->
-                    <a 
-                        href={getSettingsLink(result)}
+                    <!-- Settings icon for each row — navigates to the model/skill/focus/memory settings -->
+                    <button 
                         class="row-settings-button" 
                         tabindex="-1"
-                        aria-label={$text('settings.settings.text')}
-                        onclick={(e) => e.stopPropagation()}
+                        aria-label={$text('settings.settings')}
+                        onclick={(e) => handleSettingsNavigation(result, e)}
                     >
                         <span class="clickable-icon icon_settings"></span>
-                    </a>
-                </button>
+                    </button>
+                </div>
             {/each}
         </div>
 
         <!-- Footer hint -->
         {#if query}
             <div class="mention-dropdown-footer">
-                {$text('enter_message.mention_dropdown.autocomplete_hint.text')}
+                {$text('enter_message.mention_dropdown.autocomplete_hint')}
             </div>
         {/if}
     </div>
@@ -470,6 +507,8 @@
         cursor: pointer;
         color: var(--color-grey-50);
         opacity: 0;
+        padding: 0;
+        font: inherit;
         transition: opacity 0.15s ease, background-color 0.15s ease;
     }
 

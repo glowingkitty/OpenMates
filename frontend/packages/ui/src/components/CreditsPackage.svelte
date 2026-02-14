@@ -118,13 +118,13 @@
         <!-- Gift Badge -->
         <div class="recommended-badge gift-badge">
             <div class="gift-icon"></div> <!-- Use gift icon -->
-            <span>{@html $text('signup.your_gift.text')}</span> <!-- Use gift text -->
+            <span>{@html $text('signup.your_gift')}</span> <!-- Use gift text -->
         </div>
     {:else if recommended}
         <!-- Standard Recommended Badge -->
         <div class="recommended-badge">
             <div class="thumbs-up-icon"></div>
-            <span>{@html $text('signup.recommended.text')}</span>
+            <span>{@html $text('signup.recommended')}</span>
         </div>
     {/if}
     
@@ -140,7 +140,7 @@
         </div>
         
         <div class="credits-amount">
-            {@html $text('signup.amount_currency.text')
+            {@html $text('signup.amount_currency')
                 .replace('{currency}', '<span class="coin-icon-inline"></span>')
                 .replace('{amount}', formatNumber(displayAmount))}
         </div>
@@ -152,9 +152,9 @@
 
     <button class="buy-button" onclick={handleButtonClick} disabled={isAcceptingGift}>
         {#if isGift}
-            {@html $text(isAcceptingGift ? 'login.loading.text' : 'signup.accept.text')}
+            {@html $text(isAcceptingGift ? 'login.loading' : 'signup.accept')}
         {:else}
-            {@html $text('signup.buy_for.text')
+            {@html $text('signup.buy_for')
                 .replace('{currency}', currency)
                 .replace('{amount}', price.toString())}
         {/if}

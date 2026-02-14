@@ -72,7 +72,7 @@ This gift card can only be used once.
         try {
             await navigator.clipboard.writeText(giftCardCode);
             // Show success feedback (could use a toast notification)
-            alert($text('settings.gift_cards.code_copied.text'));
+            alert($text('settings.gift_cards.code_copied'));
         } catch (err) {
             console.error('Failed to copy to clipboard:', err);
         }
@@ -84,7 +84,7 @@ This gift card can only be used once.
             settingsPath: 'gift_cards',
             direction: 'backward',
             icon: 'coins',
-            title: $text('settings.gift_cards.text')
+            title: $text('settings.gift_cards')
         });
     }
 
@@ -132,31 +132,31 @@ This gift card can only be used once.
         <div class="success-icon-wrapper">
             <div class="success-icon"></div>
         </div>
-        <h2 class="success-title">{$text('settings.gift_cards.purchase_successful.text')}</h2>
-        <p class="success-subtitle">{$text('settings.gift_cards.purchase_successful_subtitle.text')}</p>
+        <h2 class="success-title">{$text('settings.gift_cards.purchase_successful')}</h2>
+        <p class="success-subtitle">{$text('settings.gift_cards.purchase_successful_subtitle')}</p>
     </div>
 
     <!-- Gift Card Code Display -->
     <div class="gift-card-code-section">
-        <div class="code-label">{$text('settings.gift_cards.code.text')}</div>
+        <div class="code-label">{$text('settings.gift_cards.code')}</div>
         <div class="code-display">
             <span class="code-text">{giftCardCode}</span>
         </div>
-        <button class="copy-button" onclick={copyToClipboard} title={$text('settings.gift_cards.copy.text')} aria-label={$text('settings.gift_cards.copy.text')}>
+        <button class="copy-button" onclick={copyToClipboard} title={$text('settings.gift_cards.copy')} aria-label={$text('settings.gift_cards.copy')}>
             <div class="copy-icon"></div>
         </button>
         <div class="credits-info">
-            {formatCredits(creditsValue)} {$text('settings.gift_cards.credits.text')}
+            {formatCredits(creditsValue)} {$text('settings.gift_cards.credits')}
         </div>
     </div>
 
     <!-- Action Buttons -->
     <div class="action-section">
         <button class="download-button" onclick={downloadGiftCardCode}>
-            {$text('settings.gift_cards.download.text')}
+            {$text('settings.gift_cards.download')}
         </button>
-        <button class="done-button" onclick={goBackToGiftCards} aria-label={$text('settings.gift_cards.done.text')}>
-            {$text('settings.gift_cards.done.text')}
+        <button class="done-button" onclick={goBackToGiftCards} aria-label={$text('settings.gift_cards.done')}>
+            {$text('settings.gift_cards.done')}
         </button>
     </div>
 {:else}
@@ -164,12 +164,12 @@ This gift card can only be used once.
     <div class="loading-section">
         {#if isDelayedPayment}
             <div class="delayed-message">
-                <p class="delayed-title">{$text('settings.gift_cards.purchase_successful.text')}</p>
-                <p class="delayed-subtitle">{$text('signup.payment_processing_delayed.text')}</p>
-                <p class="delayed-info">{$text('signup.you_will_receive_confirmation_soon.text')}</p>
+                <p class="delayed-title">{$text('settings.gift_cards.purchase_successful')}</p>
+                <p class="delayed-subtitle">{$text('signup.payment_processing_delayed')}</p>
+                <p class="delayed-info">{$text('signup.you_will_receive_confirmation_soon')}</p>
             </div>
         {:else}
-            <div class="loading-message">{$text('settings.gift_cards.processing.text')}</div>
+            <div class="loading-message">{$text('settings.gift_cards.processing')}</div>
         {/if}
     </div>
 {/if}

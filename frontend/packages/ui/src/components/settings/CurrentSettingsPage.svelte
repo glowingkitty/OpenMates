@@ -126,7 +126,7 @@
             settingsPath: viewName, 
             direction: 'forward',
             icon: viewName,
-            title: $text(`settings.${viewName}.text`)
+            title: $text(`settings.${viewName}`)
         });
         
         // Find settings content element and scroll to top
@@ -272,7 +272,7 @@
                 <div class="credits-container" class:hidden={!paymentEnabled}>
                     <span class="credits-icon"></span>
                     <div class="credits-text">
-                        <span class="credits-amount"><mark>{$text('settings.credits_amount.text').replace('{credits_amount}', credits.toString())}</mark></span>
+                        <span class="credits-amount"><mark>{$text('settings.credits_amount').replace('{credits_amount}', credits.toString())}</mark></span>
                     </div>
                 </div>
             </div>
@@ -284,7 +284,7 @@
                 <SettingsItem
                     type="quickaction"
                     icon="subsetting_icon subsetting_icon_incognito"
-                    title={$text('settings.incognito.text')}
+                    title={$text('settings.incognito')}
                     hasToggle={true}
                     checked={incognitoToggleChecked}
                     onClick={async () => {
@@ -329,7 +329,7 @@
             {#each Object.entries(settingsViews).filter(([key, _]) => isTopLevelView(key)) as [key, _]}
                 <SettingsItem 
                     icon={key} 
-                    title={$text(`settings.${key}.text`)} 
+                    title={$text(`settings.${key}`)} 
                     onClick={() => showSettingsView(key, null)} 
                 />
             {/each}
@@ -338,7 +338,7 @@
             {#if username}
                 <SettingsItem 
                     icon="subsetting_icon subsetting_icon_logout" 
-                    title={$text('settings.logout.text')} 
+                    title={$text('settings.logout')} 
                     onClick={handleLogout} 
                 />
             {/if}
