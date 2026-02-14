@@ -195,12 +195,13 @@ export async function updateChatLastEditedTimestamp(
 // ============================================================================
 
 /**
- * Update the scroll position (last visible message) for a chat
+ * Update the scroll position (last visible message) for a chat.
  * 
- * CRITICAL: This function gets the chat WITHOUT a transaction first to allow
- * async decryption work to complete, then creates a new transaction for the update.
- * This prevents "transaction no longer active" errors that occur when async work
- * (like decryption) happens while a transaction is open.
+ * Reads the chat first (allowing async decryption to complete), mutates it,
+ * then delegates to addChat which creates its own transaction internally.
+ * We intentionally do NOT pre-create a transaction here because addChat
+ * performs async encryption that would cause a pre-created transaction to
+ * expire (IndexedDB auto-commits idle transactions).
  */
 export async function updateChatScrollPosition(
     dbInstance: ChatDatabaseInstance,
@@ -209,9 +210,7 @@ export async function updateChatScrollPosition(
 ): Promise<void> {
     await dbInstance.init();
     
-    // CRITICAL FIX: Get chat WITHOUT transaction first to allow async decryption
-    // If we pass a transaction to getChat, the async decryption work can cause
-    // the transaction to finish before we use it in addChat
+    // Get chat WITHOUT transaction first to allow async decryption
     const chat = await chatCrudOps.getChat(dbInstance, chat_id);
     
     if (!chat) {
@@ -219,32 +218,22 @@ export async function updateChatScrollPosition(
         return;
     }
     
-    // Now create a transaction for the update operation
-    const tx = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, 'readwrite');
+    chat.last_visible_message_id = message_id;
+    chat.updated_at = Math.floor(Date.now() / 1000);
     
-    try {
-        chat.last_visible_message_id = message_id;
-        chat.updated_at = Math.floor(Date.now() / 1000);
-        await chatCrudOps.addChat(dbInstance, chat, tx);
-        console.debug(`[ChatDatabase] Updated scroll position for chat ${chat_id}: message ${message_id}`);
-        
-        return new Promise((resolve, reject) => {
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-    } catch (error) {
-        if (tx.abort) tx.abort();
-        throw error;
-    }
+    // Let addChat create and manage its own transaction.
+    // Previously we created a transaction here and passed it in, but addChat does
+    // async encryption internally which caused the pre-created transaction to expire.
+    // addChat would then silently create a replacement transaction, leaving the
+    // caller's tx.oncomplete Promise hanging forever (never resolving).
+    await chatCrudOps.addChat(dbInstance, chat);
+    console.debug(`[ChatDatabase] Updated scroll position for chat ${chat_id}: message ${message_id}`);
 }
 
 /**
- * Update the read status (unread count) for a chat
+ * Update the read status (unread count) for a chat.
  * 
- * CRITICAL: This function gets the chat WITHOUT a transaction first to allow
- * async decryption work to complete, then creates a new transaction for the update.
- * This prevents "transaction no longer active" errors that occur when async work
- * (like decryption) happens while a transaction is open.
+ * Same pattern as updateChatScrollPosition — see its JSDoc for rationale.
  */
 export async function updateChatReadStatus(
     dbInstance: ChatDatabaseInstance,
@@ -253,9 +242,7 @@ export async function updateChatReadStatus(
 ): Promise<void> {
     await dbInstance.init();
     
-    // CRITICAL FIX: Get chat WITHOUT transaction first to allow async decryption
-    // If we pass a transaction to getChat, the async decryption work can cause
-    // the transaction to finish before we use it in addChat
+    // Get chat WITHOUT transaction first to allow async decryption
     const chat = await chatCrudOps.getChat(dbInstance, chat_id);
     
     if (!chat) {
@@ -263,22 +250,12 @@ export async function updateChatReadStatus(
         return;
     }
     
-    // Now create a transaction for the update operation
-    const tx = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, 'readwrite');
+    chat.unread_count = unread_count;
+    chat.updated_at = Math.floor(Date.now() / 1000);
     
-    try {
-        chat.unread_count = unread_count;
-        chat.updated_at = Math.floor(Date.now() / 1000);
-        await chatCrudOps.addChat(dbInstance, chat, tx);
-        console.debug(`[ChatDatabase] Updated read status for chat ${chat_id}: unread_count = ${unread_count}`);
-        
-        return new Promise((resolve, reject) => {
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-    } catch (error) {
-        if (tx.abort) tx.abort();
-        throw error;
-    }
+    // Let addChat create and manage its own transaction.
+    // Same fix as updateChatScrollPosition — see comment there for details.
+    await chatCrudOps.addChat(dbInstance, chat);
+    console.debug(`[ChatDatabase] Updated read status for chat ${chat_id}: unread_count = ${unread_count}`);
 }
 

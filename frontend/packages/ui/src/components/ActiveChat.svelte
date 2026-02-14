@@ -222,6 +222,7 @@
         messages?: ChatMessageModel[];
         newMessage?: ChatMessageModel;
         type?: string;
+        messagesUpdated?: boolean;
     };
 
     type SkillPreviewData = WebSearchSkillPreviewData | VideoTranscriptSkillPreviewData;
@@ -3612,14 +3613,50 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 chatHistoryRef.updateMessages(currentMessages);
             }
             showWelcome = currentMessages.length === 0;
+        } else if (detail.messagesUpdated && currentChat?.chat_id) {
+            // SAFETY NET: messagesUpdated flag is set (e.g. by batch sync) but no inline
+            // messages were provided in the event.  Reload from IndexedDB so the display
+            // never goes stale after a sync writes new/updated messages to the DB.
+            console.debug('[ActiveChat] handleChatUpdated: messagesUpdated=true but no messages in event. Reloading from IndexedDB for chat:', currentChat.chat_id);
+            try {
+                const freshMessages: ChatMessageModel[] = await chatDB.getMessagesForChat(currentChat.chat_id);
+
+                // Preserve any in-flight streaming messages — the DB won't have
+                // the latest streaming content, so keep our local copies.
+                const streamingMessages = currentMessages.filter(m => m.status === 'streaming');
+                if (streamingMessages.length > 0) {
+                    for (const streamingMsg of streamingMessages) {
+                        const idx = freshMessages.findIndex(m => m.message_id === streamingMsg.message_id);
+                        if (idx !== -1) {
+                            freshMessages[idx] = streamingMsg;
+                        } else {
+                            freshMessages.push(streamingMsg);
+                        }
+                    }
+                    console.debug(`[ActiveChat] handleChatUpdated: Preserved ${streamingMessages.length} streaming message(s) during IndexedDB reload`);
+                }
+
+                // Only update if the message set actually changed to avoid unnecessary re-renders
+                const currentIds = currentMessages.map(m => m.message_id).sort().join(',');
+                const freshIds = freshMessages.map(m => m.message_id).sort().join(',');
+                if (currentIds !== freshIds || freshMessages.length !== currentMessages.length) {
+                    console.info(`[ActiveChat] handleChatUpdated: Message set changed after IndexedDB reload (${currentMessages.length} → ${freshMessages.length}). Updating display.`);
+                    currentMessages = freshMessages;
+                    if (chatHistoryRef) {
+                        chatHistoryRef.updateMessages(currentMessages);
+                    }
+                    showWelcome = currentMessages.length === 0;
+                } else {
+                    console.debug('[ActiveChat] handleChatUpdated: IndexedDB reload returned same message set. No display update needed.');
+                }
+            } catch (error) {
+                console.error('[ActiveChat] handleChatUpdated: Failed to reload messages from IndexedDB:', error);
+            }
         } else {
             console.debug('[ActiveChat] handleChatUpdated: No direct message updates (newMessage or incomingMessages) were applied from the event. Full event.detail:', JSON.parse(JSON.stringify(detail)));
             // If currentChat metadata (like title or messages_v) was updated, UI elements bound to currentChat will react.
             // No explicit call to chatHistoryRef.updateMessages if currentMessages array reference hasn't changed.
-            // If messages_v changed and a full refresh is TRULY needed (e.g. server indicates a major desync not covered by specific message events),
-            // that would be a separate, more explicit mechanism or a different event type.
         }
-        // Removed the messages_v based reload from DB here. Updates should come from explicit message data in events.
     }
 
     // Prefixed with underscore as currently unused but kept for potential future use
