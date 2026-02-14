@@ -235,7 +235,7 @@
         {#if messageCredits !== null && messageCredits > 0}
             <div class="message-credits">
                 <div class="clickable-icon icon_coins"></div>
-                {formatCredits(messageCredits)} {$text('chats.context_menu.credits', { default: 'credits' })}
+                {formatCredits(messageCredits)} {$text('chats.context_menu.credits')}
             </div>
         {/if}
         
@@ -244,7 +244,7 @@
             onclick={(event) => handleAction('copy', event)}
         >
             <div class="clickable-icon icon_copy"></div>
-            {$text('chats.context_menu.copy', { default: 'Copy' })}
+            {$text('chats.context_menu.copy')}
         </button>
 
         <button
@@ -252,7 +252,7 @@
             onclick={(event) => handleAction('select', event)}
         >
             <div class="clickable-icon icon_select"></div>
-            {$text('chats.context_menu.select', { default: 'Select' })}
+            {$text('chats.context_menu.select')}
         </button>
 
         {#if onDelete || disableDelete || !$authStore.isAuthenticated}
@@ -266,10 +266,10 @@
             >
                 <div class="clickable-icon icon_delete"></div>
                 {#if confirmingDelete}
-                    {$text('chats.context_menu.confirm', { default: 'Confirm' })}
+                    {$text('chats.context_menu.confirm')}
                 {/if}
                 {#if !confirmingDelete}
-                    {$text('chats.context_menu.delete_message', { default: 'Delete' })}
+                    {$text('chats.context_menu.delete_message')}
                 {/if}
             </button>
         {/if}

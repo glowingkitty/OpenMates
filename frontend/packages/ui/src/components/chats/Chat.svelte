@@ -1929,7 +1929,7 @@
               {#if chat.is_incognito}
                 <span class="incognito-label">
                   <span class="icon icon_incognito"></span>
-                  {$text('settings.incognito', { default: 'Incognito' })}
+                  {$text('settings.incognito')}
                 </span>
               {/if}
             </div>

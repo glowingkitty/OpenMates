@@ -141,11 +141,11 @@
   );
   
   // Get skill name from translations (matches preview)
-  let skillName = $derived($text('embeds.search') || 'Search');
+  let skillName = $derived($text('embeds.search'));
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
-    `${$text('embeds.via') || 'via'} ${provider}`
+    `${$text('embeds.via')} ${provider}`
   );
   
   /**
@@ -450,11 +450,11 @@
     
     {#if ctx.isLoadingChildren}
       <div class="loading-state">
-        <p>{$text('embeds.loading') || 'Loading...'}</p>
+        <p>{$text('embeds.loading')}</p>
       </div>
     {:else if videoResults.length === 0}
       <div class="no-results">
-        <p>{$text('embeds.no_results') || 'No search results available.'}</p>
+        <p>{$text('embeds.no_results')}</p>
       </div>
     {:else}
       <!-- Video embeds grid - responsive auto-fill columns -->

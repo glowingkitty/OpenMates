@@ -113,7 +113,7 @@
     );
     let focusDisplayName = $derived.by(() => {
         if (!focusTranslationKey) return focusFallbackName;
-        const translated = $text(focusTranslationKey, { default: focusFallbackName || '' });
+        const translated = $text(focusTranslationKey);
         // If $text returned the raw key (translation not found and default wasn't applied),
         // fall back to the human-readable name derived from the focus ID
         if (translated === focusTranslationKey) return focusFallbackName;
@@ -394,7 +394,7 @@
                 {#if chatTotalCredits !== null && chatTotalCredits > 0}
                     <div class="chat-credits">
                         <div class="clickable-icon icon_coins"></div>
-                        {formatCredits(chatTotalCredits)} {$text('chats.context_menu.credits', { default: 'credits' })}
+                        {formatCredits(chatTotalCredits)} {$text('chats.context_menu.credits')}
                     </div>
                 {/if}
             </div>
@@ -413,7 +413,7 @@
                     >
                         <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
                         <span class:shimmer={downloading}>
-                            {downloading ? $text('chats.context_menu.downloading_selected', { default: 'Downloading...' }) : $text('chats.context_menu.download_selected', { default: 'Download selected' })}
+                            {downloading ? $text('chats.context_menu.downloading_selected') : $text('chats.context_menu.download_selected')}
                         </span>
                     </button>
                 {/if}
@@ -424,7 +424,7 @@
                         onclick={(event) => handleButtonClick('copy', event)}
                     >
                         <div class="clickable-icon icon_copy"></div>
-                        {$text('chats.context_menu.copy_selected', { default: 'Copy selected' })}
+                        {$text('chats.context_menu.copy_selected')}
                     </button>
                 {/if}
 
@@ -434,7 +434,7 @@
                         onclick={(event) => handleButtonClick('delete', event)}
                     >
                         <div class="clickable-icon icon_delete"></div>
-                        {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('chats.context_menu.delete_selected', { default: 'Delete selected' })}
+                        {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('chats.context_menu.delete_selected')}
                     </button>
                 {/if}
 
@@ -443,7 +443,7 @@
                     onclick={(event) => handleButtonClick('unselect', event)}
                 >
                     <div class="clickable-icon icon_close"></div>
-                    {$text('chats.context_menu.unselect', { default: 'Unselect' })}
+                    {$text('chats.context_menu.unselect')}
                 </button>
             {:else}
                 <!-- Chat is not selected: show only select option -->
@@ -474,7 +474,7 @@
                 >
                     <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
                     <span class:shimmer={downloading}>
-                        {downloading ? $text('chats.context_menu.downloading', { default: 'Downloading...' }) : $text('chats.context_menu.download')}
+                        {downloading ? $text('chats.context_menu.downloading') : $text('chats.context_menu.download')}
                     </span>
                 </button>
             {/if}
@@ -501,7 +501,7 @@
                     }}
                 >
                     <div class="clickable-icon icon_hidden"></div>
-                    {$text('chats.context_menu.hide', { default: 'Hide' })}
+                    {$text('chats.context_menu.hide')}
                 </button>
             {/if}
 
@@ -517,7 +517,7 @@
                     }}
                 >
                     <div class="clickable-icon icon_unhide"></div>
-                    {$text('chats.context_menu.unhide', { default: 'Unhide' })}
+                    {$text('chats.context_menu.unhide')}
                 </button>
             {/if}
 
@@ -534,7 +534,7 @@
                         }}
                     >
                         <div class="clickable-icon icon_pin_off"></div>
-                        {$text('chats.context_menu.unpin', { default: 'Unpin' })}
+                        {$text('chats.context_menu.unpin')}
                     </button>
                 {:else}
                     <button
@@ -548,7 +548,7 @@
                         }}
                     >
                         <div class="clickable-icon icon_pin"></div>
-                        {$text('chats.context_menu.pin', { default: 'Pin' })}
+                        {$text('chats.context_menu.pin')}
                     </button>
                 {/if}
             {/if}
@@ -560,7 +560,7 @@
                         onclick={(event) => handleButtonClick('markRead', event)}
                     >
                         <div class="clickable-icon icon_mail"></div>
-                        {$text('chats.context_menu.mark_read', { default: 'Mark read' })}
+                        {$text('chats.context_menu.mark_read')}
                     </button>
                 {:else}
                     <button
@@ -568,7 +568,7 @@
                         onclick={(event) => handleButtonClick('markUnread', event)}
                     >
                         <div class="clickable-icon icon_mail"></div>
-                        {$text('chats.context_menu.mark_unread', { default: 'Mark unread' })}
+                        {$text('chats.context_menu.mark_unread')}
                     </button>
                 {/if}
             {/if}

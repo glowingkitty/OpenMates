@@ -4,11 +4,21 @@ import { browser } from '$app/environment';
 
 type TranslateFunction = (key: string, vars?: Record<string, any>) => string;
 
-// Simple fallback that returns the key as-is
-const passThroughTranslate: TranslateFunction = (key: string) => key;
+/**
+ * Missing-translation placeholder prefix.
+ * When a key has no translation, $text returns "[T:<key>]" so that:
+ *   1. It's immediately visible in the UI during development
+ *   2. Playwright tests can assert `not.toContainText('[T:')` to catch gaps
+ */
+const MISSING_PREFIX = '[T:';
+const MISSING_SUFFIX = ']';
+const missingPlaceholder = (key: string) => `${MISSING_PREFIX}${key}${MISSING_SUFFIX}`;
+
+// Simple fallback that returns a visible placeholder during SSR
+const passThroughTranslate: TranslateFunction = (key: string) => missingPlaceholder(key);
 
 // Create an SSR-safe text store
-// During SSR: provides a simple passthrough function
+// During SSR: provides a placeholder function so missing keys are visible
 // On client: uses svelte-i18n with DOM Purify sanitization  
 let DOMPurify: any = null;
 if (browser && typeof window !== 'undefined') {
@@ -21,7 +31,17 @@ if (browser && typeof window !== 'undefined') {
 export const text: Readable<TranslateFunction> = browser
     ? derived(_, ($translate): TranslateFunction => {
           return (key: string, vars = {}) => {
-              if (!$translate) return key;
+              if (!$translate) return missingPlaceholder(key);
+
+              // Strip the svelte-i18n "default" option so that missing keys are
+              // never silently hidden by a hardcoded fallback string.
+              // Callers should NOT pass { default: '...' } — all translations
+              // must exist in the locale files.
+              if (vars && 'default' in vars) {
+                  const cleanVars = { ...vars };
+                  delete cleanVars.default;
+                  vars = cleanVars;
+              }
 
               // Internally append ".text" to the key before looking it up.
               // The JSON locale files store values as { text: "..." } objects to prevent
@@ -35,15 +55,15 @@ export const text: Readable<TranslateFunction> = browser
               try {
                   translated = $translate(lookupKey, vars);
               } catch (err) {
-                  // i18n not ready yet, return the key as fallback
-                  console.debug('[i18n] Translation not ready for key:', key);
-                  return key;
+                  // i18n not ready yet — show visible placeholder
+                  console.warn('[i18n] Translation not ready for key:', key);
+                  return missingPlaceholder(key);
               }
 
               // If svelte-i18n returns the lookup key itself, it means the key was not found.
-              // Return the original key (without .text) as fallback for better debugging.
+              // Return a clearly visible placeholder so missing translations are never hidden.
               if (translated === lookupKey) {
-                  return key;
+                  return missingPlaceholder(key);
               }
 
               // Only sanitize if DOMPurify is loaded
@@ -65,7 +85,7 @@ export const text: Readable<TranslateFunction> = browser
       })
     : {
           subscribe: (fn: (value: TranslateFunction) => void) => {
-              // SSR: immediately call with passthrough function
+              // SSR: immediately call with placeholder function
               fn(passThroughTranslate);
               return () => {}; // no-op unsubscribe
           }

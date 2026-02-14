@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -303,6 +304,10 @@ test('sets a reminder and verifies delivery with correct message ordering', asyn
 
 	logCheckpoint('Message ordering verified: system message appears before AI response.');
 	await takeStepScreenshot(page, 'ordering-verified');
+
+	// Verify no missing translations on the chat page with reminder messages
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 
 	// ============================================================
 	// STEP 8: Delete the chat

@@ -1554,7 +1554,7 @@
                 <!-- Embed Preview Display -->
                 <div class="embed-preview">
                     <div class="embed-preview-header">
-                        <span class="embed-preview-label">{$text('settings.share.sharing_embed', { default: 'Sharing:' })}</span>
+                        <span class="embed-preview-label">{$text('settings.share.sharing_embed')}</span>
                     </div>
                     <div class="embed-preview-content">
                         {#await embedPreviewData then previewResult}
@@ -1584,7 +1584,7 @@
                 <!-- Chat Info Display -->
                 <div class="chat-preview">
                     <div class="chat-preview-header">
-                        <span class="chat-preview-label">{$text('settings.share.sharing_chat', { default: 'Sharing:' })}</span>
+                        <span class="chat-preview-label">{$text('settings.share.sharing_chat')}</span>
                     </div>
                     <ChatComponent
                         chat={currentChat}
@@ -1621,14 +1621,14 @@
 
         <!-- Optional Share Settings Section -->
         <div class="share-options-section">
-            <h3 class="section-title">{$text('settings.share.optional_settings', { default: 'Optional Settings' })}</h3>
+            <h3 class="section-title">{$text('settings.share.optional_settings')}</h3>
 
             <!-- Share with Community Toggle (only for chats, not embeds) -->
             {#if !isEmbedSharing}
                 <div class="option-row">
                     <div class="option-label">
                         <div class="icon settings_size shared"></div>
-                        <span>{$text('settings.share.share_with_community', { default: 'Share with Community' })}</span>
+                        <span>{$text('settings.share.share_with_community')}</span>
                     </div>
                     <Toggle
                         bind:checked={shareWithCommunity}
@@ -1642,9 +1642,7 @@
                     <div class="community-info" transition:slide={{ duration: 200, easing: cubicOut }}>
                         <div class="info-icon">ℹ️</div>
                         <p>
-                            {$text('settings.share.share_with_community_info', { 
-                                default: 'If you select "Share with Community", your chat might also be selected to be shown to other users on the platform, as well as on social media and at events.' 
-                            })}
+                            {$text('settings.share.share_with_community_info')}
                         </p>
                     </div>
                 {/if}
@@ -1655,7 +1653,7 @@
                 <div class="option-row">
                     <div class="option-label">
                         <div class="icon settings_size {includeSensitiveData ? 'icon_visible' : 'icon_hidden'}"></div>
-                        <span>{$text('settings.share.include_sensitive_data', { default: 'Include sensitive data' })}</span>
+                        <span>{$text('settings.share.include_sensitive_data')}</span>
                     </div>
                     <Toggle
                         bind:checked={includeSensitiveData}
@@ -1772,7 +1770,7 @@
                 <!-- Embed Preview Display -->
                 <div class="embed-preview">
                     <div class="embed-preview-header">
-                        <span class="embed-preview-label">{$text('settings.share.link_for_embed', { default: 'Link for:' })}</span>
+                        <span class="embed-preview-label">{$text('settings.share.link_for_embed')}</span>
                     </div>
                     <div class="embed-preview-content">
                         {#await embedPreviewData then previewResult}
@@ -1802,7 +1800,7 @@
                 <!-- Chat Info Display -->
                 <div class="chat-preview">
                     <div class="chat-preview-header">
-                        <span class="chat-preview-label">{$text('settings.share.link_for_chat', { default: 'Link for:' })}</span>
+                        <span class="chat-preview-label">{$text('settings.share.link_for_chat')}</span>
                     </div>
                     <ChatComponent
                         chat={currentChat}
@@ -1847,7 +1845,7 @@
                         <div class="qr-code-placeholder">Generating QR code...</div>
                     {/if}
                 </button>
-                <p class="qr-code-instruction">{$text('settings.share.click_to_enlarge_qr', { default: 'Click QR code to enlarge' })}</p>
+                <p class="qr-code-instruction">{$text('settings.share.click_to_enlarge_qr')}</p>
             </div>
 
             <!-- Back to Configuration Button (only shown for owned chats) -->

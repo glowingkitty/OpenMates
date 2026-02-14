@@ -123,10 +123,10 @@
   let query = $derived(localQuery);
   let status = $derived(localStatus);
   let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
-  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured') || 'Processing failed.'));
+  let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
   
   // Skill name from translations
-  let skillName = $derived($text('app_skills.travel.price_calendar') || 'Price Calendar');
+  let skillName = $derived($text('app_skills.travel.price_calendar'));
   
   /**
    * Flatten nested results if needed (backend returns [{id, results: [...]}])
@@ -400,33 +400,33 @@
       {#if monthDisplay}
         <div class="month-title">{monthDisplay}</div>
       {/if}
-      <div class="provider-text">{$text('embeds.via') || 'via'} Travelpayouts</div>
+      <div class="provider-text">{$text('embeds.via')} Travelpayouts</div>
     </div>
     
     <!-- Error state -->
     {#if status === 'error'}
       <div class="error-state">
-        <div class="error-title">{$text('embeds.search_failed') || 'Search failed'}</div>
+        <div class="error-title">{$text('embeds.search_failed')}</div>
         <div class="error-message">{errorMessage}</div>
       </div>
     {:else if entries.length === 0}
       <div class="no-results">
-        <p>{$text('embeds.no_price_data') || 'No price data available for this route'}</p>
+        <p>{$text('embeds.no_price_data')}</p>
       </div>
     {:else}
       <!-- Summary stats bar -->
       <div class="stats-bar">
         <div class="stat">
-          <span class="stat-label">{$text('embeds.cheapest') || 'Cheapest'}</span>
+          <span class="stat-label">{$text('embeds.cheapest')}</span>
           <span class="stat-value cheapest">{currency} {Math.round(minPrice)}</span>
         </div>
         <div class="stat">
-          <span class="stat-label">{$text('embeds.most_expensive') || 'Most expensive'}</span>
+          <span class="stat-label">{$text('embeds.most_expensive')}</span>
           <span class="stat-value expensive">{currency} {Math.round(maxPrice)}</span>
         </div>
         <div class="stat">
-          <span class="stat-label">{$text('embeds.coverage') || 'Coverage'}</span>
-          <span class="stat-value">{daysWithData} / {totalDays} {$text('embeds.days') || 'days'}</span>
+          <span class="stat-label">{$text('embeds.coverage')}</span>
+          <span class="stat-value">{daysWithData} / {totalDays} {$text('embeds.days')}</span>
         </div>
       </div>
       
@@ -479,7 +479,7 @@
       
       <!-- Data freshness note -->
       <div class="freshness-note">
-        {$text('embeds.price_calendar_note') || 'Prices are cached estimates (~48h old). Search specific dates for live pricing.'}
+        {$text('embeds.price_calendar_note')}
       </div>
     {/if}
   {/snippet}

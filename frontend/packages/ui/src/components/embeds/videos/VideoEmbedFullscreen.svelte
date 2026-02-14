@@ -387,7 +387,7 @@
       });
       
       // Navigate to tip settings
-      navigateToSettings('shared/tip', $text('settings.tip.tip_creator', { default: 'Tip Creator' }), 'tip', 'settings.tip.tip_creator');
+      navigateToSettings('shared/tip', $text('settings.tip.tip_creator'), 'tip', 'settings.tip.tip_creator');
       
       // Open settings panel if not already open
       panelState.openSettings();
@@ -659,13 +659,13 @@
         <div class="video-metadata">
           <div class="video-meta-line">
             {#if channelName}
-              <span class="meta-text">{$text('embeds.video_by', { default: 'by' })} {channelName}</span>
+              <span class="meta-text">{$text('embeds.video_by')} {channelName}</span>
             {/if}
             {#if channelName && publishedAt}
               <span class="meta-separator">,</span>
             {/if}
             {#if publishedAt}
-              <span class="meta-text">{formatPublishedDate(publishedAt)} {$text('embeds.video_uploaded', { default: 'uploaded' })}</span>
+              <span class="meta-text">{formatPublishedDate(publishedAt)} {$text('embeds.video_uploaded')}</span>
             {/if}
           </div>
         </div>

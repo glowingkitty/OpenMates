@@ -34,7 +34,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -389,4 +390,8 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await page.waitForURL(/chat|demo/, { timeout: 60000 });
 	await takeStepScreenshot(page, 'login-success-backup-code');
 	logCheckpoint('Login successful with backup code! Test complete.');
+
+	// Verify no missing translations after login
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 });

@@ -184,7 +184,7 @@
   });
   
   // Skill name from translations
-  let skillName = $derived($text('embeds.get_docs') || 'Get Docs');
+  let skillName = $derived($text('embeds.get_docs'));
   
   // "Open on Context7" button text
   let openButtonText = $derived($text('embeds.open_on_provider').replace('{provider}', 'Context7'));

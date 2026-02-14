@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -406,6 +407,10 @@ test('single web search with fullscreen, website result click, and button verifi
 	logCheckpoint('Basic infos bar is visible on the search preview.');
 
 	await takeStepScreenshot(page, 'search-preview-verified');
+
+	// Verify no missing translations on the chat page with search results
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 
 	// ======================================================================
 	// STEP 3: Click the embed to open fullscreen

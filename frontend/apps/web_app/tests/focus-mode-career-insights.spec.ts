@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -505,6 +506,10 @@ test('career frustration message triggers Career insights focus mode', async ({
 	await takeStepScreenshot(page, 'embed-persists-after-continuation');
 
 	logCheckpoint('All focus mode assertions passed. Attempting cleanup...');
+
+	// Verify no missing translations on the focus mode chat page
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 
 	// ======================================================================
 	// STEP 8: Delete the chat (cleanup, best-effort)

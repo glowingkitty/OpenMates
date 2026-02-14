@@ -37,7 +37,8 @@ const {
 	getSignupTestDomain,
 	getMailosaurServerId,
 	buildSignupEmail,
-	createMailosaurClient
+	createMailosaurClient,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -355,6 +356,10 @@ test('completes passkey signup flow with email + purchase', async ({
 		await page.waitForURL(/chat/);
 		await takeStepScreenshot(page, 'chat');
 		logSignupCheckpoint('Arrived in chat after passkey signup.');
+
+		// Verify no missing translations on the main chat page after signup
+		await assertNoMissingTranslations(page);
+		logSignupCheckpoint('No missing translations detected.');
 
 		// Purchase confirmation email: verify key content and refund link.
 		logSignupCheckpoint('Waiting for purchase confirmation email.');

@@ -119,14 +119,14 @@
   }
   
   // Get skill name from translations
-  let skillName = $derived($text('embeds.search') || 'Search');
+  let skillName = $derived($text('embeds.search'));
   
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
-    `${$text('embeds.via') || 'via'} ${provider}`
+    `${$text('embeds.via')} ${provider}`
   );
   
   // Get results count
@@ -180,7 +180,7 @@
       {#if status === 'finished' && resultsCount > 0}
         <div class="search-results-info">
           <span class="results-count">
-            {resultsCount} {resultsCount === 1 ? ($text('embeds.place') || 'place') : ($text('embeds.places') || 'places')}
+            {resultsCount} {resultsCount === 1 ? $text('embeds.place') : $text('embeds.places')}
           </span>
         </div>
       {/if}

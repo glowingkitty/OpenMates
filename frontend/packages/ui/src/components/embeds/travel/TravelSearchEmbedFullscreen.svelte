@@ -184,14 +184,14 @@
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
   let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
-  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured') || 'Processing failed.'));
+  let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
   
   // Skill name from translations
-  let skillName = $derived($text('app_skills.travel.search_connections') || 'Search');
+  let skillName = $derived($text('app_skills.travel.search_connections'));
   
   // "via {provider}" text
   let viaProvider = $derived(
-    `${$text('embeds.via') || 'via'} ${provider}`
+    `${$text('embeds.via')} ${provider}`
   );
   
   /**
@@ -542,18 +542,18 @@
     <!-- Error state -->
     {#if status === 'error'}
       <div class="error-state">
-        <div class="error-title">{$text('embeds.search_failed') || 'Search failed'}</div>
+        <div class="error-title">{$text('embeds.search_failed')}</div>
         <div class="error-message">{errorMessage}</div>
       </div>
     {:else}
       {#if connectionResults.length === 0}
         {#if ctx.isLoadingChildren}
           <div class="loading-state">
-            <p>{$text('embeds.loading') || 'Loading...'}</p>
+            <p>{$text('embeds.loading')}</p>
           </div>
         {:else}
           <div class="no-results">
-            <p>{$text('embeds.no_results') || 'No connections found.'}</p>
+            <p>{$text('embeds.no_results')}</p>
           </div>
         {/if}
       {:else}

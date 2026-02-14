@@ -34,7 +34,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -376,4 +377,8 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	await expect(authIndicatorRelogin).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'login-success-backup-code');
 	logCheckpoint('Login successful with new backup code! Test complete.');
+
+	// Verify no missing translations on the settings page
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 });

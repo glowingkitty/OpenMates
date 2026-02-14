@@ -106,7 +106,7 @@
     focusModeName.split('.').slice(-2, -1)[0]?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || focusModeName
   );
   let displayName = $derived.by(() => {
-    const translated = $text(focusModeName, { default: focusFallbackName });
+    const translated = $text(focusModeName);
     // If $text returned the raw key (translation not found and default wasn't applied),
     // fall back to the human-readable name
     if (translated === focusModeName && focusFallbackName !== focusModeName) return focusFallbackName;
@@ -119,10 +119,9 @@
       return '';
     }
     if (isActivated) {
-      return $text('embeds.focus_mode.activated', { default: 'Focus activated' });
+      return $text('embeds.focus_mode.activated');
     }
     return $text('embeds.focus_mode.activating', {
-      default: `Activate in ${countdownValue} sec ...`,
       values: { seconds: String(countdownValue) }
     });
   });

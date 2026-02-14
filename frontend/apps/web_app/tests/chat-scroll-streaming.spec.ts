@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -327,6 +328,10 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// Wait for the response to contain "Paris" (should be the answer about France's capital)
 	await expect(assistantMessage).toContainText('Paris', { timeout: 45000 });
 	logCheckpoint('PASS: Assistant response contains expected answer.');
+
+	// Verify no missing translations on the chat page during streaming
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 
 	await takeStepScreenshot(page, 'response-complete');
 

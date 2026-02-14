@@ -260,7 +260,7 @@
         const now = Math.floor(Date.now() / 1000);
         const diff = now - timestamp;
         
-        if (diff < 60) return $text('settings.app_settings_memories.just_now') || 'Just now';
+        if (diff < 60) return $text('settings.app_settings_memories.just_now');
         if (diff < 3600) {
             const mins = Math.floor(diff / 60);
             return `${mins}m ago`;

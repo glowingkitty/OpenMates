@@ -184,10 +184,10 @@
         if (Object.keys(userInputProperties).length === 0) {
             // Generic form validation (fallback when no schema)
             if (!formState.itemKey || String(formState.itemKey).trim() === '') {
-                return $text('settings.app_settings_memories.item_key_required') || 'Item key is required';
+                return $text('settings.app_settings_memories.item_key_required');
             }
             if (!formState.itemValue || String(formState.itemValue).trim() === '') {
-                return $text('settings.app_settings_memories.item_value_required') || 'Item value is required';
+                return $text('settings.app_settings_memories.item_value_required');
             }
             return null;
         }
@@ -396,7 +396,7 @@
         </div>
     {:else if !isAuthenticated}
         <div class="error">
-            <p>{$text('settings.app_settings_memories.authentication_required') || 'Authentication required'}</p>
+            <p>{$text('settings.app_settings_memories.authentication_required')}</p>
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}

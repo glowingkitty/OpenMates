@@ -671,8 +671,8 @@
             <button
               class="action-button chat-button"
               onclick={handleShowChatClick}
-              aria-label={$text('chat.show_chat', { default: 'Show Chat' })}
-              title={$text('chat.show_chat', { default: 'Show Chat' })}
+              aria-label={$text('chat.show_chat')}
+              title={$text('chat.show_chat')}
             >
               <span class="clickable-icon icon_chat"></span>
             </button>
@@ -696,8 +696,8 @@
           <button
             class="action-button share-button"
             onclick={handleShare}
-            aria-label={$text('chat.share') || 'Share'}
-            title={$text('chat.share') || 'Share'}
+            aria-label={$text('chat.share')}
+            title={$text('chat.share')}
           >
             <span class="clickable-icon icon_share"></span>
           </button>
@@ -733,8 +733,8 @@
             <button
               class="action-button report-issue-button"
               onclick={handleReportIssue}
-              aria-label={$text('header.report_issue') || 'Report Issue'}
-              title={$text('header.report_issue') || 'Report Issue'}
+              aria-label={$text('header.report_issue')}
+              title={$text('header.report_issue')}
             >
               <span class="clickable-icon icon_bug"></span>
             </button>

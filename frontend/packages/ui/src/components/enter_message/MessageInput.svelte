@@ -1952,7 +1952,7 @@
             });
             
             // Show the queued message text in the UI
-            queuedMessageText = message || $text('enter_message.message_queued') || 'Press enter again to stop previous response';
+            queuedMessageText = message || $text('enter_message.message_queued');
             
             // Auto-hide after 7 seconds
             setTimeout(() => {

@@ -42,7 +42,7 @@
             <span class="clickable-icon icon_shield_lock banner-icon"></span>
             <div class="banner-text">
                 <span class="banner-title">
-                    {$text('enter_message.pii.banner_title', { default: 'Sensitive data detected' })}
+                    {$text('enter_message.pii.banner_title')}
                 </span>
                 <span class="banner-description">
                     Found {summary}. These will be replaced with placeholders before sending. Click on highlighted text to keep original.
@@ -51,9 +51,9 @@
             <button
                 class="undo-all-btn"
                 onclick={onUndoAll}
-                title={$text('enter_message.pii.undo_all', { default: 'Undo all replacements' })}
+                title={$text('enter_message.pii.undo_all')}
             >
-                {$text('enter_message.pii.undo_all_short', { default: 'Undo All' })}
+                {$text('enter_message.pii.undo_all_short')}
             </button>
         </div>
     </div>

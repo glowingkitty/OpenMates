@@ -34,7 +34,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -364,4 +365,8 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	const profileIndicator = page.locator('.profile-container[role="button"]');
 	await expect(profileIndicator).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Verified authenticated state - profile indicator visible.');
+
+	// Verify no missing translations after recovery key login
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 });

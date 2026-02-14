@@ -280,7 +280,7 @@
                 disabled={!replyText.trim()}
                 aria-label="Send reply"
             >
-                {$text('enter_message.send', { default: 'Send' })}
+                {$text('enter_message.send')}
             </button>
         </div>
     {:else}

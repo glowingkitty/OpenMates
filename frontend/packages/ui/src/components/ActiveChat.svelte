@@ -5740,8 +5740,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'} top-button"
                                         class:pii-toggle-active={piiRevealed}
                                         aria-label={piiRevealed
-                                            ? $text('chat.pii_hide', { default: 'Hide sensitive data' })
-                                            : $text('chat.pii_show', { default: 'Show sensitive data' })}
+                                            ? $text('chat.pii_hide')
+                                            : $text('chat.pii_show')}
                                         onclick={handleTogglePIIVisibility}
                                         use:tooltip
                                         style="margin: 5px;"
@@ -5755,7 +5755,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_minimize top-button"
-                                        aria-label={$text('chat.minimize', { default: 'Minimize' })}
+                                        aria-label={$text('chat.minimize')}
                                         onclick={handleMinimizeChat}
                                         use:tooltip
                                         style="margin: 5px;"
@@ -5798,7 +5798,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <!-- Subtitle: show "Continue where you left off" when resume chat exists,
                                          otherwise show the default "What do you need help with?" prompt -->
                                     {#if resumeChatData}
-                                        <p>{$text('chats.resume_last_chat.title', { default: 'Continue where you left off' })}</p>
+                                        <p>{$text('chats.resume_last_chat.title')}</p>
                                     {:else}
                                         <p>
                                             {#each welcomePromptParts as part, index}
@@ -5915,7 +5915,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
                                 </div>
                                 <span class="incognito-mode-applies-text">
-                                    {$text('settings.incognito_mode_applies_to_new_chats_only', { default: 'Incognito Mode applies to new chats only. Not this chat.' })}
+                                    {$text('settings.incognito_mode_applies_to_new_chats_only')}
                                 </span>
                             </div>
                         {/if}
@@ -5942,7 +5942,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {#if currentChat && !chatOwnershipResolved && $authStore.isAuthenticated}
                             <div class="read-only-indicator" transition:fade={{ duration: 200 }}>
                                 <div class="read-only-icon">🔒</div>
-                                <p class="read-only-text">{$text('chat.read_only_shared', { default: 'This shared chat is read-only. You cannot send messages.' })}</p>
+                                <p class="read-only-text">{$text('chat.read_only_shared')}</p>
                             </div>
                         {/if}
 

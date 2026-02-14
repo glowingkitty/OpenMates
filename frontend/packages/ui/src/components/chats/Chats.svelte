@@ -2950,7 +2950,7 @@ async function updateChatListFromDBInternal(force = false) {
 						}}
 					>
 						<span class="clickable-icon icon_hidden"></span>
-						<span>{$text('chats.hidden_chats.show_hidden_chats', { default: 'Show hidden chats' })}</span>
+						<span>{$text('chats.hidden_chats.show_hidden_chats')}</span>
 					</button>
 				</div>
 			{:else}
@@ -2959,12 +2959,12 @@ async function updateChatListFromDBInternal(force = false) {
 					<div class="overscroll-unlock-content">
 						<p class="overscroll-unlock-label">
 							<span class="clickable-icon icon_hidden"></span>
-							<span>{$text('chats.hidden_chats.show_hidden_chats', { default: 'Show hidden chats' })}</span>
+							<span>{$text('chats.hidden_chats.show_hidden_chats')}</span>
 						</p>
 						{#if $authStore.isAuthenticated}
 							<!-- Authenticated users: show unlock form -->
 							<p class="overscroll-unlock-info" style="font-size: 12px; color: var(--color-grey-60); margin-bottom: 8px;">
-								{$text('chats.hidden_chats.password_info', { default: 'Each unique password can be used to hide/show different chats.' })}
+								{$text('chats.hidden_chats.password_info')}
 							</p>
 							<form onsubmit={handleInlineUnlock}>
 								<div class="overscroll-unlock-input-wrapper">
@@ -2984,7 +2984,7 @@ async function updateChatListFromDBInternal(force = false) {
 											inlineUnlockCode = value;
 											inlineUnlockError = ''; // Clear error on input
 										}}
-										placeholder={$text('chats.hidden_chats.password_placeholder', { default: 'Enter password (4-30 characters)' })}
+										placeholder={$text('chats.hidden_chats.password_placeholder')}
 										maxlength="30"
 										disabled={inlineUnlockLoading}
 									/>
@@ -3000,7 +3000,7 @@ async function updateChatListFromDBInternal(force = false) {
 									{#if inlineUnlockLoading}
 										<span class="loading-spinner"></span>
 									{:else}
-										{$text('chats.hidden_chats.unlock_button', { default: 'Unlock' })}
+										{$text('chats.hidden_chats.unlock_button')}
 									{/if}
 								</button>
 							</form>
@@ -3019,7 +3019,7 @@ async function updateChatListFromDBInternal(force = false) {
 								inlineUnlockError = '';
 								chatIdToHideAfterInlineUnlock = null;
 							}}
-							aria-label={$text('activity.close', { default: 'Close' })}
+							aria-label={$text('activity.close')}
 						></button>
 					</div>
 				</div>
@@ -3081,7 +3081,7 @@ async function updateChatListFromDBInternal(force = false) {
 						{:else}
 							<!-- Show "No hidden chats" message when section is unlocked but empty -->
 							<div class="no-hidden-chats-message">
-								<p>{$text('chats.hidden_chats.no_hidden_chats', { default: 'No hidden chats' })}</p>
+								<p>{$text('chats.hidden_chats.no_hidden_chats')}</p>
 							</div>
 						{/if}
 						<!-- Single lock button at the bottom -->

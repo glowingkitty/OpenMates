@@ -104,7 +104,7 @@
                 <div class="ios-instructions-header">
                     <span class="clickable-icon icon_announcement banner-icon"></span>
                     <span class="ios-instructions-title">
-                        {$text('notifications.push.ios_install_title', { default: 'Install OpenMates First' })}
+                        {$text('notifications.push.ios_install_title')}
                     </span>
                     <button
                         class="ios-close-btn"
@@ -115,10 +115,10 @@
                     </button>
                 </div>
                 <div class="ios-instructions-content">
-                    <p>{$text('notifications.push.ios_install_step1', { default: '1. Tap the Share button in Safari' })}</p>
-                    <p>{$text('notifications.push.ios_install_step2', { default: '2. Select "Add to Home Screen"' })}</p>
-                    <p>{$text('notifications.push.ios_install_step3', { default: '3. Open OpenMates from your home screen' })}</p>
-                    <p>{$text('notifications.push.ios_install_step4', { default: '4. Then you can enable notifications' })}</p>
+                    <p>{$text('notifications.push.ios_install_step1')}</p>
+                    <p>{$text('notifications.push.ios_install_step2')}</p>
+                    <p>{$text('notifications.push.ios_install_step3')}</p>
+                    <p>{$text('notifications.push.ios_install_step4')}</p>
                 </div>
             </div>
         {:else}
@@ -127,10 +127,10 @@
                 <span class="clickable-icon icon_announcement banner-icon"></span>
                 <div class="banner-text">
                     <span class="banner-title">
-                        {$text('notifications.push.banner_title', { default: 'Want to receive notifications when your assistant responds?' })}
+                        {$text('notifications.push.banner_title')}
                     </span>
                     <span class="banner-subtitle">
-                        {$text('notifications.push.banner_subtitle', { default: "Even when you're not in the app." })}
+                        {$text('notifications.push.banner_subtitle')}
                     </span>
                 </div>
             </div>
@@ -142,9 +142,9 @@
                     disabled={isRequesting}
                 >
                     {#if isRequesting}
-                        {$text('notifications.push.requesting', { default: 'Requesting...' })}
+                        {$text('notifications.push.requesting')}
                     {:else}
-                        {$text('notifications.push.enable_btn', { default: 'Enable Notifications' })}
+                        {$text('notifications.push.enable_btn')}
                     {/if}
                 </button>
                 <button
@@ -152,7 +152,7 @@
                     onclick={handleNotYet}
                     disabled={isRequesting}
                 >
-                    {$text('notifications.push.not_yet_btn', { default: 'Not Yet' })}
+                    {$text('notifications.push.not_yet_btn')}
                 </button>
             </div>
         {/if}

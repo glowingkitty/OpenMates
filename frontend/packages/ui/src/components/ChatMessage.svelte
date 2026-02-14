@@ -179,7 +179,7 @@
   let displayName = $derived(role === 'user' ? '' : 
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
                     category === 'openmates_official' ? 'OpenMates' :
-                    category ? $text(`mates.${category}`, { default: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }) :
+                    category ? $text(`mates.${category}`) :
                     'Assistant');
 
   // animated prop is now included in the main $props() call above
@@ -1605,7 +1605,7 @@
     {#if role === 'user' && appSettingsMemoriesResponse}
       <div class="app-settings-memories-summary">
         {#if appSettingsMemoriesResponse.action === 'included' && appSettingsMemoriesResponse.categories}
-          <span class="summary-label">{$text('chat.permissions.included_summary') || 'Included App settings & memories'}:</span>
+          <span class="summary-label">{$text('chat.permissions.included_summary')}:</span>
           <div class="summary-categories">
             {#each appSettingsMemoriesResponse.categories as cat}
               <button 
@@ -1629,7 +1629,7 @@
             {/each}
           </div>
         {:else if appSettingsMemoriesResponse.action === 'rejected'}
-          <span class="summary-rejected">{$text('chat.permissions.rejected_summary') || 'Rejected App settings & memories request.'}</span>
+          <span class="summary-rejected">{$text('chat.permissions.rejected_summary')}</span>
         {/if}
       </div>
     {/if}

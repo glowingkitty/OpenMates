@@ -42,7 +42,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 const TEST_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
@@ -355,6 +356,10 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	const inspectionResult = await inspectChatInBrowser(page, chatId);
 	console.log('📋 Full chat inspection result:');
 	console.log(inspectionResult);
+
+	// Verify no missing translations on the chat page
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 
 	// =========================================================================
 	// STEP 6: Page refresh and verify persistence

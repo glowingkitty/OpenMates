@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -282,6 +283,10 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	const assistantResponse = page.locator('.message-wrapper.assistant');
 	await expect(assistantResponse.last()).toBeVisible({ timeout: 10000 });
 	logStep('Assistant response visible in Chat A.');
+
+	// Verify no missing translations on the chat page with notification UI
+	await assertNoMissingTranslations(page);
+	logStep('No missing translations detected.');
 
 	// ══════════════════════════════════════════════════════════════
 	// 17. Delete Chat A via context menu

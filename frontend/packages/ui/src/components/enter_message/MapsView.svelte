@@ -965,8 +965,8 @@
     $effect(() => {
         if (isCurrentLocation) {
             locationIndicatorText = isPrecise ? 
-                ($text('enter_message.location.current_location') || 'Current location') : 
-                ($text('enter_message.location.current_area') || 'Current area');
+                $text('enter_message.location.current_location') : 
+                $text('enter_message.location.current_area');
         } else if (selectedLocationText) {
             // Always use two lines when we have selectedLocationText
             locationIndicatorText = selectedLocationText.subLine ? 
@@ -974,8 +974,8 @@
                 selectedLocationText.mainLine;
         } else {
             locationIndicatorText = isPrecise ? 
-                ($text('enter_message.location.selected_location') || 'Selected location') : 
-                ($text('enter_message.location.selected_area') || 'Selected area');
+                $text('enter_message.location.selected_location') : 
+                $text('enter_message.location.selected_area');
         }
     });
 </script>
@@ -1008,7 +1008,7 @@
                 transition:slide={{ duration: 200 }}
                 style="padding: 15px;"
             >
-                {$text('enter_message.location.select') || 'Select'}
+                {$text('enter_message.location.select')}
             </button>
         </div>
     {/if}
@@ -1029,7 +1029,7 @@
                     type="text"
                     bind:value={searchQuery}
                     oninput={() => debouncedSearch(searchQuery)}
-                    placeholder={$text('enter_message.location.search_placeholder') || "Search location..."}
+                    placeholder={$text('enter_message.location.search_placeholder')}
                     class="search-input"
                 />
             </div>
@@ -1048,7 +1048,7 @@
     {#if showResults && searchResults.length > 0}
         <div class="search-results-container" transition:slide={{ duration: 300 }}>
             <div class="search-results-header">
-                <h3>{@html $text('enter_message.location.search_results') || 'Search Results'}</h3>
+                <h3>{@html $text('enter_message.location.search_results')}</h3>
                 <button 
                     class="clickable-icon icon_close" 
                     onclick={() => {

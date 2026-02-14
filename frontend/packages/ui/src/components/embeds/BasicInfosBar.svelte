@@ -132,8 +132,8 @@
       <button 
         class="stop-button"
         onclick={handleStopClick}
-        aria-label={$text('embeds.stop') || 'Stop'}
-        title={$text('embeds.stop') || 'Stop'}
+        aria-label={$text('embeds.stop')}
+        title={$text('embeds.stop')}
       >
         <span class="clickable-icon icon_stop_processing"></span>
       </button>
@@ -181,8 +181,8 @@
       <button 
         class="stop-button"
         onclick={handleStopClick}
-        aria-label={$text('embeds.stop') || 'Stop'}
-        title={$text('embeds.stop') || 'Stop'}
+        aria-label={$text('embeds.stop')}
+        title={$text('embeds.stop')}
       >
         <span class="clickable-icon icon_stop_processing"></span>
       </button>

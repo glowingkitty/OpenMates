@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -165,6 +166,10 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	await takeStepScreenshot(page, 'response-received');
 	logChatCheckpoint('Confirmed "Berlin" in assistant response.');
+
+	// Verify no missing translations on the chat page
+	await assertNoMissingTranslations(page);
+	logChatCheckpoint('No missing translations detected.');
 
 	// 10. Verify chat title, icon, and category were generated (regression test for title_v race condition)
 	logChatCheckpoint('Verifying chat metadata (title, icon, category)...');

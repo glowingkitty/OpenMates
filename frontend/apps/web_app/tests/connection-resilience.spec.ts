@@ -46,7 +46,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 const TEST_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
@@ -277,6 +278,10 @@ test('delivers AI response after page reload during processing', async ({ page }
 	await expect(assistantMessage.last()).toContainText('Paris', { timeout: 60000 });
 	await takeStepScreenshot(page, 'response-after-reload');
 	logCheckpoint('AI response received after page reload. Contains "Paris".');
+
+	// Verify no missing translations on the chat page after reconnect
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 
 	// Cleanup
 	await deleteActiveChat(page, logCheckpoint);

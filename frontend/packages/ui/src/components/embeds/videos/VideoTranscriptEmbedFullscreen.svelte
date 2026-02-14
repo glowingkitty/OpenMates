@@ -117,7 +117,7 @@
   
   // Get skill name for bottom BasicInfosBar (same as VideoTranscriptEmbedPreview)
   // This should show "Transcript" not the URL
-  let transcriptSkillName = $derived($text('embeds.transcript') || 'Transcript');
+  let transcriptSkillName = $derived($text('embeds.transcript'));
   
   // Format video title for top BasicInfosBar (video embed preview style)
   let videoTitle = $derived(
@@ -399,7 +399,7 @@
       (window as any).__embedShareContext = embedContext;
 
       // Navigate to share settings
-      navigateToSettings('shared/share', $text('settings.share.share_transcript', { default: 'Share Video Transcript' }), 'share', 'settings.share.share_transcript');
+      navigateToSettings('shared/share', $text('settings.share.share_transcript'), 'share', 'settings.share.share_transcript');
       
       // Also set settingsDeepLink to ensure Settings component navigates properly
       settingsDeepLink.set('shared/share');

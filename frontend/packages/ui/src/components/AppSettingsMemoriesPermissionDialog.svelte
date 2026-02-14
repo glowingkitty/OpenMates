@@ -85,12 +85,12 @@
         <!-- Header -->
         <div class="dialog-header">
             <div class="dialog-header-icon"></div>
-            <span id="permission-dialog-title">{$text('chat.permissions.title') || 'Permissions'}</span>
+            <span id="permission-dialog-title">{$text('chat.permissions.title')}</span>
         </div>
         
         <!-- Question -->
         <p class="dialog-question">
-            {$text('chat.permissions.question') || 'Include these App settings & memories in this chat, for a more personalized response?'}
+            {$text('chat.permissions.question')}
         </p>
         
         <!-- Categories list -->
@@ -116,8 +116,8 @@
                         <span class="category-name">{category.displayName}</span>
                         <span class="category-count">
                             {category.entryCount} {category.entryCount === 1 
-                                ? ($text('chat.permissions.entry_singular') || 'entry') 
-                                : ($text('chat.permissions.entry_plural') || 'entries')}
+                                ? $text('chat.permissions.entry_singular') 
+                                : $text('chat.permissions.entry_plural')}
                         </span>
                     </div>
                 </div>
@@ -134,7 +134,7 @@
                 {#if $permissionDialogLoading}
                     <span class="loading-spinner"></span>
                 {:else}
-                    {$text('chat.permissions.include_selected') || 'Include selected'}
+                    {$text('chat.permissions.include_selected')}
                 {/if}
             </button>
             <button 
@@ -142,7 +142,7 @@
                 onclick={handleExclude}
                 disabled={$permissionDialogLoading}
             >
-                {$text('chat.permissions.reject_all') || 'Reject all'}
+                {$text('chat.permissions.reject_all')}
             </button>
         </div>
     </div>

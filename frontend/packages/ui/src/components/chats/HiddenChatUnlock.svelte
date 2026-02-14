@@ -261,8 +261,8 @@
             <div class="modal-header">
                 <h3>
                     {isFirstTime 
-                        ? $text('chats.hidden_chats.set_password_title', { default: 'Set Hidden Chat Password' })
-                        : $text('chats.hidden_chats.unlock_title', { default: 'Unlock Hidden Chats' })
+                        ? $text('chats.hidden_chats.set_password_title')
+                        : $text('chats.hidden_chats.unlock_title')
                     }
                 </h3>
                 <button class="close-btn" onclick={handleClose}>✕</button>
@@ -271,19 +271,15 @@
             <div class="modal-content">
                 <p class="description">
                     {isFirstTime
-                        ? $text('chats.hidden_chats.set_password_description', {
-                            default: 'Enter a password (4-30 characters) to protect your hidden chats. This password is separate from your login password. Each unique password can be used to hide/show different chats.'
-                        })
-                        : $text('chats.hidden_chats.unlock_description', {
-                            default: 'Enter your password (4-30 characters) to unlock hidden chats. Each unique password can be used to hide/show different chats.'
-                        })
+                        ? $text('chats.hidden_chats.set_password_description')
+                        : $text('chats.hidden_chats.unlock_description')
                     }
                 </p>
 
                 <form onsubmit={handleSubmit}>
                     <div class="input-group">
                         <label for="password-input">
-                            {$text('chats.hidden_chats.password_label', { default: 'Password' })}
+                            {$text('chats.hidden_chats.password_label')}
                         </label>
                         <input
                             id="password-input"
@@ -291,7 +287,7 @@
                             type="password"
                             bind:value={password}
                             oninput={handlePasswordInput}
-                            placeholder={$text('chats.hidden_chats.password_placeholder', { default: 'Enter password' })}
+                            placeholder={$text('chats.hidden_chats.password_placeholder')}
                             maxlength="30"
                             autocomplete="off"
                             class:error={!!errorMessage}
@@ -302,7 +298,7 @@
                     {#if isFirstTime}
                         <div class="input-group">
                             <label for="confirm-password-input">
-                                {$text('chats.hidden_chats.confirm_password_label', { default: 'Confirm Password' })}
+                                {$text('chats.hidden_chats.confirm_password_label')}
                             </label>
                             <input
                                 id="confirm-password-input"
@@ -310,7 +306,7 @@
                                 type="password"
                                 bind:value={confirmPassword}
                                 oninput={handleConfirmPasswordInput}
-                                placeholder={$text('chats.hidden_chats.password_placeholder', { default: 'Enter password' })}
+                                placeholder={$text('chats.hidden_chats.password_placeholder')}
                                 maxlength="30"
                                 autocomplete="off"
                                 class:error={!!errorMessage}
@@ -327,9 +323,7 @@
 
                     {#if lockoutState.isLockedOut}
                         <div class="lockout-message">
-                            {$text('chats.hidden_chats.lockout_message', {
-                                default: `Too many failed attempts. Please wait ${lockoutState.lockoutRemainingSeconds} seconds.`
-                            })}
+                            {$text('chats.hidden_chats.lockout_message')}
                         </div>
                     {/if}
 
@@ -340,7 +334,7 @@
                             onclick={handleClose}
                             disabled={isLoading}
                         >
-                            {$text('chats.hidden_chats.cancel', { default: 'Cancel' })}
+                            {$text('chats.hidden_chats.cancel')}
                         </button>
                         <button
                             type="submit"
@@ -351,8 +345,8 @@
                                 <span class="loading-spinner"></span>
                             {:else}
                                 {isFirstTime
-                                    ? $text('chats.hidden_chats.set_password_button', { default: 'Set Password' })
-                                    : $text('chats.hidden_chats.unlock_button', { default: 'Unlock' })
+                                    ? $text('chats.hidden_chats.set_password_button')
+                                    : $text('chats.hidden_chats.unlock_button')
                                 }
                             {/if}
                         </button>

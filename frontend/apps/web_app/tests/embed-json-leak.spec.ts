@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -355,6 +356,10 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	}
 
 	expect(fenceMatches.length).toBe(0);
+
+	// Verify no missing translations on the chat page with code embeds
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 
 	// ======================================================================
 	// STEP 7: Cleanup - navigate away (no UI chat deletion needed)

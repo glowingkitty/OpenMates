@@ -34,7 +34,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
 
 /**
@@ -381,4 +382,8 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await expect(authIndicatorRelogin).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'login-success-recovery-key');
 	logCheckpoint('Login successful with new recovery key! Test complete.');
+
+	// Verify no missing translations on the settings page
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
 });

@@ -500,6 +500,26 @@ function generateTotp(secret: string, windowOffset: number = 0): string {
 	return String(code).padStart(6, '0');
 }
 
+/**
+ * Assert that no missing translation placeholders are visible on the page.
+ *
+ * The i18n system renders `[T:key.name]` when a translation key is missing.
+ * This helper scans the visible page text for those placeholders and throws
+ * a descriptive error listing every unique missing key found.
+ *
+ * Usage: call after the page has fully loaded and rendered its UI.
+ *
+ * @param page - Playwright page object
+ */
+async function assertNoMissingTranslations(page: any): Promise<void> {
+	const body = await page.locator('body').innerText();
+	const missingKeys = body.match(/\[T:[^\]]+\]/g);
+	if (missingKeys) {
+		const unique = [...new Set(missingKeys)];
+		throw new Error(`Missing translations found:\n${unique.join('\n')}`);
+	}
+}
+
 module.exports = {
 	ARTIFACTS_DIRNAME,
 	PREVIOUS_RUN_DIRNAME,
@@ -512,5 +532,6 @@ module.exports = {
 	getMailosaurServerId,
 	buildSignupEmail,
 	createMailosaurClient,
-	generateTotp
+	generateTotp,
+	assertNoMissingTranslations
 };

@@ -146,7 +146,7 @@
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
-  let errorMessage = $derived(localErrorMessage || ($text('chat.an_error_occured') || 'Processing failed.'));
+  let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
   
   /**
    * Handle embed data updates from UnifiedEmbedPreview
@@ -268,7 +268,7 @@
   }
   
   // Get skill name from translations
-  let skillName = $derived($text('embeds.search') || 'Search');
+  let skillName = $derived($text('embeds.search'));
   
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';
@@ -291,7 +291,7 @@
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
-    `${$text('embeds.via') || 'via'} ${provider}`
+    `${$text('embeds.via')} ${provider}`
   );
   
   /**

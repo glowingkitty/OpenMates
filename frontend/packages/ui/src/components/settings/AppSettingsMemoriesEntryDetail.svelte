@@ -318,7 +318,7 @@
      * Delete the entry with confirmation.
      */
     async function handleDelete() {
-        if (!confirm($text('settings.app_settings_memories.confirm_delete') || 'Are you sure you want to delete this entry?')) {
+        if (!confirm($text('settings.app_settings_memories.confirm_delete'))) {
             return;
         }
 
@@ -353,13 +353,13 @@
         </div>
     {:else if !isAuthenticated}
         <div class="error">
-            <p>{$text('settings.app_settings_memories.authentication_required') || 'Authentication required'}</p>
+            <p>{$text('settings.app_settings_memories.authentication_required')}</p>
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else if !entry}
         <div class="error">
-            <p>{$text('settings.app_settings_memories.entry_not_found') || 'Entry not found'}</p>
-            <button class="back-button" onclick={goBack}>← {$text('settings.app_settings_memories.back_to_category') || 'Back'}</button>
+            <p>{$text('settings.app_settings_memories.entry_not_found')}</p>
+            <button class="back-button" onclick={goBack}>← {$text('settings.app_settings_memories.back_to_category')}</button>
         </div>
     {:else if mode === 'view'}
         <!-- View Mode -->
@@ -412,12 +412,12 @@
             <!-- Action buttons -->
             <div class="action-buttons">
                 <button class="edit-btn" onclick={startEdit} disabled={isDeleting}>
-                    {$text('settings.app_settings_memories.edit') || 'Edit'}
+                    {$text('settings.app_settings_memories.edit')}
                 </button>
                 <button class="delete-btn" onclick={handleDelete} disabled={isDeleting}>
                     {isDeleting 
-                        ? ($text('settings.app_settings_memories.deleting') || 'Deleting...')
-                        : ($text('settings.app_settings_memories.delete') || 'Delete')
+                        ? $text('settings.app_settings_memories.deleting')
+                        : $text('settings.app_settings_memories.delete')
                     }
                 </button>
             </div>
@@ -521,7 +521,7 @@
 
             <div class="form-footer">
                 <button class="cancel-btn" onclick={cancelEdit} disabled={isSaving}>
-                    {$text('settings.app_settings_memories.cancel') || 'Cancel'}
+                    {$text('settings.app_settings_memories.cancel')}
                 </button>
                 <button
                     class="save-btn"
@@ -529,8 +529,8 @@
                     disabled={isSaving}
                 >
                     {isSaving 
-                        ? ($text('settings.app_settings_memories.saving') || 'Saving...')
-                        : ($text('settings.app_settings_memories.save') || 'Save')
+                        ? $text('settings.app_settings_memories.saving')
+                        : $text('settings.app_settings_memories.save')
                     }
                 </button>
             </div>
