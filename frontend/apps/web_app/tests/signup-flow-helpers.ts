@@ -503,9 +503,13 @@ function generateTotp(secret: string, windowOffset: number = 0): string {
 /**
  * Assert that no missing translation placeholders are visible on the page.
  *
- * The i18n system renders `[T:key.name]` when a translation key is missing.
- * This helper scans the visible page text for those placeholders and throws
- * a descriptive error listing every unique missing key found.
+ * Detects two failure modes:
+ *   1. `[T:key.name]` — the i18n system's explicit placeholder when a key is missing.
+ *   2. `[object Object]` — rendered when a translation key accidentally points to an
+ *      intermediate YAML node (object) instead of a leaf string, or when any non-string
+ *      value leaks into the DOM.
+ *
+ * Throws a descriptive error listing every unique occurrence found.
  *
  * Usage: call after the page has fully loaded and rendered its UI.
  *
@@ -513,10 +517,26 @@ function generateTotp(secret: string, windowOffset: number = 0): string {
  */
 async function assertNoMissingTranslations(page: any): Promise<void> {
 	const body = await page.locator('body').innerText();
+	const errors: string[] = [];
+
+	// Check for missing translation placeholders: [T:some.key]
 	const missingKeys = body.match(/\[T:[^\]]+\]/g);
 	if (missingKeys) {
 		const unique = [...new Set(missingKeys)];
-		throw new Error(`Missing translations found:\n${unique.join('\n')}`);
+		errors.push(`Missing translation keys:\n  ${unique.join('\n  ')}`);
+	}
+
+	// Check for [object Object] — indicates a non-string value leaked into the DOM,
+	// typically from a translation key pointing to an object node instead of a string.
+	const objectMatches = body.match(/\[object Object\]/g);
+	if (objectMatches) {
+		errors.push(
+			`Found ${objectMatches.length} occurrence(s) of "[object Object]" in the DOM — likely a broken translation or non-string value rendered as text.`
+		);
+	}
+
+	if (errors.length > 0) {
+		throw new Error(`Translation issues detected:\n${errors.join('\n')}`);
 	}
 }
 
