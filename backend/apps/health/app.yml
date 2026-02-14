@@ -16,6 +16,11 @@ settings_and_memories:
     schema:
       type: object
       properties:
+        title:
+          type: string
+          description: Auto-generated from type, where, and date
+          is_title: true
+          auto_generated: true
         appointment_type:
           type: string
           enum:
@@ -28,33 +33,16 @@ settings_and_memories:
           - vaccination
           - other
           description: Type of appointment
-          is_title: true
-        doctor_name:
+        where:
           type: string
-          description: Name of the doctor or specialist
-        clinic_name:
-          type: string
-          description: Name of the clinic or hospital
+          description: Doctor or clinic name
         date:
           type: string
           format: date
           description: YYYY-MM-DD
-        time:
-          type: string
-          format: time
-          description: HH:MM in 24-hour format
-        reason:
-          type: string
-          description: Reason for the appointment or procedure
-        location:
-          type: string
-          description: Address or location of the appointment
-        contact_phone:
-          type: string
-          description: Phone number of clinic/doctor
         notes:
           type: string
-          description: Additional notes, preparation instructions, or follow-up details
+          description: Optional notes (reason, location, contact, etc.)
       required:
       - appointment_type
       - date
@@ -88,19 +76,9 @@ settings_and_memories:
           type: string
           format: date
           description: YYYY-MM-DD when it occurred or started
-        status:
-          type: string
-          enum:
-          - active
-          - resolved
-          - ongoing
-          description: Current status
         details:
           type: string
-          description: Details about the condition or treatment
-        doctor_name:
-          type: string
-          description: Name of attending doctor or specialist
+          description: Optional details (status, doctor, treatment notes)
       required:
       - condition_type
       - name

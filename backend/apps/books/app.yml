@@ -55,19 +55,13 @@ settings_and_memories:
           type: string
           description: Author name(s)
           is_subtitle: true
-        current_page:
-          type: integer
-          description: Current page or chapter you are on
-        total_pages:
-          type: integer
-          description: Total number of pages
         started_date:
           type: string
           format: date
-          description: Date you started reading (YYYY-MM-DD)
+          description: Date you started (YYYY-MM-DD)
         notes:
           type: string
-          description: Reading notes or thoughts so far
+          description: Optional reading notes
       required:
         - title
   - id: to_read_list
@@ -93,16 +87,9 @@ settings_and_memories:
         genre:
           type: string
           description: Genre or category
-        priority:
+        notes:
           type: string
-          enum:
-            - high
-            - medium
-            - low
-          description: Reading priority
-        reason:
-          type: string
-          description: Why you want to read it (recommendation, interest, etc.)
+          description: Why you want to read it, priority, etc.
       required:
         - title
 

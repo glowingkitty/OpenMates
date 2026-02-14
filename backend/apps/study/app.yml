@@ -30,17 +30,10 @@ settings_and_memories:
         deadline:
           type: string
           format: date
-          description: Target date to complete learning (YYYY-MM-DD)
-        priority:
+          description: Target date to complete (YYYY-MM-DD)
+        notes:
           type: string
-          enum:
-          - low
-          - medium
-          - high
-          description: Priority of this learning goal
-        description:
-          type: string
-          description: Detailed description of what to learn
+          description: Optional details, priority, or goals
       required:
       - topic
       - difficulty_level
