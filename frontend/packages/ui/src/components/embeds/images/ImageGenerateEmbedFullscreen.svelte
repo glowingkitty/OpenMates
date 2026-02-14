@@ -310,7 +310,9 @@
         <div class="image-section">
           {#if fullImageUrl}
             <div class="image-wrapper">
-              <img src={fullImageUrl} alt={prompt || 'Generated image'} class="full-image" />
+              <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" title={$text('embeds.image_generate.open_full_size')}>
+                <img src={fullImageUrl} alt={prompt || 'Generated image'} class="full-image" />
+              </a>
             </div>
           {:else if previewImageUrl && isLoadingImage}
             <!-- Progressive: show preview while full-res loads -->
@@ -415,6 +417,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  
+  /* Clickable link wrapper for the image - opens full size in new tab */
+  .image-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    max-height: 100%;
+    cursor: pointer;
   }
   
   .full-image {

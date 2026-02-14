@@ -1963,6 +1963,29 @@ image_generate.generated_by:
   cs: Vygenerováno pomocí
   sv: Genererat av
   verified_by_human: []
+image_generate.open_full_size:
+  context: Tooltip shown when hovering over the image in fullscreen view - clicking opens the full-size image in a new browser tab
+  en: Open full size image
+  de: Bild in voller Größe öffnen
+  zh: 查看完整尺寸图片
+  es: Abrir imagen en tamaño completo
+  fr: Ouvrir l'image en taille réelle
+  pt: Abrir imagem em tamanho real
+  ru: Открыть изображение в полном размере
+  ja: フルサイズの画像を開く
+  ko: 전체 크기 이미지 열기
+  it: Apri immagine a dimensione piena
+  tr: Tam boyut görseli aç
+  vi: Mở ảnh kích thước đầy đủ
+  id: Buka gambar ukuran penuh
+  pl: Otwórz obraz w pełnym rozmiarze
+  nl: Afbeelding op volledige grootte openen
+  ar: فتح الصورة بالحجم الكامل
+  hi: पूर्ण आकार की छवि खोलें
+  th: เปิดรูปภาพขนาดเต็ม
+  cs: Otevřít obrázek v plné velikosti
+  sv: Öppna bild i full storlek
+  verified_by_human: []
 context_menu.view:
   context: Context menu action to open embed in fullscreen view
   en: View
