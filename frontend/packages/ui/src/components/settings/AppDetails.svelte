@@ -14,6 +14,7 @@
     import { authStore } from '../../stores/authStore';
     import AppStoreCard from './AppStoreCard.svelte';
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
+    import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import type { AppMetadata, SkillMetadata, FocusModeMetadata, MemoryFieldMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -242,6 +243,18 @@
                         {/each}
                     </div>
                 </div>
+            </div>
+        {/if}
+        
+        <!-- Active Reminders section - only shown for reminder app, authenticated users -->
+        {#if isAuthenticated && appId === 'reminder'}
+            <div class="section">
+                <SettingsItem
+                    type="heading"
+                    icon="reminder"
+                    title={$text('apps.reminder.active_reminders.title')}
+                />
+                <ActiveRemindersList />
             </div>
         {/if}
         

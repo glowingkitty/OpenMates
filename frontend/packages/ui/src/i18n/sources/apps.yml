@@ -1470,6 +1470,31 @@ reminder.skills.cancel_reminder.description:
   cs: Zrušit naplánovanou připomínku.
   sv: Avbryt en schemalagd påminnelse.
   verified_by_human: [en, de]
+reminder.active_reminders.title:
+  context: Heading for the active reminders list in reminder app settings
+  en: Active Reminders
+  de: Aktive Erinnerungen
+  verified_by_human: []
+reminder.active_reminders.empty:
+  context: Message when user has no active reminders
+  en: No active reminders
+  de: Keine aktiven Erinnerungen
+  verified_by_human: []
+reminder.active_reminders.loading:
+  context: Loading text while fetching reminders
+  en: Loading reminders...
+  de: Lade Erinnerungen...
+  verified_by_human: []
+reminder.active_reminders.error:
+  context: Error message when fetching reminders fails
+  en: Could not load reminders
+  de: Erinnerungen konnten nicht geladen werden
+  verified_by_human: []
+reminder.active_reminders.repeating:
+  context: Badge text for repeating reminders in the list
+  en: Repeating
+  de: Wiederkehrend
+  verified_by_human: []
 jobs:
   context: App name for the Jobs app
   en: Jobs

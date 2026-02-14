@@ -24,6 +24,7 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse # Import request/response models
+from backend.apps.reminder.utils import format_reminder_time
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -39,6 +40,119 @@ logger = logging.getLogger(__name__)
 class SimpleSuccessResponse(BaseModel):
     success: bool
     message: str
+
+
+# --- Response models for active reminders ---
+class ActiveReminderItem(BaseModel):
+    """A single active reminder for display in app settings."""
+    reminder_id: str
+    prompt_preview: str = Field(description="First 100 chars of the reminder prompt")
+    trigger_at: int = Field(description="Unix timestamp when reminder fires")
+    trigger_at_formatted: str = Field(description="Human-readable trigger time")
+    target_type: str = Field(description="new_chat or existing_chat")
+    is_repeating: bool = Field(default=False)
+    status: str = Field(default="pending")
+
+
+class ActiveRemindersResponse(BaseModel):
+    """Response for GET /v1/settings/reminders."""
+    success: bool
+    reminders: list = Field(default_factory=list)
+    total_count: int = Field(default=0)
+
+
+# --- Endpoint for listing active reminders ---
+@router.get("/reminders", response_model=ActiveRemindersResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def get_active_reminders(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+):
+    """
+    Get active (pending) reminders for the current user.
+    Used by the reminder app settings page to display a list of active reminders.
+    """
+    try:
+        user_id = current_user.id
+        
+        # Get pending reminders from cache
+        reminders = await cache_service.get_user_reminders(
+            user_id=user_id,
+            status_filter="pending"
+        )
+        
+        if not reminders:
+            return ActiveRemindersResponse(
+                success=True,
+                reminders=[],
+                total_count=0
+            )
+        
+        # Process each reminder - decrypt prompts and format for display
+        reminder_list = []
+        
+        for reminder in reminders:
+            try:
+                reminder_id = reminder.get("reminder_id", "")
+                vault_key_id = reminder.get("vault_key_id")
+                encrypted_prompt = reminder.get("encrypted_prompt", "")
+                trigger_at = reminder.get("trigger_at", 0)
+                timezone = reminder.get("timezone", "UTC")
+                target_type = reminder.get("target_type", "new_chat")
+                repeat_config = reminder.get("repeat_config")
+                reminder_status = reminder.get("status", "pending")
+                
+                # Decrypt the prompt for preview
+                prompt_preview = ""
+                if encrypted_prompt and vault_key_id:
+                    try:
+                        decrypted_prompt = await encryption_service.decrypt_with_user_key(
+                            ciphertext=encrypted_prompt,
+                            key_id=vault_key_id
+                        )
+                        if decrypted_prompt:
+                            prompt_preview = decrypted_prompt[:100]
+                            if len(decrypted_prompt) > 100:
+                                prompt_preview += "..."
+                    except Exception as e:
+                        logger.warning(f"Could not decrypt reminder prompt {reminder_id}: {e}")
+                        prompt_preview = "[Encrypted]"
+                
+                # Format trigger time
+                trigger_at_formatted = format_reminder_time(trigger_at, timezone)
+                
+                reminder_list.append(ActiveReminderItem(
+                    reminder_id=reminder_id,
+                    prompt_preview=prompt_preview,
+                    trigger_at=trigger_at,
+                    trigger_at_formatted=trigger_at_formatted,
+                    target_type=target_type,
+                    is_repeating=repeat_config is not None,
+                    status=reminder_status
+                ).model_dump())
+                
+            except Exception as e:
+                logger.warning(f"Error processing reminder for settings list: {e}")
+                continue
+        
+        # Sort by trigger_at ascending (soonest first)
+        reminder_list.sort(key=lambda r: r.get("trigger_at", 0))
+        
+        logger.debug(f"Returning {len(reminder_list)} active reminders for user {user_id}")
+        
+        return ActiveRemindersResponse(
+            success=True,
+            reminders=reminder_list,
+            total_count=len(reminder_list)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching active reminders: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch reminders")
 
 
 # --- Endpoint for updating profile image ---

@@ -109,6 +109,7 @@ export const apiEndpoints = {
   },
   settings: {
     serverStatus: "/v1/settings/server-status", // Get server status (payment enabled, server edition, etc.)
+    reminders: "/v1/settings/reminders", // Get active (pending) reminders for app settings
     user: {
       update_profile_image: "/v1/settings/user/update_profile_image", // Update profile image of user
       consent_privacy_apps: "/v1/settings/user/consent/privacy-apps", // Record consent for privacy/apps settings
