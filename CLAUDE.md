@@ -98,6 +98,12 @@ OpenMates/
 - **Only remove debugging logs after the user confirms the issue is fixed**
 - Do not remove logs assuming you fixed the issue - wait for confirmation
 
+### Multiple Assistants (Concurrent Work)
+
+- **Several assistants may work on the codebase at the same time.** File content or git state can change between your turns.
+- **Re-read files before editing** if you haven’t touched them recently — another assistant may have changed them.
+- **Check git status** before committing; files may already be committed by another assistant. Only add and commit what you actually changed this session.
+
 ---
 
 ## Frontend Standards (Svelte/TypeScript)
