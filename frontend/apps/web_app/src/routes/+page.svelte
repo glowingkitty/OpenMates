@@ -750,20 +750,38 @@
 				);
 				forcedLogoutInProgress.set(true);
 
-				// Show auto-logout notification explaining the user needs "Stay logged in"
+				// Show auto-logout notification with context-appropriate message.
 				// This must be triggered here because checkAuth() will skip its notification
 				// when forcedLogoutInProgress is already true (to prevent duplicate triggers).
 				// Use setTimeout to ensure the notification container is rendered first.
-				setTimeout(() => {
+				setTimeout(async () => {
 					const t = get(text);
-					notificationStore.autoLogout(
-						t('login.auto_logout_notification.message'),
-						undefined,
-						7000,
-						t('login.auto_logout_notification.title')
-					);
+					const { wasStayLoggedIn } = await import('@repo/ui');
+					const wasStorageEvicted = wasStayLoggedIn();
+
+					if (wasStorageEvicted) {
+						// User had stayLoggedIn=true but browser evicted IndexedDB
+						// Show reassuring message that data is safe
+						console.warn(
+							'[+page.svelte] Storage eviction detected: user had stayLoggedIn=true but master key is missing'
+						);
+						notificationStore.autoLogout(
+							t('login.auto_logout_notification.storage_evicted_message'),
+							undefined,
+							10000,
+							t('login.auto_logout_notification.storage_evicted_title')
+						);
+					} else {
+						// Normal case: stayLoggedIn=false, suggest enabling it
+						notificationStore.autoLogout(
+							t('login.auto_logout_notification.message'),
+							undefined,
+							7000,
+							t('login.auto_logout_notification.title')
+						);
+					}
 					console.debug(
-						'[+page.svelte] Showed auto-logout notification for stayLoggedIn=false reload'
+						`[+page.svelte] Showed auto-logout notification (storageEvicted=${wasStorageEvicted})`
 					);
 				}, 500);
 

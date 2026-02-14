@@ -210,15 +210,36 @@ export async function checkAuth(
           isInitialized: true,
         }));
 
-        // Show notification that user was logged out with hint about "Stay logged in"
-        // This is triggered when user logged in without "Stay logged in" and page was reloaded
+        // Show notification with context-appropriate message:
+        // - If user had stayLoggedIn=true but key is missing → browser evicted storage (unexpected)
+        //   → reassure user their data is safe and they just need to log in again
+        // - If user had stayLoggedIn=false → expected behavior on page reload
+        //   → suggest enabling "Stay logged in"
         const $text = get(text);
-        notificationStore.autoLogout(
-          $text("login.auto_logout_notification.message"),
-          undefined, // No secondary message needed
-          7000, // Show for 7 seconds so user can read the hint
-          $text("login.auto_logout_notification.title"),
-        );
+        const { wasStayLoggedIn } = await import("../services/cryptoKeyStorage");
+        const wasStorageEvicted = wasStayLoggedIn();
+
+        if (wasStorageEvicted) {
+          // User had stayLoggedIn=true but browser evicted IndexedDB (e.g. iOS Safari storage pressure)
+          // Show reassuring message that data is safe
+          console.warn(
+            "[AuthSessionActions] Storage eviction detected: user had stayLoggedIn=true but master key is missing from IndexedDB",
+          );
+          notificationStore.autoLogout(
+            $text("login.auto_logout_notification.storage_evicted_message"),
+            undefined,
+            10000, // Show for 10 seconds — this is unexpected, give user more time to read
+            $text("login.auto_logout_notification.storage_evicted_title"),
+          );
+        } else {
+          // Normal case: user had stayLoggedIn=false, key was in memory and lost on page reload
+          notificationStore.autoLogout(
+            $text("login.auto_logout_notification.message"),
+            undefined,
+            7000, // Show for 7 seconds so user can read the hint
+            $text("login.auto_logout_notification.title"),
+          );
+        }
 
         // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone
         // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats

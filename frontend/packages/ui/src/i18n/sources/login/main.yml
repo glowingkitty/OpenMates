@@ -285,6 +285,52 @@ auto_logout_notification.message:
   cs: Aktivujte "Zůstat přihlášen" při přihlašování, abyste tomu zabránili.
   sv: Aktivera "Förbli inloggad" vid inloggning för att förhindra detta.
   verified_by_human: []
+auto_logout_notification.storage_evicted_title:
+  context: Title for the auto-logout notification when the browser unexpectedly cleared local storage (e.g. Safari on iOS evicted IndexedDB data). Different from the normal auto-logout which is caused by not enabling 'stay logged in'.
+  en: Session expired
+  de: Sitzung abgelaufen
+  zh: 会话已过期
+  es: Sesión expirada
+  fr: Session expirée
+  pt: Sessão expirada
+  ru: Сессия истекла
+  ja: セッションが期限切れです
+  ko: 세션이 만료되었습니다
+  it: Sessione scaduta
+  tr: Oturum süresi doldu
+  vi: Phiên đã hết hạn
+  id: Sesi kedaluwarsa
+  pl: Sesja wygasła
+  nl: Sessie verlopen
+  ar: انتهت الجلسة
+  hi: सत्र समाप्त हो गया
+  th: เซสชันหมดอายุ
+  cs: Relace vypršela
+  sv: Sessionen har gått ut
+  verified_by_human: []
+auto_logout_notification.storage_evicted_message:
+  context: Message shown when the browser unexpectedly cleared local storage (e.g. Safari on iOS). Reassures the user that their data is safe and they just need to log in again.
+  en: Your browser cleared local data. Please log in again — all your chats are safe.
+  de: Dein Browser hat lokale Daten gelöscht. Bitte melde dich erneut an — alle deine Chats sind sicher.
+  zh: 您的浏览器已清除本地数据。请重新登录——您的所有聊天记录都是安全的。
+  es: Tu navegador borró los datos locales. Inicia sesión de nuevo — todos tus chats están seguros.
+  fr: Votre navigateur a effacé les données locales. Veuillez vous reconnecter — tous vos chats sont en sécurité.
+  pt: Seu navegador limpou os dados locais. Faça login novamente — todos os seus chats estão seguros.
+  ru: Ваш браузер удалил локальные данные. Пожалуйста, войдите снова — все ваши чаты в безопасности.
+  ja: ブラウザがローカルデータを消去しました。再度ログインしてください — すべてのチャットは安全です。
+  ko: 브라우저가 로컬 데이터를 삭제했습니다. 다시 로그인해 주세요 — 모든 채팅은 안전합니다.
+  it: Il tuo browser ha cancellato i dati locali. Accedi di nuovo — tutte le tue chat sono al sicuro.
+  tr: Tarayıcınız yerel verileri temizledi. Lütfen tekrar giriş yapın — tüm sohbetleriniz güvende.
+  vi: Trình duyệt của bạn đã xóa dữ liệu cục bộ. Vui lòng đăng nhập lại — tất cả cuộc trò chuyện của bạn đều an toàn.
+  id: Browser Anda menghapus data lokal. Silakan masuk lagi — semua chat Anda aman.
+  pl: Twoja przeglądarka wyczyściła dane lokalne. Zaloguj się ponownie — wszystkie Twoje czaty są bezpieczne.
+  nl: Je browser heeft lokale gegevens gewist. Log opnieuw in — al je chats zijn veilig.
+  ar: قام متصفحك بمسح البيانات المحلية. يرجى تسجيل الدخول مرة أخرى — جميع محادثاتك آمنة.
+  hi: आपके ब्राउज़र ने स्थानीय डेटा साफ़ कर दिया। कृपया फिर से लॉग इन करें — आपकी सभी चैट सुरक्षित हैं।
+  th: เบราว์เซอร์ของคุณล้างข้อมูลในเครื่อง กรุณาเข้าสู่ระบบอีกครั้ง — แชททั้งหมดของคุณปลอดภัย
+  cs: Váš prohlížeč vymazal místní data. Přihlaste se znovu — všechny vaše chaty jsou v bezpečí.
+  sv: Din webbläsare rensade lokala data. Logga in igen — alla dina chattar är säkra.
+  verified_by_human: []
 stay_logged_in:
   context: Checkbox text for staying logged in
   en: "Stay logged in on this device
