@@ -914,6 +914,14 @@ key_name:
   verified_by_human: []
 ```
 
+### Generated Files - DO NOT Commit
+
+The JSON files in `frontend/packages/ui/src/i18n/locales/*.json` are **generated build artifacts** produced by `npm run build:translations`. They are already in `.gitignore`.
+
+- **NEVER edit** the `locales/*.json` files directly — they will be overwritten on the next build
+- **NEVER commit** them to git (even with `git add -f`)
+- **Only edit** the source `.yml` files in `frontend/packages/ui/src/i18n/sources/`
+
 ### Adding New Translations - Step by Step
 
 1. Open the appropriate `.yml` file in `frontend/packages/ui/src/i18n/sources/`
