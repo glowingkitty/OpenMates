@@ -6,15 +6,23 @@
   
   Shows:
   - Header with search query, dates, and "via Google"
-  - Grid of property cards with name, price, rating, stars, thumbnail, amenities
-  - No child embed overlay needed (stays are stored directly in parent embed)
+  - Grid of stay preview cards (TravelStayEmbedPreview) with name, price, rating, stars, thumbnail
+  - Child embed overlay for individual stay detail view (TravelStayEmbedFullscreen)
+  
+  Stay Fullscreen Navigation (Overlay Pattern):
+  - Stay results grid is ALWAYS rendered (base layer)
+  - When a stay card is clicked, TravelStayEmbedFullscreen renders as OVERLAY
+  - When stay fullscreen is closed, overlay is removed revealing results beneath
   
   This is a non-composite skill: the embed data contains the full results
-  array directly (no child embeds).
+  array directly (no child embeds). Stay preview cards use synthetic IDs.
 -->
 
 <script lang="ts">
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
+  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
+  import TravelStayEmbedPreview from './TravelStayEmbedPreview.svelte';
+  import TravelStayEmbedFullscreen from './TravelStayEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   
   /**
@@ -95,6 +103,9 @@
     onShowChat
   }: Props = $props();
   
+  // Currently selected stay for fullscreen detail view (overlay)
+  let selectedStay = $state<StayResult | null>(null);
+  
   // Local reactive state
   let localQuery = $state<string>(queryProp || '');
   let localProvider = $state<string>(providerProp || 'Google');
@@ -172,30 +183,6 @@
   }
   
   /**
-   * Render star rating as "★★★★" text
-   */
-  function renderStars(hotelClass?: number): string {
-    if (!hotelClass || hotelClass < 1 || hotelClass > 5) return '';
-    return '★'.repeat(hotelClass);
-  }
-  
-  /**
-   * Format rating (e.g., 4.3 -> "4.3")
-   */
-  function formatRating(rating?: number): string {
-    if (rating == null) return '';
-    return rating.toFixed(1);
-  }
-  
-  /**
-   * Format review count (e.g., 1234 -> "1,234")
-   */
-  function formatReviews(reviews?: number): string {
-    if (reviews == null) return '';
-    return reviews.toLocaleString();
-  }
-  
-  /**
    * Get first thumbnail image URL for a property
    */
   function getThumbnail(stay: StayResult): string | undefined {
@@ -207,11 +194,34 @@
   }
   
   /**
-   * Top amenities to display (max 3 badges)
+   * Handle stay card click - opens detail fullscreen as overlay
    */
-  function getTopAmenities(stay: StayResult): string[] {
-    if (!stay.amenities || stay.amenities.length === 0) return [];
-    return stay.amenities.slice(0, 3);
+  function handleStayFullscreen(stay: StayResult) {
+    console.debug('[TravelStaysEmbedFullscreen] Opening stay fullscreen:', {
+      name: stay.name,
+      rating: stay.overall_rating,
+      price: stay.extracted_rate_per_night,
+    });
+    selectedStay = stay;
+  }
+  
+  /**
+   * Handle closing the stay detail fullscreen overlay
+   */
+  function handleStayFullscreenClose() {
+    selectedStay = null;
+  }
+  
+  /**
+   * Handle closing the entire search fullscreen.
+   * If a stay detail overlay is open, close it first; otherwise close the parent.
+   */
+  function handleMainClose() {
+    if (selectedStay) {
+      selectedStay = null;
+    } else {
+      onClose();
+    }
   }
   
   /**
@@ -232,12 +242,12 @@
   }
 </script>
 
-<!-- Stay results view -->
+<!-- Stay results view - ALWAYS rendered (base layer) -->
 <UnifiedEmbedFullscreen
   appId="travel"
   skillId="search_stays"
   title=""
-  onClose={onClose}
+  onClose={handleMainClose}
   skillIconName="search"
   status={fullscreenStatus}
   {skillName}
@@ -280,88 +290,45 @@
           </div>
         {/if}
       {:else}
-        <!-- Stay property cards grid -->
+        <!-- Stay property cards grid (using TravelStayEmbedPreview) -->
         <div class="stays-grid">
-          {#each stayResults as stay}
-            {@const thumb = getThumbnail(stay)}
+          {#each stayResults as stay, index}
             {@const isCheapest = cheapestThreshold > 0 && stay.extracted_rate_per_night != null && stay.extracted_rate_per_night <= cheapestThreshold}
-            {@const amenities = getTopAmenities(stay)}
             
-            <div class="stay-card" class:cheapest={isCheapest}>
-              <!-- Thumbnail -->
-              {#if thumb}
-                <div class="stay-thumbnail">
-                  <img src={thumb} alt={stay.name || 'Property'} loading="lazy" />
-                </div>
-              {:else}
-                <div class="stay-thumbnail placeholder">
-                  <span class="placeholder-icon">🏨</span>
-                </div>
-              {/if}
-              
-              <!-- Card body -->
-              <div class="stay-body">
-                <!-- Name and star rating -->
-                <div class="stay-header">
-                  <div class="stay-name">{stay.name || 'Unknown'}</div>
-                  {#if stay.hotel_class}
-                    <div class="stay-stars">{renderStars(stay.hotel_class)}</div>
-                  {/if}
-                </div>
-                
-                <!-- Rating and reviews -->
-                {#if stay.overall_rating}
-                  <div class="stay-rating">
-                    <span class="rating-value">{formatRating(stay.overall_rating)}</span>
-                    {#if stay.reviews}
-                      <span class="rating-reviews">({formatReviews(stay.reviews)})</span>
-                    {/if}
-                  </div>
-                {/if}
-                
-                <!-- Amenities badges -->
-                {#if amenities.length > 0}
-                  <div class="stay-amenities">
-                    {#each amenities as amenity}
-                      <span class="amenity-badge">{amenity}</span>
-                    {/each}
-                  </div>
-                {/if}
-                
-                <!-- Special badges (eco, free cancellation) -->
-                {#if stay.eco_certified || stay.free_cancellation}
-                  <div class="stay-badges">
-                    {#if stay.free_cancellation}
-                      <span class="badge badge-cancellation">{$text('embeds.free_cancellation')}</span>
-                    {/if}
-                    {#if stay.eco_certified}
-                      <span class="badge badge-eco">{$text('embeds.eco_certified')}</span>
-                    {/if}
-                  </div>
-                {/if}
-                
-                <!-- Price -->
-                <div class="stay-price">
-                  {#if stay.rate_per_night || stay.extracted_rate_per_night}
-                    <span class="price-amount">
-                      {stay.currency || 'EUR'} {Math.round(stay.extracted_rate_per_night || 0)}
-                    </span>
-                    <span class="price-per-night">/{$text('embeds.night')}</span>
-                  {/if}
-                  {#if stay.total_rate || stay.extracted_total_rate}
-                    <span class="price-total">
-                      {stay.currency || 'EUR'} {Math.round(stay.extracted_total_rate || 0)} {$text('embeds.total')}
-                    </span>
-                  {/if}
-                </div>
-              </div>
-            </div>
+            <TravelStayEmbedPreview
+              id={stay.hash || `stay-${index}`}
+              name={stay.name}
+              thumbnail={getThumbnail(stay)}
+              hotelClass={stay.hotel_class}
+              overallRating={stay.overall_rating}
+              reviews={stay.reviews}
+              currency={stay.currency}
+              ratePerNight={stay.extracted_rate_per_night}
+              totalRate={stay.extracted_total_rate}
+              amenities={stay.amenities?.slice(0, 3)}
+              {isCheapest}
+              ecoCertified={stay.eco_certified}
+              freeCancellation={stay.free_cancellation}
+              status="finished"
+              isMobile={false}
+              onFullscreen={() => handleStayFullscreen(stay)}
+            />
           {/each}
         </div>
       {/if}
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
+
+<!-- Stay detail fullscreen overlay -->
+{#if selectedStay}
+  <ChildEmbedOverlay>
+    <TravelStayEmbedFullscreen
+      stay={selectedStay}
+      onClose={handleStayFullscreenClose}
+    />
+  </ChildEmbedOverlay>
+{/if}
 
 <style>
   /* ===========================================
@@ -469,168 +436,10 @@
     }
   }
   
-  /* ===========================================
-     Stay Card
-     =========================================== */
-  
-  .stay-card {
-    border-radius: 16px;
-    overflow: hidden;
-    background: var(--color-card-bg, var(--color-grey-10));
-    border: 1px solid var(--color-grey-20);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  
-  .stay-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  }
-  
-  .stay-card.cheapest {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 1px var(--color-primary);
-  }
-  
-  /* Thumbnail */
-  .stay-thumbnail {
+  /* Allow stay preview cards to fill the grid cell */
+  .stays-grid :global(.unified-embed-preview) {
     width: 100%;
-    height: 160px;
-    overflow: hidden;
-    background: var(--color-grey-15);
-  }
-  
-  .stay-thumbnail img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .stay-thumbnail.placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .placeholder-icon {
-    font-size: 32px;
-    opacity: 0.4;
-  }
-  
-  /* Card body */
-  .stay-body {
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  
-  /* Header (name + stars) */
-  .stay-header {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  
-  .stay-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .stay-stars {
-    font-size: 12px;
-    color: #f5a623;
-    letter-spacing: 1px;
-  }
-  
-  /* Rating */
-  .stay-rating {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
-  }
-  
-  .rating-value {
-    font-weight: 600;
-    color: var(--color-font-primary);
-  }
-  
-  .rating-reviews {
-    color: var(--color-font-secondary);
-  }
-  
-  /* Amenities */
-  .stay-amenities {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  
-  .amenity-badge {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: var(--color-grey-15);
-    color: var(--color-font-secondary);
-    white-space: nowrap;
-  }
-  
-  /* Special badges */
-  .stay-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  
-  .badge {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-  
-  .badge-cancellation {
-    background: rgba(76, 175, 80, 0.12);
-    color: #4caf50;
-  }
-  
-  .badge-eco {
-    background: rgba(33, 150, 243, 0.12);
-    color: #2196f3;
-  }
-  
-  /* Price */
-  .stay-price {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-    flex-wrap: wrap;
-    margin-top: 2px;
-  }
-  
-  .price-amount {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--color-font-primary);
-  }
-  
-  .price-per-night {
-    font-size: 13px;
-    color: var(--color-font-secondary);
-  }
-  
-  .price-total {
-    font-size: 12px;
-    color: var(--color-font-secondary);
-    margin-left: auto;
+    max-width: 320px;
+    margin: 0 auto;
   }
 </style>
