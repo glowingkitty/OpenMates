@@ -530,7 +530,7 @@ Invoices Settings - View and download past invoices
     <SettingsItem
         type="quickaction"
         icon="subsetting_icon subsetting_icon_reload"
-        title={$text('retry')}
+        title={$text('login.retry')}
         onClick={fetchInvoices}
     />
 {:else if invoices.length === 0}

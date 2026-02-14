@@ -1,0 +1,41 @@
+admin:
+  context: Badge label shown next to admin username in navigation
+  en: Admin
+  de: Admin
+  verified_by_human: []
+
+close:
+  context: Generic close button text
+  en: Close
+  de: Schließen
+  verified_by_human: []
+
+cancel:
+  context: Generic cancel button text
+  en: Cancel
+  de: Abbrechen
+  verified_by_human: []
+
+continue:
+  context: Generic continue/proceed button text
+  en: Continue
+  de: Weiter
+  verified_by_human: []
+
+copy:
+  context: Generic copy-to-clipboard button text
+  en: Copy
+  de: Kopieren
+  verified_by_human: []
+
+copied:
+  context: Feedback text shown after copying to clipboard
+  en: Copied
+  de: Kopiert
+  verified_by_human: []
+
+done:
+  context: Generic done/finish button text
+  en: Done
+  de: Fertig
+  verified_by_human: []

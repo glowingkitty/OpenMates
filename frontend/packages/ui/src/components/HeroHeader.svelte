@@ -99,12 +99,12 @@
             <!-- The visually hidden text helps with copy selection -->
             <span class="visually-hidden">{capitalize(currentApp)} </span>
             <Icon name={currentApp} type="app" size="67.98px" />
-            {$text('team_mates')}
+            {$text('team_mates.team_mates')}
           </span>
         {:else}
-          {$text('digital_team_mates')}
+          {$text('digital_team_mates.digital_team_mates')}
         {/if}
-        <mark><br>{@html $text('for_all_of_us')}</mark>
+        <mark><br>{@html $text('for_all_of_us.for_all_of_us')}</mark>
       </h1>
       <p class="text-center platform-text">
         {$text('platforms.via')}

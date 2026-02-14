@@ -1,0 +1,53 @@
+tip_creator:
+  context: Navigation title for the tip settings page
+  en: Tip Creator
+  de: Ersteller unterstützen
+  verified_by_human: []
+
+description:
+  context: Introductory text explaining the tipping feature
+  en: Support the creator by sending a tip from your credit balance.
+  de: Unterstütze den Ersteller, indem du ein Trinkgeld aus deinem Guthaben sendest.
+  verified_by_human: []
+
+amount:
+  context: Section title above tip amount slider
+  en: Amount
+  de: Betrag
+  verified_by_human: []
+
+credits:
+  context: Label appended after amount values (e.g. "50 credits")
+  en: credits
+  de: Credits
+  verified_by_human: []
+
+current_balance:
+  context: Label preceding the user's credit balance
+  en: Current balance
+  de: Aktuelles Guthaben
+  verified_by_human: []
+
+insufficient_balance:
+  context: Warning when credit balance is less than selected tip amount. Uses {needed} interpolation.
+  en: "You need {needed} more credits to send this tip."
+  de: "Du benötigst noch {needed} Credits, um dieses Trinkgeld zu senden."
+  verified_by_human: []
+
+tipping:
+  context: Button text while tip transaction is processing
+  en: Sending tip...
+  de: Trinkgeld wird gesendet...
+  verified_by_human: []
+
+tip_info:
+  context: Informational text explaining how tips work
+  en: Tips are sent directly from your credit balance to the content creator.
+  de: Trinkgelder werden direkt von deinem Guthaben an den Ersteller gesendet.
+  verified_by_human: []
+
+channel_id_required:
+  context: Info message when channel ID is missing for video tipping
+  en: Channel ID is required to tip video creators.
+  de: Die Kanal-ID ist erforderlich, um Video-Ersteller zu unterstützen.
+  verified_by_human: []

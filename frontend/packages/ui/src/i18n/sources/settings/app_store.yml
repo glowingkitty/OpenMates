@@ -21,7 +21,7 @@ app_store:
   cs: App Store
   sv: App Store
   verified_by_human: []
-app_store.no_apps_available:
+no_apps_available:
   context: Message shown when no apps are available in the App Store
   en: No apps available.
   de: Keine Apps verfügbar.

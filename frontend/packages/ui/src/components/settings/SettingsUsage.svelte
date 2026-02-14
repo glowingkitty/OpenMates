@@ -1422,7 +1422,7 @@ Usage Settings - View usage statistics and export usage data
         <SettingsItem
             type="quickaction"
             icon="subsetting_icon subsetting_icon_reload"
-            title={$text('retry')}
+            title={$text('login.retry')}
             onClick={() => fetchUsageSummaries(activeTab, loadedMonths)}
         />
 {:else if activeTab === 'overview'}

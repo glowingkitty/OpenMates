@@ -1101,3 +1101,9 @@ link_for_embed:
   en: Link for embed
   de: Link für Einbettung
   verified_by_human: []
+
+share_transcript:
+  context: Navigation title when sharing a video transcript
+  en: Share Transcript
+  de: Transkript teilen
+  verified_by_human: []

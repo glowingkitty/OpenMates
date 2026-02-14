@@ -119,7 +119,7 @@ persisted to the user's privacy settings.
                 settingsPath: 'privacy',
                 direction: 'backward',
                 icon: 'privacy',
-                title: $text('settings.privacy.privacy')
+                title: $text('settings.privacy')
             });
         }, 200);
     }
@@ -128,7 +128,7 @@ persisted to the user's privacy settings.
 <!-- Category description -->
 <div class="auto-deletion-description">
     <p class="description-text">
-        {$text(`settings.privacy.privacy.auto_deletion.${category}.description`)}
+        {$text(`settings.privacy.auto_deletion.${category}.description`)}
     </p>
 </div>
 
@@ -136,7 +136,7 @@ persisted to the user's privacy settings.
 <SettingsItem
     type="heading"
     icon={categoryIcon}
-    title={$text(`settings.privacy.privacy.auto_deletion.select_period`)}
+    title={$text(`settings.privacy.auto_deletion.select_period`)}
 />
 
 {#each periodOptions as option}
@@ -146,7 +146,7 @@ persisted to the user's privacy settings.
         onclick={() => selectPeriod(option.key)}
     >
         <span class="period-label">
-            {$text(`settings.privacy.privacy.${option.translationKey}`)}
+            {$text(`settings.privacy.${option.translationKey}`)}
         </span>
         {#if selectedPeriod === option.key}
             <span class="check-mark">&#10003;</span>

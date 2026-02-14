@@ -25,7 +25,7 @@
 
     async function handleNewsletterSubscribe() {
         if (!newsletterEmail || !newsletterEmail.includes('@')) {
-            subscribeError = $text('newsletter.invalid_email');
+            subscribeError = $text('signup.newsletter.invalid_email');
             return;
         }
 
@@ -57,11 +57,11 @@
                     showNewsletterForm = false;
                 }, 3000);
             } else {
-                subscribeError = result.message || $text('newsletter.subscribe_error');
+                subscribeError = result.message || $text('signup.newsletter.subscribe_error');
             }
         } catch (error) {
             console.error('Newsletter subscription error:', error);
-            subscribeError = $text('newsletter.subscribe_error');
+            subscribeError = $text('signup.newsletter.subscribe_error');
         } finally {
             isSubscribing = false;
         }
@@ -87,12 +87,12 @@
     <div class="newsletter-section" transition:fade>
         <div class="newsletter-content">
             <p class="newsletter-text">
-                {$text('newsletter.subscribe_text')}
+                {$text('signup.newsletter.subscribe_text')}
             </p>
             
             {#if subscribeSuccess}
                 <div class="newsletter-success" transition:fade>
-                    {$text('newsletter.subscribe_success')}
+                    {$text('signup.newsletter.subscribe_success')}
                 </div>
             {:else}
                 <form class="newsletter-form" onsubmit={(e) => { e.preventDefault(); handleNewsletterSubscribe(); }}>
@@ -100,7 +100,7 @@
                         <input
                             type="email"
                             bind:value={newsletterEmail}
-                            placeholder={$text('newsletter.email_placeholder')}
+                            placeholder={$text('signup.newsletter.email_placeholder')}
                             disabled={isSubscribing}
                             class="newsletter-input"
                             required
@@ -111,7 +111,7 @@
                             class="newsletter-button"
                             class:loading={isSubscribing}
                         >
-                            {isSubscribing ? $text('newsletter.subscribing') : $text('newsletter.subscribe_button')}
+                            {isSubscribing ? $text('signup.newsletter.subscribing') : $text('signup.newsletter.subscribe_button')}
                         </button>
                     </div>
                     {#if subscribeError}

@@ -75,7 +75,7 @@
             reconnectLabel: $text('notifications.connection.tap_to_reconnect',
                 { default: 'Tap to reconnect' }
             ) as string,
-            reconnectingTitle: $text('notifications.connection.reconnecting.title',
+            reconnectingTitle: $text('notifications.connection.reconnecting',
                 { default: 'Reconnecting...' }
             ) as string,
             reconnectingMessage: $text('notifications.connection.reconnecting',

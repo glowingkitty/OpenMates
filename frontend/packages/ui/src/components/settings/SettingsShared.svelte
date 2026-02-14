@@ -353,7 +353,7 @@
                             iconType={metadata?.category ? 'category' : 'default'}
                             category={metadata?.category}
                             categoryIcon={metadata?.icon}
-                            title={metadata?.title || chat.title || $text('settings.shared.untitled_chat')}
+                            title={metadata?.title || chat.title || $text('settings.share.untitled_chat')}
                             onClick={() => {
                                 // Navigate to the chat
                                 activeChatStore.setActiveChat(chat.chat_id);

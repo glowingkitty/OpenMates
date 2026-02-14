@@ -27,7 +27,7 @@ step_8_top_content_svelte:
         text:
             - $text('signup.default_settings')
             - $text('settings.mates')
-            - $text('settings.ai_providers')
+            - $text('signup.ai_providers')
         purpose:
             - 'Quick access to Mates and AI provider settings.'
         processing:

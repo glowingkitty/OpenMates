@@ -67,7 +67,7 @@ All values are client-side encrypted before storage.
                 settingsPath: 'privacy/hide-personal-data',
                 direction: 'backward',
                 icon: 'privacy',
-                title: $text('settings.privacy.privacy.hide_personal_data')
+                title: $text('settings.privacy.hide_personal_data')
             });
         } catch (error) {
             console.error('[SettingsAddBirthday] Failed to save birthday entry:', error);
@@ -82,14 +82,14 @@ All values are client-side encrypted before storage.
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.privacy.form.title')}
+    title={$text('settings.privacy.form.title')}
 />
 
 <div class="form-field">
     <input
         type="text"
         class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.title.placeholder_birthday')}
+        placeholder={$text('settings.privacy.form.title.placeholder_birthday')}
         bind:value={title}
     />
 </div>
@@ -98,14 +98,14 @@ All values are client-side encrypted before storage.
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.privacy.form.date')}
+    title={$text('settings.privacy.form.date')}
 />
 
 <div class="form-field">
     <input
         type="text"
         class="form-input"
-        placeholder={$text('settings.privacy.privacy.form.date.placeholder')}
+        placeholder={$text('settings.privacy.form.date.placeholder')}
         bind:value={dateValue}
     />
 </div>
@@ -125,7 +125,7 @@ All values are client-side encrypted before storage.
         disabled={!isValid || isSaving}
         onclick={handleSave}
     >
-        {$text('settings.privacy.privacy.form.save')}
+        {$text('settings.privacy.form.save')}
     </button>
 </div>
 

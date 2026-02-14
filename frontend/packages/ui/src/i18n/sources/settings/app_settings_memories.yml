@@ -1,0 +1,47 @@
+item_key_required:
+  context: Validation error when creating a memory entry without a key
+  en: Entry key is required
+  de: Eintragsschlüssel ist erforderlich
+  verified_by_human: []
+
+item_value_required:
+  context: Validation error when creating a memory entry without a value
+  en: Entry value is required
+  de: Eintragswert ist erforderlich
+  verified_by_human: []
+
+authentication_required:
+  context: Error when unauthenticated user tries to access memory entries
+  en: Authentication required
+  de: Authentifizierung erforderlich
+  verified_by_human: []
+
+confirm_delete:
+  context: Confirmation dialog text before deleting a memory entry
+  en: Are you sure you want to delete this entry?
+  de: Bist du sicher, dass du diesen Eintrag löschen möchtest?
+  verified_by_human: []
+
+entry_not_found:
+  context: Error when a memory entry doesn't exist
+  en: Entry not found
+  de: Eintrag nicht gefunden
+  verified_by_human: []
+
+back_to_category:
+  context: Back button label on entry detail page
+  en: Back to category
+  de: Zurück zur Kategorie
+  verified_by_human: []
+
+deleting:
+  context: Delete button text while deletion is in progress
+  en: Deleting...
+  de: Wird gelöscht...
+  verified_by_human: []
+
+saving:
+  context: Save button text while saving is in progress
+  en: Saving...
+  de: Wird gespeichert...
+  verified_by_human: []
