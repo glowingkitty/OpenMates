@@ -517,19 +517,22 @@
   // The overlay shows status text during all phases and adds the AI icon during processing/typing.
   let showCenteredIndicator = $derived(processingPhase !== null);
   
-  // Track previous streaming state to detect transitions
-  let wasStreaming = $state(false);
-
   // Whether the streaming spacer should be active.
   // The spacer ensures the scroll position remains valid after the user-message scroll
   // positions the user message near the top of the viewport. Without it, there wouldn't
   // be enough scrollable content to hold that scroll position.
-  // The spacer is activated when the user sends a message and stays active until streaming ends.
+  // The spacer is activated when the user sends a message and deactivated when:
+  //   - The AI response finishes (no streaming AND no processing phase), OR
+  //   - The safety timeout fires (belt-and-suspenders guard against stuck spacers)
   let isSpacerActive = $state(false);
 
   // The computed spacer height — fills remaining viewport below the AI response.
   // As the AI response grows, the spacer shrinks. Once the response fills the viewport, spacer = 0.
   let spacerHeight = $state(0);
+
+  // Safety timeout handle — ensures the spacer is never stuck indefinitely.
+  // Cleared when the spacer is deactivated normally; fires after 60s as a last resort.
+  let spacerSafetyTimeout: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Exposed function to add a new message to the chat.
@@ -572,6 +575,7 @@
     isSpacerActive = false;
     spacerHeight = 0;
     userHasScrolledAway = false;
+    if (spacerSafetyTimeout) { clearTimeout(spacerSafetyTimeout); spacerSafetyTimeout = null; }
     await tick();
     dispatch('messagesChange', { hasMessages: false });
   }
@@ -591,6 +595,7 @@
       isSpacerActive = false;
       spacerHeight = 0;
       userHasScrolledAway = false;
+      if (spacerSafetyTimeout) { clearTimeout(spacerSafetyTimeout); spacerSafetyTimeout = null; }
       showMessages = true; // Show the (empty) chat history
       if (outroResolve) {
         outroResolve(); // Resolve the promise
@@ -718,6 +723,20 @@
       // enough room to scroll the user message to the top.
       spacerHeight = container.clientHeight;
 
+      // Safety timeout: ensure the spacer is never stuck indefinitely.
+      // In normal operation the state-based cleanup deactivates it much sooner,
+      // but this guards against any edge case where the state signals are missed.
+      if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
+      spacerSafetyTimeout = setTimeout(() => {
+        if (isSpacerActive) {
+          console.warn('[ChatHistory] Spacer safety timeout fired — force-deactivating stuck spacer');
+          isSpacerActive = false;
+          spacerHeight = 0;
+          userHasScrolledAway = false;
+        }
+        spacerSafetyTimeout = null;
+      }, 60_000);
+
       // Wait for the spacer to render, then calculate and execute the scroll.
       tick().then(() => {
         setTimeout(() => {
@@ -773,17 +792,32 @@
     }
   });
 
-  // --- Streaming lifecycle: deactivate spacer when streaming ends ---
+  // --- Spacer lifecycle: deactivate when AI response is complete ---
+  // Uses direct state checks instead of transition detection (wasStreaming).
+  // The old approach tracked streaming start/end transitions, which failed when:
+  //   - Streaming never technically started (fast/cached/error responses)
+  //   - Svelte batched the streaming→completed transition in a single tick
+  // Now we simply check: is the spacer still needed? It's needed while either
+  // processingPhase is active (sending/processing/typing) or a message is streaming.
+  // Once both are false and the initial scroll animation is done, cleanup fires.
   $effect(() => {
-    if (isCurrentlyStreaming && !wasStreaming) {
-      // Streaming just started
-      wasStreaming = true;
-    } else if (!isCurrentlyStreaming && wasStreaming) {
-      // Streaming ended — deactivate spacer and reset
-      wasStreaming = false;
+    if (!isSpacerActive) return;
+
+    // The spacer is needed while we're waiting for or receiving the AI response.
+    // processingPhase covers: sending → processing → typing (set by ActiveChat)
+    // isCurrentlyStreaming covers: active streaming chunks arriving
+    const isWaitingForResponse = processingPhase !== null || isCurrentlyStreaming;
+
+    if (!isWaitingForResponse && !isScrolling) {
+      // Response is complete — deactivate spacer
       isSpacerActive = false;
       spacerHeight = 0;
       userHasScrolledAway = false;
+      // Clear safety timeout since spacer was deactivated normally
+      if (spacerSafetyTimeout) {
+        clearTimeout(spacerSafetyTimeout);
+        spacerSafetyTimeout = null;
+      }
     }
   });
 
@@ -1134,6 +1168,8 @@
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
+    // Clear spacer safety timeout
+    if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
     // Unsubscribe from PII visibility store
     unsubPiiVisibility();
   });
