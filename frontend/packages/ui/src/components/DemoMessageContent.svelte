@@ -22,6 +22,7 @@
   import SkillsGroup from './embeds/SkillsGroup.svelte';
   import FocusModesGroup from './embeds/FocusModesGroup.svelte';
   import SettingsMemoriesGroup from './embeds/SettingsMemoriesGroup.svelte';
+  import AiModelsGroup from './embeds/AiModelsGroup.svelte';
   import IntroChatEmbed from './embeds/IntroChatEmbed.svelte';
   
   /**
@@ -65,6 +66,8 @@
   const DEV_SKILLS_PLACEHOLDER = '[[dev_skills_group]]';
   const DEV_FOCUS_MODES_PLACEHOLDER = '[[dev_focus_modes_group]]';
   const DEV_SETTINGS_MEMORIES_PLACEHOLDER = '[[dev_settings_memories_group]]';
+  // AI models group: horizontal scrollable list of available AI Ask models
+  const AI_MODELS_PLACEHOLDER = '[[ai_models_group]]';
   // Embed for linking to the for-developers intro chat from for-everyone
   const FOR_DEVELOPERS_EMBED_PLACEHOLDER = '[[for_developers_embed]]';
   
@@ -80,6 +83,7 @@
     DEV_SKILLS_PLACEHOLDER,
     DEV_FOCUS_MODES_PLACEHOLDER,
     DEV_SETTINGS_MEMORIES_PLACEHOLDER,
+    AI_MODELS_PLACEHOLDER,
     FOR_DEVELOPERS_EMBED_PLACEHOLDER,
   ] as const;
   
@@ -95,10 +99,11 @@
     [DEV_SKILLS_PLACEHOLDER]: 'dev_skills_group',
     [DEV_FOCUS_MODES_PLACEHOLDER]: 'dev_focus_modes_group',
     [DEV_SETTINGS_MEMORIES_PLACEHOLDER]: 'dev_settings_memories_group',
+    [AI_MODELS_PLACEHOLDER]: 'ai_models_group',
     [FOR_DEVELOPERS_EMBED_PLACEHOLDER]: 'for_developers_embed',
   };
   
-  type PartType = 'markdown' | 'example_chats_group' | 'dev_example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'settings_memories_group' | 'dev_app_store_group' | 'dev_skills_group' | 'dev_focus_modes_group' | 'dev_settings_memories_group' | 'for_developers_embed';
+  type PartType = 'markdown' | 'example_chats_group' | 'dev_example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'settings_memories_group' | 'dev_app_store_group' | 'dev_skills_group' | 'dev_focus_modes_group' | 'dev_settings_memories_group' | 'ai_models_group' | 'for_developers_embed';
   
   /**
    * Split content at all placeholder tokens into typed parts.
@@ -176,6 +181,9 @@
       {:else if part.type === 'dev_settings_memories_group'}
         <!-- For-developers: show ONLY developer-focused app settings & memories -->
         <SettingsMemoriesGroup onlyAppIds={DEVELOPER_APP_IDS} />
+      {:else if part.type === 'ai_models_group'}
+        <!-- AI Ask models horizontal scrollable list -->
+        <AiModelsGroup />
       {:else if part.type === 'for_developers_embed'}
         <!-- Embedded preview of the for-developers intro chat -->
         <IntroChatEmbed introChatId="demo-for-developers" />
