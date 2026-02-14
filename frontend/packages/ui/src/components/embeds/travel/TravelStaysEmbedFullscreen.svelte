@@ -14,8 +14,8 @@
   - When a stay card is clicked, TravelStayEmbedFullscreen renders as OVERLAY
   - When stay fullscreen is closed, overlay is removed revealing results beneath
   
-  This is a non-composite skill: the embed data contains the full results
-  array directly (no child embeds). Stay preview cards use synthetic IDs.
+  Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
+  Each stay is a separate child embed (type "stay") linked to the parent via parent_embed_id.
 -->
 
 <script lang="ts">
@@ -26,16 +26,19 @@
   import { text } from '@repo/ui';
   
   /**
-   * Stay result interface (from decoded embed content)
+   * Stay result interface (transformed from decoded child embed content)
    */
   interface StayResult {
+    /** Child embed ID (present for composite child embeds, absent for legacy inline results) */
+    embed_id?: string;
     type?: string;
     name?: string;
     description?: string;
     property_type?: string;
     link?: string;
     property_token?: string;
-    gps_coordinates?: { latitude: number; longitude: number };
+    latitude?: number;
+    longitude?: number;
     hotel_class?: number;
     overall_rating?: number;
     reviews?: number;
@@ -63,12 +66,14 @@
     query?: string;
     /** Search provider */
     provider?: string;
+    /** Pipe-separated embed IDs or array of embed IDs for child stay embeds */
+    embedIds?: string | string[];
     /** Processing status */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Optional error message */
     errorMessage?: string;
-    /** Results array (non-composite: data embedded directly) */
-    results?: StayResult[];
+    /** Legacy: results array (used if embedIds not provided - backwards compat) */
+    results?: unknown[];
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing */
@@ -90,6 +95,7 @@
   let {
     query: queryProp,
     provider: providerProp,
+    embedIds,
     status: statusProp,
     errorMessage: errorMessageProp,
     results: resultsProp,
@@ -109,6 +115,7 @@
   // Local reactive state
   let localQuery = $state<string>(queryProp || '');
   let localProvider = $state<string>(providerProp || 'Google');
+  let localEmbedIds = $state<string | string[] | undefined>(embedIds);
   let localResults = $state<unknown[]>(resultsProp || []);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>(statusProp || 'finished');
   let localErrorMessage = $state<string>(errorMessageProp || '');
@@ -117,6 +124,7 @@
   $effect(() => {
     localQuery = queryProp || '';
     localProvider = providerProp || 'Google';
+    localEmbedIds = embedIds;
     localResults = resultsProp || [];
     localStatus = statusProp || 'finished';
     localErrorMessage = errorMessageProp || '';
@@ -125,6 +133,7 @@
   // Derived state
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
+  let embedIdsValue = $derived(localEmbedIds);
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
   let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
@@ -138,8 +147,163 @@
     `${$text('embeds.via')} ${provider}`
   );
   
+  // =========================================================================
+  // Child Embed Transformer
+  // =========================================================================
+  
+  /**
+   * Reconstruct an array from TOON-flattened keys.
+   * TOON flattening turns amenities: ["pool","wifi"] → amenities_0: "pool", amenities_1: "wifi"
+   */
+  function reconstructStringArray(content: Record<string, unknown>, prefix: string): string[] {
+    // If already an array, return directly
+    if (Array.isArray(content[prefix])) {
+      return content[prefix] as string[];
+    }
+    const arr: string[] = [];
+    for (let i = 0; i < 50; i++) {
+      const val = content[`${prefix}_${i}`];
+      if (typeof val === 'string') {
+        arr.push(val);
+      } else {
+        break;
+      }
+    }
+    return arr;
+  }
+  
+  /**
+   * Reconstruct images array from TOON-flattened keys.
+   * TOON: images_0_thumbnail, images_0_original_image, images_1_thumbnail, ...
+   */
+  function reconstructImages(content: Record<string, unknown>): Array<{ thumbnail?: string; original_image?: string }> {
+    if (Array.isArray(content.images)) {
+      return (content.images as Record<string, unknown>[]).map(img => ({
+        thumbnail: img.thumbnail as string | undefined,
+        original_image: img.original_image as string | undefined,
+      }));
+    }
+    const images: Array<{ thumbnail?: string; original_image?: string }> = [];
+    for (let i = 0; i < 20; i++) {
+      const thumb = content[`images_${i}_thumbnail`];
+      const orig = content[`images_${i}_original_image`];
+      if (thumb || orig) {
+        images.push({
+          thumbnail: thumb as string | undefined,
+          original_image: orig as string | undefined,
+        });
+      } else {
+        break;
+      }
+    }
+    return images;
+  }
+  
+  /**
+   * Reconstruct nearby_places array from TOON-flattened keys.
+   * TOON: nearby_places_0_name, nearby_places_0_transportations_0_type, ...
+   */
+  function reconstructNearbyPlaces(content: Record<string, unknown>): Array<{ name?: string; transportations?: Array<{ type?: string; duration?: string }> }> {
+    if (Array.isArray(content.nearby_places)) {
+      return (content.nearby_places as Record<string, unknown>[]).map(place => ({
+        name: place.name as string | undefined,
+        transportations: Array.isArray(place.transportations) 
+          ? (place.transportations as Record<string, unknown>[]).map(t => ({
+              type: t.type as string | undefined,
+              duration: t.duration as string | undefined,
+            }))
+          : undefined,
+      }));
+    }
+    const places: Array<{ name?: string; transportations?: Array<{ type?: string; duration?: string }> }> = [];
+    for (let i = 0; i < 10; i++) {
+      const name = content[`nearby_places_${i}_name`];
+      if (name === undefined && content[`nearby_places_${i}_transportations_0_type`] === undefined) {
+        break;
+      }
+      // Reconstruct transportations for this place
+      const transports: Array<{ type?: string; duration?: string }> = [];
+      for (let j = 0; j < 10; j++) {
+        const tType = content[`nearby_places_${i}_transportations_${j}_type`];
+        const tDuration = content[`nearby_places_${i}_transportations_${j}_duration`];
+        if (tType || tDuration) {
+          transports.push({
+            type: tType as string | undefined,
+            duration: tDuration as string | undefined,
+          });
+        } else {
+          break;
+        }
+      }
+      places.push({
+        name: name as string | undefined,
+        transportations: transports.length > 0 ? transports : undefined,
+      });
+    }
+    return places;
+  }
+  
+  /**
+   * Transform raw embed content to StayResult format.
+   * Used by UnifiedEmbedFullscreen's childEmbedTransformer.
+   * 
+   * TOON encoding flattens nested objects (amenities, images, nearby_places).
+   * We reconstruct them from the flattened keys.
+   */
+  function transformToStayResult(embedId: string, content: Record<string, unknown>): StayResult {
+    return {
+      embed_id: embedId,
+      type: (content.type as string) || 'stay',
+      name: content.name as string | undefined,
+      description: content.description as string | undefined,
+      property_type: content.property_type as string | undefined,
+      link: content.link as string | undefined,
+      property_token: content.property_token as string | undefined,
+      latitude: content.latitude as number | undefined,
+      longitude: content.longitude as number | undefined,
+      hotel_class: content.hotel_class as number | undefined,
+      overall_rating: content.overall_rating as number | undefined,
+      reviews: content.reviews as number | undefined,
+      rate_per_night: content.rate_per_night as string | undefined,
+      extracted_rate_per_night: content.extracted_rate_per_night as number | undefined,
+      total_rate: content.total_rate as string | undefined,
+      extracted_total_rate: content.extracted_total_rate as number | undefined,
+      currency: (content.currency as string) || 'EUR',
+      check_in_time: content.check_in_time as string | undefined,
+      check_out_time: content.check_out_time as string | undefined,
+      amenities: reconstructStringArray(content, 'amenities'),
+      images: reconstructImages(content),
+      thumbnail: content.thumbnail as string | undefined,
+      nearby_places: reconstructNearbyPlaces(content),
+      eco_certified: content.eco_certified === true || content.eco_certified === 'true',
+      free_cancellation: content.free_cancellation === true || content.free_cancellation === 'true',
+      hash: content.hash as string | undefined,
+    };
+  }
+  
+  // =========================================================================
+  // Stay Results Extraction
+  // =========================================================================
+  
+  /**
+   * Get stay results from context.
+   * Prefers child embeds (ctx.children) over legacy results (ctx.legacyResults).
+   */
+  function getStayResults(ctx: ChildEmbedContext): StayResult[] {
+    // Prefer child embeds (new pattern: each stay is a separate embed)
+    if (ctx.children && ctx.children.length > 0) {
+      return ctx.children as StayResult[];
+    }
+    // Fallback: legacy results (inline data, backwards compatibility)
+    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
+      return flattenStayResults(ctx.legacyResults);
+    }
+    return [];
+  }
+  
   /**
    * Flatten nested results if needed (backend returns [{id, results: [...]}] for multi-request)
+   * Only used for legacy/backwards-compat path.
    */
   function flattenStayResults(rawResults: unknown[]): StayResult[] {
     if (!rawResults || rawResults.length === 0) return [];
@@ -156,16 +320,6 @@
     }
     
     return rawResults as StayResult[];
-  }
-  
-  /**
-   * Get stay results from context (legacy results flow for non-composite embeds)
-   */
-  function getStayResults(ctx: ChildEmbedContext): StayResult[] {
-    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
-      return flattenStayResults(ctx.legacyResults);
-    }
-    return [];
   }
   
   /**
@@ -193,11 +347,16 @@
     return undefined;
   }
   
+  // =========================================================================
+  // Event Handlers
+  // =========================================================================
+  
   /**
    * Handle stay card click - opens detail fullscreen as overlay
    */
   function handleStayFullscreen(stay: StayResult) {
     console.debug('[TravelStaysEmbedFullscreen] Opening stay fullscreen:', {
+      embed_id: stay.embed_id,
       name: stay.name,
       rating: stay.overall_rating,
       price: stay.extracted_rate_per_night,
@@ -237,6 +396,9 @@
     const content = data.decodedContent;
     if (typeof content.query === 'string') localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
+    // Update embed IDs when parent embed is updated with child references
+    if (content.embed_ids) localEmbedIds = content.embed_ids as string | string[];
+    // Legacy: inline results (backwards compat)
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
     if (typeof content.error === 'string') localErrorMessage = content.error;
   }
@@ -252,6 +414,8 @@
   status={fullscreenStatus}
   {skillName}
   showStatus={true}
+  embedIds={embedIdsValue}
+  childEmbedTransformer={transformToStayResult}
   legacyResults={legacyResults}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
@@ -296,7 +460,7 @@
             {@const isCheapest = cheapestThreshold > 0 && stay.extracted_rate_per_night != null && stay.extracted_rate_per_night <= cheapestThreshold}
             
             <TravelStayEmbedPreview
-              id={stay.hash || `stay-${index}`}
+              id={stay.embed_id || stay.hash || `stay-${index}`}
               name={stay.name}
               thumbnail={getThumbnail(stay)}
               hotelClass={stay.hotel_class}

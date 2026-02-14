@@ -4,8 +4,8 @@
   Preview component for Travel Search Stays skill embeds.
   Uses UnifiedEmbedPreview as base and provides skill-specific details content.
   
-  This is a non-composite skill: the embed contains the full results data
-  directly (no child embeds to load).
+  This is a composite skill: each stay result is a separate child embed.
+  The parent embed contains metadata (query, provider, result_count, embed_ids).
   
   Shows:
   - Search query / destination
@@ -83,6 +83,7 @@
   let localProvider = $state<string>('Google');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults = $state<StayResult[]>([]);
+  let localResultCount = $state<number | undefined>(undefined);
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
@@ -131,6 +132,10 @@
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results as StayResult[];
       }
+      // Composite pattern: parent embed has result_count instead of individual results
+      if (typeof content.result_count === 'number') {
+        localResultCount = content.result_count;
+      }
     }
   }
   
@@ -168,7 +173,8 @@
   let flatResults = $derived(flattenResults(results));
   
   // Property count display
-  let propertyCount = $derived(flatResults.length);
+  // Prefer inline results length (legacy), fall back to result_count from composite parent metadata
+  let propertyCount = $derived(flatResults.length > 0 ? flatResults.length : (localResultCount ?? 0));
   
   // Price range display: cheapest nightly rate
   let priceInfo = $derived.by(() => {

@@ -1557,8 +1557,8 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
-            # Determine if this is a composite result (web search, places, events)
-            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections"]
+            # Determine if this is a composite result (web search, places, events, connections, stays)
+            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays"]
 
             child_embed_ids = []
 
@@ -1616,10 +1616,13 @@ class EmbedService:
                 # Maps search (app_id="maps", skill_id="search") should create "place" embeds
                 # Web search (app_id="web", skill_id="search") should create "website" embeds
                 # Travel search_connections should create "connection" embeds
+                # Travel search_stays should create "stay" embeds
                 if app_id == "maps" and skill_id == "search":
                     child_type = "place"
                 elif app_id == "travel" and skill_id == "search_connections":
                     child_type = "connection"
+                elif app_id == "travel" and skill_id == "search_stays":
+                    child_type = "stay"
                 elif skill_id == "search":
                     child_type = "website"  # Web search, news search, videos search
                 elif skill_id == "places_search":
@@ -2358,10 +2361,10 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
             
-            # Determine if this is a composite result (web search, places, events)
+            # Determine if this is a composite result (web search, places, events, connections, stays)
             # Check both app_id and skill_id to determine composite vs single
             # Maps search uses skill_id "search" but should create "place" embeds, not "website" embeds
-            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections"]
+            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays"]
             
             child_embed_ids = []
             
@@ -2370,10 +2373,13 @@ class EmbedService:
                 # Maps search (app_id="maps", skill_id="search") should create "place" embeds
                 # Web search (app_id="web", skill_id="search") should create "website" embeds
                 # Travel search_connections should create "connection" embeds
+                # Travel search_stays should create "stay" embeds
                 if app_id == "maps" and skill_id == "search":
                     child_type = "place"
                 elif app_id == "travel" and skill_id == "search_connections":
                     child_type = "connection"
+                elif app_id == "travel" and skill_id == "search_stays":
+                    child_type = "stay"
                 elif skill_id == "search":
                     child_type = "website"  # Web search, news search, videos search
                 elif skill_id == "places_search":

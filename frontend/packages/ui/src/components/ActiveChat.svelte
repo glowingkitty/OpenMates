@@ -6115,7 +6115,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <TravelStaysEmbedFullscreen
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Google'}
-                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results : []}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
+                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
