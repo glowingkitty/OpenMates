@@ -2487,9 +2487,13 @@
         previousChatId = currentChatId;
     });
     
-    // Update active AI task status when currentChatId changes using $effect
+    // Update active AI task status when currentChatId changes using $effect.
+    // IMPORTANT: Must call updateActiveAITaskStatus() even when currentChatId is undefined
+    // (e.g. when navigating to a new chat) so that stale stop-button state is cleared.
     $effect(() => {
-        if (currentChatId !== undefined && chatSyncService) {
+        // Access currentChatId so Svelte tracks it as a dependency
+        const _chatId = currentChatId;
+        if (chatSyncService) {
             updateActiveAITaskStatus();
         }
     });
