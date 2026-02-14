@@ -240,14 +240,22 @@ function convertYamlToJson(yamlFiles, lang) {
             // This reverses the conversion done when creating YAML files
             textValue = convertNewlinesToBr(textValue);
             
-            // Store the translation string directly (no wrapper object)
+            // Build translation object with { text: value } wrapper
             // NOTE: We don't include 'context' in JSON output - it's only for YAML documentation
             // The JSON files are used at runtime and don't need context information
             //
+            // The { text: value } wrapper is essential to prevent key collisions:
+            // When a key like "privacy" has both a direct value ("Privacy") and child keys
+            // ("privacy.description"), the wrapper ensures both coexist in the nested JSON.
+            // The $text() store automatically appends ".text" so callers don't need to.
+            //
             // Build nested structure using dot-notation key
-            // Example: "at_missing" -> { at_missing: "..." }
-            // Example: "signup.at_missing" -> { signup: { at_missing: "..." } }
-            setNestedValue(jsonStructure[namespace], key, textValue);
+            // Example: "at_missing" -> { at_missing: { text: "..." } }
+            // Example: "signup.at_missing" -> { signup: { at_missing: { text: "..." } } }
+            const translationObj = {
+                text: textValue
+            };
+            setNestedValue(jsonStructure[namespace], key, translationObj);
         }
     }
     

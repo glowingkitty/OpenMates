@@ -23,13 +23,26 @@ export const text: Readable<TranslateFunction> = browser
           return (key: string, vars = {}) => {
               if (!$translate) return key;
 
+              // Internally append ".text" to the key before looking it up.
+              // The JSON locale files store values as { text: "..." } objects to prevent
+              // key collisions (e.g., "settings.privacy" can have both a direct value
+              // and child keys like "settings.privacy.description"). Callers of $text()
+              // never need to know about this — they just use $text('settings.privacy').
+              const lookupKey = key + '.text';
+
               // Try to translate, catch if i18n not initialized yet
               let translated: string;
               try {
-                  translated = $translate(key, vars);
+                  translated = $translate(lookupKey, vars);
               } catch (err) {
                   // i18n not ready yet, return the key as fallback
                   console.debug('[i18n] Translation not ready for key:', key);
+                  return key;
+              }
+
+              // If svelte-i18n returns the lookup key itself, it means the key was not found.
+              // Return the original key (without .text) as fallback for better debugging.
+              if (translated === lookupKey) {
                   return key;
               }
 

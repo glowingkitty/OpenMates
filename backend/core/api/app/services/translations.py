@@ -224,9 +224,10 @@ class TranslationService:
                     text_value = text_value.rstrip('\n')
                 
                 # Build nested structure using dot-notation key
-                # Store the translation string directly (no wrapper object)
-                # Example: "at_missing" -> { at_missing: "..." }
-                # Example: "signup.at_missing" -> { signup: { at_missing: "..." } }
+                # Values are wrapped in { text: "..." } to prevent key collisions
+                # (a key can have both a direct value and child keys)
+                # Example: "at_missing" -> { at_missing: { text: "..." } }
+                # Example: "signup.at_missing" -> { signup: { at_missing: { text: "..." } } }
                 keys = key.split('.')
                 current = json_structure[namespace]
                 
@@ -236,9 +237,9 @@ class TranslationService:
                         current[k] = {}
                     current = current[k]
                 
-                # Set the final value (string directly, no { text: ... } wrapper)
+                # Set the final value wrapped in { text: ... }
                 last_key = keys[-1]
-                current[last_key] = text_value
+                current[last_key] = {'text': text_value}
         
         logger.debug(f"Converted JSON structure for '{lang}': top-level keys: {list(json_structure.keys())}")
         if 'email' in json_structure:
@@ -345,8 +346,12 @@ class TranslationService:
         """
         Get a specific translation by nested key with variable replacement
         
+        Automatically appends '.text' to the key because the JSON structure wraps
+        translation values in { text: "..." } objects to prevent key collisions.
+        Callers don't need to include '.text' in their keys.
+        
         Args:
-            key: Nested key path separated by dots
+            key: Nested key path separated by dots (e.g., "settings.privacy")
             lang: Language code
             variables: Optional dictionary of variables to replace
             
@@ -355,15 +360,18 @@ class TranslationService:
         """
         translations = self.get_translations(lang, variables)
         
+        # Append '.text' to navigate to the actual string value inside the { text: "..." } wrapper
+        lookup_key = key + '.text'
+        
         # Navigate through nested keys
-        keys = key.split('.')
+        keys = lookup_key.split('.')
         value = translations
         
         for k in keys:
             if isinstance(value, dict) and k in value:
                 value = value[k]
             else:
-                logger.warning(f"Translation key '{key}' not found for language '{lang}'")
+                logger.warning(f"Translation key '{key}' (lookup: '{lookup_key}') not found for language '{lang}'")
                 return key
                 
         return value if isinstance(value, str) else key
