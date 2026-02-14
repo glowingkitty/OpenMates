@@ -12,9 +12,9 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "images.preferred_styles.example_1.text"
-      - "images.preferred_styles.example_2.text"
-      - "images.preferred_styles.example_3.text"
+      - "images.preferred_styles.example_1"
+      - "images.preferred_styles.example_2"
+      - "images.preferred_styles.example_3"
     schema:
       type: object
       properties:

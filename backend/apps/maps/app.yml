@@ -11,9 +11,9 @@ settings_and_memories:
     type: list
     stage: development
     example_translation_keys:
-      - "maps.favorite_places.example_1.text"
-      - "maps.favorite_places.example_2.text"
-      - "maps.favorite_places.example_3.text"
+      - "maps.favorite_places.example_1"
+      - "maps.favorite_places.example_2"
+      - "maps.favorite_places.example_3"
     schema:
       type: object
       properties:

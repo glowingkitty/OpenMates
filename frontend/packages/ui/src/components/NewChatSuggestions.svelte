@@ -94,7 +94,8 @@
    * Used for non-auth users, as initial placeholder while sync loads, and as fallback.
    */
   function buildDefaultSuggestions(): Array<{ text: string; encrypted: string; id: string }> {
-      const t = get(_);
+      // Use the text store (which auto-appends .text for the JSON wrapper) instead of raw get(_)
+      const t = get(text);
       const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
       const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
       return shuffleArray(plainTextSuggestions.map(text => ({

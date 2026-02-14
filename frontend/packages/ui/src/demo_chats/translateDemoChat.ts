@@ -1,6 +1,7 @@
 import type { DemoChat } from './types';
 import { get } from 'svelte/store';
-import { _, locale } from 'svelte-i18n';
+import { locale } from 'svelte-i18n';
+import { text } from '../i18n/translations';
 import { 
 	buildPrivacyPolicyContent, 
 	buildTermsOfUseContent, 
@@ -27,7 +28,8 @@ type TranslationFunction = (key: string) => string;
  * @returns A new demo chat with translated content
  */
 export function translateDemoChat(demoChat: DemoChat): DemoChat {
-	const t = get(_) as TranslationFunction;
+	// Use our text store which auto-appends ".text" for the { text: value } JSON wrapper
+	const t = get(text) as TranslationFunction;
 	const currentLocale = get(locale) || 'en';
 	
 	// Legal chats (chat_id starts with 'legal-') build content from translation keys

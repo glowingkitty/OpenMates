@@ -11,9 +11,9 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "videos.to_watch_list.example_1.text"
-      - "videos.to_watch_list.example_2.text"
-      - "videos.to_watch_list.example_3.text"
+      - "videos.to_watch_list.example_1"
+      - "videos.to_watch_list.example_2"
+      - "videos.to_watch_list.example_3"
     schema:
       type: object
       properties:
@@ -36,9 +36,9 @@ settings_and_memories:
     type: list
     stage: planning
     example_translation_keys:
-      - "videos.subscribed_channels.example_1.text"
-      - "videos.subscribed_channels.example_2.text"
-      - "videos.subscribed_channels.example_3.text"
+      - "videos.subscribed_channels.example_1"
+      - "videos.subscribed_channels.example_2"
+      - "videos.subscribed_channels.example_3"
     schema:
       type: object
       properties:

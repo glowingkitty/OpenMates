@@ -5028,7 +5028,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
                 if (publicChat) {
                     // CRITICAL: Re-translate the chat with the new locale
-                    // translateDemoChat uses get(_) which reads from the locale store
+                    // translateDemoChat uses get(text) which reads from the locale store
                     // By waiting for waitLocale() and tick() above, we ensure translations are loaded and store is updated
                     const translatedChat = translateDemoChat(publicChat);
                     

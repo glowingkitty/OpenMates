@@ -12,9 +12,9 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "web.bookmarks.example_1.text"
-      - "web.bookmarks.example_2.text"
-      - "web.bookmarks.example_3.text"
+      - "web.bookmarks.example_1"
+      - "web.bookmarks.example_2"
+      - "web.bookmarks.example_3"
     schema:
       type: object
       properties:
@@ -30,9 +30,9 @@ settings_and_memories:
     type: list
     stage: development
     example_translation_keys:
-      - "web.favorite_websites.example_1.text"
-      - "web.favorite_websites.example_2.text"
-      - "web.favorite_websites.example_3.text"
+      - "web.favorite_websites.example_1"
+      - "web.favorite_websites.example_2"
+      - "web.favorite_websites.example_3"
     schema:
       type: object
       properties:
@@ -48,9 +48,9 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "web.read_later.example_1.text"
-      - "web.read_later.example_2.text"
-      - "web.read_later.example_3.text"
+      - "web.read_later.example_1"
+      - "web.read_later.example_2"
+      - "web.read_later.example_3"
     schema:
       type: object
       properties:

@@ -44,9 +44,9 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "docs.writing_style.example_1.text"
-      - "docs.writing_style.example_2.text"
-      - "docs.writing_style.example_3.text"
+      - "docs.writing_style.example_1"
+      - "docs.writing_style.example_2"
+      - "docs.writing_style.example_3"
     schema:
       type: object
       properties:

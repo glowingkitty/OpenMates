@@ -11,9 +11,9 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "books.favorite_books.example_1.text"
-      - "books.favorite_books.example_2.text"
-      - "books.favorite_books.example_3.text"
+      - "books.favorite_books.example_1"
+      - "books.favorite_books.example_2"
+      - "books.favorite_books.example_3"
     schema:
       type: object
       properties:
@@ -42,8 +42,8 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "books.currently_reading.example_1.text"
-      - "books.currently_reading.example_2.text"
+      - "books.currently_reading.example_1"
+      - "books.currently_reading.example_2"
     schema:
       type: object
       properties:
@@ -76,9 +76,9 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "books.to_read_list.example_1.text"
-      - "books.to_read_list.example_2.text"
-      - "books.to_read_list.example_3.text"
+      - "books.to_read_list.example_1"
+      - "books.to_read_list.example_2"
+      - "books.to_read_list.example_3"
     schema:
       type: object
       properties:

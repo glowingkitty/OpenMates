@@ -12,9 +12,9 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "travel.trips.example_1.text"
-      - "travel.trips.example_2.text"
-      - "travel.trips.example_3.text"
+      - "travel.trips.example_1"
+      - "travel.trips.example_2"
+      - "travel.trips.example_3"
     schema:
       type: object
       properties:
@@ -43,9 +43,9 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "travel.preferred_airlines.example_1.text"
-      - "travel.preferred_airlines.example_2.text"
-      - "travel.preferred_airlines.example_3.text"
+      - "travel.preferred_airlines.example_1"
+      - "travel.preferred_airlines.example_2"
+      - "travel.preferred_airlines.example_3"
     schema:
       type: object
       properties:
@@ -62,9 +62,9 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "travel.preferred_transport_methods.example_1.text"
-      - "travel.preferred_transport_methods.example_2.text"
-      - "travel.preferred_transport_methods.example_3.text"
+      - "travel.preferred_transport_methods.example_1"
+      - "travel.preferred_transport_methods.example_2"
+      - "travel.preferred_transport_methods.example_3"
     schema:
       type: object
       properties:
@@ -90,10 +90,10 @@ settings_and_memories:
     type: list
     stage: production
     example_translation_keys:
-      - "travel.preferred_activities.example_1.text"
-      - "travel.preferred_activities.example_2.text"
-      - "travel.preferred_activities.example_3.text"
-      - "travel.preferred_activities.example_4.text"
+      - "travel.preferred_activities.example_1"
+      - "travel.preferred_activities.example_2"
+      - "travel.preferred_activities.example_3"
+      - "travel.preferred_activities.example_4"
     schema:
       type: object
       properties:
