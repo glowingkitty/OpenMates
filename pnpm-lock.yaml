@@ -28,8 +28,8 @@ importers:
         specifier: ^3.3.0
         version: 3.3.0
       markdown-it:
-        specifier: ^14.1.0
-        version: 14.1.0
+        specifier: ^14.1.1
+        version: 14.1.1
     devDependencies:
       '@types/markdown-it':
         specifier: ^14.1.2
@@ -136,7 +136,7 @@ importers:
         version: 10.1.8(eslint@9.35.0)
       eslint-config-turbo:
         specifier: ^2.3.4
-        version: 2.5.6(eslint@9.35.0)(turbo@2.7.3)
+        version: 2.5.6(eslint@9.35.0)(turbo@2.8.7)
       eslint-plugin-svelte:
         specifier: ^2.46.1
         version: 2.46.1(eslint@9.35.0)(svelte@5.39.2)
@@ -257,8 +257,8 @@ importers:
         specifier: ^3.3.0
         version: 3.3.0
       markdown-it:
-        specifier: ^14.1.0
-        version: 14.1.0
+        specifier: ^14.1.1
+        version: 14.1.1
       pica:
         specifier: ^9.0.1
         version: 9.0.1
@@ -3224,8 +3224,8 @@ packages:
     resolution: {integrity: sha512-hdN1wVrZbb29eBGiGjJbeP8JbKjq1urkHJ/LIP/NY48MZ1QVXUsQBV1G1zvYFHn1XE06cwjBsOI2K3Ulnj1YXQ==}
     engines: {node: '>=8'}
 
-  markdown-it@14.1.0:
-    resolution: {integrity: sha512-a54IwgWPaeBCAAsv13YgmALOF1elABB08FxO9i+r4VFk5Vl4pKokRPeX8u5TCgSsPi6ec1otfLjdOpVcgbpshg==}
+  markdown-it@14.1.1:
+    resolution: {integrity: sha512-BuU2qnTti9YKgK5N+IeMubp14ZUKUUw7yeJbkjtosvHiP0AZ5c8IAgEMk79D0eC8F23r4Ac/q8cAIFdm2FtyoA==}
     hasBin: true
 
   math-intrinsics@1.1.0:
@@ -4160,8 +4160,18 @@ packages:
     cpu: [x64]
     os: [darwin]
 
+  turbo-darwin-64@2.8.7:
+    resolution: {integrity: sha512-Xr4TO/oDDwoozbDtBvunb66g//WK8uHRygl72vUthuwzmiw48pil4IuoG/QbMHd9RE8aBnVmzC0WZEWk/WWt3A==}
+    cpu: [x64]
+    os: [darwin]
+
   turbo-darwin-arm64@2.7.3:
     resolution: {integrity: sha512-CkVrHSq+Bnhl9sX2LQgqQYVfLTWC2gvI74C4758OmU0djfrssDKU9d4YQF0AYXXhIIRZipSXfxClQziIMD+EAg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  turbo-darwin-arm64@2.8.7:
+    resolution: {integrity: sha512-p8Xbmb9kZEY/NoshQUcFmQdO80s2PCGoLYj5DbpxjZr3diknipXxzOK7pcmT7l2gNHaMCpFVWLkiFY9nO3EU5w==}
     cpu: [arm64]
     os: [darwin]
 
@@ -4170,8 +4180,18 @@ packages:
     cpu: [x64]
     os: [linux]
 
+  turbo-linux-64@2.8.7:
+    resolution: {integrity: sha512-nwfEPAH3m5y/nJeYly3j1YJNYU2EG5+2ysZUxvBNM+VBV2LjQaLxB9CsEIpIOKuWKCjnFHKIADTSDPZ3D12J5Q==}
+    cpu: [x64]
+    os: [linux]
+
   turbo-linux-arm64@2.7.3:
     resolution: {integrity: sha512-NdCDTfIcIo3dWjsiaAHlxu5gW61Ed/8maah1IAF/9E3EtX0aAHNiBMbuYLZaR4vRJ7BeVkYB6xKWRtdFLZ0y3g==}
+    cpu: [arm64]
+    os: [linux]
+
+  turbo-linux-arm64@2.8.7:
+    resolution: {integrity: sha512-mgA/M6xiJzyxtXV70TtWGDPh+I6acOKmeQGtOzbFQZYEf794pu5jax26bCk5skAp1gqZu3vacPr6jhYHoHU9IQ==}
     cpu: [arm64]
     os: [linux]
 
@@ -4180,13 +4200,27 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  turbo-windows-64@2.8.7:
+    resolution: {integrity: sha512-sHTYMaXuCcyHnGUQgfUUt7S8407TWoP14zc/4N2tsM0wZNK6V9h4H2t5jQPtqKEb6Fg8313kygdDgEwuM4vsHg==}
+    cpu: [x64]
+    os: [win32]
+
   turbo-windows-arm64@2.7.3:
     resolution: {integrity: sha512-nTodweTbPmkvwMu/a55XvjMsPtuyUSC+sV7f/SR57K36rB2I0YG21qNETN+00LOTUW9B3omd8XkiXJkt4kx/cw==}
     cpu: [arm64]
     os: [win32]
 
+  turbo-windows-arm64@2.8.7:
+    resolution: {integrity: sha512-WyGiOI2Zp3AhuzVagzQN+T+iq0fWx0oGxDfAWT3ZiLEd4U0cDUkwUZDKVGb3rKqPjDL6lWnuxKKu73ge5xtovQ==}
+    cpu: [arm64]
+    os: [win32]
+
   turbo@2.7.3:
     resolution: {integrity: sha512-+HjKlP4OfYk+qzvWNETA3cUO5UuK6b5MSc2UJOKyvBceKucQoQGb2g7HlC2H1GHdkfKrk4YF1VPvROkhVZDDLQ==}
+    hasBin: true
+
+  turbo@2.8.7:
+    resolution: {integrity: sha512-RBLh5caMAu1kFdTK1jgH2gH/z+jFsvX5rGbhgJ9nlIAWXSvxlzwId05uDlBA1+pBd3wO/UaKYzaQZQBXDd7kcA==}
     hasBin: true
 
   tweetnacl@1.0.3:
@@ -4450,6 +4484,7 @@ packages:
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@4.0.0:
     resolution: {integrity: sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg==}
@@ -6890,11 +6925,11 @@ snapshots:
     dependencies:
       eslint: 9.35.0
 
-  eslint-config-turbo@2.5.6(eslint@9.35.0)(turbo@2.7.3):
+  eslint-config-turbo@2.5.6(eslint@9.35.0)(turbo@2.8.7):
     dependencies:
       eslint: 9.35.0
-      eslint-plugin-turbo: 2.5.6(eslint@9.35.0)(turbo@2.7.3)
-      turbo: 2.7.3
+      eslint-plugin-turbo: 2.5.6(eslint@9.35.0)(turbo@2.8.7)
+      turbo: 2.8.7
 
   eslint-plugin-svelte@2.46.1(eslint@9.35.0)(svelte@5.39.2):
     dependencies:
@@ -6915,11 +6950,11 @@ snapshots:
     transitivePeerDependencies:
       - ts-node
 
-  eslint-plugin-turbo@2.5.6(eslint@9.35.0)(turbo@2.7.3):
+  eslint-plugin-turbo@2.5.6(eslint@9.35.0)(turbo@2.8.7):
     dependencies:
       dotenv: 16.0.3
       eslint: 9.35.0
-      turbo: 2.7.3
+      turbo: 2.8.7
 
   eslint-scope@7.2.2:
     dependencies:
@@ -7749,7 +7784,7 @@ snapshots:
 
   map-obj@4.3.0: {}
 
-  markdown-it@14.1.0:
+  markdown-it@14.1.1:
     dependencies:
       argparse: 2.0.1
       entities: 4.5.0
@@ -8116,7 +8151,7 @@ snapshots:
   prosemirror-markdown@1.13.2:
     dependencies:
       '@types/markdown-it': 14.1.2
-      markdown-it: 14.1.0
+      markdown-it: 14.1.1
       prosemirror-model: 1.25.3
 
   prosemirror-menu@1.2.5:
@@ -8779,19 +8814,37 @@ snapshots:
   turbo-darwin-64@2.7.3:
     optional: true
 
+  turbo-darwin-64@2.8.7:
+    optional: true
+
   turbo-darwin-arm64@2.7.3:
+    optional: true
+
+  turbo-darwin-arm64@2.8.7:
     optional: true
 
   turbo-linux-64@2.7.3:
     optional: true
 
+  turbo-linux-64@2.8.7:
+    optional: true
+
   turbo-linux-arm64@2.7.3:
+    optional: true
+
+  turbo-linux-arm64@2.8.7:
     optional: true
 
   turbo-windows-64@2.7.3:
     optional: true
 
+  turbo-windows-64@2.8.7:
+    optional: true
+
   turbo-windows-arm64@2.7.3:
+    optional: true
+
+  turbo-windows-arm64@2.8.7:
     optional: true
 
   turbo@2.7.3:
@@ -8802,6 +8855,15 @@ snapshots:
       turbo-linux-arm64: 2.7.3
       turbo-windows-64: 2.7.3
       turbo-windows-arm64: 2.7.3
+
+  turbo@2.8.7:
+    optionalDependencies:
+      turbo-darwin-64: 2.8.7
+      turbo-darwin-arm64: 2.8.7
+      turbo-linux-64: 2.8.7
+      turbo-linux-arm64: 2.8.7
+      turbo-windows-64: 2.8.7
+      turbo-windows-arm64: 2.8.7
 
   tweetnacl@1.0.3: {}
 

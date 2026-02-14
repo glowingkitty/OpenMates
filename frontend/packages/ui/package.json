@@ -71,7 +71,7 @@
     "leaflet": "^1.9.4",
     "lodash-es": "^4.17.23",
     "lowlight": "^3.3.0",
-    "markdown-it": "^14.1.0",
+    "markdown-it": "^14.1.1",
     "pica": "^9.0.1",
     "prosemirror-state": "^1.4.3",
     "prosemirror-view": "^1.41.0",
