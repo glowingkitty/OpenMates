@@ -944,6 +944,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             prompt: decodedContent?.prompt || "",
+            model: decodedContent?.model || "",
             s3BaseUrl: decodedContent?.s3_base_url || "",
             files: decodedContent?.files || undefined,
             aesKey: decodedContent?.aes_key || "",

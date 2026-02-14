@@ -1337,6 +1337,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
     // Extract image-specific fields from decoded content
     const prompt = decodedContent?.prompt || "";
+    const model = decodedContent?.model || "";
     const s3BaseUrl = decodedContent?.s3_base_url || "";
     const files = decodedContent?.files || undefined;
     const aesKey = decodedContent?.aes_key || "";
@@ -1377,6 +1378,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           skillId: imageSkillId as "generate" | "generate_draft",
           prompt,
+          model,
           s3BaseUrl,
           files,
           aesKey,

@@ -19,6 +19,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
+  import { getModelDisplayName } from '../../../utils/modelDisplayName';
   
   /**
    * Image embed content structure from the backend
@@ -53,6 +54,8 @@
     skillId?: 'generate' | 'generate_draft';
     /** Image prompt */
     prompt?: string;
+    /** Model ID used for generation (e.g., "flux-schnell", "gemini-3-pro-image-preview") */
+    model?: string;
     /** S3 base URL for image files */
     s3BaseUrl?: string;
     /** Files metadata from embed content */
@@ -77,6 +80,7 @@
     id,
     skillId: skillIdProp = 'generate',
     prompt: promptProp,
+    model: modelProp,
     s3BaseUrl: s3BaseUrlProp,
     files: filesProp,
     aesKey: aesKeyProp,
@@ -90,6 +94,7 @@
   
   // Local reactive state — updated via handleEmbedDataUpdated callback
   let localPrompt = $state<string | undefined>(undefined);
+  let localModel = $state<string | undefined>(undefined);
   let localS3BaseUrl = $state<string | undefined>(undefined);
   let localFiles = $state<ImageEmbedData['files'] | undefined>(undefined);
   let localAesKey = $state<string | undefined>(undefined);
@@ -140,6 +145,7 @@
   // Initialize local state from props
   $effect(() => {
     localPrompt = promptProp;
+    localModel = modelProp;
     localS3BaseUrl = s3BaseUrlProp;
     localFiles = filesProp;
     localAesKey = aesKeyProp;
@@ -151,6 +157,7 @@
   
   // Derived state
   let prompt = $derived(localPrompt);
+  let model = $derived(localModel);
   let status = $derived(localStatus);
   let error = $derived(localError);
   let taskId = $derived(localTaskId);
@@ -158,6 +165,9 @@
   let s3BaseUrl = $derived(localS3BaseUrl);
   let aesKey = $derived(localAesKey);
   let aesNonce = $derived(localAesNonce);
+  
+  // Human-readable model name resolved from model ID via frontend metadata
+  let modelDisplayName = $derived(model ? getModelDisplayName(model) : undefined);
   
   // Skill display name - use correct translation key based on skillId
   // 'generate' -> "Generate", 'generate_draft' -> "Generate Draft"
@@ -256,6 +266,7 @@
       const content = data.decodedContent as unknown as ImageEmbedData;
       
       if (content.prompt) localPrompt = content.prompt;
+      if (content.model) localModel = content.model;
       if (content.s3_base_url) localS3BaseUrl = content.s3_base_url;
       if (content.files) localFiles = content.files;
       if (content.aes_key) localAesKey = content.aes_key;
@@ -301,6 +312,9 @@
         <!-- Processing state OR finished-but-still-loading-image: show the prompt text -->
         <div class="prompt-content">
           {#if prompt}
+            {#if modelDisplayName}
+              <span class="generating-via">{$text('embeds.image_generate.generating_via')} {modelDisplayName}:</span>
+            {/if}
             <span class="prompt-text">{prompt}</span>
           {:else}
             <div class="skeleton-lines">
@@ -345,13 +359,22 @@
     overflow: hidden;
   }
   
+  /* "Generating via {Model}:" label shown above the prompt during processing */
+  .prompt-content .generating-via {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-grey-50, #888);
+    line-height: 1.4;
+    margin-bottom: 4px;
+  }
+  
   .prompt-content .prompt-text {
     font-size: 14px;
     color: var(--color-grey-70, #555);
     line-height: 1.5;
     display: -webkit-box;
-    -webkit-line-clamp: 5;
-    line-clamp: 5;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
@@ -472,6 +495,10 @@
   /* Mobile adjustments - no special handling needed since prompt was removed from preview */
   
   /* Dark mode support */
+  :global(.dark) .prompt-content .generating-via {
+    color: var(--color-grey-50, #888);
+  }
+  
   :global(.dark) .prompt-content .prompt-text {
     color: var(--color-grey-40, #aaa);
   }

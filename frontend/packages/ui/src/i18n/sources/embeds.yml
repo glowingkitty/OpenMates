@@ -1963,6 +1963,29 @@ image_generate.generated_by:
   cs: Vygenerováno pomocí
   sv: Genererat av
   verified_by_human: []
+image_generate.generating_via:
+  context: Text shown in the preview card during image generation, followed by the model name and a colon. E.g. "Generating via FLUX Schnell:"
+  en: Generating via
+  de: Generierung via
+  zh: 通过生成
+  es: Generando vía
+  fr: Génération via
+  pt: Gerando via
+  ru: Генерация через
+  ja: 生成中
+  ko: 생성 중
+  it: Generazione tramite
+  tr: Oluşturuluyor
+  vi: Đang tạo qua
+  id: Membuat via
+  pl: Generowanie przez
+  nl: Genereren via
+  ar: الإنشاء عبر
+  hi: के माध्यम से बनाना
+  th: กำลังสร้างผ่าน
+  cs: Generování přes
+  sv: Genererar via
+  verified_by_human: []
 image_generate.open_full_size:
   context: Tooltip shown when hovering over the image in fullscreen view - clicking opens the full-size image in a new browser tab
   en: Open full size image
