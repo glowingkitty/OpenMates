@@ -12,9 +12,10 @@
 // to browse the app store even when offline. This supports the offline-first
 // architecture of the PWA.
 //
-// **Health Filtering**: Apps are filtered based on health status from /v1/health endpoint.
-// Only apps with status="healthy" are shown in the app store. This ensures apps that
-// don't have their API showing as healthy are excluded from the app store.
+// **Health Filtering**: Apps with skills are filtered based on health status from /v1/health endpoint.
+// Only apps with status="healthy" are shown in the app store. Apps without skills
+// (only settings/memories and/or focus modes) bypass health filtering since they
+// don't have Docker containers and therefore no health status to check.
 
 import { appsMetadata } from '../data/appsMetadata';
 import type { AppMetadata } from '../types/apps';
@@ -85,7 +86,17 @@ class AppSkillsStore {
         // Filter apps based on health status
         const filteredApps: Record<string, AppMetadata> = {};
         for (const [appId, appMetadata] of Object.entries(this.state.apps)) {
-            // Only include apps that are healthy
+            // Apps without skills don't need a Docker container and therefore have no
+            // health status in the /v1/health endpoint. These apps only provide
+            // settings/memories and/or focus modes, which don't require a running service.
+            // Always include them in the app store.
+            const hasSkills = appMetadata.skills && appMetadata.skills.length > 0;
+            if (!hasSkills) {
+                filteredApps[appId] = appMetadata;
+                continue;
+            }
+            
+            // For apps with skills, only include them if their API is healthy
             if (isHealthy(appId)) {
                 filteredApps[appId] = appMetadata;
             } else {
@@ -104,12 +115,13 @@ class AppSkillsStore {
      * Data Source: Static data included in build (no API calls).
      * Original source: backend/apps/{app_id}/app.yml files
      * 
-     * **Health Filtering**: Apps are filtered based on health status from /v1/health endpoint.
-     * Only apps with status="healthy" are returned.
+     * **Health Filtering**: Apps with skills are filtered based on health status from /v1/health endpoint.
+     * Only apps with status="healthy" are returned. Apps without skills (only settings/memories
+     * and/or focus modes) bypass health filtering since they don't need a Docker container.
      * 
      * **Offline-First**: Data is available immediately and works offline.
      * 
-     * @returns Record mapping app_id to AppMetadata (filtered by health status)
+     * @returns Record mapping app_id to AppMetadata (filtered by health status for apps with skills)
      */
     get apps(): Record<string, AppMetadata> {
         return this.getState().apps;
