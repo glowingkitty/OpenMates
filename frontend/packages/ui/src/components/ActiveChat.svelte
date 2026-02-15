@@ -2900,11 +2900,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             }
                             console.debug('[ActiveChat] Updated user message status to synced:', updatedUserMessage.message_id);
                             
-                            // CRITICAL: Invalidate the chatListCache last message so the sidebar
-                            // doesn't show stale "Sending..." when reopened on mobile.
-                            // The cache was populated with status:'sending' during sendHandlers.ts,
-                            // and without this invalidation, reopening the sidebar would use the stale cache.
-                            chatListCache.invalidateLastMessage(updatedUserMessage.chat_id);
+                            // CRITICAL: Update the chatListCache so the sidebar shows the correct state.
+                            // For rejection messages (e.g., insufficient credits): cache the USER message
+                            // so the sidebar can display "Credits needed..." + user message content.
+                            // For normal responses: invalidate so the sidebar refreshes from DB.
+                            if (isRejection) {
+                                chatListCache.setLastMessage(updatedUserMessage.chat_id, updatedUserMessage);
+                            } else {
+                                chatListCache.invalidateLastMessage(updatedUserMessage.chat_id);
+                            }
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status:', error);
                         }

@@ -596,9 +596,12 @@
           // Special statuses (sending, processing, etc.) are transient and should be rare
           // For most chats, we don't need to fetch (delivered/synced messages aren't shown anyway)
           // Only fetch if this chat is actively being used (typing, or it's the active chat)
+          // ALSO fetch for untitled chats with messages — these may be credit-rejected chats
+          // that need to display "Credits needed..." in the sidebar
           const mightHaveSpecialStatus = 
             typingStoreValue?.chatId === currentChat.chat_id ||
-            currentChat.chat_id === activeChatId;
+            currentChat.chat_id === activeChatId ||
+            (!cachedMetadata?.title && currentChat.messages_v > 0);
           
           if (mightHaveSpecialStatus) {
             // Might have special status - fetch and cache
@@ -674,19 +677,34 @@
     displayText = '';
 
     // Handle sending, processing, waiting_for_internet, waiting_for_user, and failed states first as they take precedence
-    // Check all messages (not just lastMessage) for waiting_for_user since the system message
-    // may not be the last message in the array
-    const waitingForUserMessage = chat.messages?.find(m => m.status === 'waiting_for_user');
-    hasWaitingForUser = !!waitingForUserMessage;
-    if (hasWaitingForUser) {
-      // Show "Waiting for user" label with the system message content as preview
-      // (e.g., insufficient credits message), using draft-like design in the sidebar
-      displayLabel = $text('enter_message.waiting_for_user');
-      // Extract the system message content to show as preview text
-      if (waitingForUserMessage.content) {
-        displayText = typeof waitingForUserMessage.content === 'string' 
-          ? waitingForUserMessage.content 
-          : extractTextFromTiptap(waitingForUserMessage.content);
+    // Check lastMessage for waiting_for_user status (credit rejection, etc.)
+    // The last message can be either the system rejection message or the user message (both get waiting_for_user)
+    hasWaitingForUser = lastMessage?.status === 'waiting_for_user';
+    if (hasWaitingForUser && lastMessage) {
+      // Show "Credits needed..." label with user message content as preview
+      // using draft-like design in the sidebar
+      displayLabel = $text('chat.credits_needed');
+      
+      if (lastMessage.role === 'user') {
+        // Last message IS the user message — show its content directly
+        displayText = typeof lastMessage.content === 'string' 
+          ? lastMessage.content 
+          : extractTextFromTiptap(lastMessage.content);
+      } else if (lastMessage.role === 'system' && lastMessage.user_message_id) {
+        // Last message is the system rejection message — fetch the user message for preview
+        try {
+          const userMessage = await chatDB.getMessage(lastMessage.user_message_id);
+          if (userMessage?.content) {
+            displayText = typeof userMessage.content === 'string' 
+              ? userMessage.content 
+              : extractTextFromTiptap(userMessage.content);
+          } else {
+            displayText = '';
+          }
+        } catch (error) {
+          console.error('[Chat] Error fetching user message for credit rejection preview:', error);
+          displayText = '';
+        }
       } else {
         displayText = '';
       }

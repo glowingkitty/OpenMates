@@ -1405,6 +1405,18 @@
   <div class="chat-message system">
     <div class="system-message-notice">
       <span class="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
+      {#if status === 'waiting_for_user'}
+        <!-- Credit rejection: show a button to navigate to billing/buy-credits -->
+        <button 
+          class="system-message-action-btn"
+          onclick={() => {
+            settingsDeepLink.set('billing/buy-credits');
+            panelState.openSettings();
+          }}
+        >
+          {$text('chat.insufficient_credits_buy')}
+        </button>
+      {/if}
     </div>
   </div>
 {:else}
@@ -1667,6 +1679,25 @@
     font-size: 13px;
     line-height: 1.4;
     color: var(--color-grey-60, #888);
+  }
+
+  /* Action button inside system message notices (e.g., "Buy Credits" for insufficient credits) */
+  .system-message-action-btn {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-on-primary, #fff);
+    background: var(--color-button-primary, #e65c3a);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .system-message-action-btn:hover {
+    opacity: 0.85;
   }
 
   .chat-app-cards-container {

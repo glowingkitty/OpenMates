@@ -931,9 +931,15 @@ async def _async_process_ai_skill_ask_task(
     # Title and metadata will be sent via ai_typing_started event below
 
     # --- Notify client that main processing (typing) is starting ---
-    # Note: We now send typing indicator for both successful and harmful content cases
-    # since harmful content gets processed through the stream consumer with a predefined response
-    if preprocessing_result and cache_service_instance:
+    # Note: We send typing indicator for successful and harmful content cases
+    # since harmful content gets processed through the stream consumer with a predefined response.
+    # SKIP for insufficient_credits: these generate a system notice (not an assistant response),
+    # so showing a typing indicator would misleadingly look like a regular assistant is responding.
+    should_send_typing = (
+        preprocessing_result.rejection_reason != "insufficient_credits"
+        and preprocessing_result.rejection_reason != "internal_error_llm_preprocessing_failed"
+    ) if preprocessing_result else True
+    if preprocessing_result and cache_service_instance and should_send_typing:
         try:
             # Use category from preprocessing_result for typing indicator
             typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
