@@ -999,9 +999,16 @@ async def handle_main_processing(
             logger.warning(f"{log_prefix} relevant_app_skills is None (should be list or empty list). Treating as empty list.")
             preselected_skills = set()
 
-    # HARDENING: Merge always_include_skills into preselected_skills
-    # Ensures critical skills (like web-search) are ALWAYS available regardless of preprocessing.
-    if always_include_skills:
+    # HARDENING: Merge always_include_skills into preselected_skills — but NOT when the user
+    # explicitly requested specific skills via @skill:app:skill_id. In that case we use only
+    # the user's selection and add a mandatory instruction to use those tools.
+    user_requested_skills_only = getattr(preprocessing_results, "user_requested_skills_only", False)
+    if user_requested_skills_only and preselected_skills:
+        logger.info(
+            f"{log_prefix} [USER_SKILLS] User explicitly requested skill(s); not merging always_include_skills. "
+            f"Preselected only: {preselected_skills}"
+        )
+    elif always_include_skills:
         if preselected_skills is None:
             preselected_skills = set()
         skills_to_add = set(always_include_skills) - preselected_skills
@@ -1012,6 +1019,16 @@ async def handle_main_processing(
             )
         preselected_skills = preselected_skills | set(always_include_skills)
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
+
+    # When user explicitly requested skills, add a mandatory instruction so the model must use them
+    if user_requested_skills_only and preselected_skills:
+        mandatory_skills_list = ", ".join(sorted(preselected_skills))
+        mandatory_instruction = (
+            f"The user explicitly requested that you use the following tool(s) for this request; "
+            f"you MUST call at least one of them: {mandatory_skills_list}. Do not use other tools unless the user's request clearly requires them."
+        )
+        prompt_parts.append(mandatory_instruction)
+        logger.info(f"{log_prefix} [USER_SKILLS] Added mandatory skill instruction for: {mandatory_skills_list}")
 
     # === DYNAMIC APP-SPECIFIC INSTRUCTIONS ===
     # Load instructions from each available app's app.yml configuration.

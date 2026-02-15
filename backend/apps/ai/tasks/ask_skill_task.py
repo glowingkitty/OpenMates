@@ -878,6 +878,17 @@ async def _async_process_ai_skill_ask_task(
         logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
         raise RuntimeError(f"Preprocessing failed: {e}")
 
+    # --- User override: start focus mode from @focus:app_id:focus_id ---
+    # When the user explicitly mentions exactly one focus mode, set it as active for this request
+    # so the main processor injects the focus prompt and the model runs in that focus.
+    if user_overrides and len(user_overrides.focus_modes) == 1:
+        app_id, focus_id = user_overrides.focus_modes[0]
+        requested_focus_id = f"{app_id}-{focus_id}"
+        request_data.active_focus_id = requested_focus_id
+        logger.info(
+            f"[Task ID: {task_id}] USER_OVERRIDE: Set active_focus_id from @focus to '{requested_focus_id}' for this request."
+        )
+
     # --- Billing preflight validation ---
     # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
     # Skip preflight entirely if preprocessing says we cannot proceed (e.g., insufficient credits, harmful content).

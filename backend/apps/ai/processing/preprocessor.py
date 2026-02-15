@@ -97,6 +97,11 @@ class PreprocessingResult(BaseModel):
     raw_llm_response: Optional[Dict[str, Any]] = Field(None, description="Raw arguments from the LLM tool call.")
     error_message: Optional[str] = None
 
+    # When True, relevant_app_skills came only from user @skill mentions; main processor must not merge always_include_skills.
+    user_requested_skills_only: bool = Field(False, description="True if user explicitly specified skills via @skill:app:skill_id; skip LLM skill selection and do not add always_include_skills.")
+    # When True, relevant_focus_modes came only from user @focus mentions.
+    user_requested_focus_only: bool = Field(False, description="True if user explicitly specified focus mode(s) via @focus:app:focus_id.")
+
 
 def _sanitize_text_content(text: str, log_prefix: str = "") -> str:
     """
@@ -1223,14 +1228,40 @@ async def handle_preprocessing(
         # Category is valid
         logger.debug(f"{log_prefix} Category '{validated_category}' is valid (exists in available categories list).")
     
-    # --- Mate selection based on validated category ---
+    # --- Mate selection: user override first, then explicit request_data, then category-based ---
+    # When the user specified @mate:..., we use only that and do not run automatic selection
+    # (consistent with model and skill/focus overrides).
     selected_mate_id: Optional[str] = None
 
-    # If mate_id is explicitly provided (e.g., from focus mode continuation or follow-up queue),
-    # respect it and skip category-based selection. This prevents mate switching when the
-    # preprocessor re-runs during continuation tasks.
-    if request_data.mate_id:
-        # Validate the explicit mate_id exists in the mates list
+    if user_overrides and user_overrides.mate_id:
+        # --- Apply User Mate Override (@mate:...) — skip automatic selection ---
+        # User can force a specific mate/persona using @mate:{mate_id} or @mate:{category}
+        override_value = user_overrides.mate_id
+        override_mate = next((mate for mate in all_mates if mate.id == override_value), None) if all_mates else None
+        if not override_mate:
+            override_mate = next((mate for mate in all_mates if mate.category == override_value), None) if all_mates else None
+            if override_mate:
+                logger.info(
+                    f"{log_prefix} USER_OVERRIDE: Matched override value '{override_value}' by category. "
+                    f"Resolved to mate_id='{override_mate.id}'"
+                )
+        if override_mate:
+            selected_mate_id = override_mate.id
+            if override_mate.category:
+                validated_category = override_mate.category
+                llm_analysis_args["category"] = validated_category
+            logger.info(
+                f"{log_prefix} USER_OVERRIDE: Using user-requested mate (skipping automatic selection). "
+                f"mate_id={selected_mate_id}, category={validated_category} (user specified: @mate:{override_value})"
+            )
+        else:
+            logger.warning(
+                f"{log_prefix} USER_OVERRIDE: Invalid mate override '{override_value}' (not found as mate ID or category). "
+                f"Falling back to automatic selection. Available: mates={[m.id for m in all_mates]}, categories={[m.category for m in all_mates]}."
+            )
+
+    if not selected_mate_id and request_data.mate_id:
+        # Mate_id from request (e.g., focus mode continuation or follow-up queue) — respect it
         explicit_mate = next((mate for mate in all_mates if mate.id == request_data.mate_id), None) if all_mates else None
         if explicit_mate:
             selected_mate_id = explicit_mate.id
@@ -1242,6 +1273,7 @@ async def handle_preprocessing(
             )
 
     if not selected_mate_id and validated_category:
+        # Automatic selection based on LLM-detected category
         if not all_mates:
             logger.error(f"{log_prefix} Mates list is unexpectedly empty during mate selection for category '{validated_category}'.")
         else:
@@ -1254,47 +1286,6 @@ async def handle_preprocessing(
                     f"{log_prefix} No mate found for validated category '{validated_category}'. "
                     f"'selected_mate_id' will be None. Main processing must handle this."
                 )
-
-    # --- Apply User Mate Override (@mate:...) if specified ---
-    # User can force a specific mate/persona using @mate:{mate_id} or @mate:{category}
-    # This overrides the automatic mate selection based on LLM-detected category.
-    # IMPORTANT: Users can specify either the mate ID (e.g., @mate:sophia) or the 
-    # category name (e.g., @mate:software_development). We check both.
-    if user_overrides and user_overrides.mate_id:
-        override_value = user_overrides.mate_id
-        override_mate = None
-        
-        # First, try to match by mate ID (e.g., @mate:sophia)
-        override_mate = next((mate for mate in all_mates if mate.id == override_value), None)
-        
-        # If no match by ID, try to match by category (e.g., @mate:software_development)
-        if not override_mate:
-            override_mate = next((mate for mate in all_mates if mate.category == override_value), None)
-            if override_mate:
-                logger.info(
-                    f"{log_prefix} USER_OVERRIDE: Matched override value '{override_value}' by category. "
-                    f"Resolved to mate_id='{override_mate.id}'"
-                )
-        
-        if override_mate:
-            selected_mate_id = override_mate.id
-            # Update category to match the mate's category for consistency
-            if override_mate.category:
-                validated_category = override_mate.category
-                llm_analysis_args["category"] = validated_category
-            logger.info(
-                f"{log_prefix} USER_OVERRIDE: Applied mate override. "
-                f"mate_id={selected_mate_id}, category={validated_category} "
-                f"(user specified: @mate:{override_value})"
-            )
-        else:
-            logger.warning(
-                f"{log_prefix} USER_OVERRIDE: Invalid mate override. "
-                f"'{override_value}' not found as mate ID or category. "
-                f"Available mates: {[m.id for m in all_mates]}. "
-                f"Available categories: {[m.category for m in all_mates]}. "
-                f"Keeping automatic selection: {selected_mate_id}"
-            )
     
     # --- Validate load_app_settings_and_memories field ---
     # Filter out any keys that don't exist in the available metadata
@@ -1448,138 +1439,183 @@ async def handle_preprocessing(
     else:
         logger.info(f"{log_prefix} Detected output language: '{output_language_val}'")
 
-    # Extract relevant_app_skills from LLM response if present (for tool preselection)
-    # For now, if not provided by LLM, we'll set to None (meaning all skills available)
-    relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
-    if relevant_app_skills_val and isinstance(relevant_app_skills_val, list):
-        # Build a robust skill name resolver to handle common LLM hallucinations
-        # This mirrors the tool_resolver_map pattern in main_processor.py
-        # Maps hallucinated skill names to valid skill identifiers
-        skill_resolver_map: Dict[str, str] = {}
-        
-        for valid_skill in available_skill_ids:
-            # Add exact match
-            skill_resolver_map[valid_skill] = valid_skill
-            
-            # Handle underscore variant: app_skill -> app-skill
-            underscore_variant = valid_skill.replace("-", "_")
-            skill_resolver_map[underscore_variant] = valid_skill
-            
-            # Handle duplicated segment pattern: app-skill-skill -> app-skill
-            # Example: web-search-search -> web-search
-            parts = valid_skill.split("-")
-            if len(parts) >= 2:
-                # Create duplicated variant: web-search -> web-search-search
-                duplicated = f"{valid_skill}-{parts[-1]}"
-                skill_resolver_map[duplicated] = valid_skill
-                
-                # Also handle underscore with duplication: web_search_search -> web-search
-                underscore_duplicated = f"{underscore_variant}_{parts[-1].replace('-', '_')}"
-                skill_resolver_map[underscore_duplicated] = valid_skill
-        
-        logger.debug(f"{log_prefix} Built skill resolver map with {len(skill_resolver_map)} entries for handling hallucinated skill names")
-        
-        # Validate and correct skill identifiers
-        validated_relevant_skills = []
-        corrected_skills = []
-        invalid_skills = []
-        
-        for skill in relevant_app_skills_val:
-            if skill in available_skill_ids:
-                # Exact match - no correction needed
-                validated_relevant_skills.append(skill)
-            elif skill in skill_resolver_map:
-                # Hallucinated name that we can correct
-                corrected_skill = skill_resolver_map[skill]
-                validated_relevant_skills.append(corrected_skill)
-                corrected_skills.append(f"{skill} -> {corrected_skill}")
-            else:
-                # Could not resolve - truly invalid
-                invalid_skills.append(skill)
-        
-        # Remove duplicates while preserving order
-        validated_relevant_skills = list(dict.fromkeys(validated_relevant_skills))
-        
-        if corrected_skills:
-            logger.info(
-                f"{log_prefix} Corrected {len(corrected_skills)} hallucinated skill name(s): {corrected_skills}"
-            )
-        
-        if invalid_skills:
+    # --- User override: explicit @skill mentions ---
+    # When the user specifies skills via @skill:app_id:skill_id, use only those and skip LLM selection entirely.
+    user_requested_skills_only = False
+    user_requested_focus_only = False
+
+    if user_overrides and user_overrides.skills:
+        # Build skill identifiers in "app_id-skill_id" format and validate against available skills
+        override_skill_ids = [f"{app_id}-{skill_id}" for app_id, skill_id in user_overrides.skills]
+        validated_relevant_skills = [s for s in override_skill_ids if s in available_skill_ids]
+        invalid_override_skills = [s for s in override_skill_ids if s not in available_skill_ids]
+        if invalid_override_skills:
             logger.warning(
-                f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that couldn't be resolved: {invalid_skills}. "
-                f"Filtered out. Available skills: {available_skill_ids if available_skill_ids else 'None'}. "
-                f"This may indicate that the app for these skills is not discovered or the skill identifier format is incorrect."
+                f"{log_prefix} USER_OVERRIDE: Skipping invalid @skill override(s) not in available skills: {invalid_override_skills}. "
+                f"Using: {validated_relevant_skills}"
             )
         if validated_relevant_skills:
-            logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_skills)} relevant skill(s) for main processing: {', '.join(validated_relevant_skills)}")
-        else:
-            # Empty list means no skills are relevant - this is valid per architecture
-            # We should NOT include all skills, only the preselected ones (which is empty)
-            logger.info(f"{log_prefix} Preprocessing selected no relevant skills (or all were invalid). No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
-            validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
-    else:
-        # No preselection provided by LLM - treat as empty list (no skills preselected)
-        # Architecture requires only preselected skills to be forwarded, so empty list means no skills
-        validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
-        logger.info(f"{log_prefix} No skill preselection from preprocessing. No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
-    
-    # Extract relevant_focus_modes from LLM response if present (for focus mode activation)
-    # Focus modes change how the AI responds by providing specialized system prompt instructions
-    relevant_focus_modes_val = llm_analysis_args.get("relevant_focus_modes")
-    validated_relevant_focus_modes: List[str] = []
-    
-    if relevant_focus_modes_val and isinstance(relevant_focus_modes_val, list):
-        # Build a resolver map to handle common LLM hallucinations (similar to skills)
-        # Uses available_focus_mode_ids (bare IDs) for validation, NOT available_focus_modes_list
-        # (which contains descriptions appended for LLM prompt context)
-        focus_resolver_map: Dict[str, str] = {}
-        
-        for valid_focus in available_focus_mode_ids:
-            # Add exact match
-            focus_resolver_map[valid_focus] = valid_focus
-            
-            # Handle underscore variant: app_focus -> app-focus
-            underscore_variant = valid_focus.replace("-", "_")
-            focus_resolver_map[underscore_variant] = valid_focus
-        
-        # Validate and correct focus mode identifiers
-        corrected_focus_modes = []
-        invalid_focus_modes = []
-        
-        for focus in relevant_focus_modes_val:
-            if focus in available_focus_mode_ids:
-                # Exact match - no correction needed
-                validated_relevant_focus_modes.append(focus)
-            elif focus in focus_resolver_map:
-                # Hallucinated name that we can correct
-                corrected_focus = focus_resolver_map[focus]
-                validated_relevant_focus_modes.append(corrected_focus)
-                corrected_focus_modes.append(f"{focus} -> {corrected_focus}")
-            else:
-                # Could not resolve - truly invalid
-                invalid_focus_modes.append(focus)
-        
-        # Remove duplicates while preserving order
-        validated_relevant_focus_modes = list(dict.fromkeys(validated_relevant_focus_modes))
-        
-        if corrected_focus_modes:
+            user_requested_skills_only = True
             logger.info(
-                f"{log_prefix} Corrected {len(corrected_focus_modes)} hallucinated focus mode name(s): {corrected_focus_modes}"
+                f"{log_prefix} USER_OVERRIDE: Using only user-requested skills (skipping preprocessing LLM selection): {', '.join(validated_relevant_skills)}"
             )
-        
-        if invalid_focus_modes:
-            logger.warning(
-                f"{log_prefix} LLM returned {len(invalid_focus_modes)} invalid focus mode identifier(s) that couldn't be resolved: {invalid_focus_modes}. "
-                f"Filtered out. Available focus modes: {available_focus_mode_ids if available_focus_mode_ids else 'None'}."
-            )
-        
-        if validated_relevant_focus_modes:
-            logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_focus_modes)} relevant focus mode(s): {', '.join(validated_relevant_focus_modes)}")
         else:
-            logger.debug(f"{log_prefix} Preprocessing selected no relevant focus modes.")
-    else:
-        logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
+            logger.warning(
+                f"{log_prefix} USER_OVERRIDE: No valid skills from user overrides (all invalid or empty). Falling back to no skill preselection."
+            )
+            validated_relevant_skills = []
+
+    if not user_requested_skills_only:
+        # Extract relevant_app_skills from LLM response if present (for tool preselection)
+        # When user did not specify skills, use preprocessing LLM selection.
+        relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
+        if relevant_app_skills_val and isinstance(relevant_app_skills_val, list):
+            # Build a robust skill name resolver to handle common LLM hallucinations
+            # This mirrors the tool_resolver_map pattern in main_processor.py
+            # Maps hallucinated skill names to valid skill identifiers
+            skill_resolver_map: Dict[str, str] = {}
+            
+            for valid_skill in available_skill_ids:
+                # Add exact match
+                skill_resolver_map[valid_skill] = valid_skill
+                
+                # Handle underscore variant: app_skill -> app-skill
+                underscore_variant = valid_skill.replace("-", "_")
+                skill_resolver_map[underscore_variant] = valid_skill
+                
+                # Handle duplicated segment pattern: app-skill-skill -> app-skill
+                # Example: web-search-search -> web-search
+                parts = valid_skill.split("-")
+                if len(parts) >= 2:
+                    # Create duplicated variant: web-search -> web-search-search
+                    duplicated = f"{valid_skill}-{parts[-1]}"
+                    skill_resolver_map[duplicated] = valid_skill
+                    
+                    # Also handle underscore with duplication: web_search_search -> web-search
+                    underscore_duplicated = f"{underscore_variant}_{parts[-1].replace('-', '_')}"
+                    skill_resolver_map[underscore_duplicated] = valid_skill
+            
+            logger.debug(f"{log_prefix} Built skill resolver map with {len(skill_resolver_map)} entries for handling hallucinated skill names")
+            
+            # Validate and correct skill identifiers
+            validated_relevant_skills = []
+            corrected_skills = []
+            invalid_skills = []
+            
+            for skill in relevant_app_skills_val:
+                if skill in available_skill_ids:
+                    # Exact match - no correction needed
+                    validated_relevant_skills.append(skill)
+                elif skill in skill_resolver_map:
+                    # Hallucinated name that we can correct
+                    corrected_skill = skill_resolver_map[skill]
+                    validated_relevant_skills.append(corrected_skill)
+                    corrected_skills.append(f"{skill} -> {corrected_skill}")
+                else:
+                    # Could not resolve - truly invalid
+                    invalid_skills.append(skill)
+            
+            # Remove duplicates while preserving order
+            validated_relevant_skills = list(dict.fromkeys(validated_relevant_skills))
+            
+            if corrected_skills:
+                logger.info(
+                    f"{log_prefix} Corrected {len(corrected_skills)} hallucinated skill name(s): {corrected_skills}"
+                )
+            
+            if invalid_skills:
+                logger.warning(
+                    f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that couldn't be resolved: {invalid_skills}. "
+                    f"Filtered out. Available skills: {available_skill_ids if available_skill_ids else 'None'}. "
+                    f"This may indicate that the app for these skills is not discovered or the skill identifier format is incorrect."
+                )
+            if validated_relevant_skills:
+                logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_skills)} relevant skill(s) for main processing: {', '.join(validated_relevant_skills)}")
+            else:
+                # Empty list means no skills are relevant - this is valid per architecture
+                # We should NOT include all skills, only the preselected ones (which is empty)
+                logger.info(f"{log_prefix} Preprocessing selected no relevant skills (or all were invalid). No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
+                validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
+        else:
+            # No preselection provided by LLM - treat as empty list (no skills preselected)
+            # Architecture requires only preselected skills to be forwarded, so empty list means no skills
+            validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
+            logger.info(f"{log_prefix} No skill preselection from preprocessing. No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
+
+    # --- User override: explicit @focus mentions ---
+    # When the user specifies focus mode(s) via @focus:app_id:focus_id, use only those and skip LLM selection.
+    validated_relevant_focus_modes: List[str] = []
+    if user_overrides and user_overrides.focus_modes:
+        override_focus_ids = [f"{app_id}-{focus_id}" for app_id, focus_id in user_overrides.focus_modes]
+        validated_relevant_focus_modes = [f for f in override_focus_ids if f in available_focus_mode_ids]
+        invalid_override_focus = [f for f in override_focus_ids if f not in available_focus_mode_ids]
+        if invalid_override_focus:
+            logger.warning(
+                f"{log_prefix} USER_OVERRIDE: Skipping invalid @focus override(s) not in available focus modes: {invalid_override_focus}. "
+                f"Using: {validated_relevant_focus_modes}"
+            )
+        if validated_relevant_focus_modes:
+            user_requested_focus_only = True
+            logger.info(
+                f"{log_prefix} USER_OVERRIDE: Using only user-requested focus mode(s) (skipping preprocessing LLM selection): {', '.join(validated_relevant_focus_modes)}"
+            )
+
+    if not user_requested_focus_only:
+        # Extract relevant_focus_modes from LLM response if present (for focus mode activation)
+        # Focus modes change how the AI responds by providing specialized system prompt instructions
+        relevant_focus_modes_val = llm_analysis_args.get("relevant_focus_modes")
+        validated_relevant_focus_modes = []  # LLM path: start empty, populate from LLM response below
+        if relevant_focus_modes_val and isinstance(relevant_focus_modes_val, list):
+            # Build a resolver map to handle common LLM hallucinations (similar to skills)
+            # Uses available_focus_mode_ids (bare IDs) for validation, NOT available_focus_modes_list
+            # (which contains descriptions appended for LLM prompt context)
+            focus_resolver_map: Dict[str, str] = {}
+            
+            for valid_focus in available_focus_mode_ids:
+                # Add exact match
+                focus_resolver_map[valid_focus] = valid_focus
+                
+                # Handle underscore variant: app_focus -> app-focus
+                underscore_variant = valid_focus.replace("-", "_")
+                focus_resolver_map[underscore_variant] = valid_focus
+            
+            # Validate and correct focus mode identifiers
+            corrected_focus_modes = []
+            invalid_focus_modes = []
+            
+            for focus in relevant_focus_modes_val:
+                if focus in available_focus_mode_ids:
+                    # Exact match - no correction needed
+                    validated_relevant_focus_modes.append(focus)
+                elif focus in focus_resolver_map:
+                    # Hallucinated name that we can correct
+                    corrected_focus = focus_resolver_map[focus]
+                    validated_relevant_focus_modes.append(corrected_focus)
+                    corrected_focus_modes.append(f"{focus} -> {corrected_focus}")
+                else:
+                    # Could not resolve - truly invalid
+                    invalid_focus_modes.append(focus)
+            
+            # Remove duplicates while preserving order
+            validated_relevant_focus_modes = list(dict.fromkeys(validated_relevant_focus_modes))
+            
+            if corrected_focus_modes:
+                logger.info(
+                    f"{log_prefix} Corrected {len(corrected_focus_modes)} hallucinated focus mode name(s): {corrected_focus_modes}"
+                )
+            
+            if invalid_focus_modes:
+                logger.warning(
+                    f"{log_prefix} LLM returned {len(invalid_focus_modes)} invalid focus mode identifier(s) that couldn't be resolved: {invalid_focus_modes}. "
+                    f"Filtered out. Available focus modes: {available_focus_mode_ids if available_focus_mode_ids else 'None'}."
+                )
+            
+            if validated_relevant_focus_modes:
+                logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_focus_modes)} relevant focus mode(s): {', '.join(validated_relevant_focus_modes)}")
+            else:
+                logger.debug(f"{log_prefix} Preprocessing selected no relevant focus modes.")
+        else:
+            logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
     
     # --- Determine if hardcoded disclaimer injection is required ---
     # This is a HARDCODED safety mechanism for legal compliance.
@@ -1629,6 +1665,8 @@ async def handle_preprocessing(
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
+        user_requested_skills_only=user_requested_skills_only,  # True when user specified @skill; main processor must not merge always_include_skills
+        user_requested_focus_only=user_requested_focus_only,  # True when user specified @focus
         output_language=output_language_val,  # Detected language of user's request (ISO 639-1 code)
         requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
         selected_main_llm_model_id=selected_llm_for_main_id,
