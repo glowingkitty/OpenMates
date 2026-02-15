@@ -414,7 +414,8 @@
     settingsMemoriesSuggestions = [],
     rejectedSuggestionHashes = null,
     onSuggestionAdded = undefined,
-    onSuggestionRejected = undefined
+    onSuggestionRejected = undefined,
+    onSuggestionOpenForCustomize = undefined
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
