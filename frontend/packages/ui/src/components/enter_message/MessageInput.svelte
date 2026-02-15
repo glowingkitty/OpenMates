@@ -168,6 +168,17 @@
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
     
+    // --- Text-change guard for handleEditorUpdate ---
+    // Tracks the last text content processed by handleEditorUpdate.
+    // On iOS Firefox, double-tap to select text fires spurious `input` events that
+    // ProseMirror interprets as content changes, triggering TipTap's onUpdate even
+    // though only the selection changed. Without this guard, each false onUpdate runs
+    // heavy operations (markdown serialization, unified parsing, PII detection) and
+    // dispatches empty transactions (editor.view.dispatch(state.tr)) which cause
+    // further DOM mutations → more input events → an infinite feedback loop that
+    // crashes performance.
+    let lastEditorUpdateText = '';
+    
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
     
@@ -200,7 +211,69 @@
     // Paste events inject complete content (possibly containing PII) so detection should
     // not wait for a delimiter character.
     let piiPasteDetectionPending = false;
- 
+    
+    // --- Heavy Parsing Debounce ---
+    // handleUnifiedParsing and updateOriginalMarkdown are expensive:
+    //   - updateOriginalMarkdown serializes the full TipTap document tree to markdown
+    //   - handleUnifiedParsing runs the full message parser + regex URL detection + decorations
+    // Running these on every keystroke is wasteful — most characters don't change
+    // the parsing result. Instead, we use the same boundary-trigger pattern as PII
+    // detection: run immediately on delimiter chars and paste, debounce fallback otherwise.
+    let heavyParsingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const HEAVY_PARSING_DEBOUNCE_MS = 400; // Safety-net fallback (shorter than PII since it affects UX)
+    // Re-use PII_TRIGGER_CHARS for consistency — these mark natural word/token boundaries
+    // where parsing results are most likely to change (e.g. URL closed by space, code fence closed)
+    
+    /**
+     * Schedule or immediately run the heavy parsing operations.
+     * Immediate on delimiter characters and paste events (content is "complete");
+     * debounced fallback for regular typing.
+     */
+    function scheduleHeavyParsing(editor: Editor, text: string, forcedByPaste: boolean) {
+        const lastChar = text.length > 0 ? text[text.length - 1] : '';
+        const isDelimiter = PII_TRIGGER_CHARS.has(lastChar);
+        
+        if (forcedByPaste || isDelimiter) {
+            // Delimiter typed or paste — content is at a natural boundary, parse now
+            if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); heavyParsingDebounceTimer = null; }
+            runHeavyParsing(editor);
+        } else {
+            // Regular character — debounce to avoid parsing on every keystroke
+            if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); }
+            heavyParsingDebounceTimer = setTimeout(() => {
+                heavyParsingDebounceTimer = null;
+                if (editor && !editor.isDestroyed) {
+                    runHeavyParsing(editor);
+                }
+            }, HEAVY_PARSING_DEBOUNCE_MS);
+        }
+    }
+    
+    /**
+     * Run the heavy parsing operations immediately.
+     * Called at word boundaries and when the debounce timer fires.
+     */
+    function runHeavyParsing(editor: Editor) {
+        // Update original markdown tracking (serializes editor → markdown)
+        updateOriginalMarkdown(editor);
+        // Run unified parser for write mode (handles unclosed-block decorations)
+        handleUnifiedParsing(editor);
+    }
+    
+    /**
+     * Flush any pending heavy parsing immediately.
+     * Called before sending a message to ensure decorations and markdown are up-to-date.
+     */
+    function flushHeavyParsing(editor: Editor) {
+        if (heavyParsingDebounceTimer) {
+            clearTimeout(heavyParsingDebounceTimer);
+            heavyParsingDebounceTimer = null;
+        }
+        if (editor && !editor.isDestroyed) {
+            runHeavyParsing(editor);
+        }
+    }
+
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
         try {
@@ -244,15 +317,19 @@
                 // Apply highlighting colors for unclosed blocks
                 applyHighlightingColors(editor, parsedDoc._streamingData.unclosedBlocks);
             } else {
-                console.debug('[MessageInput] No unclosed blocks found, current markdown:', editor.getText());
-                // No unclosed blocks, but preserve PII decorations if any
+                // No unclosed blocks — update decoration set only if it actually changed.
+                // Avoid dispatching empty transactions when nothing changed, as these cause
+                // DOM mutations that can trigger cascading input events on iOS Firefox.
+                const prevDecorationSet = currentDecorationSet;
                 if (currentPIIDecorations.length > 0) {
-                    const { state: st, view: vw } = editor;
+                    const { state: st } = editor;
                     currentDecorationSet = DecorationSet.create(st.doc, currentPIIDecorations);
                 } else {
                     currentDecorationSet = DecorationSet.empty;
                 }
-                if (decorationPropsSet && editor?.view) {
+                // Only dispatch a transaction to refresh decorations if the set actually changed
+                const decorationsChanged = prevDecorationSet !== currentDecorationSet;
+                if (decorationsChanged && decorationPropsSet && editor?.view) {
                     editor.view.dispatch(editor.state.tr);
                 }
                 
@@ -315,13 +392,6 @@
         const sourceText = originalMarkdown || editor.getText();
         const lastChar = sourceText.slice(-1);
         
-        console.debug('[MessageInput] detectClosedUrls using source:', {
-            usingOriginalMarkdown: !!originalMarkdown,
-            sourceLength: sourceText.length,
-            lastChar: lastChar,
-            preview: sourceText.substring(0, 100) + (sourceText.length > 100 ? '...' : '')
-        });
-        
         // Only check for closed URLs if the user just typed a space or newline
         // This ensures we only process URLs when they're actually "closed" (followed by whitespace)
         if (lastChar !== ' ' && lastChar !== '\n') {
@@ -346,15 +416,8 @@
                     start: blockMatch.index,
                     end: blockMatch.index + blockMatch[0].length
                 });
-                console.debug('[MessageInput] Found code block to exclude:', {
-                    start: blockMatch.index,
-                    end: blockMatch.index + blockMatch[0].length,
-                    content: blockMatch[0].substring(0, 50) + '...'
-                });
             }
         }
-        
-        console.debug('[MessageInput] Total code block ranges to exclude:', codeBlockRanges.length);
         
         // Find all URLs in the source text
         // We'll check each one to see if it's closed (followed by whitespace) and recently added
@@ -383,8 +446,6 @@
                     startPos: urlStart,
                     endPos: urlEnd
                 });
-            } else {
-                console.debug('[MessageInput] URL is inside a code block, skipping:', url);
             }
         }
         
@@ -639,21 +700,10 @@
                 // This should preserve embed nodes as json_embed blocks
                 const serializedMarkdown = tipTapToCanonicalMarkdown(editor.getJSON());
                 originalMarkdown = serializedMarkdown;
-                
-                console.debug('[MessageInput] Updated original markdown via TipTap serialization:', { 
-                    length: originalMarkdown.length,
-                    preview: originalMarkdown.substring(0, 100),
-                    hasJsonEmbed: originalMarkdown.includes('```json_embed')
-                });
             } catch (error) {
                 console.warn('[MessageInput] Error serializing TipTap content, falling back to plain text:', error);
                 // Fallback to plain text if serialization fails
                 originalMarkdown = editor.getText();
-                
-                console.debug('[MessageInput] Updated original markdown (fallback):', { 
-                    length: originalMarkdown.length,
-                    preview: originalMarkdown.substring(0, 100)
-                });
             }
         }
     }
@@ -663,10 +713,6 @@
      * This returns the user's actual typed content without TipTap conversion artifacts
      */
     function getOriginalMarkdownForSending(): string {
-        console.debug('[MessageInput] Getting original markdown for sending:', {
-            length: originalMarkdown.length,
-            preview: originalMarkdown.substring(0, 100)
-        });
         return originalMarkdown;
     }
 
@@ -675,8 +721,7 @@
      * Uses TipTap's native decoration system to avoid DOM conflicts
      */
     function applyHighlightingColors(editor: Editor, unclosedBlocks: any[]) {
-        console.debug('[MessageInput] Applying TipTap decorations for unclosed blocks:', 
-            unclosedBlocks.map(block => ({ type: block.type, startLine: block.startLine })));
+        // Debug: unclosed blocks for decoration (logged only at info level to reduce keystroke overhead)
 
         const { state, view } = editor;
         const { doc } = state;
@@ -879,7 +924,7 @@
                 if (from < to) decorations.push({ from, to, className, type: block.type });
             }
 
-            console.debug('[MessageInput] Created decorations:', decorations, 'from unclosedBlocks:', unclosedBlocks);
+            // Decorations created from unclosed blocks (omit per-keystroke logging for performance)
 
             const tipTapDecorations = decorations.map(dec => {
                 // For URLs/videos, use inclusiveEnd: false to prevent highlighting beyond the URL
@@ -904,7 +949,6 @@
                 decorationPropsSet = true;
             }
             // Always dispatch to refresh (also clears when empty)
-            console.debug('[MessageInput] Dispatching transaction with decorations:', allDecorations.length, '(blocks:', tipTapDecorations.length, 'pii:', currentPIIDecorations.length, ')');
             view.dispatch(state.tr);
 
         } catch (error) {
@@ -1192,6 +1236,9 @@
         if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
         currentPIIDecorations = [];
         lastPIIText = '';
+        
+        // Clean up heavy parsing debounce timer
+        if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); heavyParsingDebounceTimer = null; }
     });
 
     // --- Editor Lifecycle Handlers ---
@@ -1652,6 +1699,22 @@
     }
 
     function handleEditorUpdate({ editor }: { editor: Editor }) {
+        // --- Text-change guard ---
+        // On iOS Firefox, double-tap to select text fires spurious `input` events
+        // that ProseMirror treats as content changes, triggering onUpdate even though
+        // only the selection changed. The heavy operations below (markdown serialization,
+        // unified parsing, PII detection) plus the empty transaction dispatches they
+        // perform would create an infinite feedback loop crashing performance.
+        // Guard: compare current plain text to last processed text and bail early
+        // for selection-only changes. checkMentionTrigger still runs because it
+        // depends on cursor position, not content.
+        const currentText = editor.getText();
+        const textActuallyChanged = currentText !== lastEditorUpdateText;
+        
+        if (textActuallyChanged) {
+            lastEditorUpdateText = currentText;
+        }
+        
         const newHasContent = !isContentEmptyExceptMention(editor);
         if (hasContent !== newHasContent) {
             hasContent = newHasContent;
@@ -1665,11 +1728,14 @@
             }
         }
         
-        // Update original markdown tracking
-        updateOriginalMarkdown(editor);
-        
-        // NOTE: Code block detection is handled SERVER-SIDE when message is sent
-        // Client keeps raw markdown with code blocks - no client-side embed creation
+        // Skip all heavy processing if only the selection changed (no content change).
+        // This prevents the infinite loop on iOS Firefox where empty transaction
+        // dispatches cause further spurious input events.
+        if (!textActuallyChanged) {
+            // Still check mention trigger (depends on cursor position, not content)
+            checkMentionTrigger(editor);
+            return;
+        }
         
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
@@ -1680,17 +1746,16 @@
         piiPasteDetectionPending = false;
         runPIIDetection(editor, wasPaste);
 
-        // Use unified parser for write mode (handles unclosed-block decorations).
-        // PII decorations from currentPIIDecorations are merged in by
-        // applyHighlightingColors when unclosed blocks exist.
-        handleUnifiedParsing(editor);
+        // Heavy parsing (markdown serialization + unified parser + decorations):
+        // Debounced to delimiter boundaries to avoid running the full parser on every
+        // keystroke. Runs immediately on space/newline/punctuation and paste, with a
+        // 400ms fallback timer for regular characters.
+        scheduleHeavyParsing(editor, currentText, wasPaste);
 
         // Dispatch live text change event so parent components can react on each keystroke
         // This enables precise, character-by-character search in new chat suggestions
         try {
-            const liveText = editor.getText();
-            console.debug('[MessageInput] Dispatching textchange event:', { text: liveText, length: liveText.length });
-            dispatch('textchange', { text: liveText });
+            dispatch('textchange', { text: currentText });
         } catch (err) {
             console.error('[MessageInput] Failed to dispatch textchange event:', err);
         }
@@ -2225,6 +2290,10 @@
     }
     function handleFileSelect() { fileInput.multiple = true; fileInput.click(); }
     function handleSendMessage() {
+        // Flush any debounced heavy parsing so originalMarkdown is fully up-to-date
+        if (editor && !editor.isDestroyed) {
+            flushHeavyParsing(editor);
+        }
         // Optimistically show stop button immediately after sending
         awaitingAITaskStart = true;
         cancelRequestedWhileAwaiting = false;
@@ -2296,6 +2365,7 @@
         // This ensures that if the user interrupts the signup process, the field is empty
         await clearMessageField(false); // Don't focus after clearing
         originalMarkdown = ''; // Clear markdown tracking
+        lastEditorUpdateText = ''; // Reset text-change guard
         hasContent = false; // Update content state
         
         // Manually dispatch textchange event with empty text to clear liveInputText in ActiveChat
@@ -2380,6 +2450,7 @@
             console.debug('[MessageInput] Setting suggestion text in editor');
             editor.commands.setContent(`<p>${text}</p>`);
             hasContent = true;
+            lastEditorUpdateText = editor.getText(); // Sync text-change guard after external content set
             updateOriginalMarkdown(editor);
             editor.commands.focus('end');
             console.debug('[MessageInput] Suggestion text set and focused successfully');
@@ -2398,6 +2469,9 @@
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
         setCurrentChatContext(chatId, draftContent, version);
+        
+        // Reset text-change guard so next editor update processes fully after content swap
+        lastEditorUpdateText = editor ? editor.getText() : '';
         
         // Update local state based on the editor content after setCurrentChatContext
         if (editor) {
@@ -2433,8 +2507,14 @@
         await clearEditorAndResetDraftState(shouldFocus, preserveContext);
         hasContent = false;
         originalMarkdown = ''; // Clear markdown tracking
+        lastEditorUpdateText = ''; // Reset text-change guard so next update processes fully
     }
     export function getOriginalMarkdown(): string {
+        // Flush any pending heavy parsing to ensure originalMarkdown is up-to-date
+        // before the caller reads it (e.g. before sending a message)
+        if (editor && !editor.isDestroyed) {
+            flushHeavyParsing(editor);
+        }
         return getOriginalMarkdownForSending();
     }
     export function setOriginalMarkdown(markdown: string) {

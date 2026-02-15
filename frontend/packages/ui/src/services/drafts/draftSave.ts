@@ -412,6 +412,13 @@ export async function clearCurrentDraft() {
   }
 }
 
+// Flag: when a save is skipped because another is in-progress, this is set so
+// the finally block knows to schedule a follow-up save with the latest content.
+// This prevents the race condition where fast typing during a slow save (encryption)
+// causes the debounce to fire, get dropped by the isSaveInProgress guard, and the
+// latest content is never persisted.
+let resaveNeeded = false;
+
 /**
  * Saves the current editor content as a draft.
  * If content is empty, it triggers the modified clearCurrentDraft (which now deletes).
@@ -430,12 +437,14 @@ export const saveDraftDebounced = debounce(
     const isAuthenticated = get(authStore).isAuthenticated;
     const currentState = get(draftEditorUIState);
 
-    // CRITICAL FIX: Check save lock to prevent race conditions
-    // If another save is in progress, skip this one to prevent duplicate chat creation
-    // The debounce should normally prevent this, but async operations can cause overlap
+    // Check save lock to prevent duplicate chat creation from concurrent saves.
+    // Instead of silently dropping the save (which loses the latest content),
+    // set resaveNeeded so the in-progress save's finally block will schedule
+    // a follow-up save that captures the current editor state.
     if (currentState.isSaveInProgress) {
+      resaveNeeded = true;
       console.debug(
-        "[DraftService] Save already in progress, skipping to prevent duplicate chat creation",
+        "[DraftService] Save already in progress, marked resaveNeeded=true so latest content will be saved after current save completes",
       );
       return;
     }
@@ -1084,6 +1093,25 @@ export const saveDraftDebounced = debounce(
     } finally {
       // CRITICAL: Ensure save lock is always released, even if an unexpected error occurs
       draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
+      
+      // If another save was requested while this one was in progress, schedule
+      // a follow-up save with a short delay to capture the latest editor content.
+      // This prevents content loss when the user types during a slow save (encryption).
+      if (resaveNeeded) {
+        resaveNeeded = false;
+        console.debug(
+          "[DraftService] Executing follow-up save for content that arrived during previous save",
+        );
+        // Short delay to let the state update propagate, then re-trigger the debounced save.
+        // Using setTimeout instead of calling saveDraftDebounced directly to avoid
+        // re-entering while the finally block is still executing.
+        setTimeout(() => {
+          const followUpEditor = getEditorInstance();
+          if (followUpEditor && !followUpEditor.isDestroyed) {
+            saveDraftDebounced(chatIdFromMessageInput);
+          }
+        }, 100);
+      }
     }
   },
   1200,
