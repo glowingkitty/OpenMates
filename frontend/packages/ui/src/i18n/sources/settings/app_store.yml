@@ -572,6 +572,52 @@ focus_modes.description:
   cs: Popis
   sv: Beskrivning
   verified_by_human: []
+focus_modes.system_prompt:
+  context: Section title for the instructions the AI follows when this focus mode is active (user-friendly label)
+  en: Instructions
+  de: Anweisungen
+  zh: 说明
+  es: Instrucciones
+  fr: Instructions
+  pt: Instruções
+  ru: Инструкции
+  ja: 指示
+  ko: 지침
+  it: Istruzioni
+  tr: Talimatlar
+  vi: Hướng dẫn
+  id: Instruksi
+  pl: Instrukcje
+  nl: Instructies
+  ar: التعليمات
+  hi: निर्देश
+  th: คำแนะนำ
+  cs: Instrukce
+  sv: Instruktioner
+  verified_by_human: []
+focus_modes.no_system_prompt:
+  context: Message when focus mode has no instructions defined
+  en: No instructions are defined for this focus mode.
+  de: Für diesen Fokusmodus sind keine Anweisungen definiert.
+  zh: 此专注模式未定义说明。
+  es: No hay instrucciones definidas para este modo de enfoque.
+  fr: Aucune instruction définie pour ce mode de concentration.
+  pt: Nenhuma instrução definida para este modo de foco.
+  ru: Для этого режима фокуса не заданы инструкции.
+  ja: このフォーカスモードには指示が定義されていません。
+  ko: 이 포커스 모드에 대한 지침이 정의되어 있지 않습니다.
+  it: Nessuna istruzione definita per questa modalità di focus.
+  tr: Bu odak modu için talimat tanımlanmamış.
+  vi: Không có hướng dẫn nào được xác định cho chế độ tập trung này.
+  id: Tidak ada instruksi yang ditentukan untuk mode fokus ini.
+  pl: Dla tego trybu skupienia nie zdefiniowano instrukcji.
+  nl: Geen instructies gedefinieerd voor deze focusmodus.
+  ar: لم يتم تعريف تعليمات لوضع التركيز هذا.
+  hi: इस फोकस मोड के लिए कोई निर्देश परिभाषित नहीं है।
+  th: ไม่มีการกำหนดคำแนะนำสำหรับโหมดโฟกัสนี้
+  cs: Pro tento režim zaměření nejsou definovány žádné instrukce.
+  sv: Inga instruktioner definierade för detta fok läge.
+  verified_by_human: []
 focus_modes.no_description:
   context: Message when focus mode has no description
   en: No description available for this focus mode.

@@ -54,6 +54,18 @@
     );
     
     /**
+     * System prompt text shown when this focus mode is activated.
+     * Either the literal system_prompt or the resolved system_prompt_translation_key.
+     */
+    let focusModeSystemPrompt = $derived(
+        focusMode?.system_prompt
+            ? focusMode.system_prompt
+            : focusMode?.system_prompt_translation_key
+                ? $text(focusMode.system_prompt_translation_key)
+                : ''
+    );
+    
+    /**
      * Navigate back to app details.
      */
     /**
@@ -114,6 +126,24 @@
                 </div>
             </div>
         {/if}
+        
+        <!-- System prompt section: shows the prompt used when this focus mode is activated -->
+        <div class="section">
+            <SettingsItem 
+                type="heading"
+                icon="ai"
+                title={$text('settings.app_store.focus_modes.system_prompt')}
+            />
+            {#if focusModeSystemPrompt}
+                <div class="content system-prompt-content">
+                    <pre class="system-prompt-text">{focusModeSystemPrompt}</pre>
+                </div>
+            {:else}
+                <div class="no-description">
+                    <p>{$text('settings.app_store.focus_modes.no_system_prompt')}</p>
+                </div>
+            {/if}
+        </div>
     {/if}
 </div>
 
@@ -144,6 +174,24 @@
         color: var(--color-grey-100);
         font-size: 1rem;
         line-height: 1.6;
+    }
+    
+    .system-prompt-content {
+        padding: 1rem 0 1rem 10px;
+    }
+    
+    .system-prompt-text {
+        margin: 0;
+        padding: 1rem;
+        background: var(--color-grey-10, #f5f5f5);
+        border-radius: 8px;
+        border: 1px solid var(--border-color, #e0e0e0);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: var(--color-grey-100);
+        overflow-x: auto;
     }
     
     .no-description {

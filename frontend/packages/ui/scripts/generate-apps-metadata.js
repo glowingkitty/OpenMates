@@ -585,6 +585,18 @@ function parseAppYaml(appId, filePath) {
           ),
         };
 
+        // Include system prompt used when this focus mode is activated (for display on settings page)
+        if (focus.systemprompt && typeof focus.systemprompt === "string") {
+          focusMetadata.system_prompt = focus.systemprompt.trim();
+        }
+        if (
+          focus.systemprompt_translation_key &&
+          typeof focus.systemprompt_translation_key === "string" &&
+          focus.systemprompt_translation_key.trim()
+        ) {
+          focusMetadata.system_prompt_translation_key = focus.systemprompt_translation_key.trim();
+        }
+
         if (
           focusMetadata.id &&
           focusMetadata.name_translation_key &&
@@ -868,9 +880,22 @@ function generateTypeScript(appsMetadata) {
         lines.push(
           `                name_translation_key: ${JSON.stringify(focus.name_translation_key)},`,
         );
+        const hasOptionalFocusFields =
+          focus.system_prompt !== undefined ||
+          focus.system_prompt_translation_key !== undefined;
         lines.push(
-          `                description_translation_key: ${JSON.stringify(focus.description_translation_key)}`,
+          `                description_translation_key: ${JSON.stringify(focus.description_translation_key)}${hasOptionalFocusFields ? "," : ""}`,
         );
+        if (focus.system_prompt !== undefined) {
+          lines.push(
+            `                system_prompt: ${JSON.stringify(focus.system_prompt)}${focus.system_prompt_translation_key !== undefined ? "," : ""}`,
+          );
+        }
+        if (focus.system_prompt_translation_key !== undefined) {
+          lines.push(
+            `                system_prompt_translation_key: ${JSON.stringify(focus.system_prompt_translation_key)}`,
+          );
+        }
         lines.push(`            },`);
       }
       lines.push(`        ],`);
