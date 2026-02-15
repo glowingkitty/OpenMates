@@ -19,7 +19,8 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
-  import { getModelDisplayName } from '../../../utils/modelDisplayName';
+  import { getModelDisplayName, getModelByNameOrId } from '../../../utils/modelDisplayName';
+  import { getProviderIconUrl } from '../../../data/providerIcons';
   
   /**
    * Image embed content structure from the backend
@@ -169,6 +170,10 @@
   // Human-readable model name resolved from model ID via frontend metadata
   let modelDisplayName = $derived(model ? getModelDisplayName(model) : undefined);
   
+  // Model metadata for icon display
+  let modelMetadata = $derived(model ? getModelByNameOrId(model) : undefined);
+  let modelIconUrl = $derived(modelMetadata?.logo_svg ? getProviderIconUrl(modelMetadata.logo_svg) : undefined);
+  
   // Skill display name - use correct translation key based on skillId
   // 'generate' -> "Generate", 'generate_draft' -> "Generate Draft"
   const skillIconName = 'ai';
@@ -294,13 +299,19 @@
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
       {#if status === 'finished' && !error && imageUrl}
-        <!-- Finished state with loaded image: show decrypted image only (no prompt text
-             below, so the image extends all the way into the BasicInfosBar via the negative
-             margin-bottom from hasFullWidthImage, eliminating white space). -->
+        <!-- Finished state with loaded image: show decrypted image with model info overlay -->
         <div class="image-content">
           <div class="image-container">
             <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" />
           </div>
+          {#if modelDisplayName}
+            <div class="image-model-badge">
+              {#if modelIconUrl}
+                <img src={modelIconUrl} alt="" class="model-icon" />
+              {/if}
+              <span class="generating-via">{$text('embeds.image_generate.generated_by')} {modelDisplayName}</span>
+            </div>
+          {/if}
         </div>
       {:else if status === 'finished' && !error && imageError}
         <!-- Finished state but image decryption failed -->
@@ -313,7 +324,12 @@
         <div class="prompt-content">
           {#if prompt}
             {#if modelDisplayName}
-              <span class="generating-via">{$text('embeds.image_generate.generating_via')} {modelDisplayName}:</span>
+              <div class="model-info-line">
+                {#if modelIconUrl}
+                  <img src={modelIconUrl} alt="" class="model-icon" />
+                {/if}
+                <span class="generating-via">{$text('embeds.image_generate.generating_via')} {modelDisplayName}:</span>
+              </div>
             {/if}
             <span class="prompt-text">{prompt}</span>
           {:else}
@@ -365,7 +381,19 @@
     font-weight: 600;
     color: var(--color-grey-50, #888);
     line-height: 1.4;
+  }
+  
+  .model-info-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     margin-bottom: 4px;
+  }
+  
+  .model-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
   }
   
   .prompt-content .prompt-text {
@@ -432,6 +460,32 @@
     height: 100%;
     object-fit: cover;
     display: block;
+  }
+  
+  /* Model badge shown over finished images */
+  .image-model-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .image-model-badge .model-icon {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .image-content {
+    position: relative;
   }
   
   /* Note: .image-prompt section was removed from the template to allow the image

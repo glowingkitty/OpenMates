@@ -25,392 +25,460 @@
  * Server/provider information for a model.
  */
 export interface ModelServerInfo {
-    /** Server identifier */
-    id: string;
-    /** Server display name */
-    name: string;
-    /** Server region: EU, US, or APAC */
-    region: 'EU' | 'US' | 'APAC';
+  /** Server identifier */
+  id: string;
+  /** Server display name */
+  name: string;
+  /** Server region: EU, US, or APAC */
+  region: "EU" | "US" | "APAC";
 }
 
 /**
  * Model pricing information.
  */
 export interface ModelPricing {
-    /** Number of input tokens per 1 credit */
-    input_tokens_per_credit?: number;
-    /** Number of output tokens per 1 credit */
-    output_tokens_per_credit?: number;
+  /** Number of input tokens per 1 credit */
+  input_tokens_per_credit?: number;
+  /** Number of output tokens per 1 credit */
+  output_tokens_per_credit?: number;
 }
 
 /**
  * AI model metadata structure for frontend display.
  */
 export interface AIModelMetadata {
-    /** Unique model identifier (matches provider YAML) */
-    id: string;
-    /** Display name for the model */
-    name: string;
-    /** Brief description of the model's capabilities */
-    description: string;
-    /** Provider ID (anthropic, openai, google, mistral, etc.) */
-    provider_id: string;
-    /** Provider display name */
-    provider_name: string;
-    /** Path to provider logo SVG (relative to static/) */
-    logo_svg: string;
-    /** ISO 3166-1 alpha-2 country code for model origin */
-    country_origin: string;
-    /** Supported input types */
-    input_types: ('text' | 'image' | 'video' | 'audio')[];
-    /** Supported output types */
-    output_types: ('text' | 'image')[];
-    /** The app skill this model is designed for (e.g., "ai.ask", "images.generate") */
-    for_app_skill?: string;
-    /** Whether this is a reasoning/thinking model */
-    reasoning?: boolean;
-    /** Model tier for cost indication: economy, standard, premium */
-    tier: 'economy' | 'standard' | 'premium';
-    /** Release date of the model (ISO 8601 format) */
-    release_date?: string;
-    /** Available servers/providers for this model */
-    servers?: ModelServerInfo[];
-    /** Default server ID for this model */
-    default_server?: string;
-    /** Pricing information for credits per token */
-    pricing?: ModelPricing;
-    /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
-    search_aliases?: string[];
+  /** Unique model identifier (matches provider YAML) */
+  id: string;
+  /** Display name for the model */
+  name: string;
+  /** Brief description of the model's capabilities */
+  description: string;
+  /** Provider ID (anthropic, openai, google, mistral, etc.) */
+  provider_id: string;
+  /** Provider display name */
+  provider_name: string;
+  /** Path to provider logo SVG (relative to static/) */
+  logo_svg: string;
+  /** ISO 3166-1 alpha-2 country code for model origin */
+  country_origin: string;
+  /** Supported input types */
+  input_types: ("text" | "image" | "video" | "audio")[];
+  /** Supported output types */
+  output_types: ("text" | "image")[];
+  /** The app skill this model is designed for (e.g., "ai.ask", "images.generate") */
+  for_app_skill?: string;
+  /** Whether this is a reasoning/thinking model */
+  reasoning?: boolean;
+  /** Model tier for cost indication: economy, standard, premium */
+  tier: "economy" | "standard" | "premium";
+  /** Release date of the model (ISO 8601 format) */
+  release_date?: string;
+  /** Available servers/providers for this model */
+  servers?: ModelServerInfo[];
+  /** Default server ID for this model */
+  default_server?: string;
+  /** Pricing information for credits per token */
+  pricing?: ModelPricing;
+  /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
+  search_aliases?: string[];
 }
 
 /**
  * Static models metadata for the @ mention dropdown.
- * 
+ *
  * This data is generated at build time from backend provider YAML files.
  * All text-capable models are included here.
- * 
+ *
  * At runtime, models are filtered based on provider health checks.
  */
 export const modelsMetadata: AIModelMetadata[] = [
-    {
-        id: "qwen3-235b-a22b-2507",
-        name: "Qwen 3 256b",
-        description: "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance.",
-        provider_id: "alibaba",
-        provider_name: "Alibaba",
-        logo_svg: "icons/alibaba.svg",
-        country_origin: "CN",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "standard",
-        release_date: "2025-07-01",
-        servers: [{"id":"cerebras","name":"Cerebras","region":"US"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
-        default_server: "cerebras",
-        pricing: {"input_tokens_per_credit":550,"output_tokens_per_credit":300},
-    },
-    {
-        id: "claude-haiku-4-5-20251001",
-        name: "Claude Haiku 4.5",
-        description: "Fastest and most affordable Claude model. Ideal for simple tasks and health checks.",
-        provider_id: "anthropic",
-        provider_name: "Anthropic",
-        logo_svg: "icons/anthropic.svg",
-        country_origin: "US",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "standard",
-        release_date: "2025-10-15",
-        servers: [{"id":"aws_bedrock","name":"AWS Bedrock","region":"EU"},{"id":"anthropic","name":"Anthropic API","region":"US"}],
-        default_server: "anthropic",
-        pricing: {"input_tokens_per_credit":350,"output_tokens_per_credit":70},
-    },
-    {
-        id: "claude-opus-4-6",
-        name: "Claude Opus 4.6",
-        description: "Most powerful Claude model for highly complex tasks, research, and creative writing.",
-        provider_id: "anthropic",
-        provider_name: "Anthropic",
-        logo_svg: "icons/anthropic.svg",
-        country_origin: "US",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "premium",
-        release_date: "2026-02-06",
-        servers: [{"id":"anthropic","name":"Anthropic API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
-        default_server: "anthropic",
-        pricing: {"input_tokens_per_credit":70,"output_tokens_per_credit":15},
-        search_aliases: ["opus 4.5","claude 4.5 opus","4.5","claude-opus-4-5"],
-    },
-    {
-        id: "claude-sonnet-4-5-20250929",
-        name: "Claude Sonnet 4.5",
-        description: "Optimal balance of intelligence, cost, and speed.",
-        provider_id: "anthropic",
-        provider_name: "Anthropic",
-        logo_svg: "icons/anthropic.svg",
-        country_origin: "US",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "premium",
-        release_date: "2025-09-29",
-        servers: [{"id":"aws_bedrock","name":"AWS Bedrock","region":"EU"},{"id":"anthropic","name":"Anthropic API","region":"US"}],
-        default_server: "anthropic",
-        pricing: {"input_tokens_per_credit":110,"output_tokens_per_credit":20},
-    },
-    {
-        id: "flux-schnell",
-        name: "FLUX.1 Schnell",
-        description: "The fastest high-quality image generation model from BFL, optimized for speed and efficiency.",
-        provider_id: "bfl",
-        provider_name: "Black Forest Labs",
-        logo_svg: "icons/bfl.svg",
-        country_origin: "US",
-        input_types: ["text"],
-        output_types: ["image"],
-        for_app_skill: "images.generate_draft",
-        tier: "economy",
-        release_date: "2024-08-01",
-        servers: [{"id":"fal","name":"fal.ai","region":"US"}],
-        default_server: "fal",
-    },
-    {
-        id: "deepseek-v3.2",
-        name: "DeepSeek V3.2",
-        description: "DeepSeek-V3.2 harmonizes high computational efficiency with superior reasoning and agent performance. Features DeepSeek Sparse Attention (DSA), scalable reinforcement learning, and large-scale agentic task synthesis. Primary: Google Vertex AI; Fallback: OpenRouter.",
-        provider_id: "deepseek",
-        provider_name: "DeepSeek",
-        logo_svg: "icons/deepseek.svg",
-        country_origin: "CN",
-        input_types: ["text"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        reasoning: true,
-        tier: "standard",
-        release_date: "2025-12-01",
-        servers: [{"id":"google_maas","name":"Google Vertex AI (MaaS)","region":"EU"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
-        default_server: "google_maas",
-        pricing: {"input_tokens_per_credit":600,"output_tokens_per_credit":200},
-    },
-    {
-        id: "gemini-3-flash-preview",
-        name: "Gemini 3 Flash",
-        description: "Fast Gemini 3 preview model (primary: Google AI Studio; fallback: OpenRouter).",
-        provider_id: "google",
-        provider_name: "Google",
-        logo_svg: "icons/google.svg",
-        country_origin: "US",
-        input_types: ["text","image","video","audio"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        reasoning: true,
-        tier: "standard",
-        release_date: "2025-12-17",
-        servers: [{"id":"google_ai_studio","name":"Google AI Studio","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
-        default_server: "google_ai_studio",
-        pricing: {"input_tokens_per_credit":650,"output_tokens_per_credit":110},
-    },
-    {
-        id: "gemini-3-pro-preview",
-        name: "Gemini 3 Pro",
-        description: "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities",
-        provider_id: "google",
-        provider_name: "Google",
-        logo_svg: "icons/google.svg",
-        country_origin: "US",
-        input_types: ["text","image","video","audio"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        reasoning: true,
-        tier: "premium",
-        release_date: "2025-12-17",
-        servers: [{"id":"google_ai_studio","name":"Google AI Studio","region":"US"},{"id":"google","name":"Google Vertex AI","region":"EU"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
-        default_server: "google_ai_studio",
-        pricing: {"input_tokens_per_credit":170,"output_tokens_per_credit":30},
-    },
-    {
-        id: "gemini-3-pro-image-preview",
-        name: "Gemini 3 Pro",
-        description: "High-end native image generation from Google, optimized for quality.",
-        provider_id: "google",
-        provider_name: "Google",
-        logo_svg: "icons/google.svg",
-        country_origin: "US",
-        input_types: ["text"],
-        output_types: ["image"],
-        for_app_skill: "images.generate",
-        tier: "economy",
-        release_date: "2025-12-17",
-        servers: [{"id":"google_ai_studio","name":"Google AI Studio","region":"US"}],
-        default_server: "google_ai_studio",
-    },
-    {
-        id: "devstral-2512",
-        name: "Devstral 2",
-        description: "Our frontier code agents model for solving software engineering tasks; excels at using tools to explore codebases, editing multiple files and power software engineering agents.",
-        provider_id: "mistral",
-        provider_name: "Mistral AI",
-        logo_svg: "icons/mistral.svg",
-        country_origin: "FR",
-        input_types: ["text"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "standard",
-        release_date: "2025-12-01",
-        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
-        default_server: "mistral",
-        pricing: {"input_tokens_per_credit":850,"output_tokens_per_credit":170},
-    },
-    {
-        id: "ministral-8b-2512",
-        name: "Ministral 3 8B",
-        description: "A powerful and efficient model offering best-in-class text generation with excellent speed. Ideal for preprocessing and postprocessing tasks.",
-        provider_id: "mistral",
-        provider_name: "Mistral AI",
-        logo_svg: "icons/mistral.svg",
-        country_origin: "FR",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "economy",
-        release_date: "2025-12-01",
-        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
-        default_server: "mistral",
-        pricing: {"input_tokens_per_credit":2222,"output_tokens_per_credit":2222},
-    },
-    {
-        id: "mistral-medium-latest",
-        name: "Mistral Medium",
-        description: "State-of-the-art performance. Simplified enterprise deployments. Cost-efficient.",
-        provider_id: "mistral",
-        provider_name: "Mistral AI",
-        logo_svg: "icons/mistral.svg",
-        country_origin: "FR",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "standard",
-        release_date: "2025-05-01",
-        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
-        default_server: "mistral",
-        pricing: {"input_tokens_per_credit":850,"output_tokens_per_credit":170},
-    },
-    {
-        id: "mistral-small-latest",
-        name: "Mistral Small",
-        description: "Mistral AI's fast and cost-effective model, optimized for low latency.",
-        provider_id: "mistral",
-        provider_name: "Mistral AI",
-        logo_svg: "icons/mistral.svg",
-        country_origin: "FR",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "economy",
-        release_date: "2025-03-15",
-        servers: [{"id":"mistral","name":"Mistral","region":"EU"},{"id":"google","name":"Google Cloud Vertex AI","region":"EU"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
-        default_server: "mistral",
-        pricing: {"input_tokens_per_credit":3300,"output_tokens_per_credit":1100},
-    },
-    {
-        id: "kimi-k2.5",
-        name: "Kimi K2.5",
-        description: "Kimi K2.5 is Moonshot AI's native multimodal thinking agent with vision and Agent Swarm capabilities. Features 1T total parameters (32B activated), native INT4 quantization for 2x inference speed, and 256K context window. Excels in visual coding, agentic tool-calling, and multi-step reasoning. Primary: Together AI; Fallback: OpenRouter.",
-        provider_id: "moonshot",
-        provider_name: "Moonshot AI",
-        logo_svg: "icons/moonshot.svg",
-        country_origin: "CN",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        reasoning: true,
-        tier: "standard",
-        release_date: "2026-01-27",
-        servers: [{"id":"together","name":"Together AI","region":"US"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
-        default_server: "together",
-        pricing: {"input_tokens_per_credit":650,"output_tokens_per_credit":120},
-    },
-    {
-        id: "gpt-5.2",
-        name: "GPT-5.2",
-        description: "The most advanced OpenAI model with enhanced reasoning and multimodal capabilities",
-        provider_id: "openai",
-        provider_name: "OpenAI",
-        logo_svg: "icons/openai.svg",
-        country_origin: "US",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "premium",
-        release_date: "2025-06-15",
-        servers: [{"id":"openai","name":"OpenAI API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
-        default_server: "openai",
-        pricing: {"input_tokens_per_credit":190,"output_tokens_per_credit":25},
-    },
-    {
-        id: "gpt-oss-120b",
-        name: "GPT-OSS-120b",
-        description: "Open-source large language model with 120B parameters, served via Cerebras through OpenRouter.",
-        provider_id: "openai",
-        provider_name: "OpenAI",
-        logo_svg: "icons/openai.svg",
-        country_origin: "US",
-        input_types: ["text"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "economy",
-        release_date: "2025-08-01",
-        servers: [{"id":"openrouter","name":"OpenRouter API","region":"US"}],
-        default_server: "openrouter",
-        pricing: {"input_tokens_per_credit":1300,"output_tokens_per_credit":500},
-    },
-    {
-        id: "gpt-oss-safeguard-20b",
-        name: "GPT-OSS-Safeguard-20b",
-        description: "Open-source safety model with 20B parameters, served via Groq API for ultra-fast inference.",
-        provider_id: "openai",
-        provider_name: "OpenAI",
-        logo_svg: "icons/openai.svg",
-        country_origin: "US",
-        input_types: ["text"],
-        output_types: ["text"],
-        for_app_skill: "ai.safety_check",
-        tier: "economy",
-        release_date: "2025-04-01",
-        servers: [{"id":"groq","name":"Groq API","region":"US"},{"id":"openrouter","name":"OpenRouter API","region":"US"}],
-        default_server: "groq",
-        pricing: {"input_tokens_per_credit":4400,"output_tokens_per_credit":1100},
-    },
-    {
-        id: "zai-glm-4.7",
-        name: "GLM 4.7",
-        description: "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras.",
-        provider_id: "zai",
-        provider_name: "Z.ai",
-        logo_svg: "icons/zai.svg",
-        country_origin: "CN",
-        input_types: ["text","image"],
-        output_types: ["text"],
-        for_app_skill: "ai.ask",
-        tier: "standard",
-        release_date: "2025-12-22",
-        servers: [{"id":"cerebras","name":"Cerebras","region":"US"},{"id":"openrouter","name":"OpenRouter","region":"US"}],
-        default_server: "cerebras",
-        pricing: {"input_tokens_per_credit":150,"output_tokens_per_credit":120},
-    },
+  {
+    id: "qwen3-235b-a22b-2507",
+    name: "Qwen 3 256b",
+    description:
+      "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance.",
+    provider_id: "alibaba",
+    provider_name: "Alibaba",
+    logo_svg: "icons/alibaba.svg",
+    country_origin: "CN",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "standard",
+    release_date: "2025-07-01",
+    servers: [
+      { id: "cerebras", name: "Cerebras", region: "US" },
+      { id: "openrouter", name: "OpenRouter", region: "US" },
+    ],
+    default_server: "cerebras",
+    pricing: { input_tokens_per_credit: 550, output_tokens_per_credit: 300 },
+  },
+  {
+    id: "claude-haiku-4-5-20251001",
+    name: "Claude Haiku 4.5",
+    description:
+      "Fastest and most affordable Claude model. Ideal for simple tasks and health checks.",
+    provider_id: "anthropic",
+    provider_name: "Anthropic",
+    logo_svg: "icons/anthropic.svg",
+    country_origin: "US",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "standard",
+    release_date: "2025-10-15",
+    servers: [
+      { id: "aws_bedrock", name: "AWS Bedrock", region: "EU" },
+      { id: "anthropic", name: "Anthropic API", region: "US" },
+    ],
+    default_server: "anthropic",
+    pricing: { input_tokens_per_credit: 350, output_tokens_per_credit: 70 },
+  },
+  {
+    id: "claude-opus-4-6",
+    name: "Claude Opus 4.6",
+    description:
+      "Most powerful Claude model for highly complex tasks, research, and creative writing.",
+    provider_id: "anthropic",
+    provider_name: "Anthropic",
+    logo_svg: "icons/anthropic.svg",
+    country_origin: "US",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "premium",
+    release_date: "2026-02-06",
+    servers: [
+      { id: "anthropic", name: "Anthropic API", region: "US" },
+      { id: "openrouter", name: "OpenRouter API", region: "US" },
+    ],
+    default_server: "anthropic",
+    pricing: { input_tokens_per_credit: 70, output_tokens_per_credit: 15 },
+    search_aliases: ["opus 4.5", "claude 4.5 opus", "4.5", "claude-opus-4-5"],
+  },
+  {
+    id: "claude-sonnet-4-5-20250929",
+    name: "Claude Sonnet 4.5",
+    description: "Optimal balance of intelligence, cost, and speed.",
+    provider_id: "anthropic",
+    provider_name: "Anthropic",
+    logo_svg: "icons/anthropic.svg",
+    country_origin: "US",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "premium",
+    release_date: "2025-09-29",
+    servers: [
+      { id: "aws_bedrock", name: "AWS Bedrock", region: "EU" },
+      { id: "anthropic", name: "Anthropic API", region: "US" },
+    ],
+    default_server: "anthropic",
+    pricing: { input_tokens_per_credit: 110, output_tokens_per_credit: 20 },
+  },
+  {
+    id: "flux-schnell",
+    name: "FLUX.1 Schnell",
+    description:
+      "The fastest high-quality image generation model from BFL, optimized for speed and efficiency.",
+    provider_id: "bfl",
+    provider_name: "Black Forest Labs",
+    logo_svg: "icons/blackforestlabs.svg",
+    country_origin: "US",
+    input_types: ["text"],
+    output_types: ["image"],
+    for_app_skill: "images.generate_draft",
+    tier: "economy",
+    release_date: "2024-08-01",
+    servers: [{ id: "fal", name: "fal.ai", region: "US" }],
+    default_server: "fal",
+  },
+  {
+    id: "deepseek-v3.2",
+    name: "DeepSeek V3.2",
+    description:
+      "DeepSeek-V3.2 harmonizes high computational efficiency with superior reasoning and agent performance. Features DeepSeek Sparse Attention (DSA), scalable reinforcement learning, and large-scale agentic task synthesis. Primary: Google Vertex AI; Fallback: OpenRouter.",
+    provider_id: "deepseek",
+    provider_name: "DeepSeek",
+    logo_svg: "icons/deepseek.svg",
+    country_origin: "CN",
+    input_types: ["text"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    reasoning: true,
+    tier: "standard",
+    release_date: "2025-12-01",
+    servers: [
+      { id: "google_maas", name: "Google Vertex AI (MaaS)", region: "EU" },
+      { id: "openrouter", name: "OpenRouter API", region: "US" },
+    ],
+    default_server: "google_maas",
+    pricing: { input_tokens_per_credit: 600, output_tokens_per_credit: 200 },
+  },
+  {
+    id: "gemini-3-flash-preview",
+    name: "Gemini 3 Flash",
+    description:
+      "Fast Gemini 3 preview model (primary: Google AI Studio; fallback: OpenRouter).",
+    provider_id: "google",
+    provider_name: "Google",
+    logo_svg: "icons/google.svg",
+    country_origin: "US",
+    input_types: ["text", "image", "video", "audio"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    reasoning: true,
+    tier: "standard",
+    release_date: "2025-12-17",
+    servers: [
+      { id: "google_ai_studio", name: "Google AI Studio", region: "US" },
+      { id: "openrouter", name: "OpenRouter API", region: "US" },
+    ],
+    default_server: "google_ai_studio",
+    pricing: { input_tokens_per_credit: 650, output_tokens_per_credit: 110 },
+  },
+  {
+    id: "gemini-3-pro-preview",
+    name: "Gemini 3 Pro",
+    description:
+      "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities",
+    provider_id: "google",
+    provider_name: "Google",
+    logo_svg: "icons/google.svg",
+    country_origin: "US",
+    input_types: ["text", "image", "video", "audio"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    reasoning: true,
+    tier: "premium",
+    release_date: "2025-12-17",
+    servers: [
+      { id: "google_ai_studio", name: "Google AI Studio", region: "US" },
+      { id: "google", name: "Google Vertex AI", region: "EU" },
+      { id: "openrouter", name: "OpenRouter API", region: "US" },
+    ],
+    default_server: "google_ai_studio",
+    pricing: { input_tokens_per_credit: 170, output_tokens_per_credit: 30 },
+  },
+  {
+    id: "gemini-3-pro-image-preview",
+    name: "Gemini 3 Pro",
+    description:
+      "High-end native image generation from Google, optimized for quality.",
+    provider_id: "google",
+    provider_name: "Google",
+    logo_svg: "icons/google.svg",
+    country_origin: "US",
+    input_types: ["text"],
+    output_types: ["image"],
+    for_app_skill: "images.generate",
+    tier: "economy",
+    release_date: "2025-12-17",
+    servers: [
+      { id: "google_ai_studio", name: "Google AI Studio", region: "US" },
+    ],
+    default_server: "google_ai_studio",
+  },
+  {
+    id: "devstral-2512",
+    name: "Devstral 2",
+    description:
+      "Our frontier code agents model for solving software engineering tasks; excels at using tools to explore codebases, editing multiple files and power software engineering agents.",
+    provider_id: "mistral",
+    provider_name: "Mistral AI",
+    logo_svg: "icons/mistral.svg",
+    country_origin: "FR",
+    input_types: ["text"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "standard",
+    release_date: "2025-12-01",
+    servers: [
+      { id: "mistral", name: "Mistral", region: "EU" },
+      { id: "openrouter", name: "OpenRouter", region: "US" },
+    ],
+    default_server: "mistral",
+    pricing: { input_tokens_per_credit: 850, output_tokens_per_credit: 170 },
+  },
+  {
+    id: "ministral-8b-2512",
+    name: "Ministral 3 8B",
+    description:
+      "A powerful and efficient model offering best-in-class text generation with excellent speed. Ideal for preprocessing and postprocessing tasks.",
+    provider_id: "mistral",
+    provider_name: "Mistral AI",
+    logo_svg: "icons/mistral.svg",
+    country_origin: "FR",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "economy",
+    release_date: "2025-12-01",
+    servers: [
+      { id: "mistral", name: "Mistral", region: "EU" },
+      { id: "openrouter", name: "OpenRouter", region: "US" },
+    ],
+    default_server: "mistral",
+    pricing: { input_tokens_per_credit: 2222, output_tokens_per_credit: 2222 },
+  },
+  {
+    id: "mistral-medium-latest",
+    name: "Mistral Medium",
+    description:
+      "State-of-the-art performance. Simplified enterprise deployments. Cost-efficient.",
+    provider_id: "mistral",
+    provider_name: "Mistral AI",
+    logo_svg: "icons/mistral.svg",
+    country_origin: "FR",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "standard",
+    release_date: "2025-05-01",
+    servers: [
+      { id: "mistral", name: "Mistral", region: "EU" },
+      { id: "openrouter", name: "OpenRouter", region: "US" },
+    ],
+    default_server: "mistral",
+    pricing: { input_tokens_per_credit: 850, output_tokens_per_credit: 170 },
+  },
+  {
+    id: "mistral-small-latest",
+    name: "Mistral Small",
+    description:
+      "Mistral AI's fast and cost-effective model, optimized for low latency.",
+    provider_id: "mistral",
+    provider_name: "Mistral AI",
+    logo_svg: "icons/mistral.svg",
+    country_origin: "FR",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "economy",
+    release_date: "2025-03-15",
+    servers: [
+      { id: "mistral", name: "Mistral", region: "EU" },
+      { id: "google", name: "Google Cloud Vertex AI", region: "EU" },
+      { id: "openrouter", name: "OpenRouter", region: "US" },
+    ],
+    default_server: "mistral",
+    pricing: { input_tokens_per_credit: 3300, output_tokens_per_credit: 1100 },
+  },
+  {
+    id: "kimi-k2.5",
+    name: "Kimi K2.5",
+    description:
+      "Kimi K2.5 is Moonshot AI's native multimodal thinking agent with vision and Agent Swarm capabilities. Features 1T total parameters (32B activated), native INT4 quantization for 2x inference speed, and 256K context window. Excels in visual coding, agentic tool-calling, and multi-step reasoning. Primary: Together AI; Fallback: OpenRouter.",
+    provider_id: "moonshot",
+    provider_name: "Moonshot AI",
+    logo_svg: "icons/moonshot.svg",
+    country_origin: "CN",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    reasoning: true,
+    tier: "standard",
+    release_date: "2026-01-27",
+    servers: [
+      { id: "together", name: "Together AI", region: "US" },
+      { id: "openrouter", name: "OpenRouter", region: "US" },
+    ],
+    default_server: "together",
+    pricing: { input_tokens_per_credit: 650, output_tokens_per_credit: 120 },
+  },
+  {
+    id: "gpt-5.2",
+    name: "GPT-5.2",
+    description:
+      "The most advanced OpenAI model with enhanced reasoning and multimodal capabilities",
+    provider_id: "openai",
+    provider_name: "OpenAI",
+    logo_svg: "icons/openai.svg",
+    country_origin: "US",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "premium",
+    release_date: "2025-06-15",
+    servers: [
+      { id: "openai", name: "OpenAI API", region: "US" },
+      { id: "openrouter", name: "OpenRouter API", region: "US" },
+    ],
+    default_server: "openai",
+    pricing: { input_tokens_per_credit: 190, output_tokens_per_credit: 25 },
+  },
+  {
+    id: "gpt-oss-120b",
+    name: "GPT-OSS-120b",
+    description:
+      "Open-source large language model with 120B parameters, served via Cerebras through OpenRouter.",
+    provider_id: "openai",
+    provider_name: "OpenAI",
+    logo_svg: "icons/openai.svg",
+    country_origin: "US",
+    input_types: ["text"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "economy",
+    release_date: "2025-08-01",
+    servers: [{ id: "openrouter", name: "OpenRouter API", region: "US" }],
+    default_server: "openrouter",
+    pricing: { input_tokens_per_credit: 1300, output_tokens_per_credit: 500 },
+  },
+  {
+    id: "gpt-oss-safeguard-20b",
+    name: "GPT-OSS-Safeguard-20b",
+    description:
+      "Open-source safety model with 20B parameters, served via Groq API for ultra-fast inference.",
+    provider_id: "openai",
+    provider_name: "OpenAI",
+    logo_svg: "icons/openai.svg",
+    country_origin: "US",
+    input_types: ["text"],
+    output_types: ["text"],
+    for_app_skill: "ai.safety_check",
+    tier: "economy",
+    release_date: "2025-04-01",
+    servers: [
+      { id: "groq", name: "Groq API", region: "US" },
+      { id: "openrouter", name: "OpenRouter API", region: "US" },
+    ],
+    default_server: "groq",
+    pricing: { input_tokens_per_credit: 4400, output_tokens_per_credit: 1100 },
+  },
+  {
+    id: "zai-glm-4.7",
+    name: "GLM 4.7",
+    description: "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras.",
+    provider_id: "zai",
+    provider_name: "Z.ai",
+    logo_svg: "icons/zai.svg",
+    country_origin: "CN",
+    input_types: ["text", "image"],
+    output_types: ["text"],
+    for_app_skill: "ai.ask",
+    tier: "standard",
+    release_date: "2025-12-22",
+    servers: [
+      { id: "cerebras", name: "Cerebras", region: "US" },
+      { id: "openrouter", name: "OpenRouter", region: "US" },
+    ],
+    default_server: "cerebras",
+    pricing: { input_tokens_per_credit: 150, output_tokens_per_credit: 120 },
+  },
 ];
 
 /**
  * Get models metadata as a record keyed by model ID.
  */
 export function getModelsById(): Record<string, AIModelMetadata> {
-    return modelsMetadata.reduce((acc, model) => {
-        acc[model.id] = model;
-        return acc;
-    }, {} as Record<string, AIModelMetadata>);
+  return modelsMetadata.reduce(
+    (acc, model) => {
+      acc[model.id] = model;
+      return acc;
+    },
+    {} as Record<string, AIModelMetadata>,
+  );
 }
 
 /**
@@ -418,5 +486,5 @@ export function getModelsById(): Record<string, AIModelMetadata> {
  * @param count - Number of models to return (default: 4)
  */
 export function getTopModels(count: number = 4): AIModelMetadata[] {
-    return modelsMetadata.slice(0, count);
+  return modelsMetadata.slice(0, count);
 }

@@ -24,6 +24,7 @@
     import ReminderEmbedPreview from '../../../components/embeds/reminder/ReminderEmbedPreview.svelte';
     import TravelSearchEmbedPreview from '../../../components/embeds/travel/TravelSearchEmbedPreview.svelte';
     import TravelPriceCalendarEmbedPreview from '../../../components/embeds/travel/TravelPriceCalendarEmbedPreview.svelte';
+    import ImageGenerateEmbedPreview from '../../../components/embeds/images/ImageGenerateEmbedPreview.svelte';
 
     // Use $props() for component props in Svelte 5
     interface Props {
@@ -470,6 +471,27 @@
                         emailNotificationWarning: decodedContent.email_notification_warning,
                         status: status,
                         error: decodedContent.error,
+                        isMobile: false,
+                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
+                    }
+                };
+            }
+            
+            // Images app: generate / generate_draft skill
+            if (embedAppId === 'images' && (skillId === 'generate' || skillId === 'generate_draft')) {
+                return {
+                    component: ImageGenerateEmbedPreview,
+                    props: {
+                        id: embedId,
+                        skillId: skillId as 'generate' | 'generate_draft',
+                        prompt: decodedContent.prompt || '',
+                        model: decodedContent.model || embedData?.model || '',
+                        s3BaseUrl: decodedContent.s3_base_url || embedData?.s3_base_url || '',
+                        files: decodedContent.files || embedData?.files || undefined,
+                        aesKey: decodedContent.aes_key || embedData?.aes_key || '',
+                        aesNonce: decodedContent.aes_nonce || embedData?.aes_nonce || '',
+                        status: status,
+                        error: decodedContent.error || embedData?.error || '',
                         isMobile: false,
                         onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
                     }
