@@ -63,9 +63,9 @@
 
     // --- Effects ---
 
-    // Update results when query changes
+    // Update results when query changes (no second arg = use search limit so settings/memories can appear)
     $effect(() => {
-        results = searchMentions(query, 4);
+        results = searchMentions(query);
         selectedIndex = 0; // Reset selection when results change
         // Collapse all expanded categories when query changes
         expandedCategories = new Set();

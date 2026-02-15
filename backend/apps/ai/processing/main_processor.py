@@ -763,6 +763,15 @@ async def handle_main_processing(
     # - Once user confirms/rejects, client sends data back
     # - On user's NEXT message, data is available in cache for LLM processing
     loaded_app_settings_and_memories_content: Dict[str, Any] = {}
+    # Start with any cleartext the client sent for @memory/@memory-entry mentions (so we do not request those again)
+    if getattr(request_data, "mentioned_settings_memories_cleartext", None):
+        mentioned = request_data.mentioned_settings_memories_cleartext
+        if isinstance(mentioned, dict) and mentioned:
+            for key, value in mentioned.items():
+                if isinstance(key, str) and value is not None:
+                    loaded_app_settings_and_memories_content[key] = value
+            logger.info(f"{log_prefix} [DEBUG] Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
+
     if preprocessing_results.load_app_settings_and_memories and cache_service:
         logger.info(f"{log_prefix} [DEBUG] Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
         try:
@@ -771,7 +780,14 @@ async def handle_main_processing(
                 create_app_settings_memories_request_message
             )
             
-            requested_keys = preprocessing_results.load_app_settings_and_memories
+            requested_keys = list(preprocessing_results.load_app_settings_and_memories)
+            # Include keys from client-mentioned cleartext so we have a full set; they are already in loaded_app_settings_and_memories_content
+            if getattr(request_data, "mentioned_settings_memories_cleartext", None):
+                mentioned = request_data.mentioned_settings_memories_cleartext
+                if isinstance(mentioned, dict):
+                    for key in mentioned:
+                        if key not in requested_keys:
+                            requested_keys.append(key)
             
             # Check cache first (similar to how embeds are handled)
             # Cache stores vault-encrypted data that server can decrypt for AI processing
@@ -831,8 +847,12 @@ async def handle_main_processing(
                     except Exception as decrypt_error:
                         logger.error(f"{log_prefix} Error decrypting app settings/memories for {key}: {decrypt_error}", exc_info=True)
             
-            # Check if we need to create a new request for missing keys
-            missing_keys = [key for key in requested_keys if key not in cached_data]
+            # Check if we need to create a new request for missing keys.
+            # Keys already in loaded_app_settings_and_memories_content (from client cleartext or cache) must not be requested again.
+            missing_keys = [
+                key for key in requested_keys
+                if key not in loaded_app_settings_and_memories_content
+            ]
             
             if missing_keys:
                 logger.info(f"{log_prefix} Creating new app settings/memories request for {len(missing_keys)} missing keys")

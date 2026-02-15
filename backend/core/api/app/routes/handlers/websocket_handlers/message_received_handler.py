@@ -1185,6 +1185,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_preferences_dict["language"] = user_system_language
             logger.debug(f"Including user system language '{user_system_language}' in AI request for user {user_id}")
         
+        mentioned_settings_memories_cleartext = message_payload_from_client.get("mentioned_settings_memories_cleartext")
+        if mentioned_settings_memories_cleartext is not None and not isinstance(mentioned_settings_memories_cleartext, dict):
+            mentioned_settings_memories_cleartext = None
+            logger.warning("mentioned_settings_memories_cleartext is not a dict, ignoring")
+
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
@@ -1196,7 +1201,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             user_preferences=user_preferences_dict,
-            app_settings_memories_metadata=app_settings_memories_metadata_from_client  # Client-provided metadata (source of truth)
+            app_settings_memories_metadata=app_settings_memories_metadata_from_client,  # Client-provided metadata (source of truth)
+            mentioned_settings_memories_cleartext=mentioned_settings_memories_cleartext,  # Cleartext for @memory mentions so backend does not re-request
         )
         logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")
 

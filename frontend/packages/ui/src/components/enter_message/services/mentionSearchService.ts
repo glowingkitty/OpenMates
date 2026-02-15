@@ -202,11 +202,19 @@ function buildSearchTerms(...strings: (string | undefined)[]): string[] {
   return Array.from(new Set(terms)); // Remove duplicates
 }
 
+/** Score boost for settings/memory categories and entries when the query matches (so they can appear in results). */
+const SETTINGS_MEMORY_SCORE_BOOST = 30;
+
 /**
  * Calculate match score for a search query against terms.
  * Higher score = better match.
+ * Settings/memory results get a small boost when they match so they can compete with models/skills.
  */
-function calculateMatchScore(query: string, terms: string[]): number {
+function calculateMatchScore(
+  query: string,
+  terms: string[],
+  type?: MentionType,
+): number {
   if (!query) return 1; // No query = all results are equal
 
   const queryLower = query.toLowerCase();
@@ -220,6 +228,14 @@ function calculateMatchScore(query: string, terms: string[]): number {
     } else if (term.includes(queryLower)) {
       score += 25; // Contains match
     }
+  }
+
+  // Boost settings/memory types when they match so they can appear and be selected
+  if (
+    score > 0 &&
+    (type === "settings_memory" || type === "settings_memory_entry")
+  ) {
+    score += SETTINGS_MEMORY_SCORE_BOOST;
   }
 
   return score;
@@ -634,16 +650,22 @@ export function getDefaultMentionResults(): AnyMentionResult[] {
   return getModelMentionResults().slice(0, 4);
 }
 
+/** Larger limit when user is searching so settings/memories and entries can appear. */
+const SEARCH_RESULT_LIMIT = 8;
+
 /**
  * Search mention results by query string.
  * Returns results sorted by match score (best matches first).
+ * Default selection is unchanged (4 models when query is empty).
+ * When the user types a query, a larger limit and score boost for settings/memories
+ * ensure categories and individual entries can be found and selected.
  *
  * @param query - Search query string (text after @)
- * @param limit - Maximum number of results to return (default: 4)
+ * @param limit - Maximum number of results when query is non-empty (default: 8); ignored when query is empty
  */
 export function searchMentions(
   query: string,
-  limit: number = 4,
+  limit: number = SEARCH_RESULT_LIMIT,
 ): AnyMentionResult[] {
   if (!query || query.trim() === "") {
     return getDefaultMentionResults();
@@ -651,11 +673,15 @@ export function searchMentions(
 
   const allResults = getAllMentionResults();
 
-  // Score and filter results
+  // Score and filter results (settings_memory / settings_memory_entry get a boost when they match)
   const scoredResults = allResults
     .map((result) => ({
       ...result,
-      score: calculateMatchScore(query, result.searchTerms),
+      score: calculateMatchScore(
+        query,
+        result.searchTerms,
+        result.type,
+      ),
     }))
     .filter((result) => result.score > 0)
     .sort((a, b) => (b.score || 0) - (a.score || 0));

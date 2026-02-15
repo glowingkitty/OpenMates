@@ -883,6 +883,7 @@ export async function sendNewMessageImpl(
     message_history?: Message[];
     encrypted_suggestion_to_delete?: string | null;
     app_settings_memories_metadata?: string[]; // Format: ["code-preferred_technologies", "travel-trips", ...]
+    mentioned_settings_memories_cleartext?: Record<string, unknown[]>; // Cleartext for @memory/@memory-entry mentions so backend does not re-request
     active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
   }
   const payload: SendMessagePayload = {
@@ -911,6 +912,31 @@ export async function sendNewMessageImpl(
       "[ChatSyncService:Senders] Including app settings/memories metadata:",
       appSettingsMemoriesMetadataKeys,
     );
+  }
+
+  // When user mentioned @memory or @memory-entry in the message, send cleartext so the backend
+  // can use it and not request that category again during this request
+  if (!isIncognitoChat && contentForServer) {
+    try {
+      const { extractMentionedSettingsMemoriesCleartext } = await import(
+        "./mentionedSettingsMemoriesCleartext"
+      );
+      const mentionedCleartext =
+        extractMentionedSettingsMemoriesCleartext(contentForServer);
+      const keys = Object.keys(mentionedCleartext);
+      if (keys.length > 0) {
+        payload.mentioned_settings_memories_cleartext = mentionedCleartext;
+        console.debug(
+          "[ChatSyncService:Senders] Including mentioned settings/memories cleartext for keys:",
+          keys,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        "[ChatSyncService:Senders] Failed to extract mentioned settings/memories cleartext (non-fatal):",
+        err,
+      );
+    }
   }
 
   // Include active focus mode ID for AI processing (if focus mode is active)
