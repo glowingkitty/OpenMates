@@ -96,6 +96,42 @@
   }
 
   /**
+   * Returns true if the message content (markdown string) contains a focus_mode_activation embed reference.
+   */
+  function hasFocusModeActivationEmbed(content: unknown): boolean {
+    if (typeof content !== 'string') return false;
+    return content.includes('"type":"focus_mode_activation"') || content.includes('"type": "focus_mode_activation"');
+  }
+
+  /**
+   * Merge consecutive assistant messages for display when the previous is a focus mode activation.
+   * Backend stores two messages (focus embed, then continuation text). We show one bubble.
+   */
+  function mergeFocusContinuationForDisplay(incoming: GlobalMessage[]): GlobalMessage[] {
+    const result: GlobalMessage[] = [];
+    for (let i = 0; i < incoming.length; i++) {
+      const prev = result[result.length - 1];
+      const curr = incoming[i];
+      if (
+        prev?.role === 'assistant' &&
+        curr.role === 'assistant' &&
+        hasFocusModeActivationEmbed(prev.content)
+      ) {
+        const prevContent = typeof prev.content === 'string' ? prev.content : '';
+        const currContent = typeof curr.content === 'string' ? curr.content : '';
+        result[result.length - 1] = {
+          ...curr,
+          message_id: prev.message_id,
+          content: prevContent + (prevContent && currContent ? '\n\n' : '') + currContent,
+        };
+      } else {
+        result.push(curr);
+      }
+    }
+    return result;
+  }
+
+  /**
    * Restore PII placeholders in markdown content using the provided mappings.
    * Returns the markdown with placeholders replaced by highlighted original values.
    */
@@ -629,11 +665,14 @@
 
     const previousMessagesLength = messages.length;
     
+    // Display merge: show focus activation + following assistant as one bubble
+    const mergedForDisplay = mergeFocusContinuationForDisplay(newMessagesArray);
+    
     // Build cumulative PII mappings from all user messages in the incoming array
     // This allows assistant messages to restore PII from any preceding user message
-    const piiMappings = buildCumulativePIIMappings(newMessagesArray);
+    const piiMappings = buildCumulativePIIMappings(mergedForDisplay);
     
-    const newInternalMessages = newMessagesArray.map(newMessage => {
+    const newInternalMessages = mergedForDisplay.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
         const newInternalMessage = G_mapToInternalMessage(newMessage, piiMappings);
 

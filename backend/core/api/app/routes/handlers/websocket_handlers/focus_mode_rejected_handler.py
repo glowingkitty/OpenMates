@@ -180,10 +180,7 @@ async def _trigger_continuation_without_focus(
             "active_focus_id": None,  # Explicitly NO focus mode
             # Signal that this is a continuation after focus mode rejection
             "is_focus_mode_continuation": True,
-            # Reuse the original task_id as the AI message_id so the continuation
-            # response is appended to the same message bubble that contains the
-            # focus mode activation embed, instead of creating a separate bubble.
-            "continuation_message_id": original_task_id,
+            # Continuation creates its own assistant message. Client merges for display when previous was focus activation.
         }
         
         task = process_ai_skill_ask_task.apply_async(

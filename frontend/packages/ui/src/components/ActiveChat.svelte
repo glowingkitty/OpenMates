@@ -2210,14 +2210,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Map of task_id -> thinking content, streaming status, and signature metadata
     let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
     
-    // Track content prefixes for focus mode continuation streams.
-    // When a continuation task (after focus mode auto-confirm) streams to the same message_id,
-    // the existing message already contains the focus mode embed. The continuation's
-    // full_content_so_far only has the new LLM text. This Map stores the existing embed content
-    // as a prefix keyed by message_id, so it can be prepended to each streaming chunk.
-    // Entries are cleaned up when the final chunk is received.
-    const continuationContentPrefixes = new Map<string, string>();
-    
     // ===========================================
     // Embed Navigation Derived States
     // ===========================================
@@ -2662,32 +2654,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const lengthDiff = newLength - previousLength;
             const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
             
-            // ─── Focus mode continuation: preserve existing embed content ─────
-            // When a focus mode continuation task streams to the same message_id, the existing
-            // message already has content (the focus mode activation embed). The continuation's
-            // full_content_so_far only contains the new LLM text, not the embed.
-            // Detect this case and capture the existing content as a prefix once,
-            // then prepend it to all subsequent full_content_so_far values.
-            // We check multiple conditions to handle timing races:
-            //   1. Message is 'synced' (normal case: first stream finalized, continuation starts)
-            //   2. Message has any status but contains a focus_mode_activation embed reference
-            //      (race case: continuation starts before/during first stream finalization)
-            if (targetMessage.content && chunk.full_content_so_far && !continuationContentPrefixes.has(chunk.message_id)) {
-                const hasFocusEmbed = targetMessage.content.includes('"type":"focus_mode_activation"') ||
-                                      targetMessage.content.includes('"type": "focus_mode_activation"');
-                if (targetMessage.status === 'synced' || hasFocusEmbed) {
-                    continuationContentPrefixes.set(chunk.message_id, targetMessage.content);
-                    console.debug(`[ActiveChat] Focus mode continuation detected — preserving existing content as prefix (${targetMessage.content.length} chars, status: ${targetMessage.status}) for message ${chunk.message_id}`);
-                }
-            }
-            
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
             if (chunk.full_content_so_far || chunk.sequence === 1) {
                 // CRITICAL: Store AI response as markdown string, not Tiptap JSON
-                // If this is a continuation, prepend the preserved embed content
-                const prefix = continuationContentPrefixes.get(chunk.message_id) || '';
-                targetMessage.content = prefix + (chunk.full_content_so_far || '');
+                targetMessage.content = chunk.full_content_so_far || '';
             }
             // If this is a rejection message, update role and status accordingly
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
@@ -2824,12 +2795,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         if (chunk.is_final_chunk) {
-            // Clean up continuation content prefix (if this was a focus mode continuation stream)
-            if (continuationContentPrefixes.has(chunk.message_id)) {
-                continuationContentPrefixes.delete(chunk.message_id);
-                console.debug(`[ActiveChat] Cleaned up continuation content prefix for message ${chunk.message_id}`);
-            }
-            
             console.log(
                 `[ActiveChat] 🏁 FINAL CHUNK PROCESSED | ` +
                 `seq: ${chunk.sequence} | ` +
@@ -3847,9 +3812,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     export async function loadChat(chat: Chat) {
         // Clear any active processing phase indicator from the previous chat
         clearProcessingPhase();
-        
-        // Clear any leftover continuation content prefixes from the previous chat
-        continuationContentPrefixes.clear();
         
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat

@@ -1696,15 +1696,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         self.update_state(state='FAILURE', meta={'exc_type': 'ValidationError', 'exc_message': str(e.errors())})
         raise Ignore()
 
-    # Focus mode continuation: reuse the original task's message_id so that streaming
-    # chunks target the same assistant message (the one containing the focus mode embed).
-    # Without this, a new Celery task_id would create a separate message bubble.
-    if request_data.continuation_message_id:
-        logger.info(
-            f"[Task ID: {task_id}] Focus mode continuation — overriding message_id with "
-            f"original task_id: {request_data.continuation_message_id}"
-        )
-        task_id = request_data.continuation_message_id
+    # Focus mode continuation now creates its own assistant message (this task_id).
+    # Client merges "focus activation" + "continuation" into one bubble for display.
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
