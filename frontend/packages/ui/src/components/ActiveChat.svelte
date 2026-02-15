@@ -3990,28 +3990,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
         
-        // CRITICAL: Preserve streaming messages when reloading the SAME chat
-        // During AI streaming, various events (chatUpdated, etc.) can trigger loadChat() calls
-        // which would wipe out the streaming message being rendered in real-time.
-        // We detect if there's an active streaming message for THIS chat and merge it into newMessages.
+        // CRITICAL: Preserve in-flight messages when reloading the SAME chat
+        // During AI streaming or right after sending a message, various events (chatUpdated, etc.)
+        // can trigger loadChat() calls which would wipe out:
+        //   - Streaming messages being rendered in real-time
+        //   - User messages that haven't been persisted to IndexedDB yet (sending/processing)
+        // We detect these active messages for THIS chat and merge them into newMessages.
         const isReloadingSameChat = currentChat?.chat_id === chat.chat_id;
-        const existingStreamingMessages = currentMessages.filter(m => m.status === 'streaming' && m.chat_id === chat.chat_id);
+        const existingInFlightMessages = currentMessages.filter(
+            m => m.chat_id === chat.chat_id && (
+                m.status === 'streaming' ||
+                m.status === 'sending' ||
+                m.status === 'processing'
+            )
+        );
         
-        if (isReloadingSameChat && existingStreamingMessages.length > 0) {
-            console.debug(`[ActiveChat] loadChat: Preserving ${existingStreamingMessages.length} streaming message(s) during reload of same chat ${chat.chat_id}`);
+        if (isReloadingSameChat && existingInFlightMessages.length > 0) {
+            console.debug(`[ActiveChat] loadChat: Preserving ${existingInFlightMessages.length} in-flight message(s) during reload of same chat ${chat.chat_id} (statuses: ${existingInFlightMessages.map(m => m.status).join(', ')})`);
             
-            // Merge streaming messages with messages from database
-            // The database won't have the latest streaming content, so we use our local copy
-            for (const streamingMsg of existingStreamingMessages) {
-                const dbMsgIndex = newMessages.findIndex(m => m.message_id === streamingMsg.message_id);
+            // Merge in-flight messages with messages from database
+            // The database may not have these messages yet, or may have stale content
+            for (const inFlightMsg of existingInFlightMessages) {
+                const dbMsgIndex = newMessages.findIndex(m => m.message_id === inFlightMsg.message_id);
                 if (dbMsgIndex !== -1) {
-                    // Message exists in DB but our streaming version is more up-to-date
-                    newMessages[dbMsgIndex] = streamingMsg;
-                    console.debug(`[ActiveChat] loadChat: Replaced DB message ${streamingMsg.message_id} with streaming version (${streamingMsg.content?.length || 0} chars)`);
+                    // Message exists in DB but our in-flight version is more up-to-date
+                    newMessages[dbMsgIndex] = inFlightMsg;
+                    console.debug(`[ActiveChat] loadChat: Replaced DB message ${inFlightMsg.message_id} with in-flight version (status=${inFlightMsg.status}, ${inFlightMsg.content?.length || 0} chars)`);
                 } else {
-                    // Streaming message not yet in DB - append it
-                    newMessages.push(streamingMsg);
-                    console.debug(`[ActiveChat] loadChat: Appended streaming message ${streamingMsg.message_id} (${streamingMsg.content?.length || 0} chars)`);
+                    // In-flight message not yet in DB - append it
+                    newMessages.push(inFlightMsg);
+                    console.debug(`[ActiveChat] loadChat: Appended in-flight message ${inFlightMsg.message_id} (status=${inFlightMsg.status}, ${inFlightMsg.content?.length || 0} chars)`);
                 }
             }
         }

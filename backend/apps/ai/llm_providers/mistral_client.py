@@ -224,8 +224,8 @@ async def invoke_mistral_chat_completions(
                                                 except json.JSONDecodeError as e: err_msg += f" JSONDecodeError: {e}"
                                                 yield ParsedMistralToolCall(tool_call_id=current_tool_call_id, function_name=current_tool_function_name, function_arguments_raw=current_tool_function_args_buffer, function_arguments_parsed=parsed_args, parsing_error=err_msg)
                                             current_tool_call_id = new_tool_id
-                                            current_tool_function_name = func_details.get("name")
-                                            current_tool_function_args_buffer = func_details.get("arguments", "")
+                                            current_tool_function_name = func_details.get("name") or ""
+                                            current_tool_function_args_buffer = func_details.get("arguments") or ""
                                         elif current_tool_function_name:
                                             current_tool_function_args_buffer += func_details.get("arguments", "")
                                 if choice.get("finish_reason") == "tool_calls" and current_tool_function_name:

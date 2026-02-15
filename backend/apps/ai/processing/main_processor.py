@@ -378,11 +378,17 @@ async def _charge_skill_credits(
     discovered_apps_metadata: Dict[str, AppYAML],
     results: List[Dict[str, Any]],
     parsed_args: Dict[str, Any],
-    log_prefix: str
+    log_prefix: str,
+    grouped_results: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """
     Calculate and charge credits for a skill execution.
     Creates usage entry automatically via BillingService.
+    
+    Args:
+        grouped_results: Optional grouped results from multi-request skills.
+            Each group has {"id": ..., "results": [...], "error": "..."}.
+            Used to count only successful requests for billing (failed requests are not charged).
     """
     try:
         # Get skill definition from app metadata
@@ -494,9 +500,28 @@ async def _charge_skill_credits(
         
         # Calculate credits based on skill execution
         # All skills use 'requests' array format - charge per request (units_processed)
+        # IMPORTANT: Only charge for SUCCESSFUL requests. Failed requests (e.g., rate-limited
+        # searches, HTTP errors) should not be billed to the user.
         units_processed = None
-        if "requests" in parsed_args and isinstance(parsed_args["requests"], list):
-            # Count number of requests in the requests array
+        if grouped_results and isinstance(grouped_results, list):
+            # Use grouped_results to count only successful requests (no error field, non-empty results)
+            total_requests = len(grouped_results)
+            successful_requests = sum(
+                1 for group in grouped_results
+                if isinstance(group, dict)
+                and not group.get("error")  # No error field
+                and group.get("results")    # Has non-empty results
+            )
+            units_processed = successful_requests
+            if successful_requests < total_requests:
+                logger.info(
+                    f"{log_prefix} Skill '{app_id}.{skill_id}': {successful_requests}/{total_requests} "
+                    f"request(s) succeeded — only charging for successful ones"
+                )
+            else:
+                logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' executed with {units_processed} successful request(s)")
+        elif "requests" in parsed_args and isinstance(parsed_args["requests"], list):
+            # Fallback: count all requests in the requests array (when grouped_results not available)
             units_processed = len(parsed_args["requests"])
             logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' executed with {units_processed} request(s) in requests array")
         else:
@@ -504,6 +529,11 @@ async def _charge_skill_credits(
             # This handles edge cases where a skill might not use the requests pattern yet
             units_processed = 1
             logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' has no 'requests' array, charging for single execution")
+        
+        # If all requests failed, skip billing entirely
+        if units_processed <= 0:
+            logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}': no successful requests, skipping billing entirely.")
+            return
         
         # Calculate credits
         if pricing_config:
@@ -2622,6 +2652,7 @@ async def handle_main_processing(
                 
                 # Calculate and charge credits for skill execution
                 # NOTE: Skip for async skills - credits are charged by the Celery task
+                # Pass grouped_results so _charge_skill_credits can count only successful requests
                 if not is_async_skill:
                     await _charge_skill_credits(
                         task_id=task_id,
@@ -2631,7 +2662,8 @@ async def handle_main_processing(
                         discovered_apps_metadata=discovered_apps_metadata,
                         results=results,
                         parsed_args=parsed_args,
-                        log_prefix=log_prefix
+                        log_prefix=log_prefix,
+                        grouped_results=grouped_results,
                     )
                 
                 # STEP 3: Create embeds from results
