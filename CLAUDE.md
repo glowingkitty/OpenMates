@@ -98,6 +98,13 @@ OpenMates/
 - **Only remove debugging logs after the user confirms the issue is fixed**
 - Do not remove logs assuming you fixed the issue - wait for confirmation
 
+### Issue resolution
+
+- **After an issue is completed and the user confirms it is fixed**, delete the issue entry so it no longer appears in the list and storage is cleaned (Directus + S3). Use one of:
+  - **Server (preferred):** `docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --delete --yes`
+  - **Admin Debug API:** `DELETE /v1/admin/debug/issues/<issue_id>` with admin API key
+  - **Admin Debug CLI:** `docker exec api python /app/backend/scripts/admin_debug_cli.py issue-delete <issue_id>`
+
 ### Multiple Assistants (Concurrent Work)
 
 - **Several assistants may work on the codebase at the same time.** File content or git state can change between your turns.
@@ -494,6 +501,9 @@ docker exec api python /app/backend/scripts/inspect_issue.py --list --search "lo
 
 # Inspect issue without fetching S3 logs (faster)
 docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --no-logs
+
+# Delete issue (after confirmed fixed; removes from Directus and S3). Use --yes to skip confirmation.
+docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --delete --yes
 
 # Inspect a specific user by email
 docker exec api python /app/backend/scripts/inspect_user.py <email_address>

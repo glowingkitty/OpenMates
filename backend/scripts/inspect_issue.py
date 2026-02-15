@@ -29,6 +29,8 @@ Options:
     --list-limit N      Number of issues to list (default: 20)
     --search TEXT       Search issues by title/description (used with --list)
     --include-processed Include processed issues in --list results
+    --delete            Delete the issue (Directus + S3). Use after confirming the issue is fixed.
+    --yes               Skip confirmation when using --delete (required for non-interactive use)
 """
 
 import asyncio
@@ -289,6 +291,61 @@ async def decrypt_issue_fields(
         decrypted['device_info'] = None
 
     return decrypted
+
+
+async def delete_issue(
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    s3_service: Optional[S3UploadService],
+    issue_id: str,
+    issue: Optional[Dict[str, Any]],
+) -> tuple[bool, str]:
+    """
+    Delete an issue from Directus and S3.
+
+    Args:
+        directus_service: DirectusService instance (must support admin for delete_item)
+        encryption_service: EncryptionService instance
+        s3_service: S3UploadService instance (can be None; S3 delete is skipped if unavailable)
+        issue_id: The issue ID to delete
+        issue: Raw issue dict from Directus (must be loaded already)
+
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    if not issue:
+        return False, f"Issue not found: {issue_id}"
+
+    deleted_from_s3 = False
+
+    # Delete from S3 if key exists
+    if issue.get("encrypted_issue_report_yaml_s3_key") and s3_service:
+        try:
+            s3_object_key = await encryption_service.decrypt_issue_report_data(
+                issue["encrypted_issue_report_yaml_s3_key"]
+            )
+            if s3_object_key:
+                await s3_service.delete_file(bucket_key="issue_logs", file_key=s3_object_key)
+                deleted_from_s3 = True
+                script_logger.info(f"Deleted S3 file for issue {issue_id}: {s3_object_key}")
+        except Exception as e:
+            script_logger.warning(f"Failed to delete S3 file for issue {issue_id}: {e}")
+
+    # Delete from Directus (admin required)
+    try:
+        success = await directus_service.delete_item("issues", issue_id, admin_required=True)
+        if not success:
+            return False, "Failed to delete issue from database"
+    except Exception as e:
+        script_logger.error(f"Error deleting issue from Directus: {e}", exc_info=True)
+        return False, str(e)
+
+    msg = f"Issue {issue_id} deleted successfully"
+    if deleted_from_s3:
+        msg += " (Directus + S3)"
+    else:
+        msg += " (Directus only)"
+    return True, msg
 
 
 async def fetch_s3_report(
@@ -848,12 +905,26 @@ async def main():
         action='store_true',
         help='Show all log lines unfiltered (by default only warnings/errors with context are shown)'
     )
+    parser.add_argument(
+        '--delete',
+        action='store_true',
+        help='Delete the issue (Directus + S3). Use after confirming the issue is fixed.'
+    )
+    parser.add_argument(
+        '--yes',
+        action='store_true',
+        help='Skip confirmation when using --delete (required for non-interactive use)'
+    )
 
     args = parser.parse_args()
 
     # Validate arguments
     if not args.list and not args.issue_id:
         parser.error("Either provide an issue_id or use --list to list recent issues")
+    if args.delete and args.list:
+        parser.error("Cannot use --delete with --list")
+    if args.delete and not args.issue_id:
+        parser.error("--delete requires an issue_id")
 
     # Initialize services
     cache_service = CacheService()
@@ -913,11 +984,48 @@ async def main():
                 print(format_list_output(issues, decrypted_list))
 
         else:
-            # ===================== DETAIL MODE =====================
-            script_logger.info(f"Inspecting issue: {args.issue_id}")
-
+            # ===================== DETAIL MODE (or DELETE) =====================
             # 1. Fetch issue metadata
             issue = await get_issue(directus_service, args.issue_id)
+
+            if args.delete:
+                # Delete flow: confirm then delete from S3 and Directus
+                if not issue:
+                    script_logger.error(f"Issue not found: {args.issue_id}")
+                    sys.exit(1)
+                if not args.yes:
+                    if sys.stdin.isatty():
+                        try:
+                            reply = input(f"Delete issue {args.issue_id}? [y/N]: ").strip().lower()
+                            if reply != "y" and reply != "yes":
+                                script_logger.info("Delete cancelled.")
+                                sys.exit(0)
+                        except (EOFError, KeyboardInterrupt):
+                            script_logger.info("Delete cancelled.")
+                            sys.exit(0)
+                    else:
+                        script_logger.error("Use --yes to confirm deletion (required when not running interactively).")
+                        sys.exit(1)
+                # Init S3 if issue has S3 key (needed for delete_issue)
+                if issue.get("encrypted_issue_report_yaml_s3_key"):
+                    try:
+                        await secrets_manager.initialize()
+                        s3_service = S3UploadService(secrets_manager=secrets_manager)
+                        await s3_service.initialize()
+                    except Exception as e:
+                        script_logger.warning(f"S3 init failed; will delete from Directus only: {e}")
+                success, message = await delete_issue(
+                    directus_service, encryption_service, s3_service, args.issue_id, issue
+                )
+                if success:
+                    script_logger.info(message)
+                else:
+                    script_logger.error(message)
+                    sys.exit(1)
+                return
+
+            # Inspect flow
+            script_logger.info(f"Inspecting issue: {args.issue_id}")
 
             # 2. Decrypt fields
             decrypted: Dict[str, Optional[str]] = {}

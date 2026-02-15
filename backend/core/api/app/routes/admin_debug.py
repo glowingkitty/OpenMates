@@ -672,13 +672,10 @@ async def delete_issue(
                 )
                 
                 if s3_object_key:
-                    from backend.core.api.app.services.s3.config import get_bucket_name
-                    bucket_name = get_bucket_name('issue_logs', os.getenv('SERVER_ENVIRONMENT', 'development'))
-                    
-                    # Delete from S3
+                    # delete_file expects bucket_key and file_key (issue_logs → resolves to bucket name)
                     await s3_service.delete_file(
-                        bucket_name=bucket_name,
-                        object_key=s3_object_key
+                        bucket_key='issue_logs',
+                        file_key=s3_object_key
                     )
                     deleted_from_s3 = True
                     logger.info(f"Deleted S3 file for issue {issue_id}: {s3_object_key}")

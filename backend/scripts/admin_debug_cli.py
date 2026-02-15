@@ -9,10 +9,11 @@ This script is designed to be run via docker exec:
     docker exec api python /app/backend/scripts/admin_debug_cli.py <command> [options]
 
 Commands:
-    logs        - Query Docker Compose logs from Loki
-    issues      - List issue reports
-    issue       - Get details of a specific issue
-    user        - Inspect a user by email
+    logs          - Query Docker Compose logs from Loki
+    issues        - List issue reports
+    issue         - Get details of a specific issue
+    issue-delete  - Delete an issue (after confirmed fixed)
+    user          - Inspect a user by email
     chat        - Inspect a chat by ID
     embed       - Inspect an embed by ID
     requests    - Inspect recent AI requests
@@ -262,6 +263,18 @@ async def cmd_issue(args, api_key: str):
         if result.get('full_report'):
             print("\n=== Full Report ===")
             print(json.dumps(result['full_report'], indent=2))
+
+
+async def cmd_issue_delete(args, api_key: str):
+    """Delete an issue (Directus + S3). Use after the issue is confirmed fixed."""
+    base_url = get_base_url(args.dev)
+    result = await make_request(f"issues/{args.issue_id}", api_key, base_url, method="DELETE")
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"Success: {result.get('success')}")
+        print(f"Message: {result.get('message')}")
+        print(f"Deleted from S3: {result.get('deleted_from_s3')}")
 
 
 async def cmd_user(args, api_key: str):
@@ -548,6 +561,12 @@ def main():
     issue_parser.add_argument("issue_id", help="Issue ID")
     issue_parser.add_argument("--include-logs", "-l", action="store_true", help="Include related logs")
     issue_parser.set_defaults(func=cmd_issue)
+
+    # issue-delete command
+    issue_delete_parser = subparsers.add_parser("issue-delete", help="Delete an issue (after confirmed fixed)")
+    issue_delete_parser.add_argument("issue_id", help="Issue ID to delete")
+    issue_delete_parser.add_argument("--json", "-j", action="store_true", help="Output raw JSON")
+    issue_delete_parser.set_defaults(func=cmd_issue_delete)
     
     # user command
     user_parser = subparsers.add_parser("user", help="Inspect a user by email")
