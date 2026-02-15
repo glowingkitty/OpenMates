@@ -19,6 +19,8 @@
   import Icon from "./Icon.svelte";
   import { appSkillsStore } from "../stores/appSkillsStore";
   import { appSettingsMemoriesStore } from "../stores/appSettingsMemoriesStore";
+  import { createEntryPrefillStore } from "../stores/createEntryPrefillStore";
+  import { settingsDeepLink } from "../stores/settingsDeepLinkStore";
   import { chatDB } from "../services/db";
   import { chatSyncService } from "../services/chatSyncService";
 
@@ -28,6 +30,8 @@
     rejectedHashes?: string[] | null;
     onSuggestionAdded?: (suggestion: SuggestedSettingsMemoryEntry) => void;
     onSuggestionRejected?: (suggestion: SuggestedSettingsMemoryEntry) => void;
+    /** Called when user opens the suggestion for customizing (deep link to create form). Suggestion should be removed from the list. */
+    onSuggestionOpenForCustomize?: (suggestion: SuggestedSettingsMemoryEntry) => void;
   }
 
   let {
@@ -36,6 +40,7 @@
     rejectedHashes = null,
     onSuggestionAdded,
     onSuggestionRejected,
+    onSuggestionOpenForCustomize,
   }: Props = $props();
 
   // Local state for tracking which suggestions are being processed
@@ -290,6 +295,25 @@
   }
 
   /**
+   * Open the create-entry form in Settings with this suggestion prefilled, and remove the suggestion from the list.
+   * User can then customize and save or cancel (reject).
+   */
+  function handleOpenForCustomize(suggestion: SuggestedSettingsMemoryEntry) {
+    const id = getSuggestionId(suggestion);
+    if (processingIds.has(id)) return;
+
+    createEntryPrefillStore.set(suggestion);
+    settingsDeepLink.set(
+      `app_store/${suggestion.app_id}/settings_memories/${suggestion.item_type}/create`
+    );
+
+    filteredSuggestions = filteredSuggestions.filter(
+      (s) => getSuggestionId(s) !== id
+    );
+    onSuggestionOpenForCustomize?.(suggestion);
+  }
+
+  /**
    * Handle adding a suggestion to settings/memories
    */
   async function handleAdd(suggestion: SuggestedSettingsMemoryEntry) {
@@ -352,8 +376,14 @@
           {#each filteredSuggestions as suggestion (getSuggestionId(suggestion))}
             {@const isProcessing = processingIds.has(getSuggestionId(suggestion))}
             <div class="suggestion-card" class:processing={isProcessing}>
-              <!-- Top section: app icon + heart icon + category/title text -->
-              <div class="card-top">
+              <!-- Top section: clickable to open create form with prefill (customize before saving) -->
+              <button
+                type="button"
+                class="card-top"
+                disabled={isProcessing}
+                onclick={() => handleOpenForCustomize(suggestion)}
+                aria-label={$text("chat.settings_memories_suggestions.customize_entry")}
+              >
                 <div class="card-icons">
                   <div class="app-icon-circle">
                     <Icon name={suggestion.app_id} type="app" size="61px" />
@@ -366,7 +396,7 @@
                   <span class="category-name">{getCategoryName(suggestion.app_id, suggestion.item_type)}</span>
                   <span class="suggestion-title">{suggestion.suggested_title}</span>
                 </div>
-              </div>
+              </button>
               <!-- Bottom section: reject and add action buttons -->
               <div class="card-bottom">
                 <button
@@ -475,17 +505,32 @@
     pointer-events: none;
   }
 
-  /* ===== Card top section: icon area + text ===== */
+  /* ===== Card top section: icon area + text (clickable to customize) ===== */
   .card-top {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: var(--color-grey-10);
+    width: 100%;
+    border: none;
     border-radius: 30px;
     padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    background: var(--color-grey-10);
     box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
     height: 61px;
     position: relative;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .card-top:hover:not(:disabled) {
+    background: var(--color-grey-20);
+  }
+
+  .card-top:disabled {
+    cursor: default;
   }
 
   /* ===== Icon area within top section ===== */

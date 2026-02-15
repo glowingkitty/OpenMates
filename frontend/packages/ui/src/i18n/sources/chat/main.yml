@@ -621,6 +621,29 @@ settings_memories_suggestions.add:
   cs: "Přidat"
   sv: "Lägg till"
   verified_by_human: []
+settings_memories_suggestions.customize_entry:
+  context: Aria-label for clicking a suggestion card to open create form with prefill (customize before saving)
+  en: "Customize and add"
+  de: "Anpassen und hinzufügen"
+  zh: "自定义并添加"
+  es: "Personalizar y añadir"
+  fr: "Personnaliser et ajouter"
+  pt: "Personalizar e adicionar"
+  ru: "Настроить и добавить"
+  ja: "カスタマイズして追加"
+  ko: "맞춤 설정 후 추가"
+  it: "Personalizza e aggiungi"
+  tr: "Özelleştir ve ekle"
+  vi: "Tùy chỉnh và thêm"
+  id: "Sesuaikan dan tambahkan"
+  pl: "Dostosuj i dodaj"
+  nl: "Aanpassen en toevoegen"
+  ar: "تخصيص وإضافة"
+  hi: "अनुकूलित करें और जोड़ें"
+  th: "ปรับแต่งและเพิ่ม"
+  cs: "Přizpůsobit a přidat"
+  sv: "Anpassa och lägg till"
+  verified_by_human: []
 settings_memories_suggestions.privacy_notice:
   context: Privacy notice explaining that settings and memories are encrypted
   en: "Your settings & memories are encrypted and can only be decrypted by your devices."

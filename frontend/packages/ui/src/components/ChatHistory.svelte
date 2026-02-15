@@ -389,6 +389,7 @@
     rejectedSuggestionHashes?: string[] | null; // SHA-256 hashes of rejected suggestions for client-side filtering
     onSuggestionAdded?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user adds a suggestion
     onSuggestionRejected?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user rejects a suggestion
+    onSuggestionOpenForCustomize?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user opens suggestion to customize (deep link to create form)
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -1255,6 +1256,7 @@
                         rejectedHashes={rejectedSuggestionHashes}
                         onSuggestionAdded={onSuggestionAdded}
                         onSuggestionRejected={onSuggestionRejected}
+                        onSuggestionOpenForCustomize={onSuggestionOpenForCustomize}
                     />
                 </div>
             {/if}

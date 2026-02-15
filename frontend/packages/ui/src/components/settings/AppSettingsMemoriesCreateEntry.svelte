@@ -14,8 +14,10 @@
 -->
 <script lang="ts">
     import { untrack } from 'svelte';
+    import { get } from 'svelte/store';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
+    import { createEntryPrefillStore } from '../../stores/createEntryPrefillStore';
     import type { AppMetadata, MemoryFieldMetadata, SchemaPropertyDefinition } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
@@ -139,6 +141,39 @@
                     itemValue: '',
                     settingsGroup: ''
                 };
+            }
+
+            // Apply prefill from suggestion (when user clicked a suggestion card to customize)
+            const prefill = get(createEntryPrefillStore);
+            if (prefill && prefill.app_id === appId && prefill.item_type === categoryId) {
+                if (Object.keys(userInputProperties).length > 0) {
+                    // Schema-based form: merge prefill.item_value into formState
+                    for (const key of Object.keys(userInputProperties)) {
+                        if (prefill.item_value[key] !== undefined && prefill.item_value[key] !== null) {
+                            formState[key] = prefill.item_value[key];
+                        }
+                    }
+                    // Set title/name field from suggested_title if schema has one
+                    let titleField: string | null = null;
+                    if (schema?.properties) {
+                        const withIsTitle = Object.entries(schema.properties).find(([, p]) => p.is_title);
+                        titleField = withIsTitle ? withIsTitle[0] : (schema.properties.name ? 'name' : schema.properties.title ? 'title' : null);
+                    }
+                    if (titleField) {
+                        formState[titleField] = prefill.suggested_title;
+                    }
+                } else {
+                    // Generic form
+                    formState = {
+                        ...formState,
+                        itemKey: prefill.suggested_title,
+                        itemValue: typeof prefill.item_value === 'object' && prefill.item_value !== null
+                            ? JSON.stringify(prefill.item_value, null, 2)
+                            : String(prefill.item_value),
+                        settingsGroup: categoryId
+                    };
+                }
+                createEntryPrefillStore.set(null);
             }
             
             // Mark as initialized and track schema ID (also untracked to prevent loops)

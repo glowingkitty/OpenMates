@@ -1600,6 +1600,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         );
     }
 
+    // Handler for when user opens a suggestion to customize (deep link to create form with prefill)
+    // Removes the suggestion from the list so it does not show twice
+    function handleSettingsMemorySuggestionOpenForCustomize(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
+        console.info('[ActiveChat] Settings/memories suggestion open for customize:', suggestion.suggested_title);
+        settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
+            s => !(s.app_id === suggestion.app_id && 
+                   s.item_type === suggestion.item_type && 
+                   s.suggested_title === suggestion.suggested_title)
+        );
+    }
+
     // Handler for post-processing completed event
     async function handlePostProcessingCompleted(event: CustomEvent) {
         const { chatId, followUpSuggestions: newSuggestions, suggestedSettingsMemories: newSettingsMemories } = event.detail;
@@ -5951,6 +5962,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {rejectedSuggestionHashes}
                         onSuggestionAdded={handleSettingsMemorySuggestionAdded}
                         onSuggestionRejected={handleSettingsMemorySuggestionRejected}
+                        onSuggestionOpenForCustomize={handleSettingsMemorySuggestionOpenForCustomize}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
                         on:scrollPositionUI={handleScrollPositionUI}
