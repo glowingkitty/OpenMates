@@ -2258,4 +2258,22 @@ invoices_error_loading:
   context: Error message when fetching invoices fails
   en: Error loading invoices
   de: Fehler beim Laden der Rechnungen
+  zh: 加载发票时出错
+  es: Error al cargar las facturas
+  fr: Erreur lors du chargement des factures
+  pt: Erro ao carregar faturas
+  ru: Ошибка загрузки счетов
+  ja: 請求書の読み込みエラー
+  ko: 청구서 로딩 오류
+  it: Errore nel caricamento delle fatture
+  tr: Faturalar yüklenirken hata oluştu
+  vi: Lỗi tải hóa đơn
+  id: Gagal memuat faktur
+  pl: Błąd ładowania faktur
+  nl: Fout bij het laden van facturen
+  ar: خطأ في تحميل الفواتير
+  hi: चालान लोड करने में त्रुटि
+  th: เกิดข้อผิดพลาดในการโหลดใบแจ้งหนี้
+  cs: Chyba při načítání faktur
+  sv: Fel vid laddning av fakturor
   verified_by_human: []

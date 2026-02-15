@@ -1438,14 +1438,68 @@ context_menu.unhide:
   context: Context menu action to unhide a hidden chat
   en: Unhide
   de: Einblenden
+  zh: 取消隐藏
+  es: Mostrar
+  fr: Afficher
+  pt: Reexibir
+  ru: Показать
+  ja: 再表示
+  ko: 숨기기 해제
+  it: Mostra
+  tr: Gizlemeyi kaldır
+  vi: Bỏ ẩn
+  id: Tampilkan
+  pl: Odkryj
+  nl: Zichtbaar maken
+  ar: إظهار
+  hi: दिखाएं
+  th: ยกเลิกการซ่อน
+  cs: Zobrazit
+  sv: Visa igen
   verified_by_human: []
 hidden_chats.no_hidden_chats:
   context: Message shown when hidden chats section is empty
   en: No hidden chats
   de: Keine versteckten Chats
+  zh: 没有隐藏的聊天
+  es: No hay chats ocultos
+  fr: Aucun chat masqué
+  pt: Nenhum chat oculto
+  ru: Нет скрытых чатов
+  ja: 非表示のチャットはありません
+  ko: 숨겨진 채팅이 없습니다
+  it: Nessuna chat nascosta
+  tr: Gizli sohbet yok
+  vi: Không có cuộc trò chuyện ẩn
+  id: Tidak ada chat tersembunyi
+  pl: Brak ukrytych czatów
+  nl: Geen verborgen chats
+  ar: لا توجد محادثات مخفية
+  hi: कोई छिपी चैट नहीं
+  th: ไม่มีแชทที่ซ่อนอยู่
+  cs: Žádné skryté chaty
+  sv: Inga dolda chattar
   verified_by_human: []
 hidden_chats.no_hidden_chats_unlocked:
   context: Error message when unlock attempt succeeds but no chats were decrypted
   en: No hidden chats were unlocked. The password may be incorrect.
   de: Es wurden keine versteckten Chats entsperrt. Das Passwort ist möglicherweise falsch.
+  zh: 没有隐藏的聊天被解锁。密码可能不正确。
+  es: No se desbloquearon chats ocultos. La contraseña puede ser incorrecta.
+  fr: Aucun chat masqué n'a été déverrouillé. Le mot de passe est peut-être incorrect.
+  pt: Nenhum chat oculto foi desbloqueado. A senha pode estar incorreta.
+  ru: Скрытые чаты не были разблокированы. Возможно, пароль неверный.
+  ja: 非表示のチャットはロック解除されませんでした。パスワードが正しくない可能性があります。
+  ko: 숨겨진 채팅이 잠금 해제되지 않았습니다. 비밀번호가 올바르지 않을 수 있습니다.
+  it: Nessuna chat nascosta è stata sbloccata. La password potrebbe essere errata.
+  tr: Hiçbir gizli sohbet açılmadı. Şifre yanlış olabilir.
+  vi: Không có cuộc trò chuyện ẩn nào được mở khóa. Mật khẩu có thể không chính xác.
+  id: Tidak ada chat tersembunyi yang dibuka. Kata sandi mungkin salah.
+  pl: Żadne ukryte czaty nie zostały odblokowane. Hasło może być nieprawidłowe.
+  nl: Er zijn geen verborgen chats ontgrendeld. Het wachtwoord is mogelijk onjuist.
+  ar: لم يتم فتح أي محادثات مخفية. قد تكون كلمة المرور غير صحيحة.
+  hi: कोई छिपी चैट अनलॉक नहीं हुई। पासवर्ड गलत हो सकता है।
+  th: ไม่มีแชทที่ซ่อนถูกปลดล็อก รหัสผ่านอาจไม่ถูกต้อง
+  cs: Žádné skryté chaty nebyly odemčeny. Heslo může být nesprávné.
+  sv: Inga dolda chattar låstes upp. Lösenordet kan vara felaktigt.
   verified_by_human: []

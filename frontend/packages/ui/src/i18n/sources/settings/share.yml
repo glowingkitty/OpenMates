@@ -990,11 +990,49 @@ include_sensitive_data:
   context: Toggle label for including sensitive personal data (emails, phones, etc.) in shared content
   en: Include sensitive data
   de: Sensible Daten einschließen
+  zh: 包含敏感数据
+  es: Incluir datos sensibles
+  fr: Inclure les données sensibles
+  pt: Incluir dados sensíveis
+  ru: Включить конфиденциальные данные
+  ja: 機密データを含める
+  ko: 민감한 데이터 포함
+  it: Includi dati sensibili
+  tr: Hassas verileri dahil et
+  vi: Bao gồm dữ liệu nhạy cảm
+  id: Sertakan data sensitif
+  pl: Uwzględnij dane wrażliwe
+  nl: Gevoelige gegevens opnemen
+  ar: تضمين البيانات الحساسة
+  hi: संवेदनशील डेटा शामिल करें
+  th: รวมข้อมูลที่ละเอียดอ่อน
+  cs: Zahrnout citlivá data
+  sv: Inkludera känsliga uppgifter
+  verified_by_human: []
 
 include_sensitive_data_warning:
   context: Warning shown when user enables the include sensitive data toggle, explaining that personal info will be visible to recipients
   en: "Your personal information (emails, phone numbers, etc.) will be included in the shared content. Only enable this if you trust all recipients."
   de: "Ihre persönlichen Daten (E-Mails, Telefonnummern usw.) werden in den geteilten Inhalten enthalten sein. Aktivieren Sie dies nur, wenn Sie allen Empfängern vertrauen."
+  zh: "你的个人信息（电子邮件、电话号码等）将包含在共享内容中。仅在信任所有接收者时才启用此选项。"
+  es: "Tu información personal (correos electrónicos, números de teléfono, etc.) se incluirá en el contenido compartido. Solo activa esto si confías en todos los destinatarios."
+  fr: "Vos informations personnelles (e-mails, numéros de téléphone, etc.) seront incluses dans le contenu partagé. N'activez cette option que si vous faites confiance à tous les destinataires."
+  pt: "Suas informações pessoais (e-mails, números de telefone, etc.) serão incluídas no conteúdo compartilhado. Ative isso apenas se você confia em todos os destinatários."
+  ru: "Ваша личная информация (электронная почта, номера телефонов и т.д.) будет включена в общий контент. Включайте это только если вы доверяете всем получателям."
+  ja: "あなたの個人情報（メールアドレス、電話番号など）が共有コンテンツに含まれます。すべての受信者を信頼できる場合にのみ有効にしてください。"
+  ko: "개인 정보(이메일, 전화번호 등)가 공유 콘텐츠에 포함됩니다. 모든 수신자를 신뢰하는 경우에만 활성화하세요."
+  it: "Le tue informazioni personali (email, numeri di telefono, ecc.) saranno incluse nel contenuto condiviso. Attiva questa opzione solo se ti fidi di tutti i destinatari."
+  tr: "Kişisel bilgileriniz (e-postalar, telefon numaraları vb.) paylaşılan içeriğe dahil edilecektir. Bunu yalnızca tüm alıcılara güveniyorsanız etkinleştirin."
+  vi: "Thông tin cá nhân của bạn (email, số điện thoại, v.v.) sẽ được bao gồm trong nội dung chia sẻ. Chỉ bật tùy chọn này nếu bạn tin tưởng tất cả người nhận."
+  id: "Informasi pribadi Anda (email, nomor telepon, dll.) akan disertakan dalam konten yang dibagikan. Aktifkan ini hanya jika Anda mempercayai semua penerima."
+  pl: "Twoje dane osobowe (e-maile, numery telefonów itp.) zostaną uwzględnione w udostępnionej treści. Włącz to tylko, jeśli ufasz wszystkim odbiorcom."
+  nl: "Je persoonlijke gegevens (e-mails, telefoonnummers, etc.) worden opgenomen in de gedeelde inhoud. Schakel dit alleen in als je alle ontvangers vertrouwt."
+  ar: "سيتم تضمين معلوماتك الشخصية (البريد الإلكتروني وأرقام الهاتف وما إلى ذلك) في المحتوى المشترك. قم بتفعيل هذا فقط إذا كنت تثق بجميع المستلمين."
+  hi: "आपकी व्यक्तिगत जानकारी (ईमेल, फोन नंबर, आदि) साझा सामग्री में शामिल की जाएगी। इसे केवल तभी सक्षम करें जब आप सभी प्राप्तकर्ताओं पर भरोसा करते हैं।"
+  th: "ข้อมูลส่วนบุคคลของคุณ (อีเมล หมายเลขโทรศัพท์ ฯลฯ) จะถูกรวมอยู่ในเนื้อหาที่แชร์ เปิดใช้งานเฉพาะเมื่อคุณเชื่อถือผู้รับทั้งหมด"
+  cs: "Vaše osobní údaje (e-maily, telefonní čísla atd.) budou zahrnuty ve sdíleném obsahu. Povolte tuto možnost pouze pokud důvěřujete všem příjemcům."
+  sv: "Din personliga information (e-postadresser, telefonnummer, etc.) kommer att inkluderas i det delade innehållet. Aktivera detta bara om du litar på alla mottagare."
+  verified_by_human: []
 
 optional_settings:
   context: Header for optional share settings section
@@ -1095,15 +1133,69 @@ sharing_embed:
   context: Label in embed preview header during share configuration step
   en: Sharing embed
   de: Einbettung teilen
+  zh: 分享嵌入
+  es: Compartiendo incrustación
+  fr: Partage de l'intégration
+  pt: Compartilhando incorporação
+  ru: Общий доступ к встраиванию
+  ja: 埋め込みを共有
+  ko: 임베드 공유
+  it: Condivisione incorporamento
+  tr: Gömülü paylaşımı
+  vi: Chia sẻ nhúng
+  id: Berbagi sematan
+  pl: Udostępnianie osadzenia
+  nl: Insluiting delen
+  ar: مشاركة التضمين
+  hi: एम्बेड साझा करना
+  th: แชร์การฝัง
+  cs: Sdílení vložení
+  sv: Dela inbäddning
   verified_by_human: []
 link_for_embed:
   context: Label in embed preview header after share link has been created
   en: Link for embed
   de: Link für Einbettung
+  zh: 嵌入链接
+  es: Enlace para incrustación
+  fr: Lien pour l'intégration
+  pt: Link para incorporação
+  ru: Ссылка для встраивания
+  ja: 埋め込みリンク
+  ko: 임베드 링크
+  it: Link per incorporamento
+  tr: Gömülü bağlantısı
+  vi: Liên kết nhúng
+  id: Tautan untuk sematan
+  pl: Link do osadzenia
+  nl: Link voor insluiting
+  ar: رابط التضمين
+  hi: एम्बेड के लिए लिंक
+  th: ลิงก์สำหรับการฝัง
+  cs: Odkaz pro vložení
+  sv: Länk för inbäddning
   verified_by_human: []
 
 share_transcript:
   context: Navigation title when sharing a video transcript
   en: Share Transcript
   de: Transkript teilen
+  zh: 分享转录
+  es: Compartir transcripción
+  fr: Partager la transcription
+  pt: Compartilhar transcrição
+  ru: Поделиться транскрипцией
+  ja: トランスクリプトを共有
+  ko: 대본 공유
+  it: Condividi trascrizione
+  tr: Transkripti paylaş
+  vi: Chia sẻ bản ghi
+  id: Bagikan transkrip
+  pl: Udostępnij transkrypcję
+  nl: Transcript delen
+  ar: مشاركة النص
+  hi: ट्रांसक्रिप्ट साझा करें
+  th: แชร์บทถอดเสียง
+  cs: Sdílet přepis
+  sv: Dela transkription
   verified_by_human: []

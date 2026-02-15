@@ -112,18 +112,24 @@ async function loginToTestAccount(
 		await submitLoginButton.click();
 		logCheckpoint('Submitted login form.');
 
-		// Wait for either redirect to chat or error message
+		// Wait for login success by checking if the login dialog disappears.
+		// NOTE: We cannot use waitForURL(/chat/) because the homepage URL
+		// already contains "chat" (SvelteKit routes / to /chat), so the URL
+		// match resolves before the login response arrives.
+		// Instead, wait for the login dialog to close (submit button disappears)
+		// OR an error message to appear (wrong OTP).
 		try {
-			await page.waitForURL(/chat/, { timeout: 10000 });
+			// Wait for submit button to disappear (login dialog closes on success)
+			await expect(submitLoginButton).not.toBeVisible({ timeout: 15000 });
 			loginSuccess = true;
-			logCheckpoint('Logged in successfully, redirected to chat.');
+			logCheckpoint('Logged in successfully - login dialog closed.');
 		} catch {
-			// Check if there's an error message indicating wrong OTP
+			// Submit button is still visible - login didn't succeed
 			const hasError = await errorMessage.isVisible().catch(() => false);
 			if (hasError && attempt < 3) {
 				logCheckpoint(`OTP attempt ${attempt} failed, retrying with fresh code...`);
 				// Wait for next TOTP window (up to 5 seconds) to ensure fresh code
-				await page.waitForTimeout(2000);
+				await page.waitForTimeout(3000);
 			} else if (attempt === 3) {
 				// Final attempt failed, throw the error
 				throw new Error('Login failed after 3 OTP attempts');
@@ -715,4 +721,99 @@ test('switch between qwen and gpt-5.2 via @ mention dropdown', async ({ page }: 
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'switch-gpt-cleanup');
 
 	logCheckpoint('Model switching test completed successfully - both models work via @ mention.');
+});
+
+/**
+ * Test: Select Kimi K2.5 model via @ mention dropdown and verify it's used.
+ *
+ * This test specifically targets the Kimi K2.5 model (via Together AI) to verify
+ * that tool call parsing works correctly after the fix for function_name=None
+ * in ParsedOpenAIToolCall validation.
+ *
+ * Flow:
+ * 1. Type "@kimi" in message input
+ * 2. Verify "Kimi K2.5" appears in MentionDropdown
+ * 3. Press Tab to autocomplete
+ * 4. Type "Capital city of Germany? short answer please."
+ * 5. Send message
+ * 6. Verify response shows "Kimi" in generated-by text
+ */
+test('select kimi k2.5 model via @ mention dropdown', async ({ page }: { page: any }) => {
+	page.on('console', (msg: any) => {
+		const timestamp = new Date().toISOString();
+		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
+	});
+
+	page.on('request', (request: any) => {
+		const timestamp = new Date().toISOString();
+		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
+	});
+
+	page.on('response', (response: any) => {
+		const timestamp = new Date().toISOString();
+		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
+	});
+
+	test.slow();
+	test.setTimeout(180000);
+
+	const logCheckpoint = createSignupLogger('MODEL_MENTION_KIMI');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'kimi' });
+
+	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
+	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
+	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+
+	await archiveExistingScreenshots(logCheckpoint);
+
+	logCheckpoint('Starting Kimi K2.5 model mention test.', { email: TEST_EMAIL });
+
+	// Login
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+
+	// Start a new chat
+	await startNewChat(page, logCheckpoint);
+
+	// Select Kimi K2.5 model via @ mention dropdown
+	// Search term "kimi" should find "Kimi K2.5" in the dropdown
+	await selectModelViaMentionDropdown(
+		page,
+		'kimi',
+		'Kimi',
+		logCheckpoint,
+		takeStepScreenshot,
+		'kimi'
+	);
+
+	// Type the question and send
+	await typeQuestionAndSend(
+		page,
+		'Capital city of Germany? short answer please.',
+		logCheckpoint,
+		takeStepScreenshot,
+		'kimi'
+	);
+
+	// Wait for response and verify Kimi K2.5 model was used
+	// The generated-by text should contain "Kimi" (case-insensitive)
+	const response = await waitForResponseAndVerifyModel(
+		page,
+		/kimi/i,
+		logCheckpoint,
+		takeStepScreenshot,
+		'kimi'
+	);
+
+	// Verify the response contains the expected answer
+	expect(response.toLowerCase()).toContain('berlin');
+	logCheckpoint('Verified response contains "Berlin".');
+
+	// Verify no missing translations on the chat page
+	await assertNoMissingTranslations(page);
+	logCheckpoint('No missing translations detected.');
+
+	// Cleanup
+	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'kimi-cleanup');
+
+	logCheckpoint('Kimi K2.5 model mention test completed successfully.');
 });

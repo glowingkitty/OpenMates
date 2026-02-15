@@ -1267,9 +1267,45 @@ view_app_details:
   context: Aria-label on clickable app usage row for accessibility
   en: View app details
   de: App-Details anzeigen
+  zh: 查看应用详情
+  es: Ver detalles de la aplicación
+  fr: Voir les détails de l'application
+  pt: Ver detalhes do aplicativo
+  ru: Просмотреть детали приложения
+  ja: アプリの詳細を表示
+  ko: 앱 세부정보 보기
+  it: Visualizza dettagli app
+  tr: Uygulama ayrıntılarını görüntüle
+  vi: Xem chi tiết ứng dụng
+  id: Lihat detail aplikasi
+  pl: Zobacz szczegóły aplikacji
+  nl: App-details bekijken
+  ar: عرض تفاصيل التطبيق
+  hi: ऐप विवरण देखें
+  th: ดูรายละเอียดแอป
+  cs: Zobrazit podrobnosti aplikace
+  sv: Visa appdetaljer
   verified_by_human: []
 view_api_key_details:
   context: Aria-label on clickable API key usage row for accessibility
   en: View API key details
   de: API-Schlüssel-Details anzeigen
+  zh: 查看 API 密钥详情
+  es: Ver detalles de la clave API
+  fr: Voir les détails de la clé API
+  pt: Ver detalhes da chave API
+  ru: Просмотреть детали API-ключа
+  ja: APIキーの詳細を表示
+  ko: API 키 세부정보 보기
+  it: Visualizza dettagli chiave API
+  tr: API anahtarı ayrıntılarını görüntüle
+  vi: Xem chi tiết khóa API
+  id: Lihat detail kunci API
+  pl: Zobacz szczegóły klucza API
+  nl: API-sleuteldetails bekijken
+  ar: عرض تفاصيل مفتاح API
+  hi: API कुंजी विवरण देखें
+  th: ดูรายละเอียดคีย์ API
+  cs: Zobrazit podrobnosti API klíče
+  sv: Visa API-nyckeldetaljer
   verified_by_human: []

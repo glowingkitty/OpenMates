@@ -6305,24 +6305,114 @@ passkey_prf_not_supported:
   context: Error message when WebAuthn PRF extension is not supported by the device
   en: Your device doesn't support passkey encryption
   de: Dein Gerät unterstützt keine Passkey-Verschlüsselung
+  zh: 你的设备不支持通行密钥加密
+  es: Tu dispositivo no admite el cifrado de clave de acceso
+  fr: Votre appareil ne prend pas en charge le chiffrement par clé d'accès
+  pt: Seu dispositivo não suporta criptografia de chave de acesso
+  ru: Ваше устройство не поддерживает шифрование ключей доступа
+  ja: お使いのデバイスはパスキー暗号化に対応していません
+  ko: 기기에서 패스키 암호화를 지원하지 않습니다
+  it: Il tuo dispositivo non supporta la crittografia passkey
+  tr: Cihazınız geçiş anahtarı şifrelemeyi desteklemiyor
+  vi: Thiết bị của bạn không hỗ trợ mã hóa passkey
+  id: Perangkat Anda tidak mendukung enkripsi passkey
+  pl: Twoje urządzenie nie obsługuje szyfrowania kluczem dostępu
+  nl: Je apparaat ondersteunt geen passkey-versleuteling
+  ar: جهازك لا يدعم تشفير مفتاح المرور
+  hi: आपका डिवाइस पासकी एन्क्रिप्शन का समर्थन नहीं करता
+  th: อุปกรณ์ของคุณไม่รองรับการเข้ารหัส passkey
+  cs: Vaše zařízení nepodporuje šifrování přístupového klíče
+  sv: Din enhet stöder inte kryptering med nyckelåtkomst
   verified_by_human: []
 dont_lose_access:
   context: Warning text about backup codes importance
   en: Don't lose access
   de: Verliere nicht den Zugang
+  zh: 不要失去访问权限
+  es: No pierdas el acceso
+  fr: Ne perdez pas l'accès
+  pt: Não perca o acesso
+  ru: Не потеряйте доступ
+  ja: アクセスを失わないでください
+  ko: 접근 권한을 잃지 마세요
+  it: Non perdere l'accesso
+  tr: Erişiminizi kaybetmeyin
+  vi: Đừng mất quyền truy cập
+  id: Jangan kehilangan akses
+  pl: Nie trać dostępu
+  nl: Verlies je toegang niet
+  ar: لا تفقد الوصول
+  hi: पहुंच न खोएं
+  th: อย่าสูญเสียการเข้าถึง
+  cs: Neztratťe přístup
+  sv: Tappa inte åtkomsten
   verified_by_human: []
 setup_2fa:
   context: Button text for setting up two-factor authentication
   en: Set up 2FA
   de: 2FA einrichten
+  zh: 设置两步验证
+  es: Configurar 2FA
+  fr: Configurer l'A2F
+  pt: Configurar 2FA
+  ru: Настроить 2FA
+  ja: 2FAを設定
+  ko: 2FA 설정
+  it: Configura 2FA
+  tr: 2FA'yı kur
+  vi: Thiết lập 2FA
+  id: Siapkan 2FA
+  pl: Skonfiguruj 2FA
+  nl: 2FA instellen
+  ar: إعداد المصادقة الثنائية
+  hi: 2FA सेट अप करें
+  th: ตั้งค่า 2FA
+  cs: Nastavit 2FA
+  sv: Konfigurera 2FA
   verified_by_human: []
 pricing_details_on_page_of_app_skill:
   context: Text about pricing information location
   en: Pricing details on the page of each app/skill
   de: Preisdetails auf der Seite jeder App/Fähigkeit
+  zh: 每个应用/技能页面上的定价详情
+  es: Detalles de precios en la página de cada aplicación/habilidad
+  fr: Détails des tarifs sur la page de chaque application/compétence
+  pt: Detalhes de preços na página de cada aplicativo/habilidade
+  ru: Подробности о ценах на странице каждого приложения/навыка
+  ja: 各アプリ/スキルのページに料金の詳細があります
+  ko: 각 앱/스킬 페이지에서 가격 세부 정보 확인
+  it: Dettagli sui prezzi nella pagina di ogni app/skill
+  tr: Her uygulama/beceri sayfasında fiyatlandırma detayları
+  vi: Chi tiết giá trên trang của mỗi ứng dụng/kỹ năng
+  id: Detail harga di halaman setiap aplikasi/keterampilan
+  pl: Szczegóły cenowe na stronie każdej aplikacji/umiejętności
+  nl: Prijsdetails op de pagina van elke app/vaardigheid
+  ar: تفاصيل الأسعار في صفحة كل تطبيق/مهارة
+  hi: प्रत्येक ऐप/कौशल के पेज पर मूल्य विवरण
+  th: รายละเอียดราคาในหน้าของแต่ละแอป/ทักษะ
+  cs: Podrobnosti o cenách na stránce každé aplikace/dovednosti
+  sv: Prisuppgifter på sidan för varje app/färdighet
   verified_by_human: []
 open_app_settings:
   context: Button text to open app settings
   en: Open App Settings
   de: App-Einstellungen öffnen
+  zh: 打开应用设置
+  es: Abrir configuración de la aplicación
+  fr: Ouvrir les paramètres de l'application
+  pt: Abrir configurações do aplicativo
+  ru: Открыть настройки приложения
+  ja: アプリ設定を開く
+  ko: 앱 설정 열기
+  it: Apri impostazioni app
+  tr: Uygulama ayarlarını aç
+  vi: Mở cài đặt ứng dụng
+  id: Buka pengaturan aplikasi
+  pl: Otwórz ustawienia aplikacji
+  nl: App-instellingen openen
+  ar: فتح إعدادات التطبيق
+  hi: ऐप सेटिंग्स खोलें
+  th: เปิดการตั้งค่าแอป
+  cs: Otevřít nastavení aplikace
+  sv: Öppna appinställningar
   verified_by_human: []

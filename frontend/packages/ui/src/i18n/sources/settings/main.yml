@@ -4554,6 +4554,25 @@ support.subscription_management_info:
 support.monthly_confirmation_details:
   context: Details text on the monthly support confirmation screen
   en: You will receive an email with a link to Stripe for managing your Support Subscription, where you can modify or cancel it at any time.
+  de: Du erhältst eine E-Mail mit einem Link zu Stripe zur Verwaltung deines Support-Abonnements, wo du es jederzeit ändern oder kündigen kannst.
+  zh: 你将收到一封包含 Stripe 链接的电子邮件，用于管理你的支持订阅，你可以随时修改或取消。
+  es: Recibirás un correo electrónico con un enlace a Stripe para gestionar tu suscripción de soporte, donde puedes modificarla o cancelarla en cualquier momento.
+  fr: Vous recevrez un e-mail avec un lien vers Stripe pour gérer votre abonnement de soutien, où vous pourrez le modifier ou l'annuler à tout moment.
+  pt: Você receberá um e-mail com um link para o Stripe para gerenciar sua assinatura de suporte, onde poderá modificá-la ou cancelá-la a qualquer momento.
+  ru: Вы получите электронное письмо со ссылкой на Stripe для управления вашей подпиской поддержки, где вы сможете изменить или отменить её в любое время.
+  ja: サポートサブスクリプションを管理するためのStripeへのリンクが記載されたメールが届きます。いつでも変更またはキャンセルできます。
+  ko: 지원 구독을 관리할 수 있는 Stripe 링크가 포함된 이메일을 받게 됩니다. 언제든지 수정하거나 취소할 수 있습니다.
+  it: Riceverai un'email con un link a Stripe per gestire il tuo abbonamento di supporto, dove potrai modificarlo o cancellarlo in qualsiasi momento.
+  tr: Destek Aboneliğinizi yönetmek için Stripe'a bir bağlantı içeren bir e-posta alacaksınız, burada istediğiniz zaman değiştirebilir veya iptal edebilirsiniz.
+  vi: Bạn sẽ nhận được email chứa liên kết đến Stripe để quản lý đăng ký hỗ trợ, nơi bạn có thể chỉnh sửa hoặc hủy bất cứ lúc nào.
+  id: Anda akan menerima email berisi tautan ke Stripe untuk mengelola Langganan Dukungan Anda, di mana Anda dapat mengubah atau membatalkannya kapan saja.
+  pl: Otrzymasz e-mail z linkiem do Stripe do zarządzania subskrypcją wsparcia, gdzie możesz ją zmodyfikować lub anulować w dowolnym momencie.
+  nl: Je ontvangt een e-mail met een link naar Stripe voor het beheren van je ondersteuningsabonnement, waar je het op elk moment kunt wijzigen of annuleren.
+  ar: ستتلقى بريدًا إلكترونيًا يحتوي على رابط إلى Stripe لإدارة اشتراك الدعم الخاص بك، حيث يمكنك تعديله أو إلغاؤه في أي وقت.
+  hi: आपको अपनी सहायता सदस्यता प्रबंधित करने के लिए Stripe के लिंक वाला एक ईमेल प्राप्त होगा, जहां आप इसे किसी भी समय संशोधित या रद्द कर सकते हैं।
+  th: คุณจะได้รับอีเมลพร้อมลิงก์ไปยัง Stripe สำหรับจัดการการสมัครสนับสนุนของคุณ ซึ่งคุณสามารถแก้ไขหรือยกเลิกได้ตลอดเวลา
+  cs: Obdržíte e-mail s odkazem na Stripe pro správu vašeho předplatného podpory, kde ho můžete kdykoli upravit nebo zrušit.
+  sv: Du kommer att få ett e-postmeddelande med en länk till Stripe för att hantera din stödprenumeration, där du kan ändra eller avbryta den när som helst.
   verified_by_human: []
 support.payment_successful:
   context: Message shown when one-time payment is successfully completed
@@ -5663,9 +5682,45 @@ logout_all:
   context: Menu item to log out of all devices and sessions
   en: Log out everywhere
   de: Überall abmelden
+  zh: 在所有设备上注销
+  es: Cerrar sesión en todos los dispositivos
+  fr: Se déconnecter partout
+  pt: Sair de todos os dispositivos
+  ru: Выйти везде
+  ja: すべてのデバイスからログアウト
+  ko: 모든 곳에서 로그아웃
+  it: Disconnetti ovunque
+  tr: Her yerde oturumu kapat
+  vi: Đăng xuất ở mọi nơi
+  id: Keluar di mana saja
+  pl: Wyloguj się wszędzie
+  nl: Overal uitloggen
+  ar: تسجيل الخروج من كل مكان
+  hi: सभी जगह से लॉग आउट करें
+  th: ออกจากระบบทุกที่
+  cs: Odhlásit se všude
+  sv: Logga ut överallt
   verified_by_human: []
 tip.tip_creator:
   context: Navigation title for the tip settings page
   en: Tip Creator
   de: Ersteller unterstützen
+  zh: 打赏创作者
+  es: Dar propina al creador
+  fr: Soutenir le créateur
+  pt: Gorjeta ao criador
+  ru: Поддержать создателя
+  ja: クリエイターにチップ
+  ko: 크리에이터에게 팁
+  it: Mancia al creatore
+  tr: İçerik üreticisine bahşiş
+  vi: Tip cho người sáng tạo
+  id: Tip Kreator
+  pl: Napiwek dla twórcy
+  nl: Fooi voor maker
+  ar: إكرامية للمبدع
+  hi: रचनाकार को टिप दें
+  th: ให้ทิปผู้สร้าง
+  cs: Příspěvek tvůrci
+  sv: Dricks till skaparen
   verified_by_human: []

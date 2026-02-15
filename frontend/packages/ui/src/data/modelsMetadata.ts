@@ -18,7 +18,7 @@
 // NOTE: All text-capable models are included here. The `allow_auto_select` field
 // in provider YAMLs is for a different feature (automatic model selection by the system).
 //
-// **Generated**: 2026-02-12T12:21:27.919Z
+// **Generated**: 2026-02-14T12:44:04.092Z
 // **Models included**: 18
 
 /**
