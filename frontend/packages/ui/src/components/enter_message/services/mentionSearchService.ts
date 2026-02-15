@@ -25,7 +25,8 @@ export type MentionType =
   | "mate"
   | "skill"
   | "focus_mode"
-  | "settings_memory";
+  | "settings_memory"
+  | "settings_memory_entry";
 
 /**
  * Base interface for all mention search results.
@@ -110,7 +111,7 @@ export interface FocusModeMentionResult extends MentionResult {
 }
 
 /**
- * Settings/memory mention result.
+ * Settings/memory category mention result (selects the whole category).
  */
 export interface SettingsMemoryMentionResult extends MentionResult {
   type: "settings_memory";
@@ -120,6 +121,34 @@ export interface SettingsMemoryMentionResult extends MentionResult {
   appIcon: string;
   /** Memory type (e.g., 'list', 'single') */
   memoryType: string;
+  /** Memory category ID (e.g., 'preferred_technologies') */
+  memoryCategoryId: string;
+  /** Number of user entries in this category */
+  entryCount: number;
+  /** Color gradient start from app config */
+  colorStart?: string;
+  /** Color gradient end from app config */
+  colorEnd?: string;
+}
+
+/**
+ * Individual settings/memory entry mention result.
+ * Selects a single entry within a category (e.g., one specific technology).
+ */
+export interface SettingsMemoryEntryMentionResult extends MentionResult {
+  type: "settings_memory_entry";
+  /** App ID this entry belongs to */
+  appId: string;
+  /** App icon gradient or image */
+  appIcon: string;
+  /** Memory category ID (e.g., 'preferred_technologies') */
+  memoryCategoryId: string;
+  /** The unique entry ID */
+  entryId: string;
+  /** Title field from the entry (e.g., "React") */
+  entryTitle: string;
+  /** Subtitle field from the entry (e.g., "Expert") */
+  entrySubtitle?: string;
   /** Color gradient start from app config */
   colorStart?: string;
   /** Color gradient end from app config */
@@ -134,7 +163,8 @@ export type AnyMentionResult =
   | MateMentionResult
   | SkillMentionResult
   | FocusModeMentionResult
-  | SettingsMemoryMentionResult;
+  | SettingsMemoryMentionResult
+  | SettingsMemoryEntryMentionResult;
 
 /**
  * Convert a name to hyphenated format for mention display.
@@ -412,11 +442,12 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
 
   // Get user's settings/memories entries grouped by app
   const storeState = get(appSettingsMemoriesStore);
-  const userEntriesByApp = new Set<string>();
-
-  // Track which app:item_type combinations have user data
+  
+  // Count entries per app:item_type for entry counts
+  const entryCountMap = new Map<string, number>();
   storeState.entries.forEach((entry: { app_id: string; item_type: string }) => {
-    userEntriesByApp.add(`${entry.app_id}:${entry.item_type}`);
+    const key = `${entry.app_id}:${entry.item_type}`;
+    entryCountMap.set(key, (entryCountMap.get(key) || 0) + 1);
   });
 
   for (const [appId, app] of Object.entries(apps)) {
@@ -426,8 +457,9 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
 
     for (const memory of app.settings_and_memories) {
       // Only include if user has entries for this memory type
-      const hasUserData = userEntriesByApp.has(`${appId}:${memory.id}`);
-      if (!hasUserData) continue;
+      const categoryKey = `${appId}:${memory.id}`;
+      const entryCount = entryCountMap.get(categoryKey) || 0;
+      if (entryCount === 0) continue;
 
       // Hyphenated: "Code-Projects" (app name + memory id with hyphens)
       const memoryDisplayName = capitalizeWords(memory.id.replace(/_/g, "-"));
@@ -460,7 +492,9 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
         ),
         appId,
         appIcon,
+        memoryCategoryId: memory.id,
         memoryType: memory.type,
+        entryCount,
         colorStart: app.icon_colorgradient?.start,
         colorEnd: app.icon_colorgradient?.end,
       });
@@ -471,7 +505,115 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
 }
 
 /**
- * Get all mention results across all types.
+ * Get individual entry mention results for a specific settings/memory category.
+ * Returns decrypted entries with their title/subtitle fields extracted from schema.
+ * Used by the dropdown to show expandable entries under a category.
+ *
+ * @param appId - App ID (e.g., "code")
+ * @param memoryCategoryId - Category ID (e.g., "preferred_technologies")
+ * @param limit - Maximum entries to return (default 5)
+ */
+export function getSettingsMemoryEntryResults(
+  appId: string,
+  memoryCategoryId: string,
+  limit: number = 5,
+): { entries: SettingsMemoryEntryMentionResult[]; totalCount: number } {
+  const storeState = get(appSettingsMemoriesStore);
+  const apps = appSkillsStore.apps;
+  const app = apps[appId];
+  if (!app) return { entries: [], totalCount: 0 };
+
+  const appIcon = app.icon_image || "default-app.svg";
+  const appDisplayName = capitalizeWords(appId);
+
+  // Find the memory field metadata to get schema (for title/subtitle fields)
+  const memoryMeta = app.settings_and_memories.find(
+    (m) => m.id === memoryCategoryId,
+  );
+  const schema = memoryMeta?.schema_definition;
+
+  // Identify which properties are is_title and is_subtitle
+  let titleField: string | null = null;
+  let subtitleField: string | null = null;
+  if (schema?.properties) {
+    for (const [key, prop] of Object.entries(schema.properties)) {
+      if (prop.is_title) titleField = key;
+      if (prop.is_subtitle) subtitleField = key;
+    }
+  }
+
+  // Get decrypted entries for this app + category
+  const allDecryptedEntries = Array.from(storeState.decryptedEntries.values());
+  const categoryEntries = allDecryptedEntries.filter(
+    (entry) =>
+      entry.app_id === appId && entry.settings_group === memoryCategoryId,
+  );
+
+  const totalCount = categoryEntries.length;
+  const limitedEntries = categoryEntries.slice(0, limit);
+
+  const results: SettingsMemoryEntryMentionResult[] = limitedEntries.map(
+    (entry) => {
+      // Extract title and subtitle from item_value based on schema
+      const entryTitle = titleField
+        ? String(entry.item_value[titleField] || entry.item_key)
+        : entry.item_key;
+      const entrySubtitle = subtitleField
+        ? String(entry.item_value[subtitleField] || "")
+        : undefined;
+
+      const entryDisplayName = capitalizeWords(
+        entryTitle.replace(/\s+/g, "-"),
+      );
+
+      return {
+        id: `${appId}:${memoryCategoryId}:${entry.id}`,
+        type: "settings_memory_entry" as const,
+        displayName: entryTitle,
+        mentionDisplayName: `${appDisplayName}-${entryDisplayName}`,
+        subtitle: entrySubtitle || "",
+        icon: appIcon,
+        iconStyle: app.icon_colorgradient
+          ? `linear-gradient(135deg, ${app.icon_colorgradient.start} 9.04%, ${app.icon_colorgradient.end} 90.06%)`
+          : undefined,
+        // Individual entry syntax: @memory-entry:app_id:category_id:entry_id
+        mentionSyntax: `@memory-entry:${appId}:${memoryCategoryId}:${entry.id}`,
+        searchTerms: buildSearchTerms(entryTitle, entrySubtitle),
+        appId,
+        appIcon,
+        memoryCategoryId,
+        entryId: entry.id,
+        entryTitle,
+        entrySubtitle: entrySubtitle || undefined,
+        colorStart: app.icon_colorgradient?.start,
+        colorEnd: app.icon_colorgradient?.end,
+      };
+    },
+  );
+
+  return { entries: results, totalCount };
+}
+
+/**
+ * Get all individual settings/memory entry mention results across all categories.
+ * Used by the search function so users can find individual entries by name (e.g., "@react").
+ */
+function getAllSettingsMemoryEntryResults(): SettingsMemoryEntryMentionResult[] {
+  const categories = getSettingsMemoryMentionResults();
+  const allEntries: SettingsMemoryEntryMentionResult[] = [];
+  for (const category of categories) {
+    const { entries } = getSettingsMemoryEntryResults(
+      category.appId,
+      category.memoryCategoryId,
+      100, // Get all entries for search indexing
+    );
+    allEntries.push(...entries);
+  }
+  return allEntries;
+}
+
+/**
+ * Get all mention results across all types (including individual entries).
  */
 export function getAllMentionResults(): AnyMentionResult[] {
   return [
@@ -480,6 +622,7 @@ export function getAllMentionResults(): AnyMentionResult[] {
     ...getSkillMentionResults(),
     ...getFocusModeMentionResults(),
     ...getSettingsMemoryMentionResults(),
+    ...getAllSettingsMemoryEntryResults(),
   ];
 }
 

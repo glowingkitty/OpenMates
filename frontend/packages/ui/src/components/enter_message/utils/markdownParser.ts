@@ -139,6 +139,7 @@ function htmlToTiptapJson(html: string): any {
  * - @skill:{app_id}:{skill_id}
  * - @focus:{app_id}:{focus_id}
  * - @memory:{app_id}:{memory_id}:{type}
+ * - @memory-entry:{app_id}:{category_id}:{entry_id}
  *
  * This is a unified parser that handles all mention types in order of appearance.
  * Returns an array of TipTap nodes.
@@ -147,7 +148,7 @@ function parseMentions(text: string): any[] {
   const result: any[] = [];
 
   // Combined pattern to match all mention types
-  // Group 1: mention type (ai-model, mate, skill, focus, memory)
+  // Group 1: mention type (ai-model, mate, skill, focus, memory, memory-entry)
   // Group 2+: variable parts depending on type
   // Pattern breakdown:
   // - @ai-model:id or @ai-model:id:provider
@@ -155,8 +156,9 @@ function parseMentions(text: string): any[] {
   // - @skill:app:id
   // - @focus:app:id
   // - @memory:app:id:type
+  // - @memory-entry:app:category:entry_id
   const mentionPattern =
-    /@(ai-model|mate|skill|focus|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/g;
+    /@(ai-model|mate|skill|focus|memory-entry|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/g;
 
   let lastIndex = 0;
   let match;
@@ -261,6 +263,25 @@ function parseMentions(text: string): any[] {
         });
         break;
       }
+
+      case "memory-entry": {
+        // @memory-entry:app_id:category_id:entry_id
+        // Represents a single entry within a settings/memory category
+        const appId = part1;
+        const categoryId = part2 || "";
+        const entryId = match[4] || "";
+        // Use entry ID for display (will be replaced with actual title when available)
+        const displayName = formatMentionDisplayName(appId, `${categoryId}-${entryId.slice(0, 8)}`);
+        result.push({
+          type: "genericMention",
+          attrs: {
+            mentionType: "settings_memory_entry",
+            displayName: displayName,
+            mentionSyntax: fullMatch,
+          },
+        });
+        break;
+      }
     }
 
     lastIndex = match.index + match[0].length;
@@ -308,12 +329,13 @@ function convertNodeToTiptap(node: Node): any {
     }
 
     // Check for any mention types in the text
-    // Supported: @ai-model:, @mate:, @skill:, @focus:, @memory:
+    // Supported: @ai-model:, @mate:, @skill:, @focus:, @memory:, @memory-entry:
     if (
       text.includes("@ai-model:") ||
       text.includes("@mate:") ||
       text.includes("@skill:") ||
       text.includes("@focus:") ||
+      text.includes("@memory-entry:") ||
       text.includes("@memory:")
     ) {
       const parsedNodes = parseMentions(text);

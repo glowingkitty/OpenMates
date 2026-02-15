@@ -32,6 +32,16 @@ interface RequestAppSettingsMemoriesPayload {
 }
 
 /**
+ * Individual entry within a category for entry-level selection in the permission dialog.
+ */
+export interface AppSettingsMemoriesEntryInfo {
+  id: string; // Entry ID
+  title: string; // Display title (from is_title schema field)
+  subtitle?: string; // Display subtitle (from is_subtitle schema field)
+  selected: boolean; // Whether this individual entry is selected for sharing
+}
+
+/**
  * Parsed category for the permission dialog
  */
 export interface AppSettingsMemoriesCategory {
@@ -42,6 +52,7 @@ export interface AppSettingsMemoriesCategory {
   entryCount: number; // Number of entries in this category
   iconGradient?: string; // Optional CSS gradient for the icon background
   selected: boolean; // Whether this category is selected for sharing
+  entries?: AppSettingsMemoriesEntryInfo[]; // Individual entries for entry-level selection (loaded on expand)
 }
 
 /**
@@ -129,6 +140,78 @@ export function getAppGradient(appId: string): string {
     gradientMap[appId] ||
     "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)"
   );
+}
+
+/**
+ * Populate individual entry info for categories so the permission dialog
+ * can show expandable entry-level selection. Uses the appSettingsMemoriesStore
+ * which has already-decrypted entries in memory.
+ *
+ * Falls back gracefully if entries can't be loaded (dialog still works at category level).
+ */
+async function populateCategoryEntries(
+  categories: AppSettingsMemoriesCategory[],
+): Promise<void> {
+  try {
+    const { appSettingsMemoriesStore } = await import(
+      "../stores/appSettingsMemoriesStore"
+    );
+    const { appSkillsStore } = await import("../stores/appSkillsStore");
+    const storeState = get(appSettingsMemoriesStore);
+
+    for (const category of categories) {
+      // Find schema for is_title / is_subtitle fields
+      const app = appSkillsStore.apps[category.appId];
+      let titleField: string | null = null;
+      let subtitleField: string | null = null;
+
+      if (app) {
+        const memoryMeta = app.settings_and_memories.find(
+          (m) => m.id === category.itemType,
+        );
+        if (memoryMeta?.schema_definition?.properties) {
+          for (const [key, prop] of Object.entries(
+            memoryMeta.schema_definition.properties,
+          )) {
+            if (prop.is_title) titleField = key;
+            if (prop.is_subtitle) subtitleField = key;
+          }
+        }
+      }
+
+      // Get decrypted entries for this category
+      const entries: AppSettingsMemoriesEntryInfo[] = [];
+      for (const decryptedEntry of Array.from(
+        storeState.decryptedEntries.values(),
+      )) {
+        if (
+          decryptedEntry.app_id === category.appId &&
+          decryptedEntry.settings_group === category.itemType
+        ) {
+          const title = titleField
+            ? String(decryptedEntry.item_value[titleField] || decryptedEntry.item_key)
+            : decryptedEntry.item_key;
+          const subtitle = subtitleField
+            ? String(decryptedEntry.item_value[subtitleField] || "")
+            : undefined;
+
+          entries.push({
+            id: decryptedEntry.id,
+            title,
+            subtitle,
+            selected: true, // Default to selected (same as category)
+          });
+        }
+      }
+
+      category.entries = entries;
+    }
+  } catch (error) {
+    console.warn(
+      "[ChatSyncService:AppSettings] Could not populate category entries (dialog still works at category level):",
+      error,
+    );
+  }
 }
 
 /**
@@ -220,6 +303,9 @@ export async function handleRequestAppSettingsMemoriesImpl(
       );
       return;
     }
+
+    // Populate individual entry info for each category (for entry-level selection in the dialog)
+    await populateCategoryEntries(categories);
 
     console.info(
       `[ChatSyncService:AppSettings] Built ${categories.length} categories for permission dialog`,
@@ -380,6 +466,7 @@ export async function handlePermissionDialogConfirm(
   serviceInstance: ChatSynchronizationService,
   requestId: string,
   selectedKeys: string[],
+  selectedEntryIdsByCategory?: Map<string, string[] | null>,
 ): Promise<void> {
   // Try in-memory Map first (fresh request), fall back to permission store (recovered request)
   let pendingRequest = pendingPermissionRequests.get(requestId);
@@ -432,6 +519,10 @@ export async function handlePermissionDialogConfirm(
       const appId = key.substring(0, dashIndex);
       const itemType = key.substring(dashIndex + 1);
 
+      // Check if specific entries were selected for this category
+      // null means "all entries" (no entry-level filtering)
+      const selectedEntryIds = selectedEntryIdsByCategory?.get(key) ?? null;
+
       // Get entries for this category
       const entries = await chatDB.getAppSettingsMemoriesEntriesByAppAndType(
         appId,
@@ -439,6 +530,11 @@ export async function handlePermissionDialogConfirm(
       );
 
       for (const entry of entries) {
+        // If entry-level selection is active, skip entries that weren't selected
+        if (selectedEntryIds !== null && !selectedEntryIds.includes(entry.id)) {
+          continue;
+        }
+
         try {
           // Decrypt the entry content
           const decryptedJson = await decryptWithMasterKey(

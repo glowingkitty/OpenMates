@@ -166,6 +166,30 @@ type_labels:
     sv: ''
     verified_by_human: []
 
+show_more:
+  context: Button text in the @ mention dropdown to show more settings/memory entries within an expanded category. {count} is replaced with the number of remaining entries.
+  en: Show {count} more...
+  de: "{count} weitere anzeigen..."
+  zh: ''
+  es: Mostrar {count} más...
+  fr: Afficher {count} de plus...
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+
 from_provider:
   context: Subtitle template showing which provider a model is from. {provider} is replaced with the provider name.
   en: from {provider}

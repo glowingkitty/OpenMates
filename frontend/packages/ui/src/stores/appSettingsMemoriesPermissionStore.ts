@@ -69,15 +69,56 @@ function createPermissionDialogStore() {
         },
         
         /**
-         * Update selection state for a category
+         * Update selection state for a category.
+         * When toggling a category off, all its entries are deselected.
+         * When toggling a category on, all its entries are re-selected.
          */
         toggleCategory(categoryKey: string) {
             update(state => {
                 if (!state.currentRequest) return state;
                 
-                const updatedCategories = state.currentRequest.categories.map(cat =>
-                    cat.key === categoryKey ? { ...cat, selected: !cat.selected } : cat
-                );
+                const updatedCategories = state.currentRequest.categories.map(cat => {
+                    if (cat.key !== categoryKey) return cat;
+                    const newSelected = !cat.selected;
+                    // Also toggle all entries to match category state
+                    const updatedEntries = cat.entries?.map(entry => ({
+                        ...entry,
+                        selected: newSelected,
+                    }));
+                    return { ...cat, selected: newSelected, entries: updatedEntries };
+                });
+                
+                return {
+                    ...state,
+                    currentRequest: {
+                        ...state.currentRequest,
+                        categories: updatedCategories
+                    }
+                };
+            });
+        },
+
+        /**
+         * Toggle selection state for an individual entry within a category.
+         * If all entries in a category are deselected, the category is also deselected.
+         * If any entry is selected, the category is marked as selected.
+         */
+        toggleEntry(categoryKey: string, entryId: string) {
+            update(state => {
+                if (!state.currentRequest) return state;
+                
+                const updatedCategories = state.currentRequest.categories.map(cat => {
+                    if (cat.key !== categoryKey || !cat.entries) return cat;
+                    
+                    const updatedEntries = cat.entries.map(entry =>
+                        entry.id === entryId ? { ...entry, selected: !entry.selected } : entry
+                    );
+                    
+                    // Category is selected if any entry is selected
+                    const anySelected = updatedEntries.some(e => e.selected);
+                    
+                    return { ...cat, selected: anySelected, entries: updatedEntries };
+                });
                 
                 return {
                     ...state,
@@ -116,6 +157,33 @@ function createPermissionDialogStore() {
             return state.currentRequest.categories
                 .filter(cat => cat.selected)
                 .map(cat => cat.key);
+        },
+
+        /**
+         * Get selected entry IDs per category key.
+         * Returns a map of categoryKey -> entryIds[].
+         * If a category has no entries array (legacy), returns null (meaning "all entries").
+         */
+        getSelectedEntryIdsByCategory(): Map<string, string[] | null> {
+            const state = get({ subscribe });
+            const result = new Map<string, string[] | null>();
+            if (!state.currentRequest) return result;
+            
+            for (const cat of state.currentRequest.categories) {
+                if (!cat.selected) continue;
+                if (!cat.entries) {
+                    // No entry-level info available — select all
+                    result.set(cat.key, null);
+                } else {
+                    const selectedIds = cat.entries
+                        .filter(e => e.selected)
+                        .map(e => e.id);
+                    if (selectedIds.length > 0) {
+                        result.set(cat.key, selectedIds);
+                    }
+                }
+            }
+            return result;
         },
         
         /**

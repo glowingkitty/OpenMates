@@ -2,18 +2,23 @@
 <!--
     Dropdown component for @ mention autocomplete.
     Shows AI models, mates, app skills, focus modes, and settings/memories.
+    Settings/memory categories can be expanded to show individual entries.
     
     Design based on Figma: https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=4407-53857
 -->
 <script lang="ts">
     import { fade } from 'svelte/transition';
+    import { slide } from 'svelte/transition';
     import { text } from '@repo/ui';
     import {
         searchMentions,
+        getSettingsMemoryEntryResults,
         type AnyMentionResult,
-        type MentionType
+        type MentionType,
+        type SettingsMemoryMentionResult,
+        type SettingsMemoryEntryMentionResult,
     } from './services/mentionSearchService';
-    import type { SkillMentionResult, FocusModeMentionResult, SettingsMemoryMentionResult } from './services/mentionSearchService';
+    import type { SkillMentionResult, FocusModeMentionResult } from './services/mentionSearchService';
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
     import { panelState } from '../../stores/panelStateStore';
 
@@ -46,6 +51,12 @@
     let dropdownElement = $state<HTMLElement | null>(null);
     let selectedIndex = $state(0);
     let results = $state<AnyMentionResult[]>([]);
+    
+    // --- Expandable Category State ---
+    // Tracks which settings/memory categories are expanded (by result.id)
+    let expandedCategories = $state<Set<string>>(new Set());
+    // Cache of loaded entries per category (by result.id)
+    let categoryEntries = $state<Map<string, { entries: SettingsMemoryEntryMentionResult[]; totalCount: number; showAll: boolean }>>(new Map());
 
     // --- Computed ---
     let hasResults = $derived(results.length > 0);
@@ -56,26 +67,39 @@
     $effect(() => {
         results = searchMentions(query, 4);
         selectedIndex = 0; // Reset selection when results change
+        // Collapse all expanded categories when query changes
+        expandedCategories = new Set();
+        categoryEntries = new Map();
     });
 
     // Handle keyboard navigation
     function handleKeyDown(event: KeyboardEvent) {
         if (!show) return;
 
+        // Build flat list of navigable items (results + expanded entries)
+        const flatItems = buildFlatNavigableItems();
+
         switch (event.key) {
             case 'ArrowDown':
                 event.preventDefault();
-                selectedIndex = (selectedIndex + 1) % results.length;
+                if (flatItems.length > 0) {
+                    selectedIndex = (selectedIndex + 1) % flatItems.length;
+                }
                 break;
             case 'ArrowUp':
                 event.preventDefault();
-                selectedIndex = (selectedIndex - 1 + results.length) % results.length;
+                if (flatItems.length > 0) {
+                    selectedIndex = (selectedIndex - 1 + flatItems.length) % flatItems.length;
+                }
                 break;
             case 'Enter':
             case 'Tab':
-                if (hasResults) {
+                if (flatItems.length > 0 && selectedIndex < flatItems.length) {
                     event.preventDefault();
-                    selectResult(results[selectedIndex]);
+                    const selectedItem = flatItems[selectedIndex];
+                    if (selectedItem) {
+                        selectResult(selectedItem);
+                    }
                 }
                 break;
             case 'Escape':
@@ -83,6 +107,26 @@
                 onclose?.();
                 break;
         }
+    }
+
+    /**
+     * Build a flat list of navigable items for keyboard navigation.
+     * Includes top-level results and expanded entry items.
+     */
+    function buildFlatNavigableItems(): AnyMentionResult[] {
+        const items: AnyMentionResult[] = [];
+        for (const result of results) {
+            items.push(result);
+            // If this is an expanded settings_memory category, add its entries
+            if (result.type === 'settings_memory' && expandedCategories.has(result.id)) {
+                const data = categoryEntries.get(result.id);
+                if (data) {
+                    const entriesToShow = data.showAll ? data.entries : data.entries.slice(0, 5);
+                    items.push(...entriesToShow);
+                }
+            }
+        }
+        return items;
     }
 
     // Add global keyboard listener when shown
@@ -122,9 +166,79 @@
     }
 
     /**
+     * Get the flat index for a given result, accounting for expanded entries.
+     * Used to correctly highlight the selected item during mouse hover.
+     */
+    function getFlatIndex(resultIndex: number, entryIndex?: number): number {
+        let flatIdx = 0;
+        for (let i = 0; i < results.length; i++) {
+            if (i === resultIndex && entryIndex === undefined) return flatIdx;
+            flatIdx++;
+            const result = results[i];
+            if (result.type === 'settings_memory' && expandedCategories.has(result.id)) {
+                const data = categoryEntries.get(result.id);
+                if (data) {
+                    const count = data.showAll ? data.entries.length : Math.min(5, data.entries.length);
+                    if (i === resultIndex && entryIndex !== undefined) {
+                        return flatIdx + entryIndex;
+                    }
+                    flatIdx += count;
+                }
+            }
+        }
+        return flatIdx;
+    }
+
+    /**
+     * Toggle expansion of a settings/memory category.
+     * Loads individual entries on first expansion.
+     */
+    function toggleCategoryExpand(result: SettingsMemoryMentionResult, event: MouseEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const newExpanded = new Set(expandedCategories);
+        if (newExpanded.has(result.id)) {
+            newExpanded.delete(result.id);
+        } else {
+            newExpanded.add(result.id);
+            // Load entries if not cached
+            if (!categoryEntries.has(result.id)) {
+                const { entries, totalCount } = getSettingsMemoryEntryResults(
+                    result.appId,
+                    result.memoryCategoryId,
+                    // Load enough entries for "show more" - get all of them but only show 5 initially
+                    100,
+                );
+                const newEntries = new Map(categoryEntries);
+                newEntries.set(result.id, { entries, totalCount, showAll: false });
+                categoryEntries = newEntries;
+            }
+        }
+        expandedCategories = newExpanded;
+    }
+
+    /**
+     * Show all entries for a category (when "Show more" is clicked).
+     */
+    function handleShowMore(resultId: string, event: MouseEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+        const data = categoryEntries.get(resultId);
+        if (data) {
+            const newEntries = new Map(categoryEntries);
+            newEntries.set(resultId, { ...data, showAll: true });
+            categoryEntries = newEntries;
+        }
+    }
+
+    /**
      * Get translated type label for a result.
      */
     function getTypeLabel(type: MentionType): string {
+        if (type === 'settings_memory_entry') {
+            return $text('enter_message.mention_dropdown.type_labels.settings_memory');
+        }
         return $text(`enter_message.mention_dropdown.type_labels.${type}`);
     }
 
@@ -138,10 +252,14 @@
             const translated = $text(result.displayName);
             return translated !== result.displayName ? translated : result.displayName.split('.').pop() || '';
         }
-        // For skills, focus modes, and settings - resolve translation keys
+        // For skills, focus modes, and settings categories - resolve translation keys
         if (result.type === 'skill' || result.type === 'focus_mode' || result.type === 'settings_memory') {
             const translated = $text(result.displayName);
             return translated !== result.displayName ? translated : result.displayName.split('.').pop() || '';
+        }
+        // For individual entries, displayName is the entry title (not a translation key)
+        if (result.type === 'settings_memory_entry') {
+            return result.displayName;
         }
         return result.displayName;
     }
@@ -158,6 +276,10 @@
         if (result.type === 'mate') {
             return $text(`mate_descriptions.${result.id}`);
         }
+        // For individual entries, subtitle is the entry subtitle value (e.g., "Expert")
+        if (result.type === 'settings_memory_entry') {
+            return result.subtitle || '';
+        }
         // For skills, focus modes, settings - resolve translation keys
         if (result.subtitle) {
             return $text(result.subtitle);
@@ -167,22 +289,12 @@
 
     /**
      * Get the settings deep link path for a result based on its type.
-     * Returns the path to pass to settingsDeepLink.set() for programmatic navigation.
-     * Uses the same deep link format as the rest of the codebase (e.g., ChatMessage.svelte).
-     *
-     * - Models: app_store/ai/skill/ask/model/{model_id}
-     * - Mates: main (no mate-specific settings page yet)
-     * - Skills: app_store/{appId}/skill/{skillId}
-     * - Focus modes: app_store/{appId}/focus/{focusModeId}
-     * - Settings/memories: app_store/{appId}/settings_memories/{memoryId}
      */
     function getSettingsPath(result: AnyMentionResult): string {
         switch (result.type) {
             case 'model':
-                // Deep link to AI model detail page in the AI Ask skill settings
                 return `app_store/ai/skill/ask/model/${result.id}`;
             case 'mate':
-                // No mate-specific settings page yet — open main settings
                 return 'main';
             case 'skill': {
                 const skillResult = result as SkillMentionResult;
@@ -199,6 +311,10 @@
                 const memoryId = result.id.split(':')[1] || result.id;
                 return `app_store/${memoryResult.appId}/settings_memories/${memoryId}`;
             }
+            case 'settings_memory_entry': {
+                const entryResult = result as SettingsMemoryEntryMentionResult;
+                return `app_store/${entryResult.appId}/settings_memories/${entryResult.memoryCategoryId}`;
+            }
             default:
                 return 'main';
         }
@@ -206,9 +322,6 @@
 
     /**
      * Navigate to settings for a specific mention result.
-     * Uses programmatic navigation (settingsDeepLink + panelState) instead of hash links
-     * to avoid the deep link handler's hyphen-to-underscore normalization which would
-     * corrupt model IDs like "claude-opus-4-6".
      */
     function handleSettingsNavigation(result: AnyMentionResult, event: MouseEvent) {
         event.preventDefault();
@@ -263,12 +376,12 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <div
                     class="mention-result"
-                    class:selected={index === selectedIndex}
+                    class:selected={getFlatIndex(index) === selectedIndex}
                     role="option"
                     tabindex="-1"
-                    aria-selected={index === selectedIndex}
+                    aria-selected={getFlatIndex(index) === selectedIndex}
                     onclick={(e) => handleResultClick(result, e)}
-                    onmouseenter={() => handleMouseEnter(index)}
+                    onmouseenter={() => { selectedIndex = getFlatIndex(index); }}
                 >
                     <!-- Icon -->
                     <div class="result-icon">
@@ -305,7 +418,24 @@
                         <span class="result-subtitle">{getSubtitle(result)}</span>
                     </div>
 
-                    <!-- Settings icon for each row — navigates to the model/skill/focus/memory settings -->
+                    <!-- Expand button for settings/memory categories with entries -->
+                    {#if result.type === 'settings_memory'}
+                        {@const memResult = result as SettingsMemoryMentionResult}
+                        <button
+                            class="expand-button"
+                            class:expanded={expandedCategories.has(result.id)}
+                            tabindex="-1"
+                            aria-label={expandedCategories.has(result.id) ? 'Collapse entries' : 'Expand entries'}
+                            onclick={(e) => toggleCategoryExpand(memResult, e)}
+                        >
+                            <span class="expand-icon">
+                                {#if expandedCategories.has(result.id)}▾{:else}▸{/if}
+                            </span>
+                            <span class="entry-count">{memResult.entryCount}</span>
+                        </button>
+                    {/if}
+
+                    <!-- Settings icon for each row -->
                     <button 
                         class="row-settings-button" 
                         tabindex="-1"
@@ -315,6 +445,59 @@
                         <span class="clickable-icon icon_settings"></span>
                     </button>
                 </div>
+
+                <!-- Expanded entries for settings/memory categories -->
+                {#if result.type === 'settings_memory' && expandedCategories.has(result.id)}
+                    {@const data = categoryEntries.get(result.id)}
+                    {#if data}
+                        {@const entriesToShow = data.showAll ? data.entries : data.entries.slice(0, 5)}
+                        <div class="expanded-entries" transition:slide={{ duration: 150 }}>
+                            {#each entriesToShow as entry, entryIdx (entry.id)}
+                                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                <div
+                                    class="mention-result entry-item"
+                                    class:selected={getFlatIndex(index, entryIdx) === selectedIndex}
+                                    role="option"
+                                    tabindex="-1"
+                                    aria-selected={getFlatIndex(index, entryIdx) === selectedIndex}
+                                    onclick={(e) => handleResultClick(entry, e)}
+                                    onmouseenter={() => { selectedIndex = getFlatIndex(index, entryIdx); }}
+                                >
+                                    <!-- Entry icon (indented) -->
+                                    <div class="result-icon entry-icon">
+                                        <div 
+                                            class="app-icon app-icon-small"
+                                            style={entry.iconStyle ? `background: ${entry.iconStyle};` : ''}
+                                        >
+                                            <span class="mention-icon mention-icon-small icon_heart"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Entry content -->
+                                    <div class="result-content">
+                                        <span class="result-name entry-name">{entry.entryTitle}</span>
+                                        {#if entry.entrySubtitle}
+                                            <span class="result-subtitle">{entry.entrySubtitle}</span>
+                                        {/if}
+                                    </div>
+                                </div>
+                            {/each}
+
+                            <!-- Show more button -->
+                            {#if !data.showAll && data.totalCount > 5}
+                                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                <div
+                                    class="show-more-button"
+                                    role="button"
+                                    tabindex="-1"
+                                    onclick={(e) => handleShowMore(result.id, e)}
+                                >
+                                    {$text('enter_message.mention_dropdown.show_more').replace('{count}', String(data.totalCount - 5))}
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
+                {/if}
             {/each}
         </div>
 
@@ -336,7 +519,9 @@
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         min-width: 380px;
         max-width: 450px;
-        overflow: hidden;
+        max-height: 420px;
+        overflow-y: auto;
+        overflow-x: hidden;
         font-family: var(--font-family-primary);
         /* Center horizontally above the input field */
         left: 50% !important;
@@ -406,6 +591,11 @@
         background: var(--color-grey-15);
     }
 
+    /* Indented entry items within expanded categories */
+    .mention-result.entry-item {
+        padding-left: 32px;
+    }
+
     .result-icon {
         flex-shrink: 0;
         width: 40px;
@@ -413,6 +603,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    .result-icon.entry-icon {
+        width: 32px;
+        height: 32px;
     }
 
     .provider-logo {
@@ -440,6 +635,12 @@
         background: var(--color-grey-40);
     }
 
+    .app-icon.app-icon-small {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+    }
+
     /* Icon styles for skill/focus/memory icons inside app-icon */
     .mention-icon {
         width: 18px;
@@ -452,6 +653,11 @@
         mask-repeat: no-repeat;
         -webkit-mask-size: contain;
         mask-size: contain;
+    }
+
+    .mention-icon.mention-icon-small {
+        width: 14px;
+        height: 14px;
     }
 
     .mention-icon.icon_search {
@@ -486,12 +692,74 @@
         text-overflow: ellipsis;
     }
 
+    .entry-name {
+        font-size: 15px;
+        font-weight: 400;
+    }
+
     .result-subtitle {
         font-size: 16px;
         color: var(--color-font-tertiary);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    /* Expand button for settings/memory categories */
+    .expand-button {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        background: var(--color-grey-15);
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        color: var(--color-grey-60);
+        font-size: 13px;
+        font-family: var(--font-family-primary);
+        transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .expand-button:hover {
+        background: var(--color-grey-25);
+        color: var(--color-grey-80);
+    }
+
+    .expand-button.expanded {
+        background: var(--color-grey-20);
+        color: var(--color-grey-80);
+    }
+
+    .expand-icon {
+        font-size: 12px;
+        line-height: 1;
+    }
+
+    .entry-count {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Expanded entries container */
+    .expanded-entries {
+        border-left: 2px solid var(--color-grey-20);
+        margin-left: 34px;
+        margin-bottom: 4px;
+    }
+
+    /* Show more button */
+    .show-more-button {
+        padding: 8px 16px 8px 32px;
+        font-size: 14px;
+        color: var(--color-primary-start);
+        cursor: pointer;
+        transition: background-color 0.1s ease;
+        font-weight: 500;
+    }
+
+    .show-more-button:hover {
+        background: var(--color-grey-15);
     }
 
     .row-settings-button {
@@ -547,5 +815,21 @@
 
     :global(.dark) .provider-logo {
         background: var(--color-grey-20);
+    }
+
+    :global(.dark) .expanded-entries {
+        border-left-color: var(--color-grey-25);
+    }
+
+    :global(.dark) .expand-button {
+        background: var(--color-grey-20);
+    }
+
+    :global(.dark) .expand-button:hover {
+        background: var(--color-grey-30);
+    }
+
+    :global(.dark) .expand-button.expanded {
+        background: var(--color-grey-25);
     }
 </style>
