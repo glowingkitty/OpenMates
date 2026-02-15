@@ -3459,6 +3459,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug('[ActiveChat] Resume chat loaded and events dispatched');
     }
 
+    /**
+     * Handler for opening the for-everyone intro chat from the new chat screen.
+     * Shown only to non-authenticated users so they can easily get back to the explainer intro (e.g. on mobile).
+     */
+    async function handleOpenIntroChat() {
+        const welcomeDemo = DEMO_CHATS.find((chat) => chat.chat_id === 'demo-for-everyone');
+        if (!welcomeDemo) {
+            console.warn('[ActiveChat] demo-for-everyone not found in DEMO_CHATS');
+            return;
+        }
+        const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+        const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+        phasedSyncState.markInitialChatLoaded();
+        activeChatStore.setActiveChat('demo-for-everyone');
+        await loadChat(welcomeChat);
+        const globalSelectEvent = new CustomEvent('globalChatSelected', {
+            bubbles: true,
+            composed: true,
+            detail: { chatId: 'demo-for-everyone' }
+        });
+        window.dispatchEvent(globalSelectEvent);
+        console.debug('[ActiveChat] Loaded demo-for-everyone from intro link');
+    }
+
     // Note: handleDismissResumeChat removed – the resume card is always visible
     // on the new chat screen (user is already in "new chat" mode, no need to dismiss).
 
@@ -5844,10 +5868,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                         {/each}
                                     </h2>
-                                    <!-- Subtitle: show "Continue where you left off" when resume chat exists,
-                                         otherwise show the default "What do you need help with?" prompt -->
+                                    <!-- Subtitle: "Continue where you left off" when resume chat, "Back to the intro" above for-everyone card for non-auth, else default prompt -->
                                     {#if resumeChatData}
                                         <p>{$text('chats.resume_last_chat.title')}</p>
+                                    {:else if !$authStore.isAuthenticated}
+                                        <p>{$text('chats.back_to_intro.title')}</p>
                                     {:else}
                                         <p>
                                             {#each welcomePromptParts as part, index}
@@ -5858,7 +5883,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             </div>
 
-                            <!-- Resume card: shown below greeting when there's a chat to resume -->
+                            <!-- Resume card: shown below greeting when there's a chat to resume (authenticated users only) -->
                             {#if resumeChatData}
                                 {@const category = resumeChatCategory || 'general_knowledge'}
                                 {@const gradientColors = getCategoryGradientColors(category)}
@@ -5880,6 +5905,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     </div>
                                     <div class="resume-chat-content">
                                         <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                    </div>
+                                    <div class="resume-chat-arrow">
+                                        <ChevronRight size={16} color="var(--color-grey-50)" />
+                                    </div>
+                                </button>
+                            <!-- Same card as above, for non-auth: link to for-everyone chat (same design as "last chat" card) -->
+                            {:else if !$authStore.isAuthenticated}
+                                {@const gradientColors = getCategoryGradientColors('openmates_official')}
+                                {@const iconName = getValidIconName('sparkles', 'openmates_official')}
+                                {@const IconComponent = getLucideIcon(iconName)}
+                                {@const ChevronRight = getLucideIcon('chevron-right')}
+                                <button 
+                                    class="resume-chat-card"
+                                    onclick={handleOpenIntroChat}
+                                    type="button"
+                                >
+                                    <div 
+                                        class="resume-chat-category-circle"
+                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                    >
+                                        <div class="resume-chat-category-icon">
+                                            <IconComponent size={16} color="white" />
+                                        </div>
+                                    </div>
+                                    <div class="resume-chat-content">
+                                        <span class="resume-chat-title">{$text('demo_chats.for_everyone.title')}</span>
                                     </div>
                                     <div class="resume-chat-arrow">
                                         <ChevronRight size={16} color="var(--color-grey-50)" />

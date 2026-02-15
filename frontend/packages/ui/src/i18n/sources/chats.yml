@@ -1387,6 +1387,30 @@ resume_last_chat.start_new:
   sv: eller starta en ny chatt
   verified_by_human: []
 
+back_to_intro.title:
+  context: Subtitle above the "OpenMates | For everyone" link card on new chat screen for non-authenticated users
+  en: Back to the intro
+  de: Zurück zur Einführung
+  zh: 返回介绍
+  es: Volver a la introducción
+  fr: Retour à l'introduction
+  pt: Voltar à introdução
+  ru: Вернуться к введению
+  ja: イントロに戻る
+  ko: 인트로로 돌아가기
+  it: Torna all'introduzione
+  tr: Tanıtıma dön
+  vi: Quay lại phần giới thiệu
+  id: Kembali ke pengenalan
+  pl: Wróć do wprowadzenia
+  nl: Terug naar de intro
+  ar: العودة إلى المقدمة
+  hi: इंट्रो पर वापस जाएं
+  th: กลับไปที่บทนำ
+  cs: Zpět k úvodu
+  sv: Tillbaka till intro
+  verified_by_human: []
+
 context_menu.credits:
   context: Label shown next to the credit amount in chat/message context menus (e.g. "1.234 credits")
   en: credits
