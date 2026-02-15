@@ -93,6 +93,26 @@
             title: app?.name_translation_key ? $text(app.name_translation_key) : appId
         });
     }
+
+    const INSTRUCTION_PREVIEW_LINES = 10;
+
+    /** Whether the full instruction text is expanded (vs first 10 lines only). */
+    let showExpandedInstruction = $state(false);
+
+    /** Lines of the system prompt for preview/full display. */
+    let systemPromptLines = $derived(
+        focusModeSystemPrompt ? focusModeSystemPrompt.split('\n') : []
+    );
+
+    /** First N lines joined for preview. */
+    let previewText = $derived(
+        systemPromptLines.length <= INSTRUCTION_PREVIEW_LINES
+            ? focusModeSystemPrompt
+            : systemPromptLines.slice(0, INSTRUCTION_PREVIEW_LINES).join('\n')
+    );
+
+    /** Whether there is more content to expand. */
+    let hasMoreToExpand = $derived(systemPromptLines.length > INSTRUCTION_PREVIEW_LINES);
 </script>
 
 <div class="focus-mode-details">
@@ -127,7 +147,7 @@
             </div>
         {/if}
         
-        <!-- System prompt section: shows the prompt used when this focus mode is activated -->
+        <!-- Instructions section: quote-style block, first 10 lines by default, "Show full instruction" to expand -->
         <div class="section">
             <SettingsItem 
                 type="heading"
@@ -135,8 +155,21 @@
                 title={$text('settings.app_store.focus_modes.system_prompt')}
             />
             {#if focusModeSystemPrompt}
-                <div class="content system-prompt-content">
-                    <pre class="system-prompt-text">{focusModeSystemPrompt}</pre>
+                <div class="instructions-block">
+                    <img class="quote-icon quote-icon-top" src="@openmates/ui/static/icons/quote.svg" alt="" width="24" height="24" />
+                    <img class="quote-icon quote-icon-bottom" src="@openmates/ui/static/icons/quote.svg" alt="" width="24" height="24" />
+                    <pre class="instructions-text" class:expanded={showExpandedInstruction}>{showExpandedInstruction ? focusModeSystemPrompt : previewText}</pre>
+                    {#if hasMoreToExpand}
+                        <button
+                            type="button"
+                            class="instructions-toggle"
+                            onclick={() => (showExpandedInstruction = !showExpandedInstruction)}
+                        >
+                            {showExpandedInstruction
+                                ? $text('settings.app_store.focus_modes.show_less')
+                                : $text('settings.app_store.focus_modes.show_full_instruction')}
+                        </button>
+                    {/if}
                 </div>
             {:else}
                 <div class="no-description">
@@ -149,13 +182,13 @@
 
 <style>
     .focus-mode-details {
-        padding: 2rem;
+        padding: 0;
         max-width: 1400px;
         margin: 0 auto;
     }
     
     .focus-mode-header {
-        margin-bottom: 2rem;
+        margin-bottom: 1rem;
     }
     
     .focus-mode-header h1 {
@@ -166,26 +199,47 @@
     }
     
     .section {
-        margin-top: 2rem;
+        margin-top: 1.25rem;
     }
     
-    .content {
-        padding: 1rem 0 1rem 10px;
+    .section .content {
+        padding: 0.5rem 0 0 0;
         color: var(--color-grey-100);
         font-size: 1rem;
         line-height: 1.6;
     }
     
-    .system-prompt-content {
-        padding: 1rem 0 1rem 10px;
-    }
-    
-    .system-prompt-text {
-        margin: 0;
-        padding: 1rem;
+    .instructions-block {
+        position: relative;
+        margin-top: 0.5rem;
+        padding: 1rem 2.5rem 2rem 1.25rem;
         background: var(--color-grey-10, #f5f5f5);
         border-radius: 8px;
         border: 1px solid var(--border-color, #e0e0e0);
+    }
+    
+    .quote-icon {
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        opacity: 0.35;
+        pointer-events: none;
+    }
+    
+    .quote-icon-top {
+        top: 8px;
+        right: 12px;
+    }
+    
+    .quote-icon-bottom {
+        bottom: 8px;
+        left: 12px;
+        transform: rotate(180deg);
+    }
+    
+    .instructions-text {
+        margin: 0;
+        padding: 0;
         font-size: 0.9rem;
         line-height: 1.5;
         white-space: pre-wrap;
@@ -194,8 +248,24 @@
         overflow-x: auto;
     }
     
+    .instructions-toggle {
+        margin-top: 0.75rem;
+        padding: 0.35rem 0.6rem;
+        font-size: 0.875rem;
+        color: var(--color-primary, #0066cc);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    .instructions-toggle:hover {
+        text-decoration: underline;
+    }
+    
     .no-description {
-        padding: 2rem;
+        padding: 1.25rem;
         text-align: center;
         color: var(--text-secondary, #666666);
     }

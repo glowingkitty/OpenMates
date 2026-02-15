@@ -580,6 +580,9 @@ changes to the documentation (to keep the documentation up to date).
         activeSettingsView !== 'app_store' && 
         activeSettingsView !== 'app_store/all'
     );
+
+    // Focus mode details pages show their own title; hide the second black header (icon + title) there
+    let isFocusModeDetailsPage = $derived(/^app_store\/[^/]+\/focus\/[^/]+$/.test(activeSettingsView));
     
     // Add reference for content height calculation
     let menuItemsCount = $state(0);
@@ -1616,7 +1619,7 @@ changes to the documentation (to keep the documentation up to date).
     onkeydown={(e) => e.stopPropagation()}
     role="presentation"
 >
-    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
+    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo} class:focus-details-page={isFocusModeDetailsPage} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
         <div class="header-content">
             {#if !hideNavButton}
                 <button
@@ -1646,7 +1649,7 @@ changes to the documentation (to keep the documentation up to date).
             </a> -->
         </div>
         
-        {#if activeSettingsView !== 'main' && showSubmenuInfo}
+        {#if activeSettingsView !== 'main' && showSubmenuInfo && !isFocusModeDetailsPage}
             <div
                 class="submenu-info"
                 class:reduced-padding={hideNavButton}
@@ -1654,6 +1657,7 @@ changes to the documentation (to keep the documentation up to date).
             >
                 <!-- Replace this with SettingsItem component -->
                 <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
+                <!-- Hidden on focus mode details: those pages show their own title -->
                 <SettingsItem
                     type="heading"
                     icon={activeSubMenuIcon}
@@ -1924,6 +1928,11 @@ changes to the documentation (to keep the documentation up to date).
     .settings-header.submenu-active {
         padding-bottom: 20px; /* Space for submenu info */
         transition: padding-bottom 0.3s ease; /* Smooth padding transition */
+    }
+
+    /* Focus mode details page has no second header, so no extra bottom padding */
+    .settings-header.submenu-active.focus-details-page {
+        padding-bottom: 0;
     }
 
     .nav-button {

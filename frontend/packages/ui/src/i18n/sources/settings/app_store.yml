@@ -618,6 +618,52 @@ focus_modes.no_system_prompt:
   cs: Pro tento režim zaměření nejsou definovány žádné instrukce.
   sv: Inga instruktioner definierade för detta fok läge.
   verified_by_human: []
+focus_modes.show_full_instruction:
+  context: Button to expand collapsed instructions to show full text
+  en: Show full instruction
+  de: Vollständige Anweisung anzeigen
+  zh: 显示完整说明
+  es: Mostrar instrucción completa
+  fr: Afficher l'instruction complète
+  pt: Mostrar instrução completa
+  ru: Показать полную инструкцию
+  ja: 完全な指示を表示
+  ko: 전체 지침 표시
+  it: Mostra istruzione completa
+  tr: Tam talimatı göster
+  vi: Hiển thị hướng dẫn đầy đủ
+  id: Tampilkan instruksi lengkap
+  pl: Pokaż pełną instrukcję
+  nl: Volledige instructie tonen
+  ar: عرض التعليمات الكاملة
+  hi: पूर्ण निर्देश दिखाएं
+  th: แสดงคำแนะนำแบบเต็ม
+  cs: Zobrazit celou instrukci
+  sv: Visa fullständig instruktion
+  verified_by_human: []
+focus_modes.show_less:
+  context: Button to collapse expanded instructions
+  en: Show less
+  de: Weniger anzeigen
+  zh: 显示更少
+  es: Mostrar menos
+  fr: Afficher moins
+  pt: Mostrar menos
+  ru: Показать меньше
+  ja: 少なく表示
+  ko: 간략히 보기
+  it: Mostra meno
+  tr: Daha az göster
+  vi: Hiển thị ít hơn
+  id: Tampilkan lebih sedikit
+  pl: Pokaż mniej
+  nl: Minder tonen
+  ar: عرض أقل
+  hi: कम दिखाएं
+  th: แสดงน้อยลง
+  cs: Zobrazit méně
+  sv: Visa mindre
+  verified_by_human: []
 focus_modes.no_description:
   context: Message when focus mode has no description
   en: No description available for this focus mode.
