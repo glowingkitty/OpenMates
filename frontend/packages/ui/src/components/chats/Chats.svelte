@@ -13,14 +13,13 @@
 	import { chatSyncService } from '../../services/chatSyncService';
 	import { sortChats } from './utils/chatSortUtils'; // Refactored sorting logic
 	import { groupChats, getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
-	import { locale as svelteLocaleStore, waitLocale } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle
-	import { get } from 'svelte/store'; // For reading svelteLocaleStore value
+	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle and reactivity in visiblePublicChats
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 	import { chatListCache } from '../../services/chatListCache'; // Global cache for chat list
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, addCommunityDemo, getAllCommunityDemoChats, communityDemoStore, getLocalContentHashes } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, addCommunityDemo, getAllCommunityDemoChats, communityDemoStore, loadCommunityDemos } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -28,7 +27,6 @@
 	import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
 	import { hiddenChatStore } from '../../stores/hiddenChatStore'; // Import hidden chat store
 	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
-	import { getApiEndpoint } from '../../config/api'; // For API calls
 	import { isSelfHosted } from '../../stores/serverStatusStore'; // For self-hosted detection (initialized once at app load)
 	// NOTE: Demo chats are now decrypted server-side, so decryptShareKeyBlob is no longer needed here
 
@@ -469,7 +467,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let languageChangeHandler: () => void; // For UI text updates on language change
 	let handleLanguageChangeForDemos: () => void; // For reloading demo chats on language change
 	let languageChangeDemoDebounceTimer: ReturnType<typeof setTimeout> | null = null; // Debounce timer for demo reload on language change
-	let demoReloadAbortController: AbortController | null = null; // Abort controller to cancel in-flight demo reload on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
 	let unsubscribeAuth: (() => void) | null = null; // To unsubscribe from authStore
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
@@ -1073,7 +1070,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// Language change handler for demo chats - reload demos in new language
 		// DEBOUNCED: The 'language-changed' event fires multiple times in quick succession
 		// (once from updateNavigationAndBreadcrumbs, once from setTimeout in SettingsLanguage).
-		// Without debouncing, two concurrent loadDemoChatsFromServer(true) calls race against
+		// Without debouncing, two concurrent loadCommunityDemos(true) calls race against
 		// each other - the second call's communityDemoStore.clear() can wipe data that the
 		// first call just added, causing demo chat titles to briefly disappear or stay stale.
 		handleLanguageChangeForDemos = () => {
@@ -1084,7 +1081,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			languageChangeDemoDebounceTimer = setTimeout(() => {
 				languageChangeDemoDebounceTimer = null;
 				console.debug('[Chats] Language changed (debounced) - reloading community demo chats');
-				loadDemoChatsFromServer(true).catch(error => {
+				loadCommunityDemos(true).catch(error => {
 					console.error('[Chats] Error reloading demo chats after language change:', error);
 				});
 			}, 100); // 100ms debounce - long enough to collapse double-dispatch, short enough to feel instant
@@ -1400,9 +1397,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// Don't use subscription to avoid reactive loops - just check on mount
 		await loadIncognitoChats();
 
-		// Load demo chats from server in background (for all users)
-		// Similar to how shared chats are loaded - stores in IndexedDB and displays in chat list
-		loadDemoChatsFromServer().catch(error => {
+		// Ensure community demos are loaded (fallback if +page.svelte load hasn't completed yet).
+		// Primary load happens on page load in +page.svelte so example chats show in for-everyone/for-developers without opening sidebar.
+		loadCommunityDemos().catch(error => {
 			console.error('[Chats] Error loading demo chats from server:', error);
 		});
 
@@ -1421,277 +1418,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			console.debug('[Chats] Sync was already complete on mount, loaded data but staying at loadTier:', loadTier);
 		}
 	});
-	
-	/**
-	 * Load community demo chats from server with language-aware caching
-	 * 
-	 * ARCHITECTURE: Language-specific loading with IndexedDB caching
-	 * 1. Loads demos in the user's current device language ONLY
-	 * 2. Uses IndexedDB for offline support (cached demos available offline)
-	 * 3. Reloads when language changes (via 'language-changed' event)
-	 * 4. Hash-based change detection - only fetches updated demos
-	 * 5. Clears cache on language change to fetch new language content
-	 * 
-	 * Rationale for single-language storage:
-	 * - Most users rarely switch languages
-	 * - Saves storage (5 demos × 20 languages = 100 demo chat records vs 5)
-	 * - Simplifies cache management
-	 * - Language change triggers automatic reload with new translations
-	 * 
-	 * Available for ALL users (authenticated and non-authenticated).
-	 * 
-	 * @param forceLanguageReload - If true, clears cache and reloads all demos (used on language change)
-	 */
-	async function loadDemoChatsFromServer(forceLanguageReload: boolean = false): Promise<void> {
-		// Check if already loading (unless forcing reload for language change)
-		if (!forceLanguageReload && communityDemoStore.isLoading()) {
-			console.debug('[Chats] Community demos already loading, skipping');
-			return;
-		}
 
-		// ABORT MECHANISM: Cancel any previous in-flight reload when a forced reload starts.
-		// This prevents race conditions where an old reload's results overwrite new data.
-		if (forceLanguageReload && demoReloadAbortController) {
-			console.debug('[Chats] Aborting previous demo reload in favor of new language reload');
-			demoReloadAbortController.abort();
-		}
-		const abortController = new AbortController();
-		if (forceLanguageReload) {
-			demoReloadAbortController = abortController;
-		}
-
-		try {
-			// CRITICAL: Wait for translations to be fully loaded before fetching
-			// This ensures svelteLocaleStore has the correct language for the API call
-			await waitLocale();
-			
-			// Check if this reload was superseded by a newer one
-			if (abortController.signal.aborted) {
-				console.debug('[Chats] Demo reload aborted (superseded by newer reload)');
-				return;
-			}
-			
-			communityDemoStore.setLoading(true);
-			
-			// Get user's current language from svelte-i18n store
-			const currentLang = get(svelteLocaleStore) || 'en';
-			console.debug(`[Chats] Loading community demos for language: ${currentLang}`);
-			
-			// STEP 1: If language changed, clear cache and memory
-			if (forceLanguageReload) {
-				console.debug('[Chats] Language changed - clearing cache and reloading demos');
-				try {
-					const { demoChatsDB } = await import('../../services/demoChatsDB');
-					await demoChatsDB.clearAllDemoChats();
-					communityDemoStore.clear();
-				} catch (error) {
-					console.error('[Chats] Error clearing demo chats cache:', error);
-				}
-			}
-			
-			// STEP 2: Load from IndexedDB cache first (provides offline support)
-			if (!forceLanguageReload && !communityDemoStore.isCacheLoaded()) {
-				console.debug('[Chats] Loading community demos from IndexedDB cache...');
-				await communityDemoStore.loadFromCache();
-			}
-
-			// Check abort again before making network requests
-			if (abortController.signal.aborted) {
-				console.debug('[Chats] Demo reload aborted before fetch (superseded by newer reload)');
-				return;
-			}
-
-			// STEP 3: Get local content hashes for change detection
-			const localHashes = await getLocalContentHashes();
-			const hashesParam = Array.from(localHashes.entries())
-				.map(([demoId, hash]) => `${demoId}:${hash}`)
-				.join(',');
-			
-			if (forceLanguageReload) {
-				console.debug(`[Chats] Reloading all demos in ${currentLang}`);
-			} else {
-				console.debug(`[Chats] Checking for demo chat updates with ${localHashes.size} local hashes...`);
-			}
-			
-			// STEP 4: Fetch demo list with language and hashes for change detection
-			const url = hashesParam 
-				? getApiEndpoint(`/v1/demo/chats?lang=${currentLang}&hashes=${encodeURIComponent(hashesParam)}`)
-				: getApiEndpoint(`/v1/demo/chats?lang=${currentLang}`);
-			
-			const response = await fetch(url, { signal: abortController.signal });
-			if (!response.ok) {
-				// If server is unavailable, use cached demos (offline mode)
-				if (getAllCommunityDemoChats().length > 0) {
-					console.debug(`[Chats] Server unavailable, using ${getAllCommunityDemoChats().length} cached community demos`);
-					communityDemoStore.markAsLoaded();
-					return;
-				}
-				console.warn('[Chats] Failed to fetch demo chats list:', response.status);
-				communityDemoStore.markAsLoaded();
-				return;
-			}
-
-			const data = await response.json();
-			const demoChatsList = data.demo_chats || [];
-			
-			if (demoChatsList.length === 0) {
-				console.debug('[Chats] No community demo chats available from server');
-				communityDemoStore.markAsLoaded();
-				return;
-			}
-
-			// Determine which demos need to be fetched
-			// - If hashes were provided, only fetch demos with `updated: true`
-			// - If no hashes (first load), fetch all demos
-			const demosToFetch = localHashes.size > 0
-				? demoChatsList.filter((d: { updated?: boolean }) => d.updated === true)
-				: demoChatsList;
-			
-			console.debug(`[Chats] Found ${demoChatsList.length} community demos, ${demosToFetch.length} need updates`);
-
-			// Track loaded demo IDs
-			const newlyLoadedIds: string[] = [];
-
-			// Load each demo chat that needs updating
-			for (const demoChatMeta of demosToFetch) {
-				// Check abort before each demo fetch to bail out quickly if superseded
-				if (abortController.signal.aborted) {
-					console.debug('[Chats] Demo reload aborted during fetch loop');
-					return;
-				}
-
-				const demoId = demoChatMeta.demo_id;
-				const contentHash = demoChatMeta.content_hash || '';
-				if (!demoId) continue;
-
-				try {
-					// Fetch individual demo chat data
-					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}?lang=${currentLang}`), { signal: abortController.signal });
-					if (!chatResponse.ok) {
-						console.warn(`[Chats] Failed to fetch community demo chat ${demoId}:`, chatResponse.status);
-						continue;
-					}
-
-					const chatData = await chatResponse.json();
-					const chatDataObj = chatData.chat_data;
-					const serverContentHash = chatData.content_hash || contentHash || ''; // Get content_hash from response
-					
-					// ARCHITECTURE: Community demo chats are server-side decrypted
-					// The API returns cleartext messages with encryption_mode: "none"
-					// No encryption_key is needed - just chat_id and messages
-					if (!chatDataObj || !chatDataObj.chat_id) {
-						console.warn(`[Chats] Invalid community demo chat data for ${demoId}`);
-						continue;
-					}
-
-					const chatId = chatDataObj.chat_id;  // This is the demo_id (e.g., "demo-1")
-					
-					console.debug(`[Chats] Community demo ${demoId} loaded: chatId=${chatId}, hash=${serverContentHash.slice(0, 16)}...`);
-
-					// Extract metadata from API response (already translated server-side)
-					const title = chatData.title || 'Demo Chat';
-					const summary = chatData.summary || '';
-					const category = chatData.category || '';
-					const icon = chatData.icon || '';
-					const followUpSuggestions = chatData.follow_up_suggestions || [];
-					const demoChatCategory = chatData.demo_chat_category || demoChatMeta.demo_chat_category || 'for_everyone';
-
-					// ARCHITECTURE: Community demo messages are already decrypted server-side
-					// The API returns cleartext content directly (not encrypted)
-					// Store using CLEARTEXT field names (content, category, model_name) - NOT encrypted_* fields
-					const rawMessages = chatDataObj.messages || [];
-					const parsedMessages = rawMessages.map((msg: { role: string; content: string; category?: string; model_name?: string; created_at?: number }) => {
-						// Convert cleartext API format to Message format
-						// Server returns: { role, content (cleartext), category (cleartext), model_name (cleartext), created_at }
-						return {
-							message_id: `${demoId}-${rawMessages.indexOf(msg)}`,
-							chat_id: chatId,
-							role: msg.role || 'user',
-							content: msg.content || '',  // Cleartext content
-							category: msg.role === 'assistant' ? (msg.category || category) : undefined,  // Cleartext category
-							model_name: msg.role === 'assistant' ? msg.model_name : undefined,  // Cleartext model name for assistant messages
-							created_at: msg.created_at || Math.floor(Date.now() / 1000),
-							status: 'synced' as const
-						} as Message;
-					});
-					
-					console.debug(`[Chats] Community demo ${demoId} has ${parsedMessages.length} messages`);
-
-					// ARCHITECTURE: Use consistent timestamps for all demo chats (intro + community)
-					// This ensures they stay grouped correctly and have a stable order.
-					// Intro chats use '7 days ago' minus their order.
-					// Community demos use '7 days ago' minus 10000 minus their index.
-					const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-					const demoIndex = parseInt(demoId.split('-')[1] || '0');
-					const displayTimestamp = sevenDaysAgo - (demoIndex * 1000) - 10000;
-
-					// Create Chat object with cleartext metadata
-					// ARCHITECTURE: Demo chats use CLEARTEXT field names (category, icon, follow_up_request_suggestions)
-					// NOT encrypted_* field names - the data is already decrypted server-side
-					const chat: ChatType = {
-						chat_id: chatId,
-						title: title,  // Cleartext title
-						encrypted_title: null,  // Not encrypted - title is in `title` field
-						// CLEARTEXT fields - demo chats are already decrypted server-side
-						chat_summary: summary || null,
-						follow_up_request_suggestions: followUpSuggestions.length > 0 ? JSON.stringify(followUpSuggestions) : null,
-						icon: icon || null,
-						category: category || null,
-						demo_chat_category: demoChatCategory || null,  // Target audience: for_everyone or for_developers
-						messages_v: parsedMessages.length,
-						title_v: 0,
-						draft_v: 0,
-						last_edited_overall_timestamp: displayTimestamp,
-						unread_count: 0,
-						created_at: displayTimestamp,
-						updated_at: displayTimestamp,
-						processing_metadata: false,
-						waiting_for_metadata: false,
-						group_key: 'examples'
-					};
-
-					// Parse embeds from API response (cleartext, server-side decrypted)
-					// ARCHITECTURE: Demo embeds are stored in demo_chats_db for offline support
-					const rawEmbeds = chatDataObj.embeds || [];
-					const parsedEmbeds = rawEmbeds.map((emb: { embed_id?: string; type: string; content: string; created_at?: number }) => ({
-						embed_id: emb.embed_id || `${demoId}-embed-${rawEmbeds.indexOf(emb)}`,
-						chat_id: chatId,
-						type: emb.type || 'unknown',
-						content: emb.content || '',  // Cleartext content (JSON string)
-						created_at: emb.created_at || Math.floor(Date.now() / 1000)
-					}));
-
-					// Store chat, messages, and embeds in memory AND IndexedDB (with content_hash for change detection)
-					await addCommunityDemo(chatId, chat, parsedMessages, serverContentHash, parsedEmbeds);
-
-					if (parsedEmbeds.length > 0) {
-						console.debug(`[Chats] Stored ${parsedEmbeds.length} cleartext embeds for community demo ${demoId}`);
-					}
-
-					newlyLoadedIds.push(demoId);
-					console.debug(`[Chats] Successfully loaded community demo ${demoId} (chat_id: ${chatId}) into memory and cache`);
-				} catch (error) {
-					// Re-throw abort errors to be caught by the outer catch
-					if (error instanceof DOMException && error.name === 'AbortError') {
-						throw error;
-					}
-					console.error(`[Chats] Error loading community demo ${demoId}:`, error);
-				}
-			}
-
-			communityDemoStore.markAsLoaded();
-			console.debug(`[Chats] Finished loading community demos: ${newlyLoadedIds.length} updated, ${getAllCommunityDemoChats().length} total`);
-		} catch (error) {
-			// Don't log abort errors (expected when a reload is superseded by a newer one)
-			if (error instanceof DOMException && error.name === 'AbortError') {
-				console.debug('[Chats] Demo reload aborted (superseded by newer reload)');
-				return; // Don't markAsLoaded - the newer reload will handle it
-			}
-			console.error('[Chats] Error loading community demo chats from server:', error);
-			communityDemoStore.markAsLoaded();
-		}
-	}
-	
 	/**
 		* Initializes the local chatDB and loads the initial list of chats.
 		* Called on component mount. Loads and displays chats immediately.
@@ -1753,7 +1480,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		window.removeEventListener('userLoggingOut', handleLogoutEvent);
 		if (languageChangeDemoDebounceTimer) clearTimeout(languageChangeDemoDebounceTimer);
-		if (demoReloadAbortController) demoReloadAbortController.abort();
 		if (unsubscribeDraftState) unsubscribeDraftState();
 		if (unsubscribeAuth) unsubscribeAuth();
 		

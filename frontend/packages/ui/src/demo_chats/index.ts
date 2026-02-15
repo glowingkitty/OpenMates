@@ -38,6 +38,9 @@ export {
   getLocalContentHashes,
 } from "./communityDemoStore";
 
+/** Load community demo chats (example chats) on page load or language change. */
+export { loadCommunityDemos } from "./loadCommunityDemos";
+
 /**
  * Intro chats shown in sidebar for new/non-authenticated users
  * (excluding legal docs - they're accessed via dedicated routes)

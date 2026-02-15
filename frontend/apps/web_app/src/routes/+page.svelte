@@ -45,7 +45,8 @@
 		isPublicChat,
 		loadSessionStorageDraft,
 		getAllDraftChatIdsWithDrafts,
-		NEW_CHAT_SENTINEL
+		NEW_CHAT_SENTINEL,
+		loadCommunityDemos,
 	} from '@repo/ui';
 	import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
@@ -682,6 +683,12 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+
+		// Load community demo chats (example chats) on page load so they appear in for-everyone
+		// and for-developers intro chats without requiring the sidebar (Chats) to be opened first.
+		loadCommunityDemos().catch((error) => {
+			console.error('[+page.svelte] Error loading community demos:', error);
+		});
 
 		// CRITICAL: Read and store the ORIGINAL hash value BEFORE anything can modify it
 		// This ensures we can check for hash chat even if welcome chat loading overwrites the hash
