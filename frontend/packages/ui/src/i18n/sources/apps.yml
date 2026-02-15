@@ -299,26 +299,26 @@ videos:
   verified_by_human: [en, de]
 videos.description:
   context: Description for the Videos app
-  en: Create & search videos, get transcripts.
-  de: Videos erstellen, suchen und transkribieren.
-  zh: 创建和搜索视频、获取转录。
-  es: Crea y busca videos, obtén transcripciones.
-  fr: Créez et recherchez des vidéos, transcriptions.
-  pt: Crie e pesquise vídeos, transcrições.
-  ru: Создавайте и ищите видео, транскрипты.
-  ja: 動画を作成・検索し、文字起こし。
-  ko: 비디오 생성, 검색, 자막 가져오기.
-  it: Crea e cerca video, trascrizioni.
-  tr: Video oluşturun, arayın, transkript alın.
-  vi: Tạo và tìm video, lấy bản ghi.
-  id: Buat dan cari video, dapatkan transkrip.
-  pl: Twórz i szukaj filmy, transkrypcje.
-  nl: Maak en zoek video's, transcripties.
-  ar: أنشئ وابحث عن فيديو واحصل على النصوص.
-  hi: वीडियो बनाएं और खोजें, ट्रांसक्रिप्ट पाएं।
-  th: สร้างและค้นหาวิดีโอ รับสำเนา
-  cs: Vytvářejte a hledejte videa, přepisy.
-  sv: Skapa och sök videor, transkriptioner.
+  en: Search videos, get transcripts & more.
+  de: Videos suchen und Transkripte abrufen.
+  zh: 搜索视频、获取转录等。
+  es: Busca videos, obtén transcripciones.
+  fr: Cherchez des vidéos, obtenez des transcriptions.
+  pt: Pesquise vídeos e obtenha transcrições.
+  ru: Ищите видео, получайте транскрипции.
+  ja: 動画を検索し、文字起こしを取得。
+  ko: 비디오 검색, 자막 가져오기 등.
+  it: Cerca video, ottieni trascrizioni.
+  tr: Video arayın, transkript alın.
+  vi: Tìm video, lấy bản ghi và hơn thế.
+  id: Cari video, dapatkan transkrip.
+  pl: Szukaj filmów, pobieraj transkrypcje.
+  nl: Zoek video's, krijg transcripties.
+  ar: ابحث عن فيديو واحصل على النصوص.
+  hi: वीडियो खोजें, ट्रांसक्रिप्ट पाएं।
+  th: ค้นหาวิดีโอ รับสำเนาและอื่นๆ
+  cs: Hledejte videa, získejte přepisy.
+  sv: Sök videor, hämta transkriptioner.
   verified_by_human: [en, de]
 tv:
   context: App name for the TV app
@@ -391,26 +391,26 @@ travel:
   verified_by_human: [en, de]
 travel.description:
   context: Description for the Travel app
-  en: Plan, book and manage your trips.
-  de: Plane, buche und verwalte deine Reisen.
-  zh: 计划、预订和管理您的旅行。
-  es: Planifica, reserva y gestiona tus viajes.
-  fr: Planifiez, réservez et gérez vos voyages.
-  pt: Planeje, reserve e gerencie viagens.
-  ru: Планируйте, бронируйте поездки.
-  ja: 旅行を計画、予約、管理。
-  ko: 여행 계획, 예약 및 관리.
-  it: Pianifica, prenota e gestisci viaggi.
-  tr: Seyahatleri planlayın, rezerve edin.
-  vi: Lên kế hoạch, đặt và quản lý chuyến đi.
-  id: Rencanakan, pesan, kelola perjalanan.
-  pl: Planuj, rezerwuj i zarządzaj podróżami.
-  nl: Plan, boek en beheer je reizen.
-  ar: خطط واحجز وأدر رحلاتك.
-  hi: यात्रा की योजना बनाएं, बुक करें, प्रबंधित करें।
-  th: วางแผน จอง และจัดการการเดินทาง
-  cs: Plánujte, rezervujte a spravujte cesty.
-  sv: Planera, boka och hantera resor.
+  en: Search stays, connections & plan trips.
+  de: Unterkünfte, Verbindungen suchen & planen.
+  zh: 搜索住宿、交通并规划旅行。
+  es: Busca alojamientos, conexiones y planifica.
+  fr: Cherchez hébergements, trajets et planifiez.
+  pt: Pesquise hospedagens, conexões e planeje.
+  ru: Ищите жильё, маршруты и планируйте.
+  ja: 宿泊先・交通手段を検索し旅行を計画。
+  ko: 숙소, 교통편 검색 및 여행 계획.
+  it: Cerca alloggi, trasporti e pianifica.
+  tr: Konaklama, ulaşım arayın ve planlayın.
+  vi: Tìm chỗ ở, phương tiện và lên kế hoạch.
+  id: Cari penginapan, transportasi dan rencana.
+  pl: Szukaj noclegów, połączeń i planuj.
+  nl: Zoek verblijven, verbindingen en plan.
+  ar: ابحث عن إقامات ووسائل نقل وخطط.
+  hi: आवास, कनेक्शन खोजें और योजना बनाएं।
+  th: ค้นหาที่พัก การเดินทาง และวางแผน
+  cs: Hledejte ubytování, spojení a plánujte.
+  sv: Sök boenden, förbindelser och planera.
   verified_by_human: [en, de]
 study:
   context: App name for the Study app
@@ -621,26 +621,26 @@ images:
   verified_by_human: [en, de]
 images.description:
   context: Description for the Images app
-  en: Generate, modify and resize images.
-  de: Bilder generieren, bearbeiten und skalieren.
-  zh: 生成、修改和调整图像大小。
-  es: Genera, modifica y redimensiona imágenes.
-  fr: Générez, modifiez et redimensionnez images.
-  pt: Gere, modifique e redimensione imagens.
-  ru: Генерируйте, изменяйте и меняйте размер.
-  ja: 画像を生成、変更、リサイズ。
-  ko: 이미지 생성, 수정, 크기 조정.
-  it: Genera, modifica e ridimensiona immagini.
-  tr: Görüntü oluşturun, değiştirin, boyutlandırın.
-  vi: Tạo, chỉnh sửa và thay đổi kích thước ảnh.
-  id: Hasilkan, modifikasi dan ubah ukuran gambar.
-  pl: Generuj, modyfikuj i zmieniaj rozmiar.
-  nl: Genereer, wijzig en schaal afbeeldingen.
-  ar: أنشئ وعدل وغير حجم الصور.
-  hi: छवियां बनाएं, संशोधित करें और आकार बदलें।
-  th: สร้าง แก้ไข และปรับขนาดภาพ
-  cs: Generujte, upravujte a měňte velikost.
-  sv: Generera, ändra och skala bilder.
+  en: Generate images from text descriptions.
+  de: Bilder aus Textbeschreibungen generieren.
+  zh: 根据文字描述生成图像。
+  es: Genera imágenes a partir de descripciones.
+  fr: Générez des images à partir de textes.
+  pt: Gere imagens a partir de descrições.
+  ru: Генерируйте изображения из описаний.
+  ja: テキストから画像を生成。
+  ko: 텍스트 설명으로 이미지를 생성하세요.
+  it: Genera immagini da descrizioni testuali.
+  tr: Metin açıklamalarından görüntü oluşturun.
+  vi: Tạo hình ảnh từ mô tả văn bản.
+  id: Hasilkan gambar dari deskripsi teks.
+  pl: Generuj obrazy z opisów tekstowych.
+  nl: Genereer afbeeldingen uit tekstomschrijvingen.
+  ar: أنشئ صورًا من الأوصاف النصية.
+  hi: टेक्स्ट विवरण से छवियां बनाएं।
+  th: สร้างภาพจากคำอธิบาย
+  cs: Generujte obrázky z textových popisů.
+  sv: Generera bilder från textbeskrivningar.
   verified_by_human: [en, de]
 images.skills.generate:
   context: Skill name for image generation
@@ -897,26 +897,26 @@ code:
   verified_by_human: [en, de]
 code.description:
   context: Description for the Code app
-  en: Write, test, improve and execute code.
-  de: Schreibe, teste, verbessere und führe Code aus.
-  zh: 编写、测试、改进和执行代码。
-  es: Escribe, prueba, mejora y ejecuta código.
-  fr: Écrivez, testez, améliorez et exécutez du code.
-  pt: Escreva, teste, melhore e execute código.
-  ru: Пишите, тестируйте, улучшайте и выполняйте код.
-  ja: コードを書く、テストする、改善する、実行する。
-  ko: 코드를 작성, 테스트, 개선 및 실행하세요.
-  it: Scrivi, testa, migliora ed esegui codice.
-  tr: Kod yazın, test edin, iyileştirin ve çalıştırın.
-  vi: Viết, kiểm tra, cải thiện và thực thi mã.
-  id: Tulis, uji, tingkatkan, dan jalankan kode.
-  pl: Pisz, testuj, ulepszaj i wykonuj kod.
-  nl: Schrijf, test, verbeter en voer code uit.
-  ar: اكتب واختبر وحسّن ونفّذ الكود.
-  hi: कोड लिखें, परीक्षण करें, सुधार करें और निष्पादित करें।
-  th: เขียน ทดสอบ ปรับปรุง และรันโค้ด
-  cs: Pište, testujte, vylepšujte a spouštějte kód.
-  sv: Skriv, testa, förbättra och kör kod.
+  en: Get coding help, docs & project advice.
+  de: Programmier-Hilfe, Doku und Projektberatung.
+  zh: 获取编码帮助、文档和项目建议。
+  es: Ayuda de programación, docs y proyectos.
+  fr: Aide au code, docs et conseils projets.
+  pt: Ajuda com código, docs e projetos.
+  ru: Помощь с кодом, документацией и проектами.
+  ja: コーディング支援、ドキュメントと相談。
+  ko: 코딩 도움, 문서 및 프로젝트 조언.
+  it: Aiuto con codice, docs e progetti.
+  tr: Kodlama yardımı, belgeler ve proje tavsiyeleri.
+  vi: Trợ giúp lập trình, tài liệu và dự án.
+  id: Bantuan coding, docs, dan saran proyek.
+  pl: Pomoc z kodem, dokumentacją i projektami.
+  nl: Hulp bij coderen, docs en projectadvies.
+  ar: مساعدة في البرمجة والمستندات والمشاريع.
+  hi: कोडिंग सहायता, डॉक्स और प्रोजेक्ट सलाह।
+  th: ช่วยเขียนโค้ด เอกสาร และคำแนะนำโปรเจกต์
+  cs: Pomoc s kódem, dokumentací a projekty.
+  sv: Kodningshjälp, docs och projektråd.
   verified_by_human: [en, de]
 docs:
   context: App name for the Docs app
@@ -989,26 +989,26 @@ books:
   verified_by_human: [en, de]
 books.description:
   context: Description for the Books app
-  en: Manage your ebooks, translate them & more.
-  de: E-Books verwalten, übersetzen und mehr.
-  zh: 管理电子书、翻译等。
-  es: Gestiona tus ebooks, tradúcelos y más.
-  fr: Gérez vos ebooks, traduisez-les.
-  pt: Gerencie seus e-books, traduza-os.
-  ru: Управляйте e-книгами, переводите.
-  ja: 電子書籍を管理し、翻訳。
-  ko: 전자책 관리, 번역 등.
-  it: Gestisci i tuoi ebook, traducili.
-  tr: E-kitapları yönetin, çevirin.
-  vi: Quản lý sách điện tử, dịch chúng.
-  id: Kelola ebook, terjemahkan, dan lainnya.
-  pl: Zarządzaj e-bookami, tłumacz.
-  nl: Beheer je e-books, vertaal ze.
-  ar: أدر كتبك الإلكترونية وترجمها.
-  hi: ई-बुक्स प्रबंधित करें, अनुवाद करें।
-  th: จัดการอีบุ๊ก แปล และอื่นๆ
-  cs: Spravujte e-knihy, překládejte.
-  sv: Hantera e-böcker, översätt dem.
+  en: Track your reading list and discuss books.
+  de: Leseliste verwalten und Bücher besprechen.
+  zh: 管理阅读清单并讨论书籍。
+  es: Gestiona tu lista de lectura y discute.
+  fr: Gérez votre liste de lecture et discutez.
+  pt: Gerencie sua lista de leitura e discuta.
+  ru: Ведите список чтения и обсуждайте книги.
+  ja: 読書リストを管理し、本を語り合う。
+  ko: 독서 목록을 관리하고 책을 토론하세요.
+  it: Gestisci la tua lista e discuti di libri.
+  tr: Okuma listenizi yönetin, kitap tartışın.
+  vi: Quản lý danh sách đọc và thảo luận sách.
+  id: Kelola daftar bacaan dan diskusi buku.
+  pl: Zarządzaj listą lektur i dyskutuj.
+  nl: Beheer je leeslijst en bespreek boeken.
+  ar: تتبع قائمة القراءة وناقش الكتب.
+  hi: पठन सूची ट्रैक करें और किताबें चर्चा करें।
+  th: จัดการรายการหนังสือและพูดคุยเรื่องหนังสือ
+  cs: Spravujte seznam četby a diskutujte.
+  sv: Hantera din läslista och diskutera böcker.
   verified_by_human: [en, de]
 maps:
   context: App name for the Maps app
