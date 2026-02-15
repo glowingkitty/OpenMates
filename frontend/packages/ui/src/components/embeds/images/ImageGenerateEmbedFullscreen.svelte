@@ -273,6 +273,47 @@
     settingsDeepLink.set(`app_store/images/skill/${skillPath}`);
     panelState.openSettings();
   }
+
+  /**
+   * Build the same blob and filename as the download button (original file + embedded PNG metadata).
+   * Returns undefined if original file is not available.
+   */
+  async function getDownloadBlobAndFilename(): Promise<{ blob: Blob; filename: string } | undefined> {
+    if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !aesNonce) return undefined;
+    const blob = await fetchAndDecryptImage(s3BaseUrl, files.original.s3_key, aesKey, aesNonce);
+    const ext = files.original.format || 'png';
+    let resultBlob: Blob = blob;
+    if (ext === 'png') {
+      const arrayBuffer = await blob.arrayBuffer();
+      const metadataBytes = embedPngMetadata(arrayBuffer, {
+        prompt,
+        model,
+        software: 'OpenMates',
+        generatedAt
+      });
+      const ab = new ArrayBuffer(metadataBytes.byteLength);
+      new Uint8Array(ab).set(metadataBytes);
+      resultBlob = new Blob([ab], { type: 'image/png' });
+    }
+    const filename = generateImageFilename(prompt, ext);
+    return { blob: resultBlob, filename };
+  }
+
+  /**
+   * Open the image by itself in a new tab (same file as download: original + metadata).
+   * The user can zoom in/out with the browser. Middle-click and Ctrl/Cmd+click use the native link.
+   */
+  async function handleImageClick(e: MouseEvent) {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
+    const payload = await getDownloadBlobAndFilename();
+    if (payload) {
+      const imageBlobUrl = URL.createObjectURL(payload.blob);
+      window.open(imageBlobUrl, '_blank', 'noopener,noreferrer');
+    } else if (fullImageUrl) {
+      window.open(fullImageUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
 </script>
 
 <UnifiedEmbedFullscreen
@@ -310,7 +351,7 @@
         <div class="image-section">
           {#if fullImageUrl}
             <div class="image-wrapper">
-              <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" title={$text('embeds.image_generate.open_full_size')}>
+              <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" title={$text('embeds.image_generate.open_full_size')} onclick={handleImageClick}>
                 <img src={fullImageUrl} alt={prompt || 'Generated image'} class="full-image" />
               </a>
             </div>
