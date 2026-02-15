@@ -962,6 +962,20 @@ changes to the documentation (to keep the documentation up to date).
     // Track when profile container should be hidden (after transform animation completes)
     let hideOriginalProfile = $state(false);
     let hideProfileTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    // CRITICAL: On sub-settings pages (e.g. deep link to app skill, focus mode), hide the original
+    // profile container in the chat footer immediately. This prevents the profile button from
+    // showing on top of sub-pages when opening via deep links. On main settings view we keep
+    // the 400ms delay so the transform animation can play when the user opens the menu by click.
+    $effect(() => {
+        if (isMenuVisible && activeSettingsView !== 'main') {
+            if (hideProfileTimeout) {
+                clearTimeout(hideProfileTimeout);
+                hideProfileTimeout = null;
+            }
+            hideOriginalProfile = true;
+        }
+    });
    
     // Handler for profile click to show menu
     function toggleMenu() {
@@ -1387,14 +1401,19 @@ changes to the documentation (to keep the documentation up to date).
                 isMenuVisible = true;
                 settingsMenuVisible.set(true);
 
-                // Delay hiding the original profile until after transform animation (400ms)
-                // This ensures it moves to its position first, then hides, matching manual toggle
+                // Deep link to a sub-page: hide the original profile immediately so it never
+                // appears on top of the sub-settings content. Main view: delay 400ms for animation.
                 if (hideProfileTimeout) {
                     clearTimeout(hideProfileTimeout);
+                    hideProfileTimeout = null;
                 }
-                hideProfileTimeout = setTimeout(() => {
+                if (settingsPath !== 'main') {
                     hideOriginalProfile = true;
-                }, 400);
+                } else {
+                    hideProfileTimeout = setTimeout(() => {
+                        hideOriginalProfile = true;
+                    }, 400);
+                }
 
                 // Force z-index update to ensure proper overlay on mobile
                 setTimeout(() => {
