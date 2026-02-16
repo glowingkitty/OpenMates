@@ -218,6 +218,8 @@ class IssueListItem(BaseModel):
     timestamp: str
     created_at: str
     processed: bool
+    is_from_admin: bool = False
+    reported_by_user_id: Optional[str] = None
 
 
 class IssuesListResponse(BaseModel):
@@ -241,6 +243,8 @@ class IssueDetailResponse(BaseModel):
     created_at: str
     updated_at: str
     processed: bool
+    is_from_admin: bool = False
+    reported_by_user_id: Optional[str] = None
     full_report: Optional[Dict[str, Any]] = None
 
 
@@ -474,6 +478,8 @@ async def list_issues(
                 timestamp=issue.get("timestamp", ""),
                 created_at=issue.get("created_at", ""),
                 processed=issue.get("processed", False) or False,
+                is_from_admin=issue.get("is_from_admin", False) or False,
+                reported_by_user_id=issue.get("reported_by_user_id"),
             ))
         
         return IssuesListResponse(
@@ -613,6 +619,8 @@ async def get_issue_detail(
             created_at=issue.get("created_at", ""),
             updated_at=issue.get("updated_at", ""),
             processed=issue.get("processed", False) or False,
+            is_from_admin=issue.get("is_from_admin", False) or False,
+            reported_by_user_id=issue.get("reported_by_user_id"),
             full_report=full_report,
         )
         

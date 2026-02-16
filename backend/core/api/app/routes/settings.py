@@ -17,7 +17,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key, get_current_user_optional
 from backend.core.api.app.services.image_safety import ImageSafetyService
 from backend.core.api.app.services.s3 import S3UploadService
 from backend.core.api.app.services.compliance import ComplianceService
@@ -2255,7 +2255,8 @@ class IssueReportResponse(BaseModel):
 @limiter.limit("5/minute")  # Rate limit to prevent abuse
 async def report_issue(
     request: Request,
-    issue_data: IssueReportRequest
+    issue_data: IssueReportRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional)  # Optional auth - supports both authenticated and non-authenticated users
 ):
     """
     Report an issue to the server owner.
@@ -2263,6 +2264,9 @@ async def report_issue(
     This endpoint is exclusive to the web app (not accessible via API keys) but allows
     both authenticated and non-authenticated users to submit issue reports.
     The issue report is sent via email to the server owner (admin email).
+    
+    When an admin user reports an issue, the title is prefixed with '(Admin): ' to easily
+    identify admin-reported issues from regular user reports.
     
     The email includes:
     - Issue title
@@ -2274,6 +2278,7 @@ async def report_issue(
     Args:
         request: FastAPI Request object (for IP extraction and geo location)
         issue_data: Issue report data (title, description, optional URL)
+        current_user: Optional authenticated user (None for non-authenticated users)
     
     Returns:
         IssueReportResponse with success status and message
@@ -2284,9 +2289,25 @@ async def report_issue(
         from html import escape
         from urllib.parse import urlparse, urlunparse
         
+        # Check if the reporter is an authenticated admin user
+        is_from_admin = current_user is not None and current_user.is_admin
+        reported_by_user_id = current_user.id if current_user else None
+        
+        if is_from_admin:
+            logger.info(f"Issue report submitted by admin user {reported_by_user_id}")
+        elif reported_by_user_id:
+            logger.info(f"Issue report submitted by authenticated user {reported_by_user_id}")
+        else:
+            logger.info("Issue report submitted by non-authenticated user")
+        
         # SECURITY: Sanitize user inputs to prevent XSS attacks
         # HTML escape title and description to prevent injection of malicious HTML/JavaScript
         sanitized_title = escape(issue_data.title.strip())
+        
+        # Add '(Admin): ' prefix to title if reported by an admin user
+        if is_from_admin and not sanitized_title.startswith("(Admin): "):
+            sanitized_title = f"(Admin): {sanitized_title}"
+        
         # Description is optional - only sanitize if provided
         sanitized_description = escape(issue_data.description.strip()) if issue_data.description else None
         
@@ -2456,6 +2477,8 @@ async def report_issue(
                 "encrypted_estimated_location": encrypted_estimated_location,
                 "encrypted_device_info": encrypted_device_info,
                 "encrypted_issue_report_yaml_s3_key": encrypted_issue_report_yaml_s3_key,
+                "is_from_admin": is_from_admin,
+                "reported_by_user_id": reported_by_user_id,
                 "created_at": current_timestamp.isoformat(),
                 "updated_at": current_timestamp.isoformat()
             }

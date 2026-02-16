@@ -535,13 +535,19 @@ def format_list_output(
 
             # Status indicator
             status_emoji = "✅" if processed else "🔴"
+            
+            # Admin indicator
+            is_from_admin = issue.get('is_from_admin', False) or False
+            admin_indicator = " 👑" if is_from_admin else ""
 
             lines.append("")
-            lines.append(f"  {i:3}. {status_emoji} [{issue_id[:8]}...]  {created_at}")
+            lines.append(f"  {i:3}. {status_emoji} [{issue_id[:8]}...]{admin_indicator}  {created_at}")
             lines.append(f"       Title:     {truncate_string(title, 70)}")
             lines.append(f"       Email:     {truncate_string(email, 50)}")
             lines.append(f"       Reported:  {timestamp}")
             lines.append(f"       Processed: {processed}")
+            if is_from_admin:
+                lines.append("       From:      Admin User")
 
             # Show if S3 report exists
             has_s3 = "✓" if issue.get('encrypted_issue_report_yaml_s3_key') else "✗"
@@ -606,6 +612,11 @@ def format_detail_output(
         lines.append(f"  Created At:        {format_timestamp(issue.get('created_at'))}")
         lines.append(f"  Updated At:        {format_timestamp(issue.get('updated_at'))}")
         lines.append(f"  Processed:         {issue.get('processed', False) or False}")
+        lines.append(f"  From Admin:        {issue.get('is_from_admin', False) or False}")
+        if issue.get('reported_by_user_id'):
+            lines.append(f"  Reporter User ID:  {issue.get('reported_by_user_id')}")
+        else:
+            lines.append("  Reporter User ID:  (unauthenticated)")
         lines.append("")
 
         # Encrypted fields presence check
