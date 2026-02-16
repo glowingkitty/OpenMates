@@ -1,0 +1,63 @@
+text:
+  context: Focus mode display name for write_test_debug_document in code app
+  en: Write, test, debug & document
+  de: Schreiben, testen, debuggen & dokumentieren
+  zh: 编写、测试、调试和文档化
+  es: Escribir, probar, depurar y documentar
+  fr: Écrire, tester, déboguer et documenter
+  pt: Escrever, testar, depurar e documentar
+  ru: Писать, тестировать, отлаживать и документировать
+  ja: 書く、テスト、デバッグ、文書化
+  ko: 작성, 테스트, 디버그 및 문서화
+  it: Scrivi, testa, debugga e documenta
+  tr: Yaz, test et, hata ayıkla ve belgele
+  vi: Viết, kiểm tra, gỡ lỗi và tài liệu hóa
+  id: Tulis, uji, debug & dokumentasikan
+  pl: Pisz, testuj, debuguj i dokumentuj
+  nl: Schrijven, testen, debuggen en documenteren
+  ar: الكتابة والاختبار والتصحيح والتوثيق
+  hi: लिखें, परीक्षण करें, डीबग करें और दस्तावेज़ करें
+  th: เขียน ทดสอบ แก้ไขข้อผิดพลาด และจัดทำเอกสาร
+  cs: Psát, testovat, ladit a dokumentovat
+  sv: Skriv, testa, felsök och dokumentera
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for write_test_debug_document
+  en: Write, test, debug code and update docs.
+  de: Code schreiben, testen, debuggen & Doku updaten.
+  zh: 编写、测试、调试代码并更新文档。
+  es: Escribe, prueba, depura código y actualiza docs.
+  fr: Écrire, tester, déboguer et mettre à jour la doc.
+  pt: Escreva, teste, depure código e atualize a doc.
+  ru: Пишите, тестируйте, отлаживайте код и обновляйте док.
+  ja: コードを書き、テスト、デバッグし、ドキュメントを更新。
+  ko: 코드 작성, 테스트, 디버그 및 문서 업데이트.
+  it: Scrivi, testa, debugga il codice e aggiorna i doc.
+  tr: Kod yaz, test et, hata ayıkla ve belgeleri güncelle.
+  vi: Viết, kiểm tra, gỡ lỗi mã và cập nhật tài liệu.
+  id: Tulis, uji, debug kode dan perbarui dokumentasi.
+  pl: Pisz, testuj, debuguj kod i aktualizuj dokumentację.
+  nl: Schrijf, test, debug code en werk docs bij.
+  ar: اكتب واختبر وصحح الكود وحدّث الوثائق.
+  hi: कोड लिखें, टेस्ट, डीबग करें, डॉक्स अपडेट करें।
+  th: เขียน ทดสอบ ดีบักโค้ด และอัปเดตเอกสาร
+  cs: Pište, testujte, laďte kód a aktualizujte dok.
+  sv: Skriv, testa, felsök kod och uppdatera dok.
+  verified_by_human:
+  - en
+systemprompt:
+  context: System prompt for the LLM when write_test_debug_document focus mode is active
+  en: You are a programming expert.
+  verified_by_human:
+  - en
+process:
+  context: Step-by-step process description for write_test_debug_document focus mode
+  en: '- ask users clarifying question to make the requirements clear and create requirements.md file
+
+    - for more complex tasks, create todo.md file and keep it updated with progress. Include filepaths or function names /
+    variable names relevant.
+
+    - if problem can''t be solved within a few steps, ask if new approach should be tried or if requirements should be redefined'
+  verified_by_human:
+  - en

@@ -201,84 +201,43 @@ skills:
     stage: planning
 focuses:
   - id: test_git_repo
-    name_translation_key: code.test_git_repo
-    description_translation_key: code.test_git_repo.description
+    name_translation_key: focus_modes.code_test_git_repo.text
+    description_translation_key: focus_modes.code_test_git_repo.description
     stage: planning
-    process:
-      - if not provided already, ask user for the github/gitlab repo url
-      - if not provided already, ask user what they want to test / what their usecase is
-      - use skill to check in issues if there are any critital issues recently with using the repo reported
-      - if project is reported to be broken, ask user if they want to continue with testing it
-      - ask user where to clone and test the repo? setting up new machine? using github codespaces? local machine? etc.
-      - clone the repo to the specified location
-      - read project folder & file structure and readme.md to get an overview of the project
-      - figure out how to test the project and start testing it
-  - id: plan_project
-    name_translation_key: code.plan_project
-    description_translation_key: code.plan_project.description
+    name_translation_key: focus_modes.code_test_git_repo.text
+    description_translation_key: focus_modes.code_test_git_repo.description
     stage: planning
-    process:
-      - ""
-  - id: write_test_debug_document
-    name_translation_key: code.write_test_debug_document
-    description_translation_key: code.write_test_debug_document.description
+    name_translation_key: focus_modes.code_test_git_repo.text
+    description_translation_key: focus_modes.code_test_git_repo.description
     stage: planning
-    process:
-      - "ask users clarifying question to make the requirements clear and create requirements.md file"
-      - "for more complex tasks, create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
-      - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
-    systemprompt: |
       You are a programming expert.
   - id: analyze_logs
-    name_translation_key: code.analyze_logs
-    description_translation_key: code.analyze_logs.description
+    name_translation_key: focus_modes.code_analyze_logs.text
+    description_translation_key: focus_modes.code_analyze_logs.description
     stage: planning
-    process:
-      - ""
-  - id: improve_issue
-    name_translation_key: code.improve_issue
-    description_translation_key: code.improve_issue.description
+    name_translation_key: focus_modes.code_analyze_logs.text
+    description_translation_key: focus_modes.code_analyze_logs.description
     stage: planning
-    process:
-      - ""
-  - id: learn_new_tech
-    name_translation_key: code.learn_new_tech
-    description_translation_key: code.learn_new_tech.description
+    name_translation_key: focus_modes.code_analyze_logs.text
+    description_translation_key: focus_modes.code_analyze_logs.description
     stage: planning
-    process:
-      - asks user what their learning goal is (understanding a specific part of a new technology, extending knowledge, etc.)
-      - show examples, suggest a sample project, consider Q&As or other learning methods for understanding a tech
-      - goal is to assist software developers who don't want to use AI assisted coding but still profit from the use of AI (and ease the developers into accepting AI support more).
-  - id: explain_project
-    name_translation_key: code.explain_project
-    description_translation_key: code.explain_project.description
+    name_translation_key: focus_modes.code_analyze_logs.text
+    description_translation_key: focus_modes.code_analyze_logs.description
     stage: planning
   - id: research_solutions
-    name_translation_key: code.research_solutions
-    description_translation_key: code.research_solutions.description
+    name_translation_key: focus_modes.code_research_solutions.text
+    description_translation_key: focus_modes.code_research_solutions.description
     stage: planning
   - id: code_walkthrough
-    name_translation_key: code.code_walkthrough
-    description_translation_key: code.code_walkthrough.description
+    name_translation_key: focus_modes.code_code_walkthrough.text
+    description_translation_key: focus_modes.code_code_walkthrough.description
     stage: planning
   - id: setup_infrastructure
-    name_translation_key: code.setup_infrastructure
-    description_translation_key: code.setup_infrastructure.description
+    name_translation_key: focus_modes.code_setup_infrastructure.text
+    description_translation_key: focus_modes.code_setup_infrastructure.description
     stage: planning
-    process:
-      - mate asks multiple questions to understand what user wants to setup and in what context
-      - mate asks clearification questions if first response is not clear
-      - mate provides step-by-step instructions for setting up the software or infrastructure the user asked for
-      - mate explains the first step, then waits for user feedback, then continues with the next step if step is successful, etc.
-      - at the end of the successful setup process, mate suggests saving the setup instructions as markdown (for humans), terraform, ansible playbook or cloud-init script (depending on the context)
-    systemprompt: |
       You are an expert in setting up infrastructure and software via terminal.
   - id: refactor_code
-    name_translation_key: code.refactor_code
-    description_translation_key: code.refactor_code.description
+    name_translation_key: focus_modes.code_refactor_code.text
+    description_translation_key: focus_modes.code_refactor_code.description
     stage: planning
-    process:
-      - mate asks multiple questions to better understand requirements and what isn't working well in the current code
-      - mate checks code structure overview and asks further clearifying questions if needed
-      - mate tries to find redundant code, unnecessary complexity, etc. and suggests improvements before implementing them
-      - mate implements the changes step-by-step, asks for feedback and then continues with the next step

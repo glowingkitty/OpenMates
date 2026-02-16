@@ -1,0 +1,59 @@
+text:
+  context: Focus mode display name for refactor_code in code app
+  en: Refactor code
+  de: Code refaktorisieren
+  zh: 重构代码
+  es: Refactorizar código
+  fr: Refactoriser le code
+  pt: Refatorar código
+  ru: Рефакторинг кода
+  ja: コードをリファクタリング
+  ko: 코드 리팩토링
+  it: Refactoring codice
+  tr: Kodu yeniden düzenle
+  vi: Tái cấu trúc mã
+  id: Refaktor kode
+  pl: Refaktoryzuj kod
+  nl: Code refactoren
+  ar: إعادة هيكلة الكود
+  hi: कोड को रिफैक्टर करें
+  th: รีแฟกเตอร์โค้ด
+  cs: Refaktorovat kód
+  sv: Refaktorera kod
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for refactor_code
+  en: Improve code structure and readability.
+  de: Codestruktur und Lesbarkeit verbessern.
+  zh: 改善代码结构和可读性。
+  es: Mejora la estructura y legibilidad del código.
+  fr: Améliorez la structure et la lisibilité du code.
+  pt: Melhore a estrutura e legibilidade do código.
+  ru: Улучшите структуру и читаемость кода.
+  ja: コードの構造と可読性を改善する。
+  ko: 코드 구조와 가독성을 개선하세요.
+  it: Migliora la struttura e la leggibilità del codice.
+  tr: Kod yapısını ve okunabilirliğini iyileştirin.
+  vi: Cải thiện cấu trúc và khả năng đọc mã.
+  id: Tingkatkan struktur dan keterbacaan kode.
+  pl: Popraw strukturę i czytelność kodu.
+  nl: Verbeter codestructuur en leesbaarheid.
+  ar: حسّن بنية الكود وسهولة قراءته.
+  hi: कोड संरचना और पठनीयता में सुधार करें।
+  th: ปรับปรุงโครงสร้างและความอ่านง่ายของโค้ด
+  cs: Zlepšete strukturu a čitelnost kódu.
+  sv: Förbättra kodstruktur och läsbarhet.
+  verified_by_human:
+  - en
+process:
+  context: Step-by-step process description for refactor_code focus mode
+  en: '- mate asks multiple questions to better understand requirements and what isn''t working well in the current code
+
+    - mate checks code structure overview and asks further clearifying questions if needed
+
+    - mate tries to find redundant code, unnecessary complexity, etc. and suggests improvements before implementing them
+
+    - mate implements the changes step-by-step, asks for feedback and then continues with the next step'
+  verified_by_human:
+  - en

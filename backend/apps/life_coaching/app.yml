@@ -8,16 +8,11 @@ last_updated: "2025-11-12"
 
 focuses:
   - id: crisis_support
-    name_translation_key: life_coaching.crisis_support
-    description_translation_key: life_coaching.crisis_support.description
+    name_translation_key: focus_modes.life_coaching_crisis_support.text
+    description_translation_key: focus_modes.life_coaching_crisis_support.description
     stage: planning
     discount: 0.5 # Reduce the price for this focus by 50% to make it more accessible.
 
-    process:
-      - ""
-  - id: future_speaking
-    name_translation_key: life_coaching.future_speaking
-    description_translation_key: life_coaching.future_speaking.description
+    name_translation_key: focus_modes.life_coaching_crisis_support.text
+    description_translation_key: focus_modes.life_coaching_crisis_support.description
     stage: planning
-    process:
-      - ""

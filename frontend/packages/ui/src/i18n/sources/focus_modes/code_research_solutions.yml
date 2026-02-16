@@ -1,0 +1,48 @@
+text:
+  context: Focus mode display name for research_solutions in code app
+  en: Research solutions
+  de: Lösungen recherchieren
+  zh: 研究解决方案
+  es: Investigar soluciones
+  fr: Rechercher des solutions
+  pt: Pesquisar soluções
+  ru: Исследовать решения
+  ja: ソリューションを調査
+  ko: 솔루션 연구
+  it: Ricerca soluzioni
+  tr: Çözümleri araştır
+  vi: Nghiên cứu giải pháp
+  id: Riset solusi
+  pl: Badaj rozwiązania
+  nl: Oplossingen onderzoeken
+  ar: البحث عن الحلول
+  hi: समाधान शोधें
+  th: วิจัยโซลูชัน
+  cs: Zkoumat řešení
+  sv: Forska lösningar
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for research_solutions
+  en: Research what tech fits your requirements.
+  de: Recherchiere, welche Technologie zu dir passt.
+  zh: 研究哪种技术适合你的需求。
+  es: Investiga qué tecnología se ajusta a ti.
+  fr: Recherchez la technologie adaptée à vos besoins.
+  pt: Pesquise qual tecnologia atende seus requisitos.
+  ru: Исследуйте, какая технология подходит вам.
+  ja: 要件に合う技術を調査する。
+  ko: 요구 사항에 맞는 기술을 조사하세요.
+  it: Ricerca la tecnologia adatta alle tue esigenze.
+  tr: Gereksinimlerinize uygun teknolojiyi araştırın.
+  vi: Nghiên cứu công nghệ phù hợp với yêu cầu của bạn.
+  id: Riset teknologi yang sesuai dengan kebutuhan Anda.
+  pl: Zbadaj, jaka technologia pasuje do twoich wymagań.
+  nl: Onderzoek welke technologie bij je past.
+  ar: ابحث عن التقنية المناسبة لمتطلباتك.
+  hi: अपनी आवश्यकताओं के लिए सही तकनीक खोजें।
+  th: วิจัยเทคโนโลยีที่เหมาะกับความต้องการของคุณ
+  cs: Zjistěte, jaká technologie vyhovuje vašim potřebám.
+  sv: Undersök vilken teknik som passar dina behov.
+  verified_by_human:
+  - en

@@ -1,0 +1,86 @@
+text:
+  context: Focus mode display name for analyze_video in videos app
+  en: Analyze video
+  de: Video analysieren
+  zh: 分析视频
+  es: Analizar video
+  fr: Analyser la vidéo
+  pt: Analisar vídeo
+  ru: Анализировать видео
+  ja: 動画を分析
+  ko: 동영상 분석
+  it: Analizza video
+  tr: Video analizi
+  vi: Phân tích video
+  id: Analisis video
+  pl: Analizuj wideo
+  nl: Video analyseren
+  ar: تحليل الفيديو
+  hi: वीडियो का विश्लेषण करें
+  th: วิเคราะห์วิดีโอ
+  cs: Analyzovat video
+  sv: Analysera video
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for analyze_video
+  en: Analyze, fact-check, and detect bias in videos.
+  de: Videos analysieren, Fakten prüfen und Voreingenommenheit erkennen.
+  zh: 分析视频，核实事实并检测偏见。
+  es: Analiza, verifica hechos y detecta sesgo en videos.
+  fr: Analysez, vérifiez les faits et détectez les biais.
+  pt: Analise, verifique fatos e detecte viés em vídeos.
+  ru: Анализ, проверка фактов и выявление предвзятости.
+  ja: 動画の分析、ファクトチェック、偏向の検出。
+  ko: 동영상 분석, 팩트체크 및 편향 감지.
+  it: Analizza, verifica i fatti e rileva pregiudizi.
+  tr: Videoları analiz edin, doğrulayın ve önyargı tespit edin.
+  vi: Phân tích, kiểm tra sự thật và phát hiện thiên vị.
+  id: Analisis, cek fakta, dan deteksi bias dalam video.
+  pl: Analizuj, sprawdzaj fakty i wykrywaj stronniczość.
+  nl: Analyseer, controleer feiten en detecteer vooroordelen.
+  ar: حلل وتحقق من الحقائق واكشف التحيز في الفيديوهات.
+  hi: वीडियो का विश्लेषण, तथ्य-जांच और पूर्वाग्रह पहचानें।
+  th: วิเคราะห์ ตรวจสอบข้อเท็จจริง และตรวจจับอคติในวิดีโอ
+  cs: Analyzujte, ověřte fakta a odhalte zaujatost ve videích.
+  sv: Analysera, faktagranska och upptäcka partiskhet i videor.
+  verified_by_human:
+  - en
+systemprompt:
+  context: System prompt for the LLM when analyze_video focus mode is active
+  en: "You are an expert media analyst and critical thinking specialist. Your role is to provide thorough, balanced analysis\
+    \ of YouTube videos.\n\n**Your workflow:**\n\n1. **Get the transcript**: First, use the `videos-get_transcript` tool to\
+    \ fetch the full transcript of the video.\n\n2. **Summarize**: Provide a clear, structured summary of the video's content\
+    \ — main topic, key arguments, conclusions, and target audience.\n\n3. **Bias analysis**: Critically assess the video\
+    \ for potential bias:\n   - Identify the creator's perspective and any ideological leaning\n   - Note rhetorical techniques\
+    \ used (emotional appeals, cherry-picking data, false equivalences, straw man arguments, appeal to authority, etc.)\n\
+    \   - Assess whether opposing viewpoints are fairly represented\n   - Note any conflicts of interest (sponsorships, affiliations,\
+    \ financial incentives)\n   - Rate the overall bias level (minimal, moderate, significant, heavy)\n\n4. **Fact-check key\
+    \ claims**: Identify the most important factual claims made in the video, then use `web-search` to verify them:\n   -\
+    \ Search for credible sources that confirm or contradict each claim\n   - Note which claims are well-supported, disputed,\
+    \ or misleading\n   - Provide source references for your fact-checks\n\n5. **Professional assessment**: Give your overall\
+    \ assessment:\n   - How reliable and trustworthy is the information presented?\n   - What context is missing that viewers\
+    \ should know about?\n   - Who would benefit from watching this video, and who should be cautious?\n   - What additional\
+    \ sources would help viewers form a more complete picture?\n\n**Important guidelines:**\n- Be fair and balanced — don't\
+    \ dismiss a video just because it has a perspective\n- Distinguish between opinions (which are valid to hold) and factual\
+    \ claims (which can be verified)\n- Use web searches strategically for the most impactful claims, not for every minor\
+    \ point\n- Present your analysis in a structured, easy-to-read format with clear sections\n- If the transcript is unavailable\
+    \ or the video is not in a supported language, let the user know and offer to help in other ways"
+  verified_by_human:
+  - en
+process:
+  context: Step-by-step process description for analyze_video focus mode
+  en: '- fetches the full transcript of the YouTube video using the transcript skill
+
+    - summarizes the video''s main points, arguments, and conclusions
+
+    - identifies the creator''s perspective, potential biases, and rhetorical techniques used
+
+    - extracts key factual claims made in the video
+
+    - performs web searches to verify or challenge the most significant claims
+
+    - synthesizes findings into a structured analysis with summary, bias assessment, fact-check results, and an overall professional
+    assessment'
+  verified_by_human:
+  - en

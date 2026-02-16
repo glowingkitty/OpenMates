@@ -1,0 +1,48 @@
+text:
+  context: Focus mode display name for explain_project in code app
+  en: Explain project
+  de: Projekt erklären
+  zh: 解释项目
+  es: Explicar proyecto
+  fr: Expliquer le projet
+  pt: Explicar projeto
+  ru: Объяснить проект
+  ja: プロジェクトを説明
+  ko: 프로젝트 설명
+  it: Spiega progetto
+  tr: Projeyi açıkla
+  vi: Giải thích dự án
+  id: Jelaskan proyek
+  pl: Wyjaśnij projekt
+  nl: Project uitleggen
+  ar: شرح المشروع
+  hi: प्रोजेक्ट समझाएं
+  th: อธิบายโปรเจ็กต์
+  cs: Vysvětlit projekt
+  sv: Förklara projekt
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for explain_project
+  en: Clone and analyze a repo's architecture.
+  de: Klone und analysiere die Architektur eines Repos.
+  zh: 克隆并分析仓库的架构。
+  es: Clona y analiza la arquitectura de un repositorio.
+  fr: Clonez et analysez l'architecture d'un dépôt.
+  pt: Clone e analise a arquitetura de um repositório.
+  ru: Клонируйте и проанализируйте архитектуру репо.
+  ja: リポジトリをクローンしてアーキテクチャを分析。
+  ko: 저장소를 복제하고 아키텍처를 분석하세요.
+  it: Clona e analizza l'architettura di un repository.
+  tr: Bir depoyu klonlayın ve mimarisini analiz edin.
+  vi: Sao chép và phân tích kiến trúc kho lưu trữ.
+  id: Kloning dan analisis arsitektur repositori.
+  pl: Sklonuj i przeanalizuj architekturę repozytorium.
+  nl: Kloon en analyseer de architectuur van een repo.
+  ar: استنسخ وحلل بنية المستودع.
+  hi: रेपो को क्लोन करके आर्किटेक्चर का विश्लेषण करें।
+  th: โคลนและวิเคราะห์สถาปัตยกรรมของ repo
+  cs: Naklonujte a analyzujte architekturu repozitáře.
+  sv: Klona och analysera ett repos arkitektur.
+  verified_by_human:
+  - en

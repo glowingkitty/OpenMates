@@ -1,0 +1,77 @@
+text:
+  context: Focus mode display name for what_to_study in study app
+  en: What to study
+  de: Was studieren
+  zh: 学什么
+  es: Qué estudiar
+  fr: Que étudier
+  pt: O que estudar
+  ru: Что изучать
+  ja: 何を学ぶか
+  ko: 무엇을 공부할지
+  it: Cosa studiare
+  tr: Ne çalışılmalı
+  vi: Học gì
+  id: Apa yang harus dipelajari
+  pl: Co studiować
+  nl: Wat te studeren
+  ar: ماذا تدرس
+  hi: क्या पढ़ना है
+  th: เรียนอะไร
+  cs: Co studovat
+  sv: Vad ska man studera
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for what_to_study
+  en: Find the right degree and field of study.
+  de: Finde den richtigen Abschluss und Studienbereich.
+  zh: 找到合适的学位和研究领域。
+  es: Encuentra el título y campo de estudio ideal.
+  fr: Trouvez le bon diplôme et domaine d'études.
+  pt: Encontre o diploma e área de estudo ideais.
+  ru: Найдите подходящую степень и область обучения.
+  ja: 適切な学位と研究分野を見つける。
+  ko: 적합한 학위와 연구 분야를 찾으세요.
+  it: Trova il titolo di studio e il campo giusto.
+  tr: Doğru derece ve çalışma alanını bulun.
+  vi: Tìm bằng cấp và lĩnh vực học tập phù hợp.
+  id: Temukan gelar dan bidang studi yang tepat.
+  pl: Znajdź odpowiedni stopień i kierunek studiów.
+  nl: Vind de juiste opleiding en studierichting.
+  ar: اعثر على الشهادة ومجال الدراسة المناسبين.
+  hi: सही डिग्री और अध्ययन क्षेत्र खोजें।
+  th: ค้นหาปริญญาและสาขาวิชาที่เหมาะสม
+  cs: Najděte správný titul a obor studia.
+  sv: Hitta rätt examen och studieområde.
+  verified_by_human:
+  - en
+systemprompt:
+  context: System prompt for the LLM when what_to_study focus mode is active
+  en: You are an expert education and career counselor. Your role is to help users discover the right degree and field of
+    study through thoughtful, strategic questioning. Use the Socratic method to guide them toward self-discovery rather than
+    just giving advice. Help them understand their true interests, strengths, and values. Ask follow-up questions to dig deeper
+    and uncover patterns. Provide personalized recommendations based on their responses.
+  verified_by_human:
+  - en
+process:
+  context: Step-by-step process description for what_to_study focus mode
+  en: '- asks about your interests, hobbies, and what subjects you naturally gravitate towards
+
+    - explores your strengths, talents, and what comes naturally to you
+
+    - discusses your career aspirations and what kind of work environment you prefer
+
+    - questions about your learning style and educational preferences (hands-on, theoretical, etc.)
+
+    - explores your values and what matters most in a career (impact, creativity, stability, etc.)
+
+    - asks about practical constraints (location, finances, time availability)
+
+    - analyzes the information gathered to identify aligned degree programs and fields
+
+    - suggests specific degrees, universities, and alternative educational paths
+
+    - provides guidance on next steps and resources to explore further'
+  verified_by_human:
+  - en

@@ -1,0 +1,48 @@
+text:
+  context: Focus mode display name for book_recommendations in books app
+  en: Book recommendations
+  de: Buchempfehlungen
+  zh: 图书推荐
+  es: Recomendaciones de libros
+  fr: Recommandations de livres
+  pt: Recomendações de livros
+  ru: Рекомендации книг
+  ja: 本の推奨
+  ko: 책 추천
+  it: Raccomandazioni di libri
+  tr: Kitap önerileri
+  vi: Đề xuất sách
+  id: Rekomendasi buku
+  pl: Rekomendacje książek
+  nl: Boekaanbevelingen
+  ar: توصيات الكتب
+  hi: पुस्तक सुझाव
+  th: คำแนะนำหนังสือ
+  cs: Doporučení knih
+  sv: Bokrekommendationer
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for book_recommendations
+  en: Get book recommendations based on your taste.
+  de: Buchempfehlungen basierend auf deinem Geschmack.
+  zh: 根据你的喜好获取图书推荐。
+  es: Obtén recomendaciones de libros según tu gusto.
+  fr: Recommandations de livres selon vos goûts.
+  pt: Recomendações de livros com base no seu gosto.
+  ru: Получите рекомендации книг по вашему вкусу.
+  ja: 好みに基づいた本のおすすめを取得。
+  ko: 취향에 맞는 책 추천을 받으세요.
+  it: Consigli di libri in base ai tuoi gusti.
+  tr: Zevkinize göre kitap önerileri alın.
+  vi: Nhận gợi ý sách dựa trên sở thích của bạn.
+  id: Dapatkan rekomendasi buku sesuai selera Anda.
+  pl: Otrzymaj rekomendacje książek na podstawie gustu.
+  nl: Krijg boekaanbevelingen op basis van je smaak.
+  ar: احصل على توصيات كتب بناءً على ذوقك.
+  hi: अपने स्वाद के अनुसार पुस्तक सुझाव प्राप्त करें।
+  th: รับคำแนะนำหนังสือตามรสนิยมของคุณ
+  cs: Získejte doporučení knih podle vašeho vkusu.
+  sv: Få bokrekommendationer baserat på din smak.
+  verified_by_human:
+  - en

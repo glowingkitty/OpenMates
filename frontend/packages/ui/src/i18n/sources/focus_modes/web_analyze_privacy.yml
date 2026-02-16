@@ -1,0 +1,66 @@
+text:
+  context: Focus mode display name for analyze_privacy in web app
+  en: Analyze privacy
+  de: Datenschutz analysieren
+  zh: 分析隐私
+  es: Analizar privacidad
+  fr: Analyser la confidentialité
+  pt: Analisar privacidade
+  ru: Анализировать конфиденциальность
+  ja: プライバシーを分析
+  ko: 개인정보 보호 분석
+  it: Analizza privacy
+  tr: Gizlilik analizi
+  vi: Phân tích quyền riêng tư
+  id: Analisis privasi
+  pl: Analizuj prywatność
+  nl: Privacy analyseren
+  ar: تحليل الخصوصية
+  hi: गोपनीयता का विश्लेषण करें
+  th: วิเคราะห์ความเป็นส่วนตัว
+  cs: Analyzovat soukromí
+  sv: Analysera integritet
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for analyze_privacy
+  en: Analyze a website's privacy based on its terms.
+  de: Datenschutz einer Website anhand der AGB analysieren.
+  zh: 根据条款分析网站的隐私政策。
+  es: Analiza la privacidad de un sitio según sus términos.
+  fr: Analysez la confidentialité d'un site via ses CGU.
+  pt: Analise a privacidade de um site pelos seus termos.
+  ru: Анализ конфиденциальности сайта по его условиям.
+  ja: 利用規約に基づきサイトのプライバシーを分析。
+  ko: 약관 기반으로 웹사이트 개인정보 보호를 분석하세요.
+  it: Analizza la privacy di un sito dai suoi termini.
+  tr: Şartlarına göre site gizliliğini analiz edin.
+  vi: Phân tích quyền riêng tư trang web qua điều khoản.
+  id: Analisis privasi situs web berdasarkan ketentuannya.
+  pl: Analizuj prywatność strony na podstawie regulaminu.
+  nl: Analyseer privacy van een site via de voorwaarden.
+  ar: حلل خصوصية موقع ويب بناءً على شروطه القانونية.
+  hi: शर्तों के आधार पर साइट गोपनीयता का विश्लेषण करें।
+  th: วิเคราะห์ความเป็นส่วนตัวของเว็บไซต์ตามเงื่อนไข
+  cs: Analyzujte soukromí webu na základě jeho podmínek.
+  sv: Analysera en webbplats integritet baserat på villkor.
+  verified_by_human:
+  - en
+systemprompt:
+  context: System prompt for the LLM when analyze_privacy focus mode is active
+  en: You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy
+    policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
+  verified_by_human:
+  - en
+process:
+  context: Step-by-step process description for analyze_privacy focus mode
+  en: '- gets the legal pages of a website
+
+    - analyzes the legal pages for privacy implications
+
+    - creates a report based on the findings
+
+    - asks the user if they want to proceed with the service based on the privacy implications or if they have additional
+    questions'
+  verified_by_human:
+  - en

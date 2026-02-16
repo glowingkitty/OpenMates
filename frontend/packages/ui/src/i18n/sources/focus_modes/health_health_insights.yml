@@ -1,0 +1,53 @@
+text:
+  context: Focus mode display name for health_insights in health app
+  en: Health insights
+  de: Gesundheitseinblicke
+  zh: 健康洞察
+  es: Perspectivas de salud
+  fr: Aperçus de la santé
+  pt: Insights de saúde
+  ru: Здоровье - инсайты
+  ja: 健康インサイト
+  ko: 건강 인사이트
+  it: Approfondimenti sulla salute
+  tr: Sağlık içgörüleri
+  vi: Thông tin sức khỏe
+  id: Wawasan kesehatan
+  pl: Wglądy w zdrowie
+  nl: Gezondheidsinzichten
+  ar: رؤى صحية
+  hi: स्वास्थ्य अंतर्दृष्टि
+  th: ข้อมูลเชิงลึกด้านสุขภาพ
+  cs: Zdravotní poznatky
+  sv: Hälsoinsikter
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for health_insights
+  en: Get health insights and find the right doctor.
+  de: Gesundheitseinblicke und den richtigen Arzt finden.
+  zh: 获取健康洞察并找到合适的医生。
+  es: Obtén perspectivas de salud y encuentra tu médico.
+  fr: Obtenez des insights santé et trouvez un médecin.
+  pt: Obtenha insights de saúde e encontre o médico certo.
+  ru: Получите инсайты о здоровье и найдите врача.
+  ja: 健康のインサイトを得て適切な医師を見つける。
+  ko: 건강 인사이트를 얻고 적합한 의사를 찾으세요.
+  it: Ottieni informazioni sulla salute e trova un medico.
+  tr: Sağlık bilgileri alın ve doğru doktoru bulun.
+  vi: Nhận thông tin sức khỏe và tìm bác sĩ phù hợp.
+  id: Dapatkan wawasan kesehatan dan temukan dokter tepat.
+  pl: Uzyskaj wgląd w zdrowie i znajdź lekarza.
+  nl: Krijg gezondheidsinzichten en vind de juiste arts.
+  ar: احصل على رؤى صحية وابحث عن الطبيب المناسب.
+  hi: स्वास्थ्य जानकारी पाएं और सही डॉक्टर खोजें।
+  th: รับข้อมูลสุขภาพและค้นหาแพทย์ที่เหมาะสม
+  cs: Získejte zdravotní poznatky a najděte lékaře.
+  sv: Få hälsoinsikter och hitta rätt läkare.
+  verified_by_human:
+  - en
+systemprompt:
+  context: System prompt for the LLM when health_insights focus mode is active
+  en: You are a health expert.
+  verified_by_human:
+  - en

@@ -1,0 +1,48 @@
+text:
+  context: Focus mode display name for analyze_logs in code app
+  en: Analyze logs
+  de: Logs analysieren
+  zh: 分析日志
+  es: Analizar registros
+  fr: Analyser les journaux
+  pt: Analisar logs
+  ru: Анализировать логи
+  ja: ログを分析
+  ko: 로그 분석
+  it: Analizza log
+  tr: Logları analiz et
+  vi: Phân tích nhật ký
+  id: Analisis log
+  pl: Analizuj logi
+  nl: Logs analyseren
+  ar: تحليل السجلات
+  hi: लॉग का विश्लेषण करें
+  th: วิเคราะห์บันทึก
+  cs: Analyzovat protokoly
+  sv: Analysera loggar
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for analyze_logs
+  en: Understand and analyze logs to find issues.
+  de: Logs analysieren und Probleme finden.
+  zh: 理解和分析日志以发现问题。
+  es: Analiza registros para encontrar problemas.
+  fr: Analyser les journaux pour trouver des problèmes.
+  pt: Analise logs para encontrar problemas.
+  ru: Анализируйте логи, чтобы найти проблемы.
+  ja: ログを分析して問題を特定する。
+  ko: 로그를 분석하여 문제를 찾으세요.
+  it: Analizza i log per trovare problemi.
+  tr: Sorunları bulmak için logları analiz edin.
+  vi: Phân tích nhật ký để tìm ra vấn đề.
+  id: Analisis log untuk menemukan masalah.
+  pl: Analizuj logi, aby znaleźć problemy.
+  nl: Analyseer logs om problemen te vinden.
+  ar: حلل السجلات للعثور على المشكلات.
+  hi: समस्याओं को खोजने के लिए लॉग का विश्लेषण करें।
+  th: วิเคราะห์บันทึกเพื่อค้นหาปัญหา
+  cs: Analyzujte protokoly a najděte problémy.
+  sv: Analysera loggar för att hitta problem.
+  verified_by_human:
+  - en

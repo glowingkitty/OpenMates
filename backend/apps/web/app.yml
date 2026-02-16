@@ -289,41 +289,25 @@ skills:
         - requests
 focuses:
   - id: check_reputation
-    name_translation_key: web.check_reputation
-    description_translation_key: web.check_reputation.description
+    name_translation_key: focus_modes.web_check_reputation.text
+    description_translation_key: focus_modes.web_check_reputation.description
     stage: planning
-    process:
-      - check if a business exist on trustpilot and what its rating is
-      - check on whois.com if the website is nearky registered
-      - use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings
-    systemprompt: |
       You are an expert on identifying scams vs legit businesses.
   - id: analyze_privacy
-    name_translation_key: web.analyze_privacy
-    description_translation_key: web.analyze_privacy.description
+    name_translation_key: focus_modes.web_analyze_privacy.text
+    description_translation_key: focus_modes.web_analyze_privacy.description
     stage: planning
-    process:
-      - gets the legal pages of a website
-      - analyzes the legal pages for privacy implications
-      - creates a report based on the findings
-      - asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions
-    systemprompt: |
       You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
   - id: research
-    name_translation_key: web.research
-    description_translation_key: web.research.description
+    name_translation_key: focus_modes.web_research.text
+    description_translation_key: focus_modes.web_research.description
     stage: development
     preprocessor_hint: >
       Select when the user wants in-depth research on a topic, asks to investigate or analyze something thoroughly,
       or needs comprehensive information gathered from multiple web sources.
-    systemprompt: |
       You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand a topic comprehensively, including its causes, effects, and broader context.
   - id: deep_web_research
-    name_translation_key: web.deep_web_research
-    description_translation_key: web.deep_web_research.description
+    name_translation_key: focus_modes.web_deep_web_research.text
+    description_translation_key: focus_modes.web_deep_web_research.description
     stage: planning
-    process:
-      - asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms
-      - then starts in depth web searches for the search terms and creates a report based on the findings
-    systemprompt: |
       You are an expert for deep web research.

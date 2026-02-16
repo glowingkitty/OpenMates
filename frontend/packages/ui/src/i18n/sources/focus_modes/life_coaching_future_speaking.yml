@@ -1,0 +1,48 @@
+text:
+  context: Focus mode display name for future_speaking in life_coaching app
+  en: Future speaking
+  de: Zukunftsgespräch
+  zh: 未来对话
+  es: Hablar del futuro
+  fr: Parler du futur
+  pt: Falar sobre o futuro
+  ru: Разговор о будущем
+  ja: 未来について話す
+  ko: 미래 대화
+  it: Parlare del futuro
+  tr: Gelecek konuşması
+  vi: Nói về tương lai
+  id: Berbicara masa depan
+  pl: Rozmowa o przyszłości
+  nl: Toekomstgesprek
+  ar: التحدث عن المستقبل
+  hi: भविष्य की बातचीत
+  th: การพูดคุยเกี่ยวกับอนาคต
+  cs: Rozhovor o budoucnosti
+  sv: Framtidsamtal
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for future_speaking
+  en: A powerful life coaching technique.
+  de: Eine kraftvolle Lebensberatungstechnik.
+  zh: 一种强大的生活指导技巧。
+  es: Una poderosa técnica de coaching de vida.
+  fr: Une technique puissante de coaching de vie.
+  pt: Uma técnica poderosa de coaching de vida.
+  ru: Мощная техника коучинга жизни.
+  ja: 強力なライフコーチングテクニック。
+  ko: 강력한 라이프 코칭 기법.
+  it: Una potente tecnica di life coaching.
+  tr: Güçlü bir yaşam koçluğu tekniği.
+  vi: Kỹ thuật huấn luyện cuộc sống mạnh mẽ.
+  id: Teknik bimbingan hidup yang kuat.
+  pl: Potężna technika coachingu życiowego.
+  nl: Een krachtige levenscoachingtechniek.
+  ar: تقنية قوية للتدريب على الحياة.
+  hi: एक शक्तिशाली जीवन कोचिंग तकनीक।
+  th: เทคนิคการโค้ชชีวิตที่ทรงพลัง
+  cs: Mocná technika životního koučinku.
+  sv: En kraftfull livscoachingteknik.
+  verified_by_human:
+  - en

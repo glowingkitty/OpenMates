@@ -1995,17 +1995,14 @@ async def handle_main_processing(
                                     exc_info=True
                                 )
                         
-                        # --- Load focus mode prompt for storage in pending context ---
+                        # --- Load focus mode prompt from translation service ---
+                        # Translation key format: focus_modes.{app_id}_{focus_id}.systemprompt
                         focus_prompt_text = ""
                         try:
                             focus_app_id, focus_mode_id = focus_id.split('-', 1)
-                            app_metadata_for_focus = discovered_apps_metadata.get(focus_app_id)
-                            if app_metadata_for_focus and app_metadata_for_focus.focuses:
-                                for focus_def in app_metadata_for_focus.focuses:
-                                    if focus_def.id == focus_mode_id:
-                                        focus_prompt_text = focus_def.system_prompt or ""
-                                        logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt ({len(focus_prompt_text)} chars)")
-                                        break
+                            translation_key = f"focus_modes.{focus_app_id}_{focus_mode_id}.systemprompt"
+                            focus_prompt_text = translation_service.get_nested_translation(translation_key) or ""
+                            logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt from translations ({len(focus_prompt_text)} chars)")
                         except Exception as e:
                             logger.error(f"{log_prefix} [FOCUS_MODE] Error loading focus prompt: {e}", exc_info=True)
                         

@@ -1,0 +1,58 @@
+text:
+  context: Focus mode display name for learn_new_tech in code app
+  en: Learn new tech
+  de: Neue Technologie lernen
+  zh: 学习新技术
+  es: Aprender nueva tecnología
+  fr: Apprendre une nouvelle technologie
+  pt: Aprender nova tecnologia
+  ru: Изучить новую технологию
+  ja: 新しい技術を学ぶ
+  ko: 새로운 기술 학습
+  it: Impara nuova tecnologia
+  tr: Yeni teknoloji öğren
+  vi: Học công nghệ mới
+  id: Pelajari teknologi baru
+  pl: Naucz się nowej technologii
+  nl: Nieuwe technologie leren
+  ar: تعلم تقنية جديدة
+  hi: नई तकनीक सीखें
+  th: เรียนรู้เทคโนโลยีใหม่
+  cs: Naučit se novou technologii
+  sv: Lär dig ny teknik
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for learn_new_tech
+  en: Learn a new language, framework or technology.
+  de: Lerne eine neue Sprache, Framework oder Technologie.
+  zh: 学习新的编程语言、框架或技术。
+  es: Aprende un nuevo lenguaje, framework o tecnología.
+  fr: Apprenez un langage, framework ou technologie.
+  pt: Aprenda uma nova linguagem, framework ou tecnologia.
+  ru: Изучите новый язык, фреймворк или технологию.
+  ja: 新しい言語、フレームワーク、技術を学ぶ。
+  ko: 새로운 언어, 프레임워크 또는 기술을 배우세요.
+  it: Impara un nuovo linguaggio, framework o tecnologia.
+  tr: Yeni bir dil, framework veya teknoloji öğrenin.
+  vi: Học ngôn ngữ, framework hoặc công nghệ mới.
+  id: Pelajari bahasa, framework atau teknologi baru.
+  pl: Naucz się nowego języka, frameworka lub technologii.
+  nl: Leer een nieuwe taal, framework of technologie.
+  ar: تعلم لغة أو إطار عمل أو تقنية جديدة.
+  hi: नई भाषा, फ्रेमवर्क या तकनीक सीखें।
+  th: เรียนรู้ภาษา เฟรมเวิร์ก หรือเทคโนโลยีใหม่
+  cs: Naučte se nový jazyk, framework nebo technologii.
+  sv: Lär dig ett nytt språk, ramverk eller teknik.
+  verified_by_human:
+  - en
+process:
+  context: Step-by-step process description for learn_new_tech focus mode
+  en: '- asks user what their learning goal is (understanding a specific part of a new technology, extending knowledge, etc.)
+
+    - show examples, suggest a sample project, consider Q&As or other learning methods for understanding a tech
+
+    - goal is to assist software developers who don''t want to use AI assisted coding but still profit from the use of AI
+    (and ease the developers into accepting AI support more).'
+  verified_by_human:
+  - en

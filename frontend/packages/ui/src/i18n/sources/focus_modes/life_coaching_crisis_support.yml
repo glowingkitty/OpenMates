@@ -1,0 +1,48 @@
+text:
+  context: Focus mode display name for crisis_support in life_coaching app
+  en: Crisis support
+  de: Krisenunterstützung
+  zh: 危机支持
+  es: Apoyo en crisis
+  fr: Soutien en cas de crise
+  pt: Suporte em crise
+  ru: Поддержка в кризисе
+  ja: 危機サポート
+  ko: 위기 지원
+  it: Supporto in crisi
+  tr: Kriz desteği
+  vi: Hỗ trợ khủng hoảng
+  id: Dukungan krisis
+  pl: Wsparcie w kryzysie
+  nl: Crisisondersteuning
+  ar: دعم الأزمات
+  hi: संकट सहायता
+  th: การสนับสนุนในยามวิกฤต
+  cs: Podpora v krizi
+  sv: Krisstöd
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for crisis_support
+  en: Get support in difficult times and plan ahead.
+  de: Unterstützung in schwierigen Zeiten und vorausplanen.
+  zh: 在困难时期获得支持并提前规划。
+  es: Obtén apoyo en momentos difíciles y planifica.
+  fr: Obtenez du soutien en temps difficile et planifiez.
+  pt: Apoio em momentos difíceis e planeje seus passos.
+  ru: Поддержка в трудные времена и планирование.
+  ja: 困難な時期にサポートを受け、先を計画する。
+  ko: 어려운 시기에 지원을 받고 계획을 세우세요.
+  it: Supporto nei momenti difficili e pianifica avanti.
+  tr: Zor zamanlarda destek alın ve ileriye planlayın.
+  vi: Nhận hỗ trợ khi khó khăn và lập kế hoạch.
+  id: Dapatkan dukungan saat sulit dan rencanakan.
+  pl: Wsparcie w trudnych chwilach i planowanie.
+  nl: Krijg steun in moeilijke tijden en plan vooruit.
+  ar: احصل على دعم في الأوقات الصعبة وخطط للمستقبل.
+  hi: कठिन समय में सहायता पाएं और योजना बनाएं।
+  th: รับการสนับสนุนในยามยากลำบากและวางแผนล่วงหน้า
+  cs: Podpora v obtížných časech a plánování dalšího.
+  sv: Få stöd i svåra tider och planera framåt.
+  verified_by_human:
+  - en

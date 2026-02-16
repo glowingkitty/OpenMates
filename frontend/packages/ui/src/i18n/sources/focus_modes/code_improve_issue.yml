@@ -1,0 +1,48 @@
+text:
+  context: Focus mode display name for improve_issue in code app
+  en: Improve issue
+  de: Issue verbessern
+  zh: 改进问题
+  es: Mejorar problema
+  fr: Améliorer le problème
+  pt: Melhorar problema
+  ru: Улучшить проблему
+  ja: 問題を改善
+  ko: 이슈 개선
+  it: Migliora problema
+  tr: Sorunu iyileştir
+  vi: Cải thiện vấn đề
+  id: Tingkatkan masalah
+  pl: Popraw problem
+  nl: Probleem verbeteren
+  ar: تحسين المشكلة
+  hi: समस्या में सुधार करें
+  th: ปรับปรุงปัญหา
+  cs: Zlepšit problém
+  sv: Förbättra problem
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for improve_issue
+  en: Refine issues by adding details and clarity.
+  de: Verbessere Issues durch Details und Klarheit.
+  zh: 通过添加细节和清晰度来完善问题。
+  es: Mejora issues agregando detalles y claridad.
+  fr: Améliorez les issues avec plus de détails et clarté.
+  pt: Refine issues adicionando detalhes e clareza.
+  ru: Улучшите задачи, добавив деталей и ясности.
+  ja: 詳細と明確さを追加してIssueを改善。
+  ko: 세부 정보와 명확성을 추가하여 이슈를 개선하세요.
+  it: Migliora le issue con dettagli e chiarezza.
+  tr: Ayrıntı ve netlik ekleyerek sorunları iyileştirin.
+  vi: Cải thiện vấn đề bằng cách thêm chi tiết rõ ràng.
+  id: Perbaiki masalah dengan detail dan kejelasan.
+  pl: Ulepsz zgłoszenia, dodając szczegóły i jasność.
+  nl: Verbeter issues met meer details en helderheid.
+  ar: حسّن المشكلات بإضافة تفاصيل ووضوح.
+  hi: विवरण और स्पष्टता जोड़कर समस्याओं को सुधारें।
+  th: ปรับปรุงปัญหาโดยเพิ่มรายละเอียดและความชัดเจน
+  cs: Vylepšete problémy přidáním detailů a jasnosti.
+  sv: Förbättra ärenden med mer detaljer och tydlighet.
+  verified_by_human:
+  - en

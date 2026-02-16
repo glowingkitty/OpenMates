@@ -1,0 +1,68 @@
+text:
+  context: Focus mode display name for setup_infrastructure in code app
+  en: Setup infrastructure
+  de: Infrastruktur einrichten
+  zh: 设置基础设施
+  es: Configurar infraestructura
+  fr: Configurer l'infrastructure
+  pt: Configurar infraestrutura
+  ru: Настроить инфраструктуру
+  ja: インフラストラクチャをセットアップ
+  ko: 인프라 설정
+  it: Configura infrastruttura
+  tr: Altyapı kurulumu
+  vi: Thiết lập cơ sở hạ tầng
+  id: Siapkan infrastruktur
+  pl: Skonfiguruj infrastrukturę
+  nl: Infrastructuur instellen
+  ar: إعداد البنية التحتية
+  hi: बुनियादी ढांचा सेटअप करें
+  th: ตั้งค่าโครงสร้างพื้นฐาน
+  cs: Nastavit infrastrukturu
+  sv: Konfigurera infrastruktur
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for setup_infrastructure
+  en: Get help setting up software or infra.
+  de: Hilfe beim Einrichten von Software oder Infra.
+  zh: 获取设置软件或基础设施的帮助。
+  es: Obtén ayuda para configurar software o infra.
+  fr: Obtenez de l'aide pour configurer un logiciel.
+  pt: Ajuda para configurar software ou infraestrutura.
+  ru: Помощь в настройке ПО или инфраструктуры.
+  ja: ソフトウェアやインフラの設定をサポート。
+  ko: 소프트웨어 또는 인프라 설정 도움을 받으세요.
+  it: Assistenza per configurare software o infra.
+  tr: Yazılım veya altyapı kurulumunda yardım alın.
+  vi: Nhận hỗ trợ thiết lập phần mềm hoặc hạ tầng.
+  id: Dapatkan bantuan menyiapkan software atau infra.
+  pl: Pomoc w konfiguracji oprogramowania lub infra.
+  nl: Hulp bij het instellen van software of infra.
+  ar: احصل على مساعدة في إعداد البرامج أو البنية.
+  hi: सॉफ़्टवेयर या इन्फ्रा सेटअप में सहायता पाएं।
+  th: รับความช่วยเหลือตั้งค่าซอฟต์แวร์หรือโครงสร้าง
+  cs: Pomoc s nastavením softwaru nebo infrastruktury.
+  sv: Få hjälp att konfigurera programvara eller infra.
+  verified_by_human:
+  - en
+systemprompt:
+  context: System prompt for the LLM when setup_infrastructure focus mode is active
+  en: You are an expert in setting up infrastructure and software via terminal.
+  verified_by_human:
+  - en
+process:
+  context: Step-by-step process description for setup_infrastructure focus mode
+  en: '- mate asks multiple questions to understand what user wants to setup and in what context
+
+    - mate asks clearification questions if first response is not clear
+
+    - mate provides step-by-step instructions for setting up the software or infrastructure the user asked for
+
+    - mate explains the first step, then waits for user feedback, then continues with the next step if step is successful,
+    etc.
+
+    - at the end of the successful setup process, mate suggests saving the setup instructions as markdown (for humans), terraform,
+    ansible playbook or cloud-init script (depending on the context)'
+  verified_by_human:
+  - en

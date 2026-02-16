@@ -1,0 +1,48 @@
+text:
+  context: Focus mode display name for code_walkthrough in code app
+  en: Code walkthrough
+  de: Code-Durchgang
+  zh: 代码演练
+  es: Recorrido de código
+  fr: Parcours du code
+  pt: Passo a passo do código
+  ru: Обзор кода
+  ja: コードウォークスルー
+  ko: 코드 워크스루
+  it: Spiegazione codice
+  tr: Kod incelemesi
+  vi: Đi qua mã
+  id: Penjelasan kode
+  pl: Przegląd kodu
+  nl: Code-doorloop
+  ar: جولة في الكود
+  hi: कोड वॉकथ्रू
+  th: การเดินผ่านโค้ด
+  cs: Průchod kódem
+  sv: Genomgång av kod
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for code_walkthrough
+  en: Walk through code problems step-by-step.
+  de: Gehe Code-Probleme Schritt für Schritt durch.
+  zh: 逐步讨论代码问题。
+  es: Recorre problemas de código paso a paso.
+  fr: Parcourez les problèmes de code pas à pas.
+  pt: Percorra problemas de código passo a passo.
+  ru: Разберите проблемы кода шаг за шагом.
+  ja: コードの問題を段階的に確認する。
+  ko: 코드 문제를 단계별로 살펴보세요.
+  it: Analizza i problemi del codice passo dopo passo.
+  tr: Kod sorunlarını adım adım inceleyin.
+  vi: Xem xét vấn đề mã từng bước một.
+  id: Telusuri masalah kode langkah demi langkah.
+  pl: Przejdź przez problemy kodu krok po kroku.
+  nl: Loop codeproblemen stap voor stap door.
+  ar: استعرض مشاكل الكود خطوة بخطوة.
+  hi: कोड समस्याओं को चरण-दर-चरण समझें।
+  th: สำรวจปัญหาโค้ดทีละขั้นตอน
+  cs: Projděte problémy s kódem krok za krokem.
+  sv: Gå igenom kodproblem steg för steg.
+  verified_by_human:
+  - en

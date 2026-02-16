@@ -1,0 +1,54 @@
+text:
+  context: Focus mode display name for research in web app
+  en: Research
+  de: Recherche
+  zh: 研究
+  es: Investigación
+  fr: Recherche
+  pt: Pesquisa
+  ru: Исследование
+  ja: 研究
+  ko: 연구
+  it: Ricerca
+  tr: Araştırma
+  vi: Nghiên cứu
+  id: Penelitian
+  pl: Badania
+  nl: Onderzoek
+  ar: بحث
+  hi: अनुसंधान
+  th: การวิจัย
+  cs: Výzkum
+  sv: Forskning
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for research
+  en: Research a topic from multiple angles.
+  de: Ein Thema aus mehreren Blickwinkeln recherchieren.
+  zh: 从多个角度研究一个主题。
+  es: Investiga un tema desde múltiples ángulos.
+  fr: Rechercher un sujet sous plusieurs angles.
+  pt: Pesquisar um tema de múltiplos ângulos.
+  ru: Исследовать тему с разных сторон.
+  ja: 複数の角度からトピックを調査する。
+  ko: 여러 각도에서 주제를 조사합니다.
+  it: Ricerca un argomento da più angolazioni.
+  tr: Bir konuyu birden fazla açıdan araştırın.
+  vi: Nghiên cứu một chủ đề từ nhiều góc độ.
+  id: Teliti topik dari berbagai sudut pandang.
+  pl: Zbadaj temat z wielu perspektyw.
+  nl: Onderzoek een onderwerp vanuit meerdere hoeken.
+  ar: ابحث في موضوع من زوايا متعددة.
+  hi: किसी विषय को कई दृष्टिकोणों से शोध करें।
+  th: วิจัยหัวข้อจากหลายมุมมอง
+  cs: Prozkoumejte téma z více úhlů pohledu.
+  sv: Undersök ett ämne från flera vinklar.
+  verified_by_human:
+  - en
+systemprompt:
+  context: System prompt for the LLM when research focus mode is active
+  en: You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand
+    a topic comprehensively, including its causes, effects, and broader context.
+  verified_by_human:
+  - en

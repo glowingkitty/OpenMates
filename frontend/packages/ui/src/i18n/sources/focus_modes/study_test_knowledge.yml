@@ -1,0 +1,69 @@
+text:
+  context: Focus mode display name for test_knowledge in study app
+  en: Test knowledge
+  de: Wissen testen
+  zh: 测试知识
+  es: Probar conocimiento
+  fr: Tester les connaissances
+  pt: Testar conhecimento
+  ru: Проверить знания
+  ja: 知識をテスト
+  ko: 지식 테스트
+  it: Testa conoscenza
+  tr: Bilgiyi test et
+  vi: Kiểm tra kiến thức
+  id: Uji pengetahuan
+  pl: Przetestuj wiedzę
+  nl: Kennis testen
+  ar: اختبار المعرفة
+  hi: ज्ञान का परीक्षण करें
+  th: ทดสอบความรู้
+  cs: Otestovat znalosti
+  sv: Testa kunskap
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for test_knowledge
+  en: Test your knowledge with quiz-style questions.
+  de: Teste dein Wissen mit Quiz-Fragen.
+  zh: 通过测验式问题测试你的知识。
+  es: Pon a prueba tu conocimiento con un quiz.
+  fr: Testez vos connaissances avec des questions quiz.
+  pt: Teste seus conhecimentos com perguntas de quiz.
+  ru: Проверьте знания с помощью вопросов-викторин.
+  ja: クイズ形式の質問で知識をテスト。
+  ko: 퀴즈 형식의 질문으로 지식을 테스트하세요.
+  it: Metti alla prova le conoscenze con un quiz.
+  tr: Bilginizi sınav tarzı sorularla test edin.
+  vi: Kiểm tra kiến thức với câu hỏi dạng quiz.
+  id: Uji pengetahuan Anda dengan pertanyaan kuis.
+  pl: Sprawdź wiedzę za pomocą pytań quizowych.
+  nl: Test je kennis met quizvragen.
+  ar: اختبر معرفتك بأسئلة على شكل اختبار.
+  hi: क्विज़ शैली के प्रश्नों से अपना ज्ञान परखें।
+  th: ทดสอบความรู้ด้วยคำถามแบบควิซ
+  cs: Otestujte znalosti pomocí kvízových otázek.
+  sv: Testa dina kunskaper med quizfrågor.
+  verified_by_human:
+  - en
+systemprompt:
+  context: System prompt for the LLM when test_knowledge focus mode is active
+  en: You are an expert educator and assessor. Create challenging, fair questions that test deep understanding. Provide constructive
+    feedback that helps users learn from their mistakes.
+  verified_by_human:
+  - en
+process:
+  context: Step-by-step process description for test_knowledge focus mode
+  en: '- asks which topic you want to be tested on
+
+    - determines the difficulty level and question count
+
+    - generates questions tailored to your knowledge level
+
+    - evaluates your answers for correctness and understanding
+
+    - provides detailed feedback and explanations for incorrect answers
+
+    - identifies knowledge gaps for further study'
+  verified_by_human:
+  - en

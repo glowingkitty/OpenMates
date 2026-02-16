@@ -172,23 +172,16 @@ skills:
     stage: planning
 focuses:
   - id: prepare_doctor_report
-    name_translation_key: health.prepare_doctor_report
-    description_translation_key: health.prepare_doctor_report.description
+    name_translation_key: focus_modes.health_prepare_doctor_report.text
+    description_translation_key: focus_modes.health_prepare_doctor_report.description
     stage: planning
   - id: health_insights
-    name_translation_key: health.health_insights
-    description_translation_key: health.health_insights.description
+    name_translation_key: focus_modes.health_health_insights.text
+    description_translation_key: focus_modes.health_health_insights.description
     stage: planning
-    process:
-      - ""
-    systemprompt: |
       You are a health expert.
   - id: prepare_doctor_appointment
-    name_translation_key: health.prepare_doctor_appointment
-    description_translation_key: health.prepare_doctor_appointment.description
+    name_translation_key: focus_modes.health_prepare_doctor_appointment.text
+    description_translation_key: focus_modes.health_prepare_doctor_appointment.description
     stage: planning
-    process:
-      - discusses what symptoms one had in recent weeks and months, even if one doesn't see connections between them
-      - discusses what test results / documents one should collect before the next appointment
-    systemprompt: |
       You are a health expert.

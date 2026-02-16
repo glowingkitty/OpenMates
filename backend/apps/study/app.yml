@@ -109,55 +109,22 @@ settings_and_memories:
       - job_title
 focuses:
   - id: what_to_study
-    name_translation_key: study.what_to_study
-    description_translation_key: study.what_to_study.description
+    name_translation_key: focus_modes.study_what_to_study.text
+    description_translation_key: focus_modes.study_what_to_study.description
     stage: planning
-    process:
-      - asks about your interests, hobbies, and what subjects you naturally gravitate towards
-      - explores your strengths, talents, and what comes naturally to you
-      - discusses your career aspirations and what kind of work environment you prefer
-      - questions about your learning style and educational preferences (hands-on, theoretical, etc.)
-      - explores your values and what matters most in a career (impact, creativity, stability, etc.)
-      - asks about practical constraints (location, finances, time availability)
-      - analyzes the information gathered to identify aligned degree programs and fields
-      - suggests specific degrees, universities, and alternative educational paths
-      - provides guidance on next steps and resources to explore further
-    systemprompt: |
       You are an expert education and career counselor. Your role is to help users discover the right degree and field of study through thoughtful, strategic questioning. Use the Socratic method to guide them toward self-discovery rather than just giving advice. Help them understand their true interests, strengths, and values. Ask follow-up questions to dig deeper and uncover patterns. Provide personalized recommendations based on their responses.
   - id: learn_topic
-    name_translation_key: study.learn_topic
-    description_translation_key: study.learn_topic.description
+    name_translation_key: focus_modes.study_learn_topic.text
+    description_translation_key: focus_modes.study_learn_topic.description
     stage: planning
-    process:
-      - asks what topic you want to learn
-      - determines your current knowledge level and learning goals
-      - breaks down the topic into manageable subtopics
-      - creates a personalized learning schedule with spaced repetition
-      - integrates with Reminder app to send periodic review notifications
-    systemprompt: |
       You are an expert learning facilitator. Help users master new topics through structured learning, clear explanations, and strategic repetition.
   - id: test_knowledge
-    name_translation_key: study.test_knowledge
-    description_translation_key: study.test_knowledge.description
+    name_translation_key: focus_modes.study_test_knowledge.text
+    description_translation_key: focus_modes.study_test_knowledge.description
     stage: planning
-    process:
-      - asks which topic you want to be tested on
-      - determines the difficulty level and question count
-      - generates questions tailored to your knowledge level
-      - evaluates your answers for correctness and understanding
-      - provides detailed feedback and explanations for incorrect answers
-      - identifies knowledge gaps for further study
-    systemprompt: |
       You are an expert educator and assessor. Create challenging, fair questions that test deep understanding. Provide constructive feedback that helps users learn from their mistakes.
   - id: socratic_questioning
-    name_translation_key: study.socratic_questioning
-    description_translation_key: study.socratic_questioning.description
+    name_translation_key: focus_modes.study_socratic_questioning.text
+    description_translation_key: focus_modes.study_socratic_questioning.description
     stage: planning
-    process:
-      - asks what topic or concept you want to explore deeply
-      - asks strategic questions to guide your thinking
-      - helps you examine your assumptions and beliefs
-      - encourages you to arrive at conclusions through your own reasoning
-      - asks follow-up questions to deepen understanding
-    systemprompt: |
       You are a master teacher using the Socratic method. Ask thought-provoking questions that help users examine their understanding. Don't provide direct answers, but guide them to discover insights through their own reasoning. Focus on critical thinking and deeper comprehension.

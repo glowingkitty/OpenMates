@@ -1,0 +1,60 @@
+text:
+  context: Focus mode display name for deep_web_research in web app
+  en: Deep web research
+  de: Tiefe Web-Recherche
+  zh: 深度网络研究
+  es: Investigación web profunda
+  fr: Recherche web approfondie
+  pt: Pesquisa web profunda
+  ru: Глубокое веб-исследование
+  ja: 深いウェブリサーチ
+  ko: 심층 웹 연구
+  it: Ricerca web approfondita
+  tr: Derin web araştırması
+  vi: Nghiên cứu web sâu
+  id: Penelitian web mendalam
+  pl: Głębokie badania internetowe
+  nl: Diepgaand webonderzoek
+  ar: بحث ويب عميق
+  hi: गहरी वेब अनुसंधान
+  th: การวิจัยเว็บเชิงลึก
+  cs: Hluboký webový výzkum
+  sv: Djup webbforskning
+  verified_by_human:
+  - en
+description:
+  context: Focus mode description for deep_web_research
+  en: Plan and conduct deep web research for a report.
+  de: Tiefe Web-Recherche planen und durchführen.
+  zh: 规划并进行深度网络研究以生成报告。
+  es: Investiga a fondo en la web para un informe.
+  fr: Planifiez et menez une recherche web approfondie.
+  pt: Pesquisa web profunda para gerar um relatório.
+  ru: Спланируйте и проведите глубокое веб-исследование.
+  ja: 計画を立て、深いウェブ調査を行いレポートを作成。
+  ko: 심층 웹 조사를 계획하고 보고서를 작성하세요.
+  it: Pianifica e conduci una ricerca web approfondita.
+  tr: Rapor için derin web araştırması planlayın ve yapın.
+  vi: Lập kế hoạch và nghiên cứu web sâu cho báo cáo.
+  id: Rencanakan dan lakukan riset web mendalam.
+  pl: Zaplanuj i przeprowadź głębokie badanie web.
+  nl: Plan en voer diepgaand webonderzoek uit.
+  ar: خطط وأجرِ بحثًا عميقًا على الويب لتقرير.
+  hi: रिपोर्ट के लिए गहन वेब शोध की योजना बनाएं।
+  th: วางแผนและวิจัยเว็บเชิงลึกเพื่อสร้างรายงาน
+  cs: Naplánujte a proveďte hloubkový webový výzkum.
+  sv: Planera och genomför djup webbforskning.
+  verified_by_human:
+  - en
+systemprompt:
+  context: System prompt for the LLM when deep_web_research focus mode is active
+  en: You are an expert for deep web research.
+  verified_by_human:
+  - en
+process:
+  context: Step-by-step process description for deep_web_research focus mode
+  en: '- asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms
+
+    - then starts in depth web searches for the search terms and creates a report based on the findings'
+  verified_by_human:
+  - en
