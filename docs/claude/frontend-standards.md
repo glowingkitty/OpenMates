@@ -1,0 +1,119 @@
+# Frontend Standards (Svelte/TypeScript)
+
+Standards for modifying frontend code in `frontend/` - Svelte 5 components, TypeScript services, CSS, and stores.
+
+---
+
+## Svelte 5 Requirements (CRITICAL)
+
+**USE SVELTE 5 RUNES ONLY:**
+
+- `$state()` for reactive state
+- `$derived()` for computed values
+- `$effect()` for side effects
+- `$props()` for component props
+
+**NEVER use `$:` reactive statements** - this is Svelte 4 syntax and must not be used.
+
+### Component Structure
+
+```svelte
+<script lang="ts">
+  // Imports first
+  import { onMount } from 'svelte';
+
+  // Props interface
+  interface Props {
+    title: string;
+    isVisible?: boolean;
+  }
+
+  // Props with defaults using Svelte 5 runes
+  let { title, isVisible = true }: Props = $props();
+
+  // Local state using Svelte 5 runes
+  let isLoading = $state(false);
+
+  // Derived/computed values using Svelte 5 runes (NOT $:)
+  let displayTitle = $derived(title.toUpperCase());
+</script>
+
+<div class="component-wrapper">
+  {#if isVisible}
+    <h1>{displayTitle}</h1>
+  {/if}
+</div>
+
+<style>
+  .component-wrapper {
+    padding: 1rem;
+    background-color: var(--color-grey-20);
+  }
+</style>
+```
+
+---
+
+## TypeScript Standards
+
+- Use strict type checking
+- Define interfaces for all props and data structures
+- Use type assertions sparingly
+- Prefer `interface` over `type` for object shapes
+
+---
+
+## Styling Guidelines
+
+- Use CSS custom properties defined in `frontend/packages/ui/src/styles/theme.css`
+- Follow the existing design system with predefined color variables
+- Reference existing CSS files: `theme.css`, `buttons.css`, `cards.css`, `chat.css`, `fields.css`
+- Create custom CSS only when the existing design system doesn't suffice
+- Follow mobile-first responsive design
+
+---
+
+## State Management
+
+- Use Svelte stores for global state
+- Prefer local component state when possible
+- Use derived stores for computed values
+- Implement proper store subscriptions and cleanup
+
+---
+
+## Error Handling
+
+- **NEVER use fallback values to hide errors**
+- Use try-catch blocks for async operations
+- Always log errors with `console.error()` for debugging
+- Display user-friendly error messages to users
+
+---
+
+## Frontend Development Workflow
+
+### No Local Dev Server (CRITICAL)
+
+**DO NOT run `pnpm dev` or `npm run dev`** - there is no local development server running on the server.
+
+**Default deployment workflow:**
+
+1. Make frontend code changes
+2. Run linter to verify changes: `./scripts/lint_changed.sh --ts --svelte --path frontend/`
+3. Commit and push changes to git
+4. The web app is **automatically built and deployed** when changes are pushed
+
+**Only start a dev server if:**
+
+- The user **explicitly and specifically** requests running a local dev server
+- The user says something like "start the dev server" or "run pnpm dev"
+
+**Never assume** a dev server is needed - the CI/CD pipeline handles building and deploying frontend changes automatically.
+
+---
+
+## Package and Dependency Management
+
+- **Verify Versions**: ALWAYS check for the latest stable version of a package before installing
+- **No Hallucinations**: NEVER assume or hallucinate version numbers. Verify using terminal tools or web search.
