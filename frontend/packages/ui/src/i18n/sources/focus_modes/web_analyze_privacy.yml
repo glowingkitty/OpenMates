@@ -1,58 +1,62 @@
-web_analyze_privacy.ar: تحليل الخصوصية
-web_analyze_privacy.context: Focus mode display name for analyze_privacy in web app
-web_analyze_privacy.cs: Analyzovat soukromí
-web_analyze_privacy.de: Datenschutz analysieren
-web_analyze_privacy.description.ar: حلل خصوصية موقع ويب بناءً على شروطه القانونية.
-web_analyze_privacy.description.context: Focus mode description for analyze_privacy
-web_analyze_privacy.description.cs: Analyzujte soukromí webu na základě jeho podmínek.
-web_analyze_privacy.description.de: Datenschutz einer Website anhand der AGB analysieren.
-web_analyze_privacy.description.en: Analyze a website's privacy based on its terms.
-web_analyze_privacy.description.es: Analiza la privacidad de un sitio según sus términos.
-web_analyze_privacy.description.fr: Analysez la confidentialité d'un site via ses CGU.
-web_analyze_privacy.description.hi: शर्तों के आधार पर साइट गोपनीयता का विश्लेषण करें।
-web_analyze_privacy.description.id: Analisis privasi situs web berdasarkan ketentuannya.
-web_analyze_privacy.description.it: Analizza la privacy di un sito dai suoi termini.
-web_analyze_privacy.description.ja: 利用規約に基づきサイトのプライバシーを分析。
-web_analyze_privacy.description.ko: 약관 기반으로 웹사이트 개인정보 보호를 분석하세요.
-web_analyze_privacy.description.nl: Analyseer privacy van een site via de voorwaarden.
-web_analyze_privacy.description.pl: Analizuj prywatność strony na podstawie regulaminu.
-web_analyze_privacy.description.pt: Analise a privacidade de um site pelos seus termos.
-web_analyze_privacy.description.ru: Анализ конфиденциальности сайта по его условиям.
-web_analyze_privacy.description.sv: Analysera en webbplats integritet baserat på villkor.
-web_analyze_privacy.description.th: วิเคราะห์ความเป็นส่วนตัวของเว็บไซต์ตามเงื่อนไข
-web_analyze_privacy.description.tr: Şartlarına göre site gizliliğini analiz edin.
-web_analyze_privacy.description.verified_by_human:
-  - en
-web_analyze_privacy.description.vi: Phân tích quyền riêng tư trang web qua điều khoản.
-web_analyze_privacy.description.zh: 根据条款分析网站的隐私政策。
-web_analyze_privacy.en: Analyze privacy
-web_analyze_privacy.es: Analizar privacidad
-web_analyze_privacy.fr: Analyser la confidentialité
-web_analyze_privacy.hi: गोपनीयता का विश्लेषण करें
-web_analyze_privacy.id: Analisis privasi
-web_analyze_privacy.it: Analizza privacy
-web_analyze_privacy.ja: プライバシーを分析
-web_analyze_privacy.ko: 개인정보 보호 분석
-web_analyze_privacy.nl: Privacy analyseren
-web_analyze_privacy.pl: Analizuj prywatność
-web_analyze_privacy.process.context: Step-by-step process description for analyze_privacy focus mode
-web_analyze_privacy.process.en: |
-  - gets the legal pages of a website
-  - analyzes the legal pages for privacy implications
-  - creates a report based on the findings
-  - asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions
-web_analyze_privacy.process.verified_by_human:
-  - en
-web_analyze_privacy.pt: Analisar privacidade
-web_analyze_privacy.ru: Анализировать конфиденциальность
-web_analyze_privacy.sv: Analysera integritet
-web_analyze_privacy.systemprompt.context: System prompt for the LLM when analyze_privacy focus mode is active
-web_analyze_privacy.systemprompt.en: You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
-web_analyze_privacy.systemprompt.verified_by_human:
-  - en
-web_analyze_privacy.th: วิเคราะห์ความเป็นส่วนตัว
-web_analyze_privacy.tr: Gizlilik analizi
-web_analyze_privacy.verified_by_human:
-  - en
-web_analyze_privacy.vi: Phân tích quyền riêng tư
-web_analyze_privacy.zh: 分析隐私
+web_analyze_privacy:
+  context: Focus mode display name for analyze_privacy in web app
+  en: Analyze privacy
+  de: Datenschutz analysieren
+  zh: 分析隐私
+  es: Analizar privacidad
+  fr: Analyser la confidentialité
+  pt: Analisar privacidade
+  ru: Анализировать конфиденциальность
+  ja: プライバシーを分析
+  ko: 개인정보 보호 분석
+  it: Analizza privacy
+  tr: Gizlilik analizi
+  vi: Phân tích quyền riêng tư
+  id: Analisis privasi
+  pl: Analizuj prywatność
+  nl: Privacy analyseren
+  ar: تحليل الخصوصية
+  hi: गोपनीयता का विश्लेषण करें
+  th: วิเคราะห์ความเป็นส่วนตัว
+  cs: Analyzovat soukromí
+  sv: Analysera integritet
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for analyze_privacy
+  en: Analyze a website's privacy based on its terms.
+  de: Datenschutz einer Website anhand der AGB analysieren.
+  zh: 根据条款分析网站的隐私政策。
+  es: Analiza la privacidad de un sitio según sus términos.
+  fr: Analysez la confidentialité d'un site via ses CGU.
+  pt: Analise a privacidade de um site pelos seus termos.
+  ru: Анализ конфиденциальности сайта по его условиям.
+  ja: 利用規約に基づきサイトのプライバシーを分析。
+  ko: 약관 기반으로 웹사이트 개인정보 보호를 분석하세요.
+  it: Analizza la privacy di un sito dai suoi termini.
+  tr: Şartlarına göre site gizliliğini analiz edin.
+  vi: Phân tích quyền riêng tư trang web qua điều khoản.
+  id: Analisis privasi situs web berdasarkan ketentuannya.
+  pl: Analizuj prywatność strony na podstawie regulaminu.
+  nl: Analyseer privacy van een site via de voorwaarden.
+  ar: حلل خصوصية موقع ويب بناءً على شروطه القانونية.
+  hi: शर्तों के आधार पर साइट गोपनीयता का विश्लेषण करें।
+  th: วิเคราะห์ความเป็นส่วนตัวของเว็บไซต์ตามเงื่อนไข
+  cs: Analyzujte soukromí webu na základě jeho podmínek.
+  sv: Analysera en webbplats integritet baserat på villkor.
+  verified_by_human:
+    - en
+process:
+  context: Step-by-step process description for analyze_privacy focus mode
+  en: |
+    - gets the legal pages of a website
+    - analyzes the legal pages for privacy implications
+    - creates a report based on the findings
+    - asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions
+  verified_by_human:
+    - en
+systemprompt:
+  context: System prompt for the LLM when analyze_privacy focus mode is active
+  en: You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
+  verified_by_human:
+    - en

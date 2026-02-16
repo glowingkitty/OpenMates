@@ -1,46 +1,48 @@
-health_prepare_doctor_report.ar: إعداد تقرير الطبيب
-health_prepare_doctor_report.context: Focus mode display name for prepare_doctor_report in health app
-health_prepare_doctor_report.cs: Připravit lékařskou zprávu
-health_prepare_doctor_report.de: Arztbericht vorbereiten
-health_prepare_doctor_report.description.ar: أنشئ تقريرًا لموعد طبيبك القادم.
-health_prepare_doctor_report.description.context: Focus mode description for prepare_doctor_report
-health_prepare_doctor_report.description.cs: Vytvořte zprávu pro další návštěvu lékaře.
-health_prepare_doctor_report.description.de: Erstelle einen Bericht für den nächsten Arztbesuch.
-health_prepare_doctor_report.description.en: Create a report for your next doctor visit.
-health_prepare_doctor_report.description.es: Crea un informe para tu próxima visita médica.
-health_prepare_doctor_report.description.fr: Créez un rapport pour votre prochain rendez-vous.
-health_prepare_doctor_report.description.hi: अगली डॉक्टर विज़िट के लिए रिपोर्ट बनाएं।
-health_prepare_doctor_report.description.id: Buat laporan untuk kunjungan dokter berikutnya.
-health_prepare_doctor_report.description.it: Crea un rapporto per la prossima visita medica.
-health_prepare_doctor_report.description.ja: 次の診察に向けたレポートを作成する。
-health_prepare_doctor_report.description.ko: 다음 진료를 위한 보고서를 작성하세요.
-health_prepare_doctor_report.description.nl: Maak een rapport voor je volgende doktersbezoek.
-health_prepare_doctor_report.description.pl: Stwórz raport na następną wizytę u lekarza.
-health_prepare_doctor_report.description.pt: Crie um relatório para sua próxima consulta.
-health_prepare_doctor_report.description.ru: Создайте отчёт для следующего визита к врачу.
-health_prepare_doctor_report.description.sv: Skapa en rapport för nästa läkarbesök.
-health_prepare_doctor_report.description.th: สร้างรายงานสำหรับการพบแพทย์ครั้งถัดไป
-health_prepare_doctor_report.description.tr: Sonraki doktor ziyaretiniz için rapor oluşturun.
-health_prepare_doctor_report.description.verified_by_human:
-  - en
-health_prepare_doctor_report.description.vi: Tạo báo cáo cho lần khám bác sĩ tiếp theo.
-health_prepare_doctor_report.description.zh: 为下次看医生创建一份报告。
-health_prepare_doctor_report.en: Prepare doctor report
-health_prepare_doctor_report.es: Preparar informe médico
-health_prepare_doctor_report.fr: Préparer le rapport médical
-health_prepare_doctor_report.hi: डॉक्टर रिपोर्ट तैयार करें
-health_prepare_doctor_report.id: Siapkan laporan dokter
-health_prepare_doctor_report.it: Prepara rapporto medico
-health_prepare_doctor_report.ja: 医師レポートを準備
-health_prepare_doctor_report.ko: 의사 보고서 준비
-health_prepare_doctor_report.nl: Doktersrapport voorbereiden
-health_prepare_doctor_report.pl: Przygotuj raport lekarza
-health_prepare_doctor_report.pt: Preparar relatório médico
-health_prepare_doctor_report.ru: Подготовить отчет врача
-health_prepare_doctor_report.sv: Förbereda läkarrapport
-health_prepare_doctor_report.th: เตรียมรายงานแพทย์
-health_prepare_doctor_report.tr: Doktor raporu hazırla
-health_prepare_doctor_report.verified_by_human:
-  - en
-health_prepare_doctor_report.vi: Chuẩn bị báo cáo bác sĩ
-health_prepare_doctor_report.zh: 准备医生报告
+health_prepare_doctor_report:
+  context: Focus mode display name for prepare_doctor_report in health app
+  en: Prepare doctor report
+  de: Arztbericht vorbereiten
+  zh: 准备医生报告
+  es: Preparar informe médico
+  fr: Préparer le rapport médical
+  pt: Preparar relatório médico
+  ru: Подготовить отчет врача
+  ja: 医師レポートを準備
+  ko: 의사 보고서 준비
+  it: Prepara rapporto medico
+  tr: Doktor raporu hazırla
+  vi: Chuẩn bị báo cáo bác sĩ
+  id: Siapkan laporan dokter
+  pl: Przygotuj raport lekarza
+  nl: Doktersrapport voorbereiden
+  ar: إعداد تقرير الطبيب
+  hi: डॉक्टर रिपोर्ट तैयार करें
+  th: เตรียมรายงานแพทย์
+  cs: Připravit lékařskou zprávu
+  sv: Förbereda läkarrapport
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for prepare_doctor_report
+  en: Create a report for your next doctor visit.
+  de: Erstelle einen Bericht für den nächsten Arztbesuch.
+  zh: 为下次看医生创建一份报告。
+  es: Crea un informe para tu próxima visita médica.
+  fr: Créez un rapport pour votre prochain rendez-vous.
+  pt: Crie um relatório para sua próxima consulta.
+  ru: Создайте отчёт для следующего визита к врачу.
+  ja: 次の診察に向けたレポートを作成する。
+  ko: 다음 진료를 위한 보고서를 작성하세요.
+  it: Crea un rapporto per la prossima visita medica.
+  tr: Sonraki doktor ziyaretiniz için rapor oluşturun.
+  vi: Tạo báo cáo cho lần khám bác sĩ tiếp theo.
+  id: Buat laporan untuk kunjungan dokter berikutnya.
+  pl: Stwórz raport na następną wizytę u lekarza.
+  nl: Maak een rapport voor je volgende doktersbezoek.
+  ar: أنشئ تقريرًا لموعد طبيبك القادم.
+  hi: अगली डॉक्टर विज़िट के लिए रिपोर्ट बनाएं।
+  th: สร้างรายงานสำหรับการพบแพทย์ครั้งถัดไป
+  cs: Vytvořte zprávu pro další návštěvu lékaře.
+  sv: Skapa en rapport för nästa läkarbesök.
+  verified_by_human:
+    - en

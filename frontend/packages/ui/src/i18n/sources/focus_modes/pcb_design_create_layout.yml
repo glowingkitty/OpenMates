@@ -1,58 +1,62 @@
-pcb_design_create_layout.ar: إنشاء التخطيط
-pcb_design_create_layout.context: Focus mode display name for create_layout in pcb_design app
-pcb_design_create_layout.cs: Vytvořit rozvržení
-pcb_design_create_layout.de: Layout erstellen
-pcb_design_create_layout.description.ar: خطط وأنشئ تخطيط PCB.
-pcb_design_create_layout.description.context: Focus mode description for create_layout
-pcb_design_create_layout.description.cs: Naplánujte a vytvořte rozvržení desky plošných spojů.
-pcb_design_create_layout.description.de: Plane und erstelle ein PCB-Layout.
-pcb_design_create_layout.description.en: Plan & create a PCB layout.
-pcb_design_create_layout.description.es: Planifica y crea un diseño de PCB.
-pcb_design_create_layout.description.fr: Planifiez et créez la mise en page d'une PCB.
-pcb_design_create_layout.description.hi: PCB लेआउट की योजना बनाएं और बनाएं।
-pcb_design_create_layout.description.id: Rencanakan dan buat tata letak PCB.
-pcb_design_create_layout.description.it: Pianifica e crea un layout PCB.
-pcb_design_create_layout.description.ja: PCBレイアウトを計画・作成する。
-pcb_design_create_layout.description.ko: PCB 레이아웃을 계획하고 생성하세요.
-pcb_design_create_layout.description.nl: Plan en maak een PCB-layout.
-pcb_design_create_layout.description.pl: Zaplanuj i utwórz układ PCB.
-pcb_design_create_layout.description.pt: Planeje e crie um layout de PCB.
-pcb_design_create_layout.description.ru: Спланируйте и создайте компоновку печатной платы.
-pcb_design_create_layout.description.sv: Planera och skapa ett PCB-layout.
-pcb_design_create_layout.description.th: วางแผนและสร้างเค้าโครง PCB
-pcb_design_create_layout.description.tr: Bir PCB düzeni planlayın ve oluşturun.
-pcb_design_create_layout.description.verified_by_human:
-  - en
-pcb_design_create_layout.description.vi: Lập kế hoạch và tạo bố cục PCB.
-pcb_design_create_layout.description.zh: 规划并创建PCB布局。
-pcb_design_create_layout.en: Create layout
-pcb_design_create_layout.es: Crear diseño
-pcb_design_create_layout.fr: Créer la mise en page
-pcb_design_create_layout.hi: लेआउट बनाएं
-pcb_design_create_layout.id: Buat tata letak
-pcb_design_create_layout.it: Crea layout
-pcb_design_create_layout.ja: レイアウトを作成
-pcb_design_create_layout.ko: 레이아웃 생성
-pcb_design_create_layout.nl: Layout maken
-pcb_design_create_layout.pl: Utwórz układ
-pcb_design_create_layout.process.context: Step-by-step process description for create_layout focus mode
-pcb_design_create_layout.process.en: |
-  - ask users clearifying question to make the requirements clear and create requirements.md file
-  - {'for more complex tasks': 'create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.'}
-  - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
-  - guide user throw the process of creating the PCB layout using Python scripts for KiCad or manually via the KiCad UI
-pcb_design_create_layout.process.verified_by_human:
-  - en
-pcb_design_create_layout.pt: Criar layout
-pcb_design_create_layout.ru: Создать компоновку
-pcb_design_create_layout.sv: Skapa layout
-pcb_design_create_layout.systemprompt.context: System prompt for the LLM when create_layout focus mode is active
-pcb_design_create_layout.systemprompt.en: You are a PCB design expert.
-pcb_design_create_layout.systemprompt.verified_by_human:
-  - en
-pcb_design_create_layout.th: สร้างเค้าโครง
-pcb_design_create_layout.tr: Düzen oluştur
-pcb_design_create_layout.verified_by_human:
-  - en
-pcb_design_create_layout.vi: Tạo bố cục
-pcb_design_create_layout.zh: 创建布局
+pcb_design_create_layout:
+  context: Focus mode display name for create_layout in pcb_design app
+  en: Create layout
+  de: Layout erstellen
+  zh: 创建布局
+  es: Crear diseño
+  fr: Créer la mise en page
+  pt: Criar layout
+  ru: Создать компоновку
+  ja: レイアウトを作成
+  ko: 레이아웃 생성
+  it: Crea layout
+  tr: Düzen oluştur
+  vi: Tạo bố cục
+  id: Buat tata letak
+  pl: Utwórz układ
+  nl: Layout maken
+  ar: إنشاء التخطيط
+  hi: लेआउट बनाएं
+  th: สร้างเค้าโครง
+  cs: Vytvořit rozvržení
+  sv: Skapa layout
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for create_layout
+  en: Plan & create a PCB layout.
+  de: Plane und erstelle ein PCB-Layout.
+  zh: 规划并创建PCB布局。
+  es: Planifica y crea un diseño de PCB.
+  fr: Planifiez et créez la mise en page d'une PCB.
+  pt: Planeje e crie um layout de PCB.
+  ru: Спланируйте и создайте компоновку печатной платы.
+  ja: PCBレイアウトを計画・作成する。
+  ko: PCB 레이아웃을 계획하고 생성하세요.
+  it: Pianifica e crea un layout PCB.
+  tr: Bir PCB düzeni planlayın ve oluşturun.
+  vi: Lập kế hoạch và tạo bố cục PCB.
+  id: Rencanakan dan buat tata letak PCB.
+  pl: Zaplanuj i utwórz układ PCB.
+  nl: Plan en maak een PCB-layout.
+  ar: خطط وأنشئ تخطيط PCB.
+  hi: PCB लेआउट की योजना बनाएं और बनाएं।
+  th: วางแผนและสร้างเค้าโครง PCB
+  cs: Naplánujte a vytvořte rozvržení desky plošných spojů.
+  sv: Planera och skapa ett PCB-layout.
+  verified_by_human:
+    - en
+process:
+  context: Step-by-step process description for create_layout focus mode
+  en: |
+    - ask users clearifying question to make the requirements clear and create requirements.md file
+    - {'for more complex tasks': 'create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.'}
+    - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
+    - guide user throw the process of creating the PCB layout using Python scripts for KiCad or manually via the KiCad UI
+  verified_by_human:
+    - en
+systemprompt:
+  context: System prompt for the LLM when create_layout focus mode is active
+  en: You are a PCB design expert.
+  verified_by_human:
+    - en

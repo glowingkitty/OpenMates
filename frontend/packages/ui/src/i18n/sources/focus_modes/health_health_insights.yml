@@ -1,50 +1,53 @@
-health_health_insights.ar: رؤى صحية
-health_health_insights.context: Focus mode display name for health_insights in health app
-health_health_insights.cs: Zdravotní poznatky
-health_health_insights.de: Gesundheitseinblicke
-health_health_insights.description.ar: احصل على رؤى صحية وابحث عن الطبيب المناسب.
-health_health_insights.description.context: Focus mode description for health_insights
-health_health_insights.description.cs: Získejte zdravotní poznatky a najděte lékaře.
-health_health_insights.description.de: Gesundheitseinblicke und den richtigen Arzt finden.
-health_health_insights.description.en: Get health insights and find the right doctor.
-health_health_insights.description.es: Obtén perspectivas de salud y encuentra tu médico.
-health_health_insights.description.fr: Obtenez des insights santé et trouvez un médecin.
-health_health_insights.description.hi: स्वास्थ्य जानकारी पाएं और सही डॉक्टर खोजें।
-health_health_insights.description.id: Dapatkan wawasan kesehatan dan temukan dokter tepat.
-health_health_insights.description.it: Ottieni informazioni sulla salute e trova un medico.
-health_health_insights.description.ja: 健康のインサイトを得て適切な医師を見つける。
-health_health_insights.description.ko: 건강 인사이트를 얻고 적합한 의사를 찾으세요.
-health_health_insights.description.nl: Krijg gezondheidsinzichten en vind de juiste arts.
-health_health_insights.description.pl: Uzyskaj wgląd w zdrowie i znajdź lekarza.
-health_health_insights.description.pt: Obtenha insights de saúde e encontre o médico certo.
-health_health_insights.description.ru: Получите инсайты о здоровье и найдите врача.
-health_health_insights.description.sv: Få hälsoinsikter och hitta rätt läkare.
-health_health_insights.description.th: รับข้อมูลสุขภาพและค้นหาแพทย์ที่เหมาะสม
-health_health_insights.description.tr: Sağlık bilgileri alın ve doğru doktoru bulun.
-health_health_insights.description.verified_by_human:
-  - en
-health_health_insights.description.vi: Nhận thông tin sức khỏe và tìm bác sĩ phù hợp.
-health_health_insights.description.zh: 获取健康洞察并找到合适的医生。
-health_health_insights.en: Health insights
-health_health_insights.es: Perspectivas de salud
-health_health_insights.fr: Aperçus de la santé
-health_health_insights.hi: स्वास्थ्य अंतर्दृष्टि
-health_health_insights.id: Wawasan kesehatan
-health_health_insights.it: Approfondimenti sulla salute
-health_health_insights.ja: 健康インサイト
-health_health_insights.ko: 건강 인사이트
-health_health_insights.nl: Gezondheidsinzichten
-health_health_insights.pl: Wglądy w zdrowie
-health_health_insights.pt: Insights de saúde
-health_health_insights.ru: Здоровье - инсайты
-health_health_insights.sv: Hälsoinsikter
-health_health_insights.systemprompt.context: System prompt for the LLM when health_insights focus mode is active
-health_health_insights.systemprompt.en: You are a health expert.
-health_health_insights.systemprompt.verified_by_human:
-  - en
-health_health_insights.th: ข้อมูลเชิงลึกด้านสุขภาพ
-health_health_insights.tr: Sağlık içgörüleri
-health_health_insights.verified_by_human:
-  - en
-health_health_insights.vi: Thông tin sức khỏe
-health_health_insights.zh: 健康洞察
+health_health_insights:
+  context: Focus mode display name for health_insights in health app
+  en: Health insights
+  de: Gesundheitseinblicke
+  zh: 健康洞察
+  es: Perspectivas de salud
+  fr: Aperçus de la santé
+  pt: Insights de saúde
+  ru: Здоровье - инсайты
+  ja: 健康インサイト
+  ko: 건강 인사이트
+  it: Approfondimenti sulla salute
+  tr: Sağlık içgörüleri
+  vi: Thông tin sức khỏe
+  id: Wawasan kesehatan
+  pl: Wglądy w zdrowie
+  nl: Gezondheidsinzichten
+  ar: رؤى صحية
+  hi: स्वास्थ्य अंतर्दृष्टि
+  th: ข้อมูลเชิงลึกด้านสุขภาพ
+  cs: Zdravotní poznatky
+  sv: Hälsoinsikter
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for health_insights
+  en: Get health insights and find the right doctor.
+  de: Gesundheitseinblicke und den richtigen Arzt finden.
+  zh: 获取健康洞察并找到合适的医生。
+  es: Obtén perspectivas de salud y encuentra tu médico.
+  fr: Obtenez des insights santé et trouvez un médecin.
+  pt: Obtenha insights de saúde e encontre o médico certo.
+  ru: Получите инсайты о здоровье и найдите врача.
+  ja: 健康のインサイトを得て適切な医師を見つける。
+  ko: 건강 인사이트를 얻고 적합한 의사를 찾으세요.
+  it: Ottieni informazioni sulla salute e trova un medico.
+  tr: Sağlık bilgileri alın ve doğru doktoru bulun.
+  vi: Nhận thông tin sức khỏe và tìm bác sĩ phù hợp.
+  id: Dapatkan wawasan kesehatan dan temukan dokter tepat.
+  pl: Uzyskaj wgląd w zdrowie i znajdź lekarza.
+  nl: Krijg gezondheidsinzichten en vind de juiste arts.
+  ar: احصل على رؤى صحية وابحث عن الطبيب المناسب.
+  hi: स्वास्थ्य जानकारी पाएं और सही डॉक्टर खोजें।
+  th: รับข้อมูลสุขภาพและค้นหาแพทย์ที่เหมาะสม
+  cs: Získejte zdravotní poznatky a najděte lékaře.
+  sv: Få hälsoinsikter och hitta rätt läkare.
+  verified_by_human:
+    - en
+systemprompt:
+  context: System prompt for the LLM when health_insights focus mode is active
+  en: You are a health expert.
+  verified_by_human:
+    - en

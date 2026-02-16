@@ -1,88 +1,92 @@
-jobs_career_insights.ar: رؤى مهنية
-jobs_career_insights.context: Focus mode display name for career_insights in jobs app
-jobs_career_insights.cs: Kariérní postřehy
-jobs_career_insights.de: Karriere-Einblicke
-jobs_career_insights.description.ar: اعثر على المسار المهني المناسب بناءً على نقاط قوتك.
-jobs_career_insights.description.context: Focus mode description for career_insights
-jobs_career_insights.description.cs: Najděte kariéru na základě vašich silných stránek.
-jobs_career_insights.description.de: Finde die passende Karriere anhand deiner Stärken.
-jobs_career_insights.description.en: Find the right career based on your strengths.
-jobs_career_insights.description.es: Encuentra la carrera ideal según tus fortalezas.
-jobs_career_insights.description.fr: Trouvez la carrière idéale selon vos forces.
-jobs_career_insights.description.hi: अपनी ताकत के आधार पर सही करियर खोजें।
-jobs_career_insights.description.id: Temukan karier yang tepat berdasarkan kekuatan Anda.
-jobs_career_insights.description.it: Trova la carriera giusta per i tuoi punti di forza.
-jobs_career_insights.description.ja: 強みに基づいて適切なキャリアを見つけましょう。
-jobs_career_insights.description.ko: 강점을 바탕으로 적합한 경력을 찾으세요.
-jobs_career_insights.description.nl: Vind de juiste carrière op basis van je sterktes.
-jobs_career_insights.description.pl: Znajdź karierę dopasowaną do swoich mocnych stron.
-jobs_career_insights.description.pt: Encontre a carreira certa com base em suas forças.
-jobs_career_insights.description.ru: Найдите карьеру на основе ваших сильных сторон.
-jobs_career_insights.description.sv: Hitta rätt karriär baserat på dina styrkor.
-jobs_career_insights.description.th: ค้นหาอาชีพที่เหมาะสมตามจุดแข็งของคุณ
-jobs_career_insights.description.tr: Güçlü yönlerinize göre doğru kariyer yolunu bulun.
-jobs_career_insights.description.verified_by_human:
-  - en
-jobs_career_insights.description.vi: Tìm nghề nghiệp phù hợp dựa trên thế mạnh của bạn.
-jobs_career_insights.description.zh: 根据你的优势找到合适的职业道路。
-jobs_career_insights.en: Career insights
-jobs_career_insights.es: Perspectivas profesionales
-jobs_career_insights.fr: Perspectives de carrière
-jobs_career_insights.hi: करियर अंतर्दृष्टि
-jobs_career_insights.id: Wawasan karier
-jobs_career_insights.it: Approfondimenti sulla carriera
-jobs_career_insights.ja: キャリアインサイト
-jobs_career_insights.ko: 커리어 인사이트
-jobs_career_insights.nl: Carrière-inzichten
-jobs_career_insights.pl: Wgląd w karierę
-jobs_career_insights.process.context: Step-by-step process description for career_insights focus mode
-jobs_career_insights.process.en: |
-  - understands the user's current situation (job role, industry, how long they've been there, what's prompting the change)
-  - explores what they enjoy and dislike about their current and past roles
-  - asks about their skills, strengths, and areas of expertise
-  - discusses their interests, passions, and what energizes them outside of work
-  - explores their values and priorities (work-life balance, salary, impact, creativity, stability, growth, remote work, etc.)
-  - asks about practical constraints (location, finances, family obligations, timeline)
-  - identifies transferable skills and experience that open up new directions
-  - synthesizes all the information to suggest concrete career directions, industries, and roles
-  - provides actionable next steps (networking, upskilling, job boards, portfolio, resume tips)
-jobs_career_insights.process.verified_by_human:
-  - en
-jobs_career_insights.pt: Insights de carreira
-jobs_career_insights.ru: Карьерные инсайты
-jobs_career_insights.sv: Karriärinsikter
-jobs_career_insights.systemprompt.context: System prompt for the LLM when career_insights focus mode is active
-jobs_career_insights.systemprompt.en: |
-  You are a thoughtful, experienced career advisor. Your goal is to help users gain clarity on their career direction by deeply understanding who they are, what they want, and what's realistic for them.
-  
-  Start by understanding the user's current situation: What do they do now? How long have they been doing it? What prompted them to seek advice? Are they frustrated, curious, or actively looking for a change?
-  
-  Then explore their background through natural conversation:
-  - What aspects of past and current roles have they found most fulfilling or draining?
-  - What are their core skills and strengths — both hard skills and soft skills?
-  - What are their interests and passions, including things outside of work?
-  - What do they value most in a career? (e.g., autonomy, creativity, financial security, helping others, intellectual challenge, flexibility, team culture)
-  - Are there practical constraints like geographic limitations, financial needs, family considerations, or timing?
-  
-  Ask one or two questions at a time. Do not overwhelm the user with a long list of questions. Listen carefully and build on their answers. Use a warm but professional tone.
-  
-  Once you have enough context, synthesize your understanding and suggest 2-4 concrete career directions with a brief explanation of why each is a good fit. For each suggestion, mention:
-  - Why it aligns with their skills, interests, and values
-  - What the typical path into that career looks like
-  - Any gaps they might need to address (skills, certifications, experience)
-  
-  End with actionable next steps they can take immediately, such as specific courses, networking strategies, communities to join, or job boards to explore.
-  
-  Important guidelines:
-  - Never rush to give advice before understanding the person. The quality of your recommendations depends on the depth of your understanding.
-  - Be honest if a desired path seems unrealistic given their constraints, but frame it constructively.
-  - Acknowledge emotions — career uncertainty can be stressful, and empathy builds trust.
-  - If the user seems stuck or unsure how to answer, offer examples or reframe your question.
-jobs_career_insights.systemprompt.verified_by_human:
-  - en
-jobs_career_insights.th: ข้อมูลเชิงลึกด้านอาชีพ
-jobs_career_insights.tr: Kariyer öngörüleri
-jobs_career_insights.verified_by_human:
-  - en
-jobs_career_insights.vi: Thông tin chi tiết về nghề nghiệp
-jobs_career_insights.zh: 职业洞察
+jobs_career_insights:
+  context: Focus mode display name for career_insights in jobs app
+  en: Career insights
+  de: Karriere-Einblicke
+  zh: 职业洞察
+  es: Perspectivas profesionales
+  fr: Perspectives de carrière
+  pt: Insights de carreira
+  ru: Карьерные инсайты
+  ja: キャリアインサイト
+  ko: 커리어 인사이트
+  it: Approfondimenti sulla carriera
+  tr: Kariyer öngörüleri
+  vi: Thông tin chi tiết về nghề nghiệp
+  id: Wawasan karier
+  pl: Wgląd w karierę
+  nl: Carrière-inzichten
+  ar: رؤى مهنية
+  hi: करियर अंतर्दृष्टि
+  th: ข้อมูลเชิงลึกด้านอาชีพ
+  cs: Kariérní postřehy
+  sv: Karriärinsikter
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for career_insights
+  en: Find the right career based on your strengths.
+  de: Finde die passende Karriere anhand deiner Stärken.
+  zh: 根据你的优势找到合适的职业道路。
+  es: Encuentra la carrera ideal según tus fortalezas.
+  fr: Trouvez la carrière idéale selon vos forces.
+  pt: Encontre a carreira certa com base em suas forças.
+  ru: Найдите карьеру на основе ваших сильных сторон.
+  ja: 強みに基づいて適切なキャリアを見つけましょう。
+  ko: 강점을 바탕으로 적합한 경력을 찾으세요.
+  it: Trova la carriera giusta per i tuoi punti di forza.
+  tr: Güçlü yönlerinize göre doğru kariyer yolunu bulun.
+  vi: Tìm nghề nghiệp phù hợp dựa trên thế mạnh của bạn.
+  id: Temukan karier yang tepat berdasarkan kekuatan Anda.
+  pl: Znajdź karierę dopasowaną do swoich mocnych stron.
+  nl: Vind de juiste carrière op basis van je sterktes.
+  ar: اعثر على المسار المهني المناسب بناءً على نقاط قوتك.
+  hi: अपनी ताकत के आधार पर सही करियर खोजें।
+  th: ค้นหาอาชีพที่เหมาะสมตามจุดแข็งของคุณ
+  cs: Najděte kariéru na základě vašich silných stránek.
+  sv: Hitta rätt karriär baserat på dina styrkor.
+  verified_by_human:
+    - en
+process:
+  context: Step-by-step process description for career_insights focus mode
+  en: |
+    - understands the user's current situation (job role, industry, how long they've been there, what's prompting the change)
+    - explores what they enjoy and dislike about their current and past roles
+    - asks about their skills, strengths, and areas of expertise
+    - discusses their interests, passions, and what energizes them outside of work
+    - explores their values and priorities (work-life balance, salary, impact, creativity, stability, growth, remote work, etc.)
+    - asks about practical constraints (location, finances, family obligations, timeline)
+    - identifies transferable skills and experience that open up new directions
+    - synthesizes all the information to suggest concrete career directions, industries, and roles
+    - provides actionable next steps (networking, upskilling, job boards, portfolio, resume tips)
+  verified_by_human:
+    - en
+systemprompt:
+  context: System prompt for the LLM when career_insights focus mode is active
+  en: |
+    You are a thoughtful, experienced career advisor. Your goal is to help users gain clarity on their career direction by deeply understanding who they are, what they want, and what's realistic for them.
+    
+    Start by understanding the user's current situation: What do they do now? How long have they been doing it? What prompted them to seek advice? Are they frustrated, curious, or actively looking for a change?
+    
+    Then explore their background through natural conversation:
+    - What aspects of past and current roles have they found most fulfilling or draining?
+    - What are their core skills and strengths — both hard skills and soft skills?
+    - What are their interests and passions, including things outside of work?
+    - What do they value most in a career? (e.g., autonomy, creativity, financial security, helping others, intellectual challenge, flexibility, team culture)
+    - Are there practical constraints like geographic limitations, financial needs, family considerations, or timing?
+    
+    Ask one or two questions at a time. Do not overwhelm the user with a long list of questions. Listen carefully and build on their answers. Use a warm but professional tone.
+    
+    Once you have enough context, synthesize your understanding and suggest 2-4 concrete career directions with a brief explanation of why each is a good fit. For each suggestion, mention:
+    - Why it aligns with their skills, interests, and values
+    - What the typical path into that career looks like
+    - Any gaps they might need to address (skills, certifications, experience)
+    
+    End with actionable next steps they can take immediately, such as specific courses, networking strategies, communities to join, or job boards to explore.
+    
+    Important guidelines:
+    - Never rush to give advice before understanding the person. The quality of your recommendations depends on the depth of your understanding.
+    - Be honest if a desired path seems unrealistic given their constraints, but frame it constructively.
+    - Acknowledge emotions — career uncertainty can be stressful, and empathy builds trust.
+    - If the user seems stuck or unsure how to answer, offer examples or reframe your question.
+  verified_by_human:
+    - en

@@ -1,58 +1,62 @@
-pcb_design_create_schematic.ar: إنشاء مخطط
-pcb_design_create_schematic.context: Focus mode display name for create_schematic in pcb_design app
-pcb_design_create_schematic.cs: Vytvořit schéma
-pcb_design_create_schematic.de: Schema erstellen
-pcb_design_create_schematic.description.ar: خطط وأنشئ مخطط PCB.
-pcb_design_create_schematic.description.context: Focus mode description for create_schematic
-pcb_design_create_schematic.description.cs: Naplánujte a vytvořte schéma desky plošných spojů.
-pcb_design_create_schematic.description.de: Plane und erstelle ein PCB-Schema.
-pcb_design_create_schematic.description.en: Plan & create a PCB schematic.
-pcb_design_create_schematic.description.es: Planifica y crea un esquema de PCB.
-pcb_design_create_schematic.description.fr: Planifiez et créez un schéma de PCB.
-pcb_design_create_schematic.description.hi: PCB स्कीमैटिक की योजना बनाएं और बनाएं।
-pcb_design_create_schematic.description.id: Rencanakan dan buat skema PCB.
-pcb_design_create_schematic.description.it: Pianifica e crea uno schema PCB.
-pcb_design_create_schematic.description.ja: PCB回路図を計画・作成する。
-pcb_design_create_schematic.description.ko: PCB 회로도를 계획하고 생성하세요.
-pcb_design_create_schematic.description.nl: Plan en maak een PCB-schema.
-pcb_design_create_schematic.description.pl: Zaplanuj i utwórz schemat PCB.
-pcb_design_create_schematic.description.pt: Planeje e crie um esquema de PCB.
-pcb_design_create_schematic.description.ru: Спланируйте и создайте схему печатной платы.
-pcb_design_create_schematic.description.sv: Planera och skapa ett PCB-schema.
-pcb_design_create_schematic.description.th: วางแผนและสร้างแผนผัง PCB
-pcb_design_create_schematic.description.tr: Bir PCB şeması planlayın ve oluşturun.
-pcb_design_create_schematic.description.verified_by_human:
-  - en
-pcb_design_create_schematic.description.vi: Lập kế hoạch và tạo sơ đồ PCB.
-pcb_design_create_schematic.description.zh: 规划并创建PCB原理图。
-pcb_design_create_schematic.en: Create schematic
-pcb_design_create_schematic.es: Crear esquema
-pcb_design_create_schematic.fr: Créer un schéma
-pcb_design_create_schematic.hi: स्कीमैटिक बनाएं
-pcb_design_create_schematic.id: Buat skema
-pcb_design_create_schematic.it: Crea schema
-pcb_design_create_schematic.ja: 回路図を作成
-pcb_design_create_schematic.ko: 회로도 생성
-pcb_design_create_schematic.nl: Schema maken
-pcb_design_create_schematic.pl: Utwórz schemat
-pcb_design_create_schematic.process.context: Step-by-step process description for create_schematic focus mode
-pcb_design_create_schematic.process.en: |
-  - ask users clearifying question to make the requirements clear and create requirements.md file
-  - {'for more complex tasks': 'create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.'}
-  - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
-  - guide user throw the process of creating the atopile code for a pcb schematic, or alternatively guide throw how to create a schematic in KiCad
-pcb_design_create_schematic.process.verified_by_human:
-  - en
-pcb_design_create_schematic.pt: Criar esquema
-pcb_design_create_schematic.ru: Создать схему
-pcb_design_create_schematic.sv: Skapa schema
-pcb_design_create_schematic.systemprompt.context: System prompt for the LLM when create_schematic focus mode is active
-pcb_design_create_schematic.systemprompt.en: You are a PCB design expert.
-pcb_design_create_schematic.systemprompt.verified_by_human:
-  - en
-pcb_design_create_schematic.th: สร้างแผนผัง
-pcb_design_create_schematic.tr: Şema oluştur
-pcb_design_create_schematic.verified_by_human:
-  - en
-pcb_design_create_schematic.vi: Tạo sơ đồ
-pcb_design_create_schematic.zh: 创建原理图
+pcb_design_create_schematic:
+  context: Focus mode display name for create_schematic in pcb_design app
+  en: Create schematic
+  de: Schema erstellen
+  zh: 创建原理图
+  es: Crear esquema
+  fr: Créer un schéma
+  pt: Criar esquema
+  ru: Создать схему
+  ja: 回路図を作成
+  ko: 회로도 생성
+  it: Crea schema
+  tr: Şema oluştur
+  vi: Tạo sơ đồ
+  id: Buat skema
+  pl: Utwórz schemat
+  nl: Schema maken
+  ar: إنشاء مخطط
+  hi: स्कीमैटिक बनाएं
+  th: สร้างแผนผัง
+  cs: Vytvořit schéma
+  sv: Skapa schema
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for create_schematic
+  en: Plan & create a PCB schematic.
+  de: Plane und erstelle ein PCB-Schema.
+  zh: 规划并创建PCB原理图。
+  es: Planifica y crea un esquema de PCB.
+  fr: Planifiez et créez un schéma de PCB.
+  pt: Planeje e crie um esquema de PCB.
+  ru: Спланируйте и создайте схему печатной платы.
+  ja: PCB回路図を計画・作成する。
+  ko: PCB 회로도를 계획하고 생성하세요.
+  it: Pianifica e crea uno schema PCB.
+  tr: Bir PCB şeması planlayın ve oluşturun.
+  vi: Lập kế hoạch và tạo sơ đồ PCB.
+  id: Rencanakan dan buat skema PCB.
+  pl: Zaplanuj i utwórz schemat PCB.
+  nl: Plan en maak een PCB-schema.
+  ar: خطط وأنشئ مخطط PCB.
+  hi: PCB स्कीमैटिक की योजना बनाएं और बनाएं।
+  th: วางแผนและสร้างแผนผัง PCB
+  cs: Naplánujte a vytvořte schéma desky plošných spojů.
+  sv: Planera och skapa ett PCB-schema.
+  verified_by_human:
+    - en
+process:
+  context: Step-by-step process description for create_schematic focus mode
+  en: |
+    - ask users clearifying question to make the requirements clear and create requirements.md file
+    - {'for more complex tasks': 'create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.'}
+    - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
+    - guide user throw the process of creating the atopile code for a pcb schematic, or alternatively guide throw how to create a schematic in KiCad
+  verified_by_human:
+    - en
+systemprompt:
+  context: System prompt for the LLM when create_schematic focus mode is active
+  en: You are a PCB design expert.
+  verified_by_human:
+    - en

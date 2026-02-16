@@ -1,58 +1,61 @@
-code_test_git_repo.ar: اختبار مستودع git
-code_test_git_repo.context: Focus mode display name for test_git_repo in code app
-code_test_git_repo.cs: Otestovat git úložiště
-code_test_git_repo.de: Git-Repository testen
-code_test_git_repo.description.ar: استنساخ مستودع git واختبار ما إذا كان يعمل.
-code_test_git_repo.description.context: Focus mode description for test_git_repo
-code_test_git_repo.description.cs: Naklonujte git úložiště a otestujte, zda funguje.
-code_test_git_repo.description.de: Klone ein Git-Repository und teste, ob es funktioniert.
-code_test_git_repo.description.en: Clone a git repo and test if it works.
-code_test_git_repo.description.es: Clona un repositorio git y prueba si funciona.
-code_test_git_repo.description.fr: Clonez un dépôt git et testez s'il fonctionne.
-code_test_git_repo.description.hi: Git repo क्लोन करें और परीक्षण करें।
-code_test_git_repo.description.id: Kloning repo git dan uji apakah berfungsi.
-code_test_git_repo.description.it: Clona un repository git e testa se funziona.
-code_test_git_repo.description.ja: Gitリポジトリをクローンし、動作するかテストします。
-code_test_git_repo.description.ko: Git 저장소를 복제하고 작동하는지 테스트하세요.
-code_test_git_repo.description.nl: Kloon een git-repository en test of het werkt.
-code_test_git_repo.description.pl: Sklonuj repozytorium git i przetestuj, czy działa.
-code_test_git_repo.description.pt: Clone um repositório git e teste se funciona.
-code_test_git_repo.description.ru: Клонируйте git-репо и проверьте его работу.
-code_test_git_repo.description.sv: Klona ett git-repo och testa om det fungerar.
-code_test_git_repo.description.th: โคลน git repo และทดสอบว่าทำงานหรือไม่
-code_test_git_repo.description.tr: Bir git deposunu klonlayın ve test edin.
-code_test_git_repo.description.verified_by_human:
-  - en
-code_test_git_repo.description.vi: Sao chép kho git và kiểm tra xem nó có hoạt động không.
-code_test_git_repo.description.zh: 克隆git仓库并测试它是否工作。
-code_test_git_repo.en: Test git repo
-code_test_git_repo.es: Probar repositorio git
-code_test_git_repo.fr: Tester le dépôt git
-code_test_git_repo.hi: Git repo का परीक्षण करें
-code_test_git_repo.id: Uji repo git
-code_test_git_repo.it: Testa repository git
-code_test_git_repo.ja: Gitリポジトリをテスト
-code_test_git_repo.ko: Git 저장소 테스트
-code_test_git_repo.nl: Git-repository testen
-code_test_git_repo.pl: Przetestuj repozytorium git
-code_test_git_repo.process.context: Step-by-step process description for test_git_repo focus mode
-code_test_git_repo.process.en: |
-  - if not provided already, ask user for the github/gitlab repo url
-  - if not provided already, ask user what they want to test / what their usecase is
-  - use skill to check in issues if there are any critital issues recently with using the repo reported
-  - if project is reported to be broken, ask user if they want to continue with testing it
-  - ask user where to clone and test the repo? setting up new machine? using github codespaces? local machine? etc.
-  - clone the repo to the specified location
-  - read project folder & file structure and readme.md to get an overview of the project
-  - figure out how to test the project and start testing it
-code_test_git_repo.process.verified_by_human:
-  - en
-code_test_git_repo.pt: Testar repositório git
-code_test_git_repo.ru: Тестировать git-репозиторий
-code_test_git_repo.sv: Testa git-repo
-code_test_git_repo.th: ทดสอบ git repo
-code_test_git_repo.tr: Git repo test et
-code_test_git_repo.verified_by_human:
-  - en
-code_test_git_repo.vi: Kiểm tra kho git
-code_test_git_repo.zh: 测试git仓库
+code_test_git_repo:
+  context: Focus mode display name for test_git_repo in code app
+  en: Test git repo
+  de: Git-Repository testen
+  zh: 测试git仓库
+  es: Probar repositorio git
+  fr: Tester le dépôt git
+  pt: Testar repositório git
+  ru: Тестировать git-репозиторий
+  ja: Gitリポジトリをテスト
+  ko: Git 저장소 테스트
+  it: Testa repository git
+  tr: Git repo test et
+  vi: Kiểm tra kho git
+  id: Uji repo git
+  pl: Przetestuj repozytorium git
+  nl: Git-repository testen
+  ar: اختبار مستودع git
+  hi: Git repo का परीक्षण करें
+  th: ทดสอบ git repo
+  cs: Otestovat git úložiště
+  sv: Testa git-repo
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for test_git_repo
+  en: Clone a git repo and test if it works.
+  de: Klone ein Git-Repository und teste, ob es funktioniert.
+  zh: 克隆git仓库并测试它是否工作。
+  es: Clona un repositorio git y prueba si funciona.
+  fr: Clonez un dépôt git et testez s'il fonctionne.
+  pt: Clone um repositório git e teste se funciona.
+  ru: Клонируйте git-репо и проверьте его работу.
+  ja: Gitリポジトリをクローンし、動作するかテストします。
+  ko: Git 저장소를 복제하고 작동하는지 테스트하세요.
+  it: Clona un repository git e testa se funziona.
+  tr: Bir git deposunu klonlayın ve test edin.
+  vi: Sao chép kho git và kiểm tra xem nó có hoạt động không.
+  id: Kloning repo git dan uji apakah berfungsi.
+  pl: Sklonuj repozytorium git i przetestuj, czy działa.
+  nl: Kloon een git-repository en test of het werkt.
+  ar: استنساخ مستودع git واختبار ما إذا كان يعمل.
+  hi: Git repo क्लोन करें और परीक्षण करें।
+  th: โคลน git repo และทดสอบว่าทำงานหรือไม่
+  cs: Naklonujte git úložiště a otestujte, zda funguje.
+  sv: Klona ett git-repo och testa om det fungerar.
+  verified_by_human:
+    - en
+process:
+  context: Step-by-step process description for test_git_repo focus mode
+  en: |
+    - if not provided already, ask user for the github/gitlab repo url
+    - if not provided already, ask user what they want to test / what their usecase is
+    - use skill to check in issues if there are any critital issues recently with using the repo reported
+    - if project is reported to be broken, ask user if they want to continue with testing it
+    - ask user where to clone and test the repo? setting up new machine? using github codespaces? local machine? etc.
+    - clone the repo to the specified location
+    - read project folder & file structure and readme.md to get an overview of the project
+    - figure out how to test the project and start testing it
+  verified_by_human:
+    - en

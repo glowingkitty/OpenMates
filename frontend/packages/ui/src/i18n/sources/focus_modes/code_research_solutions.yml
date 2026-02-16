@@ -1,46 +1,48 @@
-code_research_solutions.ar: البحث عن الحلول
-code_research_solutions.context: Focus mode display name for research_solutions in code app
-code_research_solutions.cs: Zkoumat řešení
-code_research_solutions.de: Lösungen recherchieren
-code_research_solutions.description.ar: ابحث عن التقنية المناسبة لمتطلباتك.
-code_research_solutions.description.context: Focus mode description for research_solutions
-code_research_solutions.description.cs: Zjistěte, jaká technologie vyhovuje vašim potřebám.
-code_research_solutions.description.de: Recherchiere, welche Technologie zu dir passt.
-code_research_solutions.description.en: Research what tech fits your requirements.
-code_research_solutions.description.es: Investiga qué tecnología se ajusta a ti.
-code_research_solutions.description.fr: Recherchez la technologie adaptée à vos besoins.
-code_research_solutions.description.hi: अपनी आवश्यकताओं के लिए सही तकनीक खोजें।
-code_research_solutions.description.id: Riset teknologi yang sesuai dengan kebutuhan Anda.
-code_research_solutions.description.it: Ricerca la tecnologia adatta alle tue esigenze.
-code_research_solutions.description.ja: 要件に合う技術を調査する。
-code_research_solutions.description.ko: 요구 사항에 맞는 기술을 조사하세요.
-code_research_solutions.description.nl: Onderzoek welke technologie bij je past.
-code_research_solutions.description.pl: Zbadaj, jaka technologia pasuje do twoich wymagań.
-code_research_solutions.description.pt: Pesquise qual tecnologia atende seus requisitos.
-code_research_solutions.description.ru: Исследуйте, какая технология подходит вам.
-code_research_solutions.description.sv: Undersök vilken teknik som passar dina behov.
-code_research_solutions.description.th: วิจัยเทคโนโลยีที่เหมาะกับความต้องการของคุณ
-code_research_solutions.description.tr: Gereksinimlerinize uygun teknolojiyi araştırın.
-code_research_solutions.description.verified_by_human:
-  - en
-code_research_solutions.description.vi: Nghiên cứu công nghệ phù hợp với yêu cầu của bạn.
-code_research_solutions.description.zh: 研究哪种技术适合你的需求。
-code_research_solutions.en: Research solutions
-code_research_solutions.es: Investigar soluciones
-code_research_solutions.fr: Rechercher des solutions
-code_research_solutions.hi: समाधान शोधें
-code_research_solutions.id: Riset solusi
-code_research_solutions.it: Ricerca soluzioni
-code_research_solutions.ja: ソリューションを調査
-code_research_solutions.ko: 솔루션 연구
-code_research_solutions.nl: Oplossingen onderzoeken
-code_research_solutions.pl: Badaj rozwiązania
-code_research_solutions.pt: Pesquisar soluções
-code_research_solutions.ru: Исследовать решения
-code_research_solutions.sv: Forska lösningar
-code_research_solutions.th: วิจัยโซลูชัน
-code_research_solutions.tr: Çözümleri araştır
-code_research_solutions.verified_by_human:
-  - en
-code_research_solutions.vi: Nghiên cứu giải pháp
-code_research_solutions.zh: 研究解决方案
+code_research_solutions:
+  context: Focus mode display name for research_solutions in code app
+  en: Research solutions
+  de: Lösungen recherchieren
+  zh: 研究解决方案
+  es: Investigar soluciones
+  fr: Rechercher des solutions
+  pt: Pesquisar soluções
+  ru: Исследовать решения
+  ja: ソリューションを調査
+  ko: 솔루션 연구
+  it: Ricerca soluzioni
+  tr: Çözümleri araştır
+  vi: Nghiên cứu giải pháp
+  id: Riset solusi
+  pl: Badaj rozwiązania
+  nl: Oplossingen onderzoeken
+  ar: البحث عن الحلول
+  hi: समाधान शोधें
+  th: วิจัยโซลูชัน
+  cs: Zkoumat řešení
+  sv: Forska lösningar
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for research_solutions
+  en: Research what tech fits your requirements.
+  de: Recherchiere, welche Technologie zu dir passt.
+  zh: 研究哪种技术适合你的需求。
+  es: Investiga qué tecnología se ajusta a ti.
+  fr: Recherchez la technologie adaptée à vos besoins.
+  pt: Pesquise qual tecnologia atende seus requisitos.
+  ru: Исследуйте, какая технология подходит вам.
+  ja: 要件に合う技術を調査する。
+  ko: 요구 사항에 맞는 기술을 조사하세요.
+  it: Ricerca la tecnologia adatta alle tue esigenze.
+  tr: Gereksinimlerinize uygun teknolojiyi araştırın.
+  vi: Nghiên cứu công nghệ phù hợp với yêu cầu của bạn.
+  id: Riset teknologi yang sesuai dengan kebutuhan Anda.
+  pl: Zbadaj, jaka technologia pasuje do twoich wymagań.
+  nl: Onderzoek welke technologie bij je past.
+  ar: ابحث عن التقنية المناسبة لمتطلباتك.
+  hi: अपनी आवश्यकताओं के लिए सही तकनीक खोजें।
+  th: วิจัยเทคโนโลยีที่เหมาะกับความต้องการของคุณ
+  cs: Zjistěte, jaká technologie vyhovuje vašim potřebám.
+  sv: Undersök vilken teknik som passar dina behov.
+  verified_by_human:
+    - en

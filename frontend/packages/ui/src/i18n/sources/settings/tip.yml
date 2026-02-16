@@ -4,6 +4,30 @@ description:
   de: Unterstütze den Ersteller, indem du ein Trinkgeld aus deinem Guthaben sendest.
   verified_by_human: []
 
+tip_creator:
+  context: Navigation title for the tip settings page
+  en: Tip Creator
+  de: Ersteller unterstützen
+  zh: 打赏创作者
+  es: Dar propina al creador
+  fr: Soutenir le créateur
+  pt: Gorjeta ao criador
+  ru: Поддержать создателя
+  ja: クリエイターにチップ
+  ko: 크리에이터에게 팁
+  it: Mancia al creatore
+  tr: İçerik üreticisine bahşiş
+  vi: Tip cho người sáng tạo
+  id: Tip Kreator
+  pl: Napiwek dla twórcy
+  nl: Fooi voor maker
+  ar: إكرامية للمبدع
+  hi: रचनाकार को टिप दें
+  th: ให้ทิปผู้สร้าง
+  cs: Příspěvek tvůrci
+  sv: Dricks till skaparen
+  verified_by_human: []
+
 amount:
   context: Section title above tip amount slider
   en: Amount

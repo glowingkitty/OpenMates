@@ -1,46 +1,48 @@
-life_coaching_crisis_support.ar: دعم الأزمات
-life_coaching_crisis_support.context: Focus mode display name for crisis_support in life_coaching app
-life_coaching_crisis_support.cs: Podpora v krizi
-life_coaching_crisis_support.de: Krisenunterstützung
-life_coaching_crisis_support.description.ar: احصل على دعم في الأوقات الصعبة وخطط للمستقبل.
-life_coaching_crisis_support.description.context: Focus mode description for crisis_support
-life_coaching_crisis_support.description.cs: Podpora v obtížných časech a plánování dalšího.
-life_coaching_crisis_support.description.de: Unterstützung in schwierigen Zeiten und vorausplanen.
-life_coaching_crisis_support.description.en: Get support in difficult times and plan ahead.
-life_coaching_crisis_support.description.es: Obtén apoyo en momentos difíciles y planifica.
-life_coaching_crisis_support.description.fr: Obtenez du soutien en temps difficile et planifiez.
-life_coaching_crisis_support.description.hi: कठिन समय में सहायता पाएं और योजना बनाएं।
-life_coaching_crisis_support.description.id: Dapatkan dukungan saat sulit dan rencanakan.
-life_coaching_crisis_support.description.it: Supporto nei momenti difficili e pianifica avanti.
-life_coaching_crisis_support.description.ja: 困難な時期にサポートを受け、先を計画する。
-life_coaching_crisis_support.description.ko: 어려운 시기에 지원을 받고 계획을 세우세요.
-life_coaching_crisis_support.description.nl: Krijg steun in moeilijke tijden en plan vooruit.
-life_coaching_crisis_support.description.pl: Wsparcie w trudnych chwilach i planowanie.
-life_coaching_crisis_support.description.pt: Apoio em momentos difíceis e planeje seus passos.
-life_coaching_crisis_support.description.ru: Поддержка в трудные времена и планирование.
-life_coaching_crisis_support.description.sv: Få stöd i svåra tider och planera framåt.
-life_coaching_crisis_support.description.th: รับการสนับสนุนในยามยากลำบากและวางแผนล่วงหน้า
-life_coaching_crisis_support.description.tr: Zor zamanlarda destek alın ve ileriye planlayın.
-life_coaching_crisis_support.description.verified_by_human:
-  - en
-life_coaching_crisis_support.description.vi: Nhận hỗ trợ khi khó khăn và lập kế hoạch.
-life_coaching_crisis_support.description.zh: 在困难时期获得支持并提前规划。
-life_coaching_crisis_support.en: Crisis support
-life_coaching_crisis_support.es: Apoyo en crisis
-life_coaching_crisis_support.fr: Soutien en cas de crise
-life_coaching_crisis_support.hi: संकट सहायता
-life_coaching_crisis_support.id: Dukungan krisis
-life_coaching_crisis_support.it: Supporto in crisi
-life_coaching_crisis_support.ja: 危機サポート
-life_coaching_crisis_support.ko: 위기 지원
-life_coaching_crisis_support.nl: Crisisondersteuning
-life_coaching_crisis_support.pl: Wsparcie w kryzysie
-life_coaching_crisis_support.pt: Suporte em crise
-life_coaching_crisis_support.ru: Поддержка в кризисе
-life_coaching_crisis_support.sv: Krisstöd
-life_coaching_crisis_support.th: การสนับสนุนในยามวิกฤต
-life_coaching_crisis_support.tr: Kriz desteği
-life_coaching_crisis_support.verified_by_human:
-  - en
-life_coaching_crisis_support.vi: Hỗ trợ khủng hoảng
-life_coaching_crisis_support.zh: 危机支持
+life_coaching_crisis_support:
+  context: Focus mode display name for crisis_support in life_coaching app
+  en: Crisis support
+  de: Krisenunterstützung
+  zh: 危机支持
+  es: Apoyo en crisis
+  fr: Soutien en cas de crise
+  pt: Suporte em crise
+  ru: Поддержка в кризисе
+  ja: 危機サポート
+  ko: 위기 지원
+  it: Supporto in crisi
+  tr: Kriz desteği
+  vi: Hỗ trợ khủng hoảng
+  id: Dukungan krisis
+  pl: Wsparcie w kryzysie
+  nl: Crisisondersteuning
+  ar: دعم الأزمات
+  hi: संकट सहायता
+  th: การสนับสนุนในยามวิกฤต
+  cs: Podpora v krizi
+  sv: Krisstöd
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for crisis_support
+  en: Get support in difficult times and plan ahead.
+  de: Unterstützung in schwierigen Zeiten und vorausplanen.
+  zh: 在困难时期获得支持并提前规划。
+  es: Obtén apoyo en momentos difíciles y planifica.
+  fr: Obtenez du soutien en temps difficile et planifiez.
+  pt: Apoio em momentos difíceis e planeje seus passos.
+  ru: Поддержка в трудные времена и планирование.
+  ja: 困難な時期にサポートを受け、先を計画する。
+  ko: 어려운 시기에 지원을 받고 계획을 세우세요.
+  it: Supporto nei momenti difficili e pianifica avanti.
+  tr: Zor zamanlarda destek alın ve ileriye planlayın.
+  vi: Nhận hỗ trợ khi khó khăn và lập kế hoạch.
+  id: Dapatkan dukungan saat sulit dan rencanakan.
+  pl: Wsparcie w trudnych chwilach i planowanie.
+  nl: Krijg steun in moeilijke tijden en plan vooruit.
+  ar: احصل على دعم في الأوقات الصعبة وخطط للمستقبل.
+  hi: कठिन समय में सहायता पाएं और योजना बनाएं।
+  th: รับการสนับสนุนในยามยากลำบากและวางแผนล่วงหน้า
+  cs: Podpora v obtížných časech a plánování dalšího.
+  sv: Få stöd i svåra tider och planera framåt.
+  verified_by_human:
+    - en

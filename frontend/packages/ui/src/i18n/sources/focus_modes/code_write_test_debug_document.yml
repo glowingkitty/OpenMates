@@ -1,57 +1,61 @@
-code_write_test_debug_document.ar: الكتابة والاختبار والتصحيح والتوثيق
-code_write_test_debug_document.context: Focus mode display name for write_test_debug_document in code app
-code_write_test_debug_document.cs: Psát, testovat, ladit a dokumentovat
-code_write_test_debug_document.de: Schreiben, testen, debuggen & dokumentieren
-code_write_test_debug_document.description.ar: اكتب واختبر وصحح الكود وحدّث الوثائق.
-code_write_test_debug_document.description.context: Focus mode description for write_test_debug_document
-code_write_test_debug_document.description.cs: Pište, testujte, laďte kód a aktualizujte dok.
-code_write_test_debug_document.description.de: Code schreiben, testen, debuggen & Doku updaten.
-code_write_test_debug_document.description.en: Write, test, debug code and update docs.
-code_write_test_debug_document.description.es: Escribe, prueba, depura código y actualiza docs.
-code_write_test_debug_document.description.fr: Écrire, tester, déboguer et mettre à jour la doc.
-code_write_test_debug_document.description.hi: कोड लिखें, टेस्ट, डीबग करें, डॉक्स अपडेट करें।
-code_write_test_debug_document.description.id: Tulis, uji, debug kode dan perbarui dokumentasi.
-code_write_test_debug_document.description.it: Scrivi, testa, debugga il codice e aggiorna i doc.
-code_write_test_debug_document.description.ja: コードを書き、テスト、デバッグし、ドキュメントを更新。
-code_write_test_debug_document.description.ko: 코드 작성, 테스트, 디버그 및 문서 업데이트.
-code_write_test_debug_document.description.nl: Schrijf, test, debug code en werk docs bij.
-code_write_test_debug_document.description.pl: Pisz, testuj, debuguj kod i aktualizuj dokumentację.
-code_write_test_debug_document.description.pt: Escreva, teste, depure código e atualize a doc.
-code_write_test_debug_document.description.ru: Пишите, тестируйте, отлаживайте код и обновляйте док.
-code_write_test_debug_document.description.sv: Skriv, testa, felsök kod och uppdatera dok.
-code_write_test_debug_document.description.th: เขียน ทดสอบ ดีบักโค้ด และอัปเดตเอกสาร
-code_write_test_debug_document.description.tr: Kod yaz, test et, hata ayıkla ve belgeleri güncelle.
-code_write_test_debug_document.description.verified_by_human:
-  - en
-code_write_test_debug_document.description.vi: Viết, kiểm tra, gỡ lỗi mã và cập nhật tài liệu.
-code_write_test_debug_document.description.zh: 编写、测试、调试代码并更新文档。
-code_write_test_debug_document.en: Write, test, debug & document
-code_write_test_debug_document.es: Escribir, probar, depurar y documentar
-code_write_test_debug_document.fr: Écrire, tester, déboguer et documenter
-code_write_test_debug_document.hi: लिखें, परीक्षण करें, डीबग करें और दस्तावेज़ करें
-code_write_test_debug_document.id: Tulis, uji, debug & dokumentasikan
-code_write_test_debug_document.it: Scrivi, testa, debugga e documenta
-code_write_test_debug_document.ja: 書く、テスト、デバッグ、文書化
-code_write_test_debug_document.ko: 작성, 테스트, 디버그 및 문서화
-code_write_test_debug_document.nl: Schrijven, testen, debuggen en documenteren
-code_write_test_debug_document.pl: Pisz, testuj, debuguj i dokumentuj
-code_write_test_debug_document.process.context: Step-by-step process description for write_test_debug_document focus mode
-code_write_test_debug_document.process.en: |
-  - ask users clarifying question to make the requirements clear and create requirements.md file
-  - for more complex tasks, create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.
-  - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
-code_write_test_debug_document.process.verified_by_human:
-  - en
-code_write_test_debug_document.pt: Escrever, testar, depurar e documentar
-code_write_test_debug_document.ru: Писать, тестировать, отлаживать и документировать
-code_write_test_debug_document.sv: Skriv, testa, felsök och dokumentera
-code_write_test_debug_document.systemprompt.context: System prompt for the LLM when write_test_debug_document focus mode is active
-code_write_test_debug_document.systemprompt.en: You are a programming expert.
-code_write_test_debug_document.systemprompt.verified_by_human:
-  - en
-code_write_test_debug_document.th: เขียน ทดสอบ แก้ไขข้อผิดพลาด และจัดทำเอกสาร
-code_write_test_debug_document.tr: Yaz, test et, hata ayıkla ve belgele
-code_write_test_debug_document.verified_by_human:
-  - en
-code_write_test_debug_document.vi: Viết, kiểm tra, gỡ lỗi và tài liệu hóa
-code_write_test_debug_document.zh: 编写、测试、调试和文档化
+code_write_test_debug_document:
+  context: Focus mode display name for write_test_debug_document in code app
+  en: Write, test, debug & document
+  de: Schreiben, testen, debuggen & dokumentieren
+  zh: 编写、测试、调试和文档化
+  es: Escribir, probar, depurar y documentar
+  fr: Écrire, tester, déboguer et documenter
+  pt: Escrever, testar, depurar e documentar
+  ru: Писать, тестировать, отлаживать и документировать
+  ja: 書く、テスト、デバッグ、文書化
+  ko: 작성, 테스트, 디버그 및 문서화
+  it: Scrivi, testa, debugga e documenta
+  tr: Yaz, test et, hata ayıkla ve belgele
+  vi: Viết, kiểm tra, gỡ lỗi và tài liệu hóa
+  id: Tulis, uji, debug & dokumentasikan
+  pl: Pisz, testuj, debuguj i dokumentuj
+  nl: Schrijven, testen, debuggen en documenteren
+  ar: الكتابة والاختبار والتصحيح والتوثيق
+  hi: लिखें, परीक्षण करें, डीबग करें और दस्तावेज़ करें
+  th: เขียน ทดสอบ แก้ไขข้อผิดพลาด และจัดทำเอกสาร
+  cs: Psát, testovat, ladit a dokumentovat
+  sv: Skriv, testa, felsök och dokumentera
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for write_test_debug_document
+  en: Write, test, debug code and update docs.
+  de: Code schreiben, testen, debuggen & Doku updaten.
+  zh: 编写、测试、调试代码并更新文档。
+  es: Escribe, prueba, depura código y actualiza docs.
+  fr: Écrire, tester, déboguer et mettre à jour la doc.
+  pt: Escreva, teste, depure código e atualize a doc.
+  ru: Пишите, тестируйте, отлаживайте код и обновляйте док.
+  ja: コードを書き、テスト、デバッグし、ドキュメントを更新。
+  ko: 코드 작성, 테스트, 디버그 및 문서 업데이트.
+  it: Scrivi, testa, debugga il codice e aggiorna i doc.
+  tr: Kod yaz, test et, hata ayıkla ve belgeleri güncelle.
+  vi: Viết, kiểm tra, gỡ lỗi mã và cập nhật tài liệu.
+  id: Tulis, uji, debug kode dan perbarui dokumentasi.
+  pl: Pisz, testuj, debuguj kod i aktualizuj dokumentację.
+  nl: Schrijf, test, debug code en werk docs bij.
+  ar: اكتب واختبر وصحح الكود وحدّث الوثائق.
+  hi: कोड लिखें, टेस्ट, डीबग करें, डॉक्स अपडेट करें।
+  th: เขียน ทดสอบ ดีบักโค้ด และอัปเดตเอกสาร
+  cs: Pište, testujte, laďte kód a aktualizujte dok.
+  sv: Skriv, testa, felsök kod och uppdatera dok.
+  verified_by_human:
+    - en
+process:
+  context: Step-by-step process description for write_test_debug_document focus mode
+  en: |
+    - ask users clarifying question to make the requirements clear and create requirements.md file
+    - for more complex tasks, create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.
+    - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
+  verified_by_human:
+    - en
+systemprompt:
+  context: System prompt for the LLM when write_test_debug_document focus mode is active
+  en: You are a programming expert.
+  verified_by_human:
+    - en

@@ -1,46 +1,48 @@
-life_coaching_future_speaking.ar: التحدث عن المستقبل
-life_coaching_future_speaking.context: Focus mode display name for future_speaking in life_coaching app
-life_coaching_future_speaking.cs: Rozhovor o budoucnosti
-life_coaching_future_speaking.de: Zukunftsgespräch
-life_coaching_future_speaking.description.ar: تقنية قوية للتدريب على الحياة.
-life_coaching_future_speaking.description.context: Focus mode description for future_speaking
-life_coaching_future_speaking.description.cs: Mocná technika životního koučinku.
-life_coaching_future_speaking.description.de: Eine kraftvolle Lebensberatungstechnik.
-life_coaching_future_speaking.description.en: A powerful life coaching technique.
-life_coaching_future_speaking.description.es: Una poderosa técnica de coaching de vida.
-life_coaching_future_speaking.description.fr: Une technique puissante de coaching de vie.
-life_coaching_future_speaking.description.hi: एक शक्तिशाली जीवन कोचिंग तकनीक।
-life_coaching_future_speaking.description.id: Teknik bimbingan hidup yang kuat.
-life_coaching_future_speaking.description.it: Una potente tecnica di life coaching.
-life_coaching_future_speaking.description.ja: 強力なライフコーチングテクニック。
-life_coaching_future_speaking.description.ko: 강력한 라이프 코칭 기법.
-life_coaching_future_speaking.description.nl: Een krachtige levenscoachingtechniek.
-life_coaching_future_speaking.description.pl: Potężna technika coachingu życiowego.
-life_coaching_future_speaking.description.pt: Uma técnica poderosa de coaching de vida.
-life_coaching_future_speaking.description.ru: Мощная техника коучинга жизни.
-life_coaching_future_speaking.description.sv: En kraftfull livscoachingteknik.
-life_coaching_future_speaking.description.th: เทคนิคการโค้ชชีวิตที่ทรงพลัง
-life_coaching_future_speaking.description.tr: Güçlü bir yaşam koçluğu tekniği.
-life_coaching_future_speaking.description.verified_by_human:
-  - en
-life_coaching_future_speaking.description.vi: Kỹ thuật huấn luyện cuộc sống mạnh mẽ.
-life_coaching_future_speaking.description.zh: 一种强大的生活指导技巧。
-life_coaching_future_speaking.en: Future speaking
-life_coaching_future_speaking.es: Hablar del futuro
-life_coaching_future_speaking.fr: Parler du futur
-life_coaching_future_speaking.hi: भविष्य की बातचीत
-life_coaching_future_speaking.id: Berbicara masa depan
-life_coaching_future_speaking.it: Parlare del futuro
-life_coaching_future_speaking.ja: 未来について話す
-life_coaching_future_speaking.ko: 미래 대화
-life_coaching_future_speaking.nl: Toekomstgesprek
-life_coaching_future_speaking.pl: Rozmowa o przyszłości
-life_coaching_future_speaking.pt: Falar sobre o futuro
-life_coaching_future_speaking.ru: Разговор о будущем
-life_coaching_future_speaking.sv: Framtidsamtal
-life_coaching_future_speaking.th: การพูดคุยเกี่ยวกับอนาคต
-life_coaching_future_speaking.tr: Gelecek konuşması
-life_coaching_future_speaking.verified_by_human:
-  - en
-life_coaching_future_speaking.vi: Nói về tương lai
-life_coaching_future_speaking.zh: 未来对话
+life_coaching_future_speaking:
+  context: Focus mode display name for future_speaking in life_coaching app
+  en: Future speaking
+  de: Zukunftsgespräch
+  zh: 未来对话
+  es: Hablar del futuro
+  fr: Parler du futur
+  pt: Falar sobre o futuro
+  ru: Разговор о будущем
+  ja: 未来について話す
+  ko: 미래 대화
+  it: Parlare del futuro
+  tr: Gelecek konuşması
+  vi: Nói về tương lai
+  id: Berbicara masa depan
+  pl: Rozmowa o przyszłości
+  nl: Toekomstgesprek
+  ar: التحدث عن المستقبل
+  hi: भविष्य की बातचीत
+  th: การพูดคุยเกี่ยวกับอนาคต
+  cs: Rozhovor o budoucnosti
+  sv: Framtidsamtal
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for future_speaking
+  en: A powerful life coaching technique.
+  de: Eine kraftvolle Lebensberatungstechnik.
+  zh: 一种强大的生活指导技巧。
+  es: Una poderosa técnica de coaching de vida.
+  fr: Une technique puissante de coaching de vie.
+  pt: Uma técnica poderosa de coaching de vida.
+  ru: Мощная техника коучинга жизни.
+  ja: 強力なライフコーチングテクニック。
+  ko: 강력한 라이프 코칭 기법.
+  it: Una potente tecnica di life coaching.
+  tr: Güçlü bir yaşam koçluğu tekniği.
+  vi: Kỹ thuật huấn luyện cuộc sống mạnh mẽ.
+  id: Teknik bimbingan hidup yang kuat.
+  pl: Potężna technika coachingu życiowego.
+  nl: Een krachtige levenscoachingtechniek.
+  ar: تقنية قوية للتدريب على الحياة.
+  hi: एक शक्तिशाली जीवन कोचिंग तकनीक।
+  th: เทคนิคการโค้ชชีวิตที่ทรงพลัง
+  cs: Mocná technika životního koučinku.
+  sv: En kraftfull livscoachingteknik.
+  verified_by_human:
+    - en

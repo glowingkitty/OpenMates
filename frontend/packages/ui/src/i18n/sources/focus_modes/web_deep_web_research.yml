@@ -1,56 +1,60 @@
-web_deep_web_research.ar: بحث ويب عميق
-web_deep_web_research.context: Focus mode display name for deep_web_research in web app
-web_deep_web_research.cs: Hluboký webový výzkum
-web_deep_web_research.de: Tiefe Web-Recherche
-web_deep_web_research.description.ar: خطط وأجرِ بحثًا عميقًا على الويب لتقرير.
-web_deep_web_research.description.context: Focus mode description for deep_web_research
-web_deep_web_research.description.cs: Naplánujte a proveďte hloubkový webový výzkum.
-web_deep_web_research.description.de: Tiefe Web-Recherche planen und durchführen.
-web_deep_web_research.description.en: Plan and conduct deep web research for a report.
-web_deep_web_research.description.es: Investiga a fondo en la web para un informe.
-web_deep_web_research.description.fr: Planifiez et menez une recherche web approfondie.
-web_deep_web_research.description.hi: रिपोर्ट के लिए गहन वेब शोध की योजना बनाएं।
-web_deep_web_research.description.id: Rencanakan dan lakukan riset web mendalam.
-web_deep_web_research.description.it: Pianifica e conduci una ricerca web approfondita.
-web_deep_web_research.description.ja: 計画を立て、深いウェブ調査を行いレポートを作成。
-web_deep_web_research.description.ko: 심층 웹 조사를 계획하고 보고서를 작성하세요.
-web_deep_web_research.description.nl: Plan en voer diepgaand webonderzoek uit.
-web_deep_web_research.description.pl: Zaplanuj i przeprowadź głębokie badanie web.
-web_deep_web_research.description.pt: Pesquisa web profunda para gerar um relatório.
-web_deep_web_research.description.ru: Спланируйте и проведите глубокое веб-исследование.
-web_deep_web_research.description.sv: Planera och genomför djup webbforskning.
-web_deep_web_research.description.th: วางแผนและวิจัยเว็บเชิงลึกเพื่อสร้างรายงาน
-web_deep_web_research.description.tr: Rapor için derin web araştırması planlayın ve yapın.
-web_deep_web_research.description.verified_by_human:
-  - en
-web_deep_web_research.description.vi: Lập kế hoạch và nghiên cứu web sâu cho báo cáo.
-web_deep_web_research.description.zh: 规划并进行深度网络研究以生成报告。
-web_deep_web_research.en: Deep web research
-web_deep_web_research.es: Investigación web profunda
-web_deep_web_research.fr: Recherche web approfondie
-web_deep_web_research.hi: गहरी वेब अनुसंधान
-web_deep_web_research.id: Penelitian web mendalam
-web_deep_web_research.it: Ricerca web approfondita
-web_deep_web_research.ja: 深いウェブリサーチ
-web_deep_web_research.ko: 심층 웹 연구
-web_deep_web_research.nl: Diepgaand webonderzoek
-web_deep_web_research.pl: Głębokie badania internetowe
-web_deep_web_research.process.context: Step-by-step process description for deep_web_research focus mode
-web_deep_web_research.process.en: |
-  - asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms
-  - then starts in depth web searches for the search terms and creates a report based on the findings
-web_deep_web_research.process.verified_by_human:
-  - en
-web_deep_web_research.pt: Pesquisa web profunda
-web_deep_web_research.ru: Глубокое веб-исследование
-web_deep_web_research.sv: Djup webbforskning
-web_deep_web_research.systemprompt.context: System prompt for the LLM when deep_web_research focus mode is active
-web_deep_web_research.systemprompt.en: You are an expert for deep web research.
-web_deep_web_research.systemprompt.verified_by_human:
-  - en
-web_deep_web_research.th: การวิจัยเว็บเชิงลึก
-web_deep_web_research.tr: Derin web araştırması
-web_deep_web_research.verified_by_human:
-  - en
-web_deep_web_research.vi: Nghiên cứu web sâu
-web_deep_web_research.zh: 深度网络研究
+web_deep_web_research:
+  context: Focus mode display name for deep_web_research in web app
+  en: Deep web research
+  de: Tiefe Web-Recherche
+  zh: 深度网络研究
+  es: Investigación web profunda
+  fr: Recherche web approfondie
+  pt: Pesquisa web profunda
+  ru: Глубокое веб-исследование
+  ja: 深いウェブリサーチ
+  ko: 심층 웹 연구
+  it: Ricerca web approfondita
+  tr: Derin web araştırması
+  vi: Nghiên cứu web sâu
+  id: Penelitian web mendalam
+  pl: Głębokie badania internetowe
+  nl: Diepgaand webonderzoek
+  ar: بحث ويب عميق
+  hi: गहरी वेब अनुसंधान
+  th: การวิจัยเว็บเชิงลึก
+  cs: Hluboký webový výzkum
+  sv: Djup webbforskning
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for deep_web_research
+  en: Plan and conduct deep web research for a report.
+  de: Tiefe Web-Recherche planen und durchführen.
+  zh: 规划并进行深度网络研究以生成报告。
+  es: Investiga a fondo en la web para un informe.
+  fr: Planifiez et menez une recherche web approfondie.
+  pt: Pesquisa web profunda para gerar um relatório.
+  ru: Спланируйте и проведите глубокое веб-исследование.
+  ja: 計画を立て、深いウェブ調査を行いレポートを作成。
+  ko: 심층 웹 조사를 계획하고 보고서를 작성하세요.
+  it: Pianifica e conduci una ricerca web approfondita.
+  tr: Rapor için derin web araştırması planlayın ve yapın.
+  vi: Lập kế hoạch và nghiên cứu web sâu cho báo cáo.
+  id: Rencanakan dan lakukan riset web mendalam.
+  pl: Zaplanuj i przeprowadź głębokie badanie web.
+  nl: Plan en voer diepgaand webonderzoek uit.
+  ar: خطط وأجرِ بحثًا عميقًا على الويب لتقرير.
+  hi: रिपोर्ट के लिए गहन वेब शोध की योजना बनाएं।
+  th: วางแผนและวิจัยเว็บเชิงลึกเพื่อสร้างรายงาน
+  cs: Naplánujte a proveďte hloubkový webový výzkum.
+  sv: Planera och genomför djup webbforskning.
+  verified_by_human:
+    - en
+process:
+  context: Step-by-step process description for deep_web_research focus mode
+  en: |
+    - asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms
+    - then starts in depth web searches for the search terms and creates a report based on the findings
+  verified_by_human:
+    - en
+systemprompt:
+  context: System prompt for the LLM when deep_web_research focus mode is active
+  en: You are an expert for deep web research.
+  verified_by_human:
+    - en

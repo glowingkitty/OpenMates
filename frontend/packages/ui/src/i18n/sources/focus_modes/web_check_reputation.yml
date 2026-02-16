@@ -1,57 +1,61 @@
-web_check_reputation.ar: تحقق من السمعة
-web_check_reputation.context: Focus mode display name for check_reputation in web app
-web_check_reputation.cs: Zkontrolovat pověst
-web_check_reputation.de: Reputation prüfen
-web_check_reputation.description.ar: تحقق مما إذا كان العمل شرعيًا وموثوقًا.
-web_check_reputation.description.context: Focus mode description for check_reputation
-web_check_reputation.description.cs: Zkontrolujte, zda je podnik legitimní a spolehlivý.
-web_check_reputation.description.de: Prüfe, ob ein Unternehmen seriös und zuverlässig ist.
-web_check_reputation.description.en: Check if a business is legit and reliable.
-web_check_reputation.description.es: Verifica si un negocio es legítimo y confiable.
-web_check_reputation.description.fr: Vérifiez si une entreprise est légitime et fiable.
-web_check_reputation.description.hi: जांचें कि क्या कोई व्यवसाय वैध और विश्वसनीय है।
-web_check_reputation.description.id: Periksa apakah bisnis sah dan dapat diandalkan.
-web_check_reputation.description.it: Verifica se un'azienda è legittima e affidabile.
-web_check_reputation.description.ja: ビジネスが正当で信頼できるかどうかを確認する。
-web_check_reputation.description.ko: 비즈니스가 합법적이고 신뢰할 수 있는지 확인하세요.
-web_check_reputation.description.nl: Controleer of een bedrijf legitiem en betrouwbaar is.
-web_check_reputation.description.pl: Sprawdź, czy firma jest legalna i niezawodna.
-web_check_reputation.description.pt: Verifique se uma empresa é legítima e confiável.
-web_check_reputation.description.ru: Проверьте, является ли бизнес законным и надежным.
-web_check_reputation.description.sv: Kontrollera om ett företag är legitimt och pålitligt.
-web_check_reputation.description.th: ตรวจสอบว่าธุรกิจถูกต้องตามกฎหมายและน่าเชื่อถือหรือไม่
-web_check_reputation.description.tr: Bir işletmenin güvenilir olup olmadığını kontrol edin.
-web_check_reputation.description.verified_by_human:
-  - en
-web_check_reputation.description.vi: Kiểm tra doanh nghiệp có hợp pháp và đáng tin không.
-web_check_reputation.description.zh: 检查企业是否合法可靠。
-web_check_reputation.en: Check reputation
-web_check_reputation.es: Verificar reputación
-web_check_reputation.fr: Vérifier la réputation
-web_check_reputation.hi: प्रतिष्ठा जांचें
-web_check_reputation.id: Periksa reputasi
-web_check_reputation.it: Verifica reputazione
-web_check_reputation.ja: 評判を確認
-web_check_reputation.ko: 평판 확인
-web_check_reputation.nl: Controleer reputatie
-web_check_reputation.pl: Sprawdź reputację
-web_check_reputation.process.context: Step-by-step process description for check_reputation focus mode
-web_check_reputation.process.en: |
-  - check if a business exist on trustpilot and what its rating is
-  - check on whois.com if the website is nearky registered
-  - use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings
-web_check_reputation.process.verified_by_human:
-  - en
-web_check_reputation.pt: Verificar reputação
-web_check_reputation.ru: Проверить репутацию
-web_check_reputation.sv: Kontrollera rykte
-web_check_reputation.systemprompt.context: System prompt for the LLM when check_reputation focus mode is active
-web_check_reputation.systemprompt.en: You are an expert on identifying scams vs legit businesses.
-web_check_reputation.systemprompt.verified_by_human:
-  - en
-web_check_reputation.th: ตรวจสอบชื่อเสียง
-web_check_reputation.tr: İtibar kontrolü
-web_check_reputation.verified_by_human:
-  - en
-web_check_reputation.vi: Kiểm tra danh tiếng
-web_check_reputation.zh: 检查声誉
+web_check_reputation:
+  context: Focus mode display name for check_reputation in web app
+  en: Check reputation
+  de: Reputation prüfen
+  zh: 检查声誉
+  es: Verificar reputación
+  fr: Vérifier la réputation
+  pt: Verificar reputação
+  ru: Проверить репутацию
+  ja: 評判を確認
+  ko: 평판 확인
+  it: Verifica reputazione
+  tr: İtibar kontrolü
+  vi: Kiểm tra danh tiếng
+  id: Periksa reputasi
+  pl: Sprawdź reputację
+  nl: Controleer reputatie
+  ar: تحقق من السمعة
+  hi: प्रतिष्ठा जांचें
+  th: ตรวจสอบชื่อเสียง
+  cs: Zkontrolovat pověst
+  sv: Kontrollera rykte
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for check_reputation
+  en: Check if a business is legit and reliable.
+  de: Prüfe, ob ein Unternehmen seriös und zuverlässig ist.
+  zh: 检查企业是否合法可靠。
+  es: Verifica si un negocio es legítimo y confiable.
+  fr: Vérifiez si une entreprise est légitime et fiable.
+  pt: Verifique se uma empresa é legítima e confiável.
+  ru: Проверьте, является ли бизнес законным и надежным.
+  ja: ビジネスが正当で信頼できるかどうかを確認する。
+  ko: 비즈니스가 합법적이고 신뢰할 수 있는지 확인하세요.
+  it: Verifica se un'azienda è legittima e affidabile.
+  tr: Bir işletmenin güvenilir olup olmadığını kontrol edin.
+  vi: Kiểm tra doanh nghiệp có hợp pháp và đáng tin không.
+  id: Periksa apakah bisnis sah dan dapat diandalkan.
+  pl: Sprawdź, czy firma jest legalna i niezawodna.
+  nl: Controleer of een bedrijf legitiem en betrouwbaar is.
+  ar: تحقق مما إذا كان العمل شرعيًا وموثوقًا.
+  hi: जांचें कि क्या कोई व्यवसाय वैध और विश्वसनीय है।
+  th: ตรวจสอบว่าธุรกิจถูกต้องตามกฎหมายและน่าเชื่อถือหรือไม่
+  cs: Zkontrolujte, zda je podnik legitimní a spolehlivý.
+  sv: Kontrollera om ett företag är legitimt och pålitligt.
+  verified_by_human:
+    - en
+process:
+  context: Step-by-step process description for check_reputation focus mode
+  en: |
+    - check if a business exist on trustpilot and what its rating is
+    - check on whois.com if the website is nearky registered
+    - use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings
+  verified_by_human:
+    - en
+systemprompt:
+  context: System prompt for the LLM when check_reputation focus mode is active
+  en: You are an expert on identifying scams vs legit businesses.
+  verified_by_human:
+    - en
