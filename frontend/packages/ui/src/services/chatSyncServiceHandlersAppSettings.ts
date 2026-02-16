@@ -153,11 +153,15 @@ async function populateCategoryEntries(
   categories: AppSettingsMemoriesCategory[],
 ): Promise<void> {
   try {
-    const { appSettingsMemoriesStore } = await import(
-      "../stores/appSettingsMemoriesStore"
-    );
+    const { appSettingsMemoriesStore } =
+      await import("../stores/appSettingsMemoriesStore");
     const { appSkillsStore } = await import("../stores/appSkillsStore");
     const storeState = get(appSettingsMemoriesStore);
+
+    console.debug(
+      `[ChatSyncService:AppSettings] Populating entries for ${categories.length} categories. ` +
+        `Total decrypted entries in store: ${storeState.decryptedEntries.size}`,
+    );
 
     for (const category of categories) {
       // Find schema for is_title / is_subtitle fields
@@ -189,7 +193,10 @@ async function populateCategoryEntries(
           decryptedEntry.settings_group === category.itemType
         ) {
           const title = titleField
-            ? String(decryptedEntry.item_value[titleField] || decryptedEntry.item_key)
+            ? String(
+                decryptedEntry.item_value[titleField] ||
+                  decryptedEntry.item_key,
+              )
             : decryptedEntry.item_key;
           const subtitle = subtitleField
             ? String(decryptedEntry.item_value[subtitleField] || "")
@@ -205,12 +212,16 @@ async function populateCategoryEntries(
       }
 
       category.entries = entries;
+      console.debug(
+        `[ChatSyncService:AppSettings] Populated ${entries.length} entries for category ${category.key} (${category.displayName})`,
+      );
     }
   } catch (error) {
-    console.warn(
-      "[ChatSyncService:AppSettings] Could not populate category entries (dialog still works at category level):",
+    console.error(
+      "[ChatSyncService:AppSettings] Error populating category entries:",
       error,
     );
+    throw error; // Re-throw so caller can handle it
   }
 }
 
@@ -305,7 +316,24 @@ export async function handleRequestAppSettingsMemoriesImpl(
     }
 
     // Populate individual entry info for each category (for entry-level selection in the dialog)
-    await populateCategoryEntries(categories);
+    // IMPORTANT: If this fails, categories will have no entry-level info (only category-level)
+    try {
+      await populateCategoryEntries(categories);
+      console.info(
+        `[ChatSyncService:AppSettings] Successfully populated entries for ${categories.length} categories`,
+      );
+    } catch (populateError) {
+      console.error(
+        "[ChatSyncService:AppSettings] Failed to populate category entries. Dialog will only show category-level selection:",
+        populateError,
+      );
+      // Initialize entries as empty array for each category so the UI can still work
+      for (const category of categories) {
+        if (!category.entries) {
+          category.entries = [];
+        }
+      }
+    }
 
     console.info(
       `[ChatSyncService:AppSettings] Built ${categories.length} categories for permission dialog`,
@@ -1715,10 +1743,7 @@ export async function handlePendingAIResponseImpl(
     }
 
     // Skip error responses - they shouldn't be persisted
-    if (
-      content.includes("[ERROR") ||
-      content === "chat.an_error_occured"
-    ) {
+    if (content.includes("[ERROR") || content === "chat.an_error_occured") {
       console.debug(
         `[ChatSyncService:PendingAI] Skipping error response for message ${message_id}`,
       );

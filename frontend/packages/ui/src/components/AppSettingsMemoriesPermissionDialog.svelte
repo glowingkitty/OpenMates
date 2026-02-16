@@ -102,10 +102,19 @@
     /**
      * Get the count of selected entries for a category.
      * Returns the total entry count if no entry-level info is available.
+     * 
+     * IMPORTANT: This function must be reactive to changes in category.entries[].selected
      */
     function getSelectedEntryCount(category: { entries?: { selected: boolean }[]; entryCount: number }): number {
-        if (!category.entries) return category.entryCount;
-        return category.entries.filter(e => e.selected).length;
+        // If no individual entries are available (shouldn't happen after async population), assume all selected
+        if (!category.entries) {
+            console.warn('[PermissionDialog] Category has no entries array:', category);
+            return category.entryCount;
+        }
+        // Count selected entries
+        const selectedCount = category.entries.filter(e => e.selected).length;
+        console.debug(`[PermissionDialog] Selected count for category: ${selectedCount}/${category.entries.length}`);
+        return selectedCount;
     }
 </script>
 
