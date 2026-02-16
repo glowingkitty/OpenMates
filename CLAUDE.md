@@ -533,16 +533,75 @@ docker exec api python /app/backend/scripts/inspect_newsletter.py --json
 
 ### AI Request Debugging
 
+The `inspect_last_requests.py` script provides flexible debugging of AI request processing with multiple viewing modes.
+
+**IMPORTANT:** Only **admin user requests** are cached for debugging (72-hour retention). Regular user requests are never cached for privacy.
+
+**Quick List View (Default):**
+
 ```bash
-# Save all recent AI requests to YAML file
-docker exec -it api python /app/backend/scripts/inspect_last_requests.py
+# List all cached requests (quick overview)
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --list
 
-# Filter by specific chat ID
-docker exec -it api python /app/backend/scripts/inspect_last_requests.py --chat-id <chat_id>
+# Filter by chat ID
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --chat-id <chat_id> --list
 
-# Copy output file to host machine
+# Filter by task ID
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --task-id <task_id> --list
+
+# Show only requests from last 5 minutes
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --since-minutes 5 --list
+
+# Show only requests with errors
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --errors-only --list
+```
+
+**Detailed Summary View:**
+
+```bash
+# Show detailed summary with statistics
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --summary
+
+# Combine filters for targeted analysis
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --chat-id <chat_id> --errors-only --summary
+```
+
+**Full YAML Export:**
+
+```bash
+# Save full debug data to YAML file
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --yaml
+
+# With custom output path
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --yaml --output /tmp/debug.yml
+
+# Copy to host machine
 docker cp api:/app/backend/scripts/debug_output/last_requests_<timestamp>.yml ./debug_output.yml
 ```
+
+**Other Options:**
+
+```bash
+# JSON output (for programmatic use)
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --json
+
+# Clear all cached debug data
+docker exec -it api python /app/backend/scripts/inspect_last_requests.py --clear
+```
+
+**Filtering Options (combinable):**
+
+- `--chat-id <id>` - Filter by chat ID
+- `--task-id <id>` - Filter by Celery task ID
+- `--since-minutes <n>` - Only show requests from last N minutes
+- `--errors-only` - Only show requests with detected errors
+
+**Output Modes (mutually exclusive):**
+
+- `--list` - Concise table view (default)
+- `--summary` - Detailed summary with statistics
+- `--yaml` - Full YAML export to file
+- `--json` - JSON output for scripts
 
 ### User Debugging
 

@@ -862,11 +862,12 @@ async def _async_process_ai_skill_ask_task(
                     encryption_service=encryption_service_instance,
                     task_id=task_id,
                     chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
                     stage="preprocessor",
                     input_data=preprocessor_input,
                     output_data=preprocessor_output,
                 )
-                logger.debug(f"[Task ID: {task_id}] Cached preprocessor debug data (full content)")
+                logger.debug(f"[Task ID: {task_id}] Cached preprocessor debug data (admin only)")
         except Exception as e_debug:
             # Don't fail the task if debug caching fails - just log the error
             logger.warning(f"[Task ID: {task_id}] Failed to cache preprocessor debug data (non-fatal): {e_debug}")
@@ -1219,11 +1220,12 @@ async def _async_process_ai_skill_ask_task(
                     encryption_service=encryption_service_instance,
                     task_id=task_id,
                     chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
                     stage="main_processor",
                     input_data=main_processor_input,
                     output_data=main_processor_output,
                 )
-                logger.info(f"[Task ID: {task_id}] Cached main_processor debug data (full content)")
+                logger.info(f"[Task ID: {task_id}] Cached main_processor debug data (admin only)")
         except Exception as e_debug:
             # Don't fail the task if debug caching fails - log at ERROR level with full traceback
             logger.error(f"[Task ID: {task_id}] Failed to cache main_processor debug data (non-fatal): {e_debug}", exc_info=True)
@@ -1621,11 +1623,12 @@ async def _async_process_ai_skill_ask_task(
                     encryption_service=encryption_service_instance,
                     task_id=task_id,
                     chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
                     stage="postprocessor",
                     input_data=postprocessor_input,
                     output_data=postprocessor_output,
                 )
-                logger.debug(f"[Task ID: {task_id}] Cached postprocessor debug data (full content)")
+                logger.debug(f"[Task ID: {task_id}] Cached postprocessor debug data (admin only)")
         except Exception as e_debug:
             # Don't fail the task if debug caching fails - just log the error
             logger.warning(f"[Task ID: {task_id}] Failed to cache postprocessor debug data (non-fatal): {e_debug}")
