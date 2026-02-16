@@ -839,7 +839,21 @@ async def call_preprocessing_llm(
 
         if response.success and response.tool_calls_made:
             for tool_call in response.tool_calls_made:
-                if tool_call.function_name == expected_tool_name:
+                # Some LLM providers (e.g., Groq) may prefix function names with namespaces like "functions."
+                # We match both exact names and names with common prefixes to handle this
+                function_name = tool_call.function_name
+                name_matches = (
+                    function_name == expected_tool_name or 
+                    function_name == f"functions.{expected_tool_name}" or
+                    function_name.endswith(f".{expected_tool_name}")
+                )
+                
+                if name_matches:
+                    if function_name != expected_tool_name:
+                        logger.debug(
+                            f"[{task_id}] Tool call used prefixed name '{function_name}' "
+                            f"instead of expected '{expected_tool_name}'. Accepting as match."
+                        )
                     if tool_call.parsing_error:
                         err_msg = f"Failed to parse arguments for tool '{expected_tool_name}': {tool_call.parsing_error}"
                         return LLMPreprocessingCallResult(error_message=err_msg, raw_provider_response_summary=current_raw_provider_response_summary)
