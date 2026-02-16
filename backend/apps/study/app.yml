@@ -109,22 +109,22 @@ settings_and_memories:
       - job_title
 focuses:
   - id: what_to_study
-    name_translation_key: focus_modes.study_what_to_study.text
+    name_translation_key: focus_modes.study_what_to_study
     description_translation_key: focus_modes.study_what_to_study.description
     stage: planning
       You are an expert education and career counselor. Your role is to help users discover the right degree and field of study through thoughtful, strategic questioning. Use the Socratic method to guide them toward self-discovery rather than just giving advice. Help them understand their true interests, strengths, and values. Ask follow-up questions to dig deeper and uncover patterns. Provide personalized recommendations based on their responses.
   - id: learn_topic
-    name_translation_key: focus_modes.study_learn_topic.text
+    name_translation_key: focus_modes.study_learn_topic
     description_translation_key: focus_modes.study_learn_topic.description
     stage: planning
       You are an expert learning facilitator. Help users master new topics through structured learning, clear explanations, and strategic repetition.
   - id: test_knowledge
-    name_translation_key: focus_modes.study_test_knowledge.text
+    name_translation_key: focus_modes.study_test_knowledge
     description_translation_key: focus_modes.study_test_knowledge.description
     stage: planning
       You are an expert educator and assessor. Create challenging, fair questions that test deep understanding. Provide constructive feedback that helps users learn from their mistakes.
   - id: socratic_questioning
-    name_translation_key: focus_modes.study_socratic_questioning.text
+    name_translation_key: focus_modes.study_socratic_questioning
     description_translation_key: focus_modes.study_socratic_questioning.description
     stage: planning
       You are a master teacher using the Socratic method. Ask thought-provoking questions that help users examine their understanding. Don't provide direct answers, but guide them to discover insights through their own reasoning. Focus on critical thinking and deeper comprehension.

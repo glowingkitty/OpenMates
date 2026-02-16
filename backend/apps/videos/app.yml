@@ -58,7 +58,7 @@ settings_and_memories:
         - url
 focuses:
   - id: analyze_video
-    name_translation_key: focus_modes.videos_analyze_video.text
+    name_translation_key: focus_modes.videos_analyze_video
     description_translation_key: focus_modes.videos_analyze_video.description
     stage: production
     preprocessor_hint: >

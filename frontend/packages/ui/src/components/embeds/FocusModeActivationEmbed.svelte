@@ -100,17 +100,26 @@
   let isRejected = $state(wasAlreadyRejected);
   let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
-  // Resolve the focus mode name — may be a translation key like "jobs.career_insights"
+  // Resolve the focus mode name — may be a translation key like "focus_modes.jobs_career_insights"
   // or a pre-resolved display name from the backend like "Career Insights"
+  // Build a human-readable fallback from the focus ID: "jobs-career_insights" → "Career Insights"
   let focusFallbackName = $derived(
-    focusModeName.split('.').slice(-2, -1)[0]?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || focusModeName
+    focusId
+      ? focusId.split('-').slice(1).join(' ').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+      : focusModeName
   );
   let displayName = $derived.by(() => {
+    // First try looking up focusModeName as a translation key
     const translated = $text(focusModeName);
-    // If $text returned the raw key (translation not found and default wasn't applied),
-    // fall back to the human-readable name
-    if (translated === focusModeName && focusFallbackName !== focusModeName) return focusFallbackName;
-    return translated || focusFallbackName;
+    // $text returns "[T:key]" when the key is not found
+    if (!translated.startsWith('[T:')) return translated;
+
+    // If the backend sent a pre-resolved display name (not a translation key),
+    // use it directly — it won't be a valid key so $text returns a placeholder
+    if (!focusModeName.includes('.')) return focusModeName;
+
+    // Last resort: human-readable fallback derived from the focus ID
+    return focusFallbackName;
   });
 
   // Status text shown on the card

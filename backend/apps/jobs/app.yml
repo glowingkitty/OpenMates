@@ -7,7 +7,7 @@ last_updated: "2026-02-12"
 skills: []
 focuses:
   - id: career_insights
-    name_translation_key: focus_modes.jobs_career_insights.text
+    name_translation_key: focus_modes.jobs_career_insights
     description_translation_key: focus_modes.jobs_career_insights.description
     stage: production
     preprocessor_hint: >

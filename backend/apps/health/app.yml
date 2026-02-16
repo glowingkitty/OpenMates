@@ -172,16 +172,16 @@ skills:
     stage: planning
 focuses:
   - id: prepare_doctor_report
-    name_translation_key: focus_modes.health_prepare_doctor_report.text
+    name_translation_key: focus_modes.health_prepare_doctor_report
     description_translation_key: focus_modes.health_prepare_doctor_report.description
     stage: planning
   - id: health_insights
-    name_translation_key: focus_modes.health_health_insights.text
+    name_translation_key: focus_modes.health_health_insights
     description_translation_key: focus_modes.health_health_insights.description
     stage: planning
       You are a health expert.
   - id: prepare_doctor_appointment
-    name_translation_key: focus_modes.health_prepare_doctor_appointment.text
+    name_translation_key: focus_modes.health_prepare_doctor_appointment
     description_translation_key: focus_modes.health_prepare_doctor_appointment.description
     stage: planning
       You are a health expert.

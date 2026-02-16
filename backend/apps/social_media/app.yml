@@ -8,7 +8,7 @@ last_updated: '2025-11-17'
 
 focuses:
   - id: content_calendar_strategist
-    name_translation_key: focus_modes.social_media_content_calendar_strategist.text
+    name_translation_key: focus_modes.social_media_content_calendar_strategist
     description_translation_key: focus_modes.social_media_content_calendar_strategist.description
     stage: planning
     systemprompt_translation_key: social_media.content_calendar_strategist.systemprompt

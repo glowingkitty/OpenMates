@@ -102,11 +102,11 @@ skills:
       skills.translate.TranslateSkill
 focuses:
   - id: book_recommendations
-    name_translation_key: focus_modes.books_book_recommendations.text
+    name_translation_key: focus_modes.books_book_recommendations
     description_translation_key: focus_modes.books_book_recommendations.description
     stage: planning
   - id: book_discussion
-    name_translation_key: focus_modes.books_book_discussion.text
+    name_translation_key: focus_modes.books_book_discussion
     description_translation_key: focus_modes.books_book_discussion.description
     stage: planning
       You are a books expert.
