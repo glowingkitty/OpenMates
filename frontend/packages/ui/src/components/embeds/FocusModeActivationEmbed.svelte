@@ -340,7 +340,7 @@
     position: relative;
     overflow: hidden;
     transition: background-color 0.2s ease, box-shadow 0.2s ease;
-    max-width: 380px;
+    width: 380px;
   }
 
   .focus-mode-bar.counting {
