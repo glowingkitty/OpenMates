@@ -1951,16 +1951,25 @@ async def handle_main_processing(
                                 )
                                 
                                 # Resolve the translated focus mode name for UI display
+                                # Load in the user's language (from preprocessing) with English fallback
                                 focus_mode_display_name = focus_id  # fallback
                                 try:
                                     fm_app_id, fm_mode_id = focus_id.split('-', 1)
+                                    user_language = preprocessing_results.output_language or "en"
                                     fm_app_metadata = discovered_apps_metadata.get(fm_app_id)
                                     if fm_app_metadata and fm_app_metadata.focuses:
                                         for fm_def in fm_app_metadata.focuses:
                                             if fm_def.id == fm_mode_id:
+                                                # Try user's language first, fallback to English
                                                 focus_mode_display_name = translation_service.get_nested_translation(
-                                                    fm_def.name_translation_key
-                                                ) or fm_def.name_translation_key
+                                                    fm_def.name_translation_key, lang=user_language
+                                                ) or ""
+                                                if not focus_mode_display_name and user_language != "en":
+                                                    focus_mode_display_name = translation_service.get_nested_translation(
+                                                        fm_def.name_translation_key, lang="en"
+                                                    ) or fm_def.name_translation_key
+                                                elif not focus_mode_display_name:
+                                                    focus_mode_display_name = fm_def.name_translation_key
                                                 break
                                 except Exception:
                                     pass
@@ -1997,12 +2006,22 @@ async def handle_main_processing(
                         
                         # --- Load focus mode prompt from translation service ---
                         # Translation key format: focus_modes.{app_id}_{focus_id}.systemprompt
+                        # Load in the user's language (from preprocessing) with English fallback
                         focus_prompt_text = ""
                         try:
                             focus_app_id, focus_mode_id = focus_id.split('-', 1)
                             translation_key = f"focus_modes.{focus_app_id}_{focus_mode_id}.systemprompt"
-                            focus_prompt_text = translation_service.get_nested_translation(translation_key) or ""
-                            logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt from translations ({len(focus_prompt_text)} chars)")
+                            user_language = preprocessing_results.output_language or "en"
+                            
+                            # Try to load in user's language first
+                            focus_prompt_text = translation_service.get_nested_translation(translation_key, lang=user_language) or ""
+                            
+                            # Fallback to English if not found in user's language
+                            if not focus_prompt_text and user_language != "en":
+                                focus_prompt_text = translation_service.get_nested_translation(translation_key, lang="en") or ""
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt in fallback language (en) ({len(focus_prompt_text)} chars)")
+                            else:
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt in user language ({user_language}) ({len(focus_prompt_text)} chars)")
                         except Exception as e:
                             logger.error(f"{log_prefix} [FOCUS_MODE] Error loading focus prompt: {e}", exc_info=True)
                         
