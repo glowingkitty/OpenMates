@@ -596,6 +596,9 @@ export async function handlePermissionDialogConfirm(
     }
 
     // Import and call the sender function
+    console.info(
+      `[ChatSyncService:AppSettings] About to send ${appSettingsMemories.length} entries to server...`,
+    );
     const { sendAppSettingsMemoriesConfirmedImpl } =
       await import("./chatSyncServiceSenders");
     await sendAppSettingsMemoriesConfirmedImpl(
@@ -605,7 +608,7 @@ export async function handlePermissionDialogConfirm(
     );
 
     console.info(
-      `[ChatSyncService:AppSettings] Sent ${appSettingsMemories.length} entries to server`,
+      `[ChatSyncService:AppSettings] Successfully sent ${appSettingsMemories.length} entries to server`,
     );
 
     // Create system message with response metadata (synced to server for cross-device display)

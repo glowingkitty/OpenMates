@@ -77,12 +77,24 @@
         appSettingsMemoriesPermissionStore.setLoading(true);
         
         try {
-            await handlePermissionDialogConfirm(chatSyncService, requestId, selectedKeys, selectedEntryIds);
+            // Add timeout to prevent infinite loading (30 seconds max)
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Confirmation timeout after 30 seconds')), 30000)
+            );
+            
+            await Promise.race([
+                handlePermissionDialogConfirm(chatSyncService, requestId, selectedKeys, selectedEntryIds),
+                timeoutPromise
+            ]);
+            
+            console.info('[PermissionDialog] Successfully confirmed and sent app settings/memories');
             appSettingsMemoriesPermissionStore.clear();
             expandedCategories = new Set();
         } catch (error) {
             console.error('[PermissionDialog] Error confirming:', error);
             appSettingsMemoriesPermissionStore.setLoading(false);
+            // Show user-friendly error notification
+            alert('Failed to share app settings & memories. Please try again or contact support if the issue persists.');
         }
     }
     
