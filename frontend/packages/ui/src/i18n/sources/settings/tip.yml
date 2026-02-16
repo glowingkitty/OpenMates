@@ -1,9 +1,3 @@
-tip:
-  context: Tip settings section title
-  en: Tip
-  de: Trinkgeld
-  verified_by_human: []
-
 description:
   context: Introductory text explaining the tipping feature
   en: Support the creator by sending a tip from your credit balance.

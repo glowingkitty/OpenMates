@@ -387,7 +387,7 @@
       });
       
       // Navigate to tip settings
-      navigateToSettings('shared/tip', $text('settings.tip.tip_creator'), 'tip', 'settings.tip.tip_creator');
+      navigateToSettings('shared/tip', $text('embeds.tip_creator'), 'tip', 'embeds.tip_creator');
       
       // Open settings panel if not already open
       panelState.openSettings();

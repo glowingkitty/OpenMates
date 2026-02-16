@@ -1,48 +1,46 @@
-text:
-  context: Focus mode display name for plan_project in code app
-  en: Plan project
-  de: Projekt planen
-  zh: 规划项目
-  es: Planificar proyecto
-  fr: Planifier le projet
-  pt: Planejar projeto
-  ru: Планировать проект
-  ja: プロジェクトを計画
-  ko: 프로젝트 계획
-  it: Pianifica progetto
-  tr: Proje planla
-  vi: Lập kế hoạch dự án
-  id: Rencanakan proyek
-  pl: Zaplanuj projekt
-  nl: Project plannen
-  ar: تخطيط المشروع
-  hi: प्रोजेक्ट की योजना बनाएं
-  th: วางแผนโปรเจ็กต์
-  cs: Naplánovat projekt
-  sv: Planera projekt
-  verified_by_human:
+code_plan_project.ar: تخطيط المشروع
+code_plan_project.context: Focus mode display name for plan_project in code app
+code_plan_project.cs: Naplánovat projekt
+code_plan_project.de: Projekt planen
+code_plan_project.description.ar: خطط لمشروع وأنشئ وثائق المتطلبات.
+code_plan_project.description.context: Focus mode description for plan_project
+code_plan_project.description.cs: Naplánujte projekt a vytvořte dokumentaci požadavků.
+code_plan_project.description.de: Projekt planen und Anforderungsdokumente erstellen.
+code_plan_project.description.en: Plan a project and create requirement docs.
+code_plan_project.description.es: Planifica un proyecto y crea documentación.
+code_plan_project.description.fr: Planifiez un projet et créez la documentation.
+code_plan_project.description.hi: प्रोजेक्ट और आवश्यकता दस्तावेज़ बनाएं।
+code_plan_project.description.id: Rencanakan proyek dan buat dokumen persyaratan.
+code_plan_project.description.it: Pianifica un progetto e crea la documentazione.
+code_plan_project.description.ja: プロジェクトを計画し、要件ドキュメントを作成。
+code_plan_project.description.ko: 프로젝트를 계획하고 요구 사항 문서를 만드세요.
+code_plan_project.description.nl: Plan een project en maak vereistendocumenten.
+code_plan_project.description.pl: Zaplanuj projekt i stwórz dokumentację wymagań.
+code_plan_project.description.pt: Planeje um projeto e crie documentos de requisitos.
+code_plan_project.description.ru: Спланируйте проект и создайте документацию.
+code_plan_project.description.sv: Planera ett projekt och skapa kravdokumentation.
+code_plan_project.description.th: วางแผนโปรเจ็กต์และสร้างเอกสารความต้องการ
+code_plan_project.description.tr: Proje planlayın ve gereksinim belgeleri oluşturun.
+code_plan_project.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for plan_project
-  en: Plan a project and create requirement docs.
-  de: Projekt planen und Anforderungsdokumente erstellen.
-  zh: 规划项目并创建需求文档。
-  es: Planifica un proyecto y crea documentación.
-  fr: Planifiez un projet et créez la documentation.
-  pt: Planeje um projeto e crie documentos de requisitos.
-  ru: Спланируйте проект и создайте документацию.
-  ja: プロジェクトを計画し、要件ドキュメントを作成。
-  ko: 프로젝트를 계획하고 요구 사항 문서를 만드세요.
-  it: Pianifica un progetto e crea la documentazione.
-  tr: Proje planlayın ve gereksinim belgeleri oluşturun.
-  vi: Lập kế hoạch dự án và tạo tài liệu yêu cầu.
-  id: Rencanakan proyek dan buat dokumen persyaratan.
-  pl: Zaplanuj projekt i stwórz dokumentację wymagań.
-  nl: Plan een project en maak vereistendocumenten.
-  ar: خطط لمشروع وأنشئ وثائق المتطلبات.
-  hi: प्रोजेक्ट और आवश्यकता दस्तावेज़ बनाएं।
-  th: วางแผนโปรเจ็กต์และสร้างเอกสารความต้องการ
-  cs: Naplánujte projekt a vytvořte dokumentaci požadavků.
-  sv: Planera ett projekt och skapa kravdokumentation.
-  verified_by_human:
+code_plan_project.description.vi: Lập kế hoạch dự án và tạo tài liệu yêu cầu.
+code_plan_project.description.zh: 规划项目并创建需求文档。
+code_plan_project.en: Plan project
+code_plan_project.es: Planificar proyecto
+code_plan_project.fr: Planifier le projet
+code_plan_project.hi: प्रोजेक्ट की योजना बनाएं
+code_plan_project.id: Rencanakan proyek
+code_plan_project.it: Pianifica progetto
+code_plan_project.ja: プロジェクトを計画
+code_plan_project.ko: 프로젝트 계획
+code_plan_project.nl: Project plannen
+code_plan_project.pl: Zaplanuj projekt
+code_plan_project.pt: Planejar projeto
+code_plan_project.ru: Планировать проект
+code_plan_project.sv: Planera projekt
+code_plan_project.th: วางแผนโปรเจ็กต์
+code_plan_project.tr: Proje planla
+code_plan_project.verified_by_human:
   - en
+code_plan_project.vi: Lập kế hoạch dự án
+code_plan_project.zh: 规划项目

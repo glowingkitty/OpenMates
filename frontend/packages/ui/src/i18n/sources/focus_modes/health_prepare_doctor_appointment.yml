@@ -1,60 +1,56 @@
-text:
-  context: Focus mode display name for prepare_doctor_appointment in health app
-  en: Prepare doctor appointment
-  de: Arzttermin vorbereiten
-  zh: 准备医生预约
-  es: Preparar cita médica
-  fr: Préparer le rendez-vous médical
-  pt: Preparar consulta médica
-  ru: Подготовить визит к врачу
-  ja: 医師の予約を準備
-  ko: 의사 예약 준비
-  it: Prepara appuntamento medico
-  tr: Doktor randevusu hazırla
-  vi: Chuẩn bị cuộc hẹn bác sĩ
-  id: Siapkan janji temu dokter
-  pl: Przygotuj wizytę u lekarza
-  nl: Doktersafspraak voorbereiden
-  ar: إعداد موعد الطبيب
-  hi: डॉक्टर अपॉइंटमेंट तैयार करें
-  th: เตรียมการนัดหมายแพทย์
-  cs: Připravit lékařskou schůzku
-  sv: Förbereda läkarbesök
-  verified_by_human:
+health_prepare_doctor_appointment.ar: إعداد موعد الطبيب
+health_prepare_doctor_appointment.context: Focus mode display name for prepare_doctor_appointment in health app
+health_prepare_doctor_appointment.cs: Připravit lékařskou schůzku
+health_prepare_doctor_appointment.de: Arzttermin vorbereiten
+health_prepare_doctor_appointment.description.ar: جهّز ما ستناقشه في موعدك القادم.
+health_prepare_doctor_appointment.description.context: Focus mode description for prepare_doctor_appointment
+health_prepare_doctor_appointment.description.cs: Připravte témata pro další návštěvu lékaře.
+health_prepare_doctor_appointment.description.de: Bereite die Themen für den nächsten Termin vor.
+health_prepare_doctor_appointment.description.en: Prepare what to discuss at your next visit.
+health_prepare_doctor_appointment.description.es: Prepara qué discutir en tu próxima visita.
+health_prepare_doctor_appointment.description.fr: Préparez ce qu'il faut discuter à votre visite.
+health_prepare_doctor_appointment.description.hi: अगली विज़िट में क्या चर्चा करनी है, तैयार करें।
+health_prepare_doctor_appointment.description.id: Siapkan topik untuk kunjungan dokter berikutnya.
+health_prepare_doctor_appointment.description.it: Prepara cosa discutere alla prossima visita.
+health_prepare_doctor_appointment.description.ja: 次の診察で相談する内容を準備する。
+health_prepare_doctor_appointment.description.ko: 다음 진료에서 논의할 내용을 준비하세요.
+health_prepare_doctor_appointment.description.nl: Bereid voor wat je bij de arts wilt bespreken.
+health_prepare_doctor_appointment.description.pl: Przygotuj się na kolejną wizytę u lekarza.
+health_prepare_doctor_appointment.description.pt: Prepare o que discutir na próxima consulta.
+health_prepare_doctor_appointment.description.ru: Подготовьте темы для следующего визита к врачу.
+health_prepare_doctor_appointment.description.sv: Förbered vad du vill diskutera vid nästa besök.
+health_prepare_doctor_appointment.description.th: เตรียมหัวข้อสำหรับการนัดหมายแพทย์ครั้งถัดไป
+health_prepare_doctor_appointment.description.tr: Sonraki ziyaretiniz için konuları hazırlayın.
+health_prepare_doctor_appointment.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for prepare_doctor_appointment
-  en: Prepare what to discuss at your next visit.
-  de: Bereite die Themen für den nächsten Termin vor.
-  zh: 准备下次就诊要讨论的内容。
-  es: Prepara qué discutir en tu próxima visita.
-  fr: Préparez ce qu'il faut discuter à votre visite.
-  pt: Prepare o que discutir na próxima consulta.
-  ru: Подготовьте темы для следующего визита к врачу.
-  ja: 次の診察で相談する内容を準備する。
-  ko: 다음 진료에서 논의할 내용을 준비하세요.
-  it: Prepara cosa discutere alla prossima visita.
-  tr: Sonraki ziyaretiniz için konuları hazırlayın.
-  vi: Chuẩn bị nội dung thảo luận cho lần khám tới.
-  id: Siapkan topik untuk kunjungan dokter berikutnya.
-  pl: Przygotuj się na kolejną wizytę u lekarza.
-  nl: Bereid voor wat je bij de arts wilt bespreken.
-  ar: جهّز ما ستناقشه في موعدك القادم.
-  hi: अगली विज़िट में क्या चर्चा करनी है, तैयार करें।
-  th: เตรียมหัวข้อสำหรับการนัดหมายแพทย์ครั้งถัดไป
-  cs: Připravte témata pro další návštěvu lékaře.
-  sv: Förbered vad du vill diskutera vid nästa besök.
-  verified_by_human:
+health_prepare_doctor_appointment.description.vi: Chuẩn bị nội dung thảo luận cho lần khám tới.
+health_prepare_doctor_appointment.description.zh: 准备下次就诊要讨论的内容。
+health_prepare_doctor_appointment.en: Prepare doctor appointment
+health_prepare_doctor_appointment.es: Preparar cita médica
+health_prepare_doctor_appointment.fr: Préparer le rendez-vous médical
+health_prepare_doctor_appointment.hi: डॉक्टर अपॉइंटमेंट तैयार करें
+health_prepare_doctor_appointment.id: Siapkan janji temu dokter
+health_prepare_doctor_appointment.it: Prepara appuntamento medico
+health_prepare_doctor_appointment.ja: 医師の予約を準備
+health_prepare_doctor_appointment.ko: 의사 예약 준비
+health_prepare_doctor_appointment.nl: Doktersafspraak voorbereiden
+health_prepare_doctor_appointment.pl: Przygotuj wizytę u lekarza
+health_prepare_doctor_appointment.process.context: Step-by-step process description for prepare_doctor_appointment focus mode
+health_prepare_doctor_appointment.process.en: |
+  - discusses what symptoms one had in recent weeks and months, even if one doesn't see connections between them
+  - discusses what test results / documents one should collect before the next appointment
+health_prepare_doctor_appointment.process.verified_by_human:
   - en
-systemprompt:
-  context: System prompt for the LLM when prepare_doctor_appointment focus mode is active
-  en: You are a health expert.
-  verified_by_human:
+health_prepare_doctor_appointment.pt: Preparar consulta médica
+health_prepare_doctor_appointment.ru: Подготовить визит к врачу
+health_prepare_doctor_appointment.sv: Förbereda läkarbesök
+health_prepare_doctor_appointment.systemprompt.context: System prompt for the LLM when prepare_doctor_appointment focus mode is active
+health_prepare_doctor_appointment.systemprompt.en: You are a health expert.
+health_prepare_doctor_appointment.systemprompt.verified_by_human:
   - en
-process:
-  context: Step-by-step process description for prepare_doctor_appointment focus mode
-  en: '- discusses what symptoms one had in recent weeks and months, even if one doesn''t see connections between them
-
-    - discusses what test results / documents one should collect before the next appointment'
-  verified_by_human:
+health_prepare_doctor_appointment.th: เตรียมการนัดหมายแพทย์
+health_prepare_doctor_appointment.tr: Doktor randevusu hazırla
+health_prepare_doctor_appointment.verified_by_human:
   - en
+health_prepare_doctor_appointment.vi: Chuẩn bị cuộc hẹn bác sĩ
+health_prepare_doctor_appointment.zh: 准备医生预约

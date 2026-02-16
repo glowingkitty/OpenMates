@@ -1,69 +1,60 @@
-text:
-  context: Focus mode display name for test_knowledge in study app
-  en: Test knowledge
-  de: Wissen testen
-  zh: 测试知识
-  es: Probar conocimiento
-  fr: Tester les connaissances
-  pt: Testar conhecimento
-  ru: Проверить знания
-  ja: 知識をテスト
-  ko: 지식 테스트
-  it: Testa conoscenza
-  tr: Bilgiyi test et
-  vi: Kiểm tra kiến thức
-  id: Uji pengetahuan
-  pl: Przetestuj wiedzę
-  nl: Kennis testen
-  ar: اختبار المعرفة
-  hi: ज्ञान का परीक्षण करें
-  th: ทดสอบความรู้
-  cs: Otestovat znalosti
-  sv: Testa kunskap
-  verified_by_human:
+study_test_knowledge.ar: اختبار المعرفة
+study_test_knowledge.context: Focus mode display name for test_knowledge in study app
+study_test_knowledge.cs: Otestovat znalosti
+study_test_knowledge.de: Wissen testen
+study_test_knowledge.description.ar: اختبر معرفتك بأسئلة على شكل اختبار.
+study_test_knowledge.description.context: Focus mode description for test_knowledge
+study_test_knowledge.description.cs: Otestujte znalosti pomocí kvízových otázek.
+study_test_knowledge.description.de: Teste dein Wissen mit Quiz-Fragen.
+study_test_knowledge.description.en: Test your knowledge with quiz-style questions.
+study_test_knowledge.description.es: Pon a prueba tu conocimiento con un quiz.
+study_test_knowledge.description.fr: Testez vos connaissances avec des questions quiz.
+study_test_knowledge.description.hi: क्विज़ शैली के प्रश्नों से अपना ज्ञान परखें।
+study_test_knowledge.description.id: Uji pengetahuan Anda dengan pertanyaan kuis.
+study_test_knowledge.description.it: Metti alla prova le conoscenze con un quiz.
+study_test_knowledge.description.ja: クイズ形式の質問で知識をテスト。
+study_test_knowledge.description.ko: 퀴즈 형식의 질문으로 지식을 테스트하세요.
+study_test_knowledge.description.nl: Test je kennis met quizvragen.
+study_test_knowledge.description.pl: Sprawdź wiedzę za pomocą pytań quizowych.
+study_test_knowledge.description.pt: Teste seus conhecimentos com perguntas de quiz.
+study_test_knowledge.description.ru: Проверьте знания с помощью вопросов-викторин.
+study_test_knowledge.description.sv: Testa dina kunskaper med quizfrågor.
+study_test_knowledge.description.th: ทดสอบความรู้ด้วยคำถามแบบควิซ
+study_test_knowledge.description.tr: Bilginizi sınav tarzı sorularla test edin.
+study_test_knowledge.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for test_knowledge
-  en: Test your knowledge with quiz-style questions.
-  de: Teste dein Wissen mit Quiz-Fragen.
-  zh: 通过测验式问题测试你的知识。
-  es: Pon a prueba tu conocimiento con un quiz.
-  fr: Testez vos connaissances avec des questions quiz.
-  pt: Teste seus conhecimentos com perguntas de quiz.
-  ru: Проверьте знания с помощью вопросов-викторин.
-  ja: クイズ形式の質問で知識をテスト。
-  ko: 퀴즈 형식의 질문으로 지식을 테스트하세요.
-  it: Metti alla prova le conoscenze con un quiz.
-  tr: Bilginizi sınav tarzı sorularla test edin.
-  vi: Kiểm tra kiến thức với câu hỏi dạng quiz.
-  id: Uji pengetahuan Anda dengan pertanyaan kuis.
-  pl: Sprawdź wiedzę za pomocą pytań quizowych.
-  nl: Test je kennis met quizvragen.
-  ar: اختبر معرفتك بأسئلة على شكل اختبار.
-  hi: क्विज़ शैली के प्रश्नों से अपना ज्ञान परखें।
-  th: ทดสอบความรู้ด้วยคำถามแบบควิซ
-  cs: Otestujte znalosti pomocí kvízových otázek.
-  sv: Testa dina kunskaper med quizfrågor.
-  verified_by_human:
+study_test_knowledge.description.vi: Kiểm tra kiến thức với câu hỏi dạng quiz.
+study_test_knowledge.description.zh: 通过测验式问题测试你的知识。
+study_test_knowledge.en: Test knowledge
+study_test_knowledge.es: Probar conocimiento
+study_test_knowledge.fr: Tester les connaissances
+study_test_knowledge.hi: ज्ञान का परीक्षण करें
+study_test_knowledge.id: Uji pengetahuan
+study_test_knowledge.it: Testa conoscenza
+study_test_knowledge.ja: 知識をテスト
+study_test_knowledge.ko: 지식 테스트
+study_test_knowledge.nl: Kennis testen
+study_test_knowledge.pl: Przetestuj wiedzę
+study_test_knowledge.process.context: Step-by-step process description for test_knowledge focus mode
+study_test_knowledge.process.en: |
+  - asks which topic you want to be tested on
+  - determines the difficulty level and question count
+  - generates questions tailored to your knowledge level
+  - evaluates your answers for correctness and understanding
+  - provides detailed feedback and explanations for incorrect answers
+  - identifies knowledge gaps for further study
+study_test_knowledge.process.verified_by_human:
   - en
-systemprompt:
-  context: System prompt for the LLM when test_knowledge focus mode is active
-  en: You are an expert educator and assessor. Create challenging, fair questions that test deep understanding. Provide constructive
-    feedback that helps users learn from their mistakes.
-  verified_by_human:
+study_test_knowledge.pt: Testar conhecimento
+study_test_knowledge.ru: Проверить знания
+study_test_knowledge.sv: Testa kunskap
+study_test_knowledge.systemprompt.context: System prompt for the LLM when test_knowledge focus mode is active
+study_test_knowledge.systemprompt.en: You are an expert educator and assessor. Create challenging, fair questions that test deep understanding. Provide constructive feedback that helps users learn from their mistakes.
+study_test_knowledge.systemprompt.verified_by_human:
   - en
-process:
-  context: Step-by-step process description for test_knowledge focus mode
-  en: '- asks which topic you want to be tested on
-
-    - determines the difficulty level and question count
-
-    - generates questions tailored to your knowledge level
-
-    - evaluates your answers for correctness and understanding
-
-    - provides detailed feedback and explanations for incorrect answers
-
-    - identifies knowledge gaps for further study'
-  verified_by_human:
+study_test_knowledge.th: ทดสอบความรู้
+study_test_knowledge.tr: Bilgiyi test et
+study_test_knowledge.verified_by_human:
   - en
+study_test_knowledge.vi: Kiểm tra kiến thức
+study_test_knowledge.zh: 测试知识

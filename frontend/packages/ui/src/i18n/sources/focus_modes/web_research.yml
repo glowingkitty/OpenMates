@@ -1,54 +1,50 @@
-text:
-  context: Focus mode display name for research in web app
-  en: Research
-  de: Recherche
-  zh: 研究
-  es: Investigación
-  fr: Recherche
-  pt: Pesquisa
-  ru: Исследование
-  ja: 研究
-  ko: 연구
-  it: Ricerca
-  tr: Araştırma
-  vi: Nghiên cứu
-  id: Penelitian
-  pl: Badania
-  nl: Onderzoek
-  ar: بحث
-  hi: अनुसंधान
-  th: การวิจัย
-  cs: Výzkum
-  sv: Forskning
-  verified_by_human:
+web_research.ar: بحث
+web_research.context: Focus mode display name for research in web app
+web_research.cs: Výzkum
+web_research.de: Recherche
+web_research.description.ar: ابحث في موضوع من زوايا متعددة.
+web_research.description.context: Focus mode description for research
+web_research.description.cs: Prozkoumejte téma z více úhlů pohledu.
+web_research.description.de: Ein Thema aus mehreren Blickwinkeln recherchieren.
+web_research.description.en: Research a topic from multiple angles.
+web_research.description.es: Investiga un tema desde múltiples ángulos.
+web_research.description.fr: Rechercher un sujet sous plusieurs angles.
+web_research.description.hi: किसी विषय को कई दृष्टिकोणों से शोध करें।
+web_research.description.id: Teliti topik dari berbagai sudut pandang.
+web_research.description.it: Ricerca un argomento da più angolazioni.
+web_research.description.ja: 複数の角度からトピックを調査する。
+web_research.description.ko: 여러 각도에서 주제를 조사합니다.
+web_research.description.nl: Onderzoek een onderwerp vanuit meerdere hoeken.
+web_research.description.pl: Zbadaj temat z wielu perspektyw.
+web_research.description.pt: Pesquisar um tema de múltiplos ângulos.
+web_research.description.ru: Исследовать тему с разных сторон.
+web_research.description.sv: Undersök ett ämne från flera vinklar.
+web_research.description.th: วิจัยหัวข้อจากหลายมุมมอง
+web_research.description.tr: Bir konuyu birden fazla açıdan araştırın.
+web_research.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for research
-  en: Research a topic from multiple angles.
-  de: Ein Thema aus mehreren Blickwinkeln recherchieren.
-  zh: 从多个角度研究一个主题。
-  es: Investiga un tema desde múltiples ángulos.
-  fr: Rechercher un sujet sous plusieurs angles.
-  pt: Pesquisar um tema de múltiplos ângulos.
-  ru: Исследовать тему с разных сторон.
-  ja: 複数の角度からトピックを調査する。
-  ko: 여러 각도에서 주제를 조사합니다.
-  it: Ricerca un argomento da più angolazioni.
-  tr: Bir konuyu birden fazla açıdan araştırın.
-  vi: Nghiên cứu một chủ đề từ nhiều góc độ.
-  id: Teliti topik dari berbagai sudut pandang.
-  pl: Zbadaj temat z wielu perspektyw.
-  nl: Onderzoek een onderwerp vanuit meerdere hoeken.
-  ar: ابحث في موضوع من زوايا متعددة.
-  hi: किसी विषय को कई दृष्टिकोणों से शोध करें।
-  th: วิจัยหัวข้อจากหลายมุมมอง
-  cs: Prozkoumejte téma z více úhlů pohledu.
-  sv: Undersök ett ämne från flera vinklar.
-  verified_by_human:
+web_research.description.vi: Nghiên cứu một chủ đề từ nhiều góc độ.
+web_research.description.zh: 从多个角度研究一个主题。
+web_research.en: Research
+web_research.es: Investigación
+web_research.fr: Recherche
+web_research.hi: अनुसंधान
+web_research.id: Penelitian
+web_research.it: Ricerca
+web_research.ja: 研究
+web_research.ko: 연구
+web_research.nl: Onderzoek
+web_research.pl: Badania
+web_research.pt: Pesquisa
+web_research.ru: Исследование
+web_research.sv: Forskning
+web_research.systemprompt.context: System prompt for the LLM when research focus mode is active
+web_research.systemprompt.en: You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand a topic comprehensively, including its causes, effects, and broader context.
+web_research.systemprompt.verified_by_human:
   - en
-systemprompt:
-  context: System prompt for the LLM when research focus mode is active
-  en: You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand
-    a topic comprehensively, including its causes, effects, and broader context.
-  verified_by_human:
+web_research.th: การวิจัย
+web_research.tr: Araştırma
+web_research.verified_by_human:
   - en
+web_research.vi: Nghiên cứu
+web_research.zh: 研究

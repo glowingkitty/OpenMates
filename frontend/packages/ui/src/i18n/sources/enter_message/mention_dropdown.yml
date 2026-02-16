@@ -1,13 +1,17 @@
-# Translation keys for the @ mention dropdown component
-# Used when users type @ to select AI models, mates, skills, focus modes, and settings/memories
-
 header:
   context: Header text explaining the auto-selection feature in the @ mention dropdown
-  en: By default, OpenMates auto selects the AI model, mates, app- skills, focus modes and settings & memories. Search to overwrite the auto selection
-  de: OpenMates wählt standardmäßig das KI-Modell, Mates, App-Skills, Fokusmodi sowie Einstellungen & Erinnerungen automatisch aus. Suche, um die automatische Auswahl zu überschreiben
+  en: By default, OpenMates auto selects the AI model, mates, app- skills, focus modes
+    and settings & memories. Search to overwrite the auto selection
+  de: OpenMates wählt standardmäßig das KI-Modell, Mates, App-Skills, Fokusmodi sowie
+    Einstellungen & Erinnerungen automatisch aus. Suche, um die automatische Auswahl
+    zu überschreiben
   zh: ''
-  es: Por defecto, OpenMates selecciona automáticamente el modelo de IA, mates, habilidades de aplicación, modos de enfoque y configuraciones y memorias. Busca para sobrescribir la selección automática
-  fr: Par défaut, OpenMates sélectionne automatiquement le modèle d'IA, les mates, les compétences d'application, les modes de focus et les paramètres et mémoires. Recherchez pour remplacer la sélection automatique
+  es: Por defecto, OpenMates selecciona automáticamente el modelo de IA, mates, habilidades
+    de aplicación, modos de enfoque y configuraciones y memorias. Busca para sobrescribir
+    la selección automática
+  fr: Par défaut, OpenMates sélectionne automatiquement le modèle d'IA, les mates,
+    les compétences d'application, les modes de focus et les paramètres et mémoires.
+    Recherchez pour remplacer la sélection automatique
   pt: ''
   ru: ''
   ja: ''
@@ -24,7 +28,6 @@ header:
   cs: ''
   sv: ''
   verified_by_human: []
-
 autocomplete_hint:
   context: Footer hint text in the @ mention dropdown suggesting how to autocomplete
   en: Press enter or tab to autocomplete.
@@ -48,128 +51,12 @@ autocomplete_hint:
   cs: ''
   sv: ''
   verified_by_human: []
-
-type_labels:
-  model:
-    context: Label for AI model type in mention dropdown
-    en: AI Model
-    de: KI-Modell
-    zh: ''
-    es: Modelo de IA
-    fr: Modèle IA
-    pt: ''
-    ru: ''
-    ja: ''
-    ko: ''
-    it: ''
-    tr: ''
-    vi: ''
-    id: ''
-    pl: ''
-    nl: ''
-    ar: ''
-    hi: ''
-    th: ''
-    cs: ''
-    sv: ''
-    verified_by_human: []
-  mate:
-    context: Label for mate persona type in mention dropdown
-    en: Mate
-    de: Mate
-    zh: ''
-    es: Mate
-    fr: Mate
-    pt: ''
-    ru: ''
-    ja: ''
-    ko: ''
-    it: ''
-    tr: ''
-    vi: ''
-    id: ''
-    pl: ''
-    nl: ''
-    ar: ''
-    hi: ''
-    th: ''
-    cs: ''
-    sv: ''
-    verified_by_human: []
-  skill:
-    context: Label for app skill type in mention dropdown
-    en: Skill
-    de: Skill
-    zh: ''
-    es: Habilidad
-    fr: Compétence
-    pt: ''
-    ru: ''
-    ja: ''
-    ko: ''
-    it: ''
-    tr: ''
-    vi: ''
-    id: ''
-    pl: ''
-    nl: ''
-    ar: ''
-    hi: ''
-    th: ''
-    cs: ''
-    sv: ''
-    verified_by_human: []
-  focus_mode:
-    context: Label for focus mode type in mention dropdown
-    en: Focus mode
-    de: Fokus-Modus
-    zh: ''
-    es: Modo de enfoque
-    fr: Mode de focus
-    pt: ''
-    ru: ''
-    ja: ''
-    ko: ''
-    it: ''
-    tr: ''
-    vi: ''
-    id: ''
-    pl: ''
-    nl: ''
-    ar: ''
-    hi: ''
-    th: ''
-    cs: ''
-    sv: ''
-    verified_by_human: []
-  settings_memory:
-    context: Label for settings and memories type in mention dropdown
-    en: Settings & memories
-    de: Einstellungen & Erinnerungen
-    zh: ''
-    es: Configuraciones y memorias
-    fr: Paramètres et mémoires
-    pt: ''
-    ru: ''
-    ja: ''
-    ko: ''
-    it: ''
-    tr: ''
-    vi: ''
-    id: ''
-    pl: ''
-    nl: ''
-    ar: ''
-    hi: ''
-    th: ''
-    cs: ''
-    sv: ''
-    verified_by_human: []
-
 show_more:
-  context: Button text in the @ mention dropdown to show more settings/memory entries within an expanded category. {count} is replaced with the number of remaining entries.
+  context: Button text in the @ mention dropdown to show more settings/memory entries
+    within an expanded category. {count} is replaced with the number of remaining
+    entries.
   en: Show {count} more...
-  de: "{count} weitere anzeigen..."
+  de: '{count} weitere anzeigen...'
   zh: ''
   es: Mostrar {count} más...
   fr: Afficher {count} de plus...
@@ -189,14 +76,129 @@ show_more:
   cs: ''
   sv: ''
   verified_by_human: []
-
 from_provider:
-  context: Subtitle template showing which provider a model is from. {provider} is replaced with the provider name.
+  context: Subtitle template showing which provider a model is from. {provider} is
+    replaced with the provider name.
   en: from {provider}
   de: von {provider}
   zh: ''
   es: de {provider}
   fr: de {provider}
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+type_labels.model:
+  context: Label for AI model type in mention dropdown
+  en: AI Model
+  de: KI-Modell
+  zh: ''
+  es: Modelo de IA
+  fr: Modèle IA
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+type_labels.mate:
+  context: Label for mate persona type in mention dropdown
+  en: Mate
+  de: Mate
+  zh: ''
+  es: Mate
+  fr: Mate
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+type_labels.skill:
+  context: Label for app skill type in mention dropdown
+  en: Skill
+  de: Skill
+  zh: ''
+  es: Habilidad
+  fr: Compétence
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+type_labels.focus_mode:
+  context: Label for focus mode type in mention dropdown
+  en: Focus mode
+  de: Fokus-Modus
+  zh: ''
+  es: Modo de enfoque
+  fr: Mode de focus
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+type_labels.settings_memory:
+  context: Label for settings and memories type in mention dropdown
+  en: Settings & memories
+  de: Einstellungen & Erinnerungen
+  zh: ''
+  es: Configuraciones y memorias
+  fr: Paramètres et mémoires
   pt: ''
   ru: ''
   ja: ''

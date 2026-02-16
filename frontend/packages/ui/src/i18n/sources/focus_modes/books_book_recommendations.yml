@@ -1,48 +1,46 @@
-text:
-  context: Focus mode display name for book_recommendations in books app
-  en: Book recommendations
-  de: Buchempfehlungen
-  zh: 图书推荐
-  es: Recomendaciones de libros
-  fr: Recommandations de livres
-  pt: Recomendações de livros
-  ru: Рекомендации книг
-  ja: 本の推奨
-  ko: 책 추천
-  it: Raccomandazioni di libri
-  tr: Kitap önerileri
-  vi: Đề xuất sách
-  id: Rekomendasi buku
-  pl: Rekomendacje książek
-  nl: Boekaanbevelingen
-  ar: توصيات الكتب
-  hi: पुस्तक सुझाव
-  th: คำแนะนำหนังสือ
-  cs: Doporučení knih
-  sv: Bokrekommendationer
-  verified_by_human:
+books_book_recommendations.ar: توصيات الكتب
+books_book_recommendations.context: Focus mode display name for book_recommendations in books app
+books_book_recommendations.cs: Doporučení knih
+books_book_recommendations.de: Buchempfehlungen
+books_book_recommendations.description.ar: احصل على توصيات كتب بناءً على ذوقك.
+books_book_recommendations.description.context: Focus mode description for book_recommendations
+books_book_recommendations.description.cs: Získejte doporučení knih podle vašeho vkusu.
+books_book_recommendations.description.de: Buchempfehlungen basierend auf deinem Geschmack.
+books_book_recommendations.description.en: Get book recommendations based on your taste.
+books_book_recommendations.description.es: Obtén recomendaciones de libros según tu gusto.
+books_book_recommendations.description.fr: Recommandations de livres selon vos goûts.
+books_book_recommendations.description.hi: अपने स्वाद के अनुसार पुस्तक सुझाव प्राप्त करें।
+books_book_recommendations.description.id: Dapatkan rekomendasi buku sesuai selera Anda.
+books_book_recommendations.description.it: Consigli di libri in base ai tuoi gusti.
+books_book_recommendations.description.ja: 好みに基づいた本のおすすめを取得。
+books_book_recommendations.description.ko: 취향에 맞는 책 추천을 받으세요.
+books_book_recommendations.description.nl: Krijg boekaanbevelingen op basis van je smaak.
+books_book_recommendations.description.pl: Otrzymaj rekomendacje książek na podstawie gustu.
+books_book_recommendations.description.pt: Recomendações de livros com base no seu gosto.
+books_book_recommendations.description.ru: Получите рекомендации книг по вашему вкусу.
+books_book_recommendations.description.sv: Få bokrekommendationer baserat på din smak.
+books_book_recommendations.description.th: รับคำแนะนำหนังสือตามรสนิยมของคุณ
+books_book_recommendations.description.tr: Zevkinize göre kitap önerileri alın.
+books_book_recommendations.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for book_recommendations
-  en: Get book recommendations based on your taste.
-  de: Buchempfehlungen basierend auf deinem Geschmack.
-  zh: 根据你的喜好获取图书推荐。
-  es: Obtén recomendaciones de libros según tu gusto.
-  fr: Recommandations de livres selon vos goûts.
-  pt: Recomendações de livros com base no seu gosto.
-  ru: Получите рекомендации книг по вашему вкусу.
-  ja: 好みに基づいた本のおすすめを取得。
-  ko: 취향에 맞는 책 추천을 받으세요.
-  it: Consigli di libri in base ai tuoi gusti.
-  tr: Zevkinize göre kitap önerileri alın.
-  vi: Nhận gợi ý sách dựa trên sở thích của bạn.
-  id: Dapatkan rekomendasi buku sesuai selera Anda.
-  pl: Otrzymaj rekomendacje książek na podstawie gustu.
-  nl: Krijg boekaanbevelingen op basis van je smaak.
-  ar: احصل على توصيات كتب بناءً على ذوقك.
-  hi: अपने स्वाद के अनुसार पुस्तक सुझाव प्राप्त करें।
-  th: รับคำแนะนำหนังสือตามรสนิยมของคุณ
-  cs: Získejte doporučení knih podle vašeho vkusu.
-  sv: Få bokrekommendationer baserat på din smak.
-  verified_by_human:
+books_book_recommendations.description.vi: Nhận gợi ý sách dựa trên sở thích của bạn.
+books_book_recommendations.description.zh: 根据你的喜好获取图书推荐。
+books_book_recommendations.en: Book recommendations
+books_book_recommendations.es: Recomendaciones de libros
+books_book_recommendations.fr: Recommandations de livres
+books_book_recommendations.hi: पुस्तक सुझाव
+books_book_recommendations.id: Rekomendasi buku
+books_book_recommendations.it: Raccomandazioni di libri
+books_book_recommendations.ja: 本の推奨
+books_book_recommendations.ko: 책 추천
+books_book_recommendations.nl: Boekaanbevelingen
+books_book_recommendations.pl: Rekomendacje książek
+books_book_recommendations.pt: Recomendações de livros
+books_book_recommendations.ru: Рекомендации книг
+books_book_recommendations.sv: Bokrekommendationer
+books_book_recommendations.th: คำแนะนำหนังสือ
+books_book_recommendations.tr: Kitap önerileri
+books_book_recommendations.verified_by_human:
   - en
+books_book_recommendations.vi: Đề xuất sách
+books_book_recommendations.zh: 图书推荐

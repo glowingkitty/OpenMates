@@ -1,59 +1,54 @@
-text:
-  context: Focus mode display name for refactor_code in code app
-  en: Refactor code
-  de: Code refaktorisieren
-  zh: 重构代码
-  es: Refactorizar código
-  fr: Refactoriser le code
-  pt: Refatorar código
-  ru: Рефакторинг кода
-  ja: コードをリファクタリング
-  ko: 코드 리팩토링
-  it: Refactoring codice
-  tr: Kodu yeniden düzenle
-  vi: Tái cấu trúc mã
-  id: Refaktor kode
-  pl: Refaktoryzuj kod
-  nl: Code refactoren
-  ar: إعادة هيكلة الكود
-  hi: कोड को रिफैक्टर करें
-  th: รีแฟกเตอร์โค้ด
-  cs: Refaktorovat kód
-  sv: Refaktorera kod
-  verified_by_human:
+code_refactor_code.ar: إعادة هيكلة الكود
+code_refactor_code.context: Focus mode display name for refactor_code in code app
+code_refactor_code.cs: Refaktorovat kód
+code_refactor_code.de: Code refaktorisieren
+code_refactor_code.description.ar: حسّن بنية الكود وسهولة قراءته.
+code_refactor_code.description.context: Focus mode description for refactor_code
+code_refactor_code.description.cs: Zlepšete strukturu a čitelnost kódu.
+code_refactor_code.description.de: Codestruktur und Lesbarkeit verbessern.
+code_refactor_code.description.en: Improve code structure and readability.
+code_refactor_code.description.es: Mejora la estructura y legibilidad del código.
+code_refactor_code.description.fr: Améliorez la structure et la lisibilité du code.
+code_refactor_code.description.hi: कोड संरचना और पठनीयता में सुधार करें।
+code_refactor_code.description.id: Tingkatkan struktur dan keterbacaan kode.
+code_refactor_code.description.it: Migliora la struttura e la leggibilità del codice.
+code_refactor_code.description.ja: コードの構造と可読性を改善する。
+code_refactor_code.description.ko: 코드 구조와 가독성을 개선하세요.
+code_refactor_code.description.nl: Verbeter codestructuur en leesbaarheid.
+code_refactor_code.description.pl: Popraw strukturę i czytelność kodu.
+code_refactor_code.description.pt: Melhore a estrutura e legibilidade do código.
+code_refactor_code.description.ru: Улучшите структуру и читаемость кода.
+code_refactor_code.description.sv: Förbättra kodstruktur och läsbarhet.
+code_refactor_code.description.th: ปรับปรุงโครงสร้างและความอ่านง่ายของโค้ด
+code_refactor_code.description.tr: Kod yapısını ve okunabilirliğini iyileştirin.
+code_refactor_code.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for refactor_code
-  en: Improve code structure and readability.
-  de: Codestruktur und Lesbarkeit verbessern.
-  zh: 改善代码结构和可读性。
-  es: Mejora la estructura y legibilidad del código.
-  fr: Améliorez la structure et la lisibilité du code.
-  pt: Melhore a estrutura e legibilidade do código.
-  ru: Улучшите структуру и читаемость кода.
-  ja: コードの構造と可読性を改善する。
-  ko: 코드 구조와 가독성을 개선하세요.
-  it: Migliora la struttura e la leggibilità del codice.
-  tr: Kod yapısını ve okunabilirliğini iyileştirin.
-  vi: Cải thiện cấu trúc và khả năng đọc mã.
-  id: Tingkatkan struktur dan keterbacaan kode.
-  pl: Popraw strukturę i czytelność kodu.
-  nl: Verbeter codestructuur en leesbaarheid.
-  ar: حسّن بنية الكود وسهولة قراءته.
-  hi: कोड संरचना और पठनीयता में सुधार करें।
-  th: ปรับปรุงโครงสร้างและความอ่านง่ายของโค้ด
-  cs: Zlepšete strukturu a čitelnost kódu.
-  sv: Förbättra kodstruktur och läsbarhet.
-  verified_by_human:
+code_refactor_code.description.vi: Cải thiện cấu trúc và khả năng đọc mã.
+code_refactor_code.description.zh: 改善代码结构和可读性。
+code_refactor_code.en: Refactor code
+code_refactor_code.es: Refactorizar código
+code_refactor_code.fr: Refactoriser le code
+code_refactor_code.hi: कोड को रिफैक्टर करें
+code_refactor_code.id: Refaktor kode
+code_refactor_code.it: Refactoring codice
+code_refactor_code.ja: コードをリファクタリング
+code_refactor_code.ko: 코드 리팩토링
+code_refactor_code.nl: Code refactoren
+code_refactor_code.pl: Refaktoryzuj kod
+code_refactor_code.process.context: Step-by-step process description for refactor_code focus mode
+code_refactor_code.process.en: |
+  - mate asks multiple questions to better understand requirements and what isn't working well in the current code
+  - mate checks code structure overview and asks further clearifying questions if needed
+  - mate tries to find redundant code, unnecessary complexity, etc. and suggests improvements before implementing them
+  - mate implements the changes step-by-step, asks for feedback and then continues with the next step
+code_refactor_code.process.verified_by_human:
   - en
-process:
-  context: Step-by-step process description for refactor_code focus mode
-  en: '- mate asks multiple questions to better understand requirements and what isn''t working well in the current code
-
-    - mate checks code structure overview and asks further clearifying questions if needed
-
-    - mate tries to find redundant code, unnecessary complexity, etc. and suggests improvements before implementing them
-
-    - mate implements the changes step-by-step, asks for feedback and then continues with the next step'
-  verified_by_human:
+code_refactor_code.pt: Refatorar código
+code_refactor_code.ru: Рефакторинг кода
+code_refactor_code.sv: Refaktorera kod
+code_refactor_code.th: รีแฟกเตอร์โค้ด
+code_refactor_code.tr: Kodu yeniden düzenle
+code_refactor_code.verified_by_human:
   - en
+code_refactor_code.vi: Tái cấu trúc mã
+code_refactor_code.zh: 重构代码

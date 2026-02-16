@@ -1,68 +1,59 @@
-text:
-  context: Focus mode display name for setup_infrastructure in code app
-  en: Setup infrastructure
-  de: Infrastruktur einrichten
-  zh: 设置基础设施
-  es: Configurar infraestructura
-  fr: Configurer l'infrastructure
-  pt: Configurar infraestrutura
-  ru: Настроить инфраструктуру
-  ja: インフラストラクチャをセットアップ
-  ko: 인프라 설정
-  it: Configura infrastruttura
-  tr: Altyapı kurulumu
-  vi: Thiết lập cơ sở hạ tầng
-  id: Siapkan infrastruktur
-  pl: Skonfiguruj infrastrukturę
-  nl: Infrastructuur instellen
-  ar: إعداد البنية التحتية
-  hi: बुनियादी ढांचा सेटअप करें
-  th: ตั้งค่าโครงสร้างพื้นฐาน
-  cs: Nastavit infrastrukturu
-  sv: Konfigurera infrastruktur
-  verified_by_human:
+code_setup_infrastructure.ar: إعداد البنية التحتية
+code_setup_infrastructure.context: Focus mode display name for setup_infrastructure in code app
+code_setup_infrastructure.cs: Nastavit infrastrukturu
+code_setup_infrastructure.de: Infrastruktur einrichten
+code_setup_infrastructure.description.ar: احصل على مساعدة في إعداد البرامج أو البنية.
+code_setup_infrastructure.description.context: Focus mode description for setup_infrastructure
+code_setup_infrastructure.description.cs: Pomoc s nastavením softwaru nebo infrastruktury.
+code_setup_infrastructure.description.de: Hilfe beim Einrichten von Software oder Infra.
+code_setup_infrastructure.description.en: Get help setting up software or infra.
+code_setup_infrastructure.description.es: Obtén ayuda para configurar software o infra.
+code_setup_infrastructure.description.fr: Obtenez de l'aide pour configurer un logiciel.
+code_setup_infrastructure.description.hi: सॉफ़्टवेयर या इन्फ्रा सेटअप में सहायता पाएं।
+code_setup_infrastructure.description.id: Dapatkan bantuan menyiapkan software atau infra.
+code_setup_infrastructure.description.it: Assistenza per configurare software o infra.
+code_setup_infrastructure.description.ja: ソフトウェアやインフラの設定をサポート。
+code_setup_infrastructure.description.ko: 소프트웨어 또는 인프라 설정 도움을 받으세요.
+code_setup_infrastructure.description.nl: Hulp bij het instellen van software of infra.
+code_setup_infrastructure.description.pl: Pomoc w konfiguracji oprogramowania lub infra.
+code_setup_infrastructure.description.pt: Ajuda para configurar software ou infraestrutura.
+code_setup_infrastructure.description.ru: Помощь в настройке ПО или инфраструктуры.
+code_setup_infrastructure.description.sv: Få hjälp att konfigurera programvara eller infra.
+code_setup_infrastructure.description.th: รับความช่วยเหลือตั้งค่าซอฟต์แวร์หรือโครงสร้าง
+code_setup_infrastructure.description.tr: Yazılım veya altyapı kurulumunda yardım alın.
+code_setup_infrastructure.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for setup_infrastructure
-  en: Get help setting up software or infra.
-  de: Hilfe beim Einrichten von Software oder Infra.
-  zh: 获取设置软件或基础设施的帮助。
-  es: Obtén ayuda para configurar software o infra.
-  fr: Obtenez de l'aide pour configurer un logiciel.
-  pt: Ajuda para configurar software ou infraestrutura.
-  ru: Помощь в настройке ПО или инфраструктуры.
-  ja: ソフトウェアやインフラの設定をサポート。
-  ko: 소프트웨어 또는 인프라 설정 도움을 받으세요.
-  it: Assistenza per configurare software o infra.
-  tr: Yazılım veya altyapı kurulumunda yardım alın.
-  vi: Nhận hỗ trợ thiết lập phần mềm hoặc hạ tầng.
-  id: Dapatkan bantuan menyiapkan software atau infra.
-  pl: Pomoc w konfiguracji oprogramowania lub infra.
-  nl: Hulp bij het instellen van software of infra.
-  ar: احصل على مساعدة في إعداد البرامج أو البنية.
-  hi: सॉफ़्टवेयर या इन्फ्रा सेटअप में सहायता पाएं।
-  th: รับความช่วยเหลือตั้งค่าซอฟต์แวร์หรือโครงสร้าง
-  cs: Pomoc s nastavením softwaru nebo infrastruktury.
-  sv: Få hjälp att konfigurera programvara eller infra.
-  verified_by_human:
+code_setup_infrastructure.description.vi: Nhận hỗ trợ thiết lập phần mềm hoặc hạ tầng.
+code_setup_infrastructure.description.zh: 获取设置软件或基础设施的帮助。
+code_setup_infrastructure.en: Setup infrastructure
+code_setup_infrastructure.es: Configurar infraestructura
+code_setup_infrastructure.fr: Configurer l'infrastructure
+code_setup_infrastructure.hi: बुनियादी ढांचा सेटअप करें
+code_setup_infrastructure.id: Siapkan infrastruktur
+code_setup_infrastructure.it: Configura infrastruttura
+code_setup_infrastructure.ja: インフラストラクチャをセットアップ
+code_setup_infrastructure.ko: 인프라 설정
+code_setup_infrastructure.nl: Infrastructuur instellen
+code_setup_infrastructure.pl: Skonfiguruj infrastrukturę
+code_setup_infrastructure.process.context: Step-by-step process description for setup_infrastructure focus mode
+code_setup_infrastructure.process.en: |
+  - mate asks multiple questions to understand what user wants to setup and in what context
+  - mate asks clearification questions if first response is not clear
+  - mate provides step-by-step instructions for setting up the software or infrastructure the user asked for
+  - mate explains the first step, then waits for user feedback, then continues with the next step if step is successful, etc.
+  - at the end of the successful setup process, mate suggests saving the setup instructions as markdown (for humans), terraform, ansible playbook or cloud-init script (depending on the context)
+code_setup_infrastructure.process.verified_by_human:
   - en
-systemprompt:
-  context: System prompt for the LLM when setup_infrastructure focus mode is active
-  en: You are an expert in setting up infrastructure and software via terminal.
-  verified_by_human:
+code_setup_infrastructure.pt: Configurar infraestrutura
+code_setup_infrastructure.ru: Настроить инфраструктуру
+code_setup_infrastructure.sv: Konfigurera infrastruktur
+code_setup_infrastructure.systemprompt.context: System prompt for the LLM when setup_infrastructure focus mode is active
+code_setup_infrastructure.systemprompt.en: You are an expert in setting up infrastructure and software via terminal.
+code_setup_infrastructure.systemprompt.verified_by_human:
   - en
-process:
-  context: Step-by-step process description for setup_infrastructure focus mode
-  en: '- mate asks multiple questions to understand what user wants to setup and in what context
-
-    - mate asks clearification questions if first response is not clear
-
-    - mate provides step-by-step instructions for setting up the software or infrastructure the user asked for
-
-    - mate explains the first step, then waits for user feedback, then continues with the next step if step is successful,
-    etc.
-
-    - at the end of the successful setup process, mate suggests saving the setup instructions as markdown (for humans), terraform,
-    ansible playbook or cloud-init script (depending on the context)'
-  verified_by_human:
+code_setup_infrastructure.th: ตั้งค่าโครงสร้างพื้นฐาน
+code_setup_infrastructure.tr: Altyapı kurulumu
+code_setup_infrastructure.verified_by_human:
   - en
+code_setup_infrastructure.vi: Thiết lập cơ sở hạ tầng
+code_setup_infrastructure.zh: 设置基础设施

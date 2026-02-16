@@ -1,48 +1,46 @@
-text:
-  context: Focus mode display name for improve_issue in code app
-  en: Improve issue
-  de: Issue verbessern
-  zh: 改进问题
-  es: Mejorar problema
-  fr: Améliorer le problème
-  pt: Melhorar problema
-  ru: Улучшить проблему
-  ja: 問題を改善
-  ko: 이슈 개선
-  it: Migliora problema
-  tr: Sorunu iyileştir
-  vi: Cải thiện vấn đề
-  id: Tingkatkan masalah
-  pl: Popraw problem
-  nl: Probleem verbeteren
-  ar: تحسين المشكلة
-  hi: समस्या में सुधार करें
-  th: ปรับปรุงปัญหา
-  cs: Zlepšit problém
-  sv: Förbättra problem
-  verified_by_human:
+code_improve_issue.ar: تحسين المشكلة
+code_improve_issue.context: Focus mode display name for improve_issue in code app
+code_improve_issue.cs: Zlepšit problém
+code_improve_issue.de: Issue verbessern
+code_improve_issue.description.ar: حسّن المشكلات بإضافة تفاصيل ووضوح.
+code_improve_issue.description.context: Focus mode description for improve_issue
+code_improve_issue.description.cs: Vylepšete problémy přidáním detailů a jasnosti.
+code_improve_issue.description.de: Verbessere Issues durch Details und Klarheit.
+code_improve_issue.description.en: Refine issues by adding details and clarity.
+code_improve_issue.description.es: Mejora issues agregando detalles y claridad.
+code_improve_issue.description.fr: Améliorez les issues avec plus de détails et clarté.
+code_improve_issue.description.hi: विवरण और स्पष्टता जोड़कर समस्याओं को सुधारें।
+code_improve_issue.description.id: Perbaiki masalah dengan detail dan kejelasan.
+code_improve_issue.description.it: Migliora le issue con dettagli e chiarezza.
+code_improve_issue.description.ja: 詳細と明確さを追加してIssueを改善。
+code_improve_issue.description.ko: 세부 정보와 명확성을 추가하여 이슈를 개선하세요.
+code_improve_issue.description.nl: Verbeter issues met meer details en helderheid.
+code_improve_issue.description.pl: Ulepsz zgłoszenia, dodając szczegóły i jasność.
+code_improve_issue.description.pt: Refine issues adicionando detalhes e clareza.
+code_improve_issue.description.ru: Улучшите задачи, добавив деталей и ясности.
+code_improve_issue.description.sv: Förbättra ärenden med mer detaljer och tydlighet.
+code_improve_issue.description.th: ปรับปรุงปัญหาโดยเพิ่มรายละเอียดและความชัดเจน
+code_improve_issue.description.tr: Ayrıntı ve netlik ekleyerek sorunları iyileştirin.
+code_improve_issue.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for improve_issue
-  en: Refine issues by adding details and clarity.
-  de: Verbessere Issues durch Details und Klarheit.
-  zh: 通过添加细节和清晰度来完善问题。
-  es: Mejora issues agregando detalles y claridad.
-  fr: Améliorez les issues avec plus de détails et clarté.
-  pt: Refine issues adicionando detalhes e clareza.
-  ru: Улучшите задачи, добавив деталей и ясности.
-  ja: 詳細と明確さを追加してIssueを改善。
-  ko: 세부 정보와 명확성을 추가하여 이슈를 개선하세요.
-  it: Migliora le issue con dettagli e chiarezza.
-  tr: Ayrıntı ve netlik ekleyerek sorunları iyileştirin.
-  vi: Cải thiện vấn đề bằng cách thêm chi tiết rõ ràng.
-  id: Perbaiki masalah dengan detail dan kejelasan.
-  pl: Ulepsz zgłoszenia, dodając szczegóły i jasność.
-  nl: Verbeter issues met meer details en helderheid.
-  ar: حسّن المشكلات بإضافة تفاصيل ووضوح.
-  hi: विवरण और स्पष्टता जोड़कर समस्याओं को सुधारें।
-  th: ปรับปรุงปัญหาโดยเพิ่มรายละเอียดและความชัดเจน
-  cs: Vylepšete problémy přidáním detailů a jasnosti.
-  sv: Förbättra ärenden med mer detaljer och tydlighet.
-  verified_by_human:
+code_improve_issue.description.vi: Cải thiện vấn đề bằng cách thêm chi tiết rõ ràng.
+code_improve_issue.description.zh: 通过添加细节和清晰度来完善问题。
+code_improve_issue.en: Improve issue
+code_improve_issue.es: Mejorar problema
+code_improve_issue.fr: Améliorer le problème
+code_improve_issue.hi: समस्या में सुधार करें
+code_improve_issue.id: Tingkatkan masalah
+code_improve_issue.it: Migliora problema
+code_improve_issue.ja: 問題を改善
+code_improve_issue.ko: 이슈 개선
+code_improve_issue.nl: Probleem verbeteren
+code_improve_issue.pl: Popraw problem
+code_improve_issue.pt: Melhorar problema
+code_improve_issue.ru: Улучшить проблему
+code_improve_issue.sv: Förbättra problem
+code_improve_issue.th: ปรับปรุงปัญหา
+code_improve_issue.tr: Sorunu iyileştir
+code_improve_issue.verified_by_human:
   - en
+code_improve_issue.vi: Cải thiện vấn đề
+code_improve_issue.zh: 改进问题

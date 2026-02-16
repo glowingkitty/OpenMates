@@ -1,48 +1,46 @@
-text:
-  context: Focus mode display name for content_calendar_strategist in social_media app
-  en: Content Calendar Strategist
-  de: Content-Kalender-Strategin
-  zh: 内容日历战略家
-  es: Estratega del calendario de contenidos
-  fr: Stratège du calendrier de contenu
-  pt: Estrategista de calendário de conteúdo
-  ru: Стратег календаря контента
-  ja: コンテンツカレンダー戦略家
-  ko: 콘텐츠 캘린더 전략가
-  it: Stratega del calendario dei contenuti
-  tr: İçerik Takvimi Stratejisti
-  vi: Nhà chiến lược lịch nội dung
-  id: Strategi Kalender Konten
-  pl: Strateg kalendarza treści
-  nl: Content-kalender strategist
-  ar: استراتيجي تقويم المحتوى
-  hi: सामग्री कैलेंडर रणनीतिकार
-  th: นักวิศวกรปฏิทินเนื้อหา
-  cs: Stratég obsahu kalendáře
-  sv: Innehållskalender-strateg
-  verified_by_human:
+social_media_content_calendar_strategist.ar: استراتيجي تقويم المحتوى
+social_media_content_calendar_strategist.context: Focus mode display name for content_calendar_strategist in social_media app
+social_media_content_calendar_strategist.cs: Stratég obsahu kalendáře
+social_media_content_calendar_strategist.de: Content-Kalender-Strategin
+social_media_content_calendar_strategist.description.ar: أنشئ خطة محتوى لوسائل التواصل لـ 30 يومًا.
+social_media_content_calendar_strategist.description.context: Focus mode description for content_calendar_strategist
+social_media_content_calendar_strategist.description.cs: Vytvořte 30denní plán obsahu pro sociální sítě.
+social_media_content_calendar_strategist.description.de: Erstelle einen 30-Tage-Social-Media-Content-Plan.
+social_media_content_calendar_strategist.description.en: Create a 30-day social media content plan.
+social_media_content_calendar_strategist.description.es: Crea un plan de contenidos de 30 días para redes.
+social_media_content_calendar_strategist.description.fr: Créez un plan de contenu social de 30 jours.
+social_media_content_calendar_strategist.description.hi: 30-दिनीय सोशल मीडिया सामग्री योजना बनाएं।
+social_media_content_calendar_strategist.description.id: Buat rencana konten media sosial 30 hari.
+social_media_content_calendar_strategist.description.it: Crea un piano contenuti social di 30 giorni.
+social_media_content_calendar_strategist.description.ja: 30日間のSNSコンテンツプランを作成する。
+social_media_content_calendar_strategist.description.ko: 30일 소셜 미디어 콘텐츠 계획을 만드세요.
+social_media_content_calendar_strategist.description.nl: Maak een 30-dagen social media-contentplan.
+social_media_content_calendar_strategist.description.pl: Stwórz 30-dniowy plan treści social media.
+social_media_content_calendar_strategist.description.pt: Crie um plano de conteúdo social de 30 dias.
+social_media_content_calendar_strategist.description.ru: Создайте 30-дневный план контента для соцсетей.
+social_media_content_calendar_strategist.description.sv: Skapa en 30-dagars plan för sociala medier.
+social_media_content_calendar_strategist.description.th: สร้างแผนเนื้อหาสื่อสังคม 30 วัน
+social_media_content_calendar_strategist.description.tr: 30 günlük sosyal medya içerik planı oluşturun.
+social_media_content_calendar_strategist.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for content_calendar_strategist
-  en: Create a 30-day social media content plan.
-  de: Erstelle einen 30-Tage-Social-Media-Content-Plan.
-  zh: 创建30天社交媒体内容计划。
-  es: Crea un plan de contenidos de 30 días para redes.
-  fr: Créez un plan de contenu social de 30 jours.
-  pt: Crie um plano de conteúdo social de 30 dias.
-  ru: Создайте 30-дневный план контента для соцсетей.
-  ja: 30日間のSNSコンテンツプランを作成する。
-  ko: 30일 소셜 미디어 콘텐츠 계획을 만드세요.
-  it: Crea un piano contenuti social di 30 giorni.
-  tr: 30 günlük sosyal medya içerik planı oluşturun.
-  vi: Tạo kế hoạch nội dung mạng xã hội 30 ngày.
-  id: Buat rencana konten media sosial 30 hari.
-  pl: Stwórz 30-dniowy plan treści social media.
-  nl: Maak een 30-dagen social media-contentplan.
-  ar: أنشئ خطة محتوى لوسائل التواصل لـ 30 يومًا.
-  hi: 30-दिनीय सोशल मीडिया सामग्री योजना बनाएं।
-  th: สร้างแผนเนื้อหาสื่อสังคม 30 วัน
-  cs: Vytvořte 30denní plán obsahu pro sociální sítě.
-  sv: Skapa en 30-dagars plan för sociala medier.
-  verified_by_human:
+social_media_content_calendar_strategist.description.vi: Tạo kế hoạch nội dung mạng xã hội 30 ngày.
+social_media_content_calendar_strategist.description.zh: 创建30天社交媒体内容计划。
+social_media_content_calendar_strategist.en: Content Calendar Strategist
+social_media_content_calendar_strategist.es: Estratega del calendario de contenidos
+social_media_content_calendar_strategist.fr: Stratège du calendrier de contenu
+social_media_content_calendar_strategist.hi: सामग्री कैलेंडर रणनीतिकार
+social_media_content_calendar_strategist.id: Strategi Kalender Konten
+social_media_content_calendar_strategist.it: Stratega del calendario dei contenuti
+social_media_content_calendar_strategist.ja: コンテンツカレンダー戦略家
+social_media_content_calendar_strategist.ko: 콘텐츠 캘린더 전략가
+social_media_content_calendar_strategist.nl: Content-kalender strategist
+social_media_content_calendar_strategist.pl: Strateg kalendarza treści
+social_media_content_calendar_strategist.pt: Estrategista de calendário de conteúdo
+social_media_content_calendar_strategist.ru: Стратег календаря контента
+social_media_content_calendar_strategist.sv: Innehållskalender-strateg
+social_media_content_calendar_strategist.th: นักวิศวกรปฏิทินเนื้อหา
+social_media_content_calendar_strategist.tr: İçerik Takvimi Stratejisti
+social_media_content_calendar_strategist.verified_by_human:
   - en
+social_media_content_calendar_strategist.vi: Nhà chiến lược lịch nội dung
+social_media_content_calendar_strategist.zh: 内容日历战略家

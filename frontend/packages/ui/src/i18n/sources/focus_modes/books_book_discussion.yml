@@ -1,53 +1,50 @@
-text:
-  context: Focus mode display name for book_discussion in books app
-  en: Book discussion
-  de: Buchdiskussion
-  zh: 图书讨论
-  es: Discusión de libros
-  fr: Discussion de livres
-  pt: Discussão de livros
-  ru: Обсуждение книг
-  ja: 本の議論
-  ko: 책 토론
-  it: Discussione libro
-  tr: Kitap tartışması
-  vi: Thảo luận sách
-  id: Diskusi buku
-  pl: Dyskusja o książce
-  nl: Boekbespreking
-  ar: مناقشة الكتاب
-  hi: पुस्तक चर्चा
-  th: การสนทนาเกี่ยวกับหนังสือ
-  cs: Diskuze o knize
-  sv: Bokdiskussion
-  verified_by_human:
+books_book_discussion.ar: مناقشة الكتاب
+books_book_discussion.context: Focus mode display name for book_discussion in books app
+books_book_discussion.cs: Diskuze o knize
+books_book_discussion.de: Buchdiskussion
+books_book_discussion.description.ar: ناقش كتابًا كما في نادي القراءة.
+books_book_discussion.description.context: Focus mode description for book_discussion
+books_book_discussion.description.cs: Diskutujte o knize jako ve čtenářském klubu.
+books_book_discussion.description.de: Diskutiere ein Buch wie in einem Buchclub.
+books_book_discussion.description.en: Discuss a book like in a reading club.
+books_book_discussion.description.es: Discute un libro como en un club de lectura.
+books_book_discussion.description.fr: Discutez d'un livre comme dans un club de lecture.
+books_book_discussion.description.hi: किताब पर चर्चा करें जैसे किसी बुक क्लब में।
+books_book_discussion.description.id: Diskusikan buku seperti di klub membaca.
+books_book_discussion.description.it: Discuti un libro come in un club di lettura.
+books_book_discussion.description.ja: 読書クラブのように本について議論する。
+books_book_discussion.description.ko: 독서 클럽처럼 책에 대해 토론하세요.
+books_book_discussion.description.nl: Bespreek een boek als in een boekenclub.
+books_book_discussion.description.pl: Dyskutuj o książce jak w klubie czytelniczym.
+books_book_discussion.description.pt: Discuta um livro como em um clube de leitura.
+books_book_discussion.description.ru: Обсудите книгу как в книжном клубе.
+books_book_discussion.description.sv: Diskutera en bok som i en bokklubb.
+books_book_discussion.description.th: สนทนาเกี่ยวกับหนังสือเหมือนในชมรมอ่านหนังสือ
+books_book_discussion.description.tr: Bir kitap kulübü gibi kitap tartışın.
+books_book_discussion.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for book_discussion
-  en: Discuss a book like in a reading club.
-  de: Diskutiere ein Buch wie in einem Buchclub.
-  zh: 像在读书俱乐部一样讨论一本书。
-  es: Discute un libro como en un club de lectura.
-  fr: Discutez d'un livre comme dans un club de lecture.
-  pt: Discuta um livro como em um clube de leitura.
-  ru: Обсудите книгу как в книжном клубе.
-  ja: 読書クラブのように本について議論する。
-  ko: 독서 클럽처럼 책에 대해 토론하세요.
-  it: Discuti un libro come in un club di lettura.
-  tr: Bir kitap kulübü gibi kitap tartışın.
-  vi: Thảo luận sách như trong câu lạc bộ đọc sách.
-  id: Diskusikan buku seperti di klub membaca.
-  pl: Dyskutuj o książce jak w klubie czytelniczym.
-  nl: Bespreek een boek als in een boekenclub.
-  ar: ناقش كتابًا كما في نادي القراءة.
-  hi: किताब पर चर्चा करें जैसे किसी बुक क्लब में।
-  th: สนทนาเกี่ยวกับหนังสือเหมือนในชมรมอ่านหนังสือ
-  cs: Diskutujte o knize jako ve čtenářském klubu.
-  sv: Diskutera en bok som i en bokklubb.
-  verified_by_human:
+books_book_discussion.description.vi: Thảo luận sách như trong câu lạc bộ đọc sách.
+books_book_discussion.description.zh: 像在读书俱乐部一样讨论一本书。
+books_book_discussion.en: Book discussion
+books_book_discussion.es: Discusión de libros
+books_book_discussion.fr: Discussion de livres
+books_book_discussion.hi: पुस्तक चर्चा
+books_book_discussion.id: Diskusi buku
+books_book_discussion.it: Discussione libro
+books_book_discussion.ja: 本の議論
+books_book_discussion.ko: 책 토론
+books_book_discussion.nl: Boekbespreking
+books_book_discussion.pl: Dyskusja o książce
+books_book_discussion.pt: Discussão de livros
+books_book_discussion.ru: Обсуждение книг
+books_book_discussion.sv: Bokdiskussion
+books_book_discussion.systemprompt.context: System prompt for the LLM when book_discussion focus mode is active
+books_book_discussion.systemprompt.en: You are a books expert.
+books_book_discussion.systemprompt.verified_by_human:
   - en
-systemprompt:
-  context: System prompt for the LLM when book_discussion focus mode is active
-  en: You are a books expert.
-  verified_by_human:
+books_book_discussion.th: การสนทนาเกี่ยวกับหนังสือ
+books_book_discussion.tr: Kitap tartışması
+books_book_discussion.verified_by_human:
   - en
+books_book_discussion.vi: Thảo luận sách
+books_book_discussion.zh: 图书讨论

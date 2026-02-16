@@ -1,67 +1,59 @@
-text:
-  context: Focus mode display name for learn_topic in study app
-  en: Learn topic
-  de: Thema lernen
-  zh: 学习主题
-  es: Aprender tema
-  fr: Apprendre un sujet
-  pt: Aprender tópico
-  ru: Изучить тему
-  ja: トピックを学ぶ
-  ko: 주제 학습
-  it: Impara argomento
-  tr: Konu öğren
-  vi: Học chủ đề
-  id: Pelajari topik
-  pl: Naucz się tematu
-  nl: Onderwerp leren
-  ar: تعلم الموضوع
-  hi: विषय सीखें
-  th: เรียนรู้หัวข้อ
-  cs: Naučit se téma
-  sv: Lär dig ämne
-  verified_by_human:
+study_learn_topic.ar: تعلم الموضوع
+study_learn_topic.context: Focus mode display name for learn_topic in study app
+study_learn_topic.cs: Naučit se téma
+study_learn_topic.de: Thema lernen
+study_learn_topic.description.ar: تعلّم بدروس تكيفية وتذكيرات بالمراجعة.
+study_learn_topic.description.context: Focus mode description for learn_topic
+study_learn_topic.description.cs: Učte se s adaptivními lekcemi a připomínkami.
+study_learn_topic.description.de: Lerne mit adaptiven Lektionen und Erinnerungen.
+study_learn_topic.description.en: Learn with adaptive lessons and reminders.
+study_learn_topic.description.es: Aprende con lecciones adaptativas y recordatorios.
+study_learn_topic.description.fr: Apprenez avec des leçons adaptatives et rappels.
+study_learn_topic.description.hi: अनुकूली पाठों और अनुस्मारकों के साथ सीखें।
+study_learn_topic.description.id: Belajar dengan pelajaran adaptif dan pengingat.
+study_learn_topic.description.it: Impara con lezioni adattive e promemoria.
+study_learn_topic.description.ja: 適応型レッスンとリマインダーで学ぶ。
+study_learn_topic.description.ko: 적응형 수업과 알림으로 학습하세요.
+study_learn_topic.description.nl: Leer met adaptieve lessen en herinneringen.
+study_learn_topic.description.pl: Ucz się z lekcjami adaptacyjnymi i przypomnieniami.
+study_learn_topic.description.pt: Aprenda com lições adaptativas e lembretes.
+study_learn_topic.description.ru: Учитесь с адаптивными уроками и напоминаниями.
+study_learn_topic.description.sv: Lär dig med adaptiva lektioner och påminnelser.
+study_learn_topic.description.th: เรียนรู้ด้วยบทเรียนแบบปรับตัวและการแจ้งเตือน
+study_learn_topic.description.tr: Uyarlamalı dersler ve hatırlatıcılarla öğrenin.
+study_learn_topic.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for learn_topic
-  en: Learn with adaptive lessons and reminders.
-  de: Lerne mit adaptiven Lektionen und Erinnerungen.
-  zh: 通过自适应课程和提醒进行学习。
-  es: Aprende con lecciones adaptativas y recordatorios.
-  fr: Apprenez avec des leçons adaptatives et rappels.
-  pt: Aprenda com lições adaptativas e lembretes.
-  ru: Учитесь с адаптивными уроками и напоминаниями.
-  ja: 適応型レッスンとリマインダーで学ぶ。
-  ko: 적응형 수업과 알림으로 학습하세요.
-  it: Impara con lezioni adattive e promemoria.
-  tr: Uyarlamalı dersler ve hatırlatıcılarla öğrenin.
-  vi: Học với bài học thích ứng và nhắc nhở.
-  id: Belajar dengan pelajaran adaptif dan pengingat.
-  pl: Ucz się z lekcjami adaptacyjnymi i przypomnieniami.
-  nl: Leer met adaptieve lessen en herinneringen.
-  ar: تعلّم بدروس تكيفية وتذكيرات بالمراجعة.
-  hi: अनुकूली पाठों और अनुस्मारकों के साथ सीखें।
-  th: เรียนรู้ด้วยบทเรียนแบบปรับตัวและการแจ้งเตือน
-  cs: Učte se s adaptivními lekcemi a připomínkami.
-  sv: Lär dig med adaptiva lektioner och påminnelser.
-  verified_by_human:
+study_learn_topic.description.vi: Học với bài học thích ứng và nhắc nhở.
+study_learn_topic.description.zh: 通过自适应课程和提醒进行学习。
+study_learn_topic.en: Learn topic
+study_learn_topic.es: Aprender tema
+study_learn_topic.fr: Apprendre un sujet
+study_learn_topic.hi: विषय सीखें
+study_learn_topic.id: Pelajari topik
+study_learn_topic.it: Impara argomento
+study_learn_topic.ja: トピックを学ぶ
+study_learn_topic.ko: 주제 학습
+study_learn_topic.nl: Onderwerp leren
+study_learn_topic.pl: Naucz się tematu
+study_learn_topic.process.context: Step-by-step process description for learn_topic focus mode
+study_learn_topic.process.en: |
+  - asks what topic you want to learn
+  - determines your current knowledge level and learning goals
+  - breaks down the topic into manageable subtopics
+  - creates a personalized learning schedule with spaced repetition
+  - integrates with Reminder app to send periodic review notifications
+study_learn_topic.process.verified_by_human:
   - en
-systemprompt:
-  context: System prompt for the LLM when learn_topic focus mode is active
-  en: You are an expert learning facilitator. Help users master new topics through structured learning, clear explanations,
-    and strategic repetition.
-  verified_by_human:
+study_learn_topic.pt: Aprender tópico
+study_learn_topic.ru: Изучить тему
+study_learn_topic.sv: Lär dig ämne
+study_learn_topic.systemprompt.context: System prompt for the LLM when learn_topic focus mode is active
+study_learn_topic.systemprompt.en: You are an expert learning facilitator. Help users master new topics through structured learning, clear explanations, and strategic repetition.
+study_learn_topic.systemprompt.verified_by_human:
   - en
-process:
-  context: Step-by-step process description for learn_topic focus mode
-  en: '- asks what topic you want to learn
-
-    - determines your current knowledge level and learning goals
-
-    - breaks down the topic into manageable subtopics
-
-    - creates a personalized learning schedule with spaced repetition
-
-    - integrates with Reminder app to send periodic review notifications'
-  verified_by_human:
+study_learn_topic.th: เรียนรู้หัวข้อ
+study_learn_topic.tr: Konu öğren
+study_learn_topic.verified_by_human:
   - en
+study_learn_topic.vi: Học chủ đề
+study_learn_topic.zh: 学习主题

@@ -1,81 +1,64 @@
-text:
-  context: Focus mode display name for plant_care_guide in plants app
-  en: Plant Care Guide
-  de: Pflanzenpflege-Anleitung
-  zh: 植物护理指南
-  es: Guía de cuidado de plantas
-  fr: Guide d'entretien des plantes
-  pt: Guia de cuidados com plantas
-  ru: Руководство по уходу за растениями
-  ja: 植物ケアガイド
-  ko: 식물 관리 가이드
-  it: Guida alla cura delle piante
-  tr: Bitki bakım rehberi
-  vi: Hướng dẫn chăm sóc cây trồng
-  id: Panduan perawatan tanaman
-  pl: Przewodnik pielęgnacji roślin
-  nl: Plantenverzorgingsgids
-  ar: دليل العناية بالنباتات
-  hi: पौधे की देखभाल गाइड
-  th: คู่มือการดูแลพืช
-  cs: Průvodce péčí o rostliny
-  sv: Växtvårdsguide
-  verified_by_human:
+plants_plant_care_guide.ar: دليل العناية بالنباتات
+plants_plant_care_guide.context: Focus mode display name for plant_care_guide in plants app
+plants_plant_care_guide.cs: Průvodce péčí o rostliny
+plants_plant_care_guide.de: Pflanzenpflege-Anleitung
+plants_plant_care_guide.description.ar: احصل على نصائح رعاية مخصصة لنباتك.
+plants_plant_care_guide.description.context: Focus mode description for plant_care_guide
+plants_plant_care_guide.description.cs: Personalizované tipy pro péči o vaši rostlinu.
+plants_plant_care_guide.description.de: Personalisierte Pflegetipps für deine Pflanze.
+plants_plant_care_guide.description.en: Get personalized care tips for your plant.
+plants_plant_care_guide.description.es: Obtén consejos de cuidado para tu planta.
+plants_plant_care_guide.description.fr: Obtenez des conseils de soin pour votre plante.
+plants_plant_care_guide.description.hi: अपने पौधे के लिए व्यक्तिगत देखभाल टिप्स पाएं।
+plants_plant_care_guide.description.id: Dapatkan tips perawatan personal untuk tanaman Anda.
+plants_plant_care_guide.description.it: Consigli di cura personalizzati per la tua pianta.
+plants_plant_care_guide.description.ja: 植物に合わせたケアのヒントを取得する。
+plants_plant_care_guide.description.ko: 식물에 맞는 맞춤형 관리 팁을 받으세요.
+plants_plant_care_guide.description.nl: Gepersonaliseerde verzorgingstips voor je plant.
+plants_plant_care_guide.description.pl: Spersonalizowane porady pielęgnacji Twojej rośliny.
+plants_plant_care_guide.description.pt: Dicas de cuidados personalizadas para sua planta.
+plants_plant_care_guide.description.ru: Персональные советы по уходу за вашим растением.
+plants_plant_care_guide.description.sv: Få personliga skötselråd för din växt.
+plants_plant_care_guide.description.th: รับคำแนะนำการดูแลพืชแบบเฉพาะเจาะจง
+plants_plant_care_guide.description.tr: Bitkiniz için kişisel bakım ipuçları alın.
+plants_plant_care_guide.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for plant_care_guide
-  en: Get personalized care tips for your plant.
-  de: Personalisierte Pflegetipps für deine Pflanze.
-  zh: 获取植物的个性化护理建议。
-  es: Obtén consejos de cuidado para tu planta.
-  fr: Obtenez des conseils de soin pour votre plante.
-  pt: Dicas de cuidados personalizadas para sua planta.
-  ru: Персональные советы по уходу за вашим растением.
-  ja: 植物に合わせたケアのヒントを取得する。
-  ko: 식물에 맞는 맞춤형 관리 팁을 받으세요.
-  it: Consigli di cura personalizzati per la tua pianta.
-  tr: Bitkiniz için kişisel bakım ipuçları alın.
-  vi: Nhận mẹo chăm sóc cá nhân hóa cho cây của bạn.
-  id: Dapatkan tips perawatan personal untuk tanaman Anda.
-  pl: Spersonalizowane porady pielęgnacji Twojej rośliny.
-  nl: Gepersonaliseerde verzorgingstips voor je plant.
-  ar: احصل على نصائح رعاية مخصصة لنباتك.
-  hi: अपने पौधे के लिए व्यक्तिगत देखभाल टिप्स पाएं।
-  th: รับคำแนะนำการดูแลพืชแบบเฉพาะเจาะจง
-  cs: Personalizované tipy pro péči o vaši rostlinu.
-  sv: Få personliga skötselråd för din växt.
-  verified_by_human:
+plants_plant_care_guide.description.vi: Nhận mẹo chăm sóc cá nhân hóa cho cây của bạn.
+plants_plant_care_guide.description.zh: 获取植物的个性化护理建议。
+plants_plant_care_guide.en: Plant Care Guide
+plants_plant_care_guide.es: Guía de cuidado de plantas
+plants_plant_care_guide.fr: Guide d'entretien des plantes
+plants_plant_care_guide.hi: पौधे की देखभाल गाइड
+plants_plant_care_guide.id: Panduan perawatan tanaman
+plants_plant_care_guide.it: Guida alla cura delle piante
+plants_plant_care_guide.ja: 植物ケアガイド
+plants_plant_care_guide.ko: 식물 관리 가이드
+plants_plant_care_guide.nl: Plantenverzorgingsgids
+plants_plant_care_guide.pl: Przewodnik pielęgnacji roślin
+plants_plant_care_guide.process.context: Step-by-step process description for plant_care_guide focus mode
+plants_plant_care_guide.process.en: |
+  - asks about the plant you want help with (name, species, or description)
+  - gathers information about the plant's current condition (leaves, growth, soil, etc.)
+  - asks about the plant's environment (light, temperature, humidity, location)
+  - discusses current care routine (watering frequency, fertilizing schedule, repotting history)
+  - identifies any visible problems or concerns (yellowing leaves, pests, wilting, etc.)
+  - asks about the plant's history (when acquired, recent changes, previous issues)
+  - analyzes the information to determine specific care needs
+  - provides personalized care recommendations (watering schedule, light requirements, fertilizing needs)
+  - suggests troubleshooting steps if problems are identified
+  - helps update plant care schedule in 'my_plants' settings and memories
+plants_plant_care_guide.process.verified_by_human:
   - en
-systemprompt:
-  context: System prompt for the LLM when plant_care_guide focus mode is active
-  en: You are an expert plant care specialist and horticulturist. Your role is to help users understand how to properly care
-    for their specific plants through thoughtful questioning and personalized guidance. Ask detailed questions about the plant's
-    species, current condition, environment, and care history. Provide specific, actionable recommendations for watering,
-    fertilizing, light, and other care needs. Help identify and troubleshoot common plant problems. When appropriate, guide
-    users to update their plant care schedule in their 'my_plants' collection. Be encouraging and educational, helping users
-    become confident plant parents.
-  verified_by_human:
+plants_plant_care_guide.pt: Guia de cuidados com plantas
+plants_plant_care_guide.ru: Руководство по уходу за растениями
+plants_plant_care_guide.sv: Växtvårdsguide
+plants_plant_care_guide.systemprompt.context: System prompt for the LLM when plant_care_guide focus mode is active
+plants_plant_care_guide.systemprompt.en: You are an expert plant care specialist and horticulturist. Your role is to help users understand how to properly care for their specific plants through thoughtful questioning and personalized guidance. Ask detailed questions about the plant's species, current condition, environment, and care history. Provide specific, actionable recommendations for watering, fertilizing, light, and other care needs. Help identify and troubleshoot common plant problems. When appropriate, guide users to update their plant care schedule in their 'my_plants' collection. Be encouraging and educational, helping users become confident plant parents.
+plants_plant_care_guide.systemprompt.verified_by_human:
   - en
-process:
-  context: Step-by-step process description for plant_care_guide focus mode
-  en: '- asks about the plant you want help with (name, species, or description)
-
-    - gathers information about the plant''s current condition (leaves, growth, soil, etc.)
-
-    - asks about the plant''s environment (light, temperature, humidity, location)
-
-    - discusses current care routine (watering frequency, fertilizing schedule, repotting history)
-
-    - identifies any visible problems or concerns (yellowing leaves, pests, wilting, etc.)
-
-    - asks about the plant''s history (when acquired, recent changes, previous issues)
-
-    - analyzes the information to determine specific care needs
-
-    - provides personalized care recommendations (watering schedule, light requirements, fertilizing needs)
-
-    - suggests troubleshooting steps if problems are identified
-
-    - helps update plant care schedule in ''my_plants'' settings and memories'
-  verified_by_human:
+plants_plant_care_guide.th: คู่มือการดูแลพืช
+plants_plant_care_guide.tr: Bitki bakım rehberi
+plants_plant_care_guide.verified_by_human:
   - en
+plants_plant_care_guide.vi: Hướng dẫn chăm sóc cây trồng
+plants_plant_care_guide.zh: 植物护理指南

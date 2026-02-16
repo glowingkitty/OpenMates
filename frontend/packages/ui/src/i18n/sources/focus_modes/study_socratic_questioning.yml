@@ -1,68 +1,59 @@
-text:
-  context: Focus mode display name for socratic_questioning in study app
-  en: Socratic questioning
-  de: Sokratisches Fragen
-  zh: 苏格拉底式提问
-  es: Cuestionamiento socrático
-  fr: Questionnement socratique
-  pt: Questionamento socrático
-  ru: Сократовский вопрос
-  ja: ソクラテス式質問
-  ko: 소크라테스식 질문
-  it: Domanda socratica
-  tr: Sokratik sorgulama
-  vi: Câu hỏi Socrates
-  id: Pertanyaan sokratik
-  pl: Pytanie sokratejskie
-  nl: Socratische vraagstelling
-  ar: السؤال السقراطي
-  hi: सुकरातीय प्रश्न
-  th: การตั้งคำถามแบบโสกราตีส
-  cs: Sokratovské dotazování
-  sv: Sokratisk frågeställning
-  verified_by_human:
+study_socratic_questioning.ar: السؤال السقراطي
+study_socratic_questioning.context: Focus mode display name for socratic_questioning in study app
+study_socratic_questioning.cs: Sokratovské dotazování
+study_socratic_questioning.de: Sokratisches Fragen
+study_socratic_questioning.description.ar: عمّق فهمك من خلال الأسئلة الموجّهة.
+study_socratic_questioning.description.context: Focus mode description for socratic_questioning
+study_socratic_questioning.description.cs: Prohloubte porozumění prostřednictvím otázek.
+study_socratic_questioning.description.de: Vertiefe Verständnis durch gezielte Fragen.
+study_socratic_questioning.description.en: Deepen understanding through guided questions.
+study_socratic_questioning.description.es: Profundiza tu comprensión con preguntas guiadas.
+study_socratic_questioning.description.fr: Approfondissez votre compréhension par des questions.
+study_socratic_questioning.description.hi: मार्गदर्शित प्रश्नों से समझ को गहरा करें।
+study_socratic_questioning.description.id: Perdalam pemahaman melalui pertanyaan terarah.
+study_socratic_questioning.description.it: Approfondisci la comprensione con domande guidate.
+study_socratic_questioning.description.ja: ガイド付き質問で理解を深める。
+study_socratic_questioning.description.ko: 안내 질문을 통해 이해를 심화하세요.
+study_socratic_questioning.description.nl: Verdiep begrip door begeleide vragen.
+study_socratic_questioning.description.pl: Pogłęb zrozumienie przez ukierunkowane pytania.
+study_socratic_questioning.description.pt: Aprofunde a compreensão com perguntas guiadas.
+study_socratic_questioning.description.ru: Углубите понимание через направленные вопросы.
+study_socratic_questioning.description.sv: Fördjupa förståelsen genom guidade frågor.
+study_socratic_questioning.description.th: เพิ่มความเข้าใจผ่านคำถามนำทาง
+study_socratic_questioning.description.tr: Yönlendirici sorularla anlayışınızı derinleştirin.
+study_socratic_questioning.description.verified_by_human:
   - en
-description:
-  context: Focus mode description for socratic_questioning
-  en: Deepen understanding through guided questions.
-  de: Vertiefe Verständnis durch gezielte Fragen.
-  zh: 通过引导式提问加深理解。
-  es: Profundiza tu comprensión con preguntas guiadas.
-  fr: Approfondissez votre compréhension par des questions.
-  pt: Aprofunde a compreensão com perguntas guiadas.
-  ru: Углубите понимание через направленные вопросы.
-  ja: ガイド付き質問で理解を深める。
-  ko: 안내 질문을 통해 이해를 심화하세요.
-  it: Approfondisci la comprensione con domande guidate.
-  tr: Yönlendirici sorularla anlayışınızı derinleştirin.
-  vi: Hiểu sâu hơn thông qua câu hỏi hướng dẫn.
-  id: Perdalam pemahaman melalui pertanyaan terarah.
-  pl: Pogłęb zrozumienie przez ukierunkowane pytania.
-  nl: Verdiep begrip door begeleide vragen.
-  ar: عمّق فهمك من خلال الأسئلة الموجّهة.
-  hi: मार्गदर्शित प्रश्नों से समझ को गहरा करें।
-  th: เพิ่มความเข้าใจผ่านคำถามนำทาง
-  cs: Prohloubte porozumění prostřednictvím otázek.
-  sv: Fördjupa förståelsen genom guidade frågor.
-  verified_by_human:
+study_socratic_questioning.description.vi: Hiểu sâu hơn thông qua câu hỏi hướng dẫn.
+study_socratic_questioning.description.zh: 通过引导式提问加深理解。
+study_socratic_questioning.en: Socratic questioning
+study_socratic_questioning.es: Cuestionamiento socrático
+study_socratic_questioning.fr: Questionnement socratique
+study_socratic_questioning.hi: सुकरातीय प्रश्न
+study_socratic_questioning.id: Pertanyaan sokratik
+study_socratic_questioning.it: Domanda socratica
+study_socratic_questioning.ja: ソクラテス式質問
+study_socratic_questioning.ko: 소크라테스식 질문
+study_socratic_questioning.nl: Socratische vraagstelling
+study_socratic_questioning.pl: Pytanie sokratejskie
+study_socratic_questioning.process.context: Step-by-step process description for socratic_questioning focus mode
+study_socratic_questioning.process.en: |
+  - asks what topic or concept you want to explore deeply
+  - asks strategic questions to guide your thinking
+  - helps you examine your assumptions and beliefs
+  - encourages you to arrive at conclusions through your own reasoning
+  - asks follow-up questions to deepen understanding
+study_socratic_questioning.process.verified_by_human:
   - en
-systemprompt:
-  context: System prompt for the LLM when socratic_questioning focus mode is active
-  en: You are a master teacher using the Socratic method. Ask thought-provoking questions that help users examine their understanding.
-    Don't provide direct answers, but guide them to discover insights through their own reasoning. Focus on critical thinking
-    and deeper comprehension.
-  verified_by_human:
+study_socratic_questioning.pt: Questionamento socrático
+study_socratic_questioning.ru: Сократовский вопрос
+study_socratic_questioning.sv: Sokratisk frågeställning
+study_socratic_questioning.systemprompt.context: System prompt for the LLM when socratic_questioning focus mode is active
+study_socratic_questioning.systemprompt.en: You are a master teacher using the Socratic method. Ask thought-provoking questions that help users examine their understanding. Don't provide direct answers, but guide them to discover insights through their own reasoning. Focus on critical thinking and deeper comprehension.
+study_socratic_questioning.systemprompt.verified_by_human:
   - en
-process:
-  context: Step-by-step process description for socratic_questioning focus mode
-  en: '- asks what topic or concept you want to explore deeply
-
-    - asks strategic questions to guide your thinking
-
-    - helps you examine your assumptions and beliefs
-
-    - encourages you to arrive at conclusions through your own reasoning
-
-    - asks follow-up questions to deepen understanding'
-  verified_by_human:
+study_socratic_questioning.th: การตั้งคำถามแบบโสกราตีส
+study_socratic_questioning.tr: Sokratik sorgulama
+study_socratic_questioning.verified_by_human:
   - en
+study_socratic_questioning.vi: Câu hỏi Socrates
+study_socratic_questioning.zh: 苏格拉底式提问
