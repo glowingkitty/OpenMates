@@ -201,43 +201,43 @@ skills:
     stage: planning
 focuses:
   - id: test_git_repo
-    name_translation_key: focus_modes.code_test_git_repo
-    description_translation_key: focus_modes.code_test_git_repo.description
+    name_translation_key: code.test_git_repo
+    description_translation_key: code.test_git_repo.description
     stage: planning
-    name_translation_key: focus_modes.code_test_git_repo
-    description_translation_key: focus_modes.code_test_git_repo.description
+    name_translation_key: code.test_git_repo
+    description_translation_key: code.test_git_repo.description
     stage: planning
-    name_translation_key: focus_modes.code_test_git_repo
-    description_translation_key: focus_modes.code_test_git_repo.description
+    name_translation_key: code.test_git_repo
+    description_translation_key: code.test_git_repo.description
     stage: planning
       You are a programming expert.
   - id: analyze_logs
-    name_translation_key: focus_modes.code_analyze_logs
-    description_translation_key: focus_modes.code_analyze_logs.description
+    name_translation_key: code.analyze_logs
+    description_translation_key: code.analyze_logs.description
     stage: planning
-    name_translation_key: focus_modes.code_analyze_logs
-    description_translation_key: focus_modes.code_analyze_logs.description
+    name_translation_key: code.analyze_logs
+    description_translation_key: code.analyze_logs.description
     stage: planning
-    name_translation_key: focus_modes.code_analyze_logs
-    description_translation_key: focus_modes.code_analyze_logs.description
+    name_translation_key: code.analyze_logs
+    description_translation_key: code.analyze_logs.description
     stage: planning
-    name_translation_key: focus_modes.code_analyze_logs
-    description_translation_key: focus_modes.code_analyze_logs.description
+    name_translation_key: code.analyze_logs
+    description_translation_key: code.analyze_logs.description
     stage: planning
   - id: research_solutions
-    name_translation_key: focus_modes.code_research_solutions
-    description_translation_key: focus_modes.code_research_solutions.description
+    name_translation_key: code.research_solutions
+    description_translation_key: code.research_solutions.description
     stage: planning
   - id: code_walkthrough
-    name_translation_key: focus_modes.code_code_walkthrough
-    description_translation_key: focus_modes.code_code_walkthrough.description
+    name_translation_key: code.code_walkthrough
+    description_translation_key: code.code_walkthrough.description
     stage: planning
   - id: setup_infrastructure
-    name_translation_key: focus_modes.code_setup_infrastructure
-    description_translation_key: focus_modes.code_setup_infrastructure.description
+    name_translation_key: code.setup_infrastructure
+    description_translation_key: code.setup_infrastructure.description
     stage: planning
       You are an expert in setting up infrastructure and software via terminal.
   - id: refactor_code
-    name_translation_key: focus_modes.code_refactor_code
-    description_translation_key: focus_modes.code_refactor_code.description
+    name_translation_key: code.refactor_code
+    description_translation_key: code.refactor_code.description
     stage: planning

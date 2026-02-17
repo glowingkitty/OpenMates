@@ -7,8 +7,8 @@ last_updated: "2026-02-12"
 skills: []
 focuses:
   - id: career_insights
-    name_translation_key: focus_modes.jobs_career_insights
-    description_translation_key: focus_modes.jobs_career_insights.description
+    name_translation_key: jobs.career_insights
+    description_translation_key: jobs.career_insights.description
     stage: production
     preprocessor_hint: >
       Select when the user expresses career frustration, feels stuck in their job, is considering a career change,
