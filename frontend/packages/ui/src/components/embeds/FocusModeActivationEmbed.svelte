@@ -9,6 +9,7 @@
   - Countdown timer with progress bar during auto-activation (first time only)
   - "Focus activated" state after countdown completes
   - Click-to-reject during countdown (adds system message and deactivates)
+  - Click/tap/Enter/Space on activated embed opens the context menu (stop/details)
   
   CRITICAL: The countdown should only run ONCE per embed ID. When the component
   is remounted (scroll, tab switch, etc.), it should show the activated state
@@ -62,8 +63,9 @@
     /** Callback to open focus mode details in settings */
     onDetails?: (focusId: string, appId: string) => void;
     /**
-     * Callback when the user right-clicks or long-presses the embed.
+     * Callback when the user clicks, right-clicks, or long-presses the embed.
      * Opens the FocusModeContextMenu with Cancel/Stop/Details options.
+     * Regular click/tap/keyboard triggers this after activation; right-click always works.
      */
     onContextMenu?: (event: MouseEvent | TouchEvent, state: { isActivated: boolean; isRejected: boolean }) => void;
   }
@@ -182,6 +184,46 @@
   }
 
   /**
+   * Handle regular click on the embed.
+   * - During countdown: rejects the focus mode (cancels activation).
+   * - After activation: opens the context menu (same as right-click).
+   */
+  function handleClick(event: MouseEvent) {
+    if (!isActivated) {
+      handleRejectClick();
+    } else {
+      // Activated state — show context menu via regular click
+      event.preventDefault();
+      event.stopPropagation();
+      _onContextMenu?.(event, { isActivated, isRejected });
+    }
+  }
+
+  /**
+   * Handle keyboard interaction (Enter/Space).
+   * - During countdown: rejects the focus mode.
+   * - After activation: opens the context menu.
+   */
+  function handleKeyPress(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (!isActivated) {
+        handleRejectClick();
+      } else {
+        // Create a synthetic position based on the element for the context menu
+        const target = e.currentTarget as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        const syntheticEvent = new MouseEvent('click', {
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2,
+          bubbles: true,
+        });
+        _onContextMenu?.(syntheticEvent, { isActivated, isRejected });
+      }
+    }
+  }
+
+  /**
    * Handle right-click / context menu on the embed.
    * Opens the FocusModeContextMenu via the onContextMenu callback.
    */
@@ -269,7 +311,6 @@
 </script>
 
 {#if !isRejected}
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <div
     class="focus-mode-bar"
     class:activated={isActivated}
@@ -277,14 +318,14 @@
     data-focus-id={focusId}
     data-app-id={appId}
     data-embed-type="focus-mode-activation"
-    role={!isActivated ? 'button' : 'presentation'}
-    tabindex={!isActivated ? 0 : -1}
+    role="button"
+    tabindex="0"
     oncontextmenu={handleContextMenu}
     ontouchstart={handleTouchStart}
     ontouchmove={handleTouchMove}
     ontouchend={handleTouchEnd}
-    onclick={!isActivated ? handleRejectClick : undefined}
-    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!isActivated) handleRejectClick(); } }}
+    onclick={handleClick}
+    onkeydown={handleKeyPress}
   >
     <!-- App icon in gradient circle (matches BasicInfosBar style) -->
     <div class="app-icon-circle {appId}" style={appGradientStyle}>
@@ -343,7 +384,8 @@
     width: 380px;
   }
 
-  .focus-mode-bar.counting {
+  .focus-mode-bar.counting,
+  .focus-mode-bar.activated {
     cursor: pointer;
   }
 

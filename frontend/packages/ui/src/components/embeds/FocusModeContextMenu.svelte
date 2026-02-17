@@ -222,7 +222,7 @@
       class="menu-item details"
       onclick={(event) => handleButtonClick('details', event)}
     >
-      <div class="clickable-icon icon_info"></div>
+      <div class="clickable-icon icon_question"></div>
       {$text('embeds.context_menu.details')}
     </button>
   </div>
@@ -317,6 +317,7 @@
     width: 18px;
     height: 18px;
     min-width: 18px;
-    background: var(--color-grey-70);
+    /* Use focus mode purple gradient for both stop and details icons */
+    background: var(--icon-focus-background);
   }
 </style>
