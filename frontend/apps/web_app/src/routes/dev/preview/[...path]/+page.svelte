@@ -202,65 +202,79 @@
 	 * Uses Svelte's mount() API inside a try/catch to gracefully handle
 	 * components that crash during render (e.g. missing required snippet props).
 	 *
-	 * Reactive deps: loadedComponent, effectiveProps, activeVariant, mountTarget
+	 * We also listen for unhandled errors (window 'error' event) because
+	 * Svelte mount() can throw asynchronously during the render microtask,
+	 * bypassing the synchronous try/catch.
 	 */
 	$effect(() => {
 		// Read reactive deps to trigger re-runs on variant/prop changes.
-		// effectiveProps already depends on activeVariant, so reading it
-		// is sufficient to re-run when variant changes.
 		const component = loadedComponent;
 		const props = effectiveProps;
 		const target = mountTarget;
+		const hasError = renderError;
 
 		if (!component || !target) return;
 
+		// Skip mounting if there's a render error — user must click Retry
+		// to clear renderError, which will cause this effect to re-run
+		// (because we read renderError above as a dependency).
+		if (hasError) return;
+
 		// Clean up previous mount
+		cleanupMount(target);
+
+		// Catch async render errors via window error handler
+		let errorCaught = false;
+		function handleError(event: ErrorEvent) {
+			if (!errorCaught) {
+				errorCaught = true;
+				renderError = event.error?.message || event.message || 'Unknown render error';
+				cleanupMount(target);
+			}
+			event.preventDefault();
+		}
+		window.addEventListener('error', handleError);
+
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic glob import yields unknown type
+			mountedInstance = mount(component as any, { target, props });
+		} catch (err) {
+			errorCaught = true;
+			renderError = err instanceof Error ? err.message : String(err);
+			cleanupMount(target);
+		}
+
+		// If mount succeeded synchronously but might fail asynchronously,
+		// keep the error listener for a brief period then remove it.
+		const timerId = setTimeout(() => {
+			window.removeEventListener('error', handleError);
+		}, 500);
+
+		return () => {
+			clearTimeout(timerId);
+			window.removeEventListener('error', handleError);
+			cleanupMount(target);
+		};
+	});
+
+	/** Safely unmount and clear the mount target */
+	function cleanupMount(target: HTMLElement | null) {
 		if (mountedInstance) {
 			try {
 				unmount(mountedInstance);
 			} catch {
-				// Unmount can fail if the component was already destroyed
+				// Ignore cleanup errors
 			}
 			mountedInstance = null;
+		}
+		if (target) {
 			target.innerHTML = '';
 		}
-
-		renderError = null;
-
-		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			mountedInstance = mount(component as any, {
-				target,
-				props
-			});
-		} catch (err) {
-			renderError = err instanceof Error ? err.message : String(err);
-			target.innerHTML = '';
-		}
-
-		// Cleanup on effect re-run or destroy
-		return () => {
-			if (mountedInstance) {
-				try {
-					unmount(mountedInstance);
-				} catch {
-					// Ignore cleanup errors
-				}
-				mountedInstance = null;
-			}
-		};
-	});
+	}
 
 	/** Retry rendering after a render error (e.g. after editing props) */
 	function retryRender() {
 		renderError = null;
-		// Force re-mount by toggling the component reference
-		const comp = loadedComponent;
-		loadedComponent = null;
-		// Use microtask to ensure the effect sees the change
-		queueMicrotask(() => {
-			loadedComponent = comp;
-		});
 	}
 
 	/** Toggle between light and dark theme */
@@ -474,7 +488,12 @@
 					<!--
 						Component is mounted programmatically via mount() in an $effect
 						to catch render crashes from components with missing required props.
-						The mountTarget div is the container for the dynamically mounted component.
+						
+						IMPORTANT: The mount target div is ALWAYS present in the DOM to
+						avoid timing issues with bind:this. When a render error occurs,
+						we hide it with display:none and show the error panel instead.
+						If we conditionally rendered the div ({#if}/{:else}), bind:this
+						could be null when the $effect runs after a retry.
 					-->
 					{#if renderError}
 						<div class="preview-state render-error">
@@ -497,9 +516,12 @@
 								</button>
 							</div>
 						</div>
-					{:else}
-						<div class="component-mount" bind:this={mountTarget}></div>
 					{/if}
+					<div
+						class="component-mount"
+						bind:this={mountTarget}
+						style:display={renderError ? 'none' : 'block'}
+					></div>
 				{/if}
 			</div>
 		</div>
