@@ -1,0 +1,25 @@
+welcome_message:
+  context: Welcome message from Suki in the onboarding chat after signup. Uses {username} variable.
+  en: "Hey {username}! 👋 I'm Suki, your personal assistant. I'm here to help you get started with OpenMates. Feel free to ask me anything!"
+  de: "Hey {username}! 👋 Ich bin Suki, dein persönlicher Assistent. Ich bin hier, um dir den Einstieg bei OpenMates zu erleichtern. Frag mich einfach alles!"
+  verified_by_human: []
+follow_up_1:
+  context: First suggestion chip shown below the onboarding welcome message
+  en: "What can you help me with?"
+  de: "Wobei kannst du mir helfen?"
+  verified_by_human: []
+follow_up_2:
+  context: Second suggestion chip shown below the onboarding welcome message
+  en: "How does OpenMates work?"
+  de: "Wie funktioniert OpenMates?"
+  verified_by_human: []
+follow_up_3:
+  context: Third suggestion chip shown below the onboarding welcome message
+  en: "What makes OpenMates different?"
+  de: "Was macht OpenMates besonders?"
+  verified_by_human: []
+follow_up_4:
+  context: Fourth suggestion chip shown below the onboarding welcome message
+  en: "Show me what you can do"
+  de: "Zeig mir, was du kannst"
+  verified_by_human: []

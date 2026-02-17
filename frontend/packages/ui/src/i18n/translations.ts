@@ -14,6 +14,24 @@ const MISSING_PREFIX = '[T:';
 const MISSING_SUFFIX = ']';
 const missingPlaceholder = (key: string) => `${MISSING_PREFIX}${key}${MISSING_SUFFIX}`;
 
+/**
+ * Dev-mode missing translation tracker.
+ * Logs a console.error the FIRST time each missing key is encountered on the client,
+ * so developers immediately see which translations are missing without console spam.
+ * Only active in dev mode (import.meta.env.DEV) and only on the client (not during SSR,
+ * where all keys intentionally return [T:] placeholders).
+ */
+const reportedMissingKeys = new Set<string>();
+function reportMissingTranslation(key: string, reason: string): void {
+    if (!import.meta.env.DEV) return;
+    if (reportedMissingKeys.has(key)) return;
+    reportedMissingKeys.add(key);
+    console.error(
+        `[i18n] MISSING TRANSLATION: "${key}" (${reason}) — visible as [T:${key}] in the UI. ` +
+        `Add this key to the YAML source files in i18n/sources/.`
+    );
+}
+
 // Simple fallback that returns a visible placeholder during SSR
 const passThroughTranslate: TranslateFunction = (key: string) => missingPlaceholder(key);
 
@@ -31,7 +49,10 @@ if (browser && typeof window !== 'undefined') {
 export const text: Readable<TranslateFunction> = browser
     ? derived(_, ($translate): TranslateFunction => {
           return (key: string, vars = {}) => {
-              if (!$translate) return missingPlaceholder(key);
+              if (!$translate) {
+                  reportMissingTranslation(key, 'translate function not ready');
+                  return missingPlaceholder(key);
+              }
 
               // Strip the svelte-i18n "default" option so that missing keys are
               // never silently hidden by a hardcoded fallback string.
@@ -56,13 +77,14 @@ export const text: Readable<TranslateFunction> = browser
                   translated = $translate(lookupKey, vars);
               } catch (err) {
                   // i18n not ready yet — show visible placeholder
-                  console.warn('[i18n] Translation not ready for key:', key);
+                  reportMissingTranslation(key, 'i18n not initialized');
                   return missingPlaceholder(key);
               }
 
               // If svelte-i18n returns the lookup key itself, it means the key was not found.
               // Return a clearly visible placeholder so missing translations are never hidden.
               if (translated === lookupKey) {
+                  reportMissingTranslation(key, 'key not found in locale');
                   return missingPlaceholder(key);
               }
 
@@ -71,7 +93,7 @@ export const text: Readable<TranslateFunction> = browser
               // $translate() may return that object. Without this check, it would render
               // as "[object Object]" in the UI. Log the offending key for debugging.
               if (typeof translated !== 'string') {
-                  console.error(`[i18n] $text('${key}') returned ${typeof translated} instead of string — check locale JSON structure`, translated);
+                  reportMissingTranslation(key, `returned ${typeof translated} instead of string`);
                   return missingPlaceholder(key);
               }
 
