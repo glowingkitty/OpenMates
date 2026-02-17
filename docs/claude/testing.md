@@ -57,7 +57,7 @@ When creating tests (with consent), ensure they meet these criteria:
 - **Use stable selectors**: `data-testid` attributes, not CSS classes
 - **Be deterministic**: No flaky timing-dependent assertions
 - **Cover critical paths**: Signup, login, payment, core features
-- **Account for Vercel deployment delay**: After pushing frontend changes, Vercel takes up to **200 seconds** to deploy. E2E tests must wait for the deployment to complete before running against the live URL (e.g., poll the site or add an explicit delay).
+- **Account for Vercel deployment delay**: After pushing frontend changes, Vercel takes up to **200 seconds** to deploy. Before running E2E tests, **wait ~150 seconds then verify the deployment status** with `vercel ls open-mates-webapp` — the latest entry must show "● Ready". Never use `curl` to check readiness; use the Vercel CLI.
 - **Ask the user on unexpected screens**: If a Playwright test encounters a completely unexpected screen (e.g., a different page/layout than anticipated after an action), **stop and ask the user how to proceed** instead of guessing or failing silently.
 
 ---
@@ -108,7 +108,19 @@ npm run test:unit -- --coverage
 
 ### End-to-End (Playwright)
 
+**CRITICAL: Always verify deployment before running E2E tests.** Playwright tests run against the deployed dev server (`https://app.dev.openmates.org`), NOT a local dev server. After pushing frontend changes, you MUST wait for the Vercel deployment to complete before running tests.
+
 ```bash
+# 1. Wait for deployment (~150 seconds after push)
+sleep 150
+
+# 2. Verify deployment status — must show "● Ready"
+vercel ls open-mates-webapp 2>&1 | head -5
+
+# 3. Only then run the tests:
+cd frontend/apps/web_app && npx playwright test tests/<test-file>.spec.ts --output=/tmp/pw-results
+
+# Or via Docker (for signup/auth flows):
 docker compose -f docker-compose.playwright.yml run --rm \
   -e SIGNUP_TEST_EMAIL_DOMAINS \
   -e MAILOSAUR_API_KEY \
@@ -116,6 +128,10 @@ docker compose -f docker-compose.playwright.yml run --rm \
   -e PLAYWRIGHT_TEST_FILE="signup-flow.spec.ts" \
   playwright
 ```
+
+**Known issues:**
+- `test-results/.last-run.json` may be owned by root — always use `--output=/tmp/pw-results` to avoid permission errors
+- The Playwright config (`playwright.config.ts`) uses `PLAYWRIGHT_TEST_BASE_URL` env var, defaulting to `https://app.dev.openmates.org`
 
 ---
 

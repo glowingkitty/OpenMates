@@ -65,17 +65,30 @@ feat: add user authentication flow
 
 ### Vercel Deployment Check (Frontend)
 
-**CRITICAL:** After pushing frontend changes (`frontend/` files), ALWAYS verify the Vercel build passes. Do NOT assume a push means a successful deployment.
+**CRITICAL:** After pushing frontend changes (`frontend/` files), ALWAYS verify the Vercel build passes. Do NOT assume a push means a successful deployment. Vercel deployments take **up to 200 seconds** (typically 2-3 minutes) to build and go live.
+
+**Step-by-step procedure:**
 
 ```bash
-# Wait ~30 seconds for Vercel to pick up the push, then check:
+# 1. WAIT for Vercel to pick up the push and build (~150 seconds)
+#    Do NOT try to check immediately — the build needs time.
+sleep 150
+
+# 2. Check the latest deployment status:
 vercel ls open-mates-webapp 2>&1 | head -5
 
-# If the latest deployment shows ● Error, get the build logs:
+# 3. Verify the latest entry shows "● Ready" (not "● Building" or "● Error")
+#    - If "● Ready": Deployment succeeded. Proceed with testing.
+#    - If "● Building": Wait another 30-60 seconds and re-check.
+#    - If "● Error": Get the build logs and fix:
 vercel inspect --logs <deployment-url> 2>&1 | tail -80
-
-# Fix the build error, commit, and push again. Repeat until ● Ready.
 ```
+
+**Key rules:**
+- **Always wait ~150 seconds** before checking — checking too early wastes time and gives misleading results
+- **Never curl the site** to check if deployment is ready — use `vercel ls` which shows the actual build status
+- **If the status is "● Error"**, fix the build error, commit, push, and repeat the full wait-and-check cycle
+- **Only run E2E tests** (Playwright) after confirming "● Ready" status
 
 See `docs/claude/debugging.md` → "Vercel Deployment Verification" for full details and common error patterns.
 
