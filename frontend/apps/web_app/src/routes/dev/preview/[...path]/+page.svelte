@@ -39,16 +39,45 @@
 		variants?: Record<string, Record<string, unknown>>;
 	}>('/../../packages/ui/src/components/**/*.preview.ts', { eager: false });
 
-	const BASE_PATH = '/../../packages/ui/src/components/';
+	/**
+	 * Build lookup maps from glob keys to clean component paths.
+	 * The glob keys can vary between dev and production builds, so we
+	 * extract the path relative to the "components/" directory marker.
+	 */
+	function extractCleanPath(fullPath: string): string {
+		const marker = '/components/';
+		const idx = fullPath.indexOf(marker);
+		if (idx !== -1) {
+			return fullPath.substring(idx + marker.length);
+		}
+		// Fallback: try the literal prefix
+		const BASE_PATH = '/../../packages/ui/src/components/';
+		if (fullPath.startsWith(BASE_PATH)) {
+			return fullPath.substring(BASE_PATH.length);
+		}
+		return fullPath;
+	}
+
+	/** Map clean path (without extension) -> glob key for components */
+	const componentKeyMap = new Map<string, string>();
+	for (const key of Object.keys(componentModules)) {
+		const clean = extractCleanPath(key).replace('.svelte', '');
+		componentKeyMap.set(clean, key);
+	}
+
+	/** Map clean path (without extension) -> glob key for preview files */
+	const previewKeyMap = new Map<string, string>();
+	for (const key of Object.keys(previewModules)) {
+		const clean = extractCleanPath(key).replace('.preview.ts', '');
+		previewKeyMap.set(clean, key);
+	}
 
 	/** The component path from the URL (without .svelte extension) */
 	let componentPath = $derived(page.params.path || '');
 
-	/** Full glob key for the component module */
-	let moduleKey = $derived(`${BASE_PATH}${componentPath}.svelte`);
-
-	/** Full glob key for the preview file */
-	let previewKey = $derived(`${BASE_PATH}${componentPath}.preview.ts`);
+	/** Look up glob keys using the clean path */
+	let moduleKey = $derived(componentKeyMap.get(componentPath) || '');
+	let previewKey = $derived(previewKeyMap.get(componentPath) || '');
 
 	/** Component loading state */
 	let loadedComponent = $state<unknown>(null);
@@ -110,7 +139,7 @@
 
 		try {
 			// Check if the component exists in the glob map
-			if (!componentModules[modKey]) {
+			if (!modKey || !componentModules[modKey]) {
 				loadError = `Component not found: ${componentPath}.svelte`;
 				isLoading = false;
 				return;
@@ -121,7 +150,7 @@
 			loadedComponent = mod.default;
 
 			// Try to load preview props if a companion .preview.ts exists
-			if (previewModules[prevKey]) {
+			if (prevKey && previewModules[prevKey]) {
 				try {
 					const preview = await previewModules[prevKey]();
 					mockProps = preview.default || {};

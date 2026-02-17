@@ -9,8 +9,6 @@
   - Quick search/filter across the component library
 -->
 <script lang="ts">
-	import { browser } from '$app/environment';
-
 	/**
 	 * Auto-discover all Svelte components in the UI package.
 	 * import.meta.glob returns a record of module paths at build time.
@@ -25,10 +23,26 @@
 	 * Strip the base path prefix to get clean relative component paths.
 	 * e.g. "/../../packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte"
 	 *   -> "embeds/web/WebSearchEmbedPreview.svelte"
+	 *
+	 * Uses a regex to find the "components/" segment, since the exact prefix
+	 * can vary between local dev and production builds (Vercel).
 	 */
-	const BASE_PATH = '/../../packages/ui/src/components/';
+	function stripBasePath(fullPath: string): string {
+		const marker = '/components/';
+		const idx = fullPath.indexOf(marker);
+		if (idx !== -1) {
+			return fullPath.substring(idx + marker.length);
+		}
+		// Fallback: try the literal prefix
+		const BASE_PATH = '/../../packages/ui/src/components/';
+		if (fullPath.startsWith(BASE_PATH)) {
+			return fullPath.substring(BASE_PATH.length);
+		}
+		return fullPath;
+	}
+
 	const componentPaths = Object.keys(componentModules)
-		.map((fullPath) => fullPath.replace(BASE_PATH, ''))
+		.map(stripBasePath)
 		.sort();
 
 	/**
@@ -70,8 +84,6 @@
 
 		return root;
 	}
-
-	const tree = buildTree(componentPaths);
 
 	/** Search/filter state */
 	let searchQuery = $state('');
