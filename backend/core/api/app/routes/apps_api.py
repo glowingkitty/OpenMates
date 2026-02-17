@@ -1537,21 +1537,57 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             full_module_path = module_path
                         skill_module = importlib.import_module(full_module_path)
                         
-                        # Look for Request and Response models in the module
-                        # Common patterns: SearchRequest/SearchResponse, ReadRequest/ReadResponse, etc.
-                        # Include skill-specific names like GetDocsRequest for get_docs skill
-                        # Also include AI-specific models: AskSkillRequest, OpenAICompletionRequest
-                        for model_name in ['OpenAICompletionRequest', 'AskSkillRequest', 'SearchRequest', 'ReadRequest', 'TranscriptRequest', 'GetDocsRequest', 'ImageGenerationRequest', 'Request']:
-                            if hasattr(skill_module, model_name):
-                                SkillRequestModel = getattr(skill_module, model_name)
-                                logger.debug(f"Found request model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
-                                break
+                        # Generic model discovery: scan all module attributes for Pydantic
+                        # BaseModel subclasses whose names end with "Request" or "Response".
+                        # This replaces the previous hardcoded lookup list, ensuring that
+                        # any new skill that follows the naming convention (e.g.,
+                        # ShareUsecaseRequest, SetReminderResponse) is automatically
+                        # discovered without code changes here.
+                        #
+                        # Priority order for Request models:
+                        #   1. OpenAICompletionRequest (special AI ask format)
+                        #   2. Any class ending with "Request" (e.g., SearchRequest, SetReminderRequest)
+                        # Priority order for Response models:
+                        #   1. OpenAICompletionResponse (special AI ask format)
+                        #   2. Any class ending with "Response" but NOT the base SkillResponse/skill's own wrapper
                         
-                        for model_name in ['OpenAICompletionResponse', 'AskSkillResponse', 'SearchResponse', 'ReadResponse', 'TranscriptResponse', 'GetDocsResponse', 'ImageGenerationResponse', 'Response']:
-                            if hasattr(skill_module, model_name):
-                                SkillResponseModel = getattr(skill_module, model_name)
-                                logger.debug(f"Found response model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
-                                break
+                        request_candidates = []
+                        response_candidates = []
+                        
+                        for attr_name in dir(skill_module):
+                            attr = getattr(skill_module, attr_name, None)
+                            # Only consider classes that are Pydantic BaseModel subclasses
+                            # and defined in THIS module (not imports from base_skill etc.)
+                            if (attr is not None
+                                    and isinstance(attr, type)
+                                    and issubclass(attr, BaseModel)
+                                    and attr is not BaseModel
+                                    and getattr(attr, '__module__', '') == full_module_path):
+                                if attr_name.endswith('Request'):
+                                    request_candidates.append(attr_name)
+                                elif attr_name.endswith('Response'):
+                                    response_candidates.append(attr_name)
+                        
+                        # Select the best request model:
+                        # Prefer OpenAICompletionRequest for AI ask, otherwise take the first *Request
+                        if 'OpenAICompletionRequest' in request_candidates:
+                            SkillRequestModel = getattr(skill_module, 'OpenAICompletionRequest')
+                            logger.debug(f"Found request model 'OpenAICompletionRequest' for skill {captured_app_id}/{captured_skill.id}")
+                        elif request_candidates:
+                            # Pick the most specific one (prefer AskSkillRequest over generic Request)
+                            chosen = request_candidates[0]
+                            SkillRequestModel = getattr(skill_module, chosen)
+                            logger.debug(f"Found request model '{chosen}' for skill {captured_app_id}/{captured_skill.id}")
+                        
+                        # Select the best response model:
+                        # Prefer OpenAICompletionResponse for AI ask, otherwise take the first *Response
+                        if 'OpenAICompletionResponse' in response_candidates:
+                            SkillResponseModel = getattr(skill_module, 'OpenAICompletionResponse')
+                            logger.debug(f"Found response model 'OpenAICompletionResponse' for skill {captured_app_id}/{captured_skill.id}")
+                        elif response_candidates:
+                            chosen = response_candidates[0]
+                            SkillResponseModel = getattr(skill_module, chosen)
+                            logger.debug(f"Found response model '{chosen}' for skill {captured_app_id}/{captured_skill.id}")
                                 
                     except Exception as e:
                         logger.warning(f"Could not import models from skill module {captured_skill.class_path}: {e}")
@@ -2227,18 +2263,26 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 return post_skill_handler
             
             # Register GET /v1/apps/{app_id}/skills/{skill_id} endpoint
-            get_handler = create_get_skill_handler(app_id, skill, app_metadata)
-            app.add_api_route(
-                path=f"/v1/apps/{app_id}/skills/{skill.id}",
-                endpoint=limiter.limit("60/minute")(get_handler),
-                methods=["GET"],
-                response_model=SkillMetadata,
-                tags=[f"Apps | {app_name.capitalize()}"],  # Use "Apps | {AppName}" tag for better organization (capitalized)
-                name=f"get_skill_{app_id}_{skill.id}",
-                summary=f"Get metadata for {skill_name}",
-                description=f"Get metadata for the {skill_name} skill including pricing information. Requires API key authentication.",
-                dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
-            )
+            # Respect api_config.expose_get — some skills (e.g., share-usecase) are
+            # POST-only and should not expose a GET metadata endpoint.
+            should_expose_get = True
+            if skill.api_config and not skill.api_config.expose_get:
+                should_expose_get = False
+                logger.info(f"Skipping GET endpoint for skill {app_id}/{skill.id} (api_config.expose_get=false)")
+            
+            if should_expose_get:
+                get_handler = create_get_skill_handler(app_id, skill, app_metadata)
+                app.add_api_route(
+                    path=f"/v1/apps/{app_id}/skills/{skill.id}",
+                    endpoint=limiter.limit("60/minute")(get_handler),
+                    methods=["GET"],
+                    response_model=SkillMetadata,
+                    tags=[f"Apps | {app_name.capitalize()}"],  # Use "Apps | {AppName}" tag for better organization (capitalized)
+                    name=f"get_skill_{app_id}_{skill.id}",
+                    summary=f"Get metadata for {skill_name}",
+                    description=f"Get metadata for the {skill_name} skill including pricing information. Requires API key authentication.",
+                    dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
+                )
             
             # Register POST /v1/apps/{app_id}/skills/{skill_id} endpoint
             post_handler = create_post_skill_handler(app_id, skill, app_metadata)

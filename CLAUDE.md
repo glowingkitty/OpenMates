@@ -100,33 +100,72 @@ OpenMates/
 
 ---
 
-## Detailed Standards
+## MANDATORY: Read Sub-Documents Before Working
 
-Load these documents when working on the relevant area:
+**CRITICAL RULE: Before starting ANY task, you MUST determine which sub-documents below apply and READ THEM IN FULL using the Read tool. Do NOT skip this step. Do NOT assume you know the contents. These documents contain project-specific rules that override general knowledge. Failing to read them leads to incorrect code that must be rewritten.**
 
-### Code Standards
+### Step 1: Determine which documents to read
 
-- **docs/claude/frontend-standards.md** — Load when modifying Svelte components, TypeScript services, CSS, or stores under `frontend/`
-- **docs/claude/backend-standards.md** — Load when modifying Python code, FastAPI routes, or Pydantic models under `backend/`
+For EVERY task, scan the trigger conditions below. If ANY condition matches, you MUST read that file before writing any code or making any changes.
 
-### Debugging & Inspection
+### Step 2: Read all matching documents
 
-- **docs/claude/debugging.md** — Load when investigating bugs, reading logs, or troubleshooting Docker services
-- **docs/claude/inspection-scripts.md** — Load when you need to inspect chats, users, issues, cache, or AI requests on the server
+Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE planning or writing code.
 
-### Workflow & Testing
+---
 
-- **docs/claude/git-and-deployment.md** — Load when committing code, creating PRs, deploying changes, or understanding branch/server mapping
-- **docs/claude/testing.md** — Load when creating or running tests
+### Required Documents by Trigger
 
-### Design Implementation
+#### `docs/claude/frontend-standards.md`
+**MUST READ when ANY of these are true:**
+- You are editing, creating, or reviewing files under `frontend/`
+- The task involves Svelte components, TypeScript, CSS, or stores
+- You are touching `.svelte`, `.ts`, or `.css` files in the frontend
 
-- **docs/claude/figma-to-code.md** — Load when implementing UI from Figma designs, Figma links, or when asked to match a visual design
+#### `docs/claude/backend-standards.md`
+**MUST READ when ANY of these are true:**
+- You are editing, creating, or reviewing files under `backend/`
+- The task involves Python code, FastAPI routes, Pydantic models, or database queries
+- You are touching `.py` files in the backend
+- You are creating or modifying an app skill (includes REST API documentation requirements)
 
-### Translations & Documentation
+#### `docs/claude/debugging.md`
+**MUST READ when ANY of these are true:**
+- The user reports a bug, error, or unexpected behavior
+- You need to read Docker logs or troubleshoot a service
+- The task involves investigating why something doesn't work
 
-- **docs/claude/i18n.md** — Load when adding or modifying user-facing strings or translation files
-- **docs/claude/logging-and-docs.md** — Load when adding logging, error handling, or updating documentation
+#### `docs/claude/inspection-scripts.md`
+**MUST READ when ANY of these are true:**
+- You need to inspect server state (chats, users, issues, cache, AI requests)
+- You need to run diagnostic commands on the running services
+- The user asks you to check or look up data on the server
+
+#### `docs/claude/git-and-deployment.md`
+**MUST READ when ANY of these are true:**
+- You are about to commit, push, or interact with git
+- The task involves deployment, branch management, or PRs
+- You need to understand the branch-to-server mapping
+
+#### `docs/claude/testing.md`
+**MUST READ when ANY of these are true:**
+- You are creating, modifying, or running tests
+- The user asks you to verify changes with tests
+
+#### `docs/claude/figma-to-code.md`
+**MUST READ when ANY of these are true:**
+- The user provides a Figma link or references a Figma design
+- The task involves implementing a UI design or matching a visual mockup
+
+#### `docs/claude/i18n.md`
+**MUST READ when ANY of these are true:**
+- You are adding or modifying user-facing strings (labels, messages, errors shown to users)
+- You are editing translation/i18n files
+
+#### `docs/claude/logging-and-docs.md`
+**MUST READ when ANY of these are true:**
+- You are adding logging statements or error handling
+- You are updating project documentation
 
 ---
 

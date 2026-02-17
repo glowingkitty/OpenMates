@@ -14,6 +14,11 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 logger = logging.getLogger(__name__)
 
 
+class CancelReminderRequest(BaseModel):
+    """Request model for cancel-reminder skill (REST API documentation)."""
+    reminder_id: str = Field(..., description="The UUID of the reminder to cancel")
+
+
 class CancelReminderResponse(BaseModel):
     """Response model for cancel-reminder skill."""
     success: bool = Field(default=False)

@@ -57,6 +57,93 @@ except Exception as e:
 
 ---
 
+## App Skills — REST API Documentation (CRITICAL)
+
+When creating or modifying an app skill, you **MUST** ensure it is properly documented in the REST API docs (`/docs`). The dynamic route registration in `backend/core/api/app/routes/apps_api.py` auto-discovers Pydantic models from skill modules to generate typed OpenAPI schemas. If models are missing, the API docs will show an untyped `Dict[str, Any]` body — which is unacceptable.
+
+### Checklist for Every New/Modified Skill
+
+1. **Define `{Name}Request` and `{Name}Response` Pydantic models** in the skill module file (e.g., `search_skill.py`). The naming convention must end with `Request` and `Response`:
+   ```python
+   # ✅ CORRECT — auto-discovered by generic model lookup
+   class ShareUsecaseRequest(BaseModel):
+       summary: str = Field(..., description="Brief summary of use cases")
+       language: str = Field(..., description="ISO 639-1 language code")
+   
+   class ShareUsecaseResponse(BaseModel):
+       success: bool = Field(default=False)
+       message: Optional[str] = Field(None)
+       error: Optional[str] = Field(None)
+   ```
+
+2. **Define `tool_schema` in `app.yml`** — This is the JSON Schema that describes the skill's input parameters. It is used both for LLM function calling and for REST API documentation:
+   ```yaml
+   tool_schema:
+     type: object
+     properties:
+       summary:
+         type: string
+         description: "A brief summary (2-5 sentences)"
+       language:
+         type: string
+         description: "ISO 639-1 language code"
+     required:
+       - summary
+       - language
+   ```
+
+3. **Ensure Request model fields match `tool_schema` properties** — The Pydantic model fields should correspond to the `tool_schema` properties so the OpenAPI docs show accurate information.
+
+4. **Use `Field(...)` with `description` on all model fields** — This ensures the OpenAPI docs show clear parameter descriptions.
+
+### REST API Endpoint Visibility (`api_config`)
+
+By default, every skill gets **two** endpoints:
+- `GET /v1/apps/{app_id}/skills/{skill_id}` — Returns skill metadata with pricing
+- `POST /v1/apps/{app_id}/skills/{skill_id}` — Executes the skill
+
+To make a skill **POST-only** (no GET metadata endpoint), add `api_config` in `app.yml`:
+```yaml
+skills:
+  - id: share-usecase
+    api_config:
+      expose_get: false    # Only POST endpoint, no GET
+    # ... other fields ...
+```
+
+### How Model Auto-Discovery Works
+
+The route registration in `apps_api.py` scans the skill module for all classes that:
+- Inherit from Pydantic `BaseModel`
+- Have names ending with `Request` or `Response`
+- Are defined in the skill module itself (not imported base classes)
+
+This is **fully generic** — no hardcoded model names. Any skill following the `{Name}Request` / `{Name}Response` convention will be auto-discovered.
+
+### Common Mistakes
+
+```python
+# ❌ WRONG — no Request model, API docs show untyped Dict
+class MySkill(BaseSkill):
+    async def execute(self, query: str, **kwargs):
+        ...
+
+# ❌ WRONG — model name doesn't end with "Request"
+class MySkillInput(BaseModel):  # Won't be discovered!
+    query: str
+
+# ✅ CORRECT — follows naming convention
+class MySkillRequest(BaseModel):
+    query: str = Field(..., description="Search query")
+
+class MySkillResponse(BaseModel):
+    success: bool = Field(default=False)
+    results: List[Dict[str, Any]] = Field(default_factory=list)
+    error: Optional[str] = Field(None)
+```
+
+---
+
 ## Security Best Practices
 
 - Validate all input data

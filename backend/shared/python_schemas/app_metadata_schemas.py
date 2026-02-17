@@ -19,6 +19,17 @@ class AppPricing(BaseModel):
     per_minute: Optional[int] = None # credits per minute
     fixed: Optional[int] = None # fixed credits per call
 
+class AppSkillApiConfig(BaseModel):
+    """
+    REST API configuration for a skill.
+    
+    Controls how the skill is exposed in the public REST API (/v1/apps/{app_id}/skills/{skill_id}).
+    By default, skills expose both GET (metadata) and POST (execute) endpoints.
+    Use this to restrict visibility (e.g., POST-only for write-only skills).
+    """
+    expose_get: bool = Field(default=True, description="Whether to expose a GET endpoint for skill metadata. Set to false for skills that should only accept POST requests (e.g., write-only anonymous data collection).")
+
+
 class AppSkillDefinition(BaseModel):
     """Defines the structure for a skill within an app's metadata."""
     id: str
@@ -38,6 +49,8 @@ class AppSkillDefinition(BaseModel):
     # Included alongside the skill identifier in the preprocessing prompt so the LLM can
     # make informed skill selection decisions without hardcoded guidance in base_instructions.yml.
     preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this skill (1-3 sentences).")
+    # REST API configuration — controls how the skill is exposed in the public API docs
+    api_config: Optional[AppSkillApiConfig] = Field(default=None, description="REST API configuration for this skill. Controls GET/POST endpoint exposure in /docs.")
 
 class AppFocusDefinition(BaseModel):
     """Defines the structure for a focus mode within an app's metadata."""
