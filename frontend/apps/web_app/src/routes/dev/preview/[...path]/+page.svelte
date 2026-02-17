@@ -16,6 +16,7 @@
 -->
 <script lang="ts">
 	import { page } from '$app/state';
+	import { mount, unmount } from 'svelte';
 	import { theme } from '@repo/ui';
 
 	/**
@@ -83,6 +84,15 @@
 	let loadedComponent = $state<unknown>(null);
 	let loadError = $state<string | null>(null);
 	let isLoading = $state(true);
+
+	/** Render error state — caught when component crashes during mount */
+	let renderError = $state<string | null>(null);
+
+	/** Target element for programmatic component mounting */
+	let mountTarget = $state<HTMLElement | null>(null);
+
+	/** Reference to the currently mounted component instance (for cleanup) */
+	let mountedInstance: Record<string, unknown> | null = null;
 
 	/** Mock props from the preview file */
 	let mockProps = $state<Record<string, unknown>>({});
@@ -185,6 +195,72 @@
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	/**
+	 * Programmatically mount the loaded component into the target div.
+	 * Uses Svelte's mount() API inside a try/catch to gracefully handle
+	 * components that crash during render (e.g. missing required snippet props).
+	 *
+	 * Reactive deps: loadedComponent, effectiveProps, activeVariant, mountTarget
+	 */
+	$effect(() => {
+		// Read reactive deps to trigger re-runs on variant/prop changes.
+		// effectiveProps already depends on activeVariant, so reading it
+		// is sufficient to re-run when variant changes.
+		const component = loadedComponent;
+		const props = effectiveProps;
+		const target = mountTarget;
+
+		if (!component || !target) return;
+
+		// Clean up previous mount
+		if (mountedInstance) {
+			try {
+				unmount(mountedInstance);
+			} catch {
+				// Unmount can fail if the component was already destroyed
+			}
+			mountedInstance = null;
+			target.innerHTML = '';
+		}
+
+		renderError = null;
+
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			mountedInstance = mount(component as any, {
+				target,
+				props
+			});
+		} catch (err) {
+			renderError = err instanceof Error ? err.message : String(err);
+			target.innerHTML = '';
+		}
+
+		// Cleanup on effect re-run or destroy
+		return () => {
+			if (mountedInstance) {
+				try {
+					unmount(mountedInstance);
+				} catch {
+					// Ignore cleanup errors
+				}
+				mountedInstance = null;
+			}
+		};
+	});
+
+	/** Retry rendering after a render error (e.g. after editing props) */
+	function retryRender() {
+		renderError = null;
+		// Force re-mount by toggling the component reference
+		const comp = loadedComponent;
+		loadedComponent = null;
+		// Use microtask to ensure the effect sees the change
+		queueMicrotask(() => {
+			loadedComponent = comp;
+		});
 	}
 
 	/** Toggle between light and dark theme */
@@ -395,17 +471,35 @@
 						</p>
 					</div>
 				{:else if loadedComponent}
-					<!-- 
-						Render the dynamically loaded component with effective props.
-						Wrapped in an error boundary div — Svelte doesn't have native error boundaries,
-						but this at least contains the component.
+					<!--
+						Component is mounted programmatically via mount() in an $effect
+						to catch render crashes from components with missing required props.
+						The mountTarget div is the container for the dynamically mounted component.
 					-->
-					<div class="component-mount">
-						{#key componentPath + activeVariant}
-							{@const Component = loadedComponent}
-							<Component {...effectiveProps} />
-						{/key}
-					</div>
+					{#if renderError}
+						<div class="preview-state render-error">
+							<h2>Render Error</h2>
+							<p class="error-message">{renderError}</p>
+							<p class="hint">
+								This component likely requires props that aren't provided.
+								{#if !hasPreviewFile}
+									Create a <code>{componentName}.preview.ts</code> file
+									next to the component to define mock props.
+								{:else}
+									Check the <strong>.preview.ts</strong> file — the mock
+									props may be missing required fields.
+								{/if}
+							</p>
+							<div class="error-actions">
+								<button class="error-btn" onclick={retryRender}>Retry</button>
+								<button class="error-btn" onclick={() => (showPropsEditor = true)}>
+									Edit Props
+								</button>
+							</div>
+						</div>
+					{:else}
+						<div class="component-mount" bind:this={mountTarget}></div>
+					{/if}
 				{/if}
 			</div>
 		</div>
@@ -703,6 +797,60 @@
 
 	.preview-state .hint a {
 		color: var(--color-primary-start);
+	}
+
+	.preview-state .hint code {
+		background: var(--color-grey-20);
+		padding: 1px 4px;
+		border-radius: 3px;
+		font-size: 11px;
+	}
+
+	.preview-state.render-error {
+		color: var(--color-font-primary);
+		background: var(--color-grey-10);
+		border: 1px solid #e5393550;
+		border-radius: 12px;
+		padding: 24px;
+		max-width: 500px;
+		margin: 24px auto;
+	}
+
+	.preview-state.render-error h2 {
+		color: #e53935;
+	}
+
+	.error-message {
+		font-family: 'Courier New', monospace;
+		font-size: 12px;
+		color: #e53935;
+		background: var(--color-grey-20);
+		padding: 8px 12px;
+		border-radius: 6px;
+		word-break: break-word;
+		text-align: left;
+	}
+
+	.error-actions {
+		display: flex;
+		gap: 8px;
+		margin-top: 12px;
+		justify-content: center;
+	}
+
+	.error-btn {
+		padding: 6px 16px;
+		border: 1px solid var(--color-grey-30);
+		border-radius: 6px;
+		background: var(--color-grey-10);
+		color: var(--color-font-primary);
+		font-size: 13px;
+		cursor: pointer;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
+	}
+
+	.error-btn:hover {
+		background: var(--color-grey-20);
 	}
 
 	/* --- Status bar --- */
