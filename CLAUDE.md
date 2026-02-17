@@ -119,6 +119,10 @@ Load these documents when working on the relevant area:
 - **docs/claude/git-and-deployment.md** — Load when committing code, creating PRs, deploying changes, or understanding branch/server mapping
 - **docs/claude/testing.md** — Load when creating or running tests
 
+### Design Implementation
+
+- **docs/claude/figma-to-code.md** — Load when implementing UI from Figma designs, Figma links, or when asked to match a visual design
+
 ### Translations & Documentation
 
 - **docs/claude/i18n.md** — Load when adding or modifying user-facing strings or translation files
