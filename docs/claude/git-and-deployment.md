@@ -61,6 +61,23 @@ feat: add user authentication flow
 2. `git add <modified_files>` (never `git add .`)
 3. `git commit -m "<type>: <description>"`
 4. `git push origin dev`
+5. **If frontend files were modified**, verify the Vercel deployment succeeded (see below)
+
+### Vercel Deployment Check (Frontend)
+
+**CRITICAL:** After pushing frontend changes (`frontend/` files), ALWAYS verify the Vercel build passes. Do NOT assume a push means a successful deployment.
+
+```bash
+# Wait ~30 seconds for Vercel to pick up the push, then check:
+vercel ls open-mates-webapp 2>&1 | head -5
+
+# If the latest deployment shows ● Error, get the build logs:
+vercel inspect --logs <deployment-url> 2>&1 | tail -80
+
+# Fix the build error, commit, and push again. Repeat until ● Ready.
+```
+
+See `docs/claude/debugging.md` → "Vercel Deployment Verification" for full details and common error patterns.
 
 **If backend files were modified** (`.py`, `Dockerfile`, `docker-compose.yml`, config `.yml`), rebuild affected services:
 

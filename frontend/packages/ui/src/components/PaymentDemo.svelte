@@ -401,7 +401,7 @@
 
   <!-- Checkout Form (now shown directly after order creation attempt) -->
   {#if showCheckoutForm && orderToken}
-    <form onsubmit|preventDefault={handleSubmit} class="checkout-form">
+    <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="checkout-form">
       <h3>Enter Payment Details</h3>
 
       <div class="form-group">

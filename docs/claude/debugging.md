@@ -185,3 +185,56 @@ After adding volume mounts:
 1. Restart affected services: `docker-compose restart <service-name>`
 2. Verify the mount: `docker exec <container-name> ls -la /app/.cursor`
 3. Test debug logging by triggering the instrumented code path
+
+---
+
+## Vercel Deployment Verification (Frontend)
+
+**IMPORTANT:** After every `git push origin dev` that includes frontend changes, verify the Vercel deployment succeeded. The frontend (`open-mates-webapp`) is deployed automatically by Vercel on push.
+
+### Checking Deployment Status
+
+```bash
+# List recent deployments — check the latest one's status
+vercel ls open-mates-webapp 2>&1 | head -10
+
+# Expected: ● Ready (success) or ● Building (in progress)
+# Problem:  ● Error (build failed)
+```
+
+### Getting Build Logs for Failed Deployments
+
+```bash
+# Get the deployment URL from `vercel ls`, then inspect build logs:
+vercel inspect --logs <deployment-url> 2>&1 | tail -80
+
+# Example:
+vercel inspect --logs https://open-mates-webapp-2ktsb5tu0-marcos-projects-e740a395.vercel.app 2>&1 | tail -80
+```
+
+### Getting Runtime Logs (for successful deployments)
+
+```bash
+# Runtime logs are only available for deployments with status ● Ready
+vercel logs <deployment-url> 2>&1
+```
+
+### Common Build Failures
+
+| Error Pattern | Cause | Fix |
+|---|---|---|
+| `'onsubmit\|preventDefault' is not a valid attribute name` | Svelte 4 event modifier syntax | Use `onsubmit={(e) => { e.preventDefault(); handler(e); }}` |
+| `'on:click' is not a valid attribute name` | Svelte 4 `on:` event syntax | Use `onclick={handler}` |
+| `export let` errors | Svelte 4 prop syntax | Use `let { prop } = $props()` |
+| `$:` reactive statement errors | Svelte 4 reactivity | Use `$derived()` or `$effect()` |
+| `Command failed with exit code 1` | General build error | Check the lines above for the specific error |
+
+### Post-Push Verification Workflow
+
+After pushing frontend changes to `dev`:
+
+1. **Wait ~30 seconds** for Vercel to pick up the push
+2. **Check deployment status:** `vercel ls open-mates-webapp 2>&1 | head -5`
+3. **If status is ● Error:** Get build logs with `vercel inspect --logs <url> 2>&1 | tail -80`
+4. **Fix the error**, commit, and push again
+5. **If status is ● Ready:** Deployment succeeded — verify at https://open-mates-webapp-git-dev-marcos-projects-e740a395.vercel.app
