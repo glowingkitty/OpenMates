@@ -211,7 +211,7 @@
 		max-width: 800px;
 		margin: 0 auto;
 		padding: 32px 24px;
-		font-family: 'Lexend Deca', sans-serif;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 		color: var(--color-font-primary);
 	}
 
@@ -246,7 +246,7 @@
 		background: var(--color-grey-10);
 		color: var(--color-font-primary);
 		font-size: 14px;
-		font-family: 'Lexend Deca', sans-serif;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 		outline: none;
 		box-sizing: border-box;
 	}
@@ -272,7 +272,7 @@
 		color: var(--color-font-tertiary);
 		font-size: 12px;
 		cursor: pointer;
-		font-family: 'Lexend Deca', sans-serif;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 	}
 
 	.search-actions button:hover {
@@ -325,7 +325,7 @@
 		cursor: pointer;
 		width: 100%;
 		text-align: left;
-		font-family: 'Lexend Deca', sans-serif;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 		transition: background-color 0.15s;
 	}
 

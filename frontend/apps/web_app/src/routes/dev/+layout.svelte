@@ -46,7 +46,7 @@
 		justify-content: center;
 		height: 100vh;
 		color: var(--color-font-primary);
-		font-family: 'Lexend Deca', sans-serif;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 		gap: 8px;
 	}
 

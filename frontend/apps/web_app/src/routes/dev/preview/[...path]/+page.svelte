@@ -94,29 +94,48 @@
 	let viewportWidth = $state<number | null>(null);
 	let background = $state<'transparent' | 'white' | 'grey' | 'dark'>('white');
 	let showPropsEditor = $state(false);
-	let propsJson = $state('{}');
 	let propsError = $state<string | null>(null);
 
-	/** Computed props: merges mock props, variant overrides, and manual edits */
+	/**
+	 * Manual prop overrides from the JSON editor.
+	 * Starts empty — only applied when the user explicitly edits props.
+	 * This prevents the JSON editor from silently overriding variant selections.
+	 */
+	let manualOverrides = $state<Record<string, unknown>>({});
+	let hasManualEdits = $state(false);
+
+	/**
+	 * Computed props: merges mock props, variant overrides, and manual edits.
+	 * Priority: default props < variant overrides < manual JSON edits
+	 */
 	let effectiveProps = $derived.by(() => {
 		const base = { ...mockProps };
 
-		// Apply active variant overrides
+		// Apply active variant overrides (replaces matching keys from defaults)
 		if (activeVariant !== 'default' && variants[activeVariant]) {
 			Object.assign(base, variants[activeVariant]);
 		}
 
-		// Apply manual prop overrides from the JSON editor
-		try {
-			const manual = JSON.parse(propsJson);
-			if (typeof manual === 'object' && manual !== null) {
-				Object.assign(base, manual);
-			}
-		} catch {
-			// Invalid JSON is handled by propsError state
+		// Apply manual JSON editor overrides only if user has made edits
+		if (hasManualEdits) {
+			Object.assign(base, manualOverrides);
 		}
 
 		return base;
+	});
+
+	/**
+	 * Editable JSON string for the props editor textarea.
+	 * Synced to effectiveProps when variant changes, but independently
+	 * editable by the user. User edits are parsed into manualOverrides.
+	 */
+	let propsJson = $state('{}');
+
+	/** Sync the editor contents when effectiveProps changes due to variant switch */
+	$effect(() => {
+		if (!hasManualEdits) {
+			propsJson = JSON.stringify(effectiveProps, null, 2);
+		}
 	});
 
 	/**
@@ -134,7 +153,8 @@
 		mockProps = {};
 		variants = {};
 		activeVariant = 'default';
-		propsJson = '{}';
+		manualOverrides = {};
+		hasManualEdits = false;
 		propsError = null;
 
 		try {
@@ -156,7 +176,6 @@
 					mockProps = preview.default || {};
 					variants = preview.variants || {};
 					hasPreviewFile = true;
-					propsJson = JSON.stringify(mockProps, null, 2);
 				} catch (err) {
 					console.warn(`[Preview] Failed to load preview file for ${componentPath}:`, err);
 				}
@@ -218,17 +237,28 @@
 
 	/**
 	 * Handle manual props JSON input.
-	 * Validates JSON and shows errors inline.
+	 * Parses the JSON and sets manual overrides. Validates inline.
 	 */
 	function handlePropsInput(event: Event) {
 		const target = event.target as HTMLTextAreaElement;
 		propsJson = target.value;
+		hasManualEdits = true;
 		try {
-			JSON.parse(propsJson);
-			propsError = null;
+			const parsed = JSON.parse(propsJson);
+			if (typeof parsed === 'object' && parsed !== null) {
+				manualOverrides = parsed;
+				propsError = null;
+			}
 		} catch (err) {
 			propsError = err instanceof Error ? err.message : 'Invalid JSON';
 		}
+	}
+
+	/** Reset manual overrides (called when user wants to revert edits) */
+	function resetManualOverrides() {
+		manualOverrides = {};
+		hasManualEdits = false;
+		propsError = null;
 	}
 </script>
 
@@ -318,7 +348,14 @@
 		<!-- Props editor panel (side panel) -->
 		{#if showPropsEditor}
 			<aside class="props-panel">
-				<h3>Props</h3>
+				<div class="props-header">
+					<h3>Props</h3>
+					{#if hasManualEdits}
+						<button class="props-reset" onclick={resetManualOverrides}>
+							Reset
+						</button>
+					{/if}
+				</div>
 				{#if !hasPreviewFile}
 					<p class="props-hint">
 						No <code>.preview.ts</code> file found.<br />
@@ -397,7 +434,7 @@
 		flex-direction: column;
 		height: 100vh;
 		overflow: hidden;
-		font-family: 'Lexend Deca', sans-serif;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 		color: var(--color-font-primary);
 	}
 
@@ -468,7 +505,7 @@
 		color: var(--color-font-primary);
 		font-size: 12px;
 		cursor: pointer;
-		font-family: 'Lexend Deca', sans-serif;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 		white-space: nowrap;
 		transition: background-color 0.15s;
 	}
@@ -520,7 +557,7 @@
 		color: var(--color-font-primary);
 		font-size: 12px;
 		cursor: pointer;
-		font-family: 'Lexend Deca', sans-serif;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 	}
 
 	.variant-btn.active {
@@ -552,10 +589,32 @@
 		gap: 8px;
 	}
 
+	.props-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
 	.props-panel h3 {
 		font-size: 14px;
 		font-weight: 600;
 		margin: 0;
+	}
+
+	.props-reset {
+		padding: 2px 8px;
+		border: 1px solid var(--color-grey-30);
+		border-radius: 4px;
+		background: var(--color-grey-10);
+		color: var(--color-font-tertiary);
+		font-size: 11px;
+		cursor: pointer;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
+	}
+
+	.props-reset:hover {
+		background: var(--color-grey-20);
+		color: var(--color-font-primary);
 	}
 
 	.props-hint {
