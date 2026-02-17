@@ -1,4 +1,10 @@
 {
+	"rewrites": [
+		{
+			"source": "/dev/:path*",
+			"destination": "/"
+		}
+	],
 	"headers": [
 		{
 			"source": "/",

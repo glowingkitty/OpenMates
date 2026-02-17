@@ -336,7 +336,8 @@
 					-->
 					<div class="component-mount">
 						{#key componentPath + activeVariant}
-							<svelte:component this={loadedComponent} {...effectiveProps} />
+							{@const Component = loadedComponent}
+							<Component {...effectiveProps} />
 						{/key}
 					</div>
 				{/if}
