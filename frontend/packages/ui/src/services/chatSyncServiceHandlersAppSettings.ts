@@ -1183,6 +1183,19 @@ export async function handleAppSettingsMemoriesSyncReadyImpl(
       `[ChatSyncService:AppSettings] Successfully synced ${entries.length} app settings/memories entries`,
     );
 
+    // Refresh the in-memory store so entries are immediately available for the
+    // @ mention dropdown. Without this, the dropdown reads stale (empty) store
+    // state even though IndexedDB now has the entries.
+    // Non-blocking: a failure here must never break the sync flow.
+    const { appSettingsMemoriesStore } =
+      await import("../stores/appSettingsMemoriesStore");
+    appSettingsMemoriesStore.loadEntries().catch((err) => {
+      console.warn(
+        "[ChatSyncService:AppSettings] Failed to refresh store after sync (non-fatal):",
+        err,
+      );
+    });
+
     // Dispatch custom event to notify App Store components that sync is complete
     // This allows the App Store UI to refresh if it's currently open
     if (typeof window !== "undefined") {
@@ -1323,6 +1336,18 @@ export async function handleAppSettingsMemoriesEntrySyncedImpl(
     console.info(
       `[ChatSyncService:AppSettings] Synced ${entries.length} entries from another device`,
     );
+
+    // Refresh the in-memory store so the new entry is immediately available for
+    // the @ mention dropdown on this device.
+    // Non-blocking: a failure here must never break the sync flow.
+    const { appSettingsMemoriesStore } =
+      await import("../stores/appSettingsMemoriesStore");
+    appSettingsMemoriesStore.loadEntries().catch((err) => {
+      console.warn(
+        "[ChatSyncService:AppSettings] Failed to refresh store after cross-device sync (non-fatal):",
+        err,
+      );
+    });
 
     // Dispatch custom event to notify App Store components to refresh
     // This allows the UI to show the new entry immediately

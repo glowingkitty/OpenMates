@@ -458,7 +458,7 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
 
   // Get user's settings/memories entries grouped by app
   const storeState = get(appSettingsMemoriesStore);
-  
+
   // Count entries per app:item_type for entry counts
   const entryCountMap = new Map<string, number>();
   storeState.entries.forEach((entry: { app_id: string; item_type: string }) => {
@@ -578,15 +578,18 @@ export function getSettingsMemoryEntryResults(
         ? String(entry.item_value[subtitleField] || "")
         : undefined;
 
-      const entryDisplayName = capitalizeWords(
-        entryTitle.replace(/\s+/g, "-"),
+      const entryDisplayName = capitalizeWords(entryTitle.replace(/\s+/g, "-"));
+      // Category display name: e.g., "trips" → "Trips"
+      const categoryDisplayName = capitalizeWords(
+        memoryCategoryId.replace(/_/g, "-"),
       );
 
       return {
         id: `${appId}:${memoryCategoryId}:${entry.id}`,
         type: "settings_memory_entry" as const,
         displayName: entryTitle,
-        mentionDisplayName: `${appDisplayName}-${entryDisplayName}`,
+        // Format: "App-Category-EntryTitle" e.g., "Travel-Trips-London"
+        mentionDisplayName: `${appDisplayName}-${categoryDisplayName}-${entryDisplayName}`,
         subtitle: entrySubtitle || "",
         icon: appIcon,
         iconStyle: app.icon_colorgradient
@@ -677,11 +680,7 @@ export function searchMentions(
   const scoredResults = allResults
     .map((result) => ({
       ...result,
-      score: calculateMatchScore(
-        query,
-        result.searchTerms,
-        result.type,
-      ),
+      score: calculateMatchScore(query, result.searchTerms, result.type),
     }))
     .filter((result) => result.score > 0)
     .sort((a, b) => (b.score || 0) - (a.score || 0));
