@@ -225,7 +225,7 @@
    * Card subtitle (customStatusText):
    * - 'uploading'                       → "Uploading…"
    * - 'error'                           → "Upload failed" (or server error message)
-   * - 'finished' + !isAuthenticated     → "Login to upload…"
+   * - 'finished' + !isAuthenticated     → "Signup to upload…"
    * - 'finished' + isAuthenticated      → "JPEG · 1.2 MB" (file type + size)
    * - no displayUrl yet (S3 loading)    → empty (UnifiedEmbedPreview shows its own skeleton)
    */
@@ -234,9 +234,9 @@
     if (status === 'error') return uploadError || $text('app_skills.images.view.upload_failed');
     if (imageError) return imageError;
     if (status === 'finished') {
-      // Unauthenticated users: prompt to login for actual upload
+      // Unauthenticated users: prompt to sign up for actual upload
       if (!isAuthenticated) {
-        return $text('app_skills.images.view.login_to_upload');
+        return $text('app_skills.images.view.signup_to_upload');
       }
       // Authenticated + finished: show file type and size
       const typeLabel = getFileTypeLabel(fileType, filename);

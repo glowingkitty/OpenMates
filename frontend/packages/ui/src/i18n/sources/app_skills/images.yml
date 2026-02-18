@@ -100,10 +100,10 @@ view.upload_failed:
   verified_by_human:
     - en
 
-view.login_to_upload:
+view.signup_to_upload:
   context: Status text shown on image embed card when user is not authenticated (demo mode)
-  en: "Login to upload\u2026"
-  de: "Anmelden zum Hochladen\u2026"
+  en: "Signup to upload\u2026"
+  de: "Registrieren zum Hochladen\u2026"
   zh: "\u767b\u5f55\u4ee5\u4e0a\u4f20\u2026"
   es: "Iniciar sesi\u00f3n para subir\u2026"
   fr: "Connectez-vous pour envoyer\u2026"

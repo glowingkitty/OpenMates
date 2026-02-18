@@ -469,6 +469,9 @@
         s3BaseUrl?: string;
         aesKey?: string;
         aesNonce?: string;
+        isAuthenticated?: boolean;
+        fileSize?: number;
+        fileType?: string;
     }>({});
 
     // Note: isLoggingOutFromSignup state removed as it was set but never read
@@ -775,6 +778,9 @@
             s3BaseUrl: event.detail.s3BaseUrl,
             aesKey: event.detail.aesKey,
             aesNonce: event.detail.aesNonce,
+            isAuthenticated: event.detail.isAuthenticated,
+            fileSize: event.detail.fileSize,
+            fileType: event.detail.fileType,
         };
         showUploadedImageFullscreen = true;
     }
@@ -6212,11 +6218,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             {#if showUploadedImageFullscreen}
                 <UploadedImageFullscreen
+                    src={uploadedImageFullscreenData.src}
                     s3BaseUrl={uploadedImageFullscreenData.s3BaseUrl}
                     files={uploadedImageFullscreenData.s3Files as { preview?: { s3_key: string; width: number; height: number; format: string }; full?: { s3_key: string; width: number; height: number; format: string }; original?: { s3_key: string; width: number; height: number; format: string } } | undefined}
                     aesKey={uploadedImageFullscreenData.aesKey}
                     aesNonce={uploadedImageFullscreenData.aesNonce}
                     filename={uploadedImageFullscreenData.filename}
+                    isAuthenticated={uploadedImageFullscreenData.isAuthenticated}
+                    fileSize={uploadedImageFullscreenData.fileSize}
+                    fileType={uploadedImageFullscreenData.fileType}
                     onClose={handleCloseUploadedImageFullscreen}
                 />
             {/if}

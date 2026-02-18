@@ -1,12 +1,14 @@
 <!--
   frontend/packages/ui/src/components/embeds/images/UploadedImageFullscreen.svelte
 
-  Fullscreen viewer for user-uploaded images (chat file uploads).
+  Fullscreen viewer for user-uploaded image embeds in the message editor.
 
   Shows:
   - Full-resolution decrypted image from S3 (progressive: preview first, then full)
-  - Download button for the original file
+    OR a local blob URL as fallback when the user is not authenticated (no S3 upload).
+  - Download button for the original file (S3 path only)
   - Close button (inherited from UnifiedEmbedFullscreen)
+  - BasicInfosBar with truncated filename + "Signup to upload…" or file type/size subtitle
 
   Does NOT show prompt/model info — uploaded images are user photos, not AI-generated.
 
@@ -18,6 +20,10 @@
   import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
+  import { text } from '@repo/ui';
+
+  /** Max display length for the filename in the bottom bar title (chars) */
+  const MAX_FILENAME_LENGTH = 30;
 
   /**
    * Props for uploaded image fullscreen viewer.
@@ -35,8 +41,20 @@
     aesKey?: string;
     /** AES-GCM nonce (base64) shared across all encrypted variants */
     aesNonce?: string;
-    /** Original filename for the download */
+    /** Original filename for display and download */
     filename?: string;
+    /**
+     * Local blob URL (from the editor embed).
+     * Used as an instant fallback when S3 data is unavailable (unauthenticated users).
+     * This avoids the infinite loading spinner for users who haven't signed up.
+     */
+    src?: string;
+    /** Whether the user is authenticated (controls subtitle text in the info bar) */
+    isAuthenticated?: boolean;
+    /** File size in bytes (from the original File object) — shown in info bar subtitle */
+    fileSize?: number;
+    /** File MIME type (e.g. 'image/jpeg') — shown in info bar subtitle */
+    fileType?: string;
     /** Close handler */
     onClose: () => void;
   }
@@ -47,6 +65,10 @@
     aesKey,
     aesNonce,
     filename = 'image',
+    src,
+    isAuthenticated = true,
+    fileSize,
+    fileType,
     onClose,
   }: Props = $props();
 
@@ -65,16 +87,106 @@
   let retainedPreviewKey: string | undefined = undefined;
   let retainedFullKey: string | undefined = undefined;
 
+  // -------------------------------------------------------------------------
+  // Info bar: truncated filename + subtitle
+  // -------------------------------------------------------------------------
+
   /**
-   * Load the full-resolution image from S3 with progressive enhancement.
-   * 1. Show the cached preview immediately (typically already decrypted by
-   *    the inline message card, so it appears with zero latency).
-   * 2. Fetch + decrypt the full-resolution variant in the background.
-   * 3. Swap to full-res when ready.
+   * Truncate filename to MAX_FILENAME_LENGTH characters, keeping the extension
+   * visible if present (mirrors the logic in ImageEmbedPreview.svelte).
+   */
+  let infoBarTitle = $derived.by(() => {
+    if (!filename || filename === 'image') return $text('app_skills.images.view');
+    if (filename.length <= MAX_FILENAME_LENGTH) return filename;
+    const lastDot = filename.lastIndexOf('.');
+    if (lastDot > 0) {
+      const ext = filename.slice(lastDot);
+      const stem = filename.slice(0, lastDot);
+      const allowedStem = MAX_FILENAME_LENGTH - ext.length - 1;
+      return allowedStem > 0
+        ? stem.slice(0, allowedStem) + '\u2026' + ext
+        : filename.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
+    }
+    return filename.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
+  });
+
+  /**
+   * Format a file size in bytes into a human-readable string (e.g. "1.2 MB").
+   */
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  /**
+   * Derive file type label from MIME type or filename extension.
+   * Returns an uppercase short label like "JPEG", "PNG", "WEBP", etc.
+   */
+  function getFileTypeLabel(mimeType?: string, fname?: string): string {
+    if (mimeType) {
+      const sub = mimeType.split('/')[1];
+      if (sub) {
+        const normalised = sub.replace(/^x-/, '').toUpperCase();
+        if (normalised === 'SVG+XML') return 'SVG';
+        return normalised;
+      }
+    }
+    if (fname) {
+      const lastDot = fname.lastIndexOf('.');
+      if (lastDot > 0) return fname.slice(lastDot + 1).toUpperCase();
+    }
+    return '';
+  }
+
+  /**
+   * Info bar subtitle:
+   * - Unauthenticated: "Signup to upload…"
+   * - Authenticated: "JPEG · 1.2 MB" (or just type or just size)
+   */
+  let infoBarSubtitle = $derived.by(() => {
+    if (!isAuthenticated) {
+      return $text('app_skills.images.view.signup_to_upload');
+    }
+    const typeLabel = getFileTypeLabel(fileType, filename);
+    const sizeLabel = fileSize ? formatFileSize(fileSize) : '';
+    if (typeLabel && sizeLabel) return `${typeLabel} \u00B7 ${sizeLabel}`;
+    if (typeLabel) return typeLabel;
+    if (sizeLabel) return sizeLabel;
+    return $text('app_skills.images.view.description');
+  });
+
+  // -------------------------------------------------------------------------
+  // Image loading: S3 path (authenticated) + blob fallback (unauthenticated)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Load the full-resolution image from S3 with progressive enhancement, or
+   * fall back to the local blob URL when S3 data is unavailable.
+   *
+   * S3 path (authenticated):
+   *   1. Show the cached preview immediately for zero-latency progressive display.
+   *   2. Fetch + decrypt the full-resolution variant in the background.
+   *   3. Swap to full-res when ready.
+   *
+   * Blob fallback (unauthenticated / no S3 data):
+   *   Use the `src` prop (local blob URL) directly — no network request needed.
    */
   async function loadFullImage() {
-    if (!s3BaseUrl || !aesKey || !aesNonce) return;
     if (fullImageUrl) return;
+
+    // --- Blob fallback: use local src when S3 is not available ---
+    if (!s3BaseUrl || !aesKey || !aesNonce) {
+      if (src) {
+        fullImageUrl = src;
+        console.debug('[UploadedImageFullscreen] Using local blob URL (no S3 data available)');
+      } else {
+        console.debug('[UploadedImageFullscreen] No src and no S3 data — cannot load image');
+      }
+      return;
+    }
+
+    // --- S3 path: progressive load ---
 
     // Step 1: Show cached preview instantly for progressive loading
     const previewKey = files?.preview?.s3_key;
@@ -133,6 +245,7 @@
   /**
    * Download the original file by decrypting it from S3 and triggering a
    * browser download with the original filename.
+   * Only available when S3 data is present (authenticated users).
    */
   async function handleDownload() {
     if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !aesNonce) return;
@@ -176,7 +289,8 @@
   appId="uploads"
   skillId="upload"
   skillIconName="image"
-  skillName=""
+  skillName={infoBarTitle}
+  customStatusText={infoBarSubtitle}
   showStatus={false}
   showSkillIcon={false}
   title=""
