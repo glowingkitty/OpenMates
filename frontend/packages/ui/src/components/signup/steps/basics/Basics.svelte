@@ -1090,8 +1090,8 @@
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
-        align-self: flex-start;
-        width: 100%;
+        align-items: flex-start;
+        align-self: center;
     }
 
     .advantage-item {
@@ -1117,7 +1117,7 @@
     .advantage-text {
         font-size: 1.1rem;
         font-weight: 700;
-        color: var(--color-text, #000);
+        color: var(--color-grey-100);
         line-height: 1.3;
     }
 
