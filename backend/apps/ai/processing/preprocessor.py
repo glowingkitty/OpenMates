@@ -277,6 +277,7 @@ async def _emit_preprocessing_step(
     step: str,
     skipped: bool,
     user_id_uuid: Optional[str] = None,
+    chat_id: Optional[str] = None,
     skip_reason: Optional[str] = None,
     data: Optional[Dict[str, Any]] = None,
     log_prefix: str = ""
@@ -293,6 +294,7 @@ async def _emit_preprocessing_step(
         step: Step name: "title_generated", "mate_selected", or "model_selected".
         skipped: True if this step was skipped (do not render a card in the UI).
         user_id_uuid: The user's UUID for WebSocket routing by the API server listener.
+        chat_id: The chat ID so the frontend can refresh the active chat metadata.
         skip_reason: Why skipped: "existing_chat", "user_override", or "predefined".
         data: Step-specific result data (title, mate info, model info).
         log_prefix: Prefix for log messages.
@@ -302,6 +304,7 @@ async def _emit_preprocessing_step(
         "step": step,
         "skipped": skipped,
         "user_id_uuid": user_id_uuid,
+        "chat_id": chat_id,
     }
     if skip_reason:
         payload["skip_reason"] = skip_reason
@@ -1745,7 +1748,9 @@ async def handle_preprocessing(
         try:
             # user_id_uuid is included in all step events so the WebSocket listener can
             # route the event to the correct user via ConnectionManager without a hash lookup.
+            # chat_id is included so the frontend can refresh the active chat metadata on step arrival.
             user_id_uuid_for_events = request_data.user_id
+            chat_id_for_events = request_data.chat_id
 
             # Step 1: Chat title (only relevant for new chats)
             if not is_new_chat:
@@ -1756,6 +1761,7 @@ async def handle_preprocessing(
                     step="title_generated",
                     skipped=True,
                     user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
                     skip_reason="existing_chat",
                     log_prefix=log_prefix
                 )
@@ -1767,6 +1773,7 @@ async def handle_preprocessing(
                     step="title_generated",
                     skipped=False,
                     user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
                     data={"title": final_result.title},
                     log_prefix=log_prefix
                 )
@@ -1778,6 +1785,7 @@ async def handle_preprocessing(
                     step="title_generated",
                     skipped=True,
                     user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
                     skip_reason="no_title_returned",
                     log_prefix=log_prefix
                 )
@@ -1794,6 +1802,7 @@ async def handle_preprocessing(
                     step="mate_selected",
                     skipped=True,
                     user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
                     skip_reason=skip_reason_mate,
                     log_prefix=log_prefix
                 )
@@ -1810,6 +1819,7 @@ async def handle_preprocessing(
                         step="mate_selected",
                         skipped=False,
                         user_id_uuid=user_id_uuid_for_events,
+                        chat_id=chat_id_for_events,
                         data={
                             "mate_id": selected_mate_config.id,
                             "mate_name": selected_mate_config.name,
@@ -1826,6 +1836,7 @@ async def handle_preprocessing(
                         step="mate_selected",
                         skipped=True,
                         user_id_uuid=user_id_uuid_for_events,
+                        chat_id=chat_id_for_events,
                         skip_reason="mate_config_not_found",
                         log_prefix=log_prefix
                     )
@@ -1836,6 +1847,7 @@ async def handle_preprocessing(
                     step="mate_selected",
                     skipped=True,
                     user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
                     skip_reason="no_mate_selected",
                     log_prefix=log_prefix
                 )
@@ -1850,6 +1862,7 @@ async def handle_preprocessing(
                     step="model_selected",
                     skipped=True,
                     user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
                     skip_reason="user_override",
                     log_prefix=log_prefix
                 )
@@ -1882,6 +1895,7 @@ async def handle_preprocessing(
                     step="model_selected",
                     skipped=False,
                     user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
                     data={
                         "model_name": final_result.selected_main_llm_model_name,
                         "model_id": final_result.selected_main_llm_model_id,
@@ -1898,6 +1912,7 @@ async def handle_preprocessing(
                     step="model_selected",
                     skipped=True,
                     user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
                     skip_reason="no_model_selected",
                     log_prefix=log_prefix
                 )

@@ -34,6 +34,7 @@ export interface PreprocessorStepResult {
   skipped: boolean;
   skip_reason?: string | null;
   data?: Record<string, string | null | undefined>;
+  chat_id?: string | null; // Chat ID for refreshing the active chat metadata on step arrival
 }
 
 /**

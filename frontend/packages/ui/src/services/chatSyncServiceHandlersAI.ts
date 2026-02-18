@@ -3352,4 +3352,24 @@ export function handlePreprocessingStepImpl(
       detail: payload,
     }),
   );
+
+  // When a non-skipped step arrives that updates chat metadata (title or mate/category),
+  // also fire localChatListChanged so ActiveChat.svelte refreshes currentChat from the
+  // local DB. This updates the active chat header (title, category icon) as each step
+  // arrives rather than waiting for the full ai_task_initiated flow.
+  if (
+    !payload.skipped &&
+    payload.chat_id &&
+    (payload.step === "title_generated" || payload.step === "mate_selected")
+  ) {
+    window.dispatchEvent(
+      new CustomEvent("localChatListChanged", {
+        detail: { reason: "preprocessing_step", chatId: payload.chat_id },
+      }),
+    );
+    console.debug(
+      "[ChatSyncService:AI] Fired localChatListChanged for chat preview refresh after step:",
+      payload.step,
+    );
+  }
 }

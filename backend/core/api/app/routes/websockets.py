@@ -883,30 +883,23 @@ async def listen_for_preprocessing_streams(app: FastAPI):
                     logger.debug(f"Preprocessing Stream Listener: Skipping unexpected event type '{redis_payload.get('type')}' on channel '{redis_channel_name}'.")
                     continue
 
-                # Extract user_id_uuid from channel name: preprocessing_stream::{user_id_hash}
-                # We need the UUID to route via ConnectionManager, stored on app.state
-                # Channel carries the hash; we use a reverse-lookup via a separate payload field.
-                # The payload from the preprocessor does NOT carry user_id_uuid directly,
-                # so we resolve it from the channel hash via the ConnectionManager.
-                channel_parts = redis_channel_name.split("::")
-                user_id_hash = channel_parts[1] if len(channel_parts) >= 2 else None
-
-                if not user_id_hash:
-                    logger.warning(f"Preprocessing Stream Listener: Could not extract user_id_hash from channel '{redis_channel_name}'. Skipping.")
-                    continue
-
-                # Resolve user_id_uuid from hash via ConnectionManager
-                user_id_uuid = manager.get_user_id_by_hash(user_id_hash)
+                # The preprocessor includes user_id_uuid directly in the payload so the
+                # WebSocket listener can route without a hash reverse-lookup.
+                # (Same pattern as all other listeners: ai_stream, ai_typing, chat_updates, etc.)
+                user_id_uuid = redis_payload.get("user_id_uuid")
                 if not user_id_uuid:
-                    logger.debug(f"Preprocessing Stream Listener: No active WebSocket connection for user_id_hash '{user_id_hash}'. Skipping.")
+                    logger.warning(f"Preprocessing Stream Listener: Missing user_id_uuid in payload from channel '{redis_channel_name}'. Skipping.")
                     continue
 
-                # Forward the step event directly to the client
+                # Forward the step event directly to the client.
+                # chat_id is included so the frontend can refresh the active chat metadata
+                # (title, category, icon) as soon as each step arrives.
                 client_payload = {
                     "step": redis_payload.get("step"),
                     "skipped": redis_payload.get("skipped", False),
                     "skip_reason": redis_payload.get("skip_reason"),
                     "data": redis_payload.get("data"),
+                    "chat_id": redis_payload.get("chat_id"),
                 }
 
                 await manager.broadcast_to_user_specific_event(

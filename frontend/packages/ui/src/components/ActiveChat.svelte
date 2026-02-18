@@ -4813,6 +4813,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Listen for local chat list changes (dispatched when drafts are saved)
         window.addEventListener('localChatListChanged', handleDraftSaveSync);
+
+        // ─── Preprocessing step: refresh currentChat from DB ──────────────────────────
+        // When a preprocessing step (title_generated, mate_selected) arrives, we fire
+        // localChatListChanged with reason="preprocessing_step". Here we reload the active
+        // chat from the local DB so the header title/category/icon updates immediately.
+        const handlePreprocessingChatRefresh = async (event: Event) => {
+            const detail = (event as CustomEvent).detail;
+            if (detail?.reason !== 'preprocessing_step') return;
+            const targetChatId = detail?.chatId;
+            if (!targetChatId || targetChatId !== currentChat?.chat_id) return;
+
+            try {
+                const freshChat = await chatDB.getChat(targetChatId);
+                if (freshChat) {
+                    currentChat = { ...currentChat, ...freshChat };
+                    console.debug('[ActiveChat] Refreshed currentChat after preprocessing step:', detail.reason, targetChatId);
+                }
+            } catch (err) {
+                console.warn('[ActiveChat] Failed to refresh currentChat after preprocessing step:', err);
+            }
+        };
+        window.addEventListener('localChatListChanged', handlePreprocessingChatRefresh);
         
         // Listen for logout event to clear user chat and load demo chat
         // CRITICAL: This handler must work reliably on mobile, even if component isn't fully initialized
@@ -5689,6 +5711,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListenerCallback);
             // Remove draft save sync listener
             window.removeEventListener('localChatListChanged', handleDraftSaveSync as EventListenerCallback);
+            // Remove preprocessing step chat refresh listener
+            window.removeEventListener('localChatListChanged', handlePreprocessingChatRefresh as EventListenerCallback);
             if (handleLogoutEvent) {
                 window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListenerCallback);
             }
