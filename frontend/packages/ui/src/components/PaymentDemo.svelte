@@ -5,21 +5,22 @@
   import { userProfile, updateProfile } from '../stores/userProfile'; // Import userProfile and updateProfile
 
   // --- Component State ---
-  let revolutPublicKey: string | null = null;
-  let orderToken: string | null = null;
-  let cardFieldInstance: any = null; // To hold the Revolut CardField instance
-  let cardFieldTarget: HTMLElement; // Bound element for CardField
-  let isLoading = false;
-  let errorMessage: string | null = null;
-  let successMessage: string | null = null;
-  let validationErrors: string | null = null;
-  let showCheckoutForm = false;
-  let pollTimeoutId: number | null = null; // Declare timeout ID at component level
-  let isPollingStopped = false; // Flag to ensure polling stops reliably
- 
+  let revolutPublicKey: string | null = $state(null);
+  let orderToken: string | null = $state(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let cardFieldInstance: any = $state(null); // To hold the Revolut CardField instance (type is RevolutCheckoutCardField but not exported)
+  let cardFieldTarget: HTMLElement = $state() as HTMLElement; // Bound element for CardField
+  let isLoading = $state(false);
+  let errorMessage: string | null = $state(null);
+  let successMessage: string | null = $state(null);
+  let validationErrors: string | null = $state(null);
+  let showCheckoutForm = $state(false);
+  let pollTimeoutId: number | null = $state(null); // Declare timeout ID at component level
+  let isPollingStopped = $state(false); // Flag to ensure polling stops reliably
+
   // --- Form Data ---
-  let name = '';
-  let email = '';
+  let name = $state('');
+  let email = $state('');
 
   // --- Credits Purchase Data ---
   const creditsToPurchase = 21000; // Default credits amount as requested
@@ -439,11 +440,6 @@
     max-width: 500px;
     margin: 20px auto;
     font-family: sans-serif;
-  }
-
-  .product-display {
-    text-align: center;
-    margin-bottom: 20px;
   }
 
   .checkout-form {
