@@ -1,0 +1,26 @@
+# backend/core/directus/schemas/onboarding_usecases.yml
+# Defines the schema for the 'onboarding_usecases' collection in Directus.
+# This collection stores ANONYMOUS use-case summaries from the onboarding chat.
+# IMPORTANT: This collection deliberately has NO user reference field.
+# Data is fully anonymous — only summary text, language, and timestamp are stored.
+# Used by the openmates app's share-usecase skill.
+
+onboarding_usecases:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    summary:
+      type: text
+      note: "Anonymous use-case summary text (2-5 sentences describing what the user wants to use OpenMates for)"
+
+    language:
+      type: string
+      length: 10
+      note: "ISO 639-1 language code of the conversation (e.g., 'en', 'de')"
+
+    timestamp:
+      type: integer
+      note: "[Indexed] Unix timestamp (seconds) when the summary was shared"
