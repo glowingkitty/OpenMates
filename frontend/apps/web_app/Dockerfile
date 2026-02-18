@@ -4,13 +4,20 @@ FROM node:20-alpine AS builder
 
 # Build arguments for self-hosted deployments
 # VITE_API_URL: The full URL to your API server (e.g., http://192.168.1.100:8000)
+# VITE_UPLOAD_URL: The full URL to the upload server (e.g., https://upload.example.com)
 # These must be set at build time as Vite embeds them into the JavaScript bundle
 ARG VITE_API_URL
 ARG VITE_ENV
+ARG VITE_UPLOAD_URL
+ARG VITE_UPLOAD_URL_DEV
+ARG VITE_UPLOAD_URL_PROD
 
 # Set environment variables from build args for Vite to use during build
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_ENV=${VITE_ENV}
+ENV VITE_UPLOAD_URL=${VITE_UPLOAD_URL}
+ENV VITE_UPLOAD_URL_DEV=${VITE_UPLOAD_URL_DEV}
+ENV VITE_UPLOAD_URL_PROD=${VITE_UPLOAD_URL_PROD}
 
 # Install pnpm globally
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate

@@ -1,6 +1,37 @@
 // API base URLs from environment
 // VITE_API_URL: Single URL for self-hosted deployments (takes precedence over all other settings)
 // VITE_API_URL_DEV/PROD: Environment-specific URLs for cloud deployments
+//
+// Upload server URLs from environment
+// VITE_UPLOAD_URL: Single URL for self-hosted deployments (takes precedence)
+// VITE_UPLOAD_URL_DEV/PROD: Environment-specific upload server URLs for cloud deployments
+// The upload server (app-uploads microservice) is a separate VM — NOT proxied through the web app.
+// Dev:  https://upload.dev.openmates.org
+// Prod: https://upload.openmates.org
+export const uploadUrls = {
+  development:
+    import.meta.env.VITE_UPLOAD_URL_DEV || "https://upload.dev.openmates.org",
+  production:
+    import.meta.env.VITE_UPLOAD_URL_PROD || "https://upload.openmates.org",
+} as const;
+
+// Helper to get the upload server base URL
+export function getUploadUrl(): string {
+  // VITE_UPLOAD_URL takes precedence — used for self-hosted deployments
+  if (import.meta.env.VITE_UPLOAD_URL) {
+    return import.meta.env.VITE_UPLOAD_URL;
+  }
+
+  switch (import.meta.env.VITE_ENV) {
+    case "production":
+      return uploadUrls.production;
+    case "preview":
+      return uploadUrls.development;
+    default:
+      return uploadUrls.development;
+  }
+}
+
 export const apiUrls = {
   development: import.meta.env.VITE_API_URL_DEV || "http://localhost:8000",
   production: import.meta.env.VITE_API_URL_PROD || "https://api.openmates.org",

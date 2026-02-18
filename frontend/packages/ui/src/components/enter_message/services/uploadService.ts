@@ -11,8 +11,11 @@
  *   - AES-256-GCM encryption + Vault Transit key wrapping
  *   - S3 upload (chatfiles bucket)
  *
- *   This service sends the file as multipart form data to the upload server,
- *   which is proxied through the main API gateway at /api/uploads/v1/upload/file.
+ *   The upload server is a SEPARATE VM (not proxied through the web app server).
+ *   The web app is a static site — it has no server-side proxy.
+ *   The upload URL is configured via VITE_UPLOAD_URL* build-time env vars (see config/api.ts).
+ *   Dev:  https://upload.dev.openmates.org
+ *   Prod: https://upload.openmates.org
  *
  * Security:
  *   - The auth_refresh_token cookie is sent automatically (same-site, httponly).
@@ -21,6 +24,8 @@
  *   - The vault_wrapped_aes_key enables server-side skills (images.view) to
  *     decrypt the file on demand via Vault Transit.
  */
+
+import { getUploadUrl } from "../../../config/api.js";
 
 // ---------------------------------------------------------------------------
 // Response types (mirror UploadFileResponse Pydantic model in upload_route.py)
@@ -80,8 +85,8 @@ export interface UploadFileResponse {
 /**
  * Upload a file to the uploads microservice.
  *
- * The endpoint is proxied through the API gateway — the browser sends the
- * auth_refresh_token cookie automatically because it's same-site/httponly.
+ * The upload server is a separate VM reachable at its own domain.
+ * Cookies (auth_refresh_token) are sent cross-origin via credentials: 'include'.
  *
  * @param file - The File object to upload.
  * @param signal - Optional AbortSignal to cancel the upload mid-flight.
@@ -96,9 +101,10 @@ export async function uploadFileToServer(
   const formData = new FormData();
   formData.append("file", file);
 
-  // The uploads service is proxied at /api/uploads/ by Caddy/Nginx.
-  // Cookies (auth_refresh_token) are forwarded automatically.
-  const uploadUrl = "/api/uploads/v1/upload/file";
+  // Build the full absolute URL to the upload server.
+  // The upload server is a separate VM — NOT a relative path on the web app.
+  // getUploadUrl() reads VITE_UPLOAD_URL* build-time env vars (see config/api.ts).
+  const uploadUrl = `${getUploadUrl()}/v1/upload/file`;
 
   let response: Response;
   try {
