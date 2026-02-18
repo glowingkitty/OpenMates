@@ -46,7 +46,7 @@
 		loadSessionStorageDraft,
 		getAllDraftChatIdsWithDrafts,
 		NEW_CHAT_SENTINEL,
-		loadCommunityDemos,
+		loadCommunityDemos
 	} from '@repo/ui';
 	import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
@@ -695,6 +695,30 @@
 		const originalHash = browser ? window.location.hash : '';
 		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
 
+		// SHARE-REDIRECT: Detect #share-chat-id={chatId}&key={blob} hash produced by +server.ts
+		// When a user opens /share/chat/{chatId}#key=... directly (fresh browser load),
+		// +server.ts serves OG-tag HTML that redirects to /#share-chat-id={chatId}&key={blob}.
+		// Here we detect that hash and use SvelteKit goto() for client-side navigation to
+		// /share/chat/{chatId}#key={blob} which loads +page.svelte (decrypts + stores the chat).
+		// The encryption key stays in the URL fragment and is never sent to the server.
+		if (browser && originalHash.startsWith('#share-chat-id=')) {
+			const shareChatParams = originalHash.substring('#share-chat-id='.length); // "chatId&key=blob"
+			const ampIndex = shareChatParams.indexOf('&');
+			if (ampIndex !== -1) {
+				const shareChatId = shareChatParams.substring(0, ampIndex);
+				const keyFragment = shareChatParams.substring(ampIndex + 1); // "key=blob" or "key=blob&messageid=..."
+				const shareUrl = `/share/chat/${shareChatId}#${keyFragment}`;
+				console.debug(
+					'[+page.svelte] [SHARE-REDIRECT] Detected share-chat-id hash, navigating to share page:',
+					shareUrl
+				);
+				const { goto } = await import('$app/navigation');
+				await goto(shareUrl);
+				// Navigation handed off to the share page — stop processing this page's onMount
+				return;
+			}
+		}
+
 		// SECURITY: Check if master key should be cleared (if stayLoggedIn was false)
 		// This must happen BEFORE loading user data to ensure key is cleared if needed
 		// This handles cases where user closed tab/browser with stayLoggedIn=false
@@ -797,10 +821,20 @@
 				if (originalHash) {
 					let hashChatId: string | null = null;
 					if (originalHash.startsWith('#chat-id=')) {
-						hashChatId = originalHash.substring('#chat-id='.length);
+						// Extract only the chat ID — stop at '&' to avoid including key= parameters
+						const rawValue = originalHash.substring('#chat-id='.length);
+						const ampPos = rawValue.indexOf('&');
+						hashChatId = ampPos !== -1 ? rawValue.substring(0, ampPos) : rawValue;
 					}
 
-					if (hashChatId && !isPublicChat(hashChatId)) {
+					// SHARE-LINK GUARD: If the hash contains '&key=', this is a share link redirect
+					// from the old +server.ts format (#chat-id={chatId}&key={blob}).
+					// Do NOT clear this hash — it needs to be processed as a share link.
+					// Note: The new +server.ts uses #share-chat-id=... which is handled above (early return).
+					// This guard handles any lingering old-format redirects gracefully.
+					const isShareLinkHash = originalHash.includes('&key=');
+
+					if (hashChatId && !isPublicChat(hashChatId) && !isShareLinkHash) {
 						console.debug(
 							`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and loading demo-for-everyone`
 						);
