@@ -5,6 +5,30 @@ import { resizeImage } from "./utils";
 import { generateUUID } from "../../message_parsing/utils";
 import { uploadFileToServer } from "./services/uploadService";
 
+// ---------------------------------------------------------------------------
+// Upload cancellation registry
+//
+// Maps embed IDs to their in-flight AbortController so that:
+//   - cancelUpload(embedId) can abort the fetch immediately
+//   - Backspace / Stop button can cancel from outside embedHandlers
+//
+// Entries are cleaned up automatically after upload completes or is cancelled.
+// ---------------------------------------------------------------------------
+const _uploadControllers = new Map<string, AbortController>();
+
+/**
+ * Cancel an in-flight image upload by embed ID.
+ * Safe to call even if the upload has already completed (no-op in that case).
+ */
+export function cancelUpload(embedId: string): void {
+  const controller = _uploadControllers.get(embedId);
+  if (controller) {
+    console.debug("[EmbedHandlers] Cancelling upload for embed:", embedId);
+    controller.abort();
+    _uploadControllers.delete(embedId);
+  }
+}
+
 /**
  * Inserts a video embed into the editor.
  */
@@ -173,8 +197,11 @@ export async function insertImage(
     editor.commands.focus("end");
   }, 50);
 
-  // Step 4: Upload in the background — non-blocking
-  _performUpload(editor, embedId, file).catch((err) => {
+  // Step 4: Upload in the background — non-blocking.
+  // Register an AbortController so the upload can be cancelled via cancelUpload().
+  const controller = new AbortController();
+  _uploadControllers.set(embedId, controller);
+  _performUpload(editor, embedId, file, controller.signal).catch((err) => {
     console.error("[EmbedHandlers] Unhandled error in _performUpload:", err);
   });
 }
@@ -183,14 +210,19 @@ export async function insertImage(
  * Performs the actual file upload and updates the embed node on completion.
  * Called in the background by insertImage — errors are caught and reflected
  * in the embed node's status attribute.
+ *
+ * @param signal - AbortSignal from the registered AbortController. Aborting it
+ *   cancels the fetch and causes the error branch to run with an AbortError,
+ *   which we handle by leaving the embed node as-is (caller removes it).
  */
 async function _performUpload(
   editor: Editor,
   localEmbedId: string,
   file: File,
+  signal?: AbortSignal,
 ): Promise<void> {
   try {
-    const result = await uploadFileToServer(file);
+    const result = await uploadFileToServer(file, signal);
 
     // Update the embed node with the server response data.
     // We use a ProseMirror transaction to update the node atomically.
@@ -221,6 +253,9 @@ async function _performUpload(
       return true;
     });
 
+    // Upload succeeded — remove the AbortController from the registry
+    _uploadControllers.delete(localEmbedId);
+
     if (updated) {
       dispatch(tr);
     } else {
@@ -230,6 +265,23 @@ async function _performUpload(
       );
     }
   } catch (uploadError) {
+    // Remove the AbortController regardless of error type
+    _uploadControllers.delete(localEmbedId);
+
+    // If the upload was cancelled (user deleted embed or pressed Stop), do nothing —
+    // the caller (Backspace handler or onStop callback) already removed the node.
+    if (
+      uploadError instanceof Error &&
+      (uploadError.name === "AbortError" ||
+        uploadError.message === "Upload cancelled")
+    ) {
+      console.debug(
+        "[EmbedHandlers] Upload cancelled for embed:",
+        localEmbedId,
+      );
+      return;
+    }
+
     console.error("[EmbedHandlers] Image upload failed:", uploadError);
 
     // Update the embed node to show an error state so the user knows

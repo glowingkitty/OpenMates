@@ -5,6 +5,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import { EmbedNodeAttributes, EmbedType } from "../../../message_parsing/types";
 import { getEmbedRenderer, embedRenderers } from "./embed_renderers";
 import { groupHandlerRegistry } from "../../../message_parsing/groupHandlers";
+import { cancelUpload } from "../embedHandlers";
 
 /**
  * Extract the embed_id from a contentRef string.
@@ -475,12 +476,15 @@ export const Embed = Node.create<EmbedOptions>({
       let container: HTMLElement;
       let mountTarget: HTMLElement;
 
-      // Embed types that use Svelte components with UnifiedEmbedPreview - no wrapper needed
+      // Embed types that use Svelte components with UnifiedEmbedPreview - no wrapper needed.
+      // These mount directly into the wrapper; the Svelte component provides its own
+      // container styling (background, border-radius, box-shadow, etc.).
       const svelteComponentEmbedTypes = [
         "app-skill-use",
         "code-code", // CodeEmbedPreview uses UnifiedEmbedPreview
         "web-website", // WebsiteEmbedPreview uses UnifiedEmbedPreview
         "videos-video", // VideoEmbedPreview uses UnifiedEmbedPreview
+        "image", // ImageEmbedPreview uses UnifiedEmbedPreview (uploaded images)
       ];
 
       if (svelteComponentEmbedTypes.includes(currentAttrs.type)) {
@@ -564,6 +568,34 @@ export const Embed = Node.create<EmbedOptions>({
         throw new Error(
           `No renderer found for embed type: ${currentAttrs.type}. This indicates a missing renderer registration.`,
         );
+      }
+
+      // For image embeds: listen for the 'cancelimageupload' event fired by the
+      // Stop button in ImageEmbedPreview. Cancel the in-flight upload and delete
+      // the node from the document.
+      if (currentAttrs.type === "image") {
+        wrapper.addEventListener("cancelimageupload", (e) => {
+          const embedId = (e as CustomEvent<{ embedId: string }>).detail
+            ?.embedId;
+          if (embedId) cancelUpload(embedId);
+          if (typeof getPos === "function") {
+            const pos = getPos();
+            const nodeSize = editor.state.doc.nodeAt(pos)?.nodeSize ?? 1;
+            const to = pos + nodeSize;
+            const hardBreakAfter = editor.state.doc.nodeAt(to);
+            const deleteTo =
+              hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+            editor
+              .chain()
+              .focus()
+              .deleteRange({ from: pos, to: deleteTo })
+              .run();
+          }
+          console.debug(
+            "[Embed] Stop button: cancelled upload and deleted image embed:",
+            embedId,
+          );
+        });
       }
 
       // Make the node selectable and add basic interaction
@@ -1065,6 +1097,29 @@ export const Embed = Node.create<EmbedOptions>({
                 );
               }
               break;
+            case "image":
+              // Image embeds are not converted to markdown on Backspace.
+              // Instead we delete the node entirely and cancel any in-flight upload.
+              // The embed ID is in attrs.id (set by insertImage).
+              if (attrs.id) {
+                cancelUpload(attrs.id);
+              }
+              {
+                const hardBreakAfterImg = editor.state.doc.nodeAt(to);
+                const deleteToImg =
+                  hardBreakAfterImg?.type.name === "hardBreak" ? to + 1 : to;
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange({ from, to: deleteToImg })
+                  .run();
+              }
+              console.debug(
+                "[Embed] Deleted image embed and cancelled upload:",
+                attrs.id,
+              );
+              return true;
+
             default:
               markdown = `[${attrs.type} content]`;
               console.debug(

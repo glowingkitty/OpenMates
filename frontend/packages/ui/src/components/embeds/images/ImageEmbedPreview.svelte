@@ -1,22 +1,31 @@
 <!--
   frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
 
-  Preview component for user-uploaded image embeds.
+  Preview card for user-uploaded image embeds.
+
+  Modelled after CodeEmbedPreview.svelte:
+  - No AI/skill icon (showSkillIcon=false)
+  - skillName = truncated filename (title line of the card)
+  - customStatusText = dynamic subtitle ("Uploading…", "Upload failed", or empty)
+  - Image shown full-bleed in the details snippet, no overlay on the image itself
 
   Covers two rendering contexts:
 
   A) Editor context (src prop set — local blob URL from upload session):
-     - status 'uploading': image at reduced opacity + spinner overlay
-     - status 'error': image at reduced opacity + error overlay
-     - status 'finished' (no S3 data): full-opacity image (demo / unauthenticated)
-     - status 'finished' (S3 data present): full-opacity image + fullscreen enabled
+     - status 'uploading': image shown + "Uploading…" subtitle
+     - status 'error': image shown + "Upload failed" subtitle
+     - status 'finished' (no S3): image shown, no subtitle (demo / unauthenticated)
+     - status 'finished' (S3 present): image shown, fullscreen enabled
 
   B) Read-only context (src absent, S3 data present — received/sent message):
      - Lazy-loads and decrypts the preview image from S3 using AES-256-GCM.
      - Shows skeleton while loading, decrypted image once ready.
 
-  Fullscreen: calls onFullscreen() callback → ImageRenderer.ts fires 'imagefullscreen'
+  Fullscreen: calls onFullscreen() → ImageRenderer.ts fires 'imagefullscreen'
   CustomEvent → ActiveChat.svelte mounts UploadedImageFullscreen.svelte.
+
+  Stop button: calls onStop() → embedHandlers.cancelUpload(id) aborts the
+  in-flight fetch; the caller (ImageRenderer.ts) supplies this callback.
 -->
 
 <script lang="ts">
@@ -24,6 +33,9 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
+
+  /** Max display length for the filename in the card title (chars) */
+  const MAX_FILENAME_LENGTH = 40;
 
   /**
    * S3 file variant metadata for a single image.
@@ -64,6 +76,11 @@
     isMobile?: boolean;
     /** Called when the user clicks to open fullscreen view */
     onFullscreen?: () => void;
+    /**
+     * Called when the user clicks the stop button.
+     * The caller (ImageRenderer.ts) wires this to cancelUpload(id).
+     */
+    onStop?: () => void;
   }
 
   let {
@@ -78,6 +95,7 @@
     aesNonce,
     isMobile = false,
     onFullscreen,
+    onStop,
   }: Props = $props();
 
   // Decrypted image blob URL (set after successful S3 fetch+decrypt)
@@ -88,7 +106,7 @@
   // Track which S3 key we retained so we can release on unmount
   let retainedS3Key: string | undefined = undefined;
 
-  // Lazy loading: only fetch when the embed scrolls into view
+  // Lazy loading: only fetch when the embed scrolls into view (S3 path only)
   let isInView = $state(false);
   let containerRef: HTMLElement | undefined = $state(undefined);
   let observer: IntersectionObserver | undefined = undefined;
@@ -119,40 +137,68 @@
     observer?.disconnect();
   });
 
-  // Derived values
+  // --- Derived state ---
+
   let status = $derived(statusProp);
   let previewS3Key = $derived(s3Files?.preview?.s3_key);
 
-  // Map our status to the UnifiedEmbedPreview status union ('uploading' → 'processing')
+  /** Map our upload-specific status to the UnifiedEmbedPreview status union */
   let unifiedStatus = $derived(
     status === 'uploading' ? 'processing' : status as 'processing' | 'finished' | 'error',
   );
 
-  // In editor context (src set): image is ready to show directly from the blob URL.
-  // Fullscreen is enabled once upload finishes (S3 data available).
+  /** Whether we have a local blob URL (editor context) */
   let hasSrcBlob = $derived(!!src);
-  let isUploading = $derived(status === 'uploading');
-  let isError = $derived(status === 'error');
 
-  // Display image when:
-  //   - We have a local blob URL (editor context), OR
-  //   - We have successfully decrypted an S3 image (read-only context)
+  /** The URL to display in the <img> — local blob takes precedence over decrypted S3 */
   let displayUrl = $derived(src ?? imageUrl);
 
-  // Fullscreen is enabled when upload is done and S3 data is present, OR
-  // in read-only mode when the S3 image has been decrypted.
+  /** Fullscreen is enabled once an image is available and the upload is done */
   let isFullscreenEnabled = $derived(
     status === 'finished' && !!displayUrl && !imageError,
   );
 
-  // Whether to show the upload spinner overlay (editor context only)
-  let showSpinner = $derived(hasSrcBlob && isUploading);
+  /**
+   * Card title: truncated filename.
+   * Falls back to the generic "Image" label if no filename is set.
+   */
+  let skillName = $derived.by(() => {
+    if (!filename) return $text('app_skills.images.view');
+    if (filename.length > MAX_FILENAME_LENGTH) {
+      // Keep the extension visible: truncate the stem and re-attach the extension
+      const lastDot = filename.lastIndexOf('.');
+      if (lastDot > 0) {
+        const ext = filename.slice(lastDot); // e.g. ".jpg"
+        const stem = filename.slice(0, lastDot);
+        const allowedStem = MAX_FILENAME_LENGTH - ext.length - 1; // -1 for the '…'
+        return allowedStem > 0
+          ? stem.slice(0, allowedStem) + '\u2026' + ext
+          : filename.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
+      }
+      return filename.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
+    }
+    return filename;
+  });
 
-  // Whether to show the error overlay (editor context, upload failed)
-  let showErrorOverlay = $derived(hasSrcBlob && isError);
+  /**
+   * Card subtitle (customStatusText):
+   * - 'uploading' → "Uploading…"
+   * - 'error'     → "Upload failed" (or server error message)
+   * - 'finished'  → empty (image speaks for itself once loaded)
+   * - no displayUrl yet (S3 loading) → empty (UnifiedEmbedPreview shows its own skeleton)
+   */
+  let statusText = $derived.by(() => {
+    if (status === 'uploading') return $text('app_skills.images.view.uploading');
+    if (status === 'error') return uploadError || $text('app_skills.images.view.upload_failed');
+    if (imageError) return imageError;
+    return '';
+  });
 
-  // Image opacity: dim while uploading
-  let imageOpacity = $derived(isUploading ? 0.45 : 1);
+  /**
+   * Whether the stop button should be shown.
+   * Only during active upload (editor context).
+   */
+  let showStop = $derived(hasSrcBlob && status === 'uploading' && !!onStop);
 
   /**
    * Fetch and decrypt the preview image from S3.
@@ -220,23 +266,25 @@
   {id}
   appId="images"
   skillId="view"
-  skillIconName="ai"
+  skillIconName="image"
   status={unifiedStatus}
-  skillName={$text('app_skills.images.view.text')}
+  {skillName}
   {isMobile}
   onFullscreen={isFullscreenEnabled ? onFullscreen : undefined}
-  showStatus={!displayUrl || isUploading || isError}
-  showSkillIcon={true}
-  hasFullWidthImage={!!displayUrl && !isError && !imageError}
+  onStop={showStop ? onStop : undefined}
+  showStatus={true}
+  customStatusText={statusText}
+  showSkillIcon={false}
+  hasFullWidthImage={!!displayUrl && !imageError && status !== 'error'}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
 
       {#if displayUrl && !imageError}
         <!--
-          Image available (either local blob or decrypted S3 URL).
-          In editor context: may be dimmed with an overlay while uploading/errored.
-          In read-only context: always shown at full opacity.
+          Image available (local blob or decrypted S3).
+          Shown full-bleed with no overlay — status is communicated via the
+          card's subtitle (customStatusText), not drawn on top of the image.
         -->
         <div
           class="image-content"
@@ -247,45 +295,20 @@
             src={displayUrl}
             alt={filename || 'Uploaded image'}
             class="preview-image"
-            style:opacity={imageOpacity}
             onclick={isFullscreenEnabled ? onFullscreen : undefined}
           />
-
-          {#if showSpinner}
-            <!-- Uploading overlay: spinner + label -->
-            <div class="img-overlay">
-              <div class="img-spinner"></div>
-              <span class="img-overlay-label">Uploading&hellip;</span>
-            </div>
-          {:else if showErrorOverlay}
-            <!-- Error overlay: icon + message -->
-            <div class="img-overlay img-overlay--error">
-              <span class="img-overlay-icon">!</span>
-              <span class="img-overlay-label">{uploadError || 'Upload failed'}</span>
-            </div>
-          {/if}
         </div>
 
-      {:else if status === 'finished' && imageError}
+      {:else if imageError}
         <!-- S3 decryption failed (read-only context) -->
         <div class="image-error-small">
           <span class="error-icon-small">!</span>
           <span>{imageError}</span>
         </div>
 
-      {:else if status === 'error' && !hasSrcBlob}
-        <!-- Upload/embed error with no blob to show -->
-        <div class="error-state">
-          <span class="error-icon">!</span>
-          <span class="error-text">{uploadError || $text('app_skills.images.view.text')}</span>
-        </div>
-
       {:else}
-        <!-- Loading / uploading without a blob preview: show skeleton -->
+        <!-- No image yet: skeleton placeholder (S3 loading, or status 'error' without blob) -->
         <div class="skeleton-content">
-          {#if filename}
-            <span class="filename-text">{filename}</span>
-          {/if}
           <div class="skeleton-lines">
             <div class="skeleton-line long"></div>
             <div class="skeleton-line short"></div>
@@ -311,9 +334,8 @@
     padding: 0;
   }
 
-  /* Image content wrapper */
+  /* Full-bleed image container */
   .image-content {
-    position: relative;
     width: 100%;
     height: 100%;
     overflow: hidden;
@@ -332,62 +354,11 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.15s ease;
   }
 
   .image-content.clickable:hover .preview-image {
     opacity: 0.92;
-  }
-
-  /* Upload/error overlay (editor context, shown above the dimmed preview image) */
-  .img-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    pointer-events: none;
-  }
-
-  .img-spinner {
-    width: 26px;
-    height: 26px;
-    border: 3px solid rgba(255, 255, 255, 0.4);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: img-spin 0.75s linear infinite;
-  }
-
-  @keyframes img-spin {
-    to { transform: rotate(360deg); }
-  }
-
-  .img-overlay-label {
-    font-size: 0.72rem;
-    font-weight: 500;
-    color: #fff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-    letter-spacing: 0.02em;
-  }
-
-  .img-overlay-icon {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: rgba(220, 38, 38, 0.85);
-    color: #fff;
-    font-size: 1rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-  }
-
-  .img-overlay--error .img-overlay-label {
-    color: rgba(255, 220, 220, 0.95);
   }
 
   /* Loading skeleton */
@@ -399,15 +370,6 @@
     width: 100%;
     height: 100%;
     box-sizing: border-box;
-  }
-
-  .filename-text {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--color-grey-60, #777);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .skeleton-lines {
@@ -460,37 +422,6 @@
     flex-shrink: 0;
   }
 
-  /* Upload/embed error state */
-  .error-state {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px;
-    background: var(--color-error-5, #fff5f5);
-    border-radius: 6px;
-    margin: 12px;
-  }
-
-  .error-icon {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: var(--color-error-20, #f5c0c0);
-    color: var(--color-error-70, #b04a4a);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-
-  .error-text {
-    font-size: 13px;
-    color: var(--color-error-70, #b04a4a);
-    line-height: 1.4;
-  }
-
   /* Dark mode */
   :global(.dark) .skeleton-line {
     background: var(--color-grey-80, #333);
@@ -498,13 +429,5 @@
 
   :global(.dark) .image-content {
     background: var(--color-grey-90, #1a1a1a);
-  }
-
-  :global(.dark) .error-state {
-    background: var(--color-error-95, #2a1515);
-  }
-
-  :global(.dark) .error-text {
-    color: var(--color-error-40, #d07a7a);
   }
 </style>

@@ -84,11 +84,14 @@ export interface UploadFileResponse {
  * auth_refresh_token cookie automatically because it's same-site/httponly.
  *
  * @param file - The File object to upload.
+ * @param signal - Optional AbortSignal to cancel the upload mid-flight.
  * @returns The upload response with S3 keys, AES key, and embed metadata.
  * @throws Error if the upload fails (network error, server error, or malware detection).
+ *         Throws an AbortError (name === 'AbortError') if the upload is cancelled.
  */
 export async function uploadFileToServer(
   file: File,
+  signal?: AbortSignal,
 ): Promise<UploadFileResponse> {
   const formData = new FormData();
   formData.append("file", file);
@@ -105,8 +108,13 @@ export async function uploadFileToServer(
       // Credentials: 'include' ensures cookies are sent cross-origin if needed.
       // For same-origin requests this is the default, but we set it explicitly.
       credentials: "include",
+      signal,
     });
   } catch (networkError) {
+    // Re-throw AbortError directly so callers can distinguish cancellation
+    if (networkError instanceof Error && networkError.name === "AbortError") {
+      throw networkError;
+    }
     console.error(
       "[UploadService] Network error uploading file:",
       networkError,

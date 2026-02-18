@@ -3,17 +3,20 @@
 // Handles THREE sub-types of the 'image' embed:
 //   1. User-uploaded images (editor context): attrs.src (blob URL) is set.
 //      Mounts ImageEmbedPreview.svelte passing src, so the card shows the local blob
-//      preview with an uploading spinner or error overlay.
+//      preview. Status shown as subtitle ("Uploading…", "Upload failed", etc.).
 //   2. User-uploaded images (read-only context): attrs.src is absent but S3 data
 //      (attrs.s3Files, attrs.aesKey, etc.) is present. Mounts ImageEmbedPreview.svelte
 //      which fetches and decrypts the image from S3.
 //   3. Static/SVG images (legal documents): attrs.url is set, no upload data.
 //
 // Cases 1 and 2 both use _renderImageComponent() which mounts ImageEmbedPreview.svelte.
-// The component handles all states internally based on the props it receives.
 //
-// Fullscreen click (uploaded images, status 'finished' only):
-//   onFullscreen() → fires 'imagefullscreen' CustomEvent (bubbles) on the content element
+// Stop button (Case 1, status 'uploading' only):
+//   onStop() → fires 'cancelimageupload' CustomEvent (bubbles) on content element
+//   → Embed.ts node view listener calls cancelUpload(id) + deletes the node.
+//
+// Fullscreen click (Case 1 finished, Case 2):
+//   onFullscreen() → fires 'imagefullscreen' CustomEvent (bubbles) on content element
 //   → MessageInput.svelte re-dispatches to ActiveChat.svelte → UploadedImageFullscreen.
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
@@ -182,6 +185,18 @@ export class ImageRenderer implements EmbedRenderer {
         );
       };
 
+      // Stop button handler: fires a bubbling event so the Embed.ts node view
+      // can cancel the upload and delete the node (it has access to getPos/editor).
+      const handleStop = () => {
+        content.dispatchEvent(
+          new CustomEvent("cancelimageupload", {
+            bubbles: true,
+            composed: true,
+            detail: { embedId: attrs.id },
+          }),
+        );
+      };
+
       const component = mount(ImageEmbedPreview, {
         target: content,
         props: {
@@ -200,6 +215,7 @@ export class ImageRenderer implements EmbedRenderer {
           aesNonce: attrs.aesNonce,
           isMobile: false,
           onFullscreen: handleFullscreen,
+          onStop: handleStop,
         },
       });
 

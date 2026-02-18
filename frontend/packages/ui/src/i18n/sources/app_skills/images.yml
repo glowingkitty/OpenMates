@@ -50,6 +50,56 @@ view.description:
     - en
     - de
 
+view.uploading:
+  context: Status text shown on image embed card while the image is being uploaded
+  en: "Uploading\u2026"
+  de: "Wird hochgeladen\u2026"
+  zh: "上传中\u2026"
+  es: "Subiendo\u2026"
+  fr: "Chargement\u2026"
+  pt: "Enviando\u2026"
+  ru: "Загружается\u2026"
+  ja: "アップロード中\u2026"
+  ko: "업로드 중\u2026"
+  it: "Caricamento\u2026"
+  tr: "Y\u00fckleniyor\u2026"
+  vi: "\u0110ang t\u1ea3i l\u00ean\u2026"
+  id: "Mengunggah\u2026"
+  pl: "Przesy\u0142anie\u2026"
+  nl: "Uploaden\u2026"
+  ar: "\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644\u2026"
+  hi: "\u0905\u092a\u0932\u094b\u0921 \u0939\u094b \u0930\u0939\u093e \u0939\u0948\u2026"
+  th: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u2026"
+  cs: "Nahr\u00e1v\u00e1n\u00ed\u2026"
+  sv: "Laddar upp\u2026"
+  verified_by_human:
+    - en
+
+view.upload_failed:
+  context: Status text shown on image embed card when the upload has failed
+  en: Upload failed
+  de: Upload fehlgeschlagen
+  zh: 上传失败
+  es: Error al subir
+  fr: "Erreur d'envoi"
+  pt: Falha no envio
+  ru: "Ошибка загрузки"
+  ja: アップロード失敗
+  ko: 업로드 실패
+  it: Caricamento fallito
+  tr: "Y\u00fckleme ba\u015far\u0131s\u0131z"
+  vi: "T\u1ea3i l\u00ean th\u1ea5t b\u1ea1i"
+  id: Gagal mengunggah
+  pl: "B\u0142\u0105d przesy\u0142ania"
+  nl: Uploaden mislukt
+  ar: "\u0641\u0634\u0644 \u0627\u0644\u062a\u062d\u0645\u064a\u0644"
+  hi: "\u0905\u092a\u0932\u094b\u0921 \u0935\u093f\u092b\u0932"
+  th: "\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u0e25\u0e49\u0e21\u0e40\u0e2b\u0e25\u0e27"
+  cs: "Nahr\u00e1v\u00e1n\u00ed selhalo"
+  sv: Uppladdning misslyckades
+  verified_by_human:
+    - en
+
 generate:
   context: Skill name for image generation
   en: Generate
