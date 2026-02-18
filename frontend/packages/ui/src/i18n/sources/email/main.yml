@@ -69,31 +69,130 @@ confirm_your_email_address:
   cs: ""
   sv: "Bekräfta din e-postadress"
   verified_by_human: []
-this_is_your_email_code:
-  context: Email subject & header for email address confirmation
-  en: "{code} is your E-mail address confirmation code"
-  de: "{code} ist dein E-Mail-Bestätigungscode"
-  zh: "{code} 是您的电子邮件地址确认码"
-  es: "{code} es tu código de confirmación de dirección de correo electrónico"
-  fr: "{code} est votre code de confirmation d'adresse e-mail"
-  pt: ""
-  ru: ""
-  ja: "{code} はあなたのメールアドレス確認コードです"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: "{code} är din bekräftelsekod för e-postadressen"
+
+# ---------------------------------------------------------------------------
+# usecase_submitted — admin notification when a user anonymously shares their
+# intended use-case during the welcome/onboarding focus mode.
+# ---------------------------------------------------------------------------
+
+usecase_submitted.subject:
+  context: Email subject for the use-case submission admin notification
+  en: "New use-case submission from onboarding"
+  de: "Neue Anwendungsfall-Einreichung aus dem Onboarding"
+  zh: "来自引导流程的新用例提交"
+  es: "Nueva presentación de caso de uso del proceso de incorporación"
+  fr: "Nouvelle soumission de cas d'utilisation depuis l'intégration"
+  pt: "Nova submissão de caso de uso do onboarding"
+  ru: "Новая заявка на сценарий использования из онбординга"
+  ja: "オンボーディングからの新しいユースケース提出"
+  ko: "온보딩에서 새 사용 사례 제출"
+  it: "Nuovo caso d'uso inviato dall'onboarding"
+  tr: "Oryantasyondan yeni kullanım senaryosu gönderimi"
+  vi: "Gửi trường hợp sử dụng mới từ quá trình giới thiệu"
+  id: "Pengiriman kasus penggunaan baru dari orientasi"
+  pl: "Nowe zgłoszenie przypadku użycia z procesu wdrożenia"
+  nl: "Nieuwe use-case inzending vanuit onboarding"
+  ar: "إرسال حالة استخدام جديدة من الإعداد الأولي"
+  hi: "ऑनबोर्डिंग से नया उपयोग-मामला सबमिशन"
+  th: "การส่งกรณีการใช้งานใหม่จากการเริ่มต้นใช้งาน"
+  cs: "Nové odeslání případu použití z procesu zavádění"
+  sv: "Ny användningsfallsinlämning från introduktionen"
+
+usecase_submitted.header:
+  context: Header text in the use-case submission admin notification email body
+  en: New use-case submission
+  de: Neue Anwendungsfall-Einreichung
+  zh: 新用例提交
+  es: Nueva presentación de caso de uso
+  fr: Nouvelle soumission de cas d'utilisation
+  pt: Nova submissão de caso de uso
+  ru: Новая заявка на сценарий использования
+  ja: 新しいユースケース提出
+  ko: 새 사용 사례 제출
+  it: Nuovo caso d'uso inviato
+  tr: Yeni kullanım senaryosu gönderimi
+  vi: Gửi trường hợp sử dụng mới
+  id: Pengiriman kasus penggunaan baru
+  pl: Nowe zgłoszenie przypadku użycia
+  nl: Nieuwe use-case inzending
+  ar: إرسال حالة استخدام جديدة
+  hi: नया उपयोग-मामला सबमिशन
+  th: การส่งกรณีการใช้งานใหม่
+  cs: Nové odeslání případu použití
+  sv: Ny användningsfallsinlämning
+
+usecase_submitted.description:
+  context: Description text in the use-case submission email body — tells the admin what this email is about
+  en: A user anonymously shared their intended use case during onboarding. No user identity is attached to this submission.
+  de: Ein Nutzer hat seinen beabsichtigten Anwendungsfall während des Onboardings anonym geteilt. Diese Einreichung enthält keine Nutzeridentität.
+  zh: 用户在引导流程中匿名分享了其预期用例。此提交不含任何用户身份信息。
+  es: Un usuario compartió de forma anónima su caso de uso previsto durante el proceso de incorporación. No se incluye ninguna identidad de usuario en esta presentación.
+  fr: Un utilisateur a partagé anonymement son cas d'utilisation prévu lors de l'intégration. Aucune identité d'utilisateur n'est associée à cette soumission.
+  pt: Um usuário compartilhou anonimamente seu caso de uso pretendido durante o onboarding. Nenhuma identidade de usuário está associada a esta submissão.
+  ru: Пользователь анонимно поделился своим предполагаемым сценарием использования во время онбординга. К этой заявке не прикреплена личность пользователя.
+  ja: ユーザーがオンボーディング中に意図したユースケースを匿名で共有しました。この提出物にはユーザーの識別情報は含まれていません。
+  ko: 사용자가 온보딩 중에 익명으로 의도한 사용 사례를 공유했습니다. 이 제출에는 사용자 신원이 포함되지 않습니다.
+  it: Un utente ha condiviso in modo anonimo il proprio caso d'uso previsto durante l'onboarding. Nessuna identità utente è allegata a questo invio.
+  tr: Bir kullanıcı, oryantasyon sırasında amaçlanan kullanım senaryosunu anonim olarak paylaştı. Bu gönderiye hiçbir kullanıcı kimliği eklenmemiştir.
+  vi: Người dùng đã chia sẻ trường hợp sử dụng dự định của họ một cách ẩn danh trong quá trình giới thiệu. Không có danh tính người dùng nào được đính kèm vào bài gửi này.
+  id: Seorang pengguna secara anonim berbagi kasus penggunaan yang dimaksudkan selama orientasi. Tidak ada identitas pengguna yang dilampirkan pada pengiriman ini.
+  pl: Użytkownik anonimowo udostępnił zamierzony przypadek użycia podczas procesu wdrożenia. Do tego zgłoszenia nie jest dołączona żadna tożsamość użytkownika.
+  nl: Een gebruiker deelde anoniem zijn beoogde gebruiksscenario tijdens de onboarding. Er is geen gebruikersidentiteit aan deze inzending gekoppeld.
+  ar: شارك أحد المستخدمين بشكل مجهول حالة الاستخدام المقصودة خلال الإعداد الأولي. لا تتضمن هذه الإرسالية أي هوية مستخدم.
+  hi: एक उपयोगकर्ता ने ऑनबोर्डिंग के दौरान अपने इच्छित उपयोग-मामले को अनाम रूप से साझा किया। इस सबमिशन में कोई उपयोगकर्ता पहचान संलग्न नहीं है।
+  th: ผู้ใช้แชร์กรณีการใช้งานที่ตั้งใจไว้โดยไม่เปิดเผยตัวตนระหว่างการเริ่มต้นใช้งาน ไม่มีข้อมูลประจำตัวของผู้ใช้ที่แนบมากับการส่งนี้
+  cs: Uživatel anonymně sdílel svůj zamýšlený případ použití během procesu zavádění. K tomuto odeslání není připojena žádná identita uživatele.
+  sv: En användare delade anonymt sitt avsedda användningsfall under introduktionen. Ingen användaridentitet är kopplad till denna inlämning.
+
+usecase_submitted.summary_label:
+  context: Label for the use-case summary field in the admin notification email
+  en: Summary
+  de: Zusammenfassung
+  zh: 摘要
+  es: Resumen
+  fr: Résumé
+  pt: Resumo
+  ru: Резюме
+  ja: 概要
+  ko: 요약
+  it: Riepilogo
+  tr: Özet
+  vi: Tóm tắt
+  id: Ringkasan
+  pl: Podsumowanie
+  nl: Samenvatting
+  ar: الملخص
+  hi: सारांश
+  th: สรุป
+  cs: Souhrn
+  sv: Sammanfattning
+
+usecase_submitted.language_label:
+  context: Label for the conversation language field in the admin notification email
+  en: Language
+  de: Sprache
+  zh: 语言
+  es: Idioma
+  fr: Langue
+  pt: Idioma
+  ru: Язык
+  ja: 言語
+  ko: 언어
+  it: Lingua
+  tr: Dil
+  vi: Ngôn ngữ
+  id: Bahasa
+  pl: Język
+  nl: Taal
+  ar: اللغة
+  hi: भाषा
+  th: ภาษา
+  cs: Jazyk
+  sv: Språk
   verified_by_human: []
+
 to_chat_to_your_mates:
-  context: subheader in email
+  context: Text in email that precedes the digital team mates highlight, meaning "To chat to your [digital team mates]"
   en: "To chat to your
 
     <mark>digital team mates</mark>

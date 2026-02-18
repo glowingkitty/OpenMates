@@ -1,0 +1,47 @@
+share_usecase:
+  context: Skill name for sharing a use case with the OpenMates team
+  en: Share Use Case
+  de: Anwendungsfall teilen
+  zh: 分享使用场景
+  es: Compartir caso de uso
+  fr: Partager le cas d'usage
+  pt: Compartilhar caso de uso
+  ru: Поделиться примером использования
+  ja: ユースケースを共有する
+  ko: 사용 사례 공유
+  it: Condividi caso d'uso
+  tr: Kullanım senaryosunu paylaş
+  vi: Chia sẻ trường hợp sử dụng
+  id: Bagikan kasus penggunaan
+  pl: Udostępnij przypadek użycia
+  nl: Gebruik geval delen
+  ar: مشاركة حالة الاستخدام
+  hi: उपयोग केस साझा करें
+  th: แชร์กรณีการใช้งาน
+  cs: Sdílet případ použití
+  sv: Dela användningsfall
+  verified_by_human: [en]
+
+share_usecase.description:
+  context: Description for the share use case skill — anonymously shares how the user wants to use OpenMates
+  en: Anonymously share how you want to use OpenMates to help us improve.
+  de: Teile anonym, wie du OpenMates nutzen möchtest, um uns zu helfen, es zu verbessern.
+  zh: 匿名分享您希望如何使用 OpenMates，帮助我们改进。
+  es: Comparte de forma anónima cómo quieres usar OpenMates para ayudarnos a mejorar.
+  fr: Partagez anonymement comment vous souhaitez utiliser OpenMates pour nous aider à nous améliorer.
+  pt: Compartilhe anonimamente como você quer usar o OpenMates para nos ajudar a melhorar.
+  ru: Анонимно поделитесь тем, как вы хотите использовать OpenMates, чтобы помочь нам стать лучше.
+  ja: OpenMates の使い方を匿名で共有して改善にご協力ください。
+  ko: OpenMates를 어떻게 사용하고 싶은지 익명으로 공유해 개선을 도와주세요.
+  it: Condividi anonimamente come vuoi usare OpenMates per aiutarci a migliorare.
+  tr: OpenMates'i nasıl kullanmak istediğini anonim olarak paylaşarak bizi geliştirmene yardım et.
+  vi: Chia sẻ ẩn danh cách bạn muốn dùng OpenMates để giúp chúng tôi cải thiện.
+  id: Bagikan secara anonim bagaimana kamu ingin menggunakan OpenMates untuk membantu kami berkembang.
+  pl: Anonimowo podziel się tym, jak chcesz używać OpenMates, aby pomóc nam się poprawić.
+  nl: Deel anoniem hoe je OpenMates wil gebruiken om ons te helpen verbeteren.
+  ar: شارك بشكل مجهول كيف تريد استخدام OpenMates لمساعدتنا على التحسين.
+  hi: बताएं कि आप OpenMates का उपयोग कैसे करना चाहते हैं — यह गुमनाम रूप से साझा किया जाएगा।
+  th: แชร์แบบไม่ระบุตัวตนว่าคุณต้องการใช้ OpenMates อย่างไรเพื่อช่วยให้เราปรับปรุง
+  cs: Anonymně sdílejte, jak chcete používat OpenMates, a pomozte nám se zlepšit.
+  sv: Dela anonymt hur du vill använda OpenMates för att hjälpa oss att förbättra oss.
+  verified_by_human: [en]

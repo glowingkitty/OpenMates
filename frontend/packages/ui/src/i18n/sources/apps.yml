@@ -1495,6 +1495,52 @@ reminder.active_reminders.repeating:
   en: Repeating
   de: Wiederkehrend
   verified_by_human: []
+openmates_app:
+  context: App name for the OpenMates platform app
+  en: OpenMates
+  de: OpenMates
+  zh: OpenMates
+  es: OpenMates
+  fr: OpenMates
+  pt: OpenMates
+  ru: OpenMates
+  ja: OpenMates
+  ko: OpenMates
+  it: OpenMates
+  tr: OpenMates
+  vi: OpenMates
+  id: OpenMates
+  pl: OpenMates
+  nl: OpenMates
+  ar: OpenMates
+  hi: OpenMates
+  th: OpenMates
+  cs: OpenMates
+  sv: OpenMates
+  verified_by_human: [en]
+openmates_app.description:
+  context: Description for the OpenMates platform app
+  en: Discover what OpenMates can do for you.
+  de: Entdecke, was OpenMates für dich tun kann.
+  zh: 发现 OpenMates 能为您做什么。
+  es: Descubre lo que OpenMates puede hacer por ti.
+  fr: Découvrez ce qu'OpenMates peut faire pour vous.
+  pt: Descubra o que o OpenMates pode fazer por você.
+  ru: Узнайте, что OpenMates может сделать для вас.
+  ja: OpenMates があなたにできることを発見しよう。
+  ko: OpenMates가 당신을 위해 무엇을 할 수 있는지 알아보세요.
+  it: Scopri cosa OpenMates può fare per te.
+  tr: OpenMates'in sizin için neler yapabileceğini keşfedin.
+  vi: Khám phá những gì OpenMates có thể làm cho bạn.
+  id: Temukan apa yang bisa OpenMates lakukan untukmu.
+  pl: Odkryj, co OpenMates może dla ciebie zrobić.
+  nl: Ontdek wat OpenMates voor jou kan doen.
+  ar: اكتشف ما يمكن لـ OpenMates فعله من أجلك.
+  hi: जानें OpenMates आपके लिए क्या कर सकता है।
+  th: ค้นพบสิ่งที่ OpenMates สามารถทำให้คุณได้
+  cs: Zjistěte, co pro vás OpenMates může udělat.
+  sv: Upptäck vad OpenMates kan göra för dig.
+  verified_by_human: [en]
 jobs:
   context: App name for the Jobs app
   en: Jobs

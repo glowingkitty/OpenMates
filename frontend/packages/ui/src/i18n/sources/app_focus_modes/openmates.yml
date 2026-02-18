@@ -1,0 +1,47 @@
+welcome:
+  context: Focus mode name for the OpenMates onboarding/welcome experience
+  en: Welcome
+  de: Willkommen
+  zh: 欢迎
+  es: Bienvenido
+  fr: Bienvenue
+  pt: Bem-vindo
+  ru: Добро пожаловать
+  ja: ようこそ
+  ko: 환영합니다
+  it: Benvenuto
+  tr: Hoş Geldiniz
+  vi: Chào mừng
+  id: Selamat datang
+  pl: Witamy
+  nl: Welkom
+  ar: مرحباً
+  hi: स्वागत है
+  th: ยินดีต้อนรับ
+  cs: Vítejte
+  sv: Välkommen
+  verified_by_human: [en]
+
+welcome.description:
+  context: Description for the OpenMates welcome/onboarding focus mode
+  en: Discover OpenMates and find the right tools for your needs.
+  de: Entdecke OpenMates und finde die richtigen Werkzeuge für deine Bedürfnisse.
+  zh: 探索 OpenMates，找到适合您需求的工具。
+  es: Descubre OpenMates y encuentra las herramientas adecuadas para tus necesidades.
+  fr: Découvrez OpenMates et trouvez les bons outils pour vos besoins.
+  pt: Descubra o OpenMates e encontre as ferramentas certas para suas necessidades.
+  ru: Откройте для себя OpenMates и найдите нужные инструменты.
+  ja: OpenMates を探索して、あなたのニーズに合ったツールを見つけましょう。
+  ko: OpenMates를 탐색하고 나에게 맞는 도구를 찾아보세요.
+  it: Scopri OpenMates e trova gli strumenti giusti per le tue esigenze.
+  tr: OpenMates'i keşfedin ve ihtiyaçlarınıza uygun araçları bulun.
+  vi: Khám phá OpenMates và tìm công cụ phù hợp với nhu cầu của bạn.
+  id: Jelajahi OpenMates dan temukan alat yang tepat untuk kebutuhanmu.
+  pl: Odkryj OpenMates i znajdź odpowiednie narzędzia dla swoich potrzeb.
+  nl: Ontdek OpenMates en vind de juiste tools voor jouw behoeften.
+  ar: اكتشف OpenMates وابحث عن الأدوات المناسبة لاحتياجاتك.
+  hi: OpenMates को एक्सप्लोर करें और अपनी जरूरतों के लिए सही टूल खोजें।
+  th: สำรวจ OpenMates และค้นหาเครื่องมือที่เหมาะกับความต้องการของคุณ
+  cs: Prozkoumejte OpenMates a najděte správné nástroje pro vaše potřeby.
+  sv: Utforska OpenMates och hitta rätt verktyg för dina behov.
+  verified_by_human: [en]
