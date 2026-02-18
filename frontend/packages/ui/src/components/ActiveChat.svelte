@@ -1987,6 +1987,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Whether the current message being processed is for a new chat (no title yet).
     // Determines the initial spinner text (new chat starts with "Generating chat title...").
     let isNewChatProcessing = $state(false);
+    // Mate name captured from the mate_selected preprocessing step, used for the
+    // "{Mate} is typing..." spinner text after model_selected arrives.
+    let selectedPreprocessingMateName = $state<string | null>(null);
+    // Timestamp of the last completed preprocessing step card, used to enforce
+    // a minimum display time (~1500ms) before transitioning to the typing phase.
+    let lastStepCardTimestamp = $state(0);
 
     /**
      * Clear the processing phase state.
@@ -1994,6 +2000,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     function clearProcessingPhase() {
         processingPhase = null;
+        selectedPreprocessingMateName = null;
+        lastStepCardTimestamp = 0;
     }
 
     /**
@@ -2022,6 +2030,54 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             showIcon: true,
             completedSteps: [],
         };
+    }
+
+    /**
+     * Apply the typing phase transition to the processing overlay.
+     * Builds status lines from resolved mate/model/provider info and transitions
+     * processingPhase from 'processing' → 'typing'.
+     * Extracted as a named function so it can be called both immediately and after a
+     * minimum display delay (when step cards need time to be read).
+     */
+    function applyTypingPhaseTransition(
+        resolvedCategory: string | undefined,
+        resolvedModelName: string | undefined,
+        resolvedProviderName: string | undefined,
+        resolvedServerRegion: string | undefined,
+    ) {
+        if (resolvedCategory) {
+            const mateName = $text('mates.' + resolvedCategory);
+            const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
+            const displayProviderName = resolvedProviderName || '';
+            const displayServerRegion = resolvedServerRegion || '';
+
+            // Build region flag for display
+            const getRegionFlag = (region: string): string => {
+                switch (region) {
+                    case 'EU': return '\u{1F1EA}\u{1F1FA}';
+                    case 'US': return '\u{1F1FA}\u{1F1F8}';
+                    case 'APAC': return '\u{1F30F}';
+                    default: return '';
+                }
+            };
+            const regionFlag = displayServerRegion ? getRegionFlag(displayServerRegion) : '';
+
+            const lines: string[] = [
+                $text('enter_message.is_typing').replace('{mate}', mateName)
+            ];
+            // Line 2: model name
+            if (displayModelName) {
+                lines.push(displayModelName);
+            }
+            // Line 3: "via {provider} {flag}"
+            if (displayProviderName) {
+                const providerLine = regionFlag ? `via ${displayProviderName} ${regionFlag}` : `via ${displayProviderName}`;
+                lines.push(providerLine);
+            }
+
+            processingPhase = { phase: 'typing', statusLines: lines, showIcon: true };
+            console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length });
+        }
     }
 
     // Track if the message input has content (draft) using $state
@@ -2643,12 +2699,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             previousContentLengthForPersistence = 0;
             newContentLengthForPersistence = newAiMessage.content.length;
             
-            // ─── Progressive AI Status Indicator: Clear centered indicator on first chunk ─────
-            // The assistant response div is now being shown, so fade out the centered overlay.
-            // The bottom typing indicator (in ActiveChat template) will take over for the
-            // "{Mate} is typing..." display while streaming continues.
-            clearProcessingPhase();
-            console.debug('[ActiveChat] Processing phase cleared (first streaming chunk received)');
+            // ─── Progressive AI Status Indicator: Clear after render ─────
+            // Wait one Svelte tick so the new assistant message is rendered in the DOM
+            // before fading out the centered overlay. This prevents a visual gap where
+            // neither the overlay nor the message bubble is visible.
+            tick().then(() => {
+                clearProcessingPhase();
+                console.debug('[ActiveChat] Processing phase cleared (first streaming chunk rendered)');
+            });
             
             console.log(
                 `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
@@ -3023,11 +3081,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.log(`[ActiveChat] 🧠 Created placeholder message for thinking | message_id: ${messageId}`);
             currentMessages = [...currentMessages, placeholderMessage];
             
-            // ─── Progressive AI Status Indicator: Clear centered indicator when thinking starts ─────
-            // The thinking bubble is now visible in the chat, so the centered overlay must fade out.
-            // The bottom typing indicator will take over.
-            clearProcessingPhase();
-            console.debug('[ActiveChat] Processing phase cleared (thinking placeholder created)');
+            // ─── Progressive AI Status Indicator: Clear after render ─────
+            // Wait one Svelte tick so the thinking placeholder is rendered in the DOM
+            // before fading out the centered overlay.
+            tick().then(() => {
+                clearProcessingPhase();
+                console.debug('[ActiveChat] Processing phase cleared (thinking placeholder rendered)');
+            });
         }
         
         // Update thinking content map using message_id (same as task_id)
@@ -5308,40 +5368,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         resolved: { resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion },
                         currentProcessingPhase: processingPhase?.phase
                     });
-                    
-                    if (resolvedCategory) {
-                        const mateName = $text('mates.' + resolvedCategory);
-                        const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
-                        const displayProviderName = resolvedProviderName || '';
-                        const displayServerRegion = resolvedServerRegion || '';
-                        
-                        // Build region flag for display
-                        const getRegionFlag = (region: string): string => {
-                            switch (region) {
-                                case 'EU': return '🇪🇺';
-                                case 'US': return '🇺🇸';
-                                case 'APAC': return '🌏';
-                                default: return '';
-                            }
-                        };
-                        const regionFlag = displayServerRegion ? getRegionFlag(displayServerRegion) : '';
-                        
-                        const lines: string[] = [
-                            $text('enter_message.is_typing').replace('{mate}', mateName)
-                        ];
-                        // Line 2: model name
-                        if (displayModelName) {
-                            lines.push(displayModelName);
+
+                    // ─── Minimum display time for step cards ─────────────────────────────
+                    // When preprocessing step cards are visible (completedSteps > 0), enforce
+                    // a minimum display time of 1500ms before transitioning to the typing phase.
+                    // This ensures users can actually read the accumulated step cards before
+                    // they disappear. The step events arrive in a burst (from one LLM call),
+                    // so without this delay the cards would flash and immediately be replaced.
+                    const hasVisibleStepCards = processingPhase?.phase === 'processing'
+                        && processingPhase.completedSteps.length > 0;
+                    if (hasVisibleStepCards && lastStepCardTimestamp > 0) {
+                        const elapsed = Date.now() - lastStepCardTimestamp;
+                        const MIN_STEP_DISPLAY_MS = 1500;
+                        if (elapsed < MIN_STEP_DISPLAY_MS) {
+                            const remainingDelay = MIN_STEP_DISPLAY_MS - elapsed;
+                            console.debug(`[ActiveChat] Delaying typing transition by ${remainingDelay}ms to show step cards`);
+                            // Capture the current chat_id to avoid stale transitions after chat switch
+                            const transitionChatId = chat_id;
+                            setTimeout(() => {
+                                // Only apply if we're still on the same chat and in processing phase
+                                if (currentChat?.chat_id !== transitionChatId) return;
+                                if (processingPhase?.phase !== 'processing') return;
+                                applyTypingPhaseTransition(resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion);
+                            }, remainingDelay);
+                            // Skip the immediate transition below
+                            return;
                         }
-                        // Line 3: "via {provider} {flag}"
-                        if (displayProviderName) {
-                            const providerLine = regionFlag ? `via ${displayProviderName} ${regionFlag}` : `via ${displayProviderName}`;
-                            lines.push(providerLine);
-                        }
-                        
-                        processingPhase = { phase: 'typing', statusLines: lines, showIcon: true };
-                        console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length });
                     }
+
+                    applyTypingPhaseTransition(resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion);
                 }
             }
         }) as EventListenerCallback;
@@ -5401,21 +5456,40 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 return;
             }
 
-            // Advance the spinner text to the next expected step
+            // Capture mate name from the mate_selected step for later use in
+            // "{Mate} is typing..." spinner text after model_selected.
+            if (step.step === 'mate_selected' && step.data?.mate_name) {
+                selectedPreprocessingMateName = step.data.mate_name;
+            }
+
+            // Advance the spinner text to the next expected step.
+            // After model_selected (final step), show "{Mate} is typing..." using the
+            // mate name from the earlier mate_selected step (or category fallback).
             const nextStepText = (() => {
                 switch (step.step) {
                     case 'title_generated':
                         return $text('enter_message.status.selecting_mate');
                     case 'mate_selected':
                         return $text('enter_message.status.selecting_model');
-                    case 'model_selected':
-                        // All preprocessing done — spinner shows "Sophia is typing..." placeholder
-                        // until ai_typing_started arrives with the real mate name
+                    case 'model_selected': {
+                        // Use the mate name captured from the earlier mate_selected step,
+                        // falling back to category-based mate name from the step data or
+                        // "Analyzing your message..." if no mate info is available yet.
+                        const mateName = selectedPreprocessingMateName
+                            || (step.data?.mate_category ? $text('mates.' + step.data.mate_category) : null);
+                        if (mateName) {
+                            return $text('enter_message.is_typing').replace('{mate}', mateName);
+                        }
                         return $text('enter_message.status.analyzing_message');
+                    }
                     default:
                         return processingPhase.statusLines[0];
                 }
             })();
+
+            // Record the timestamp of this step card so we can enforce a minimum
+            // display time before transitioning to the typing phase.
+            lastStepCardTimestamp = Date.now();
 
             // Accumulate this completed step and advance the spinner
             processingPhase = {

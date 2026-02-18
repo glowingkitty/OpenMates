@@ -1327,34 +1327,42 @@
                     {#each processingPhase.completedSteps as step, idx (step.step)}
                         <div
                             class="preprocessing-step-card"
-                            style="animation-delay: {idx * 80}ms"
+                            style="animation-delay: {idx * 150}ms"
                             in:fade={{ duration: 250 }}
                         >
                             {#if step.step === 'title_generated' && step.data?.title}
-                                <!-- Chat title card -->
-                                <span class="step-label">{$text('enter_message.preprocessing_step.chat_title_label')}</span>
-                                <span class="step-value step-title">{step.data.title}</span>
+                                <!-- Chat title card: vertical layout (label on top, title below) -->
+                                <div class="step-title-info">
+                                    <span class="step-label">{$text('enter_message.preprocessing_step.chat_title_label')}</span>
+                                    <span class="step-value step-title">{step.data.title}</span>
+                                </div>
                             {:else if step.step === 'mate_selected' && step.data?.mate_category}
-                                <!-- Mate card: avatar (CSS-driven) + name + description -->
-                                <div class="step-mate-avatar mate-profile {step.data.mate_category}"></div>
-                                <div class="step-mate-info">
-                                    <span class="step-value step-mate-name">{step.data.mate_name ?? ''}</span>
-                                    {#if step.data.mate_description}
-                                        <span class="step-secondary">{step.data.mate_description}</span>
-                                    {/if}
+                                <!-- Mate card: label + avatar + name + description -->
+                                <span class="step-label">{$text('enter_message.preprocessing_step.selected_mate_label')}</span>
+                                <div class="step-mate-content">
+                                    <div class="step-mate-avatar mate-profile {step.data.mate_category}"></div>
+                                    <div class="step-mate-info">
+                                        <span class="step-value step-mate-name">{step.data.mate_name ?? ''}</span>
+                                        {#if step.data.mate_description}
+                                            <span class="step-secondary">{step.data.mate_description}</span>
+                                        {/if}
+                                    </div>
                                 </div>
                             {:else if step.step === 'model_selected' && step.data?.model_name}
-                                <!-- Model card: provider icon + model name + provider info -->
-                                {#if step.data.provider_icon}
-                                    <div class="step-provider-icon-wrapper">
-                                        <Icon name={step.data.provider_icon} type="provider" size="24px" />
-                                    </div>
-                                {/if}
-                                <div class="step-model-info">
-                                    <span class="step-value step-model-name">{step.data.model_name}</span>
-                                    {#if step.data.provider_name}
-                                        <span class="step-secondary">via {step.data.provider_name}{step.data.server_region ? ' (' + step.data.server_region + ')' : ''}</span>
+                                <!-- Model card: label + provider icon + model name + provider info -->
+                                <span class="step-label">{$text('enter_message.preprocessing_step.selected_model_label')}</span>
+                                <div class="step-model-content">
+                                    {#if step.data.provider_icon}
+                                        <div class="step-provider-icon-wrapper">
+                                            <Icon name={step.data.provider_icon} type="provider" size="24px" />
+                                        </div>
                                     {/if}
+                                    <div class="step-model-info">
+                                        <span class="step-value step-model-name">{step.data.model_name}</span>
+                                        {#if step.data.provider_name}
+                                            <span class="step-secondary">via {step.data.provider_name}{step.data.server_region ? ' (' + step.data.server_region + ')' : ''}</span>
+                                        {/if}
+                                    </div>
                                 </div>
                             {/if}
                         </div>
@@ -1636,8 +1644,8 @@
 
   .preprocessing-step-card {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 4px;
     padding: 8px 12px;
     border-radius: 10px;
     background: var(--color-grey-10, rgba(255, 255, 255, 0.06));
@@ -1645,6 +1653,14 @@
     /* Stagger in with a small fade + slide-up */
     animation: step-card-in 0.3s ease-out both;
     animation-delay: inherit; /* filled by inline style */
+  }
+
+  /* Horizontal row for mate/model content (icon/avatar + text) within the vertical card */
+  .step-mate-content,
+  .step-model-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
   @keyframes step-card-in {
@@ -1677,7 +1693,8 @@
     min-width: 24px;
   }
 
-  /* Text column for mate/model info */
+  /* Text column for title/mate/model info — vertical layout (label on top, value below) */
+  .step-title-info,
   .step-mate-info,
   .step-model-info {
     display: flex;
