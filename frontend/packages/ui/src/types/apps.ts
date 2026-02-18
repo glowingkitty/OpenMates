@@ -103,14 +103,18 @@ export interface FocusModeMetadata {
  */
 export interface SchemaPropertyDefinition {
   type?: string;
+  format?: string; // JSON Schema format hint: "date", "uri", "email", etc.
   description?: string;
   enum?: string[];
   default?: unknown;
   minimum?: number;
   maximum?: number;
+  maxLength?: number; // Maximum allowed string length for this field (overrides category default)
+  multiline?: boolean; // If true, renders as a <textarea> instead of <input type="text">
   auto_generated?: boolean; // If true, field is auto-populated by client, not shown in form
   is_title?: boolean; // If true, this field's value is displayed as the entry title in list views
   is_subtitle?: boolean; // If true, this field's value is displayed as the entry subtitle in list views
+  [key: string]: unknown; // Allow additional backend-defined schema properties
 }
 
 export interface MemoryFieldMetadata {

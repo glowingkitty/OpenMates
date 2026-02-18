@@ -22,6 +22,14 @@
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
+    import {
+        MAX_LENGTH_SHORT,
+        MAX_LENGTH_MULTILINE,
+        MAX_LENGTH_GENERIC_VALUE,
+        MAX_LENGTH_GENERIC_KEY,
+        getMaxLength,
+        validateMaxLength
+    } from '../../utils/inputValidation';
 
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -236,16 +244,26 @@
     /**
      * Validate form fields based on schema requirements.
      * Only validates user-input fields (excludes auto_generated fields).
+     * Validates required fields, numeric ranges, and string length limits.
      */
     function validateForm(): string | null {
         if (Object.keys(userInputProperties).length === 0) {
             // Generic form validation (fallback when no schema)
-            if (!formState.itemKey || String(formState.itemKey).trim() === '') {
+            const keyVal = String(formState.itemKey ?? '');
+            const valueVal = String(formState.itemValue ?? '');
+
+            if (!keyVal.trim()) {
                 return $text('settings.app_settings_memories.item_key_required');
             }
-            if (!formState.itemValue || String(formState.itemValue).trim() === '') {
+            const keyLengthError = validateMaxLength(keyVal, MAX_LENGTH_GENERIC_KEY, 'Key');
+            if (keyLengthError) return keyLengthError;
+
+            if (!valueVal.trim()) {
                 return $text('settings.app_settings_memories.item_value_required');
             }
+            const valueLengthError = validateMaxLength(valueVal, MAX_LENGTH_GENERIC_VALUE, 'Value');
+            if (valueLengthError) return valueLengthError;
+
             return null;
         }
         
@@ -265,7 +283,7 @@
             }
         }
         
-        // Type validation for user-input fields only
+        // Type and length validation for user-input fields only
         for (const [fieldName, prop] of Object.entries(userInputProperties)) {
             const value = formState[fieldName];
             if (value === undefined || value === null || String(value).trim() === '') {
@@ -282,6 +300,15 @@
                 }
                 if (prop.maximum !== undefined && numValue > prop.maximum) {
                     return `${prop.description || fieldName} must be at most ${prop.maximum}`;
+                }
+            } else if (prop.type === 'string' || prop.type === undefined) {
+                // Validate string length for text fields (skip enum — value is always from allowed list)
+                if (!prop.enum) {
+                    const strVal = String(value);
+                    const maxLen = getMaxLength(prop);
+                    const label = prop.description || fieldName;
+                    const lengthError = validateMaxLength(strVal, maxLen, label);
+                    if (lengthError) return lengthError;
                 }
             }
         }
@@ -515,12 +542,22 @@
                                     <option value={enumValue}>{enumValue}</option>
                                 {/each}
                             </select>
+                        {:else if prop.multiline}
+                            <textarea
+                                id={fieldName}
+                                bind:value={formState[fieldName]}
+                                placeholder={prop.description || fieldName}
+                                rows="4"
+                                maxlength={getMaxLength(prop)}
+                                disabled={isCreating}
+                            ></textarea>
                         {:else}
                             <input
                                 id={fieldName}
                                 type="text"
                                 bind:value={formState[fieldName]}
                                 placeholder={prop.description || fieldName}
+                                maxlength={getMaxLength(prop)}
                                 disabled={isCreating}
                             />
                         {/if}
@@ -541,9 +578,10 @@
                         type="text"
                         bind:value={formState.itemKey}
                         placeholder="e.g., favorite_movie or watched.2024"
+                        maxlength={MAX_LENGTH_GENERIC_KEY}
                         disabled={isCreating}
                     />
-                    <small>Key to identify this setting/memory entry</small>
+                    <small>Key to identify this setting/memory entry (max {MAX_LENGTH_GENERIC_KEY} characters)</small>
                 </div>
 
                 <div class="form-group">
@@ -555,6 +593,7 @@
                         type="text"
                         bind:value={formState.settingsGroup}
                         placeholder="e.g., Movies (defaults to first part of item key)"
+                        maxlength={MAX_LENGTH_SHORT}
                         disabled={isCreating}
                     />
                     <small>Group to organize this entry under</small>
@@ -570,9 +609,10 @@
                         bind:value={formState.itemValue}
                         placeholder="Example: JSON object or plain text"
                         rows="6"
+                        maxlength={MAX_LENGTH_GENERIC_VALUE}
                         disabled={isCreating}
                     ></textarea>
-                    <small>Value can be JSON or plain text. JSON will be automatically parsed.</small>
+                    <small>Value can be JSON or plain text. JSON will be automatically parsed. (max {MAX_LENGTH_GENERIC_VALUE} characters)</small>
                 </div>
             {/if}
 

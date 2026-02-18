@@ -20,6 +20,13 @@
     import { text } from '@repo/ui';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
     import type { Readable } from 'svelte/store';
+    import {
+        MAX_LENGTH_SHORT,
+        MAX_LENGTH_GENERIC_VALUE,
+        MAX_LENGTH_GENERIC_KEY,
+        getMaxLength,
+        validateMaxLength
+    } from '../../utils/inputValidation';
 
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -224,12 +231,21 @@
     
     /**
      * Validate form fields.
+     * Checks required fields, numeric ranges, and string length limits.
      */
     function validateForm(): string | null {
         if (Object.keys(userInputProperties).length === 0) {
-            if (!formState.itemKey || String(formState.itemKey).trim() === '') {
+            const keyVal = String(formState.itemKey ?? '');
+            if (!keyVal.trim()) {
                 return 'Item key is required';
             }
+            const keyLengthError = validateMaxLength(keyVal, MAX_LENGTH_GENERIC_KEY, 'Key');
+            if (keyLengthError) return keyLengthError;
+
+            const valueVal = String(formState.itemValue ?? '');
+            const valueLengthError = validateMaxLength(valueVal, MAX_LENGTH_GENERIC_VALUE, 'Value');
+            if (valueLengthError) return valueLengthError;
+
             return null;
         }
         
@@ -244,6 +260,34 @@
                 const prop = userInputProperties[fieldName];
                 const fieldLabel = getFieldLabel(fieldName, prop);
                 return `${fieldLabel} is required`;
+            }
+        }
+
+        // Type and length validation for user-input fields only
+        for (const [fieldName, prop] of Object.entries(userInputProperties)) {
+            const value = formState[fieldName];
+            if (value === undefined || value === null || String(value).trim() === '') {
+                continue; // Skip empty optional fields
+            }
+
+            if (prop.type === 'integer' || prop.type === 'number') {
+                const numValue = Number(value);
+                if (isNaN(numValue)) {
+                    return `${getFieldLabel(fieldName, prop)} must be a number`;
+                }
+                if (prop.minimum !== undefined && numValue < prop.minimum) {
+                    return `${getFieldLabel(fieldName, prop)} must be at least ${prop.minimum}`;
+                }
+                if (prop.maximum !== undefined && numValue > prop.maximum) {
+                    return `${getFieldLabel(fieldName, prop)} must be at most ${prop.maximum}`;
+                }
+            } else if (prop.type === 'string' || prop.type === undefined) {
+                if (!prop.enum) {
+                    const strVal = String(value);
+                    const maxLen = getMaxLength(prop);
+                    const lengthError = validateMaxLength(strVal, maxLen, getFieldLabel(fieldName, prop));
+                    if (lengthError) return lengthError;
+                }
             }
         }
         
@@ -499,12 +543,22 @@
                                     <option value={enumValue}>{enumValue}</option>
                                 {/each}
                             </select>
+                        {:else if prop.multiline}
+                            <textarea
+                                id={fieldName}
+                                bind:value={formState[fieldName]}
+                                placeholder={getFieldLabel(fieldName, prop)}
+                                rows="4"
+                                maxlength={getMaxLength(prop)}
+                                disabled={isSaving}
+                            ></textarea>
                         {:else}
                             <input
                                 id={fieldName}
                                 type="text"
                                 bind:value={formState[fieldName]}
                                 placeholder={getFieldLabel(fieldName, prop)}
+                                maxlength={getMaxLength(prop)}
                                 disabled={isSaving}
                             />
                         {/if}
@@ -521,6 +575,7 @@
                         id="item-key"
                         type="text"
                         bind:value={formState.itemKey}
+                        maxlength={MAX_LENGTH_GENERIC_KEY}
                         disabled={isSaving}
                     />
                 </div>
@@ -531,6 +586,7 @@
                         id="settings-group"
                         type="text"
                         bind:value={formState.settingsGroup}
+                        maxlength={MAX_LENGTH_SHORT}
                         disabled={isSaving}
                     />
                 </div>
@@ -541,6 +597,7 @@
                         id="item-value"
                         bind:value={formState.itemValue}
                         rows="6"
+                        maxlength={MAX_LENGTH_GENERIC_VALUE}
                         disabled={isSaving}
                     ></textarea>
                 </div>
