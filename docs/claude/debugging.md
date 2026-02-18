@@ -70,7 +70,7 @@ If a container might have outdated code after a simple restart, or if you need t
 ```bash
 docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
 docker volume rm openmates-cache-data && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-code app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail grafana && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-code app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail && \
 docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
 ```
 
@@ -80,7 +80,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 
 **App services:** `app-ai`, `app-web`, `app-videos`, `app-news`, `app-maps`, `app-code`, `app-ai-worker`, `app-web-worker`
 
-**Infrastructure:** `cache`, `vault`, `vault-setup`, `prometheus`, `cadvisor`, `loki`, `promtail`, `grafana`
+**Infrastructure:** `cache`, `vault`, `vault-setup`, `prometheus`, `cadvisor`, `loki`, `promtail`
 
 ---
 
@@ -221,13 +221,13 @@ vercel logs <deployment-url> 2>&1
 
 ### Common Build Failures
 
-| Error Pattern | Cause | Fix |
-|---|---|---|
+| Error Pattern                                              | Cause                          | Fix                                                         |
+| ---------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------- |
 | `'onsubmit\|preventDefault' is not a valid attribute name` | Svelte 4 event modifier syntax | Use `onsubmit={(e) => { e.preventDefault(); handler(e); }}` |
-| `'on:click' is not a valid attribute name` | Svelte 4 `on:` event syntax | Use `onclick={handler}` |
-| `export let` errors | Svelte 4 prop syntax | Use `let { prop } = $props()` |
-| `$:` reactive statement errors | Svelte 4 reactivity | Use `$derived()` or `$effect()` |
-| `Command failed with exit code 1` | General build error | Check the lines above for the specific error |
+| `'on:click' is not a valid attribute name`                 | Svelte 4 `on:` event syntax    | Use `onclick={handler}`                                     |
+| `export let` errors                                        | Svelte 4 prop syntax           | Use `let { prop } = $props()`                               |
+| `$:` reactive statement errors                             | Svelte 4 reactivity            | Use `$derived()` or `$effect()`                             |
+| `Command failed with exit code 1`                          | General build error            | Check the lines above for the specific error                |
 
 ### Post-Push Verification Workflow
 

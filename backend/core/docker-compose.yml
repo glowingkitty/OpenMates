@@ -50,6 +50,11 @@ services:
         condition: service_started
       cms-setup:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -88,6 +93,11 @@ services:
       CACHE_SKIP_ALLOWED: "true"
       # Automatically purge cache on data manipulation for real-time updates
       CACHE_AUTO_PURGE: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     # Ports removed for base config, will be added in override
     volumes:
       - ./directus/uploads:/directus/uploads
@@ -109,6 +119,11 @@ services:
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME}
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     volumes:
       - openmates-postgres-data:/var/lib/postgresql/data
     networks:
@@ -170,6 +185,11 @@ services:
       E2E_TEST_DEV_BASE_URL: "${E2E_TEST_DEV_BASE_URL:-https://app.dev.openmates.org}"
       E2E_TEST_PROD_ENABLED: "${E2E_TEST_PROD_ENABLED:-false}"
       E2E_TEST_PROD_BASE_URL: "${E2E_TEST_PROD_BASE_URL:-https://openmates.org}"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -216,6 +236,11 @@ services:
       DRAGONFLY_URL: "cache:6379"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
     command: >
       sh -c "python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule"
     volumes:
@@ -248,6 +273,11 @@ services:
         APP_NAME: ai
     restart: unless-stopped
     env_file: ../../.env # Project root .env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       # PYTHONPATH is set in Dockerfile.base
       APP_NAME: "ai" # For Dockerfile.base ARG and base_main.py
@@ -308,6 +338,11 @@ services:
         APP_NAME: web
     restart: unless-stopped
     env_file: ../../.env # Project root .env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       # PYTHONPATH is set in Dockerfile.base
       APP_NAME: "web" # For Dockerfile.base ARG and base_main.py
@@ -368,6 +403,11 @@ services:
         APP_NAME: videos
     restart: unless-stopped
     env_file: ../../.env # Project root .env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       # PYTHONPATH is set in Dockerfile.base
       APP_NAME: "videos" # For Dockerfile.base ARG and base_main.py
@@ -428,6 +468,11 @@ services:
         APP_NAME: news
     restart: unless-stopped
     env_file: ../../.env # Project root .env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       # PYTHONPATH is set in Dockerfile.base
       APP_NAME: "news" # For Dockerfile.base ARG and base_main.py
@@ -488,6 +533,11 @@ services:
         APP_NAME: maps
     restart: unless-stopped
     env_file: ../../.env # Project root .env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       # PYTHONPATH is set in Dockerfile.base
       APP_NAME: "maps" # For Dockerfile.base ARG and base_main.py
@@ -548,6 +598,11 @@ services:
         APP_NAME: travel
     restart: unless-stopped
     env_file: ../../.env # Project root .env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       APP_NAME: "travel"
       TRAVEL_APP_INTERNAL_PORT: "8000"
@@ -599,6 +654,11 @@ services:
         APP_NAME: code
     restart: unless-stopped
     env_file: ../../.env # Project root .env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       # PYTHONPATH is set in Dockerfile.base
       APP_NAME: "code" # For Dockerfile.base ARG and base_main.py
@@ -658,6 +718,11 @@ services:
         APP_NAME: docs
     restart: unless-stopped
     env_file: ../../.env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       APP_NAME: "docs"
       DOCS_APP_INTERNAL_PORT: "8000"
@@ -708,6 +773,11 @@ services:
         APP_NAME: images
     restart: unless-stopped
     env_file: ../../.env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       APP_NAME: "images"
       IMAGES_APP_INTERNAL_PORT: "8000"
@@ -759,6 +829,11 @@ services:
         APP_NAME: reminder
     restart: unless-stopped
     env_file: ../../.env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       APP_NAME: "reminder"
       REMINDER_APP_INTERNAL_PORT: "8000"
@@ -810,6 +885,11 @@ services:
         APP_NAME: jobs
     restart: unless-stopped
     env_file: ../../.env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     environment:
       APP_NAME: "jobs"
       JOBS_APP_INTERNAL_PORT: "8000"
@@ -860,6 +940,11 @@ services:
     restart: unless-stopped
     user: root
     env_file: ../../.env
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
     environment:
       PYTHONPATH: "/app"
       PYTHONDONTWRITEBYTECODE: "1" # Prevent Python from writing .pyc files for hot reloading
@@ -918,6 +1003,11 @@ services:
     restart: unless-stopped
     user: root
     env_file: ../../.env
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
     environment:
       PYTHONPATH: "/app"
       PYTHONDONTWRITEBYTECODE: "1" # Prevent Python from writing .pyc files for hot reloading
@@ -988,6 +1078,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: "1.0"
           memory: ${CACHE_MEMORY_LIMIT:-3.2G}
     networks:
       - openmates
@@ -1006,6 +1097,11 @@ services:
     restart: unless-stopped
     cap_add:
       - IPC_LOCK
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
     environment:
       VAULT_LOG_LEVEL: "debug"
     command: "vault server -log-level=debug -config=/vault/config/vault.hcl"
@@ -1057,6 +1153,11 @@ services:
     container_name: prometheus
     image: prom/prometheus:v3.2.1
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     volumes:
       - ./monitoring/prometheus:/etc/prometheus
       - prometheus-data:/prometheus
@@ -1082,6 +1183,17 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
     restart: unless-stopped
     privileged: true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    # Reduce cAdvisor overhead: longer housekeeping, disable unneeded metrics
+    command:
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp"
+      - "--store_container_labels=false"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -1101,6 +1213,11 @@ services:
     image: grafana/loki:3.4.2
     restart: unless-stopped
     user: "0" # Run as root to avoid permission issues
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     volumes:
       - ./monitoring/loki:/etc/loki
       - loki-data:/loki
@@ -1123,6 +1240,11 @@ services:
     image: grafana/promtail:3.4.2
     restart: unless-stopped
     env_file: ../../.env # Add env_file to access SERVER_ENVIRONMENT
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
     volumes:
       - ./monitoring/promtail:/etc/promtail
       - /var/run/docker.sock:/var/run/docker.sock:ro # Mount Docker socket for service discovery
@@ -1134,32 +1256,40 @@ services:
     networks:
       - openmates
 
-  grafana:
-    container_name: grafana
-    image: grafana/grafana:11.5.2
-    restart: unless-stopped
-    volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
-      - grafana-data:/var/lib/grafana
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-piechart-panel"
-      GF_SERVER_DOMAIN: "localhost"
-      GF_SMTP_ENABLED: "false"
-    networks:
-      - openmates
-    depends_on:
-      - prometheus
-      - loki
-    healthcheck:
-      test:
-        ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # Grafana removed — the UI dashboard was unused and consumed ~220 MB RAM.
+  # Prometheus, Loki, and Promtail remain as they are actively used by the backend.
+  # To re-enable Grafana, uncomment the block below and add grafana-data volume back.
+  # grafana:
+  #   container_name: grafana
+  #   image: grafana/grafana:11.5.2
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+  #     - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+  #     - grafana-data:/var/lib/grafana
+  #   environment:
+  #     GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+  #     GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+  #     GF_USERS_ALLOW_SIGN_UP: "false"
+  #     GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-piechart-panel"
+  #     GF_SERVER_DOMAIN: "localhost"
+  #     GF_SMTP_ENABLED: "false"
+  #   networks:
+  #     - openmates
+  #   depends_on:
+  #     - prometheus
+  #     - loki
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 256M
+  #   healthcheck:
+  #     test:
+  #       ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
   # #########################################################################
   # ##### Backup Service (S3)
@@ -1256,8 +1386,8 @@ volumes:
     name: openmates-loki-data
   loki-wal:
     name: openmates-loki-wal # Add volume for WAL data
-  grafana-data:
-    name: openmates-grafana-data
+  # grafana-data:
+  #   name: openmates-grafana-data
   vault-data:
     name: openmates-vault-data
   vault-setup-data:

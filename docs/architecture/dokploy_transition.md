@@ -42,6 +42,7 @@ This document outlines the migration from Vercel (frontend) + manual Docker Comp
 ```
 
 **Pain Points:**
+
 - Manual SSH + docker compose for backend deploys (~1-2 min downtime)
 - Vercel free tier exceeded (Edge Requests: 1.6M/1M)
 - US provider dependency (Vercel)
@@ -91,6 +92,7 @@ This document outlines the migration from Vercel (frontend) + manual Docker Comp
 ```
 
 **Security Benefits of Separation:**
+
 - **Blast radius:** Frontend compromise doesn't expose backend/database
 - **Network isolation:** Frontend VM has no access to internal backend services
 - **Resource isolation:** Frontend traffic spikes don't affect backend performance
@@ -102,25 +104,25 @@ This document outlines the migration from Vercel (frontend) + manual Docker Comp
 
 ### Dokploy Features
 
-| Feature | Description |
-|---------|-------------|
-| **Zero-downtime deploys** | Rolling updates - old containers serve traffic while new ones build |
-| **Git-based deployment** | Push to trigger automatic deployment |
-| **Docker Compose support** | Native support for existing docker-compose.yml |
-| **Automatic SSL** | Traefik + Let's Encrypt, auto-renewal |
-| **Web UI** | Dashboard for logs, monitoring, rollbacks |
-| **Multi-server** | Can manage multiple VMs from one Dokploy instance |
-| **Open source** | Self-hosted, no vendor lock-in |
-| **EU-based option** | Run entirely on Hetzner (Germany) |
+| Feature                    | Description                                                         |
+| -------------------------- | ------------------------------------------------------------------- |
+| **Zero-downtime deploys**  | Rolling updates - old containers serve traffic while new ones build |
+| **Git-based deployment**   | Push to trigger automatic deployment                                |
+| **Docker Compose support** | Native support for existing docker-compose.yml                      |
+| **Automatic SSL**          | Traefik + Let's Encrypt, auto-renewal                               |
+| **Web UI**                 | Dashboard for logs, monitoring, rollbacks                           |
+| **Multi-server**           | Can manage multiple VMs from one Dokploy instance                   |
+| **Open source**            | Self-hosted, no vendor lock-in                                      |
+| **EU-based option**        | Run entirely on Hetzner (Germany)                                   |
 
 ### What Dokploy Replaces
 
-| Before | After |
-|--------|-------|
-| Vercel (frontend hosting) | Dokploy + Traefik |
-| Manual SSH deploys | Git push → auto-deploy |
-| `docker compose down/up` | Rolling container updates |
-| Manual SSL cert management | Automatic Let's Encrypt |
+| Before                     | After                     |
+| -------------------------- | ------------------------- |
+| Vercel (frontend hosting)  | Dokploy + Traefik         |
+| Manual SSH deploys         | Git push → auto-deploy    |
+| `docker compose down/up`   | Rolling container updates |
+| Manual SSL cert management | Automatic Let's Encrypt   |
 
 ---
 
@@ -128,13 +130,14 @@ This document outlines the migration from Vercel (frontend) + manual Docker Comp
 
 ### Recommended VM Specifications
 
-| VM | Purpose | Hetzner Model | Specs | Cost |
-|----|---------|---------------|-------|------|
-| **Dev** | SSH coding + optional Dokploy staging | CX32 | 4 vCPU, 8GB RAM, 80GB SSD | ~€9/mo |
-| **Frontend Prod** | Static SvelteKit frontend only | CX22 | 2 vCPU, 4GB RAM, 40GB SSD | ~€4.35/mo |
-| **Backend Prod** | API, databases, workers, monitoring | CX32 or CX42 | 4-8 vCPU, 8-16GB RAM, 80-160GB SSD | ~€9-18/mo |
+| VM                | Purpose                               | Hetzner Model | Specs                              | Cost      |
+| ----------------- | ------------------------------------- | ------------- | ---------------------------------- | --------- |
+| **Dev**           | SSH coding + optional Dokploy staging | CX32          | 4 vCPU, 8GB RAM, 80GB SSD          | ~€9/mo    |
+| **Frontend Prod** | Static SvelteKit frontend only        | CX22          | 2 vCPU, 4GB RAM, 40GB SSD          | ~€4.35/mo |
+| **Backend Prod**  | API, databases, workers, monitoring   | CX32 or CX42  | 4-8 vCPU, 8-16GB RAM, 80-160GB SSD | ~€9-18/mo |
 
 **Why separate frontend VM:**
+
 - Static files require minimal resources (CX22 is plenty)
 - No database credentials or secrets on frontend VM
 - If frontend is DDoS'd or compromised, backend remains unaffected
@@ -157,6 +160,7 @@ curl -sSL https://dokploy.com/install.sh | sh
 ```
 
 This installs:
+
 - Dokploy application
 - Traefik (reverse proxy)
 - Docker (if not present)
@@ -174,7 +178,7 @@ Point DNS records to the **separate** VMs:
 A    openmates.org         → <FRONTEND_VM_IP>
 A    www.openmates.org     → <FRONTEND_VM_IP>
 
-# Backend VM  
+# Backend VM
 A    api.openmates.org     → <BACKEND_VM_IP>
 
 # Development (optional)
@@ -198,17 +202,19 @@ Traefik on each VM will handle SSL certificates automatically for its domains.
    curl -sSL https://dokploy.com/install.sh | sh
    ```
 3. **Configure firewall**
+
    ```bash
    # Allow public web traffic
    ufw allow 22/tcp    # SSH
    ufw allow 80/tcp    # HTTP (for Let's Encrypt)
    ufw allow 443/tcp   # HTTPS
-   
+
    # Restrict Dokploy UI to your IP only
    ufw allow from <YOUR_IP> to any port 3000
-   
+
    ufw enable
    ```
+
 4. **Access Dokploy UI** at `http://<FRONTEND_VM_IP>:3000` and create admin account
 
 #### 1b. Backend Production VM
@@ -219,18 +225,20 @@ Traefik on each VM will handle SSL certificates automatically for its domains.
    curl -sSL https://dokploy.com/install.sh | sh
    ```
 3. **Configure firewall**
+
    ```bash
    # Allow public web traffic (API endpoints)
    ufw allow 22/tcp    # SSH
    ufw allow 80/tcp    # HTTP (for Let's Encrypt)
    ufw allow 443/tcp   # HTTPS
-   
+
    # Restrict Dokploy UI to your IP only
    ufw allow from <YOUR_IP> to any port 3000
-   
+
    # Block all other incoming traffic (internal services not exposed)
    ufw enable
    ```
+
 4. **Access Dokploy UI** at `http://<BACKEND_VM_IP>:3000` and create admin account
 
 ### Phase 2: Configure Frontend Deployment
@@ -318,7 +326,7 @@ docker volume rm openmates-cache-data
 docker compose build api cms cms-database cms-setup task-worker \
   task-scheduler app-ai app-web app-videos app-news app-maps \
   app-ai-worker app-web-worker cache vault vault-setup \
-  prometheus cadvisor loki promtail grafana
+  prometheus cadvisor loki promtail
 
 # Start everything (DOWNTIME ENDS ~1-2 minutes later)
 docker compose up -d
@@ -357,6 +365,7 @@ docker volume rm openmates-cache-data
 ```
 
 This is a "nuclear option" that:
+
 - Causes downtime (containers must be stopped)
 - Loses all cache data unnecessarily
 - Takes time to recreate volume
@@ -366,6 +375,7 @@ This is a "nuclear option" that:
 **Option 1: Post-deploy hook (simple)**
 
 Configure in Dokploy:
+
 ```bash
 docker exec cache redis-cli FLUSHALL
 ```
@@ -389,10 +399,12 @@ def make_cache_key(key: str) -> str:
 ```
 
 In Dokploy, set `DEPLOY_VERSION` to:
+
 - Git commit short hash: `${GIT_COMMIT_SHA:0:7}`
 - Or auto-incrementing deployment ID
 
 Benefits:
+
 - No cache flush needed
 - Old keys expire naturally via TTL
 - Zero downtime, zero data loss
@@ -400,6 +412,7 @@ Benefits:
 **Option 3: Selective invalidation**
 
 Only flush specific key patterns:
+
 ```bash
 # Flush only user-related cache, keep app config
 docker exec cache redis-cli --scan --pattern "user:*" | xargs -r docker exec -i cache redis-cli DEL
@@ -408,11 +421,13 @@ docker exec cache redis-cli --scan --pattern "user:*" | xargs -r docker exec -i 
 ### When to Actually Delete the Volume
 
 Only delete `openmates-cache-data` if:
+
 - Dragonfly/Redis version upgrade with incompatible data format
 - Corrupted cache data causing errors
 - Major schema changes in cached data structures
 
 For these cases, add a pre-deploy hook in Dokploy:
+
 ```bash
 docker volume rm openmates-cache-data || true
 ```
@@ -452,12 +467,14 @@ docker run -d --name webapp-rollback <previous-image-tag>
 ### Database Rollback (Backend VM only)
 
 Database volumes persist across deployments. For database rollbacks:
+
 1. Restore from backup (configure automated backups separately)
 2. Or use Directus snapshot restore
 
 ### Independent Rollbacks
 
 Since frontend and backend are on separate VMs:
+
 - **Frontend issue:** Rollback frontend only, backend unaffected
 - **Backend issue:** Rollback backend only, frontend continues serving (may show errors for API calls)
 - **Both:** Rollback both independently
@@ -470,24 +487,24 @@ This isolation means you can quickly identify which component caused an issue.
 
 ### Current Setup
 
-| Service | Cost |
-|---------|------|
-| Vercel Free (exceeded) | $0 + forced upgrade or throttling |
-| Vercel Pro (if upgraded) | $20/mo + overage fees |
-| Hetzner Backend Dev VM | ~€9-18/mo |
-| Hetzner Backend Prod VM | ~€9-18/mo |
-| **Total** | **~€38-56/mo** (with Vercel Pro) |
+| Service                  | Cost                              |
+| ------------------------ | --------------------------------- |
+| Vercel Free (exceeded)   | $0 + forced upgrade or throttling |
+| Vercel Pro (if upgraded) | $20/mo + overage fees             |
+| Hetzner Backend Dev VM   | ~€9-18/mo                         |
+| Hetzner Backend Prod VM  | ~€9-18/mo                         |
+| **Total**                | **~€38-56/mo** (with Vercel Pro)  |
 
 ### Dokploy Setup
 
-| Service | Cost |
-|---------|------|
-| Hetzner Dev VM (CX32) | ~€9/mo |
-| Hetzner Frontend Prod VM (CX22) | ~€4.35/mo |
-| Hetzner Backend Prod VM (CX32/CX42) | ~€9-18/mo |
-| Dokploy | Free (self-hosted) |
-| SSL (Let's Encrypt) | Free |
-| **Total** | **~€22-31/mo (~$24-34)** |
+| Service                             | Cost                     |
+| ----------------------------------- | ------------------------ |
+| Hetzner Dev VM (CX32)               | ~€9/mo                   |
+| Hetzner Frontend Prod VM (CX22)     | ~€4.35/mo                |
+| Hetzner Backend Prod VM (CX32/CX42) | ~€9-18/mo                |
+| Dokploy                             | Free (self-hosted)       |
+| SSL (Let's Encrypt)                 | Free                     |
+| **Total**                           | **~€22-31/mo (~$24-34)** |
 
 ### Savings
 
@@ -504,6 +521,7 @@ This isolation means you can quickly identify which component caused an issue.
 ### Pre-Migration
 
 **Frontend Production VM:**
+
 - [ ] Provision Hetzner VM (CX22, Falkenstein/Nuremberg)
 - [ ] Install Dokploy
 - [ ] Configure firewall (22, 80, 443 open; 3000 restricted to your IP)
@@ -511,6 +529,7 @@ This isolation means you can quickly identify which component caused an issue.
 - [ ] Test Dokploy UI access
 
 **Backend Production VM:**
+
 - [ ] Provision Hetzner VM (CX32/CX42, same datacenter as frontend)
 - [ ] Install Dokploy
 - [ ] Configure firewall (22, 80, 443 open; 3000 restricted to your IP)
@@ -590,18 +609,19 @@ With separate VMs, the frontend has **no direct access** to backend internal ser
 
 ### What Each VM Has Access To
 
-| Resource | Frontend VM | Backend VM |
-|----------|-------------|------------|
-| Database credentials | ❌ | ✅ |
-| Vault secrets | ❌ | ✅ |
-| API keys | ❌ | ✅ |
-| User data | ❌ | ✅ |
-| Internal services | ❌ | ✅ |
-| Public internet | ✅ | ✅ (limited) |
+| Resource             | Frontend VM | Backend VM   |
+| -------------------- | ----------- | ------------ |
+| Database credentials | ❌          | ✅           |
+| Vault secrets        | ❌          | ✅           |
+| API keys             | ❌          | ✅           |
+| User data            | ❌          | ✅           |
+| Internal services    | ❌          | ✅           |
+| Public internet      | ✅          | ✅ (limited) |
 
 ### Firewall Rules
 
 **Frontend VM (minimal attack surface):**
+
 ```bash
 ufw default deny incoming
 ufw default allow outgoing
@@ -612,11 +632,12 @@ ufw allow from <YOUR_IP> to any port 3000 # Dokploy UI (restricted)
 ```
 
 **Backend VM (more restrictive):**
+
 ```bash
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow 22/tcp                          # SSH
-ufw allow 80/tcp                          # HTTP (Let's Encrypt)  
+ufw allow 80/tcp                          # HTTP (Let's Encrypt)
 ufw allow 443/tcp                         # HTTPS (API only)
 ufw allow from <YOUR_IP> to any port 3000 # Dokploy UI (restricted)
 # Internal ports (5432, 6379, 8200, etc.) NOT exposed
@@ -625,6 +646,7 @@ ufw allow from <YOUR_IP> to any port 3000 # Dokploy UI (restricted)
 ### If Frontend is Compromised
 
 With this architecture:
+
 - Attacker gains access to static HTML/JS/CSS only
 - No database credentials to steal
 - No internal services to pivot to
@@ -677,4 +699,3 @@ With this architecture:
 - [Hetzner Cloud](https://www.hetzner.com/cloud)
 - [Traefik Documentation](https://doc.traefik.io/traefik/)
 - [Let's Encrypt](https://letsencrypt.org/)
-

@@ -7,6 +7,7 @@ This guide provides comprehensive instructions for setting up and running OpenMa
 ## Prerequisites
 
 Before starting, ensure your system has:
+
 - Linux (Ubuntu/Debian recommended) or macOS
 - At least 4GB RAM (8GB+ recommended)
 - 20GB+ available disk space
@@ -31,13 +32,14 @@ chmod +x setup.sh
 ```
 
 **What the setup script does:**
+
 - Checks for Docker, Docker Compose, and pnpm
 - Installs missing dependencies (requires sudo)
 - Creates your `.env` configuration file
 - Generates necessary security secrets
 - Sets up Docker network configuration
 
-*Note: Designed for Debian-based systems. For other OS, install dependencies manually.*
+_Note: Designed for Debian-based systems. For other OS, install dependencies manually._
 
 ### 3. Configure API Keys
 
@@ -58,11 +60,13 @@ docker compose --env-file .env -f backend/core/docker-compose.yml up -d
 ```
 
 **For development with admin UIs** (includes Directus CMS and Grafana monitoring):
+
 ```bash
 docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
 ```
 
 Admin interfaces will be available at:
+
 - **Directus CMS**: http://localhost:8055
 - **Grafana Monitoring**: http://localhost:3000
 
@@ -75,6 +79,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs vault-set
 ```
 
 If import was successful, replace actual keys in `.env` with `IMPORTED_TO_VAULT`:
+
 ```env
 SECRET__MAILJET__API_KEY=IMPORTED_TO_VAULT
 ```
@@ -93,7 +98,7 @@ VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app dev --host 0.0.0.0
 
 Replace `YOUR_SERVER_IP` with your actual server IP address (e.g., `192.168.1.100`).
 
-*Note: First load may take up to a minute while Svelte builds files.*
+_Note: First load may take up to a minute while Svelte builds files._
 
 #### Option B: Production Build (Recommended for Deployment)
 
@@ -184,11 +189,13 @@ For production use, consider these additional steps:
 ### Reverse Proxy Setup (Caddy)
 
 1. **Copy configuration template**:
+
    ```bash
    cp deployment/Caddyfile.example deployment/prod/Caddyfile.prod
    ```
 
 2. **Configure domains and TLS**:
+
    ```caddyfile
    api.yourdomain.com {
        reverse_proxy api:8000
@@ -242,10 +249,10 @@ SECRET__MAILJET__SECRET_KEY=your_production_mailjet_secret
 
 The frontend needs to know where to reach the backend API. For self-hosted deployments, you **must** set `VITE_API_URL` at build time:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `VITE_API_URL` | Full URL to your API server (for self-hosted) | `http://192.168.1.100:8000` |
-| `VITE_ENV` | Optional: Set to `production` for cloud deployments | `production` |
+| Variable       | Description                                         | Example                     |
+| -------------- | --------------------------------------------------- | --------------------------- |
+| `VITE_API_URL` | Full URL to your API server (for self-hosted)       | `http://192.168.1.100:8000` |
+| `VITE_ENV`     | Optional: Set to `production` for cloud deployments | `production`                |
 
 **Why build time?** Vite is a build-time bundler that replaces `import.meta.env.VITE_*` with actual values during compilation. Unlike server-side environment variables, these cannot be changed at runtime.
 
@@ -261,6 +268,7 @@ The frontend needs to know where to reach the backend API. For self-hosted deplo
 ### Service Management
 
 **View logs**:
+
 ```bash
 # All services
 docker compose --env-file .env -f backend/core/docker-compose.yml logs -f
@@ -270,6 +278,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs -f api
 ```
 
 **Restart services**:
+
 ```bash
 # All services
 docker compose --env-file .env -f backend/core/docker-compose.yml restart
@@ -279,6 +288,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml restart api
 ```
 
 **Stop services**:
+
 ```bash
 docker compose --env-file .env -f backend/core/docker-compose.yml down
 ```
@@ -286,14 +296,16 @@ docker compose --env-file .env -f backend/core/docker-compose.yml down
 ### Development Workflow
 
 **Restart backend for development** (excludes webapp for hot-reload):
+
 ```bash
 docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
 docker volume rm openmates-cache-data && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail grafana && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail && \
 docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d --scale webapp=0
 ```
 
 **Start frontend development server**:
+
 ```bash
 pnpm --filter web_app dev --host 0.0.0.0 --port 5173
 ```
@@ -312,6 +324,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 ```
 
 This will:
+
 - Stop all services
 - Clear cached data
 - Rebuild all containers
@@ -320,16 +333,19 @@ This will:
 ### Common Issues
 
 **Services won't start**:
+
 - Check Docker is running: `docker info`
 - Verify ports aren't in use: `lsof -i :8000` (API port)
 - Check disk space: `df -h`
 
 **Frontend won't load**:
+
 - Ensure backend is running: `docker compose ps`
 - Check API health: `curl http://localhost:8000/health`
 - Verify pnpm dependencies: `pnpm install`
 
 **Frontend shows "localhost:8000" connection errors when accessing from network**:
+
 - The frontend API URL is baked in at build time
 - Rebuild with your server's IP: `VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app build`
 - Or for development: `VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app dev --host 0.0.0.0`
@@ -344,6 +360,7 @@ This will:
 -->
 
 **Database connection errors**:
+
 - Check database container: `docker compose logs cms-database`
 - Verify network connectivity: `docker network ls`
 - Reset database if needed: `docker volume rm openmates-cms-database-data`
