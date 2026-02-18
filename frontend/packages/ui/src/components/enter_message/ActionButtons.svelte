@@ -28,7 +28,7 @@
         dispatch('fileSelect');
     }
 
-    // function handleLocationClick() { dispatch('locationClick'); } // Unused (location feature commented out)
+    function handleLocationClick() { dispatch('locationClick'); }
     // function handleCameraClick(event: MouseEvent | TouchEvent) { // Unused (camera feature commented out)
     //     event.preventDefault();
     //     dispatch('cameraClick');
@@ -60,12 +60,12 @@
             aria-label={$text('enter_message.attachments.attach_files')}
             use:tooltip
         ></button>
-        <!-- <button
+        <button
             class="clickable-icon icon_maps"
             onclick={handleLocationClick}
             aria-label={$text('enter_message.attachments.share_location')}
             use:tooltip
-        ></button> -->
+        ></button>
     </div>
     <div class="right-buttons">
         <!-- TODO uncomment once feature available -->

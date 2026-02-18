@@ -4,18 +4,28 @@
     import { text } from '@repo/ui';
     import { locale } from 'svelte-i18n';
     import type { Map, Marker } from 'leaflet';
-    import Toggle from '../Toggle.svelte';  // Add Toggle import
+    import Toggle from '../Toggle.svelte';
     import 'leaflet/dist/leaflet.css';
     import { getLocaleFromNavigator } from 'svelte-i18n';
     import { get } from 'svelte/store';
     import { tooltip } from '../../actions/tooltip';
+
     const dispatch = createEventDispatcher();
+
+    // ─── Props ───────────────────────────────────────────────────────────────
+    interface Props {
+        /** Whether imprecise (area) mode is the default. Controlled by privacy settings. */
+        defaultImprecise?: boolean;
+    }
+    let { defaultImprecise = true }: Props = $props();
     
     let mapContainer: HTMLElement;
     let map: Map | null = null;
     let marker: Marker | null = null;
     let L: any; // Will hold Leaflet instance
-    let isPrecise = $state(true); // Changed default to true
+    // Default to NOT precise (area mode) — matches privacy-first default.
+    // Will be overridden by defaultImprecise prop from caller.
+    let isPrecise = $state(false);
     let isLoading = $state(false);
     let currentLocation: { lat: number; lon: number } | null = null;
 
@@ -73,6 +83,17 @@
 
     // Add a new variable to track panel transition
     let isPanelTransitioning = false;
+
+    // ─── Reverse geocode state ────────────────────────────────────────────────
+    // Stores the resolved street address for the current map center.
+    // Populated by reverseGeocode() after map movement stops.
+    let resolvedAddress = $state<string>('');
+    let reverseGeocodeController: AbortController | null = null;
+
+    // Set initial precision state from prop (runs once after initial render)
+    $effect(() => {
+        isPrecise = !defaultImprecise;
+    });
 
     // Helper function to capitalize first letter of each word
     function capitalize(str: string) {
@@ -202,6 +223,11 @@
                 // Always update accuracy circle after movement if not in precise mode
                 if (mapCenter && !isPrecise) {
                     updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
+                }
+                // Reverse geocode the current center to get a street address
+                // Only when no search result was selected (search results carry their own address)
+                if (mapCenter && !selectedFromSearch) {
+                    reverseGeocode(mapCenter.lat, mapCenter.lon);
                 }
             });
             
@@ -427,18 +453,41 @@
     // Update handleSelect function
     function handleSelect() {
         if (mapCenter) {
-            const selectedLocation = isPrecise ? 
-                mapCenter : 
+            // Always store the precise location (for potential future use/display)
+            const preciseLat = mapCenter.lat;
+            const preciseLon = mapCenter.lon;
+
+            // For the LLM context: use randomised location within accuracy circle in area mode
+            // to protect the user's exact position, while still giving useful context
+            const locationForLLM = isPrecise ?
+                mapCenter :
                 getRandomLocationInCircle(mapCenter, ACCURACY_RADIUS);
+
+            // Resolve the best available address string:
+            // - Search result: use the formatted result text (already two lines)
+            // - Reverse geocode: use the resolved address
+            // - Fallback: use the location indicator text
+            const address = resolvedAddress ||
+                (selectedLocationText
+                    ? [selectedLocationText.mainLine, selectedLocationText.subLine].filter(Boolean).join(', ')
+                    : locationIndicatorText);
 
             const previewData = {
                 type: 'mapsEmbed',
                 attrs: {
-                    lat: selectedLocation.lat,
-                    lon: selectedLocation.lon,
+                    // Coordinates sent to LLM (may be randomised in area mode)
+                    lat: locationForLLM.lat,
+                    lon: locationForLLM.lon,
+                    // Always store precise coords for the in-editor preview pin
+                    preciseLat,
+                    preciseLon,
                     zoom: selectedZoomLevel || 16,
-                    name: locationIndicatorText,
-                    type: isPrecise ? 'precise_location' : 'area',
+                    // Display name shown in the embed card
+                    name: locationIndicatorText || address,
+                    // Full resolved street address for LLM context
+                    address,
+                    // Whether this is a precise pin or a generalised area
+                    locationType: isPrecise ? 'precise_location' : 'area',
                     id: crypto.randomUUID()
                 }
             };
@@ -472,6 +521,79 @@
     function getCurrentLocale() {
         // Get current locale from svelte-i18n store
         return (get(locale) || getLocaleFromNavigator() || 'en').split('-')[0];
+    }
+
+    /**
+     * Reverse geocode a lat/lon pair using Nominatim.
+     * Called after map movement stops (moveend event).
+     * Stores the human-readable address in resolvedAddress so it can be
+     * included in the embed when the user taps "Select".
+     *
+     * Uses an AbortController to cancel any in-flight request when the map
+     * moves again before the previous geocode completes.
+     */
+    async function reverseGeocode(lat: number, lon: number): Promise<void> {
+        // Cancel any previous in-flight request
+        if (reverseGeocodeController) {
+            reverseGeocodeController.abort();
+        }
+        reverseGeocodeController = new AbortController();
+        const signal = reverseGeocodeController.signal;
+
+        try {
+            const currentLocale = getCurrentLocale();
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?` +
+                `format=json` +
+                `&lat=${lat}` +
+                `&lon=${lon}` +
+                `&zoom=18` +
+                `&addressdetails=1` +
+                `&accept-language=${currentLocale}`,
+                { signal }
+            );
+
+            if (!response.ok) return;
+            const data = await response.json();
+
+            // Build a human-readable address from the address components
+            const addr = data.address || {};
+            const parts: string[] = [];
+
+            // Street + house number
+            const road = addr.road || addr.pedestrian || addr.footway || addr.path || '';
+            const houseNumber = addr.house_number || '';
+            if (road && houseNumber) {
+                parts.push(`${road} ${houseNumber}`);
+            } else if (road) {
+                parts.push(road);
+            }
+
+            // Postcode + city
+            const postcode = addr.postcode || '';
+            const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+            if (postcode && city) {
+                parts.push(`${postcode} ${city}`);
+            } else if (city) {
+                parts.push(city);
+            }
+
+            // Country
+            const country = addr.country || '';
+            if (country) {
+                parts.push(country);
+            }
+
+            resolvedAddress = parts.join(', ') || data.display_name || '';
+            logger.debug('Reverse geocoded address:', resolvedAddress);
+
+        } catch (error: any) {
+            if (error.name === 'AbortError') {
+                // Request was cancelled because map moved — normal behaviour
+                return;
+            }
+            console.error('[MapsView] Reverse geocode error:', error);
+        }
     }
 
     // Update debouncedSearch function

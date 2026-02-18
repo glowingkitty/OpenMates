@@ -4,6 +4,7 @@ import { GroupRenderer } from "./GroupRenderer";
 import { ImageRenderer } from "./ImageRenderer";
 import { AppSkillUseRenderer } from "./AppSkillUseRenderer";
 import { FocusModeActivationRenderer } from "./FocusModeActivationRenderer";
+import { MapLocationRenderer } from "./MapLocationRenderer";
 import type { EmbedRendererRegistry } from "./types";
 
 /**
@@ -36,6 +37,8 @@ export const embedRenderers: EmbedRendererRegistry = {
   "travel-connection-group": new GroupRenderer(),
   // Image renderer for static images and SVGs (used in legal documents)
   image: new ImageRenderer(),
+  // Map location embed renderer — mounts MapsLocationEmbedPreview in the editor
+  maps: new MapLocationRenderer(),
 };
 
 /**

@@ -4,6 +4,7 @@ import { extractEpubCover, getEpubMetadata } from "./utils";
 import { resizeImage } from "./utils";
 import { generateUUID } from "../../message_parsing/utils";
 import { uploadFileToServer } from "./services/uploadService";
+import { embedStore } from "../../services/embedStore";
 
 // ---------------------------------------------------------------------------
 // Upload cancellation registry
@@ -469,21 +470,74 @@ export function insertRecording(
 }
 
 /**
- * Inserts a map embed into the editor.
+ * Inserts a map location embed into the editor.
+ *
+ * Flow:
+ * 1. Generate a UUID used as both the embed node ID and the EmbedStore key.
+ * 2. Store the location TOON content in EmbedStore so it survives serialization
+ *    and is sent to the server as part of the encrypted embed pipeline.
+ * 3. Insert the embed node with contentRef: "embed:{uuid}" so serializers.ts
+ *    can emit the proper `{"type":"location","embed_id":"..."}` JSON block.
+ *
+ * TOON content shape:
+ *   type            "location"
+ *   lat / lon       LLM-facing coordinates (randomised in area mode)
+ *   preciseLat/Lon  Exact pin coordinates for the in-editor Leaflet preview
+ *   address         Human-readable street address (from reverse geocode)
+ *   name            Short display name (selected location or area text)
+ *   locationType    "precise_location" | "area"
  */
-export function insertMap(
+export async function insertMap(
   editor: Editor,
   previewData: { type: string; attrs: Record<string, unknown> },
-): void {
-  // Convert legacy map data to unified embed format
+): Promise<void> {
+  const embedId = generateUUID();
+  const contentRef = `embed:${embedId}`;
+
+  const { attrs } = previewData;
+
+  // Build TOON content for EmbedStore — contains both LLM coords and precise coords
+  const toonContent = {
+    type: "location",
+    lat: attrs.lat,
+    lon: attrs.lon,
+    precise_lat: attrs.preciseLat,
+    precise_lon: attrs.preciseLon,
+    zoom: attrs.zoom ?? 16,
+    name: attrs.name ?? "",
+    address: attrs.address ?? "",
+    location_type: attrs.locationType ?? "area",
+  };
+
+  // Store in EmbedStore so it flows through the encrypted pipeline on send
+  try {
+    await embedStore.put(contentRef, toonContent, "maps");
+    console.debug(
+      "[EmbedHandlers] Stored map location embed in EmbedStore:",
+      embedId,
+    );
+  } catch (err) {
+    console.error(
+      "[EmbedHandlers] Failed to store map location in EmbedStore:",
+      err,
+    );
+    // Do not abort: insert the node anyway so the user still sees the embed.
+    // The embed will be incomplete on send (no contentRef data), but that is
+    // better than silently swallowing the action.
+  }
+
   const unifiedMapEmbed = {
     type: "embed",
     attrs: {
-      id: generateUUID(),
+      id: embedId,
       type: "maps",
       status: "finished",
-      contentRef: null,
-      ...previewData.attrs, // Spread the existing attributes
+      contentRef,
+      // Store precise coords as data-* attrs for the in-editor Leaflet preview
+      preciseLat: attrs.preciseLat,
+      preciseLon: attrs.preciseLon,
+      zoom: attrs.zoom ?? 16,
+      name: attrs.name ?? "",
     },
   };
 

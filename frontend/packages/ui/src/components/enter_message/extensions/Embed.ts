@@ -349,6 +349,46 @@ export const Embed = Node.create<EmbedOptions>({
           return { "data-provider": attributes.provider };
         },
       },
+      // -----------------------------------------------------------------------
+      // Maps location embed attributes
+      // Stored as data-* attributes so they survive TipTap DOM round-trips.
+      // preciseLat/preciseLon are used for the in-editor Leaflet pin preview.
+      // zoom is used to set the initial zoom level of the Leaflet map.
+      // name is the short display label for the location.
+      // -----------------------------------------------------------------------
+      preciseLat: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-precise-lat");
+          return value ? parseFloat(value) : null;
+        },
+        renderHTML: (attributes) => {
+          if (attributes.preciseLat == null) return {};
+          return { "data-precise-lat": String(attributes.preciseLat) };
+        },
+      },
+      preciseLon: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-precise-lon");
+          return value ? parseFloat(value) : null;
+        },
+        renderHTML: (attributes) => {
+          if (attributes.preciseLon == null) return {};
+          return { "data-precise-lon": String(attributes.preciseLon) };
+        },
+      },
+      zoom: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-zoom");
+          return value ? parseInt(value, 10) : null;
+        },
+        renderHTML: (attributes) => {
+          if (attributes.zoom == null) return {};
+          return { "data-zoom": String(attributes.zoom) };
+        },
+      },
       // Focus mode metadata
       focus_id: {
         default: null,
@@ -485,6 +525,7 @@ export const Embed = Node.create<EmbedOptions>({
         "web-website", // WebsiteEmbedPreview uses UnifiedEmbedPreview
         "videos-video", // VideoEmbedPreview uses UnifiedEmbedPreview
         "image", // ImageEmbedPreview uses UnifiedEmbedPreview (uploaded images)
+        "maps", // MapLocationEmbedPreview renders Leaflet map inline
       ];
 
       if (svelteComponentEmbedTypes.includes(currentAttrs.type)) {
@@ -1116,6 +1157,24 @@ export const Embed = Node.create<EmbedOptions>({
                 "[Embed] Deleted image embed and cancelled upload:",
                 attrs.id,
               );
+              return true;
+
+            case "maps":
+              // Maps location embeds are deleted entirely on Backspace
+              // (same pattern as image embeds — no meaningful markdown representation).
+              {
+                const hardBreakAfterMap = editor.state.doc.nodeAt(to);
+                const deleteToMap =
+                  hardBreakAfterMap?.type.name === "hardBreak" ? to + 1 : to;
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange({ from, to: deleteToMap })
+                  .run();
+              }
+              // Clean up the embed from EmbedStore (contentRef: "embed:{id}")
+              cleanupRemovedEmbed(attrs.contentRef);
+              console.debug("[Embed] Deleted maps embed:", attrs.id);
               return true;
 
             default:

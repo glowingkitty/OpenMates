@@ -289,6 +289,47 @@ async function initializeRegistry(): Promise<void> {
     };
   });
 
+  // Maps location embeds (user-inserted via MapsView picker)
+  // Uses MapsLocationEmbedFullscreen which shows an interactive Leaflet map + details card.
+  // Data comes from the "maps" embed node attrs (preciseLat/preciseLon) or decoded TOON content.
+  fullscreenComponentRegistry.set("maps", async (data: any) => {
+    const { default: component } =
+      await import("../components/embeds/maps/MapsLocationEmbedFullscreen.svelte");
+
+    // Coordinates: prefer decodedContent (from EmbedStore TOON), fall back to raw attrs
+    const lat =
+      data.decodedContent?.precise_lat ??
+      data.decodedContent?.lat ??
+      data.attrs?.preciseLat ??
+      data.attrs?.lat;
+    const lon =
+      data.decodedContent?.precise_lon ??
+      data.decodedContent?.lon ??
+      data.attrs?.preciseLon ??
+      data.attrs?.lon;
+    const name = data.decodedContent?.name || data.attrs?.name || "";
+
+    if (lat === undefined || lat === null) return null;
+
+    return {
+      component,
+      props: {
+        lat,
+        lon,
+        name,
+        status: data.embedData?.status || "finished",
+        onClose: data.onClose,
+        embedId: data.embedId,
+        hasPreviousEmbed: data.hasPreviousEmbed ?? false,
+        hasNextEmbed: data.hasNextEmbed ?? false,
+        onNavigatePrevious: data.onNavigatePrevious,
+        onNavigateNext: data.onNavigateNext,
+        showChatButton: data.showChatButton ?? false,
+        onShowChat: data.onShowChat,
+      },
+    };
+  });
+
   // Video embeds
   // Constructs full VideoMetadata from decodedContent so fullscreen displays
   // all video details (title, channel, duration, thumbnail, etc.) without re-fetching

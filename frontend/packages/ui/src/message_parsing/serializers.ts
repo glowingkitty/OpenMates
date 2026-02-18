@@ -215,6 +215,22 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       // No contentRef yet (e.g. still uploading, or legacy static image) — omit
       return "";
 
+    case "maps":
+      // Map location embeds: serialized as embed references pointing to EmbedStore.
+      // The TOON content (lat/lon/address/etc.) was stored by insertMap() in embedHandlers.ts.
+      // The backend parses this block to inject location context into the LLM prompt.
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify(
+          { type: "location", embed_id },
+          null,
+          2,
+        );
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // No contentRef — embed was not stored (e.g. storage failed). Omit silently.
+      return "";
+
     default:
       // Check if this is a group type that can be handled by a group handler
       if (attrs.type.endsWith("-group")) {

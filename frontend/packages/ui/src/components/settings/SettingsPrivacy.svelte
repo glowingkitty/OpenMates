@@ -33,7 +33,13 @@ Based on Figma design: settings/privacy (node 1895:20576)
     let locationEnabled = $state(false);
 
     // ─── Location / Maps Toggle ──────────────────────────────────────────────
-    let nearbyByDefault = $state(true);
+    // Read from encrypted personalDataStore so the setting persists across sessions.
+    // impreciseByDefault=true means area mode is the default (privacy-first).
+    let locationSettings = $state({ impreciseByDefault: true });
+    personalDataStore.locationSettings.subscribe((s) => { locationSettings = s; });
+    // nearbyByDefault is the UI-facing toggle:
+    //   checked=true  → "Nearby by default" is ON  → impreciseByDefault=true
+    let nearbyByDefault = $derived(locationSettings.impreciseByDefault);
 
     // ─── Navigation Handlers ─────────────────────────────────────────────────
 
@@ -104,7 +110,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
     title={$text('settings.privacy.nearby_by_default')}
     hasToggle={true}
     checked={nearbyByDefault}
-    onClick={() => nearbyByDefault = !nearbyByDefault}
+    onClick={() => personalDataStore.updateLocationSettings({ impreciseByDefault: !locationSettings.impreciseByDefault })}
 />
 
 <!-- ─── Device Permissions Section ────────────────────────────────────────── -->
