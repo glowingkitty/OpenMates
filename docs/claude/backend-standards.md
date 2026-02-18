@@ -4,6 +4,65 @@ Standards for modifying Python code in `backend/` - FastAPI routes, Pydantic mod
 
 ---
 
+## Rebuild & Restart After Backend Changes (CRITICAL)
+
+**Every time you modify Python code under `backend/`, you MUST rebuild and restart the affected Docker containers.** The backend runs inside Docker containers — editing files on disk does NOT automatically update the running services. If you skip this step, your changes will have no effect and the user will see stale behavior.
+
+### Identify and rebuild only the affected containers
+
+Rebuild only the containers whose code you actually changed. Do NOT rebuild the entire stack unless you have a specific reason to.
+
+**Common container-to-path mappings:**
+
+| Path changed            | Containers to rebuild                      |
+| ----------------------- | ------------------------------------------ |
+| `backend/core/api/`     | `api`                                      |
+| `backend/core/workers/` | `task-worker`, `task-scheduler`            |
+| `backend/apps/ai/`      | `app-ai`, `app-ai-worker`                  |
+| `backend/apps/web/`     | `app-web`, `app-web-worker`                |
+| `backend/apps/videos/`  | `app-videos`                               |
+| `backend/apps/news/`    | `app-news`                                 |
+| `backend/apps/maps/`    | `app-maps`                                 |
+| `backend/apps/code/`    | `app-code`                                 |
+| `backend/shared/`       | All app containers that import shared code |
+
+**Rebuild and restart only the relevant containers:**
+
+```bash
+# Example: only api changed
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d api
+
+# Example: api + task-worker changed
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api task-worker && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d api task-worker
+```
+
+### Full stack rebuild (only when necessary)
+
+Only do a full teardown + rebuild when:
+
+- You changed `backend/shared/` code used across many services
+- You added or removed Docker services
+- You changed environment variables or Docker configs
+- Something is broken and you need a clean slate
+
+```bash
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
+docker volume rm openmates-cache-data && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-code app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail grafana && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
+```
+
+After restarting, verify the affected services are healthy:
+
+```bash
+# Replace with the containers you actually restarted
+docker compose --env-file .env -f backend/core/docker-compose.yml logs --tail=20 api task-worker
+```
+
+---
+
 ## Python Code Style
 
 - Follow PEP 8 style guidelines
@@ -64,12 +123,13 @@ When creating or modifying an app skill, you **MUST** ensure it is properly docu
 ### Checklist for Every New/Modified Skill
 
 1. **Define `{Name}Request` and `{Name}Response` Pydantic models** in the skill module file (e.g., `search_skill.py`). The naming convention must end with `Request` and `Response`:
+
    ```python
    # ✅ CORRECT — auto-discovered by generic model lookup
    class ShareUsecaseRequest(BaseModel):
        summary: str = Field(..., description="Brief summary of use cases")
        language: str = Field(..., description="ISO 639-1 language code")
-   
+
    class ShareUsecaseResponse(BaseModel):
        success: bool = Field(default=False)
        message: Optional[str] = Field(None)
@@ -77,6 +137,7 @@ When creating or modifying an app skill, you **MUST** ensure it is properly docu
    ```
 
 2. **Define `tool_schema` in `app.yml`** — This is the JSON Schema that describes the skill's input parameters. It is used both for LLM function calling and for REST API documentation:
+
    ```yaml
    tool_schema:
      type: object
@@ -99,21 +160,24 @@ When creating or modifying an app skill, you **MUST** ensure it is properly docu
 ### REST API Endpoint Visibility (`api_config`)
 
 By default, every skill gets **two** endpoints:
+
 - `GET /v1/apps/{app_id}/skills/{skill_id}` — Returns skill metadata with pricing
 - `POST /v1/apps/{app_id}/skills/{skill_id}` — Executes the skill
 
 To make a skill **POST-only** (no GET metadata endpoint), add `api_config` in `app.yml`:
+
 ```yaml
 skills:
   - id: share-usecase
     api_config:
-      expose_get: false    # Only POST endpoint, no GET
+      expose_get: false # Only POST endpoint, no GET
     # ... other fields ...
 ```
 
 ### How Model Auto-Discovery Works
 
 The route registration in `apps_api.py` scans the skill module for all classes that:
+
 - Inherit from Pydantic `BaseModel`
 - Have names ending with `Request` or `Response`
 - Are defined in the skill module itself (not imported base classes)

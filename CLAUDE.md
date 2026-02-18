@@ -98,6 +98,18 @@ OpenMates/
 
 **NEVER use `$:` reactive statements** - this is Svelte 4 syntax and must not be used.
 
+### Docker Rebuild After Backend Changes (CRITICAL)
+
+**Every time you modify Python files under `backend/`, you MUST rebuild and restart the affected Docker containers.** The backend runs inside Docker containers — editing files on disk does NOT update the running services. If you skip this step, your changes have no effect.
+
+**Rebuild only the containers whose code you changed** — not the entire stack. See `docs/claude/backend-standards.md` for the full path-to-container mapping and commands.
+
+```bash
+# Example: rebuild and restart only what changed
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build <container(s)> && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d <container(s)>
+```
+
 ---
 
 ## MANDATORY: Read Sub-Documents Before Working
@@ -117,53 +129,71 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 ### Required Documents by Trigger
 
 #### `docs/claude/frontend-standards.md`
+
 **MUST READ when ANY of these are true:**
+
 - You are editing, creating, or reviewing files under `frontend/`
 - The task involves Svelte components, TypeScript, CSS, or stores
 - You are touching `.svelte`, `.ts`, or `.css` files in the frontend
 
 #### `docs/claude/backend-standards.md`
+
 **MUST READ when ANY of these are true:**
+
 - You are editing, creating, or reviewing files under `backend/`
 - The task involves Python code, FastAPI routes, Pydantic models, or database queries
 - You are touching `.py` files in the backend
 - You are creating or modifying an app skill (includes REST API documentation requirements)
 
 #### `docs/claude/debugging.md`
+
 **MUST READ when ANY of these are true:**
+
 - The user reports a bug, error, or unexpected behavior
 - You need to read Docker logs or troubleshoot a service
 - The task involves investigating why something doesn't work
 
 #### `docs/claude/inspection-scripts.md`
+
 **MUST READ when ANY of these are true:**
+
 - You need to inspect server state (chats, users, issues, cache, AI requests)
 - You need to run diagnostic commands on the running services
 - The user asks you to check or look up data on the server
 
 #### `docs/claude/git-and-deployment.md`
+
 **MUST READ when ANY of these are true:**
+
 - You are about to commit, push, or interact with git
 - The task involves deployment, branch management, or PRs
 - You need to understand the branch-to-server mapping
 
 #### `docs/claude/testing.md`
+
 **MUST READ when ANY of these are true:**
+
 - You are creating, modifying, or running tests
 - The user asks you to verify changes with tests
 
 #### `docs/claude/figma-to-code.md`
+
 **MUST READ when ANY of these are true:**
+
 - The user provides a Figma link or references a Figma design
 - The task involves implementing a UI design or matching a visual mockup
 
 #### `docs/claude/i18n.md`
+
 **MUST READ when ANY of these are true:**
+
 - You are adding or modifying user-facing strings (labels, messages, errors shown to users)
 - You are editing translation/i18n files
 
 #### `docs/claude/logging-and-docs.md`
+
 **MUST READ when ANY of these are true:**
+
 - You are adding logging statements or error handling
 - You are updating project documentation
 
