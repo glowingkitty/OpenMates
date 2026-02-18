@@ -2063,7 +2063,7 @@
     }
     function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
     async function handlePaste(event: ClipboardEvent) {
-        await handleFilePaste(event, editor);
+        await handleFilePaste(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             updateEmbedGroupLayouts();
@@ -2232,7 +2232,7 @@
     // File/Camera/Location handlers remain the same as previous step
 
     async function handleDrop(event: DragEvent) {
-        await handleFileDrop(event, editorElement, editor);
+        await handleFileDrop(event, editorElement, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             updateEmbedGroupLayouts();
@@ -2242,7 +2242,7 @@
     function handleDragOver(event: DragEvent) { handleFileDragOver(event, editorElement); }
     function handleDragLeave(event: DragEvent) { handleFileDragLeave(event, editorElement); }
     async function onFileSelected(event: Event) {
-        await handleFileSelectedEvent(event, editor);
+        await handleFileSelectedEvent(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             updateEmbedGroupLayouts();
@@ -2257,7 +2257,7 @@
         const { blob, previewUrl } = event.detail;
         const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
         showCamera = false; await tick();
-        await insertImage(editor, file, true, previewUrl);
+        await insertImage(editor, file, true, previewUrl, undefined, $authStore.isAuthenticated);
         hasContent = true;
     }
     async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {

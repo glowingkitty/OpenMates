@@ -43,12 +43,17 @@ export async function insertVideo(
 /**
  * Inserts an image embed into the editor and triggers the server upload pipeline.
  *
- * Upload flow:
+ * Upload flow (authenticated users):
  *  1. Generate a client-side blob URL for instant local preview.
  *  2. Insert the embed node with status: 'uploading' immediately (non-blocking).
  *  3. Fire the upload to the server in the background.
  *  4. On success: update the embed node with S3 keys, AES metadata, status: 'finished'.
  *  5. On failure: update the embed node with status: 'error'.
+ *
+ * Demo mode (unauthenticated users):
+ *  - Insert the embed with status: 'finished' immediately using the local blob URL only.
+ *  - No server upload is performed. The embed is visual-only — it lets the user
+ *    draft a message with an image before signing up. No S3 keys are set.
  *
  * The aes_key and vault_wrapped_aes_key returned by the server are stored as
  * embed node attributes so they are included in the TOON content when the
@@ -61,6 +66,7 @@ export async function insertImage(
   isRecording: boolean = false,
   previewUrl?: string,
   originalUrl?: string,
+  isAuthenticated: boolean = true,
 ): Promise<void> {
   // Step 1: Create a local blob URL for instant preview while uploading
   let localPreviewUrl: string;
@@ -87,6 +93,48 @@ export async function insertImage(
 
   // Step 2: Generate a stable embed ID to reference the node after insertion
   const embedId = generateUUID();
+
+  if (!isAuthenticated) {
+    // Demo mode: insert with status 'finished' immediately — no server upload.
+    // The image is local-only; it lets unauthenticated users draft a message
+    // with an image preview before they sign up.
+    console.debug(
+      "[EmbedHandlers] Demo mode — inserting image without server upload (user not authenticated)",
+    );
+    editor.commands.insertContent([
+      {
+        type: "embed",
+        attrs: {
+          id: embedId,
+          type: "image",
+          status: "finished",
+          contentRef: null,
+          src: localPreviewUrl,
+          originalUrl: localOriginalUrl,
+          originalFile: file,
+          filename: file.name,
+          isRecording,
+          uploadEmbedId: null,
+          s3Files: null,
+          s3BaseUrl: null,
+          aesKey: null,
+          aesNonce: null,
+          vaultWrappedAesKey: null,
+          contentHash: null,
+          aiDetection: null,
+          uploadError: null,
+        },
+      },
+      {
+        type: "text",
+        text: " ",
+      },
+    ]);
+    setTimeout(() => {
+      editor.commands.focus("end");
+    }, 50);
+    return;
+  }
 
   // Step 3: Insert embed immediately with status 'uploading' and local preview.
   // status: 'uploading' signals to the message sending logic that this embed

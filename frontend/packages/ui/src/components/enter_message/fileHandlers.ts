@@ -20,10 +20,14 @@ const MAX_PER_FILE_SIZE = FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE * 1024 * 1024;
 /**
  * Processes an array of files (from drop, paste, or input selection).
  * Inserts appropriate embeds into the editor.
+ *
+ * @param isAuthenticated - When false, images are inserted in demo mode (local preview
+ *   only, no server upload). Authenticated users get the full upload pipeline.
  */
 export async function processFiles(
   files: File[],
   editor: Editor,
+  isAuthenticated: boolean = true,
 ): Promise<void> {
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);
   if (totalSize > MAX_TOTAL_SIZE) {
@@ -49,7 +53,15 @@ export async function processFiles(
     } else if (isCodeOrTextFile(file.name)) {
       await insertCodeFile(editor, file);
     } else if (file.type.startsWith("image/")) {
-      await insertImage(editor, file, false); // isRecording = false for file uploads
+      // Pass isAuthenticated — unauthenticated users get demo mode (local preview only)
+      await insertImage(
+        editor,
+        file,
+        false,
+        undefined,
+        undefined,
+        isAuthenticated,
+      );
     } else if (file.type === "application/pdf") {
       await insertFile(editor, file, "pdf");
     } else if (file.type.startsWith("audio/")) {
@@ -73,6 +85,7 @@ export async function handleDrop(
   event: DragEvent,
   editorElement: HTMLElement | undefined,
   editor: Editor,
+  isAuthenticated: boolean = true,
 ): Promise<void> {
   event.preventDefault();
   event.stopPropagation();
@@ -81,7 +94,7 @@ export async function handleDrop(
   const droppedFiles = Array.from(event.dataTransfer?.files || []);
   if (!droppedFiles.length) return;
 
-  await processFiles(droppedFiles, editor);
+  await processFiles(droppedFiles, editor, isAuthenticated);
 }
 
 /**
@@ -174,6 +187,7 @@ export function extractChatLinkFromYAML(text: string): string | null {
 export async function handlePaste(
   event: ClipboardEvent,
   editor: Editor,
+  isAuthenticated: boolean = true,
 ): Promise<void> {
   // Handle file pasting (images, etc.)
   const files: File[] = [];
@@ -191,7 +205,7 @@ export async function handlePaste(
 
   if (files.length > 0) {
     event.preventDefault(); // Prevent default paste behavior only if files are found
-    await processFiles(files, editor);
+    await processFiles(files, editor, isAuthenticated);
   }
   // Allow default paste behavior for text, etc.
 }
@@ -202,12 +216,13 @@ export async function handlePaste(
 export async function onFileSelected(
   event: Event,
   editor: Editor,
+  isAuthenticated: boolean = true,
 ): Promise<void> {
   const input = event.target as HTMLInputElement;
   if (!input.files?.length) return;
 
   const files = Array.from(input.files);
-  await processFiles(files, editor);
+  await processFiles(files, editor, isAuthenticated);
 
   input.value = ""; // Clear the input after processing
 }

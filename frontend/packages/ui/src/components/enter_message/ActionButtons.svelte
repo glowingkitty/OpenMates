@@ -2,23 +2,23 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
-    import { slide } from 'svelte/transition';
+    // import { slide } from 'svelte/transition'; // Used by record hint (currently commented out)
     // Assuming text store is available for translations
     import { text } from '@repo/ui'; // Adjust path if needed
 
     // Props using Svelte 5 $props()
     interface Props {
         showSendButton?: boolean;
-        isRecordButtonPressed?: boolean;
-        showRecordHint?: boolean;
-        micPermissionGranted?: boolean;
+        // isRecordButtonPressed?: boolean; // Used by record button (currently commented out)
+        // showRecordHint?: boolean;        // Used by record hint (currently commented out)
+        // micPermissionGranted?: boolean;  // Used by record button (currently commented out)
         isAuthenticated?: boolean; // Add authentication state prop
     }
     let { 
         showSendButton = false,
-        isRecordButtonPressed = false,
-        showRecordHint = false,
-        micPermissionGranted = false,
+        // isRecordButtonPressed = false,
+        // showRecordHint = false,
+        // micPermissionGranted = false,
         isAuthenticated = true // Default to true for backwards compatibility
     }: Props = $props();
 
@@ -28,14 +28,11 @@
         dispatch('fileSelect');
     }
 
-    function handleLocationClick() {
-        dispatch('locationClick');
-    }
-
-    function handleCameraClick(event: MouseEvent | TouchEvent) {
-        event.preventDefault();
-        dispatch('cameraClick');
-    }
+    // function handleLocationClick() { dispatch('locationClick'); } // Unused (location feature commented out)
+    // function handleCameraClick(event: MouseEvent | TouchEvent) { // Unused (camera feature commented out)
+    //     event.preventDefault();
+    //     dispatch('cameraClick');
+    // }
 
     function handleSendMessageClick() {
         dispatch('sendMessage');
@@ -46,39 +43,23 @@
         dispatch('signUpClick');
     }
 
-    // --- Record Button Handlers ---
-    // Forward the ORIGINAL event in the detail payload
-    function handleRecordMouseDown(event: MouseEvent) {
-        dispatch('recordMouseDown', { originalEvent: event }); // Pass original event
-    }
-
-    function handleRecordMouseUp(event: MouseEvent) { // Add event param if needed later
-        dispatch('recordMouseUp', { originalEvent: event }); // Pass original event
-    }
-
-    function handleRecordMouseLeave(event: MouseEvent) { // Add event param
-        dispatch('recordMouseLeave', { originalEvent: event }); // Pass original event
-    }
-
-    function handleRecordTouchStart(event: TouchEvent) {
-        dispatch('recordTouchStart', { originalEvent: event }); // Pass original event
-    }
-
-    function handleRecordTouchEnd(event: TouchEvent) { // Add event param
-        dispatch('recordTouchEnd', { originalEvent: event }); // Pass original event
-    }
+    // --- Record Button Handlers (currently commented out — feature not yet available) ---
+    // function handleRecordMouseDown(event: MouseEvent) { dispatch('recordMouseDown', { originalEvent: event }); }
+    // function handleRecordMouseUp(event: MouseEvent) { dispatch('recordMouseUp', { originalEvent: event }); }
+    // function handleRecordMouseLeave(event: MouseEvent) { dispatch('recordMouseLeave', { originalEvent: event }); }
+    // function handleRecordTouchStart(event: TouchEvent) { dispatch('recordTouchStart', { originalEvent: event }); }
+    // function handleRecordTouchEnd(event: TouchEvent) { dispatch('recordTouchEnd', { originalEvent: event }); }
 
 </script>
 
 <div class="action-buttons">
     <div class="left-buttons">
-        <!-- TODO uncomment once feature available -->
-        <!-- <button
+        <button
             class="clickable-icon icon_files"
             onclick={handleFileSelectClick}
             aria-label={$text('enter_message.attachments.attach_files')}
             use:tooltip
-        ></button> -->
+        ></button>
         <!-- <button
             class="clickable-icon icon_maps"
             onclick={handleLocationClick}
