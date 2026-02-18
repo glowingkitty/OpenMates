@@ -204,23 +204,7 @@ focuses:
     name_translation_key: code.test_git_repo
     description_translation_key: code.test_git_repo.description
     stage: planning
-    name_translation_key: code.test_git_repo
-    description_translation_key: code.test_git_repo.description
-    stage: planning
-    name_translation_key: code.test_git_repo
-    description_translation_key: code.test_git_repo.description
-    stage: planning
-      You are a programming expert.
   - id: analyze_logs
-    name_translation_key: code.analyze_logs
-    description_translation_key: code.analyze_logs.description
-    stage: planning
-    name_translation_key: code.analyze_logs
-    description_translation_key: code.analyze_logs.description
-    stage: planning
-    name_translation_key: code.analyze_logs
-    description_translation_key: code.analyze_logs.description
-    stage: planning
     name_translation_key: code.analyze_logs
     description_translation_key: code.analyze_logs.description
     stage: planning
@@ -236,7 +220,6 @@ focuses:
     name_translation_key: code.setup_infrastructure
     description_translation_key: code.setup_infrastructure.description
     stage: planning
-      You are an expert in setting up infrastructure and software via terminal.
   - id: refactor_code
     name_translation_key: code.refactor_code
     description_translation_key: code.refactor_code.description

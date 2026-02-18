@@ -12,7 +12,3 @@ focuses:
     description_translation_key: life_coaching.crisis_support.description
     stage: planning
     discount: 0.5 # Reduce the price for this focus by 50% to make it more accessible.
-
-    name_translation_key: life_coaching.crisis_support
-    description_translation_key: life_coaching.crisis_support.description
-    stage: planning
