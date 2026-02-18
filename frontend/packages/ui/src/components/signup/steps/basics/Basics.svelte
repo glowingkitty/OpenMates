@@ -1082,16 +1082,17 @@
 {/if}
 
 <style>
-    /* Advantages list displayed below the signup header */
+    /* Advantages list displayed below the signup header.
+       width: fit-content + margin auto centers the block while keeping
+       the items left-aligned inside it. */
     .advantages-list {
         list-style: none;
-        margin: 0 0 1.5rem 0;
+        margin: 0 auto 1.5rem auto;
         padding: 0;
+        width: fit-content;
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
-        align-items: flex-start;
-        align-self: center;
     }
 
     .advantage-item {
