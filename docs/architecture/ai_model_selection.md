@@ -21,9 +21,9 @@ Under `/backend/apps/ai/app.yml` we define the default LLM models for simple req
 
 ### Default Models (Current)
 
-| Request Type | Model | Server |
-|-------------|-------|--------|
-| Simple requests | Mistral Medium 3 | Mistral API |
+| Request Type     | Model             | Server      |
+| ---------------- | ----------------- | ----------- |
+| Simple requests  | Mistral Medium 3  | Mistral API |
 | Complex requests | Claude 3.7 Sonnet | AWS Bedrock |
 
 ---
@@ -56,16 +56,17 @@ Each model in provider YAMLs has an `allow_auto_select` flag:
 ```yaml
 # backend/providers/anthropic.yml
 models:
-  - id: "claude-sonnet-4-5-20250929"
-    name: "Claude Sonnet 4.5"
+  - id: "claude-sonnet-4-6"
+    name: "Claude Sonnet 4.6"
     country_origin: "US"
-    allow_auto_select: false  # Enable after manual testing
+    allow_auto_select: false # Enable after manual testing
     external_ids:
-      lmarena: "claude-sonnet-4-5-20250929"
-      openrouter: "anthropic/claude-sonnet-4-5-20250929"
+      lmarena: "claude-sonnet-4-6"
+      openrouter: "anthropic/claude-sonnet-4-6"
 ```
 
 When `allow_auto_select: false`:
+
 - Model is excluded from automatic selection
 - Model can still be used via explicit `@ai-model:xxx` override
 - Allows testing individual models before enabling auto-selection
@@ -78,11 +79,11 @@ When `allow_auto_select: false`:
 
 ### Configuration States
 
-| `enable_auto_model_selection` | `allow_auto_select` on models | Behavior |
-|------------------------------|-------------------------------|----------|
-| `false` | Any | Uses hardcoded `default_llms` from app.yml |
-| `true` | All `false` | Falls back to default model (no auto-selectable models) |
-| `true` | Some `true` | Auto-selects from models with `allow_auto_select: true` |
+| `enable_auto_model_selection` | `allow_auto_select` on models | Behavior                                                |
+| ----------------------------- | ----------------------------- | ------------------------------------------------------- |
+| `false`                       | Any                           | Uses hardcoded `default_llms` from app.yml              |
+| `true`                        | All `false`                   | Falls back to default model (no auto-selectable models) |
+| `true`                        | Some `true`                   | Auto-selects from models with `allow_auto_select: true` |
 
 ---
 
@@ -196,10 +197,10 @@ ELSE (auto-selection enabled)
 
 #### Task Complexity
 
-| Complexity | Criteria | Model Type |
-|------------|----------|------------|
-| Simple | Quick factual questions, simple translations, basic formatting | Fast + economical |
-| Complex | Multi-step reasoning, analysis, code generation, research | Leading model for task area |
+| Complexity | Criteria                                                       | Model Type                  |
+| ---------- | -------------------------------------------------------------- | --------------------------- |
+| Simple     | Quick factual questions, simple translations, basic formatting | Fast + economical           |
+| Complex    | Multi-step reasoning, analysis, code generation, research      | Leading model for task area |
 
 #### User Unhappiness Detection
 
@@ -209,6 +210,7 @@ The system detects user dissatisfaction through:
 2. **Sentiment analysis**: Follow-up messages expressing frustration ("this is wrong", "try again", "that's not what I asked", etc.)
 
 When the thumbs down button is clicked:
+
 - Automatically copies a message to the input field (in user's language) expressing that the answer isn't good enough
 - This triggers the pre-processor to select a more powerful model
 
@@ -218,13 +220,13 @@ When the thumbs down button is clicked:
 
 Users can bypass automatic model selection using `@` prefixes in their message:
 
-| Override | Syntax | Effect |
-|----------|--------|--------|
-| Model | `@ai-model:{model_name}` | Use specified model, skip selection |
-| Model + Provider | `@ai-model:{model_name}:{provider_name}` | Use model from specific provider |
-| Mate | `@mate:{mate_name}` | Skip mate auto-detection |
-| Skill | `@skill:{app}:{skill_id}` | Force specific skill usage |
-| Focus Mode | `@focus:{app}:{focus_mode_id}` | Start specific focus mode |
+| Override         | Syntax                                   | Effect                              |
+| ---------------- | ---------------------------------------- | ----------------------------------- |
+| Model            | `@ai-model:{model_name}`                 | Use specified model, skip selection |
+| Model + Provider | `@ai-model:{model_name}:{provider_name}` | Use model from specific provider    |
+| Mate             | `@mate:{mate_name}`                      | Skip mate auto-detection            |
+| Skill            | `@skill:{app}:{skill_id}`                | Force specific skill usage          |
+| Focus Mode       | `@focus:{app}:{focus_mode_id}`           | Start specific focus mode           |
 
 **Examples:**
 
@@ -311,6 +313,7 @@ When `china_related = true`, models with `country_origin: CN` are filtered out.
 #### LM Arena Categories
 
 **Main categories:**
+
 - `text` - General text generation (default)
 - `webdev` - Web development
 - `vision` - Image understanding
@@ -321,6 +324,7 @@ When `china_related = true`, models with `country_origin: CN` are filtered out.
 - `image-to-video` - Video from images
 
 **Text subcategories:**
+
 - `overall` - General performance
 - `hard-prompts` - Difficult prompts
 - `coding` / `code` - Programming
@@ -335,13 +339,13 @@ Currently only `programming` is reliably available via scraping due to SPA limit
 
 #### Task Area Mapping
 
-| Pre-processor Output | LM Arena Category | OpenRouter Category |
-|---------------------|-------------------|---------------------|
-| `code` | coding | programming |
-| `math` | math | - |
-| `creative` | creative-writing | creative-writing |
-| `instruction` | instruction-following | - |
-| `general` | overall | - |
+| Pre-processor Output | LM Arena Category     | OpenRouter Category |
+| -------------------- | --------------------- | ------------------- |
+| `code`               | coding                | programming         |
+| `math`               | math                  | -                   |
+| `creative`           | creative-writing      | creative-writing    |
+| `instruction`        | instruction-following | -                   |
+| `general`            | overall               | -                   |
 
 ---
 
@@ -411,10 +415,10 @@ models:
 
 #### Existing Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `backend/scripts/fetch_lmarena_rankings.py` | Fetches LM Arena rankings with category support |
-| `backend/scripts/fetch_openrouter_rankings.py` | Fetches OpenRouter rankings and usage data |
+| Script                                         | Purpose                                         |
+| ---------------------------------------------- | ----------------------------------------------- |
+| `backend/scripts/fetch_lmarena_rankings.py`    | Fetches LM Arena rankings with category support |
+| `backend/scripts/fetch_openrouter_rankings.py` | Fetches OpenRouter rankings and usage data      |
 
 ---
 
@@ -508,17 +512,17 @@ test_cases:
 
 ## Key Implementation Files
 
-| Component | File |
-|-----------|------|
-| Model selector service | `backend/apps/ai/utils/model_selector.py` |
-| China-sensitivity detection | `backend/core/api/app/services/china_sensitivity.py` |
-| User override parser | `backend/core/api/app/utils/override_parser.py` |
-| Leaderboard aggregator script | `backend/scripts/aggregate_leaderboards.py` |
-| Leaderboard Celery tasks | `backend/core/api/app/tasks/leaderboard_tasks.py` |
-| Preprocessor integration | `backend/apps/ai/processing/preprocessor.py` |
-| Main processor fallback | `backend/apps/ai/processing/main_processor.py` |
-| Task area/unhappy detection | `backend/apps/ai/base_instructions.yml` |
-| Provider configurations | `backend/providers/*.yml` |
+| Component                     | File                                                 |
+| ----------------------------- | ---------------------------------------------------- |
+| Model selector service        | `backend/apps/ai/utils/model_selector.py`            |
+| China-sensitivity detection   | `backend/core/api/app/services/china_sensitivity.py` |
+| User override parser          | `backend/core/api/app/utils/override_parser.py`      |
+| Leaderboard aggregator script | `backend/scripts/aggregate_leaderboards.py`          |
+| Leaderboard Celery tasks      | `backend/core/api/app/tasks/leaderboard_tasks.py`    |
+| Preprocessor integration      | `backend/apps/ai/processing/preprocessor.py`         |
+| Main processor fallback       | `backend/apps/ai/processing/main_processor.py`       |
+| Task area/unhappy detection   | `backend/apps/ai/base_instructions.yml`              |
+| Provider configurations       | `backend/providers/*.yml`                            |
 
 ---
 

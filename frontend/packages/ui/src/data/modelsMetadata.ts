@@ -18,7 +18,7 @@
 // NOTE: All text-capable models are included here. The `allow_auto_select` field
 // in provider YAMLs is for a different feature (automatic model selection by the system).
 //
-// **Generated**: 2026-02-14T12:44:04.092Z
+// **Generated**: 2026-02-18T11:48:27.984Z
 // **Models included**: 18
 
 /**
@@ -157,8 +157,8 @@ export const modelsMetadata: AIModelMetadata[] = [
     search_aliases: ["opus 4.5", "claude 4.5 opus", "4.5", "claude-opus-4-5"],
   },
   {
-    id: "claude-sonnet-4-5-20250929",
-    name: "Claude Sonnet 4.5",
+    id: "claude-sonnet-4-6",
+    name: "Claude Sonnet 4.6",
     description: "Optimal balance of intelligence, cost, and speed.",
     provider_id: "anthropic",
     provider_name: "Anthropic",
@@ -168,13 +168,19 @@ export const modelsMetadata: AIModelMetadata[] = [
     output_types: ["text"],
     for_app_skill: "ai.ask",
     tier: "premium",
-    release_date: "2025-09-29",
+    release_date: "2026-02-18",
     servers: [
-      { id: "aws_bedrock", name: "AWS Bedrock", region: "EU" },
       { id: "anthropic", name: "Anthropic API", region: "US" },
+      { id: "openrouter", name: "OpenRouter API", region: "US" },
     ],
     default_server: "anthropic",
     pricing: { input_tokens_per_credit: 110, output_tokens_per_credit: 20 },
+    search_aliases: [
+      "sonnet 4.5",
+      "claude 4.5 sonnet",
+      "claude-sonnet-4-5",
+      "claude-sonnet-4-5-20250929",
+    ],
   },
   {
     id: "flux-schnell",
@@ -183,7 +189,7 @@ export const modelsMetadata: AIModelMetadata[] = [
       "The fastest high-quality image generation model from BFL, optimized for speed and efficiency.",
     provider_id: "bfl",
     provider_name: "Black Forest Labs",
-    logo_svg: "icons/blackforestlabs.svg",
+    logo_svg: "icons/bfl.svg",
     country_origin: "US",
     input_types: ["text"],
     output_types: ["image"],

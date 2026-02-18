@@ -50,7 +50,7 @@ class ModelSelectionResult:
 
 # Default fallback models (always available, reliable)
 # These MUST include provider prefix for billing/routing to work
-DEFAULT_FALLBACK_MODEL = "anthropic/claude-sonnet-4-5-20250929"  # Reliable Claude Sonnet
+DEFAULT_FALLBACK_MODEL = "anthropic/claude-sonnet-4-6"  # Reliable Claude Sonnet
 DEFAULT_FALLBACK_MODEL_ALT = "anthropic/claude-haiku-4-5-20251001"  # Fast, affordable fallback
 
 # Task area to leaderboard category mapping
@@ -75,7 +75,7 @@ ECONOMICAL_MODELS = {
 # These are model_id values from leaderboard (without provider prefix)
 PREMIUM_MODELS = {
     "claude-opus-4-6",               # Top Claude
-    "claude-sonnet-4-5-20250929",    # High-quality Claude
+    "claude-sonnet-4-6",             # High-quality Claude
     "gemini-3-pro-preview",          # Top Gemini
     "gpt-5.2",                       # Top GPT
 }

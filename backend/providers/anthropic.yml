@@ -57,34 +57,38 @@ models:
         price: 0.10
         currency: USD
 
-  - id: "claude-sonnet-4-5-20250929" # Official model ID
-    name: "Claude Sonnet 4.5"
+  - id: "claude-sonnet-4-6" # Official model ID
+    name: "Claude Sonnet 4.6"
     description: "Optimal balance of intelligence, cost, and speed."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2025-09-29" # Model release date (derived from model ID suffix)
+    release_date: "2026-02-18" # Model release date
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "claude-sonnet-4-5-20250929" # Exact LMArena model name
-      openrouter: "anthropic/claude-sonnet-4-5-20250929"
+      lmarena: "claude-sonnet-4-6" # Exact LMArena model name
+      openrouter: "anthropic/claude-sonnet-4-6"
+    # Search aliases allow users to find this model by searching for previous version names
+    search_aliases:
+      - "sonnet 4.5"
+      - "claude 4.5 sonnet"
+      - "claude-sonnet-4-5"
+      - "claude-sonnet-4-5-20250929"
     input_types:
       - text
       - image
     output_types:
       - text
-    default_server: "anthropic" # Default server for this model: anthropic or aws_bedrock
+    default_server: "anthropic" # Default server for this model: anthropic or openrouter
     servers:
-      - id: "aws_bedrock"
-        name: "AWS Bedrock"
-        model_id: "eu.anthropic.claude-sonnet-4-5-20250929-v1:0" # Official model ID for AWS Bedrock
-        aws_region: "eu-central-1" # AWS region for this model
-        region: "EU" # Server region for UI display
       - id: "anthropic"
         name: "Anthropic API"
-        model_id: "claude-sonnet-4-5-20250929" # Direct API uses the model ID as-is
+        model_id: "claude-sonnet-4-6" # Direct API uses the model ID as-is
         region: "US" # Server region for UI display
-    # Full reference for API calls would be "anthropic/claude-sonnet-4-20250514" (or similar based on client)
-    pricing: # Model-specific base pricing (example structure)
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "anthropic/claude-sonnet-4.6" # OpenRouter model identifier
+        region: "US" # Server region for UI display
+    pricing: # Model-specific base pricing
       tokens:
         input:
           per_credit_unit: 110 # 1 credit per 110 input tokens
@@ -94,7 +98,7 @@ models:
       input_per_million_token:
         price: 3.00
         currency: USD
-        max_context: 200000 # Max context window for Claude 4 Sonnet
+        max_context: 200000 # Max context window for Claude Sonnet 4.6
       output_per_million_token:
         price: 15.00
         currency: USD

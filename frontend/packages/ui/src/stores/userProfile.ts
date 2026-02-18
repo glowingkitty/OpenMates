@@ -45,7 +45,7 @@ export interface UserProfile {
   push_notification_banner_shown?: boolean; // Whether the banner has been shown (persists across devices)
   // AI model preferences for the AI Ask skill
   // Disabled models are excluded from @ mention dropdown and auto-selection
-  disabled_ai_models?: string[]; // Array of disabled model IDs (e.g., ["claude-sonnet-4-5-20250929"])
+  disabled_ai_models?: string[]; // Array of disabled model IDs (e.g., ["claude-sonnet-4-6"])
   // Disabled servers per model - all servers are enabled by default as fallbacks
   // Only explicitly disabled servers are excluded from processing
   disabled_ai_servers?: Record<string, string[]>; // model_id -> array of disabled server IDs

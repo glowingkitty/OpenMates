@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-01-30T18:08:54.662496+00:00'
+  generated_at: "2026-01-30T18:08:54.662496+00:00"
   category: general
   sources:
     lmarena:
@@ -15,109 +15,109 @@ metadata:
   ranked_models: 9
   unranked_models: 6
 rankings:
-- rank: 1
-  model_id: gemini-3-pro-preview
-  name: Gemini 3 Pro Preview
-  provider_id: google
-  country_origin: US
-  composite_score: 97.8
-  lmarena_elo: 1487
-  lmarena_rank: 1
-  openrouter_rank: null
-- rank: 2
-  model_id: claude-opus-4-5-20251101
-  name: Claude Opus 4.5
-  provider_id: anthropic
-  country_origin: US
-  composite_score: 94.3
-  lmarena_elo: 1466
-  lmarena_rank: 5
-  openrouter_rank: null
-- rank: 3
-  model_id: gemini-3-flash-preview
-  name: Gemini 3 Flash Preview
-  provider_id: google
-  country_origin: US
-  composite_score: 93.8
-  lmarena_elo: 1463
-  lmarena_rank: 7
-  openrouter_rank: null
-- rank: 4
-  model_id: claude-sonnet-4-5-20250929
-  name: Claude Sonnet 4.5
-  provider_id: anthropic
-  country_origin: US
-  composite_score: 91.7
-  lmarena_elo: 1450
-  lmarena_rank: 11
-  openrouter_rank: null
-- rank: 5
-  model_id: gpt-5.2
-  name: GPT-5.2
-  provider_id: openai
-  country_origin: US
-  composite_score: 90.0
-  lmarena_elo: 1440
-  lmarena_rank: 21
-  openrouter_rank: null
-- rank: 6
-  model_id: gemini-flash-latest
-  name: Gemini Flash Latest
-  provider_id: google
-  country_origin: US
-  composite_score: 84.2
-  lmarena_elo: 1405
-  lmarena_rank: 55
-  openrouter_rank: null
-- rank: 7
-  model_id: claude-haiku-4-5-20251001
-  name: Claude Haiku 4.5
-  provider_id: anthropic
-  country_origin: US
-  composite_score: 83.8
-  lmarena_elo: 1403
-  lmarena_rank: 57
-  openrouter_rank: null
-- rank: 8
-  model_id: qwen3-235b-a22b-2507
-  name: Qwen3 235B A22B (2507)
-  provider_id: alibaba
-  country_origin: CN
-  composite_score: 79.0
-  lmarena_elo: 1374
-  lmarena_rank: 86
-  openrouter_rank: null
-- rank: 9
-  model_id: zai-glm-4.7
-  name: GLM 4.7
-  provider_id: zai
-  country_origin: CN
-  composite_score: 77.0
-  lmarena_elo: 1362
-  lmarena_rank: 97
-  openrouter_rank: null
+  - rank: 1
+    model_id: gemini-3-pro-preview
+    name: Gemini 3 Pro Preview
+    provider_id: google
+    country_origin: US
+    composite_score: 97.8
+    lmarena_elo: 1487
+    lmarena_rank: 1
+    openrouter_rank: null
+  - rank: 2
+    model_id: claude-opus-4-5-20251101
+    name: Claude Opus 4.5
+    provider_id: anthropic
+    country_origin: US
+    composite_score: 94.3
+    lmarena_elo: 1466
+    lmarena_rank: 5
+    openrouter_rank: null
+  - rank: 3
+    model_id: gemini-3-flash-preview
+    name: Gemini 3 Flash Preview
+    provider_id: google
+    country_origin: US
+    composite_score: 93.8
+    lmarena_elo: 1463
+    lmarena_rank: 7
+    openrouter_rank: null
+  - rank: 4
+    model_id: claude-sonnet-4-6
+    name: Claude Sonnet 4.6
+    provider_id: anthropic
+    country_origin: US
+    composite_score: 91.7
+    lmarena_elo: 1450
+    lmarena_rank: 11
+    openrouter_rank: null
+  - rank: 5
+    model_id: gpt-5.2
+    name: GPT-5.2
+    provider_id: openai
+    country_origin: US
+    composite_score: 90.0
+    lmarena_elo: 1440
+    lmarena_rank: 21
+    openrouter_rank: null
+  - rank: 6
+    model_id: gemini-flash-latest
+    name: Gemini Flash Latest
+    provider_id: google
+    country_origin: US
+    composite_score: 84.2
+    lmarena_elo: 1405
+    lmarena_rank: 55
+    openrouter_rank: null
+  - rank: 7
+    model_id: claude-haiku-4-5-20251001
+    name: Claude Haiku 4.5
+    provider_id: anthropic
+    country_origin: US
+    composite_score: 83.8
+    lmarena_elo: 1403
+    lmarena_rank: 57
+    openrouter_rank: null
+  - rank: 8
+    model_id: qwen3-235b-a22b-2507
+    name: Qwen3 235B A22B (2507)
+    provider_id: alibaba
+    country_origin: CN
+    composite_score: 79.0
+    lmarena_elo: 1374
+    lmarena_rank: 86
+    openrouter_rank: null
+  - rank: 9
+    model_id: zai-glm-4.7
+    name: GLM 4.7
+    provider_id: zai
+    country_origin: CN
+    composite_score: 77.0
+    lmarena_elo: 1362
+    lmarena_rank: 97
+    openrouter_rank: null
 unranked:
-- model_id: gpt-oss-120b
-  name: GPT-OSS-120b
-  provider_id: openai
-  country_origin: US
-- model_id: gpt-oss-safeguard-20b
-  name: GPT-OSS-Safeguard-20b
-  provider_id: openai
-  country_origin: US
-- model_id: gemini-3-pro-image-preview
-  name: Gemini 3 Pro Image Preview
-  provider_id: google
-  country_origin: US
-- model_id: mistral-small-latest
-  name: Mistral Small
-  provider_id: mistral
-  country_origin: FR
-- model_id: mistral-medium-latest
-  name: Mistral Medium
-  provider_id: mistral
-  country_origin: FR
-- model_id: devstral-2512
-  name: Devstral 2
-  provider_id: mistral
-  country_origin: FR
+  - model_id: gpt-oss-120b
+    name: GPT-OSS-120b
+    provider_id: openai
+    country_origin: US
+  - model_id: gpt-oss-safeguard-20b
+    name: GPT-OSS-Safeguard-20b
+    provider_id: openai
+    country_origin: US
+  - model_id: gemini-3-pro-image-preview
+    name: Gemini 3 Pro Image Preview
+    provider_id: google
+    country_origin: US
+  - model_id: mistral-small-latest
+    name: Mistral Small
+    provider_id: mistral
+    country_origin: FR
+  - model_id: mistral-medium-latest
+    name: Mistral Medium
+    provider_id: mistral
+    country_origin: FR
+  - model_id: devstral-2512
+    name: Devstral 2
+    provider_id: mistral
+    country_origin: FR
