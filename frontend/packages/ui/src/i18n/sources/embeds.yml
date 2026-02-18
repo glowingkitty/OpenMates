@@ -2883,3 +2883,13 @@ video_uploaded:
   cs: nahráno
   sv: uppladdad
   verified_by_human: []
+
+embeds.pii_hide:
+  context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently visible — clicking will hide it
+  en: Hide sensitive data
+  de: Sensible Daten ausblenden
+
+embeds.pii_show:
+  context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently hidden — clicking will reveal it
+  en: Show sensitive data
+  de: Sensible Daten anzeigen

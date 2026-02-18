@@ -20,6 +20,8 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { parseSheetEmbedContent, formatTableDimensions } from './sheetEmbedContent';
+  import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { embedPIIStore } from '../../../stores/embedPIIStore';
   
   /**
    * Props for sheet embed preview
@@ -86,8 +88,31 @@
   // Maximum rows to show in preview
   const MAX_PREVIEW_ROWS = 4;
   
-  // Parse table content
-  let parsedContent = $derived.by(() => parseSheetEmbedContent(tableContent, { title }));
+  // Subscribe to the global embed PII store to get the current chat's PII state.
+  // This allows the preview to reactively apply PII masking without needing
+  // to receive props from the parent (previews are mounted imperatively via mount()).
+  let embedPIIState = $state({ mappings: [] as import('../../../types/chat').PIIMapping[], revealed: false });
+  $effect(() => {
+    const unsub = embedPIIStore.subscribe((state) => { embedPIIState = state; });
+    return unsub;
+  });
+
+  /**
+   * Apply PII masking to the raw markdown table string before parsing.
+   * Mirrors the same logic in SheetEmbedFullscreen.
+   */
+  let piiProcessedTableContent = $derived.by(() => {
+    const { mappings, revealed } = embedPIIState;
+    if (!mappings.length || !tableContent) return tableContent;
+    if (revealed) {
+      return restorePIIInText(tableContent, mappings);
+    } else {
+      return replacePIIOriginalsWithPlaceholders(tableContent, mappings);
+    }
+  });
+
+  // Parse table content (with PII masking applied)
+  let parsedContent = $derived.by(() => parseSheetEmbedContent(piiProcessedTableContent, { title }));
   let renderTitle = $derived(parsedContent.title);
   let parsedTable = $derived(parsedContent.parsedTable);
   

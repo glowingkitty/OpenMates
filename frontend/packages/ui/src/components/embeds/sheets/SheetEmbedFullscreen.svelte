@@ -31,6 +31,8 @@
     tableToXlsx,
     colIndexToLetter,
   } from './sheetEmbedContent';
+  import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import type { PIIMapping } from '../../../types/chat';
   
   /**
    * Props for sheet embed fullscreen
@@ -60,6 +62,19 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
+    /**
+     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_1]")
+     * to original values. When provided and piiRevealed is true, placeholder strings
+     * in the table content are replaced with originals for display.
+     */
+    piiMappings?: PIIMapping[];
+    /**
+     * Whether PII originals are currently visible.
+     * When false (default), placeholder strings like [EMAIL_1] are shown as-is.
+     * When true, placeholders are replaced with original values.
+     * This is the initial value — the user can toggle locally in fullscreen.
+     */
+    piiRevealed?: boolean;
   }
   
   let {
@@ -74,11 +89,42 @@
     onNavigatePrevious,
     onNavigateNext,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    piiMappings = [],
+    piiRevealed = false
   }: Props = $props();
+
+  // Local PII reveal toggle — initialised from prop but user can flip it in fullscreen.
+  let localPiiRevealed = $state(piiRevealed);
+
+  // Keep localPiiRevealed in sync when the parent prop changes.
+  $effect(() => {
+    localPiiRevealed = piiRevealed;
+  });
+
+  /** Whether there are any PII mappings to apply (controls button visibility) */
+  let hasPII = $derived(piiMappings.length > 0);
+
+  function togglePII() {
+    localPiiRevealed = !localPiiRevealed;
+  }
+
+  /**
+   * Apply PII masking to the raw markdown table string before parsing.
+   * The AI-generated table may include placeholder strings (e.g. "[EMAIL_1]").
+   * When localPiiRevealed is true, restore originals; otherwise keep placeholders.
+   */
+  let piiProcessedTableContent = $derived.by(() => {
+    if (!hasPII || !tableContent) return tableContent;
+    if (localPiiRevealed) {
+      return restorePIIInText(tableContent, piiMappings);
+    } else {
+      return replacePIIOriginalsWithPlaceholders(tableContent, piiMappings);
+    }
+  });
   
-  // Parse table content
-  let parsedContent = $derived.by(() => parseSheetEmbedContent(tableContent, { title }));
+  // Parse table content (with PII masking applied)
+  let parsedContent = $derived.by(() => parseSheetEmbedContent(piiProcessedTableContent, { title }));
   let renderTitle = $derived(parsedContent.title);
   let parsedTable = $derived(parsedContent.parsedTable);
   
@@ -179,6 +225,7 @@
   /**
    * Copy table as TSV to clipboard.
    * TSV (tab-separated values) is what Excel and Google Sheets expect on paste.
+   * Uses the PII-processed display rows (originals or placeholders per localPiiRevealed).
    */
   async function handleCopy() {
     try {
@@ -240,6 +287,35 @@
 >
   {#snippet content()}
     <div class="sheet-fullscreen">
+      <!-- PII reveal toggle bar — shown when the table contains PII placeholders -->
+      {#if hasPII}
+        <div class="sheet-pii-bar">
+          <button
+            class="pii-toggle-btn"
+            class:pii-toggle-active={localPiiRevealed}
+            onclick={togglePII}
+            aria-label={localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+            title={localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+          >
+            {#if localPiiRevealed}
+              <!-- Eye-off icon: click to hide -->
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            {:else}
+              <!-- Eye icon: click to reveal -->
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            {/if}
+            <span>{localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}</span>
+          </button>
+        </div>
+      {/if}
+      
       <!-- Filter action bar — only shown when filter is toggled on -->
       {#if showFilters}
         <div class="filter-bar">
@@ -379,6 +455,46 @@
     background-color: #f0f0f0 !important;
   }
   
+  /* ── PII toggle bar ──────────────────────────────────── */
+
+  .sheet-pii-bar {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+  }
+
+  .pii-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: none;
+    background: #e8eaed;
+    color: #5f6368;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background-color 0.15s, color 0.15s;
+  }
+
+  .pii-toggle-btn:hover {
+    background: #dadce0;
+    color: #202124;
+  }
+
+  .pii-toggle-btn.pii-toggle-active {
+    background: rgba(255, 165, 0, 0.12);
+    color: #c07000;
+  }
+
+  .pii-toggle-btn.pii-toggle-active:hover {
+    background: rgba(255, 165, 0, 0.22);
+  }
+
   /* ── Filter bar ────────────────────────────────────────── */
   
   .filter-bar {

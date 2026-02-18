@@ -50,6 +50,8 @@
     extractDocumentFilename,
     generateFilenameFromTitle
   } from './docsEmbedContent';
+  import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import type { PIIMapping } from '../../../types/chat';
   
   /**
    * Props for document embed fullscreen
@@ -79,6 +81,19 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
+    /**
+     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_1]")
+     * to original values. When provided and piiRevealed is true, placeholder strings
+     * in the document content are replaced with the originals for display.
+     */
+    piiMappings?: PIIMapping[];
+    /**
+     * Whether PII originals are currently visible.
+     * When false (default), placeholder strings like [EMAIL_1] are shown as-is.
+     * When true, placeholders are replaced with original values.
+     * This is the initial value — the user can toggle locally in fullscreen.
+     */
+    piiRevealed?: boolean;
   }
   
   let {
@@ -93,11 +108,48 @@
     onNavigatePrevious,
     onNavigateNext,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    piiMappings = [],
+    piiRevealed = false
   }: Props = $props();
+
+  // Local PII reveal toggle — initialised from prop but user can flip it in fullscreen.
+  // We use a local state so the fullscreen can show/hide independently without
+  // requiring a prop change from the parent (the parent toggle already covers the chat view).
+  let localPiiRevealed = $state(piiRevealed);
+
+  // Keep localPiiRevealed in sync when the parent prop changes (e.g. user toggles in chat).
+  $effect(() => {
+    localPiiRevealed = piiRevealed;
+  });
+
+  /** Whether there are any PII mappings to apply (controls button visibility) */
+  let hasPII = $derived(piiMappings.length > 0);
+
+  function togglePII() {
+    localPiiRevealed = !localPiiRevealed;
+  }
   
+  /**
+   * Apply PII masking to the raw HTML string before sanitizing.
+   * The AI may include placeholder strings (e.g. "[EMAIL_1]") in document content.
+   * When localPiiRevealed is true, we restore originals so the user can read the full content.
+   * When false, placeholders remain as-is (privacy mode).
+   */
+  let piiProcessedHtml = $derived.by(() => {
+    if (!hasPII || !htmlContent) return htmlContent;
+    if (localPiiRevealed) {
+      // Show originals: replace placeholders with original values
+      return restorePIIInText(htmlContent, piiMappings);
+    } else {
+      // Hide originals: ensure originals are replaced back with placeholders
+      // (needed in case the content was already restored elsewhere)
+      return replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings);
+    }
+  });
+
   // Sanitize HTML content for safe rendering (DOMPurify)
-  let sanitizedHtml = $derived(sanitizeDocumentHtml(htmlContent));
+  let sanitizedHtml = $derived(sanitizeDocumentHtml(piiProcessedHtml));
   
   // Extract title from content if not provided
   let displayTitle = $derived.by(() => {
@@ -285,10 +337,15 @@
     return `background: linear-gradient(to bottom, ${stops.join(', ')});`;
   });
   
-  // Handle copy document content to clipboard (plain text)
+  // Handle copy document content to clipboard (plain text).
+  // When PII is revealed, copy the restored (original) text.
+  // When PII is hidden, copy placeholder strings so sensitive data is not leaked.
   async function handleCopy() {
     try {
-      const plainText = stripHtmlTags(htmlContent);
+      const contentToCopy = localPiiRevealed && hasPII
+        ? restorePIIInText(htmlContent, piiMappings)
+        : replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings);
+      const plainText = stripHtmlTags(contentToCopy);
       await navigator.clipboard.writeText(plainText);
       console.debug('[DocsEmbedFullscreen] Copied document text to clipboard');
       notificationStore.success('Document copied to clipboard');
@@ -305,6 +362,11 @@
 
       const { asBlob } = await import('html-docx-js-typescript');
       const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.docx';
+
+      // Use the PII-processed and sanitized content for download, respecting reveal state.
+      const downloadHtmlContent = localPiiRevealed && hasPII
+        ? sanitizeDocumentHtml(restorePIIInText(htmlContent, piiMappings))
+        : sanitizeDocumentHtml(replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings));
 
       const fullHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -329,7 +391,7 @@
   </style>
 </head>
 <body>
-${sanitizedHtml}
+${downloadHtmlContent}
 </body>
 </html>`;
 
@@ -382,7 +444,7 @@ ${sanitizedHtml}
   {#snippet content()}
     {#if sanitizedHtml}
       <div class="doc-viewer-canvas">
-        <!-- Zoom controls bar -->
+        <!-- Controls bar: zoom + optional PII toggle -->
         <div class="doc-zoom-bar">
           <button class="zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomIndex === 0}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -400,6 +462,31 @@ ${sanitizedHtml}
           {#if pageCount > 1}
             <span class="page-count-label">{pageCount} pages</span>
           {/if}
+          {#if hasPII}
+            <!-- PII reveal toggle: show/hide sensitive data within the document -->
+            <button
+              class="pii-toggle-btn"
+              class:pii-toggle-active={localPiiRevealed}
+              onclick={togglePII}
+              aria-label={localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+              title={localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+            >
+              {#if localPiiRevealed}
+                <!-- Eye-off icon: click to hide -->
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              {:else}
+                <!-- Eye icon: click to reveal -->
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              {/if}
+            </button>
+          {/if}
         </div>
 
         <!-- Scrollable area with grey canvas -->
@@ -416,7 +503,7 @@ ${sanitizedHtml}
               style="height: {totalPaperHeight}px; {paperBgStyle}"
             >
               <!-- Per-page drop shadows for realistic paper look -->
-              {#each Array(pageCount) as _, i}
+              {#each Array.from({ length: pageCount }, (__, idx) => idx) as i}
                 <div
                   class="doc-page-shadow"
                   style="top: {i * (PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y + PAGE_GAP)}px; height: {PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y}px;"
@@ -521,6 +608,38 @@ ${sanitizedHtml}
   
   .zoom-label:hover {
     background: var(--color-grey-30);
+  }
+
+  /* PII reveal toggle button — matches zoom button style */
+  .pii-toggle-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: var(--color-grey-25);
+    color: var(--color-font-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, color 0.15s;
+    padding: 0;
+    min-width: auto;
+    margin-left: 8px;
+  }
+
+  .pii-toggle-btn:hover {
+    background: var(--color-grey-30);
+    color: var(--color-font-primary);
+  }
+
+  .pii-toggle-btn.pii-toggle-active {
+    background: var(--color-warning-subtle, rgba(255, 165, 0, 0.15));
+    color: var(--color-warning, #e07b00);
+  }
+
+  .pii-toggle-btn.pii-toggle-active:hover {
+    background: var(--color-warning-subtle-hover, rgba(255, 165, 0, 0.25));
   }
 
   .page-count-label {

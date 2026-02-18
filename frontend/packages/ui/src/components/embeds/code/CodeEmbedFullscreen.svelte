@@ -22,6 +22,8 @@
   import { downloadCodeFile } from '../../../services/zipExportService';
   import { notificationStore } from '../../../stores/notificationStore';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
+  import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import type { PIIMapping } from '../../../types/chat';
   
   /**
    * Props for code embed fullscreen
@@ -51,6 +53,19 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
+    /**
+     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_1]")
+     * to original values. When provided and piiRevealed is true, placeholder strings
+     * in the code content are replaced with originals for display.
+     */
+    piiMappings?: PIIMapping[];
+    /**
+     * Whether PII originals are currently visible.
+     * When false (default), placeholder strings like [EMAIL_1] are shown as-is.
+     * When true, placeholders are replaced with original values.
+     * This is the initial value — the user can toggle locally in fullscreen.
+     */
+    piiRevealed?: boolean;
   }
   
   let {
@@ -65,14 +80,45 @@
     onNavigatePrevious,
     onNavigateNext,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    piiMappings = [],
+    piiRevealed = false
   }: Props = $props();
+
+  // Local PII reveal toggle — initialised from prop but user can flip it in fullscreen.
+  let localPiiRevealed = $state(piiRevealed);
+
+  // Keep localPiiRevealed in sync when the parent prop changes.
+  $effect(() => {
+    localPiiRevealed = piiRevealed;
+  });
+
+  /** Whether there are any PII mappings to apply (controls button visibility) */
+  let hasPII = $derived(piiMappings.length > 0);
+
+  function togglePII() {
+    localPiiRevealed = !localPiiRevealed;
+  }
   
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
 
+  /**
+   * Apply PII masking to the raw code string before parsing/displaying.
+   * The AI-generated code may include placeholder strings (e.g. "[EMAIL_1]").
+   * When localPiiRevealed is true, restore originals; otherwise keep placeholders.
+   */
+  let piiProcessedCodeContent = $derived.by(() => {
+    if (!hasPII || !codeContent) return codeContent;
+    if (localPiiRevealed) {
+      return restorePIIInText(codeContent, piiMappings);
+    } else {
+      return replacePIIOriginalsWithPlaceholders(codeContent, piiMappings);
+    }
+  });
+
   // Parse code content to extract language, filename, and actual code
-  let parsedContent = $derived.by(() => parseCodeEmbedContent(codeContent, { language, filename }));
+  let parsedContent = $derived.by(() => parseCodeEmbedContent(piiProcessedCodeContent, { language, filename }));
   let renderCodeContent = $derived(parsedContent.code);
   let renderLanguage = $derived(parsedContent.language || '');
   let renderFilename = $derived(parsedContent.filename);
@@ -127,7 +173,8 @@
     highlightToElement(codeElement, renderCodeContent, renderLanguage);
   });
   
-  // Handle copy code to clipboard
+  // Handle copy code to clipboard.
+  // Copies the PII-processed content (original values if revealed, placeholders if hidden).
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(renderCodeContent);
@@ -186,6 +233,36 @@
     {#if renderCodeContent}
       <!-- Full code with syntax highlighting -->
       <div class="code-fullscreen-container">
+        {#if hasPII}
+          <!-- PII reveal toggle bar -->
+          <div class="code-pii-bar">
+            <button
+              class="pii-toggle-btn"
+              class:pii-toggle-active={localPiiRevealed}
+              onclick={togglePII}
+              aria-label={localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+              title={localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+            >
+              {#if localPiiRevealed}
+                <!-- Eye-off icon: click to hide -->
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              {:else}
+                <!-- Eye icon: click to reveal -->
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              {/if}
+              <span class="pii-toggle-label">
+                {localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+              </span>
+            </button>
+          </div>
+        {/if}
         <div class="code-fullscreen-grid">
           <pre class="line-numbers" aria-hidden="true">{Array.from({ length: actualLineCount }, (_, i) => i + 1).join('\n')}</pre>
           <pre class="code-fullscreen"><code bind:this={codeElement}>{renderCodeContent}</code></pre>
@@ -209,6 +286,46 @@
     padding-bottom: 16px;
     margin-left: 10px;
     margin-right: 10px;
+  }
+
+  /* PII toggle bar — shown above the code when PII mappings exist */
+  .code-pii-bar {
+    display: flex;
+    align-items: center;
+    padding: 6px 0 8px;
+  }
+
+  .pii-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: none;
+    background: var(--color-grey-25);
+    color: var(--color-font-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background-color 0.15s, color 0.15s;
+  }
+
+  .pii-toggle-btn:hover {
+    background: var(--color-grey-30);
+    color: var(--color-font-primary);
+  }
+
+  .pii-toggle-btn.pii-toggle-active {
+    background: var(--color-warning-subtle, rgba(255, 165, 0, 0.15));
+    color: var(--color-warning, #e07b00);
+  }
+
+  .pii-toggle-btn.pii-toggle-active:hover {
+    background: var(--color-warning-subtle-hover, rgba(255, 165, 0, 0.25));
+  }
+
+  .pii-toggle-label {
+    font-size: 12px;
   }
 
   .code-fullscreen-grid {

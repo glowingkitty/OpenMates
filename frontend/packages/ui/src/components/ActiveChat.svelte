@@ -81,6 +81,8 @@
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
+    import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
+    import type { PIIMapping } from '../types/chat'; // PII mapping type
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
@@ -2327,6 +2329,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         piiRevealedMap = map;
     });
     let piiRevealed = $derived(currentChat?.chat_id ? (piiRevealedMap.get(currentChat.chat_id) ?? false) : false);
+
+    /**
+     * Cumulative PII mappings from all user messages in the current chat.
+     * Mirrors the same derivation in ChatHistory.svelte so that embed components
+     * (both imperatively-mounted previews via embedPIIStore, and template-bound
+     * fullscreen components via props) receive the same mapping data.
+     */
+    let cumulativePIIMappingsArray = $derived.by(() => {
+        const allMappings: PIIMapping[] = [];
+        for (const msg of currentMessages) {
+            if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+                allMappings.push(...msg.pii_mappings);
+            }
+        }
+        return allMappings;
+    });
+
+    /**
+     * Keep the global embedPIIStore in sync with the current chat's PII state.
+     * This drives the imperatively-mounted preview components (DocsEmbedPreview,
+     * CodeEmbedPreview, SheetEmbedPreview) which cannot receive reactive props.
+     * Runs whenever the cumulative mappings or the reveal toggle changes.
+     */
+    $effect(() => {
+        if (currentChat?.chat_id) {
+            setEmbedPIIState(cumulativePIIMappingsArray, piiRevealed);
+        } else {
+            resetEmbedPIIState();
+        }
+    });
 
     /** Toggle PII visibility for the current chat */
     function handleTogglePIIVisibility() {
@@ -6594,19 +6626,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {@const codeFilename = coerceString(embedFullscreenData.decodedContent?.filename ?? embedFullscreenData.attrs?.filename, '')}
                         {@const codeLineCount = coerceNumber(embedFullscreenData.decodedContent?.lineCount ?? embedFullscreenData.attrs?.lineCount, 0)}
                         <CodeEmbedFullscreen 
-                            codeContent={codeContent}
-                            language={codeLanguage}
-                            filename={codeFilename}
-                            lineCount={codeLineCount}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
+                             codeContent={codeContent}
+                             language={codeLanguage}
+                             filename={codeFilename}
+                             lineCount={codeLineCount}
+                             embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                             piiMappings={cumulativePIIMappingsArray}
+                             piiRevealed={piiRevealed}
+                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'docs-doc'}
                     <!-- Document Fullscreen -->
@@ -6615,18 +6649,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {@const docTitle = coerceString(embedFullscreenData.decodedContent?.title ?? embedFullscreenData.attrs?.title, '')}
                         {@const docWordCount = coerceNumber(embedFullscreenData.decodedContent?.word_count ?? embedFullscreenData.attrs?.wordCount, 0)}
                         <DocsEmbedFullscreen 
-                            htmlContent={htmlContent}
-                            title={docTitle}
-                            wordCount={docWordCount}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
+                             htmlContent={htmlContent}
+                             title={docTitle}
+                             wordCount={docWordCount}
+                             embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                             piiMappings={cumulativePIIMappingsArray}
+                             piiRevealed={piiRevealed}
+                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'sheets-sheet'}
                     <!-- Sheet/Table Fullscreen -->
@@ -6638,18 +6674,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {@const sheetRows = coerceNumber(embedFullscreenData.decodedContent?.row_count ?? embedFullscreenData.decodedContent?.rows ?? embedFullscreenData.attrs?.rows, 0)}
                         {@const sheetCols = coerceNumber(embedFullscreenData.decodedContent?.col_count ?? embedFullscreenData.decodedContent?.cols ?? embedFullscreenData.attrs?.cols, 0)}
                         <SheetEmbedFullscreen 
-                            tableContent={sheetContent}
-                            title={sheetTitle}
-                            rowCount={sheetRows}
-                            colCount={sheetCols}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
+                             tableContent={sheetContent}
+                             title={sheetTitle}
+                             rowCount={sheetRows}
+                             colCount={sheetCols}
+                             embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                             piiMappings={cumulativePIIMappingsArray}
+                             piiRevealed={piiRevealed}
                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'videos-video'}

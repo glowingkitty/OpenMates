@@ -23,6 +23,8 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
+  import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { embedPIIStore } from '../../../stores/embedPIIStore';
   
   /**
    * Props for code embed preview
@@ -95,8 +97,31 @@
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
 
+  // Subscribe to the global embed PII store to get the current chat's PII state.
+  // This allows the preview to reactively apply PII masking without needing
+  // to receive props from the parent (previews are mounted imperatively via mount()).
+  let embedPIIState = $state({ mappings: [] as import('../../../types/chat').PIIMapping[], revealed: false });
+  $effect(() => {
+    const unsub = embedPIIStore.subscribe((state) => { embedPIIState = state; });
+    return unsub;
+  });
+
+  /**
+   * Apply PII masking to the raw code string before parsing/displaying in preview.
+   * Mirrors the same logic in CodeEmbedFullscreen.
+   */
+  let piiProcessedCodeContent = $derived.by(() => {
+    const { mappings, revealed } = embedPIIState;
+    if (!mappings.length || !codeContent) return codeContent;
+    if (revealed) {
+      return restorePIIInText(codeContent, mappings);
+    } else {
+      return replacePIIOriginalsWithPlaceholders(codeContent, mappings);
+    }
+  });
+
   // Parse code content to extract language, filename, and actual code
-  let parsedContent = $derived.by(() => parseCodeEmbedContent(codeContent, { language, filename }));
+  let parsedContent = $derived.by(() => parseCodeEmbedContent(piiProcessedCodeContent, { language, filename }));
   let renderCodeContent = $derived(parsedContent.code);
   let renderLanguage = $derived(parsedContent.language || '');
   let renderFilename = $derived(parsedContent.filename);
