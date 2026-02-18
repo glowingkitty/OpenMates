@@ -2552,7 +2552,16 @@
     }
 
     // --- Reactive Calculations using Svelte 5 runes ---
-    let containerStyle = $derived(isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;');
+    // When the MapsView overlay is open, expand the container to fit the 400px map overlay
+    // plus the action bar at the bottom (~60px). Without this, the .message-field clips the
+    // map since it has overflow:hidden and a max-height of 350px.
+    let containerStyle = $derived(
+        isFullscreen
+            ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);`
+            : showMaps
+                ? 'height: 460px; max-height: 460px;'
+                : 'height: auto; max-height: 350px;'
+    );
     let scrollableStyle = $derived(isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;');
     
     // Convert reactive statement with side effects to $effect
