@@ -6221,7 +6221,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     const t = (e.detail?.text || '');
                                     console.debug('[ActiveChat] textchange event received:', { text: t, length: t.length });
                                     liveInputText = t;
-                                    messageInputHasContent = t.trim().length > 0; 
+                                    // NOTE: messageInputHasContent is NOT set here from text alone —
+                                    // bind:hasContent below is the authoritative source and correctly
+                                    // accounts for embeds (images, files) even when there is no text.
                                 }}
                                 bind:isFullscreen
                                 bind:hasContent={messageInputHasContent}

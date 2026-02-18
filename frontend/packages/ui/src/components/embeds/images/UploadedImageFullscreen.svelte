@@ -286,12 +286,12 @@
 </script>
 
 <UnifiedEmbedFullscreen
-  appId="uploads"
-  skillId="upload"
+  appId="images"
+  skillId="view"
   skillIconName="image"
   skillName={infoBarTitle}
   customStatusText={infoBarSubtitle}
-  showStatus={false}
+  showStatus={true}
   showSkillIcon={false}
   title=""
   {onClose}
@@ -335,18 +335,33 @@
 
 <style>
   /* ==========================================================================
-     Main container: centers the image within the fullscreen panel.
+     Override the parent UnifiedEmbedFullscreen content-area so the image
+     fills the full panel without the normal 120px bottom padding.
+     We position the image container absolutely so it reaches edge-to-edge,
+     behind the absolutely-positioned bottom bar and top bar.
+     ========================================================================== */
+
+  :global(.unified-embed-fullscreen-overlay:has(.uploaded-image-fullscreen) .content-area) {
+    padding-bottom: 0;
+    overflow: hidden;
+  }
+
+  /* ==========================================================================
+     Main container: fills the entire fullscreen area (absolute, edge-to-edge).
+     The top/bottom bars from UnifiedEmbedFullscreen are positioned above us
+     via their own z-index so they remain clickable.
      ========================================================================== */
 
   .uploaded-image-fullscreen {
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    padding: 24px;
+    /* Leave room for the bottom bar (approx 100px) and top bar (approx 70px) */
+    padding: 80px 24px 110px;
     box-sizing: border-box;
+    overflow: hidden;
   }
 
   /* ==========================================================================
@@ -357,6 +372,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    height: 100%;
     max-width: 100%;
     max-height: 100%;
   }
