@@ -4,8 +4,7 @@ import os
 import base64
 import asyncio
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
-import json
+from typing import Optional
 import hashlib
 import uuid
 
@@ -42,12 +41,17 @@ def process_invoice_and_send_email(
     sender_vat: str,
     email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
     is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
-    is_auto_topup: bool = False  # Flag to indicate if this is auto top-up (use server-side email decryption)
+    is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
+    provider: Optional[str] = None,  # Payment provider ("stripe", "polar", "revolut") — controls PDF document type
 ) -> bool:
     """
-    Celery task to generate invoice, upload to S3, save to Directus, and send email.
+    Celery task to generate invoice/payment confirmation, upload to S3, save to Directus, and send email.
+
+    For Polar orders the PDF title is "Payment Confirmation" (not "Invoice") because Polar as
+    Merchant of Record issues the real tax invoice. A footer note is added to inform the buyer.
+    For Stripe/Revolut orders the PDF title remains "Invoice".
     """
-    logger.info(f"Starting invoice processing task for Order ID: {order_id}, User ID: {user_id}")
+    logger.info(f"Starting invoice processing task for Order ID: {order_id}, User ID: {user_id}, Provider: {provider}")
     try:
         # Use asyncio.run() which handles loop creation and cleanup
         result = asyncio.run(
@@ -55,7 +59,7 @@ def process_invoice_and_send_email(
                 self, order_id, user_id, credits_purchased,
                 sender_addressline1, sender_addressline2, sender_addressline3,
                 sender_country, sender_email, sender_vat,
-                email_encryption_key, is_gift_card, is_auto_topup
+                email_encryption_key, is_gift_card, is_auto_topup, provider
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
@@ -80,6 +84,7 @@ async def _async_process_invoice_and_send_email(
     email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
     is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
     is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
+    provider: Optional[str] = None,  # Payment provider ("stripe", "polar", "revolut")
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -118,7 +123,6 @@ async def _async_process_invoice_and_send_email(
 
         # 4. Extract Payment Details (same as before)
         payment_method_details = {}
-        billing_address_dict = None
         # Accept both "COMPLETED" and "CAPTURED" as successful payment states
         # This logic might need adjustment based on the specific payment provider's response structure
         # PaymentService's get_order should normalize the response to some extent.
@@ -131,16 +135,6 @@ async def _async_process_invoice_and_send_email(
 
         if successful_payment:
             payment_method_details = successful_payment.get('payment_method', {})
-            billing_address_data = payment_method_details.get('billing_address')
-            if billing_address_data:
-                 billing_address_dict = {
-                     "street_line_1": billing_address_data.get("street_line_1"),
-                     "street_line_2": billing_address_data.get("street_line_2"),
-                     "region": billing_address_data.get("region"),
-                     "city": billing_address_data.get("city"),
-                     "country_code": billing_address_data.get("country_code"),
-                     "postcode": billing_address_data.get("postcode"),
-                 }
         else:
             logger.warning(f"Could not find a COMPLETED/CAPTURED/SUCCEEDED payment in order {order_id} details. Invoice may lack payment info.")
 
@@ -169,9 +163,22 @@ async def _async_process_invoice_and_send_email(
             raise Exception("Missing amount/currency in payment order details")
         logger.info(f"Payment details extracted for {order_id}: Amount={amount_paid} {currency_paid}")
 
-        # Create customer portal link for subscription management if it's a Stripe payment and it's an auto top-up
+        # Determine the effective provider for this order.
+        # The `provider` argument is passed from the webhook handler via the task payload.
+        # Fall back to the active provider name on the payment service for backwards compatibility
+        # with orders created before this field existed.
+        effective_provider = provider or task.payment_service.provider_name
+
+        # Determine PDF document type:
+        # - Polar: "payment_confirmation" (Polar as MoR issues the real tax invoice)
+        # - Stripe / Revolut / unknown: "invoice"
+        document_type = "payment_confirmation" if effective_provider == "polar" else "invoice"
+        logger.info(f"Invoice task for order {order_id}: provider={effective_provider}, document_type={document_type}")
+
+        # Create customer portal link for subscription management — Stripe only.
+        # Polar does not have a customer portal concept in Phase 1.
         customer_portal_url = None
-        if task.payment_service.provider_name == "stripe" and stripe_customer_id and is_auto_topup:
+        if effective_provider == "stripe" and stripe_customer_id and is_auto_topup:
             try:
                 customer_portal_url = await task.payment_service.get_customer_portal_url(
                     customer_id=stripe_customer_id,
@@ -184,7 +191,7 @@ async def _async_process_invoice_and_send_email(
         # 5. Generate Invoice Number using counter from user profile
         # Generate user_id_hash (deterministic)
         user_id_hash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
-        logger.info(f"Generated user_id_hash for user")
+        logger.info("Generated user_id_hash for user")
 
         # Increment the counter for the new invoice, defaulting to 0 if None
         base_counter = current_invoice_counter if current_invoice_counter is not None else 0
@@ -327,55 +334,61 @@ async def _async_process_invoice_and_send_email(
         #     # Add only non-empty parts to invoice_data
         #     invoice_data.update({k: v for k, v in address_parts.items() if v})
 
-        logger.info(f"Prepared invoice data dictionary")
+        logger.info("Prepared invoice data dictionary")
 
-        # 7. Generate Invoice PDF(s)
-        # Always generate English version first
-        logger.info(f"Generating English invoice PDF")
+        # 7. Generate Invoice/Payment Confirmation PDF(s)
+        # Always generate English version first.
+        # For Polar orders the PDF title is "Payment Confirmation"; for all others it's "Invoice".
+        logger.info(f"Generating English PDF ({document_type})")
         pdf_buffer_en = task.invoice_template_service.generate_invoice(
-            invoice_data, lang='en', currency=currency_paid.lower()
+            invoice_data, lang='en', currency=currency_paid.lower(), document_type=document_type
         )
         pdf_bytes_en = pdf_buffer_en.getvalue()
         pdf_buffer_en.close()
-        invoice_filename_en = f"openmates_invoice_{date_str_filename}_{invoice_number}.pdf"
-        logger.info(f"Generated English PDF for invoice")
+
+        # Use the correct prefix in the filename to match document type
+        file_prefix = "payment_confirmation" if document_type == "payment_confirmation" else "invoice"
+        invoice_filename_en = f"openmates_{file_prefix}_{date_str_filename}_{invoice_number}.pdf"
+        logger.info(f"Generated English PDF ({invoice_filename_en})")
 
         pdf_bytes_lang = None
         invoice_filename_lang = None
         # Generate translated version if language is not English
         if user_language != 'en':
-            logger.info(f"Generating invoice PDF in user language '{user_language}' for invoice")
+            logger.info(f"Generating PDF in user language '{user_language}' ({document_type})")
             try:
-                # Fetch translation for "invoice"
+                # Fetch translation key based on document_type
                 translations = task.translation_service.get_translations(user_language, ["invoices_and_credit_notes"])
-                # Safely get translation, default to "invoice"
-                invoice_translation = translations.get("invoices_and_credit_notes", {}).get("invoice", {}).get("text", "invoice")
-                invoice_translation_lower = invoice_translation.lower().replace(" ", "_") # Ensure lowercase and replace spaces
+                if document_type == "payment_confirmation":
+                    doc_translation = translations.get("invoices_and_credit_notes", {}).get("payment_confirmation", {}).get("text", "payment_confirmation")
+                else:
+                    doc_translation = translations.get("invoices_and_credit_notes", {}).get("invoice", {}).get("text", "invoice")
+                doc_translation_lower = doc_translation.lower().replace(" ", "_")
 
                 pdf_buffer_lang = task.invoice_template_service.generate_invoice(
-                    invoice_data, lang=user_language, currency=currency_paid.lower()
+                    invoice_data, lang=user_language, currency=currency_paid.lower(), document_type=document_type
                 )
                 pdf_bytes_lang = pdf_buffer_lang.getvalue()
                 pdf_buffer_lang.close()
-                invoice_filename_lang = f"openmates_{invoice_translation_lower}_{date_str_filename}_{invoice_number}.pdf"
-                logger.info(f"Generated PDF ({invoice_filename_lang}) for invoice in language {user_language}")
+                invoice_filename_lang = f"openmates_{doc_translation_lower}_{date_str_filename}_{invoice_number}.pdf"
+                logger.info(f"Generated PDF ({invoice_filename_lang}) in language {user_language}")
             except Exception as lang_pdf_err:
-                logger.error(f"Failed to generate or get translation for invoice PDF in language {user_language} for invoice: {lang_pdf_err}", exc_info=True)
+                logger.error(f"Failed to generate PDF in language {user_language}: {lang_pdf_err}", exc_info=True)
                 # Continue without the translated version if generation fails
 
         # 8. Encrypt English PDF and Upload to S3 with unique filename
         # --- Hybrid Encryption Start ---
-        logger.info(f"Starting hybrid encryption for PDF")
+        logger.info("Starting hybrid encryption for PDF")
 
         # 8a. Generate local symmetric key and nonce
         aes_key = os.urandom(32) # AES-256 key
         nonce = os.urandom(12)   # AES-GCM standard nonce size
-        logger.debug(f"Generated local AES key and nonce")
+        logger.debug("Generated local AES key and nonce")
 
         # 8b. Encrypt PDF locally using AES-GCM
         aesgcm = AESGCM(aes_key)
         encrypted_pdf_payload = aesgcm.encrypt(nonce, pdf_bytes_en, None) # No associated data
-        logger.debug(f"Locally encrypted PDF payload using AES-GCM")
+        logger.debug("Locally encrypted PDF payload using AES-GCM")
 
         # 8c. Encrypt (wrap) the local AES key using Vault user key
         # Base64 encode the raw AES key bytes before passing to Vault string encryption
@@ -384,7 +397,7 @@ async def _async_process_invoice_and_send_email(
             aes_key_b64, vault_key_id
         )
         if not encrypted_aes_key_vault:
-            logger.error(f"Failed to encrypt (wrap) local AES key using Vault for user")
+            logger.error("Failed to encrypt (wrap) local AES key using Vault for user")
             raise Exception("Failed to wrap symmetric encryption key")
         logger.debug(f"Wrapped local AES key using Vault user key {vault_key_id}")
         # --- Hybrid Encryption End ---
@@ -450,7 +463,7 @@ async def _async_process_invoice_and_send_email(
             "aes_nonce": nonce_b64, # Store the base64 encoded nonce
             "is_gift_card": is_gift_card  # Store gift card flag for invoice display
         }
-        logger.info(f"Prepared Directus payload for invoice")
+        logger.info("Prepared Directus payload for invoice")
 
         # 10. Create Invoice Record in Directus (using service from BaseTask)
         # Use task.directus_service here
@@ -481,10 +494,10 @@ async def _async_process_invoice_and_send_email(
                 str(new_invoice_counter), vault_key_id
             )
             if encrypted_new_counter:
-                logger.info(f"Successfully encrypted new invoice counter for user.")
+                logger.info("Successfully encrypted new invoice counter for user.")
                 # Update Directus
                 update_payload = {"encrypted_invoice_counter": encrypted_new_counter}
-                logger.info(f"Attempting to update encrypted_invoice_counter in Directus for user with new encrypted value.")
+                logger.info("Attempting to update encrypted_invoice_counter in Directus for user with new encrypted value.")
                 directus_update_success = await task.directus_service.update_user(user_id, update_payload)
 
                 if directus_update_success:
@@ -497,13 +510,13 @@ async def _async_process_invoice_and_send_email(
                             if cache_update_success:
                                 logger.info(f"Successfully updated cache for invoice_counter for user with value {new_invoice_counter}.")
                             else:
-                                logger.warning(f"Failed to update cache for invoice_counter for user after Directus update.")
+                                logger.warning("Failed to update cache for invoice_counter for user after Directus update.")
                         except Exception as cache_err:
                             logger.error(f"Error updating cache for invoice_counter for user after Directus update: {cache_err}", exc_info=True)
                     else:
-                         logger.warning(f"Cache service not available, skipping cache update for invoice_counter for user after Directus update.")
+                         logger.warning("Cache service not available, skipping cache update for invoice_counter for user after Directus update.")
                 else:
-                    logger.error(f"Failed to update encrypted_invoice_counter in Directus for user. Directus update call returned failure. Cache will not be updated.")
+                    logger.error("Failed to update encrypted_invoice_counter in Directus for user. Directus update call returned failure. Cache will not be updated.")
             else:
                  logger.error(f"Failed to encrypt new invoice counter {new_invoice_counter} for user. Encryption returned None. Directus and cache will not be updated.")
         except Exception as counter_update_err:
@@ -542,19 +555,19 @@ async def _async_process_invoice_and_send_email(
                 # Regenerate the PDFs with the refund link
                 logger.info(f"Regenerating PDFs with refund link for invoice {invoice_number}")
 
-                # Regenerate English version
+                # Regenerate English version (with refund link and correct document_type)
                 pdf_buffer_en = task.invoice_template_service.generate_invoice(
-                    invoice_data, lang='en', currency=currency_paid.lower()
+                    invoice_data, lang='en', currency=currency_paid.lower(), document_type=document_type
                 )
                 pdf_bytes_en = pdf_buffer_en.getvalue()
                 pdf_buffer_en.close()
-                logger.info(f"Regenerated English PDF with refund link for invoice")
+                logger.info(f"Regenerated English PDF with refund link ({document_type})")
 
                 # Regenerate translated version if language is not English
                 if user_language != 'en':
                     try:
                         pdf_buffer_lang = task.invoice_template_service.generate_invoice(
-                            invoice_data, lang=user_language, currency=currency_paid.lower()
+                            invoice_data, lang=user_language, currency=currency_paid.lower(), document_type=document_type
                         )
                         pdf_bytes_lang = pdf_buffer_lang.getvalue()
                         pdf_buffer_lang.close()
@@ -565,13 +578,13 @@ async def _async_process_invoice_and_send_email(
 
                 # CRITICAL: Re-encrypt and re-upload the regenerated PDF to S3 to ensure consistency
                 # The PDF sent via email must be the same as the one stored in S3 and downloaded by users
-                logger.info(f"Re-encrypting and re-uploading regenerated PDF to S3 to ensure consistency")
+                logger.info("Re-encrypting and re-uploading regenerated PDF to S3 to ensure consistency")
                 try:
                     # Re-encrypt the regenerated PDF using the same AES key and nonce
                     # This ensures the encryption keys stored in Directus remain valid
                     aesgcm = AESGCM(aes_key)
                     encrypted_pdf_payload_updated = aesgcm.encrypt(nonce, pdf_bytes_en, None)  # No associated data
-                    logger.debug(f"Re-encrypted regenerated PDF payload using AES-GCM")
+                    logger.debug("Re-encrypted regenerated PDF payload using AES-GCM")
 
                     # Re-upload to S3 using the same s3_object_key (overwrites the old file)
                     logger.info(f"Re-uploading encrypted invoice {s3_object_key} to S3 with updated PDF (with refund link)")
@@ -586,13 +599,13 @@ async def _async_process_invoice_and_send_email(
                     if not upload_success_updated:
                         logger.error(f"Failed to re-upload regenerated invoice PDF to S3 for invoice {invoice_number}. Upload result: {upload_result_updated}")
                         # Don't fail the whole task, but log the error - email will still be sent with correct PDF
-                        logger.warning(f"Email will contain PDF with refund link, but S3 may have outdated version without refund link")
+                        logger.warning("Email will contain PDF with refund link, but S3 may have outdated version without refund link")
                     else:
                         logger.info(f"Successfully re-uploaded encrypted invoice {s3_object_key} to S3 with updated PDF (with refund link). URL (for reference): {s3_url_updated}")
                 except Exception as reupload_err:
                     logger.error(f"Error re-encrypting/re-uploading regenerated PDF to S3 for invoice {invoice_number}: {reupload_err}", exc_info=True)
                     # Don't fail the whole task, but log the error - email will still be sent with correct PDF
-                    logger.warning(f"Email will contain PDF with refund link, but S3 may have outdated version without refund link")
+                    logger.warning("Email will contain PDF with refund link, but S3 may have outdated version without refund link")
 
             except Exception as url_err:
                 logger.error(f"Failed to generate refund deep link URL for invoice {invoice_number}: {url_err}", exc_info=True)
@@ -605,7 +618,7 @@ async def _async_process_invoice_and_send_email(
             "refund_link": refund_deep_link_url,  # Set refund_link directly to ensure it's used in email template
             "customer_portal_url": customer_portal_url  # Pass management link to email
         }
-        logger.info(f"Prepared email context for invoice")
+        logger.info("Prepared email context for invoice")
 
         # 12. Send Purchase Confirmation Email with Attachment(s)
         attachments = []
@@ -638,7 +651,7 @@ async def _async_process_invoice_and_send_email(
             # The invoice exists in S3 and Directus.
             return False # Indicate email sending failed
 
-        logger.info(f"Successfully sent purchase confirmation email with invoice attached.")
+        logger.info("Successfully sent purchase confirmation email with invoice attached.")
 
         # 13. Notify user via WebSocket that payment is completed (credits updated and invoice sent)
         # This notification is ONLY sent for regular credit purchases, NOT for gift card purchases
@@ -670,7 +683,7 @@ async def _async_process_invoice_and_send_email(
             logger.info(f"Skipping 'payment_completed' event for gift card purchase (order {order_id}). Gift card notification already sent via webhook.")
 
         # 14. Process Income Transaction in Invoice Ninja
-        logger.info(f"Processing income transaction in Invoice Ninja for Order ID: {order_id}")
+        logger.info(f"Processing income transaction in Invoice Ninja for Order ID: {order_id}, provider={effective_provider}")
         try:
             # Access InvoiceNinjaService via the base task property
             invoice_ninja_service = task.invoice_ninja_service
@@ -678,7 +691,7 @@ async def _async_process_invoice_and_send_email(
             # Extract necessary details for Invoice Ninja
             customer_firstname = ""
             customer_lastname = ""
-            if cardholder_name: # Check if cardholder_name is not None or empty
+            if cardholder_name:  # Check if cardholder_name is not None or empty
                 if ' ' in cardholder_name:
                     name_parts = cardholder_name.split(' ', 1)
                     customer_firstname = name_parts[0]
@@ -689,27 +702,50 @@ async def _async_process_invoice_and_send_email(
             # Ensure customer_country_code is a string, even if country_code is None
             customer_country_code = country_code if country_code is not None else ""
 
-            # Assuming payment_order_details has 'amount' and 'currency'
-            # Amount is in smallest unit, need to convert to float for price
-            purchase_price_value = float(amount_paid) / 100 if amount_paid is not None else 0.0
+            # For Polar: Invoice Ninja should record the net payout (what we actually receive),
+            # not the gross charged to the buyer. Polar as MoR remits taxes and takes its fee.
+            # The net payout amount is stored by PolarService.get_order() in "net_amount".
+            # For Stripe/Revolut: use the full charged amount.
+            if effective_provider == "polar":
+                net_amount = payment_order_details.get("net_amount")
+                if net_amount is not None:
+                    purchase_price_value = float(net_amount) / 100
+                    logger.info(
+                        f"Polar order {order_id}: using net payout {purchase_price_value:.2f} {currency_paid} "
+                        f"for Invoice Ninja (gross was {float(amount_paid) / 100:.2f})"
+                    )
+                else:
+                    # Net amount not available — fall back to gross and log a warning
+                    purchase_price_value = float(amount_paid) / 100 if amount_paid is not None else 0.0
+                    logger.warning(
+                        f"Polar order {order_id}: net_amount not available, using gross amount for Invoice Ninja. "
+                        f"Check PolarService.get_order() normalization."
+                    )
+            else:
+                # Amount is in smallest unit (cents), convert to currency units
+                purchase_price_value = float(amount_paid) / 100 if amount_paid is not None else 0.0
+
+            # card_brand_lower may be unbound if no successful_payment was found above;
+            # default to empty string so Invoice Ninja call doesn't fail
+            card_brand_lower_safe = card_brand.lower() if card_brand else ""
 
             # Pass the English PDF bytes as custom_pdf_data and other required fields
             invoice_ninja_service.process_income_transaction(
-                user_hash=user_id_hash, # Using user_id_hash as user_hash
+                user_hash=user_id_hash,  # Using user_id_hash as user_hash
                 external_order_id=order_id,
                 customer_firstname=customer_firstname,
                 customer_lastname=customer_lastname,
                 customer_account_id=account_id,  # Use account_id instead of email
-                customer_country_code=customer_country_code, # Use the sanitized country code
+                customer_country_code=customer_country_code,  # Use the sanitized country code
                 credits_value=credits_purchased,
                 currency_code=currency_paid,
                 purchase_price_value=purchase_price_value,
-                invoice_date=date_str_iso, # Pass generated invoice date
-                due_date=date_str_iso, # Pass generated due date (same as invoice date)
-                payment_processor=task.payment_service.provider_name, # Use the active payment provider name
-                card_brand_lower=card_brand_lower,
-                custom_invoice_number=invoice_number, # Pass generated invoice number
-                custom_pdf_data=pdf_bytes_en, # Pass the English PDF bytes
+                invoice_date=date_str_iso,  # Pass generated invoice date
+                due_date=date_str_iso,  # Pass generated due date (same as invoice date)
+                payment_processor=effective_provider,  # Use the resolved provider name
+                card_brand_lower=card_brand_lower_safe,
+                custom_invoice_number=invoice_number,  # Pass generated invoice number
+                custom_pdf_data=pdf_bytes_en,  # Pass the English PDF bytes
                 is_gift_card=is_gift_card  # Pass gift card flag
             )
 

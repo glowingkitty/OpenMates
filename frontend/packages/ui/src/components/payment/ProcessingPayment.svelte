@@ -2,21 +2,23 @@
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { getWebsiteUrl, routes } from '../../config/links';
-    import { createEventDispatcher } from 'svelte';
-    
-    const dispatch = createEventDispatcher();
+
     
     // Props using Svelte 5 runes
     let { 
         state = 'processing',
         isGift = false,
         isGiftCard = false,
-        showDelayedMessage = false
+        showDelayedMessage = false,
+        // provider: 'stripe' | 'polar' — controls post-purchase confirmation text.
+        // Polar uses "Payment Confirmation" (MoR model), Stripe uses "Invoice".
+        provider = 'stripe'
     }: {
         state?: 'processing' | 'success';
         isGift?: boolean;
         isGiftCard?: boolean;
         showDelayedMessage?: boolean;
+        provider?: string;
     } = $props();
     
     function handleSecurePaymentInfoClick() {
@@ -29,8 +31,10 @@
         <div class="center-container">
             <span class="clickable-icon icon_billing large-icon"></span>
             {#if showDelayedMessage}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <p class="processing-text color-grey-60">{@html $text('signup.payment_processing_delayed')}</p>
             {:else}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <p class="processing-text color-grey-60">{@html $text('signup.processing_payment')}</p>
             {/if}
         </div>
@@ -38,6 +42,7 @@
         <div class="bottom-container">
             <button type="button" class="text-button" onclick={handleSecurePaymentInfoClick}>
                 <span class="clickable-icon icon_lock inline-lock-icon"></span>
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 {@html $text('signup.secured_and_powered_by').replace('{provider}', 'Revolut')}
             </button>
         </div>
@@ -48,16 +53,24 @@
             <span class="check-icon"></span>
             <!-- Conditional success text -->
             <p class="success-text color-grey-60">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 {@html $text(isGift ? 'signup.enjoy_your_gift' : 'signup.purchase_successful')}
             </p>
-            <!-- Only show confirmation email text for actual purchases -->
+            <!-- Only show confirmation email text for actual purchases.
+                 Polar sends a "Payment Confirmation" (not Invoice) per MoR rules. -->
             {#if !isGift}
-                <p class="confirmation-text color-grey-60">{@html $text('signup.you_will_receive_confirmation_soon')}</p>
+                <p class="confirmation-text color-grey-60">
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                    {@html $text(provider === 'polar'
+                        ? 'signup.you_will_receive_payment_confirmation_soon'
+                        : 'signup.you_will_receive_confirmation_soon')}
+                </p>
             {/if}
         </div>
         
         {#if !isGift && !isGiftCard}
             <div class="bottom-container">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <p class="loading-text color-grey-60">{@html $text('login.loading')}</p>
             </div>
         {/if}

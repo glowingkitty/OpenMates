@@ -5565,6 +5565,75 @@ payment_failed:
   cs: Platba selhala
   sv: Betalning misslyckades
   verified_by_human: []
+switch_to_eu_card:
+  context: Link text in Polar payment form to switch to Stripe (for EU card holders)
+  en: Pay with an EU card instead
+  de: Stattdessen mit einer EU-Karte bezahlen
+  zh: 改用欧盟卡支付
+  es: Pagar con una tarjeta de la UE
+  fr: Payer avec une carte européenne
+  pt: ""
+  ru: ""
+  ja: EU圏のカードで支払う
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+switch_to_non_eu_card:
+  context: Link text in Stripe payment form to switch to Polar (for non-EU card holders)
+  en: Pay with a non-EU card
+  de: Mit einer Nicht-EU-Karte bezahlen
+  zh: 使用非欧盟卡支付
+  es: Pagar con una tarjeta no europea
+  fr: Payer avec une carte non européenne
+  pt: ""
+  ru: ""
+  ja: EU圏外のカードで支払う
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+you_will_receive_payment_confirmation_soon:
+  context: Message shown after successful Polar purchase (says 'payment confirmation' instead of 'invoice' because Polar as MoR issues the official tax invoice)
+  en: You will receive an e-mail confirmation with your payment confirmation soon.
+  de: Die E-Mail-Bestätigung mit deiner Zahlungsbestätigung folgt in Kürze.
+  zh: 您将很快收到带有付款确认的电子邮件确认信息。
+  es: Recibirás pronto una confirmación por correo electrónico con tu confirmación de pago.
+  fr: Vous recevrez prochainement un e-mail de confirmation avec votre confirmation de paiement.
+  pt: ""
+  ru: ""
+  ja: お支払い確認書を添付したメール確認が間もなく届きます。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 enjoy_your_gift:
   context: Success message shown when gift is accepted.
   en: Enjoy your gift!

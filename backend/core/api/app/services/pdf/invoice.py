@@ -1,14 +1,14 @@
 import io
 import logging
 from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
+
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.barcode.qr import QrCodeWidget
 import re
 
 from backend.core.api.app.services.pdf.base import BasePDFTemplateService
-from backend.core.api.app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely,
+from backend.core.api.app.services.pdf.utils import (sanitize_html_for_reportlab,
                                    format_date_for_locale, format_credits)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -59,17 +59,26 @@ class InvoiceTemplateService(BasePDFTemplateService):
         # Return the translation for the language, or default to English
         return click_here_translations.get(lang, 'Click here')
         
-    def generate_invoice(self, invoice_data, lang="en", currency="eur"):
-        """Generate an invoice PDF with the specified language and currency"""
+    def generate_invoice(self, invoice_data, lang="en", currency="eur", document_type: str = "invoice"):
+        """
+        Generate an invoice or payment confirmation PDF.
+
+        Args:
+            invoice_data: Dictionary of invoice fields (invoice_number, dates, credits, etc.)
+            lang: Language code for translations (e.g. "en", "de")
+            currency: ISO currency code lowercase (e.g. "eur", "usd")
+            document_type: "invoice" (default, for Stripe/Revolut) or "payment_confirmation"
+                           (for Polar — Polar as MoR issues the official tax invoice separately)
+        """
         # Create a buffer for the PDF
         buffer = io.BytesIO()
-        
+
         # Set the current language for use throughout the template
         self.current_lang = lang
-        
+
         # Load translations for the specified language
         self.t = self.translation_service.get_translations(lang)
-        
+
         # Validate and get the credits from invoice data
         credits = self._validate_credits(invoice_data.get('credits', 1000))
         
@@ -106,8 +115,14 @@ class InvoiceTemplateService(BasePDFTemplateService):
         # Reduce the initial spacer to move content up
         elements.append(Spacer(1, 5))  # Reduced from 20 to 5
         
-        # Create header with Invoice and OpenMates side by side - no extra padding
-        invoice_text = Paragraph(sanitize_html_for_reportlab(self.t["invoices_and_credit_notes"]["invoice"]["text"]), self.styles['Heading1'])
+        # Create header with document title and OpenMates side by side.
+        # For Polar orders: "Payment Confirmation" (Polar as MoR issues the real tax invoice).
+        # For all others: "Invoice".
+        if document_type == "payment_confirmation":
+            heading_text = self.t.get("invoices_and_credit_notes", {}).get("payment_confirmation", {}).get("text", "Payment Confirmation")
+        else:
+            heading_text = self.t["invoices_and_credit_notes"]["invoice"]["text"]
+        invoice_text = Paragraph(sanitize_html_for_reportlab(heading_text), self.styles['Heading1'])
         
         # Create a custom paragraph with two differently colored parts for "OpenMates"
         open_text = '<font color="#4867CD">Open</font><font color="black">Mates</font>'
@@ -413,7 +428,7 @@ class InvoiceTemplateService(BasePDFTemplateService):
             paid_with_paragraph = Paragraph(paid_with_text, self.styles['Normal'])
             payment_table = Table([[Spacer(self.left_indent, 0), paid_with_paragraph]], 
                                  colWidths=[self.left_indent, doc.width-self.left_indent])
-        except Exception as e:
+        except Exception:
             # Fallback to plain text if HTML parsing fails
             fallback_text = f"Paid with: {invoice_data['card_name']} card ending in {invoice_data['card_last4']}"
             payment_table = Table([[Spacer(self.left_indent, 0), 
@@ -454,6 +469,24 @@ class InvoiceTemplateService(BasePDFTemplateService):
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(vat_disclaimer_table)
+
+        # For Polar: add Merchant of Record note explaining that Polar issued the official tax invoice.
+        # This is legally required because Polar (not OpenMates) issued the buyer's VAT/tax invoice.
+        if document_type == "payment_confirmation":
+            polar_mor_note = self.t.get("invoices_and_credit_notes", {}).get("polar_mor_note", {}).get(
+                "text",
+                "Your official tax invoice was issued by Polar (polar.sh) as Merchant of Record."
+            )
+            polar_mor_note_sanitized = sanitize_html_for_reportlab(polar_mor_note)
+            polar_mor_table = Table([[Spacer(self.left_indent, 0),
+                                     Paragraph(polar_mor_note_sanitized, self.styles['Normal'])]],
+                                    colWidths=[self.left_indent, doc.width - self.left_indent])
+            polar_mor_table.setStyle(TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            elements.append(Spacer(1, 10))
+            elements.append(polar_mor_table)
 
         # Add withdrawal waiver notice (required for EU/German consumer law compliance)
         # This comes BEFORE the refund link

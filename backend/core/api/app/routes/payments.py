@@ -21,7 +21,8 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 from backend.core.api.app.tasks.celery_config import app # Import the Celery app
 from backend.core.api.app.routes.websockets import manager
 from backend.core.api.app.services.compliance import ComplianceService
-from backend.core.api.app.utils.device_fingerprint import _extract_client_ip
+from backend.core.api.app.utils.device_fingerprint import _extract_client_ip, get_geo_data_from_ip
+from backend.core.api.app.utils.geo_utils import is_eu_stripe_country
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_compliance_service
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name
@@ -78,6 +79,8 @@ class CreateOrderRequest(BaseModel):
     currency: str
     credits_amount: int
     email_encryption_key: Optional[str] = None
+    # Optional explicit provider override ("stripe" or "polar")
+    provider: Optional[str] = None
 
 class CreateSupportOrderRequest(BaseModel):
     currency: str
@@ -88,9 +91,10 @@ class CreateSupportOrderRequest(BaseModel):
 
 class CreateOrderResponse(BaseModel):
     provider: str
-    order_token: Optional[str] = None # For Revolut
-    client_secret: Optional[str] = None # For Stripe
+    order_token: Optional[str] = None  # For Revolut
+    client_secret: Optional[str] = None  # For Stripe / Polar embedded checkout
     order_id: str
+    checkout_url: Optional[str] = None  # For Polar embedded checkout iframe URL
     customer_portal_url: Optional[str] = None  # For Stripe supporter subscriptions
     hosted_invoice_url: Optional[str] = None  # For Stripe supporter subscriptions fallback
     invoice_pdf: Optional[str] = None  # For Stripe supporter subscriptions fallback
@@ -320,31 +324,63 @@ def get_tier_info(credits_amount: int, currency: str) -> Optional[Dict[str, Any]
 async def get_payment_config(
     request: Request,
     secrets_manager: SecretsManager = Depends(get_secrets_manager),
-    payment_service: PaymentService = Depends(get_payment_service)
+    payment_service: PaymentService = Depends(get_payment_service),
+    provider_override: Optional[str] = None,  # ?provider_override=stripe or ?provider_override=polar
 ):
-    """Provides the necessary public configuration for the frontend payment widget."""
+    """
+    Provides the public payment configuration for the frontend payment widget.
+
+    Provider selection:
+    - Legacy Revolut mode: always returns revolut.
+    - Dual-provider mode: detects user region from IP. EU/EEA/CH/GB → Stripe, all others → Polar.
+    - provider_override query param lets the frontend switch providers explicitly (for the switch button).
+    """
     try:
-        provider_name = payment_service.provider_name
         environment = "production" if is_production() else "sandbox"
-        
-        public_key = None
-        if provider_name == "revolut":
+
+        # --- Legacy Revolut mode ---
+        if payment_service._revolut_provider:
             secret_key_name = f"merchant_{environment}_public_key"
             secret_path = "kv/data/providers/revolut_business"
             public_key = await secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
-        elif provider_name == "stripe":
+            if not public_key:
+                logger.error(f"Revolut public key '{secret_key_name}' not found in Vault.")
+                raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
+            return PaymentConfigResponse(provider="revolut", public_key=public_key, environment=environment)
+
+        # --- Dual-provider mode: detect region from IP ---
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+        is_eu = True  # Default to EU (Stripe) for safety if detection fails
+        try:
+            geo_data = get_geo_data_from_ip(client_ip)
+            country_code = geo_data.get("country_code", "")
+            is_eu = is_eu_stripe_country(country_code)
+            logger.debug(f"Payment config: IP={client_ip}, country={country_code}, is_eu={is_eu}")
+        except Exception as geo_err:
+            logger.warning(f"Failed to detect region for payment config (IP={client_ip}): {geo_err}. Defaulting to EU (Stripe).")
+
+        # Select provider (override takes precedence over region detection)
+        provider_name, _ = payment_service.get_provider(is_eu=is_eu, provider_override=provider_override)
+
+        public_key = ""
+        if provider_name == "stripe":
             secret_key_name = f"{environment}_public_key"
             secret_path = "kv/data/providers/stripe"
             public_key = await secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
+            if not public_key:
+                logger.error(f"Stripe public key '{secret_key_name}' not found in Vault.")
+                raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
+        elif provider_name == "polar":
+            # Polar does not require a client-side public key (embedded checkout uses a URL/client_secret)
+            public_key = ""
         else:
             raise HTTPException(status_code=503, detail="Payment provider not configured.")
 
-        if not public_key:
-            logger.error(f"Public Key '{secret_key_name}' not found for provider '{provider_name}'.")
-            raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
-
-        logger.info(f"Payment config fetched for provider: {provider_name}, environment: {environment}")
+        logger.info(f"Payment config: provider={provider_name}, environment={environment}, is_eu={is_eu}")
         return PaymentConfigResponse(provider=provider_name, public_key=public_key, environment=environment)
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching payment config: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error fetching payment config.")
@@ -361,7 +397,20 @@ async def create_payment_order(
     directus_service: DirectusService = Depends(get_directus_service),
     tier_service: PaymentTierService = Depends(get_payment_tier_service)
 ):
-    logger.info(f"Received request to create payment order for user {current_user.id} - Provider: {payment_service.provider_name}, Currency: {order_data.currency}, Credits: {order_data.credits_amount}")
+    # Detect user region for provider selection
+    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+    is_eu = True  # Default to EU (Stripe) if detection fails
+    try:
+        geo_data = get_geo_data_from_ip(client_ip)
+        country_code = geo_data.get("country_code", "")
+        is_eu = is_eu_stripe_country(country_code)
+    except Exception as geo_err:
+        logger.warning(f"Failed to detect region for order creation (IP={client_ip}): {geo_err}. Defaulting to EU (Stripe).")
+
+    # Resolve the active provider (override from request body takes highest priority)
+    provider_name, _ = payment_service.get_provider(is_eu=is_eu, provider_override=order_data.provider)
+
+    logger.info(f"Received request to create payment order for user {current_user.id} - Provider: {provider_name}, Currency: {order_data.currency}, Credits: {order_data.credits_amount}")
 
     calculated_amount = get_price_for_credits(order_data.credits_amount, order_data.currency)
     if calculated_amount is None:
@@ -426,13 +475,20 @@ async def create_payment_order(
         # Stripe requires a customer when using setup_future_usage to save payment methods
         # Check if user already has a Stripe customer ID
         stripe_customer_id = current_user.stripe_customer_id if hasattr(current_user, 'stripe_customer_id') else None
-        
+
+        # Determine embed origin for Polar checkout iframe security policy
+        # Use the request's Origin header so Polar allows embedding from the correct domain
+        embed_origin = request.headers.get("Origin") or request.headers.get("Referer")
+
         order_response = await payment_service.create_order(
             amount=calculated_amount,
             currency=order_data.currency,
             email=decrypted_email,
             credits_amount=order_data.credits_amount,
-            customer_id=stripe_customer_id  # Pass existing customer ID if available
+            customer_id=stripe_customer_id,  # Pass existing customer ID if available
+            provider_override=order_data.provider,
+            is_eu=is_eu,
+            embed_origin=embed_origin,
         )
         
         # CRITICAL: Always save the customer_id if user doesn't have one in their profile
@@ -480,9 +536,10 @@ async def create_payment_order(
             user_id=current_user.id,
             credits_amount=order_data.credits_amount,
             status="created",
-            ttl=3600, # 1 hour TTL (increased from 5 minutes to handle webhook delays/retries)
+            ttl=3600,  # 1 hour TTL (increased from 5 minutes to handle webhook delays/retries)
             email_encryption_key=order_data.email_encryption_key,  # Store the email encryption key
-            currency=order_data.currency  # Store currency for tier system updates
+            currency=order_data.currency,  # Store currency for tier system updates
+            provider=provider_name,  # Store the resolved provider for invoice task routing
         )
         
         if not cache_success:
@@ -491,12 +548,13 @@ async def create_payment_order(
             # But log the error so we can investigate cache issues
 
         response_data = {
-            "provider": payment_service.provider_name,
+            "provider": provider_name,
             "order_id": order_id,
-            "order_token": order_response.get("token"), # For Revolut
-            "client_secret": order_response.get("client_secret") # For Stripe
+            "order_token": order_response.get("token"),          # For Revolut
+            "client_secret": order_response.get("client_secret"),  # For Stripe / Polar embedded checkout
+            "checkout_url": order_response.get("checkout_url"),  # For Polar embedded checkout iframe
         }
-        
+
         return CreateOrderResponse(**response_data)
 
     except HTTPException as e:
@@ -622,6 +680,9 @@ async def payment_webhook(
     elif "Stripe-Signature" in request.headers:
         provider_name = "stripe"
         sig_header = request.headers.get("Stripe-Signature")
+    elif "X-Polar-Signature" in request.headers:
+        provider_name = "polar"
+        sig_header = request.headers.get("X-Polar-Signature")
     else:
         logger.warning("Webhook received without a recognizable signature header.")
         raise HTTPException(status_code=400, detail="Missing or unsupported signature header")
@@ -633,7 +694,7 @@ async def payment_webhook(
         raise HTTPException(status_code=400, detail="Missing signature")
 
     try:
-        # For Revolut, pass timestamp header; for Stripe, it's handled internally by construct_event
+        # Verify and parse the webhook payload using the correct provider
         if provider_name == "revolut":
             event_payload = await payment_service.verify_and_parse_webhook(
                 payload_bytes, sig_header, request_timestamp_header
@@ -642,14 +703,24 @@ async def payment_webhook(
             event_payload = await payment_service.verify_and_parse_webhook(
                 payload_bytes, sig_header
             )
+        elif provider_name == "polar":
+            event_payload = await payment_service.verify_polar_webhook(
+                payload_bytes, sig_header
+            )
         else:
             event_payload = None
 
         if event_payload is None: # If verification or parsing failed
             raise HTTPException(status_code=400, detail="Invalid signature or unparseable payload")
 
-        event_type = event_payload.get("type") if provider_name == "stripe" else event_payload.get("event")
-        
+        if provider_name == "stripe":
+            event_type = event_payload.get("type")
+        elif provider_name == "polar":
+            # Polar event structure: {"type": "checkout.updated", "data": {...}}
+            event_type = event_payload.get("type")
+        else:
+            event_type = event_payload.get("event")
+
         # Normalize event type and get order ID
         webhook_order_id = None
         if provider_name == "revolut":
@@ -664,6 +735,9 @@ async def payment_webhook(
             elif event_type == "checkout.session.async_payment_failed":
                 # For async payment failures, get PaymentIntent ID from checkout session
                 webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
+        elif provider_name == "polar":
+            # Polar: checkout ID is the order identifier
+            webhook_order_id = event_payload.get("data", {}).get("id")
 
         if not webhook_order_id:
             logger.warning(f"Webhook event {event_type} received without an order_id for provider {provider_name}.")
@@ -671,8 +745,16 @@ async def payment_webhook(
 
         logger.info(f"Processing verified webhook event: {event_type} for Order ID: {webhook_order_id} from {provider_name}")
 
+        # Determine if this is a successful payment event across all providers
+        is_polar_success = (
+            provider_name == "polar"
+            and event_type == "checkout.updated"
+            and (event_payload.get("data") or {}).get("status") == "succeeded"
+        )
+
         if (provider_name == "revolut" and event_type == "ORDER_COMPLETED") or \
-           (provider_name == "stripe" and event_type == "payment_intent.succeeded"):
+           (provider_name == "stripe" and event_type == "payment_intent.succeeded") or \
+           is_polar_success:
 
             # Supporter contributions (one-time or first subscription payment)
             # are handled separately from credit purchases and DO trigger email/receipt generation.
@@ -1142,7 +1224,8 @@ async def payment_webhook(
                         "sender_vat": sender_vat,
                         "email_encryption_key": email_encryption_key,  # Pass the email encryption key to the task (None for auto top-up)
                         "is_gift_card": is_gift_card,  # Pass gift card flag to invoice task
-                        "is_auto_topup": is_auto_topup  # Pass auto top-up flag to invoice task
+                        "is_auto_topup": is_auto_topup,  # Pass auto top-up flag to invoice task
+                        "provider": provider_name,  # Pass provider so task knows document type (invoice vs payment_confirmation)
                     }
                     app.send_task(
                         name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',
@@ -1196,7 +1279,9 @@ async def payment_webhook(
 
         elif (provider_name == "revolut" and event_type == "ORDER_CANCELLED") or \
              (provider_name == "stripe" and event_type == "payment_intent.payment_failed") or \
-             (provider_name == "stripe" and event_type == "checkout.session.async_payment_failed"):
+             (provider_name == "stripe" and event_type == "checkout.session.async_payment_failed") or \
+             (provider_name == "polar" and event_type == "checkout.updated"
+              and (event_payload.get("data") or {}).get("status") in ("failed", "expired")):
             logger.warning(f"Payment for order {webhook_order_id} failed or was cancelled.")
             await cache_service.update_order_status(webhook_order_id, "failed")
             

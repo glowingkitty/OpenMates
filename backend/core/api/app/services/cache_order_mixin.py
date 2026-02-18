@@ -76,8 +76,14 @@ class OrderCacheMixin:
         is_gift_card: bool = False,
         currency: str = None,
         is_auto_topup: bool = False,
+        provider: str = None,
     ) -> bool:
-        """Cache order metadata and status."""
+        """Cache order metadata and status.
+
+        The `provider` field records which payment provider processed the order
+        ("stripe", "polar", or "revolut"). It is used by the invoice email task
+        to determine the correct document type (Invoice vs. Payment Confirmation).
+        """
         try:
             if not order_id or not user_id or credits_amount is None:
                 logger.error("Cannot cache order: missing order_id, user_id, or credits_amount.")
@@ -90,15 +96,15 @@ class OrderCacheMixin:
                 "status": status,
                 "timestamp": int(time.time())
             }
-            
+
             # Store email encryption key if provided
             if email_encryption_key:
                 order_data["email_encryption_key"] = email_encryption_key
-            
+
             # Store gift card flag if this is a gift card purchase
             if is_gift_card:
                 order_data["is_gift_card"] = True
-            
+
             # Store currency if provided (for tier system updates)
             if currency:
                 order_data["currency"] = currency
@@ -106,7 +112,12 @@ class OrderCacheMixin:
             # Store auto top-up flag (used by webhook/email processing)
             if is_auto_topup:
                 order_data["is_auto_topup"] = True
-            
+
+            # Store the resolved payment provider ("stripe", "polar", "revolut")
+            # Used by the invoice task to select document type and Invoice Ninja handling
+            if provider:
+                order_data["provider"] = provider
+
             logger.debug(f"Setting order in cache: {order_data}")
             return await self.set(order_cache_key, order_data, ttl=ttl)
         except Exception as e:
@@ -294,7 +305,7 @@ class OrderCacheMixin:
                 order_id = order_data.get("order_id")
                 
                 if not cache_key or not order_id:
-                    logger.warning(f"Skipping malformed order in backup: missing cache_key or order_id")
+                    logger.warning("Skipping malformed order in backup: missing cache_key or order_id")
                     continue
 
                 # Check if order already exists in cache (might have been re-cached by webhook)

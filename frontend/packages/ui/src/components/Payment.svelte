@@ -1,14 +1,13 @@
 <script lang="ts">
-    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
     import { fade } from 'svelte/transition';
-    import { getWebsiteUrl, routes } from '../config/links';
     import { apiEndpoints, getApiEndpoint } from '../config/api';
     import { userProfile, updateProfile } from '../stores/userProfile';
-    import { get } from 'svelte/store';
     import { loadStripe } from '@stripe/stripe-js';
     import * as cryptoService from '../services/cryptoService'; // Import cryptoService for email decryption
     import { webSocketService } from '../services/websocketService'; // Import WebSocket service for payment completion notifications
     import { notificationStore } from '../stores/notificationStore'; // Import notification store
+    import { text } from '@repo/ui'; // i18n text helper
 
     import LimitedRefundConsent from './payment/LimitedRefundConsent.svelte';
     import PaymentForm from './payment/PaymentForm.svelte';
@@ -49,28 +48,40 @@
     let paymentState: 'idle' | 'processing' | 'success' = $state(initialState);
     let paymentFormComponent = $state();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let stripe: any = $state(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let elements: any = $state(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let paymentElement: any = $state(null);
     let clientSecret: string | null = $state(null);
     let lastOrderId: string | null = $state(null);
     let paymentIntentId: string | null = $state(null); // Store actual payment_intent_id for delayed payments
     let hostedInvoiceUrl: string | null = $state(null);
-    let customerPortalUrl: string | null = $state(null);
     let isLoading = $state(false);
     let isButtonCooldown = $state(false);
     let errorMessage: string | null = $state(null);
     let validationErrors: string | null = $state(null);
-    let pollTimeoutId: any = $state(null);
-    let isPollingStopped = $state(false);
     let userEmail: string | null = $state(null);
     let isInitializing = $state(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let paymentConfirmationTimeoutId: any = $state(null);
     let isWaitingForConfirmation = $state(false);
     let showDelayedMessage = $state(false);
 
     // State for Payment Element completeness
     let isPaymentElementComplete: boolean = $state(false);
+    
+    // Dual-provider state
+    // activeProvider is set after fetching /config — either 'stripe' or 'polar'
+    let activeProvider: 'stripe' | 'polar' | null = $state(null);
+    // providerOverride is set when the user explicitly switches providers via the switch button
+    let providerOverride: 'stripe' | 'polar' | null = $state(null);
+    // polarEmbedInstance tracks the active Polar embed so we can clean it up
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let polarEmbedInstance: any = $state(null);
+    // isPolarLoading is true while Polar create-order is in flight before opening overlay
+    let isPolarLoading = $state(false);
     
     let darkmode = $state(false);
     let userProfileUnsubscribe = userProfile.subscribe(profile => {
@@ -100,18 +111,32 @@
         isLoading = true;
         errorMessage = null;
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.config), {
+            // Build config URL — append provider_override query param if the user has switched
+            let configUrl = getApiEndpoint(apiEndpoints.payments.config);
+            if (providerOverride) {
+                configUrl += `?provider_override=${providerOverride}`;
+            }
+
+            const response = await fetch(configUrl, {
                 credentials: 'include'
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const config = await response.json();
 
+            activeProvider = config.provider as 'stripe' | 'polar';
+
             if (config.provider === 'stripe') {
                 if (!config.public_key) throw new Error('Stripe Public Key not found in config response.');
                 stripe = await loadStripe(config.public_key);
                 await createOrder();
+            } else if (config.provider === 'polar') {
+                // Polar: do NOT call createOrder() yet — wait until user clicks Pay button.
+                // The checkout URL is fetched on-demand when they click "Pay with Polar".
+                isLoading = false;
+                isInitializing = false;
+                return;
             } else {
-                // Handle other providers like Revolut if needed
+                // Handle other providers if needed
                 errorMessage = 'Unsupported payment provider.';
             }
         } catch (error) {
@@ -122,17 +147,155 @@
         }
     }
 
+    /**
+     * Switch to a different payment provider.
+     * Resets all provider-specific state and re-fetches config for the new provider.
+     */
+    async function switchProvider(newProvider: 'stripe' | 'polar') {
+        // Clean up any existing Stripe elements
+        if (paymentElement) {
+            paymentElement.destroy();
+            paymentElement = null;
+        }
+        // Clean up any existing Polar embed overlay
+        if (polarEmbedInstance) {
+            polarEmbedInstance.close();
+            polarEmbedInstance = null;
+        }
+        // Reset provider-specific state
+        stripe = null;
+        elements = null;
+        clientSecret = null;
+        lastOrderId = null;
+        paymentIntentId = null;
+        hostedInvoiceUrl = null;
+        errorMessage = null;
+        validationErrors = null;
+        isPaymentElementComplete = false;
+        isInitializing = false;
+
+        providerOverride = newProvider;
+        await fetchConfigAndInitialize();
+    }
+
+    /**
+     * Create a Polar checkout session and open the embedded checkout overlay.
+     * Called when the user clicks the "Pay with Polar" button.
+     */
+    async function handlePolarCheckout() {
+        if (supportContribution) {
+            // Supporter contributions always use Stripe
+            return;
+        }
+        isPolarLoading = true;
+        errorMessage = null;
+        try {
+            const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
+
+            let endpoint: string;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let requestBody: Record<string, any>;
+
+            if (isGiftCard) {
+                endpoint = apiEndpoints.payments.buyGiftCard;
+                requestBody = {
+                    credits_amount: credits_amount,
+                    currency: currency,
+                    email_encryption_key: emailEncryptionKey,
+                    provider: 'polar'
+                };
+            } else {
+                endpoint = apiEndpoints.payments.createOrder;
+                requestBody = {
+                    credits_amount: credits_amount,
+                    currency: currency,
+                    email_encryption_key: emailEncryptionKey,
+                    provider: 'polar'
+                };
+            }
+
+            const response = await fetch(getApiEndpoint(endpoint), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorDetail = errorData.detail || '';
+                throw new Error(errorDetail || `Failed to create Polar order: ${response.status}`);
+            }
+
+            const order = await response.json();
+            lastOrderId = order.order_id;
+
+            if (!order.checkout_url) {
+                throw new Error('No checkout URL returned from Polar order.');
+            }
+
+            // Import PolarEmbedCheckout lazily to avoid SSR issues
+            const { PolarEmbedCheckout } = await import('@polar-sh/checkout/embed');
+            isPolarLoading = false;
+
+            const theme = darkmode ? 'dark' : 'light';
+            const embedInstance = await PolarEmbedCheckout.create(order.checkout_url, { theme });
+            polarEmbedInstance = embedInstance;
+
+            // Listen for successful checkout completion
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            embedInstance.addEventListener('success', (_event: unknown) => {
+                polarEmbedInstance = null;
+                // Transition to processing — WebSocket will confirm and call handlePaymentCompleted
+                paymentState = 'processing';
+                isWaitingForConfirmation = true;
+                dispatch('paymentStateChange', { state: paymentState });
+
+                // Start 30-second timeout in case WebSocket confirmation doesn't arrive
+                paymentConfirmationTimeoutId = setTimeout(() => {
+                    if (isWaitingForConfirmation) {
+                        console.log('[Payment][Polar] Confirmation timeout after 30s — showing delayed message');
+                        showDelayedMessage = true;
+                        setTimeout(() => {
+                            if (isWaitingForConfirmation) {
+                                paymentState = 'success';
+                                isWaitingForConfirmation = false;
+                                dispatch('paymentStateChange', {
+                                    state: paymentState,
+                                    payment_intent_id: lastOrderId,
+                                    isDelayed: true
+                                });
+                            }
+                        }, 2000);
+                    }
+                }, 30000);
+            });
+
+            // Listen for close without completing (user dismissed)
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            embedInstance.addEventListener('close', (_event: unknown) => {
+                polarEmbedInstance = null;
+            });
+
+        } catch (error) {
+            errorMessage = `Failed to start Polar checkout. ${error instanceof Error ? error.message : String(error)}`;
+            console.error('[Payment][Polar] Error starting checkout:', error);
+        } finally {
+            isPolarLoading = false;
+        }
+    }
+
     async function createOrder() {
         isLoading = true;
         errorMessage = null;
         hostedInvoiceUrl = null;
-        customerPortalUrl = null;
         try {
             // Get email encryption key for server to decrypt email
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
 
             // Choose endpoint based on payment type
             let endpoint;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let requestBody: any;
 
             if (supportContribution) {
@@ -169,6 +332,10 @@
                     currency: currency,
                     email_encryption_key: emailEncryptionKey
                 };
+                // Include provider override if the user explicitly switched
+                if (providerOverride) {
+                    requestBody.provider = providerOverride;
+                }
             }
 
             const response = await fetch(getApiEndpoint(endpoint), {
@@ -190,7 +357,6 @@
             }
             const order = await response.json();
             if (order.provider === 'stripe') {
-                if (order.customer_portal_url) customerPortalUrl = order.customer_portal_url;
                 if (order.hosted_invoice_url) hostedInvoiceUrl = order.hosted_invoice_url;
 
                 if (!order.client_secret) {
@@ -269,11 +435,13 @@
         paymentElement.mount('#payment-element');
 
         // Log available payment methods for debugging Apple Pay
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         paymentElement.on('ready', (event: any) => {
             console.log('[Payment] Payment Element ready. Available payment methods:', event);
             // Check if Apple Pay is available
             if (event && event.availablePaymentMethods) {
                 const applePayAvailable = event.availablePaymentMethods.some(
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (method: any) => method.type === 'apple_pay' || method.type === 'pay'
                 );
                 console.log('[Payment] Apple Pay available:', applePayAvailable);
@@ -287,6 +455,7 @@
             }
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         paymentElement.on('change', (event: any) => {
             isPaymentElementComplete = event.complete; // Track overall completeness
             if (event.error) {
@@ -663,6 +832,11 @@
             }
             // Clean up Stripe elements on component destroy
             if (paymentElement) paymentElement.destroy();
+            // Clean up Polar embed overlay if open
+            if (polarEmbedInstance) {
+                polarEmbedInstance.close();
+                polarEmbedInstance = null;
+            }
             // Clean up timeout
             if (paymentConfirmationTimeoutId) {
                 clearTimeout(paymentConfirmationTimeoutId);
@@ -687,7 +861,45 @@
             {isGift}
             isGiftCard={isGiftCard}
             {showDelayedMessage}
+            provider={activeProvider || 'stripe'}
         />
+    {:else if activeProvider === 'polar' && !supportContribution}
+        <!-- Polar embedded checkout: user clicks button to open the overlay -->
+        <div class="payment-form-overlay-wrapper">
+            {#if errorMessage}
+                <div class="polar-error-message" role="alert">{errorMessage}</div>
+            {/if}
+
+            <button
+                class="buy-button polar-pay-button"
+                disabled={isPolarLoading || isLoading}
+                onclick={handlePolarCheckout}
+            >
+                {#if isPolarLoading || isLoading}
+                    {$text('login.loading')}
+                {:else}
+                    {$text('signup.buy_for')
+                        .replace('{currency}', currency)
+                        .replace('{amount}', (currency.toUpperCase() === 'JPY' ? purchasePrice : (purchasePrice / 100)).toString())}
+                {/if}
+            </button>
+
+            <p class="vat-info color-grey-60">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                {@html $text('signup.vat_info')}
+            </p>
+
+            <!-- Switch to EU / Stripe -->
+            <div class="provider-switch-container">
+                <button
+                    class="provider-switch-btn"
+                    onclick={() => switchProvider('stripe')}
+                    disabled={isLoading || isPolarLoading}
+                >
+                    {$text('signup.switch_to_eu_card')}
+                </button>
+            </div>
+        </div>
     {:else}
         {#if hostedInvoiceUrl}
             <div class="payment-form-overlay-wrapper">
@@ -711,6 +923,18 @@
                     clientSecret={clientSecret}
                     darkmode={darkmode}
                 />
+                <!-- Switch to Polar (non-EU card) — only for regular credit purchases, not supporter contributions -->
+                {#if !supportContribution}
+                    <div class="provider-switch-container">
+                        <button
+                            class="provider-switch-btn"
+                            onclick={() => switchProvider('polar')}
+                            disabled={isLoading}
+                        >
+                            {$text('signup.switch_to_non_eu_card')}
+                        </button>
+                    </div>
+                {/if}
             </div>
         {:else}
         <div class="payment-form-overlay-wrapper">
@@ -734,6 +958,18 @@
                 clientSecret={clientSecret}
                 darkmode={darkmode}
             />
+            <!-- Switch to Polar (non-EU card) — only for regular credit purchases, not supporter contributions -->
+            {#if !supportContribution}
+                <div class="provider-switch-container">
+                    <button
+                        class="provider-switch-btn"
+                        onclick={() => switchProvider('polar')}
+                        disabled={isLoading}
+                    >
+                        {$text('signup.switch_to_non_eu_card')}
+                    </button>
+                </div>
+            {/if}
             {#if requireConsent && !hasConsentedToLimitedRefund}
                 <div class="consent-overlay" transition:fade>
                     <LimitedRefundConsent
@@ -788,5 +1024,63 @@
     .compact {
         max-width: 500px;
         margin: 0 auto;
+    }
+
+    /* Provider switch button — subtle text link below the payment form */
+    .provider-switch-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 12px;
+    }
+
+    .provider-switch-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: 13px;
+        color: var(--color-grey-60);
+        cursor: pointer;
+        text-decoration: underline;
+        transition: color 0.15s;
+    }
+
+    .provider-switch-btn:hover:not(:disabled) {
+        color: var(--color-grey-80);
+    }
+
+    .provider-switch-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Polar pay button — reuse the buy-button class from PaymentForm */
+    .polar-pay-button {
+        width: 100%;
+        margin-top: 20px;
+    }
+
+    .polar-pay-button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    /* VAT info text below Polar button */
+    .vat-info {
+        font-size: 14px;
+        text-align: center;
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
+
+    /* Error message for Polar checkout failures */
+    .polar-error-message {
+        background-color: var(--color-error-bg, #fee);
+        color: var(--color-error-text, #c00);
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        line-height: 1.5;
+        border: 1px solid var(--color-error-border, #fcc);
     }
 </style>
