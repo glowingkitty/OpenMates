@@ -1,5 +1,6 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
+import type { PreprocessorStepResult } from "../types/chat";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
 import { storeEmbed, markEmbedAsError } from "./embedResolver"; // Import storeEmbed and markEmbedAsError
@@ -2816,7 +2817,7 @@ export async function handleSendEmbedDataImpl(
       // HYBRID ENCRYPTION: Check if this is a server-managed (Vault) embed
       // If encryption_mode is "vault", we skip local encryption and key generation
       // because the server already has the record and handles decryption via API.
-      const encryptionMode = (embedData as any).encryption_mode || "client";
+      const encryptionMode = embedData.encryption_mode || "client";
       if (encryptionMode === "vault") {
         console.info(
           `[ChatSyncService:AI] Embed ${embedData.embed_id} uses Vault encryption - skipping local re-encryption`,
@@ -2833,7 +2834,7 @@ export async function handleSendEmbedDataImpl(
           {
             ...embedData,
             encryption_mode: "vault",
-            vault_key_id: (embedData as any).vault_key_id,
+            vault_key_id: embedData.vault_key_id,
           },
           embedData.type as EmbedType,
         );
@@ -3321,4 +3322,34 @@ export async function handleSendEmbedDataImpl(
       error,
     );
   }
+}
+
+/**
+ * Handles a real-time preprocessing step event from the backend.
+ *
+ * The backend emits one event per preprocessing step (title_generated, mate_selected,
+ * model_selected) immediately after the single preprocessing LLM call resolves.
+ * Events arrive in a burst. The frontend accumulates non-skipped steps into the
+ * processing overlay as completed step cards, while the spinner advances to the next step.
+ *
+ * Skipped steps (skipped=true) are silently ignored — no card is rendered for them.
+ *
+ * This handler dispatches a global CustomEvent "preprocessingStep" that ActiveChat.svelte
+ * listens for to update processingPhase.completedSteps.
+ *
+ * @param payload - The preprocessing step payload from the WebSocket event.
+ */
+export function handlePreprocessingStepImpl(
+  _serviceInstance: ChatSynchronizationService,
+  payload: PreprocessorStepResult,
+): void {
+  console.debug("[ChatSyncService:AI] Received 'preprocessing_step':", payload);
+
+  // Dispatch a global custom event so ActiveChat.svelte (and any other subscriber)
+  // can update the processing overlay with the new completed step card.
+  window.dispatchEvent(
+    new CustomEvent("preprocessingStep", {
+      detail: payload,
+    }),
+  );
 }

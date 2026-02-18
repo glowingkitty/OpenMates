@@ -795,6 +795,18 @@ async def _async_process_ai_skill_ask_task(
             logger.error(f"[Task ID: {task_id}] CacheService instance is not available. Cannot proceed with preprocessing credit check.")
             raise RuntimeError("CacheService not available for preprocessing.")
 
+        # Build the preprocessing stream channel so the preprocessor can emit real-time step events.
+        # Channel format: preprocessing_stream::{user_id_hash}
+        # The frontend WebSocket listener subscribes to this channel via user_id_hash.
+        # is_new_chat is True when the chat has no title yet (first message in a new chat).
+        # This drives whether the "Generating chat title..." step is shown.
+        preprocessing_stream_channel = (
+            f"preprocessing_stream::{request_data.user_id_hash}"
+            if request_data.user_id_hash and not request_data.is_external
+            else None
+        )
+        is_new_chat_for_preprocessing = not request_data.chat_has_title
+
         preprocessing_result = await handle_preprocessing(
             request_data=request_data, # This now contains chat_has_title boolean flag from the client
             skill_config=skill_config,
@@ -805,7 +817,9 @@ async def _async_process_ai_skill_ask_task(
             encryption_service=encryption_service_instance, # Passed for reuse
             user_app_settings_and_memories_metadata=user_app_memories_metadata,
             discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
-            user_overrides=user_overrides  # Pass user overrides from @ mentioning syntax
+            user_overrides=user_overrides,  # Pass user overrides from @ mentioning syntax
+            preprocessing_stream_channel=preprocessing_stream_channel,  # Channel for real-time step streaming
+            is_new_chat=is_new_chat_for_preprocessing  # Whether title generation step applies
         )
 
         # --- Cache debug data for preprocessing stage ---

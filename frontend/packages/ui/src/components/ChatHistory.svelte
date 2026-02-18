@@ -26,6 +26,9 @@
   } from '../services/chatSyncServiceHandlersAppSettings';
   import type { SuggestedSettingsMemoryEntry } from '../types/apps';
   
+  // Icon component for provider icons in preprocessing step cards
+  import Icon from './Icon.svelte';
+
   // Import the permission dialog component and its store for inline rendering
   // The permission dialog is rendered as part of the chat history (scrollable with messages)
   // rather than as a fixed overlay, so users can scroll while the dialog is visible
@@ -38,6 +41,7 @@
   } from '../stores/appSettingsMemoriesPermissionStore';
   import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
+  import { text } from '@repo/ui'; // For translations (preprocessing step card labels)
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -1308,11 +1312,56 @@
 <!-- AI Status Overlay: Centered status indicator with progressive phase display.
      Positioned absolutely over the scroll container via the wrapper.
      Shows phased status text (Sending -> Processing steps -> Typing) with optional AI icon.
+     During the 'processing' phase, completed preprocessing step cards accumulate above the spinner.
      The AI icon only appears during processing and typing phases (when showIcon=true).
      Fades out entirely when the assistant response begins streaming. -->
 {#if showCenteredIndicator && processingPhase}
     <div class="ai-processing-overlay" transition:fade={{ duration: 200 }}>
         <div class="ai-status-indicator">
+            <!-- Accumulated preprocessing step cards: shown during the 'processing' phase.
+                 Cards appear above the spinner as each step is completed by the backend.
+                 Skipped steps (skipped=true) are never added here.
+                 Each card uses a CSS stagger delay for a visual cascade effect. -->
+            {#if processingPhase.phase === 'processing' && processingPhase.completedSteps.length > 0}
+                <div class="preprocessing-steps-list">
+                    {#each processingPhase.completedSteps as step, idx (step.step)}
+                        <div
+                            class="preprocessing-step-card"
+                            style="animation-delay: {idx * 80}ms"
+                            in:fade={{ duration: 250 }}
+                        >
+                            {#if step.step === 'title_generated' && step.data?.title}
+                                <!-- Chat title card -->
+                                <span class="step-label">{$text('enter_message.preprocessing_step.chat_title_label')}</span>
+                                <span class="step-value step-title">{step.data.title}</span>
+                            {:else if step.step === 'mate_selected' && step.data?.mate_category}
+                                <!-- Mate card: avatar (CSS-driven) + name + description -->
+                                <div class="step-mate-avatar mate-profile {step.data.mate_category}"></div>
+                                <div class="step-mate-info">
+                                    <span class="step-value step-mate-name">{step.data.mate_name ?? ''}</span>
+                                    {#if step.data.mate_description}
+                                        <span class="step-secondary">{step.data.mate_description}</span>
+                                    {/if}
+                                </div>
+                            {:else if step.step === 'model_selected' && step.data?.model_name}
+                                <!-- Model card: provider icon + model name + provider info -->
+                                {#if step.data.provider_icon}
+                                    <div class="step-provider-icon-wrapper">
+                                        <Icon name={step.data.provider_icon} type="provider" size="24px" />
+                                    </div>
+                                {/if}
+                                <div class="step-model-info">
+                                    <span class="step-value step-model-name">{step.data.model_name}</span>
+                                    {#if step.data.provider_name}
+                                        <span class="step-secondary">via {step.data.provider_name}{step.data.server_region ? ' (' + step.data.server_region + ')' : ''}</span>
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+
             <!-- AI icon: only shown when showIcon is true (processing and typing phases) -->
             {#if processingPhase.phase !== 'sending' && processingPhase.showIcon}
                 <div class="ai-processing-icon" transition:fade={{ duration: 300 }}></div>
@@ -1570,5 +1619,103 @@
     100% {
       background-position: -200% 0;
     }
+  }
+
+  /* ─── Preprocessing step cards ──────────────────────────────────────────────
+     These cards accumulate above the spinner during the 'processing' phase as
+     each preprocessing step (title, mate, model) completes on the backend.
+     Cards appear sequentially with a stagger delay via inline style. */
+
+  .preprocessing-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 280px;
+    margin-bottom: 8px;
+  }
+
+  .preprocessing-step-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.1));
+    /* Stagger in with a small fade + slide-up */
+    animation: step-card-in 0.3s ease-out both;
+    animation-delay: inherit; /* filled by inline style */
+  }
+
+  @keyframes step-card-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Mate avatar in step card — inherits .mate-profile category background but smaller */
+  .step-mate-avatar.mate-profile {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  /* Provider icon wrapper in step card */
+  .step-provider-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+  }
+
+  /* Text column for mate/model info */
+  .step-mate-info,
+  .step-model-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  /* Label prefix for title card ("Chat title:") */
+  .step-label {
+    font-size: 0.75rem;
+    color: var(--color-grey-50, #888);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Primary value in step card (title text, mate name, model name) */
+  .step-value {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-grey-70, #ccc);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Title value gets a bit more space */
+  .step-title {
+    max-width: 180px;
+  }
+
+  /* Secondary info (mate description, "via Provider") */
+  .step-secondary {
+    font-size: 0.7rem;
+    color: var(--color-grey-50, #888);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 </style>

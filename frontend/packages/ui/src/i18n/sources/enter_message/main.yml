@@ -525,3 +525,26 @@ message_queued:
   en: Message queued
   de: Nachricht in Warteschlange
   verified_by_human: []
+preprocessing_step.chat_title_label:
+  context: "Label prefix shown in the preprocessing step card when the AI has generated a chat title"
+  en: "Chat title:"
+  de: "Chat-Titel:"
+  zh: "聊天标题："
+  es: "Título del chat:"
+  fr: "Titre du chat :"
+  pt: "Título do chat:"
+  ru: "Заголовок чата:"
+  ja: "チャットタイトル："
+  ko: "채팅 제목:"
+  it: "Titolo chat:"
+  tr: "Sohbet başlığı:"
+  vi: "Tiêu đề chat:"
+  id: "Judul obrolan:"
+  pl: "Tytuł czatu:"
+  nl: "Chattitel:"
+  ar: "عنوان المحادثة:"
+  hi: "चैट शीर्षक:"
+  th: "ชื่อแชท:"
+  cs: "Název chatu:"
+  sv: "Chattitel:"
+  verified_by_human: []

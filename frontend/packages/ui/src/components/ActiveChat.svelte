@@ -13,7 +13,7 @@
     import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { panelState } from '../stores/panelStateStore'; // Added import
-    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase
+    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
@@ -82,7 +82,7 @@
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
-    import { getCategoryGradientColors, getFallbackIconForCategory, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
+    import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
@@ -1982,66 +1982,46 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // ─── Progressive AI Status Indicator ─────────────────────────────────
     // Tracks the current phase of the message processing pipeline for the
     // centered status indicator in ChatHistory.
-    // Lifecycle: sending → processing (timed steps) → typing → null (streaming)
+    // Lifecycle: sending → processing (real-time step cards) → typing → null (streaming)
     let processingPhase = $state<ProcessingPhase>(null);
-    // Timers for the timed step progression during the 'processing' phase.
-    // Cleared when transitioning to typing or when the chat changes.
-    let processingStepTimers: ReturnType<typeof setTimeout>[] = [];
     // Whether the current message being processed is for a new chat (no title yet).
-    // Determines which processing steps to show (new chat includes title generation).
+    // Determines the initial spinner text (new chat starts with "Generating chat title...").
     let isNewChatProcessing = $state(false);
 
     /**
-     * Clear all processing step timers and reset the processing phase.
+     * Clear the processing phase state.
      * Called on chat switch, unmount, error, or when streaming begins.
      */
     function clearProcessingPhase() {
-        for (const timer of processingStepTimers) {
-            clearTimeout(timer);
-        }
-        processingStepTimers = [];
         processingPhase = null;
     }
 
     /**
-     * Start the timed progression of processing step messages.
-     * For new chats: "Generating chat title..." → "Selecting optimal mate..." → "Selecting AI model..."
-     * For existing chats: "Analyzing your message..." → "Selecting AI model..."
-     * Each step transitions after ~1.5s. Steps are frontend-only (the backend does all
-     * preprocessing in a single LLM call). Timers are cleared if ai_typing_started arrives early.
+     * Start the real-time processing phase.
+     *
+     * Sets the initial spinner text immediately (first expected step).
+     * The actual step cards are populated by preprocessingStep WebSocket events
+     * (dispatched by chatSyncService → handlePreprocessingStepImpl as CustomEvents).
+     *
+     * For new chats: first spinner shows "Generating chat title..."
+     * For existing chats: first spinner shows "Analyzing your message..."
+     *
+     * Steps arrive in a burst after the single preprocessing LLM call resolves.
+     * Non-skipped steps are added as completed cards above the spinner.
+     * If events don't arrive, ai_typing_started still fires and transitions the overlay — same as before.
      */
     function startProcessingStepProgression(isNewChat: boolean) {
-        // Clear any existing timers from a previous message
-        for (const timer of processingStepTimers) {
-            clearTimeout(timer);
-        }
-        processingStepTimers = [];
+        // Set the initial spinner text immediately
+        const initialText = isNewChat
+            ? $text('enter_message.status.generating_title')
+            : $text('enter_message.status.analyzing_message');
 
-        const steps: { text: string; delay: number }[] = isNewChat
-            ? [
-                { text: $text('enter_message.status.generating_title'), delay: 0 },
-                { text: $text('enter_message.status.selecting_mate'), delay: 1500 },
-                { text: $text('enter_message.status.selecting_model'), delay: 3000 },
-              ]
-            : [
-                { text: $text('enter_message.status.analyzing_message'), delay: 0 },
-                { text: $text('enter_message.status.selecting_model'), delay: 1500 },
-              ];
-
-        for (const step of steps) {
-            if (step.delay === 0) {
-                // Set the first step immediately
-                processingPhase = { phase: 'processing', statusLines: [step.text], showIcon: true };
-            } else {
-                const timer = setTimeout(() => {
-                    // Only update if still in processing phase (not already transitioned to typing/null)
-                    if (processingPhase?.phase === 'processing') {
-                        processingPhase = { phase: 'processing', statusLines: [step.text], showIcon: true };
-                    }
-                }, step.delay);
-                processingStepTimers.push(timer);
-            }
-        }
+        processingPhase = {
+            phase: 'processing',
+            statusLines: [initialText],
+            showIcon: true,
+            completedSteps: [],
+        };
     }
 
     // Track if the message input has content (draft) using $state
@@ -5279,13 +5259,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Ensure the centered indicator is cleared (in case it was somehow active)
                     clearProcessingPhase();
                 } else {
-                    // Clear processing step timers and show the typing indicator with mate/model info.
-                    // This replaces the timed steps with the actual mate and model information from the server.
-                    for (const timer of processingStepTimers) {
-                        clearTimeout(timer);
-                    }
-                    processingStepTimers = [];
-                    
+                    // Transition to typing phase with mate/model info from the server.
+                    // This replaces the processing overlay (step cards + spinner) with the typing indicator.
                     // Build the typing phase with resolved text lines:
                     //   Line 1: "{mate} is typing..."
                     //   Line 2: model display name (e.g., "Gemini 3 Flash")
@@ -5384,6 +5359,54 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
         chatSyncService.addEventListener('messageDeleted', messageDeletedHandler);
+
+        // ─── Real-time preprocessing step events ─────────────────────────────────────────
+        // The backend emits preprocessing_step events (title_generated, mate_selected,
+        // model_selected) after the single preprocessing LLM call resolves.
+        // handlePreprocessingStepImpl in chatSyncServiceHandlersAI.ts dispatches these as
+        // "preprocessingStep" CustomEvents on window. We listen here to update the
+        // processingPhase.completedSteps array with each non-skipped step card.
+        const preprocessingStepHandler = ((event: CustomEvent<PreprocessorStepResult>) => {
+            const step = event.detail;
+            console.debug('[ActiveChat] preprocessingStep event received', step);
+
+            // Only update if we're still in the processing phase (not yet typing or null)
+            if (processingPhase?.phase !== 'processing') return;
+
+            // Skipped steps are silently ignored — no card rendered
+            if (step.skipped) {
+                console.debug('[ActiveChat] Skipping preprocessing step (skipped=true):', step.step);
+                return;
+            }
+
+            // Advance the spinner text to the next expected step
+            const nextStepText = (() => {
+                switch (step.step) {
+                    case 'title_generated':
+                        return $text('enter_message.status.selecting_mate');
+                    case 'mate_selected':
+                        return $text('enter_message.status.selecting_model');
+                    case 'model_selected':
+                        // All preprocessing done — spinner shows "Sophia is typing..." placeholder
+                        // until ai_typing_started arrives with the real mate name
+                        return $text('enter_message.status.analyzing_message');
+                    default:
+                        return processingPhase.statusLines[0];
+                }
+            })();
+
+            // Accumulate this completed step and advance the spinner
+            processingPhase = {
+                phase: 'processing',
+                statusLines: [nextStepText],
+                showIcon: true,
+                completedSteps: [...processingPhase.completedSteps, step],
+            };
+
+            console.debug('[ActiveChat] Processing phase updated with completed step:', step.step, '| completedSteps count:', processingPhase.completedSteps.length);
+        }) as EventListenerCallback;
+
+        window.addEventListener('preprocessingStep', preprocessingStepHandler);
         
         // STREAM INTERRUPTION RECOVERY: When the WebSocket reconnects after a disconnect
         // that interrupted an active AI stream, finalize any streaming messages in the current
@@ -5651,6 +5674,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListenerCallback);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('messageDeleted', messageDeletedHandler);
+            window.removeEventListener('preprocessingStep', preprocessingStepHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListenerCallback);
             chatSyncService.removeEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
             chatSyncService.removeEventListener('embedUpdated', embedUpdatedHandler);

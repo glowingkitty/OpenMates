@@ -19,22 +19,46 @@ export type MessageStatus =
 export type MessageRole = "user" | "assistant" | "system"; // Added system for potential future use
 
 /**
+ * A single completed preprocessing step result received from the backend.
+ * Steps with skipped=true are NOT rendered — they are silently omitted.
+ * Only non-skipped steps accumulate into the completed steps overlay cards.
+ *
+ * step: "title_generated" | "mate_selected" | "model_selected"
+ *
+ * data for title_generated: { title: string }
+ * data for mate_selected:   { mate_id, mate_name, mate_description, mate_category }
+ * data for model_selected:  { model_name, model_id, provider_name, provider_icon, server_region }
+ */
+export interface PreprocessorStepResult {
+  step: "title_generated" | "mate_selected" | "model_selected";
+  skipped: boolean;
+  skip_reason?: string | null;
+  data?: Record<string, string | null | undefined>;
+}
+
+/**
  * Processing phase for the centered AI status indicator in ChatHistory.
  * Tracks the current stage of the message processing pipeline to show
  * progressive status updates to the user.
  *
- * Lifecycle: sending → processing → typing → null (streaming started)
+ * Lifecycle: sending → processing (with accumulated step cards) → typing → null (streaming started)
  *
  * - sending: Message being sent to server. No AI icon, only status text.
- * - processing: Backend is preprocessing. AI icon + timed step text.
- *   `statusLines` contains the resolved translated text for the current step.
+ * - processing: Backend is preprocessing. AI icon + spinner + current step text.
+ *   `completedSteps` accumulates non-skipped step result cards above the spinner.
+ *   `currentStep` is the i18n key for the step currently being processed.
  * - typing: Backend preprocessing done, AI is about to stream.
  *   `statusLines` contains mate name + powered-by info as separate lines.
  * - null: Streaming started or no active processing.
  */
 export type ProcessingPhase =
   | { phase: "sending"; statusLines: string[] }
-  | { phase: "processing"; statusLines: string[]; showIcon: boolean }
+  | {
+      phase: "processing";
+      statusLines: string[];
+      showIcon: boolean;
+      completedSteps: PreprocessorStepResult[];
+    }
   | { phase: "typing"; statusLines: string[]; showIcon: boolean }
   | null;
 
@@ -428,6 +452,8 @@ export interface SendEmbedDataPayload {
     file_path?: string; // For code/file embeds
     content_hash?: string; // SHA256 hash for deduplication
     text_length_chars?: number; // Character count for text-based embeds (LLM compression decision)
+    encryption_mode?: string; // "client" | "vault" — controls how embed is encrypted/stored
+    vault_key_id?: string; // Key ID for server-managed (Vault) encryption
   };
 }
 // --- End AI Task and Stream related event payloads ---

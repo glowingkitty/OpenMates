@@ -46,6 +46,7 @@ from backend.core.api.app.services.s3.service import S3UploadService  # noqa: E4
 from backend.core.api.app.services.payment.payment_service import PaymentService  # noqa: E402 # Import PaymentService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService  # noqa: E402 # Import InvoiceNinjaService
 from backend.core.api.app.services.stripe_product_sync import StripeProductSync  # noqa: E402 # Import StripeProductSync
+from backend.core.api.app.services.polar_product_sync import PolarProductSync  # noqa: E402 # Import PolarProductSync
 from backend.core.api.app.services.translations import TranslationService  # noqa: E402 # Import TranslationService for resolving app metadata translations
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402 # Add import for SecretManager
@@ -78,7 +79,8 @@ from backend.core.api.app.routes.websockets import (  # noqa: E402
     listen_for_ai_typing_indicator_events, # Added import
     listen_for_chat_updates, # Added import
     listen_for_user_updates,
-    listen_for_embed_data_events
+    listen_for_embed_data_events,
+    listen_for_preprocessing_streams,  # Real-time preprocessing step events for animated overview
 )
 
 # Load environment variables
@@ -709,6 +711,31 @@ async def lifespan(app: FastAPI):
             except Exception as sync_error:
                 logger.warning(f"Stripe product synchronization encountered an error: {str(sync_error)}")
                 # Don't fail startup, just log the warning
+            # Synchronize Polar products with pricing configuration (only if Polar is available)
+            if app.state.payment_service._polar_provider is not None:
+                logger.info("Initializing Polar Product Sync service...")
+                try:
+                    polar_product_sync = PolarProductSync(app.state.payment_service._polar_provider)
+                    polar_product_id_map = await polar_product_sync.sync_all_products()
+                    if polar_product_id_map:
+                        app.state.payment_service._polar_provider.set_product_id_map(polar_product_id_map)
+                        logger.info(
+                            f"Polar product synchronization complete. "
+                            f"{len(polar_product_id_map)} product(s) mapped."
+                        )
+                    else:
+                        logger.warning(
+                            "Polar product sync returned an empty map. "
+                            "Polar credit purchases will fail until credentials are set in Vault."
+                        )
+                except Exception as polar_sync_err:
+                    logger.warning(
+                        f"Polar product sync encountered an error: {polar_sync_err}. "
+                        f"Non-EU credit purchases may be unavailable."
+                    )
+            else:
+                logger.info("Skipping Polar product sync (Polar provider not initialized).")
+
         else:
             logger.info("Skipping Payment service initialization (payment disabled - self-hosted mode)")
             app.state.stripe_product_sync = None
@@ -963,6 +990,9 @@ async def lifespan(app: FastAPI):
 
     logger.info("Starting Redis Pub/Sub listener for embed data events as a background task...")
     app.state.embed_data_listener_task = asyncio.create_task(listen_for_embed_data_events(app))
+
+    logger.info("Starting Redis Pub/Sub listener for preprocessing step events as a background task...")
+    app.state.preprocessing_stream_listener_task = asyncio.create_task(listen_for_preprocessing_streams(app))
 
     yield  # This is where FastAPI serves requests
     

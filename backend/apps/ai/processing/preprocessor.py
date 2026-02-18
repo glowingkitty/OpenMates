@@ -271,6 +271,51 @@ def _get_insufficient_credits_error_message() -> str:
     return "You don't have enough credits to complete this request. Please buy more credits or activate auto top-up with a valid payment method."
 
 
+async def _emit_preprocessing_step(
+    cache_service: CacheService,
+    channel: str,
+    step: str,
+    skipped: bool,
+    user_id_uuid: Optional[str] = None,
+    skip_reason: Optional[str] = None,
+    data: Optional[Dict[str, Any]] = None,
+    log_prefix: str = ""
+) -> None:
+    """
+    Emits a preprocessing step event to the Redis channel for real-time UI streaming.
+
+    Each step event allows the frontend to show exactly what the preprocessor selected
+    (title, mate, model) or why a step was skipped (user override, existing chat, etc.).
+
+    Args:
+        cache_service: CacheService instance for publishing Redis events.
+        channel: Redis channel (preprocessing_stream::{user_id_hash}).
+        step: Step name: "title_generated", "mate_selected", or "model_selected".
+        skipped: True if this step was skipped (do not render a card in the UI).
+        user_id_uuid: The user's UUID for WebSocket routing by the API server listener.
+        skip_reason: Why skipped: "existing_chat", "user_override", or "predefined".
+        data: Step-specific result data (title, mate info, model info).
+        log_prefix: Prefix for log messages.
+    """
+    payload: Dict[str, Any] = {
+        "type": "preprocessing_step",
+        "step": step,
+        "skipped": skipped,
+        "user_id_uuid": user_id_uuid,
+    }
+    if skip_reason:
+        payload["skip_reason"] = skip_reason
+    if data:
+        payload["data"] = data
+
+    try:
+        await cache_service.publish_event(channel, payload)
+        logger.debug(f"{log_prefix} Emitted preprocessing_step '{step}' (skipped={skipped}) to channel '{channel}'")
+    except Exception as e:
+        # Non-fatal: UI streaming failure should not abort the main flow
+        logger.warning(f"{log_prefix} Failed to emit preprocessing_step '{step}': {e}")
+
+
 async def handle_preprocessing(
     request_data: AskSkillRequest,
     base_instructions: Dict[str, Any],
@@ -281,10 +326,17 @@ async def handle_preprocessing(
     encryption_service: EncryptionService, # Added EncryptionService for reuse
     user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
     discovered_apps_metadata: Optional[Dict[str, AppYAML]] = None,  # AppYAML metadata for tool preselection
-    user_overrides: Optional[UserOverrides] = None  # User overrides from @ mentioning syntax
+    user_overrides: Optional[UserOverrides] = None,  # User overrides from @ mentioning syntax
+    preprocessing_stream_channel: Optional[str] = None,  # Redis channel for real-time step events
+    is_new_chat: bool = False  # True if this is the first message in a new chat (no title yet)
 ) -> PreprocessingResult:
     """
     Handles the preprocessing of an AI skill request.
+
+    After the main LLM call resolves, emits real-time step events via Redis to the
+    preprocessing_stream_channel so the frontend can display each preprocessing step
+    as it completes (title generated, mate selected, model selected).
+    Steps that are skipped (e.g., user override, existing chat) are not shown.
 
     Args:
         request_data: The AskSkillRequest Pydantic model.
@@ -295,6 +347,8 @@ async def handle_preprocessing(
         secrets_manager: Instance of SecretsManager.
         directus_service: Instance of DirectusService for reuse.
         encryption_service: Instance of EncryptionService for reuse.
+        preprocessing_stream_channel: Redis channel for publishing real-time preprocessing step events.
+        is_new_chat: True if this is the first message (title generation step applies).
 
     Returns:
         PreprocessingResult: A Pydantic model containing the results of the preprocessing.
@@ -1681,4 +1735,176 @@ async def handle_preprocessing(
     )
     
     logger.info(f"{log_prefix} Preprocessing finished.")
+
+    # --- Emit real-time preprocessing step events ---
+    # These events allow the frontend to display a step-by-step animated overview of what
+    # the preprocessor decided: title generated, mate selected, model selected.
+    # Each step is only shown when it actually ran — skipped steps are silently omitted.
+    # Steps are published in sequence after the full result is assembled so the data is correct.
+    if preprocessing_stream_channel and cache_service:
+        try:
+            # user_id_uuid is included in all step events so the WebSocket listener can
+            # route the event to the correct user via ConnectionManager without a hash lookup.
+            user_id_uuid_for_events = request_data.user_id
+
+            # Step 1: Chat title (only relevant for new chats)
+            if not is_new_chat:
+                # Existing chat: title generation step was skipped — emit but frontend will not render it
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="title_generated",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    skip_reason="existing_chat",
+                    log_prefix=log_prefix
+                )
+            elif final_result.title:
+                # New chat and title was generated
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="title_generated",
+                    skipped=False,
+                    user_id_uuid=user_id_uuid_for_events,
+                    data={"title": final_result.title},
+                    log_prefix=log_prefix
+                )
+            else:
+                # New chat but no title returned (unexpected) — still skip gracefully
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="title_generated",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    skip_reason="no_title_returned",
+                    log_prefix=log_prefix
+                )
+
+            # Step 2: Mate selection
+            # Skipped if user provided @mate: override or request_data had an explicit mate_id
+            mate_was_user_override = bool(user_overrides and user_overrides.mate_id)
+            mate_was_predefined = bool(request_data.mate_id and not mate_was_user_override)
+            if mate_was_user_override or mate_was_predefined:
+                skip_reason_mate = "user_override" if mate_was_user_override else "predefined"
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="mate_selected",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    skip_reason=skip_reason_mate,
+                    log_prefix=log_prefix
+                )
+            elif final_result.selected_mate_id and final_result.category:
+                # Find the selected mate's details for the frontend card
+                selected_mate_config = next(
+                    (mate for mate in all_mates if mate.id == final_result.selected_mate_id),
+                    None
+                )
+                if selected_mate_config:
+                    await _emit_preprocessing_step(
+                        cache_service=cache_service,
+                        channel=preprocessing_stream_channel,
+                        step="mate_selected",
+                        skipped=False,
+                        user_id_uuid=user_id_uuid_for_events,
+                        data={
+                            "mate_id": selected_mate_config.id,
+                            "mate_name": selected_mate_config.name,
+                            "mate_description": selected_mate_config.description,
+                            "mate_category": selected_mate_config.category,
+                        },
+                        log_prefix=log_prefix
+                    )
+                else:
+                    # Mate config not found — skip silently
+                    await _emit_preprocessing_step(
+                        cache_service=cache_service,
+                        channel=preprocessing_stream_channel,
+                        step="mate_selected",
+                        skipped=True,
+                        user_id_uuid=user_id_uuid_for_events,
+                        skip_reason="mate_config_not_found",
+                        log_prefix=log_prefix
+                    )
+            else:
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="mate_selected",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    skip_reason="no_mate_selected",
+                    log_prefix=log_prefix
+                )
+
+            # Step 3: Model selection
+            # Skipped if user provided @ai-model: or @best-model: override
+            model_was_user_override = bool(model_override_applied)
+            if model_was_user_override:
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="model_selected",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    skip_reason="user_override",
+                    log_prefix=log_prefix
+                )
+            elif final_result.selected_main_llm_model_id and final_result.selected_main_llm_model_name:
+                # Resolve provider display name and region from the selected model
+                model_provider_name: Optional[str] = None
+                model_server_region: Optional[str] = None
+                model_provider_icon: Optional[str] = None
+                try:
+                    if "/" in final_result.selected_main_llm_model_id:
+                        provider_id_part = final_result.selected_main_llm_model_id.split("/")[0]
+                        provider_config = config_manager.get_provider_config(provider_id_part)
+                        if provider_config:
+                            # Find the best server (first available or default)
+                            servers = getattr(provider_config, "servers", None)
+                            if servers and isinstance(servers, list) and len(servers) > 0:
+                                default_server = servers[0]
+                                model_provider_name = getattr(default_server, "name", None) or provider_id_part
+                                model_server_region = getattr(default_server, "region", None)
+                                model_provider_icon = provider_id_part
+                            else:
+                                model_provider_name = provider_id_part
+                                model_provider_icon = provider_id_part
+                except Exception as e_provider:
+                    logger.debug(f"{log_prefix} Could not resolve provider info for step event: {e_provider}")
+
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="model_selected",
+                    skipped=False,
+                    user_id_uuid=user_id_uuid_for_events,
+                    data={
+                        "model_name": final_result.selected_main_llm_model_name,
+                        "model_id": final_result.selected_main_llm_model_id,
+                        "provider_name": model_provider_name,
+                        "provider_icon": model_provider_icon,
+                        "server_region": model_server_region,
+                    },
+                    log_prefix=log_prefix
+                )
+            else:
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="model_selected",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    skip_reason="no_model_selected",
+                    log_prefix=log_prefix
+                )
+
+            logger.debug(f"{log_prefix} All preprocessing step events emitted to '{preprocessing_stream_channel}'")
+        except Exception as e_stream:
+            # Streaming events are non-fatal — log and continue
+            logger.warning(f"{log_prefix} Error emitting preprocessing step events (non-fatal): {e_stream}", exc_info=True)
+
     return final_result

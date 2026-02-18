@@ -848,6 +848,84 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
             await asyncio.sleep(1)
 
 
+async def listen_for_preprocessing_streams(app: FastAPI):
+    """
+    Listens to Redis Pub/Sub for preprocessing step events.
+
+    The AI task worker emits a 'preprocessing_step' event for each completed step
+    (title_generated, mate_selected, model_selected) immediately after the preprocessing
+    LLM call resolves. These events are forwarded to the relevant user's WebSocket so
+    the frontend can display a real-time animated overview of the preprocessing steps.
+
+    Skipped steps (e.g., user override, existing chat) are emitted with skipped=True
+    and are silently ignored by the frontend — no card is rendered for them.
+
+    Channel: preprocessing_stream::{user_id_hash}
+    Client event name: preprocessing_step
+    """
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. Preprocessing stream listener cannot start.")
+        return
+
+    cache_service: CacheService = app.state.cache_service
+    logger.debug("Starting Redis Pub/Sub listener for preprocessing step events (channel: preprocessing_stream::*)...")
+
+    await cache_service.client  # Ensure connection
+
+    async for message in cache_service.subscribe_to_channel("preprocessing_stream::*"):
+        logger.debug(f"Preprocessing Stream Listener: Raw message from pubsub: {message}")
+        try:
+            if message and isinstance(message.get("data"), dict):
+                redis_payload = message["data"]
+                redis_channel_name = message.get("channel", "")
+
+                if redis_payload.get("type") != "preprocessing_step":
+                    logger.debug(f"Preprocessing Stream Listener: Skipping unexpected event type '{redis_payload.get('type')}' on channel '{redis_channel_name}'.")
+                    continue
+
+                # Extract user_id_uuid from channel name: preprocessing_stream::{user_id_hash}
+                # We need the UUID to route via ConnectionManager, stored on app.state
+                # Channel carries the hash; we use a reverse-lookup via a separate payload field.
+                # The payload from the preprocessor does NOT carry user_id_uuid directly,
+                # so we resolve it from the channel hash via the ConnectionManager.
+                channel_parts = redis_channel_name.split("::")
+                user_id_hash = channel_parts[1] if len(channel_parts) >= 2 else None
+
+                if not user_id_hash:
+                    logger.warning(f"Preprocessing Stream Listener: Could not extract user_id_hash from channel '{redis_channel_name}'. Skipping.")
+                    continue
+
+                # Resolve user_id_uuid from hash via ConnectionManager
+                user_id_uuid = manager.get_user_id_by_hash(user_id_hash)
+                if not user_id_uuid:
+                    logger.debug(f"Preprocessing Stream Listener: No active WebSocket connection for user_id_hash '{user_id_hash}'. Skipping.")
+                    continue
+
+                # Forward the step event directly to the client
+                client_payload = {
+                    "step": redis_payload.get("step"),
+                    "skipped": redis_payload.get("skipped", False),
+                    "skip_reason": redis_payload.get("skip_reason"),
+                    "data": redis_payload.get("data"),
+                }
+
+                await manager.broadcast_to_user_specific_event(
+                    user_id=user_id_uuid,
+                    event_name="preprocessing_step",
+                    payload=client_payload
+                )
+                logger.debug(f"Preprocessing Stream Listener: Forwarded 'preprocessing_step' (step={redis_payload.get('step')}, skipped={redis_payload.get('skipped')}) to user {user_id_uuid}")
+
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"Preprocessing Stream Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                logger.debug(f"Preprocessing Stream Listener: Received non-data message or confirmation: {message}")
+
+        except Exception as e:
+            logger.error(f"Preprocessing Stream Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1)
+
+
 async def listen_for_chat_updates(app: FastAPI):
     """Listens to Redis Pub/Sub for chat update events like title changes."""
     if not hasattr(app.state, 'cache_service'):
