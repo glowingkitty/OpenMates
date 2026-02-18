@@ -750,6 +750,82 @@ services:
       retries: 3
       start_period: 30s # Give app time to start before first healthcheck
 
+  #########################################################################
+  ##### FILE UPLOADS SERVICE
+  #########################################################################
+  app-uploads:
+    container_name: app-uploads
+    build:
+      context: ../../
+      dockerfile: backend/apps/uploads/Dockerfile
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      UPLOADS_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      VAULT_URL: "http://vault:8200"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      CORE_API_URL: "http://api:8000"
+      CLAMAV_HOST: "clamav"
+      CLAMAV_PORT: "3310"
+      SIGHTENGINE_API_USER: "${SIGHTENGINE_API_USER}"
+      SIGHTENGINE_API_SECRET: "${SIGHTENGINE_API_SECRET}"
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT:-development}"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - vault-setup-data:/vault-data
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Extra time for ClamAV startup verification
+
+  #########################################################################
+  ##### CLAMAV MALWARE SCANNER
+  #########################################################################
+  clamav:
+    container_name: clamav
+    image: clamav/clamav-debian:stable
+    restart: unless-stopped
+    environment:
+      CLAMAV_NO_FRESHCLAMD: "false" # Enable virus database auto-updates
+      CLAMAV_NO_CLAMD: "false" # Enable ClamAV daemon
+      CLAMAV_NO_MILTERD: "true" # Disable milter (mail filter, not needed)
+    volumes:
+      - clamav-db:/var/lib/clamav # Persist virus database across restarts
+    networks:
+      - openmates
+    healthcheck:
+      # clamdcheck.sh is provided by the official clamav image
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 120s # ClamAV takes 60-90s to load virus DB on first start
+
   app-reminder:
     container_name: app-reminder
     build:
@@ -1266,3 +1342,5 @@ volumes:
     name: openmates-celerybeat-schedule-data
   preview-cache: # Used by preview server in this stack
     name: openmates-preview-cache
+  clamav-db: # Persistent ClamAV virus database (avoids re-downloading on restart)
+    name: openmates-clamav-db

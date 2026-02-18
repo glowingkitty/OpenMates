@@ -54,6 +54,18 @@
 	@health_path path /health /v1/health /v1/health/* /v1/server # Health check and server info endpoints (public, no auth required)
 	@options_method method OPTIONS # Renamed for clarity
 
+	# --- FILE UPLOADS SERVICE MATCHERS ---
+	# Uploads service (app-uploads) runs as a separate microservice.
+	# Replace <UPLOADS_UPSTREAM> with its host:port (e.g. localhost:8004 or app-uploads:8000).
+	@uploads_options {
+		path /api/uploads/*
+		method OPTIONS
+	}
+	@uploads_actual {
+		path /api/uploads/*
+		not method OPTIONS
+	}
+
 	# --- PUBLIC DEVELOPER API MATCHERS ---
 	# These routes are authenticated via API keys (Authorization: Bearer sk-api-...) in the backend
 	# No Origin check required - external developers access from various clients/servers
@@ -284,7 +296,23 @@
 			}
 		}
 
-		# 10. Abort all other requests not explicitly handled above
+		# 10. Handle File Upload service OPTIONS preflight
+		handle @uploads_options {
+			reverse_proxy <UPLOADS_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 11. Handle File Upload service requests (strip /api/uploads prefix before forwarding)
+		handle @uploads_actual {
+			encode gzip zstd
+			uri strip_prefix /api/uploads
+			reverse_proxy <UPLOADS_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 12. Abort all other requests not explicitly handled above
 		# This ensures that only defined paths are accessible.
 		handle {
 			abort

@@ -204,6 +204,17 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       tableResult += "| Data     | Data     |";
       return tableResult;
 
+    case "image":
+      // User-uploaded images: serialized as embed references when contentRef is set
+      // (contentRef is set by handleSend after storing TOON content in EmbedStore)
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify({ type: "image", embed_id }, null, 2);
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // No contentRef yet (e.g. still uploading, or legacy static image) — omit
+      return "";
+
     default:
       // Check if this is a group type that can be handled by a group handler
       if (attrs.type.endsWith("-group")) {

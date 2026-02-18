@@ -44,6 +44,19 @@ api.dev.openmates.org {
 	@revolut_webhook path /v1/payments/webhook # Matcher for Revolut webhook
 	@websocket_path path /v1/ws* # Matcher for WebSocket paths (to exclude from compression)
 
+	# --- FILE UPLOADS SERVICE MATCHERS ---
+	# Uploads service runs as a separate microservice (app-uploads) on localhost:8004.
+	# All upload requests require authentication (validated internally via X-Refresh-Token).
+	# Only allow requests from the webapp origin (same-site cookie forwarding).
+	@uploads_options {
+		path /api/uploads/*
+		method OPTIONS
+	}
+	@uploads_actual {
+		path /api/uploads/*
+		not method OPTIONS
+	}
+
 	# --- PUBLIC DEVELOPER API MATCHERS ---
 	# These routes are authenticated via API keys (Authorization: Bearer sk-api-...) in the backend
 	# No Origin check required - external developers access from various clients/servers
@@ -289,7 +302,27 @@ api.dev.openmates.org {
 			}
 		}
 
-		# 11. Abort all other requests not explicitly handled above
+		# 11. Handle File Upload service OPTIONS preflight from webapp origin
+		# Pass through to the uploads service FastAPI CORSMiddleware
+		handle @uploads_options {
+			reverse_proxy localhost:8004 {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 12. Handle File Upload service requests from webapp origin
+		# The uploads service authenticates via the auth_refresh_token cookie
+		# (forwarded automatically as a same-site cookie by the browser).
+		# Strip the /api/uploads prefix before forwarding (the service routes as /v1/...).
+		handle @uploads_actual {
+			encode gzip zstd
+			uri strip_prefix /api/uploads
+			reverse_proxy localhost:8004 {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 13. Abort all other requests not explicitly handled above
 		# This ensures that only defined paths are accessible.
 		handle {
 			abort

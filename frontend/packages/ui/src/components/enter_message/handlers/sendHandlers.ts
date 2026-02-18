@@ -289,6 +289,132 @@ export async function handleSend(
     return;
   }
 
+  // UPLOAD GUARD: Block sending while any image embed is still uploading.
+  // Embeds with status 'uploading' are not yet ready — their S3 keys and AES
+  // keys have not been returned by the server yet, so we can't build TOON content.
+  // The embed node is updated to status 'finished' by _performUpload() on completion.
+  let hasUploadingEmbeds = false;
+  editor.view.state.doc.descendants((node) => {
+    if (node.type.name === "embed" && node.attrs.status === "uploading") {
+      hasUploadingEmbeds = true;
+      return false; // Stop traversal
+    }
+    return true;
+  });
+  if (hasUploadingEmbeds) {
+    notificationStore.warning(
+      "Please wait for your images to finish uploading.",
+    );
+    return;
+  }
+
+  // =========================================================================
+  // UPLOADED IMAGE EMBED REGISTRATION
+  // For each 'image' embed that has been successfully uploaded (status: 'finished',
+  // uploadEmbedId present), build a TOON content object and store it in EmbedStore.
+  // This sets contentRef on the node so serializeEmbedToMarkdown can emit a proper
+  // embed reference: ```json\n{"type":"image","embed_id":"..."}\n```
+  // =========================================================================
+  try {
+    const { encode: toonEncode } = await import("@toon-format/toon");
+    const { embedStore } = await import("../../../services/embedStore");
+
+    // Collect nodes that need contentRef set
+    interface UploadedImageNode {
+      attrs: Record<string, unknown>;
+    }
+    const uploadedImageNodes: UploadedImageNode[] = [];
+    editor.view.state.doc.descendants((node) => {
+      if (
+        node.type.name === "embed" &&
+        node.attrs.type === "image" &&
+        node.attrs.status === "finished" &&
+        node.attrs.uploadEmbedId &&
+        !node.attrs.contentRef // Not yet registered
+      ) {
+        uploadedImageNodes.push({ attrs: { ...node.attrs } });
+      }
+      return true;
+    });
+
+    for (const { attrs } of uploadedImageNodes) {
+      const uploadEmbedId = attrs.uploadEmbedId as string;
+
+      // Build TOON content mirroring the images/generate embed structure so that
+      // existing image crypto utilities (fetchAndDecryptImage) can decrypt and
+      // display the image. The images.view skill also expects this shape.
+      const embedContent = {
+        app_id: "images",
+        skill_id: "upload",
+        type: "image",
+        status: "finished",
+        filename: attrs.filename || null,
+        content_hash: attrs.contentHash || null,
+        s3_base_url: attrs.s3BaseUrl || null,
+        files: attrs.s3Files || null,
+        aes_key: attrs.aesKey || null,
+        aes_nonce: attrs.aesNonce || null,
+        vault_wrapped_aes_key: attrs.vaultWrappedAesKey || null,
+        ai_detection: attrs.aiDetection || null,
+      };
+
+      let toonContent: string;
+      try {
+        toonContent = toonEncode(embedContent);
+      } catch {
+        toonContent = JSON.stringify(embedContent);
+      }
+
+      const now = Date.now();
+      const textPreview = (attrs.filename as string) || "Uploaded image";
+
+      // Store in EmbedStore — will be encrypted and sent with the message payload
+      await embedStore.put(
+        `embed:${uploadEmbedId}`,
+        {
+          embed_id: uploadEmbedId,
+          type: "images-image", // Frontend type for uploaded user images
+          status: "finished",
+          content: toonContent,
+          text_preview: textPreview,
+          createdAt: now,
+          updatedAt: now,
+        },
+        "images-image",
+      );
+
+      console.debug(
+        `[handleSend] Registered uploaded image embed ${uploadEmbedId} in EmbedStore`,
+      );
+
+      // Update the embed node's contentRef so the serializer emits a proper embed reference
+      const { state, dispatch } = editor.view;
+      const tr = state.tr;
+      state.doc.descendants((node, nodePos) => {
+        if (
+          node.type.name === "embed" &&
+          node.attrs.uploadEmbedId === uploadEmbedId
+        ) {
+          tr.setNodeMarkup(nodePos, undefined, {
+            ...node.attrs,
+            contentRef: `embed:${uploadEmbedId}`,
+          });
+          return false;
+        }
+        return true;
+      });
+      dispatch(tr);
+    }
+  } catch (embedRegError) {
+    console.error(
+      "[handleSend] Error registering uploaded image embeds:",
+      embedRegError,
+    );
+    // Non-fatal: message will still send but image embeds may not be stored correctly.
+    // Surface the error so it's visible (no silent failures).
+    throw embedRegError;
+  }
+
   // Get the TipTap editor content as JSON
   const editorContent = editor.getJSON();
   if (

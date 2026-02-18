@@ -107,6 +107,106 @@ def get_payment_service(request: Request) -> PaymentService:
 
 # --- Endpoint Implementations ---
 
+
+# ---------------------------------------------------------------------------
+# Token validation endpoint (used by app-uploads microservice)
+# ---------------------------------------------------------------------------
+
+class ValidateTokenResponse(BaseModel):
+    """Response model for token validation (returned to internal services)."""
+    user_id: str
+    vault_key_id: str
+    username: str
+
+
+@router.get("/validate-token", response_model=ValidateTokenResponse)
+async def validate_token_route(
+    request: Request,
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> ValidateTokenResponse:
+    """
+    Validate a user's refresh token and return their user_id and vault_key_id.
+
+    Called by the app-uploads microservice to authenticate upload requests
+    without duplicating auth logic. The refresh token is forwarded from the
+    client's cookie via the X-Refresh-Token header.
+
+    Security:
+    - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes).
+    - The refresh token is never logged.
+    - Returns 401 if the token is missing, invalid, or the user is not found.
+    """
+    # Read the refresh token forwarded from the uploads service
+    refresh_token = request.headers.get("X-Refresh-Token")
+    if not refresh_token:
+        logger.warning("[ValidateToken] Missing X-Refresh-Token header in internal request")
+        raise HTTPException(status_code=401, detail="Missing refresh token")
+
+    # Check cache first (same path as auth_dependencies.get_current_user)
+    cached_data = await cache_service.get_user_by_token(refresh_token)
+
+    if cached_data:
+        user_id = cached_data.get("user_id")
+        vault_key_id = cached_data.get("vault_key_id")
+        username = cached_data.get("username", "")
+
+        if not user_id or not vault_key_id:
+            logger.error(
+                f"[ValidateToken] Cached user data missing required fields: "
+                f"user_id={bool(user_id)}, vault_key_id={bool(vault_key_id)}"
+            )
+            raise HTTPException(status_code=401, detail="Invalid or incomplete user session")
+
+        logger.debug(f"[ValidateToken] Token validated from cache for user {user_id[:8]}...")
+        return ValidateTokenResponse(
+            user_id=user_id,
+            vault_key_id=vault_key_id,
+            username=username,
+        )
+
+    # Not in cache — validate token via Directus then fetch user profile
+    # (same flow as auth_dependencies.get_current_user)
+    try:
+        success, token_data = await directus_service.validate_token(refresh_token)
+    except Exception as e:
+        logger.error(f"[ValidateToken] Error validating token against Directus: {e}", exc_info=True)
+        raise HTTPException(status_code=401, detail="Token validation failed")
+
+    if not success or not token_data:
+        logger.warning("[ValidateToken] Token rejected by Directus")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user_id = token_data.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token data: Missing user ID")
+
+    # Fetch full user profile for vault_key_id
+    try:
+        profile_success, user_data, profile_message = await directus_service.get_user_profile(user_id)
+    except Exception as e:
+        logger.error(f"[ValidateToken] Error fetching user profile for {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch user profile")
+
+    if not profile_success or not user_data:
+        logger.error(f"[ValidateToken] Could not fetch profile for user {user_id}: {profile_message}")
+        raise HTTPException(status_code=500, detail="Could not fetch user data")
+
+    vault_key_id = user_data.get("vault_key_id")
+    username = user_data.get("username", "")
+
+    if not vault_key_id:
+        logger.error(f"[ValidateToken] vault_key_id missing for user {user_id}")
+        raise HTTPException(status_code=500, detail="User account incomplete: missing encryption key")
+
+    logger.info(f"[ValidateToken] Token validated via Directus for user {user_id[:8]}...")
+    return ValidateTokenResponse(
+        user_id=user_id,
+        vault_key_id=vault_key_id,
+        username=username,
+    )
+
+
 @router.get("/config/provider_model_pricing/{provider_id}/{model_id_suffix}")
 async def get_provider_model_pricing_route(
     provider_id: str,

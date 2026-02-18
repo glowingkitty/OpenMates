@@ -1,0 +1,28 @@
+# backend/apps/uploads/requirements.txt
+#
+# Requirements for the uploads microservice.
+# Includes core API deps plus uploads-specific packages.
+
+# --- Core framework (same as core API) ---
+fastapi==0.128.0
+uvicorn[standard]==0.40.0
+pydantic==2.11.3
+httpx==0.28.1
+python-dotenv==1.1.0
+redis==5.2.1
+slowapi==0.1.9
+python-json-logger==3.3.0
+pyyaml==6.0.2
+aiohttp==3.13.3
+boto3==1.37.18
+python-multipart==0.0.22
+cryptography==46.0.5
+toon-format @ git+https://github.com/toon-format/toon-python.git
+
+# --- Uploads-specific ---
+# Image processing (resizing, WEBP conversion, preview generation)
+Pillow==12.1.1
+# ClamAV daemon client via TCP socket
+pyclamd==0.4.0
+# MIME type detection (uses libmagic under the hood)
+python-magic==0.4.27
