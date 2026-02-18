@@ -1,11 +1,14 @@
 // Image renderer for static SVG images AND user-uploaded images in the message editor.
 //
-// Handles two sub-types of the 'image' embed:
-//   1. Static/SVG images (legal documents): attrs.url is set, attrs.src is absent.
-//   2. User-uploaded images: attrs.src (blob URL) is set, and attrs.status tracks
-//      the upload lifecycle ('uploading' | 'finished' | 'error').
+// Handles THREE sub-types of the 'image' embed:
+//   1. User-uploaded images (editor context): attrs.src (blob URL) is set.
+//      Shows local preview + upload state overlay (uploading/error/finished).
+//   2. User-uploaded images (read-only context): attrs.src is absent but S3 data
+//      (attrs.s3Files, attrs.aesKey, etc.) is present. Mounts ImageEmbedPreview.svelte
+//      which fetches and decrypts the image from S3.
+//   3. Static/SVG images (legal documents): attrs.url is set, no upload data.
 //
-// For uploaded images the renderer shows:
+// For uploaded images in editor context (Case 1):
 //   - status 'uploading': local blob preview + dimmed overlay + spinner
 //   - status 'error': local blob preview + dimmed overlay + error message
 //   - status 'finished': local blob preview at full opacity (embed ready to send)
@@ -17,6 +20,11 @@
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
+import { mount, unmount } from "svelte";
+import ImageEmbedPreview from "../../../embeds/images/ImageEmbedPreview.svelte";
+
+// Track mounted Svelte components for cleanup
+const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 
 /**
  * Extended attrs type for image embeds that includes upload-specific fields.
@@ -64,7 +72,7 @@ export class ImageRenderer implements EmbedRenderer {
     const attrs = context.attrs as ImageEmbedAttrs;
 
     // -----------------------------------------------------------------------
-    // Case 1: User-uploaded image (has src blob URL from insertImage())
+    // Case 1: User-uploaded image in editor context (has src blob URL)
     // -----------------------------------------------------------------------
     if (attrs.src) {
       this._renderUploadedImage(content, attrs);
@@ -72,13 +80,26 @@ export class ImageRenderer implements EmbedRenderer {
     }
 
     // -----------------------------------------------------------------------
-    // Case 2: Static/SVG image (legacy, from legal documents)
+    // Case 2: User-uploaded image in read-only context (src is absent because
+    // blob URLs don't survive serialization, but S3 data is present).
+    // Mount ImageEmbedPreview.svelte which fetches+decrypts from S3.
+    // -----------------------------------------------------------------------
+    if (attrs.s3Files && attrs.aesKey) {
+      this._renderS3Image(content, attrs);
+      return;
+    }
+
+    // -----------------------------------------------------------------------
+    // Case 3: Static/SVG image (legacy, from legal documents)
     // -----------------------------------------------------------------------
     const imageUrl = (attrs as EmbedNodeAttributes).url;
     const altText = attrs.filename || attrs.title || "Image";
 
     if (!imageUrl) {
-      console.warn("[ImageRenderer] No URL or src provided for image embed");
+      console.warn(
+        "[ImageRenderer] No URL, src, or S3 data for image embed:",
+        attrs,
+      );
       content.innerHTML =
         '<div class="image-error">Image URL not available</div>';
       return;
@@ -247,6 +268,78 @@ export class ImageRenderer implements EmbedRenderer {
     }
   }
 
+  /**
+   * Renders a user-uploaded image in read-only context by mounting ImageEmbedPreview.svelte.
+   * Used when attrs.src (blob URL) is absent but S3 data is present — this happens when
+   * a sent/received message is rendered in ReadOnlyMessage.svelte and the blob URL from
+   * the original upload session has been discarded during serialization.
+   */
+  private _renderS3Image(content: HTMLElement, attrs: ImageEmbedAttrs): void {
+    // Cleanup any previously mounted component on this element
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[ImageRenderer] Error unmounting existing S3 preview:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const handleFullscreen = () => {
+        // Fire imagefullscreen event so ActiveChat.svelte can open UploadedImageFullscreen
+        content.dispatchEvent(
+          new CustomEvent("imagefullscreen", {
+            bubbles: true,
+            composed: true,
+            detail: {
+              src: undefined,
+              filename: attrs.filename,
+              s3Files: attrs.s3Files,
+              s3BaseUrl: attrs.s3BaseUrl,
+              aesKey: attrs.aesKey,
+              aesNonce: attrs.aesNonce,
+            },
+          }),
+        );
+      };
+
+      const component = mount(ImageEmbedPreview, {
+        target: content,
+        props: {
+          id: attrs.id || "",
+          filename: attrs.filename,
+          status: (attrs.status || "finished") as
+            | "uploading"
+            | "processing"
+            | "finished"
+            | "error",
+          s3Files: attrs.s3Files,
+          s3BaseUrl: attrs.s3BaseUrl,
+          aesKey: attrs.aesKey,
+          aesNonce: attrs.aesNonce,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[ImageRenderer] Mounted ImageEmbedPreview for S3 image:", {
+        filename: attrs.filename,
+        hasS3Files: !!attrs.s3Files,
+      });
+    } catch (error) {
+      console.error("[ImageRenderer] Error mounting ImageEmbedPreview:", error);
+      // Fallback: show a simple placeholder rather than the confusing "URL not available" error
+      content.innerHTML = `<div class="image-error-fallback" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>`;
+    }
+  }
+
   toMarkdown(attrs: EmbedNodeAttributes): string {
     const extended = attrs as ImageEmbedAttrs;
     const url = attrs.url || extended.src || "";
@@ -255,7 +348,8 @@ export class ImageRenderer implements EmbedRenderer {
   }
 
   update(context: EmbedRenderContext): boolean {
-    // Re-render when attrs change (e.g. status transitions uploading → finished → error)
+    // Re-render when attrs change (e.g. status transitions uploading → finished → error).
+    // For S3 image case, _renderS3Image handles unmounting the old component before mounting.
     this.render(context);
     return true;
   }

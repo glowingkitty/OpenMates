@@ -1,13 +1,6 @@
 import type { Editor } from "@tiptap/core";
-import {
-  insertVideo,
-  insertCodeFile,
-  insertImage,
-  insertFile,
-  insertAudio,
-  insertEpub,
-} from "./embedHandlers"; // Import the new embed handlers
-import { isVideoFile, isCodeOrTextFile, isEpubFile } from "./utils"; // Import necessary utils
+import { insertCodeFile, insertImage } from "./embedHandlers"; // Only images and code/text files are accepted via the upload button
+import { isCodeOrTextFile } from "./utils"; // Import necessary utils
 
 // File size limits (consider moving to a config file later)
 const FILE_SIZE_LIMITS = {
@@ -45,14 +38,10 @@ export async function processFiles(
       continue; // Skip this file
     }
 
-    editor.commands.focus("end"); // Focus before inserting
-
-    // Determine file type and call appropriate insertion function
-    if (isVideoFile(file)) {
-      await insertVideo(editor, file, undefined, false);
-    } else if (isCodeOrTextFile(file.name)) {
-      await insertCodeFile(editor, file);
-    } else if (file.type.startsWith("image/")) {
+    // Only images and code/text files are supported via the upload button.
+    // All other file types (video, audio, PDF, EPUB, etc.) are silently skipped.
+    if (file.type.startsWith("image/")) {
+      editor.commands.focus("end");
       // Pass isAuthenticated — unauthenticated users get demo mode (local preview only)
       await insertImage(
         editor,
@@ -62,19 +51,15 @@ export async function processFiles(
         undefined,
         isAuthenticated,
       );
-    } else if (file.type === "application/pdf") {
-      await insertFile(editor, file, "pdf");
-    } else if (file.type.startsWith("audio/")) {
-      await insertAudio(editor, file);
-    } else if (isEpubFile(file)) {
-      await insertEpub(editor, file);
+    } else if (isCodeOrTextFile(file.name)) {
+      editor.commands.focus("end");
+      await insertCodeFile(editor, file);
     } else {
-      // Fallback for other file types
-      await insertFile(editor, file, "file");
+      // Unsupported file type — skip silently
+      console.warn(
+        `[FileHandlers] Skipping unsupported file type: ${file.type || "unknown"} (${file.name})`,
+      );
     }
-
-    // Add a space after inserting the embed node
-    // editor.commands.insertContent(' '); // This is handled within insert functions now
   }
 }
 

@@ -61,7 +61,6 @@
         type MateMentionResult
     } from './services/mentionSearchService';
     import {
-        processFiles,
         handleDrop as handleFileDrop,
         handleDragOver as handleFileDragOver,
         handleDragLeave as handleFileDragLeave,
@@ -2291,7 +2290,18 @@
             await tick(); hasContent = !isContentEmptyExceptMention(editor);
         }
     }
-    function handleFileSelect() { fileInput.multiple = true; fileInput.click(); }
+    function handleFileSelect() {
+        // Cancel any pending blur timeout so the action buttons stay visible after the
+        // OS file picker opens. Without this, the editor blur fires before the file picker
+        // opens and collapses the action buttons bar.
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        isMessageFieldFocused = true;
+        fileInput.multiple = true;
+        fileInput.click();
+    }
     function handleSendMessage() {
         // Flush any debounced heavy parsing so originalMarkdown is fully up-to-date
         if (editor && !editor.isDestroyed) {
@@ -2631,7 +2641,8 @@
             ></button>
         {/if}
 
-        <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="*/*" />
+        <!-- Only images and code/text files are supported. Extensions mirror isCodeOrTextFile() in utils/fileHelpers.ts. -->
+        <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.py,.js,.ts,.html,.css,.json,.svelte,.java,.cpp,.c,.h,.hpp,.rs,.go,.rb,.php,.swift,.kt,.txt,.md,.xml,.yaml,.yml,.sh,.bash,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,Dockerfile" />
         <input bind:this={cameraInput} type="file" accept="image/*,video/*" capture="environment" onchange={onFileSelected} style="display: none" />
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>

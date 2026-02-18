@@ -1,3 +1,55 @@
+view:
+  context: Skill name shown on uploaded image embed card in read-only message display
+  en: Image
+  de: Bild
+  zh: 图片
+  es: Imagen
+  fr: Image
+  pt: Imagem
+  ru: Изображение
+  ja: 画像
+  ko: 이미지
+  it: Immagine
+  tr: Görsel
+  vi: Hình ảnh
+  id: Gambar
+  pl: Obraz
+  nl: Afbeelding
+  ar: صورة
+  hi: छवि
+  th: รูปภาพ
+  cs: Obrázek
+  sv: Bild
+  verified_by_human:
+    - en
+    - de
+
+view.description:
+  context: Description shown below the skill name on uploaded image embed card
+  en: Uploaded image
+  de: Hochgeladenes Bild
+  zh: 已上传的图片
+  es: Imagen subida
+  fr: Image téléversée
+  pt: Imagem carregada
+  ru: Загруженное изображение
+  ja: アップロードした画像
+  ko: 업로드한 이미지
+  it: Immagine caricata
+  tr: Yüklenen görsel
+  vi: Hình ảnh đã tải lên
+  id: Gambar yang diunggah
+  pl: Przesłany obraz
+  nl: Geüploade afbeelding
+  ar: صورة مرفوعة
+  hi: अपलोड की गई छवि
+  th: รูปภาพที่อัปโหลด
+  cs: Nahraný obrázek
+  sv: Uppladdad bild
+  verified_by_human:
+    - en
+    - de
+
 generate:
   context: Skill name for image generation
   en: Generate
