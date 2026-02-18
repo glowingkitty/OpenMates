@@ -1415,6 +1415,73 @@ async def handle_preprocessing(
         # If user_app_settings_and_memories_metadata is None/empty, we can't validate, so keep as-is
         # (The system will handle missing keys gracefully)
 
+    # --- Force-include @memory / @memory-entry mentioned keys ---
+    # When the user explicitly mentions a settings/memory category or entry via @memory or
+    # @memory-entry syntax, those keys MUST be loaded regardless of what the preprocessing LLM
+    # decided. The LLM may under-select (or skip entirely) when it misclassifies the request
+    # (e.g. "general_knowledge" / "simple"), but an explicit mention is an unambiguous user intent
+    # and must always be honoured.
+    #
+    # Key format used by the cache/main-processor is "app_id:item_key" (colon separator).
+    #
+    # @memory:travel:trips:list  -> override key "travel:trips"
+    # @memory-entry:code:preferred_technologies:abc123 -> override key "code:preferred_technologies"
+    #   (individual entries still live under the same category cache key; the main processor
+    #    fetches the whole category and the LLM uses only the relevant entries from it)
+    if user_overrides:
+        forced_memory_keys: List[str] = []
+
+        # @memory:app_id:memory_id:type  → force-load category "app_id:memory_id"
+        for app_id, memory_id, _memory_type in (user_overrides.memory_categories or []):
+            forced_key = f"{app_id}:{memory_id}"
+            forced_memory_keys.append(forced_key)
+
+        # @memory-entry:app_id:category_id:entry_id → force-load category "app_id:category_id"
+        # (the whole category is the granularity of a cache entry; the specific entry lives inside)
+        for app_id, category_id, _entry_id in (user_overrides.memory_entries or []):
+            forced_key = f"{app_id}:{category_id}"
+            forced_memory_keys.append(forced_key)
+
+        if forced_memory_keys:
+            # Validate forced keys against what the client says is actually available, to avoid
+            # requesting non-existent categories (which would stall the main processor).
+            if user_app_settings_and_memories_metadata:
+                available_keys_set = {
+                    f"{app_id}:{item_key}"
+                    for app_id, item_keys in user_app_settings_and_memories_metadata.items()
+                    for item_key in item_keys
+                }
+                invalid_forced = [k for k in forced_memory_keys if k not in available_keys_set]
+                forced_memory_keys = [k for k in forced_memory_keys if k in available_keys_set]
+                if invalid_forced:
+                    logger.warning(
+                        f"{log_prefix} USER_OVERRIDE: @memory mention(s) reference keys that are "
+                        f"not in the available metadata and will be skipped: {invalid_forced}. "
+                        f"Available: {list(available_keys_set)}"
+                    )
+
+            # Merge: start from LLM-validated list and add any missing forced keys (preserve order)
+            existing_set = set(load_app_settings_and_memories_val)
+            added_keys = []
+            for key in forced_memory_keys:
+                if key not in existing_set:
+                    load_app_settings_and_memories_val.append(key)
+                    existing_set.add(key)
+                    added_keys.append(key)
+
+            if added_keys:
+                llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
+                logger.info(
+                    f"{log_prefix} USER_OVERRIDE: Force-added {len(added_keys)} app settings/memories "
+                    f"key(s) from explicit @memory mention(s): {added_keys}. "
+                    f"Final load list: {load_app_settings_and_memories_val}"
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} USER_OVERRIDE: @memory mention(s) referenced keys already in "
+                    f"LLM-selected list; no additions needed. Keys: {forced_memory_keys}"
+                )
+
     # --- Validate relevant_embedded_previews field ---
     # This list specifies which types of embedded previews to prepare for in the main LLM response
     relevant_embedded_previews_val = llm_analysis_args.get("relevant_embedded_previews", [])
