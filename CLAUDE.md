@@ -67,6 +67,7 @@ OpenMates/
 
 - **NEVER create pull requests** unless the user explicitly asks for one. No exceptions.
 - **NEVER merge branches** unless the user explicitly asks for it.
+- **NEVER create or publish GitHub releases** unless the user explicitly asks for one — exception: when the user asks to create a PR, also preparing a draft release as part of that workflow is permitted.
 - These actions affect production and other developers — they require clear, unambiguous user intent.
 
 ### Logging Rule

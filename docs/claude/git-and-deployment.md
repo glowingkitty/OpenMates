@@ -85,6 +85,7 @@ vercel inspect --logs <deployment-url> 2>&1 | tail -80
 ```
 
 **Key rules:**
+
 - **Always wait ~150 seconds** before checking — checking too early wastes time and gives misleading results
 - **Never curl the site** to check if deployment is ready — use `vercel ls` which shows the actual build status
 - **If the status is "● Error"**, fix the build error, commit, push, and repeat the full wait-and-check cycle
@@ -158,6 +159,8 @@ git log main --oneline -10
 
 ## Creating Pull Requests
 
+**IMPORTANT: Only create a PR when the user explicitly asks for one.** Never create a PR on your own initiative.
+
 ### Branch Comparison (CRITICAL)
 
 When comparing branches (e.g., for a PR from `dev` to `main`), **ALWAYS use remote refs** (`origin/main`, `origin/dev`) — never local branch refs (`main`, `dev`). Local refs can be stale and produce wildly incorrect commit counts.
@@ -175,11 +178,202 @@ git log main..dev --oneline
 
 ### PR Workflow
 
-1. Run `git fetch origin` to update remote refs
-2. Use `git rev-list --left-right --count origin/main...origin/dev` to verify commit count
-3. Use `git log origin/main..origin/dev` (with `origin/` prefix) for full commit history
-4. Categorize commits and create a comprehensive PR summary
-5. Create the PR via `gh pr create --base main --head dev`
+Follow these steps in order:
+
+**Step 1 — Fetch and verify**
+
+```bash
+git fetch origin
+git rev-list --left-right --count origin/main...origin/dev
+# Confirm the commit count makes sense before proceeding
+```
+
+**Step 2 — Analyze all commits**
+
+```bash
+# Get a quick overview
+git log origin/main..origin/dev --oneline
+
+# Then read all full commit messages
+git log origin/main..origin/dev --format="%h %s%n%b"
+```
+
+Read every commit message carefully. Group them by type:
+
+- **Features** (`feat:`) — new functionality visible to users or developers
+- **Bug fixes** (`fix:`) — issues that were resolved
+- **Improvements** (`refactor:`, `perf:`, `style:`) — internal improvements
+- **Other** (`docs:`, `chore:`, `build:`, `ci:`, `test:`) — maintenance changes
+
+**Step 3 — Write the PR description**
+
+Write a human-readable PR description (not just a commit list). Structure it as:
+
+```markdown
+## Summary
+
+<2-4 sentence overview of what this PR does and why>
+
+## Features
+
+- <feature 1>
+- <feature 2>
+
+## Bug Fixes
+
+- <fix 1>
+- <fix 2>
+
+## Other Changes
+
+- <refactor, docs, chore items>
+```
+
+Only include sections that have content. Write for a developer audience — be specific and clear.
+
+**Step 4 — Create the PR**
+
+```bash
+gh pr create --base main --head dev --title "<short descriptive title>" --body "$(cat <<'EOF'
+<PR description here>
+EOF
+)"
+```
+
+**Step 5 — Prepare a draft release**
+
+After the PR is created, immediately prepare a draft GitHub release (see "Creating Releases" section below). The draft release will be published after the PR is merged into `main`.
+
+---
+
+## Creating Releases
+
+**IMPORTANT: Only create a release when the user explicitly asks for one**, OR as part of a PR workflow when the user asked to create a PR. Never create a release on your own initiative at other times.
+
+Releases are always created as **drafts** targeting `main` and marked as **pre-release** (while in alpha). They are published after the PR is merged.
+
+### Versioning Guidelines
+
+OpenMates uses **semantic versioning** in the format `vMAJOR.MINOR.PATCH-phase`:
+
+| Phase  | Example        | When to use                                                                             |
+| ------ | -------------- | --------------------------------------------------------------------------------------- |
+| Alpha  | `v0.5.0-alpha` | Core features still being built; significant bugs expected; not ready for general users |
+| Beta   | `v1.0.0-beta`  | Core features complete; usable for a wider audience; known bugs being fixed             |
+| Stable | `v1.0.0`       | Production-ready; all major user flows work reliably                                    |
+
+**Current phase:** Alpha — the app is currently at **v0.4 alpha** (user-facing version string). The next release tag should be `v0.5.0-alpha` (or a patch like `v0.4.1-alpha` for fix-only releases).
+
+**How to bump the version:**
+
+- **Patch** (`v0.4.0-alpha` → `v0.4.1-alpha`): bug fixes only, no new features
+- **Minor** (`v0.4.x-alpha` → `v0.5.0-alpha`): new features added or significant changes
+- **Major / phase change** (`v0.x-alpha` → `v1.0.0-beta`): when core user flows are stable and the app is ready for a broader audience — **always confirm with the user before doing this**
+
+**How to determine the next version:**
+
+```bash
+# Check current latest release tag on GitHub
+gh release list --limit 5
+
+# Or check git tags
+git tag --sort=-v:refname | head -5
+```
+
+Inspect the commits going into the PR and decide:
+
+- Mostly `fix:` commits → patch bump (e.g. `v0.4.0-alpha` → `v0.4.1-alpha`)
+- Any `feat:` commits → minor bump (e.g. `v0.4.1-alpha` → `v0.5.0-alpha`)
+- Major milestone reached → consult the user before bumping major or changing phase
+
+**Note:** Also update the user-facing version string in the i18n source file when bumping the minor version:
+`frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` key.
+After editing that file, regenerate the locale JSON files (see `docs/claude/i18n.md`).
+
+### Release Workflow
+
+**Step 1 — Determine the next version tag**
+
+```bash
+gh release list --limit 3   # see current latest tag
+```
+
+Decide on the next tag (e.g. `v0.5.0-alpha`) based on the versioning rules above.
+
+**Step 2 — Write release notes**
+
+Write human-readable release notes aimed at **users and contributors** (not just a commit dump). Use the PR description as input but write in a more public-facing tone. Structure:
+
+```markdown
+## What's new in <version>
+
+<1-3 sentence overview of the release>
+
+## Features
+
+- <user-facing description of feature 1>
+- <user-facing description of feature 2>
+
+## Bug Fixes
+
+- <what was broken and is now fixed>
+
+## Improvements
+
+- <notable internal improvements that affect user experience>
+```
+
+Keep it concise. Skip purely internal changes (`chore:`, `ci:`, `build:`) unless they affect users.
+
+**Step 3 — Create a draft pre-release**
+
+```bash
+gh release create <tag> \
+  --target main \
+  --title "<tag>" \
+  --notes "$(cat <<'EOF'
+<release notes here>
+EOF
+)" \
+  --draft \
+  --prerelease
+```
+
+Example:
+
+```bash
+gh release create v0.5.0-alpha \
+  --target main \
+  --title "v0.5.0-alpha" \
+  --notes "$(cat <<'EOF'
+## What's new in v0.5.0-alpha
+
+This release adds support for X and fixes several issues with Y.
+
+## Features
+- Added support for ...
+
+## Bug Fixes
+- Fixed an issue where ...
+EOF
+)" \
+  --draft \
+  --prerelease
+```
+
+**Step 4 — Report back to the user**
+
+After creating the PR and the draft release, tell the user:
+
+- The PR URL
+- The draft release tag/URL
+- That the draft release should be **published after the PR is merged into `main`**
+
+The user publishes the release manually after merging, or can ask you to publish it:
+
+```bash
+gh release edit <tag> --draft=false
+```
 
 ---
 
