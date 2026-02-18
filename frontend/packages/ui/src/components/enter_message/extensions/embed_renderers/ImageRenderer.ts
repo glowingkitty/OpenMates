@@ -2,21 +2,19 @@
 //
 // Handles THREE sub-types of the 'image' embed:
 //   1. User-uploaded images (editor context): attrs.src (blob URL) is set.
-//      Shows local preview + upload state overlay (uploading/error/finished).
+//      Mounts ImageEmbedPreview.svelte passing src, so the card shows the local blob
+//      preview with an uploading spinner or error overlay.
 //   2. User-uploaded images (read-only context): attrs.src is absent but S3 data
 //      (attrs.s3Files, attrs.aesKey, etc.) is present. Mounts ImageEmbedPreview.svelte
 //      which fetches and decrypts the image from S3.
 //   3. Static/SVG images (legal documents): attrs.url is set, no upload data.
 //
-// For uploaded images in editor context (Case 1):
-//   - status 'uploading': local blob preview + dimmed overlay + spinner
-//   - status 'error': local blob preview + dimmed overlay + error message
-//   - status 'finished': local blob preview at full opacity (embed ready to send)
+// Cases 1 and 2 both use _renderImageComponent() which mounts ImageEmbedPreview.svelte.
+// The component handles all states internally based on the props it receives.
 //
 // Fullscreen click (uploaded images, status 'finished' only):
-//   Clicking the image fires a 'imagefullscreen' CustomEvent (bubbles) on the img
-//   element with the embed attrs as detail. MessageInput.svelte catches this and
-//   re-dispatches it up to ActiveChat.svelte which mounts UploadedImageFullscreen.
+//   onFullscreen() → fires 'imagefullscreen' CustomEvent (bubbles) on the content element
+//   → MessageInput.svelte re-dispatches to ActiveChat.svelte → UploadedImageFullscreen.
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
@@ -72,20 +70,13 @@ export class ImageRenderer implements EmbedRenderer {
     const attrs = context.attrs as ImageEmbedAttrs;
 
     // -----------------------------------------------------------------------
-    // Case 1: User-uploaded image in editor context (has src blob URL)
+    // Cases 1 & 2: User-uploaded image — editor context (has src blob URL)
+    // OR read-only context (src absent, S3 data present).
+    // Both cases mount ImageEmbedPreview.svelte; it handles the rendering
+    // logic internally based on which props are set.
     // -----------------------------------------------------------------------
-    if (attrs.src) {
-      this._renderUploadedImage(content, attrs);
-      return;
-    }
-
-    // -----------------------------------------------------------------------
-    // Case 2: User-uploaded image in read-only context (src is absent because
-    // blob URLs don't survive serialization, but S3 data is present).
-    // Mount ImageEmbedPreview.svelte which fetches+decrypts from S3.
-    // -----------------------------------------------------------------------
-    if (attrs.s3Files && attrs.aesKey) {
-      this._renderS3Image(content, attrs);
+    if (attrs.src || (attrs.s3Files && attrs.aesKey)) {
+      this._renderImageComponent(content, attrs);
       return;
     }
 
@@ -139,150 +130,30 @@ export class ImageRenderer implements EmbedRenderer {
     }
   }
 
-  /** Renders an uploaded image with upload-state overlay. */
-  private _renderUploadedImage(
+  /**
+   * Mounts ImageEmbedPreview.svelte for a user-uploaded image.
+   *
+   * Covers both contexts:
+   *   - Editor context: attrs.src (blob URL) is set. The component shows the local
+   *     preview image with uploading/error overlays as appropriate.
+   *   - Read-only context: attrs.src is absent but S3 data is present. The component
+   *     lazy-fetches and decrypts the image from S3.
+   *
+   * Cleans up any previously mounted Svelte component before mounting a new one
+   * to handle status-change re-renders (e.g. uploading → finished).
+   */
+  private _renderImageComponent(
     content: HTMLElement,
     attrs: ImageEmbedAttrs,
   ): void {
-    const status = attrs.status || "finished";
-    const isUploading = status === "uploading";
-    const isError = status === "error";
-    const isFinished = status === "finished";
-    const opacity = isUploading ? "0.45" : "1";
-    // Only allow fullscreen click once the upload is done and S3 data is available
-    const isClickable = isFinished && !!attrs.s3Files && !!attrs.aesKey;
-    const altText = attrs.filename || "Image";
-    const errorMsg = attrs.uploadError || "Upload failed";
-
-    // Build spinner / error icon HTML
-    let overlayHtml = "";
-    if (isUploading) {
-      overlayHtml = `
-        <div class="img-upload-overlay">
-          <div class="img-upload-spinner"></div>
-          <span class="img-upload-label">Uploading\u2026</span>
-        </div>`;
-    } else if (isError) {
-      overlayHtml = `
-        <div class="img-upload-overlay img-upload-overlay--error">
-          <span class="img-upload-error-icon">!</span>
-          <span class="img-upload-label">${errorMsg}</span>
-        </div>`;
-    }
-
-    content.innerHTML = `
-      <div class="img-upload-wrapper${isClickable ? " img-upload-wrapper--clickable" : ""}">
-        <img
-          src="${attrs.src}"
-          alt="${altText}"
-          class="img-upload-preview"
-          style="
-            max-width: 300px;
-            max-height: 200px;
-            width: auto;
-            height: auto;
-            display: block;
-            border-radius: 20px;
-            opacity: ${opacity};
-            transition: opacity 0.2s ease;
-            object-fit: cover;
-            ${isClickable ? "cursor: zoom-in;" : ""}
-          "
-        />
-        ${overlayHtml}
-      </div>
-      <style>
-        .img-upload-wrapper {
-          position: relative;
-          display: inline-block;
-        }
-        .img-upload-overlay {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          border-radius: 20px;
-          pointer-events: none;
-        }
-        .img-upload-label {
-          font-size: 0.72rem;
-          font-weight: 500;
-          color: #fff;
-          text-shadow: 0 1px 3px rgba(0,0,0,0.6);
-          letter-spacing: 0.02em;
-        }
-        .img-upload-spinner {
-          width: 26px;
-          height: 26px;
-          border: 3px solid rgba(255,255,255,0.4);
-          border-top-color: #fff;
-          border-radius: 50%;
-          animation: img-spin 0.75s linear infinite;
-        }
-        @keyframes img-spin { to { transform: rotate(360deg); } }
-        .img-upload-error-icon {
-          width: 26px;
-          height: 26px;
-          border-radius: 50%;
-          background: rgba(220,38,38,0.85);
-          color: #fff;
-          font-size: 1rem;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          line-height: 1;
-        }
-        .img-upload-wrapper--clickable:hover .img-upload-preview {
-          opacity: 0.92;
-        }
-      </style>
-    `;
-
-    // Attach fullscreen click handler for finished uploads.
-    // Fires a bubbling CustomEvent so MessageInput.svelte can relay it to ActiveChat.
-    if (isClickable) {
-      const imgEl = content.querySelector(".img-upload-preview");
-      if (imgEl) {
-        imgEl.addEventListener("click", (e) => {
-          e.stopPropagation();
-          imgEl.dispatchEvent(
-            new CustomEvent("imagefullscreen", {
-              bubbles: true,
-              composed: true,
-              detail: {
-                src: attrs.src,
-                filename: attrs.filename,
-                s3Files: attrs.s3Files,
-                s3BaseUrl: attrs.s3BaseUrl,
-                aesKey: attrs.aesKey,
-                aesNonce: attrs.aesNonce,
-              },
-            }),
-          );
-        });
-      }
-    }
-  }
-
-  /**
-   * Renders a user-uploaded image in read-only context by mounting ImageEmbedPreview.svelte.
-   * Used when attrs.src (blob URL) is absent but S3 data is present — this happens when
-   * a sent/received message is rendered in ReadOnlyMessage.svelte and the blob URL from
-   * the original upload session has been discarded during serialization.
-   */
-  private _renderS3Image(content: HTMLElement, attrs: ImageEmbedAttrs): void {
-    // Cleanup any previously mounted component on this element
+    // Unmount any existing component on this DOM node
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
       try {
         unmount(existingComponent);
       } catch (e) {
         console.warn(
-          "[ImageRenderer] Error unmounting existing S3 preview:",
+          "[ImageRenderer] Error unmounting existing image preview:",
           e,
         );
       }
@@ -292,13 +163,15 @@ export class ImageRenderer implements EmbedRenderer {
 
     try {
       const handleFullscreen = () => {
-        // Fire imagefullscreen event so ActiveChat.svelte can open UploadedImageFullscreen
+        // Bubble imagefullscreen event so ActiveChat.svelte can open UploadedImageFullscreen.
+        // Use the blob URL (src) when available (editor context), otherwise undefined
+        // (read-only context — ActiveChat will fetch from S3 for the fullscreen view).
         content.dispatchEvent(
           new CustomEvent("imagefullscreen", {
             bubbles: true,
             composed: true,
             detail: {
-              src: undefined,
+              src: attrs.src,
               filename: attrs.filename,
               s3Files: attrs.s3Files,
               s3BaseUrl: attrs.s3BaseUrl,
@@ -319,6 +192,8 @@ export class ImageRenderer implements EmbedRenderer {
             | "processing"
             | "finished"
             | "error",
+          src: attrs.src,
+          uploadError: attrs.uploadError,
           s3Files: attrs.s3Files,
           s3BaseUrl: attrs.s3BaseUrl,
           aesKey: attrs.aesKey,
@@ -329,13 +204,14 @@ export class ImageRenderer implements EmbedRenderer {
       });
 
       mountedComponents.set(content, component);
-      console.debug("[ImageRenderer] Mounted ImageEmbedPreview for S3 image:", {
+      console.debug("[ImageRenderer] Mounted ImageEmbedPreview:", {
         filename: attrs.filename,
+        status: attrs.status,
+        hasSrc: !!attrs.src,
         hasS3Files: !!attrs.s3Files,
       });
     } catch (error) {
       console.error("[ImageRenderer] Error mounting ImageEmbedPreview:", error);
-      // Fallback: show a simple placeholder rather than the confusing "URL not available" error
       content.innerHTML = `<div class="image-error-fallback" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>`;
     }
   }

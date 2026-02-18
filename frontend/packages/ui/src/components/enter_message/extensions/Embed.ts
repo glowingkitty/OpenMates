@@ -402,6 +402,36 @@ export const Embed = Node.create<EmbedOptions>({
           return { "data-group-count": attributes.groupCount.toString() };
         },
       },
+      // -----------------------------------------------------------------------
+      // Image upload ephemeral attributes — in-memory only, NOT persisted to DOM.
+      // These are set by insertImage() and _performUpload() in embedHandlers.ts.
+      // rendered: false means TipTap keeps them in the ProseMirror document but
+      // never writes them to the HTML (no parseHTML / renderHTML needed).
+      // -----------------------------------------------------------------------
+      /** Local blob URL for instant preview while uploading. Only valid for the
+       *  duration of the upload session — not serialized to HTML. */
+      src: { default: null, rendered: false },
+      /** Original object URL before any processing (unused currently, reserved) */
+      originalUrl: { default: null, rendered: false },
+      /** S3 file variant metadata returned by the upload server.
+       *  Shape: { preview, full, original } each with s3_key, width, height, etc. */
+      s3Files: { default: null, rendered: false },
+      /** S3 base URL for constructing full image fetch URLs */
+      s3BaseUrl: { default: null, rendered: false },
+      /** Plaintext AES-256 key (base64) for client-side image decryption */
+      aesKey: { default: null, rendered: false },
+      /** AES-GCM nonce (base64) shared across all encrypted image variants */
+      aesNonce: { default: null, rendered: false },
+      /** Vault-wrapped AES key (base64) for server-side key storage */
+      vaultWrappedAesKey: { default: null, rendered: false },
+      /** Error message set by _performUpload() when the upload fails */
+      uploadError: { default: null, rendered: false },
+      /** Unique upload correlation ID set by insertImage() */
+      uploadEmbedId: { default: null, rendered: false },
+      /** AI detection/moderation result returned by the upload server */
+      aiDetection: { default: null, rendered: false },
+      /** The original File object (only in editor session, not serialized) */
+      originalFile: { default: null, rendered: false },
     };
   },
 
