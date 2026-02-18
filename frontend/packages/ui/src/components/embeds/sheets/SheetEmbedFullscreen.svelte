@@ -526,6 +526,11 @@
   .col-header-text {
     overflow: hidden;
     text-overflow: ellipsis;
+    /* Allow header text to be selected/copied */
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
   }
   
   .sort-icon {
@@ -600,6 +605,11 @@
   
   .spreadsheet tbody td {
     color: #202124;
+    /* Allow text selection so users can copy cell content */
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
   }
   
   /* Subtle alternating row colour for readability */

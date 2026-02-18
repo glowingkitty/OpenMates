@@ -63,6 +63,13 @@ OpenMates/
 - Explain key architecture decisions in comments
 - Link to relevant architecture docs where appropriate
 
+### Auto-Commit After Every Task (CRITICAL)
+
+- **ALWAYS commit and push to `dev` after completing a feature or bug fix** — do not wait for the user to ask.
+- Only add files you actually modified in the current session (never `git add .`).
+- Run the linter and fix all errors before committing.
+- See `docs/claude/git-and-deployment.md` for commit message format and full workflow.
+
 ### Explicit Consent Required for Destructive/External Actions
 
 - **NEVER create pull requests** unless the user explicitly asks for one. No exceptions.
