@@ -21,6 +21,7 @@ import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.sve
 import NewsSearchEmbedPreview from "../../../embeds/news/NewsSearchEmbedPreview.svelte";
 import VideosSearchEmbedPreview from "../../../embeds/videos/VideosSearchEmbedPreview.svelte";
 import MapsSearchEmbedPreview from "../../../embeds/maps/MapsSearchEmbedPreview.svelte";
+import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
 import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptEmbedPreview.svelte";
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
@@ -171,6 +172,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For videos search, render using Svelte component
       if (appId === "videos" && skillId === "search") {
         return this.renderVideosSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For maps location (user-selected location pin), render using Svelte component
+      if (appId === "maps" && skillId === "location") {
+        return this.renderMapsLocationComponent(
           attrs,
           embedData,
           decodedContent,
@@ -619,6 +630,84 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting MapsSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render maps location embed using Svelte component.
+   * Triggered when a user selects a location via the MapsView map picker.
+   * Displays a static map image with the selected location pin.
+   */
+  private renderMapsLocationComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    // Extract location-specific fields
+    const lat = decodedContent?.lat ?? undefined;
+    const lon = decodedContent?.lon ?? undefined;
+    const zoom = decodedContent?.zoom ?? 15;
+    const name = decodedContent?.name || "";
+    const locationType = decodedContent?.location_type || "precise_location";
+    const mapImageUrl = decodedContent?.map_image_url || "";
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(MapsLocationEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          lat,
+          lon,
+          zoom,
+          name,
+          locationType,
+          mapImageUrl: mapImageUrl || undefined,
+          status: status as "processing" | "finished" | "error",
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted MapsLocationEmbedPreview component:",
+        { embedId, status, lat, lon, name },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting MapsLocationEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);

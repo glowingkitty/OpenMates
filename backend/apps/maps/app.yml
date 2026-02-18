@@ -40,6 +40,48 @@ settings_and_memories:
       required:
         - name
 skills:
+  - id: location
+    name_translation_key: maps.location
+    description_translation_key: maps.location.description
+    stage: production
+    class_path: |
+      backend.apps.maps.skills.location_skill.LocationSkill
+    providers:
+      - Google
+    tool_schema:
+      type: object
+      properties:
+        lat:
+          type: number
+          description: "Latitude of the selected location"
+        lon:
+          type: number
+          description: "Longitude of the selected location"
+        zoom:
+          type: integer
+          description: "Map zoom level (0–21, default 15)"
+          default: 15
+        name:
+          type: string
+          description: "Display name for the location"
+        location_type:
+          type: string
+          description: "Type of location: 'precise_location' or 'area'"
+        embed_id:
+          type: string
+          description: "Pre-assigned embed ID from the frontend"
+        user_id:
+          type: string
+          description: "ID of the requesting user"
+        chat_id:
+          type: string
+          description: "Chat ID for WebSocket delivery"
+        message_id:
+          type: string
+          description: "Message ID for WebSocket delivery"
+      required:
+        - lat
+        - lon
   - id: search
     name_translation_key: maps.search
     description_translation_key: maps.search.description

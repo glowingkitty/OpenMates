@@ -45,6 +45,7 @@
     import { parse_message } from '../../message_parsing/parse_message';
     import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers';
     import { generateUUID } from '../../message_parsing/utils';
+    import { getApiEndpoint } from '../../config/api';
     import { isDesktop } from '../../utils/platform';
     
     // URL metadata service - creates proper embeds with embed_id for LLM context
@@ -71,8 +72,7 @@
     import {
         insertVideo,
         insertImage,
-        insertRecording,
-        insertMap
+        insertRecording
     } from './embedHandlers';
     import {
         handleEmbedInteraction as handleMenuEmbedInteraction,
@@ -2277,11 +2277,67 @@
         handleStopRecordingCleanup(); // Called here after recording is inserted
     }
     function handleLocationClick() { showMaps = true; }
-    async function handleLocationSelected(event: CustomEvent<{ type: string; attrs: any }>) {
-        showMaps = false; await tick();
+    async function handleLocationSelected(event: CustomEvent<{ type: string; attrs: Record<string, unknown> }>) {
+        showMaps = false;
+        await tick();
         if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
-        insertMap(editor, event.detail);
+
+        const attrs = event.detail?.attrs;
+        if (!attrs) return;
+
+        // Generate a pre-assigned embed ID that the backend will use
+        const embedId = generateUUID();
+
+        // Insert an app-skill-use embed node immediately with 'processing' status.
+        // The backend LocationSkill will send a WebSocket update with the finished embed
+        // (including the static map image URL) which updates the node via the embed store.
+        const appSkillEmbed = {
+            type: 'embed',
+            attrs: {
+                id: embedId,
+                type: 'app-skill-use',
+                status: 'processing',
+                contentRef: `embed:${embedId}`,
+                app_id: 'maps',
+                skill_id: 'location',
+            },
+        };
+        editor.commands.insertContent([appSkillEmbed, { type: 'text', text: ' ' }]);
+        setTimeout(() => editor.commands.focus('end'), 50);
         hasContent = true;
+
+        // Call backend location skill API to generate the static map image and create the embed.
+        // The skill sends a WebSocket event (send_embed_data) which the frontend receives and
+        // uses to update the embed node from 'processing' to 'finished'.
+        try {
+            const response = await fetch(
+                getApiEndpoint('/v1/apps/maps/skills/location'),
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        lat: attrs.lat,
+                        lon: attrs.lon,
+                        zoom: attrs.zoom ?? 15,
+                        name: attrs.name ?? null,
+                        location_type: attrs.type ?? 'precise_location',
+                        embed_id: embedId,
+                        chat_id: currentChatId ?? null,
+                        // message_id is not available at compose time; the backend will
+                        // use a placeholder. The embed is identified by embed_id.
+                        message_id: null,
+                    }),
+                }
+            );
+            if (!response.ok) {
+                console.error('[MessageInput] Location skill API error:', response.status, await response.text());
+            } else {
+                console.debug('[MessageInput] Location skill API called successfully, embed_id:', embedId);
+            }
+        } catch (err) {
+            console.error('[MessageInput] Failed to call location skill API:', err);
+        }
     }
     async function handleMenuAction(action: string) {
         await handleMenuActionTrigger(action, selectedNode, editor, dispatch, selectedEmbedId);

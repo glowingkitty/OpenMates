@@ -2893,3 +2893,99 @@ pii_show:
   context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently hidden — clicking will reveal it
   en: Show sensitive data
   de: Sensible Daten anzeigen
+
+maps_location:
+  context: Maps Location skill label shown in BasicInfosBar
+  en: Location
+  de: Standort
+  zh: 位置
+  es: Ubicación
+  fr: Emplacement
+  pt: Localização
+  ru: Местоположение
+  ja: 場所
+  ko: 위치
+  it: Posizione
+  tr: Konum
+  vi: Vị trí
+  id: Lokasi
+  pl: Lokalizacja
+  nl: Locatie
+  ar: الموقع
+  hi: स्थान
+  th: ตำแหน่ง
+  cs: Poloha
+  sv: Plats
+  verified_by_human: []
+
+maps_location.open_in_google_maps:
+  context: Button label to open a selected location in Google Maps
+  en: Open in Google Maps
+  de: In Google Maps öffnen
+  zh: 在 Google 地图中打开
+  es: Abrir en Google Maps
+  fr: Ouvrir dans Google Maps
+  pt: Abrir no Google Maps
+  ru: Открыть в Google Maps
+  ja: Google マップで開く
+  ko: Google 지도에서 열기
+  it: Apri in Google Maps
+  tr: Google Maps'te aç
+  vi: Mở trong Google Maps
+  id: Buka di Google Maps
+  pl: Otwórz w Google Maps
+  nl: Openen in Google Maps
+  ar: فتح في خرائط Google
+  hi: Google Maps में खोलें
+  th: เปิดใน Google Maps
+  cs: Otevřít v Google Maps
+  sv: Öppna i Google Maps
+  verified_by_human: []
+
+maps_location.coordinates:
+  context: Label for the coordinates section in maps location fullscreen
+  en: Coordinates
+  de: Koordinaten
+  zh: 坐标
+  es: Coordenadas
+  fr: Coordonnées
+  pt: Coordenadas
+  ru: Координаты
+  ja: 座標
+  ko: 좌표
+  it: Coordinate
+  tr: Koordinatlar
+  vi: Tọa độ
+  id: Koordinat
+  pl: Współrzędne
+  nl: Coördinaten
+  ar: الإحداثيات
+  hi: निर्देशांक
+  th: พิกัด
+  cs: Souřadnice
+  sv: Koordinater
+  verified_by_human: []
+
+maps_location.loading_map:
+  context: Loading text while the map image is being fetched
+  en: Loading map...
+  de: Karte wird geladen...
+  zh: 正在加载地图...
+  es: Cargando mapa...
+  fr: Chargement de la carte...
+  pt: Carregando mapa...
+  ru: Загрузка карты...
+  ja: 地図を読み込み中...
+  ko: 지도 로딩 중...
+  it: Caricamento mappa...
+  tr: Harita yükleniyor...
+  vi: Đang tải bản đồ...
+  id: Memuat peta...
+  pl: Ładowanie mapy...
+  nl: Kaart laden...
+  ar: جاري تحميل الخريطة...
+  hi: मानचित्र लोड हो रहा है...
+  th: กำลังโหลดแผนที่...
+  cs: Načítání mapy...
+  sv: Laddar karta...
+  verified_by_human: []

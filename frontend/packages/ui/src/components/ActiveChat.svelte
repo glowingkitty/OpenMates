@@ -24,6 +24,7 @@
     import NewsSearchEmbedFullscreen from './embeds/news/NewsSearchEmbedFullscreen.svelte';
     import VideosSearchEmbedFullscreen from './embeds/videos/VideosSearchEmbedFullscreen.svelte';
     import MapsSearchEmbedFullscreen from './embeds/maps/MapsSearchEmbedFullscreen.svelte';
+    import MapsLocationEmbedFullscreen from './embeds/maps/MapsLocationEmbedFullscreen.svelte';
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
     import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
     import SheetEmbedFullscreen from './embeds/sheets/SheetEmbedFullscreen.svelte';
@@ -6376,6 +6377,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             provider={embedFullscreenData.decodedContent?.provider || 'Google'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={getPlaceSearchResults(embedFullscreenData.decodedContent?.results)}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {:else if appId === 'maps' && skillId === 'location'}
+                        <!-- Maps Location Fullscreen -->
+                        <!-- Displays the static map image with location details -->
+                        <MapsLocationEmbedFullscreen
+                            lat={typeof embedFullscreenData.decodedContent?.lat === 'number' ? embedFullscreenData.decodedContent.lat : undefined}
+                            lon={typeof embedFullscreenData.decodedContent?.lon === 'number' ? embedFullscreenData.decodedContent.lon : undefined}
+                            zoom={typeof embedFullscreenData.decodedContent?.zoom === 'number' ? embedFullscreenData.decodedContent.zoom : 15}
+                            name={typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined}
+                            locationType={typeof embedFullscreenData.decodedContent?.location_type === 'string' ? embedFullscreenData.decodedContent.location_type : undefined}
+                            mapImageUrl={typeof embedFullscreenData.decodedContent?.map_image_url === 'string' ? embedFullscreenData.decodedContent.map_image_url : undefined}
+                            status="finished"
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
