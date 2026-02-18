@@ -45,9 +45,10 @@ api.dev.openmates.org {
 	@websocket_path path /v1/ws* # Matcher for WebSocket paths (to exclude from compression)
 
 	# --- FILE UPLOADS SERVICE MATCHERS ---
-	# Uploads service runs as a separate microservice (app-uploads) on localhost:8004.
-	# All upload requests require authentication (validated internally via X-Refresh-Token).
-	# Only allow requests from the webapp origin (same-site cookie forwarding).
+	# Uploads service (app-uploads) runs as a sidecar on localhost:8004 (dev).
+	# In production the uploads microservice runs on upload.openmates.org (separate VM),
+	# and the frontend sends to that domain directly. On dev, we proxy via this API domain
+	# so the same origin / cookie policy applies without extra CORS config.
 	@uploads_options {
 		path /api/uploads/*
 		method OPTIONS
@@ -324,6 +325,62 @@ api.dev.openmates.org {
 
 		# 13. Abort all other requests not explicitly handled above
 		# This ensures that only defined paths are accessible.
+		handle {
+			abort
+		}
+	}
+}
+
+# upload.dev.openmates.org
+# This block simulates the production uploads VM on the dev server.
+# In production, this Caddyfile block runs on a SEPARATE VM at upload.openmates.org.
+# On dev, app-uploads is exposed on localhost:8004 (via docker-compose.override.yml).
+#
+# Self-hosted deployment note:
+# - Replace the reverse_proxy target with your uploads VM's app-uploads address.
+# - For self-hosted single-server setups, the frontend sends to /api/uploads/* on the
+#   API domain and it proxies here (or directly to localhost:8004). No separate VM needed.
+upload.dev.openmates.org {
+	log {
+		output file /var/log/caddy/upload.dev.openmates.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h
+		}
+		format json
+		level INFO
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Only allow health check and upload endpoints
+	@upload_health path /health
+	@upload_api path /v1/upload/*
+	@upload_options method OPTIONS
+
+	route {
+		handle @upload_options {
+			reverse_proxy localhost:8004 {
+				header_up Host {http.request.host}
+			}
+		}
+		handle @upload_health {
+			reverse_proxy localhost:8004 {
+				header_up Host {http.request.host}
+			}
+		}
+		handle @upload_api {
+			encode gzip zstd
+			reverse_proxy localhost:8004 {
+				header_up Host {http.request.host}
+			}
+		}
 		handle {
 			abort
 		}

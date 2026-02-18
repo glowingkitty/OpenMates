@@ -1780,6 +1780,7 @@
         editorElement?.addEventListener('custom-sign-up-click', handleSignUpClick as EventListener); // Handle Enter key for unauthenticated users
         editorElement?.addEventListener('keydown', handleKeyDown);
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
+        editorElement?.addEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.addEventListener('click', handleEditorClick); // For PII click handling
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
@@ -1858,6 +1859,7 @@
         editorElement?.removeEventListener('custom-sign-up-click', handleSignUpClick as EventListener);
         editorElement?.removeEventListener('keydown', handleKeyDown);
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
+        editorElement?.removeEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.removeEventListener('click', handleEditorClick);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -2154,6 +2156,7 @@
         }
     }
     function handleCodeFullscreen(event: CustomEvent) { dispatch('codefullscreen', event.detail); }
+    function handleImageFullscreen(event: CustomEvent) { dispatch('imagefullscreen', event.detail); }
     function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }
     function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushSaveDraft(); }
     function handleResize() { checkScrollable(); updateHeight(); }

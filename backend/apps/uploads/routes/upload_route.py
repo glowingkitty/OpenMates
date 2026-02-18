@@ -359,20 +359,25 @@ async def upload_file(
     preview_result = await preview_service.generate_image_preview(file_bytes)
     logger.info(
         f"{log_prefix} Preview generated: "
-        f"original {preview_result.width}x{preview_result.height}, "
+        f"original {preview_result.original_width}x{preview_result.original_height}, "
+        f"full {preview_result.full_width}x{preview_result.full_height}, "
         f"preview {preview_result.preview_width}x{preview_result.preview_height}"
     )
 
     # --- 9. AES-256-GCM encryption ---
+    # All three variants share the same AES key and nonce, matching generate_task.py.
     crypto_service = request.app.state.file_encryption
 
-    # Encrypt original (re-encoded WEBP)
+    # Encrypt original (re-encoded bytes)
     encrypted_original, aes_key_b64, nonce_b64 = crypto_service.encrypt_bytes(
         preview_result.original_bytes
     )
-    # Encrypt preview using the SAME key+nonce (matches generate_task.py pattern)
+    # Encrypt full and preview using the SAME key+nonce
+    encrypted_full = crypto_service.encrypt_bytes_with_key(
+        preview_result.full_webp_bytes, aes_key_b64, nonce_b64
+    )
     encrypted_preview = crypto_service.encrypt_bytes_with_key(
-        preview_result.preview_bytes, aes_key_b64, nonce_b64
+        preview_result.preview_webp_bytes, aes_key_b64, nonce_b64
     )
 
     # --- 10. Vault-wrap the AES key for server-side skill access ---
@@ -382,13 +387,14 @@ async def upload_file(
         logger.error(f"{log_prefix} Vault key wrap failed: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="Encryption service unavailable")
 
-    # --- 11. S3 upload ---
+    # --- 11. S3 upload — three variants (original, full, preview) ---
     embed_id = str(uuid.uuid4())
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     s3_prefix = f"{user_id}/{content_hash}"
 
     s3_service = request.app.state.s3
     original_s3_key = f"{s3_prefix}/{timestamp}_original.bin"
+    full_s3_key = f"{s3_prefix}/{timestamp}_full.bin"
     preview_s3_key = f"{s3_prefix}/{timestamp}_preview.bin"
 
     try:
@@ -397,12 +403,16 @@ async def upload_file(
             content=encrypted_original,
         )
         await s3_service.upload_file(
+            s3_key=full_s3_key,
+            content=encrypted_full,
+        )
+        await s3_service.upload_file(
             s3_key=preview_s3_key,
             content=encrypted_preview,
         )
         logger.info(
             f"{log_prefix} Uploaded to S3: original={original_s3_key}, "
-            f"preview={preview_s3_key}"
+            f"full={full_s3_key}, preview={preview_s3_key}"
         )
     except RuntimeError as e:
         logger.error(f"{log_prefix} S3 upload failed: {e}", exc_info=True)
@@ -410,13 +420,20 @@ async def upload_file(
 
     s3_base_url = s3_service.get_base_url()
 
-    # --- 12. Build files metadata dict ---
+    # --- 12. Build files metadata dict (matches generate_task.py structure) ---
     files_metadata = {
         "original": FileVariantMetadata(
             s3_key=original_s3_key,
-            width=preview_result.width,
-            height=preview_result.height,
+            width=preview_result.original_width,
+            height=preview_result.original_height,
             size_bytes=len(encrypted_original),
+            format="webp",
+        ),
+        "full": FileVariantMetadata(
+            s3_key=full_s3_key,
+            width=preview_result.full_width,
+            height=preview_result.full_height,
+            size_bytes=len(encrypted_full),
             format="webp",
         ),
         "preview": FileVariantMetadata(

@@ -36,6 +36,7 @@
     import TravelPriceCalendarEmbedFullscreen from './embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte';
     import TravelStaysEmbedFullscreen from './embeds/travel/TravelStaysEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
+    import UploadedImageFullscreen from './embeds/images/UploadedImageFullscreen.svelte';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
     import { userProfile } from '../stores/userProfile';
     import { 
@@ -459,6 +460,17 @@
         lineCount: 0
     });
 
+    // Uploaded image fullscreen — triggered by clicking an in-editor upload embed
+    let showUploadedImageFullscreen = $state(false);
+    let uploadedImageFullscreenData = $state<{
+        src?: string;
+        filename?: string;
+        s3Files?: Record<string, { s3_key: string; width: number; height: number; size_bytes: number; format: string }>;
+        s3BaseUrl?: string;
+        aesKey?: string;
+        aesNonce?: string;
+    }>({});
+
     // Note: isLoggingOutFromSignup state removed as it was set but never read
 
     async function handleLoginSuccess(event) {
@@ -752,6 +764,24 @@
         };
         console.debug('Set fullscreen data:', fullscreenCodeData);
         showCodeFullscreen = true;
+    }
+
+    function handleImageFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received imagefullscreen event:', event.detail);
+        uploadedImageFullscreenData = {
+            src: event.detail.src,
+            filename: event.detail.filename,
+            s3Files: event.detail.s3Files,
+            s3BaseUrl: event.detail.s3BaseUrl,
+            aesKey: event.detail.aesKey,
+            aesNonce: event.detail.aesNonce,
+        };
+        showUploadedImageFullscreen = true;
+    }
+
+    function handleCloseUploadedImageFullscreen() {
+        showUploadedImageFullscreen = false;
+        uploadedImageFullscreenData = {};
     }
 
     // Normalize embed result arrays for fullscreen components with strict prop types.
@@ -6028,6 +6058,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 currentChatId={currentChat?.chat_id || temporaryChatId}
                                 showActionButtons={showActionButtons}
                                 on:codefullscreen={handleCodeFullscreen}
+                                on:imagefullscreen={handleImageFullscreen}
                                 on:sendMessage={handleSendMessage}
                                 on:heightchange={handleInputHeightChange}
                                 on:draftSaved={handleDraftSaved}
@@ -6054,6 +6085,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     language={fullscreenCodeData.language}
                     lineCount={fullscreenCodeData.lineCount}
                     onClose={handleCloseCodeFullscreen}
+                />
+            {/if}
+
+            {#if showUploadedImageFullscreen}
+                <UploadedImageFullscreen
+                    s3BaseUrl={uploadedImageFullscreenData.s3BaseUrl}
+                    files={uploadedImageFullscreenData.s3Files as { preview?: { s3_key: string; width: number; height: number; format: string }; full?: { s3_key: string; width: number; height: number; format: string }; original?: { s3_key: string; width: number; height: number; format: string } } | undefined}
+                    aesKey={uploadedImageFullscreenData.aesKey}
+                    aesNonce={uploadedImageFullscreenData.aesNonce}
+                    filename={uploadedImageFullscreenData.filename}
+                    onClose={handleCloseUploadedImageFullscreen}
                 />
             {/if}
             

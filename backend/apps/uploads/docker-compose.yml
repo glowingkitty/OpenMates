@@ -1,0 +1,130 @@
+# backend/apps/uploads/docker-compose.yml
+#
+# Docker Compose for the app-uploads microservice and its ClamAV dependency.
+#
+# DEPLOYMENT MODELS:
+#
+#   Production (separate VM — upload.openmates.org):
+#     Run this compose file standalone on the uploads VM.
+#     Set CORE_API_URL to the internal/private address of the API server.
+#     ClamAV runs as a sidecar on the same VM.
+#     The uploads VM does NOT join the openmates Docker network (different host).
+#
+#   Development (same server as core stack):
+#     Use docker-compose.override.yml to join the 'openmates' network so that
+#     CORE_API_URL=http://api:8000 resolves via Docker DNS.
+#     The port mapping (127.0.0.1:8004:8000) lets Caddy proxy /api/uploads/* to it.
+#
+# ENVIRONMENT VARIABLES (required — define in project root .env or shell):
+#   DIRECTUS_TOKEN            — Directus admin token
+#   VAULT_TOKEN               — Vault token (or token file via vault-setup-data volume)
+#   INTERNAL_API_SHARED_TOKEN — Shared secret for internal service-to-service auth
+#   CORE_API_URL              — URL of the core API (http://api:8000 on dev, private IP on prod VM)
+#   CMS_URL                   — Directus URL (http://cms:8055 on dev, private IP on prod VM)
+#   VAULT_URL                 — Vault URL (http://vault:8200 on dev, private IP on prod VM)
+#   SECRET__SIGHTENGINE__API_USER   — SightEngine API user (for AI-generated image detection)
+#   SECRET__SIGHTENGINE__API_SECRET — SightEngine API secret
+#   SERVER_ENVIRONMENT        — "development" | "production"
+#   LOG_LEVEL                 — "info" | "debug" | "warning"
+
+name: openmates-uploads
+
+services:
+  # ---------------------------------------------------------------------------
+  # File Uploads Microservice
+  # ---------------------------------------------------------------------------
+  app-uploads:
+    container_name: app-uploads
+    build:
+      # Build context is the project root so the Dockerfile can COPY backend/
+      context: ../../
+      dockerfile: backend/apps/uploads/Dockerfile
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      UPLOADS_APP_INTERNAL_PORT: "8000"
+      # Core service URLs — override in docker-compose.override.yml for dev
+      # or via environment variables for prod VM deployment
+      CMS_URL: "${CMS_URL:-http://cms:8055}"
+      VAULT_URL: "${VAULT_URL:-http://vault:8200}"
+      CORE_API_URL: "${CORE_API_URL:-http://api:8000}"
+      DIRECTUS_TOKEN: "${DIRECTUS_TOKEN}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      # ClamAV — always runs as a sidecar in the same compose stack
+      CLAMAV_HOST: "clamav"
+      CLAMAV_PORT: "3310"
+      # SightEngine AI-generated image detection
+      SIGHTENGINE_API_USER: "${SECRET__SIGHTENGINE__API_USER:-}"
+      SIGHTENGINE_API_SECRET: "${SECRET__SIGHTENGINE__API_SECRET:-}"
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT:-development}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+    volumes:
+      - ../../backend:/app/backend
+      # Vault token written by vault-setup (dev only; on prod VM use VAULT_TOKEN env var)
+      - vault-setup-data:/vault-data
+    networks:
+      - uploads
+    depends_on:
+      clamav:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Extra time to wait for ClamAV startup
+
+  # ---------------------------------------------------------------------------
+  # ClamAV Malware Scanner (sidecar — always co-located with app-uploads)
+  # ---------------------------------------------------------------------------
+  clamav:
+    container_name: clamav
+    image: clamav/clamav-debian:stable
+    restart: unless-stopped
+    environment:
+      CLAMAV_NO_FRESHCLAMD: "false" # Enable virus database auto-updates via freshclam
+      CLAMAV_NO_CLAMD: "false" # Enable ClamAV daemon
+      CLAMAV_NO_MILTERD: "true" # Disable milter (mail filter — not needed)
+    volumes:
+      - clamav-db:/var/lib/clamav # Persist virus DB across restarts (avoids re-download)
+    networks:
+      - uploads
+    healthcheck:
+      # clamdcheck.sh is provided by the official clamav/clamav-debian image
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      # ClamAV takes 60-120s on first start to download and load the virus database
+      start_period: 120s
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  uploads:
+    # Internal network for uploads <-> clamav communication.
+    # In dev (docker-compose.override.yml) app-uploads ALSO joins the 'openmates'
+    # network so it can reach api, cms, vault via Docker DNS.
+    driver: bridge
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  clamav-db:
+    # Persist ClamAV virus signature database across container restarts.
+    # Without this, ClamAV re-downloads ~200 MB of signatures on every restart.
+    name: openmates-clamav-db
+  vault-setup-data:
+    # On dev: populated by vault-setup container in the core stack.
+    # On prod VM: mount your actual Vault token file here or use VAULT_TOKEN env var.
+    name: openmates-vault-setup-data
+    external: true # Shared with core stack on dev server

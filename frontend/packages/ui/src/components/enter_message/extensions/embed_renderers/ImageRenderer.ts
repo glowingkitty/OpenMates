@@ -9,6 +9,11 @@
 //   - status 'uploading': local blob preview + dimmed overlay + spinner
 //   - status 'error': local blob preview + dimmed overlay + error message
 //   - status 'finished': local blob preview at full opacity (embed ready to send)
+//
+// Fullscreen click (uploaded images, status 'finished' only):
+//   Clicking the image fires a 'imagefullscreen' CustomEvent (bubbles) on the img
+//   element with the embed attrs as detail. MessageInput.svelte catches this and
+//   re-dispatches it up to ActiveChat.svelte which mounts UploadedImageFullscreen.
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
@@ -27,6 +32,24 @@ interface ImageEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   status: "uploading" | "processing" | "finished" | "error";
   /** Error message set by _performUpload() on failure */
   uploadError?: string;
+  // Upload result fields — populated by _performUpload() on success:
+  /** Files variant metadata from server (original, full, preview S3 keys + dims) */
+  s3Files?: Record<
+    string,
+    {
+      s3_key: string;
+      width: number;
+      height: number;
+      size_bytes: number;
+      format: string;
+    }
+  >;
+  /** S3 base URL for constructing full image URLs */
+  s3BaseUrl?: string;
+  /** Plaintext AES-256 key (base64) for client-side image decryption */
+  aesKey?: string;
+  /** AES-GCM nonce (base64) shared across encrypted variants */
+  aesNonce?: string;
 }
 
 /**
@@ -103,7 +126,10 @@ export class ImageRenderer implements EmbedRenderer {
     const status = attrs.status || "finished";
     const isUploading = status === "uploading";
     const isError = status === "error";
+    const isFinished = status === "finished";
     const opacity = isUploading ? "0.45" : "1";
+    // Only allow fullscreen click once the upload is done and S3 data is available
+    const isClickable = isFinished && !!attrs.s3Files && !!attrs.aesKey;
     const altText = attrs.filename || "Image";
     const errorMsg = attrs.uploadError || "Upload failed";
 
@@ -124,7 +150,7 @@ export class ImageRenderer implements EmbedRenderer {
     }
 
     content.innerHTML = `
-      <div class="img-upload-wrapper">
+      <div class="img-upload-wrapper${isClickable ? " img-upload-wrapper--clickable" : ""}">
         <img
           src="${attrs.src}"
           alt="${altText}"
@@ -139,6 +165,7 @@ export class ImageRenderer implements EmbedRenderer {
             opacity: ${opacity};
             transition: opacity 0.2s ease;
             object-fit: cover;
+            ${isClickable ? "cursor: zoom-in;" : ""}
           "
         />
         ${overlayHtml}
@@ -188,8 +215,36 @@ export class ImageRenderer implements EmbedRenderer {
           justify-content: center;
           line-height: 1;
         }
+        .img-upload-wrapper--clickable:hover .img-upload-preview {
+          opacity: 0.92;
+        }
       </style>
     `;
+
+    // Attach fullscreen click handler for finished uploads.
+    // Fires a bubbling CustomEvent so MessageInput.svelte can relay it to ActiveChat.
+    if (isClickable) {
+      const imgEl = content.querySelector(".img-upload-preview");
+      if (imgEl) {
+        imgEl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          imgEl.dispatchEvent(
+            new CustomEvent("imagefullscreen", {
+              bubbles: true,
+              composed: true,
+              detail: {
+                src: attrs.src,
+                filename: attrs.filename,
+                s3Files: attrs.s3Files,
+                s3BaseUrl: attrs.s3BaseUrl,
+                aesKey: attrs.aesKey,
+                aesNonce: attrs.aesNonce,
+              },
+            }),
+          );
+        });
+      }
+    }
   }
 
   toMarkdown(attrs: EmbedNodeAttributes): string {

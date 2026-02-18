@@ -358,6 +358,71 @@
 	}
 }
 
+# Upload Service Domain Configuration (OPTIONAL — only needed if running uploads on a separate VM)
+#
+# DEPLOYMENT MODELS:
+#
+#   Option A — Single server (simplest, recommended for self-hosting):
+#     The app-uploads container runs on the same server as the API.
+#     The /api/uploads/* route inside the API domain block above already proxies
+#     to the local uploads service (set UPLOADS_UPSTREAM=localhost:8004).
+#     You do NOT need this separate domain block at all.
+#
+#   Option B — Separate uploads VM (production OpenMates setup):
+#     app-uploads runs on a dedicated VM (e.g., upload.yourdomain.com).
+#     This block runs on that VM and proxies incoming requests to the local app-uploads container.
+#     Set <UPLOAD_DOMAIN> to upload.yourdomain.com and <LOCAL_UPLOADS_UPSTREAM> to localhost:8000
+#     (or app-uploads:8000 if running in Docker on the same host).
+#     The API domain's UPLOADS_UPSTREAM should point to this domain or its private IP.
+#
+# Uncomment and configure only if using Option B (separate uploads VM):
+#
+# <UPLOAD_DOMAIN> {
+# 	log {
+# 		output file /var/log/caddy/<UPLOAD_DOMAIN>.log {
+# 			roll_size 100mb
+# 			roll_keep 10
+# 			roll_keep_for 720h
+# 		}
+# 		format json
+# 		level INFO
+# 	}
+#
+# 	header {
+# 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+# 		X-Content-Type-Options "nosniff"
+# 		X-Frame-Options "DENY"
+# 		Referrer-Policy "strict-origin-when-cross-origin"
+# 		-Server
+# 	}
+#
+# 	@upload_health path /health
+# 	@upload_api path /v1/upload/*
+# 	@upload_options method OPTIONS
+#
+# 	route {
+# 		handle @upload_options {
+# 			reverse_proxy <LOCAL_UPLOADS_UPSTREAM> {
+# 				header_up Host {http.request.host}
+# 			}
+# 		}
+# 		handle @upload_health {
+# 			reverse_proxy <LOCAL_UPLOADS_UPSTREAM> {
+# 				header_up Host {http.request.host}
+# 			}
+# 		}
+# 		handle @upload_api {
+# 			encode gzip zstd
+# 			reverse_proxy <LOCAL_UPLOADS_UPSTREAM> {
+# 				header_up Host {http.request.host}
+# 			}
+# 		}
+# 		handle {
+# 			abort
+# 		}
+# 	}
+# }
+
 # Optional: Add additional domains for other services if needed
 # Example configuration for additional services:
 #
