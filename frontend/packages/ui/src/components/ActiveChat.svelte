@@ -4081,8 +4081,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (isReloadingSameChat && existingInFlightMessages.length > 0) {
             console.debug(`[ActiveChat] loadChat: Preserving ${existingInFlightMessages.length} in-flight message(s) during reload of same chat ${chat.chat_id} (statuses: ${existingInFlightMessages.map(m => m.status).join(', ')})`);
             
-            // Merge in-flight messages with messages from database
-            // The database may not have these messages yet, or may have stale content
+            // CRITICAL: If currentMessages consists ONLY of in-flight messages for this chat, it means
+            // handleSendMessage just initialised the view (e.g. after converting a demo chat to a real
+            // chat).  At this point sendHandlers has already copied the demo history into IndexedDB so
+            // any DB read would return demo messages + the new user message — making them appear as
+            // "follow-up" messages to the demo conversation in the UI.
+            //
+            // In this case we skip the DB reload entirely: the in-memory currentMessages set by
+            // handleSendMessage is already correct (only the new user message), and subsequent server
+            // events (ai_response_storage_confirmed, chatUpdated with newMessage, etc.) will append
+            // the AI reply through the normal streaming path.  On reload the DB is the source of
+            // truth and loadChat is called with a clean slate, which is correct behaviour.
+            const allCurrentMessagesAreInFlight = currentMessages.length > 0 &&
+                currentMessages.every(m => m.chat_id === chat.chat_id && (
+                    m.status === 'streaming' ||
+                    m.status === 'sending' ||
+                    m.status === 'processing'
+                ));
+            if (allCurrentMessagesAreInFlight) {
+                console.info(`[ActiveChat] loadChat: currentMessages contains ONLY in-flight message(s) for ${chat.chat_id} — skipping DB reload to prevent demo history bleed-through. Keeping handleSendMessage-initialised view.`);
+                // Return early — skip currentMessages = newMessages below.
+                // We still need to update currentChat metadata so the header/title are correct.
+                currentChat = freshChat ?? chat;
+                // showWelcome should already be false (set by handleSendMessage); ensure it stays that way.
+                showWelcome = false;
+                return;
+            }
+
+            // Normal case: merge in-flight messages with messages from database.
+            // The database may not have these messages yet, or may have stale content.
             for (const inFlightMsg of existingInFlightMessages) {
                 const dbMsgIndex = newMessages.findIndex(m => m.message_id === inFlightMsg.message_id);
                 if (dbMsgIndex !== -1) {
