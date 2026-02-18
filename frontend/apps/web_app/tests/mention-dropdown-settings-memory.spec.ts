@@ -487,46 +487,38 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	logCheckpoint('Trips category is visible in mention dropdown results.');
 	await takeStepScreenshot(page, 'trips-in-mention-dropdown');
 
-	// Verify it's a settings_memory result (should have an expand button with entry count)
+	// Verify it's a settings_memory result (MUST have an expand button with entry count ≥ 1).
+	// This is the key assertion for the bug fix: entries loaded from IndexedDB at startup
+	// must appear in the @ mention dropdown after a fresh page reload.
 	const expandButton = tripsResult.locator('.expand-button');
-	const hasExpandButton = await expandButton.isVisible({ timeout: 3000 }).catch(() => false);
-	logCheckpoint(`Expand button visible on Trips result: ${hasExpandButton}`);
+	await expect(expandButton).toBeVisible({ timeout: 5000 });
+	logCheckpoint('Expand button is visible on Trips result.');
 
-	if (hasExpandButton) {
-		// Check the entry count is at least 1
-		const entryCount = await expandButton
-			.locator('.entry-count')
-			.textContent()
-			.catch(() => '0');
-		logCheckpoint(`Entry count on Trips expand button: "${entryCount}"`);
-		expect(parseInt(entryCount || '0')).toBeGreaterThanOrEqual(1);
-		logCheckpoint('Entry count is >= 1 as expected.');
+	// Check the entry count is at least 1
+	const entryCount = await expandButton
+		.locator('.entry-count')
+		.textContent()
+		.catch(() => '0');
+	logCheckpoint(`Entry count on Trips expand button: "${entryCount}"`);
+	expect(parseInt(entryCount || '0')).toBeGreaterThanOrEqual(1);
+	logCheckpoint('Entry count is >= 1 as expected.');
 
-		// ======================================================================
-		// STEP 14: Expand the Trips category to see individual entries
-		// ======================================================================
-		logCheckpoint('Clicking expand button to reveal trip entries...');
-		await expandButton.click();
-		await page.waitForTimeout(500);
-		await takeStepScreenshot(page, 'trips-expanded-in-dropdown');
+	// ======================================================================
+	// STEP 14: Expand the Trips category to see individual entries
+	// ======================================================================
+	logCheckpoint('Clicking expand button to reveal trip entries...');
+	await expandButton.click();
+	await page.waitForTimeout(500);
+	await takeStepScreenshot(page, 'trips-expanded-in-dropdown');
 
-		// Verify our newly created trip entry appears
-		const tripEntryInDropdown = mentionDropdown
-			.locator('.mention-result.entry-item')
-			.filter({ hasText: new RegExp(TRIP_DESTINATION, 'i') })
-			.first();
-		await expect(tripEntryInDropdown).toBeVisible({ timeout: 10000 });
-		logCheckpoint(`Trip entry "${TRIP_DESTINATION}" visible in expanded dropdown entries.`);
-		await takeStepScreenshot(page, 'trip-entry-in-dropdown-expanded');
-	} else {
-		// Log the actual result structure for debugging
-		const resultHTML = await tripsResult.innerHTML().catch(() => 'unable to get HTML');
-		logCheckpoint(`Trips result HTML (for debug): ${resultHTML?.substring(0, 500)}`);
-		logCheckpoint('WARNING: No expand button found. This may be the bug we are investigating.');
-
-		// Still verify the result is visible - maybe there are no expand buttons yet
-		// when only settings_memory categories (not entries) are shown
-	}
+	// Verify our newly created trip entry appears
+	const tripEntryInDropdown = mentionDropdown
+		.locator('.mention-result.entry-item')
+		.filter({ hasText: new RegExp(TRIP_DESTINATION, 'i') })
+		.first();
+	await expect(tripEntryInDropdown).toBeVisible({ timeout: 10000 });
+	logCheckpoint(`Trip entry "${TRIP_DESTINATION}" visible in expanded dropdown entries.`);
+	await takeStepScreenshot(page, 'trip-entry-in-dropdown-expanded');
 
 	// ======================================================================
 	// STEP 15: Clear and type "@" + partial destination to find entry directly

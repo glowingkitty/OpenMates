@@ -33,6 +33,7 @@ import { text } from "../i18n/translations"; // Import text store for translatio
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Import admin console log forwarder
+import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
 
 // Import core auth state and related flags
 import {
@@ -216,7 +217,8 @@ export async function checkAuth(
         // - If user had stayLoggedIn=false → expected behavior on page reload
         //   → suggest enabling "Stay logged in"
         const $text = get(text);
-        const { wasStayLoggedIn } = await import("../services/cryptoKeyStorage");
+        const { wasStayLoggedIn } =
+          await import("../services/cryptoKeyStorage");
         const wasStorageEvicted = wasStayLoggedIn();
 
         if (wasStorageEvicted) {
@@ -475,6 +477,19 @@ export async function checkAuth(
       } catch (dbError) {
         console.error("Failed to save user data to database:", dbError);
       }
+
+      // Pre-load all settings/memories entries from IndexedDB so they are immediately
+      // available when the user types @ in the message editor.
+      // Without this, the @ mention dropdown shows no settings_memory results because
+      // the store is empty until the user manually opens the Settings panel.
+      // Non-blocking: errors here must never prevent login from completing.
+      appSettingsMemoriesStore.loadEntries().catch((err) => {
+        console.warn(
+          "[AuthSessionActions] Failed to pre-load settings/memories entries (non-fatal):",
+          err,
+        );
+      });
+
       return true;
     } else {
       // Handle Server Explicitly Saying User Is Not Logged In
