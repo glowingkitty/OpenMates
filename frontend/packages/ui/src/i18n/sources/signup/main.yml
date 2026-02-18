@@ -6416,3 +6416,95 @@ open_app_settings:
   cs: Otevřít nastavení aplikace
   sv: Öppna appinställningar
   verified_by_human: []
+advantage_no_ads:
+  context: Signup page advantage item - no advertisements
+  en: No ads
+  de: Keine Werbung
+  zh: 无广告
+  es: Sin anuncios
+  fr: Sans publicités
+  pt: Sem anúncios
+  ru: Без рекламы
+  ja: 広告なし
+  ko: 광고 없음
+  it: Nessuna pubblicità
+  tr: Reklam yok
+  vi: Không có quảng cáo
+  id: Tanpa iklan
+  pl: Bez reklam
+  nl: Geen advertenties
+  ar: بدون إعلانات
+  hi: कोई विज्ञापन नहीं
+  th: ไม่มีโฆษณา
+  cs: Žádné reklamy
+  sv: Ingen reklam
+  verified_by_human: []
+advantage_no_subscription:
+  context: Signup page advantage item - no subscription required
+  en: No subscription
+  de: Kein Abo
+  zh: 无订阅
+  es: Sin suscripción
+  fr: Sans abonnement
+  pt: Sem assinatura
+  ru: Без подписки
+  ja: サブスクなし
+  ko: 구독 없음
+  it: Nessun abbonamento
+  tr: Abonelik yok
+  vi: Không cần đăng ký
+  id: Tanpa langganan
+  pl: Bez subskrypcji
+  nl: Geen abonnement
+  ar: بدون اشتراك
+  hi: कोई सदस्यता नहीं
+  th: ไม่มีการสมัครสมาชิก
+  cs: Žádné předplatné
+  sv: Ingen prenumeration
+  verified_by_human: []
+advantage_privacy_focus:
+  context: Signup page advantage item - privacy focused
+  en: Privacy focus
+  de: Datenschutz im Fokus
+  zh: 注重隐私
+  es: Enfoque en privacidad
+  fr: Axé sur la confidentialité
+  pt: Foco em privacidade
+  ru: Акцент на конфиденциальности
+  ja: プライバシー重視
+  ko: 개인정보 보호
+  it: Attenzione alla privacy
+  tr: Gizlilik odaklı
+  vi: Tập trung vào quyền riêng tư
+  id: Fokus privasi
+  pl: Nacisk na prywatność
+  nl: Privacygericht
+  ar: التركيز على الخصوصية
+  hi: गोपनीयता पर ध्यान
+  th: เน้นความเป็นส่วนตัว
+  cs: Zaměření na soukromí
+  sv: Integritetsfokus
+  verified_by_human: []
+advantage_pay_per_use:
+  context: Signup page advantage item - pay only for what you use
+  en: Pay per use
+  de: Nutzungsbasierte Abrechnung
+  zh: 按使用付费
+  es: Pago por uso
+  fr: Paiement à l'usage
+  pt: Pague por uso
+  ru: Оплата за использование
+  ja: 使った分だけ支払い
+  ko: 사용한 만큼 지불
+  it: Pagamento a consumo
+  tr: Kullandıkça öde
+  vi: Trả tiền theo sử dụng
+  id: Bayar sesuai penggunaan
+  pl: Płatność za użycie
+  nl: Betaal per gebruik
+  ar: الدفع حسب الاستخدام
+  hi: उपयोग के अनुसार भुगतान
+  th: จ่ายตามการใช้งาน
+  cs: Platba za použití
+  sv: Betala per användning
+  verified_by_human: []

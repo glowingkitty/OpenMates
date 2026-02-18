@@ -837,7 +837,26 @@
 </script>
 
 <h1><mark>{@html $text('signup.sign_up')}</mark></h1>
-<h2>{@html $text('login.to_chat_to_your')}<br><mark>{@html $text('login.digital_team_mates')}</mark></h2>
+
+<!-- Advantages list: informs users about key benefits and pricing model to reduce signup cancellations -->
+<ul class="advantages-list">
+    <li class="advantage-item">
+        <span class="advantage-check-icon"></span>
+        <span class="advantage-text">{$text('signup.advantage_no_ads')}</span>
+    </li>
+    <li class="advantage-item">
+        <span class="advantage-check-icon"></span>
+        <span class="advantage-text">{$text('signup.advantage_no_subscription')}</span>
+    </li>
+    <li class="advantage-item">
+        <span class="advantage-check-icon"></span>
+        <span class="advantage-text">{$text('signup.advantage_privacy_focus')}</span>
+    </li>
+    <li class="advantage-item">
+        <span class="advantage-check-icon"></span>
+        <span class="advantage-text">{$text('signup.advantage_pay_per_use')}</span>
+    </li>
+</ul>
 
 <div class="form-container">
     {#if !isValidated && $requireInviteCode}
@@ -1063,6 +1082,45 @@
 {/if}
 
 <style>
+    /* Advantages list displayed below the signup header */
+    .advantages-list {
+        list-style: none;
+        margin: 0 0 1.5rem 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-self: flex-start;
+        width: 100%;
+    }
+
+    .advantage-item {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    /* Green check icon using CSS mask — matches PaymentTopContent.svelte pattern */
+    .advantage-check-icon {
+        display: inline-block;
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        background-color: #58BC00;
+        -webkit-mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+    }
+
+    .advantage-text {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--color-text, #000);
+        line-height: 1.3;
+    }
+
     .action-button.loading {
         opacity: 0.6;
         cursor: not-allowed;
