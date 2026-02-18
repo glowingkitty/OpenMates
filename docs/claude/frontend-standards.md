@@ -113,6 +113,28 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 
 ---
 
+## Images, Icons, and SVG Assets (CRITICAL)
+
+**NEVER create, generate, or write SVG, PNG, JPG, or any other image/icon files yourself.**
+
+- Do NOT write inline SVG markup to represent logos, illustrations, or icons that need to be sourced from a designer/user
+- Do NOT generate placeholder image data or base64-encoded images
+- Do NOT attempt to approximate or recreate a graphic you haven't been given
+
+**When an image or icon is needed:**
+
+1. Stop and ask the user to provide the asset
+2. Describe clearly what is needed (e.g., "Please provide a PNG or SVG for the app logo")
+3. Tell the user the exact path where the file must be saved (e.g., `frontend/packages/ui/src/assets/logo.svg`) and the ideal resolution or dimensions (e.g., "512×512px PNG" or "SVG preferred for scalability")
+4. Once the user confirms the file has been added at that path, reference it in code using the appropriate `<img>` tag or CSS `url()` — do not modify its content
+
+**Exceptions (allowed):**
+
+- Simple CSS-only shapes (borders, `border-radius` circles, etc.) that are purely decorative layout elements
+- Icon libraries already installed as a dependency (e.g., referencing an existing icon component from a library already in the project)
+
+---
+
 ## Package and Dependency Management
 
 - **Verify Versions**: ALWAYS check for the latest stable version of a package before installing

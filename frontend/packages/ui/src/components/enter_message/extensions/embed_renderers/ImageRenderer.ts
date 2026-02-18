@@ -173,6 +173,10 @@ export class ImageRenderer implements EmbedRenderer {
         // Bubble imagefullscreen event so ActiveChat.svelte can open UploadedImageFullscreen.
         // Use the blob URL (src) when available (editor context), otherwise undefined
         // (read-only context — ActiveChat will fetch from S3 for the fullscreen view).
+        // Include auth state + file metadata so the fullscreen can show the correct subtitle.
+        const fullscreenIsAuthenticated = get(authStore).isAuthenticated;
+        const fullscreenFileSize = attrs.originalFile?.size;
+        const fullscreenFileType = attrs.originalFile?.type;
         content.dispatchEvent(
           new CustomEvent("imagefullscreen", {
             bubbles: true,
@@ -184,6 +188,9 @@ export class ImageRenderer implements EmbedRenderer {
               s3BaseUrl: attrs.s3BaseUrl,
               aesKey: attrs.aesKey,
               aesNonce: attrs.aesNonce,
+              isAuthenticated: fullscreenIsAuthenticated,
+              fileSize: fullscreenFileSize,
+              fileType: fullscreenFileType,
             },
           }),
         );

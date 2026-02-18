@@ -6,6 +6,7 @@
 # The data is fully anonymous — only the summary text and language are persisted.
 
 import logging
+import os
 import time
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
@@ -206,6 +207,49 @@ class ShareUsecaseSkill(BaseSkill):
                     f"ShareUsecaseSkill: Anonymous use-case summary stored successfully "
                     f"(language={language}, length={len(summary)} chars)"
                 )
+
+                # --- Notify the server admin by email (fire-and-forget via Celery) ---
+                # The email is intentionally anonymous: only the summary text and language
+                # are forwarded — no user identifier is included.
+                admin_email = os.getenv("SERVER_OWNER_EMAIL")
+                if admin_email and self.celery_producer:
+                    try:
+                        self.celery_producer.send_task(
+                            name=(
+                                "app.tasks.email_tasks"
+                                ".usecase_submitted_email_task"
+                                ".send_usecase_submitted_notification"
+                            ),
+                            kwargs={
+                                "admin_email": admin_email,
+                                "summary": summary,
+                                "language": language,
+                            },
+                            queue="email",
+                        )
+                        logger.info(
+                            f"ShareUsecaseSkill: Dispatched use-case submission email "
+                            f"notification to admin (language={language})"
+                        )
+                    except Exception as e:
+                        # Non-fatal: the submission was already stored — only the admin
+                        # notification failed. Log the error so it is visible but do NOT
+                        # return a failure response to the user.
+                        logger.error(
+                            f"ShareUsecaseSkill: Failed to dispatch admin email notification: {e}",
+                            exc_info=True,
+                        )
+                elif not admin_email:
+                    logger.warning(
+                        "ShareUsecaseSkill: SERVER_OWNER_EMAIL not set — "
+                        "skipping admin email notification for use-case submission."
+                    )
+                elif not self.celery_producer:
+                    logger.warning(
+                        "ShareUsecaseSkill: celery_producer not available — "
+                        "skipping admin email notification for use-case submission."
+                    )
+
                 return ShareUsecaseResponse(
                     success=True,
                     message="Thank you! Your feedback has been shared anonymously with the OpenMates team.",

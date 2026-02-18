@@ -5,382 +5,406 @@ software_development:
   context: Description for the software development expert mate (Sophia)
   en: Software development expert
   de: Softwareentwicklungs-Experte
-  zh: ''
+  zh: ""
   es: Experto en desarrollo de software
   fr: Expert en développement logiciel
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 business_development:
   context: Description for the business development expert mate (Burton)
   en: Business development expert
   de: Geschäftsentwicklungs-Experte
-  zh: ''
+  zh: ""
   es: Experto en desarrollo de negocios
   fr: Expert en développement commercial
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 life_coach_psychology:
   context: Description for the life coach and psychology expert mate (Lisa)
   en: Life coach & psychology expert
   de: Lebensberater & Psychologie-Experte
-  zh: ''
+  zh: ""
   es: Coach de vida y experto en psicología
   fr: Coach de vie et expert en psychologie
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 medical_health:
   context: Description for the medical and health expert mate (Melvin)
   en: Medical & health expert
   de: Medizin- & Gesundheitsexperte
-  zh: ''
+  zh: ""
   es: Experto en medicina y salud
   fr: Expert en médecine et santé
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 legal_law:
   context: Description for the legal and law expert mate (Leon)
   en: Legal & law expert
   de: Rechts- & Gesetzesexperte
-  zh: ''
+  zh: ""
   es: Experto en derecho y leyes
   fr: Expert en droit et législation
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 finance:
   context: Description for the finance expert mate (Finn)
   en: Finance expert
   de: Finanzexperte
-  zh: ''
+  zh: ""
   es: Experto en finanzas
   fr: Expert en finance
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 design:
   context: Description for the design expert mate (Denise)
   en: Design expert
   de: Design-Experte
-  zh: ''
+  zh: ""
   es: Experto en diseño
   fr: Expert en design
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 marketing_sales:
   context: Description for the marketing and sales expert mate (Mark)
   en: Marketing & sales expert
   de: Marketing- & Vertriebsexperte
-  zh: ''
+  zh: ""
   es: Experto en marketing y ventas
   fr: Expert en marketing et ventes
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 science:
   context: Description for the science expert mate (Scarlett)
   en: Science expert
   de: Wissenschaftsexperte
-  zh: ''
+  zh: ""
   es: Experto en ciencias
   fr: Expert en sciences
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 history:
   context: Description for the history expert mate (Hiro)
   en: History expert
   de: Geschichtsexperte
-  zh: ''
+  zh: ""
   es: Experto en historia
   fr: Expert en histoire
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 cooking_food:
   context: Description for the cooking and food expert mate (Colin)
   en: Cooking & food expert
   de: Koch- & Lebensmittelexperte
-  zh: ''
+  zh: ""
   es: Experto en cocina y alimentación
   fr: Expert en cuisine et alimentation
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 electrical_engineering:
   context: Description for the electrical engineering expert mate (Elton)
   en: Electrical engineering expert
   de: Elektrotechnik-Experte
-  zh: ''
+  zh: ""
   es: Experto en ingeniería eléctrica
   fr: Expert en génie électrique
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 maker_prototyping:
   context: Description for the maker and prototyping expert mate (Makani)
   en: Maker & prototyping expert
   de: Maker- & Prototyping-Experte
-  zh: ''
+  zh: ""
   es: Experto en fabricación y prototipado
   fr: Expert en fabrication et prototypage
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 movies_tv:
   context: Description for the movies and TV expert mate (Monika)
   en: Movies & TV expert
   de: Film- & Fernsehexperte
-  zh: ''
+  zh: ""
   es: Experto en películas y TV
   fr: Expert en films et télévision
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 activism:
   context: Description for the activism expert mate (Ace)
   en: Activism expert
   de: Aktivismus-Experte
-  zh: ''
+  zh: ""
   es: Experto en activismo
   fr: Expert en activisme
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 
 general_knowledge:
   context: Description for the general knowledge expert mate (George)
   en: General knowledge expert
   de: Allgemeinwissens-Experte
-  zh: ''
+  zh: ""
   es: Experto en conocimiento general
   fr: Expert en culture générale
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
+onboarding_support:
+  context: Description for the OpenMates onboarding and support mate (Suki)
+  en: OpenMates guide & support
+  de: OpenMates Begleitung & Support
+  zh: OpenMates 引导与支持
+  es: Guía y soporte de OpenMates
+  fr: Guide et support OpenMates
+  pt: Guia e suporte OpenMates
+  ru: Гид и поддержка OpenMates
+  ja: OpenMates ガイド＆サポート
+  ko: OpenMates 가이드 및 지원
+  it: Guida e supporto OpenMates
+  tr: OpenMates rehber ve destek
+  vi: Hướng dẫn & hỗ trợ OpenMates
+  id: Panduan & dukungan OpenMates
+  pl: Przewodnik i wsparcie OpenMates
+  nl: OpenMates gids & ondersteuning
+  ar: دليل ودعم OpenMates
+  hi: OpenMates गाइड और सहायता
+  th: คู่มือและการสนับสนุน OpenMates
+  cs: Průvodce a podpora OpenMates
+  sv: OpenMates guide & support
   verified_by_human: []

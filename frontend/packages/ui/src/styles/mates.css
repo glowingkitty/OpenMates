@@ -1,55 +1,55 @@
 :root {
-    --mate-profile-margin: 10px;
+  --mate-profile-margin: 10px;
 }
 
 /* Creates a circular container for profile pictures or avatars */
 .mate-profile {
-    width: 60px;
-    height: 60px;
-    margin: var(--mate-profile-margin);
+  width: 60px;
+  height: 60px;
+  margin: var(--mate-profile-margin);
+  border-radius: 50%;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+  position: relative;
+  flex-shrink: 0;
+
+  /* Add initial opacity and animation */
+  opacity: 0;
+  animation: fadeInMate 0.4s ease-in forwards;
+
+  &::after {
+    content: "";
+    position: absolute;
+    bottom: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    background-position: center;
-    background-size: cover;
-    background-repeat: no-repeat;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
-    position: relative;
-    flex-shrink: 0;
+    background: var(--color-grey-0);
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+  }
 
-    /* Add initial opacity and animation */
-    opacity: 0;
-    animation: fadeInMate 0.4s ease-in forwards;
-
-    &::after {
-        content: '';
-        position: absolute;
-        bottom: -8px;
-        right: -8px;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: var(--color-grey-0);
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1;
-    }
-
-    &::before {
-        content: '';
-        position: absolute;
-        bottom: -4px;
-        right: -4px;
-        width: 16px;
-        height: 16px;
-        background: var(--color-primary);
-        -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-        mask-image: url('@openmates/ui/static/icons/ai.svg');
-        mask-size: contain;
-        mask-repeat: no-repeat;
-        mask-position: center;
-        z-index: 2;
-    }
+  &::before {
+    content: "";
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+    background: var(--color-primary);
+    -webkit-mask-image: url("@openmates/ui/static/icons/ai.svg");
+    mask-image: url("@openmates/ui/static/icons/ai.svg");
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    z-index: 2;
+  }
 }
 
 /* 
@@ -58,165 +58,169 @@
  * The .mate-profile-small-mobile class is applied when containerWidth <= 500px
  */
 .mate-profile.mate-profile-small-mobile {
-    width: 25px;
-    height: 25px;
-    margin-top: 0;
-    margin-bottom: 8px;
-    margin-left: 0px;
+  width: 25px;
+  height: 25px;
+  margin-top: 0;
+  margin-bottom: 8px;
+  margin-left: 0px;
 
-    /* Adjust after and before pseudo-elements for smaller size */
-    &::after {
-        bottom: -4px;
-        right: -4px;
-        width: 12px;
-        height: 12px;
-    }
+  /* Adjust after and before pseudo-elements for smaller size */
+  &::after {
+    bottom: -4px;
+    right: -4px;
+    width: 12px;
+    height: 12px;
+  }
 
-    &::before {
-        bottom: -2px;
-        right: -2px;
-        width: 8px;
-        height: 8px;
-    }
+  &::before {
+    bottom: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+  }
 }
 
 /* Fade in animation for mate profiles */
 @keyframes fadeInMate {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .mate-profile.software_development {
-    background-image: url('@openmates/ui/static/images/mates/software_development.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/software_development.jpeg");
 }
 
 .mate-profile.business_development {
-    background-image: url('@openmates/ui/static/images/mates/business_development.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/business_development.jpeg");
 }
 
 .mate-profile.medical_health {
-    background-image: url('@openmates/ui/static/images/mates/medical_health.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/medical_health.jpeg");
 }
 
 .mate-profile.legal_law {
-    background-image: url('@openmates/ui/static/images/mates/legal_law.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/legal_law.jpeg");
 }
 
 .mate-profile.maker_prototyping {
-    background-image: url('@openmates/ui/static/images/mates/maker_prototyping.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/maker_prototyping.jpeg");
 }
 
 .mate-profile.marketing_sales {
-    background-image: url('@openmates/ui/static/images/mates/marketing_sales.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/marketing_sales.jpeg");
 }
 
 .mate-profile.finance {
-    background-image: url('@openmates/ui/static/images/mates/finance.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/finance.jpeg");
 }
 
 .mate-profile.design {
-    background-image: url('@openmates/ui/static/images/mates/design.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/design.jpeg");
 }
 
 .mate-profile.electrical_engineering {
-    background-image: url('@openmates/ui/static/images/mates/electrical_engineering.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/electrical_engineering.jpeg");
 }
 
 .mate-profile.movies_tv {
-    background-image: url('@openmates/ui/static/images/mates/movies_tv.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/movies_tv.jpeg");
 }
 
 .mate-profile.history {
-    background-image: url('@openmates/ui/static/images/mates/history.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/history.jpeg");
 }
 
 .mate-profile.science {
-    background-image: url('@openmates/ui/static/images/mates/science.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/science.jpeg");
 }
 
 .mate-profile.life_coach_psychology {
-    background-image: url('@openmates/ui/static/images/mates/life_coach_psychology.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/life_coach_psychology.jpeg");
 }
 
 .mate-profile.cooking_food {
-    background-image: url('@openmates/ui/static/images/mates/cooking_food.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/cooking_food.jpeg");
 }
 
 .mate-profile.activism {
-    background-image: url('@openmates/ui/static/images/mates/activism.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/activism.jpeg");
 }
 
 .mate-profile.general_knowledge {
-    background-image: url('@openmates/ui/static/images/mates/general_knowledge.jpeg');
+  background-image: url("@openmates/ui/static/images/mates/general_knowledge.jpeg");
+}
+
+.mate-profile.onboarding_support {
+  background-image: url("@openmates/ui/static/images/mates/onboarding_support.jpeg");
 }
 
 /* Official OpenMates category - shows favicon instead of mate profile, no AI logo badge */
 .mate-profile.openmates_official {
-    background-image: url('@openmates/ui/static/favicon.svg');
-    background-size: contain; /* Ensure favicon fits properly */
-    
-    /* Hide the AI logo badge for official messages */
-    &::before {
-        display: none;
-    }
-    
-    /* Hide the white circle background since there's no badge */
-    &::after {
-        display: none;
-    }
+  background-image: url("@openmates/ui/static/favicon.svg");
+  background-size: contain; /* Ensure favicon fits properly */
+
+  /* Hide the AI logo badge for official messages */
+  &::before {
+    display: none;
+  }
+
+  /* Hide the white circle background since there's no badge */
+  &::after {
+    display: none;
+  }
 }
 
 /* Smaller variant for chat history items */
 .mate-profile-small.mate-profile {
-    width: 25px;
-    height: 25px;
-    margin: 0;
+  width: 25px;
+  height: 25px;
+  margin: 0;
 
-    animation: unset;
-    opacity: 1;
+  animation: unset;
+  opacity: 1;
 
-    &::after {
-        bottom: -4px;
-        right: -4px;
-        width: 16px;
-        height: 16px;
-    }
+  &::after {
+    bottom: -4px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+  }
 
-    &::before {
-        bottom: -2px;
-        right: -2px;
-        width: 12px;
-        height: 12px;
-    }
+  &::before {
+    bottom: -2px;
+    right: -2px;
+    width: 12px;
+    height: 12px;
+  }
 }
 
 /* For multiple profiles in a row */
 .mate-profiles-row {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 
-    .mate-profile-small:not(:first-child) {
-        margin-left: -8px; /* Creates overlap effect */
-    }
+  .mate-profile-small:not(:first-child) {
+    margin-left: -8px; /* Creates overlap effect */
+  }
 }
 
 /* Add this with your other icon classes */
 .icon_menu {
-    width: 24px;
-    height: 24px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='3' y1='12' x2='21' y2='12'%3E%3C/line%3E%3Cline x1='3' y1='6' x2='21' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='18' x2='21' y2='18'%3E%3C/line%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-    opacity: 0.6;
+  width: 24px;
+  height: 24px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='3' y1='12' x2='21' y2='12'%3E%3C/line%3E%3Cline x1='3' y1='6' x2='21' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='18' x2='21' y2='18'%3E%3C/line%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.6;
 }
 
 .icon_menu:hover {
-    opacity: 1;
+  opacity: 1;
 }

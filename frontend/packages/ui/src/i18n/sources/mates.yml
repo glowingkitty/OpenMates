@@ -2,367 +2,390 @@ software_development:
   context: Female name starting with first two characters of the word 'Software' in english.
   en: Sophia
   de: Sophia
-  zh: ''
+  zh: ""
   es: Sophia
   fr: Lorraine
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 business_development:
   context: Male name starting with first two characters of the word 'Business' in english.
   en: Burton
   de: Gerd
-  zh: ''
+  zh: ""
   es: Néstor
   fr: Corentin
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 medical_health:
   context: Male name starting with first two characters of the word 'Medical' in english.
   en: Melvin
   de: Melvin
-  zh: ''
+  zh: ""
   es: Melvin
   fr: Melvin
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 legal_law:
   context: Male name starting with first two characters of the word 'Legal' in english.
   en: Leon
   de: René
-  zh: ''
+  zh: ""
   es: Leon
   fr: Leon
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 maker_prototyping:
   context: Female name starting with first two characters of the word 'Maker' in english.
   en: Makani
   de: Barbara
-  zh: ''
+  zh: ""
   es: Fabiola
   fr: Fabienne
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 marketing_sales:
   context: Male name starting with first two characters of the word 'Marketing' in english.
   en: Mark
   de: Mark
-  zh: ''
+  zh: ""
   es: Mark
   fr: Mark
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 finance:
   context: Male name starting with first two characters of the word 'Finance' in english.
   en: Finn
   de: Finn
-  zh: ''
+  zh: ""
   es: Finn
   fr: Finn
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 design:
   context: Female name starting with first two characters of the word 'Design' in english.
   en: Denise
   de: Denise
-  zh: ''
+  zh: ""
   es: Diana
   fr: Denise
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 electrical_engineering:
   context: Male name starting with first two characters of the word 'Electrical' in english.
   en: Elton
   de: Elton
-  zh: ''
+  zh: ""
   es: Elton
   fr: Elton
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 movies_tv:
   context: Female name starting with first two characters of the word 'Movies' in english.
   en: Monika
   de: Fiona
-  zh: ''
+  zh: ""
   es: Penélope
   fr: Fiona
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 history:
   context: Male name starting with first two characters of the word 'History' in english.
   en: Hiro
   de: Georg
-  zh: ''
+  zh: ""
   es: Hiro
   fr: Hiro
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 science:
   context: Female name starting with first two characters of the word 'Science' in english.
   en: Scarlett
   de: Wiebke
-  zh: ''
+  zh: ""
   es: Cintia
   fr: Scarlett
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 life_coach_psychology:
   context: Female name starting with first two characters of the word 'Life' in english.
   en: Lisa
   de: Lena
-  zh: ''
+  zh: ""
   es: Corina
   fr: Coralie
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 cooking_food:
   context: Male name starting with first two characters of the word 'Cooking' in english.
   en: Colin
   de: Konrad
-  zh: ''
+  zh: ""
   es: Colin
   fr: Gabriel
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 activism:
   context: Male name starting with first two characters of the word 'Activism' in english.
   en: Ace
   de: Akim
-  zh: ''
+  zh: ""
   es: Ace
   fr: Ace
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 general_knowledge:
   context: Male name starting with first two characters of the word 'General' in english.
   en: George
   de: Albert
-  zh: ''
+  zh: ""
   es: Constantino
   fr: George
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+onboarding_support:
+  context: Name for the OpenMates onboarding and support assistant mate. Suki is the persona name used consistently across the platform (onboarding chat, welcome focus mode, and direct @mate:suki selection).
+  en: Suki
+  de: Suki
+  zh: Suki
+  es: Suki
+  fr: Suki
+  pt: Suki
+  ru: Suki
+  ja: Suki
+  ko: Suki
+  it: Suki
+  tr: Suki
+  vi: Suki
+  id: Suki
+  pl: Suki
+  nl: Suki
+  ar: Suki
+  hi: Suki
+  th: Suki
+  cs: Suki
+  sv: Suki
   verified_by_human: []

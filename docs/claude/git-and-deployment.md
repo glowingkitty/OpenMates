@@ -412,3 +412,18 @@ The `scripts/lint_changed.sh` script checks uncommitted changes for linting and 
 - Limit checks to changed file types (don't check TypeScript if you only modified Python)
 - **CRITICAL**: Before every git commit, run the linter on all modified files and fix all errors
 - **CRITICAL**: Only commit when the linter shows NO errors for modified files
+
+### Pre-existing Linter Errors in Unrelated Files
+
+When the linter reports errors in files **you did not modify**, apply this judgment:
+
+- **Trivial, isolated fix** (e.g., unused import, missing type annotation on a single line):
+  Fix it and include it in your commit with a note, e.g. `chore: fix pre-existing lint error in X`.
+
+- **Complex or risky fix** (e.g., type error requiring logic changes, multiple files affected):
+  Do NOT fix it. Report it to the user instead, noting the file and error. Only fix errors
+  in files you actually changed.
+
+- **If unsure**: Report it to the user, don't fix it.
+
+The goal is a clean repo over time — but not at the cost of risky out-of-scope changes.

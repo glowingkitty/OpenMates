@@ -83,6 +83,11 @@
     onDownload?: () => void;
     /** Optional share handler - opens share menu for the embed */
     onShare?: () => void;
+    /**
+     * Whether to show the share button (default: true).
+     * Set to false to hide it for embeds that cannot be shared (e.g. non-uploaded images).
+     */
+    showShare?: boolean;
     /** Snippet for header extra content (optional) */
     headerExtra?: import('svelte').Snippet<[]>;
     /** 
@@ -198,6 +203,7 @@
     onCopy,
     onDownload,
     onShare,
+    showShare = true,
     headerExtra,
     content,
     bottomBar,
@@ -691,17 +697,19 @@
             </button>
           </div>
         {/if}
-        <!-- Share button - always shown -->
-        <div class="button-wrapper">
-          <button
-            class="action-button share-button"
-            onclick={handleShare}
-            aria-label={$text('chat.share')}
-            title={$text('chat.share')}
-          >
-            <span class="clickable-icon icon_share"></span>
-          </button>
-        </div>
+        <!-- Share button - shown by default, can be hidden via showShare=false -->
+        {#if showShare}
+          <div class="button-wrapper">
+            <button
+              class="action-button share-button"
+              onclick={handleShare}
+              aria-label={$text('chat.share')}
+              title={$text('chat.share')}
+            >
+              <span class="clickable-icon icon_share"></span>
+            </button>
+          </div>
+        {/if}
         <!-- Copy button -->
         {#if onCopy}
           <div class="button-wrapper">

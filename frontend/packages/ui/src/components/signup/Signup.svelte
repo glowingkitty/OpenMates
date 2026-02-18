@@ -44,6 +44,7 @@
     import { notificationStore } from '../../stores/notificationStore'; // Import notification store for payment failure notifications
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
     import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
+    import { createOnboardingChat, hasOnboardingChat } from '../../services/onboardingChatService'; // Import onboarding chat creation
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
@@ -1103,6 +1104,27 @@
         // This prevents the "Loading chats..." message from showing indefinitely
         phasedSyncState.markSyncCompleted();
         console.debug("[Signup] Marked phased sync as completed after signup (new user has no chats to sync)");
+
+        // Create the onboarding chat with Suki's pre-activated welcome focus mode.
+        // Uses hasOnboardingChat() as a guard against duplicate creation on page reload.
+        // This is fire-and-forget — a failure here must not block signup completion.
+        try {
+            const alreadyExists = await hasOnboardingChat();
+            if (!alreadyExists) {
+                const username = $signupStore.username || '';
+                const onboardingChatId = await createOnboardingChat(username);
+                if (onboardingChatId) {
+                    console.debug(`[Signup] Created onboarding chat ${onboardingChatId} for new user`);
+                } else {
+                    console.warn("[Signup] createOnboardingChat returned null — onboarding chat was not created");
+                }
+            } else {
+                console.debug("[Signup] Onboarding chat already exists — skipping creation");
+            }
+        } catch (error) {
+            // Non-fatal: log but do not block signup completion
+            console.error("[Signup] Failed to create onboarding chat:", error);
+        }
 
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);

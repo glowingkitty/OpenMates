@@ -216,8 +216,7 @@ export const matesMetadata: MateMetadata[] = [
   {
     id: "electrical_engineering",
     name_translation_key: "mates.electrical_engineering",
-    description_translation_key:
-      "mate_descriptions.electrical_engineering",
+    description_translation_key: "mate_descriptions.electrical_engineering",
     profile_class: "electrical_engineering",
     expertise_icon: "engineering",
     search_names: [
@@ -299,6 +298,27 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#DE1E66",
     color_end: "#FF763B",
+  },
+  {
+    // Suki — OpenMates onboarding and support assistant.
+    // Category matches mates.yml and onboardingChatService.ts ONBOARDING_CATEGORY.
+    // @mate:suki or @mate:onboarding_support both resolve to this mate.
+    id: "onboarding_support",
+    name_translation_key: "mates.onboarding_support",
+    description_translation_key: "mate_descriptions.onboarding_support",
+    profile_class: "onboarding_support",
+    expertise_icon: "compass",
+    search_names: [
+      "suki",
+      "onboarding",
+      "support",
+      "help",
+      "welcome",
+      "getting started",
+      "openmates",
+    ],
+    color_start: "#6364FF",
+    color_end: "#9B6DFF",
   },
 ];
 

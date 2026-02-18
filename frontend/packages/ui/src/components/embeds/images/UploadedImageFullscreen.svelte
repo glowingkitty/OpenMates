@@ -161,30 +161,19 @@
   // -------------------------------------------------------------------------
 
   /**
-   * Load the full-resolution image from S3 with progressive enhancement, or
-   * fall back to the local blob URL when S3 data is unavailable.
+   * Load the full-resolution image from S3 with progressive enhancement.
+   * Only called when S3 data (s3BaseUrl, aesKey, aesNonce) is present.
+   * The blob-URL fallback for unauthenticated users is handled directly in
+   * the $effect below, so that Svelte 5 can track `src` as a dependency.
    *
-   * S3 path (authenticated):
+   * S3 path:
    *   1. Show the cached preview immediately for zero-latency progressive display.
    *   2. Fetch + decrypt the full-resolution variant in the background.
    *   3. Swap to full-res when ready.
-   *
-   * Blob fallback (unauthenticated / no S3 data):
-   *   Use the `src` prop (local blob URL) directly — no network request needed.
    */
   async function loadFullImage() {
     if (fullImageUrl) return;
-
-    // --- Blob fallback: use local src when S3 is not available ---
-    if (!s3BaseUrl || !aesKey || !aesNonce) {
-      if (src) {
-        fullImageUrl = src;
-        console.debug('[UploadedImageFullscreen] Using local blob URL (no S3 data available)');
-      } else {
-        console.debug('[UploadedImageFullscreen] No src and no S3 data — cannot load image');
-      }
-      return;
-    }
+    if (!s3BaseUrl || !aesKey || !aesNonce) return; // guard — caller should check
 
     // --- S3 path: progressive load ---
 
@@ -229,10 +218,29 @@
     }
   }
 
-  // Auto-load on mount
+  // Auto-load image on mount.
+  // We also read src/s3BaseUrl/aesKey/aesNonce inside the effect so Svelte 5
+  // tracks them as reactive dependencies and re-runs if they change.
   $effect(() => {
+    // Declare local refs to the props we care about — Svelte 5 tracks
+    // all reactive reads inside $effect regardless of how they're used.
+    const currentSrc = src;
+    const currentS3 = s3BaseUrl;
+    const currentKey = aesKey;
+    const currentNonce = aesNonce;
+
     if (!fullImageUrl && !isLoadingImage) {
-      loadFullImage();
+      // Use the locally-read values so the compiler knows they're dependencies.
+      if (!currentS3 || !currentKey || !currentNonce) {
+        // Blob path: use local src when S3 is not available
+        if (currentSrc) {
+          fullImageUrl = currentSrc;
+          console.debug('[UploadedImageFullscreen] Using local blob URL (no S3 data available)');
+        }
+      } else {
+        // S3 path: async load
+        loadFullImage();
+      }
     }
   });
 
@@ -293,6 +301,7 @@
   customStatusText={infoBarSubtitle}
   showStatus={true}
   showSkillIcon={false}
+  showShare={!!files?.original}
   title=""
   {onClose}
   onDownload={files?.original ? handleDownload : undefined}
