@@ -871,11 +871,14 @@ export const Embed = Node.create<EmbedOptions>({
         console.debug("[Embed] Backspace triggered at position:", pos);
 
         // Check if we're positioned right after an embed node
-        // Look for embed nodes in the range before the cursor
+        // ONLY delete when cursor is directly adjacent to the embed:
+        //   Case 1: Node at pos-1 is an embed (cursor immediately after embed inline)
+        //   Case 2: Node at pos-1 is a hardBreak and the node before the hardBreak is
+        //           an embed (cursor at start of line immediately after embed + line break)
         let embedNode = null;
         let embedPos = -1;
 
-        // Check the node immediately before the cursor
+        // Case 1: Check the node immediately before the cursor
         const nodeBefore = editor.state.doc.nodeAt(pos - 1);
         console.debug(
           "[Embed] Node before cursor:",
@@ -887,23 +890,18 @@ export const Embed = Node.create<EmbedOptions>({
           embedNode = nodeBefore;
           embedPos = pos - 1;
           console.debug("[Embed] Found embed node immediately before cursor");
-        } else {
-          // If not immediately before, check if we're at the start of a hard break after an embed
-          // Look backwards through the document to find the nearest embed
-          editor.state.doc.nodesBetween(
-            Math.max(0, pos - 10),
-            pos,
-            (node, nodePos) => {
-              if (node.type.name === this.name && nodePos < pos) {
-                embedNode = node;
-                embedPos = nodePos;
-                console.debug(
-                  "[Embed] Found embed node in range before cursor at position:",
-                  nodePos,
-                );
-              }
-            },
-          );
+        } else if (nodeBefore?.type.name === "hardBreak" && pos >= 2) {
+          // Case 2: Cursor is right after a hardBreak — check if the node before the
+          // hardBreak is an embed. This handles the pattern: [embed][hardBreak]|cursor
+          const nodeBeforeHardBreak = editor.state.doc.nodeAt(pos - 2);
+          if (nodeBeforeHardBreak?.type.name === this.name) {
+            embedNode = nodeBeforeHardBreak;
+            embedPos = pos - 2;
+            console.debug(
+              "[Embed] Found embed node before hardBreak at position:",
+              embedPos,
+            );
+          }
         }
 
         if (embedNode && embedPos !== -1) {

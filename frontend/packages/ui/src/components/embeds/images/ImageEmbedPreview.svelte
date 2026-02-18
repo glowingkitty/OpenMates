@@ -35,7 +35,7 @@
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
 
   /** Max display length for the filename in the card title (chars) */
-  const MAX_FILENAME_LENGTH = 40;
+  const MAX_FILENAME_LENGTH = 30;
 
   /**
    * S3 file variant metadata for a single image.
@@ -74,6 +74,12 @@
     aesNonce?: string;
     /** Whether to use mobile layout */
     isMobile?: boolean;
+    /** Whether the user is authenticated (affects subtitle text) */
+    isAuthenticated?: boolean;
+    /** File size in bytes (from the original File object) */
+    fileSize?: number;
+    /** File MIME type (from the original File object, e.g. 'image/jpeg') */
+    fileType?: string;
     /** Called when the user clicks to open fullscreen view */
     onFullscreen?: () => void;
     /**
@@ -94,6 +100,9 @@
     aesKey,
     aesNonce,
     isMobile = false,
+    isAuthenticated = true,
+    fileSize,
+    fileType,
     onFullscreen,
     onStop,
   }: Props = $props();
@@ -181,16 +190,63 @@
   });
 
   /**
+   * Format a file size in bytes into a human-readable string (e.g. "1.2 MB").
+   */
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  /**
+   * Derive file type label from MIME type or filename extension.
+   * Returns an uppercase short label like "JPEG", "PNG", "WEBP", etc.
+   */
+  function getFileTypeLabel(mimeType?: string, fname?: string): string {
+    // Try MIME type first (e.g. 'image/jpeg' → 'JPEG')
+    if (mimeType) {
+      const sub = mimeType.split('/')[1];
+      if (sub) {
+        // Normalise common MIME subtypes to friendlier labels
+        const normalised = sub.replace(/^x-/, '').toUpperCase();
+        if (normalised === 'SVG+XML') return 'SVG';
+        return normalised;
+      }
+    }
+    // Fallback: extract extension from filename
+    if (fname) {
+      const lastDot = fname.lastIndexOf('.');
+      if (lastDot > 0) return fname.slice(lastDot + 1).toUpperCase();
+    }
+    return '';
+  }
+
+  /**
    * Card subtitle (customStatusText):
-   * - 'uploading' → "Uploading…"
-   * - 'error'     → "Upload failed" (or server error message)
-   * - 'finished'  → empty (image speaks for itself once loaded)
-   * - no displayUrl yet (S3 loading) → empty (UnifiedEmbedPreview shows its own skeleton)
+   * - 'uploading'                       → "Uploading…"
+   * - 'error'                           → "Upload failed" (or server error message)
+   * - 'finished' + !isAuthenticated     → "Login to upload…"
+   * - 'finished' + isAuthenticated      → "JPEG · 1.2 MB" (file type + size)
+   * - no displayUrl yet (S3 loading)    → empty (UnifiedEmbedPreview shows its own skeleton)
    */
   let statusText = $derived.by(() => {
     if (status === 'uploading') return $text('app_skills.images.view.uploading');
     if (status === 'error') return uploadError || $text('app_skills.images.view.upload_failed');
     if (imageError) return imageError;
+    if (status === 'finished') {
+      // Unauthenticated users: prompt to login for actual upload
+      if (!isAuthenticated) {
+        return $text('app_skills.images.view.login_to_upload');
+      }
+      // Authenticated + finished: show file type and size
+      const typeLabel = getFileTypeLabel(fileType, filename);
+      const sizeLabel = fileSize ? formatFileSize(fileSize) : '';
+      if (typeLabel && sizeLabel) return `${typeLabel} \u00B7 ${sizeLabel}`;
+      if (typeLabel) return typeLabel;
+      if (sizeLabel) return sizeLabel;
+      // Fallback: show "Uploaded image" (the description key)
+      return $text('app_skills.images.view.description');
+    }
     return '';
   });
 

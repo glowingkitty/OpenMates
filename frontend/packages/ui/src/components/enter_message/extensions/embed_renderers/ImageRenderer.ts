@@ -22,7 +22,9 @@
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { mount, unmount } from "svelte";
+import { get } from "svelte/store";
 import ImageEmbedPreview from "../../../embeds/images/ImageEmbedPreview.svelte";
+import { authStore } from "../../../../stores/authStore";
 
 // Track mounted Svelte components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -59,6 +61,8 @@ interface ImageEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   aesKey?: string;
   /** AES-GCM nonce (base64) shared across encrypted variants */
   aesNonce?: string;
+  /** Original File object (ephemeral, only available in editor context during upload session) */
+  originalFile?: File;
 }
 
 /**
@@ -197,6 +201,14 @@ export class ImageRenderer implements EmbedRenderer {
         );
       };
 
+      // Read authentication state to show appropriate subtitle
+      // (file type + size when authenticated, "Login to upload…" when not)
+      const isAuthenticated = get(authStore).isAuthenticated;
+
+      // Derive file size and MIME type from the original File object if available
+      const fileSize = attrs.originalFile?.size;
+      const fileType = attrs.originalFile?.type;
+
       const component = mount(ImageEmbedPreview, {
         target: content,
         props: {
@@ -214,6 +226,9 @@ export class ImageRenderer implements EmbedRenderer {
           aesKey: attrs.aesKey,
           aesNonce: attrs.aesNonce,
           isMobile: false,
+          isAuthenticated,
+          fileSize,
+          fileType,
           onFullscreen: handleFullscreen,
           onStop: handleStop,
         },
