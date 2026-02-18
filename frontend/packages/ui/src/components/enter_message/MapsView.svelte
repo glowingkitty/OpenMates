@@ -1210,16 +1210,16 @@
 
 <style>
     .maps-overlay {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 400px;
+        /* Full-viewport modal so the user can focus entirely on the map.
+           Uses fixed positioning so it escapes any overflow:hidden parent
+           (e.g. .message-field) and covers the whole screen. */
+        position: fixed;
+        inset: 0;
         background: var(--color-grey-0);
-        z-index: 1000;
+        z-index: 9000;
         display: flex;
         flex-direction: column;
-        border-radius: 24px;
+        border-radius: 0;
         overflow: hidden;
     }
 

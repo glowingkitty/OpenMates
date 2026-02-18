@@ -6761,6 +6761,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             />
                         {/await}
                     {/if}
+                {:else if embedFullscreenData.embedType === 'maps'}
+                    <!-- Maps Location Fullscreen (user-inserted via MapsView picker) -->
+                    <!-- Coordinates come from decodedContent (EmbedStore TOON) or from attrs fallback -->
+                    <MapsLocationEmbedFullscreen
+                        lat={typeof embedFullscreenData.decodedContent?.lat === 'number' ? embedFullscreenData.decodedContent.lat : (typeof embedFullscreenData.attrs?.lat === 'number' ? embedFullscreenData.attrs.lat : undefined)}
+                        lon={typeof embedFullscreenData.decodedContent?.lon === 'number' ? embedFullscreenData.decodedContent.lon : (typeof embedFullscreenData.attrs?.lon === 'number' ? embedFullscreenData.attrs.lon : undefined)}
+                        name={typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : (typeof embedFullscreenData.attrs?.name === 'string' ? embedFullscreenData.attrs.name : undefined)}
+                        status="finished"
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
+                    />
                 {:else}
                     <!-- Fallback for unknown embed types -->
                     <div class="embed-fullscreen-fallback">

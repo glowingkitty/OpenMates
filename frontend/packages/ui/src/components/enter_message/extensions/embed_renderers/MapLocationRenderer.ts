@@ -60,22 +60,29 @@ export class MapLocationRenderer implements EmbedRenderer {
       const status =
         (attrs.status as "processing" | "finished" | "error") || "finished";
 
-      // Fire fullscreen event by bubbling a custom event upward to ActiveChat.
-      // MapsLocationEmbedFullscreen is registered in embedFullscreenHandler.ts.
+      // Dispatch fullscreen event on document (same pattern as AppSkillUseRenderer).
+      // ActiveChat listens on document for 'embedfullscreen' events.
       const handleFullscreen = () => {
-        content.dispatchEvent(
+        document.dispatchEvent(
           new CustomEvent("embedfullscreen", {
             bubbles: true,
-            composed: true,
             detail: {
               embedType: "maps",
+              // embedId: strip "embed:" prefix so ActiveChat can look up EmbedStore
+              embedId: attrs.contentRef?.startsWith("embed:")
+                ? attrs.contentRef.replace("embed:", "")
+                : undefined,
+              attrs: {
+                lat,
+                lon,
+                name,
+                status,
+                preciseLat: lat,
+                preciseLon: lon,
+              },
               embedData: {
-                attrs: {
-                  lat,
-                  lon,
-                  name,
-                  status,
-                },
+                type: "maps",
+                status,
               },
               decodedContent: {
                 lat,
