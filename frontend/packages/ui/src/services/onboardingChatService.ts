@@ -8,29 +8,30 @@
 // The chat is created with the 'openmates-welcome' focus mode pre-activated,
 // which guides Suki's AI responses through the onboarding conversation flow.
 
-import { get } from 'svelte/store';
-import { text } from '../i18n/translations';
+import { get } from "svelte/store";
+import { text } from "../i18n/translations";
 import {
   generateChatKey,
   encryptChatKeyWithMasterKey,
   encryptWithChatKey,
   encryptArrayWithChatKey,
-} from './cryptoService';
-import { addChat, saveMessage } from './db';
-import { chatDB } from './db';
-import type { Chat, Message } from '../types/chat';
+} from "./cryptoService";
+import { addChat } from "./db/chatCrudOperations";
+import { saveMessage } from "./db/messageOperations";
+import { chatDB } from "./db";
+import type { Chat, Message } from "../types/chat";
 
 /**
  * Category identifier for the onboarding/support mate (Suki).
  * Must match the category in mates.yml and matesMetadata.ts.
  */
-const ONBOARDING_CATEGORY = 'onboarding_support';
+const ONBOARDING_CATEGORY = "onboarding_support";
 
 /**
  * Focus mode ID for the onboarding welcome flow.
  * Format: "{app_id}-{focus_id}" as used by the focus mode system.
  */
-const ONBOARDING_FOCUS_ID = 'openmates-welcome';
+const ONBOARDING_FOCUS_ID = "openmates-welcome";
 
 /**
  * Creates the onboarding chat with Suki's welcome message.
@@ -48,11 +49,13 @@ const ONBOARDING_FOCUS_ID = 'openmates-welcome';
  * @param username - The user's display name (injected into the welcome message)
  * @returns The chat_id of the created onboarding chat, or null if creation failed
  */
-export async function createOnboardingChat(username: string): Promise<string | null> {
+export async function createOnboardingChat(
+  username: string,
+): Promise<string | null> {
   try {
     const $text = get(text);
     if (!$text) {
-      console.error('[OnboardingChat] Translation store not available');
+      console.error("[OnboardingChat] Translation store not available");
       return null;
     }
 
@@ -62,23 +65,30 @@ export async function createOnboardingChat(username: string): Promise<string | n
     const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
 
     if (!encryptedChatKey) {
-      console.error('[OnboardingChat] Failed to encrypt chat key — master key may be missing');
+      console.error(
+        "[OnboardingChat] Failed to encrypt chat key — master key may be missing",
+      );
       return null;
     }
 
     // --- Build the welcome message content ---
-    const welcomeContent = $text('onboarding.welcome_message', { username: username || 'there' });
+    const welcomeContent = $text("onboarding.welcome_message", {
+      username: username || "there",
+    });
 
     // Verify the translation resolved (not a missing placeholder)
-    if (welcomeContent.startsWith('[T:')) {
-      console.error('[OnboardingChat] Welcome message translation not found');
+    if (welcomeContent.startsWith("[T:")) {
+      console.error("[OnboardingChat] Welcome message translation not found");
       return null;
     }
 
     // --- Encrypt message fields ---
     const encryptedContent = await encryptWithChatKey(welcomeContent, chatKey);
-    const encryptedCategory = await encryptWithChatKey(ONBOARDING_CATEGORY, chatKey);
-    const encryptedSenderName = await encryptWithChatKey('Suki', chatKey);
+    const encryptedCategory = await encryptWithChatKey(
+      ONBOARDING_CATEGORY,
+      chatKey,
+    );
+    const encryptedSenderName = await encryptWithChatKey("Suki", chatKey);
 
     // --- Build the message ---
     const now = Math.floor(Date.now() / 1000);
@@ -87,28 +97,34 @@ export async function createOnboardingChat(username: string): Promise<string | n
     const message: Message = {
       message_id: messageId,
       chat_id: chatId,
-      role: 'assistant',
+      role: "assistant",
       created_at: now,
-      status: 'synced',
+      status: "synced",
       encrypted_content: encryptedContent,
       encrypted_category: encryptedCategory,
       encrypted_sender_name: encryptedSenderName,
     };
 
     // --- Encrypt chat-level fields ---
-    const encryptedActiveFocusId = await encryptWithChatKey(ONBOARDING_FOCUS_ID, chatKey);
+    const encryptedActiveFocusId = await encryptWithChatKey(
+      ONBOARDING_FOCUS_ID,
+      chatKey,
+    );
 
     // Encrypt follow-up suggestions
     const suggestions = [
-      $text('onboarding.follow_up_1'),
-      $text('onboarding.follow_up_2'),
-      $text('onboarding.follow_up_3'),
-      $text('onboarding.follow_up_4'),
+      $text("onboarding.follow_up_1"),
+      $text("onboarding.follow_up_2"),
+      $text("onboarding.follow_up_3"),
+      $text("onboarding.follow_up_4"),
     ];
-    const encryptedSuggestions = await encryptArrayWithChatKey(suggestions, chatKey);
+    const encryptedSuggestions = await encryptArrayWithChatKey(
+      suggestions,
+      chatKey,
+    );
 
     // Encrypt icon (compass for onboarding)
-    const encryptedIcon = await encryptWithChatKey('compass', chatKey);
+    const encryptedIcon = await encryptWithChatKey("compass", chatKey);
 
     // --- Build the chat object ---
     const chat: Chat = {
@@ -137,16 +153,18 @@ export async function createOnboardingChat(username: string): Promise<string | n
     await addChat(dbInstance, chat);
     await saveMessage(dbInstance, message);
 
-    console.debug(`[OnboardingChat] Created onboarding chat ${chatId} with welcome message ${messageId}`);
+    console.debug(
+      `[OnboardingChat] Created onboarding chat ${chatId} with welcome message ${messageId}`,
+    );
 
     // Dispatch event so the chat list updates
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('localChatListChanged'));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("localChatListChanged"));
     }
 
     return chatId;
   } catch (error) {
-    console.error('[OnboardingChat] Failed to create onboarding chat:', error);
+    console.error("[OnboardingChat] Failed to create onboarding chat:", error);
     return null;
   }
 }
@@ -177,8 +195,11 @@ export async function hasOnboardingChat(): Promise<boolean> {
           if (!chatKey) continue;
 
           // Dynamically import to avoid circular dependency
-          const { decryptWithChatKey } = await import('./cryptoService');
-          const focusId = await decryptWithChatKey(chat.encrypted_active_focus_id, chatKey);
+          const { decryptWithChatKey } = await import("./cryptoService");
+          const focusId = await decryptWithChatKey(
+            chat.encrypted_active_focus_id,
+            chatKey,
+          );
           if (focusId === ONBOARDING_FOCUS_ID) {
             return true;
           }
@@ -191,7 +212,10 @@ export async function hasOnboardingChat(): Promise<boolean> {
 
     return false;
   } catch (error) {
-    console.error('[OnboardingChat] Error checking for existing onboarding chat:', error);
+    console.error(
+      "[OnboardingChat] Error checking for existing onboarding chat:",
+      error,
+    );
     return false;
   }
 }
