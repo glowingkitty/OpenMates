@@ -1190,6 +1190,8 @@ async def handle_main_processing(
     
     relevant_focus_modes = preprocessing_results.relevant_focus_modes if hasattr(preprocessing_results, 'relevant_focus_modes') else []
     has_active_focus_mode = bool(request_data.active_focus_id)
+    # Whether the user explicitly specified this focus mode via @focus:app:id mention
+    user_requested_focus_only = getattr(preprocessing_results, 'user_requested_focus_only', False)
     
     if relevant_focus_modes and not has_active_focus_mode:
         # Build enum and descriptions for activate_focus_mode tool
@@ -1299,6 +1301,158 @@ async def handle_main_processing(
     failed_embed_ids: set[str] = set()
     
     # --- End of existing logic ---
+
+    # --- User-requested focus mode: bypass LLM + countdown ---
+    # When the user explicitly mentioned a focus mode via @focus:app_id:focus_id in their message,
+    # we skip the normal flow (LLM deciding to call activate_focus_mode, 5s countdown) and
+    # directly activate the focus mode with countdown=0 (immediate).
+    # This mirrors the exact same activation pipeline used in the deferred path, but without delay.
+    if user_requested_focus_only and relevant_focus_modes and not has_active_focus_mode:
+        focus_id = relevant_focus_modes[0]  # Only one can be selected per the UI constraint
+        logger.info(
+            f"{log_prefix} [FOCUS_MODE_OVERRIDE] User explicitly requested focus mode '{focus_id}' via @mention. "
+            f"Bypassing LLM tool call and countdown — activating immediately."
+        )
+
+        # Create the focus mode activation embed (same as the LLM-initiated path)
+        fm_embed_id = None
+        if cache_service and user_vault_key_id and directus_service:
+            try:
+                from backend.core.api.app.services.embed_service import EmbedService
+                embed_service = EmbedService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service
+                )
+
+                # Resolve the translated focus mode display name
+                focus_mode_display_name = focus_id  # fallback
+                try:
+                    fm_app_id, fm_mode_id = focus_id.split('-', 1)
+                    user_language = preprocessing_results.output_language or "en"
+                    fm_app_metadata = discovered_apps_metadata.get(fm_app_id)
+                    if fm_app_metadata and fm_app_metadata.focuses:
+                        for fm_def in fm_app_metadata.focuses:
+                            if fm_def.id == fm_mode_id:
+                                focus_mode_display_name = translation_service.get_nested_translation(
+                                    fm_def.name_translation_key, lang=user_language
+                                ) or ""
+                                if not focus_mode_display_name and user_language != "en":
+                                    focus_mode_display_name = translation_service.get_nested_translation(
+                                        fm_def.name_translation_key, lang="en"
+                                    ) or fm_def.name_translation_key
+                                elif not focus_mode_display_name:
+                                    focus_mode_display_name = fm_def.name_translation_key
+                                break
+                except Exception:
+                    pass
+
+                fm_embed_data = await embed_service.create_focus_mode_activation_embed(
+                    focus_id=focus_id,
+                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
+                    focus_mode_name=focus_mode_display_name,
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix
+                )
+
+                if fm_embed_data:
+                    fm_embed_id = fm_embed_data.get("embed_id")
+                    fm_embed_ref = fm_embed_data.get("embed_reference")
+                    if fm_embed_ref:
+                        yield f"```json\n{fm_embed_ref}\n```\n\n"
+                        logger.info(
+                            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielded focus mode activation embed "
+                            f"(embed_id={fm_embed_id})"
+                        )
+            except Exception as embed_error:
+                logger.error(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error creating focus mode embed: {embed_error}",
+                    exc_info=True
+                )
+
+        # Load focus mode system prompt (same as the LLM-initiated path)
+        focus_prompt_text = ""
+        try:
+            focus_app_id, focus_mode_id = focus_id.split('-', 1)
+            translation_key = f"focus_modes.{focus_app_id}_{focus_mode_id}.systemprompt"
+            user_language = preprocessing_results.output_language or "en"
+            focus_prompt_text = translation_service.get_nested_translation(translation_key, lang=user_language) or ""
+            if not focus_prompt_text and user_language != "en":
+                focus_prompt_text = translation_service.get_nested_translation(translation_key, lang="en") or ""
+                logger.info(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in fallback language (en) "
+                    f"({len(focus_prompt_text)} chars)"
+                )
+            else:
+                logger.info(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in user language ({user_language}) "
+                    f"({len(focus_prompt_text)} chars)"
+                )
+        except Exception as e:
+            logger.error(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error loading focus prompt: {e}", exc_info=True)
+
+        # Store pending activation context in Redis (same structure as the LLM-initiated path)
+        if cache_service:
+            try:
+                pending_context = {
+                    "focus_id": focus_id,
+                    "focus_prompt": focus_prompt_text,
+                    "embed_id": fm_embed_id,
+                    "chat_id": request_data.chat_id,
+                    "message_id": request_data.message_id,
+                    "user_id": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "mate_id": preprocessing_results.selected_mate_id or request_data.mate_id,
+                    "chat_has_title": request_data.chat_has_title,
+                    "is_incognito": getattr(request_data, 'is_incognito', False),
+                    "task_id": task_id,
+                }
+                await cache_service.store_pending_focus_activation(
+                    chat_id=request_data.chat_id,
+                    context=pending_context,
+                )
+                logger.info(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Stored pending focus activation context")
+            except Exception as e:
+                logger.error(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to store pending context: {e}",
+                    exc_info=True
+                )
+
+        # Schedule auto-confirm task with countdown=0 (immediate, no user-facing countdown delay)
+        # The standard 5-second countdown is skipped because the user explicitly chose this focus mode.
+        try:
+            from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+            celery_app_instance.send_task(
+                'apps.ai.tasks.focus_mode_auto_confirm',
+                kwargs={
+                    "chat_id": request_data.chat_id,
+                },
+                queue='app_ai',
+                countdown=0,  # Immediate — user explicitly requested this focus mode, no countdown needed
+            )
+            logger.info(
+                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Scheduled auto-confirm task with countdown=0 "
+                f"(user-requested focus mode '{focus_id}' bypasses the 5s countdown)"
+            )
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to schedule auto-confirm task: {e}",
+                exc_info=True
+            )
+
+        # Yield the same special marker and return — stream_consumer handles this identically
+        # to the LLM-initiated path (no error, awaiting continuation from auto-confirm task)
+        logger.info(
+            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielding pending marker and returning — "
+            f"auto-confirm fires immediately for user-requested focus mode '{focus_id}'"
+        )
+        yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
+        return
 
     # Validate that we have a model_id before proceeding with main processing
     # This prevents crashes when preprocessing fails and model_id is None
