@@ -39,11 +39,14 @@ skills:
       Also use for: mockups, design concepts, visual mockup creation, logo mockups,
       product mockups, illustration requests, visual design, concept art, posters,
       banners, thumbnails, or any request that implies creating a visual output.
+      Use output_filetype="svg" for logos, icons, illustrations, and any other
+      vector graphics that need to be scalable or editable.
     stage: development
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill
     providers:
       - Google
+      - Recraft
     full_model_reference: google/gemini-3-pro-image-preview
     tool_schema:
       type: object
@@ -54,7 +57,8 @@ skills:
             REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.
             Example for single image: {"requests": [{"prompt": "a cute cat"}]}
-            Each object must contain 'prompt' (detailed description), and can include optional 'aspect_ratio'.
+            Each object must contain 'prompt' (detailed description), and can include optional
+            'aspect_ratio', 'output_filetype', and 'quality'.
           items:
             type: object
             properties:
@@ -66,6 +70,24 @@ skills:
                 description: Aspect ratio of the generated image
                 enum: ["1:1", "16:9", "4:3", "3:2", "2:3", "9:16"]
                 default: "1:1"
+              output_filetype:
+                type: string
+                description: |
+                  Output file format. Use "svg" to generate a scalable vector graphic (SVG) via
+                  Recraft V4 — ideal for logos, icons, illustrations, and any graphic that needs
+                  to be scalable, editable in design tools, or used at any size without quality loss.
+                  Use "png" (default) for photos, realistic scenes, and detailed raster images.
+                enum: ["png", "jpg", "svg"]
+                default: "png"
+              quality:
+                type: string
+                description: |
+                  Generation quality. Only relevant when output_filetype="svg".
+                  "default" uses Recraft V4 Vector (1MP, 80 credits — good for web/UI use).
+                  "max" uses Recraft V4 Pro Vector (4MP, 300 credits — best for print, large-format,
+                  or highly detailed vector illustrations).
+                enum: ["default", "max"]
+                default: "default"
             required:
               - prompt
       required:

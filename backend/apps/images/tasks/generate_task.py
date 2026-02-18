@@ -26,9 +26,17 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
-from backend.core.api.app.utils.image_processing import process_image_for_storage
+from backend.core.api.app.utils.image_processing import (
+    process_image_for_storage,
+    process_svg_for_storage,
+)
 from backend.shared.providers.google.gemini_image import generate_image_google
 from backend.shared.providers.fal.flux import generate_image_fal_flux
+from backend.shared.providers.recraft.recraft import (
+    generate_vector_recraft,
+    RECRAFT_MODEL_DEFAULT,
+    RECRAFT_MODEL_MAX,
+)
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
 
@@ -205,7 +213,11 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         message_id = arguments.get("message_id")
         aspect_ratio = arguments.get("aspect_ratio", "1:1")
         model_ref = arguments.get("full_model_reference")
-        
+        # output_filetype: "png", "jpg", or "svg" (defaults to "png" for backward compat)
+        output_filetype = str(arguments.get("output_filetype", "png")).lower()
+        # quality: "default" or "max" — only used when output_filetype="svg"
+        quality = str(arguments.get("quality", "default")).lower()
+
         if not prompt or not user_id:
             raise ValueError(f"Missing required arguments: prompt={bool(prompt)}, user_id={bool(user_id)}")
 
@@ -214,89 +226,144 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         logger.info(f"{log_prefix} Using embed_id: {embed_id}")
 
         # 4. Call Provider API
-        logger.info(f"{log_prefix} Calling provider for model: {model_ref}")
-        image_bytes = None
-        # actual_model: full provider reference for logging and XMP metadata
-        # display_model_id: short model ID matching frontend modelsMetadata
-        #   (e.g., "flux-schnell", "gemini-3-pro-image-preview") for embed content
+        #
+        # Routing logic:
+        #   output_filetype == "svg"  → Recraft V4 Vector (returns SVG bytes)
+        #     quality == "default"    → recraftv4_vector     (80 credits,  $0.08)
+        #     quality == "max"        → recraftv4_pro_vector (300 credits, $0.30)
+        #   output_filetype == "png"/"jpg" → raster pipeline (Google / fal.ai FLUX)
+        #
+        # actual_model:    full provider reference for logging and XMP metadata
+        # display_model_id: short model ID for embed content (matches frontend modelsMetadata)
+        logger.info(
+            f"{log_prefix} Calling provider for model: {model_ref}, "
+            f"output_filetype={output_filetype}, quality={quality}"
+        )
+        image_bytes: Optional[bytes] = None
+        svg_bytes: Optional[bytes] = None
         actual_model = model_ref or "Unknown AI"
-        display_model_id = model_ref.split('/')[-1] if model_ref and "/" in model_ref else (model_ref or "Unknown")
-        
-        if model_ref and "google" in model_ref:
-            model_id = model_ref.split('/')[-1] if "/" in model_ref else model_ref
+        display_model_id = (
+            model_ref.split("/")[-1]
+            if model_ref and "/" in model_ref
+            else (model_ref or "Unknown")
+        )
+
+        if output_filetype == "svg":
+            # --- SVG branch: Recraft V4 Vector ---
+            # Both "default" and "max" use the same generate skill;
+            # quality selects between the two Recraft model tiers.
+            recraft_model_id = RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
+            svg_bytes = await generate_vector_recraft(
+                prompt=prompt,
+                secrets_manager=task._secrets_manager,
+                model_id=recraft_model_id,
+                size=aspect_ratio,  # Recraft accepts "w:h" format natively
+            )
+            actual_model = f"Recraft {recraft_model_id}"
+            display_model_id = recraft_model_id
+            # Override model_ref for billing so pricing is looked up from recraft.yml
+            model_ref = f"recraft/{recraft_model_id}"
+
+        elif model_ref and "google" in model_ref:
+            # --- Raster branch: Google Gemini image generation ---
+            model_id = model_ref.split("/")[-1] if "/" in model_ref else model_ref
             image_bytes = await generate_image_google(
                 prompt=prompt,
                 secrets_manager=task._secrets_manager,
                 aspect_ratio=aspect_ratio,
-                model_id=model_id
+                model_id=model_id,
             )
             actual_model = f"Google {model_id}"
             display_model_id = model_id
+
         elif model_ref and ("bfl" in model_ref or "flux" in model_ref):
-            # Map model ref to fal.ai model ID
-            # bfl/flux-schnell -> fal-ai/flux-2/klein/9b/base
-            fal_model_id = "fal-ai/flux-2/klein/9b/base" 
+            # --- Raster branch: fal.ai FLUX ---
+            # Map model ref to fal.ai model ID:
+            #   bfl/flux-schnell → fal-ai/flux-2/klein/9b/base
+            fal_model_id = "fal-ai/flux-2/klein/9b/base"
             if "pro" in model_ref:
                 fal_model_id = "fal-ai/flux-pro/v1.1"
-                
             image_bytes = await generate_image_fal_flux(
                 prompt=prompt,
                 secrets_manager=task._secrets_manager,
-                model_id=fal_model_id
+                model_id=fal_model_id,
             )
             actual_model = f"fal.ai {fal_model_id}"
             # display_model_id already set from model_ref split (e.g., "flux-schnell")
+
         else:
-            # Fallback to draft if not specified or unknown
-            logger.warning(f"{log_prefix} Unknown or missing model reference '{model_ref}', falling back to FLUX.2 Klein")
+            # --- Fallback: FLUX.2 Klein if model ref is unknown/missing ---
+            logger.warning(
+                f"{log_prefix} Unknown or missing model reference '{model_ref}', "
+                "falling back to FLUX.2 Klein"
+            )
             fal_model_id = "fal-ai/flux-2/klein/9b/base"
             image_bytes = await generate_image_fal_flux(
                 prompt=prompt,
                 secrets_manager=task._secrets_manager,
-                model_id=fal_model_id
+                model_id=fal_model_id,
             )
             actual_model = f"fal.ai {fal_model_id} (fallback)"
             display_model_id = "flux-schnell"
 
-        if not image_bytes:
+        # Validate that the provider returned data
+        if output_filetype == "svg" and not svg_bytes:
+            raise Exception("Recraft provider returned empty SVG data")
+        if output_filetype != "svg" and not image_bytes:
             raise Exception("Provider returned empty image data")
 
-        # Log actual provider model used, keep display_model_id for embed content
-        logger.info(f"{log_prefix} Provider model: {actual_model}, display ID: {display_model_id}")
+        # Log actual provider model used; display_model_id is stored in embed content
+        logger.info(
+            f"{log_prefix} Provider model: {actual_model}, display ID: {display_model_id}"
+        )
 
-        # 5. Get original image dimensions
-        original_width, original_height = _get_image_dimensions(image_bytes)
-        logger.info(f"{log_prefix} Original image dimensions: {original_width}x{original_height}")
+        # 5. Get original dimensions (raster only; SVG is resolution-independent)
+        original_width, original_height = 0, 0
+        if output_filetype != "svg" and image_bytes:
+            original_width, original_height = _get_image_dimensions(image_bytes)
+            logger.info(
+                f"{log_prefix} Original image dimensions: {original_width}x{original_height}"
+            )
+        else:
+            logger.info(f"{log_prefix} SVG output — dimensions are resolution-independent")
 
         # 5b. Charge credits for the image generation (flat per-image fee).
         # Done after successful generation so we only charge for images that
         # were actually produced by the provider.
+        # For SVG: model_ref was updated in step 4 to "recraft/{model_id}" so billing
+        # will look up the correct Recraft pricing from recraft.yml.
         hashed_user_id = _hash_value(user_id)
         await _charge_image_generation_credits(
             user_id=user_id,
             user_id_hash=hashed_user_id,
             app_id=app_id,
             skill_id=skill_id,
-            model_ref=arguments.get("full_model_reference"),
+            model_ref=model_ref,  # Updated to recraft/... for SVG requests
             chat_id=chat_id,
             message_id=message_id,
-            log_prefix=log_prefix
+            log_prefix=log_prefix,
         )
 
-        # 6. Process image (Original + Full WEBP + Preview WEBP)
-        logger.info(f"{log_prefix} Processing image into multiple formats...")
-        
-        # Prepare metadata for XMP/C2PA labeling (invisible standard metadata).
+        # 6. Process image into storage formats.
+        # Prepare provenance metadata for XMP/C2PA labeling (raster only).
         # Uses actual_model (full provider reference) for accurate provenance tracking.
         labeling_metadata = {
             "prompt": prompt,
             "model": actual_model,
             "software": "OpenMates",
             "source": "OpenMates AI",
-            "generated_at": datetime.now(timezone.utc).isoformat()
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
-        
-        processed_images = process_image_for_storage(image_bytes, metadata=labeling_metadata)
+
+        if output_filetype == "svg":
+            # SVG pipeline: store raw SVG as "original" + rasterized WEBP as "preview_webp".
+            # No full_webp variant — the SVG is already infinitely scalable.
+            logger.info(f"{log_prefix} Processing SVG for storage (original + preview_webp)...")
+            processed_images = process_svg_for_storage(svg_bytes, metadata=labeling_metadata)  # type: ignore[arg-type]
+        else:
+            # Raster pipeline: Original PNG + Full WEBP + Preview WEBP
+            logger.info(f"{log_prefix} Processing raster image into multiple formats...")
+            processed_images = process_image_for_storage(image_bytes, metadata=labeling_metadata)  # type: ignore[arg-type]
         
         # 7. Hybrid Encryption Setup
         # Fetch user profile to get vault_key_id
@@ -345,20 +412,26 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         unique_id = uuid.uuid4().hex[:8]
         files_metadata = {}
-        
+
         # Map internal format keys to public format names
         format_mapping = {
             "original": "original",
             "full_webp": "full",
-            "preview_webp": "preview"
+            "preview_webp": "preview",
         }
-        
+
         for format_key, content in processed_images.items():
             # Encrypt content locally using the same key/nonce for all versions
             encrypted_payload = aesgcm.encrypt(nonce, content, None)
-            
-            # Generate S3 key: user_id/timestamp_id_format.ext
-            ext = "png" if format_key == "original" else "webp"
+
+            # Determine file extension:
+            #   SVG originals  → .svg
+            #   PNG originals  → .png  (raster pipeline)
+            #   WEBP variants  → .webp (full/preview)
+            if format_key == "original":
+                ext = output_filetype if output_filetype in ("svg", "jpg") else "png"
+            else:
+                ext = "webp"
             file_key = f"{user_id}/{timestamp}_{unique_id}_{format_key}.{ext}"
             
             logger.info(f"{log_prefix} Uploading {format_key} version to S3 (chatfiles): {file_key}")
@@ -377,14 +450,20 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             # Get dimensions for this format
             width, height = _get_image_dimensions(content)
             
-            # Store file metadata with public format name
+            # Store file metadata with public format name.
+            # "format" records the actual file type for the download endpoint to use
+            # when setting Content-Type and the filename extension.
             public_format = format_mapping.get(format_key, format_key)
+            if format_key == "original":
+                stored_format = output_filetype if output_filetype in ("svg", "jpg") else "png"
+            else:
+                stored_format = "webp"
             files_metadata[public_format] = {
                 "s3_key": file_key,
                 "width": width,
                 "height": height,
                 "size_bytes": len(content),
-                "format": "png" if format_key == "original" else "webp"
+                "format": stored_format,
             }
 
         # 9. Prepare embed content for client-side storage
@@ -415,14 +494,15 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             "type": "image",
             "status": "finished",
             "files": files_metadata,
-            "s3_base_url": s3_base_url,     # Base URL for constructing full S3 file URLs
-            "aes_key": aes_key_b64,         # Plaintext AES key for client-side S3 decryption
-            "aes_nonce": nonce_b64,          # GCM nonce shared across all image formats
+            "s3_base_url": s3_base_url,                         # Base URL for constructing full S3 file URLs
+            "aes_key": aes_key_b64,                             # Plaintext AES key for client-side S3 decryption
+            "aes_nonce": nonce_b64,                             # GCM nonce shared across all image formats
             "vault_wrapped_aes_key": encrypted_aes_key_vault,  # For server-side LLM vision access
             "prompt": prompt,
             "model": display_model_id,
             "aspect_ratio": aspect_ratio,
-            "generated_at": generated_at
+            "output_filetype": output_filetype,                 # "png", "jpg", or "svg"
+            "generated_at": generated_at,
         }
         
         # 9b. Cache S3 file keys for server-side cleanup (S3 deletion on chat/embed deletion)
@@ -501,14 +581,15 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                     "width": meta["width"],
                     "height": meta["height"],
                     "size_bytes": meta["size_bytes"],
-                    "format": meta["format"]
+                    "format": meta["format"],
                 }
                 for format_name, meta in files_metadata.items()
             },
             "prompt": prompt,
             "model": display_model_id,
             "aspect_ratio": aspect_ratio,
-            "generated_at": generated_at
+            "output_filetype": output_filetype,
+            "generated_at": generated_at,
         }
         
         logger.info(f"{log_prefix} Image generation task completed successfully. Embed ID: {embed_id}")

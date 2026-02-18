@@ -7,11 +7,19 @@ ARG APP_NAME
 
 WORKDIR /app
 
-# Install system dependencies (if any are common to all apps)
-# git is needed for installing packages from GitHub (e.g., toon-format)
+# Install system dependencies common to all apps.
+# git is needed for packages installed from GitHub (e.g., toon-format).
+# Cairo + Pango are required by cairosvg for SVG rasterization in the images app.
 RUN apt-get update && \
-    apt-get install -y git && \
-    apt-get clean && \
+    apt-get install -y --no-install-recommends \
+        git \
+        libcairo2 \
+        libpango-1.0-0 \
+        libpangocairo-1.0-0 \
+        libgdk-pixbuf-xlib-2.0-0 \
+        libffi-dev \
+        shared-mime-info \
+    && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy common requirements.

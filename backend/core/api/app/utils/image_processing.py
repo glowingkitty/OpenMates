@@ -3,18 +3,21 @@
 # Image processing utilities for format conversion and thumbnail generation.
 # Uses Pillow for high-performance image manipulation.
 # Includes industry-standard AI content labeling via IPTC 2025.1 and C2PA-compatible metadata.
+#
+# SVG support:
+# When output_filetype="svg" is requested, use process_svg_for_storage() instead of
+# process_image_for_storage(). SVGs are stored as-is (raw XML bytes) for the "original"
+# format, and rasterized to a WEBP preview via cairosvg for inline display in chat.
 
 import logging
 import io
 import xml.etree.ElementTree as ET
-import json
-import os
 from typing import Tuple, Dict, Any, Optional
 from PIL import Image
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding
+from cryptography.hazmat.primitives.asymmetric import ec
 import datetime
 
 try:
@@ -294,6 +297,117 @@ def process_image_for_storage(
             results['preview_webp'] = image_bytes
             
     return results
+
+def process_svg_for_storage(
+    svg_bytes: bytes,
+    preview_width: int = 1200,
+    webp_quality: int = 80,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Dict[str, bytes]:
+    """
+    Process a raw SVG file for storage as an embed.
+
+    Unlike raster images, SVGs are XML text and cannot be processed by PIL directly.
+    This function produces two variants:
+
+    1. 'original': The raw SVG bytes, stored as-is (image/svg+xml).
+       This is the canonical vector asset — infinitely scalable, downloadable.
+
+    2. 'preview_webp': A rasterized WEBP preview generated via cairosvg.
+       Used for inline display in chat embeds (same role as preview_webp for raster images).
+       Falls back to a blank 1x1 WEBP if cairosvg is unavailable or rasterization fails.
+
+    No 'full_webp' variant is produced — the SVG itself IS the full-resolution asset.
+    The download endpoint serves the SVG for format='original' and WEBP for format='preview'.
+
+    Args:
+        svg_bytes:     Raw SVG bytes from the Recraft API.
+        preview_width: Pixel width for the rasterized preview (height auto-scaled).
+        webp_quality:  WEBP compression quality for the preview (0–100).
+        metadata:      Optional AI metadata dict (currently unused for SVG, reserved
+                       for future XMP injection into rasterized preview).
+
+    Returns:
+        Dict with keys 'original' (SVG bytes) and 'preview_webp' (WEBP bytes).
+    """
+    results: Dict[str, bytes] = {"original": svg_bytes}
+
+    try:
+        import cairosvg  # type: ignore[import]
+
+        # Rasterize SVG to PNG at the requested preview width.
+        # cairosvg scales height proportionally when only output_width is given.
+        png_bytes = cairosvg.svg2png(bytestring=svg_bytes, output_width=preview_width)
+
+        # Convert the rasterized PNG to WEBP via PIL for consistent format and quality.
+        img = Image.open(io.BytesIO(png_bytes))
+        width, height = img.size
+
+        # Apply the same vertical / horizontal preview sizing logic as raster images:
+        # - Vertical (height > width): fixed 400px height, proportional width
+        # - Horizontal / Square: crop to 600x400
+        is_vertical = height > width
+        if is_vertical:
+            new_height = 400
+            new_width = int(width * (new_height / height))
+            preview_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        else:
+            target_ratio = 600 / 400
+            current_ratio = width / height
+            if current_ratio > target_ratio:
+                # Wider than target: crop sides
+                new_width = int(height * target_ratio)
+                left = (width - new_width) / 2
+                img_cropped = img.crop((left, 0, left + new_width, height))
+            else:
+                # Taller than target: crop top/bottom
+                new_height = int(width / target_ratio)
+                top = (height - new_height) / 2
+                img_cropped = img.crop((0, top, width, top + new_height))
+            preview_img = img_cropped.resize((600, 400), Image.Resampling.LANCZOS)
+
+        preview_io = io.BytesIO()
+        preview_img.save(preview_io, format="WEBP", quality=webp_quality)  # type: ignore[possibly-undefined]
+        results["preview_webp"] = preview_io.getvalue()
+
+        logger.info(
+            f"SVG processed for storage: original={len(svg_bytes)}b, "
+            f"preview_webp={len(results['preview_webp'])}b"
+        )
+
+    except ImportError:
+        logger.warning(
+            "cairosvg not installed — SVG preview rasterization unavailable. "
+            "Install cairosvg to enable WEBP preview generation for SVG files. "
+            "Falling back to a minimal WEBP placeholder."
+        )
+        results["preview_webp"] = _make_placeholder_webp()
+
+    except Exception as e:
+        logger.error(f"Failed to rasterize SVG preview: {e}", exc_info=True)
+        results["preview_webp"] = _make_placeholder_webp()
+
+    return results
+
+
+def _make_placeholder_webp() -> bytes:
+    """
+    Generate a minimal 1×1 transparent WEBP as a fallback preview
+    when SVG rasterization is unavailable or fails.
+    """
+    try:
+        img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+        buf = io.BytesIO()
+        img.save(buf, format="WEBP")
+        return buf.getvalue()
+    except Exception:
+        # Absolute last resort: return a hardcoded 1x1 transparent WEBP
+        return (
+            b"RIFF$\x00\x00\x00WEBPVP8L\x18\x00\x00\x00/"
+            b"\x00\x00\x00\x00\x88\x00\x00\xfe\x03\x00\x00\xfe"
+            b"\x03\x00\x00\x00"
+        )
+
 
 def _generate_ai_xmp(metadata: Dict[str, Any]) -> bytes:
     """

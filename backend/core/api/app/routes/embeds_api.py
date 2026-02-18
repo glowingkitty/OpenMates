@@ -273,9 +273,18 @@ async def download_embed_file(
             logger.error(f"{log_prefix} File decryption failed: {e}")
             raise HTTPException(status_code=500, detail="Failed to decrypt file content")
         
-        # 12. Determine content type and filename
-        content_type = "image/png" if file_format == "png" else "image/webp"
-        
+        # 12. Determine content type and filename.
+        # SVG files are served with the correct XML-based MIME type so browsers and
+        # design tools recognise them as scalable vector graphics.
+        content_type_map = {
+            "png": "image/png",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "webp": "image/webp",
+            "svg": "image/svg+xml",
+        }
+        content_type = content_type_map.get(file_format, "image/webp")
+
         # Generate a human-readable filename from the prompt (if available in embed content)
         embed_prompt = embed_content.get("prompt")
         filename = _generate_filename_from_prompt(embed_prompt, file_format)

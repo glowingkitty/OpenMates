@@ -17,6 +17,12 @@ RUN apt-get clean && \
             curl \
             git \
             gosu \
+            libcairo2 \
+            libpango-1.0-0 \
+            libpangocairo-1.0-0 \
+            libgdk-pixbuf-xlib-2.0-0 \
+            libffi-dev \
+            shared-mime-info \
             && break || \
         echo "Retrying in 5 seconds..." && \
         sleep 5; \
