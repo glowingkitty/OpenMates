@@ -1820,9 +1820,17 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 		setSearching(true);
 		try {
-			// Include hidden chats in search if they are currently unlocked
-			const unlocked = hiddenChatState.isUnlocked ? hiddenChats : [];
-			const results = await performSearch(query, allChats, $text, unlocked);
+		// Include hidden chats in search if they are currently unlocked
+		const unlocked = hiddenChatState.isUnlocked ? hiddenChats : [];
+		// Pass auth context so settings search filters out entries the user cannot access
+		const results = await performSearch(
+			query,
+			allChats,
+			$text,
+			unlocked,
+			$authStore.isAuthenticated,
+			$userProfile.is_admin,
+		);
 			searchResults = results;
 		} catch (error) {
 			console.error('[Chats] Search error:', error);
@@ -1871,22 +1879,29 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 * Search state is preserved (not cleared) so it is still active when the panel reopens.
 	 * @param chat - The chat containing the matched message
 	 * @param messageId - The message ID to scroll to and highlight
+	 *
+	 * IMPORTANT: messageHighlightStore is set AFTER handleChatClick resolves.
+	 * This ensures ChatHistory has already begun mounting/loading messages before
+	 * the scroll-to-message effect fires. Setting it before causes a timing race where
+	 * the $effect in ChatHistory fires before messages are rendered, resulting in the
+	 * scroll target not being found and silently giving up.
 	 */
-	function handleSearchMessageSnippetClick(chat: ChatType, messageId: string): void {
-		// Trigger scroll-to-message + blink animation via messageHighlightStore.
-		// ChatHistory subscribes to this store and handles scroll + highlight animation.
-		messageHighlightStore.set(messageId);
-
+	async function handleSearchMessageSnippetClick(chat: ChatType, messageId: string): Promise<void> {
 		const isMobile = window.innerWidth < 730;
 		if (isMobile) {
 			// Mobile: open the chat and close the panel so user sees the highlighted message.
 			// We pass closePanelOnMobile=true so handleChatClick closes the panel.
 			// Search state is NOT cleared — it remains active when panel reopens.
-			handleChatClick(chat, true, true);
+			await handleChatClick(chat, true, true);
 		} else {
 			// Desktop: open chat without closing search or the panel
-			handleChatClick(chat, true, false);
+			await handleChatClick(chat, true, false);
 		}
+
+		// Set the highlight store AFTER the chat is selected so ChatHistory's $effect fires
+		// when the component is already mounted and messages are loading/loaded.
+		// This avoids the race where the store is set before container is available.
+		messageHighlightStore.set(messageId);
 	}
 
 	/**

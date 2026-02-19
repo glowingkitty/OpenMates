@@ -913,29 +913,38 @@
     });
   });
 
-  // Handle scrolling to highlighted message from deep link
+  // Handle scrolling to highlighted message from search or deep link.
+  //
+  // The messageHighlightStore is set by handleSearchMessageSnippetClick in Chats.svelte
+  // AFTER the chat is selected, so ChatHistory is already mounting when this effect fires.
+  // We still retry up to 30 times (3 seconds) to account for messages loading from IndexedDB.
   $effect(() => {
     if (container && $messageHighlightStore) {
       const messageId = $messageHighlightStore;
       
-      // Wait for messages to render
+      // Wait for Svelte to apply pending DOM updates before querying
       tick().then(() => {
+        // Retry loop: messages may still be loading from IndexedDB when this fires.
+        // 30 attempts × 100 ms = up to 3 seconds of patience.
+        const MAX_ATTEMPTS = 30;
         const attemptScroll = (attempts = 0) => {
           const targetMessage = container.querySelector(`[data-message-id="${messageId}"]`);
           
           if (targetMessage) {
             const messageTop = (targetMessage as HTMLElement).offsetTop;
-            // Scroll so the message has 100px offset from top
+            // Scroll so the message has 100px of breathing room from the top of the container
             const scrollPosition = Math.max(0, messageTop - 100);
             
             container.scrollTo({
               top: scrollPosition,
               behavior: 'smooth'
             });
-            console.debug(`[ChatHistory] Scrolled to highlighted message ${messageId}`);
-          } else if (attempts < 10) {
-            // Message not found yet, try again after a short delay
+            console.debug(`[ChatHistory] Scrolled to highlighted message ${messageId} (attempt ${attempts + 1})`);
+          } else if (attempts < MAX_ATTEMPTS) {
+            // Message not found yet — messages may still be decrypting from IndexedDB
             setTimeout(() => attemptScroll(attempts + 1), 100);
+          } else {
+            console.warn(`[ChatHistory] Could not find message element for id ${messageId} after ${MAX_ATTEMPTS} attempts`);
           }
         };
         

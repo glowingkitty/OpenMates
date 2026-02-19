@@ -1896,9 +1896,17 @@
     }
   }
 
-  /* In-chat search text highlighting — <mark class="search-match"> injected via DOM */
+  /* In-chat search text highlighting — <mark class="search-match"> injected via DOM.
+   * Must override the global `mark` rule in fonts.css which uses -webkit-text-fill-color:transparent
+   * (gradient text effect). That property takes priority over `color` in WebKit/Blink, making the
+   * text invisible unless we explicitly reset it here. */
   :global(mark.search-match) {
+    background: none;
     background-color: transparent;
+    /* Reset WebKit gradient-text trick from global mark rule in fonts.css */
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
     color: var(--color-primary-start);
     font-weight: 700;
     border-radius: 2px;

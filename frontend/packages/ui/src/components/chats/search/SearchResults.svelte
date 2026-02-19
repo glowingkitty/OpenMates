@@ -596,16 +596,27 @@
     outline: none;
   }
 
-  /* <mark> inside snippets — highlight color matching Figma (primary accent) */
+  /* <mark> inside snippets — highlight color matching Figma (primary accent).
+   * Must override the global `mark` rule in fonts.css which uses -webkit-text-fill-color:transparent
+   * (gradient text effect). That property takes priority over `color` in WebKit/Blink browsers,
+   * making text invisible unless we explicitly reset -webkit-text-fill-color here. */
   .message-snippet :global(mark) {
+    background: none;
     background-color: transparent;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
     color: var(--color-primary-start);
     font-weight: 600;
   }
 
   /* <mark> inside setting/app labels */
   .item-label :global(mark) {
+    background: none;
     background-color: transparent;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
     color: var(--color-primary-start);
     font-weight: 700;
   }

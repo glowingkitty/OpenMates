@@ -409,19 +409,32 @@ function searchMessagesInChat(
 /**
  * Search settings catalog against the query.
  * Matches against the translated label and keyword synonyms.
+ * Filters out entries that require authentication or admin access based on the caller's context.
  * @param query - Search query string
  * @param textFn - Translation function ($text)
- * @returns Array of matching settings entries
+ * @param isAuthenticated - Whether the current user is authenticated
+ * @param isAdmin - Whether the current user has admin privileges
+ * @returns Array of matching settings entries visible to the current user
  */
 function searchSettings(
   query: string,
   textFn: (key: string) => string,
+  isAuthenticated: boolean,
+  isAdmin: boolean,
 ): SettingsSearchResult[] {
   const catalog = getSettingsSearchCatalog();
   const lowerQuery = query.toLowerCase();
   const results: SettingsSearchResult[] = [];
 
   for (const entry of catalog) {
+    // Access control: skip entries that the current user cannot access.
+    // - 'admin' entries: only visible to admin users
+    // - 'authenticated' entries: only visible to logged-in users
+    // - 'public' / undefined (default): visible to everyone
+    const access = entry.access ?? "public";
+    if (access === "admin" && !isAdmin) continue;
+    if (access === "authenticated" && !isAuthenticated) continue;
+
     const label = textFn(entry.translationKey);
     const lowerLabel = label.toLowerCase();
 
@@ -514,6 +527,8 @@ function getAppCatalog(
  * @param chats - Array of all available chats (from Chats.svelte's allChats derived)
  * @param textFn - Translation function ($text) for settings labels and i18n
  * @param hiddenChats - Optional array of hidden chats to include in search (only when unlocked)
+ * @param isAuthenticated - Whether the current user is authenticated (filters auth-only settings)
+ * @param isAdmin - Whether the current user has admin privileges (filters admin-only settings)
  * @returns SearchResults with categorized matches
  */
 export async function search(
@@ -521,6 +536,8 @@ export async function search(
   chats: Chat[],
   textFn: (key: string) => string,
   hiddenChats: Chat[] = [],
+  isAuthenticated: boolean = false,
+  isAdmin: boolean = false,
 ): Promise<SearchResults> {
   if (!query || query.trim().length === 0) {
     return {
@@ -593,8 +610,13 @@ export async function search(
     );
   });
 
-  // Search settings and app catalog
-  const settingsResults = searchSettings(trimmedQuery, textFn);
+  // Search settings and app catalog — pass auth context so access-controlled entries are filtered
+  const settingsResults = searchSettings(
+    trimmedQuery,
+    textFn,
+    isAuthenticated,
+    isAdmin,
+  );
   const appCatalogResults = searchAppCatalog(trimmedQuery, textFn);
 
   const totalCount =

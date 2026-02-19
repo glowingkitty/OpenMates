@@ -20,6 +20,13 @@ export interface SettingsCatalogEntry {
    * These help users find settings using alternative terms.
    * e.g., "dark mode" matches "interface", "password" matches "security" */
   keywords: string[];
+  /**
+   * Access control for this settings entry.
+   * - 'public': visible to all users including unauthenticated (default)
+   * - 'authenticated': only visible to logged-in users
+   * - 'admin': only visible to admin users
+   */
+  access?: "public" | "authenticated" | "admin";
 }
 
 /**
@@ -51,11 +58,12 @@ export interface AppCatalogEntry {
  * Deep transactional flows (e.g., billing/buy-credits/payment) are excluded.
  */
 const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
-  // Privacy
+  // Privacy — requires authentication (personal data settings)
   {
     path: "privacy",
     translationKey: "settings.privacy",
     icon: "icon_privacy",
+    access: "authenticated",
     keywords: [
       "privacy",
       "data",
@@ -70,6 +78,7 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
     path: "privacy/hide-personal-data",
     translationKey: "settings.hide_personal_data",
     icon: "icon_privacy",
+    access: "authenticated",
     keywords: [
       "hide",
       "personal data",
@@ -80,31 +89,35 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
       "pii",
     ],
   },
-  // Usage
+  // Usage — requires authentication (per-account statistics)
   {
     path: "usage",
     translationKey: "settings.usage",
     icon: "icon_chart",
+    access: "authenticated",
     keywords: ["usage", "statistics", "stats", "nutzung"],
   },
-  // Chat
+  // Chat — requires authentication (per-account chat settings)
   {
     path: "chat",
     translationKey: "settings.chat",
     icon: "icon_chat",
+    access: "authenticated",
     keywords: ["chat", "conversation", "message"],
   },
   {
     path: "chat/notifications",
     translationKey: "settings.notifications",
     icon: "icon_bell",
+    access: "authenticated",
     keywords: ["notifications", "alerts", "sounds", "benachrichtigungen"],
   },
-  // Billing
+  // Billing — requires authentication (payment information)
   {
     path: "billing",
     translationKey: "settings.billing",
     icon: "icon_credit_card",
+    access: "authenticated",
     keywords: [
       "billing",
       "payment",
@@ -119,12 +132,14 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
     path: "billing/buy-credits",
     translationKey: "settings.buy_credits",
     icon: "icon_credit_card",
+    access: "authenticated",
     keywords: ["buy credits", "purchase", "top up", "add credits", "aufladen"],
   },
   {
     path: "billing/auto-topup",
     translationKey: "settings.auto_topup",
     icon: "icon_credit_card",
+    access: "authenticated",
     keywords: [
       "auto topup",
       "automatic",
@@ -137,20 +152,23 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
     path: "billing/invoices",
     translationKey: "settings.invoices",
     icon: "icon_file",
+    access: "authenticated",
     keywords: ["invoices", "receipts", "bills", "rechnungen"],
   },
-  // Gift Cards
+  // Gift Cards — requires authentication (tied to user account)
   {
     path: "gift_cards",
     translationKey: "settings.gift_cards",
     icon: "icon_gift",
+    access: "authenticated",
     keywords: ["gift card", "voucher", "coupon", "gutschein", "geschenkkarte"],
   },
-  // App Store
+  // App Store — requires authentication (app installations are per-account)
   {
     path: "app_store",
     translationKey: "settings.apps",
     icon: "icon_apps",
+    access: "authenticated",
     keywords: [
       "apps",
       "store",
@@ -160,37 +178,42 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
       "marketplace",
     ],
   },
-  // Shared
+  // Shared — requires authentication (shared chats are per-account)
   {
     path: "shared",
     translationKey: "settings.shared",
     icon: "icon_share",
+    access: "authenticated",
     keywords: ["share", "shared", "sharing", "teilen"],
   },
-  // Developers
+  // Developers — requires authentication (API keys are per-account)
   {
     path: "developers",
     translationKey: "settings.developers",
     icon: "icon_code",
+    access: "authenticated",
     keywords: ["developer", "api", "code", "integration", "entwickler"],
   },
   {
     path: "developers/api-keys",
     translationKey: "settings.api_keys",
     icon: "icon_key",
+    access: "authenticated",
     keywords: ["api key", "token", "access", "authentication"],
   },
   {
     path: "developers/devices",
     translationKey: "settings.devices",
     icon: "icon_device",
+    access: "authenticated",
     keywords: ["devices", "sessions", "logged in", "geräte"],
   },
-  // Interface
+  // Interface — public (theme/language can be changed by any user)
   {
     path: "interface",
     translationKey: "settings.interface",
     icon: "icon_settings",
+    access: "public",
     keywords: [
       "interface",
       "theme",
@@ -207,6 +230,7 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
     path: "interface/language",
     translationKey: "settings.language",
     icon: "icon_language",
+    access: "public",
     keywords: [
       "language",
       "locale",
@@ -217,23 +241,26 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
       "deutsch",
     ],
   },
-  // Account
+  // Account — requires authentication (user account management)
   {
     path: "account",
     translationKey: "settings.account",
     icon: "icon_user",
+    access: "authenticated",
     keywords: ["account", "profile", "user", "konto", "profil"],
   },
   {
     path: "account/email",
     translationKey: "settings.email",
     icon: "icon_mail",
+    access: "authenticated",
     keywords: ["email", "e-mail", "mail address"],
   },
   {
     path: "account/security",
     translationKey: "settings.security",
     icon: "icon_lock",
+    access: "authenticated",
     keywords: [
       "security",
       "password",
@@ -248,6 +275,7 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
     path: "account/security/passkeys",
     translationKey: "settings.passkeys",
     icon: "icon_key",
+    access: "authenticated",
     keywords: [
       "passkey",
       "biometric",
@@ -261,12 +289,14 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
     path: "account/security/password",
     translationKey: "settings.password",
     icon: "icon_lock",
+    access: "authenticated",
     keywords: ["password", "change password", "passwort ändern"],
   },
   {
     path: "account/security/2fa",
     translationKey: "settings.two_factor_auth",
     icon: "icon_lock",
+    access: "authenticated",
     keywords: [
       "2fa",
       "two factor",
@@ -280,39 +310,45 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
     path: "account/security/recovery-key",
     translationKey: "settings.recovery_key",
     icon: "icon_key",
+    access: "authenticated",
     keywords: ["recovery", "backup", "key", "wiederherstellung"],
   },
   {
     path: "account/export",
     translationKey: "settings.export_data",
     icon: "icon_download",
+    access: "authenticated",
     keywords: ["export", "download", "gdpr", "data portability", "datenexport"],
   },
   {
     path: "account/delete",
     translationKey: "settings.delete_account",
     icon: "icon_delete",
+    access: "authenticated",
     keywords: ["delete account", "remove account", "konto löschen"],
   },
-  // Newsletter
+  // Newsletter — requires authentication (subscription tied to user account)
   {
     path: "newsletter",
     translationKey: "settings.newsletter",
     icon: "icon_mail",
+    access: "authenticated",
     keywords: ["newsletter", "subscribe", "email updates"],
   },
-  // Support
+  // Support — public (anyone can donate/get support info)
   {
     path: "support",
     translationKey: "settings.support",
     icon: "icon_heart",
+    access: "public",
     keywords: ["support", "donate", "sponsor", "unterstützen", "spenden"],
   },
-  // Report Issue
+  // Report Issue — public (anyone can report issues)
   {
     path: "report_issue",
     translationKey: "settings.report_issue",
     icon: "icon_flag",
+    access: "public",
     keywords: [
       "report",
       "issue",
@@ -322,11 +358,12 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
       "fehler melden",
     ],
   },
-  // Server (admin)
+  // Server — admin only (server management is restricted to admins)
   {
     path: "server",
     translationKey: "settings.server",
     icon: "icon_server",
+    access: "admin",
     keywords: ["server", "admin", "system", "self-hosted"],
   },
 ];
