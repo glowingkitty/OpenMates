@@ -1550,6 +1550,17 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			await updateChatListFromDB();
 			console.debug('[Chats] Sync was already complete on mount, loaded data but staying at loadTier:', loadTier);
 		}
+
+		// SEARCH RESTORE: If the search store has an active query when this component mounts
+		// (e.g., the user had searched, clicked a chat result, the panel closed on mobile, and
+		// then reopened it), the searchStore retains the query/isActive state (module-level store),
+		// but searchResults is local $state(null) and resets on every mount.
+		// Re-run the search here so the results are immediately visible on reopen.
+		const currentSearchState = $searchStore;
+		if (currentSearchState.isActive && currentSearchState.query.trim().length > 0) {
+			console.debug('[Chats] Restoring search results on mount for query:', currentSearchState.query);
+			await handleSearchQuery(currentSearchState.query);
+		}
 	});
 
 	/**
@@ -1908,6 +1919,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 * Handle clicking a settings result from search.
 	 * Closes search, opens the settings panel, and navigates to the matching sub-page.
 	 * On small viewports: also closes the Chats panel so the settings panel is visible.
+	 *
+	 * IMPORTANT: navigateToSettings() only updates the breadcrumb/path store — it does NOT
+	 * open the settings panel itself. panelState.openSettings() must be called explicitly
+	 * to make the settings panel visible, especially on mobile viewports.
 	 */
 	function handleSearchSettingsClick(
 		path: string,
@@ -1917,6 +1932,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	): void {
 		handleSearchClose();
 		navigateToSettings(path, title, icon, translationKey);
+		// Open the settings panel (navigateToSettings only updates the navigation state,
+		// it does NOT make the panel visible — openSettings() is required for that).
+		panelState.openSettings();
 		// On mobile: close the Chats panel so the settings panel is actually visible
 		if (window.innerWidth < 730) {
 			handleClose();
@@ -1929,10 +1947,16 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 * On small viewports: also closes the Chats panel so the settings panel is visible.
 	 * @param path - The settings path (e.g., "app_store/ai/skill/ask")
 	 * @param title - The display title for the breadcrumb
+	 *
+	 * IMPORTANT: navigateToSettings() only updates the breadcrumb/path store — it does NOT
+	 * open the settings panel itself. panelState.openSettings() must be called explicitly.
 	 */
 	function handleSearchAppCatalogClick(path: string, title: string): void {
 		handleSearchClose();
 		navigateToSettings(path, title);
+		// Open the settings panel (navigateToSettings only updates the navigation state,
+		// it does NOT make the panel visible — openSettings() is required for that).
+		panelState.openSettings();
 		// On mobile: close the Chats panel so the settings panel is actually visible
 		if (window.innerWidth < 730) {
 			handleClose();
