@@ -23,7 +23,7 @@ from backend.core.api.app.services.s3 import S3UploadService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse # Import request/response models
+from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
@@ -3694,3 +3694,71 @@ async def delete_uncompleted_account(
     except Exception as e:
         logger.error(f"Error deleting uncompleted account: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ─── Auto-deletion settings ───────────────────────────────────────────────────
+
+
+@router.post("/auto-delete-chats", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_auto_delete_chats(
+    request: Request,
+    request_data: AutoDeleteChatsRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> SimpleSuccessResponse:
+    """
+    Persist the user's chat auto-deletion period.
+
+    Accepts a period string (e.g. "90d", "1y", "never") and converts it to an
+    integer day count stored on the user record as ``auto_delete_chats_after_days``.
+    "never" stores null, which tells the auto-delete task to skip this user.
+
+    The daily Celery Beat task (auto_delete_tasks.auto_delete_old_chats) reads this
+    field each run and schedules deletion of chats older than the configured period.
+    """
+    user_id = current_user.id
+    days = period_to_days(request_data.period)  # None for "never", int otherwise
+
+    logger.info(
+        f"[AutoDelete] Updating auto-delete period for user {user_id}: "
+        f"period={request_data.period!r} → days={days}"
+    )
+
+    update_data = {'auto_delete_chats_after_days': days}
+
+    try:
+        # Persist to Directus (source of truth)
+        success = await directus_service.update_user(user_id, update_data)
+        if not success:
+            logger.error(
+                f"[AutoDelete] Failed to update Directus for user {user_id} "
+                f"(period={request_data.period!r})."
+            )
+            raise HTTPException(status_code=500, detail="Failed to save auto-delete setting")
+
+        # Mirror to cache so the frontend sees the new value immediately
+        cache_ok = await cache_service.update_user(user_id, update_data)
+        if not cache_ok:
+            # Non-fatal: Directus is the source of truth; cache will be refreshed on next request.
+            logger.warning(
+                f"[AutoDelete] Cache update failed for user {user_id} after "
+                f"auto-delete period change (Directus was updated successfully)."
+            )
+        else:
+            logger.info(f"[AutoDelete] Cache updated for user {user_id}.")
+
+        return SimpleSuccessResponse(
+            success=True,
+            message="Auto-delete setting saved successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[AutoDelete] Unexpected error updating auto-delete period for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="An error occurred while saving auto-delete setting")

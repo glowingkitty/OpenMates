@@ -1100,6 +1100,31 @@ async def store_upload_record(
         record = payload.model_dump()
         await directus_service.create_item("upload_files", record)
         logger.info(f"{log_prefix} Upload record stored successfully")
+
+        # Increment the user's storage counter.
+        # This is a best-effort operation — if it fails, the weekly billing job
+        # will reconcile the counter from the upload_files table directly.
+        try:
+            user_data = await directus_service.get_items(
+                'directus_users',
+                params={'filter[id][_eq]': payload.user_id, 'fields': 'storage_used_bytes', 'limit': 1},
+            )
+            current_bytes = 0
+            if user_data and isinstance(user_data, list) and len(user_data) > 0:
+                current_bytes = int(user_data[0].get('storage_used_bytes') or 0)
+            new_bytes = current_bytes + payload.file_size_bytes
+            await directus_service.update_user(payload.user_id, {'storage_used_bytes': new_bytes})
+            logger.info(
+                f"{log_prefix} Storage counter updated: {current_bytes} → {new_bytes} bytes "
+                f"(+{payload.file_size_bytes} bytes)"
+            )
+        except Exception as counter_err:
+            # Non-fatal: weekly billing reconciliation will correct the counter.
+            logger.warning(
+                f"{log_prefix} Failed to update storage counter after upload: {counter_err}. "
+                f"Weekly billing job will reconcile."
+            )
+
         return {"status": "success", "embed_id": payload.embed_id}
 
     except Exception as e:

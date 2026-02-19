@@ -281,6 +281,23 @@ directus_users:
       nullable: true
       note: "ISO timestamp of when the user consented to the withdrawal waiver (agreed to immediate execution of digital services, acknowledging that withdrawal right expires once credits are used). Required for EU/German consumer law compliance."
 
+    # Storage tracking and billing fields
+    storage_used_bytes:
+      type: bigInteger
+      default: 0
+      note: "Total S3 storage used by this user in bytes across all upload_files records. Incremented on new file upload, decremented when files are deleted (on chat deletion or manual delete). Used for weekly storage billing calculation."
+
+    storage_last_billed_at:
+      type: integer
+      nullable: true
+      note: "Unix timestamp (seconds) of the last completed weekly storage billing run for this user. Used to track billing history and prevent double-charging."
+
+    # Auto-deletion settings (privacy feature)
+    auto_delete_chats_after_days:
+      type: integer
+      nullable: true
+      note: "Auto-delete chats older than N days. Null means never auto-delete. The daily Celery Beat task reads this field and dispatches persist_delete_chat for stale chats. Settable via POST /v1/settings/auto-delete-chats."
+
     # Email notification fields
     email_notifications_enabled:
       type: boolean

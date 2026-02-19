@@ -49,6 +49,9 @@ export interface UserProfile {
   // Disabled servers per model - all servers are enabled by default as fallbacks
   // Only explicitly disabled servers are excluded from processing
   disabled_ai_servers?: Record<string, string[]>; // model_id -> array of disabled server IDs
+  // Chat auto-deletion period (null = never delete, positive int = delete after N days)
+  // Managed via Privacy → Auto Deletion → Chats. Persisted to server via POST /v1/settings/auto-delete-chats.
+  auto_delete_chats_after_days?: number | null;
   // Email notification settings (synced with server)
   // Only sends email when user is offline (no active WebSocket connections after 3 retry attempts)
   email_notifications_enabled?: boolean;

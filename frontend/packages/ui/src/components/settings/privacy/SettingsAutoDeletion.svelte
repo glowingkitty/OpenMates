@@ -7,14 +7,20 @@ The category is determined from the activeSettingsView prop:
   "privacy/auto-deletion/files"      → files
   "privacy/auto-deletion/usage_data" → usage_data
 
-Each category has a set of selectable period options. The selected period is
-persisted to the user's privacy settings.
+For "chats", the selected period is persisted to the server via
+POST /v1/settings/auto-delete-chats and stored locally in the userProfile store
+so subsequent visits show the correct selection without a network round-trip.
+
+"files" and "usage_data" categories are not yet backed by a server endpoint;
+their selections are therefore visual-only for now (same as before).
 -->
 
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
+    import { getApiUrl, apiEndpoints } from '../../../config/api';
+    import { userProfile, updateProfile } from '../../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
 
@@ -75,28 +81,58 @@ persisted to the user's privacy settings.
         category === 'usage_data' ? PERIOD_OPTIONS_LONG : PERIOD_OPTIONS_SHORT
     );
 
-    /** Default periods per category (matching the values shown on the parent page) */
+    /**
+     * Maps the server-stored integer day count back to a UI period key.
+     * Mirrors _PERIOD_TO_DAYS in backend/core/api/app/schemas/settings.py.
+     */
+    const DAYS_TO_PERIOD: Record<number, string> = {
+        30:   '30d',
+        60:   '60d',
+        90:   '90d',
+        180:  '6m',
+        365:  '1y',
+        730:  '2y',
+        1825: '5y',
+    };
+
+    /** Default periods per category (shown when the user has not configured a period yet) */
     const DEFAULT_PERIODS: Record<string, string> = {
-        chats: '90d',
-        files: '90d',
+        chats:      '90d',
+        files:      '90d',
         usage_data: '1y',
     };
 
     // ─── Selected Period State ───────────────────────────────────────────────
 
     let selectedPeriod = $state('');
+    let isSaving = $state(false);
 
-    // Initialize with the default period for this category
+    /**
+     * Derive the initial period from the user profile store for the "chats" category.
+     * For other categories we fall back to the hard-coded default (server not yet wired).
+     */
     $effect(() => {
-        // TODO: Load persisted period from user settings when backend supports it
-        selectedPeriod = DEFAULT_PERIODS[category] || '90d';
+        if (category === 'chats') {
+            const days = $userProfile?.auto_delete_chats_after_days;
+            if (days == null) {
+                // null / undefined means "never"
+                selectedPeriod = 'never';
+            } else if (days in DAYS_TO_PERIOD) {
+                selectedPeriod = DAYS_TO_PERIOD[days];
+            } else {
+                // Unknown value stored on server — fall back to default
+                selectedPeriod = DEFAULT_PERIODS.chats;
+            }
+        } else {
+            selectedPeriod = DEFAULT_PERIODS[category] || '90d';
+        }
     });
 
     // ─── Icon per Category ───────────────────────────────────────────────────
 
     const CATEGORY_ICONS: Record<string, string> = {
-        chats: 'chat',
-        files: 'files',
+        chats:      'chat',
+        files:      'files',
         usage_data: 'usage',
     };
 
@@ -104,16 +140,62 @@ persisted to the user's privacy settings.
 
     // ─── Save Handler ────────────────────────────────────────────────────────
 
-    function selectPeriod(periodKey: string) {
+    async function selectPeriod(periodKey: string) {
+        if (periodKey === selectedPeriod || isSaving) return;
+
         selectedPeriod = periodKey;
 
-        // TODO: Persist the selected period to the server via user profile settings
-        // For now, the selection is visual-only. Backend persistence will be added
-        // when the auto-deletion feature is implemented server-side.
-        console.debug(`[SettingsAutoDeletion] Selected period for ${category}: ${periodKey}`);
+        if (category === 'chats') {
+            // Persist to the server and update the local profile store.
+            isSaving = true;
+            try {
+                const response = await fetch(getApiUrl() + apiEndpoints.settings.autoDeleteChats, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ period: periodKey }),
+                    credentials: 'include',
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error(
+                        `[SettingsAutoDeletion] Failed to save period for chats: ` +
+                        `${response.status} – ${errorData?.detail ?? 'unknown error'}`
+                    );
+                    // Leave selectedPeriod as the newly-selected value so the UI
+                    // still reflects user intent; it will be reconciled on next mount.
+                } else {
+                    // Mirror to the local profile store so sibling components and
+                    // subsequent mounts read the up-to-date value without a refetch.
+                    const PERIOD_TO_DAYS: Record<string, number | null> = {
+                        '30d':  30,
+                        '60d':  60,
+                        '90d':  90,
+                        '6m':   180,
+                        '1y':   365,
+                        '2y':   730,
+                        '5y':   1825,
+                        'never': null,
+                    };
+                    updateProfile({ auto_delete_chats_after_days: PERIOD_TO_DAYS[periodKey] });
+                    console.debug(`[SettingsAutoDeletion] Saved period for chats: ${periodKey}`);
+                }
+            } catch (err) {
+                console.error('[SettingsAutoDeletion] Network error while saving period:', err);
+            } finally {
+                isSaving = false;
+            }
+        } else {
+            // For "files" and "usage_data" the server endpoint is not yet implemented.
+            // The selection is visual-only until those categories are wired up.
+            console.debug(`[SettingsAutoDeletion] Selected period for ${category}: ${periodKey} (visual-only)`);
+        }
 
         // Navigate back to the privacy settings page after a brief delay
-        // so the user can see their selection take effect
+        // so the user can see their selection take effect visually.
         setTimeout(() => {
             dispatch('openSettings', {
                 settingsPath: 'privacy',
@@ -143,7 +225,9 @@ persisted to the user's privacy settings.
     <button
         class="period-option"
         class:selected={selectedPeriod === option.key}
+        class:saving={isSaving}
         onclick={() => selectPeriod(option.key)}
+        disabled={isSaving}
     >
         <span class="period-label">
             {$text(`settings.privacy.${option.translationKey}`)}
@@ -198,6 +282,11 @@ persisted to the user's privacy settings.
     .period-option.selected {
         background-color: var(--color-grey-10, #f5f5f5);
         font-weight: 600;
+    }
+
+    .period-option.saving {
+        opacity: 0.6;
+        cursor: wait;
     }
 
     .period-label {

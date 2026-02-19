@@ -768,11 +768,14 @@ async def _async_persist_delete_chat(
                 f"check method's specific return behavior (e.g., if messages existed). Task ID: {task_id}"
             )
 
-        # 3. Delete ALL private embeds for this chat from Directus
-        # Shared embeds are preserved since they may be referenced elsewhere
-        # Also delete associated S3 files (e.g., generated images) using s3_file_keys metadata
+        # 3. Delete ALL embeds for this chat from Directus.
+        #    - Private / non-shared embeds are always deleted.
+        #    - Shared embeds are also deleted when they are not used in any other
+        #      chat belonging to the same user (per product spec).
+        #    Also deletes associated S3 files and upload_files dedup records, and
+        #    decrements the user's storage_used_bytes counter accordingly.
         hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-        
+
         # Initialize S3 service for cleaning up S3 files associated with embeds
         s3_service = None
         try:
@@ -783,19 +786,62 @@ async def _async_persist_delete_chat(
         except Exception as e:
             logger.warning(f"Failed to initialize S3 service for embed cleanup (chat {chat_id}): {e}. "
                           f"S3 files will not be cleaned up but embed records will still be deleted.")
-        
-        all_embeds_deleted_directus = await directus_service.embed.delete_all_embeds_for_chat(
-            hashed_chat_id, s3_service=s3_service
+
+        embeds_deleted_ok, deleted_embed_ids = await directus_service.embed.delete_all_embeds_for_chat(
+            hashed_chat_id, s3_service=s3_service, user_id=user_id
         )
-        if all_embeds_deleted_directus:
+        if embeds_deleted_ok:
             logger.info(
-                f"Successfully processed deletion of all private embeds for chat {chat_id} from Directus. Task ID: {task_id}"
+                f"Successfully deleted embed(s) for chat {chat_id} from Directus "
+                f"({len(deleted_embed_ids)} embed(s) removed). Task ID: {task_id}"
             )
         else:
             logger.warning(
-                f"Attempt to delete all private embeds for chat {chat_id} from Directus completed; "
-                f"check method's specific return behavior (e.g., if embeds existed). Task ID: {task_id}"
+                f"Embed deletion for chat {chat_id} completed with warnings. Task ID: {task_id}"
             )
+
+        # 3.5 Clean up upload_files dedup records and update the user's storage counter.
+        #     This must run after embed deletion so we know which embed_ids were freed.
+        if deleted_embed_ids:
+            try:
+                bytes_freed = await directus_service.embed.delete_upload_files_for_embeds(
+                    deleted_embed_ids
+                )
+                if bytes_freed > 0:
+                    # Decrement storage_used_bytes on the user (floor at 0 to avoid negatives).
+                    # We use a direct Directus update here; the cache will be refreshed
+                    # on the next cache-warm (or on next login).
+                    try:
+                        user_data = await directus_service.get_items(
+                            'directus_users',
+                            params={'filter[id][_eq]': user_id, 'fields': 'storage_used_bytes', 'limit': 1},
+                            no_cache=True,
+                        )
+                        current_bytes = 0
+                        if user_data and isinstance(user_data, list) and len(user_data) > 0:
+                            current_bytes = int(user_data[0].get('storage_used_bytes') or 0)
+                        new_bytes = max(0, current_bytes - bytes_freed)
+                        await directus_service.update_user(
+                            user_id, {'storage_used_bytes': new_bytes}
+                        )
+                        logger.info(
+                            f"Storage counter updated for user {user_id}: "
+                            f"{current_bytes} → {new_bytes} bytes "
+                            f"({bytes_freed} bytes freed). Task ID: {task_id}"
+                        )
+                    except Exception as counter_err:
+                        # Non-fatal: the weekly billing job will reconcile the counter.
+                        logger.warning(
+                            f"Failed to update storage counter for user {user_id} "
+                            f"after chat deletion (chat {chat_id}): {counter_err}. "
+                            f"Weekly billing reconciliation will correct the value."
+                        )
+            except Exception as upload_cleanup_err:
+                # Non-fatal: orphaned upload_files records will be caught by billing reconciliation.
+                logger.warning(
+                    f"Failed to clean up upload_files for deleted embeds "
+                    f"(chat {chat_id}): {upload_cleanup_err}"
+                )
 
         # 4. Delete the chat itself from Directus
         # This should happen after draft, message, and embed deletion to avoid orphaned data if chat deletion fails.
@@ -937,6 +983,35 @@ async def _async_persist_delete_message(
                 f"Deleted {len(deleted_embeds)} embeds for message {client_message_id} "
                 f"in chat {chat_id}. Task ID: {task_id}"
             )
+            # Clean up upload_files dedup records and update storage counter
+            try:
+                bytes_freed = await directus_service.embed.delete_upload_files_for_embeds(deleted_embeds)
+                if bytes_freed > 0:
+                    try:
+                        user_data = await directus_service.get_items(
+                            'directus_users',
+                            params={'filter[id][_eq]': user_id, 'fields': 'storage_used_bytes', 'limit': 1},
+                            no_cache=True,
+                        )
+                        current_bytes = 0
+                        if user_data and isinstance(user_data, list) and len(user_data) > 0:
+                            current_bytes = int(user_data[0].get('storage_used_bytes') or 0)
+                        new_bytes = max(0, current_bytes - bytes_freed)
+                        await directus_service.update_user(user_id, {'storage_used_bytes': new_bytes})
+                        logger.info(
+                            f"Storage counter updated for user {user_id} after message deletion: "
+                            f"{current_bytes} → {new_bytes} bytes freed. Task ID: {task_id}"
+                        )
+                    except Exception as counter_err:
+                        logger.warning(
+                            f"Failed to update storage counter for user {user_id} "
+                            f"after message deletion: {counter_err}"
+                        )
+            except Exception as upload_cleanup_err:
+                logger.warning(
+                    f"Failed to clean up upload_files after message deletion "
+                    f"(message {client_message_id}): {upload_cleanup_err}"
+                )
 
         logger.info(
             f"TASK_LOGIC_FINISH: _async_persist_delete_message completed "

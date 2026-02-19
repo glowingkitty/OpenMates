@@ -102,6 +102,8 @@ TASK_CONFIG = [
     {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
     {'name': 'e2e_tests',   'module': 'backend.core.api.app.tasks.e2e_test_tasks'},  # E2E test automation tasks
     {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -857,6 +859,12 @@ _EXPLICIT_TASK_ROUTES = {
     # Leaderboard tasks
     "leaderboard.update_daily": "leaderboard",
     "leaderboard.refresh_cache": "leaderboard",
+
+    # Storage billing tasks
+    "app.tasks.storage_billing_tasks.charge_storage_fees": "persistence",
+
+    # Auto-delete tasks
+    "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
 }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
@@ -1034,6 +1042,20 @@ app.conf.beat_schedule = {
     'process-pending-embeds': {
         'task': 'app.tasks.persistence_tasks.process_pending_embeds',
         'schedule': timedelta(seconds=300),  # Every 5 minutes
+        'options': {'queue': 'persistence'},
+    },
+    # Weekly storage billing - charges 3 credits/GB/week for storage above 1 GB free tier.
+    # Runs Sunday at 03:00 UTC so it doesn't overlap with the daily auto-delete at 02:30 UTC.
+    'charge-storage-fees-weekly': {
+        'task': 'app.tasks.storage_billing_tasks.charge_storage_fees',
+        'schedule': crontab(hour=3, minute=0, day_of_week=0),  # Sunday 03:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily auto-delete - removes old chats for users who have configured a retention period.
+    # Runs at 02:30 UTC before the weekly billing run so billing only charges for live data.
+    'auto-delete-old-chats-daily': {
+        'task': 'app.tasks.auto_delete_tasks.auto_delete_old_chats',
+        'schedule': crontab(hour=2, minute=30),  # Daily 02:30 UTC
         'options': {'queue': 'persistence'},
     },
 }

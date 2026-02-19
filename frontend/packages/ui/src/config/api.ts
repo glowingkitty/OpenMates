@@ -152,6 +152,7 @@ export const apiEndpoints = {
     autoTopUp: {
       lowBalance: "/v1/settings/auto-topup/low-balance", // Update low balance auto top-up settings (requires 2FA)
     },
+    autoDeleteChats: "/v1/settings/auto-delete-chats", // Persist chat auto-deletion period
     software_update: {
       check: "/v1/settings/software_update/check", // Check for software updates
       install: "/v1/settings/software_update/install", // Install software update
