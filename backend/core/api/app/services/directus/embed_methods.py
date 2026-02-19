@@ -903,6 +903,130 @@ class EmbedMethods:
             logger.error(f"Error deleting embed_keys for embed {embed_id}: {e}", exc_info=True)
             return False
 
+    async def delete_all_upload_files_for_user(
+        self,
+        user_id: str,
+        s3_service,
+    ) -> int:
+        """
+        Delete all uploaded files for a user due to storage billing failure.
+
+        This is the nuclear deletion path triggered after 4 consecutive weekly
+        billing failures. It:
+          1. Fetches every upload_files record for the user.
+          2. Deletes each S3 object (original, full, preview variants) listed in
+             the files_metadata JSON field.
+          3. Bulk-deletes all upload_files Directus records for the user.
+
+        Embed records are intentionally NOT deleted — they remain in Directus so
+        the UI can show "File was deleted" for any chat messages that referenced
+        uploaded files.
+
+        Args:
+            user_id:    Plaintext user ID whose files should be purged.
+            s3_service: Initialised S3UploadService instance.
+
+        Returns:
+            Total bytes freed (sum of file_size_bytes across all deleted records).
+        """
+        logger.info(f"[StorageBilling] Purging all upload files for user {user_id}.")
+        try:
+            # ──────────────────────────────────────────────────────────────────
+            # Step 1: Fetch all upload_files records for the user.
+            # ──────────────────────────────────────────────────────────────────
+            params: Dict[str, Any] = {
+                'filter[user_id][_eq]': user_id,
+                'fields': 'id,file_size_bytes,files_metadata',
+                'limit': -1,
+            }
+            records = await self.directus_service.get_items(
+                'upload_files', params=params, no_cache=True
+            )
+
+            if not records or not isinstance(records, list) or len(records) == 0:
+                logger.info(
+                    f"[StorageBilling] No upload_files records found for user {user_id}. Nothing to delete."
+                )
+                return 0
+
+            logger.info(
+                f"[StorageBilling] Found {len(records)} upload_files record(s) to purge for user {user_id}."
+            )
+
+            # ──────────────────────────────────────────────────────────────────
+            # Step 2: Delete each S3 object referenced in files_metadata.
+            # files_metadata structure:
+            #   {"original": {"s3_key": "...", ...}, "full": {...}, "preview": {...}}
+            # All three variants live in the "chatfiles" bucket.
+            # ──────────────────────────────────────────────────────────────────
+            s3_deleted = 0
+            s3_failed = 0
+            for record in records:
+                files_metadata = record.get('files_metadata')
+                if not files_metadata or not isinstance(files_metadata, dict):
+                    continue
+                for variant_name, variant_data in files_metadata.items():
+                    if not isinstance(variant_data, dict):
+                        continue
+                    s3_key = variant_data.get('s3_key')
+                    if not s3_key:
+                        continue
+                    try:
+                        await s3_service.delete_file(
+                            bucket_key='chatfiles',
+                            file_key=s3_key,
+                        )
+                        s3_deleted += 1
+                        logger.debug(
+                            f"[StorageBilling] Deleted S3 object chatfiles/{s3_key} "
+                            f"(variant: {variant_name}) for user {user_id}."
+                        )
+                    except Exception as s3_err:
+                        s3_failed += 1
+                        logger.warning(
+                            f"[StorageBilling] Failed to delete S3 object chatfiles/{s3_key} "
+                            f"for user {user_id}: {s3_err}"
+                        )
+
+            logger.info(
+                f"[StorageBilling] S3 deletion for user {user_id}: "
+                f"{s3_deleted} objects deleted, {s3_failed} failures."
+            )
+
+            # ──────────────────────────────────────────────────────────────────
+            # Step 3: Compute bytes freed and bulk-delete Directus records.
+            # ──────────────────────────────────────────────────────────────────
+            directus_ids = [r.get('id') for r in records if r.get('id')]
+            total_bytes_freed = sum(
+                int(r.get('file_size_bytes') or 0) for r in records
+            )
+
+            delete_success = await self.directus_service.bulk_delete_items(
+                collection='upload_files', item_ids=directus_ids
+            )
+            if not delete_success:
+                logger.error(
+                    f"[StorageBilling] Bulk delete of upload_files failed for user {user_id}. "
+                    f"Directus records may still exist despite S3 objects being deleted."
+                )
+                raise RuntimeError(
+                    f"Failed to bulk-delete upload_files records for user {user_id}."
+                )
+
+            logger.info(
+                f"[StorageBilling] Purge complete for user {user_id}: "
+                f"{len(directus_ids)} Directus records deleted, "
+                f"{total_bytes_freed:,} bytes freed."
+            )
+            return total_bytes_freed
+
+        except Exception as e:
+            logger.error(
+                f"[StorageBilling] Error purging upload files for user {user_id}: {e}",
+                exc_info=True,
+            )
+            raise
+
     async def _delete_s3_files_for_embeds(self, embeds: list, s3_service) -> None:
         """
         Delete S3 files associated with embeds (e.g., generated images).

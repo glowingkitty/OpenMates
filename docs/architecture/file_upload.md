@@ -328,13 +328,33 @@ Uploaded files consume persistent S3 storage. Users are charged weekly for stora
 
 The running `storage_used_bytes` counter on the user record may drift due to failed decrements or race conditions. The weekly billing run treats the aggregate query result as the authoritative value and overwrites `storage_used_bytes` on every run, preventing drift from accumulating across weeks.
 
+### Billing failure handling
+
+If a user cannot afford the weekly storage charge (insufficient credits), the billing failure counter `storage_billing_failures` on their user record is incremented. Each subsequent weekly failure escalates:
+
+| Failure # | Action                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------- |
+| 1st       | Warning email: "Payment failed, please top up"                                                    |
+| 2nd       | Second notice email: "2nd missed payment"                                                         |
+| 3rd       | Final warning email: "Files will be deleted in 7 days"                                            |
+| 4th       | All upload files deleted from S3 + Directus; deletion confirmation email sent; counter reset to 0 |
+
+**On a successful charge**, the counter is reset to 0 immediately.
+
+**What is deleted (4th failure):** All `upload_files` records for the user and their associated S3 objects (`original`, `full`, `preview` variants from `files_metadata`). Embed records are **not** deleted — they remain in Directus so the UI can show "File was deleted" for any messages that referenced the files.
+
+**Email templates:** `storage-billing-failed-1`, `storage-billing-failed-2`, `storage-billing-failed-3`, `storage-files-deleted` (MJML, in `backend/core/api/templates/email/`). Each email includes the user's current storage (GB) and the credits/week required.
+
+**Users with active failure counters** (`storage_billing_failures > 0`) are included in every billing run even if they have since dropped below the 1 GB free tier — so their failure state is always resolved.
+
 ### Key files
 
-| Path                                                                                                               | Description                                                    |
-| ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| [`backend/core/api/app/tasks/storage_billing_tasks.py`](../../backend/core/api/app/tasks/storage_billing_tasks.py) | Weekly billing Celery task                                     |
-| [`backend/core/api/app/tasks/celery_config.py`](../../backend/core/api/app/tasks/celery_config.py)                 | Beat schedule: `charge-storage-fees-weekly` (Sunday 03:00 UTC) |
-| [`backend/core/directus/schemas/users.yml`](../../backend/core/directus/schemas/users.yml)                         | `storage_used_bytes`, `storage_last_billed_at` fields          |
+| Path                                                                                                                       | Description                                                                       |
+| -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [`backend/core/api/app/tasks/storage_billing_tasks.py`](../../backend/core/api/app/tasks/storage_billing_tasks.py)         | Weekly billing Celery task                                                        |
+| [`backend/core/api/app/tasks/celery_config.py`](../../backend/core/api/app/tasks/celery_config.py)                         | Beat schedule: `charge-storage-fees-weekly` (Sunday 03:00 UTC)                    |
+| [`backend/core/directus/schemas/users.yml`](../../backend/core/directus/schemas/users.yml)                                 | `storage_used_bytes`, `storage_last_billed_at`, `storage_billing_failures` fields |
+| [`backend/core/api/app/services/directus/embed_methods.py`](../../backend/core/api/app/services/directus/embed_methods.py) | `delete_all_upload_files_for_user()` — nuclear deletion path                      |
 
 ---
 

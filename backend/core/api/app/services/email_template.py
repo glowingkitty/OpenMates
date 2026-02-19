@@ -398,6 +398,18 @@ class EmailTemplateService:
                 elif template == "account-created":
                     subject_key = "email.account_created"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "storage-billing-failed-1":
+                    subject_key = "email.storage_billing_failed_1.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "storage-billing-failed-2":
+                    subject_key = "email.storage_billing_failed_2.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "storage-billing-failed-3":
+                    subject_key = "email.storage_billing_failed_3.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "storage-files-deleted":
+                    subject_key = "email.storage_files_deleted.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "reminder-notification":
                     subject_key = "email.reminder_notification.subject"
                     if "reminder_excerpt" in context:
@@ -428,9 +440,11 @@ class EmailTemplateService:
             # Transactional emails: confirm-email, new-device-login, backup-code-was-used, etc.
             # These are essential account-related emails that users can't unsubscribe from
             transactional_templates = {
-                'confirm-email', 'new-device-login', 'backup-code-was-used', 
-                'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation', 
-                'signup_milestone', 'issue_report', 'community_share_notification'
+                'confirm-email', 'new-device-login', 'backup-code-was-used',
+                'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation',
+                'signup_milestone', 'issue_report', 'community_share_notification',
+                'storage-billing-failed-1', 'storage-billing-failed-2',
+                'storage-billing-failed-3', 'storage-files-deleted',
             }
             is_transactional = template in transactional_templates
             

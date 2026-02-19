@@ -4197,3 +4197,156 @@ ai_response_notification.open_chat_button:
   cs: Otevřít chat
   sv: Öppna chatt
   verified_by_human: []
+storage_billing_failed_1.subject:
+  context: Email subject for first storage billing failure (insufficient credits)
+  en: "Action required: Add credits to keep your files"
+  de: "Handlung erforderlich: Guthaben aufladen, um deine Dateien zu behalten"
+  es: "Acción requerida: Agrega créditos para conservar tus archivos"
+  fr: "Action requise : Ajoutez des crédits pour conserver vos fichiers"
+  ja: "対応が必要です：ファイルを保持するためにクレジットを追加してください"
+  zh: "需要处理：请充值以保留您的文件"
+  verified_by_human: []
+storage_billing_failed_1.header:
+  context: Email header for first storage billing failure
+  en: "Storage payment failed"
+  de: "Speicherzahlung fehlgeschlagen"
+  es: "Pago de almacenamiento fallido"
+  fr: "Échec du paiement de stockage"
+  ja: "ストレージ料金の支払いに失敗しました"
+  zh: "存储费用支付失败"
+  verified_by_human: []
+storage_billing_failed_1.body:
+  context: "Email body for first storage billing failure. Variables: {storage_gb} = total storage in GB, {credits_needed} = credits required"
+  en: "You have {storage_gb} GB of files stored on OpenMates, which requires {credits_needed} credits per week. We were unable to charge your account this week because your credit balance is too low."
+  de: "Du hast {storage_gb} GB an Dateien bei OpenMates gespeichert, wofür {credits_needed} Credits pro Woche benötigt werden. Wir konnten dein Konto diese Woche nicht belasten, da dein Guthaben zu niedrig ist."
+  es: "Tienes {storage_gb} GB de archivos almacenados en OpenMates, lo que requiere {credits_needed} créditos por semana. No pudimos cobrar tu cuenta esta semana porque tu saldo de créditos es demasiado bajo."
+  fr: "Vous avez {storage_gb} Go de fichiers stockés sur OpenMates, ce qui nécessite {credits_needed} crédits par semaine. Nous n'avons pas pu facturer votre compte cette semaine car votre solde de crédits est trop faible."
+  ja: "OpenMatesに{storage_gb} GBのファイルを保存しており、週{credits_needed}クレジットが必要です。クレジット残高が不足しているため、今週の請求ができませんでした。"
+  zh: "您在 OpenMates 存储了 {storage_gb} GB 的文件，每周需要 {credits_needed} 个积分。由于您的积分余额不足，本周无法扣费。"
+  verified_by_human: []
+storage_billing_failed_1.action:
+  context: Call-to-action text in first storage billing failure email
+  en: "Please top up your credits to keep your files safe. If payment fails for 4 weeks in a row, your files will be permanently deleted."
+  de: "Bitte lade dein Guthaben auf, um deine Dateien zu sichern. Wenn die Zahlung 4 Wochen in Folge fehlschlägt, werden deine Dateien dauerhaft gelöscht."
+  es: "Por favor, recarga tus créditos para mantener tus archivos seguros. Si el pago falla durante 4 semanas seguidas, tus archivos serán eliminados permanentemente."
+  fr: "Veuillez recharger vos crédits pour garder vos fichiers en sécurité. Si le paiement échoue pendant 4 semaines consécutives, vos fichiers seront supprimés définitivement."
+  ja: "ファイルを安全に保つためにクレジットをチャージしてください。4週間連続で支払いが失敗した場合、ファイルは永久に削除されます。"
+  zh: "请充值积分以保护您的文件安全。如果连续 4 周付款失败，您的文件将被永久删除。"
+  verified_by_human: []
+storage_billing_failed_2.subject:
+  context: Email subject for second storage billing failure
+  en: "2nd notice: Add credits or lose your files"
+  de: "2. Hinweis: Guthaben aufladen oder Dateien verlieren"
+  es: "2.° aviso: Agrega créditos o perderás tus archivos"
+  fr: "2ème avis : Ajoutez des crédits ou perdez vos fichiers"
+  ja: "2回目の通知：クレジットを追加しないとファイルが失われます"
+  zh: "第2次通知：请充值，否则您的文件将丢失"
+  verified_by_human: []
+storage_billing_failed_2.header:
+  context: Email header for second storage billing failure
+  en: "Storage payment failed again"
+  de: "Speicherzahlung erneut fehlgeschlagen"
+  es: "Pago de almacenamiento fallido de nuevo"
+  fr: "Échec du paiement de stockage à nouveau"
+  ja: "ストレージ料金の支払いが再び失敗しました"
+  zh: "存储费用再次支付失败"
+  verified_by_human: []
+storage_billing_failed_2.body:
+  context: "Email body for second storage billing failure. Variables: {storage_gb}, {credits_needed}"
+  en: "This is your second missed storage payment. You have {storage_gb} GB stored on OpenMates requiring {credits_needed} credits per week, but your balance is still too low."
+  de: "Dies ist deine zweite verpasste Speicherzahlung. Du hast {storage_gb} GB bei OpenMates gespeichert, wofür {credits_needed} Credits pro Woche benötigt werden, aber dein Guthaben ist immer noch zu niedrig."
+  es: "Este es tu segundo pago de almacenamiento fallido. Tienes {storage_gb} GB almacenados en OpenMates que requieren {credits_needed} créditos por semana, pero tu saldo sigue siendo demasiado bajo."
+  fr: "C'est votre deuxième paiement de stockage manqué. Vous avez {storage_gb} Go stockés sur OpenMates nécessitant {credits_needed} crédits par semaine, mais votre solde est toujours trop faible."
+  ja: "2回目のストレージ支払いの未払いです。OpenMatesに{storage_gb} GBを保存しており、週{credits_needed}クレジットが必要ですが、残高がまだ不足しています。"
+  zh: "这是您第二次错过存储付款。您在 OpenMates 存储了 {storage_gb} GB，每周需要 {credits_needed} 个积分，但您的余额仍然不足。"
+  verified_by_human: []
+storage_billing_failed_2.action:
+  context: Call-to-action text in second storage billing failure email
+  en: "Top up your credits now. Your files will be deleted if payment fails for 2 more weeks."
+  de: "Lade dein Guthaben jetzt auf. Deine Dateien werden gelöscht, wenn die Zahlung noch 2 weitere Wochen fehlschlägt."
+  es: "Recarga tus créditos ahora. Tus archivos serán eliminados si el pago falla durante 2 semanas más."
+  fr: "Rechargez vos crédits maintenant. Vos fichiers seront supprimés si le paiement échoue pendant encore 2 semaines."
+  ja: "今すぐクレジットをチャージしてください。あと2週間支払いが失敗すると、ファイルは削除されます。"
+  zh: "请立即充值积分。如果再连续 2 周付款失败，您的文件将被删除。"
+  verified_by_human: []
+storage_billing_failed_3.subject:
+  context: Email subject for third (final warning) storage billing failure
+  en: "Final warning: Files will be deleted in 7 days"
+  de: "Letzte Warnung: Dateien werden in 7 Tagen gelöscht"
+  es: "Advertencia final: Los archivos se eliminarán en 7 días"
+  fr: "Dernier avertissement : Les fichiers seront supprimés dans 7 jours"
+  ja: "最終警告：7日後にファイルが削除されます"
+  zh: "最终警告：文件将在 7 天内删除"
+  verified_by_human: []
+storage_billing_failed_3.header:
+  context: Email header for third (final warning) storage billing failure
+  en: "Final warning — files at risk"
+  de: "Letzte Warnung — Dateien in Gefahr"
+  es: "Advertencia final — archivos en riesgo"
+  fr: "Dernier avertissement — fichiers en danger"
+  ja: "最終警告 — ファイルが危険にさらされています"
+  zh: "最终警告 — 文件面临风险"
+  verified_by_human: []
+storage_billing_failed_3.body:
+  context: "Email body for third storage billing failure (final warning). Variables: {storage_gb}, {credits_needed}"
+  en: "Your storage payment has failed 3 times. You have {storage_gb} GB stored on OpenMates requiring {credits_needed} credits per week. If payment fails again next week, all your uploaded files will be permanently deleted."
+  de: "Deine Speicherzahlung ist 3 Mal fehlgeschlagen. Du hast {storage_gb} GB bei OpenMates gespeichert, wofür {credits_needed} Credits pro Woche benötigt werden. Wenn die Zahlung nächste Woche erneut fehlschlägt, werden alle deine hochgeladenen Dateien dauerhaft gelöscht."
+  es: "Tu pago de almacenamiento ha fallado 3 veces. Tienes {storage_gb} GB almacenados en OpenMates que requieren {credits_needed} créditos por semana. Si el pago falla de nuevo la próxima semana, todos tus archivos subidos serán eliminados permanentemente."
+  fr: "Votre paiement de stockage a échoué 3 fois. Vous avez {storage_gb} Go stockés sur OpenMates nécessitant {credits_needed} crédits par semaine. Si le paiement échoue à nouveau la semaine prochaine, tous vos fichiers téléchargés seront définitivement supprimés."
+  ja: "ストレージ支払いが3回失敗しました。OpenMatesに{storage_gb} GBを保存しており、週{credits_needed}クレジットが必要です。来週も支払いが失敗すると、アップロードしたすべてのファイルが永久に削除されます。"
+  zh: "您的存储付款已连续失败 3 次。您在 OpenMates 存储了 {storage_gb} GB，每周需要 {credits_needed} 个积分。如果下周付款再次失败，您上传的所有文件将被永久删除。"
+  verified_by_human: []
+storage_billing_failed_3.action:
+  context: Urgent call-to-action text in final warning storage billing failure email
+  en: "Add credits immediately to prevent deletion. This is your last chance."
+  de: "Füge sofort Guthaben hinzu, um die Löschung zu verhindern. Dies ist deine letzte Chance."
+  es: "Agrega créditos de inmediato para evitar la eliminación. Esta es tu última oportunidad."
+  fr: "Ajoutez des crédits immédiatement pour éviter la suppression. C'est votre dernière chance."
+  ja: "削除を防ぐために今すぐクレジットを追加してください。これが最後のチャンスです。"
+  zh: "请立即充值积分以防止删除。这是您最后的机会。"
+  verified_by_human: []
+storage_files_deleted.subject:
+  context: Email subject for when user files have been deleted due to non-payment
+  en: "Your files have been deleted"
+  de: "Deine Dateien wurden gelöscht"
+  es: "Tus archivos han sido eliminados"
+  fr: "Vos fichiers ont été supprimés"
+  ja: "ファイルが削除されました"
+  zh: "您的文件已被删除"
+  verified_by_human: []
+storage_files_deleted.header:
+  context: Email header for files deleted confirmation
+  en: "Files deleted due to non-payment"
+  de: "Dateien wegen Nichtzahlung gelöscht"
+  es: "Archivos eliminados por falta de pago"
+  fr: "Fichiers supprimés pour non-paiement"
+  ja: "未払いのためファイルが削除されました"
+  zh: "因未付款文件已被删除"
+  verified_by_human: []
+storage_files_deleted.body:
+  context: "Email body for files deleted confirmation. Variables: {storage_gb} = amount that was stored"
+  en: "Your uploaded files ({storage_gb} GB) have been permanently deleted from OpenMates because your storage payment failed for 4 consecutive weeks. Your chat history is preserved — only the uploaded files were removed."
+  de: "Deine hochgeladenen Dateien ({storage_gb} GB) wurden dauerhaft von OpenMates gelöscht, da deine Speicherzahlung 4 Wochen in Folge fehlgeschlagen ist. Dein Chatverlauf bleibt erhalten — nur die hochgeladenen Dateien wurden entfernt."
+  es: "Tus archivos subidos ({storage_gb} GB) han sido eliminados permanentemente de OpenMates porque tu pago de almacenamiento falló durante 4 semanas consecutivas. Tu historial de chat se conserva — solo se eliminaron los archivos subidos."
+  fr: "Vos fichiers téléchargés ({storage_gb} Go) ont été définitivement supprimés d'OpenMates car votre paiement de stockage a échoué pendant 4 semaines consécutives. Votre historique de chat est préservé — seuls les fichiers téléchargés ont été supprimés."
+  ja: "4週間連続でストレージ支払いが失敗したため、アップロードされたファイル（{storage_gb} GB）はOpenMatesから永久に削除されました。チャット履歴は保持されています — アップロードされたファイルのみが削除されました。"
+  zh: "由于您的存储付款连续 4 周失败，您上传的文件（{storage_gb} GB）已从 OpenMates 永久删除。您的聊天记录已保留 — 仅删除了上传的文件。"
+  verified_by_human: []
+storage_files_deleted.action:
+  context: Text after deletion confirmation, encouraging user to top up and continue
+  en: "You can continue using OpenMates and upload new files at any time by topping up your credits."
+  de: "Du kannst OpenMates weiterhin nutzen und jederzeit neue Dateien hochladen, indem du dein Guthaben aufladest."
+  es: "Puedes seguir usando OpenMates y subir nuevos archivos en cualquier momento recargando tus créditos."
+  fr: "Vous pouvez continuer à utiliser OpenMates et télécharger de nouveaux fichiers à tout moment en rechargeant vos crédits."
+  ja: "クレジットをチャージすることで、引き続きOpenMatesを使用し、いつでも新しいファイルをアップロードできます。"
+  zh: "您可以通过充值积分随时继续使用 OpenMates 并上传新文件。"
+  verified_by_human: []
+top_up_credits:
+  context: Button label to add credits to account
+  en: "Top up credits"
+  de: "Guthaben aufladen"
+  es: "Recargar créditos"
+  fr: "Recharger les crédits"
+  ja: "クレジットをチャージ"
+  zh: "充值积分"
+  verified_by_human: []

@@ -298,6 +298,12 @@ directus_users:
       nullable: true
       note: "Auto-delete chats older than N days. Null means never auto-delete. The daily Celery Beat task reads this field and dispatches persist_delete_chat for stale chats. Settable via POST /v1/settings/auto-delete-chats."
 
+    storage_billing_failures:
+      type: integer
+      default: 0
+      nullable: false
+      note: "Number of consecutive weekly storage billing failures due to insufficient credits. Incremented each Sunday when charge_storage_fees cannot deduct credits. Reset to 0 on successful charge. When this reaches 4, all user upload files are deleted from S3 and upload_files records are purged."
+
     # Email notification fields
     email_notifications_enabled:
       type: boolean
