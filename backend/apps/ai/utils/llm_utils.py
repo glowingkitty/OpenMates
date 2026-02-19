@@ -1150,6 +1150,8 @@ async def call_main_llm_stream(
         if not error_message:
             return False
         # Non-retryable errors: 401 (auth), 400 (bad request) - these won't be fixed by trying another server
+        # EXCEPTION: "thought signature is not valid" is a special 400 that CAN be fixed by stripping
+        # stale thought signatures and retrying (handled separately via _is_thought_signature_error).
         non_retryable_indicators = ["401", "unauthorized", "bad request", "400"]
         if any(indicator.lower() in error_message.lower() for indicator in non_retryable_indicators):
             return False
@@ -1161,6 +1163,44 @@ async def call_main_llm_stream(
             "connection", "api key", "failed to retrieve", "not found", "http error", "timeouterror"
         ]
         return any(indicator.lower() in error_message.lower() for indicator in retryable_indicators)
+
+    def _is_thought_signature_error(error_message: Optional[str]) -> bool:
+        """Check if the error is the Gemini 'Thought signature is not valid' error.
+
+        This error occurs when a multi-turn Gemini session times out and the
+        thought signatures captured during a previous streaming iteration become
+        stale. It arrives as a 400 status (normally non-retryable), but CAN be
+        recovered by stripping the stale thought_signature fields from the message
+        history and retrying the same provider.
+        """
+        if not error_message:
+            return False
+        return "thought signature" in error_message.lower()
+
+    def _strip_thought_signatures_from_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Return a copy of messages with all thought_signature fields removed.
+
+        Gemini 3 thinking models attach a thought_signature to function call
+        parts so they can be validated in multi-turn sessions. When the session
+        times out the signatures become invalid. Stripping them lets the provider
+        treat the function calls as ordinary (non-thinking) history entries.
+        """
+        stripped = []
+        for msg in messages:
+            msg_copy = dict(msg)
+            if "tool_calls" in msg_copy and isinstance(msg_copy["tool_calls"], list):
+                cleaned_tool_calls = []
+                for tc in msg_copy["tool_calls"]:
+                    tc_copy = dict(tc)
+                    tc_copy.pop("thought_signature", None)
+                    cleaned_tool_calls.append(tc_copy)
+                msg_copy["tool_calls"] = cleaned_tool_calls
+            stripped.append(msg_copy)
+        return stripped
+
+    # Flag: have we already stripped thought signatures and retried for this call?
+    # We only do this once to avoid an infinite retry loop.
+    thought_signatures_stripped = False
 
     # Helper function to check provider health from cache
     async def _is_provider_unhealthy(provider_id: str) -> bool:
@@ -1322,6 +1362,68 @@ async def call_main_llm_stream(
             logger.error(f"{attempt_log_prefix} Client or stream error: {e}", exc_info=True)
             last_error = error_msg
             
+            # Special case: Gemini "Thought signature is not valid" — stale signatures after a timeout.
+            # Strip thought_signature fields from the message history and retry the same server once.
+            # This is a 400-class error so is_retryable_error() returns False, but stripping
+            # the signatures turns it into a recoverable situation.
+            if _is_thought_signature_error(error_msg) and not thought_signatures_stripped:
+                logger.warning(
+                    f"{attempt_log_prefix} Gemini thought signature error detected. "
+                    "Stripping stale thought_signature fields and retrying from first server."
+                )
+                llm_api_messages = _strip_thought_signatures_from_messages(llm_api_messages)
+                thought_signatures_stripped = True
+                # Restart the server-try loop from the beginning with cleaned messages.
+                # Reassign servers_to_try so the for-loop picks up the fresh state on next iteration.
+                # We break out of the for-loop and re-enter it by reconstructing attempted_servers.
+                attempted_servers = []
+                # Replace loop iterable — Python for-loops evaluate the iterable once, so we use
+                # a local alias trick: fall through to the next iteration of the OUTER for-loop
+                # by breaking and re-entering via a fresh call to servers_to_try.
+                # Since we can't restart a for-loop mid-flight, we yield control back via the
+                # generator and reconstruct the call. The simplest in-place fix is to re-invoke
+                # the provider directly with stripped messages.
+                # --- Inline retry with stripped messages ---
+                for _retry_server_model_id in servers_to_try:
+                    _retry_provider_prefix = _retry_server_model_id.split("/", 1)[0] if "/" in _retry_server_model_id else ""
+                    _retry_actual_model_id = _retry_server_model_id.split("/", 1)[1] if "/" in _retry_server_model_id else _retry_server_model_id
+                    _retry_client = _get_provider_client(_retry_provider_prefix)
+                    if not _retry_client:
+                        logger.warning(f"{log_prefix} [ThoughtSigRetry] No client for '{_retry_server_model_id}'; skipping.")
+                        continue
+                    _retry_input = {
+                        "task_id": task_id,
+                        "model_id": _retry_actual_model_id,
+                        "messages": llm_api_messages,
+                        "temperature": temperature,
+                        "tools": sanitized_tools,
+                        "tool_choice": tool_choice,
+                        "stream": True,
+                    }
+                    try:
+                        logger.info(f"{log_prefix} [ThoughtSigRetry] Retrying '{_retry_server_model_id}' without thought signatures.")
+                        _retry_stream = await _retry_client(secrets_manager=secrets_manager, **_retry_input)
+                        if hasattr(_retry_stream, '__aiter__'):
+                            first_chunk_timeout_seconds = get_first_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                            inter_chunk_timeout_seconds = get_inter_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                            _retry_timeout_stream = stream_with_first_chunk_timeout(
+                                _retry_stream, first_chunk_timeout_seconds, inter_chunk_timeout_seconds
+                            )
+                            async for _retry_paragraph in aggregate_paragraphs(_retry_timeout_stream):
+                                yield _retry_paragraph
+                            logger.info(f"{log_prefix} [ThoughtSigRetry] Retry succeeded on '{_retry_server_model_id}'.")
+                            return
+                        else:
+                            logger.warning(f"{log_prefix} [ThoughtSigRetry] Expected stream but got {type(_retry_stream)} from '{_retry_server_model_id}'.")
+                            continue
+                    except Exception as _retry_err:
+                        logger.error(f"{log_prefix} [ThoughtSigRetry] Retry on '{_retry_server_model_id}' failed: {_retry_err}", exc_info=True)
+                        continue
+                # All retry servers failed
+                logger.error(f"{log_prefix} [ThoughtSigRetry] All servers failed after stripping thought signatures.")
+                yield "The AI service encountered an error while processing your request. Please try again in a moment."
+                return
+            
             # Check if error is retryable
             if is_retryable_error(error_msg):
                 logger.warning(f"{attempt_log_prefix} Retryable error detected. Will try next server if available.")
@@ -1340,6 +1442,54 @@ async def call_main_llm_stream(
             error_msg = str(e)
             logger.error(f"{attempt_log_prefix} Unexpected error during main LLM stream: {e}", exc_info=True)
             last_error = error_msg
+            
+            # Special case: Gemini "Thought signature is not valid" (same as ValueError block above)
+            if _is_thought_signature_error(error_msg) and not thought_signatures_stripped:
+                logger.warning(
+                    f"{attempt_log_prefix} Gemini thought signature error (unexpected exception). "
+                    "Stripping stale thought_signature fields and retrying from first server."
+                )
+                llm_api_messages = _strip_thought_signatures_from_messages(llm_api_messages)
+                thought_signatures_stripped = True
+                attempted_servers = []
+                for _retry_server_model_id in servers_to_try:
+                    _retry_provider_prefix = _retry_server_model_id.split("/", 1)[0] if "/" in _retry_server_model_id else ""
+                    _retry_actual_model_id = _retry_server_model_id.split("/", 1)[1] if "/" in _retry_server_model_id else _retry_server_model_id
+                    _retry_client = _get_provider_client(_retry_provider_prefix)
+                    if not _retry_client:
+                        logger.warning(f"{log_prefix} [ThoughtSigRetry] No client for '{_retry_server_model_id}'; skipping.")
+                        continue
+                    _retry_input = {
+                        "task_id": task_id,
+                        "model_id": _retry_actual_model_id,
+                        "messages": llm_api_messages,
+                        "temperature": temperature,
+                        "tools": sanitized_tools,
+                        "tool_choice": tool_choice,
+                        "stream": True,
+                    }
+                    try:
+                        logger.info(f"{log_prefix} [ThoughtSigRetry] Retrying '{_retry_server_model_id}' without thought signatures.")
+                        _retry_stream = await _retry_client(secrets_manager=secrets_manager, **_retry_input)
+                        if hasattr(_retry_stream, '__aiter__'):
+                            first_chunk_timeout_seconds = get_first_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                            inter_chunk_timeout_seconds = get_inter_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                            _retry_timeout_stream = stream_with_first_chunk_timeout(
+                                _retry_stream, first_chunk_timeout_seconds, inter_chunk_timeout_seconds
+                            )
+                            async for _retry_paragraph in aggregate_paragraphs(_retry_timeout_stream):
+                                yield _retry_paragraph
+                            logger.info(f"{log_prefix} [ThoughtSigRetry] Retry succeeded on '{_retry_server_model_id}'.")
+                            return
+                        else:
+                            logger.warning(f"{log_prefix} [ThoughtSigRetry] Expected stream but got {type(_retry_stream)} from '{_retry_server_model_id}'.")
+                            continue
+                    except Exception as _retry_err:
+                        logger.error(f"{log_prefix} [ThoughtSigRetry] Retry on '{_retry_server_model_id}' failed: {_retry_err}", exc_info=True)
+                        continue
+                logger.error(f"{log_prefix} [ThoughtSigRetry] All servers failed after stripping thought signatures.")
+                yield "The AI service encountered an error while processing your request. Please try again in a moment."
+                return
             
             # Check if error is retryable
             if is_retryable_error(error_msg):
