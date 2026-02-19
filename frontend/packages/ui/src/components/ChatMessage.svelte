@@ -1982,17 +1982,18 @@
   }
   
   .category-badge {
+    /* Reset global button styles */
+    all: unset;
+    /* Re-apply only what we need */
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     gap: 5px;
     background: var(--color-grey-15, #f5f5f5);
     border-radius: 8px;
     padding: 2px 8px 2px 4px;
-    text-decoration: none;
     cursor: pointer;
     transition: background-color 0.15s ease;
-    border: none;
-    font-family: inherit;
   }
   
   .category-badge:hover {
