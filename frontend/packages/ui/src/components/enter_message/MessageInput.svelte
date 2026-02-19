@@ -2181,6 +2181,15 @@
     function handleMessageWrapperMouseDown(event: MouseEvent) {
         const target = event.target as HTMLElement;
         
+        // When MapsView is open, its overlay sits inside .message-field and contains
+        // its own interactive elements (search input, buttons, map).
+        // Do NOT steal focus from them — let clicks inside the maps overlay pass through
+        // naturally so the search input and other controls are reachable.
+        if (showMaps && target.closest('.maps-overlay')) {
+            console.debug('[MessageInput] Click inside MapsView overlay, skipping editor focus logic');
+            return;
+        }
+        
         // Allow blur for interactive elements like buttons (outside suggestions)
         // But check if it's a suggestion button - those should maintain editor focus
         const isSuggestionButton = target.closest('.suggestion-item');

@@ -592,10 +592,47 @@
                 // Request was cancelled because map moved — normal behaviour
                 return;
             }
-            // Log at debug level — reverse geocode failures are non-fatal.
-            // Common causes: CORS preflight rejection (first load TLS 0-RTT), network offline.
-            // When this fails, resolvedAddress stays empty and the embed is still usable.
-            logger.debug('Reverse geocode error (non-fatal):', error);
+            // The first Nominatim request after page load often gets a 425 (Too Early) from
+            // TLS 1.3 0-RTT rejection — the server refuses early-data on the initial handshake.
+            // Retry once after 1.5 s by which time the TLS session is fully established.
+            logger.debug('Reverse geocode failed (likely TLS 0-RTT on first load), retrying in 1.5s:', error);
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            // Only retry if the map hasn't moved again (controller would have been replaced)
+            if (reverseGeocodeController?.signal === signal) {
+                try {
+                    const currentLocale = getCurrentLocale();
+                    const retryResponse = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?` +
+                        `format=json` +
+                        `&lat=${lat}` +
+                        `&lon=${lon}` +
+                        `&zoom=18` +
+                        `&addressdetails=1` +
+                        `&accept-language=${currentLocale}`,
+                        { signal }
+                    );
+                    if (!retryResponse.ok) return;
+                    const retryData = await retryResponse.json();
+                    const addr = retryData.address || {};
+                    const parts: string[] = [];
+                    const road = addr.road || addr.pedestrian || addr.footway || addr.path || '';
+                    const houseNumber = addr.house_number || '';
+                    if (road && houseNumber) { parts.push(`${road} ${houseNumber}`); }
+                    else if (road) { parts.push(road); }
+                    const postcode = addr.postcode || '';
+                    const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+                    if (postcode && city) { parts.push(`${postcode} ${city}`); }
+                    else if (city) { parts.push(city); }
+                    const country = addr.country || '';
+                    if (country) { parts.push(country); }
+                    resolvedAddress = parts.join(', ') || retryData.display_name || '';
+                    logger.debug('Reverse geocoded address (retry):', resolvedAddress);
+                } catch (retryError: unknown) {
+                    if ((retryError as { name?: string }).name !== 'AbortError') {
+                        logger.debug('Reverse geocode retry also failed (non-fatal):', retryError);
+                    }
+                }
+            }
         }
     }
 
