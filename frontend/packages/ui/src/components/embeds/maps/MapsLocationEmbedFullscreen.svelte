@@ -365,12 +365,24 @@
     filter: invert(1) hue-rotate(180deg) brightness(0.85) saturate(0.8);
   }
 
-  /* Push Leaflet zoom buttons below the UnifiedEmbedFullscreen top-bar.
-     Top-bar: 16px from top + 51px button height + 11px wrapper padding = ~78px.
-     Use 100px to ensure clear separation on all screen sizes. */
-  :global(.leaflet-map-container .leaflet-top.leaflet-right .leaflet-control-zoom) {
-    margin-top: 100px !important;
-    margin-right: 8px !important;
+  /* Vertically center the Leaflet zoom controls within the map container.
+     Leaflet positions .leaflet-top at top:0 by default, which puts the zoom
+     buttons behind the UnifiedEmbedFullscreen top-bar. Instead we reposition
+     .leaflet-top.leaflet-left to span the full height and use flexbox to
+     center the zoom control vertically. */
+  :global(.leaflet-map-container .leaflet-top.leaflet-left) {
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+  }
+
+  /* Remove default top margin from the zoom control itself so flexbox handles placement */
+  :global(.leaflet-map-container .leaflet-top.leaflet-left .leaflet-control-zoom) {
+    margin-top: 0 !important;
   }
 
   /* ===========================================
