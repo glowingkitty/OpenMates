@@ -16,8 +16,8 @@ metadata:
   unranked_models: 6
 rankings:
   - rank: 1
-    model_id: gemini-3-pro-preview
-    name: Gemini 3 Pro Preview
+    model_id: gemini-3.1-pro-preview
+    name: Gemini 3.1 Pro Preview
     provider_id: google
     country_origin: US
     composite_score: 97.8

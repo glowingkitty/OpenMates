@@ -76,7 +76,7 @@ ECONOMICAL_MODELS = {
 PREMIUM_MODELS = {
     "claude-opus-4-6",               # Top Claude
     "claude-sonnet-4-6",             # High-quality Claude
-    "gemini-3-pro-preview",          # Top Gemini
+    "gemini-3.1-pro-preview",         # Top Gemini
     "gpt-5.2",                       # Top GPT
 }
 

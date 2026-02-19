@@ -18,8 +18,8 @@
 // NOTE: All text-capable models are included here. The `allow_auto_select` field
 // in provider YAMLs is for a different feature (automatic model selection by the system).
 //
-// **Generated**: 2026-02-18T11:48:27.984Z
-// **Models included**: 18
+// **Generated**: 2026-02-19T19:19:42.983Z
+// **Models included**: 20
 
 /**
  * Server/provider information for a model.
@@ -244,10 +244,10 @@ export const modelsMetadata: AIModelMetadata[] = [
     pricing: { input_tokens_per_credit: 650, output_tokens_per_credit: 110 },
   },
   {
-    id: "gemini-3-pro-preview",
-    name: "Gemini 3 Pro",
+    id: "gemini-3.1-pro-preview",
+    name: "Gemini 3.1 Pro",
     description:
-      "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities",
+      "Better thinking, improved token efficiency, and stronger factual grounding over Gemini 3 Pro. Optimized for software engineering and agentic workflows with precise tool usage.",
     provider_id: "google",
     provider_name: "Google",
     logo_svg: "icons/google.svg",
@@ -257,7 +257,7 @@ export const modelsMetadata: AIModelMetadata[] = [
     for_app_skill: "ai.ask",
     reasoning: true,
     tier: "premium",
-    release_date: "2025-12-17",
+    release_date: "2026-02-19",
     servers: [
       { id: "google_ai_studio", name: "Google AI Studio", region: "US" },
       { id: "google", name: "Google Vertex AI", region: "EU" },
@@ -451,6 +451,40 @@ export const modelsMetadata: AIModelMetadata[] = [
     ],
     default_server: "groq",
     pricing: { input_tokens_per_credit: 4400, output_tokens_per_credit: 1100 },
+  },
+  {
+    id: "recraftv4_pro_vector",
+    name: "Recraft V4 Pro Vector",
+    description:
+      "4MP high-resolution vector generation. Best for print-ready assets, detailed illustrations, and large-format output.",
+    provider_id: "recraft",
+    provider_name: "Recraft",
+    logo_svg: "icons/recraft.svg",
+    country_origin: "US",
+    input_types: ["text"],
+    output_types: ["image"],
+    for_app_skill: "images.generate",
+    tier: "economy",
+    release_date: "2026-02-01",
+    servers: [{ id: "recraft", name: "Recraft API", region: "US" }],
+    default_server: "recraft",
+  },
+  {
+    id: "recraftv4_vector",
+    name: "Recraft V4 Vector",
+    description:
+      "1MP vector generation from text prompts. Best for icons, logos, illustrations, and web graphics.",
+    provider_id: "recraft",
+    provider_name: "Recraft",
+    logo_svg: "icons/recraft.svg",
+    country_origin: "US",
+    input_types: ["text"],
+    output_types: ["image"],
+    for_app_skill: "images.generate",
+    tier: "economy",
+    release_date: "2026-02-01",
+    servers: [{ id: "recraft", name: "Recraft API", region: "US" }],
+    default_server: "recraft",
   },
   {
     id: "zai-glm-4.7",

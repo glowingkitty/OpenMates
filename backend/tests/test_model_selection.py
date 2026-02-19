@@ -35,8 +35,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
         "rankings": [
             {
                 "rank": 1,
-                "model_id": "gemini-3-pro-preview",
-                "name": "Gemini 3 Pro Preview",
+                "model_id": "gemini-3.1-pro-preview",
+                "name": "Gemini 3.1 Pro Preview",
                 "provider_id": "google",
                 "country_origin": "US",
                 "composite_score": 97.8,
@@ -138,7 +138,7 @@ class TestModelSelector:
         # For complex tasks, should prefer a premium model if available in rankings
         # Primary should be from top rankings
         assert result.primary_model_id in [
-            "gemini-3-pro-preview",
+            "gemini-3.1-pro-preview",
             "claude-opus-4-5-20251101",
             "claude-sonnet-4-6",
             "anthropic/claude-sonnet-4-6",  # DEFAULT_FALLBACK_MODEL includes provider prefix
