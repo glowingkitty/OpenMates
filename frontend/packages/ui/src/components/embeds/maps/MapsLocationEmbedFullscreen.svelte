@@ -92,6 +92,11 @@
   // Show "Nearby:" prefix when the pin was randomised (area/imprecise mode)
   let showNearbyLabel = $derived(locationType === 'area');
 
+  // Only show the share button when the embed has been synced to the server.
+  // Client-side embeds (e.g. inserted by an unauthenticated user) have no embedId
+  // and cannot be shared, so the button should be hidden for them.
+  let showShare = $derived(!!embedId);
+
   // Whether to show static map image (takes priority over Leaflet when available)
   let hasImage = $derived(!!mapImageUrl && !imageError);
 
@@ -105,12 +110,33 @@
   // Skill name for the BasicInfosBar
   let skillName = $derived($text('embeds.maps_location'));
 
+  // OpenStreetMap URL for the copy button (links directly to the pin on osm.org)
+  let osmUrl = $derived(
+    lat !== undefined && lon !== undefined
+      ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}&zoom=${zoom}`
+      : null
+  );
+
   /**
    * Open the location in Google Maps in a new tab
    */
   function handleOpenInGoogleMaps() {
     if (googleMapsUrl) {
       window.open(googleMapsUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  /**
+   * Copy the OpenStreetMap URL for this location to the clipboard.
+   * This is the copy action wired to the top-bar copy button.
+   */
+  async function handleCopyOsmUrl() {
+    if (!osmUrl) return;
+    try {
+      await navigator.clipboard.writeText(osmUrl);
+      console.debug('[MapsLocationEmbedFullscreen] Copied OSM URL:', osmUrl);
+    } catch (err) {
+      console.error('[MapsLocationEmbedFullscreen] Failed to copy OSM URL:', err);
     }
   }
 
@@ -193,6 +219,8 @@
   status="finished"
   {skillName}
   showStatus={false}
+  {showShare}
+  onCopy={osmUrl ? handleCopyOsmUrl : undefined}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -332,6 +360,12 @@
   /* Dark tile filter for dark-mode map tiles */
   :global(.leaflet-map-container .dark-tiles) {
     filter: invert(1) hue-rotate(180deg) brightness(0.85) saturate(0.8);
+  }
+
+  /* Push Leaflet zoom buttons below the UnifiedEmbedFullscreen top-bar.
+     Top-bar sits at top:16px with ~51px tall buttons → start zoom below ~80px. */
+  :global(.leaflet-map-container .leaflet-top.leaflet-right .leaflet-control-zoom) {
+    margin-top: 80px !important;
   }
 
   /* ===========================================

@@ -587,12 +587,15 @@
             resolvedAddress = parts.join(', ') || data.display_name || '';
             logger.debug('Reverse geocoded address:', resolvedAddress);
 
-        } catch (error: any) {
-            if (error.name === 'AbortError') {
+        } catch (error: unknown) {
+            if ((error as { name?: string }).name === 'AbortError') {
                 // Request was cancelled because map moved — normal behaviour
                 return;
             }
-            console.error('[MapsView] Reverse geocode error:', error);
+            // Log at debug level — reverse geocode failures are non-fatal.
+            // Common causes: CORS preflight rejection (first load TLS 0-RTT), network offline.
+            // When this fails, resolvedAddress stays empty and the embed is still usable.
+            logger.debug('Reverse geocode error (non-fatal):', error);
         }
     }
 
@@ -618,13 +621,12 @@
                 `&addressdetails=1` +
                 `&extratags=1` +
                 `&namedetails=1` +
-                `&accept-language=${locale}`,
-                {
-                    headers: {
-                        // Nominatim usage policy requires a descriptive User-Agent
-                        'User-Agent': 'OpenMates/1.0 (https://openmates.app)'
-                    }
-                }
+                `&accept-language=${locale}`
+                // NOTE: Do NOT include a custom User-Agent header here.
+                // Custom headers like User-Agent trigger a CORS preflight request, and
+                // Nominatim does not return Access-Control-Allow-Headers for User-Agent,
+                // which causes the preflight to fail and blocks the request entirely.
+                // Nominatim's CORS policy allows simple requests (no custom headers) fine.
             );
             const results = await response.json();
 
@@ -1248,6 +1250,10 @@
         height: calc(100% - 53px);
         transition: width 0.3s ease;
         z-index: 1;
+        /* Create an isolated stacking context so Leaflet's internal z-indexes
+           (leaflet-pane uses z-index 400+) do not escape this container and
+           cover the bottom-bar / search input above it. */
+        isolation: isolate;
     }
 
     .map-container.with-results {
