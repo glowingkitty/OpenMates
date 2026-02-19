@@ -22,20 +22,18 @@
 #   GET /v1/geocode/reverse  — lat/lon → address (reverse geocode)
 #   GET /v1/geocode/search   — text query → coordinates list (forward geocode)
 #
-# Authentication: session cookie OR API key (via get_current_user_or_api_key).
-# Rate limit: 60 geocode requests per minute per user.
+# Authentication: none required — these endpoints are public so that
+#   unauthenticated users (e.g. viewing a shared map embed) can resolve
+#   addresses without needing a session.
+# Rate limit: 30 requests per minute per IP to prevent abuse.
 
 import logging
 import asyncio
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
-from backend.core.api.app.routes.auth_routes.auth_dependencies import (
-    get_current_user_or_api_key,
-)
-from backend.core.api.app.models.user import User
 from backend.core.api.app.services.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -145,7 +143,7 @@ async def _nominatim_get(url: str, params: dict) -> dict:
 
 
 @router.get("/reverse")
-@limiter.limit("60/minute")
+@limiter.limit("30/minute")
 async def reverse_geocode(
     request: Request,
     lat: float = Query(..., description="Latitude"),
@@ -153,14 +151,14 @@ async def reverse_geocode(
     zoom: int = Query(18, description="Zoom level (detail level)"),
     addressdetails: int = Query(1, description="Include address breakdown"),
     accept_language: str = Query("en", alias="accept-language", description="Language for results"),
-    current_user: User = Depends(get_current_user_or_api_key),
 ) -> JSONResponse:
     """
     Reverse geocode lat/lon to a human-readable address via Nominatim.
 
-    Proxies the request server-side to avoid CORS restrictions and TLS 0-RTT
-    failures that affect direct browser→Nominatim calls.  Retries automatically
-    on transient errors (425 Too Early, 429, 5xx, timeouts).
+    Public endpoint — no authentication required.  Rate limited to 30/min per
+    IP to prevent abuse.  Proxies the request server-side to avoid CORS
+    restrictions and TLS 0-RTT failures that affect direct browser→Nominatim
+    calls.  Retries automatically on transient errors (425, 429, 5xx, timeouts).
     """
     params = {
         "format": "json",
@@ -175,7 +173,7 @@ async def reverse_geocode(
 
 
 @router.get("/search")
-@limiter.limit("60/minute")
+@limiter.limit("30/minute")
 async def forward_geocode(
     request: Request,
     q: str = Query(..., description="Search query"),
@@ -184,14 +182,14 @@ async def forward_geocode(
     extratags: int = Query(1, description="Include extra tags"),
     namedetails: int = Query(1, description="Include name details"),
     accept_language: str = Query("en", alias="accept-language", description="Language for results"),
-    current_user: User = Depends(get_current_user_or_api_key),
 ) -> JSONResponse:
     """
     Forward geocode a text query to coordinates via Nominatim.
 
-    Proxies the request server-side to avoid CORS restrictions and TLS 0-RTT
-    failures that affect direct browser→Nominatim calls.  Retries automatically
-    on transient errors (425 Too Early, 429, 5xx, timeouts).
+    Public endpoint — no authentication required.  Rate limited to 30/min per
+    IP to prevent abuse.  Proxies the request server-side to avoid CORS
+    restrictions and TLS 0-RTT failures that affect direct browser→Nominatim
+    calls.  Retries automatically on transient errors (425, 429, 5xx, timeouts).
     """
     params = {
         "format": "json",

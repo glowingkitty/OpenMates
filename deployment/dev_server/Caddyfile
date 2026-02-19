@@ -63,7 +63,9 @@ api.dev.openmates.org {
 	# No Origin check required - external developers access from various clients/servers
 	# FastAPI enforces which settings endpoints support API key auth vs session-only
 	@api_docs_path path /docs /docs/* /openapi.json # Swagger UI and OpenAPI schema
-	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* # Public API endpoints (authentication enforced by FastAPI)
+	# /v1/geocode/* is public (no auth required) so any client — including unauthenticated
+	# users viewing shared map embeds — can resolve addresses. Rate limited 30/min by FastAPI.
+	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* # Public API endpoints (authentication enforced by FastAPI where applicable)
 
 	# --- PUBLIC SHARE MATCHERS ---
 	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
@@ -90,11 +92,12 @@ api.dev.openmates.org {
 	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling
 	# Includes /v1/apps/travel/booking-link because the webapp uses session auth
 	# (credentials: include) and needs FastAPI to return the specific origin, not wildcard
-	# Includes /v1/geocode/* for the server-side Nominatim proxy (session auth, browser calls)
+	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
+	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	# NOTE: Do NOT add /v1/apps/* broadly here — it would break external developer API
 	# access which relies on the wildcard CORS handler in @public_api_paths
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link /v1/geocode/*
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link
 		method OPTIONS
 	}
 
@@ -103,9 +106,10 @@ api.dev.openmates.org {
 	# Includes /v1/demo/* and /v1/admin/* for webapp-only access (Origin check required)
 	# Includes /v1/apps/travel/booking-link for webapp session auth (credentials: include
 	# requires specific origin in CORS response, not wildcard)
-	# Includes /v1/geocode/* for the server-side Nominatim proxy (session auth, browser calls)
+	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
+	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link /v1/geocode/*
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link
 		not method OPTIONS
 	}
 
@@ -124,7 +128,7 @@ api.dev.openmates.org {
 	}
 
 	@public_api_options {
-		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/*
+		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/*
 		method OPTIONS
 	}
 
