@@ -287,6 +287,13 @@ test('completes full account recovery flow with same password', async ({
 	// ========================================================================
 	// The user already had 2FA, so the server preserves it and we go straight to reset.
 	// If 2FA setup is shown, handle it.
+	//
+	// IMPORTANT: We track the new 2FA secret here so we can use it when logging
+	// back in after recovery (the old OPENMATES_TEST_ACCOUNT_OTP_KEY is now stale).
+	// The new secret is written to artifacts/new_otp_key.txt so the host can update
+	// the .env file after the test run.
+	let activeTfaSecret: string = OPENMATES_TEST_ACCOUNT_OTP_KEY || '';
+
 	const tfaSetupVisible = await page
 		.locator('.tfa-setup-header')
 		.isVisible({ timeout: 5000 })
@@ -301,10 +308,24 @@ test('completes full account recovery flow with same password', async ({
 		await expect(secretKeyElement).toBeVisible();
 		const newTfaSecret = await secretKeyElement.textContent();
 		expect(newTfaSecret, 'Expected a 2FA secret on the setup page.').toBeTruthy();
+		activeTfaSecret = newTfaSecret!.trim();
 		logRecoveryCheckpoint('Got new 2FA secret from setup page.');
 
+		// Write the new secret to an artifact file so the host can update .env
+		// (the container mounts .env read-only, so we can't write it directly)
+		const nodefs = require('fs');
+		nodefs.mkdirSync('/workspace/artifacts', { recursive: true });
+		nodefs.writeFileSync('/workspace/artifacts/new_otp_key.txt', activeTfaSecret, 'utf8');
+		// Also log it prominently so it's visible even without artifact access
+		console.log(`\n\n==================================================`);
+		console.log(`NEW OPENMATES_TEST_ACCOUNT_OTP_KEY: ${activeTfaSecret}`);
+		console.log(`==================================================\n`);
+		logRecoveryCheckpoint(`New 2FA secret saved to artifacts/new_otp_key.txt`, {
+			newOtpKey: activeTfaSecret
+		});
+
 		// Generate and enter OTP code
-		const otpCode = generateTotp(newTfaSecret.trim());
+		const otpCode = generateTotp(activeTfaSecret);
 		const tfaCodeInput = page.locator('#tfa-code');
 		await tfaCodeInput.fill(otpCode);
 		logRecoveryCheckpoint('Entered 2FA verification code.');
@@ -375,9 +396,11 @@ test('completes full account recovery flow with same password', async ({
 		.isVisible()
 		.catch(() => false);
 
-	if (tfaVisible && OPENMATES_TEST_ACCOUNT_OTP_KEY) {
+	if (tfaVisible && activeTfaSecret) {
 		logRecoveryCheckpoint('2FA required for login, entering OTP.');
-		const loginOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
+		// Use activeTfaSecret (may be the freshly generated secret from the 2FA
+		// setup step above) rather than the potentially stale env var.
+		const loginOtp = generateTotp(activeTfaSecret);
 		await tfaInput.first().fill(loginOtp);
 		await takeStepScreenshot(page, 'login-2fa-entered');
 
