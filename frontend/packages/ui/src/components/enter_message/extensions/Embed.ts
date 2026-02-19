@@ -678,6 +678,16 @@ export const Embed = Node.create<EmbedOptions>({
             "[Embed] Stop button: cancelled upload and deleted image embed:",
             embedId,
           );
+          // Notify MessageInput that an embed was removed via the stop button.
+          // This bypasses the text-change guard in handleEditorUpdate (which skips
+          // draft saves when getText() hasn't changed — e.g. image-only editor).
+          // The event bubbles up to the editor's DOM view where MessageInput listens.
+          editor.view.dom.dispatchEvent(
+            new CustomEvent("embed-upload-cancelled", {
+              bubbles: true,
+              detail: { embedId },
+            }),
+          );
         });
       }
 

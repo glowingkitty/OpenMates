@@ -1909,6 +1909,11 @@
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         editorElement?.addEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.addEventListener('click', handleEditorClick); // For PII click handling
+        // Listen for stop-button upload cancellations from image embeds.
+        // This event is dispatched by Embed.ts after the embed node is deleted so
+        // we can update the draft and originalMarkdown even when getText() is
+        // unchanged (e.g. the editor contained only the uploading image with no text).
+        editorElement?.addEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('focusInput', handleFocusInput as EventListener);
@@ -1990,6 +1995,7 @@
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         editorElement?.removeEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.removeEventListener('click', handleEditorClick);
+        editorElement?.removeEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         window.removeEventListener('focusInput', handleFocusInput as EventListener);
@@ -2296,6 +2302,49 @@
     function handleEmbedGroupBackspace(event: CustomEvent) {
         console.debug('[MessageInput] Embed group backspace event received:', event.detail);
         isBackspaceOperation = true;
+    }
+
+    /**
+     * Handle the embed-upload-cancelled event dispatched by Embed.ts when the user
+     * presses Stop on an uploading image.
+     *
+     * WHY THIS IS NEEDED:
+     * The normal draft-save path (handleEditorUpdate → triggerSaveDraft) is guarded
+     * by a text-change check:
+     *   if (!textActuallyChanged) return; // skip heavy work
+     * When the editor contains only an uploading image (no text), removing the embed
+     * node does NOT change editor.getText() — it was empty before and stays empty
+     * after. The guard therefore skips triggerSaveDraft, leaving the draft preview
+     * in Chat.svelte stale (it still shows "[Image]" after the stop button was pressed).
+     *
+     * This handler is called AFTER deleteRange has already run (the embed is gone),
+     * so we:
+     *  1. Rebuild originalMarkdown from the current (updated) editor state.
+     *  2. Force-save the draft (or delete it if the editor is now empty), bypassing
+     *     the text-change guard.
+     *  3. Update hasContent so the UI (send button, fullscreen button) reflects the
+     *     new empty state.
+     */
+    function handleEmbedUploadCancelled(event: CustomEvent) {
+        const { embedId } = event.detail ?? {};
+        console.debug('[MessageInput] Embed upload cancelled, forcing draft update:', embedId);
+
+        if (!editor || editor.isDestroyed) return;
+
+        // Rebuild originalMarkdown from the now-updated editor state.
+        // isConvertingEmbeds is deliberately NOT set — we are reading the document
+        // after deletion, not mid-conversion, so the guard must NOT block the update.
+        updateOriginalMarkdown(editor);
+
+        // Update content tracking so the send button and fullscreen button hide/show correctly.
+        hasContent = !isContentEmptyExceptMention(editor);
+        // Keep the text-change guard in sync so the next legitimate editor update
+        // doesn't incorrectly think text hasn't changed.
+        lastEditorUpdateText = editor.getText();
+
+        // Force a draft save (or deletion) even though getText() may not have changed.
+        // triggerSaveDraft is debounced — it will read the editor state at fire time.
+        triggerSaveDraft(currentChatId);
     }
 
     /**
