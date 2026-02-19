@@ -1528,7 +1528,7 @@ hidden_chats.no_hidden_chats_unlocked:
   sv: Inga dolda chattar låstes upp. Lösenordet kan vara felaktigt.
   verified_by_human: []
 
-chats.search.placeholder:
+search.placeholder:
   context: Placeholder text for the search input bar in the chat list sidebar
   en: Search chats & settings...
   de: Chats & Einstellungen suchen...
@@ -1552,7 +1552,7 @@ chats.search.placeholder:
   sv: Sök chattar och inställningar...
   verified_by_human: []
 
-chats.search.no_results:
+search.no_results:
   context: Message shown when search returns no results for the query
   en: No results found
   de: Keine Ergebnisse gefunden
@@ -1576,7 +1576,7 @@ chats.search.no_results:
   sv: Inga resultat hittades
   verified_by_human: []
 
-chats.search.settings:
+search.settings:
   context: Section header for settings results in the search results list
   en: Settings
   de: Einstellungen
@@ -1600,7 +1600,7 @@ chats.search.settings:
   sv: Inställningar
   verified_by_human: []
 
-chats.search.indexing:
+search.indexing:
   context: Text shown while the search index is being built (warming up message cache)
   en: Building search index...
   de: Suchindex wird aufgebaut...
