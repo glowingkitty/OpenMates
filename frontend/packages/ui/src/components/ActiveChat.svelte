@@ -2095,6 +2095,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let messageInputHasContent = $state(false);
     // Track live input text for incremental search in new chat suggestions
     let liveInputText = $state('');
+    // Track whether the map location selector is open in MessageInput.
+    // When true, NewChatSuggestions must be hidden (per UX requirement).
+    let messageInputMapsOpen = $state(false);
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
     // Initialize to false to prevent MessageInput from appearing expanded on initial load
@@ -6192,15 +6195,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
 
                     <div class="message-input-container">
-                        <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
-                        <!-- Show immediately with default suggestions, then swap to user's real suggestions once sync completes -->
-                        <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
-                        {#if showWelcome}
-                            <NewChatSuggestions
-                                messageInputContent={liveInputText}
-                                onSuggestionClick={handleSuggestionClick}
-                            />
-                        {/if}
+                         <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
+                         <!-- Show immediately with default suggestions, then swap to user's real suggestions once sync completes -->
+                         <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
+                         <!-- Hidden while the map location selector is open (messageInputMapsOpen) —
+                              restored automatically when the map is closed and the input is still empty. -->
+                         {#if showWelcome && !messageInputMapsOpen}
+                             <NewChatSuggestions
+                                 messageInputContent={liveInputText}
+                                 onSuggestionClick={handleSuggestionClick}
+                             />
+                         {/if}
 
                         <!-- Banner for non-incognito chats when incognito mode is active -->
                         {#if $incognitoMode && currentChat && !currentChat.is_incognito && !showWelcome}
@@ -6260,10 +6265,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     // bind:hasContent below is the authoritative source and correctly
                                     // accounts for embeds (images, files) even when there is no text.
                                 }}
-                                bind:isFullscreen
-                                bind:hasContent={messageInputHasContent}
-                                bind:isFocused={messageInputFocused}
-                            />
+                                 bind:isFullscreen
+                                 bind:hasContent={messageInputHasContent}
+                                 bind:isFocused={messageInputFocused}
+                                 bind:isMapsOpen={messageInputMapsOpen}
+                             />
                         {/if}
                     </div>
                 </div>

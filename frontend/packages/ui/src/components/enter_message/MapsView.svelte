@@ -206,9 +206,12 @@
         if (currentLocation && map) {
             const mapRef = map;
             const zoomLevel = isPrecise ? 16 : 14;
+            // Marker is always hidden — precise mode uses the CSS .precise-center-pin overlay,
+            // area mode uses the accuracy circle. The Leaflet marker is kept as a position
+            // anchor for internal logic (e.g. moveend updates) but never rendered visibly.
             marker = L.marker([currentLocation.lat, currentLocation.lon], { 
                 icon: customIcon,
-                opacity: isPrecise ? 1 : 0 
+                opacity: 0
             }).addTo(mapRef);
             mapRef.setView([currentLocation.lat, currentLocation.lon], zoomLevel);
             
@@ -256,14 +259,16 @@
                     selectedPlaceType = '';
                 }
                 
-                // Only update center marker if search results are not shown
+                // Keep Leaflet marker position synced even though it is invisible.
+                // In precise mode the .precise-center-pin CSS overlay shows the location;
+                // in area mode the accuracy circle does. The marker is never rendered.
                 if (!showResults) {
                     if (marker) {
                         marker.setLatLng([center.lat, center.lng]);
                     } else {
                         marker = L.marker([center.lat, center.lng], { 
                             icon: customIcon,
-                            opacity: isPrecise ? 1 : 0 
+                            opacity: 0
                         }).addTo(mapRef);
                     }
                 }
@@ -390,13 +395,13 @@
                 mapCenter = { lat, lon };
                 isCurrentLocation = true;
 
-                // Update marker with appropriate opacity
+                // Recreate marker at the new location (always invisible — see comment above).
                 if (marker) {
                     marker.remove();
                 }
                 marker = L.marker([lat, lon], { 
                     icon: customIcon,
-                    opacity: isPrecise ? 1 : 0 
+                    opacity: 0
                 }).addTo(mapRef);
 
                 // Update accuracy circle after setting the view
@@ -432,27 +437,29 @@
         }
     }
 
-    // Update precision changes using Svelte 5 $effect
+    // Update precision changes using Svelte 5 $effect.
+    // In precise mode we use a CSS overlay pin (.precise-center-pin in the template)
+    // instead of the Leaflet marker, so the Leaflet marker is always hidden (opacity 0).
+    // In area mode we show the accuracy circle and keep the marker hidden.
     $effect(() => {
         if (map && mapCenter) {
             if (!isPrecise) {
-                // Only create circle if it doesn't exist
+                // Area mode: show accuracy circle, hide Leaflet marker
                 if (!accuracyCircle) {
                     updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
                 }
-                // Hide marker completely in non-precise mode
                 if (marker) {
                     marker.setOpacity(0);
                 }
             } else {
-                // Remove circle when precision is enabled
+                // Precise mode: remove accuracy circle (CSS overlay pin is used instead)
                 if (accuracyCircle) {
                     accuracyCircle.remove();
                     accuracyCircle = null;
                 }
-                // Show marker in precise mode
+                // Keep Leaflet marker hidden — the .precise-center-pin CSS overlay is used
                 if (marker) {
-                    marker.setOpacity(1);
+                    marker.setOpacity(0);
                 }
             }
         }
@@ -1072,11 +1079,11 @@
             
             if (marker) {
                 marker.setLatLng([lat, lon]);
-                marker.setOpacity(isPrecise ? 1 : 0);
+                marker.setOpacity(0); // Always invisible; CSS overlay pin handles precise mode
             } else {
                 marker = L.marker([lat, lon], { 
                     icon: customIcon,
-                    opacity: isPrecise ? 1 : 0 
+                    opacity: 0
                 }).addTo(map);
             }
             
@@ -1130,14 +1137,11 @@
         }
     }
 
-    // Update marker visibility when search results are shown/hidden using $effect
+    // Leaflet marker is always invisible — precise mode uses the CSS .precise-center-pin
+    // overlay and area mode uses the accuracy circle. Keep opacity at 0 regardless.
     $effect(() => {
         if (marker && map) {
-            if (showResults) {
-                marker.setOpacity(0); // Always hide marker during search results
-            } else {
-                marker.setOpacity(isPrecise ? 1 : 0); // Normal visibility rules
-            }
+            marker.setOpacity(0);
         }
     });
 
@@ -1193,7 +1197,15 @@
         </div>
     {/if}
     
-    <div class="map-container" bind:this={mapContainer}></div>
+    <div class="map-container" bind:this={mapContainer}>
+        <!-- Precise mode center pin: a fixed SVG icon pinned to the map center.
+             Replaces the Leaflet marker in precise mode — pure CSS overlay so it is
+             always perfectly centered regardless of map tile loading state.
+             Hidden in area (non-precise) mode where the accuracy circle is used instead. -->
+        {#if isPrecise}
+            <div class="precise-center-pin" aria-hidden="true"></div>
+        {/if}
+    </div>
 
     <div class="bottom-bar">
         <div class="controls">
@@ -1508,6 +1520,31 @@
         -webkit-mask-position: center;
         mask-position: center;
         transition: opacity 0.3s ease;
+    }
+
+    /* Precise mode center pin: absolutely positioned at the map center.
+       Uses the maps.svg icon as a mask so it inherits the app maps colour.
+       The pin is 40×40 px, anchored at its geometric center (translate -50%,-50%)
+       so it always sits exactly over the selected point regardless of map movement.
+       Only rendered when isPrecise is true (see template above). */
+    .precise-center-pin {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        background: var(--color-app-maps);
+        -webkit-mask-image: url('@openmates/ui/static/icons/maps.svg');
+        mask-image: url('@openmates/ui/static/icons/maps.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        pointer-events: none; /* Don't block map interaction */
+        z-index: 500; /* Above map tiles (z-index 400) but below UI controls */
     }
 
     /* Update location indicator styles */

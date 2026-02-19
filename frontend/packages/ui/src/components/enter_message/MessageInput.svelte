@@ -105,13 +105,18 @@
         hasContent?: boolean;
         showActionButtons?: boolean;
         isFocused?: boolean;
+        /** Whether the map location selector is currently open.
+         *  Bindable so the parent (ActiveChat) can hide NewChatSuggestions
+         *  while the map overlay is active. */
+        isMapsOpen?: boolean;
     }
     let { 
         currentChatId = undefined,
         isFullscreen = $bindable(false),
         hasContent = $bindable(false),
         showActionButtons = true,
-        isFocused = $bindable(false)
+        isFocused = $bindable(false),
+        isMapsOpen = $bindable(false)
     }: Props = $props();
 
     // --- Refs ---
@@ -128,6 +133,9 @@
     // --- Local UI State ---
     let showCamera = $state(false);
     let showMaps = $state(false);
+    // Keep the bindable isMapsOpen prop in sync with the local showMaps state so
+    // the parent (ActiveChat) can react to the map overlay opening/closing.
+    $effect(() => { isMapsOpen = showMaps; });
     // Tracks whether files are being dragged over the message field.
     // When true, the drop overlay ("Drop files to upload") is shown.
     let isDragging = $state(false);
