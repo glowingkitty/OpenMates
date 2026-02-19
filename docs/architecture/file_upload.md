@@ -322,7 +322,7 @@ Uploaded files consume persistent S3 storage. Users are charged weekly for stora
 | 0 – 1 GB | Free                                        |
 | > 1 GB   | 3 credits per GB per week (ceil to next GB) |
 
-Hetzner costs ≈ €0.005/GB/month. At 3 credits/GB/week (~$0.012/GB/month at 1,000 credits = $1 USD) the margin is ~4×.
+1,000 credits = $1 USD. 3 credits/GB/week ≈ $0.012/GB/month.
 
 ### Counter drift correction
 
