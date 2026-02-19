@@ -10,15 +10,19 @@
      - Below each matching chat: message match snippets with highlighted text
   
   Behavior:
-  - Clicking a settings or app result closes search and navigates deep-link.
-  - Clicking a chat title result closes search and opens the chat.
+  - Clicking a settings or app result closes search, navigates deep-link, and closes panel on mobile.
+  - Clicking a chat title result keeps search OPEN and opens the chat.
+    On mobile: closes the Chats panel so the active chat is visible; search is restored on panel reopen.
   - Clicking a message snippet keeps search OPEN, opens the chat, and scrolls the
     matched message into view with a brief blink animation.
-  - Arrow Up/Down keyboard navigation moves focus between results.
+    On mobile: closes the Chats panel so the highlighted message is visible; search is restored on panel reopen.
+  - Arrow Up/Down (from SearchBar) moves the focused highlight between results.
   - Enter activates the focused result.
+  - The parent (Chats.svelte) exposes focusNext()/focusPrevious() via bind:this for arrow key delegation.
 -->
 <script lang="ts">
   import { text } from '@repo/ui';
+  import { tick } from 'svelte';
   import ChatComponent from '../Chat.svelte';
   import { groupChats, getLocalizedGroupTitle } from '../utils/chatGroupUtils';
   import type { ChatSearchResult, AppCatalogSearchResult, SearchResults as SearchResultsType } from '../../../services/searchService';
@@ -32,7 +36,7 @@
     query: string;
     /** The currently selected (active) chat ID */
     activeChatId: string | null;
-    /** Called when a chat title result is clicked (closes search, opens chat) */
+    /** Called when a chat title result is clicked (keeps search open, opens chat) */
     onChatClick: (chat: ChatType) => void;
     /**
      * Called when a message snippet is clicked.
@@ -124,6 +128,9 @@
   // We flatten all results into a single navigable list.
   let focusedIndex = $state(-1);
 
+  // Reference to the container element for querying focusable children
+  let containerEl: HTMLDivElement | null = $state(null);
+
   // Build a flat list of all focusable items for keyboard navigation
   let allFocusableItems = $derived((() => {
     const items: Array<{ type: 'settings' | 'app' | 'chat' | 'snippet'; id: string }> = [];
@@ -144,6 +151,67 @@
     }
     return items;
   })());
+
+  /**
+   * Move focus to the next result (called from SearchBar ArrowDown).
+   * Finds all keyboard-focusable elements inside the container and focuses the next one.
+   * Exposed as a named export so the parent can call it via bind:this reference.
+   */
+  export function focusNext(): void {
+    focusedIndex = Math.min(focusedIndex + 1, allFocusableItems.length - 1);
+    scrollFocusedItemIntoView();
+  }
+
+  /**
+   * Move focus to the previous result (called from SearchBar ArrowUp).
+   */
+  export function focusPrevious(): void {
+    focusedIndex = Math.max(focusedIndex - 1, 0);
+    scrollFocusedItemIntoView();
+  }
+
+  /**
+   * Activate the currently focused item (Enter key from SearchBar).
+   * Finds the DOM element matching focusedIndex and clicks it.
+   */
+  export function activateFocused(): void {
+    if (focusedIndex < 0 || !containerEl) return;
+    const focusableEls = getFocusableElements();
+    const el = focusableEls[focusedIndex];
+    if (el) {
+      (el as HTMLElement).click();
+    }
+  }
+
+  /**
+   * Get all keyboard-focusable interactive elements inside the container,
+   * in DOM order (which matches our allFocusableItems ordering).
+   */
+  function getFocusableElements(): Element[] {
+    if (!containerEl) return [];
+    return Array.from(
+      containerEl.querySelectorAll('button, [role="option"], [tabindex="0"]')
+    );
+  }
+
+  /**
+   * Scroll the currently focused item into view and visually focus it.
+   */
+  async function scrollFocusedItemIntoView(): Promise<void> {
+    await tick(); // Wait for Svelte to update .focused class
+    if (!containerEl || focusedIndex < 0) return;
+    const focusableEls = getFocusableElements();
+    const el = focusableEls[focusedIndex] as HTMLElement | undefined;
+    if (el) {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  // Reset focused index when results change (new query)
+  $effect(() => {
+    void allFocusableItems; // React to items changing
+    focusedIndex = -1;
+  });
 
   /**
    * Build highlighted HTML for a text with match ranges.
@@ -201,21 +269,25 @@
 
   /**
    * Handle keyboard navigation (Arrow Up/Down, Enter) within results.
-   * Called from the container div's keydown handler.
+   * Called from the container div's keydown handler (when user tabs into results).
+   * Primary navigation (from SearchBar input) uses focusNext/focusPrevious exports.
    */
   function handleContainerKeyDown(event: KeyboardEvent): void {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      focusedIndex = Math.min(focusedIndex + 1, allFocusableItems.length - 1);
+      focusNext();
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      focusedIndex = Math.max(focusedIndex - 1, 0);
+      focusPrevious();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      activateFocused();
     }
-    // Enter is handled by individual item click handlers
   }
 </script>
 
 <div
+  bind:this={containerEl}
   class="search-results"
   role="listbox"
   tabindex="-1"
@@ -226,10 +298,13 @@
   {#if results.settings.length > 0}
     <div class="search-section">
       <h3 class="search-section-title">{$text('chats.search.settings')}</h3>
-      {#each results.settings as settingResult, i}
+      {#each results.settings as settingResult}
+        {@const itemId = settingResult.entry.path}
+        {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
         <button
           class="search-setting-item"
-          class:focused={focusedIndex === i}
+          class:focused={isFocused}
+          data-result-id={itemId}
           onclick={() => onSettingsClick(
             settingResult.entry.path,
             settingResult.label,
@@ -253,11 +328,13 @@
   {#if results.appCatalog.length > 0 && appsByType}
     <div class="search-section">
       <h3 class="search-section-title">{$text('chats.search.apps')}</h3>
-      {#each results.appCatalog as appResult, i}
-        {@const globalIdx = results.settings.length + i}
+      {#each results.appCatalog as appResult}
+        {@const itemId = appResult.entry.path}
+        {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
         <button
           class="search-setting-item"
-          class:focused={focusedIndex === globalIdx}
+          class:focused={isFocused}
+          data-result-id={itemId}
           onclick={() => onAppCatalogClick(appResult.entry.path, appResult.label)}
         >
           <span class="item-type-badge">{getAppEntryTypeLabel(appResult.entryType)}</span>
@@ -275,13 +352,17 @@
     <div class="search-section">
       <h3 class="search-section-title">{getLocalizedGroupTitle(group.groupKey, $text)}</h3>
       {#each group.items as chatResult (chatResult.chat.chat_id)}
-        <!-- Chat title entry (clicking this closes search and opens the chat) -->
+        <!-- Chat title entry (clicking keeps search open, opens chat) -->
+        {@const chatItemId = chatResult.chat.chat_id}
+        {@const isChatFocused = allFocusableItems[focusedIndex]?.id === chatItemId}
         <div
           role="option"
           tabindex="0"
           aria-selected={activeChatId === chatResult.chat.chat_id}
           class="search-chat-item"
           class:active={activeChatId === chatResult.chat.chat_id}
+          class:focused={isChatFocused}
+          data-result-id={chatItemId}
           onclick={() => onChatClick(chatResult.chat)}
           onkeydown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -303,8 +384,11 @@
         {#if chatResult.messageSnippets.length > 0}
           <div class="message-snippets">
             {#each chatResult.messageSnippets as snippet}
+              {@const snippetIsFocused = allFocusableItems[focusedIndex]?.id === snippet.messageId}
               <button
                 class="message-snippet"
+                class:focused={snippetIsFocused}
+                data-result-id={snippet.messageId}
                 title={$text('chats.search.go_to_message')}
                 onclick={() => onMessageSnippetClick(chatResult.chat, snippet.messageId)}
               >
@@ -434,6 +518,11 @@
     background-color: var(--color-grey-30);
   }
 
+  .search-chat-item.focused {
+    background-color: var(--color-grey-25);
+    outline: none;
+  }
+
   /* Message snippet rows shown under matching chats */
   .message-snippets {
     display: flex;
@@ -469,6 +558,12 @@
       background-color: var(--color-grey-25);
       color: var(--color-font-primary);
     }
+  }
+
+  .message-snippet.focused {
+    background-color: var(--color-grey-25);
+    color: var(--color-font-primary);
+    outline: none;
   }
 
   /* <mark> inside snippets — highlight color matching Figma (primary accent) */

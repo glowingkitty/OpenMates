@@ -18,12 +18,22 @@
     onSearch: (query: string) => void;
     /** Called when search is closed (X button or Escape) */
     onClose: () => void;
+    /** Called when ArrowDown is pressed in the input (to move focus to results) */
+    onArrowDown?: () => void;
+    /** Called when ArrowUp is pressed in the input (to move focus within results) */
+    onArrowUp?: () => void;
+    /**
+     * Initial query to pre-populate the search input.
+     * Used when the panel is reopened after being closed while search was active,
+     * so the user sees their previous query and can continue from where they left off.
+     */
+    initialQuery?: string;
   }
 
-  let { onSearch, onClose }: Props = $props();
+  let { onSearch, onClose, onArrowDown, onArrowUp, initialQuery = '' }: Props = $props();
 
-  // Local state
-  let query = $state('');
+  // Local state — initialize from initialQuery so the search is restored on panel reopen
+  let query = $state(initialQuery);
   let inputElement: HTMLInputElement | null = $state(null);
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -46,12 +56,19 @@
   /**
    * Handle key events on the input:
    * - Escape: close search
+   * - ArrowDown/Up: delegate to search results for keyboard navigation
    */
   function handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
       handleClose();
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      onArrowDown?.();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      onArrowUp?.();
     }
   }
 
@@ -83,6 +100,12 @@
     setTimeout(() => {
       inputElement?.focus();
     }, 50);
+
+    // If we have an initial query (restored from a previous search session),
+    // immediately fire onSearch so the results are re-populated without any user interaction.
+    if (initialQuery && initialQuery.trim().length > 0) {
+      onSearch(initialQuery);
+    }
 
     // Register global keyboard shortcut
     window.addEventListener('keydown', handleGlobalKeyDown);

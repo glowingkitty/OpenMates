@@ -93,6 +93,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let searchState = $derived($searchStore);
 	// Search results from the last completed search
 	let searchResults: SearchResultsType | null = $state(null);
+	// Reference to the SearchResults component for keyboard navigation
+	let searchResultsComponent: { focusNext: () => void; focusPrevious: () => void; activateFocused: () => void } | null = $state(null);
 	
 	// Self-hosted mode state is now managed by serverStatusStore
 	// isSelfHosted is imported from the store (initialized once at app load to prevent UI flashing)
@@ -1616,9 +1618,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	/**
 	 * Handles a click on a chat item. Selects the chat and dispatches an event.
-	 * Closes the panel on mobile only if user-initiated.
+	 * Closes the panel on mobile only if user-initiated and closePanelOnMobile is true.
+	 * @param chat - The chat to select
+	 * @param userInitiated - Whether this was user-initiated (affects phasedSyncState)
+	 * @param closePanelOnMobile - Whether to close the panel on mobile viewports (default: true)
 	 */
-	async function handleChatClick(chat: ChatType, userInitiated: boolean = true) {
+	async function handleChatClick(chat: ChatType, userInitiated: boolean = true, closePanelOnMobile: boolean = true) {
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
 		
@@ -1662,8 +1667,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// The 'chatSelected' Svelte event, handled by the parent component, is the
 		// correct and sufficient way to trigger the chat loading logic.
 
-		// Only close panel on mobile if this was a user-initiated click, not a system auto-selection
-		if (userInitiated && window.innerWidth < 730) {
+		// Only close panel on mobile if this was a user-initiated click, not a system auto-selection,
+		// and the caller wants the panel to close (closePanelOnMobile defaults to true).
+		if (userInitiated && closePanelOnMobile && window.innerWidth < 730) {
 			// Assuming 730 is a breakpoint
 			handleClose();
 		}
@@ -1734,32 +1740,55 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	/**
 	 * Handle clicking a chat TITLE result from search.
-	 * Closes search and opens the chat — no scroll-to-message needed.
+	 * Keeps search OPEN so the user can continue browsing results.
+	 * On small viewports: closes the Chats panel so the active chat is visible.
+	 * Search state is preserved (not cleared) so it is still active when the panel reopens.
 	 * @param chat - The matched chat
 	 */
 	function handleSearchChatClick(chat: ChatType): void {
-		handleSearchClose();
-		handleChatClick(chat);
+		// On mobile: close the panel so user can see the chat, but keep search state intact.
+		// On desktop: just open the chat in place — search panel stays visible.
+		const isMobile = window.innerWidth < 730;
+		if (isMobile) {
+			// Open the chat and close the panel, but DON'T clear search state.
+			// We pass closePanelOnMobile=true so handleChatClick closes the panel.
+			handleChatClick(chat, true, true);
+		} else {
+			// Desktop: open chat without closing search panel
+			handleChatClick(chat, true, false);
+		}
 	}
 
 	/**
 	 * Handle clicking a MESSAGE SNIPPET result from search.
 	 * Keeps search OPEN (so user can continue navigating results).
 	 * Navigates to the chat and triggers messageHighlightStore to scroll to + blink the message.
+	 * On small viewports: closes the Chats panel so the highlighted message is visible.
+	 * Search state is preserved (not cleared) so it is still active when the panel reopens.
 	 * @param chat - The chat containing the matched message
 	 * @param messageId - The message ID to scroll to and highlight
 	 */
 	function handleSearchMessageSnippetClick(chat: ChatType, messageId: string): void {
-		// Navigate to the chat WITHOUT closing search
-		handleChatClick(chat);
-		// Trigger scroll-to-message + blink animation via messageHighlightStore
-		// (ChatHistory subscribes to this store and handles scroll + highlight animation)
+		// Trigger scroll-to-message + blink animation via messageHighlightStore.
+		// ChatHistory subscribes to this store and handles scroll + highlight animation.
 		messageHighlightStore.set(messageId);
+
+		const isMobile = window.innerWidth < 730;
+		if (isMobile) {
+			// Mobile: open the chat and close the panel so user sees the highlighted message.
+			// We pass closePanelOnMobile=true so handleChatClick closes the panel.
+			// Search state is NOT cleared — it remains active when panel reopens.
+			handleChatClick(chat, true, true);
+		} else {
+			// Desktop: open chat without closing search or the panel
+			handleChatClick(chat, true, false);
+		}
 	}
 
 	/**
 	 * Handle clicking a settings result from search.
-	 * Opens the settings panel and navigates to the matching sub-page.
+	 * Closes search, opens the settings panel, and navigates to the matching sub-page.
+	 * On small viewports: also closes the Chats panel so the settings panel is visible.
 	 */
 	function handleSearchSettingsClick(
 		path: string,
@@ -1769,17 +1798,26 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	): void {
 		handleSearchClose();
 		navigateToSettings(path, title, icon, translationKey);
+		// On mobile: close the Chats panel so the settings panel is actually visible
+		if (window.innerWidth < 730) {
+			handleClose();
+		}
 	}
 
 	/**
 	 * Handle clicking an app catalog result from search (app, skill, focus mode, or memory).
 	 * Opens the settings panel and navigates to the app store sub-page.
+	 * On small viewports: also closes the Chats panel so the settings panel is visible.
 	 * @param path - The settings path (e.g., "app_store/ai/skill/ask")
 	 * @param title - The display title for the breadcrumb
 	 */
 	function handleSearchAppCatalogClick(path: string, title: string): void {
 		handleSearchClose();
 		navigateToSettings(path, title);
+		// On mobile: close the Chats panel so the settings panel is actually visible
+		if (window.innerWidth < 730) {
+			handleClose();
+		}
 	}
 
  /** Closes the chats panel. */
@@ -2722,10 +2760,15 @@ async function updateChatListFromDBInternal(force = false) {
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
 			{#if searchState.isActive}
-				<!-- Search bar replaces top buttons when active -->
+				<!-- Search bar replaces top buttons when active.
+				     initialQuery restores the previous query when the panel reopens on mobile
+				     after the user navigated to a chat result from search. -->
 				<SearchBar
 					onSearch={handleSearchQuery}
 					onClose={handleSearchClose}
+					onArrowDown={() => searchResultsComponent?.focusNext()}
+					onArrowUp={() => searchResultsComponent?.focusPrevious()}
+					initialQuery={searchState.query}
 				/>
 			{:else}
 				<div class="top-buttons">
@@ -2794,6 +2837,7 @@ async function updateChatListFromDBInternal(force = false) {
 			<!-- Search results overlay — replaces normal chat list when search is active -->
 		{#if searchState.isActive && searchState.query.trim().length > 0 && searchResults}
 			<SearchResults
+				bind:this={searchResultsComponent}
 				results={searchResults}
 				query={searchState.query}
 				activeChatId={selectedChatId}
