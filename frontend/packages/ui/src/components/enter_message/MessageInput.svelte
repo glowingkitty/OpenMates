@@ -2552,7 +2552,16 @@
     }
 
     // --- Reactive Calculations using Svelte 5 runes ---
-    let containerStyle = $derived(isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;');
+    // When the map overlay is open the field must be tall enough to show the map.
+    // We use a fixed height so the editor sits below the map controls and the
+    // message-field container grows, making the map fill edge-to-edge.
+    let containerStyle = $derived(
+        showMaps
+            ? 'height: 400px; max-height: 400px;'
+            : isFullscreen
+                ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);`
+                : 'height: auto; max-height: 350px;'
+    );
     let scrollableStyle = $derived(isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;');
     
     // Convert reactive statement with side effects to $effect
@@ -2635,7 +2644,7 @@
     />
     
     <div
-        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''}"
+        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''}"
         class:drag-over={editorElement?.classList.contains('drag-over')}
         style={containerStyle}
         ondragover={handleDragOver}

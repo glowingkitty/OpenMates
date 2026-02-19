@@ -149,6 +149,13 @@
   padding: 0 0 10px 0;
 }
 
+/* Maps overlay open — field expands to show the map edge-to-edge.
+   The MapsView sits as an absolutely-positioned child that fills inset:0,
+   so padding is cleared and height is driven by containerStyle. */
+.message-field.maps-open {
+  padding: 0;
+}
+
 .message-field.recording-active {
   /* Adjust padding when recording is active to accommodate RecordAudio component */
   padding-bottom: 120px;

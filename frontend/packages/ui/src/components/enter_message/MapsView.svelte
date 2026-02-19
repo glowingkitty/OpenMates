@@ -1210,16 +1210,18 @@
 
 <style>
     .maps-overlay {
-        /* Full-viewport modal so the user can focus entirely on the map.
-           Uses fixed positioning so it escapes any overflow:hidden parent
-           (e.g. .message-field) and covers the whole screen. */
-        position: fixed;
+        /* Fill the .message-field container edge-to-edge.
+           Uses absolute positioning so it is contained within the
+           message-field (position:relative; overflow:hidden; border-radius:24px).
+           The message-field grows to a fixed height when the map is open
+           (see MessageInput.svelte containerStyle / showMaps logic). */
+        position: absolute;
         inset: 0;
         background: var(--color-grey-0);
-        z-index: 9000;
+        z-index: 10;
         display: flex;
         flex-direction: column;
-        border-radius: 0;
+        border-radius: 24px;
         overflow: hidden;
     }
 
