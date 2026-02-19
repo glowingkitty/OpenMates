@@ -3840,6 +3840,17 @@ async function updateChatListFromDBInternal(force = false) {
         opacity: 0.7;
     }
 
+    /* Inline icon definitions for the pin arrows — uses up.svg / down.svg from the icon set */
+    .active-chat-pin .pin-arrow.icon_arrow_up {
+        -webkit-mask-image: url("@openmates/ui/static/icons/up.svg");
+        mask-image: url("@openmates/ui/static/icons/up.svg");
+    }
+
+    .active-chat-pin .pin-arrow.icon_arrow_down {
+        -webkit-mask-image: url("@openmates/ui/static/icons/down.svg");
+        mask-image: url("@openmates/ui/static/icons/down.svg");
+    }
+
     .active-chat-pin-label {
         overflow: hidden;
         white-space: nowrap;
