@@ -193,6 +193,28 @@
      * This toggles forceOverlayMode back to false in ActiveChat
      */
     onShowChat?: () => void;
+
+    /* ============================================
+       PII Toggle Props (for sensitive data masking)
+       ============================================ */
+
+    /**
+     * Whether to show the PII hide/show toggle button in the top bar.
+     * Only shown when the embed content contains sensitive PII data.
+     */
+    showPIIToggle?: boolean;
+
+    /**
+     * Whether PII originals are currently revealed (true = sensitive data visible).
+     * Controls the active/inactive visual state of the toggle button.
+     */
+    piiRevealed?: boolean;
+
+    /**
+     * Callback when user clicks the PII toggle button.
+     * The parent component is responsible for updating piiRevealed state.
+     */
+    onTogglePII?: () => void;
   }
   
   let {
@@ -232,7 +254,11 @@
     onEmbedDataUpdated,
     // Chat toggle props (for side-by-side mode)
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    // PII toggle props (for sensitive data masking)
+    showPIIToggle = false,
+    piiRevealed = false,
+    onTogglePII
   }: Props = $props();
   
   // ============================================
@@ -747,6 +773,20 @@
               <span class="clickable-icon icon_bug"></span>
             </button>
           </div>
+          <!-- PII hide/show toggle - only shown when embed has sensitive data -->
+          {#if showPIIToggle && onTogglePII}
+            <div class="button-wrapper">
+              <button
+                class="action-button pii-toggle-button"
+                class:pii-toggle-active={piiRevealed}
+                onclick={onTogglePII}
+                aria-label={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+                title={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+              >
+                <span class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'}"></span>
+              </button>
+            </div>
+          {/if}
       </div>
       
       <!-- Right side: Next button and Minimize button -->
@@ -973,6 +1013,15 @@
   /* Navigation buttons - using back icon, forward icon is rotated 180deg */
   .nav-button .icon_forward {
     transform: rotate(180deg);
+  }
+
+  /* PII toggle button: subtle orange/amber tint when PII is revealed (warns sensitive data exposed) */
+  .pii-toggle-button.pii-toggle-active {
+    background-color: rgba(245, 158, 11, 0.3) !important;
+  }
+
+  .pii-toggle-button.pii-toggle-active:hover {
+    background-color: rgba(245, 158, 11, 0.45) !important;
   }
   
   /* Hide navigation button wrappers on narrow screens (< 500px) to prevent UI crowding */

@@ -440,81 +440,70 @@ ${downloadHtmlContent}
   {onNavigateNext}
   {showChatButton}
   {onShowChat}
+  showPIIToggle={hasPII}
+  piiRevealed={localPiiRevealed}
+  onTogglePII={togglePII}
 >
   {#snippet content()}
     {#if sanitizedHtml}
       <div class="doc-viewer-canvas">
-        <!-- Controls bar: zoom + optional PII toggle -->
-        <div class="doc-zoom-bar">
-          <button class="zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomIndex === 0}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <button class="zoom-label" onclick={resetZoom} aria-label="Reset zoom" title="Click to reset">
-            {zoomLevel}%
-          </button>
-          <button class="zoom-btn" onclick={zoomIn} aria-label="Zoom in" disabled={zoomIndex === ZOOM_LEVELS.length - 1}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </button>
-          {#if pageCount > 1}
-            <span class="page-count-label">{pageCount} pages</span>
-          {/if}
-          {#if hasPII}
-            <!-- PII reveal toggle: show/hide sensitive data within the document -->
-            <button
-              class="pii-toggle-btn"
-              class:pii-toggle-active={localPiiRevealed}
-              onclick={togglePII}
-              aria-label={localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
-              title={localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
-            >
-              {#if localPiiRevealed}
-                <!-- Eye-off icon: click to hide -->
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              {:else}
-                <!-- Eye icon: click to reveal -->
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              {/if}
+        <!--
+          Google Docs-style toolbar: sits below the top action buttons (which are absolute positioned
+          at top: 16px by UnifiedEmbedFullscreen and take ~72px of space).
+          The toolbar has a subtle separator and contains zoom controls + page count.
+        -->
+        <div class="doc-toolbar">
+          <div class="doc-toolbar-inner">
+            <button class="zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomIndex === 0}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
             </button>
-          {/if}
+            <button class="zoom-pill" onclick={resetZoom} aria-label="Reset zoom to 100%" title="Click to reset zoom">
+              {zoomLevel}%
+            </button>
+            <button class="zoom-btn" onclick={zoomIn} aria-label="Zoom in" disabled={zoomIndex === ZOOM_LEVELS.length - 1}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            {#if pageCount > 1}
+              <span class="toolbar-separator" aria-hidden="true"></span>
+              <span class="page-count-label">{pageCount} {pageCount === 1 ? 'page' : 'pages'}</span>
+            {/if}
+          </div>
         </div>
 
-        <!-- Scrollable area with grey canvas -->
-        <div class="doc-page-scroll">
-          <div class="doc-page-scaler" style="transform: scale({zoomLevel / 100}); transform-origin: top center;">
+        <!--
+          Scrollable grey canvas area.
+          Contains the scaled paper stack (white pages on grey background).
+        -->
+        <div class="doc-canvas-scroll">
+          <div
+            class="doc-page-scaler"
+            style="--zoom: {zoomLevel / 100}; transform: scale(var(--zoom)); transform-origin: top center;"
+          >
             <!--
-              Paper stack container:
-              - Sized to hold all pages (1056px each) with 32px gaps between them
-              - Background gradient paints white page rects and transparent (grey) gaps
-              - Individual box-shadow overlays give each page its drop shadow
+              Paper stack: the white page area.
+              Background gradient draws white (page) and transparent (gap) bands.
+              Absolute-positioned shadow divs sit behind each page for depth.
             -->
             <div
               class="doc-paper-stack"
-              style="height: {totalPaperHeight}px; {paperBgStyle}"
+              style="min-height: {totalPaperHeight}px; {paperBgStyle}"
             >
-              <!-- Per-page drop shadows for realistic paper look -->
+              <!-- Per-page drop shadows for a realistic floating paper look -->
               {#each Array.from({ length: pageCount }, (__, idx) => idx) as i}
                 <div
                   class="doc-page-shadow"
                   style="top: {i * (PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y + PAGE_GAP)}px; height: {PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y}px;"
+                  aria-hidden="true"
                 ></div>
               {/each}
 
               <!--
-                Content wrapper: starts at the first page top margin (96px from top).
-                Has left/right margins matching page margins.
-                Content flows naturally through the wrapper.
-                Injected spacer divs at page breaks push content past the grey gaps.
+                Content wrapper: inset with page margins (top/bottom/left/right = 96px = ~1 inch at 96dpi).
+                Content flows naturally; injected spacer divs push text past page-break gaps.
               -->
               <div class="doc-content-wrapper">
                 <div class="doc-page-content" bind:this={contentEl}>
@@ -537,338 +526,405 @@ ${downloadHtmlContent}
 <style>
   /* ===========================================
      Document Viewer Canvas
+     Full-height flex column that fills the content slot.
+     The top ~72px is occupied by the absolute-positioned
+     action buttons from UnifiedEmbedFullscreen, so we
+     add padding-top to avoid overlap.
      =========================================== */
-  
+
   .doc-viewer-canvas {
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: var(--color-grey-15);
-    /* No extra padding-top: the zoom bar and action buttons handle their own spacing.
-       The top-bar from UnifiedEmbedFullscreen is absolutely positioned. */
+    /* Charcoal/dark grey canvas — matches Google Docs dark mode canvas */
+    background: #3c3c3c;
+    /* Push content below the floating top action bar (72px height) */
+    padding-top: 72px;
+    box-sizing: border-box;
   }
-  
+
   /* ===========================================
-     Zoom Controls
+     Google Docs-style Toolbar
+     A thin strip sitting just above the document canvas.
+     Contains zoom controls and page count.
+     Dark background with subtle bottom border to separate from canvas.
      =========================================== */
-  
-  .doc-zoom-bar {
+
+  .doc-toolbar {
+    flex-shrink: 0;
+    background: #2e2e2e;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    padding: 8px 0;
-    flex-shrink: 0;
-    z-index: 5;
+    padding: 6px 16px;
+    height: 42px;
+    box-sizing: border-box;
   }
-  
+
+  .doc-toolbar-inner {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* Zoom ± buttons */
   .zoom-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
     border: none;
-    background: var(--color-grey-25);
-    color: var(--color-font-secondary);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.15s, color 0.15s;
+    transition: background-color 0.1s, color 0.1s;
     padding: 0;
-    min-width: auto;
+    flex-shrink: 0;
   }
-  
+
   .zoom-btn:hover:not(:disabled) {
-    background: var(--color-grey-30);
-    color: var(--color-font-primary);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
   }
-  
+
   .zoom-btn:disabled {
-    opacity: 0.3;
+    opacity: 0.25;
     cursor: not-allowed;
   }
-  
-  .zoom-label {
-    min-width: 52px;
-    height: 32px;
-    border-radius: 6px;
-    border: none;
-    background: var(--color-grey-25);
-    color: var(--color-font-secondary);
-    font-size: 13px;
+
+  /* Zoom level pill — shows current % and resets on click */
+  .zoom-pill {
+    min-width: 54px;
+    height: 28px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 12px;
     font-weight: 500;
+    font-family: inherit;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.15s;
     padding: 0 8px;
-  }
-  
-  .zoom-label:hover {
-    background: var(--color-grey-30);
-  }
-
-  /* PII reveal toggle button — matches zoom button style */
-  .pii-toggle-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    border: none;
-    background: var(--color-grey-25);
-    color: var(--color-font-secondary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.15s, color 0.15s;
-    padding: 0;
-    min-width: auto;
-    margin-left: 8px;
+    transition: background-color 0.1s, border-color 0.1s;
+    margin: 0 2px;
+    letter-spacing: 0.3px;
   }
 
-  .pii-toggle-btn:hover {
-    background: var(--color-grey-30);
-    color: var(--color-font-primary);
+  .zoom-pill:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
   }
 
-  .pii-toggle-btn.pii-toggle-active {
-    background: var(--color-warning-subtle, rgba(255, 165, 0, 0.15));
-    color: var(--color-warning, #e07b00);
-  }
-
-  .pii-toggle-btn.pii-toggle-active:hover {
-    background: var(--color-warning-subtle-hover, rgba(255, 165, 0, 0.25));
+  /* Thin vertical separator between zoom and page count */
+  .toolbar-separator {
+    width: 1px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 0 10px;
+    flex-shrink: 0;
   }
 
   .page-count-label {
     font-size: 12px;
-    color: var(--color-font-secondary);
-    margin-left: 8px;
-    opacity: 0.7;
+    color: rgba(255, 255, 255, 0.5);
+    white-space: nowrap;
+    letter-spacing: 0.2px;
   }
-  
+
   /* ===========================================
-     Scrollable Area
+     Scrollable Canvas Area
+     The grey area where pages float.
      =========================================== */
-  
-  .doc-page-scroll {
+
+  .doc-canvas-scroll {
     flex: 1;
     overflow: auto;
     display: flex;
     justify-content: center;
-    /* Side padding for the paper, bottom space for the floating BasicInfosBar */
-    padding: 0 24px 80px;
+    /* Generous top/bottom padding so pages don't hug edges.
+       Extra bottom padding for the floating BasicInfosBar. */
+    padding: 32px 40px 100px;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   }
 
+  .doc-canvas-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .doc-canvas-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .doc-canvas-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+  }
+
+  .doc-canvas-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.28);
+  }
+
+  /* ===========================================
+     Page Scaler
+     A fixed-width container (US Letter: 816px).
+     We scale via CSS transform for zoom so layout
+     measurements stay stable and text stays sharp.
+     =========================================== */
+
   .doc-page-scaler {
+    /* US Letter at 96 dpi = 816px wide */
     width: 816px;
     flex-shrink: 0;
-    transition: transform 0.2s ease;
+    transition: transform 0.18s ease;
+    /* Scale from the top-center so the page stays anchored at the top */
+    transform-origin: top center;
   }
-  
+
   /* ===========================================
      Paper Stack
-     Holds all pages. Background gradient draws
-     the white/grey pattern. Grey = canvas showing.
+     White region representing the document pages.
+     Background gradient paints white for pages and
+     transparent (revealing dark canvas) for gaps.
      =========================================== */
-  
+
   .doc-paper-stack {
     width: 100%;
     position: relative;
-    background: white; /* fallback for single page */
-    border-radius: 4px;
+    /* White fallback for single-page documents */
+    background: white;
+    /* Outer border-radius makes the edges of the paper block slightly rounded */
+    border-radius: 2px;
   }
 
   /* ===========================================
      Per-Page Drop Shadow
+     Each page gets its own absolute-positioned
+     shadow overlay for a floating paper effect.
      =========================================== */
 
   .doc-page-shadow {
     position: absolute;
     left: 0;
     right: 0;
-    border-radius: 4px;
+    border-radius: 2px;
     pointer-events: none;
-    box-shadow: 
-      0 1px 3px rgba(0, 0, 0, 0.12),
-      0 4px 12px rgba(0, 0, 0, 0.08);
+    /* Two-layer shadow: close soft shadow + distant diffuse shadow */
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.35),
+      0 8px 24px rgba(0, 0, 0, 0.25);
     z-index: 0;
   }
 
   /* ===========================================
      Content Wrapper
-     Positioned inside the paper stack, offset by
-     the first page's top margin. Left/right margins
-     match page margins. Content flows through,
-     with spacer divs injected at page breaks.
+     Inset from the paper edges by 1 inch (96px at 96dpi).
+     This is the printable area of each page.
      =========================================== */
 
   .doc-content-wrapper {
     position: relative;
-    margin: 96px 96px 96px; /* Page margins: top, left/right, bottom */
+    /* 1-inch margins on all sides (96px at 96 DPI) */
+    margin: 96px;
     z-index: 1;
   }
 
   /* ===========================================
      Document Content Typography
+     Matches the style of a clean Word/Google Docs document:
+     - Light-weight body text (not bold)
+     - Calibri/Georgia-like reading experience
+     - Generous line height
+     - Black text on white, proper heading hierarchy
      =========================================== */
-  
+
   .doc-page-content {
-    color: #1a1a1a;
-    font-size: 15px;
-    line-height: 1.75;
+    /* Document body font: prioritise Calibri (Word), then Georgia/serif for elegance */
+    font-family: 'Calibri', 'Cambria', Georgia, 'Times New Roman', serif;
+    font-size: 14px;       /* ~11pt — standard Word document body size */
+    font-weight: 400;      /* Normal weight — NOT bold */
+    line-height: 1.65;     /* Comfortable reading line height */
+    color: #202020;        /* Near-black, slightly softer than pure black */
     word-break: break-word;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Document H1: Title style */
   .doc-page-content :global(h1) {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 700;
-    margin: 0 0 16px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #e0e0e0;
-    color: #0d0d0d;
-    line-height: 1.3;
-  }
-
-  .doc-page-content :global(h2) {
-    font-size: 21px;
-    font-weight: 600;
-    margin: 28px 0 12px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #eeeeee;
+    margin: 0 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e8e8e8;
     color: #1a1a1a;
-    line-height: 1.35;
+    line-height: 1.25;
+    letter-spacing: -0.3px;
   }
 
-  .doc-page-content :global(h3) {
+  /* Document H2: Section heading */
+  .doc-page-content :global(h2) {
     font-size: 18px;
     font-weight: 600;
-    margin: 24px 0 8px;
+    margin: 32px 0 10px;
     color: #1a1a1a;
-    line-height: 1.4;
+    line-height: 1.3;
+    letter-spacing: -0.2px;
+  }
+
+  /* Document H3: Sub-section heading */
+  .doc-page-content :global(h3) {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 24px 0 8px;
+    color: #2c2c2c;
+    line-height: 1.35;
   }
 
   .doc-page-content :global(h4),
   .doc-page-content :global(h5),
   .doc-page-content :global(h6) {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
-    margin: 20px 0 6px;
-    color: #2a2a2a;
+    margin: 18px 0 6px;
+    color: #333;
     line-height: 1.4;
   }
 
+  /* Paragraph: tight spacing between paragraphs */
   .doc-page-content :global(p) {
-    margin: 0 0 12px;
+    margin: 0 0 10px;
   }
 
   .doc-page-content :global(ul),
   .doc-page-content :global(ol) {
-    padding-left: 28px;
-    margin: 0 0 12px;
+    padding-left: 24px;
+    margin: 0 0 10px;
   }
 
   .doc-page-content :global(li) {
-    margin: 4px 0;
+    margin: 3px 0;
+    line-height: 1.6;
   }
 
   .doc-page-content :global(li > ul),
   .doc-page-content :global(li > ol) {
-    margin: 4px 0;
+    margin: 3px 0;
   }
 
+  /* Blockquote: left-rule style, indented */
   .doc-page-content :global(blockquote) {
-    border-left: 3px solid #1a73e8;
-    margin: 16px 0;
-    padding: 8px 16px;
+    border-left: 3px solid #c0c0c0;
+    margin: 16px 0 16px 8px;
+    padding: 4px 16px;
     color: #555;
-    background: #f8f9fa;
-    border-radius: 0 4px 4px 0;
+    font-style: italic;
   }
 
   .doc-page-content :global(blockquote p) {
     margin: 4px 0;
   }
 
+  /* Tables: professional document table style */
   .doc-page-content :global(table) {
     border-collapse: collapse;
     width: 100%;
     margin: 16px 0;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .doc-page-content :global(th),
   .doc-page-content :global(td) {
-    border: 1px solid #dadce0;
-    padding: 10px 14px;
+    border: 1px solid #d0d0d0;
+    padding: 7px 12px;
     text-align: left;
+    vertical-align: top;
   }
 
   .doc-page-content :global(th) {
-    background: #f1f3f4;
+    background: #f2f2f2;
     font-weight: 600;
     color: #1a1a1a;
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0;
   }
 
-  .doc-page-content :global(tr:nth-child(even)) {
+  .doc-page-content :global(tr:nth-child(even) td) {
     background: #fafafa;
   }
 
+  /* Inline code: monospaced, subtle background */
   .doc-page-content :global(code) {
-    background: #f1f3f4;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 13px;
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
-    color: #d63384;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12.5px;
+    font-family: 'Consolas', 'SF Mono', 'Fira Mono', 'Courier New', monospace;
+    color: #c7254e;
+    font-style: normal;
   }
 
+  /* Code blocks */
   .doc-page-content :global(pre) {
-    background: #f8f9fa;
-    padding: 16px 20px;
-    border-radius: 8px;
+    background: #f8f8f8;
+    padding: 14px 18px;
+    border-radius: 4px;
     overflow-x: auto;
-    margin: 16px 0;
-    border: 1px solid #e8eaed;
+    margin: 14px 0;
+    border: 1px solid #e4e4e4;
+    font-size: 12.5px;
   }
 
   .doc-page-content :global(pre code) {
     background: none;
+    border: none;
     padding: 0;
     border-radius: 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: inherit;
+    font-size: inherit;
+    line-height: 1.55;
+    color: #333;
   }
 
   .doc-page-content :global(a) {
-    color: #1a73e8;
+    color: #1155cc;
     text-decoration: underline;
     text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
   }
 
   .doc-page-content :global(a:hover) {
-    color: #1558b0;
+    color: #0b3a8a;
   }
 
+  /* Horizontal rule: thin line */
   .doc-page-content :global(hr) {
     border: none;
-    border-top: 1px solid #dadce0;
-    margin: 28px 0;
+    border-top: 1px solid #d8d8d8;
+    margin: 24px 0;
   }
 
   .doc-page-content :global(img) {
     max-width: 100%;
     height: auto;
-    border-radius: 4px;
+    border-radius: 2px;
     margin: 12px 0;
   }
 
   .doc-page-content :global(strong) {
-    font-weight: 600;
+    font-weight: 700;
+    color: #111;
   }
 
   .doc-page-content :global(em) {
@@ -882,66 +938,76 @@ ${downloadHtmlContent}
   .doc-page-content :global(dt) {
     font-weight: 600;
     margin-top: 8px;
+    color: #1a1a1a;
   }
 
   .doc-page-content :global(dd) {
-    margin-left: 28px;
-    margin-bottom: 8px;
+    margin-left: 24px;
+    margin-bottom: 6px;
+    color: #444;
   }
 
   /* ===========================================
      Empty State
      =========================================== */
-  
+
   .empty-state {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 200px;
-    color: var(--color-font-secondary);
+    color: rgba(255, 255, 255, 0.5);
   }
 
   /* ===========================================
-     Responsive: Mobile
+     Responsive: Mobile (≤ 900px)
+     On narrow screens, drop the fixed page width and
+     render a simple single-column white document.
      =========================================== */
-  
+
   @media (max-width: 900px) {
+    .doc-viewer-canvas {
+      /* Less top padding on mobile since buttons are smaller */
+      padding-top: 72px;
+    }
+
+    .doc-canvas-scroll {
+      padding: 16px 0 100px;
+    }
+
     .doc-page-scaler {
       width: 100%;
     }
-    
+
     .doc-paper-stack {
       border-radius: 0;
-      height: auto !important;
+      /* Override gradient bg on mobile — single flat white page */
       background: white !important;
-    }
-
-    .doc-content-wrapper {
-      margin: 40px 32px 60px;
+      min-height: 0 !important;
     }
 
     .doc-page-shadow {
       display: none;
     }
-    
-    .doc-page-scroll {
-      padding: 0 0 80px;
+
+    .doc-content-wrapper {
+      margin: 40px 28px 60px;
     }
-    
+
     .doc-page-content {
-      font-size: 14px;
+      font-size: 13px;
     }
-    
+
     .doc-page-content :global(h1) {
-      font-size: 22px;
+      font-size: 20px;
     }
-    
+
     .doc-page-content :global(h2) {
-      font-size: 18px;
-    }
-    
-    .doc-page-content :global(h3) {
       font-size: 16px;
+    }
+
+    .doc-page-content :global(h3) {
+      font-size: 14px;
     }
   }
 </style>
