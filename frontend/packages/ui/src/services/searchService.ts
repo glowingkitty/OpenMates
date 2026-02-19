@@ -178,132 +178,144 @@ const EMBED_TYPE_LABELS: Record<string, string> = {
 };
 
 /**
- * Extract a searchable plaintext string from a decoded embed content object.
- * Returns null if no meaningful text can be extracted.
- *
- * Text is truncated to MAX_EMBED_TEXT_CHARS to keep RAM usage bounded.
- * Each embed type has different fields — we pull the most text-rich ones.
- *
- * @param embedType - Normalized embed type (e.g., "web-website", "code-code")
- * @param decoded   - Decoded JS object from TOON content
+ * Fields to SKIP during generic recursive extraction — these are internal
+ * identifiers, hashes, timestamps, UUIDs, and metadata fields that add noise
+ * to search results without containing meaningful user-readable text.
  */
-function extractTextFromEmbed(
-  embedType: string,
-  decoded: Record<string, any>,
-): string | null {
-  if (!decoded || typeof decoded !== "object") return null;
+const EMBED_SKIP_FIELDS = new Set([
+  "embed_id",
+  "parent_embed_id",
+  "embed_ids",
+  "hashed_chat_id",
+  "hashed_message_id",
+  "hashed_task_id",
+  "hashed_user_id",
+  "content_hash",
+  "encryption_mode",
+  "vault_key_id",
+  "status",
+  "result_count",
+  "text_length_chars",
+  "version_number",
+  "is_private",
+  "is_shared",
+  "file_path",
+  "created_at",
+  "updated_at",
+  "createdAt",
+  "updatedAt",
+  "word_count",
+  "rows",
+  "cols",
+  "line_count",
+  "cell_count",
+  "app_id",
+  "skill_id", // These are internal IDs, not user-visible text
+  // Image / media URLs that aren't useful for text search
+  "favicon",
+  "meta_url_favicon",
+  "image",
+  "thumbnail",
+  "thumbnail_original",
+  "thumbnail_small",
+  "thumbnail_medium",
+  "thumbnail_large",
+  "channel_thumbnail",
+  "channel_id",
+  "video_id",
+  // Numeric/location fields
+  "lat",
+  "lon",
+  "precise_lat",
+  "precise_lon",
+  "zoom",
+  "duration_seconds",
+  "view_count",
+  "like_count",
+]);
+
+/**
+ * Recursively collect all meaningful string values from a decoded embed object.
+ * This generic approach handles any embed type regardless of field names or nesting depth.
+ *
+ * The backend's _flatten_for_toon_tabular creates arbitrary field names like
+ * "library_id", "library_title", "meta_url_description" — rather than maintaining
+ * an exhaustive per-type field list, we walk the whole tree and collect strings.
+ *
+ * We use a budget to avoid spending all characters on one deeply-nested field.
+ * Longer strings (documentation, descriptions) get a higher per-field cap.
+ */
+function collectEmbedStrings(
+  obj: unknown,
+  budget: number,
+  depth: number = 0,
+): string[] {
+  if (budget <= 0 || depth > 5) return [];
+  if (obj === null || obj === undefined) return [];
 
   const parts: string[] = [];
 
-  if (embedType === "web-website") {
-    // Website embeds: title + description are the most searchable fields.
-    // The URL is also useful to match domain names.
-    if (decoded.title) parts.push(String(decoded.title));
-    if (decoded.description) parts.push(String(decoded.description));
-    // Handle TOON-flattened field names from backend (meta_url_description, etc.)
-    if (decoded.meta_url_title && decoded.meta_url_title !== decoded.title)
-      parts.push(String(decoded.meta_url_title));
+  if (typeof obj === "string") {
+    const trimmed = obj.trim();
+    if (trimmed.length < 3) return []; // Skip very short strings (single chars, IDs)
+    // Skip pure URLs (not useful for keyword search unless they're short domain refs)
     if (
-      decoded.meta_url_description &&
-      decoded.meta_url_description !== decoded.description
+      trimmed.startsWith("http") &&
+      !trimmed.includes(" ") &&
+      trimmed.length > 80
     )
-      parts.push(String(decoded.meta_url_description));
-    if (decoded.url) parts.push(String(decoded.url));
-    if (decoded.site_name) parts.push(String(decoded.site_name));
-  } else if (embedType === "web-website-group") {
-    // Web search result groups: extract from the results array
-    // Each result item typically has url, title, description
-    const results = decoded.results || decoded.items || [];
-    if (Array.isArray(results)) {
-      for (const item of results) {
-        if (typeof item === "object" && item) {
-          if (item.title) parts.push(String(item.title));
-          if (item.description) parts.push(String(item.description));
-          if (item.url) parts.push(String(item.url));
-        }
+      return [];
+    // Skip base64-looking strings
+    if (/^[A-Za-z0-9+/]{40,}={0,2}$/.test(trimmed)) return [];
+    // Limit per-field to avoid one giant field consuming the whole budget
+    const fieldCap = Math.min(budget, depth === 0 ? 1200 : 400);
+    parts.push(trimmed.slice(0, fieldCap));
+  } else if (Array.isArray(obj)) {
+    // For arrays, limit to first 10 items to avoid huge web-search result sets
+    for (const item of obj.slice(0, 10)) {
+      if (budget <= 0) break;
+      const sub = collectEmbedStrings(item, Math.min(budget, 300), depth + 1);
+      for (const s of sub) {
+        parts.push(s);
+        budget -= s.length;
       }
     }
-    // Also check top-level query field
-    if (decoded.query) parts.push(String(decoded.query));
-  } else if (embedType === "videos-video") {
-    // Video embeds: title + channel name + description
-    if (decoded.title) parts.push(String(decoded.title));
-    if (decoded.channel_name) parts.push(String(decoded.channel_name));
-    if (decoded.description)
-      parts.push(String(decoded.description).slice(0, 500));
-    if (decoded.url) parts.push(String(decoded.url));
-  } else if (embedType === "code-code") {
-    // Code embeds: filename is most useful; code content itself can be very large
-    // so we limit it aggressively — developers searching for a function name should still match
-    if (decoded.filename) parts.push(String(decoded.filename));
-    if (decoded.language) parts.push(String(decoded.language));
-    if (decoded.code) parts.push(String(decoded.code).slice(0, 800));
-  } else if (embedType === "sheets-sheet") {
-    // Table embeds: title + raw table markdown
-    if (decoded.title) parts.push(String(decoded.title));
-    if (decoded.code) parts.push(String(decoded.code).slice(0, 600));
-  } else if (embedType === "docs-doc") {
-    // Document embeds: title + content body
-    if (decoded.title) parts.push(String(decoded.title));
-    if (decoded.content) parts.push(String(decoded.content).slice(0, 800));
-    if (decoded.description) parts.push(String(decoded.description));
-  } else if (embedType === "app-skill-use") {
-    // App skill results: query + result summaries
-    // These are the most varied — try common field patterns
-    if (decoded.query) parts.push(String(decoded.query));
-    if (decoded.skill_id) parts.push(String(decoded.skill_id));
-    if (decoded.summary) parts.push(String(decoded.summary));
-    if (decoded.result) parts.push(String(decoded.result).slice(0, 600));
-    // Handle nested results array (e.g., news search, web search via skill)
-    const results = decoded.results || decoded.items || [];
-    if (Array.isArray(results)) {
-      for (const item of results.slice(0, 5)) {
-        if (typeof item === "object" && item) {
-          if (item.title) parts.push(String(item.title));
-          if (item.description) parts.push(String(item.description));
-          if (item.url) parts.push(String(item.url));
-        }
+  } else if (typeof obj === "object") {
+    for (const [key, value] of Object.entries(obj)) {
+      if (budget <= 0) break;
+      if (EMBED_SKIP_FIELDS.has(key)) continue;
+      const sub = collectEmbedStrings(value, Math.min(budget, 600), depth + 1);
+      for (const s of sub) {
+        parts.push(s);
+        budget -= s.length;
       }
     }
-  } else if (embedType === "app-skill-use-group") {
-    // Skill result groups: aggregate text from child results
-    if (decoded.query) parts.push(String(decoded.query));
-    const results = decoded.results || decoded.items || [];
-    if (Array.isArray(results)) {
-      for (const item of results.slice(0, 5)) {
-        if (typeof item === "object" && item) {
-          if (item.title) parts.push(String(item.title));
-          if (item.description) parts.push(String(item.description));
-        }
-      }
-    }
-  } else if (embedType === "maps") {
-    // Map embeds: name + address
-    if (decoded.name) parts.push(String(decoded.name));
-    if (decoded.address) parts.push(String(decoded.address));
-    if (decoded.place_type) parts.push(String(decoded.place_type));
-  } else if (embedType === "pdf" || embedType === "book") {
-    // PDF/book embeds: title + author
-    if (decoded.title) parts.push(String(decoded.title));
-    if (decoded.author) parts.push(String(decoded.author));
-    if (decoded.description) parts.push(String(decoded.description));
-  } else if (embedType === "text" || embedType === "file") {
-    // Plain text / file embeds: filename + content
-    if (decoded.filename || decoded.name)
-      parts.push(String(decoded.filename || decoded.name));
-    if (decoded.content) parts.push(String(decoded.content).slice(0, 600));
-    if (decoded.text) parts.push(String(decoded.text).slice(0, 600));
-  } else {
-    // Unknown embed type: try generic field names that often contain useful text
-    if (decoded.title) parts.push(String(decoded.title));
-    if (decoded.description) parts.push(String(decoded.description));
-    if (decoded.query) parts.push(String(decoded.query));
-    if (decoded.url) parts.push(String(decoded.url));
   }
 
-  if (parts.length === 0) return null;
+  return parts;
+}
 
-  const combined = parts.join(" ").replace(/\s+/g, " ").trim();
+/**
+ * Extract a searchable plaintext string from a decoded embed content object.
+ * Returns null if no meaningful text can be extracted.
+ *
+ * Uses a generic recursive walker (collectEmbedStrings) that handles any embed type
+ * regardless of TOON field name flattening (e.g. library_title, meta_url_description).
+ * Text is truncated to MAX_EMBED_TEXT_CHARS to keep RAM usage bounded.
+ *
+ * @param _embedType - Normalized embed type (unused; kept for future type-specific overrides)
+ * @param decoded    - Decoded JS object from TOON content
+ */
+function extractTextFromEmbed(
+  _embedType: string,
+  decoded: Record<string, unknown>,
+): string | null {
+  if (!decoded || typeof decoded !== "object") return null;
+
+  const strings = collectEmbedStrings(decoded, MAX_EMBED_TEXT_CHARS);
+  if (strings.length === 0) return null;
+
+  const combined = strings.join(" ").replace(/\s+/g, " ").trim();
   return combined.slice(0, MAX_EMBED_TEXT_CHARS) || null;
 }
 
@@ -312,14 +324,23 @@ function extractTextFromEmbed(
  * Uses embedStore (IndexedDB + memory cache) to load encrypted embed content.
  * All decryption happens client-side — no plaintext ever leaves the device.
  *
+ * Handles composite embeds: when the decoded content has an `embed_ids` array (e.g.,
+ * web search results where each result is a separate child embed), this function
+ * also loads and extracts text from each child embed and concatenates it.
+ * This is critical for web/news/maps search results where the parent embed only
+ * contains metadata ({app_id, skill_id, result_count, embed_ids}) and the actual
+ * searchable text lives in the child website/place/event embeds.
+ *
  * Returns null if the embed is unavailable, still processing, or has no useful text.
  *
- * @param embedId   - The embed identifier (without "embed:" prefix)
- * @param embedType - The embed type from the JSON reference block (e.g., "app_skill_use")
+ * @param embedId        - The embed identifier (without "embed:" prefix)
+ * @param embedType      - The embed type from the JSON reference block (e.g., "app_skill_use")
+ * @param _referenceData - Optional extra data from the JSON reference block (may include query)
  */
 async function resolveEmbedText(
   embedId: string,
   embedType: string,
+  _referenceData?: Record<string, unknown>,
 ): Promise<{ text: string; sourceLabel: string } | null> {
   try {
     // Lazy-load the heavy embedStore and TOON decoder only when needed.
@@ -328,29 +349,84 @@ async function resolveEmbedText(
     const { embedStore } = await import("./embedStore");
     const { decodeToonContent } = await import("./embedResolver");
 
+    // Normalize the embed type for consistent label lookup.
+    // Server uses underscores ("app_skill_use"), frontend uses hyphens ("app-skill-use").
+    const normalizedType = embedType.replace(/_/g, "-");
+
     // Load from IndexedDB / memory cache — does NOT trigger a WebSocket request.
     // If the embed isn't available locally, we simply skip it (it won't be in the index).
     const embedData = await embedStore.get(`embed:${embedId}`);
-    if (!embedData || !embedData.content || embedData.status === "processing") {
+    if (!embedData || embedData.status === "processing") {
       return null;
     }
 
-    // Decode TOON → JS object
-    const decoded = await decodeToonContent(embedData.content);
-    if (!decoded) return null;
+    const allParts: string[] = [];
 
-    // Normalize the embed type for consistent label lookup
-    // Server uses underscores ("app_skill_use"), frontend uses hyphens ("app-skill-use")
-    const normalizedType = embedType.replace(/_/g, "-");
+    // Extract query from the JSON reference block if present (e.g., "query":"Twilio").
+    // This is stored directly in the message markdown reference, separate from the embed.
+    if (_referenceData?.query && typeof _referenceData.query === "string") {
+      allParts.push(_referenceData.query);
+    }
 
-    // Extract type-appropriate searchable text
-    const text = extractTextFromEmbed(normalizedType, decoded);
-    if (!text) return null;
+    // Decode parent embed TOON content
+    if (embedData.content) {
+      const decoded = await decodeToonContent(embedData.content);
+      if (decoded) {
+        const parentText = extractTextFromEmbed(normalizedType, decoded);
+        if (parentText) allParts.push(parentText);
+
+        // COMPOSITE EMBEDS: if embed_ids is present, this is a parent embed (e.g., web search,
+        // news search, maps search). The actual searchable content lives in the CHILD embeds —
+        // the parent only has metadata like {app_id, skill_id, result_count, embed_ids, query}.
+        // Load each child embed and extract its text.
+        const embedIds: string[] = Array.isArray(decoded.embed_ids)
+          ? decoded.embed_ids
+          : [];
+
+        if (embedIds.length > 0) {
+          // Limit to first 10 child embeds to bound the async work during warm-up
+          for (const childId of embedIds.slice(0, 10)) {
+            try {
+              const childData = await embedStore.get(`embed:${childId}`);
+              if (
+                !childData ||
+                !childData.content ||
+                childData.status === "processing"
+              )
+                continue;
+
+              const childDecoded = await decodeToonContent(childData.content);
+              if (!childDecoded) continue;
+
+              // Child type comes from the child embed's stored type, not the parent reference
+              const childType = (
+                childData.type ||
+                childData.embed_type ||
+                ""
+              ).replace(/_/g, "-");
+              const childText = extractTextFromEmbed(childType, childDecoded);
+              if (childText) allParts.push(childText);
+            } catch {
+              // Skip individual child embed failures silently
+            }
+          }
+        }
+      }
+    }
+
+    if (allParts.length === 0) return null;
+
+    const combined = allParts
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, MAX_EMBED_TEXT_CHARS);
+    if (!combined) return null;
 
     // Determine the human-readable source label for this embed type
     const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
 
-    return { text, sourceLabel };
+    return { text: combined, sourceLabel };
   } catch (error) {
     // Non-critical: if embed resolution fails, simply skip this embed
     console.debug(
@@ -460,7 +536,10 @@ async function indexChatMessages(chatId: string): Promise<void> {
       if (!isDemoChat(chatId) && !isLegalChat(chatId)) {
         const embedRefs = extractEmbedReferences(rawContent);
         for (const ref of embedRefs) {
-          const result = await resolveEmbedText(ref.embed_id, ref.type);
+          // Pass the full ref object as _referenceData so resolveEmbedText can
+          // extract the "query" field stored directly in the message markdown
+          // (e.g., the search term the user typed for a web/news/code search).
+          const result = await resolveEmbedText(ref.embed_id, ref.type, ref);
           if (!result) continue;
 
           entries.push({
@@ -571,7 +650,7 @@ export async function addMessageToIndex(
   // 2. Index embed content referenced in the message
   const embedRefs = extractEmbedReferences(rawContent);
   for (const ref of embedRefs) {
-    const result = await resolveEmbedText(ref.embed_id, ref.type);
+    const result = await resolveEmbedText(ref.embed_id, ref.type, ref);
     if (!result) continue;
     newEntries.push({
       messageId: message.message_id,

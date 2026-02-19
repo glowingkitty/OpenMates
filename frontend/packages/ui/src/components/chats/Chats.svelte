@@ -38,6 +38,9 @@
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
 	import { messageHighlightStore, searchTextHighlightStore } from '../../stores/messageHighlightStore';
 
+	// --- Category circle imports (used by the sticky active-chat pin) ---
+	import { getCategoryGradientColors, getFallbackIconForCategory, getLucideIcon } from '../../utils/categoryUtils';
+
 	const dispatch = createEventDispatcher();
 
 // --- Debounce timer for updateChatListFromDB calls ---
@@ -407,6 +410,36 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let activeChatData: ChatType | null = $derived(
 		selectedChatId ? (allChats.find(c => c.chat_id === selectedChatId) ?? null) : null
 	);
+
+	// Decrypted metadata for the sticky active-chat pin (title, category, icon).
+	// Mirrors what Chat.svelte does via chatMetadataCache — async, so stored in $state.
+	let activePinTitle: string | null = $state(null);
+	let activePinCategory: string | null = $state(null);
+	let activePinIcon: string | null = $state(null);
+
+	$effect(() => {
+		const chat = activeChatData;
+		if (!chat) {
+			activePinTitle = null;
+			activePinCategory = null;
+			activePinIcon = null;
+			return;
+		}
+		// Demo/legal chats have plaintext titles and no encrypted metadata
+		if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
+			activePinTitle = chat.title || null;
+			activePinCategory = null;
+			activePinIcon = null;
+			return;
+		}
+		// Authenticated user chats — load from cache (non-blocking)
+		chatMetadataCache.getDecryptedMetadata(chat).then((meta) => {
+			if (!meta) return;
+			activePinTitle = meta.title || chat.title || null;
+			activePinCategory = meta.category || null;
+			activePinIcon = meta.icon || null;
+		});
+	});
 
 	// Sort all chats (demo + real) using the utility function
 	let sortedAllChats = $derived(sortChats(allChats, currentServerSortOrder));
@@ -2971,31 +3004,46 @@ async function updateChatListFromDBInternal(force = false) {
 		<!-- Scrollable content area — wrapped in a relative container so the sticky active-chat pin
 		     can be absolutely positioned over the scroll area. -->
 		<div class="activity-history-scroll-wrapper">
-			<!-- Sticky active-chat pin — shown when the active chat scrolls out of the visible list.
-			     Overlays the scroll container at the top or bottom edge.
-			     Clicking scrolls the active chat back into view. -->
-			{#if activeChatOutOfViewDirection && selectedChatId}
-				<button
-					class="active-chat-pin"
-					class:pin-top={activeChatOutOfViewDirection === 'top'}
-					class:pin-bottom={activeChatOutOfViewDirection === 'bottom'}
-					onclick={() => {
-						activeChatElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-					}}
-					aria-label={$text('chats.scroll_to_active_chat', { default: 'Scroll to active chat' })}
-				>
-					<!-- Arrow icon indicating scroll direction -->
-					<span
-						class="pin-arrow clickable-icon"
-						class:icon_arrow_up={activeChatOutOfViewDirection === 'top'}
-						class:icon_arrow_down={activeChatOutOfViewDirection === 'bottom'}
-					></span>
-					<!-- Chat title: plain title for demo chats, fallback otherwise -->
-					<span class="active-chat-pin-label">
-						{activeChatData?.title ?? $text('chats.active_chat', { default: 'Active chat' })}
-					</span>
-				</button>
-			{/if}
+		<!-- Sticky active-chat pin — shown when the active chat scrolls out of the visible list.
+		     Hidden during active search (the search results overlay replaces the chat list).
+		     Overlays the scroll container at the top or bottom edge.
+		     Clicking scrolls the active chat back into view. -->
+		{#if activeChatOutOfViewDirection && selectedChatId && !(searchState.isActive && searchState.query.trim().length > 0)}
+			<button
+				class="active-chat-pin"
+				class:pin-top={activeChatOutOfViewDirection === 'top'}
+				class:pin-bottom={activeChatOutOfViewDirection === 'bottom'}
+				onclick={() => {
+					activeChatElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+				}}
+				aria-label={$text('chats.scroll_to_active_chat', { default: 'Scroll to active chat' })}
+			>
+				<!-- Arrow icon indicating scroll direction -->
+				<span
+					class="pin-arrow clickable-icon"
+					class:icon_arrow_up={activeChatOutOfViewDirection === 'top'}
+					class:icon_arrow_down={activeChatOutOfViewDirection === 'bottom'}
+				></span>
+				<!-- Category circle + icon (matches Chat.svelte rendering pattern) -->
+				{#if activePinCategory}
+					{@const pinIconName = activePinIcon || getFallbackIconForCategory(activePinCategory)}
+					{@const PinIconComponent = getLucideIcon(pinIconName)}
+					{@const pinGradient = getCategoryGradientColors(activePinCategory)}
+					<div
+						class="active-chat-pin-circle"
+						style={pinGradient ? `background: linear-gradient(135deg, ${pinGradient.start}, ${pinGradient.end})` : 'background: #cccccc'}
+					>
+						<div class="active-chat-pin-icon">
+							<PinIconComponent size={12} color="white" />
+						</div>
+					</div>
+				{/if}
+				<!-- Chat title: decrypted via metadata cache, fallback to raw title -->
+				<span class="active-chat-pin-label">
+					{activePinTitle ?? activeChatData?.title ?? $text('chats.active_chat', { default: 'Active chat' })}
+				</span>
+			</button>
+		{/if}
 
 		<div 
 			class="activity-history"
@@ -3890,6 +3938,24 @@ async function updateChatListFromDBInternal(force = false) {
         white-space: nowrap;
         text-overflow: ellipsis;
         min-width: 0;
+    }
+
+    /* Category circle shown next to the chat title in the sticky pin — mirrors Chat.svelte's circle */
+    .active-chat-pin-circle {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .active-chat-pin-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 0;
     }
 </style>
 
