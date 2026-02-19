@@ -294,23 +294,41 @@
   box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.1);
 }
 
-.message-field.drag-over::after {
-  content: "Drop files here";
+/* Drop overlay: an absolutely-positioned panel that covers the editor area
+   and shows a file icon + "Drop files to upload" label while dragging.
+   Uses the existing .icon_files mask-image icon from icons.css.
+   pointer-events: none ensures the drag events still reach the parent. */
+.drop-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 60px;
+  bottom: 60px; /* leave room for the action-buttons row */
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 1.1em;
-  font-weight: 500;
-  color: var(--color-primary);
-  background: rgba(255, 255, 255, 0.8);
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.88);
   z-index: 5;
   pointer-events: none;
   border-radius: 22px;
+}
+
+/* File icon inside the drop overlay — re-uses the existing icon_files mask */
+.drop-overlay-icon {
+  width: 40px;
+  height: 40px;
+  background-color: var(--color-primary);
+  /* Mask set via .icon_files from icons.css */
+  pointer-events: none;
+}
+
+.drop-overlay-text {
+  font-size: 1.05em;
+  font-weight: 500;
+  color: var(--color-primary);
+  pointer-events: none;
 }
 
 /* Unified embed styles moved to EmbeddPreview.styles.css */

@@ -19,7 +19,7 @@ take_photo:
   hi: फोटो लें
   th: ถ่ายภาพ
   cs: Pořídit fotku
-  sv: 'Ta foto'
+  sv: "Ta foto"
   verified_by_human: []
 attach_files:
   context: Button text for attaching files
@@ -42,7 +42,7 @@ attach_files:
   hi: फ़ाइलें संलग्न करें
   th: แนบไฟล์
   cs: Přiložit soubory
-  sv: 'Bifoga filer'
+  sv: "Bifoga filer"
   verified_by_human: []
 record_audio:
   context: Button text for recording audio
@@ -65,7 +65,7 @@ record_audio:
   hi: ऑडियो रिकॉर्ड करें
   th: บันทึกเสียง
   cs: Nahrát zvuk
-  sv: 'Spela in ljud'
+  sv: "Spela in ljud"
   verified_by_human: []
 share_location:
   context: Button text for sharing location
@@ -88,5 +88,28 @@ share_location:
   hi: स्थान साझा करें
   th: แชร์ตำแหน่ง
   cs: Sdílet polohu
-  sv: 'Dela plats'
+  sv: "Dela plats"
+  verified_by_human: []
+drop_files:
+  context: Overlay text shown when the user drags files over the message input area
+  en: Drop files to upload
+  de: Dateien zum Hochladen ablegen
+  zh: 拖放文件以上传
+  es: Suelta los archivos para subir
+  fr: Déposez les fichiers pour les télécharger
+  pt: Solte os arquivos para enviar
+  ru: Перетащите файлы для загрузки
+  ja: ファイルをドロップしてアップロード
+  ko: 파일을 드롭하여 업로드
+  it: Rilascia i file per caricarli
+  tr: Yüklemek için dosyaları bırakın
+  vi: Thả tệp để tải lên
+  id: Jatuhkan file untuk diunggah
+  pl: Upuść pliki, aby je przesłać
+  nl: Bestanden neerzetten om te uploaden
+  ar: أسقط الملفات للتحميل
+  hi: अपलोड करने के लिए फ़ाइलें छोड़ें
+  th: วางไฟล์เพื่ออัปโหลด
+  cs: Přetáhněte soubory pro nahrání
+  sv: "Släpp filer för att ladda upp"
   verified_by_human: []
