@@ -35,6 +35,12 @@
      * When "area" the user had imprecise/privacy mode on — show a small "Nearby:" prefix label.
      */
     locationType?: string;
+    /**
+     * Category label for search results (e.g. "Railway", "Airport", "Hotel").
+     * Empty string for manual/current-location pins.
+     * Shown as a muted line beneath the place name in the text fallback layout.
+     */
+    placeType?: string;
     /** URL of the static map image stored in S3 */
     mapImageUrl?: string;
     /** Processing status */
@@ -52,6 +58,7 @@
     name: nameProp,
     address: addressProp,
     locationType: locationTypeProp,
+    placeType: placeTypeProp,
     mapImageUrl: mapImageUrlProp,
     status: statusProp,
     taskId: taskIdProp,
@@ -63,6 +70,7 @@
   let localName = $state<string>('');
   let localAddress = $state<string>('');
   let localLocationType = $state<string>('area');
+  let localPlaceType = $state<string>('');
   let localMapImageUrl = $state<string | undefined>(undefined);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
@@ -73,6 +81,7 @@
     localName = nameProp ?? '';
     localAddress = addressProp ?? '';
     localLocationType = locationTypeProp ?? 'area';
+    localPlaceType = placeTypeProp ?? '';
     localMapImageUrl = mapImageUrlProp;
     localStatus = statusProp ?? 'processing';
     localTaskId = taskIdProp;
@@ -82,6 +91,7 @@
   let name = $derived(localName);
   let address = $derived(localAddress);
   let locationType = $derived(localLocationType);
+  let placeType = $derived(localPlaceType);
   let mapImageUrl = $derived(localMapImageUrl);
   let status = $derived(localStatus);
   let taskId = $derived(localTaskId);
@@ -102,6 +112,7 @@
       if (content.name !== undefined) localName = (content.name as string) || '';
       if (content.address !== undefined) localAddress = (content.address as string) || '';
       if (content.location_type !== undefined) localLocationType = (content.location_type as string) || 'area';
+      if (content.place_type !== undefined) localPlaceType = (content.place_type as string) || '';
       if (content.map_image_url) {
         localMapImageUrl = content.map_image_url as string;
         imageError = false; // Reset error state on new image
@@ -112,8 +123,13 @@
   // Skill name from translations
   let skillName = $derived($text('embeds.maps_location'));
 
-  // The skill icon uses the pin icon (location.svg does not exist)
-  const skillIconName = 'pin';
+  // Icon: use the travel icon for transit/transport locations (railways, airports),
+  // otherwise fall back to the generic pin icon.
+  // Transit types that warrant the travel icon (matches the search results panel logic).
+  const TRANSIT_TYPES = new Set(['railway', 'airport', 'subway', 's-bahn', 'tram', 'bus', 'ferry']);
+  let skillIconName = $derived(
+    placeType && TRANSIT_TYPES.has(placeType.toLowerCase()) ? 'travel' : 'pin'
+  );
 
   // Whether we have a map image to display full-width
   let hasImage = $derived(!!mapImageUrl && !imageError && status !== 'error');
@@ -122,13 +138,13 @@
   // address is approximate and we want to signal that to the user.
   let showNearbyLabel = $derived(locationType === 'area');
 
-  // Secondary line: the resolved street address (shown when no map image is available).
-  let secondaryText = $derived(address || '');
-
-  // Primary display name for the text fallback layout.
-  // `name` may be a two-line string like "Berlin Hauptbahnhof\nBerlin" (from locationIndicatorText).
-  // Take only the first line as the prominent place name to avoid duplication with secondaryText.
+  // Primary display name (e.g. "Berlin Hauptbahnhof").
+  // `name` may be a two-line string from legacy locationIndicatorText — take only the first line.
   let primaryName = $derived(name ? name.split('\n')[0].trim() : '');
+
+  // Secondary line: prefer the explicit placeType label (e.g. "Railway") when available,
+  // otherwise fall back to the street address.
+  let secondaryText = $derived(placeType || address || '');
 </script>
 
 <UnifiedEmbedPreview
@@ -164,8 +180,9 @@
       </div>
     {:else}
       <!-- Fallback text layout when no image is available -->
-      <!-- Shows the place name prominently (e.g. "Berlin Hauptbahnhof") followed by the
-           street address. For area/imprecise mode we prefix with a small "Nearby:" label. -->
+      <!-- Shows the place name prominently (e.g. "Berlin Hauptbahnhof"), then the
+           category type (e.g. "Railway"), then the street address.
+           For area/imprecise mode we prefix with a small "Nearby:" label. -->
       <div class="location-details" class:mobile={isMobileLayout}>
         {#if showNearbyLabel}
           <!-- Small "Nearby:" label shown when the user had imprecise/privacy mode on -->
@@ -175,9 +192,13 @@
           <!-- Primary place name (station, POI, or location title) in bold -->
           <div class="location-name">{primaryName}</div>
         {/if}
-        {#if secondaryText}
-          <!-- Full street address in muted text below the name (multi-line) -->
-          <div class="location-address">{secondaryText}</div>
+        {#if placeType}
+          <!-- Category/type label (e.g. "Railway", "Airport") — muted, below the name -->
+          <div class="location-place-type">{placeType}</div>
+        {/if}
+        {#if address && address !== placeType}
+          <!-- Street address — only shown when different from the type label -->
+          <div class="location-address">{address}</div>
         {/if}
         {#if status === 'processing'}
           <div class="location-loading">{$text('embeds.maps_location.loading_map')}</div>
@@ -271,6 +292,23 @@
 
   .location-details.mobile .location-name {
     font-size: 13px;
+  }
+
+  /* Category/type label (e.g. "Railway", "Airport") — muted, shown below the place name */
+  .location-place-type {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-grey-60);
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .location-details.mobile .location-place-type {
+    font-size: 11px;
   }
 
   /* Street address — muted text below the name, can be multi-line */

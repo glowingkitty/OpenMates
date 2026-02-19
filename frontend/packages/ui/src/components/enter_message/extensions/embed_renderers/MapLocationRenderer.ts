@@ -55,12 +55,15 @@ export class MapLocationRenderer implements EmbedRenderer {
         name?: string;
         address?: string;
         locationType?: string | null;
+        placeType?: string | null;
       };
       const lat = extAttrs.preciseLat ?? null;
       const lon = extAttrs.preciseLon ?? null;
       const name = extAttrs.name ?? "";
       const address = extAttrs.address ?? "";
       const locationType = extAttrs.locationType ?? "area";
+      // Category label for search results (e.g. "Railway", "Airport"). Empty for manual pins.
+      const placeType = extAttrs.placeType ?? "";
       const status =
         (attrs.status as "processing" | "finished" | "error") || "finished";
 
@@ -82,6 +85,7 @@ export class MapLocationRenderer implements EmbedRenderer {
                 name,
                 address,
                 locationType,
+                placeType,
                 status,
                 preciseLat: lat,
                 preciseLon: lon,
@@ -98,6 +102,7 @@ export class MapLocationRenderer implements EmbedRenderer {
                 name,
                 address,
                 location_type: locationType,
+                place_type: placeType,
                 status,
               },
             },
@@ -112,6 +117,7 @@ export class MapLocationRenderer implements EmbedRenderer {
           name,
           address,
           locationType,
+          placeType,
           status,
           isMobile: false,
           onFullscreen: handleFullscreen,

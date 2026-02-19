@@ -640,6 +640,9 @@ export async function insertMap(
     name: attrs.name ?? "",
     address: attrs.address ?? "",
     location_type: attrs.locationType ?? "area",
+    // Category label for search results (e.g. "Railway", "Airport").
+    // Empty string for manual/current-location pins.
+    place_type: attrs.placeType ?? "",
   };
 
   // Store in EmbedStore so it flows through the encrypted pipeline on send
@@ -676,6 +679,9 @@ export async function insertMap(
       address: attrs.address ?? "",
       // "precise_location" | "area" — controls the "Nearby:" label in the embed card.
       locationType: attrs.locationType ?? "area",
+      // Category/type label for search results (e.g. "Railway", "Airport").
+      // Stored as a data-* attr so it survives TipTap DOM round-trips.
+      placeType: attrs.placeType ?? "",
     },
   };
 

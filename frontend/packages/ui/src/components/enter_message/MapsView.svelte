@@ -72,7 +72,10 @@
     let searchMarkers: any[] = [];
 
     // Add new state variables to store selected location details
-    let selectedLocationText: { mainLine: string; subLine: string } | null = null;
+    // selectedLocationText: display text from the chosen search result.
+    // placeType: the category label (e.g. "Railway", "Airport") stored separately so the
+    // embed can show it as a dedicated secondary line distinct from the street address.
+    let selectedLocationText: { mainLine: string; subLine: string; placeType?: string } | null = null;
     let selectedFromSearch = false;
     let selectedZoomLevel: number | null = null;
 
@@ -89,6 +92,9 @@
     // Stores the resolved street address for the current map center.
     // Populated by reverseGeocode() after map movement stops.
     let resolvedAddress = $state<string>('');
+    // placeType: category label for the selected search result (e.g. "Railway", "Airport").
+    // Set when user clicks a search result; cleared when user pans map manually.
+    let selectedPlaceType = $state<string>('');
     let reverseGeocodeController: AbortController | null = null;
 
     // Set initial precision state from prop (runs once after initial render)
@@ -247,6 +253,7 @@
                     selectedFromSearch = false;
                     selectedZoomLevel = null;
                     isCurrentLocation = false;
+                    selectedPlaceType = '';
                 }
                 
                 // Only update center marker if search results are not shown
@@ -473,6 +480,13 @@
                     ? [selectedLocationText.mainLine, selectedLocationText.subLine].filter(Boolean).join(', ')
                     : locationIndicatorText);
 
+            // Determine the display name for the embed card.
+            // For search results: use the place name (mainLine only, e.g. "Berlin Hauptbahnhof").
+            // For reverse-geocoded / current location: use the indicator text as before.
+            const embedName = selectedLocationText
+                ? selectedLocationText.mainLine
+                : (locationIndicatorText || address);
+
             const previewData = {
                 type: 'mapsEmbed',
                 attrs: {
@@ -483,10 +497,13 @@
                     preciseLat,
                     preciseLon,
                     zoom: selectedZoomLevel || 16,
-                    // Display name shown in the embed card
-                    name: locationIndicatorText || address,
-                    // Full resolved street address for LLM context
+                    // Clean place name for the embed card title (e.g. "Berlin Hauptbahnhof")
+                    name: embedName,
+                    // Full resolved street address for LLM context and embed card secondary line
                     address,
+                    // Category/type label for search results (e.g. "Railway", "Airport").
+                    // Shown as a dedicated muted line below the name in the embed card.
+                    placeType: selectedPlaceType || '',
                     // Whether this is a precise pin or a generalised area
                     locationType: isPrecise ? 'precise_location' : 'area',
                     id: crypto.randomUUID()
@@ -645,10 +662,40 @@
                     transitServices.join(', ') : 
                     formattedResult.subLine;
 
+                // Build a human-readable street address from the Nominatim address components.
+                // This mirrors the format used by reverseGeocode() so the embed shows a
+                // consistent address regardless of whether the location came from search or map pan.
+                const addr = result.address || {};
+                const addrParts: string[] = [];
+                const road = addr.road || addr.pedestrian || addr.footway || addr.path || '';
+                const houseNumber = addr.house_number || '';
+                if (road && houseNumber) {
+                    addrParts.push(`${road} ${houseNumber}`);
+                } else if (road) {
+                    addrParts.push(road);
+                }
+                const postcode = addr.postcode || '';
+                const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+                if (postcode && city) {
+                    addrParts.push(`${postcode} ${city}`);
+                } else if (city) {
+                    addrParts.push(city);
+                }
+                const country = addr.country || '';
+                if (country) addrParts.push(country);
+                const streetAddress = addrParts.join(', ') || result.display_name || '';
+
                 return {
                     id: crypto.randomUUID(),
                     mainLine: formattedResult.mainLine,
                     subLine: subLine,
+                    // Full street address from Nominatim address components — used as the embed
+                    // address when this search result is selected (avoids re-geocoding).
+                    streetAddress,
+                    // placeType: the category/type label shown in the embed card secondary line
+                    // (e.g. "Railway", "Airport", "Hotel"). Distinct from streetAddress so the
+                    // embed can show both "Berlin Hauptbahnhof / Railway" and the address.
+                    placeType: subLine,
                     lat: parseFloat(result.lat),
                     lon: parseFloat(result.lon),
                     type: result.class === 'railway' ? 'railway' : 
@@ -1000,11 +1047,18 @@
             // Reset current location flag when selecting from search
             isCurrentLocation = false;
             
-            // Store the selected location text
+            // Store the selected location text (name + type/category shown in the indicator)
             selectedLocationText = {
                 mainLine: result.mainLine,
-                subLine: result.subLine
+                subLine: result.subLine,
+                placeType: result.placeType
             };
+            // Use the pre-built street address from the Nominatim result so the embed shows
+            // "Berlin Hauptbahnhof" as the name and the actual street address below it,
+            // rather than re-geocoding or falling back to the type string (e.g. "Railway").
+            resolvedAddress = result.streetAddress || '';
+            // Store the place type (e.g. "Railway") separately for the embed card
+            selectedPlaceType = result.placeType || '';
             selectedFromSearch = true;
             
             // Set zoom level based on result type
@@ -1541,8 +1595,8 @@
         position: absolute;
         top: 0;
         left: 0;
-        /* Full width and height above the bottom bar — map is not visible behind results */
-        width: 100%;
+        /* 50% width so the map remains visible alongside the results panel */
+        width: 50%;
         height: calc(100% - 53px);
         background: var(--color-grey-0);
         /* z-index above map (1) and matching bottom-bar (2) */

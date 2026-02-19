@@ -410,6 +410,17 @@ export const Embed = Node.create<EmbedOptions>({
           return { "data-location-type": attributes.locationType };
         },
       },
+      // placeType: category label for search results (e.g. "Railway", "Airport", "Hotel").
+      // Empty string for manual/current-location pins. Shown as a muted secondary line
+      // in the embed card beneath the place name.
+      placeType: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-place-type") ?? null,
+        renderHTML: (attributes) => {
+          if (!attributes.placeType) return {};
+          return { "data-place-type": attributes.placeType };
+        },
+      },
       // Focus mode metadata
       focus_id: {
         default: null,
