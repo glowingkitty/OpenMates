@@ -1530,8 +1530,8 @@ hidden_chats.no_hidden_chats_unlocked:
 
 search.placeholder:
   context: Placeholder text for the search input bar in the chat list sidebar
-  en: Search chats & settings...
-  de: Chats & Einstellungen suchen...
+  en: Search chats, settings & apps...
+  de: Chats, Einstellungen & Apps suchen...
   zh: 搜索聊天和设置...
   es: Buscar chats y configuración...
   fr: Rechercher des chats et paramètres...
@@ -1622,4 +1622,172 @@ search.indexing:
   th: กำลังสร้างดัชนีการค้นหา...
   cs: Vytváření vyhledávacího indexu...
   sv: Bygger sökindex...
+  verified_by_human: []
+
+search.apps:
+  context: Section header for app/skill/focus mode/memory results in the search results list
+  en: Apps & Skills
+  de: Apps & Skills
+  zh: 应用与技能
+  es: Apps y habilidades
+  fr: Applications et compétences
+  pt: Apps e habilidades
+  ru: Приложения и навыки
+  ja: アプリとスキル
+  ko: 앱 및 스킬
+  it: App e abilità
+  tr: Uygulamalar ve beceriler
+  vi: Ứng dụng và kỹ năng
+  id: Aplikasi & keterampilan
+  pl: Aplikacje i umiejętności
+  nl: Apps en vaardigheden
+  ar: التطبيقات والمهارات
+  hi: ऐप्स और कौशल
+  th: แอปและทักษะ
+  cs: Aplikace a dovednosti
+  sv: Appar och färdigheter
+  verified_by_human: []
+
+search.app_app:
+  context: Badge label shown on app search results indicating it is an App entry type
+  en: App
+  de: App
+  zh: 应用
+  es: App
+  fr: App
+  pt: App
+  ru: Приложение
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulama
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacja
+  nl: App
+  ar: تطبيق
+  hi: ऐप
+  th: แอป
+  cs: Aplikace
+  sv: App
+  verified_by_human: []
+
+search.app_skill:
+  context: Badge label shown on skill search results indicating it is a Skill entry type
+  en: Skill
+  de: Skill
+  zh: 技能
+  es: Habilidad
+  fr: Compétence
+  pt: Habilidade
+  ru: Навык
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceri
+  vi: Kỹ năng
+  id: Keterampilan
+  pl: Umiejętność
+  nl: Vaardigheid
+  ar: مهارة
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednost
+  sv: Färdighet
+  verified_by_human: []
+
+search.app_focus_mode:
+  context: Badge label shown on focus mode search results indicating it is a Focus Mode entry type
+  en: Focus Mode
+  de: Fokus-Modus
+  zh: 专注模式
+  es: Modo de enfoque
+  fr: Mode de mise au point
+  pt: Modo de foco
+  ru: Режим фокуса
+  ja: フォーカスモード
+  ko: 집중 모드
+  it: Modalità di messa a fuoco
+  tr: Odak modu
+  vi: Chế độ tập trung
+  id: Mode fokus
+  pl: Tryb skupienia
+  nl: Focusmodus
+  ar: وضع التركيز
+  hi: फोकस मोड
+  th: โหมดโฟกัส
+  cs: Režim soustředění
+  sv: Fokusläge
+  verified_by_human: []
+
+search.app_memory:
+  context: Badge label shown on memory/settings search results indicating it is a Memory entry type
+  en: Memory
+  de: Speicher
+  zh: 记忆
+  es: Memoria
+  fr: Mémoire
+  pt: Memória
+  ru: Память
+  ja: メモリ
+  ko: 메모리
+  it: Memoria
+  tr: Bellek
+  vi: Bộ nhớ
+  id: Memori
+  pl: Pamięć
+  nl: Geheugen
+  ar: ذاكرة
+  hi: मेमोरी
+  th: หน่วยความจำ
+  cs: Paměť
+  sv: Minne
+  verified_by_human: []
+
+search.go_to_message:
+  context: Tooltip shown on message snippet search results, indicating clicking will scroll to that message
+  en: Go to message
+  de: Zur Nachricht springen
+  zh: 跳转到消息
+  es: Ir al mensaje
+  fr: Aller au message
+  pt: Ir para a mensagem
+  ru: Перейти к сообщению
+  ja: メッセージに移動
+  ko: 메시지로 이동
+  it: Vai al messaggio
+  tr: Mesaja git
+  vi: Đi đến tin nhắn
+  id: Pergi ke pesan
+  pl: Przejdź do wiadomości
+  nl: Ga naar bericht
+  ar: انتقل إلى الرسالة
+  hi: संदेश पर जाएं
+  th: ไปที่ข้อความ
+  cs: Přejít na zprávu
+  sv: Gå till meddelande
+  verified_by_human: []
+
+search.results_label:
+  context: Accessible label for the search results list (used for screen readers)
+  en: Search results
+  de: Suchergebnisse
+  zh: 搜索结果
+  es: Resultados de búsqueda
+  fr: Résultats de recherche
+  pt: Resultados da pesquisa
+  ru: Результаты поиска
+  ja: 検索結果
+  ko: 검색 결과
+  it: Risultati di ricerca
+  tr: Arama sonuçları
+  vi: Kết quả tìm kiếm
+  id: Hasil pencarian
+  pl: Wyniki wyszukiwania
+  nl: Zoekresultaten
+  ar: نتائج البحث
+  hi: खोज परिणाम
+  th: ผลการค้นหา
+  cs: Výsledky hledání
+  sv: Sökresultat
   verified_by_human: []

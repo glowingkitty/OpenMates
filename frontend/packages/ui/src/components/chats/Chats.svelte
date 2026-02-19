@@ -36,6 +36,7 @@
 	import { search as performSearch, warmUpSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
 	import { searchStore, openSearch, closeSearch, setSearchQuery, setSearching } from '../../stores/searchStore';
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
+	import { messageHighlightStore } from '../../stores/messageHighlightStore';
 
 	const dispatch = createEventDispatcher();
 
@@ -1725,18 +1726,28 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	}
 
 	/**
-	 * Handle clicking a chat result from search.
+	 * Handle clicking a chat TITLE result from search.
+	 * Closes search and opens the chat — no scroll-to-message needed.
 	 * @param chat - The matched chat
-	 * @param _messageId - Optional message ID to scroll to (reserved for future scroll-to-message support)
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	function handleSearchChatClick(chat: ChatType, _messageId?: string): void {
-		// Close search first
+	function handleSearchChatClick(chat: ChatType): void {
 		handleSearchClose();
-		// Navigate to the chat
 		handleChatClick(chat);
-		// TODO: If _messageId is provided, dispatch scroll-to-message event
-		// (scroll-to-message support will be added in a future iteration)
+	}
+
+	/**
+	 * Handle clicking a MESSAGE SNIPPET result from search.
+	 * Keeps search OPEN (so user can continue navigating results).
+	 * Navigates to the chat and triggers messageHighlightStore to scroll to + blink the message.
+	 * @param chat - The chat containing the matched message
+	 * @param messageId - The message ID to scroll to and highlight
+	 */
+	function handleSearchMessageSnippetClick(chat: ChatType, messageId: string): void {
+		// Navigate to the chat WITHOUT closing search
+		handleChatClick(chat);
+		// Trigger scroll-to-message + blink animation via messageHighlightStore
+		// (ChatHistory subscribes to this store and handles scroll + highlight animation)
+		messageHighlightStore.set(messageId);
 	}
 
 	/**
@@ -1749,10 +1760,19 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		icon?: string,
 		translationKey?: string,
 	): void {
-		// Close search first
 		handleSearchClose();
-		// Open settings and navigate to the sub-page
 		navigateToSettings(path, title, icon, translationKey);
+	}
+
+	/**
+	 * Handle clicking an app catalog result from search (app, skill, focus mode, or memory).
+	 * Opens the settings panel and navigates to the app store sub-page.
+	 * @param path - The settings path (e.g., "app_store/ai/skill/ask")
+	 * @param title - The display title for the breadcrumb
+	 */
+	function handleSearchAppCatalogClick(path: string, title: string): void {
+		handleSearchClose();
+		navigateToSettings(path, title);
 	}
 
  /** Closes the chats panel. */
@@ -2765,14 +2785,16 @@ async function updateChatListFromDBInternal(force = false) {
 			ontouchmove={handleTouchMove}
 		>
 			<!-- Search results overlay — replaces normal chat list when search is active -->
-			{#if searchState.isActive && searchState.query.trim().length > 0 && searchResults}
-				<SearchResults
-					results={searchResults}
-					query={searchState.query}
-					activeChatId={selectedChatId}
-					onChatClick={handleSearchChatClick}
-					onSettingsClick={handleSearchSettingsClick}
-				/>
+		{#if searchState.isActive && searchState.query.trim().length > 0 && searchResults}
+			<SearchResults
+				results={searchResults}
+				query={searchState.query}
+				activeChatId={selectedChatId}
+				onChatClick={handleSearchChatClick}
+				onMessageSnippetClick={handleSearchMessageSnippetClick}
+				onSettingsClick={handleSearchSettingsClick}
+				onAppCatalogClick={handleSearchAppCatalogClick}
+			/>
 			{:else if searchState.isActive && searchState.query.trim().length > 0 && searchState.isSearching}
 				<!-- Searching indicator while waiting for results -->
 				<div class="search-loading-indicator">

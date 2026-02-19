@@ -43,13 +43,16 @@
     activeChatId = undefined,
     selectMode = false,
     selectedChatIds = new Set<string>(),
-    onToggleSelection
+    onToggleSelection,
+    highlightedTitle = null,
   }: {
     chat: Chat;
     activeChatId?: string | undefined;
     selectMode?: boolean;
     selectedChatIds?: Set<string>;
     onToggleSelection?: (chatId: string) => void;
+    /** Pre-highlighted HTML string for the chat title (used in search results to show <mark> tags). When provided, overrides the normal title rendering. */
+    highlightedTitle?: string | null;
   } = $props();
   
   // Check if this chat is selected
@@ -1954,14 +1957,20 @@
             <!-- Demo chats use plaintext title, regular chats use cached decrypted title -->
             <!-- CRITICAL: Never show "Untitled chat" - show "Processing..." status instead if title not ready -->
             <!-- Using {@html} to render HTML styling (e.g., OpenMates branding) -->
-            <div class="chat-title-wrapper">
-              {#if chat.title || cachedMetadata?.title}
+             <div class="chat-title-wrapper">
+              {#if highlightedTitle}
+                <!-- Search result mode: use pre-highlighted HTML title (has <mark> tags for matched text) -->
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                <span class="chat-title">{@html highlightedTitle}</span>
+              {:else if chat.title || cachedMetadata?.title}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
               {:else if isWaitingForTitle}
                 <!-- Show "Processing..." as title when waiting for metadata -->
                 <span class="chat-title processing-title">{$text('enter_message.processing')}</span>
               {:else}
                 <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <span class="chat-title">{@html $text('chat.untitled_chat')}</span>
               {/if}
               {#if chat.pinned}
@@ -2089,6 +2098,13 @@
     font-weight: 500;
     color: var(--color-text);
     margin-bottom: 2px;
+  }
+
+  /* Highlight styling for search match <mark> tags within the title */
+  .chat-title :global(mark) {
+    background-color: transparent;
+    color: var(--color-primary-start);
+    font-weight: 700;
   }
 
   .pin-indicator {

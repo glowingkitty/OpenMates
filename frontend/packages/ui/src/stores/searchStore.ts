@@ -13,12 +13,25 @@ export interface SearchState {
   isActive: boolean;
   /** Whether a search is currently in progress */
   isSearching: boolean;
+  /**
+   * The message ID that was most recently clicked from search results.
+   * Used by ChatHistory to scroll-to and highlight the matched message.
+   * Null when no message is being highlighted from search.
+   */
+  activeMessageId: string | null;
+  /**
+   * The chat ID whose messages should have highlights while search is open.
+   * While search is open, all matches in the active chat should be visually highlighted.
+   */
+  activeSearchChatId: string | null;
 }
 
 const initialState: SearchState = {
   query: "",
   isActive: false,
   isSearching: false,
+  activeMessageId: null,
+  activeSearchChatId: null,
 };
 
 export const searchStore = writable<SearchState>(initialState);
@@ -35,7 +48,7 @@ export function openSearch(): void {
 }
 
 /**
- * Close search mode and clear the query.
+ * Close search mode and clear all state.
  * Called when user clicks the X button or presses Escape.
  */
 export function closeSearch(): void {
@@ -51,6 +64,8 @@ export function setSearchQuery(query: string): void {
     ...state,
     query,
     isSearching: query.trim().length > 0,
+    // Clear active message when query changes
+    activeMessageId: null,
   }));
 }
 
@@ -62,6 +77,23 @@ export function setSearching(isSearching: boolean): void {
   searchStore.update((state) => ({
     ...state,
     isSearching,
+  }));
+}
+
+/**
+ * Set the active message ID from search results.
+ * This triggers scroll-to-message in ChatHistory via messageHighlightStore.
+ * @param messageId - The message ID to scroll to (null to clear)
+ * @param chatId - The chat the message belongs to
+ */
+export function setActiveSearchMessage(
+  messageId: string | null,
+  chatId: string | null,
+): void {
+  searchStore.update((state) => ({
+    ...state,
+    activeMessageId: messageId,
+    activeSearchChatId: chatId,
   }));
 }
 

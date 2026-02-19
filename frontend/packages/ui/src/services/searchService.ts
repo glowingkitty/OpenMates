@@ -1,5 +1,6 @@
 // frontend/packages/ui/src/services/searchService.ts
-// Core search engine service for offline full-text search across chats, messages, and settings.
+// Core search engine service for offline full-text search across chats, messages, settings,
+// apps, skills, focus modes, and memories.
 // Uses an in-memory index (Option D: Hybrid warm cache) for E2E encryption compatibility.
 // All data lives in RAM only — nothing is persisted to disk as plaintext.
 
@@ -8,8 +9,17 @@ import { chatDB } from "./db";
 import { chatMetadataCache } from "./chatMetadataCache";
 import {
   getSettingsSearchCatalog,
+  getAppSearchCatalog,
   type SettingsCatalogEntry,
+  type AppCatalogEntry,
 } from "./searchSettingsCatalog";
+import {
+  getDemoMessages,
+  isDemoChat,
+  isLegalChat,
+  INTRO_CHATS,
+  LEGAL_CHATS,
+} from "../demo_chats";
 
 // --- Types ---
 
@@ -38,7 +48,7 @@ export interface ChatSearchResult {
   messageSnippets: MessageMatchSnippet[];
 }
 
-/** A settings search result */
+/** A settings search result (settings pages) */
 export interface SettingsSearchResult {
   entry: SettingsCatalogEntry;
   /** The resolved label text (translated) */
@@ -47,12 +57,25 @@ export interface SettingsSearchResult {
   icon: string | null;
 }
 
+/** An app/skill/focus-mode/memory search result */
+export interface AppCatalogSearchResult {
+  entry: AppCatalogEntry;
+  /** The resolved label text (translated) */
+  label: string;
+  /** The resolved icon name */
+  icon: string | null;
+  /** The type of entry for display grouping */
+  entryType: "app" | "skill" | "focus_mode" | "memory";
+}
+
 /** Complete search results across all categories */
 export interface SearchResults {
   /** Chats with title or message matches, sorted by relevance then recency */
   chats: ChatSearchResult[];
   /** Settings pages that match the query */
   settings: SettingsSearchResult[];
+  /** App catalog entries (apps, skills, focus modes, memories) that match */
+  appCatalog: AppCatalogSearchResult[];
   /** Total number of matches across all categories */
   totalCount: number;
   /** Whether the search index is still warming up (first search may need message decryption) */
@@ -62,7 +85,7 @@ export interface SearchResults {
 // --- Configuration ---
 
 /** Number of characters to show before and after a match in message snippets */
-const SNIPPET_CONTEXT_CHARS = 30;
+const SNIPPET_CONTEXT_CHARS = 40;
 /** Maximum number of message snippets to show per chat */
 const MAX_SNIPPETS_PER_CHAT = 3;
 
@@ -94,15 +117,24 @@ let warmUpCompleted = false;
 // --- Index Management ---
 
 /**
- * Index messages for a single chat by decrypting from IndexedDB.
- * This is called lazily when a chat's messages are needed for search.
+ * Index messages for a single authenticated user chat by decrypting from IndexedDB.
+ * For demo/public chats, use getDemoMessages() instead.
  * @param chatId - The chat ID to index
  */
 async function indexChatMessages(chatId: string): Promise<void> {
   if (indexedChatIds.has(chatId)) return;
 
   try {
-    const messages = await chatDB.getMessagesForChat(chatId);
+    let messages: Message[];
+
+    if (isDemoChat(chatId) || isLegalChat(chatId)) {
+      // Demo and legal chats have messages in-memory, NOT in chatDB
+      messages = getDemoMessages(chatId, INTRO_CHATS, LEGAL_CHATS);
+    } else {
+      // Authenticated user chats — decrypt from IndexedDB
+      messages = await chatDB.getMessagesForChat(chatId);
+    }
+
     const entries = messages
       .filter(
         (msg) =>
@@ -130,7 +162,7 @@ async function indexChatMessages(chatId: string): Promise<void> {
 }
 
 /**
- * Warm up the search index by pre-decrypting messages for all available chats.
+ * Warm up the search index by pre-loading messages for all available chats.
  * Called after sync phases complete. Runs in the background without blocking the UI.
  * @param chatIds - Array of chat IDs to warm up
  */
@@ -222,7 +254,7 @@ export function clearSearchIndex(): void {
  * Find all non-overlapping occurrences of a query within a text (case-insensitive).
  * @returns Array of { start, length } for each match
  */
-function findMatchRanges(
+export function findMatchRanges(
   text: string,
   query: string,
 ): Array<{ start: number; length: number }> {
@@ -243,7 +275,7 @@ function findMatchRanges(
 
 /**
  * Build a snippet around a match position, showing surrounding context.
- * Produces text like "... words before **match** words after ..."
+ * Produces text like "... words before match words after ..."
  * @param content - Full message content
  * @param matchStart - Start index of the match
  * @param matchLength - Length of the match
@@ -263,9 +295,8 @@ function buildSnippet(
   let snippet = content.slice(contextStart, contextEnd);
   let snippetMatchStart = matchStart - contextStart;
 
-  // Add ellipsis for truncated context
+  // Add ellipsis for truncated context, trimming to nearest word boundary
   if (contextStart > 0) {
-    // Find the nearest word boundary after contextStart to avoid cutting words
     const firstSpace = snippet.indexOf(" ");
     if (firstSpace > 0 && firstSpace < snippetMatchStart) {
       snippet = snippet.slice(firstSpace + 1);
@@ -275,7 +306,6 @@ function buildSnippet(
     snippetMatchStart += 4; // Account for "... " prefix
   }
   if (contextEnd < content.length) {
-    // Find the nearest word boundary before the end
     const lastSpace = snippet.lastIndexOf(" ");
     if (lastSpace > snippetMatchStart + matchLength) {
       snippet = snippet.slice(0, lastSpace);
@@ -353,13 +383,11 @@ function searchSettings(
     const label = textFn(entry.translationKey);
     const lowerLabel = label.toLowerCase();
 
-    // Check label match
     if (lowerLabel.includes(lowerQuery)) {
       results.push({ entry, label, icon: entry.icon });
       continue;
     }
 
-    // Check keyword matches
     const keywordMatch = entry.keywords.some((kw) =>
       kw.toLowerCase().includes(lowerQuery),
     );
@@ -372,13 +400,73 @@ function searchSettings(
 }
 
 /**
- * Main search function. Searches across all chats, messages, and settings.
+ * Search the app catalog (apps, skills, focus modes, memories) against the query.
+ * @param query - Search query string
+ * @param textFn - Translation function ($text)
+ * @returns Array of matching app catalog entries
+ */
+function searchAppCatalog(
+  query: string,
+  textFn: (key: string) => string,
+): AppCatalogSearchResult[] {
+  const catalog = getAppCatalog(textFn);
+  const lowerQuery = query.toLowerCase();
+  const results: AppCatalogSearchResult[] = [];
+
+  for (const entry of catalog) {
+    const label = entry.label;
+    const lowerLabel = label.toLowerCase();
+
+    if (lowerLabel.includes(lowerQuery)) {
+      results.push({
+        entry,
+        label,
+        icon: entry.icon,
+        entryType: entry.entryType,
+      });
+      continue;
+    }
+
+    const keywordMatch = entry.keywords.some((kw) =>
+      kw.toLowerCase().includes(lowerQuery),
+    );
+    if (keywordMatch) {
+      results.push({
+        entry,
+        label,
+        icon: entry.icon,
+        entryType: entry.entryType,
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Build the runtime app catalog using translated labels from appsMetadata.
+ * This is cached per-search since it requires translation resolution.
+ */
+function getAppCatalog(
+  textFn: (key: string) => string,
+): Array<AppCatalogEntry & { label: string }> {
+  const staticEntries = getAppSearchCatalog();
+  return staticEntries.map((entry) => ({
+    ...entry,
+    label: entry.nameTranslationKey
+      ? textFn(entry.nameTranslationKey)
+      : entry.path,
+  }));
+}
+
+/**
+ * Main search function. Searches across all chats, messages, settings, apps, skills, focus modes, and memories.
  *
  * Performance characteristics (100 chats, ~5000 messages):
- * - Chat titles: <5ms (already in chatMetadataCache)
+ * - Chat titles: <5ms (already in chatMetadataCache or plaintext for demo chats)
  * - Messages (warm index): <15ms (string matching in RAM)
- * - Messages (cold - first search): 200-500ms (batch decrypt from IndexedDB)
- * - Settings: <1ms (static catalog)
+ * - Messages (cold - first search): 200-500ms (batch decrypt from IndexedDB or load from memory)
+ * - Settings + apps: <5ms (static catalog)
  *
  * @param query - The search query (minimum 1 character)
  * @param chats - Array of all available chats (from Chats.svelte's allChats derived)
@@ -393,7 +481,13 @@ export async function search(
   hiddenChats: Chat[] = [],
 ): Promise<SearchResults> {
   if (!query || query.trim().length === 0) {
-    return { chats: [], settings: [], totalCount: 0, isWarmingUp: false };
+    return {
+      chats: [],
+      settings: [],
+      appCatalog: [],
+      totalCount: 0,
+      isWarmingUp: false,
+    };
   }
 
   const trimmedQuery = query.trim();
@@ -413,9 +507,16 @@ export async function search(
 
   // Search each chat
   for (const chat of allSearchableChats) {
-    // Get decrypted title from cache
-    const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
-    const decryptedTitle = metadata?.title || chat.title || null;
+    let decryptedTitle: string | null = null;
+
+    if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
+      // Demo/legal chats have plaintext titles (translation key resolved at build time)
+      decryptedTitle = chat.title || null;
+    } else {
+      // Authenticated user chats — get decrypted title from cache
+      const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+      decryptedTitle = metadata?.title || chat.title || null;
+    }
 
     // Check title match
     let titleMatch = false;
@@ -442,24 +543,25 @@ export async function search(
 
   // Sort results: title matches first, then by recency
   chatResults.sort((a, b) => {
-    // Title matches rank higher
     if (a.titleMatch && !b.titleMatch) return -1;
     if (!a.titleMatch && b.titleMatch) return 1;
-    // Then sort by last_edited_overall_timestamp (most recent first)
     return (
       b.chat.last_edited_overall_timestamp -
       a.chat.last_edited_overall_timestamp
     );
   });
 
-  // Search settings
+  // Search settings and app catalog
   const settingsResults = searchSettings(trimmedQuery, textFn);
+  const appCatalogResults = searchAppCatalog(trimmedQuery, textFn);
 
-  const totalCount = chatResults.length + settingsResults.length;
+  const totalCount =
+    chatResults.length + settingsResults.length + appCatalogResults.length;
 
   return {
     chats: chatResults,
     settings: settingsResults,
+    appCatalog: appCatalogResults,
     totalCount,
     isWarmingUp: warmUpInProgress,
   };

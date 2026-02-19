@@ -1,7 +1,9 @@
 // frontend/packages/ui/src/services/searchSettingsCatalog.ts
-// Static catalog of all searchable settings pages with translation keys and keyword synonyms.
-// This enables the search service to match user queries against settings menu items
-// and deep-link directly into the matching settings sub-page.
+// Static catalog of all searchable settings pages AND app catalog entries.
+// Settings catalog: enables search to find settings sub-pages and deep-link into them.
+// App catalog: enables search to find apps, skills, focus modes, and memories, with deep-links.
+
+import { appsMetadata } from "../data/appsMetadata";
 
 /**
  * A single entry in the settings search catalog.
@@ -21,10 +23,32 @@ export interface SettingsCatalogEntry {
 }
 
 /**
+ * A single entry in the app search catalog.
+ * Represents an app, skill, focus mode, or memory field that is searchable.
+ */
+export interface AppCatalogEntry {
+  /** The settings navigation path (e.g., "app_store/ai", "app_store/ai/skill/ask") */
+  path: string;
+  /** Translation key for the display label */
+  nameTranslationKey: string;
+  /** Translation key for description (for keyword matching) */
+  descriptionTranslationKey?: string;
+  /** Icon class name or image file for display */
+  icon: string | null;
+  /** Keywords for fuzzy matching */
+  keywords: string[];
+  /** The type of this entry for display grouping */
+  entryType: "app" | "skill" | "focus_mode" | "memory";
+  /** The app ID this entry belongs to */
+  appId: string;
+}
+
+// --- Settings Catalog ---
+
+/**
  * Complete catalog of searchable settings pages.
  * Only includes top-level and commonly-accessed sub-pages.
- * Deep sub-pages (e.g., billing/buy-credits/payment) are excluded
- * because they are transactional flows, not discoverable settings.
+ * Deep transactional flows (e.g., billing/buy-credits/payment) are excluded.
  */
 const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
   // Privacy
@@ -309,8 +333,86 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
 
 /**
  * Get the complete settings search catalog.
- * Returns the static catalog array (no runtime computation needed).
  */
 export function getSettingsSearchCatalog(): SettingsCatalogEntry[] {
   return SETTINGS_CATALOG;
+}
+
+// --- App Catalog ---
+
+/**
+ * Build the app search catalog dynamically from appsMetadata.
+ * Includes apps, skills, focus modes, and memory fields, each with their own nav path.
+ * This is built once per module load (static data, no auth required).
+ */
+function buildAppSearchCatalog(): AppCatalogEntry[] {
+  const entries: AppCatalogEntry[] = [];
+
+  for (const app of Object.values(appsMetadata)) {
+    // App itself
+    entries.push({
+      path: `app_store/${app.id}`,
+      nameTranslationKey: app.name_translation_key || `apps.${app.id}`,
+      descriptionTranslationKey: app.description_translation_key,
+      icon: null, // Apps use icon_image (SVG), not icon class
+      keywords: ["app", app.id],
+      entryType: "app",
+      appId: app.id,
+    });
+
+    // Skills
+    for (const skill of app.skills || []) {
+      entries.push({
+        path: `app_store/${app.id}/skill/${skill.id}`,
+        nameTranslationKey: skill.name_translation_key,
+        descriptionTranslationKey: skill.description_translation_key,
+        icon: null,
+        keywords: ["skill", app.id, skill.id],
+        entryType: "skill",
+        appId: app.id,
+      });
+    }
+
+    // Focus modes
+    for (const focusMode of app.focus_modes || []) {
+      entries.push({
+        path: `app_store/${app.id}/focus/${focusMode.id}`,
+        nameTranslationKey: focusMode.name_translation_key,
+        descriptionTranslationKey: focusMode.description_translation_key,
+        icon: null,
+        keywords: ["focus", "focus mode", app.id, focusMode.id],
+        entryType: "focus_mode",
+        appId: app.id,
+      });
+    }
+
+    // Settings & memories
+    for (const memory of app.settings_and_memories || []) {
+      entries.push({
+        path: `app_store/${app.id}/settings_memories/${memory.id}`,
+        nameTranslationKey: memory.name_translation_key,
+        descriptionTranslationKey: memory.description_translation_key,
+        icon: null,
+        keywords: ["memory", "memories", "settings", app.id, memory.id],
+        entryType: "memory",
+        appId: app.id,
+      });
+    }
+  }
+
+  return entries;
+}
+
+// Build catalog once at module load (appsMetadata is static build data)
+let _appCatalogCache: AppCatalogEntry[] | null = null;
+
+/**
+ * Get the complete app search catalog (apps, skills, focus modes, memories).
+ * Result is cached for performance.
+ */
+export function getAppSearchCatalog(): AppCatalogEntry[] {
+  if (!_appCatalogCache) {
+    _appCatalogCache = buildAppSearchCatalog();
+  }
+  return _appCatalogCache;
 }
