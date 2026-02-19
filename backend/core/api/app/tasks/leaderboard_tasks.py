@@ -70,7 +70,7 @@ async def _update_cache_async(data: Dict[str, Any]) -> bool:
 
         # Store full leaderboard data as JSON
         cache_value = json.dumps(data, ensure_ascii=False)
-        await cache_service.async_set(
+        await cache_service.set(
             key=LEADERBOARD_CACHE_KEY,
             value=cache_value,
             ttl=LEADERBOARD_CACHE_TTL
@@ -93,7 +93,7 @@ async def _get_cached_leaderboard_async() -> Optional[Dict[str, Any]]:
     """
     try:
         cache_service = CacheService()
-        cached = await cache_service.async_get(LEADERBOARD_CACHE_KEY)
+        cached = await cache_service.get(LEADERBOARD_CACHE_KEY)
 
         if cached:
             data = json.loads(cached)

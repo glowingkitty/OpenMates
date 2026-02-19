@@ -918,9 +918,8 @@ export async function sendNewMessageImpl(
   // can use it and not request that category again during this request
   if (!isIncognitoChat && contentForServer) {
     try {
-      const { extractMentionedSettingsMemoriesCleartext } = await import(
-        "./mentionedSettingsMemoriesCleartext"
-      );
+      const { extractMentionedSettingsMemoriesCleartext } =
+        await import("./mentionedSettingsMemoriesCleartext");
       const mentionedCleartext =
         extractMentionedSettingsMemoriesCleartext(contentForServer);
       const keys = Object.keys(mentionedCleartext);
@@ -1832,6 +1831,19 @@ export async function sendEncryptedStoragePackage(
     return;
   }
 
+  // CRITICAL: Prevent duplicate sends for the same user message ID.
+  // This guards against ai_typing_started firing twice (e.g. on WebSocket reconnect)
+  // which would generate a new chat key the second time (if encrypted_chat_key isn't
+  // yet persisted to DB), corrupting the chat for all devices on reload.
+  const messageId = data.user_message.message_id;
+  if (serviceInstance.isMessageSyncing(messageId)) {
+    console.info(
+      `[ChatSyncService:Senders] User message ${messageId} is already being synced (encrypted storage package in-flight), skipping duplicate send.`,
+    );
+    return;
+  }
+  serviceInstance.markMessageSyncing(messageId);
+
   try {
     const {
       chat_id,
@@ -2170,11 +2182,17 @@ export async function sendEncryptedStoragePackage(
       "encrypted_chat_metadata",
       metadataPayload,
     );
+
+    // Unmark after successful send so subsequent retries (e.g. from reconnect) are allowed
+    // once the in-flight send is confirmed. The guard above prevents concurrent duplicates.
+    serviceInstance.unmarkMessageSyncing(messageId);
   } catch (error) {
     console.error(
       "[ChatSyncService:Senders] Error sending encrypted storage package:",
       error,
     );
+    // Unmark on error so a legitimate retry can proceed
+    serviceInstance.unmarkMessageSyncing(messageId);
   }
 }
 
@@ -2319,7 +2337,8 @@ export async function sendStoreEmbedImpl(
   embedKeysPayload?: { keys: Array<Record<string, unknown>> },
 ): Promise<void> {
   // Delegate to embedSenders.ts which handles offline queueing in IndexedDB
-  const { sendStoreEmbedImpl: embedSendersImpl } = await import("./embedSenders");
+  const { sendStoreEmbedImpl: embedSendersImpl } =
+    await import("./embedSenders");
   return embedSendersImpl(serviceInstance, payload, embedKeysPayload);
 }
 
@@ -2456,7 +2475,8 @@ export async function sendStoreEmbedKeysImpl(
   },
 ): Promise<void> {
   // Delegate to embedSenders.ts which handles offline awareness
-  const { sendStoreEmbedKeysImpl: embedSendersKeysImpl } = await import("./embedSenders");
+  const { sendStoreEmbedKeysImpl: embedSendersKeysImpl } =
+    await import("./embedSenders");
   return embedSendersKeysImpl(serviceInstance, payload);
 }
 
