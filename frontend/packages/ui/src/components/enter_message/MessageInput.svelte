@@ -128,6 +128,9 @@
     // --- Local UI State ---
     let showCamera = $state(false);
     let showMaps = $state(false);
+    // Tracks whether files are being dragged over the message field.
+    // When true, the drop overlay ("Drop files to upload") is shown.
+    let isDragging = $state(false);
 
     // Location precision setting — read from personalDataStore (persisted, encrypted).
     // When impreciseByDefault=true, MapsView opens in area mode (privacy-first default).
@@ -187,40 +190,35 @@
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
     
-    // --- iOS Safari viewport scroll fix ---
-    // On iOS Safari, the virtual keyboard resizes window.visualViewport but does NOT
-    // reliably scroll the focused element into view. This causes the message input to
-    // be hidden behind the keyboard until the user taps multiple times.
-    // We track a listener so we can clean it up on blur and on destroy.
-    let iosViewportResizeListener: (() => void) | null = null;
+    // --- Mobile keyboard viewport scroll fix ---
+    // On iOS Safari the virtual keyboard resizes window.visualViewport but does NOT
+    // reliably scroll the focused element into view, causing the message input to be
+    // hidden behind the keyboard until the user taps multiple times. Android Chrome
+    // handles this better natively, but edge cases exist there too (e.g. complex
+    // flex layouts, PWA mode). Applying the fix universally on touch devices is safe
+    // because scrollIntoView({ block: 'nearest' }) is a no-op when already visible.
+    // We track the listener reference so we can clean it up on blur and on destroy.
+    let viewportResizeListener: (() => void) | null = null;
     // Scroll timeout used to debounce the viewport-resize scroll callback
-    let iosScrollIntoViewTimeout: ReturnType<typeof setTimeout> | null = null;
+    let scrollIntoViewTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    /**
-     * Returns true when running inside iOS Safari (or iOS Chrome/Firefox which all
-     * share the same WebKit rendering engine and exhibit the same keyboard behaviour).
-     * Detection is intentionally broad — the fix is safe to apply on all iOS WebKit.
-     */
-    function isIOSSafari(): boolean {
+    /** Returns true when running on a touch-capable device (mobile / tablet). */
+    function isTouchDevice(): boolean {
         if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-        return (
-            /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-            // iPadOS 13+ reports as Macintosh but has touch support
-            (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1)
-        );
+        return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     }
 
     /**
-     * Scroll the message input wrapper into the visible area after the iOS keyboard
-     * has animated in and resized window.visualViewport.
+     * Scroll the message input wrapper into the visible area after the mobile
+     * keyboard has animated in and resized window.visualViewport.
      * Called both from the visualViewport resize handler and as a plain timeout
-     * fallback for older iOS / browsers without visualViewport support.
+     * fallback for browsers without visualViewport support.
      */
     function scrollInputIntoView() {
         if (!messageInputWrapper) return;
         try {
             messageInputWrapper.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            console.debug('[MessageInput] Scrolled input into view for iOS keyboard');
+            console.debug('[MessageInput] Scrolled input into view after keyboard open');
         } catch {
             // Fallback for browsers that don't support options on scrollIntoView
             try { messageInputWrapper.scrollIntoView(false); } catch { /* ignore */ }
@@ -228,45 +226,44 @@
     }
 
     /**
-     * Attach the iOS viewport-resize listener that fires once the keyboard has
+     * Attach the viewport-resize listener that fires once the mobile keyboard has
      * finished appearing and scrolls the input into view.
-     * Safe to call on non-iOS — isIOSSafari() guards the actual listener setup.
+     * Only runs on touch devices; safe no-op on desktop.
      */
-    function attachIOSViewportListener() {
-        if (!isIOSSafari()) return;
-        detachIOSViewportListener(); // Ensure no duplicate listeners
+    function attachViewportListener() {
+        if (!isTouchDevice()) return;
+        detachViewportListener(); // Ensure no duplicate listeners
 
         if (window.visualViewport) {
             // visualViewport fires 'resize' when the keyboard appears/disappears.
-            // We debounce with a short timeout because the resize event can fire
-            // multiple times as the keyboard animates in.
-            iosViewportResizeListener = () => {
-                if (iosScrollIntoViewTimeout) clearTimeout(iosScrollIntoViewTimeout);
-                iosScrollIntoViewTimeout = setTimeout(scrollInputIntoView, 80);
+            // Debounce because the event can fire multiple times during keyboard animation.
+            viewportResizeListener = () => {
+                if (scrollIntoViewTimeout) clearTimeout(scrollIntoViewTimeout);
+                scrollIntoViewTimeout = setTimeout(scrollInputIntoView, 80);
             };
-            window.visualViewport.addEventListener('resize', iosViewportResizeListener);
-            console.debug('[MessageInput] Attached iOS visualViewport resize listener');
+            window.visualViewport.addEventListener('resize', viewportResizeListener);
+            console.debug('[MessageInput] Attached visualViewport resize listener for mobile keyboard');
         }
 
         // Unconditional fallback timeout — fires ~300 ms after focus (keyboard animation
-        // on iOS typically completes within 250–300 ms). This covers devices/browsers
+        // typically completes within 250–300 ms on both iOS and Android). Covers devices
         // where visualViewport is unavailable or the resize event misfires.
-        if (iosScrollIntoViewTimeout) clearTimeout(iosScrollIntoViewTimeout);
-        iosScrollIntoViewTimeout = setTimeout(scrollInputIntoView, 320);
+        if (scrollIntoViewTimeout) clearTimeout(scrollIntoViewTimeout);
+        scrollIntoViewTimeout = setTimeout(scrollInputIntoView, 320);
     }
 
     /**
-     * Remove the iOS viewport-resize listener and cancel any pending scroll timeout.
+     * Remove the viewport-resize listener and cancel any pending scroll timeout.
      */
-    function detachIOSViewportListener() {
-        if (iosViewportResizeListener && window.visualViewport) {
-            window.visualViewport.removeEventListener('resize', iosViewportResizeListener);
-            iosViewportResizeListener = null;
-            console.debug('[MessageInput] Detached iOS visualViewport resize listener');
+    function detachViewportListener() {
+        if (viewportResizeListener && window.visualViewport) {
+            window.visualViewport.removeEventListener('resize', viewportResizeListener);
+            viewportResizeListener = null;
+            console.debug('[MessageInput] Detached visualViewport resize listener');
         }
-        if (iosScrollIntoViewTimeout) {
-            clearTimeout(iosScrollIntoViewTimeout);
-            iosScrollIntoViewTimeout = null;
+        if (scrollIntoViewTimeout) {
+            clearTimeout(scrollIntoViewTimeout);
+            scrollIntoViewTimeout = null;
         }
     }
 
@@ -1385,11 +1382,11 @@
             editor.commands.focus('end');
         }
         
-        // iOS Safari: attach viewport-resize listener so the input scrolls into
-        // view after the virtual keyboard finishes animating in.
-        // This fixes the common issue where the message field is hidden behind
-        // the keyboard and only becomes visible after multiple tap attempts.
-        attachIOSViewportListener();
+        // Mobile keyboards (iOS Safari, Android Chrome, etc.): attach a viewport-
+        // resize listener so the input scrolls into view after the virtual keyboard
+        // finishes animating in. Fixes the common issue where the message field is
+        // hidden behind the keyboard and only becomes visible after multiple taps.
+        attachViewportListener();
         
         // Re-check mention trigger when focus is regained
         // This ensures the dropdown reappears if cursor is right after '@'
@@ -1397,9 +1394,9 @@
     }
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
-        // iOS Safari: remove viewport-resize listener as soon as the editor loses
-        // focus (keyboard is about to hide — no need to scroll anymore).
-        detachIOSViewportListener();
+        // Mobile: remove viewport-resize listener as soon as the editor loses focus
+        // (keyboard is about to hide — no need to scroll anymore).
+        detachViewportListener();
 
         // Cancel any existing blur timeout before creating a new one
         if (blurTimeoutId) {
@@ -1982,8 +1979,8 @@
             clearTimeout(mountCompleteTimeout);
             mountCompleteTimeout = null;
         }
-        // iOS Safari: always clean up the viewport listener on destroy
-        detachIOSViewportListener();
+        // Always clean up the viewport listener on destroy
+        detachViewportListener();
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
@@ -2373,6 +2370,7 @@
     // File/Camera/Location handlers remain the same as previous step
 
     async function handleDrop(event: DragEvent) {
+        isDragging = false; // Hide drop overlay when files are dropped
         await handleFileDrop(event, editorElement, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
@@ -2380,8 +2378,14 @@
             observeEmbedGroupContainers();
         });
     }
-    function handleDragOver(event: DragEvent) { handleFileDragOver(event, editorElement); }
-    function handleDragLeave(event: DragEvent) { handleFileDragLeave(event, editorElement); }
+    function handleDragOver(event: DragEvent) {
+        isDragging = true; // Show drop overlay when files are dragged over
+        handleFileDragOver(event, editorElement);
+    }
+    function handleDragLeave(event: DragEvent) {
+        isDragging = false; // Hide drop overlay when drag leaves
+        handleFileDragLeave(event, editorElement);
+    }
     async function onFileSelected(event: Event) {
         await handleFileSelectedEvent(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
@@ -2790,7 +2794,7 @@
     
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''}"
-        class:drag-over={editorElement?.classList.contains('drag-over')}
+        class:drag-over={isDragging}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -2799,6 +2803,15 @@
         aria-multiline="true"
         tabindex="0"
     >
+        <!-- Drop overlay: shown when user drags files over the message field.
+             Uses the existing icon_files icon and a localised label. -->
+        {#if isDragging}
+            <div class="drop-overlay" aria-hidden="true">
+                <span class="drop-overlay-icon clickable-icon icon_files"></span>
+                <span class="drop-overlay-text">{$text('enter_message.drop_files')}</span>
+            </div>
+        {/if}
+
         {#if hasContent || isFullscreen}
             <button
                 class="clickable-icon icon_fullscreen fullscreen-button"
