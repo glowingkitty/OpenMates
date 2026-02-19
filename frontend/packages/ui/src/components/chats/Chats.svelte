@@ -2,7 +2,7 @@
 	import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
 	import { text } from '@repo/ui'; // Import text store for translations
 	import ChatComponent from './Chat.svelte'; // Renamed to avoid conflict with Chat type
-	import { panelState } from '../../stores/panelStateStore';
+	import { panelState, isActivityHistoryOpen } from '../../stores/panelStateStore';
 	import { authStore } from '../../stores/authStore';
 	import { chatDB } from '../../services/db';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
@@ -1511,23 +1511,18 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		window.addEventListener('chatUnhidden', handleChatUnhidden);
 
 		// Handle global 'openSearch' event dispatched by KeyboardShortcuts (Cmd+F / Ctrl+F).
-		// Opens the search bar and, on mobile, also opens the Chats panel so it is visible.
+		// Ensures the Chats panel is open (on any viewport) and activates the search bar.
 		handleOpenSearchEvent = () => {
-			if (!searchState.isActive) {
-				openSearch();
-			}
-			// On mobile the Chats panel may be closed — open it so the search bar is visible.
-			// panelState.toggleChats() is a toggle, so only call it when the panel is closed.
-			if (window.innerWidth < 730) {
-				import('../../stores/panelStateStore').then(({ isActivityHistoryOpen }) => {
-					const unsub = isActivityHistoryOpen.subscribe(isOpen => {
-						unsub();
-						if (!isOpen) {
-							panelState.toggleChats();
-						}
-					});
-				});
-			}
+			// Open the Chats panel if it is currently closed — on any screen size.
+			// panelState.toggleChats() is a toggle, so we only call it when the panel is closed.
+			const unsub = isActivityHistoryOpen.subscribe(isOpen => {
+				unsub(); // Read once, immediately unsubscribe
+				if (!isOpen) {
+					panelState.toggleChats();
+				}
+			});
+			// Activate the search bar (no-op if already active).
+			openSearch();
 		};
 		window.addEventListener('openSearch', handleOpenSearchEvent);
 		
