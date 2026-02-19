@@ -2311,6 +2311,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .tab-icon-button {
+        /* Reset all global button styles that make tabs too wide */
         background: none;
         border: none;
         cursor: pointer;
@@ -2322,6 +2323,11 @@ Usage Settings - View usage statistics and export usage data
         transition: all 0.2s ease;
         flex-shrink: 0;
         opacity: 0.5;
+        /* Override global button.css values */
+        min-width: unset;
+        height: unset;
+        filter: none;
+        margin-right: 0;
     }
 
     .tab-icon-button:hover {
