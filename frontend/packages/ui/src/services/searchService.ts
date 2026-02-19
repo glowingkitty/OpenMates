@@ -85,9 +85,50 @@ export interface SearchResults {
 // --- Configuration ---
 
 /** Number of characters to show before and after a match in message snippets */
-const SNIPPET_CONTEXT_CHARS = 40;
+const SNIPPET_CONTEXT_CHARS = 50;
 /** Maximum number of message snippets to show per chat */
 const MAX_SNIPPETS_PER_CHAT = 3;
+
+// --- Helpers ---
+
+/**
+ * Strip markdown formatting from text so snippets display clean plaintext.
+ * Removes: bold/italic markers, headings, links, images, code fences, inline code,
+ * bullet markers, blockquote markers, and JSON embed code blocks.
+ * This is intentionally lightweight — accuracy > completeness.
+ */
+function stripMarkdown(text: string): string {
+  return (
+    text
+      // Remove JSON embed code blocks (```json {...} ```) entirely
+      .replace(/```json\s*\{[\s\S]*?\}\s*```/g, "")
+      // Remove fenced code block markers (``` ... ```)
+      .replace(/```[\s\S]*?```/g, (match) => {
+        // Keep the content between fences, just remove the fences
+        const inner = match.slice(3, -3).replace(/^\w*\n/, "");
+        return inner;
+      })
+      // Remove inline code backticks
+      .replace(/`([^`]+)`/g, "$1")
+      // Remove images ![alt](url)
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+      // Remove links [text](url) — keep text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      // Remove bold/italic markers (*** ** * __ _)
+      .replace(/(\*{1,3}|_{1,3})(\S[\s\S]*?\S)\1/g, "$2")
+      // Remove heading markers
+      .replace(/^#{1,6}\s+/gm, "")
+      // Remove blockquote markers
+      .replace(/^>\s?/gm, "")
+      // Remove bullet/list markers
+      .replace(/^[\s]*[-*+]\s+/gm, "")
+      // Remove numbered list markers
+      .replace(/^[\s]*\d+\.\s+/gm, "")
+      // Collapse multiple whitespace/newlines
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
 
 // --- In-Memory Search Index ---
 
@@ -144,7 +185,8 @@ async function indexChatMessages(chatId: string): Promise<void> {
       )
       .map((msg) => ({
         messageId: msg.message_id,
-        content: msg.content as string,
+        // Strip markdown so snippets display clean plaintext without ** / ## / etc.
+        content: stripMarkdown(msg.content as string),
         createdAt: msg.created_at,
       }));
 
@@ -215,7 +257,7 @@ export function addMessageToIndex(chatId: string, message: Message): void {
   const idx = existing.findIndex((m) => m.messageId === message.message_id);
   const entry = {
     messageId: message.message_id,
-    content: message.content,
+    content: stripMarkdown(message.content),
     createdAt: message.created_at,
   };
 

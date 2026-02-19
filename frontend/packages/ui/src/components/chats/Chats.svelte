@@ -36,7 +36,7 @@
 	import { search as performSearch, warmUpSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
 	import { searchStore, openSearch, closeSearch, setSearchQuery, setSearching } from '../../stores/searchStore';
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
-	import { messageHighlightStore } from '../../stores/messageHighlightStore';
+	import { messageHighlightStore, searchTextHighlightStore } from '../../stores/messageHighlightStore';
 
 	const dispatch = createEventDispatcher();
 
@@ -1700,8 +1700,13 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		if (!query || query.trim().length === 0) {
 			searchResults = null;
 			setSearching(false);
+			// Clear in-chat text highlighting when query is empty
+			searchTextHighlightStore.set(null);
 			return;
 		}
+
+		// Update in-chat text highlighting with current query
+		searchTextHighlightStore.set(query.trim());
 
 		setSearching(true);
 		try {
@@ -1723,6 +1728,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	function handleSearchClose(): void {
 		closeSearch();
 		searchResults = null;
+		// Clear in-chat text highlighting when search closes
+		searchTextHighlightStore.set(null);
 	}
 
 	/**

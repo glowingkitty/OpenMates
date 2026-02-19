@@ -453,9 +453,13 @@
     padding: 3px 6px;
     border-radius: 4px;
     text-align: left;
-    white-space: nowrap;
+    /* Allow wrapping — snippets are already length-bounded by the search service.
+       Using nowrap+ellipsis would cut off the match when it's not near the start. */
     overflow: hidden;
-    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
     width: 100%;
     transition: background-color 0.12s ease;
   }

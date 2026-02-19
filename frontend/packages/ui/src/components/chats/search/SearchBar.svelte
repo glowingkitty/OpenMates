@@ -171,7 +171,9 @@
     cursor: pointer;
     opacity: 0.5;
     transition: opacity 0.15s ease;
-    background: transparent;
+    /* NOTE: Do NOT set background here — button.clickable-icon sets
+       background: var(--color-primary) which is used as the mask fill color.
+       Overriding it to transparent makes the icon invisible. */
     border: none;
     padding: 0;
   }

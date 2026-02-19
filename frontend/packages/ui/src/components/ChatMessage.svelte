@@ -15,7 +15,7 @@
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { reportIssueStore } from '../stores/reportIssueStore';
-  import { messageHighlightStore } from '../stores/messageHighlightStore';
+  import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
   import { chatDB } from '../services/db';
   import { chatSyncService } from '../services/chatSyncService';
   import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
@@ -226,6 +226,88 @@
         messageHighlightStore.set(null);
       }, 3000);
       return () => clearTimeout(timer);
+    }
+  });
+
+  /**
+   * In-chat search text highlighting.
+   * When search is open and has a query, walks the DOM text nodes inside the message
+   * content and wraps matching substrings in <mark class="search-match"> elements.
+   * Cleans up (removes marks) when the query changes or search closes.
+   */
+  $effect(() => {
+    const query = $searchTextHighlightStore;
+    const container = messageContentElement;
+    if (!container) return;
+
+    // Always clean up previous highlights first
+    const existingMarks = container.querySelectorAll('mark.search-match');
+    for (const mark of existingMarks) {
+      const parent = mark.parentNode;
+      if (parent) {
+        // Replace the <mark> with its text content
+        parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+        // Merge adjacent text nodes
+        parent.normalize();
+      }
+    }
+
+    if (!query || query.trim().length === 0) return;
+
+    const lowerQuery = query.toLowerCase().trim();
+    if (!lowerQuery) return;
+
+    // Walk all text nodes in the message content
+    const walker = document.createTreeWalker(
+      container,
+      NodeFilter.SHOW_TEXT,
+      null,
+    );
+
+    const textNodes: Text[] = [];
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      textNodes.push(node as Text);
+    }
+
+    // Process each text node — wrap matches in <mark>
+    for (const textNode of textNodes) {
+      const textContent = textNode.textContent || '';
+      const lowerContent = textContent.toLowerCase();
+      const firstIdx = lowerContent.indexOf(lowerQuery);
+      if (firstIdx === -1) continue;
+
+      // Build a document fragment with the highlighted text
+      const fragment = document.createDocumentFragment();
+      let lastIdx = 0;
+      let searchFrom = 0;
+
+      while (searchFrom < lowerContent.length) {
+        const idx = lowerContent.indexOf(lowerQuery, searchFrom);
+        if (idx === -1) break;
+
+        // Text before the match
+        if (idx > lastIdx) {
+          fragment.appendChild(document.createTextNode(textContent.slice(lastIdx, idx)));
+        }
+
+        // The match — wrapped in <mark>
+        const mark = document.createElement('mark');
+        mark.className = 'search-match';
+        mark.textContent = textContent.slice(idx, idx + lowerQuery.length);
+        fragment.appendChild(mark);
+
+        lastIdx = idx + lowerQuery.length;
+        searchFrom = lastIdx;
+      }
+
+      // Remaining text after last match
+      if (lastIdx < textContent.length) {
+        fragment.appendChild(document.createTextNode(textContent.slice(lastIdx)));
+      }
+
+      // Replace the original text node with the fragment
+      textNode.parentNode?.replaceChild(fragment, textNode);
     }
   });
 
@@ -1766,6 +1848,14 @@
       background-color: transparent;
       box-shadow: none;
     }
+  }
+
+  /* In-chat search text highlighting — <mark class="search-match"> injected via DOM */
+  :global(mark.search-match) {
+    background-color: transparent;
+    color: var(--color-primary-start);
+    font-weight: 700;
+    border-radius: 2px;
   }
 
   .chat-app-cards-container.scrollable {
