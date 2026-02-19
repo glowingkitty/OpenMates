@@ -2455,19 +2455,46 @@
         const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
         if (isMobile) cameraInput?.click(); else showCamera = true;
     }
-    async function handlePhotoCaptured(event: CustomEvent<{ blob: Blob, previewUrl: string }>) {
-        const { blob, previewUrl } = event.detail;
-        const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        showCamera = false; await tick();
-        await insertImage(editor, file, true, previewUrl, undefined, $authStore.isAuthenticated);
+    /**
+     * Handle a photo captured from the CameraView (desktop webcam overlay).
+     * Routes through insertImage — same embed pipeline as file picker uploads.
+     * The previewUrl is an object URL for the resized preview blob; insertImage
+     * will call resizeImage internally when only previewUrl (no originalUrl) is given,
+     * so we skip the redundant blob URL and let it generate fresh URLs from the file.
+     */
+    async function handlePhotoCaptured(event: CustomEvent<{ blob: Blob, previewUrl?: string }>) {
+        const { blob } = event.detail;
+        // Use the blob's MIME type to preserve PNG/JPEG/HEIC from native camera
+        const mimeType = blob.type || 'image/jpeg';
+        const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
+        const file = new File([blob], `camera_${Date.now()}.${ext}`, { type: mimeType });
+        showCamera = false;
+        await tick();
+        // isRecording=false: camera photos are not recordings; isAuthenticated controls upload path
+        await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
         hasContent = true;
+        tick().then(() => {
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
     }
+    /**
+     * Handle a video recorded from the CameraView (desktop webcam overlay).
+     * Routes through insertVideo — same embed pipeline as video uploads.
+     */
     async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {
         const { blob, duration } = event.detail;
-        const file = new File([blob], `video_${Date.now()}.webm`, { type: 'video/webm' });
-        showCamera = false; await tick();
-        await insertVideo(editor, file, duration, true);
+        const mimeType = blob.type || 'video/webm';
+        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const file = new File([blob], `camera_${Date.now()}.${ext}`, { type: mimeType });
+        showCamera = false;
+        await tick();
+        await insertVideo(editor, file, duration, false);
         hasContent = true;
+        tick().then(() => {
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
     }
     async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number }>) {
         const { blob, duration } = event.detail;
@@ -2899,20 +2926,12 @@
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
                     showSendButton={hasContent}
-                    isRecordButtonPressed={$recordingState.isRecordButtonPressed}
-                    showRecordHint={$recordingState.showRecordHint}
-                    micPermissionGranted={$recordingState.micPermissionGranted}
                     isAuthenticated={$authStore.isAuthenticated}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
                     on:sendMessage={handleSendMessage}
                     on:signUpClick={handleSignUpClick}
-                    on:recordMouseDown={onRecordMouseDown}
-                    on:recordMouseUp={onRecordMouseUp}
-                    on:recordMouseLeave={onRecordMouseLeave}
-                    on:recordTouchStart={onRecordTouchStart}
-                    on:recordTouchEnd={onRecordTouchEnd}
                 />
             </div>
         {/if}

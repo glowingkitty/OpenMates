@@ -29,10 +29,9 @@
     }
 
     function handleLocationClick() { dispatch('locationClick'); }
-    // function handleCameraClick(event: MouseEvent | TouchEvent) { // Unused (camera feature commented out)
-    //     event.preventDefault();
-    //     dispatch('cameraClick');
-    // }
+    function handleCameraClick() {
+        dispatch('cameraClick');
+    }
 
     function handleSendMessageClick() {
         dispatch('sendMessage');
@@ -68,15 +67,15 @@
         ></button>
     </div>
     <div class="right-buttons">
-        <!-- TODO uncomment once feature available -->
-        <!-- <button
+        <button
             class="clickable-icon icon_camera"
             onclick={handleCameraClick}
             aria-label={$text('enter_message.attachments.take_photo')}
             use:tooltip
         ></button>
 
-        {#if showRecordHint}
+        <!-- Audio recording feature: TODO uncomment once available -->
+        <!-- {#if showRecordHint}
             <span
                 class="record-hint-inline"
                 transition:slide={{ duration: 200 }}
@@ -98,7 +97,7 @@
         >
             <div class="clickable-icon icon_recordaudio"></div>
         </button>
-         -->
+        -->
         {#if showSendButton}
             {#if isAuthenticated}
                 <button
