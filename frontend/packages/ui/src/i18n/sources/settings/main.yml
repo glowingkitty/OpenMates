@@ -5701,6 +5701,332 @@ logout_all:
   cs: Odhlásit se všude
   sv: Logga ut överallt
   verified_by_human: []
+# --- Missing navigation item labels used by searchSettingsCatalog.ts ---
+# These keys are looked up as settings.{key}.text for display in search results.
+
+hide_personal_data:
+  context: Navigation label for the hide personal data settings sub-page
+  en: Hide Personal Data
+  de: Persönliche Daten verbergen
+  zh: 隐藏个人数据
+  es: Ocultar datos personales
+  fr: Masquer les données personnelles
+  pt: Ocultar dados pessoais
+  ru: Скрыть личные данные
+  ja: 個人データを非表示
+  ko: 개인 데이터 숨기기
+  it: Nascondi dati personali
+  tr: Kişisel verileri gizle
+  vi: Ẩn dữ liệu cá nhân
+  id: Sembunyikan data pribadi
+  pl: Ukryj dane osobowe
+  nl: Persoonlijke gegevens verbergen
+  ar: إخفاء البيانات الشخصية
+  hi: व्यक्तिगत डेटा छुपाएं
+  th: ซ่อนข้อมูลส่วนตัว
+  cs: Skrýt osobní data
+  sv: Dölj personuppgifter
+  verified_by_human: []
+notifications:
+  context: Navigation label for the notifications settings sub-page
+  en: Notifications
+  de: Benachrichtigungen
+  zh: 通知
+  es: Notificaciones
+  fr: Notifications
+  pt: Notificações
+  ru: Уведомления
+  ja: 通知
+  ko: 알림
+  it: Notifiche
+  tr: Bildirimler
+  vi: Thông báo
+  id: Notifikasi
+  pl: Powiadomienia
+  nl: Meldingen
+  ar: الإشعارات
+  hi: सूचनाएं
+  th: การแจ้งเตือน
+  cs: Oznámení
+  sv: Notiser
+  verified_by_human: []
+buy_credits:
+  context: Navigation label for the buy credits settings sub-page
+  en: Buy Credits
+  de: Guthaben kaufen
+  zh: 购买积分
+  es: Comprar créditos
+  fr: Acheter des crédits
+  pt: Comprar créditos
+  ru: Купить кредиты
+  ja: クレジットを購入
+  ko: 크레딧 구매
+  it: Acquista crediti
+  tr: Kredi satın al
+  vi: Mua tín dụng
+  id: Beli kredit
+  pl: Kup kredyty
+  nl: Credits kopen
+  ar: شراء رصيد
+  hi: क्रेडिट खरीदें
+  th: ซื้อเครดิต
+  cs: Koupit kredity
+  sv: Köp krediter
+  verified_by_human: []
+auto_topup:
+  context: Navigation label for the auto top-up settings sub-page
+  en: Auto Top-Up
+  de: Automatisches Aufladen
+  zh: 自动充值
+  es: Recarga automática
+  fr: Rechargement automatique
+  pt: Recarga automática
+  ru: Автопополнение
+  ja: 自動チャージ
+  ko: 자동 충전
+  it: Ricarica automatica
+  tr: Otomatik yükleme
+  vi: Nạp tiền tự động
+  id: Isi ulang otomatis
+  pl: Automatyczne doładowanie
+  nl: Automatisch opladen
+  ar: إعادة الشحن التلقائي
+  hi: ऑटो टॉप-अप
+  th: เติมเงินอัตโนมัติ
+  cs: Automatické doplnění
+  sv: Automatisk påfyllning
+  verified_by_human: []
+invoices:
+  context: Navigation label for the invoices settings sub-page
+  en: Invoices
+  de: Rechnungen
+  zh: 发票
+  es: Facturas
+  fr: Factures
+  pt: Faturas
+  ru: Счета
+  ja: 請求書
+  ko: 청구서
+  it: Fatture
+  tr: Faturalar
+  vi: Hóa đơn
+  id: Faktur
+  pl: Faktury
+  nl: Facturen
+  ar: الفواتير
+  hi: चालान
+  th: ใบแจ้งหนี้
+  cs: Faktury
+  sv: Fakturor
+  verified_by_human: []
+api_keys:
+  context: Navigation label for the API keys settings sub-page
+  en: API Keys
+  de: API-Schlüssel
+  zh: API 密钥
+  es: Claves API
+  fr: Clés API
+  pt: Chaves API
+  ru: API-ключи
+  ja: APIキー
+  ko: API 키
+  it: Chiavi API
+  tr: API Anahtarları
+  vi: Khóa API
+  id: Kunci API
+  pl: Klucze API
+  nl: API-sleutels
+  ar: مفاتيح API
+  hi: API कुंजियां
+  th: คีย์ API
+  cs: API klíče
+  sv: API-nycklar
+  verified_by_human: []
+devices:
+  context: Navigation label for the devices settings sub-page
+  en: Devices
+  de: Geräte
+  zh: 设备
+  es: Dispositivos
+  fr: Appareils
+  pt: Dispositivos
+  ru: Устройства
+  ja: デバイス
+  ko: 기기
+  it: Dispositivi
+  tr: Cihazlar
+  vi: Thiết bị
+  id: Perangkat
+  pl: Urządzenia
+  nl: Apparaten
+  ar: الأجهزة
+  hi: उपकरण
+  th: อุปกรณ์
+  cs: Zařízení
+  sv: Enheter
+  verified_by_human: []
+language:
+  context: Navigation label for the language settings sub-page
+  en: Language
+  de: Sprache
+  zh: 语言
+  es: Idioma
+  fr: Langue
+  pt: Idioma
+  ru: Язык
+  ja: 言語
+  ko: 언어
+  it: Lingua
+  tr: Dil
+  vi: Ngôn ngữ
+  id: Bahasa
+  pl: Język
+  nl: Taal
+  ar: اللغة
+  hi: भाषा
+  th: ภาษา
+  cs: Jazyk
+  sv: Språk
+  verified_by_human: []
+passkeys:
+  context: Navigation label for the passkeys settings sub-page
+  en: Passkeys
+  de: Passkeys
+  zh: 通行密钥
+  es: Claves de acceso
+  fr: Clés d'accès
+  pt: Chaves de acesso
+  ru: Ключи доступа
+  ja: パスキー
+  ko: 패스키
+  it: Chiavi di accesso
+  tr: Erişim anahtarları
+  vi: Khóa truy cập
+  id: Kunci akses
+  pl: Klucze dostępu
+  nl: Toegangssleutels
+  ar: مفاتيح الوصول
+  hi: पासकी
+  th: คีย์การเข้าถึง
+  cs: Přístupové klíče
+  sv: Åtkomstnycklar
+  verified_by_human: []
+password:
+  context: Navigation label for the password settings sub-page
+  en: Password
+  de: Passwort
+  zh: 密码
+  es: Contraseña
+  fr: Mot de passe
+  pt: Senha
+  ru: Пароль
+  ja: パスワード
+  ko: 비밀번호
+  it: Password
+  tr: Şifre
+  vi: Mật khẩu
+  id: Kata sandi
+  pl: Hasło
+  nl: Wachtwoord
+  ar: كلمة المرور
+  hi: पासवर्ड
+  th: รหัสผ่าน
+  cs: Heslo
+  sv: Lösenord
+  verified_by_human: []
+two_factor_auth:
+  context: Navigation label for the two-factor authentication settings sub-page
+  en: Two-Factor Auth
+  de: Zwei-Faktor-Authentifizierung
+  zh: 双因素认证
+  es: Autenticación de dos factores
+  fr: Authentification à deux facteurs
+  pt: Autenticação de dois fatores
+  ru: Двухфакторная аутентификация
+  ja: 二要素認証
+  ko: 이중 인증
+  it: Autenticazione a due fattori
+  tr: İki faktörlü kimlik doğrulama
+  vi: Xác thực hai yếu tố
+  id: Autentikasi dua faktor
+  pl: Uwierzytelnianie dwuskładnikowe
+  nl: Tweefactorauthenticatie
+  ar: المصادقة الثنائية
+  hi: दो-कारक प्रमाणीकरण
+  th: การยืนยันตัวตนสองขั้นตอน
+  cs: Dvoufaktorové ověření
+  sv: Tvåfaktorsautentisering
+  verified_by_human: []
+recovery_key:
+  context: Navigation label for the recovery key settings sub-page
+  en: Recovery Key
+  de: Wiederherstellungsschlüssel
+  zh: 恢复密钥
+  es: Clave de recuperación
+  fr: Clé de récupération
+  pt: Chave de recuperação
+  ru: Ключ восстановления
+  ja: 復元キー
+  ko: 복구 키
+  it: Chiave di recupero
+  tr: Kurtarma anahtarı
+  vi: Khóa khôi phục
+  id: Kunci pemulihan
+  pl: Klucz odzyskiwania
+  nl: Herstelsleutel
+  ar: مفتاح الاسترداد
+  hi: रिकवरी कुंजी
+  th: คีย์กู้คืน
+  cs: Obnovovací klíč
+  sv: Återställningsnyckel
+  verified_by_human: []
+export_data:
+  context: Navigation label for the export data settings sub-page
+  en: Export Data
+  de: Daten exportieren
+  zh: 导出数据
+  es: Exportar datos
+  fr: Exporter les données
+  pt: Exportar dados
+  ru: Экспорт данных
+  ja: データのエクスポート
+  ko: 데이터 내보내기
+  it: Esporta dati
+  tr: Verileri dışa aktar
+  vi: Xuất dữ liệu
+  id: Ekspor data
+  pl: Eksportuj dane
+  nl: Gegevens exporteren
+  ar: تصدير البيانات
+  hi: डेटा निर्यात करें
+  th: ส่งออกข้อมูล
+  cs: Exportovat data
+  sv: Exportera data
+  verified_by_human: []
+delete_account:
+  context: Navigation label for the delete account settings sub-page
+  en: Delete Account
+  de: Konto löschen
+  zh: 删除账户
+  es: Eliminar cuenta
+  fr: Supprimer le compte
+  pt: Excluir conta
+  ru: Удалить аккаунт
+  ja: アカウントを削除
+  ko: 계정 삭제
+  it: Elimina account
+  tr: Hesabı sil
+  vi: Xóa tài khoản
+  id: Hapus akun
+  pl: Usuń konto
+  nl: Account verwijderen
+  ar: حذف الحساب
+  hi: खाता हटाएं
+  th: ลบบัญชี
+  cs: Smazat účet
+  sv: Ta bort konto
+  verified_by_human: []
+
 tip.tip_creator:
   context: Navigation title for the tip settings page
   en: Tip Creator

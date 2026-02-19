@@ -120,3 +120,50 @@ search.how_to_use.3:
   cs: Najdi lékárny otevřené teď poblíž
   sv: Hitta apotek som har öppet nu nära mig
   verified_by_human: [en, de]
+
+location:
+  context: Skill name for the location skill in Maps app (shown while AI is accessing device location)
+  en: Location
+  de: Standort
+  zh: 位置
+  es: Ubicación
+  fr: Localisation
+  pt: Localização
+  ru: Местоположение
+  ja: 位置情報
+  ko: 위치
+  it: Posizione
+  tr: Konum
+  vi: Vị trí
+  id: Lokasi
+  pl: Lokalizacja
+  nl: Locatie
+  ar: الموقع
+  hi: स्थान
+  th: ตำแหน่ง
+  cs: Poloha
+  sv: Plats
+  verified_by_human: []
+location.description:
+  context: Description for the location skill in Maps app
+  en: Access your current device location.
+  de: Auf deinen aktuellen Gerätestandort zugreifen.
+  zh: 获取当前设备位置。
+  es: Acceder a tu ubicación actual del dispositivo.
+  fr: Accéder à votre position actuelle de l'appareil.
+  pt: Acessar sua localização atual do dispositivo.
+  ru: Получить текущее местоположение устройства.
+  ja: 現在のデバイスの位置情報にアクセス。
+  ko: 현재 기기 위치에 접근합니다.
+  it: Accedere alla posizione attuale del dispositivo.
+  tr: Mevcut cihaz konumunuza erişin.
+  vi: Truy cập vị trí thiết bị hiện tại của bạn.
+  id: Akses lokasi perangkat Anda saat ini.
+  pl: Uzyskaj dostęp do aktualnej lokalizacji urządzenia.
+  nl: Toegang tot uw huidige apparaatlocatie.
+  ar: الوصول إلى موقع جهازك الحالي.
+  hi: अपने वर्तमान डिवाइस स्थान तक पहुंचें।
+  th: เข้าถึงตำแหน่งอุปกรณ์ปัจจุบันของคุณ
+  cs: Přistupte k aktuální poloze zařízení.
+  sv: Kom åt din aktuella enhetsplats.
+  verified_by_human: []

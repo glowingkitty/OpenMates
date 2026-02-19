@@ -1495,6 +1495,29 @@ reminder.active_reminders.repeating:
   en: Repeating
   de: Wiederkehrend
   verified_by_human: []
+openmates:
+  context: App name for the OpenMates platform app (used by Settings.svelte via apps.${appId})
+  en: OpenMates
+  de: OpenMates
+  zh: OpenMates
+  es: OpenMates
+  fr: OpenMates
+  pt: OpenMates
+  ru: OpenMates
+  ja: OpenMates
+  ko: OpenMates
+  it: OpenMates
+  tr: OpenMates
+  vi: OpenMates
+  id: OpenMates
+  pl: OpenMates
+  nl: OpenMates
+  ar: OpenMates
+  hi: OpenMates
+  th: OpenMates
+  cs: OpenMates
+  sv: OpenMates
+  verified_by_human: [en]
 openmates_app:
   context: App name for the OpenMates platform app
   en: OpenMates
