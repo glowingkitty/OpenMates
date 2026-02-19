@@ -399,6 +399,17 @@ export const Embed = Node.create<EmbedOptions>({
           return { "data-address": attributes.address };
         },
       },
+      // locationType: "precise_location" | "area" — set by MapsView when the user confirms.
+      // "area" means the user had imprecise/privacy mode on; used to show the "Nearby:" label.
+      locationType: {
+        default: null,
+        parseHTML: (element) =>
+          element.getAttribute("data-location-type") ?? null,
+        renderHTML: (attributes) => {
+          if (!attributes.locationType) return {};
+          return { "data-location-type": attributes.locationType };
+        },
+      },
       // Focus mode metadata
       focus_id: {
         default: null,

@@ -2989,3 +2989,27 @@ maps_location.loading_map:
   cs: Načítání mapy...
   sv: Laddar karta...
   verified_by_human: []
+
+maps_location.nearby:
+  context: Small label shown above the address in a location embed when the user had imprecise/privacy mode on (indicates the pin was randomised within an area, not exact)
+  en: Nearby
+  de: In der Nähe
+  zh: 附近
+  es: Cerca de
+  fr: À proximité
+  pt: Perto de
+  ru: Рядом
+  ja: 近く
+  ko: 근처
+  it: Vicino a
+  tr: Yakınında
+  vi: Gần đây
+  id: Terdekat
+  pl: W pobliżu
+  nl: In de buurt
+  ar: بالقرب من
+  hi: पास में
+  th: ใกล้เคียง
+  cs: V blízkosti
+  sv: I närheten av
+  verified_by_human: []

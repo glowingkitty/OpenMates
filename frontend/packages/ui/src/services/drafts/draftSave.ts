@@ -137,11 +137,66 @@ function convertMentionSyntaxToDisplayName(text: string): string {
  * @param maxLength Maximum length of the preview (default: 100 characters)
  * @returns Truncated preview text suitable for display
  */
+/**
+ * Walk a TipTap JSON document and collect embed type tokens for embed nodes that
+ * are NOT yet serialized to markdown (i.e. no contentRef / still uploading / demo mode).
+ * These nodes produce empty strings in tipTapToCanonicalMarkdown so they would otherwise
+ * be silently dropped from the draft preview.
+ *
+ * Returns an array of tokens like "[Image]", "[Video]", "[Audio]" etc. to be appended
+ * to the preview text alongside any tokens already extracted from the markdown.
+ */
+function collectUnserializedEmbedTokens(tiptapJSON: unknown): string[] {
+  if (!tiptapJSON || typeof tiptapJSON !== "object") return [];
+  const tokens: string[] = [];
+
+  function walk(node: Record<string, unknown>) {
+    if (node.type === "embed") {
+      const attrs = (node.attrs ?? {}) as Record<string, unknown>;
+      const type = (attrs.type as string) ?? "";
+      const contentRef = attrs.contentRef as string | null | undefined;
+      // Only include nodes that are NOT already serialized (no embed: contentRef).
+      // Nodes with contentRef are already represented in the markdown as json blocks.
+      if (!contentRef || !contentRef.startsWith("embed:")) {
+        if (type === "image") tokens.push("[Image]");
+        else if (type === "audio") tokens.push("[Audio]");
+        else if (type === "recording") tokens.push("[Recording]");
+        else if (type === "videos-video") tokens.push("[Video]");
+        else if (type === "pdf") tokens.push("[PDF]");
+        else if (type === "file") tokens.push("[File]");
+        else if (type === "code") tokens.push("[Code]");
+        else if (type === "book") tokens.push("[Book]");
+        else if (type) tokens.push(`[${type}]`);
+      }
+    }
+    // Recurse into child arrays (content, etc.)
+    for (const key of Object.keys(node)) {
+      const val = node[key];
+      if (Array.isArray(val)) {
+        for (const child of val) {
+          if (child && typeof child === "object") {
+            walk(child as Record<string, unknown>);
+          }
+        }
+      }
+    }
+  }
+
+  walk(tiptapJSON as Record<string, unknown>);
+  return tokens;
+}
+
 function generateDraftPreview(
   markdown: string,
   maxLength: number = 100,
+  tiptapJSON?: unknown,
 ): string {
-  if (!markdown) return "";
+  // If both markdown and JSON are empty/absent there is nothing to show.
+  const hasMarkdown = !!markdown;
+  const jsonTokens = tiptapJSON
+    ? collectUnserializedEmbedTokens(tiptapJSON)
+    : [];
+  if (!hasMarkdown && jsonTokens.length === 0) return "";
 
   try {
     let displayText = markdown;
@@ -206,6 +261,13 @@ function generateDraftPreview(
       },
     );
 
+    // Append tokens for unserialized embed nodes (e.g. uploading images, demo-mode images)
+    // that do not appear in the markdown output because they lack a contentRef.
+    if (jsonTokens.length > 0) {
+      const prefix = displayText.trim() ? " " : "";
+      displayText = displayText + prefix + jsonTokens.join(" ");
+    }
+
     // Clean up multiple spaces and trim
     const cleanedText = displayText.replace(/\s+/g, " ").trim();
 
@@ -218,6 +280,7 @@ function generateDraftPreview(
   } catch (error) {
     console.error("[DraftService] Error generating draft preview:", error);
     // Fallback: simple truncation of original markdown
+    if (!markdown) return jsonTokens.join(" ").substring(0, maxLength);
     return markdown.length > maxLength
       ? markdown.substring(0, maxLength) + "..."
       : markdown;
@@ -659,7 +722,12 @@ export const saveDraftDebounced = debounce(
       }
 
       // Generate preview text from markdown for chat list display
-      const previewText = generateDraftPreview(contentMarkdown);
+      // Pass contentJSON so unserialized embed nodes (e.g. uploading images) are shown
+      const previewText = generateDraftPreview(
+        contentMarkdown,
+        100,
+        contentJSON,
+      );
 
       // Save to sessionStorage (cleartext, no encryption)
       saveSessionStorageDraft(
@@ -774,7 +842,8 @@ export const saveDraftDebounced = debounce(
     const contentMarkdown = tipTapToCanonicalMarkdown(contentJSON);
 
     // Generate preview text from markdown for chat list display
-    const previewText = generateDraftPreview(contentMarkdown);
+    // Pass contentJSON so unserialized embed nodes (e.g. uploading images) are shown
+    const previewText = generateDraftPreview(contentMarkdown, 100, contentJSON);
 
     // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent TypeError when calling substring
     const encryptedMarkdown = await encryptWithMasterKey(contentMarkdown);

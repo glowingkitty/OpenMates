@@ -430,6 +430,11 @@ export async function handleSend(
   // Convert to markdown
   let markdown = tipTapToCanonicalMarkdown(editorContent);
 
+  // Strip leading empty lines that were auto-prepended to allow cursor placement
+  // before the first embed node (see ensureLeadingParagraph in embedHandlers.ts).
+  // Leading newlines are meaningless to the LLM and produce an ugly blank first line.
+  markdown = markdown.replace(/^\n+/, "");
+
   // CRITICAL: Process URLs before sending to convert them to proper embeds
   // This ensures that when user types "summarize https://example.com" and presses Enter,
   // the URL is converted to an embed with metadata fetched from the preview server.

@@ -6,6 +6,36 @@ import { generateUUID } from "../../message_parsing/utils";
 import { uploadFileToServer } from "./services/uploadService";
 import { embedStore } from "../../services/embedStore";
 
+/**
+ * Ensure the editor has an empty paragraph at the very beginning so that when
+ * an embed is the first content node the user can still click/navigate to place
+ * the cursor before it.
+ *
+ * If the editor currently only contains an empty paragraph (default initial state)
+ * OR the document would otherwise start directly with an embed, we prepend an
+ * additional empty paragraph so there is always a text position above the embed.
+ *
+ * This is called right before every embed insertion.
+ */
+function ensureLeadingParagraph(editor: Editor): void {
+  const { doc } = editor.state;
+
+  // Walk the top-level children of the document
+  const firstChild = doc.firstChild;
+  if (!firstChild) return;
+
+  // If the first paragraph is non-empty (has text / embeds already), no need to prepend.
+  // Only prepend when the editor is effectively empty — the first (and only) paragraph
+  // contains nothing meaningful (isEmpty reports true for the full doc).
+  if (!editor.isEmpty) return;
+
+  // Editor is empty — the content will start with the embed we're about to insert.
+  // Insert an extra empty paragraph at the beginning so users can position cursor there.
+  // We use insertContentAt position 1 (inside the empty first paragraph → creates a
+  // hard-break then the editor naturally has two paragraphs after the embed is added).
+  editor.commands.insertContentAt(1, { type: "paragraph" });
+}
+
 // ---------------------------------------------------------------------------
 // Upload cancellation registry
 //
@@ -39,6 +69,7 @@ export async function insertVideo(
   duration?: string,
   isRecording: boolean = false,
 ): Promise<void> {
+  ensureLeadingParagraph(editor);
   const url = URL.createObjectURL(file);
   editor.commands.insertContent([
     {
@@ -126,6 +157,7 @@ export async function insertImage(
     console.debug(
       "[EmbedHandlers] Demo mode — inserting image without server upload (user not authenticated)",
     );
+    ensureLeadingParagraph(editor);
     editor.commands.insertContent([
       {
         type: "embed",
@@ -164,6 +196,7 @@ export async function insertImage(
   // Step 3: Insert embed immediately with status 'uploading' and local preview.
   // status: 'uploading' signals to the message sending logic that this embed
   // is not ready yet, preventing premature message submission.
+  ensureLeadingParagraph(editor);
   editor.commands.insertContent([
     {
       type: "embed",
@@ -316,6 +349,7 @@ export async function insertFile(
   file: File,
   type: "pdf" | "file",
 ): Promise<void> {
+  ensureLeadingParagraph(editor);
   const url = URL.createObjectURL(file);
   editor.commands.insertContent([
     {
@@ -343,6 +377,7 @@ export async function insertFile(
  * Inserts an audio embed into the editor.
  */
 export async function insertAudio(editor: Editor, file: File): Promise<void> {
+  ensureLeadingParagraph(editor);
   const url = URL.createObjectURL(file);
   editor
     .chain()
@@ -377,6 +412,7 @@ export async function insertCodeFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
+  ensureLeadingParagraph(editor);
   const url = URL.createObjectURL(file);
   const language = getLanguageFromFilename(file.name);
 
@@ -406,6 +442,7 @@ export async function insertCodeFile(
  * Inserts an EPUB file embed into the editor.
  */
 export async function insertEpub(editor: Editor, file: File): Promise<void> {
+  ensureLeadingParagraph(editor);
   try {
     const coverUrl = await extractEpubCover(file);
     const epubMetadata = await getEpubMetadata(file);
@@ -445,6 +482,7 @@ export function insertRecording(
   filename: string,
   duration: string,
 ): void {
+  ensureLeadingParagraph(editor);
   editor
     .chain()
     .focus()
@@ -541,9 +579,12 @@ export async function insertMap(
       // Human-readable street address from Nominatim reverse geocode or search result.
       // Stored as a data-* attr (registered in Embed.ts) so it survives DOM round-trips.
       address: attrs.address ?? "",
+      // "precise_location" | "area" — controls the "Nearby:" label in the embed card.
+      locationType: attrs.locationType ?? "area",
     },
   };
 
+  ensureLeadingParagraph(editor);
   editor.commands.insertContent([unifiedMapEmbed, { type: "text", text: " " }]);
   setTimeout(() => {
     editor.commands.focus("end");

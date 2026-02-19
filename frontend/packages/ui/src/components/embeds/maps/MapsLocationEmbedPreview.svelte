@@ -30,6 +30,11 @@
     name?: string;
     /** Human-readable street address from Nominatim reverse geocode or search result */
     address?: string;
+    /**
+     * Location type from MapsView: "precise_location" or "area".
+     * When "area" the user had imprecise/privacy mode on — show a small "Nearby:" prefix label.
+     */
+    locationType?: string;
     /** URL of the static map image stored in S3 */
     mapImageUrl?: string;
     /** Processing status */
@@ -46,6 +51,7 @@
     id,
     name: nameProp,
     address: addressProp,
+    locationType: locationTypeProp,
     mapImageUrl: mapImageUrlProp,
     status: statusProp,
     taskId: taskIdProp,
@@ -54,10 +60,9 @@
   }: Props = $props();
 
   // Local reactive state — updated by embed data events via onEmbedDataUpdated.
-  // lat/lon are not displayed directly (address string is shown instead) but are
-  // kept in EmbedStore for the backend and fullscreen deeplink use.
   let localName = $state<string>('');
   let localAddress = $state<string>('');
+  let localLocationType = $state<string>('area');
   let localMapImageUrl = $state<string | undefined>(undefined);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
@@ -67,6 +72,7 @@
   $effect(() => {
     localName = nameProp ?? '';
     localAddress = addressProp ?? '';
+    localLocationType = locationTypeProp ?? 'area';
     localMapImageUrl = mapImageUrlProp;
     localStatus = statusProp ?? 'processing';
     localTaskId = taskIdProp;
@@ -75,6 +81,7 @@
   // Expose as derived read-only aliases for clarity
   let name = $derived(localName);
   let address = $derived(localAddress);
+  let locationType = $derived(localLocationType);
   let mapImageUrl = $derived(localMapImageUrl);
   let status = $derived(localStatus);
   let taskId = $derived(localTaskId);
@@ -94,6 +101,7 @@
     if (content) {
       if (content.name !== undefined) localName = (content.name as string) || '';
       if (content.address !== undefined) localAddress = (content.address as string) || '';
+      if (content.location_type !== undefined) localLocationType = (content.location_type as string) || 'area';
       if (content.map_image_url) {
         localMapImageUrl = content.map_image_url as string;
         imageError = false; // Reset error state on new image
@@ -110,8 +118,11 @@
   // Whether we have a map image to display full-width
   let hasImage = $derived(!!mapImageUrl && !imageError && status !== 'error');
 
-  // Secondary line shown below the name when no map image is available.
-  // Prefer the human-readable address over raw coordinates.
+  // Show "Nearby:" label only in area/imprecise mode — the pin was randomised so the
+  // address is approximate and we want to signal that to the user.
+  let showNearbyLabel = $derived(locationType === 'area');
+
+  // Secondary line: the resolved street address (shown when no map image is available).
   let secondaryText = $derived(address || '');
 </script>
 
@@ -148,13 +159,18 @@
     {:else}
       <!-- Fallback text layout when no image is available -->
       <div class="location-details" class:mobile={isMobileLayout}>
+        {#if showNearbyLabel}
+          <!-- Small "Nearby:" label shown when the user had imprecise/privacy mode on -->
+          <div class="location-nearby-label">{$text('embeds.maps_location.nearby')}</div>
+        {/if}
         {#if name}
           <div class="location-name">{name}</div>
         {:else}
           <div class="location-name">{$text('embeds.maps_location')}</div>
         {/if}
         {#if secondaryText}
-          <div class="location-coords">{secondaryText}</div>
+          <!-- Full street address in regular white text (multi-line) -->
+          <div class="location-address">{secondaryText}</div>
         {/if}
         {#if status === 'processing'}
           <div class="location-loading">{$text('embeds.maps_location.loading_map')}</div>
@@ -241,11 +257,27 @@
     font-size: 14px;
   }
 
-  .location-coords {
-    font-size: 12px;
+  /* "Nearby:" prefix label — small, muted, indicates imprecise/area mode */
+  .location-nearby-label {
+    font-size: 11px;
+    font-weight: 500;
     color: var(--color-grey-60);
-    font-family: monospace;
-    line-height: 1.3;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+
+  /* Street address — regular white text, can be multi-line */
+  .location-address {
+    font-size: 13px;
+    color: var(--color-grey-100);
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  .location-details.mobile .location-address {
+    font-size: 12px;
   }
 
   .location-loading {

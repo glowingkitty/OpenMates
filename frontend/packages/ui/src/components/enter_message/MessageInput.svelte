@@ -2473,13 +2473,21 @@
         console.debug('[MessageInput] editor destroyed:', editor?.isDestroyed);
         
         if (editor && !editor.isDestroyed) {
-            console.debug('[MessageInput] Setting suggestion text in editor');
-            editor.commands.setContent(`<p>${text}</p>`);
+            console.debug('[MessageInput] Inserting suggestion text at cursor position');
+            // Insert at cursor position rather than replacing the entire content.
+            // This preserves embeds and other content already in the editor.
+            // If the editor is empty, focus to the end first so the text lands in
+            // the right paragraph; if there's existing content the cursor is already
+            // where the user last clicked.
+            if (editor.isEmpty) {
+                editor.commands.focus('end');
+            }
+            editor.commands.insertContent(text);
             hasContent = true;
             lastEditorUpdateText = editor.getText(); // Sync text-change guard after external content set
             updateOriginalMarkdown(editor);
             editor.commands.focus('end');
-            console.debug('[MessageInput] Suggestion text set and focused successfully');
+            console.debug('[MessageInput] Suggestion text inserted at cursor successfully');
         } else {
             console.warn('[MessageInput] setSuggestionText: editor not available or destroyed');
         }
@@ -2654,7 +2662,7 @@
         aria-multiline="true"
         tabindex="0"
     >
-        {#if isScrollable || isFullscreen}
+        {#if hasContent || isFullscreen}
             <button
                 class="clickable-icon icon_fullscreen fullscreen-button"
                 onclick={toggleFullscreen}
