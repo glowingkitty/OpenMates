@@ -2444,7 +2444,8 @@ async def handle_main_processing(
                         app_id=app_id,
                         skill_id=skill_id,
                         discovered_apps_metadata=discovered_apps_metadata,
-                        task_id=task_id
+                        task_id=task_id,
+                        message_history=current_message_history,
                     )
 
                     # For async skills (e.g., images.generate), thread placeholder embed_ids
@@ -3722,7 +3723,8 @@ def _normalize_skill_arguments(
     app_id: str,
     skill_id: str,
     discovered_apps_metadata: Dict[str, Any],
-    task_id: str
+    task_id: str,
+    message_history: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Normalizes LLM-generated skill arguments to match the expected schema format.
@@ -3737,12 +3739,20 @@ def _normalize_skill_arguments(
     - The LLM sends flat arguments without a "requests" key
     - The flat arguments match the items schema of the "requests" array
     
+    Special recovery case — empty arguments (LLM sends "{}"):
+    - When the LLM provides completely empty arguments AND the skill requires a "requests"
+      array with a "query" field (e.g. web-search), the last user message from message_history
+      is used as the query. This covers a known bug where some LLM providers (e.g. Qwen via
+      Cerebras) emit an empty tool-call arguments string for the web-search tool.
+    
     Args:
         arguments: The parsed tool call arguments from the LLM
         app_id: The app ID
         skill_id: The skill ID
         discovered_apps_metadata: The full app metadata (contains tool_schema)
         task_id: Task ID for logging
+        message_history: Optional conversation history used to recover a query when the LLM
+            sends empty arguments. Each entry is a dict with at least "role" and "content".
         
     Returns:
         Normalized arguments dict. Returns the original arguments unchanged if no
@@ -3788,7 +3798,52 @@ def _normalize_skill_arguments(
     flat_request = {k: v for k, v in arguments.items() if not k.startswith("_")}
     
     if not flat_request:
-        # No non-metadata keys to wrap — return as-is and let validation catch it
+        # LLM sent completely empty arguments (e.g. arguments="{}").
+        # Attempt recovery: check if the "requests" items schema requires a "query" field.
+        # If so, extract the last user message from history and use it as the query.
+        # This covers a known Qwen/Cerebras bug where web-search is called with no args.
+        items_schema = requests_schema.get("items", {})
+        items_required = items_schema.get("required", [])
+        
+        if "query" in items_required and message_history:
+            # Find the last user message in history (most recent first)
+            last_user_text: Optional[str] = None
+            for msg in reversed(message_history):
+                if isinstance(msg, dict) and msg.get("role") == "user":
+                    content = msg.get("content", "")
+                    if isinstance(content, str) and content.strip():
+                        last_user_text = content.strip()
+                        break
+                    elif isinstance(content, list):
+                        # Some providers use content arrays (e.g. [{type: text, text: "..."}])
+                        for part in content:
+                            if isinstance(part, dict) and part.get("type") == "text":
+                                text = part.get("text", "").strip()
+                                if text:
+                                    last_user_text = text
+                                    break
+                        if last_user_text:
+                            break
+            
+            if last_user_text:
+                # Preserve metadata keys (underscore-prefixed) at the top level
+                normalized = {k: v for k, v in arguments.items() if k.startswith("_")}
+                normalized["requests"] = [{"query": last_user_text}]
+                logger.warning(
+                    f"{log_prefix} [NORMALIZE] LLM sent empty arguments ('{{}}') for "
+                    f"'{app_id}.{skill_id}' which requires a 'requests' array. "
+                    f"Recovered query from last user message: '{last_user_text[:100]}{'...' if len(last_user_text) > 100 else ''}'. "
+                    f"This is a known LLM bug (Qwen/Cerebras emitting empty tool-call args)."
+                )
+                return normalized
+        
+        # No recovery possible — return as-is and let validation raise a clear error
+        logger.warning(
+            f"{log_prefix} [NORMALIZE] LLM sent empty arguments ('{{}}') for "
+            f"'{app_id}.{skill_id}' which requires a 'requests' array. "
+            f"Cannot recover (no query field in items schema or no message history). "
+            f"Skill will fail with a validation error."
+        )
         return arguments
     
     # Preserve metadata keys (underscore-prefixed) at the top level
