@@ -305,7 +305,7 @@
                 // Find the tier to get the correct price
                 const tier = pricingTiers.find(t => t.credits === selectedCreditsAmount);
                 if (tier) {
-                    const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd' | 'jpy';
+                    const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
                     selectedPrice = tier.price[currencyKey] || tier.price.eur;
                     console.debug(`[Signup] Updated selectedPrice from tier: ${selectedPrice} ${selectedCurrency}`);
                 }

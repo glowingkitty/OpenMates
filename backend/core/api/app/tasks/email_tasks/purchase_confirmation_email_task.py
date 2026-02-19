@@ -301,6 +301,25 @@ async def _async_process_invoice_and_send_email(
         #     else:
         #         receiver_country_display = country_code # Fallback to code if translation not found
         
+        # For Polar orders, pass the actual amount charged by Polar (in smallest currency unit)
+        # so the PDF can display the real amount the buyer paid, regardless of currency.
+        # Polar may charge in CAD, AUD, KRW, etc. — currencies not in our pricing.yml.
+        # For Stripe/Revolut orders this is not set; the PDF looks up the price from pricing.yml.
+        actual_amount_paid: Optional[float] = None
+        if effective_provider == "polar" and amount_paid is not None and currency_paid is not None:
+            # Convert from smallest unit to display unit.
+            # Zero-decimal currencies (e.g. JPY, KRW) use the amount as-is; all others divide by 100.
+            # We use a known list of zero-decimal currencies to handle this correctly.
+            ZERO_DECIMAL_CURRENCIES = {"jpy", "krw", "vnd", "clp", "gnf", "mga", "pyg", "rwf", "ugx", "xaf", "xof"}
+            if currency_paid.lower() in ZERO_DECIMAL_CURRENCIES:
+                actual_amount_paid = float(amount_paid)
+            else:
+                actual_amount_paid = float(amount_paid) / 100.0
+            logger.info(
+                f"Polar order {order_id}: actual_amount_paid={actual_amount_paid} {currency_paid.upper()} "
+                f"(from Polar amount={amount_paid})"
+            )
+
         invoice_data = {
             "invoice_number": invoice_number,
             "date_of_issue": date_str_iso,  # Use formatted date
@@ -318,7 +337,10 @@ async def _async_process_invoice_and_send_email(
             "sender_country": sender_country,
             "sender_email": sender_email,
             "sender_vat": sender_vat,
-            "is_gift_card": is_gift_card  # Flag to indicate if this is a gift card purchase
+            "is_gift_card": is_gift_card,  # Flag to indicate if this is a gift card purchase
+            # For Polar: the exact amount the buyer was charged (display units, any currency).
+            # When set, overrides the pricing.yml lookup in the PDF generator.
+            "actual_amount_paid": actual_amount_paid,
             # Note: refund_link will be added after invoice is created and we have the UUID
         }
 

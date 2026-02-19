@@ -257,23 +257,24 @@ except Exception as e:
 def get_price_for_credits(credits_amount: int, currency: str) -> Optional[int]:
     """
     Get the price for a credit amount in the smallest currency unit (cents).
-    
+
+    Only EUR and USD are supported for Stripe (EU users). Non-EU users pay via Polar
+    which handles local currency conversion automatically as Merchant of Record.
+
     Args:
         credits_amount: Number of credits
-        currency: Currency code (EUR, USD, JPY)
-        
+        currency: Currency code (EUR, USD)
+
     Returns:
-        Price in cents/smallest unit, or None if not found
+        Price in cents (smallest unit), or None if not found
     """
     currency_lower = currency.lower()
     for tier in PRICING_TIERS:
         if tier.get('credits') == credits_amount:
             price_in_currency = tier.get('price', {}).get(currency_lower)
             if price_in_currency is not None:
-                if currency_lower in ['eur', 'usd', 'gbp']:
-                    return int(price_in_currency * 100)
-                else:
-                    return int(price_in_currency)
+                # EUR and USD use cents (multiply by 100)
+                return int(price_in_currency * 100)
             else:
                 logger.warning(f"Currency '{currency}' not found in price tier for {credits_amount} credits.")
                 return None
@@ -417,15 +418,10 @@ async def create_payment_order(
         logger.error(f"Could not determine price for {order_data.credits_amount} credits in {order_data.currency} for user {current_user.id}.")
         raise HTTPException(status_code=400, detail="Invalid credit amount or currency combination.")
     
-    # Convert calculated_amount (in cents/smallest unit) to actual currency amount for tier checking
-    # get_price_for_credits returns amount in smallest currency unit (cents for EUR/USD/GBP)
-    currency_lower = order_data.currency.lower()
-    if currency_lower in ['eur', 'usd', 'gbp']:
-        # Convert cents to currency units (divide by 100)
-        purchase_amount_for_tier = calculated_amount / 100.0
-    else:
-        # For currencies like JPY that don't use cents, use as-is
-        purchase_amount_for_tier = float(calculated_amount)
+    # Convert calculated_amount (in cents) to actual currency amount for tier checking.
+    # get_price_for_credits returns amounts in cents (EUR and USD only).
+    # Divide by 100 to get the display-unit amount used for tier limit comparisons.
+    purchase_amount_for_tier = calculated_amount / 100.0
     
     # Check tier limits before creating order
     # This efficiently checks limits using cached values without querying invoices
@@ -1001,12 +997,10 @@ async def payment_webhook(
                     calculated_amount_cents = get_price_for_credits(credits_purchased, order_currency)
                     
                     if calculated_amount_cents is not None:
-                        # Convert from cents to decimal amount
-                        if order_currency.lower() in ['eur', 'usd', 'gbp']:
-                            calculated_amount_decimal = float(calculated_amount_cents) / 100.0
-                        else:
-                            # JPY and others use the amount directly
-                            calculated_amount_decimal = float(calculated_amount_cents)
+                        # Convert from cents to decimal amount.
+                        # For Stripe (EUR/USD) amounts are always in cents.
+                        # For Polar, amount_paid is already stored in display units (handled by the task).
+                        calculated_amount_decimal = float(calculated_amount_cents) / 100.0
                         
                         # Update monthly spending counter
                         await tier_service.update_monthly_spending(

@@ -115,10 +115,7 @@
                 {:else}
                     {(isSupportContribution ? $text('signup.send_amount') : $text('signup.buy_for'))
                         .replace('{currency}', currency)
-                        .replace(
-                            '{amount}',
-                            (currency.toUpperCase() === 'JPY' ? purchasePrice : (purchasePrice / 100)).toString()
-                        )}
+                        .replace('{amount}', (purchasePrice / 100).toString())}
                 {/if}
             </button>
         {/if}

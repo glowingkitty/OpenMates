@@ -22,7 +22,6 @@ avoiding expensive invoice queries on every purchase.
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Tuple
-from decimal import Decimal
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
@@ -66,26 +65,32 @@ class PaymentTierService:
         """
         Convert an amount from any currency to EUR.
         Uses approximate exchange rates (updated periodically).
-        
+
+        Stripe (EU users) only charges in EUR or USD.
+        Polar (non-EU users) charges in the buyer's local currency, but for tier limit
+        enforcement we receive the amount already converted to display units — the
+        conversion below covers EUR/USD; other currencies fall back to an identity
+        conversion with a warning so tier enforcement is never silently skipped.
+
         Args:
-            amount: Amount in the source currency
-            currency: Source currency code (lowercase: eur, usd, jpy)
-            
+            amount: Amount in the source currency (display units, not cents)
+            currency: Source currency code (lowercase: eur, usd, ...)
+
         Returns:
             Amount in EUR
         """
         currency_lower = currency.lower()
-        
+
         if currency_lower == "eur":
             return amount
         elif currency_lower == "usd":
             # Approximate: 1 USD ≈ 0.92 EUR (as of 2024)
             return amount * 0.92
-        elif currency_lower == "jpy":
-            # Approximate: 1 JPY ≈ 0.0062 EUR (as of 2024)
-            return amount * 0.0062
         else:
-            logger.warning(f"Unknown currency {currency}, assuming EUR")
+            # For Polar buyers in other currencies (CAD, AUD, KRW, etc.) we don't have
+            # live exchange rates. Log a warning and treat the amount as-is (conservative
+            # approach — avoids blocking purchases due to missing conversion).
+            logger.warning(f"Unknown currency '{currency}' in convert_to_eur, treating as EUR")
             return amount
 
     def get_tier_limit(self, tier: int) -> float:
@@ -257,8 +262,8 @@ class PaymentTierService:
         # Check if card payments are allowed (Tier 0 = no card payments)
         if not self.is_card_payment_allowed(current_tier):
             error_msg = (
-                f"Card payments are not allowed for your account due to previous chargebacks. "
-                f"Please use SEPA bank transfer for purchases. Contact support if you believe this is an error."
+                "Card payments are not allowed for your account due to previous chargebacks. "
+                "Please use SEPA bank transfer for purchases. Contact support if you believe this is an error."
             )
             logger.warning(
                 f"Card payment blocked for user {user_id}: Tier 0 (no card payments allowed)"

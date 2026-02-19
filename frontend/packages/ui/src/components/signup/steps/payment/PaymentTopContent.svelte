@@ -240,7 +240,7 @@ step_10_top_content_svelte:
                 <div class="separated-block">
                     <Payment 
                         {credits_amount} 
-                        purchasePrice={currency.toUpperCase() === 'JPY' ? price : price * 100} 
+                        purchasePrice={price * 100} 
                         {currency}
                         initialState={isGift ? 'success' : 'idle'}
                         {isGift}

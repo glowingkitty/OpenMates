@@ -7,30 +7,26 @@ pricingTiers:
     price:
       eur: 2
       usd: 3
-      jpy: 400
-  
+
   - credits: 10000
     price:
       eur: 10
       usd: 15
-      jpy: 2000
     monthly_auto_top_up_extra_credits: 500
-  
+
   - credits: 21000
     price:
       eur: 20
       usd: 30
-      jpy: 4000
     monthly_auto_top_up_extra_credits: 1000
     recommended: true
-  
+
   - credits: 54000
     price:
       eur: 50
       usd: 60
-      jpy: 9000
     monthly_auto_top_up_extra_credits: 3000
-  
+
   # TODO add later as option for power users, with support for SEPA bank transfer only, and only in 'recharge credits' settings menu, not during signup
   # - credits: 110000
   #   price:

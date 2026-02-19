@@ -1,14 +1,12 @@
 import io
 from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.barcode.qr import QrCodeWidget
 import re
 
 from backend.core.api.app.services.pdf.base import BasePDFTemplateService
-from backend.core.api.app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely,
-                                   format_date_for_locale, format_credits)
+from backend.core.api.app.services.pdf.utils import (sanitize_html_for_reportlab, format_date_for_locale, format_credits)
 
 class CreditNoteTemplateService(BasePDFTemplateService):
     def __init__(self, secrets_manager=None):
@@ -272,20 +270,64 @@ class CreditNoteTemplateService(BasePDFTemplateService):
                 .replace("{amount_total_credits}", formatted_total_credits)
         )
         
-        # Get the appropriate currency symbol based on the currency
+        # Map of currency codes to their display symbols.
+        # For currencies not in this map, the ISO code is used as the symbol (e.g. "CAD ").
+        # Polar acts as Merchant of Record and may charge buyers in their local currency
+        # (CAD, AUD, KRW, SGD, etc.), so we must handle arbitrary currencies gracefully.
         currency_symbols = {
             'eur': '€',
             'usd': '$',
+            'gbp': '£',
+            'cad': 'CA$',
+            'aud': 'A$',
+            'chf': 'CHF ',
+            'sek': 'kr ',
+            'nok': 'kr ',
+            'dkk': 'kr ',
+            'nzd': 'NZ$',
+            'sgd': 'S$',
+            'hkd': 'HK$',
+            'mxn': 'MX$',
+            'brl': 'R$',
+            'inr': '₹',
+            'krw': '₩',
             'jpy': '¥',
-            # Add more currencies as needed
+            'cny': '¥',
+            'twd': 'NT$',
+            'thb': '฿',
+            'myr': 'RM ',
+            'idr': 'Rp ',
+            'php': '₱',
+            'pln': 'zł ',
+            'czk': 'Kč ',
+            'huf': 'Ft ',
+            'ron': 'lei ',
+            'bgn': 'лв ',
+            'hrk': 'kn ',
+            'try': '₺',
+            'ils': '₪',
+            'aed': 'د.إ ',
+            'sar': '﷼ ',
+            'zar': 'R ',
         }
-        currency_symbol = currency_symbols.get(currency.lower(), '€')  # Default to Euro symbol
-        
+        currency_lower = currency.lower()
+        # Fall back to the uppercased ISO code followed by a space for unknown currencies
+        # (never fall back to € which would incorrectly imply Euro)
+        currency_symbol = currency_symbols.get(currency_lower, f"{currency.upper()} ")
+
+        # Zero-decimal currencies have no fractional units (e.g. ¥1800, not ¥1800.00).
+        # For all other currencies we format to 2 decimal places.
+        ZERO_DECIMAL_CURRENCIES = {"jpy", "krw", "vnd", "clp", "gnf", "mga", "pyg", "rwf", "ugx", "xaf", "xof"}
+        price_fmt = "{:.0f}" if currency_lower in ZERO_DECIMAL_CURRENCIES else "{:.2f}"
+
+        def fmt_price(amount: float) -> str:
+            return f"{currency_symbol}{price_fmt.format(amount)}"
+
         data_row = [
             Paragraph(refunded_credits_text, self.styles['Normal']),
             Paragraph("1x", self.styles['Normal']),
-            Paragraph(f"{currency_symbol}{credit_note_data['refund_amount']:.2f}", self.styles['Normal']),
-            Paragraph(f"{currency_symbol}{credit_note_data['refund_amount']:.2f}", self.styles['Normal'])
+            Paragraph(fmt_price(credit_note_data['refund_amount']), self.styles['Normal']),
+            Paragraph(fmt_price(credit_note_data['refund_amount']), self.styles['Normal'])
         ]
         
         # Create table with proper indent
@@ -321,12 +363,12 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         
         # Create data for totals table - remove bold from first two rows
         totals_data = [
-            [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']), 
-             Paragraph(f"{currency_symbol}{credit_note_data['refund_amount']:.2f}", self.styles['Normal'])],
-            [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']), 
-             Paragraph(f"{currency_symbol}0.00", self.styles['Normal'])],
-            [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_refunded']['text']}</b>", self.styles['Bold']), 
-             Paragraph(f"<b>{currency_symbol}{credit_note_data['refund_amount']:.2f}</b>", self.styles['Bold'])]
+            [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']),
+             Paragraph(fmt_price(credit_note_data['refund_amount']), self.styles['Normal'])],
+            [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']),
+             Paragraph(fmt_price(0), self.styles['Normal'])],
+            [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_refunded']['text']}</b>", self.styles['Bold']),
+             Paragraph(f"<b>{fmt_price(credit_note_data['refund_amount'])}</b>", self.styles['Bold'])]
         ]
         
         # Calculate column widths for the totals table
@@ -384,7 +426,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
             refunded_to_paragraph = Paragraph(refunded_to_text, self.styles['Normal'])
             payment_table = Table([[Spacer(self.left_indent, 0), refunded_to_paragraph]], 
                                  colWidths=[self.left_indent, doc.width-self.left_indent])
-        except Exception as e:
+        except Exception:
             # Fallback to plain text if HTML parsing fails
             fallback_text = f"Refunded to: {credit_note_data['card_name']} card ending in {credit_note_data['card_last4']}"
             payment_table = Table([[Spacer(self.left_indent, 0), 

@@ -43,10 +43,10 @@ Supports both saved payment methods and new payment form
     
     let selectedCreditsAmount = $derived(tier.credits);
     let selectedPrice = $derived(() => {
-        const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd' | 'jpy';
+        const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
         const amount = tier.price[currencyKey];
-        // Convert to cents for decimal currencies, use as-is for JPY
-        return selectedCurrency.toUpperCase() === 'JPY' ? amount : amount * 100;
+        // Convert to cents (EUR and USD both use 2 decimal places)
+        return amount * 100;
     });
 
     // Payment method state

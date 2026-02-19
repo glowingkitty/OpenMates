@@ -85,8 +85,17 @@ class InvoiceTemplateService(BasePDFTemplateService):
         # Format the credits for display
         formatted_credits = format_credits(credits)
         
-        # Get the unit price for these credits
-        unit_price = self._get_price_for_credits(credits, currency)
+        # Determine the unit price to display on the PDF.
+        # For Polar orders, `actual_amount_paid` contains the exact amount charged by Polar
+        # (already converted to display units, e.g. 15.00 for $15 USD or 1800 for ¥1800 JPY).
+        # This is necessary because Polar may charge in CAD, AUD, KRW, etc. — currencies
+        # that are not in our pricing.yml. For Stripe/Revolut orders we fall back to the
+        # pricing.yml lookup.
+        actual_amount_paid = invoice_data.get('actual_amount_paid')
+        if actual_amount_paid is not None:
+            unit_price = float(actual_amount_paid)
+        else:
+            unit_price = self._get_price_for_credits(credits, currency)
         
         # Set the unit and total price in the invoice data
         invoice_data['unit_price'] = unit_price
@@ -316,20 +325,64 @@ class InvoiceTemplateService(BasePDFTemplateService):
         else:
             credits_text = sanitize_html_for_reportlab(base_credits_text)
         
-        # Get the appropriate currency symbol based on the currency
+        # Map of currency codes to their display symbols.
+        # For currencies not in this map, the ISO code is used as the symbol (e.g. "CAD ").
+        # Polar acts as Merchant of Record and may charge buyers in their local currency
+        # (CAD, AUD, KRW, SGD, etc.), so we must handle arbitrary currencies gracefully.
         currency_symbols = {
             'eur': '€',
             'usd': '$',
+            'gbp': '£',
+            'cad': 'CA$',
+            'aud': 'A$',
+            'chf': 'CHF ',
+            'sek': 'kr ',
+            'nok': 'kr ',
+            'dkk': 'kr ',
+            'nzd': 'NZ$',
+            'sgd': 'S$',
+            'hkd': 'HK$',
+            'mxn': 'MX$',
+            'brl': 'R$',
+            'inr': '₹',
+            'krw': '₩',
             'jpy': '¥',
-            # Add more currencies as needed
+            'cny': '¥',
+            'twd': 'NT$',
+            'thb': '฿',
+            'myr': 'RM ',
+            'idr': 'Rp ',
+            'php': '₱',
+            'pln': 'zł ',
+            'czk': 'Kč ',
+            'huf': 'Ft ',
+            'ron': 'lei ',
+            'bgn': 'лв ',
+            'hrk': 'kn ',
+            'try': '₺',
+            'ils': '₪',
+            'aed': 'د.إ ',
+            'sar': '﷼ ',
+            'zar': 'R ',
         }
-        currency_symbol = currency_symbols.get(currency.lower(), '€')  # Default to Euro symbol
-        
+        currency_lower = currency.lower()
+        # Fall back to the uppercased ISO code followed by a space for unknown currencies
+        # (never fall back to € which would incorrectly imply Euro)
+        currency_symbol = currency_symbols.get(currency_lower, f"{currency.upper()} ")
+
+        # Zero-decimal currencies have no fractional units (e.g. ¥1800, not ¥1800.00).
+        # For all other currencies we format to 2 decimal places.
+        ZERO_DECIMAL_CURRENCIES = {"jpy", "krw", "vnd", "clp", "gnf", "mga", "pyg", "rwf", "ugx", "xaf", "xof"}
+        price_fmt = "{:.0f}" if currency_lower in ZERO_DECIMAL_CURRENCIES else "{:.2f}"
+
+        def fmt_price(amount: float) -> str:
+            return f"{currency_symbol}{price_fmt.format(amount)}"
+
         data_row = [
             Paragraph(credits_text, self.styles['Normal']),
             Paragraph("1x", self.styles['Normal']),
-            Paragraph(f"{currency_symbol}{invoice_data['unit_price']:.2f}", self.styles['Normal']),
-            Paragraph(f"{currency_symbol}{invoice_data['total_price']:.2f}", self.styles['Normal'])
+            Paragraph(fmt_price(invoice_data['unit_price']), self.styles['Normal']),
+            Paragraph(fmt_price(invoice_data['total_price']), self.styles['Normal'])
         ]
         
         # Create table with proper indent
@@ -365,12 +418,12 @@ class InvoiceTemplateService(BasePDFTemplateService):
         
         # Create data for totals table - remove bold from first two rows
         totals_data = [
-            [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']), 
-             Paragraph(f"{currency_symbol}{invoice_data['total_price']:.2f}", self.styles['Normal'])],
-            [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']), 
-             Paragraph(f"{currency_symbol}0.00", self.styles['Normal'])],
-            [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_paid']['text']}</b>", self.styles['Bold']), 
-             Paragraph(f"<b>{currency_symbol}{invoice_data['total_price']:.2f}</b>", self.styles['Bold'])]
+            [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']),
+             Paragraph(fmt_price(invoice_data['total_price']), self.styles['Normal'])],
+            [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']),
+             Paragraph(fmt_price(0), self.styles['Normal'])],
+            [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_paid']['text']}</b>", self.styles['Bold']),
+             Paragraph(f"<b>{fmt_price(invoice_data['total_price'])}</b>", self.styles['Bold'])]
         ]
         
         # Calculate column widths for the totals table

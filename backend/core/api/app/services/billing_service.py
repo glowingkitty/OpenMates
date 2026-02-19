@@ -595,11 +595,9 @@ class BillingService:
                 if tier.get('credits') == credits_amount:
                     price = tier.get('price', {}).get(currency)
                     if price is not None:
-                        # Convert to cents (Stripe expects smallest currency unit)
-                        if currency.lower() == 'jpy':
-                            amount_cents = int(price)  # JPY has no decimal
-                        else:
-                            amount_cents = int(price * 100)  # EUR/USD use cents
+                        # Convert to cents (Stripe expects smallest currency unit).
+                        # EUR and USD are the only currencies used with Stripe.
+                        amount_cents = int(price * 100)
 
                         return {
                             'amount': amount_cents,

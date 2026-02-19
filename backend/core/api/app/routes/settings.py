@@ -655,8 +655,8 @@ async def update_low_balance_auto_topup(
     if request_data.amount < 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
-    if request_data.currency.lower() not in ['eur', 'usd', 'jpy']:
-        raise HTTPException(status_code=400, detail="Invalid currency. Must be EUR, USD, or JPY")
+    if request_data.currency.lower() not in ['eur', 'usd']:
+        raise HTTPException(status_code=400, detail="Invalid currency. Must be EUR or USD")
 
     if request_data.enabled and not request_data.email:
         raise HTTPException(status_code=400, detail="Email is required to enable low balance auto top-up")
