@@ -9,6 +9,7 @@
     import { getLocaleFromNavigator } from 'svelte-i18n';
     import { get } from 'svelte/store';
     import { tooltip } from '../../actions/tooltip';
+    import { getApiUrl } from '../../config/api';
 
     const dispatch = createEventDispatcher();
 
@@ -542,16 +543,18 @@
 
         try {
             const currentLocale = getCurrentLocale();
-            const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?` +
-                `format=json` +
-                `&lat=${lat}` +
+            // Route through the backend proxy instead of calling Nominatim directly.
+            // Direct browser→Nominatim calls are unreliable because:
+            //   1. Nominatim's CORS headers are inconsistent (sometimes missing entirely)
+            //   2. TLS 1.3 0-RTT ("Too Early" / HTTP 425) on the first request after page load
+            // The backend proxy handles retries with exponential back-off in one place.
+            const url = `${getApiUrl()}/v1/geocode/reverse?` +
+                `lat=${lat}` +
                 `&lon=${lon}` +
                 `&zoom=18` +
                 `&addressdetails=1` +
-                `&accept-language=${currentLocale}`,
-                { signal }
-            );
+                `&accept-language=${currentLocale}`;
+            const response = await fetch(url, { signal });
 
             if (!response.ok) return;
             const data = await response.json();
@@ -592,47 +595,7 @@
                 // Request was cancelled because map moved — normal behaviour
                 return;
             }
-            // The first Nominatim request after page load often gets a 425 (Too Early) from
-            // TLS 1.3 0-RTT rejection — the server refuses early-data on the initial handshake.
-            // Retry once after 1.5 s by which time the TLS session is fully established.
-            logger.debug('Reverse geocode failed (likely TLS 0-RTT on first load), retrying in 1.5s:', error);
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            // Only retry if the map hasn't moved again (controller would have been replaced)
-            if (reverseGeocodeController?.signal === signal) {
-                try {
-                    const currentLocale = getCurrentLocale();
-                    const retryResponse = await fetch(
-                        `https://nominatim.openstreetmap.org/reverse?` +
-                        `format=json` +
-                        `&lat=${lat}` +
-                        `&lon=${lon}` +
-                        `&zoom=18` +
-                        `&addressdetails=1` +
-                        `&accept-language=${currentLocale}`,
-                        { signal }
-                    );
-                    if (!retryResponse.ok) return;
-                    const retryData = await retryResponse.json();
-                    const addr = retryData.address || {};
-                    const parts: string[] = [];
-                    const road = addr.road || addr.pedestrian || addr.footway || addr.path || '';
-                    const houseNumber = addr.house_number || '';
-                    if (road && houseNumber) { parts.push(`${road} ${houseNumber}`); }
-                    else if (road) { parts.push(road); }
-                    const postcode = addr.postcode || '';
-                    const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
-                    if (postcode && city) { parts.push(`${postcode} ${city}`); }
-                    else if (city) { parts.push(city); }
-                    const country = addr.country || '';
-                    if (country) { parts.push(country); }
-                    resolvedAddress = parts.join(', ') || retryData.display_name || '';
-                    logger.debug('Reverse geocoded address (retry):', resolvedAddress);
-                } catch (retryError: unknown) {
-                    if ((retryError as { name?: string }).name !== 'AbortError') {
-                        logger.debug('Reverse geocode retry also failed (non-fatal):', retryError);
-                    }
-                }
-            }
+            logger.debug('Reverse geocode failed (non-fatal):', error);
         }
     }
 
@@ -650,20 +613,16 @@
             // Get current locale
             const locale = getCurrentLocale();
 
+            // Route through the backend proxy — same CORS/425 reliability reasons as
+            // reverseGeocode().  The backend handles User-Agent and retries.
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/search?` +
-                `format=json` +
-                `&q=${encodeURIComponent(query)}` +
+                `${getApiUrl()}/v1/geocode/search?` +
+                `q=${encodeURIComponent(query)}` +
                 `&limit=5` +
                 `&addressdetails=1` +
                 `&extratags=1` +
                 `&namedetails=1` +
                 `&accept-language=${locale}`
-                // NOTE: Do NOT include a custom User-Agent header here.
-                // Custom headers like User-Agent trigger a CORS preflight request, and
-                // Nominatim does not return Access-Control-Allow-Headers for User-Agent,
-                // which causes the preflight to fail and blocks the request entirely.
-                // Nominatim's CORS policy allows simple requests (no custom headers) fine.
             );
             const results = await response.json();
 

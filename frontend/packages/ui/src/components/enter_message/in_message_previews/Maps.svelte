@@ -2,8 +2,9 @@
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     import { onMount } from 'svelte';
     import 'leaflet/dist/leaflet.css';
-    import { _, getLocaleFromNavigator, locale } from 'svelte-i18n';
+    import { getLocaleFromNavigator, locale } from 'svelte-i18n';
     import { get } from 'svelte/store';
+    import { getApiUrl } from '../../../config/api';
 
     // Props using Svelte 5 runes
     let { 
@@ -107,17 +108,13 @@
 
         try {
             const locale = getCurrentLocale();
-            
+            // Route through the backend proxy instead of calling Nominatim directly.
+            // Direct browser→Nominatim calls are unreliable due to inconsistent CORS headers
+            // and TLS 1.3 0-RTT (HTTP 425) on first load.  The backend handles retries.
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?` +
+                `${getApiUrl()}/v1/geocode/reverse?` +
                 `lat=${lat}&lon=${lon}` +
-                `&format=json` +
-                `&accept-language=${locale}`,
-                {
-                    headers: {
-                        'User-Agent': 'OpenMates/1.0'
-                    }
-                }
+                `&accept-language=${locale}`
             );
             
             if (!response.ok) {
