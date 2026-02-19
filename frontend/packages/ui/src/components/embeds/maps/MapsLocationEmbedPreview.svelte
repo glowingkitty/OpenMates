@@ -26,12 +26,10 @@
   interface Props {
     /** Unique embed ID */
     id: string;
-    /** Latitude of the location */
-    lat?: number;
-    /** Longitude of the location */
-    lon?: number;
-    /** Display name for the location */
+    /** Display name for the location (e.g. "Current location" or search result name) */
     name?: string;
+    /** Human-readable street address from Nominatim reverse geocode or search result */
+    address?: string;
     /** URL of the static map image stored in S3 */
     mapImageUrl?: string;
     /** Processing status */
@@ -46,9 +44,8 @@
 
   let {
     id,
-    lat: latProp,
-    lon: lonProp,
     name: nameProp,
+    address: addressProp,
     mapImageUrl: mapImageUrlProp,
     status: statusProp,
     taskId: taskIdProp,
@@ -56,10 +53,11 @@
     onFullscreen
   }: Props = $props();
 
-  // Local reactive state — updated by embed data events via onEmbedDataUpdated
-  let localLat = $state<number | undefined>(undefined);
-  let localLon = $state<number | undefined>(undefined);
+  // Local reactive state — updated by embed data events via onEmbedDataUpdated.
+  // lat/lon are not displayed directly (address string is shown instead) but are
+  // kept in EmbedStore for the backend and fullscreen deeplink use.
   let localName = $state<string>('');
+  let localAddress = $state<string>('');
   let localMapImageUrl = $state<string | undefined>(undefined);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
@@ -67,18 +65,16 @@
 
   // Sync local state from props on initial mount / prop changes
   $effect(() => {
-    localLat = latProp;
-    localLon = lonProp;
     localName = nameProp ?? '';
+    localAddress = addressProp ?? '';
     localMapImageUrl = mapImageUrlProp;
     localStatus = statusProp ?? 'processing';
     localTaskId = taskIdProp;
   });
 
   // Expose as derived read-only aliases for clarity
-  let lat = $derived(localLat);
-  let lon = $derived(localLon);
   let name = $derived(localName);
+  let address = $derived(localAddress);
   let mapImageUrl = $derived(localMapImageUrl);
   let status = $derived(localStatus);
   let taskId = $derived(localTaskId);
@@ -96,9 +92,8 @@
 
     const content = data.decodedContent;
     if (content) {
-      if (content.lat !== undefined) localLat = content.lat as number;
-      if (content.lon !== undefined) localLon = content.lon as number;
       if (content.name !== undefined) localName = (content.name as string) || '';
+      if (content.address !== undefined) localAddress = (content.address as string) || '';
       if (content.map_image_url) {
         localMapImageUrl = content.map_image_url as string;
         imageError = false; // Reset error state on new image
@@ -115,12 +110,9 @@
   // Whether we have a map image to display full-width
   let hasImage = $derived(!!mapImageUrl && !imageError && status !== 'error');
 
-  // Formatted coordinates for display when no image is available
-  let coordsText = $derived(
-    lat !== undefined && lon !== undefined
-      ? `${lat.toFixed(6)}, ${lon.toFixed(6)}`
-      : ''
-  );
+  // Secondary line shown below the name when no map image is available.
+  // Prefer the human-readable address over raw coordinates.
+  let secondaryText = $derived(address || '');
 </script>
 
 <UnifiedEmbedPreview
@@ -161,8 +153,8 @@
         {:else}
           <div class="location-name">{$text('embeds.maps_location')}</div>
         {/if}
-        {#if coordsText}
-          <div class="location-coords">{coordsText}</div>
+        {#if secondaryText}
+          <div class="location-coords">{secondaryText}</div>
         {/if}
         {#if status === 'processing'}
           <div class="location-loading">{$text('embeds.maps_location.loading_map')}</div>

@@ -163,8 +163,35 @@ function generateDraftPreview(
       },
     );
 
-    // Replace regular code blocks with a placeholder showing the code content
-    // This handles ```python\ncode\n``` style blocks
+    // Replace ```json\n{...}\n``` embed reference blocks with human-readable placeholders.
+    // These blocks are produced by serializers.ts for all embed types stored in EmbedStore:
+    //   {"type": "location", "embed_id": "..."}  → [Location]
+    //   {"type": "video",    "embed_id": "..."}  → [Video]
+    //   {"type": "website",  "embed_id": "..."}  → [Website]
+    //   {"type": "image",    "embed_id": "..."}  → [Image]
+    // Without this handler they fall through to the generic code-block handler below
+    // and show as "[Code: {]" which is meaningless to the user.
+    displayText = displayText.replace(
+      /```json\n([\s\S]*?)\n```/g,
+      (match, jsonContent) => {
+        try {
+          const parsed = JSON.parse(jsonContent.trim());
+          const type = parsed?.type;
+          if (type === "location") return " [Location] ";
+          if (type === "video") return " [Video] ";
+          if (type === "website") return " [Website] ";
+          if (type === "image") return " [Image] ";
+          if (type === "code") return " [Code] ";
+          if (type) return ` [${type}] `;
+        } catch {
+          // Not valid JSON — fall through to the generic code-block handler below
+        }
+        return match;
+      },
+    );
+
+    // Replace remaining code blocks with a placeholder showing the code content.
+    // This handles ```python\ncode\n``` style blocks.
     displayText = displayText.replace(
       /```(\w*)\n([\s\S]*?)\n```/g,
       (match, language, codeContent) => {
@@ -1093,7 +1120,7 @@ export const saveDraftDebounced = debounce(
     } finally {
       // CRITICAL: Ensure save lock is always released, even if an unexpected error occurs
       draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
-      
+
       // If another save was requested while this one was in progress, schedule
       // a follow-up save with a short delay to capture the latest editor content.
       // This prevents content loss when the user types during a slow save (encryption).

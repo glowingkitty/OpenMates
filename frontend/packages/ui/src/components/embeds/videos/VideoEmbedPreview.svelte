@@ -204,13 +204,14 @@
     return '';
   });
   
-  // Proxied thumbnail URL through preview server for privacy
-  // This prevents users' browsers from making direct requests to YouTube/Google CDN
-  let thumbnailUrl = $derived.by(() => {
-    if (!rawThumbnailUrl) return '';
-    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
-  });
-  
+  // Thumbnail URL: try the privacy-proxy first, fall back to direct CDN if it fails.
+  // The proxy (preview.openmates.org) may be unavailable for unauthenticated users or
+  // during development; the direct YouTube CDN URL is always the reliable fallback.
+  // onerror below implements the two-step retry so the image always renders.
+  let thumbnailUrl = $derived(rawThumbnailUrl
+    ? `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`
+    : '');
+
   // Proxied channel thumbnail URL through preview server for privacy
   // Channel thumbnails are small circular profile pictures
   // Display size: 29x29px, request 2x for retina (58px)
@@ -363,13 +364,18 @@
               alt={displayTitle}
               class="video-thumbnail"
               loading="lazy"
-              crossorigin="anonymous"
               onerror={(e) => {
-                // Primary thumbnail is hqdefault (universally available for all videos).
-                // If the proxied request still fails (proxy down, network error, etc.)
-                // just hide the image — no further fallback attempts needed.
+                // Two-step fallback: proxy → direct CDN → hide.
+                // Step 1: if the proxied URL failed, retry with the direct CDN URL.
+                // Step 2: if the direct CDN URL also fails, hide the image.
                 const img = e.target as HTMLImageElement;
-                img.style.display = 'none';
+                if (rawThumbnailUrl && img.src !== rawThumbnailUrl) {
+                  // Proxy failed — retry directly from the YouTube CDN
+                  img.src = rawThumbnailUrl;
+                } else {
+                  // Direct CDN also failed — hide image, show fallback below
+                  img.style.display = 'none';
+                }
               }}
             />
           </div>

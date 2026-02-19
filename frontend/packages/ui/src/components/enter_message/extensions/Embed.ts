@@ -389,6 +389,16 @@ export const Embed = Node.create<EmbedOptions>({
           return { "data-zoom": String(attributes.zoom) };
         },
       },
+      // address: resolved human-readable street address for the embed card secondary line.
+      // Stored as a data-* attribute so it survives TipTap DOM round-trips.
+      address: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-address") ?? null,
+        renderHTML: (attributes) => {
+          if (!attributes.address) return {};
+          return { "data-address": attributes.address };
+        },
+      },
       // Focus mode metadata
       focus_id: {
         default: null,

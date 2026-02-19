@@ -53,10 +53,12 @@ export class MapLocationRenderer implements EmbedRenderer {
         preciseLat?: number | null;
         preciseLon?: number | null;
         name?: string;
+        address?: string;
       };
       const lat = extAttrs.preciseLat ?? null;
       const lon = extAttrs.preciseLon ?? null;
       const name = extAttrs.name ?? "";
+      const address = extAttrs.address ?? "";
       const status =
         (attrs.status as "processing" | "finished" | "error") || "finished";
 
@@ -99,9 +101,8 @@ export class MapLocationRenderer implements EmbedRenderer {
         target: content,
         props: {
           id: attrs.id ?? "",
-          lat: lat !== null ? lat : undefined,
-          lon: lon !== null ? lon : undefined,
           name,
+          address,
           status,
           isMobile: false,
           onFullscreen: handleFullscreen,

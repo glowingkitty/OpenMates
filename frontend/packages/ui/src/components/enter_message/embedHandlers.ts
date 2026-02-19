@@ -538,6 +538,9 @@ export async function insertMap(
       preciseLon: attrs.preciseLon,
       zoom: attrs.zoom ?? 16,
       name: attrs.name ?? "",
+      // Human-readable street address from Nominatim reverse geocode or search result.
+      // Stored as a data-* attr (registered in Embed.ts) so it survives DOM round-trips.
+      address: attrs.address ?? "",
     },
   };
 
