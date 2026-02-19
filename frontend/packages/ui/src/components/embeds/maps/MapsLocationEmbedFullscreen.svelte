@@ -21,6 +21,7 @@
   import { onMount, onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
+  import { notificationStore } from '../../../stores/notificationStore';
 
   /**
    * Props for maps location embed fullscreen
@@ -128,15 +129,17 @@
 
   /**
    * Copy the OpenStreetMap URL for this location to the clipboard.
-   * This is the copy action wired to the top-bar copy button.
+   * Shows a success/error notification so the user gets feedback.
    */
   async function handleCopyOsmUrl() {
     if (!osmUrl) return;
     try {
       await navigator.clipboard.writeText(osmUrl);
       console.debug('[MapsLocationEmbedFullscreen] Copied OSM URL:', osmUrl);
+      notificationStore.success($text('embeds.copied_to_clipboard'), 3000);
     } catch (err) {
       console.error('[MapsLocationEmbedFullscreen] Failed to copy OSM URL:', err);
+      notificationStore.error($text('embeds.copy_failed'), 4000);
     }
   }
 
@@ -363,9 +366,11 @@
   }
 
   /* Push Leaflet zoom buttons below the UnifiedEmbedFullscreen top-bar.
-     Top-bar sits at top:16px with ~51px tall buttons → start zoom below ~80px. */
+     Top-bar: 16px from top + 51px button height + 11px wrapper padding = ~78px.
+     Use 100px to ensure clear separation on all screen sizes. */
   :global(.leaflet-map-container .leaflet-top.leaflet-right .leaflet-control-zoom) {
-    margin-top: 80px !important;
+    margin-top: 100px !important;
+    margin-right: 8px !important;
   }
 
   /* ===========================================

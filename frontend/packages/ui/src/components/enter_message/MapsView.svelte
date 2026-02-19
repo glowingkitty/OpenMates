@@ -1582,11 +1582,13 @@
         position: absolute;
         top: 0;
         left: 0;
-        width: 50%;
-        height: calc(100% - 80px);
+        /* Full width and height above the bottom bar — map is not visible behind results */
+        width: 100%;
+        height: calc(100% - 53px);
         background: var(--color-grey-0);
+        /* z-index above map (1) and matching bottom-bar (2) */
         z-index: 2;
-        border-right: 1px solid var(--color-grey-20);
+        border-right: none;
     }
 
     .search-results-header {
