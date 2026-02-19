@@ -2694,25 +2694,29 @@
             <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} on:videorecorded={handleVideoRecorded} />
         {/if}
 
-        <!-- Action Buttons Component -->
+        <!-- Action Buttons Component: fades in when input is focused, fades out when unfocused.
+             The wrapper div has zero height and no layout impact; ActionButtons is absolutely
+             positioned inside the parent .message-field, so the wrapper is transparent to layout. -->
         {#if shouldShowActionButtons}
-            <ActionButtons
-                showSendButton={hasContent}
-                isRecordButtonPressed={$recordingState.isRecordButtonPressed}
-                showRecordHint={$recordingState.showRecordHint}
-                micPermissionGranted={$recordingState.micPermissionGranted}
-                isAuthenticated={$authStore.isAuthenticated}
-                on:fileSelect={handleFileSelect}
-                on:locationClick={handleLocationClick}
-                on:cameraClick={handleCameraClick}
-                on:sendMessage={handleSendMessage}
-                on:signUpClick={handleSignUpClick}
-                on:recordMouseDown={onRecordMouseDown}
-                on:recordMouseUp={onRecordMouseUp}
-                on:recordMouseLeave={onRecordMouseLeave}
-                on:recordTouchStart={onRecordTouchStart}
-                on:recordTouchEnd={onRecordTouchEnd}
-            />
+            <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
+                <ActionButtons
+                    showSendButton={hasContent}
+                    isRecordButtonPressed={$recordingState.isRecordButtonPressed}
+                    showRecordHint={$recordingState.showRecordHint}
+                    micPermissionGranted={$recordingState.micPermissionGranted}
+                    isAuthenticated={$authStore.isAuthenticated}
+                    on:fileSelect={handleFileSelect}
+                    on:locationClick={handleLocationClick}
+                    on:cameraClick={handleCameraClick}
+                    on:sendMessage={handleSendMessage}
+                    on:signUpClick={handleSignUpClick}
+                    on:recordMouseDown={onRecordMouseDown}
+                    on:recordMouseUp={onRecordMouseUp}
+                    on:recordMouseLeave={onRecordMouseLeave}
+                    on:recordTouchStart={onRecordTouchStart}
+                    on:recordTouchEnd={onRecordTouchEnd}
+                />
+            </div>
         {/if}
 
         <!-- Queued Message Indicator - shown when a message is queued due to active AI task -->

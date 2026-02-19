@@ -238,6 +238,8 @@
   left: 0;
   right: 0;
   top: 0.5rem;
+  /* Smooth fade out when editor gains focus */
+  transition: opacity 0.25s ease-in-out;
 }
 
 :global(
@@ -249,12 +251,8 @@
   width: auto;
   padding-left: 0;
   top: 0;
-}
-
-:global(
-  .ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before
-) {
-  display: none; /* Hide placeholder when focused and empty */
+  /* Fade out the placeholder as field becomes active */
+  opacity: 0;
 }
 
 /* Fullscreen / expand button — top-right corner of the message field.
@@ -533,6 +531,16 @@
   100% {
     opacity: 0;
   }
+}
+
+/* Wrapper for ActionButtons fade transition.
+   Zero-height, non-clipping container so the absolutely-positioned ActionButtons
+   still positions relative to .message-field while we can apply opacity transitions. */
+.action-buttons-fade-wrapper {
+  position: static;
+  height: 0;
+  overflow: visible;
+  width: 100%;
 }
 
 /* Stop Processing Button - positioned in bottom right of message field */
