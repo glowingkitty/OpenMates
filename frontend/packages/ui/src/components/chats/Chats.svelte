@@ -30,6 +30,13 @@
 	import { isSelfHosted } from '../../stores/serverStatusStore'; // For self-hosted detection (initialized once at app load)
 	// NOTE: Demo chats are now decrypted server-side, so decryptShareKeyBlob is no longer needed here
 
+	// --- Search imports ---
+	import SearchBar from './search/SearchBar.svelte';
+	import SearchResults from './search/SearchResults.svelte';
+	import { search as performSearch, warmUpSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
+	import { searchStore, openSearch, closeSearch, setSearchQuery, setSearching } from '../../stores/searchStore';
+	import { navigateToSettings } from '../../stores/settingsNavigationStore';
+
 	const dispatch = createEventDispatcher();
 
 // --- Debounce timer for updateChatListFromDB calls ---
@@ -79,6 +86,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	
 	// Scroll state for ensuring scroll can reach 0 when hidden chats are unlocked
 	let activityHistoryElement: HTMLDivElement | null = $state(null); // Reference to scrollable container
+	
+	// --- Search State ---
+	// Reactive subscription to search store for template rendering
+	let searchState = $derived($searchStore);
+	// Search results from the last completed search
+	let searchResults: SearchResultsType | null = $state(null);
 	
 	// Self-hosted mode state is now managed by serverStatusStore
 	// isSelfHosted is imported from the store (initialized once at app load to prevent UI flashing)
@@ -710,6 +723,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		
 		// Phase 2 ensures at least 20 chats are available — tier 'initial' already shows 20
 		// No state change needed here; loadTier 'initial' already shows first 20
+
+		// Warm up search index for the first batch of chats (background, non-blocking)
+		const chatIds = allChatsFromDB.map(c => c.chat_id);
+		if (chatIds.length > 0) {
+			warmUpSearchIndex(chatIds).catch(err =>
+				console.error('[Chats] Search index warm-up error (phase 2):', err),
+			);
+		}
 	};
 
 	/**
@@ -741,6 +762,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		setTimeout(() => {
 			syncComplete = false;
 		}, 1000);
+
+		// Warm up search index for all available chats (background, non-blocking)
+		const allChatIds = allChatsFromDB.map(c => c.chat_id);
+		if (allChatIds.length > 0) {
+			warmUpSearchIndex(allChatIds).catch(err =>
+				console.error('[Chats] Search index warm-up error (phase 3):', err),
+			);
+		}
 	};
 
 	/**
@@ -1655,6 +1684,75 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	function handlePreviousChatShortcut() {
 		console.debug('[Chats] handlePreviousChatShortcut called');
 		navigateToPreviousChat();
+	}
+
+	// --- Search Handlers ---
+
+	/**
+	 * Handle search query changes from the SearchBar (debounced).
+	 * Performs the search across all chats, messages, and settings.
+	 * @param query - The debounced search query string
+	 */
+	async function handleSearchQuery(query: string): Promise<void> {
+		setSearchQuery(query);
+
+		if (!query || query.trim().length === 0) {
+			searchResults = null;
+			setSearching(false);
+			return;
+		}
+
+		setSearching(true);
+		try {
+			// Include hidden chats in search if they are currently unlocked
+			const unlocked = hiddenChatState.isUnlocked ? hiddenChats : [];
+			const results = await performSearch(query, allChats, $text, unlocked);
+			searchResults = results;
+		} catch (error) {
+			console.error('[Chats] Search error:', error);
+			searchResults = null;
+		} finally {
+			setSearching(false);
+		}
+	}
+
+	/**
+	 * Handle search close — clears query and hides search results.
+	 */
+	function handleSearchClose(): void {
+		closeSearch();
+		searchResults = null;
+	}
+
+	/**
+	 * Handle clicking a chat result from search.
+	 * @param chat - The matched chat
+	 * @param _messageId - Optional message ID to scroll to (reserved for future scroll-to-message support)
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	function handleSearchChatClick(chat: ChatType, _messageId?: string): void {
+		// Close search first
+		handleSearchClose();
+		// Navigate to the chat
+		handleChatClick(chat);
+		// TODO: If _messageId is provided, dispatch scroll-to-message event
+		// (scroll-to-message support will be added in a future iteration)
+	}
+
+	/**
+	 * Handle clicking a settings result from search.
+	 * Opens the settings panel and navigates to the matching sub-page.
+	 */
+	function handleSearchSettingsClick(
+		path: string,
+		title: string,
+		icon?: string,
+		translationKey?: string,
+	): void {
+		// Close search first
+		handleSearchClose();
+		// Open settings and navigate to the sub-page
+		navigateToSettings(path, title, icon, translationKey);
 	}
 
  /** Closes the chats panel. */
@@ -2596,50 +2694,65 @@ async function updateChatListFromDBInternal(force = false) {
 <div class="activity-history-wrapper">
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
-			<div class="top-buttons">
-				{#if selectMode}
-					<!-- Select mode controls -->
-					<button
-						class="select-mode-button"
-						onclick={() => {
-							// Select all visible chats
-							const allVisibleChatIds = new Set(chatsForDisplay.map(c => c.chat_id));
-							selectedChatIds = new Set(allVisibleChatIds);
-							console.debug('[Chats] Selected all chats:', selectedChatIds.size);
-						}}
-					>
-						{$text('chats.select_all')}
-					</button>
-					<button
-						class="select-mode-button"
-						onclick={() => {
-							selectedChatIds = new Set(); // Create new Set to trigger reactivity
-							lastSelectedChatId = null; // Clear last selected to reset range selection
-							console.debug('[Chats] Unselected all chats');
-						}}
-					>
-						{$text('chats.unselect_all')}
-					</button>
-					<button
-						class="select-mode-button cancel"
-						onclick={() => {
-							selectMode = false;
-							selectedChatIds = new Set(); // Create new Set to trigger reactivity and clear selection
-							lastSelectedChatId = null; // Clear last selected to reset range selection
-							console.debug('[Chats] Exited select mode and cleared selection');
-						}}
-					>
-						{$text('chats.cancel')}
-					</button>
-				{:else}
-					<button
-						class="clickable-icon icon_close top-button right"
-						aria-label={$text('activity.close')}
-						onclick={handleClose}
-						use:tooltip
-					></button>
-				{/if}
-			</div>
+			{#if searchState.isActive}
+				<!-- Search bar replaces top buttons when active -->
+				<SearchBar
+					onSearch={handleSearchQuery}
+					onClose={handleSearchClose}
+				/>
+			{:else}
+				<div class="top-buttons">
+					{#if selectMode}
+						<!-- Select mode controls -->
+						<button
+							class="select-mode-button"
+							onclick={() => {
+								// Select all visible chats
+								const allVisibleChatIds = new Set(chatsForDisplay.map(c => c.chat_id));
+								selectedChatIds = new Set(allVisibleChatIds);
+								console.debug('[Chats] Selected all chats:', selectedChatIds.size);
+							}}
+						>
+							{$text('chats.select_all')}
+						</button>
+						<button
+							class="select-mode-button"
+							onclick={() => {
+								selectedChatIds = new Set(); // Create new Set to trigger reactivity
+								lastSelectedChatId = null; // Clear last selected to reset range selection
+								console.debug('[Chats] Unselected all chats');
+							}}
+						>
+							{$text('chats.unselect_all')}
+						</button>
+						<button
+							class="select-mode-button cancel"
+							onclick={() => {
+								selectMode = false;
+								selectedChatIds = new Set(); // Create new Set to trigger reactivity and clear selection
+								lastSelectedChatId = null; // Clear last selected to reset range selection
+								console.debug('[Chats] Exited select mode and cleared selection');
+							}}
+						>
+							{$text('chats.cancel')}
+						</button>
+					{:else}
+						<!-- Search button + close button -->
+						<button
+							class="clickable-icon icon_search top-button"
+							aria-label="Search"
+							onclick={() => openSearch()}
+							use:tooltip
+						></button>
+						<button
+							class="clickable-icon icon_close top-button right"
+							aria-label={$text('activity.close')}
+							onclick={handleClose}
+							use:tooltip
+						></button>
+					{/if}
+				</div>
+			{/if}
 		</div>
 		
 		<!-- Scrollable content area -->
@@ -2651,6 +2764,24 @@ async function updateChatListFromDBInternal(force = false) {
 			ontouchstart={handleTouchStart}
 			ontouchmove={handleTouchMove}
 		>
+			<!-- Search results overlay — replaces normal chat list when search is active -->
+			{#if searchState.isActive && searchState.query.trim().length > 0 && searchResults}
+				<SearchResults
+					results={searchResults}
+					query={searchState.query}
+					activeChatId={selectedChatId}
+					onChatClick={handleSearchChatClick}
+					onSettingsClick={handleSearchSettingsClick}
+				/>
+			{:else if searchState.isActive && searchState.query.trim().length > 0 && searchState.isSearching}
+				<!-- Searching indicator while waiting for results -->
+				<div class="search-loading-indicator">
+					<span class="clickable-icon icon_reload syncing-icon"></span>
+				</div>
+			{/if}
+
+			<!-- Normal chat list (hidden when search is active with a query) -->
+			{#if !searchState.isActive || searchState.query.trim().length === 0}
 			<!-- Sync status indicator - shows during sync regardless of hidden chat state -->
 		{#if syncing}
 			<div class="show-hidden-chats-container">
@@ -2975,6 +3106,7 @@ async function updateChatListFromDBInternal(force = false) {
 				{/each}
 			</div>
 		{/if}
+		{/if}<!-- end search conditional -->
 
 		<KeyboardShortcuts
 			on:nextChat={handleNextChatShortcut}
@@ -3421,6 +3553,20 @@ async function updateChatListFromDBInternal(force = false) {
     .overscroll-unlock-close:hover {
         transform: scale(1.1) rotate(90deg);
         opacity: 0.8;
+    }
+
+    /* Search loading indicator (shown while search is in progress) */
+    .search-loading-indicator {
+        display: flex;
+        justify-content: center;
+        padding: 40px 20px;
+    }
+
+    .search-loading-indicator .syncing-icon {
+        animation: spin 1s linear infinite;
+        width: 20px;
+        height: 20px;
+        opacity: 0.5;
     }
 </style>
 
