@@ -9,6 +9,7 @@ import {
   createCodeEmbed,
   detectLanguageFromContent,
 } from "./services/codeEmbedService";
+import { encode as toonEncode } from "@toon-format/toon";
 
 /**
  * Ensure the editor has an empty paragraph at the very beginning so that when
@@ -645,9 +646,41 @@ export async function insertMap(
     place_type: attrs.placeType ?? "",
   };
 
+  // TOON-encode the location content for efficient, consistent storage.
+  // This must be a string so that embedStore.put() stores it in `data.content`
+  // (the format expected by downstream code: chatSyncServiceSenders.ts
+  // validates loadedEmbeds via e.embed_id, and embedStore.get() returns
+  // parsed.content as a TOON string to embedResolver).
+  let toonContentString: string;
+  try {
+    toonContentString = toonEncode(toonContent);
+  } catch (encodeErr) {
+    console.warn(
+      "[EmbedHandlers] TOON encoding failed for map embed, falling back to JSON:",
+      encodeErr,
+    );
+    toonContentString = JSON.stringify(toonContent);
+  }
+
+  // Build the full embed data object matching the format used by all other
+  // client-side embeds (code, url, video). This ensures:
+  //   - embed_id is present so chatSyncServiceSenders can validate the embed
+  //   - content is a string so embedStore.get() returns it correctly
+  //   - type / status match what the send pipeline and renderers expect
+  const now = Date.now();
+  const embedData = {
+    embed_id: embedId,
+    type: "maps" as const,
+    status: "finished",
+    content: toonContentString,
+    text_preview: (attrs.name as string) || (attrs.address as string) || "",
+    createdAt: now,
+    updatedAt: now,
+  };
+
   // Store in EmbedStore so it flows through the encrypted pipeline on send
   try {
-    await embedStore.put(contentRef, toonContent, "maps");
+    await embedStore.put(contentRef, embedData, "maps");
     console.debug(
       "[EmbedHandlers] Stored map location embed in EmbedStore:",
       embedId,
