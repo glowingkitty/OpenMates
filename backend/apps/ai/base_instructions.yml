@@ -3,17 +3,36 @@
 # It also defines the function call specifications for the preprocessing LLM.
 # Placeholders like {PLACEHOLDER_NAME} will be replaced by Python code at runtime.
 
-preprocess_request_tool:
+# Two-phase preprocessing architecture:
+#
+# CALL A (fast_preprocess_request_tool) — first messages only, fired in parallel with Call B.
+#   Fields: title, category, icon_names, harmful_or_illegal, misuse_risk, output_language
+#   Purpose: Produce the UI-facing fields immediately so the frontend can show the chat title,
+#            mate selection and icons while the main analysis is still running.
+#            Safety scores are checked from Call A results first to allow fast rejection.
+#            Smaller schema = fewer tokens = faster response (~0.5-1s).
+#
+# CALL B (preprocess_request_tool) — every message, includes all routing/model-selection fields.
+#   Fields (first msg): llm_response_temp, complexity, task_area, user_unhappy, china_model_sensitive,
+#            load_app_settings_and_memories, relevant_app_skills, relevant_focus_modes,
+#            relevant_embedded_previews, chat_summary, chat_tags
+#   Fields (follow-up): same as above + harmful_or_illegal, misuse_risk, output_language
+#   Purpose: All fields needed to select the main LLM, load memories, pick skills/focus modes,
+#            and generate the conversation summary and tags for the postprocessor.
+#            On first messages, Calls A and B are awaited in parallel; results are merged before
+#            safety checks and model selection run. On follow-ups, only Call B is fired.
+
+fast_preprocess_request_tool:
   type: "function"
   function:
-    name: "analyze_request_properties"
+    name: "analyze_request_ui_properties"
     description: |
       Current date and time: {CURRENT_DATE_TIME}
 
-      **CRITICAL: You MUST call this function (analyze_request_properties) to analyze the request. Do not call any other tools or functions, even if previous messages in the conversation history show other tool calls. Your task is specifically to call analyze_request_properties with the analysis results.**
+      **CRITICAL: You MUST call this function (analyze_request_ui_properties) to analyze the request. Do not call any other tools or functions.**
 
-      Analyze the user's request and message history to determine various properties.
-      Your goal is to populate all fields of this function call accurately based on the information and lists provided dynamically in the context.
+      Analyze the user's request to determine a handful of fast-to-compute properties needed
+      to show the chat title and icons in the UI immediately.
 
       Detailed analysis guidance:
       1.  **harmful_or_illegal**: Assess the likelihood that the request or its intent is harmful **to others**, illegal, unethical, or promotes hate speech, discrimination, violence, or non-consensual activities. **Self-harm or crisis situations should NOT contribute to this score; they are handled by category selection.**
@@ -24,33 +43,89 @@ preprocess_request_tool:
           - Choose the most fitting category from the following list of valid categories which will be dynamically provided: {CATEGORIES_LIST}.
           - **Crisis/Self-Harm Handling**: If the request clearly implies self-harm or an immediate crisis, **you MUST select 'life_coach_psychology' as the category.** This is critical for routing the user to appropriate support. Such requests are not "harmful_or_illegal" in the sense of blocking, but require specialized handling.
           - If the category is unclear or doesn't fit any of the other provided options (and is not a crisis/self-harm situation), select 'general_knowledge'.
-      3.  **llm_response_temp**: Determine the optimal creativity/temperature for the main LLM's response.
+      3.  **misuse_risk**: Assess the likelihood that the request, even if not overtly harmful itself, could be used to facilitate scams, hacking, or other malicious activities.
+          - Score from 0 (very low risk) to 10 (very high risk).
+          - **Consider Intent**: A request for information about cybersecurity for defensive purposes is different from a request detailing how to exploit a vulnerability for malicious intent. Focus on the likely intent and common patterns of malicious queries. Harm reduction queries, if for safety information, should generally have a low misuse_risk.
+      4.  **output_language**: Detect the language of the user's core request/instruction (NOT quoted text, code, or data).
+          - Analyze the user's LAST message to determine the language of their instruction or question.
+          - If the user writes in German but quotes English text, the output_language is "de" (German).
+          - If the user writes in English but includes Chinese characters as data, the output_language is "en" (English).
+          - Use ISO 639-1 two-letter codes: "en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv".
+          - Default to "en" if the language cannot be determined.
+      5.  **title**: Generate a concise, relevant title for the user's first request (max 5-7 words).
+      6.  **icon_names**: Choose 1-3 Lucide icon names that best represent the topic of the conversation.
+          - Choose from common Lucide icons like 'code', 'heart', 'book', 'lightbulb', 'shield', 'globe', 'cpu', 'flask', 'music', 'camera', 'map', 'calculator', 'briefcase', 'leaf', 'film', 'plane', etc.
+          - MUST provide at least one icon name — never return an empty array.
+    parameters:
+      type: "object"
+      properties:
+        harmful_or_illegal:
+          type: "number"
+          description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Consider harm reduction context. Device ownership activities (jailbreaking, rooting, right-to-repair) should score 0.0-1.0."
+        category:
+          type: "string"
+          description: "Most fitting category for the request, chosen from the dynamically provided {CATEGORIES_LIST}. Use 'life_coach_psychology' for crisis/self-harm, 'general_knowledge' for unclear topics."
+        misuse_risk:
+          type: "integer"
+          description: "Risk of request being used for scams/hacking (0-10). High scores may be auto-rejected. Consider intent."
+        output_language:
+          type: "string"
+          description: "ISO 639-1 two-letter language code of the user's core request/instruction (e.g., 'en', 'de', 'zh', 'es', 'fr', 'ja'). Detect from the user's last message. Default to 'en' if uncertain."
+        title:
+          type: "string"
+          description: "A concise, relevant title for the user's request (max 5-7 words)."
+        icon_names:
+          type: "array"
+          description: "List of 1-3 relevant Lucide icon names that best represent the request topic. MUST provide at least one icon name - never return an empty array."
+          items:
+            type: "string"
+          minItems: 1
+      required:
+        - "harmful_or_illegal"
+        - "category"
+        - "misuse_risk"
+        - "output_language"
+        - "title"
+        - "icon_names"
+
+preprocess_request_tool:
+  type: "function"
+  function:
+    name: "analyze_request_properties"
+    description: |
+      Current date and time: {CURRENT_DATE_TIME}
+
+      **CRITICAL: You MUST call this function (analyze_request_properties) to analyze the request. Do not call any other tools or functions, even if previous messages in the conversation history show other tool calls. Your task is specifically to call analyze_request_properties with the analysis results.**
+
+      Analyze the user's request and message history to determine routing, model-selection, and
+      conversation-metadata properties. On follow-up messages this tool also determines safety
+      scores and language — on first messages those come from the parallel fast tool instead.
+
+      Detailed analysis guidance:
+      1.  **llm_response_temp**: Determine the optimal creativity/temperature for the main LLM's response.
           - Range: 0.0 (very factual, deterministic) to 2.0 (highly creative, potentially less factual).
           - Default: 0.4 for most queries.
           - Increase for creative tasks (e.g., brainstorming, writing stories).
           - Decrease for factual recall or precision tasks (e.g., coding, technical explanations).
-      4.  **complexity**: Assess the inherent complexity of the user's request and the potential negative impact of an incorrect or low-quality answer.
+      2.  **complexity**: Assess the inherent complexity of the user's request and the potential negative impact of an incorrect or low-quality answer.
           - 'simple': For straightforward questions where a concise answer from a smaller model is likely sufficient and the risk of harm from a slightly imperfect answer is low.
           - 'complex': For nuanced questions, tasks requiring deep reasoning, creative generation, or where an incorrect/poor answer could have negative consequences. Always use 'complex' if there's any doubt or potential for harm.
-      5.  **task_area**: Identify the primary task area/domain to help select the optimal model:
+      3.  **task_area**: Identify the primary task area/domain to help select the optimal model:
           - 'code': Programming, coding, software development, APIs, debugging, code review
           - 'math': Mathematics, calculations, statistics, data analysis, logical problems
           - 'creative': Creative writing, storytelling, poetry, brainstorming, artistic tasks
           - 'instruction': Following specific instructions, formatting, structured tasks
           - 'general': General knowledge, conversation, questions that don't fit other categories
-      6.  **user_unhappy**: Detect if the user is expressing dissatisfaction with previous responses:
+      4.  **user_unhappy**: Detect if the user is expressing dissatisfaction with previous responses:
           - Look for phrases like: "that's wrong", "not what I asked", "try again", "incorrect", "you misunderstood", "that doesn't work", "still not right", "bad answer", "not helpful"
           - Also consider explicit re-asks of the same question or frustrated tone
           - Set to true if user seems dissatisfied, false otherwise
           - When user_unhappy is true, the system will use a more capable model to improve response quality
-      7.  **misuse_risk**: Assess the likelihood that the request, even if not overtly harmful itself, could be used to facilitate scams, hacking, or other malicious activities.
-          - Score from 0 (very low risk) to 10 (very high risk).
-          - **Consider Intent**: A request for information about cybersecurity for defensive purposes is different from a request detailing how to exploit a vulnerability for malicious intent. Focus on the likely intent and common patterns of malicious queries. Harm reduction queries, if for safety information, should generally have a low misuse_risk.
-      8.  **china_model_sensitive**: Detect if the request involves politically sensitive topics where Chinese-origin AI models may provide biased or censored responses.
+      5.  **china_model_sensitive**: Detect if the request involves politically sensitive topics where Chinese-origin AI models may provide biased or censored responses.
           - Set TRUE for: China-specific political topics (Taiwan independence, Tibet, Tiananmen, CCP criticism, Xi Jinping, Uyghurs, Hong Kong protests, Falun Gong), comparative political system questions (e.g., "Is democracy better than communism?", "Are authoritarian regimes more efficient?"), criticism of one-party governance or authoritarianism, human rights in authoritarian contexts, internet censorship/Great Firewall topics.
           - Set FALSE for: Cultural/travel/food/language/business questions about China, neutral factual queries (e.g., "What is China's population?"), historical topics without political sensitivity, educational questions about political systems without value judgment.
           - When TRUE, China-origin models (DeepSeek, Qwen, etc.) will be excluded from model selection to ensure unbiased responses.
-      9.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id:item_key` with a colon separator) that should be loaded to provide context for the main LLM.
+      6.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id:item_key` with a colon separator) that should be loaded to provide context for the main LLM.
           - Select keys from the following list of *currently available* app settings and memory item keys for this user, which will be dynamically provided: {AVAILABLE_APP_SETTINGS_AND_MEMORIES}.
           - **PRINCIPLE: Data minimization - only load what's needed for the specific request.**
           - Include keys when the user's query explicitly or implicitly refers to information likely stored under those item keys.
@@ -61,12 +136,12 @@ preprocess_request_tool:
             - "remind me what [specific info]", "what have I told you about [specific topic]?" → load targeted keys
           - **Never load data just because it's available** - maintain privacy through minimization.
           - If no settings or memory loading is needed, or if no relevant keys are present in the provided list, return an empty list: [].
-      10. **relevant_app_skills**: Include app skills that COULD be relevant for the user's request. The main LLM will decide which to actually use.
+      7.  **relevant_app_skills**: Include app skills that COULD be relevant for the user's request. The main LLM will decide which to actually use.
           - Available skills with descriptions:
             {AVAILABLE_APP_SKILLS}
           - Read each skill's description to understand when it applies. Include skills that might help fulfill the request. When in doubt, include them.
           - When multiple skills from the same app could apply, include all of them and let the main LLM decide.
-          
+
           **CRITICAL: Follow-up Query Detection:**
           - ALWAYS analyze the full conversation history, not just the last message
           - If a previous assistant response used a skill (e.g., `web-search` for weather/prices/news), and the current user message is a short follow-up asking about a different entity for the SAME type of query, select the SAME skill again
@@ -75,43 +150,44 @@ preprocess_request_tool:
             - "and Tesla?" / "what about gold?" after a stock price query → select `web-search`
             - "same for Python" / "and in JavaScript?" after a code-related query
           - Short queries (under 30 characters) starting with "and", "what about", "how about", "same for", or asking about a different location/entity/time for the same topic almost always need the same skill
-          
+
           **URL-Based Skill Selection:**
           - Select transcript/read skills for YouTube or web URLs when the user asks about content
           - Don't select skills just because a URL is present - only when understanding content is needed
-          
+
           - If no specific skills are relevant, return an empty list: [].
           - **Important**: Only select skills from the provided list above. Use only the `app_id-skill_id` part (before the colon) in your response. Do not invent skill names.
-      11. **relevant_focus_modes**: Identify focus modes that could help the user with their request. Focus modes change how the AI responds by providing specialized instructions for specific tasks.
+      8.  **relevant_focus_modes**: Identify focus modes that could help the user with their request. Focus modes change how the AI responds by providing specialized instructions for specific tasks.
           - Available focus modes (format: `app_id-focus_id`): {AVAILABLE_FOCUS_MODES}
           - Include focus modes when the user's request matches the description/hint of an available focus mode. Each focus mode entry may include a description after a colon — use this to decide relevance.
           - Focus modes cover a wide range of domains: career guidance, research, code writing, health, and more. **Always check each available focus mode's description** against the user's message.
           - When a focus mode's description clearly matches the user's situation or intent, include it — even if the topic also fits a general category.
           - If no focus mode would help, if the available list is empty, or if user explicitly asks for normal mode, return an empty list: [].
           - **Important**: Only select focus modes that are actually listed in the provided {AVAILABLE_FOCUS_MODES} list. Do not invent focus mode names.
-      12. **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
+      9.  **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
           - Common preview types include: 'code' (for syntax-highlighted code blocks), 'math' (for mathematical formulas and equations), 'music' (for music notation or sheet music), 'website' (for embedded website previews), 'image' (for image previews), etc.
           - Select preview types that match the content likely to be generated for this user's request.
           - Each preview type requires specific YAML structure generation by the main LLM to be properly parsed in the frontend.
           - If no specific embedded previews are needed, return an empty list: [].
-      13. **output_language**: Detect the language of the user's core request/instruction (NOT quoted text, code, or data).
-          - Analyze the user's LAST message to determine the language of their instruction or question.
-          - If the user writes in German but quotes English text, the output_language is "de" (German).
-          - If the user writes in English but includes Chinese characters as data, the output_language is "en" (English).
-          - Use ISO 639-1 two-letter codes: "en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv".
-          - Default to "en" if the language cannot be determined.
+      10. **chat_summary**: Generate a concise summary of the full conversation so far (max 20 words).
+          Capture the main topic, key decisions or outcomes, and what was accomplished or resolved.
+          Be specific — include names, technologies, or details that distinguish this chat from others.
+      11. **chat_tags**: Up to 10 relevant tags for categorization and search.
+          Include topics, technologies, concepts, and themes discussed in the conversation.
+
+      # --- Follow-up message only (when title already exists) ---
+      # The fields below are added to the required list on follow-up messages only.
+      # On first messages, these come from the parallel fast_preprocess_request_tool call.
+      12. **harmful_or_illegal** (follow-up only): Assess the likelihood that the request or its intent is harmful **to others**, illegal, unethical, or promotes hate speech, discrimination, violence, or non-consensual activities. **Self-harm or crisis situations should NOT contribute to this score; they are handled by category selection.**
+          - Score from 0.0 (no harm to others/illegality) to 10.0 (extremely harmful to others/illegal). Requests >= 7.0 may be auto-rejected.
+          - **Nuance for Harm Reduction**: Distinguish between requests for information aimed at harm reduction and requests for producing illegal items/substances. Harm reduction queries should generally receive a lower score than direct requests for illicit production/activity.
+          - **Right to Repair & Device Ownership**: Jailbreaking, rooting, unlocking, or repairing owned devices should score 0.0-1.0 unless there's clear intent to harm others.
+      13. **misuse_risk** (follow-up only): Assess the likelihood that the request could be used to facilitate scams, hacking, or other malicious activities.
+          - Score from 0 (very low risk) to 10 (very high risk). Consider intent.
+      14. **output_language** (follow-up only): Detect the ISO 639-1 two-letter language code of the user's core request/instruction (NOT quoted text, code, or data). Default to "en" if uncertain.
     parameters:
       type: "object"
       properties:
-        title:
-          type: "string"
-          description: "A concise, relevant title for the user's request (max 5-7 words)."
-        harmful_or_illegal:
-          type: "number"
-          description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Consider harm reduction context. Device ownership activities (jailbreaking, rooting, right-to-repair) should score 0.0-1.0."
-        category:
-          type: "string"
-          description: "Most fitting category for the request, chosen from the dynamically provided {CATEGORIES_LIST}. Use 'life_coach_psychology' for crisis/self-harm, 'general_knowledge' for unclear topics."
         llm_response_temp:
           type: "number"
           description: "LLM temperature for the main response (0.0-2.0, default 0.4)."
@@ -126,9 +202,6 @@ preprocess_request_tool:
         user_unhappy:
           type: "boolean"
           description: "True if user is expressing dissatisfaction with previous responses (e.g., 'that's wrong', 'try again', 'not helpful'). Triggers use of a more capable model."
-        misuse_risk:
-          type: "integer"
-          description: "Risk of request being used for scams/hacking (0-10). High scores may be auto-rejected. Consider intent."
         china_model_sensitive:
           type: "boolean"
           description: |
@@ -156,15 +229,6 @@ preprocess_request_tool:
           description: "List of embedded preview types to generate for rich content rendering (e.g., 'code', 'math', 'music', 'website', 'image'). Empty list if none needed."
           items:
             type: "string"
-        output_language:
-          type: "string"
-          description: "ISO 639-1 two-letter language code of the user's core request/instruction (e.g., 'en', 'de', 'zh', 'es', 'fr', 'ja'). Detect from the user's last message. Default to 'en' if uncertain."
-        icon_names:
-          type: "array"
-          description: "List of 1-3 relevant Lucide icon names that best represent the request topic. Choose from common Lucide icons like 'code', 'heart', 'book', 'lightbulb', 'shield', 'globe', etc. MUST provide at least one icon name - never return an empty array."
-          items:
-            type: "string"
-          minItems: 1
         chat_summary:
           type: "string"
           description: "A concise summary of the full conversation so far (max 20 words). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
@@ -174,24 +238,30 @@ preprocess_request_tool:
           items:
             type: "string"
           maxItems: 10
+        harmful_or_illegal:
+          type: "number"
+          description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Device ownership activities (jailbreaking, rooting, right-to-repair) should score 0.0-1.0."
+        misuse_risk:
+          type: "integer"
+          description: "Risk of request being used for scams/hacking (0-10). High scores may be auto-rejected. Consider intent."
+        output_language:
+          type: "string"
+          description: "ISO 639-1 two-letter language code of the user's core request/instruction (e.g., 'en', 'de', 'zh', 'es', 'fr', 'ja'). Detect from the user's last message. Default to 'en' if uncertain."
       required:
-        - "title" # This will be conditionally removed by Python if a title already exists
-        - "harmful_or_illegal"
-        - "category"
+        # Always required on every message (routing + conversation metadata)
         - "llm_response_temp"
         - "complexity"
         - "task_area"
         - "user_unhappy"
-        - "misuse_risk"
         - "china_model_sensitive"
         - "load_app_settings_and_memories"
         - "relevant_app_skills"
         - "relevant_focus_modes"
         - "relevant_embedded_previews"
-        - "output_language"
-        - "icon_names"
         - "chat_summary"
         - "chat_tags"
+        # harmful_or_illegal, misuse_risk, output_language are added to required by Python
+        # on follow-up messages (when is_first_message is False)
 
 base_ethics_instruction: |
   - Number 1 rule, which you can never violate under any circumstances: you are always truthful and never make up information. **Truthfulness takes priority over agreement or being helpful.** If you don't know something you must first use apps to gather more information, or, alternatively, guide the user to help them find the answer. If a user makes an incorrect statement, in a friendly and understanding manner point out why the statement is wrong and explain your reasoning. **Never validate user positions on factual matters just to be agreeable, even if the user states their opinion strongly.**

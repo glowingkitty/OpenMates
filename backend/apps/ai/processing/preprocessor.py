@@ -586,37 +586,52 @@ async def handle_preprocessing(
             error_message="Critical preprocessing instructions are missing."
         )
 
-    # Deepcopy the tool definition to allow modification
+    # Deepcopy the tool definitions to allow modification
     import copy
     tool_definition_for_llm = copy.deepcopy(base_instructions["preprocess_request_tool"])
+    # Initialized to None here so Pyright doesn't flag it as possibly-unbound at the usage sites
+    # below (which are all guarded by `if is_first_message:`, but static analysis can't always tell).
+    fast_tool_definition: Optional[Dict[str, Any]] = None
 
-    # Conditionally remove title and icon_names generation if chat already has a title
-    # Icon/category are generated only once with the title (first message only)
+    # Determine whether this is the first message (no title yet) or a follow-up.
     # CRITICAL: Use chat_has_title flag from client, NOT message_history length
     # (message_history can be empty on first request when cache is used)
     is_first_message = not request_data.chat_has_title
-    
-    if not is_first_message:
-        logger.info(f"{log_prefix} Chat already has a title (follow-up message). Omitting title, icon_names, and category generation from LLM tool call.")
-        # Remove title field
-        if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
-            del tool_definition_for_llm['function']['parameters']['properties']['title']
-        if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
-            tool_definition_for_llm['function']['parameters']['required'].remove('title')
-        # Remove icon_names field (icon and category are set once with the title)
-        if 'icon_names' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
-            del tool_definition_for_llm['function']['parameters']['properties']['icon_names']
-        if 'icon_names' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
-            tool_definition_for_llm['function']['parameters']['required'].remove('icon_names')
-        # Remove category field
-        if 'category' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
-            del tool_definition_for_llm['function']['parameters']['properties']['category']
-        if 'category' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
-            tool_definition_for_llm['function']['parameters']['required'].remove('category')
-    else:
-        logger.info(f"{log_prefix} This is the first message (chat has no title yet). Including title, icon_names, and category generation in LLM tool call.")
 
-    logger.info(f"{log_prefix} Loaded and potentially modified instruction tool (preprocess_request_tool).")
+    if is_first_message:
+        # --- First message: two-call split ---
+        # Call A (fast_preprocess_request_tool): title, category, icon_names, harmful_or_illegal,
+        #   misuse_risk, output_language.  Small schema → fast response → UI shown immediately.
+        # Call B (preprocess_request_tool): routing fields (complexity, task_area, skills, etc.)
+        #   + chat_summary + chat_tags.  Does NOT include title/category/icons/safety/language.
+        # Both calls are fired in parallel and awaited together.
+        logger.info(f"{log_prefix} First message — using two-call parallel preprocessing (Call A: fast UI, Call B: routing).")
+
+        if "fast_preprocess_request_tool" not in base_instructions:
+            logger.error(f"{log_prefix} Missing 'fast_preprocess_request_tool' in base_instructions.")
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="internal_error_missing_instructions",
+                error_message="Critical fast preprocessing instructions are missing."
+            )
+        fast_tool_definition = copy.deepcopy(base_instructions["fast_preprocess_request_tool"])
+
+        # Call B does NOT need harmful_or_illegal / misuse_risk / output_language on first messages
+        # (those come from Call A).  They are defined as optional in the schema and not in required,
+        # so nothing to remove — the LLM simply won't be asked for them.
+        logger.info(f"{log_prefix} Loaded fast_preprocess_request_tool (Call A) and preprocess_request_tool (Call B).")
+    else:
+        # --- Follow-up message: single call (same as before the split) ---
+        # Add harmful_or_illegal, misuse_risk, and output_language to the required list for Call B
+        # (on first messages those come from Call A, but on follow-ups there is no Call A).
+        logger.info(f"{log_prefix} Follow-up message — single-call preprocessing (no Call A).")
+        follow_up_extra_required = ["harmful_or_illegal", "misuse_risk", "output_language"]
+        required_list = tool_definition_for_llm.get("function", {}).get("parameters", {}).get("required", [])
+        for field in follow_up_extra_required:
+            if field not in required_list:
+                required_list.append(field)
+
+    logger.info(f"{log_prefix} Loaded and potentially modified instruction tool(s) for preprocessing.")
     
     # Load mates_configs from cache (preloaded by main API server at startup)
     # The main API server preloads these into the shared Dragonfly cache during startup.
@@ -726,30 +741,28 @@ async def handle_preprocessing(
                     else:
                         available_focus_modes_list.append(focus_identifier)
     
-    logger.info(f"{log_prefix} Preparing for LLM call. Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
+    logger.info(f"{log_prefix} Preparing for LLM call(s). Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
     logger.info(f"  - User Message History Length: {len(request_data.message_history)}")
-    logger.info(f"  - Tool to call by LLM: {tool_definition_for_llm.get('function', {}).get('name')}")
     logger.info(f"  - Available app skills for tool preselection ({len(available_skills_list)} total): {', '.join(available_skills_list) if available_skills_list else 'None'}")
     logger.info(f"  - Available focus modes ({len(available_focus_modes_list)} total): {', '.join(available_focus_modes_list) if available_focus_modes_list else 'None'}")
-    logger.info("  - Dynamic context for LLM prompt:")
     logger.info(f"    - CATEGORIES_LIST: {available_categories_list}")
     logger.info(f"    - AVAILABLE_APP_SKILLS: {available_skills_list if available_skills_list else 'None'}")
     logger.info(f"    - AVAILABLE_FOCUS_MODES: {available_focus_modes_list if available_focus_modes_list else 'None'}")
     logger.info(f"    - AVAILABLE_APP_SETTINGS_AND_MEMORIES (from direct param): {user_app_settings_and_memories_metadata}")
 
-    preprocessing_model = skill_config.default_llms.preprocessing_model # Changed variable name and attribute accessed
-    
+    preprocessing_model = skill_config.default_llms.preprocessing_model
+
     # Resolve fallback servers from provider config instead of hardcoded list in app.yml
     # This allows fallback servers to be configured in provider YAML files (e.g., mistral.yml)
     from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
     preprocessing_fallbacks = resolve_fallback_servers_from_provider_config(preprocessing_model)
-    
-    logger.info(f"{log_prefix} Using preprocessing_model: {preprocessing_model} from skill_config.") # Updated log message
+
+    logger.info(f"{log_prefix} Using preprocessing_model: {preprocessing_model} from skill_config.")
     if preprocessing_fallbacks:
         logger.info(f"{log_prefix} Resolved {len(preprocessing_fallbacks)} fallback server(s) for preprocessing: {preprocessing_fallbacks}")
 
-    # Build dynamic context with categories and available app skills (with descriptions)
-    # Include current date/time so preprocessing LLM knows temporal context
+    # Build dynamic context with categories and available app skills (with descriptions).
+    # Include current date/time so preprocessing LLMs know temporal context.
     now = datetime.datetime.now(datetime.timezone.utc)
     date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
 
@@ -760,36 +773,126 @@ async def handle_preprocessing(
         "CURRENT_DATE_TIME": date_time_str
     }
 
-    llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
-        task_id=f"{request_data.chat_id}_{request_data.message_id}",
-        model_id=preprocessing_model,
-        fallback_models=preprocessing_fallbacks,  # Pass fallback providers
-        message_history=sanitized_message_history,
-        tool_definition=tool_definition_for_llm, # Use the (potentially modified) tool definition
-        secrets_manager=secrets_manager, # Pass SecretsManager
-        user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-        dynamic_context=dynamic_context
-    )
+    import asyncio as _asyncio
 
-    if llm_call_result.error_message or not llm_call_result.arguments:
-        default_err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
-        final_err_msg = llm_call_result.error_message or default_err_msg
-        
-        # Log the specific error if available, otherwise the generic one
-        logger.error(f"{log_prefix} Preprocessing LLM call failed. Model: {preprocessing_model}. Error: {final_err_msg}")
-        
-        raw_response_data = {"error": final_err_msg}
-        if llm_call_result.raw_provider_response_summary:
-            raw_response_data["provider_response_summary"] = llm_call_result.raw_provider_response_summary
+    if is_first_message:
+        # -----------------------------------------------------------------------
+        # Two-call parallel preprocessing for first messages.
+        #
+        # Call A (fast_preprocess_request_tool): small schema, fires and resolves
+        #   quickly.  Provides title, category, icon_names, safety scores, and
+        #   output_language.  Results are used to emit the title_generated event
+        #   to the frontend before Call B even finishes.
+        #
+        # Call B (preprocess_request_tool): full routing / metadata schema without
+        #   the UI fields (no title, category, icons, safety, language).  Provides
+        #   complexity, task_area, skills, focus modes, memories, summary and tags.
+        #
+        # Both coroutines are awaited with asyncio.gather so they run in parallel
+        # over the network and we wait for both before doing any further work.
+        # -----------------------------------------------------------------------
+        # Call B: fast_tool only needs CATEGORIES_LIST and CURRENT_DATE_TIME.
+        # Call A (main tool): needs the full dynamic_context.
+        fast_dynamic_context = {
+            "CATEGORIES_LIST": available_categories_list,
+            "CURRENT_DATE_TIME": date_time_str,
+        }
 
-        return PreprocessingResult(
-            can_proceed=False,
-            rejection_reason="internal_error_llm_preprocessing_failed",
-            error_message=final_err_msg, # Use the more specific error message
-            raw_llm_response=raw_response_data
+        logger.info(f"{log_prefix} Firing Call A (fast UI) and Call B (routing) in parallel.")
+
+        call_a_coro = call_preprocessing_llm(
+            task_id=f"{request_data.chat_id}_{request_data.message_id}_A",
+            model_id=preprocessing_model,
+            fallback_models=preprocessing_fallbacks,
+            message_history=sanitized_message_history,
+            tool_definition=fast_tool_definition,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=None,  # fast tool doesn't need memories
+            dynamic_context=fast_dynamic_context,
         )
-    
-    llm_analysis_args = llm_call_result.arguments # Arguments are now guaranteed to be non-None
+        call_b_coro = call_preprocessing_llm(
+            task_id=f"{request_data.chat_id}_{request_data.message_id}_B",
+            model_id=preprocessing_model,
+            fallback_models=preprocessing_fallbacks,
+            message_history=sanitized_message_history,
+            tool_definition=tool_definition_for_llm,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
+            dynamic_context=dynamic_context,
+        )
+
+        call_a_result, call_b_result = await _asyncio.gather(call_a_coro, call_b_coro)
+
+        # Handle Call A failure — fast UI fields missing means we cannot safely show the chat
+        # title or perform safety checks on those fields; treat as hard failure.
+        if call_a_result.error_message or not call_a_result.arguments:
+            final_err_msg = call_a_result.error_message or "Fast preprocessing LLM (Call A) returned no arguments."
+            logger.error(f"{log_prefix} Call A failed. Error: {final_err_msg}")
+            raw_response_data: Dict[str, Any] = {"error": final_err_msg}
+            if call_a_result.raw_provider_response_summary:
+                raw_response_data["provider_response_summary"] = call_a_result.raw_provider_response_summary
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="internal_error_llm_preprocessing_failed",
+                error_message=final_err_msg,
+                raw_llm_response=raw_response_data,
+            )
+
+        # Handle Call B failure — routing fields are essential; also treat as hard failure.
+        if call_b_result.error_message or not call_b_result.arguments:
+            final_err_msg = call_b_result.error_message or "Preprocessing LLM (Call B) returned no arguments."
+            logger.error(f"{log_prefix} Call B failed. Error: {final_err_msg}")
+            raw_response_data = {"error": final_err_msg}
+            if call_b_result.raw_provider_response_summary:
+                raw_response_data["provider_response_summary"] = call_b_result.raw_provider_response_summary
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="internal_error_llm_preprocessing_failed",
+                error_message=final_err_msg,
+                raw_llm_response=raw_response_data,
+            )
+
+        # Merge the two result dicts: Call A fields take priority for the fields it owns
+        # (title, category, icon_names, harmful_or_illegal, misuse_risk, output_language),
+        # Call B provides all routing/metadata fields.
+        llm_analysis_args: Dict[str, Any] = {}
+        llm_analysis_args.update(call_b_result.arguments)  # routing fields first
+        llm_analysis_args.update(call_a_result.arguments)  # UI + safety fields override / fill in
+        logger.info(f"{log_prefix} Both LLM calls succeeded. Merged results from Call A + Call B.")
+
+    else:
+        # -----------------------------------------------------------------------
+        # Single-call preprocessing for follow-up messages (unchanged behaviour).
+        # Call B includes harmful_or_illegal, misuse_risk, and output_language since
+        # there is no parallel Call A on follow-ups.
+        # -----------------------------------------------------------------------
+        logger.info(f"{log_prefix} Follow-up: firing single Call B (routing + safety + language).")
+        llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            task_id=f"{request_data.chat_id}_{request_data.message_id}",
+            model_id=preprocessing_model,
+            fallback_models=preprocessing_fallbacks,
+            message_history=sanitized_message_history,
+            tool_definition=tool_definition_for_llm,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
+            dynamic_context=dynamic_context,
+        )
+
+        if llm_call_result.error_message or not llm_call_result.arguments:
+            default_err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
+            final_err_msg = llm_call_result.error_message or default_err_msg
+            logger.error(f"{log_prefix} Preprocessing LLM call failed. Model: {preprocessing_model}. Error: {final_err_msg}")
+            raw_response_data = {"error": final_err_msg}
+            if llm_call_result.raw_provider_response_summary:
+                raw_response_data["provider_response_summary"] = llm_call_result.raw_provider_response_summary
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="internal_error_llm_preprocessing_failed",
+                error_message=final_err_msg,
+                raw_llm_response=raw_response_data,
+            )
+
+        llm_analysis_args = llm_call_result.arguments
     
     # Sanitize llm_analysis_args for logging: show only metadata for chat_summary and chat_tags
     sanitized_args = llm_analysis_args.copy()
@@ -1183,20 +1286,30 @@ async def handle_preprocessing(
             f"Attempting retry..."
         )
         
-        # Retry preprocessing once with a more explicit instruction about category validation
+        # Retry preprocessing once with a more explicit instruction about category validation.
+        # On first messages the category comes from Call A (fast_preprocess_request_tool), so we
+        # retry with that tool.  On follow-up messages it comes from the main tool (Call B).
         try:
-            # Create a modified tool definition that emphasizes category validation
-            retry_tool_definition = copy.deepcopy(tool_definition_for_llm)
+            # Choose which tool definition to retry with based on message type.
+            # - First message: category came from Call A → retry with fast_tool_definition
+            # - Follow-up:     category came from the single Call B → retry with tool_definition_for_llm
+            retry_base_tool = fast_tool_definition if is_first_message else tool_definition_for_llm
+            retry_dynamic_ctx = (
+                {"CATEGORIES_LIST": available_categories_list, "CURRENT_DATE_TIME": date_time_str}
+                if is_first_message
+                else dynamic_context
+            )
+            retry_tool_definition = copy.deepcopy(retry_base_tool)
             # Add a note in the category description emphasizing it MUST be from the list
             category_desc = retry_tool_definition.get('function', {}).get('parameters', {}).get('properties', {}).get('category', {}).get('description', '')
             retry_tool_definition['function']['parameters']['properties']['category']['description'] = (
                 f"{category_desc} **CRITICAL: You MUST select EXACTLY one category from this list: {available_categories_list}. "
                 f"DO NOT invent new categories. If unsure, use 'general_knowledge'."
             )
-            
-            logger.info(f"{log_prefix} Retrying preprocessing LLM call with explicit category validation instructions...")
-            # Pass the FULL dynamic_context (same as first call) so the retry LLM has all the info
-            # it needs. We only extract category from the retry result, but having complete context
+
+            logger.info(f"{log_prefix} Retrying preprocessing LLM call with explicit category validation instructions (is_first_message={is_first_message})...")
+            # Pass the FULL dynamic_context so the retry LLM has all the info it needs.
+            # We only extract category from the retry result, but having complete context
             # helps the LLM make a better decision. We also merge relevant_app_skills from the retry
             # as a union with the first call's skills, since the retry may identify skills the first
             # call missed (or vice versa).
@@ -1207,8 +1320,8 @@ async def handle_preprocessing(
                 message_history=sanitized_message_history,
                 tool_definition=retry_tool_definition,
                 secrets_manager=secrets_manager,
-                user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-                dynamic_context=dynamic_context  # Use the same full context as the first call
+                user_app_settings_and_memories_metadata=None if is_first_message else user_app_settings_and_memories_metadata,
+                dynamic_context=retry_dynamic_ctx,
             )
             
             if retry_llm_call_result.error_message or not retry_llm_call_result.arguments:
