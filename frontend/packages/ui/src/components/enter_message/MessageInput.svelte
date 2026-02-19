@@ -2808,7 +2808,7 @@
         {#if isDragging}
             <div class="drop-overlay" aria-hidden="true">
                 <span class="drop-overlay-icon clickable-icon icon_files"></span>
-                <span class="drop-overlay-text">{$text('enter_message.drop_files')}</span>
+                <span class="drop-overlay-text">{$text('enter_message.attachments.drop_files')}</span>
             </div>
         {/if}
 
