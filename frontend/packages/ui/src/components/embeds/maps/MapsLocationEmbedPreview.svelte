@@ -137,6 +137,7 @@
   {isMobile}
   {onFullscreen}
   hasFullWidthImage={hasImage}
+  showStatus={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileLayout })}
@@ -158,15 +159,12 @@
       </div>
     {:else}
       <!-- Fallback text layout when no image is available -->
+      <!-- The skill name ("Location") is already shown in the BasicInfosBar below, so we
+           only show the address details here. For area/imprecise mode we prefix with "Nearby:". -->
       <div class="location-details" class:mobile={isMobileLayout}>
         {#if showNearbyLabel}
           <!-- Small "Nearby:" label shown when the user had imprecise/privacy mode on -->
           <div class="location-nearby-label">{$text('embeds.maps_location.nearby')}</div>
-        {/if}
-        {#if name}
-          <div class="location-name">{name}</div>
-        {:else}
-          <div class="location-name">{$text('embeds.maps_location')}</div>
         {/if}
         {#if secondaryText}
           <!-- Full street address in regular white text (multi-line) -->
@@ -239,24 +237,6 @@
     justify-content: flex-start;
   }
 
-  .location-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-
-  .location-details.mobile .location-name {
-    font-size: 14px;
-  }
-
   /* "Nearby:" prefix label — small, muted, indicates imprecise/area mode */
   .location-nearby-label {
     font-size: 11px;
@@ -286,17 +266,5 @@
     line-height: 1.3;
   }
 
-  /* ===========================================
-     Skill Icon (location pin)
-     =========================================== */
-
-  :global(.unified-embed-preview .skill-icon[data-skill-icon="pin"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
-    mask-image: url('@openmates/ui/static/icons/pin.svg');
-  }
-
-  :global(.unified-embed-preview.mobile .skill-icon[data-skill-icon="pin"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
-    mask-image: url('@openmates/ui/static/icons/pin.svg');
-  }
+  /* Pin skill icon is registered directly in BasicInfosBar.svelte — no :global() override needed here. */
 </style>

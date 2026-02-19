@@ -6388,12 +6388,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         />
                     {:else if appId === 'maps' && skillId === 'location'}
                         <!-- Maps Location Fullscreen -->
-                        <!-- Displays the static map image with location details -->
+                        <!-- Displays an interactive Leaflet map (or static image) with location details -->
                         <MapsLocationEmbedFullscreen
                             lat={typeof embedFullscreenData.decodedContent?.lat === 'number' ? embedFullscreenData.decodedContent.lat : undefined}
                             lon={typeof embedFullscreenData.decodedContent?.lon === 'number' ? embedFullscreenData.decodedContent.lon : undefined}
                             zoom={typeof embedFullscreenData.decodedContent?.zoom === 'number' ? embedFullscreenData.decodedContent.zoom : 15}
                             name={typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined}
+                            address={typeof embedFullscreenData.decodedContent?.address === 'string' ? embedFullscreenData.decodedContent.address : undefined}
                             locationType={typeof embedFullscreenData.decodedContent?.location_type === 'string' ? embedFullscreenData.decodedContent.location_type : undefined}
                             mapImageUrl={typeof embedFullscreenData.decodedContent?.map_image_url === 'string' ? embedFullscreenData.decodedContent.map_image_url : undefined}
                             status="finished"
@@ -6763,11 +6764,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
                 {:else if embedFullscreenData.embedType === 'maps'}
                     <!-- Maps Location Fullscreen (user-inserted via MapsView picker) -->
-                    <!-- Coordinates come from decodedContent (EmbedStore TOON) or from attrs fallback -->
+                    <!-- Coordinates / address come from decodedContent (EmbedStore TOON) or attrs fallback.
+                         The attrs fallback is used when the EmbedStore lookup fails (e.g. embed not yet synced). -->
                     <MapsLocationEmbedFullscreen
                         lat={typeof embedFullscreenData.decodedContent?.lat === 'number' ? embedFullscreenData.decodedContent.lat : (typeof embedFullscreenData.attrs?.lat === 'number' ? embedFullscreenData.attrs.lat : undefined)}
                         lon={typeof embedFullscreenData.decodedContent?.lon === 'number' ? embedFullscreenData.decodedContent.lon : (typeof embedFullscreenData.attrs?.lon === 'number' ? embedFullscreenData.attrs.lon : undefined)}
                         name={typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : (typeof embedFullscreenData.attrs?.name === 'string' ? embedFullscreenData.attrs.name : undefined)}
+                        address={typeof embedFullscreenData.decodedContent?.address === 'string' ? embedFullscreenData.decodedContent.address : (typeof embedFullscreenData.attrs?.address === 'string' ? embedFullscreenData.attrs.address : undefined)}
+                        locationType={typeof embedFullscreenData.decodedContent?.location_type === 'string' ? embedFullscreenData.decodedContent.location_type : (typeof embedFullscreenData.attrs?.locationType === 'string' ? embedFullscreenData.attrs.locationType : undefined)}
                         status="finished"
                         embedId={embedFullscreenData.embedId}
                         onClose={handleCloseEmbedFullscreen}

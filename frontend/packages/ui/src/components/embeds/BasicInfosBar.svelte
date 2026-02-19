@@ -294,6 +294,11 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/insight.svg');
     mask-image: url('@openmates/ui/static/icons/insight.svg');
   }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="pin"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
+    mask-image: url('@openmates/ui/static/icons/pin.svg');
+  }
   
   /* Status text container */
   .basic-infos-bar.desktop .status-text {

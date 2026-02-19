@@ -80,6 +80,8 @@ export class MapLocationRenderer implements EmbedRenderer {
                 lat,
                 lon,
                 name,
+                address,
+                locationType,
                 status,
                 preciseLat: lat,
                 preciseLon: lon,
@@ -88,10 +90,14 @@ export class MapLocationRenderer implements EmbedRenderer {
                 type: "maps",
                 status,
               },
+              // decodedContent is the fallback when EmbedStore lookup fails or embedId is missing.
+              // Include all fields so the fullscreen can render correctly from attrs alone.
               decodedContent: {
                 lat,
                 lon,
                 name,
+                address,
+                location_type: locationType,
                 status,
               },
             },
