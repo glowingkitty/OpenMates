@@ -124,6 +124,11 @@
 
   // Secondary line: the resolved street address (shown when no map image is available).
   let secondaryText = $derived(address || '');
+
+  // Primary display name for the text fallback layout.
+  // `name` may be a two-line string like "Berlin Hauptbahnhof\nBerlin" (from locationIndicatorText).
+  // Take only the first line as the prominent place name to avoid duplication with secondaryText.
+  let primaryName = $derived(name ? name.split('\n')[0].trim() : '');
 </script>
 
 <UnifiedEmbedPreview
@@ -159,15 +164,19 @@
       </div>
     {:else}
       <!-- Fallback text layout when no image is available -->
-      <!-- The skill name ("Location") is already shown in the BasicInfosBar below, so we
-           only show the address details here. For area/imprecise mode we prefix with "Nearby:". -->
+      <!-- Shows the place name prominently (e.g. "Berlin Hauptbahnhof") followed by the
+           street address. For area/imprecise mode we prefix with a small "Nearby:" label. -->
       <div class="location-details" class:mobile={isMobileLayout}>
         {#if showNearbyLabel}
           <!-- Small "Nearby:" label shown when the user had imprecise/privacy mode on -->
           <div class="location-nearby-label">{$text('embeds.maps_location.nearby')}</div>
         {/if}
+        {#if primaryName}
+          <!-- Primary place name (station, POI, or location title) in bold -->
+          <div class="location-name">{primaryName}</div>
+        {/if}
         {#if secondaryText}
-          <!-- Full street address in regular white text (multi-line) -->
+          <!-- Full street address in muted text below the name (multi-line) -->
           <div class="location-address">{secondaryText}</div>
         {/if}
         {#if status === 'processing'}
@@ -248,10 +257,26 @@
     margin-bottom: 2px;
   }
 
-  /* Street address — regular white text, can be multi-line */
+  /* Primary place name — bold, shown above the street address */
+  .location-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-grey-100);
+    line-height: 1.3;
+    word-break: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .location-details.mobile .location-name {
+    font-size: 13px;
+  }
+
+  /* Street address — muted text below the name, can be multi-line */
   .location-address {
     font-size: 13px;
-    color: var(--color-grey-100);
+    color: var(--color-grey-70);
     line-height: 1.4;
     word-break: break-word;
   }
