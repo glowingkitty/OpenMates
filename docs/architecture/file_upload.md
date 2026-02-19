@@ -300,6 +300,87 @@ The `images.view` skill ([`backend/apps/images/skills/view_skill.py`](../../back
 
 ---
 
+## Storage Billing
+
+Uploaded files consume persistent S3 storage. Users are charged weekly for storage above a 1 GB free tier.
+
+### How it works
+
+1. **Counter increment** — When `/internal/uploads/store-record` writes a new `upload_files` record, it also increments `storage_used_bytes` on the user record in Directus and cache (best-effort, non-fatal if it fails).
+2. **Weekly billing run** — Every Sunday at 03:00 UTC the Celery Beat task `charge_storage_fees` (`app.tasks.storage_billing_tasks.charge_storage_fees`) runs on the `persistence` queue:
+   - Aggregates `upload_files` by `user_id` to get the real total bytes per user (one DB call).
+   - Filters to only users **above the 1 GB free tier** at the DB level.
+   - Processes users in batches of 50 with bounded concurrency.
+   - Charges each billable user via `BillingService.charge_user_credits`, which deducts credits, updates Directus, and creates a usage entry (`app_id="system"`, `skill_id="storage"`) visible in the activity log.
+   - Reconciles `storage_used_bytes` with the real aggregate (corrects any counter drift from increments/decrements).
+   - Updates `storage_last_billed_at` per user.
+
+### Pricing
+
+| Storage  | Weekly charge                               |
+| -------- | ------------------------------------------- |
+| 0 – 1 GB | Free                                        |
+| > 1 GB   | 3 credits per GB per week (ceil to next GB) |
+
+Hetzner costs ≈ €0.005/GB/month. At 3 credits/GB/week (~$0.012/GB/month at 1,000 credits = $1 USD) the margin is ~4×.
+
+### Counter drift correction
+
+The running `storage_used_bytes` counter on the user record may drift due to failed decrements or race conditions. The weekly billing run treats the aggregate query result as the authoritative value and overwrites `storage_used_bytes` on every run, preventing drift from accumulating across weeks.
+
+### Key files
+
+| Path                                                                                                               | Description                                                    |
+| ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| [`backend/core/api/app/tasks/storage_billing_tasks.py`](../../backend/core/api/app/tasks/storage_billing_tasks.py) | Weekly billing Celery task                                     |
+| [`backend/core/api/app/tasks/celery_config.py`](../../backend/core/api/app/tasks/celery_config.py)                 | Beat schedule: `charge-storage-fees-weekly` (Sunday 03:00 UTC) |
+| [`backend/core/directus/schemas/users.yml`](../../backend/core/directus/schemas/users.yml)                         | `storage_used_bytes`, `storage_last_billed_at` fields          |
+
+---
+
+## Auto-Deletion of Chats
+
+Users can configure a chat retention period in **Privacy → Auto Deletion → Chats**. Stale chats (and their associated files) are deleted automatically.
+
+### How it works
+
+1. **User sets a period** — `POST /v1/settings/auto-delete-chats` accepts a period string (`"30d"`, `"60d"`, `"90d"`, `"6m"`, `"1y"`, `"2y"`, `"5y"`, `"never"`) and stores the equivalent integer day count as `auto_delete_chats_after_days` on the user record (`null` for `"never"`).
+2. **Daily deletion run** — Every day at 02:30 UTC the Celery Beat task `auto_delete_old_chats` (`app.tasks.auto_delete_tasks.auto_delete_old_chats`) runs on the `persistence` queue:
+   - Queries all users with a non-null `auto_delete_chats_after_days`.
+   - For each user, computes a cutoff timestamp (`now − days × 86400`).
+   - Queries chats whose `last_message_timestamp` is older than the cutoff (must have at least one message).
+   - Dispatches `persist_delete_chat` for each stale chat — reusing the full deletion pipeline.
+   - At most **100 chats per user per day** are scheduled (thundering-herd prevention); any remainder is caught on the next run.
+
+### Full deletion pipeline (`persist_delete_chat`)
+
+When a chat is deleted — whether triggered by the user, by auto-deletion, or by account deletion — the pipeline:
+
+1. Deletes all draft messages.
+2. Deletes all messages.
+3. Deletes all embeds for the chat:
+   - **Shared embeds** are also deleted if they are **not referenced by any other chat of the same user** (checked by querying `embeds` with the same `embed_id` but a different `hashed_chat_id` for the same `hashed_user_id`).
+   - Deleted embed IDs are returned for the next step.
+4. Deletes `upload_files` dedup records for all deleted embeds (frees dedup storage).
+5. Decrements `storage_used_bytes` on the user by the freed bytes.
+6. Deletes the chat record itself.
+
+The `storage_used_bytes` counter is also corrected authoritatively by the weekly billing run, so any decrement inaccuracies are self-healing within at most one week.
+
+### Key files
+
+| Path                                                                                                                                         | Description                                                    |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| [`backend/core/api/app/tasks/auto_delete_tasks.py`](../../backend/core/api/app/tasks/auto_delete_tasks.py)                                   | Daily auto-delete Celery task                                  |
+| [`backend/core/api/app/routes/settings.py`](../../backend/core/api/app/routes/settings.py)                                                   | `POST /v1/settings/auto-delete-chats` endpoint                 |
+| [`backend/core/api/app/tasks/persistence_tasks.py`](../../backend/core/api/app/tasks/persistence_tasks.py)                                   | `persist_delete_chat` — full deletion pipeline                 |
+| [`backend/core/api/app/services/directus/embed_methods.py`](../../backend/core/api/app/services/directus/embed_methods.py)                   | `delete_all_embeds_for_chat`, `delete_upload_files_for_embeds` |
+| [`backend/core/api/app/tasks/celery_config.py`](../../backend/core/api/app/tasks/celery_config.py)                                           | Beat schedule: `auto-delete-old-chats-daily` (daily 02:30 UTC) |
+| [`backend/core/directus/schemas/users.yml`](../../backend/core/directus/schemas/users.yml)                                                   | `auto_delete_chats_after_days` field                           |
+| [`frontend/.../privacy/SettingsAutoDeletion.svelte`](../../frontend/packages/ui/src/components/settings/privacy/SettingsAutoDeletion.svelte) | UI for selecting and persisting the retention period           |
+
+---
+
 ## Read Next
 
 - [Message Processing Architecture](./message_processing.md) — how AI skills consume uploaded file embed data
