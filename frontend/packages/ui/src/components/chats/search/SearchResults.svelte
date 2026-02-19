@@ -131,6 +131,12 @@
   // Reference to the container element for querying focusable children
   let containerEl: HTMLDivElement | null = $state(null);
 
+  // Auto-open timer: after user stops navigating with arrow keys for this many ms,
+  // automatically activate (open) the focused result. Only fires for 'chat' and 'snippet'
+  // type items — settings/apps are opened on Enter only to avoid unintended navigation.
+  const AUTO_OPEN_DELAY_MS = 300;
+  let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
+
   // Build a flat list of all focusable items for keyboard navigation
   let allFocusableItems = $derived((() => {
     const items: Array<{ type: 'settings' | 'app' | 'chat' | 'snippet'; id: string }> = [];
@@ -153,6 +159,24 @@
   })());
 
   /**
+   * Schedule an auto-open of the currently focused result after the user stops navigating.
+   * Only auto-opens 'chat' and 'snippet' type items — settings/apps require explicit Enter.
+   * Resets the timer on every navigation key so it only fires when the user pauses.
+   */
+  function scheduleAutoOpen(): void {
+    if (autoOpenTimer !== null) {
+      clearTimeout(autoOpenTimer);
+    }
+    if (focusedIndex < 0 || focusedIndex >= allFocusableItems.length) return;
+    const item = allFocusableItems[focusedIndex];
+    if (item.type !== 'chat' && item.type !== 'snippet') return;
+    autoOpenTimer = setTimeout(() => {
+      autoOpenTimer = null;
+      activateFocused();
+    }, AUTO_OPEN_DELAY_MS);
+  }
+
+  /**
    * Move focus to the next result (called from SearchBar ArrowDown).
    * Finds all keyboard-focusable elements inside the container and focuses the next one.
    * Exposed as a named export so the parent can call it via bind:this reference.
@@ -160,6 +184,7 @@
   export function focusNext(): void {
     focusedIndex = Math.min(focusedIndex + 1, allFocusableItems.length - 1);
     scrollFocusedItemIntoView();
+    scheduleAutoOpen();
   }
 
   /**
@@ -168,6 +193,7 @@
   export function focusPrevious(): void {
     focusedIndex = Math.max(focusedIndex - 1, 0);
     scrollFocusedItemIntoView();
+    scheduleAutoOpen();
   }
 
   /**
@@ -207,10 +233,14 @@
     }
   }
 
-  // Reset focused index when results change (new query)
+  // Reset focused index and cancel any pending auto-open when results change (new query)
   $effect(() => {
     void allFocusableItems; // React to items changing
     focusedIndex = -1;
+    if (autoOpenTimer !== null) {
+      clearTimeout(autoOpenTimer);
+      autoOpenTimer = null;
+    }
   });
 
   /**

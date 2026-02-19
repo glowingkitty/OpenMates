@@ -220,11 +220,11 @@
   $effect(() => {
     if (original_message?.message_id && $messageHighlightStore === original_message.message_id) {
       isHighlighted = true;
-      // Clear highlight after 3 seconds
+      // Clear highlight after 0.8s (matches the CSS animation duration)
       const timer = setTimeout(() => {
         isHighlighted = false;
         messageHighlightStore.set(null);
-      }, 3000);
+      }, 800);
       return () => clearTimeout(timer);
     }
   });
@@ -234,81 +234,122 @@
    * When search is open and has a query, walks the DOM text nodes inside the message
    * content and wraps matching substrings in <mark class="search-match"> elements.
    * Cleans up (removes marks) when the query changes or search closes.
+   *
+   * IMPORTANT: The DOM walk is deferred to a requestAnimationFrame callback so it runs
+   * AFTER Svelte and the markdown renderer have finished painting the message content.
+   * Without this deferral the TreeWalker finds no text nodes because child components
+   * (e.g. ReadOnlyMessage / markdown renderer) have not yet rendered their content into
+   * messageContentElement when the $effect first fires.
    */
   $effect(() => {
     const query = $searchTextHighlightStore;
     const container = messageContentElement;
     if (!container) return;
 
-    // Always clean up previous highlights first
-    const existingMarks = container.querySelectorAll('mark.search-match');
-    for (const mark of existingMarks) {
-      const parent = mark.parentNode;
-      if (parent) {
-        // Replace the <mark> with its text content
-        parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
-        // Merge adjacent text nodes
-        parent.normalize();
+    // Cancel any previously queued (but not-yet-fired) highlight update.
+    let rafHandle: number | null = null;
+
+    function removeExistingMarks(el: HTMLElement) {
+      // Clean up any <mark class="search-match"> nodes left by a previous run.
+      // We collect them first because replacing nodes while iterating is unsafe.
+      const marks = Array.from(el.querySelectorAll('mark.search-match'));
+      for (const mark of marks) {
+        const parent = mark.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+          parent.normalize();
+        }
       }
     }
 
-    if (!query || query.trim().length === 0) return;
+    function applyHighlights() {
+      // Guard: container may have been removed from DOM since the RAF was queued
+      if (!container.isConnected) return;
 
-    const lowerQuery = query.toLowerCase().trim();
-    if (!lowerQuery) return;
+      // Always clean up previous highlights first
+      removeExistingMarks(container);
 
-    // Walk all text nodes in the message content
-    const walker = document.createTreeWalker(
-      container,
-      NodeFilter.SHOW_TEXT,
-      null,
-    );
+      if (!query || query.trim().length === 0) return;
 
-    const textNodes: Text[] = [];
-    let node: Node | null;
-    while ((node = walker.nextNode())) {
-      textNodes.push(node as Text);
-    }
+      const lowerQuery = query.toLowerCase().trim();
+      if (!lowerQuery) return;
 
-    // Process each text node — wrap matches in <mark>
-    for (const textNode of textNodes) {
-      const textContent = textNode.textContent || '';
-      const lowerContent = textContent.toLowerCase();
-      const firstIdx = lowerContent.indexOf(lowerQuery);
-      if (firstIdx === -1) continue;
+      // Walk all text nodes in the message content.
+      // Runs in rAF so the markdown renderer has already painted its content.
+      const walker = document.createTreeWalker(
+        container,
+        NodeFilter.SHOW_TEXT,
+        null,
+      );
 
-      // Build a document fragment with the highlighted text
-      const fragment = document.createDocumentFragment();
-      let lastIdx = 0;
-      let searchFrom = 0;
+      const textNodes: Text[] = [];
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        textNodes.push(node as Text);
+      }
 
-      while (searchFrom < lowerContent.length) {
-        const idx = lowerContent.indexOf(lowerQuery, searchFrom);
-        if (idx === -1) break;
+      // Process each text node — wrap matches in <mark class="search-match">
+      for (const textNode of textNodes) {
+        const textContent = textNode.textContent || '';
+        const lowerContent = textContent.toLowerCase();
+        const firstIdx = lowerContent.indexOf(lowerQuery);
+        if (firstIdx === -1) continue;
 
-        // Text before the match
-        if (idx > lastIdx) {
-          fragment.appendChild(document.createTextNode(textContent.slice(lastIdx, idx)));
+        // Build a document fragment with highlighted runs
+        const fragment = document.createDocumentFragment();
+        let lastIdx = 0;
+        let searchFrom = 0;
+
+        while (searchFrom < lowerContent.length) {
+          const idx = lowerContent.indexOf(lowerQuery, searchFrom);
+          if (idx === -1) break;
+
+          // Text before the match
+          if (idx > lastIdx) {
+            fragment.appendChild(document.createTextNode(textContent.slice(lastIdx, idx)));
+          }
+
+          // The match — wrapped in <mark>
+          const mark = document.createElement('mark');
+          mark.className = 'search-match';
+          mark.textContent = textContent.slice(idx, idx + lowerQuery.length);
+          fragment.appendChild(mark);
+
+          lastIdx = idx + lowerQuery.length;
+          searchFrom = lastIdx;
         }
 
-        // The match — wrapped in <mark>
-        const mark = document.createElement('mark');
-        mark.className = 'search-match';
-        mark.textContent = textContent.slice(idx, idx + lowerQuery.length);
-        fragment.appendChild(mark);
+        // Remaining text after the last match
+        if (lastIdx < textContent.length) {
+          fragment.appendChild(document.createTextNode(textContent.slice(lastIdx)));
+        }
 
-        lastIdx = idx + lowerQuery.length;
-        searchFrom = lastIdx;
+        // Replace the original text node with the fragment
+        textNode.parentNode?.replaceChild(fragment, textNode);
       }
-
-      // Remaining text after last match
-      if (lastIdx < textContent.length) {
-        fragment.appendChild(document.createTextNode(textContent.slice(lastIdx)));
-      }
-
-      // Replace the original text node with the fragment
-      textNode.parentNode?.replaceChild(fragment, textNode);
     }
+
+    // If there's no query, remove existing marks synchronously (no need to defer cleanup).
+    if (!query || query.trim().length === 0) {
+      removeExistingMarks(container);
+      return;
+    }
+
+    // Defer DOM walk to the next animation frame so that all child components
+    // (markdown renderer, etc.) have had a chance to render their content first.
+    rafHandle = requestAnimationFrame(applyHighlights);
+
+    // Cleanup: cancel the pending frame if the effect re-runs before it fires
+    // (e.g. query changed again, or the component is destroyed).
+    return () => {
+      if (rafHandle !== null) {
+        cancelAnimationFrame(rafHandle);
+      }
+      // Also clean up any marks when the effect is torn down (e.g. search closed)
+      if (container.isConnected) {
+        removeExistingMarks(container);
+      }
+    };
   });
 
   /**
@@ -1832,7 +1873,10 @@
   }
 
   .mate-message-content.highlighted {
-    animation: highlight-animation 3s ease-out;
+    /* Short pulse (0.8s) that returns to the normal background color.
+       Ending at var(--color-grey-0) instead of 'transparent' prevents the message
+       bubble from briefly losing its background before the animation-fill-mode reverts. */
+    animation: highlight-animation 0.8s ease-out;
   }
 
   @keyframes highlight-animation {
@@ -1840,12 +1884,14 @@
       background-color: var(--color-primary-transparent, rgba(var(--color-primary-rgb), 0.2));
       box-shadow: 0 0 15px var(--color-primary);
     }
-    70% {
+    60% {
       background-color: var(--color-primary-transparent, rgba(var(--color-primary-rgb), 0.2));
       box-shadow: 0 0 10px var(--color-primary);
     }
     100% {
-      background-color: transparent;
+      /* Return to the actual base background color (not 'transparent') so there is
+         no flash of transparent background at the end of the animation. */
+      background-color: var(--color-grey-0);
       box-shadow: none;
     }
   }
