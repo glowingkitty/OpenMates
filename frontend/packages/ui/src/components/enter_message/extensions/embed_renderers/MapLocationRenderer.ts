@@ -67,6 +67,24 @@ export class MapLocationRenderer implements EmbedRenderer {
       const status =
         (attrs.status as "processing" | "finished" | "error") || "finished";
 
+      // CRITICAL: Use the real embed_id from contentRef (not attrs.id) as the component id.
+      //
+      // When a user message is loaded from chat history, parseEmbedNodes() generates a
+      // fresh UUID for attrs.id (unrelated to the original embed). The actual EmbedStore
+      // key is derived from the JSON reference block: {"type":"location","embed_id":"<uuid>"}.
+      // That value is stored in attrs.contentRef as "embed:<uuid>".
+      //
+      // UnifiedEmbedPreview calls resolveEmbed(id) on mount to load embed data
+      // (name, address, locationType, etc.) from EmbedStore. If we pass attrs.id (the fresh
+      // UUID), it finds nothing and the embed renders blank. We must pass the real embed_id
+      // so the EmbedStore lookup succeeds and the location details are populated.
+      //
+      // This matches the pattern used by AppSkillUseRenderer, which always extracts
+      // the embedId from contentRef and passes it as the id prop.
+      const embedId = attrs.contentRef?.startsWith("embed:")
+        ? attrs.contentRef.replace("embed:", "")
+        : (attrs.id ?? "");
+
       // Dispatch fullscreen event on document (same pattern as AppSkillUseRenderer).
       // ActiveChat listens on document for 'embedfullscreen' events.
       const handleFullscreen = () => {
@@ -76,9 +94,7 @@ export class MapLocationRenderer implements EmbedRenderer {
             detail: {
               embedType: "maps",
               // embedId: strip "embed:" prefix so ActiveChat can look up EmbedStore
-              embedId: attrs.contentRef?.startsWith("embed:")
-                ? attrs.contentRef.replace("embed:", "")
-                : undefined,
+              embedId,
               attrs: {
                 lat,
                 lon,
@@ -113,7 +129,7 @@ export class MapLocationRenderer implements EmbedRenderer {
       const component = mount(MapsLocationEmbedPreview, {
         target: content,
         props: {
-          id: attrs.id ?? "",
+          id: embedId,
           name,
           address,
           locationType,
@@ -127,7 +143,9 @@ export class MapLocationRenderer implements EmbedRenderer {
       mountedComponents.set(content, component);
 
       console.debug("[MapLocationRenderer] Mounted MapsLocationEmbedPreview:", {
-        id: attrs.id,
+        embedId,
+        attrsId: attrs.id,
+        contentRef: attrs.contentRef,
         lat,
         lon,
         name,
