@@ -1716,7 +1716,7 @@
                 <Icon 
                   name={cat.appId} 
                   type="app" 
-                  size="22px"
+                  size="18px"
                   noAnimation={true}
                 />
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
@@ -1961,33 +1961,33 @@
   
   /* App Settings & Memories Summary Styles */
   .app-settings-memories-summary {
-    margin-top: 8px;
+    margin-top: 6px;
     padding: 0;
     text-align: right;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--color-grey-60);
   }
   
   .summary-label {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     font-weight: 500;
   }
   
   .summary-categories {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 8px;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
   }
   
   .category-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     background: var(--color-grey-15, #f5f5f5);
-    border-radius: 12px;
-    padding: 4px 10px 4px 4px;
+    border-radius: 8px;
+    padding: 2px 8px 2px 4px;
     text-decoration: none;
     cursor: pointer;
     transition: background-color 0.15s ease;
@@ -2000,7 +2000,7 @@
   }
   
   .badge-text {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--color-font-primary, #000);
   }
