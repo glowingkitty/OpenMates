@@ -356,6 +356,16 @@ export const Embed = Node.create<EmbedOptions>({
       // zoom is used to set the initial zoom level of the Leaflet map.
       // name is the short display label for the location.
       // -----------------------------------------------------------------------
+      // name: short display label for the location (e.g. "Berlin Hauptbahnhof").
+      // Must be registered as a TipTap attr — unregistered attrs are silently dropped.
+      name: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-name") ?? null,
+        renderHTML: (attributes) => {
+          if (!attributes.name) return {};
+          return { "data-name": attributes.name };
+        },
+      },
       preciseLat: {
         default: null,
         parseHTML: (element) => {

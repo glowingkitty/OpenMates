@@ -123,13 +123,12 @@
   // Skill name from translations
   let skillName = $derived($text('embeds.maps_location'));
 
-  // Icon: use the travel icon for transit/transport locations (railways, airports),
-  // otherwise fall back to the generic pin icon.
-  // Transit types that warrant the travel icon (matches the search results panel logic).
+  // Icon shown inline in the content area next to the place name.
+  // Transit/transport types use the travel icon; everything else uses the maps/pin icon.
   const TRANSIT_TYPES = new Set(['railway', 'airport', 'subway', 's-bahn', 'tram', 'bus', 'ferry']);
-  let skillIconName = $derived(
-    placeType && TRANSIT_TYPES.has(placeType.toLowerCase()) ? 'travel' : 'pin'
-  );
+  let isTransit = $derived(placeType ? TRANSIT_TYPES.has(placeType.toLowerCase()) : false);
+  // skillIconName is still passed to the BasicInfosBar (always pin for location skill)
+  const skillIconName = 'pin';
 
   // Whether we have a map image to display full-width
   let hasImage = $derived(!!mapImageUrl && !imageError && status !== 'error');
@@ -142,9 +141,7 @@
   // `name` may be a two-line string from legacy locationIndicatorText — take only the first line.
   let primaryName = $derived(name ? name.split('\n')[0].trim() : '');
 
-  // Secondary line: prefer the explicit placeType label (e.g. "Railway") when available,
-  // otherwise fall back to the street address.
-  let secondaryText = $derived(placeType || address || '');
+
 </script>
 
 <UnifiedEmbedPreview
@@ -180,24 +177,30 @@
       </div>
     {:else}
       <!-- Fallback text layout when no image is available -->
-      <!-- Shows the place name prominently (e.g. "Berlin Hauptbahnhof"), then the
-           category type (e.g. "Railway"), then the street address.
-           For area/imprecise mode we prefix with a small "Nearby:" label. -->
+      <!-- Layout: [icon] Place Name (bold)
+                         Railway (muted type)
+                         Europaplatz 1, 10557 Berlin (address) -->
       <div class="location-details" class:mobile={isMobileLayout}>
         {#if showNearbyLabel}
-          <!-- Small "Nearby:" label shown when the user had imprecise/privacy mode on -->
           <div class="location-nearby-label">{$text('embeds.maps_location.nearby')}</div>
         {/if}
-        {#if primaryName}
-          <!-- Primary place name (station, POI, or location title) in bold -->
-          <div class="location-name">{primaryName}</div>
-        {/if}
+        <!-- Name row: inline icon + bold place name -->
+        <div class="location-name-row">
+          <!-- Inline place-type icon (travel for transit, maps pin for others) -->
+          <div class="location-type-icon" class:transit={isTransit}></div>
+          {#if primaryName}
+            <div class="location-name">{primaryName}</div>
+          {:else if address}
+            <!-- No name yet: show address as the primary line -->
+            <div class="location-name location-name--address">{address}</div>
+          {/if}
+        </div>
         {#if placeType}
-          <!-- Category/type label (e.g. "Railway", "Airport") — muted, below the name -->
+          <!-- Category/type label (e.g. "Railway", "Airport") — muted -->
           <div class="location-place-type">{placeType}</div>
         {/if}
-        {#if address && address !== placeType}
-          <!-- Street address — only shown when different from the type label -->
+        {#if primaryName && address}
+          <!-- Street address below type — only when we also have a name -->
           <div class="location-address">{address}</div>
         {/if}
         {#if status === 'processing'}
@@ -278,6 +281,38 @@
     margin-bottom: 2px;
   }
 
+  /* Name row: flex container holding the inline icon + bold place name */
+  .location-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  /* Inline place-type icon — same mask technique as the search results panel */
+  .location-type-icon {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    /* Default: maps pin icon */
+    background: var(--color-app-maps, #4CAF50);
+    -webkit-mask-image: url('@openmates/ui/static/icons/maps.svg');
+    mask-image: url('@openmates/ui/static/icons/maps.svg');
+  }
+
+  /* Transit locations (Railway, Airport, etc.): travel icon */
+  .location-type-icon.transit {
+    background: var(--color-app-travel, #29B6F6);
+    -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
+    mask-image: url('@openmates/ui/static/icons/travel.svg');
+  }
+
   /* Primary place name — bold, shown above the street address */
   .location-name {
     font-size: 14px;
@@ -288,6 +323,12 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* When name falls back to address text, use normal weight */
+  .location-name--address {
+    font-weight: 400;
   }
 
   .location-details.mobile .location-name {
