@@ -257,7 +257,9 @@
   display: none; /* Hide placeholder when focused and empty */
 }
 
-/* Fullscreen button */
+/* Fullscreen / expand button — top-right corner of the message field.
+   Does NOT override background so the mask-based icon colour (--color-primary)
+   from button.clickable-icon in icons.css is preserved and the icon is visible. */
 .fullscreen-button {
   position: absolute;
   top: 10px;
@@ -265,7 +267,8 @@
   opacity: 0.5;
   transition: opacity 0.2s ease-in-out;
   z-index: 10;
-  background: none;
+  /* No background override — inherits var(--color-primary) from button.clickable-icon
+     which is the mask fill colour; overriding to 'none' would make the icon invisible. */
   border: none;
   padding: 5px;
   cursor: pointer;

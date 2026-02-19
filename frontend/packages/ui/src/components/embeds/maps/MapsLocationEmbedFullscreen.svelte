@@ -175,7 +175,7 @@
     if (leafletMap) {
       try {
         leafletMap.remove();
-      } catch (_) {
+      } catch {
         // ignore cleanup errors
       }
       leafletMap = null;
@@ -303,6 +303,10 @@
     height: 45vh;
     min-height: 220px;
     flex-shrink: 0;
+    /* Create an isolated stacking context so Leaflet's internal z-indexes
+       (leaflet-pane uses z-index 400+) do not escape this container and
+       cover the UnifiedEmbedFullscreen top-bar buttons. */
+    isolation: isolate;
   }
 
   /* Custom pin marker — same visual style as MapsView */

@@ -947,7 +947,9 @@
     position: relative;
   }
   
-  /* Top bar with action buttons - ABSOLUTE position within fullscreen overlay */
+  /* Top bar with action buttons - ABSOLUTE position within fullscreen overlay.
+     z-index: 1000 ensures it stays above Leaflet map panes (z-index 400+) and
+     any other high-z-index children that embed fullscreens may render. */
   .top-bar {
     position: absolute;
     top: 16px;
@@ -956,7 +958,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    z-index: 10;
+    z-index: 1000;
     pointer-events: none;
   }
   

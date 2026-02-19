@@ -611,14 +611,20 @@
             const locale = getCurrentLocale();
 
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/search?` + 
+                `https://nominatim.openstreetmap.org/search?` +
                 `format=json` +
                 `&q=${encodeURIComponent(query)}` +
                 `&limit=5` +
                 `&addressdetails=1` +
                 `&extratags=1` +
                 `&namedetails=1` +
-                `&accept-language=${locale}` // Add language parameter
+                `&accept-language=${locale}`,
+                {
+                    headers: {
+                        // Nominatim usage policy requires a descriptive User-Agent
+                        'User-Agent': 'OpenMates/1.0 (https://openmates.app)'
+                    }
+                }
             );
             const results = await response.json();
 
@@ -664,7 +670,7 @@
             showResults = true;
             addSearchMarkersToMap();
         } catch (error) {
-            logger.debug('Search error:', error);
+            console.error('[MapsView] Search error:', error);
             searchResults = [];
         } finally {
             isSearching = false;
@@ -1147,10 +1153,19 @@
             ></button>
 
             <div class="search-container">
+                <!-- Use event.currentTarget.value instead of the bound state variable to
+                     avoid any reactivity-order issues where the state may not yet reflect
+                     the latest character at the moment the handler runs. -->
                 <input
                     type="text"
                     bind:value={searchQuery}
-                    oninput={() => debouncedSearch(searchQuery)}
+                    oninput={(e) => debouncedSearch((e.currentTarget as HTMLInputElement).value)}
+                    onkeydown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            debouncedSearch((e.currentTarget as HTMLInputElement).value);
+                        }
+                    }}
                     placeholder={$text('enter_message.location.search_placeholder')}
                     class="search-input"
                 />
