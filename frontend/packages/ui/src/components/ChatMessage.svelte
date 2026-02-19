@@ -112,8 +112,9 @@
       const category = app.settings_and_memories.find(sm => sm.id === cat.itemType);
       if (category?.name_translation_key) {
         // Use the translation key to get localized name
+        // Guard: $text() returns the key itself when no translation is found
         const translated = $text(category.name_translation_key);
-        if (translated && translated !== translationKey) {
+        if (translated && translated !== category.name_translation_key) {
           return translated;
         }
       }
