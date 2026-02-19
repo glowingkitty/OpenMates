@@ -1768,6 +1768,54 @@ search.go_to_message:
   sv: Gå till meddelande
   verified_by_human: []
 
+scroll_to_active_chat:
+  context: Accessible aria-label for the sticky pin button that scrolls the active chat back into view when it is out of the visible chat list
+  en: Scroll to active chat
+  de: Zum aktiven Chat scrollen
+  zh: 滚动到当前对话
+  es: Desplazarse al chat activo
+  fr: Faire défiler jusqu'au chat actif
+  pt: Rolar para o chat ativo
+  ru: Прокрутить к активному чату
+  ja: アクティブなチャットにスクロール
+  ko: 활성 채팅으로 스크롤
+  it: Scorri fino alla chat attiva
+  tr: Aktif sohbete kaydır
+  vi: Cuộn đến cuộc trò chuyện đang hoạt động
+  id: Gulir ke obrolan aktif
+  pl: Przewiń do aktywnego czatu
+  nl: Scroll naar actieve chat
+  ar: التمرير إلى المحادثة النشطة
+  hi: सक्रिय चैट पर स्क्रॉल करें
+  th: เลื่อนไปยังแชทที่ใช้งานอยู่
+  cs: Přejít na aktivní chat
+  sv: Rulla till aktiv chatt
+  verified_by_human: []
+
+active_chat:
+  context: Fallback label shown in the sticky pin when the active chat title is not available (e.g. still loading)
+  en: Active chat
+  de: Aktiver Chat
+  zh: 当前对话
+  es: Chat activo
+  fr: Chat actif
+  pt: Chat ativo
+  ru: Активный чат
+  ja: アクティブなチャット
+  ko: 활성 채팅
+  it: Chat attiva
+  tr: Aktif sohbet
+  vi: Cuộc trò chuyện đang hoạt động
+  id: Obrolan aktif
+  pl: Aktywny czat
+  nl: Actieve chat
+  ar: المحادثة النشطة
+  hi: सक्रिय चैट
+  th: แชทที่ใช้งานอยู่
+  cs: Aktivní chat
+  sv: Aktiv chatt
+  verified_by_human: []
+
 search.results_label:
   context: Accessible label for the search results list (used for screen readers)
   en: Search results
