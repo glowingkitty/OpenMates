@@ -9,7 +9,7 @@
   import { authStore } from '../stores/authStore';
   import { DEFAULT_NEW_CHAT_SUGGESTION_KEYS } from '../demo_chats/defaultNewChatSuggestions';
   import { get } from 'svelte/store';
-  import { _, locale } from 'svelte-i18n';
+  import { locale } from 'svelte-i18n';
   import NewChatSuggestionContextMenu from './NewChatSuggestionContextMenu.svelte';
 
   let {
@@ -789,7 +789,6 @@
     flex: 1;
     padding: 6px 10px;
     background-color: var(--color-grey-15);
-    border: 1px solid var(--color-grey-25);
     border-radius: 10px;
     min-height: 60px;
     position: relative;
@@ -815,7 +814,7 @@
 
   .carousel-nav {
     background-color: var(--color-grey-15);
-    border: 1px solid var(--color-grey-25);
+    border: none;
     border-radius: 10px;
     color: var(--color-grey-60);
     cursor: pointer;
@@ -833,7 +832,6 @@
   .carousel-nav:hover:not(:disabled) {
     background-color: var(--color-grey-20);
     color: var(--color-grey-70);
-    border-color: var(--color-grey-35);
   }
 
   .carousel-nav:active:not(:disabled) {
