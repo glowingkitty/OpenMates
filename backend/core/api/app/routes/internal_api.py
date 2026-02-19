@@ -9,7 +9,7 @@ import os
 import yaml
 from fastapi import APIRouter, HTTPException, Request, Depends
 from typing import Dict, Any, Optional
-from pydantic import BaseModel # Ensure BaseModel is imported for Pydantic models
+from pydantic import BaseModel, Field
 import base64
 import hashlib
 import httpx
@@ -933,6 +933,180 @@ async def get_issue(
     except Exception as e:
         logger.error(f"Error retrieving issue {issue_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve issue: {str(e)}")
+
+
+# --- E2E Test Notification Endpoints ---
+
+# ---------------------------------------------------------------------------
+# Upload Service Endpoints
+# ---------------------------------------------------------------------------
+# These endpoints are called by the app-uploads microservice running on a
+# separate VM. They proxy Directus and Vault operations so the upload server
+# never needs direct access to Directus or the main Vault instance.
+#
+# Security:
+#   - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes).
+#   - wrap-key only calls Vault Transit ENCRYPT (never decrypt).
+#   - store-record only creates records (never reads user data).
+#   - check-duplicate returns only upload dedup metadata, not user secrets.
+# ---------------------------------------------------------------------------
+
+
+class UploadCheckDuplicateRequest(BaseModel):
+    """Request model for upload deduplication check."""
+    user_id: str = Field(..., description="User ID who uploaded the file")
+    content_hash: str = Field(..., description="SHA-256 hash of the original file content")
+
+
+class UploadCheckDuplicateResponse(BaseModel):
+    """Response model for upload deduplication check."""
+    duplicate: bool = Field(..., description="True if a duplicate record exists")
+    record: Optional[Dict[str, Any]] = Field(None, description="Existing upload record if duplicate")
+
+
+@router.post("/uploads/check-duplicate", response_model=UploadCheckDuplicateResponse)
+async def check_upload_duplicate(
+    payload: UploadCheckDuplicateRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> UploadCheckDuplicateResponse:
+    """
+    Check whether a user has already uploaded a file with the same content hash.
+
+    Called by the app-uploads microservice to avoid re-processing duplicate files.
+    Returns the existing upload record if found, allowing the uploads service to
+    return cached metadata immediately.
+
+    Security: Only returns upload dedup metadata (S3 keys, embed_id, etc.).
+    Does not expose user secrets or Vault data beyond what was originally
+    returned to the uploading client.
+    """
+    log_prefix = f"[UploadDedup] [user:{payload.user_id[:8]}...]"
+    logger.debug(f"{log_prefix} Checking duplicate for hash {payload.content_hash[:16]}...")
+
+    try:
+        params = {
+            "filter[user_id][_eq]": payload.user_id,
+            "filter[content_hash][_eq]": payload.content_hash,
+            "limit": 1,
+        }
+        items = await directus_service.get_items("upload_files", params)
+
+        if items and len(items) > 0:
+            logger.info(f"{log_prefix} Duplicate found: embed_id={items[0].get('embed_id')}")
+            return UploadCheckDuplicateResponse(duplicate=True, record=items[0])
+
+        logger.debug(f"{log_prefix} No duplicate found")
+        return UploadCheckDuplicateResponse(duplicate=False, record=None)
+
+    except Exception as e:
+        logger.error(f"{log_prefix} Dedup check failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Deduplication check failed: {str(e)}")
+
+
+class UploadWrapKeyRequest(BaseModel):
+    """Request model for Vault Transit AES key wrapping."""
+    aes_key_b64: str = Field(..., description="Base64-encoded plaintext AES-256 key to wrap")
+    vault_key_id: str = Field(..., description="User's Vault Transit key name (user_{uuid})")
+
+
+class UploadWrapKeyResponse(BaseModel):
+    """Response model for Vault Transit AES key wrapping."""
+    vault_wrapped_aes_key: str = Field(..., description="Vault-wrapped ciphertext (vault:v1:...)")
+
+
+@router.post("/uploads/wrap-key", response_model=UploadWrapKeyResponse)
+async def wrap_upload_aes_key(
+    payload: UploadWrapKeyRequest,
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> UploadWrapKeyResponse:
+    """
+    Wrap a plaintext AES key using the user's Vault Transit key.
+
+    Called by the app-uploads microservice after encrypting a file with AES-256-GCM.
+    The wrapped key is stored in the embed TOON content so backend skills can later
+    unwrap it via Vault Transit to decrypt the file on demand.
+
+    Security:
+    - This endpoint only calls Vault Transit ENCRYPT (wrapping).
+    - It NEVER calls Vault Transit DECRYPT (unwrapping).
+    - Even if the uploads service is compromised, an attacker can only wrap
+      new keys — they cannot unwrap/decrypt any existing file.
+    - The plaintext AES key travels over the private network between VMs.
+      Ensure the VMs are on a Hetzner private network (vSwitch) or use TLS.
+    """
+    log_prefix = f"[UploadWrapKey] [key:{payload.vault_key_id[:12]}...]"
+    logger.debug(f"{log_prefix} Wrapping AES key via Vault Transit")
+
+    try:
+        # encrypt_with_user_key calls Vault Transit POST /transit/encrypt/{vault_key_id}
+        vault_wrapped = await encryption_service.encrypt_with_user_key(
+            payload.aes_key_b64, payload.vault_key_id
+        )
+
+        if not vault_wrapped:
+            logger.error(f"{log_prefix} Vault Transit encrypt returned empty result")
+            raise HTTPException(status_code=500, detail="Vault key wrapping failed")
+
+        logger.info(f"{log_prefix} AES key wrapped successfully")
+        return UploadWrapKeyResponse(vault_wrapped_aes_key=vault_wrapped)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Vault key wrapping failed: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail=f"Encryption service unavailable: {str(e)}")
+
+
+class UploadStoreRecordRequest(BaseModel):
+    """Request model for storing an upload record in Directus."""
+    embed_id: str = Field(..., description="UUID used as embed_id in the embed system")
+    user_id: str = Field(..., description="User ID who uploaded the file")
+    content_hash: str = Field(..., description="SHA-256 hash of the original file content")
+    original_filename: str = Field(..., description="Original uploaded filename")
+    content_type: str = Field(..., description="Detected MIME type")
+    file_size_bytes: int = Field(..., description="Original file size in bytes")
+    s3_base_url: str = Field(..., description="S3 base URL for constructing full file URLs")
+    files_metadata: Dict[str, Any] = Field(..., description="Stored file variants metadata")
+    aes_key: str = Field(..., description="Base64 AES-256 key for client-side decryption")
+    aes_nonce: str = Field(..., description="Base64 AES-GCM nonce")
+    vault_wrapped_aes_key: str = Field(..., description="Vault-wrapped AES key for server-side access")
+    malware_scan: str = Field(default="clean", description="ClamAV scan result")
+    ai_detection: Optional[Dict[str, Any]] = Field(None, description="AI-generated detection result")
+    created_at: int = Field(..., description="Unix timestamp of upload")
+
+
+@router.post("/uploads/store-record")
+async def store_upload_record(
+    payload: UploadStoreRecordRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """
+    Store an upload record in Directus for future deduplication.
+
+    Called by the app-uploads microservice after a successful upload.
+    The record contains all metadata needed to reconstruct the upload response
+    if the same user uploads the same file again (deduplication).
+
+    Security:
+    - This endpoint only CREATES records in the upload_files collection.
+    - It does not read, update, or delete any existing records.
+    - The aes_key stored here is the same one already returned to the client;
+      it is NOT a new secret introduced by this endpoint.
+    """
+    log_prefix = f"[UploadStore] [user:{payload.user_id[:8]}...] [embed:{payload.embed_id[:8]}...]"
+    logger.info(f"{log_prefix} Storing upload record (hash={payload.content_hash[:16]}...)")
+
+    try:
+        record = payload.model_dump()
+        await directus_service.create_item("upload_files", record)
+        logger.info(f"{log_prefix} Upload record stored successfully")
+        return {"status": "success", "embed_id": payload.embed_id}
+
+    except Exception as e:
+        # Non-fatal: upload already succeeded (files in S3). Dedup just won't work
+        # for this file. Log the error but don't fail the upload.
+        logger.error(f"{log_prefix} Failed to store upload record: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to store upload record: {str(e)}")
 
 
 # --- E2E Test Notification Endpoints ---

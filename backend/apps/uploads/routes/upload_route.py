@@ -3,25 +3,25 @@
 # POST /v1/upload/file — the core upload endpoint.
 #
 # Full pipeline for image uploads (Phase 1):
-#   1. Authenticate user via refresh token cookie (same auth as core API)
+#   1. Authenticate user via refresh token cookie (forwarded to core API)
 #   2. Validate file size (100 MB limit) and MIME type whitelist
-#   3. Compute SHA-256 hash → check deduplication (same user + same hash = instant return)
+#   3. Compute SHA-256 hash → check deduplication via core API
 #   4. ClamAV malware scan (blocks until result; 422 if threat detected)
 #   5. [Images] SightEngine AI-generated detection (non-blocking; stores score as metadata)
 #   6. [Images] Generate WEBP preview via Pillow
 #   7. Generate random AES-256 key, encrypt file + preview with AES-256-GCM
-#   8. Vault-wrap the AES key for server-side skill access
+#   8. Vault-wrap the AES key via core API internal endpoint
 #   9. Upload encrypted bytes to S3 chatfiles bucket
-#   10. Store upload record in Directus for deduplication
+#   10. Store upload record via core API internal endpoint
 #   11. Return JSON with embed_id, S3 keys, AES key, vault_wrapped_aes_key
 #
-# The returned aes_key (plaintext) is used by the client to:
-#   - Decrypt the file locally for rendering in the embed card
-#   - Embed it inside the TOON content, which is then client-encrypted
-#     before storage (zero-knowledge at rest in Directus)
-#
-# The vault_wrapped_aes_key stored in the same TOON content lets backend
-# skills (e.g. images.view) decrypt the file on demand via Vault Transit.
+# Architecture (security isolation):
+#   - This service has NO access to Directus, the main Vault, or any user data.
+#   - All Directus and Vault operations are proxied through the core API's
+#     internal endpoints (/internal/uploads/*), secured by INTERNAL_API_SHARED_TOKEN.
+#   - The local Vault on this VM only stores S3 and SightEngine credentials.
+#   - If this VM is compromised, the attacker cannot decrypt any existing files,
+#     access user data, or reach the main Vault.
 #
 # Concurrent uploads: FastAPI's async event loop naturally handles multiple
 # simultaneous requests. Blocking operations (ClamAV, Pillow) run in thread
@@ -153,59 +153,97 @@ async def get_authenticated_user(
 
 
 # ---------------------------------------------------------------------------
-# Directus deduplication helper
+# Core API proxy helpers (replace direct Directus/Vault calls)
 # ---------------------------------------------------------------------------
 
-async def _check_duplicate(
-    directus_url: str,
-    directus_token: str,
+async def _check_duplicate_via_api(
+    core_api_url: str,
+    internal_token: str,
     user_id: str,
     content_hash: str,
 ) -> Optional[Dict[str, Any]]:
     """
     Check whether this user has already uploaded a file with the same content hash.
+    Calls the core API's /internal/uploads/check-duplicate endpoint, which
+    queries Directus internally. This service never touches Directus directly.
+
     Returns the existing upload record or None.
     """
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                f"{directus_url}/items/upload_files",
-                params={
-                    "filter[user_id][_eq]": user_id,
-                    "filter[content_hash][_eq]": content_hash,
-                    "limit": 1,
-                },
-                headers={"Authorization": f"Bearer {directus_token}"},
+            resp = await client.post(
+                f"{core_api_url}/internal/uploads/check-duplicate",
+                json={"user_id": user_id, "content_hash": content_hash},
+                headers={"X-Internal-Service-Token": internal_token},
             )
         if resp.status_code == 200:
-            items = resp.json().get("data", [])
-            return items[0] if items else None
-        logger.warning(f"[Upload Dedup] Directus returned {resp.status_code} for dedup check")
+            data = resp.json()
+            if data.get("duplicate"):
+                return data.get("record")
+            return None
+        logger.warning(f"[Upload Dedup] Core API returned {resp.status_code} for dedup check")
         return None
     except Exception as e:
         logger.warning(f"[Upload Dedup] Dedup check failed (non-fatal): {e}")
         return None
 
 
-async def _store_upload_record(
-    directus_url: str,
-    directus_token: str,
+async def _wrap_key_via_api(
+    core_api_url: str,
+    internal_token: str,
+    aes_key_b64: str,
+    vault_key_id: str,
+) -> str:
+    """
+    Wrap a plaintext AES key using the user's Vault Transit key via the core API.
+    Calls /internal/uploads/wrap-key, which uses the main Vault's Transit engine.
+    This service never touches the main Vault directly.
+
+    Returns the vault-wrapped ciphertext string (vault:v1:...).
+    Raises RuntimeError on failure.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{core_api_url}/internal/uploads/wrap-key",
+                json={"aes_key_b64": aes_key_b64, "vault_key_id": vault_key_id},
+                headers={"X-Internal-Service-Token": internal_token},
+            )
+        if resp.status_code == 200:
+            return resp.json()["vault_wrapped_aes_key"]
+        logger.error(
+            f"[Upload WrapKey] Core API returned {resp.status_code}: {resp.text[:200]}"
+        )
+        raise RuntimeError(f"Vault key wrapping failed: HTTP {resp.status_code}")
+    except RuntimeError:
+        raise
+    except Exception as e:
+        logger.error(f"[Upload WrapKey] Key wrapping request failed: {e}", exc_info=True)
+        raise RuntimeError(f"Vault key wrapping request failed: {e}") from e
+
+
+async def _store_record_via_api(
+    core_api_url: str,
+    internal_token: str,
     record: Dict[str, Any],
 ) -> None:
-    """Store a new upload record in Directus for future deduplication."""
+    """
+    Store an upload record via the core API's /internal/uploads/store-record endpoint.
+    The core API writes to Directus internally. This service never touches Directus directly.
+    """
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
-                f"{directus_url}/items/upload_files",
+                f"{core_api_url}/internal/uploads/store-record",
                 json=record,
-                headers={"Authorization": f"Bearer {directus_token}"},
+                headers={"X-Internal-Service-Token": internal_token},
             )
         if resp.status_code not in (200, 201):
             logger.warning(
-                f"[Upload Dedup] Failed to store upload record: {resp.status_code} {resp.text[:200]}"
+                f"[Upload Store] Failed to store upload record: {resp.status_code} {resp.text[:200]}"
             )
     except Exception as e:
-        logger.warning(f"[Upload Dedup] Failed to store upload record (non-fatal): {e}")
+        logger.warning(f"[Upload Store] Failed to store upload record (non-fatal): {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -222,13 +260,14 @@ async def upload_file(
     Upload a file (Phase 1: images only).
 
     Performs malware scanning, AI detection (images), preview generation,
-    AES-256-GCM encryption, Vault key wrapping, and S3 upload.
+    AES-256-GCM encryption, Vault key wrapping (via core API), and S3 upload.
     Returns all data the client needs to construct the embed TOON content.
 
     **Security model:**
     - Files are scanned in plaintext before encryption
     - Encrypted with a random AES-256 key (per file)
-    - The AES key is Vault-wrapped (for skill access) AND returned to the
+    - The AES key is Vault-wrapped via the core API's internal endpoint
+      (this service never touches the main Vault) AND returned to the
       client (for local rendering) — both stored inside client-encrypted
       embed content at rest (zero-knowledge in Directus)
     - Plaintext file bytes exist only transiently in this process during processing
@@ -238,6 +277,10 @@ async def upload_file(
     user_id: str = user["user_id"]
     vault_key_id: str = user["vault_key_id"]
     log_prefix = f"[Upload] [user:{user_id[:8]}...]"
+
+    # Core API connection details (used for all internal API calls)
+    core_api_url = os.environ.get("CORE_API_URL", "http://api:8000")
+    internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
 
     # --- 1. Read file bytes ---
     file_bytes = await file.read()
@@ -287,11 +330,10 @@ async def upload_file(
     content_hash = hashlib.sha256(file_bytes).hexdigest()
     logger.debug(f"{log_prefix} Content hash: {content_hash}")
 
-    # --- 5. Deduplication check ---
-    directus_url = os.environ.get("CMS_URL", "http://cms:8055")
-    directus_token = os.environ.get("DIRECTUS_TOKEN", "")
-
-    existing_record = await _check_duplicate(directus_url, directus_token, user_id, content_hash)
+    # --- 5. Deduplication check (via core API → Directus) ---
+    existing_record = await _check_duplicate_via_api(
+        core_api_url, internal_token, user_id, content_hash
+    )
     if existing_record:
         logger.info(
             f"{log_prefix} Duplicate detected (content_hash={content_hash[:16]}...) — "
@@ -380,9 +422,11 @@ async def upload_file(
         preview_result.preview_webp_bytes, aes_key_b64, nonce_b64
     )
 
-    # --- 10. Vault-wrap the AES key for server-side skill access ---
+    # --- 10. Vault-wrap the AES key via core API (never touches main Vault directly) ---
     try:
-        vault_wrapped_aes_key = await crypto_service.wrap_key_with_vault(aes_key_b64, vault_key_id)
+        vault_wrapped_aes_key = await _wrap_key_via_api(
+            core_api_url, internal_token, aes_key_b64, vault_key_id
+        )
     except RuntimeError as e:
         logger.error(f"{log_prefix} Vault key wrap failed: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="Encryption service unavailable")
@@ -445,8 +489,8 @@ async def upload_file(
         ),
     }
 
-    # --- 13. Store upload record in Directus for deduplication ---
-    ai_detection_dict = ai_detection_result.dict() if ai_detection_result else None
+    # --- 13. Store upload record via core API (never touches Directus directly) ---
+    ai_detection_dict = ai_detection_result.model_dump() if ai_detection_result else None
     upload_record = {
         "embed_id": embed_id,
         "user_id": user_id,
@@ -455,7 +499,7 @@ async def upload_file(
         "content_type": content_type,
         "file_size_bytes": len(file_bytes),
         "s3_base_url": s3_base_url,
-        "files_metadata": {k: v.dict() for k, v in files_metadata.items()},
+        "files_metadata": {k: v.model_dump() for k, v in files_metadata.items()},
         "aes_key": aes_key_b64,
         "aes_nonce": nonce_b64,
         "vault_wrapped_aes_key": vault_wrapped_aes_key,
@@ -463,7 +507,7 @@ async def upload_file(
         "ai_detection": ai_detection_dict,
         "created_at": int(datetime.now(timezone.utc).timestamp()),
     }
-    await _store_upload_record(directus_url, directus_token, upload_record)
+    await _store_record_via_api(core_api_url, internal_token, upload_record)
 
     logger.info(
         f"{log_prefix} Upload complete — embed_id={embed_id}, "

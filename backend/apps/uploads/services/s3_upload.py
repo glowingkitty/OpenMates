@@ -6,8 +6,11 @@
 # but implemented here independently to keep the uploads service self-contained
 # without pulling in the entire core API dependency graph.
 #
-# Credentials are fetched from HashiCorp Vault KV (same path as core API):
+# Credentials are fetched from the LOCAL HashiCorp Vault KV (on the uploads VM):
 #   kv/data/providers/hetzner: s3_access_key, s3_secret_key, s3_region_name
+#
+# The local Vault is populated by vault-setup from SECRET__* env vars at startup.
+# This service NEVER contacts the main Vault on the core server.
 #
 # Bucket: 'chatfiles' — same bucket used by AI-generated images.
 # S3 key format: {user_id}/{content_hash}/{variant}.bin
@@ -30,9 +33,11 @@ class UploadsS3Service:
     """
     S3 upload/download service for the uploads microservice.
     Initialised asynchronously via initialize() during app startup.
+    Fetches credentials from the local Vault KV (not the main server Vault).
     """
 
     def __init__(self) -> None:
+        # Local Vault on the uploads VM (same docker-compose network)
         self.vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
         self.vault_token_path = "/vault-data/api.token"
         self.client = None
@@ -42,14 +47,22 @@ class UploadsS3Service:
         self.bucket_name: Optional[str] = None
 
     def _load_vault_token(self) -> str:
-        with open(self.vault_token_path, "r") as f:
-            token = f.read().strip()
-        if not token:
-            raise RuntimeError("Vault token file is empty")
-        return token
+        """Load the Vault API token from the shared token file (written by vault-setup)."""
+        try:
+            with open(self.vault_token_path, "r") as f:
+                token = f.read().strip()
+            if not token:
+                raise RuntimeError("Vault token file is empty")
+            return token
+        except FileNotFoundError as e:
+            logger.error(
+                f"[S3Upload] Vault token file not found at {self.vault_token_path}. "
+                f"Ensure the local vault-setup container has run successfully."
+            )
+            raise RuntimeError("Vault token file not found") from e
 
     async def _fetch_secret(self, path: str, key: str) -> Optional[str]:
-        """Fetch a single secret from Vault KV."""
+        """Fetch a single secret from the local Vault KV."""
         token = self._load_vault_token()
         url = f"{self.vault_url}/v1/{path}"
         try:
@@ -63,17 +76,17 @@ class UploadsS3Service:
 
     async def initialize(self) -> None:
         """
-        Fetch S3 credentials from Vault and initialise the boto3 client.
+        Fetch S3 credentials from local Vault and initialise the boto3 client.
         Called once during FastAPI app startup (lifespan).
         """
-        logger.info("[S3Upload] Initialising S3 service...")
+        logger.info("[S3Upload] Initialising S3 service (credentials from local Vault)...")
 
         access_key = await self._fetch_secret("kv/data/providers/hetzner", "s3_access_key")
         secret_key = await self._fetch_secret("kv/data/providers/hetzner", "s3_secret_key")
         region = await self._fetch_secret("kv/data/providers/hetzner", "s3_region_name")
 
         if not access_key or not secret_key:
-            raise RuntimeError("[S3Upload] S3 credentials not found in Vault")
+            raise RuntimeError("[S3Upload] S3 credentials not found in local Vault")
 
         self.region_name = region or "nbg1"
         self.endpoint_url = f"https://{self.region_name}.your-objectstorage.com"

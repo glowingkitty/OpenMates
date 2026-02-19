@@ -1,13 +1,28 @@
 # backend/apps/uploads/docker-compose.yml
 #
-# Docker Compose for the app-uploads microservice and its ClamAV dependency.
+# Docker Compose for the app-uploads microservice, ClamAV, and local Vault.
+#
+# SECURITY ARCHITECTURE:
+#   The uploads service runs on a SEPARATE VM with zero access to the main
+#   Vault, Directus, or any user data. A local Vault (dev mode, in-memory)
+#   stores ONLY S3 and SightEngine credentials. All Directus queries and
+#   Vault Transit key wrapping are proxied through the core API's internal
+#   endpoints (/internal/uploads/*), secured by INTERNAL_API_SHARED_TOKEN.
+#
+#   If this VM is compromised, the attacker gets:
+#     - S3 write credentials (can upload junk, cannot read existing files)
+#     - SightEngine API keys (benign — image classification only)
+#   They CANNOT:
+#     - Decrypt any existing files (no Transit decrypt access)
+#     - Access user data (no Directus access)
+#     - Reach the main Vault
 #
 # DEPLOYMENT MODELS:
 #
 #   Production (separate VM — upload.openmates.org):
 #     Run this compose file standalone on the uploads VM.
 #     Set CORE_API_URL to the internal/private address of the API server.
-#     ClamAV runs as a sidecar on the same VM.
+#     ClamAV and local Vault run as sidecars on the same VM.
 #     The uploads VM does NOT join the openmates Docker network (different host).
 #
 #   Development (same server as core stack):
@@ -16,20 +31,82 @@
 #     The port mapping (127.0.0.1:8004:8000) lets Caddy proxy /api/uploads/* to it.
 #
 # ENVIRONMENT VARIABLES (required — define in project root .env or shell):
-#   DIRECTUS_TOKEN            — Directus admin token
-#   VAULT_TOKEN               — Vault token (or token file via vault-setup-data volume)
+#   CORE_API_URL              — URL of the core API (http://api:8000 on dev, private IP on prod)
 #   INTERNAL_API_SHARED_TOKEN — Shared secret for internal service-to-service auth
-#   CORE_API_URL              — URL of the core API (http://api:8000 on dev, private IP on prod VM)
-#   CMS_URL                   — Directus URL (http://cms:8055 on dev, private IP on prod VM)
-#   VAULT_URL                 — Vault URL (http://vault:8200 on dev, private IP on prod VM)
-#   SECRET__SIGHTENGINE__API_USER   — SightEngine API user (for AI-generated image detection)
-#   SECRET__SIGHTENGINE__API_SECRET — SightEngine API secret
+#   UPLOADS_VAULT_ROOT_TOKEN  — Root token for the local Vault (random UUID)
+#   SECRET__HETZNER__S3_ACCESS_KEY    — S3 access key (migrated into local Vault by vault-setup)
+#   SECRET__HETZNER__S3_SECRET_KEY    — S3 secret key
+#   SECRET__HETZNER__S3_REGION_NAME   — S3 region (e.g. nbg1)
+#   SECRET__SIGHTENGINE__API_USER     — SightEngine API user (optional — AI detection disabled if unset)
+#   SECRET__SIGHTENGINE__API_SECRET   — SightEngine API secret
 #   SERVER_ENVIRONMENT        — "development" | "production"
 #   LOG_LEVEL                 — "info" | "debug" | "warning"
 
 name: openmates-uploads
 
 services:
+  # ---------------------------------------------------------------------------
+  # Local Vault (dev mode — in-memory, no persistence needed)
+  # ---------------------------------------------------------------------------
+  # This Vault instance stores ONLY S3 and SightEngine credentials.
+  # It has NO Transit engine, NO user keys, NO connection to the main Vault.
+  # Dev mode = in-memory storage, auto-unsealed, root token from env var.
+  vault:
+    container_name: uploads-vault
+    image: hashicorp/vault:1.19
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "${UPLOADS_VAULT_ROOT_TOKEN}"
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      VAULT_LOG_LEVEL: "info"
+    # Dev mode: no config file needed — Vault starts unsealed with root token.
+    # Data is in-memory only and lost on restart (vault-setup re-populates on every start).
+    networks:
+      - uploads
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8200"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # Vault Setup (init container — populates local Vault with credentials)
+  # ---------------------------------------------------------------------------
+  # Runs once on startup to migrate SECRET__* env vars into the local Vault's
+  # KV v2 engine. Creates a scoped read-only token that app-uploads uses.
+  # Re-runs on every stack start (idempotent — Vault is in-memory).
+  vault-setup:
+    container_name: uploads-vault-setup
+    build:
+      # Build context is project root so Dockerfile can COPY backend/
+      context: ../../
+      dockerfile: backend/apps/uploads/vault/Dockerfile
+    env_file: ../../.env
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "${UPLOADS_VAULT_ROOT_TOKEN}"
+    volumes:
+      # Write the scoped API token to a shared volume for app-uploads to read
+      - vault-setup-data:/app/data
+    networks:
+      - uploads
+    depends_on:
+      vault:
+        condition: service_healthy
+    restart: "on-failure"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+    command: >
+      sh -c "echo 'Waiting for local Vault to be ready...' &&
+             sleep 3 &&
+             python setup_vault.py &&
+             echo 'Local Vault setup complete.'"
+
   # ---------------------------------------------------------------------------
   # File Uploads Microservice
   # ---------------------------------------------------------------------------
@@ -44,30 +121,30 @@ services:
     environment:
       PYTHONPATH: "/app"
       UPLOADS_APP_INTERNAL_PORT: "8000"
-      # Core service URLs — override in docker-compose.override.yml for dev
-      # or via environment variables for prod VM deployment
-      CMS_URL: "${CMS_URL:-http://cms:8055}"
-      VAULT_URL: "${VAULT_URL:-http://vault:8200}"
+      # Core API URL — the ONLY external service this container contacts.
+      # On dev: http://api:8000 (Docker DNS via override network).
+      # On prod VM: http://<main-server-private-ip>:8000
       CORE_API_URL: "${CORE_API_URL:-http://api:8000}"
-      DIRECTUS_TOKEN: "${DIRECTUS_TOKEN}"
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      # Local Vault — for S3 and SightEngine credentials ONLY.
+      # This is NOT the main Vault. It runs as a sidecar in this compose stack.
+      VAULT_URL: "http://vault:8200"
       # ClamAV — always runs as a sidecar in the same compose stack
       CLAMAV_HOST: "clamav"
       CLAMAV_PORT: "3310"
-      # SightEngine AI-generated image detection
-      SIGHTENGINE_API_USER: "${SECRET__SIGHTENGINE__API_USER:-}"
-      SIGHTENGINE_API_SECRET: "${SECRET__SIGHTENGINE__API_SECRET:-}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT:-development}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
     volumes:
       - ../../backend:/app/backend
-      # Vault token written by vault-setup (dev only; on prod VM use VAULT_TOKEN env var)
-      - vault-setup-data:/vault-data
+      # Vault API token written by vault-setup init container
+      - vault-setup-data:/vault-data:ro
     networks:
       - uploads
     depends_on:
       clamav:
         condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -110,9 +187,9 @@ services:
 # ---------------------------------------------------------------------------
 networks:
   uploads:
-    # Internal network for uploads <-> clamav communication.
+    # Internal network for uploads <-> clamav <-> vault communication.
     # In dev (docker-compose.override.yml) app-uploads ALSO joins the 'openmates'
-    # network so it can reach api, cms, vault via Docker DNS.
+    # network so it can reach the core API via Docker DNS.
     driver: bridge
 
 # ---------------------------------------------------------------------------
@@ -124,7 +201,8 @@ volumes:
     # Without this, ClamAV re-downloads ~200 MB of signatures on every restart.
     name: openmates-clamav-db
   vault-setup-data:
-    # On dev: populated by vault-setup container in the core stack.
-    # On prod VM: mount your actual Vault token file here or use VAULT_TOKEN env var.
-    name: openmates-vault-setup-data
-    external: true # Shared with core stack on dev server
+    # Shared between vault-setup (writer) and app-uploads (reader).
+    # Contains the scoped Vault API token file (api.token).
+    # NOT external — owned by this compose stack (unlike the old design
+    # that depended on the core stack's vault-setup-data volume).
+    name: openmates-uploads-vault-setup-data

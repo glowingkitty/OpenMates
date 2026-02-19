@@ -7,7 +7,8 @@
 #   - app-uploads joins the 'openmates' Docker network (core stack) so that
 #     CORE_API_URL=http://api:8000 resolves via Docker DNS.
 #   - Port 8004 is exposed on localhost so Caddy can proxy /api/uploads/* to it.
-#   - vault-setup-data volume is shared from the core stack (external: true in docker-compose.yml).
+#   - The local Vault also joins the 'openmates' network for easier debugging
+#     (e.g. curl from other containers), though this is not required for operation.
 #
 # On the production uploads VM, NONE of these overrides are needed:
 #   - Use CORE_API_URL=<private_IP_of_api_server> instead of Docker DNS.
@@ -20,7 +21,16 @@ services:
       # Port 8004 chosen to avoid conflict with main API (8000) and other local services.
       - "127.0.0.1:8004:8000"
     networks:
-      # Also join the shared 'openmates' network so Docker DNS resolves api, cms, vault
+      # Also join the shared 'openmates' network so Docker DNS resolves the core API
+      - openmates
+
+  vault:
+    # In dev, also expose the local Vault UI on a high port for debugging.
+    # Not needed in production — the local Vault has no sensitive Transit keys.
+    ports:
+      - "127.0.0.1:8201:8200"
+    networks:
+      # Join openmates network for easier debugging (curl from other containers)
       - openmates
 
 networks:

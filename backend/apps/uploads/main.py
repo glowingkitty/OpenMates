@@ -7,12 +7,23 @@
 #   - Scans files for malware (ClamAV via TCP socket)
 #   - Detects AI-generated images (SightEngine, non-blocking)
 #   - Generates WEBP previews (Pillow)
-#   - Encrypts files with AES-256-GCM + Vault Transit key wrapping
+#   - Encrypts files with AES-256-GCM (pure local encryption, no Vault)
+#   - Wraps AES keys via core API internal endpoint (Vault Transit proxy)
 #   - Uploads encrypted files to S3 (chatfiles bucket)
 #   - Returns embed metadata the client uses to build TOON content
 #
-# All heavy services (ClamAV, S3, Vault) are initialised once at startup
-# and stored in app.state for reuse across requests.
+# All heavy services (ClamAV, S3, SightEngine) are initialised once at
+# startup and stored in app.state for reuse across requests.
+#
+# Security architecture:
+#   - This service runs on a SEPARATE VM with zero access to the main Vault,
+#     Directus, or any user data.
+#   - A local Vault (dev mode) stores ONLY S3 and SightEngine credentials.
+#   - All Directus queries and Vault Transit key wrapping are proxied through
+#     the core API's /internal/uploads/* endpoints.
+#   - If this VM is compromised, the attacker gets only S3 write credentials
+#     and SightEngine keys. They cannot decrypt existing files, access user
+#     data, or reach the main Vault.
 #
 # Architecture: This service is intentionally self-contained. It does not
 # import from backend.core or backend.shared to keep its dependency surface
@@ -49,8 +60,12 @@ limiter = Limiter(key_func=get_remote_address)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Startup: initialise all heavy services once (S3, ClamAV, Vault, etc.).
+    Startup: initialise all heavy services once (S3, ClamAV, SightEngine, etc.).
     Shutdown: clean up resources.
+
+    SightEngine credentials are loaded from the LOCAL Vault KV (populated by
+    vault-setup init container). S3 credentials are also loaded from local
+    Vault. The main Vault is never contacted from this service.
     """
     logger.info("[Uploads] Starting up app-uploads service...")
 
@@ -67,13 +82,12 @@ async def lifespan(app: FastAPI):
         raise RuntimeError(f"ClamAV unavailable at startup: {e}") from e
     app.state.malware_scanner = malware_scanner
 
-    # --- File encryption (AES-256-GCM + Vault Transit) ---
-    file_encryption = FileEncryptionService(
-        vault_url=os.environ.get("VAULT_URL", "http://vault:8200"),
-        vault_token_path="/vault-data/api.token",
-    )
+    # --- File encryption (AES-256-GCM only — no Vault dependency) ---
+    # Vault Transit key wrapping is handled by the core API's internal endpoint.
+    # This service only generates AES keys and encrypts file bytes locally.
+    file_encryption = FileEncryptionService()
     app.state.file_encryption = file_encryption
-    logger.info("[Uploads] FileEncryptionService: ready")
+    logger.info("[Uploads] FileEncryptionService: ready (pure AES-256-GCM, no Vault)")
 
     # --- Image preview generator (Pillow) ---
     preview_generator = PreviewGeneratorService()
@@ -81,16 +95,22 @@ async def lifespan(app: FastAPI):
     logger.info("[Uploads] PreviewGeneratorService: ready")
 
     # --- SightEngine AI detection (non-critical — graceful failure allowed) ---
-    # SightEngineService reads SIGHTENGINE_API_USER and SIGHTENGINE_API_SECRET
-    # from env vars directly. If not set, detection is automatically disabled.
+    # Credentials are loaded from the LOCAL Vault KV (populated by vault-setup
+    # init container from SECRET__SIGHTENGINE__* env vars). If credentials are
+    # not available, detection is automatically disabled — uploads still succeed.
     sightengine = SightEngineService()
-    if not os.environ.get("SIGHTENGINE_API_USER") or not os.environ.get("SIGHTENGINE_API_SECRET"):
-        logger.warning(
-            "[Uploads] SIGHTENGINE_API_USER/SECRET not set — "
-            "AI detection will be skipped for all uploads."
-        )
+    await sightengine.initialize_from_vault(
+        vault_url=os.environ.get("VAULT_URL", "http://vault:8200"),
+        vault_token_path="/vault-data/api.token",
+    )
     app.state.sightengine = sightengine
-    logger.info("[Uploads] SightEngineService: ready")
+    if sightengine.is_enabled:
+        logger.info("[Uploads] SightEngineService: ready (credentials from local Vault)")
+    else:
+        logger.warning(
+            "[Uploads] SightEngineService: AI detection DISABLED — "
+            "credentials not found in local Vault. Set SECRET__SIGHTENGINE__* env vars to enable."
+        )
 
     # --- S3 upload service ---
     s3_service = UploadsS3Service()
@@ -144,7 +164,7 @@ async def health_check() -> dict:
     """
     Lightweight health check for Docker.
     Returns 200 if the service is running. Does NOT check downstream services
-    (ClamAV, S3, Vault) — those are validated at startup.
+    (ClamAV, S3, local Vault) — those are validated at startup.
     """
     return {"status": "ok", "service": "app-uploads"}
 

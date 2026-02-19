@@ -20,9 +20,12 @@
 # The AI detection result is stored as metadata in the embed TOON content.
 # It is shown to the user as a badge on the image embed card. Upload always
 # succeeds regardless of the detection result.
+#
+# Credentials are loaded from the LOCAL Vault KV at startup (not env vars).
+# The local Vault is populated by vault-setup from SECRET__SIGHTENGINE__*
+# env vars. This service never contacts the main Vault.
 
 import logging
-import os
 from typing import Optional
 
 import httpx
@@ -62,25 +65,84 @@ class SightEngineService:
     """
     Async wrapper for the SightEngine AI-generated image detection API.
 
-    Credentials are loaded from environment variables at startup:
-      SIGHTENGINE_API_USER   — API user ID
-      SIGHTENGINE_API_SECRET — API secret key
-
-    The service is optional: if credentials are not configured, detection is
-    skipped and the embed will have no ai_detection metadata.
+    Credentials are loaded from the local Vault KV at startup via
+    initialize_from_vault(). If credentials are not available,
+    detection is automatically skipped for all uploads.
     """
 
     def __init__(self) -> None:
-        self.api_user = os.environ.get("SIGHTENGINE_API_USER", "")
-        self.api_secret = os.environ.get("SIGHTENGINE_API_SECRET", "")
-        self._enabled = bool(self.api_user and self.api_secret)
+        self.api_user: str = ""
+        self.api_secret: str = ""
+        self._enabled: bool = False
 
-        if self._enabled:
-            logger.info("[SightEngine] AI detection service enabled")
-        else:
+    async def initialize_from_vault(
+        self,
+        vault_url: str = "http://vault:8200",
+        vault_token_path: str = "/vault-data/api.token",
+    ) -> None:
+        """
+        Load SightEngine credentials from the local Vault KV.
+
+        Reads from kv/data/providers/sightengine:
+          - api_user
+          - api_secret
+
+        If credentials are not found or Vault is unavailable, the service
+        is disabled (detection skipped) — uploads still succeed.
+
+        Args:
+            vault_url: URL of the local Vault instance.
+            vault_token_path: Path to the Vault API token file.
+        """
+        try:
+            # Load token from shared volume
+            with open(vault_token_path, "r") as f:
+                token = f.read().strip()
+            if not token:
+                logger.warning(
+                    "[SightEngine] Vault token file is empty — "
+                    "AI detection will be skipped"
+                )
+                return
+
+            # Fetch credentials from local Vault KV
+            url = f"{vault_url}/v1/kv/data/providers/sightengine"
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(url, headers={"X-Vault-Token": token})
+
+            if resp.status_code == 404:
+                logger.warning(
+                    "[SightEngine] No sightengine credentials in local Vault — "
+                    "AI detection will be skipped. "
+                    "Set SECRET__SIGHTENGINE__API_USER and SECRET__SIGHTENGINE__API_SECRET "
+                    "in .env to enable."
+                )
+                return
+
+            resp.raise_for_status()
+            data = resp.json().get("data", {}).get("data", {})
+
+            self.api_user = data.get("api_user", "")
+            self.api_secret = data.get("api_secret", "")
+            self._enabled = bool(self.api_user and self.api_secret)
+
+            if self._enabled:
+                logger.info("[SightEngine] AI detection service enabled (credentials from local Vault)")
+            else:
+                logger.warning(
+                    "[SightEngine] api_user or api_secret missing in Vault KV — "
+                    "AI detection will be skipped"
+                )
+
+        except FileNotFoundError:
             logger.warning(
-                "[SightEngine] SIGHTENGINE_API_USER/SIGHTENGINE_API_SECRET not set — "
-                "AI detection will be skipped for uploaded images"
+                "[SightEngine] Vault token file not found — "
+                "AI detection will be skipped"
+            )
+        except Exception as e:
+            logger.warning(
+                f"[SightEngine] Failed to load credentials from local Vault: {e} — "
+                f"AI detection will be skipped"
             )
 
     @property

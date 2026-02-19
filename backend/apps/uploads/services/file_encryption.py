@@ -1,15 +1,15 @@
 # backend/apps/uploads/services/file_encryption.py
 #
-# File encryption and Vault key-wrapping service for uploaded files.
+# Pure AES-256-GCM file encryption service for uploaded files.
 #
-# Architecture — matches generate_task.py exactly:
+# Architecture:
 #   1. Generate a random AES-256 key per file.
 #   2. Encrypt the file bytes with AES-256-GCM (same key, unique nonce per variant).
-#   3. Vault-wrap the AES key using the user's Vault Transit key.
-#      → 'vault_wrapped_aes_key' is stored in the embed content TOON so that
-#        backend skills can later unwrap it via Vault and decrypt the file on demand.
-#      → The plaintext AES key is also returned to the client so it can decrypt
-#        the file for local rendering (e.g. displaying the image in the browser).
+#   3. Return the plaintext AES key and nonce to the caller.
+#
+# Vault Transit key wrapping is handled by the core API via its internal
+# endpoint (/internal/uploads/wrap-key). This service has NO access to the
+# main Vault and never performs any Vault operations.
 #
 # The plaintext AES key is NEVER stored server-side after this function returns.
 # It lives only in the client-encrypted embed content (TOON inside encrypted_content).
@@ -25,73 +25,21 @@ logger = logging.getLogger(__name__)
 
 class FileEncryptionService:
     """
-    AES-256-GCM file encryption with HashiCorp Vault Transit key wrapping.
+    AES-256-GCM file encryption service.
 
     Each file gets a freshly generated 256-bit AES key. The key is:
       - Used to encrypt the raw file bytes before S3 upload.
-      - Vault-wrapped so skills can decrypt the file server-side on demand.
       - Returned as base64 plaintext to the caller for inclusion in the embed TOON
         (the embed TOON is then client-encrypted, so the key is protected at rest).
+
+    Vault Transit key wrapping (for server-side skill access) is handled
+    separately by the core API's /internal/uploads/wrap-key endpoint.
+    This class is intentionally Vault-free for security isolation.
     """
 
-    def __init__(self, vault_url: str, vault_token_path: str = "/vault-data/api.token") -> None:
-        self.vault_url = vault_url
-        self.vault_token_path = vault_token_path
-        self.transit_mount = "transit"
-
-    def _load_vault_token(self) -> str:
-        """Load the Vault API token from the shared token file (written by vault-setup)."""
-        try:
-            with open(self.vault_token_path, "r") as f:
-                token = f.read().strip()
-                if not token:
-                    raise ValueError("Vault token file is empty")
-                return token
-        except FileNotFoundError as e:
-            logger.error(f"[FileEncryption] Vault token file not found at {self.vault_token_path}")
-            raise RuntimeError("Vault token file not found") from e
-
-    async def _vault_wrap_key(self, aes_key_b64: str, vault_key_id: str) -> str:
-        """
-        Encrypt (wrap) a base64-encoded AES key using the Vault Transit engine.
-
-        Args:
-            aes_key_b64: Base64-encoded raw AES-256 key to wrap.
-            vault_key_id: The user's Vault Transit key name (user.vault_key_id).
-
-        Returns:
-            Vault ciphertext string (e.g. "vault:v1:abc123...") that only Vault can decrypt.
-
-        Raises:
-            RuntimeError: If Vault is unreachable or the wrap fails.
-        """
-        import httpx
-
-        token = self._load_vault_token()
-        url = f"{self.vault_url}/v1/{self.transit_mount}/encrypt/{vault_key_id}"
-
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(
-                    url,
-                    json={"plaintext": aes_key_b64},
-                    headers={"X-Vault-Token": token},
-                )
-                resp.raise_for_status()
-                ciphertext = resp.json()["data"]["ciphertext"]
-                logger.debug(
-                    f"[FileEncryption] Vault-wrapped AES key for transit key '{vault_key_id}'"
-                )
-                return ciphertext
-        except httpx.HTTPStatusError as e:
-            logger.error(
-                f"[FileEncryption] Vault Transit encrypt failed: {e.response.status_code} {e.response.text}",
-                exc_info=True,
-            )
-            raise RuntimeError(f"Vault Transit encrypt failed: {e.response.status_code}") from e
-        except Exception as e:
-            logger.error(f"[FileEncryption] Vault request error: {e}", exc_info=True)
-            raise
+    def __init__(self) -> None:
+        """Initialize the encryption service. No external dependencies."""
+        pass
 
     def encrypt_bytes(self, plaintext: bytes) -> Tuple[bytes, str, str]:
         """
@@ -123,21 +71,16 @@ class FileEncryptionService:
 
     def encrypt_bytes_with_key(self, plaintext: bytes, aes_key_b64: str, nonce_b64: str) -> bytes:
         """
-        Encrypt a second variant (e.g. preview image) using the SAME AES key but a NEW nonce.
+        Encrypt a second variant (e.g. preview image) using the SAME AES key.
 
-        IMPORTANT: Never reuse the same nonce with the same key for different plaintexts.
-        This method generates a fresh nonce and appends it to the ciphertext so the caller
-        can store both together.
+        For our use case (image + preview), we use the SAME nonce across
+        variants (same as generate_task.py). This is safe because the plaintexts
+        are different. GCM nonce reuse is only catastrophic when the SAME
+        plaintext is encrypted with the same nonce+key. Different plaintexts
+        with the same nonce+key are NOT a security issue for confidentiality.
 
-        Wait — actually for our use case (image + preview), we use the SAME nonce across
-        variants (same as generate_task.py). This is safe because the plaintexts are different.
-        GCM nonce reuse is only catastrophic when the SAME plaintext is encrypted with the same
-        nonce+key. Different plaintexts with the same nonce+key are NOT a security issue for
-        confidentiality (only authenticity could theoretically be impacted, which is acceptable
-        for our use case where we verify S3 integrity via content hash).
-
-        See generate_task.py lines 358: `encrypted_payload = aesgcm.encrypt(nonce, content, None)`
-        for all image variants — same key, same nonce, different plaintext. We follow that pattern.
+        See generate_task.py: all image variants use same key, same nonce,
+        different plaintext. We follow that pattern.
 
         Args:
             plaintext: Raw bytes to encrypt.
@@ -155,16 +98,3 @@ class FileEncryptionService:
             f"[FileEncryption] Encrypted variant: {len(plaintext)} bytes → {len(encrypted)} bytes"
         )
         return encrypted
-
-    async def wrap_key_with_vault(self, aes_key_b64: str, vault_key_id: str) -> str:
-        """
-        Vault-wrap the plaintext AES key using the user's Transit key.
-
-        Args:
-            aes_key_b64: Base64 raw AES key to wrap.
-            vault_key_id: User's Vault Transit key ID.
-
-        Returns:
-            Vault ciphertext string for storage in embed content.
-        """
-        return await self._vault_wrap_key(aes_key_b64, vault_key_id)
