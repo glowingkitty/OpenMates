@@ -423,7 +423,7 @@ export async function insertCodeFile(
       type: "embed",
       attrs: {
         id: generateUUID(),
-        type: "code",
+        type: "code-code", // Must match the renderer registry key in embed_renderers/index.ts
         status: "finished",
         contentRef: null,
         src: url,
