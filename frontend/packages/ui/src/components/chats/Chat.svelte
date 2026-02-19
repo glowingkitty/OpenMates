@@ -238,6 +238,17 @@
    * Extract text from markdown, replacing json_embed blocks with their URLs
    * and code blocks with readable placeholders for better display in chat previews
    */
+  /**
+   * Extract human-readable preview text from stored markdown content.
+   * This is the fallback path used when no TipTap JSON is available
+   * (e.g. when reading encrypted drafts from the database).
+   *
+   * NOTE: This path cannot preserve the document order of unserialized embeds
+   * (e.g. uploading images without a contentRef) because they are not present
+   * in the markdown at all. The primary path (generateDraftPreview in draftSave.ts)
+   * uses TipTap JSON to preserve order correctly. This function handles the case
+   * where only markdown is available (e.g. fallback decryption of old drafts).
+   */
   function extractDisplayTextFromMarkdown(markdown: string): string {
     if (!markdown) return '';
     
@@ -248,23 +259,37 @@
       // e.g., "@ai-model:claude-4-sonnet" -> "@Claude-4.5-Sonnet"
       displayText = convertMentionSyntaxToDisplayName(displayText);
       
-      // Replace json_embed code blocks with their URLs for display, ensuring proper spacing
-      displayText = displayText.replace(/```json_embed\n([\s\S]*?)\n```/g, (match, jsonContent) => {
+      // Replace legacy json_embed code blocks with their URLs for display
+      displayText = displayText.replace(/```json_embed\n([\s\S]*?)\n```/g, (match) => {
         const url = extractUrlFromJsonEmbedBlock(match);
-        if (url) {
-          // Ensure the URL has spaces around it for proper separation from surrounding text
-          return ` ${url} `;
-        }
-        return match; // Return original if URL extraction failed
+        return url ? ` ${url} ` : match;
       });
       
-      // Replace regular code blocks with a placeholder showing the code content
+      // Replace serialized embed reference blocks (```json\n{...}\n```) with human-readable tokens.
+      // These are produced by serializers.ts for embeds stored in EmbedStore.
+      // Must be applied BEFORE the generic code-block handler below so they don't
+      // fall through and show as "[Code: {]".
+      displayText = displayText.replace(/```json\n([\s\S]*?)\n```/g, (match, jsonContent) => {
+        try {
+          const parsed = JSON.parse(jsonContent.trim());
+          const type = parsed?.type;
+          if (type === 'location') return ' [Location] ';
+          if (type === 'video') return ' [Video] ';
+          if (type === 'website') return ' [Website] ';
+          if (type === 'image') return ' [Image] ';
+          if (type === 'code') return ' [Code] ';
+          if (type) return ` [${type}] `;
+        } catch {
+          // Not valid JSON — fall through to generic code-block handler
+        }
+        return match;
+      });
+      
+      // Replace remaining code blocks with a placeholder showing the code content
       // This handles ```python\ncode\n``` style blocks
       displayText = displayText.replace(/```(\w*)\n([\s\S]*?)\n```/g, (match, language, codeContent) => {
-        // Show the actual code content, not just the language
         const trimmedCode = codeContent.trim();
         if (trimmedCode) {
-          // Show first line of code or truncated version
           const firstLine = trimmedCode.split('\n')[0].trim();
           return ` [Code: ${firstLine.substring(0, 30)}${firstLine.length > 30 ? '...' : ''}] `;
         }

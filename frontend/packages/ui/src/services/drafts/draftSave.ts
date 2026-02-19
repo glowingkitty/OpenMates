@@ -138,52 +138,214 @@ function convertMentionSyntaxToDisplayName(text: string): string {
  * @returns Truncated preview text suitable for display
  */
 /**
- * Walk a TipTap JSON document and collect embed type tokens for embed nodes that
- * are NOT yet serialized to markdown (i.e. no contentRef / still uploading / demo mode).
- * These nodes produce empty strings in tipTapToCanonicalMarkdown so they would otherwise
- * be silently dropped from the draft preview.
+ * Convert a single TipTap embed node to a human-readable token for display.
+ * Returns a token like "[Image]", "[Video]", "[Location]", etc.
  *
- * Returns an array of tokens like "[Image]", "[Video]", "[Audio]" etc. to be appended
- * to the preview text alongside any tokens already extracted from the markdown.
+ * For nodes with contentRef (already stored in EmbedStore), the type is derived
+ * from the embed reference JSON. For unserialized nodes (still uploading / demo mode),
+ * the type comes from the node's attrs.type field.
  */
-function collectUnserializedEmbedTokens(tiptapJSON: unknown): string[] {
-  if (!tiptapJSON || typeof tiptapJSON !== "object") return [];
+function embedNodeToDisplayToken(attrs: Record<string, unknown>): string {
+  const type = (attrs.type as string) ?? "";
+  const contentRef = attrs.contentRef as string | null | undefined;
+
+  if (contentRef?.startsWith("embed:")) {
+    // Serialized embed — type is already known from attrs
+    // Map internal type names to user-facing tokens
+    if (type === "web-website") return "[Website]";
+    if (type === "videos-video") return "[Video]";
+    if (type === "code-code") return "[Code]";
+    if (type === "maps") return "[Location]";
+    if (type === "image") return "[Image]";
+    if (type === "audio") return "[Audio]";
+    if (type === "recording") return "[Recording]";
+    if (type === "pdf") return "[PDF]";
+    if (type === "file") return "[File]";
+    if (type === "book") return "[Book]";
+    if (type) return `[${type}]`;
+  } else {
+    // Unserialized embed (still uploading, demo mode, or no contentRef yet)
+    if (type === "image") return "[Image]";
+    if (type === "audio") return "[Audio]";
+    if (type === "recording") return "[Recording]";
+    if (type === "videos-video") return "[Video]";
+    if (type === "pdf") return "[PDF]";
+    if (type === "file") return "[File]";
+    if (type === "code") return "[Code]";
+    if (type === "book") return "[Book]";
+    if (type) return `[${type}]`;
+  }
+
+  return "";
+}
+
+/**
+ * Walk a TipTap JSON document in document order and produce a flat array of
+ * preview tokens — preserving the exact sequence of text and embeds as the user
+ * composed them. This is the single source of truth for draft preview generation.
+ *
+ * WHY: The previous approach serialised TipTap → markdown (which drops unserialized
+ * embeds such as uploading images that have no contentRef), then appended embed tokens
+ * at the END. This broke the order: "[Image] [Image] [Image] describe the images"
+ * would render as "describe the images [Image] [Image] [Image]" in the chat list.
+ *
+ * This function fixes the problem by walking the document tree in order and emitting
+ * tokens for both text content and embeds at their correct positions.
+ */
+function buildPreviewTokensFromTiptap(doc: unknown): string[] {
+  if (!doc || typeof doc !== "object") return [];
+  const root = doc as Record<string, unknown>;
   const tokens: string[] = [];
 
-  function walk(node: Record<string, unknown>) {
-    if (node.type === "embed") {
-      const attrs = (node.attrs ?? {}) as Record<string, unknown>;
-      const type = (attrs.type as string) ?? "";
-      const contentRef = attrs.contentRef as string | null | undefined;
-      // Only include nodes that are NOT already serialized (no embed: contentRef).
-      // Nodes with contentRef are already represented in the markdown as json blocks.
-      if (!contentRef || !contentRef.startsWith("embed:")) {
-        if (type === "image") tokens.push("[Image]");
-        else if (type === "audio") tokens.push("[Audio]");
-        else if (type === "recording") tokens.push("[Recording]");
-        else if (type === "videos-video") tokens.push("[Video]");
-        else if (type === "pdf") tokens.push("[PDF]");
-        else if (type === "file") tokens.push("[File]");
-        else if (type === "code") tokens.push("[Code]");
-        else if (type === "book") tokens.push("[Book]");
-        else if (type) tokens.push(`[${type}]`);
-      }
-    }
-    // Recurse into child arrays (content, etc.)
-    for (const key of Object.keys(node)) {
-      const val = node[key];
-      if (Array.isArray(val)) {
-        for (const child of val) {
-          if (child && typeof child === "object") {
-            walk(child as Record<string, unknown>);
-          }
+  // Process a paragraph node: walk its children in order
+  function processParagraph(node: Record<string, unknown>) {
+    const children =
+      (node.content as Record<string, unknown>[] | undefined) ?? [];
+    for (const child of children) {
+      const childType = child.type as string;
+
+      if (childType === "text") {
+        // Collect text, applying mention conversion
+        const rawText = (child.text as string) ?? "";
+        const converted = convertMentionSyntaxToDisplayName(rawText);
+        if (converted.trim()) tokens.push(converted.trim());
+      } else if (childType === "embed") {
+        // Embed inside a paragraph (inline embed) — emit a token
+        const attrs = (child.attrs ?? {}) as Record<string, unknown>;
+        const token = embedNodeToDisplayToken(attrs);
+        if (token) tokens.push(token);
+      } else if (childType === "aiModelMention") {
+        // @ai-model mention nodes — look up the human-readable model name
+        const attrs = (child.attrs ?? {}) as Record<string, unknown>;
+        const modelId = (attrs.modelId as string) ?? "";
+        // Use the already-imported modelsMetadata (imported at the top of draftSave.ts)
+        const model = modelsMetadata.find((m) => m.id === modelId);
+        if (model) {
+          tokens.push(`@${model.name.replace(/\s+/g, "-")}`);
+        } else if (modelId) {
+          tokens.push(`@ai-model:${modelId}`);
         }
+      } else if (childType === "mate") {
+        const attrs = (child.attrs ?? {}) as Record<string, unknown>;
+        const mateName = (attrs.name as string) ?? "";
+        if (mateName) tokens.push(`@${mateName}`);
+      } else if (childType === "genericMention") {
+        const attrs = (child.attrs ?? {}) as Record<string, unknown>;
+        const syntax = (attrs.mentionSyntax as string) ?? "";
+        // Convert mention syntax to display name (e.g. @skill:app:id → @App-Skill)
+        if (syntax) tokens.push(convertMentionSyntaxToDisplayName(syntax));
+      } else if (childType === "hardBreak") {
+        // Treat a hard break as a space between tokens
+        tokens.push(" ");
       }
     }
   }
 
-  walk(tiptapJSON as Record<string, unknown>);
+  // Walk top-level nodes in document order
+  const topLevel =
+    (root.content as Record<string, unknown>[] | undefined) ?? [];
+  for (const node of topLevel) {
+    const nodeType = node.type as string;
+
+    if (nodeType === "paragraph") {
+      processParagraph(node);
+    } else if (nodeType === "embed") {
+      // Top-level embed (shouldn't be common but handle defensively)
+      const attrs = (node.attrs ?? {}) as Record<string, unknown>;
+      const token = embedNodeToDisplayToken(attrs);
+      if (token) tokens.push(token);
+    } else if (nodeType === "heading") {
+      // Extract text from headings
+      const children =
+        (node.content as Record<string, unknown>[] | undefined) ?? [];
+      const text = children
+        .filter((c) => c.type === "text")
+        .map((c) => (c.text as string) ?? "")
+        .join("")
+        .trim();
+      if (text) tokens.push(text);
+    } else if (nodeType === "bulletList" || nodeType === "orderedList") {
+      // Extract first item text from lists for preview
+      const items =
+        (node.content as Record<string, unknown>[] | undefined) ?? [];
+      for (const item of items) {
+        const itemChildren =
+          (item.content as Record<string, unknown>[] | undefined) ?? [];
+        for (const child of itemChildren) {
+          if (child.type === "paragraph") {
+            processParagraph(child);
+          }
+        }
+      }
+    } else if (nodeType === "blockquote") {
+      // Extract text from blockquotes
+      const children =
+        (node.content as Record<string, unknown>[] | undefined) ?? [];
+      for (const child of children) {
+        if ((child as Record<string, unknown>).type === "paragraph") {
+          processParagraph(child as Record<string, unknown>);
+        }
+      }
+    }
+    // Code blocks (codeBlock nodes) are skipped intentionally —
+    // the serialized markdown representation handles them in the fallback path.
+  }
+
   return tokens;
+}
+
+/**
+ * Apply code-block and embed-reference replacements to a markdown string,
+ * returning a human-readable preview line. Used as fallback when no TipTap JSON
+ * is available, and to handle serialized embed references (json/json_embed blocks)
+ * that the document-order walk converts via embedNodeToDisplayToken.
+ */
+function processMarkdownForPreview(markdown: string): string {
+  let displayText = convertMentionSyntaxToDisplayName(markdown);
+
+  // Replace legacy json_embed code blocks with their URLs
+  displayText = displayText.replace(
+    /```json_embed\n([\s\S]*?)\n```/g,
+    (match) => {
+      const url = extractUrlFromJsonEmbedBlock(match);
+      return url ? ` ${url} ` : match;
+    },
+  );
+
+  // Replace serialized embed reference blocks (```json\n{...}\n```) with tokens
+  displayText = displayText.replace(
+    /```json\n([\s\S]*?)\n```/g,
+    (match, jsonContent) => {
+      try {
+        const parsed = JSON.parse(jsonContent.trim());
+        const type = parsed?.type;
+        if (type === "location") return " [Location] ";
+        if (type === "video") return " [Video] ";
+        if (type === "website") return " [Website] ";
+        if (type === "image") return " [Image] ";
+        if (type === "code") return " [Code] ";
+        if (type) return ` [${type}] `;
+      } catch {
+        // Not valid JSON — fall through
+      }
+      return match;
+    },
+  );
+
+  // Replace remaining code blocks with a placeholder
+  displayText = displayText.replace(
+    /```(\w*)\n([\s\S]*?)\n```/g,
+    (match, language, codeContent) => {
+      const trimmedCode = codeContent.trim();
+      if (trimmedCode) {
+        const firstLine = trimmedCode.split("\n")[0].trim();
+        return ` [Code: ${firstLine.substring(0, 30)}${firstLine.length > 30 ? "..." : ""}] `;
+      }
+      return language ? ` [${language} code] ` : " [code] ";
+    },
+  );
+
+  return displayText;
 }
 
 function generateDraftPreview(
@@ -191,96 +353,44 @@ function generateDraftPreview(
   maxLength: number = 100,
   tiptapJSON?: unknown,
 ): string {
-  // If both markdown and JSON are empty/absent there is nothing to show.
-  const hasMarkdown = !!markdown;
-  const jsonTokens = tiptapJSON
-    ? collectUnserializedEmbedTokens(tiptapJSON)
-    : [];
-  if (!hasMarkdown && jsonTokens.length === 0) return "";
+  // CRITICAL: When TipTap JSON is available, always use a document-order walk to build
+  // the preview. This is the ONLY way to guarantee that embeds and text appear in the
+  // correct order in the chat list. The previous approach (markdown → text, then append
+  // embed tokens) broke order: images uploaded before text would appear AFTER the text
+  // in the preview, e.g. "[Image] [Image] describe it" → "describe it [Image] [Image]".
+  if (tiptapJSON) {
+    try {
+      const tokens = buildPreviewTokensFromTiptap(tiptapJSON);
+      if (tokens.length === 0) return "";
+
+      // Join tokens with a single space and clean up whitespace
+      const cleanedText = tokens.join(" ").replace(/\s+/g, " ").trim();
+      if (!cleanedText) return "";
+
+      return cleanedText.length > maxLength
+        ? cleanedText.substring(0, maxLength) + "..."
+        : cleanedText;
+    } catch (error) {
+      console.error(
+        "[DraftService] Error building preview from TipTap JSON, falling back to markdown:",
+        error,
+      );
+      // Fall through to markdown-based fallback below
+    }
+  }
+
+  // Fallback: markdown-only path (used when no TipTap JSON is provided,
+  // e.g. when reading encrypted drafts from the database without the live editor).
+  if (!markdown) return "";
 
   try {
-    let displayText = markdown;
-
-    // Convert backend mention syntax to human-readable display names
-    // e.g., "@ai-model:claude-4-sonnet" -> "@Claude-4.5-Sonnet"
-    displayText = convertMentionSyntaxToDisplayName(displayText);
-
-    // Replace json_embed code blocks with their URLs for display, ensuring proper spacing
-    displayText = displayText.replace(
-      /```json_embed\n([\s\S]*?)\n```/g,
-      (match, jsonContent) => {
-        const url = extractUrlFromJsonEmbedBlock(match);
-        if (url) {
-          // Ensure the URL has spaces around it for proper separation from surrounding text
-          return ` ${url} `;
-        }
-        return match; // Return original if URL extraction failed
-      },
-    );
-
-    // Replace ```json\n{...}\n``` embed reference blocks with human-readable placeholders.
-    // These blocks are produced by serializers.ts for all embed types stored in EmbedStore:
-    //   {"type": "location", "embed_id": "..."}  → [Location]
-    //   {"type": "video",    "embed_id": "..."}  → [Video]
-    //   {"type": "website",  "embed_id": "..."}  → [Website]
-    //   {"type": "image",    "embed_id": "..."}  → [Image]
-    // Without this handler they fall through to the generic code-block handler below
-    // and show as "[Code: {]" which is meaningless to the user.
-    displayText = displayText.replace(
-      /```json\n([\s\S]*?)\n```/g,
-      (match, jsonContent) => {
-        try {
-          const parsed = JSON.parse(jsonContent.trim());
-          const type = parsed?.type;
-          if (type === "location") return " [Location] ";
-          if (type === "video") return " [Video] ";
-          if (type === "website") return " [Website] ";
-          if (type === "image") return " [Image] ";
-          if (type === "code") return " [Code] ";
-          if (type) return ` [${type}] `;
-        } catch {
-          // Not valid JSON — fall through to the generic code-block handler below
-        }
-        return match;
-      },
-    );
-
-    // Replace remaining code blocks with a placeholder showing the code content.
-    // This handles ```python\ncode\n``` style blocks.
-    displayText = displayText.replace(
-      /```(\w*)\n([\s\S]*?)\n```/g,
-      (match, language, codeContent) => {
-        // Show the actual code content, not just the language
-        const trimmedCode = codeContent.trim();
-        if (trimmedCode) {
-          // Show first line of code or truncated version
-          const firstLine = trimmedCode.split("\n")[0].trim();
-          return ` [Code: ${firstLine.substring(0, 30)}${firstLine.length > 30 ? "..." : ""}] `;
-        }
-        return language ? ` [${language} code] ` : " [code] ";
-      },
-    );
-
-    // Append tokens for unserialized embed nodes (e.g. uploading images, demo-mode images)
-    // that do not appear in the markdown output because they lack a contentRef.
-    if (jsonTokens.length > 0) {
-      const prefix = displayText.trim() ? " " : "";
-      displayText = displayText + prefix + jsonTokens.join(" ");
-    }
-
-    // Clean up multiple spaces and trim
+    const displayText = processMarkdownForPreview(markdown);
     const cleanedText = displayText.replace(/\s+/g, " ").trim();
-
-    // Truncate to maxLength if needed
-    if (cleanedText.length > maxLength) {
-      return cleanedText.substring(0, maxLength) + "...";
-    }
-
-    return cleanedText;
+    return cleanedText.length > maxLength
+      ? cleanedText.substring(0, maxLength) + "..."
+      : cleanedText;
   } catch (error) {
     console.error("[DraftService] Error generating draft preview:", error);
-    // Fallback: simple truncation of original markdown
-    if (!markdown) return jsonTokens.join(" ").substring(0, maxLength);
     return markdown.length > maxLength
       ? markdown.substring(0, maxLength) + "..."
       : markdown;
