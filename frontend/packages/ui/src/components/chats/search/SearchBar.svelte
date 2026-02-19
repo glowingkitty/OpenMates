@@ -84,10 +84,12 @@
   }
 
   /**
-   * Global keyboard shortcut handler for Cmd+K / Ctrl+K to focus the search input.
+   * Global keyboard shortcut handler for Cmd+K / Ctrl+K and Cmd+F / Ctrl+F
+   * to re-focus the search input when search is already open.
+   * (Cmd+F opening the panel from closed state is handled by KeyboardShortcuts.svelte.)
    */
   function handleGlobalKeyDown(event: KeyboardEvent): void {
-    if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+    if ((event.metaKey || event.ctrlKey) && (event.key === 'k' || event.key === 'f')) {
       event.preventDefault();
       event.stopPropagation();
       inputElement?.focus();

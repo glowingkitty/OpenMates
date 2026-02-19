@@ -66,6 +66,19 @@
         return;
       }
 
+      // Open search: Cmd+F / Ctrl+F
+      // Intercept the browser's native find-in-page and open our sidebar search instead.
+      // We only override this when the search bar is NOT already open — if it is open,
+      // SearchBar's own Cmd+K handler will focus the input directly.
+      if ((isMac ? event.metaKey : event.ctrlKey) && event.key === 'f') {
+        console.info('[KeyboardShortcuts] Cmd/Ctrl+F detected (open search)');
+        event.preventDefault();
+        event.stopPropagation();
+        dispatch('openSearch');
+        window.dispatchEvent(new Event('openSearch'));
+        return;
+      }
+
       // MODERN COMMAND PALETTE: Ctrl/Cmd + K
       // Press K while holding Ctrl/Cmd to open command mode
       if ((isMac ? event.metaKey : event.ctrlKey) && event.key === 'k') {

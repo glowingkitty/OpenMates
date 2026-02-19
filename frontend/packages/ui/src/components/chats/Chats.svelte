@@ -88,6 +88,15 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// Scroll state for ensuring scroll can reach 0 when hidden chats are unlocked
 	let activityHistoryElement: HTMLDivElement | null = $state(null); // Reference to scrollable container
 	
+	// Active chat visibility tracking — used to show a sticky pin when the active chat scrolls out of view.
+	// 'top'    → active chat is above the visible area (show pin at top)
+	// 'bottom' → active chat is below the visible area (show pin at bottom)
+	// null     → active chat is visible (no pin needed)
+	let activeChatOutOfViewDirection: 'top' | 'bottom' | null = $state(null);
+	// Reference to the currently active chat's DOM element so we can observe its visibility
+	let activeChatElement: HTMLDivElement | null = $state(null);
+	// activeChatData is declared later (after allChats) to avoid "used before declaration" error
+	
 	// --- Search State ---
 	// Reactive subscription to search store for template rendering
 	let searchState = $derived($searchStore);
@@ -116,6 +125,75 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		} else if (!activeChat) {
 			console.debug('[Chats] activeChat is null/empty');
 		}
+	});
+
+	// --- Active chat out-of-view tracking ---
+	// Uses IntersectionObserver to detect when the active chat item scrolls out of the visible
+	// scroll container. When it leaves the top edge we show a sticky pin at the top; when it
+	// leaves the bottom edge we show a sticky pin at the bottom. This lets users always spot the
+	// active chat even after scrolling far away from it.
+	//
+	// Implementation: We use a Svelte action (`trackActiveChatElement`) on every chat item. The
+	// action registers the element in `activeChatElement` when its chat_id matches `selectedChatId`.
+	// A separate $effect then wires up an IntersectionObserver on `activeChatElement`.
+	// Using an action (vs. bind:this with a conditional expression) is required because Svelte 5
+	// only allows bind:this on simple identifiers.
+	
+	// Re-sync activeChatElement whenever selectedChatId changes.
+	$effect(() => {
+		// Access selectedChatId so this effect re-runs when it changes
+		void selectedChatId;
+		void activityHistoryElement;
+		// After DOM updates, query for the active chat element
+		// We use requestAnimationFrame to wait for Svelte's DOM patch to complete
+		requestAnimationFrame(() => {
+			if (!activityHistoryElement) {
+				activeChatElement = null;
+				return;
+			}
+			const el = activityHistoryElement.querySelector('.chat-item.active') as HTMLDivElement | null;
+			activeChatElement = el;
+		});
+	});
+
+	$effect(() => {
+		const el = activeChatElement;
+		const container = activityHistoryElement;
+		if (!el || !container) {
+			activeChatOutOfViewDirection = null;
+			return;
+		}
+
+		// IntersectionObserver with the scroll container as the root.
+		// A threshold of 0 means any pixel of the element being invisible triggers the callback.
+		const observer = new IntersectionObserver(
+			(entries) => {
+				const entry = entries[0];
+				if (entry.isIntersecting) {
+					// Active chat is visible — hide pin
+					activeChatOutOfViewDirection = null;
+				} else {
+					// Determine which side the element disappeared to by comparing the element's
+					// bounding rect with the container's bounding rect.
+					const containerRect = container.getBoundingClientRect();
+					const elementRect = el.getBoundingClientRect();
+					if (elementRect.bottom <= containerRect.top) {
+						// Element is above the container's visible area
+						activeChatOutOfViewDirection = 'top';
+					} else {
+						// Element is below the container's visible area
+						activeChatOutOfViewDirection = 'bottom';
+					}
+				}
+			},
+			{
+				root: container,
+				threshold: 0,
+			}
+		);
+
+		observer.observe(el);
+		return () => observer.disconnect();
 	});
 
 	// --- Reactive Computations for Display ---
@@ -324,6 +402,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		return deduplicatedChats;
 	})());
 
+	// The Chat object for the currently active chat (used to render the sticky pin label).
+	// Declared here (after allChats) to avoid "block-scoped variable used before its declaration".
+	let activeChatData: ChatType | null = $derived(
+		selectedChatId ? (allChats.find(c => c.chat_id === selectedChatId) ?? null) : null
+	);
+
 	// Sort all chats (demo + real) using the utility function
 	let sortedAllChats = $derived(sortChats(allChats, currentServerSortOrder));
 
@@ -498,6 +582,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let handleHiddenChatsAutoLocked: () => void; // Handler for hidden chats auto-locked event
 	let handleChatHidden: (event: Event) => void; // Handler for chat hidden event
 	let handleChatUnhidden: (event: Event) => void; // Handler for chat unhidden event
+	let handleOpenSearchEvent: () => void; // Handler for global 'openSearch' window event (Cmd+F)
 
 	// --- chatSyncService Event Handlers ---
 
@@ -1424,6 +1509,27 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			}, 150); // Delay to ensure chat list update and DOM reflow completes
 		};
 		window.addEventListener('chatUnhidden', handleChatUnhidden);
+
+		// Handle global 'openSearch' event dispatched by KeyboardShortcuts (Cmd+F / Ctrl+F).
+		// Opens the search bar and, on mobile, also opens the Chats panel so it is visible.
+		handleOpenSearchEvent = () => {
+			if (!searchState.isActive) {
+				openSearch();
+			}
+			// On mobile the Chats panel may be closed — open it so the search bar is visible.
+			// panelState.toggleChats() is a toggle, so only call it when the panel is closed.
+			if (window.innerWidth < 730) {
+				import('../../stores/panelStateStore').then(({ isActivityHistoryOpen }) => {
+					const unsub = isActivityHistoryOpen.subscribe(isOpen => {
+						unsub();
+						if (!isOpen) {
+							panelState.toggleChats();
+						}
+					});
+				});
+			}
+		};
+		window.addEventListener('openSearch', handleOpenSearchEvent);
 		
 		// Initial load of incognito chats (only if mode is enabled)
 		// Don't use subscription to avoid reactive loops - just check on mount
@@ -1565,6 +1671,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			if (handleChatUnhidden) {
 				window.removeEventListener('chatUnhidden', handleChatUnhidden);
 			}
+		}
+		if (handleOpenSearchEvent) {
+			window.removeEventListener('openSearch', handleOpenSearchEvent);
 		}
 	});
 
@@ -2825,7 +2934,35 @@ async function updateChatListFromDBInternal(force = false) {
 			{/if}
 		</div>
 		
-		<!-- Scrollable content area -->
+		<!-- Scrollable content area — wrapped in a relative container so the sticky active-chat pin
+		     can be absolutely positioned over the scroll area. -->
+		<div class="activity-history-scroll-wrapper">
+			<!-- Sticky active-chat pin — shown when the active chat scrolls out of the visible list.
+			     Overlays the scroll container at the top or bottom edge.
+			     Clicking scrolls the active chat back into view. -->
+			{#if activeChatOutOfViewDirection && selectedChatId}
+				<button
+					class="active-chat-pin"
+					class:pin-top={activeChatOutOfViewDirection === 'top'}
+					class:pin-bottom={activeChatOutOfViewDirection === 'bottom'}
+					onclick={() => {
+						activeChatElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+					}}
+					aria-label={$text('chats.scroll_to_active_chat', { default: 'Scroll to active chat' })}
+				>
+					<!-- Arrow icon indicating scroll direction -->
+					<span
+						class="pin-arrow clickable-icon"
+						class:icon_arrow_up={activeChatOutOfViewDirection === 'top'}
+						class:icon_arrow_down={activeChatOutOfViewDirection === 'bottom'}
+					></span>
+					<!-- Chat title: plain title for demo chats, fallback otherwise -->
+					<span class="active-chat-pin-label">
+						{activeChatData?.title ?? $text('chats.active_chat', { default: 'Active chat' })}
+					</span>
+				</button>
+			{/if}
+
 		<div 
 			class="activity-history"
 			bind:this={activityHistoryElement}
@@ -3039,16 +3176,16 @@ async function updateChatListFromDBInternal(force = false) {
 					<div class="chat-group">
 						<!-- Pass the translation function `$_` to the utility -->
 						<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
-						{#each groupItems as chat (chat.chat_id)}
-							<div
-								role="button"
-								tabindex="0"
-								class="chat-item"
-								class:active={selectedChatId === chat.chat_id}
-								class:incognito={chat.is_incognito}
-								onclick={(event) => {
-									handleChatItemClick(chat, event);
-								}}
+		{#each groupItems as chat (chat.chat_id)}
+						<div
+							role="button"
+							tabindex="0"
+							class="chat-item"
+							class:active={selectedChatId === chat.chat_id}
+							class:incognito={chat.is_incognito}
+							onclick={(event) => {
+								handleChatItemClick(chat, event);
+							}}
 								onkeydown={(e) => {
 									// Handle keyboard selection with modifiers
 									const isShift = e.shiftKey;
@@ -3186,6 +3323,7 @@ async function updateChatListFromDBInternal(force = false) {
 			on:previousChat={handlePreviousChatShortcut}
 		/>
 	</div>
+		</div><!-- end .activity-history-scroll-wrapper -->
 </div>
 
 <style>
@@ -3196,6 +3334,17 @@ async function updateChatListFromDBInternal(force = false) {
         width: 100%;
         overflow: hidden;
         position: relative;
+    }
+
+    /* Wraps the scrollable area and the sticky active-chat pin.
+       position: relative lets the absolutely-positioned pin be anchored to this container. */
+    .activity-history-scroll-wrapper {
+        flex: 1;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
     }
 
     .activity-history {
@@ -3640,6 +3789,62 @@ async function updateChatListFromDBInternal(force = false) {
         width: 20px;
         height: 20px;
         opacity: 0.5;
+    }
+
+    /* --- Active-chat sticky pin --- */
+    /* Shown when the active chat item scrolls out of the visible scroll area.
+       Positioned absolutely over the scroll container so it doesn't disturb layout. */
+    .active-chat-pin {
+        position: absolute;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        background-color: var(--color-grey-30);
+        border: none;
+        border-radius: 0;
+        cursor: pointer;
+        font-size: 0.85em;
+        font-weight: 500;
+        color: var(--color-text-primary);
+        text-align: left;
+        transition: background-color 0.15s ease;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .active-chat-pin:hover {
+        background-color: var(--color-grey-35);
+    }
+
+    /* Pin anchored just below the top buttons container */
+    .active-chat-pin.pin-top {
+        top: 0;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+        border-bottom: 1px solid var(--color-grey-40);
+    }
+
+    /* Pin anchored at the very bottom of the scroll container */
+    .active-chat-pin.pin-bottom {
+        bottom: 0;
+        box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.12);
+        border-top: 1px solid var(--color-grey-40);
+    }
+
+    .active-chat-pin .pin-arrow {
+        flex-shrink: 0;
+        opacity: 0.7;
+    }
+
+    .active-chat-pin-label {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        min-width: 0;
     }
 </style>
 
