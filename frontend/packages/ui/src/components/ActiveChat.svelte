@@ -1317,8 +1317,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         showEmbedFullscreen = true;
         
-        // Update URL hash with embed ID for sharing/bookmarking
-        if (embedId) {
+        // Update URL hash with embed ID for sharing/bookmarking.
+        // Skip ephemeral/preview embeds (stream: or preview: prefix) — they are
+        // in-memory only and cannot be deep-linked or restored from a URL hash.
+        if (embedId && !isEphemeralEmbed) {
             activeEmbedStore.setActiveEmbed(embedId);
             console.debug('[ActiveChat] Updated URL hash with embed ID:', embedId);
         }

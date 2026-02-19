@@ -2387,13 +2387,37 @@ export class GroupRenderer implements EmbedRenderer {
     // Determine embed type from attrs
     const embedType = attrs.type === "web-website" ? "website" : attrs.type;
 
+    // For preview embeds (contentRef starts with 'preview:'), decodedContent is
+    // always null because preview embeds are not stored in EmbedStore. We
+    // synthesise a minimal decodedContent object from the node attrs so that
+    // ActiveChat.svelte's `{#if decodedContent?.code …}` condition is truthy
+    // and the fullscreen component receives the code content correctly.
+    let finalDecodedContent = decodedContent;
+    if (!finalDecodedContent && attrs.contentRef?.startsWith("preview:")) {
+      finalDecodedContent = {
+        code: attrs.code || "",
+        language: attrs.language || "text",
+        filename: attrs.filename || "",
+        lineCount: attrs.lineCount || 0,
+      };
+      console.debug(
+        "[GroupRenderer] Built synthetic decodedContent for preview embed fullscreen",
+        {
+          contentRef: attrs.contentRef,
+          codeLength: (attrs.code || "").length,
+          language: attrs.language,
+          filename: attrs.filename,
+        },
+      );
+    }
+
     // Dispatch custom event to open fullscreen view
     // The fullscreen component will handle loading and displaying embed content
     const event = new CustomEvent("embedfullscreen", {
       detail: {
         embedId: attrs.contentRef?.replace("embed:", ""),
         embedData,
-        decodedContent,
+        decodedContent: finalDecodedContent,
         embedType,
         attrs,
       },

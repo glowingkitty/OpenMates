@@ -165,13 +165,16 @@ function embedNodeToDisplayToken(attrs: Record<string, unknown>): string {
     if (type) return `[${type}]`;
   } else {
     // Unserialized embed (still uploading, demo mode, or no contentRef yet)
+    // Also covers preview embeds (contentRef starts with "preview:") which
+    // are created for unauthenticated users — these share the same type values
+    // as serialized embeds (e.g. "code-code"), so we handle both here.
     if (type === "image") return "[Image]";
     if (type === "audio") return "[Audio]";
     if (type === "recording") return "[Recording]";
     if (type === "videos-video") return "[Video]";
     if (type === "pdf") return "[PDF]";
     if (type === "file") return "[File]";
-    if (type === "code") return "[Code]";
+    if (type === "code" || type === "code-code") return "[Code]";
     if (type === "book") return "[Book]";
     if (type) return `[${type}]`;
   }
