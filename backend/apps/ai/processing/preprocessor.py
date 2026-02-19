@@ -800,6 +800,11 @@ async def handle_preprocessing(
 
         logger.info(f"{log_prefix} Firing Call A (fast UI) and Call B (routing) in parallel.")
 
+        # fast_tool_definition is guaranteed non-None here: the early-return guard above
+        # (missing 'fast_preprocess_request_tool' key) ensures we only reach this point if
+        # fast_tool_definition was set at line 614.  The assert narrows the type for Pyright.
+        assert fast_tool_definition is not None, "fast_tool_definition must be set before parallel calls"
+
         call_a_coro = call_preprocessing_llm(
             task_id=f"{request_data.chat_id}_{request_data.message_id}_A",
             model_id=preprocessing_model,
@@ -859,6 +864,11 @@ async def handle_preprocessing(
         llm_analysis_args.update(call_b_result.arguments)  # routing fields first
         llm_analysis_args.update(call_a_result.arguments)  # UI + safety fields override / fill in
         logger.info(f"{log_prefix} Both LLM calls succeeded. Merged results from Call A + Call B.")
+        # Build a combined raw response summary for debug logging below (used in both paths).
+        combined_raw_response_summary: Optional[Any] = {
+            "call_a": call_a_result.raw_provider_response_summary,
+            "call_b": call_b_result.raw_provider_response_summary,
+        }
 
     else:
         # -----------------------------------------------------------------------
@@ -893,6 +903,8 @@ async def handle_preprocessing(
             )
 
         llm_analysis_args = llm_call_result.arguments
+        # Store for unified debug logging below.
+        combined_raw_response_summary = llm_call_result.raw_provider_response_summary
     
     # Sanitize llm_analysis_args for logging: show only metadata for chat_summary and chat_tags
     sanitized_args = llm_analysis_args.copy()
@@ -902,8 +914,8 @@ async def handle_preprocessing(
         sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
     
     logger.info(f"{log_prefix} Received LLM analysis args: {sanitized_args}")
-    if llm_call_result.raw_provider_response_summary:
-        logger.debug(f"{log_prefix} Raw provider response summary: {llm_call_result.raw_provider_response_summary}")
+    if combined_raw_response_summary:
+        logger.debug(f"{log_prefix} Raw provider response summary: {combined_raw_response_summary}")
     
     HARM_THRESHOLD = skill_config.preprocessing_thresholds.harmful_content_score # Corrected attribute name
     MISUSE_THRESHOLD = skill_config.preprocessing_thresholds.misuse_risk_score
@@ -1620,7 +1632,7 @@ async def handle_preprocessing(
             f"{log_prefix} CRITICAL: 'chat_summary' is missing or empty from LLM response! "
             f"This field is REQUIRED in the tool definition. "
             f"LLM response keys: {list(llm_analysis_args.keys())}. "
-            f"Raw LLM response summary: {llm_call_result.raw_provider_response_summary}. "
+            f"Raw LLM response summary: {combined_raw_response_summary}. "
             f"This will cause post-processing to fail. "
             f"Message history length: {len(sanitized_message_history)}. "
             f"Preprocessing model: {preprocessing_model}."
