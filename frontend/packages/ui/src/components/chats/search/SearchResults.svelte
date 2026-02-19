@@ -422,6 +422,11 @@
                 title={$text('chats.search.go_to_message')}
                 onclick={() => onMessageSnippetClick(chatResult.chat, snippet.messageId)}
               >
+                {#if snippet.embedSourceLabel}
+                  <!-- Embed source label: shows "Web page · <snippet>" or "Code · <snippet>" -->
+                  <span class="embed-source-label">{snippet.embedSourceLabel}</span>
+                  <span class="embed-source-separator">·</span>
+                {/if}
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 {@html highlightText(snippet.snippet, query)}
               </button>
@@ -594,6 +599,25 @@
     background-color: var(--color-grey-25);
     color: var(--color-font-primary);
     outline: none;
+  }
+
+  /* Embed source label (e.g., "Web page ·" or "Code ·") shown before embed-sourced snippets.
+   * Styled as a muted badge so it doesn't compete with the match text. */
+  .embed-source-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-font-tertiary, var(--color-font-secondary));
+    opacity: 0.75;
+    margin-right: 2px;
+  }
+
+  .embed-source-separator {
+    font-size: 11px;
+    color: var(--color-font-tertiary, var(--color-font-secondary));
+    opacity: 0.5;
+    margin-right: 4px;
   }
 
   /* <mark> inside snippets — highlight color matching Figma (primary accent).

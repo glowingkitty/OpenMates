@@ -3,6 +3,13 @@
 // apps, skills, focus modes, and memories.
 // Uses an in-memory index (Option D: Hybrid warm cache) for E2E encryption compatibility.
 // All data lives in RAM only — nothing is persisted to disk as plaintext.
+//
+// EMBED CONTENT SEARCH:
+// In addition to message text, the index includes text extracted from embed content
+// (web pages, code, documents, skill results, etc.). Embeds are resolved via the
+// embedStore (IndexedDB) and decoded from TOON format. Each embed's text is stored
+// alongside its parent message entry, identified by embedType for display context.
+// Extraction is capped at MAX_EMBED_TEXT_CHARS per embed to keep RAM usage bounded.
 
 import type { Chat, Message } from "../types/chat";
 import { chatDB } from "./db";
@@ -20,6 +27,7 @@ import {
   INTRO_CHATS,
   LEGAL_CHATS,
 } from "../demo_chats";
+import { extractEmbedReferences } from "./embedResolver";
 
 // --- Types ---
 
@@ -33,6 +41,12 @@ export interface MessageMatchSnippet {
   matchStart: number;
   /** Length of the matched text within the snippet */
   matchLength: number;
+  /**
+   * Human-readable label describing the source of this snippet.
+   * Undefined for regular message text. Set for embed content (e.g., "Web page", "Code", "Document").
+   * Used by SearchResults.svelte to show "Found in: Web page" context labels.
+   */
+  embedSourceLabel?: string;
 }
 
 /** A chat search result containing title match info and message match snippets */
@@ -88,6 +102,11 @@ export interface SearchResults {
 const SNIPPET_CONTEXT_CHARS = 50;
 /** Maximum number of message snippets to show per chat */
 const MAX_SNIPPETS_PER_CHAT = 3;
+/**
+ * Maximum characters to extract from a single embed for search indexing.
+ * Caps RAM usage per embed — a typical web page scrape can be 10k+ chars.
+ */
+const MAX_EMBED_TEXT_CHARS = 1500;
 
 // --- Helpers ---
 
@@ -130,11 +149,231 @@ function stripMarkdown(text: string): string {
   );
 }
 
+// --- Embed Text Extraction ---
+
+/**
+ * Map of embed types to human-readable source labels shown in search results.
+ * The label appears as "Found in: <label>" in SearchResults.svelte.
+ */
+const EMBED_TYPE_LABELS: Record<string, string> = {
+  "web-website": "Web page",
+  "web-website-group": "Web search",
+  "videos-video": "Video",
+  "code-code": "Code",
+  "sheets-sheet": "Table",
+  "docs-doc": "Document",
+  maps: "Map",
+  audio: "Audio",
+  image: "Image",
+  file: "File",
+  text: "Text",
+  pdf: "PDF",
+  book: "Book",
+  recording: "Recording",
+  "app-skill-use": "Skill result",
+  "app-skill-use-group": "Skill results",
+  news: "News",
+  travel: "Travel",
+  "focus-mode-activation": "Focus mode",
+};
+
+/**
+ * Extract a searchable plaintext string from a decoded embed content object.
+ * Returns null if no meaningful text can be extracted.
+ *
+ * Text is truncated to MAX_EMBED_TEXT_CHARS to keep RAM usage bounded.
+ * Each embed type has different fields — we pull the most text-rich ones.
+ *
+ * @param embedType - Normalized embed type (e.g., "web-website", "code-code")
+ * @param decoded   - Decoded JS object from TOON content
+ */
+function extractTextFromEmbed(
+  embedType: string,
+  decoded: Record<string, any>,
+): string | null {
+  if (!decoded || typeof decoded !== "object") return null;
+
+  const parts: string[] = [];
+
+  if (embedType === "web-website") {
+    // Website embeds: title + description are the most searchable fields.
+    // The URL is also useful to match domain names.
+    if (decoded.title) parts.push(String(decoded.title));
+    if (decoded.description) parts.push(String(decoded.description));
+    // Handle TOON-flattened field names from backend (meta_url_description, etc.)
+    if (decoded.meta_url_title && decoded.meta_url_title !== decoded.title)
+      parts.push(String(decoded.meta_url_title));
+    if (
+      decoded.meta_url_description &&
+      decoded.meta_url_description !== decoded.description
+    )
+      parts.push(String(decoded.meta_url_description));
+    if (decoded.url) parts.push(String(decoded.url));
+    if (decoded.site_name) parts.push(String(decoded.site_name));
+  } else if (embedType === "web-website-group") {
+    // Web search result groups: extract from the results array
+    // Each result item typically has url, title, description
+    const results = decoded.results || decoded.items || [];
+    if (Array.isArray(results)) {
+      for (const item of results) {
+        if (typeof item === "object" && item) {
+          if (item.title) parts.push(String(item.title));
+          if (item.description) parts.push(String(item.description));
+          if (item.url) parts.push(String(item.url));
+        }
+      }
+    }
+    // Also check top-level query field
+    if (decoded.query) parts.push(String(decoded.query));
+  } else if (embedType === "videos-video") {
+    // Video embeds: title + channel name + description
+    if (decoded.title) parts.push(String(decoded.title));
+    if (decoded.channel_name) parts.push(String(decoded.channel_name));
+    if (decoded.description)
+      parts.push(String(decoded.description).slice(0, 500));
+    if (decoded.url) parts.push(String(decoded.url));
+  } else if (embedType === "code-code") {
+    // Code embeds: filename is most useful; code content itself can be very large
+    // so we limit it aggressively — developers searching for a function name should still match
+    if (decoded.filename) parts.push(String(decoded.filename));
+    if (decoded.language) parts.push(String(decoded.language));
+    if (decoded.code) parts.push(String(decoded.code).slice(0, 800));
+  } else if (embedType === "sheets-sheet") {
+    // Table embeds: title + raw table markdown
+    if (decoded.title) parts.push(String(decoded.title));
+    if (decoded.code) parts.push(String(decoded.code).slice(0, 600));
+  } else if (embedType === "docs-doc") {
+    // Document embeds: title + content body
+    if (decoded.title) parts.push(String(decoded.title));
+    if (decoded.content) parts.push(String(decoded.content).slice(0, 800));
+    if (decoded.description) parts.push(String(decoded.description));
+  } else if (embedType === "app-skill-use") {
+    // App skill results: query + result summaries
+    // These are the most varied — try common field patterns
+    if (decoded.query) parts.push(String(decoded.query));
+    if (decoded.skill_id) parts.push(String(decoded.skill_id));
+    if (decoded.summary) parts.push(String(decoded.summary));
+    if (decoded.result) parts.push(String(decoded.result).slice(0, 600));
+    // Handle nested results array (e.g., news search, web search via skill)
+    const results = decoded.results || decoded.items || [];
+    if (Array.isArray(results)) {
+      for (const item of results.slice(0, 5)) {
+        if (typeof item === "object" && item) {
+          if (item.title) parts.push(String(item.title));
+          if (item.description) parts.push(String(item.description));
+          if (item.url) parts.push(String(item.url));
+        }
+      }
+    }
+  } else if (embedType === "app-skill-use-group") {
+    // Skill result groups: aggregate text from child results
+    if (decoded.query) parts.push(String(decoded.query));
+    const results = decoded.results || decoded.items || [];
+    if (Array.isArray(results)) {
+      for (const item of results.slice(0, 5)) {
+        if (typeof item === "object" && item) {
+          if (item.title) parts.push(String(item.title));
+          if (item.description) parts.push(String(item.description));
+        }
+      }
+    }
+  } else if (embedType === "maps") {
+    // Map embeds: name + address
+    if (decoded.name) parts.push(String(decoded.name));
+    if (decoded.address) parts.push(String(decoded.address));
+    if (decoded.place_type) parts.push(String(decoded.place_type));
+  } else if (embedType === "pdf" || embedType === "book") {
+    // PDF/book embeds: title + author
+    if (decoded.title) parts.push(String(decoded.title));
+    if (decoded.author) parts.push(String(decoded.author));
+    if (decoded.description) parts.push(String(decoded.description));
+  } else if (embedType === "text" || embedType === "file") {
+    // Plain text / file embeds: filename + content
+    if (decoded.filename || decoded.name)
+      parts.push(String(decoded.filename || decoded.name));
+    if (decoded.content) parts.push(String(decoded.content).slice(0, 600));
+    if (decoded.text) parts.push(String(decoded.text).slice(0, 600));
+  } else {
+    // Unknown embed type: try generic field names that often contain useful text
+    if (decoded.title) parts.push(String(decoded.title));
+    if (decoded.description) parts.push(String(decoded.description));
+    if (decoded.query) parts.push(String(decoded.query));
+    if (decoded.url) parts.push(String(decoded.url));
+  }
+
+  if (parts.length === 0) return null;
+
+  const combined = parts.join(" ").replace(/\s+/g, " ").trim();
+  return combined.slice(0, MAX_EMBED_TEXT_CHARS) || null;
+}
+
+/**
+ * Resolve embed content for a single embed_id and return extracted searchable text.
+ * Uses embedStore (IndexedDB + memory cache) to load encrypted embed content.
+ * All decryption happens client-side — no plaintext ever leaves the device.
+ *
+ * Returns null if the embed is unavailable, still processing, or has no useful text.
+ *
+ * @param embedId   - The embed identifier (without "embed:" prefix)
+ * @param embedType - The embed type from the JSON reference block (e.g., "app_skill_use")
+ */
+async function resolveEmbedText(
+  embedId: string,
+  embedType: string,
+): Promise<{ text: string; sourceLabel: string } | null> {
+  try {
+    // Lazy-load the heavy embedStore and TOON decoder only when needed.
+    // Both are imported here (inside the function) to avoid a circular dependency,
+    // since embedResolver imports searchService indirectly via the store chain.
+    const { embedStore } = await import("./embedStore");
+    const { decodeToonContent } = await import("./embedResolver");
+
+    // Load from IndexedDB / memory cache — does NOT trigger a WebSocket request.
+    // If the embed isn't available locally, we simply skip it (it won't be in the index).
+    const embedData = await embedStore.get(`embed:${embedId}`);
+    if (!embedData || !embedData.content || embedData.status === "processing") {
+      return null;
+    }
+
+    // Decode TOON → JS object
+    const decoded = await decodeToonContent(embedData.content);
+    if (!decoded) return null;
+
+    // Normalize the embed type for consistent label lookup
+    // Server uses underscores ("app_skill_use"), frontend uses hyphens ("app-skill-use")
+    const normalizedType = embedType.replace(/_/g, "-");
+
+    // Extract type-appropriate searchable text
+    const text = extractTextFromEmbed(normalizedType, decoded);
+    if (!text) return null;
+
+    // Determine the human-readable source label for this embed type
+    const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
+
+    return { text, sourceLabel };
+  } catch (error) {
+    // Non-critical: if embed resolution fails, simply skip this embed
+    console.debug(
+      `[SearchService] Could not resolve embed ${embedId} for indexing:`,
+      error instanceof Error ? error.message : String(error),
+    );
+    return null;
+  }
+}
+
 // --- In-Memory Search Index ---
 
 /**
- * Stores decrypted message content for searching.
- * Key: chatId, Value: array of { messageId, content, createdAt }
+ * Stores decrypted message content (and embed content) for searching.
+ * Key: chatId, Value: array of index entries — one per message text block or embed.
+ *
+ * Each entry carries:
+ *   messageId   — parent message (used to scroll-to on click)
+ *   content     — searchable plaintext (markdown-stripped message text, or embed text)
+ *   createdAt   — timestamp for newest-first sorting
+ *   embedSourceLabel — undefined for message text; human-readable label for embed content
+ *                      (e.g., "Web page", "Code", "Document") used in the results UI
+ *
  * This data is RAM-only and cleared when the page unloads.
  */
 const messageIndex = new Map<
@@ -143,6 +382,8 @@ const messageIndex = new Map<
     messageId: string;
     content: string;
     createdAt: number;
+    /** Present when this entry represents embed content rather than raw message text */
+    embedSourceLabel?: string;
   }>
 >();
 
@@ -158,8 +399,22 @@ let warmUpCompleted = false;
 // --- Index Management ---
 
 /**
- * Index messages for a single authenticated user chat by decrypting from IndexedDB.
- * For demo/public chats, use getDemoMessages() instead.
+ * Index messages (and their embedded content) for a single chat.
+ *
+ * For demo/legal chats, messages live in-memory. For authenticated user chats
+ * they are decrypted from IndexedDB by chatDB.getMessagesForChat().
+ *
+ * After indexing each message's text, we also scan the message markdown for
+ * embed references (JSON code blocks) and resolve each embed's content via
+ * the embedStore. The extracted embed text is stored as additional index entries
+ * linked to the same parent message ID so that clicking a result scrolls to the
+ * correct message.
+ *
+ * Embed resolution is best-effort:
+ *   - Only embeds already in IndexedDB/memory cache are indexed (no WebSocket requests).
+ *   - Embeds still processing (status="processing") are skipped.
+ *   - Any per-embed error is caught silently so one bad embed doesn't abort the chat.
+ *
  * @param chatId - The chat ID to index
  */
 async function indexChatMessages(chatId: string): Promise<void> {
@@ -176,19 +431,47 @@ async function indexChatMessages(chatId: string): Promise<void> {
       messages = await chatDB.getMessagesForChat(chatId);
     }
 
-    const entries = messages
-      .filter(
-        (msg) =>
-          msg.content &&
-          typeof msg.content === "string" &&
-          msg.content.trim().length > 0,
-      )
-      .map((msg) => ({
-        messageId: msg.message_id,
-        // Strip markdown so snippets display clean plaintext without ** / ## / etc.
-        content: stripMarkdown(msg.content as string),
-        createdAt: msg.created_at,
-      }));
+    const entries: Array<{
+      messageId: string;
+      content: string;
+      createdAt: number;
+      embedSourceLabel?: string;
+    }> = [];
+
+    for (const msg of messages) {
+      if (!msg.content || typeof msg.content !== "string") continue;
+      const rawContent = msg.content.trim();
+      if (!rawContent) continue;
+
+      // 1. Index the message's own text (markdown-stripped)
+      const messageText = stripMarkdown(rawContent);
+      if (messageText) {
+        entries.push({
+          messageId: msg.message_id,
+          content: messageText,
+          createdAt: msg.created_at,
+          // No embedSourceLabel — this is the base message text
+        });
+      }
+
+      // 2. Extract embed references from the raw markdown and index their content.
+      //    Only authenticated chats have real embeds — demo chats have inline text content
+      //    already present in the message body.
+      if (!isDemoChat(chatId) && !isLegalChat(chatId)) {
+        const embedRefs = extractEmbedReferences(rawContent);
+        for (const ref of embedRefs) {
+          const result = await resolveEmbedText(ref.embed_id, ref.type);
+          if (!result) continue;
+
+          entries.push({
+            messageId: msg.message_id,
+            content: result.text,
+            createdAt: msg.created_at,
+            embedSourceLabel: result.sourceLabel,
+          });
+        }
+      }
+    }
 
     messageIndex.set(chatId, entries);
     indexedChatIds.add(chatId);
@@ -243,31 +526,62 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
 }
 
 /**
- * Add or update a single message in the search index.
- * Called when new messages arrive via WebSocket.
- * @param chatId - The chat ID the message belongs to
+ * Add or update a single message (and its embed content) in the search index.
+ * Called when new messages arrive via WebSocket or when messages are updated.
+ *
+ * This function is async to support embed resolution, but callers that don't
+ * await it (fire-and-forget) are fine — the index update will complete in the
+ * background and the next search will pick up the new entries.
+ *
+ * @param chatId  - The chat ID the message belongs to
  * @param message - The decrypted message to add
  */
-export function addMessageToIndex(chatId: string, message: Message): void {
+export async function addMessageToIndex(
+  chatId: string,
+  message: Message,
+): Promise<void> {
   if (!message.content || typeof message.content !== "string") return;
 
+  const rawContent = message.content.trim();
+  if (!rawContent) return;
+
+  // Remove all existing entries for this message (clean slate for update)
   const existing = messageIndex.get(chatId) || [];
+  const withoutThisMessage = existing.filter(
+    (e) => e.messageId !== message.message_id,
+  );
 
-  // Check for duplicate (update if exists)
-  const idx = existing.findIndex((m) => m.messageId === message.message_id);
-  const entry = {
-    messageId: message.message_id,
-    content: stripMarkdown(message.content),
-    createdAt: message.created_at,
-  };
+  const newEntries: Array<{
+    messageId: string;
+    content: string;
+    createdAt: number;
+    embedSourceLabel?: string;
+  }> = [];
 
-  if (idx !== -1) {
-    existing[idx] = entry;
-  } else {
-    existing.push(entry);
+  // 1. Index the message's own text
+  const messageText = stripMarkdown(rawContent);
+  if (messageText) {
+    newEntries.push({
+      messageId: message.message_id,
+      content: messageText,
+      createdAt: message.created_at,
+    });
   }
 
-  messageIndex.set(chatId, existing);
+  // 2. Index embed content referenced in the message
+  const embedRefs = extractEmbedReferences(rawContent);
+  for (const ref of embedRefs) {
+    const result = await resolveEmbedText(ref.embed_id, ref.type);
+    if (!result) continue;
+    newEntries.push({
+      messageId: message.message_id,
+      content: result.text,
+      createdAt: message.created_at,
+      embedSourceLabel: result.sourceLabel,
+    });
+  }
+
+  messageIndex.set(chatId, [...withoutThisMessage, ...newEntries]);
 }
 
 /**
@@ -363,43 +677,54 @@ function buildSnippet(
 }
 
 /**
- * Search messages in a single chat.
- * Returns up to MAX_SNIPPETS_PER_CHAT snippet matches.
+ * Search messages (and embed content) in a single chat.
+ * Returns up to MAX_SNIPPETS_PER_CHAT snippet matches, preferring message-text matches
+ * over embed matches when both exist (message text is always shown first in the UI).
+ *
+ * Embed-sourced snippets include an embedSourceLabel so the results UI can show
+ * "Found in: Web page" / "Found in: Code" context labels.
  */
 function searchMessagesInChat(
   chatId: string,
   query: string,
 ): MessageMatchSnippet[] {
-  const messages = messageIndex.get(chatId);
-  if (!messages) return [];
+  const entries = messageIndex.get(chatId);
+  if (!entries) return [];
 
   const snippets: MessageMatchSnippet[] = [];
   const lowerQuery = query.toLowerCase();
 
-  // Search messages from newest to oldest (most relevant first)
-  const sortedMessages = [...messages].sort(
-    (a, b) => b.createdAt - a.createdAt,
-  );
+  // Search from newest to oldest (most relevant first).
+  // Sort by createdAt DESC; within the same timestamp, put message-text entries
+  // before embed entries so base text snippets appear first.
+  const sorted = [...entries].sort((a, b) => {
+    if (b.createdAt !== a.createdAt) return b.createdAt - a.createdAt;
+    // Same timestamp: message text (no label) before embed content
+    const aIsEmbed = a.embedSourceLabel !== undefined ? 1 : 0;
+    const bIsEmbed = b.embedSourceLabel !== undefined ? 1 : 0;
+    return aIsEmbed - bIsEmbed;
+  });
 
-  for (const msg of sortedMessages) {
+  for (const entry of sorted) {
     if (snippets.length >= MAX_SNIPPETS_PER_CHAT) break;
 
-    const lowerContent = msg.content.toLowerCase();
+    const lowerContent = entry.content.toLowerCase();
     const idx = lowerContent.indexOf(lowerQuery);
     if (idx === -1) continue;
 
     const { snippet, snippetMatchStart, snippetMatchLength } = buildSnippet(
-      msg.content,
+      entry.content,
       idx,
       query.length,
     );
 
     snippets.push({
-      messageId: msg.messageId,
+      messageId: entry.messageId,
       chatId,
       snippet,
       matchStart: snippetMatchStart,
       matchLength: snippetMatchLength,
+      embedSourceLabel: entry.embedSourceLabel,
     });
   }
 
