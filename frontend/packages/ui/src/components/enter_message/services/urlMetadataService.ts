@@ -175,11 +175,25 @@ export async function fetchYouTubeMetadata(
     );
 
     if (!response.ok) {
-      console.warn(
-        "[urlMetadataService] Failed to fetch YouTube metadata:",
-        response.status,
-        response.statusText,
-      );
+      // Log quota/rate-limit failures distinctly so they're easy to spot in the
+      // console when debugging — these are expected and handled gracefully by
+      // falling back to a static embed in createEmbedFromUrl().
+      if (response.status === 429) {
+        console.warn(
+          "[urlMetadataService] Preview server rate limit hit (429) — falling back to static YouTube embed",
+        );
+      } else if (response.status === 503) {
+        console.warn(
+          "[urlMetadataService] YouTube API quota exhausted or unavailable (503) — falling back to static YouTube embed",
+        );
+      } else {
+        console.warn(
+          "[urlMetadataService] Failed to fetch YouTube metadata:",
+          response.status,
+          response.statusText,
+          "— falling back to static YouTube embed",
+        );
+      }
       return null;
     }
 
@@ -613,9 +627,15 @@ export async function createStaticYouTubeEmbed(
  *
  * The credit check is intentionally client-side. A determined user could spoof it by
  * editing their local store, but the YouTube API quota is free (10k units/day) and the
- * preview server's rate limiter (60 req/min/IP) already caps bulk abuse. The main goal
- * is to protect against unauthenticated bots and high-volume anonymous traffic, not
- * against individual motivated bad actors.
+ * preview server's rate limiter (10 req/min/IP on the YouTube endpoint) already caps
+ * bulk abuse. The main goal is to protect against unauthenticated bots and high-volume
+ * anonymous traffic, not against individual motivated bad actors.
+ *
+ * Graceful degradation: if the API call fails for any reason — server-side rate limit
+ * (429), Google quota exhausted (503), network error, or any other non-OK response —
+ * fetchYouTubeMetadata() returns null and we fall back to createStaticYouTubeEmbed()
+ * exactly as for users without credits. The user sees the thumbnail + "YouTube Video"
+ * title with no interruption or error message.
  *
  * @param url The URL to process
  * @returns EmbedCreationResult or null if metadata fetch failed
