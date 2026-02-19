@@ -23,6 +23,8 @@ Run with:
 
 import logging
 import sys
+import time
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -70,6 +72,13 @@ async def lifespan(app: FastAPI):
     logger.info(f"Metadata cache size: {settings.metadata_cache_max_size_mb}MB")
     logger.info(f"Max image dimensions: {settings.max_image_width}x{settings.max_image_height}")
     logger.info(f"SSRF protection: {'enabled' if settings.block_private_ips else 'disabled'}")
+    logger.info(
+        f"Rate limits (req/min/IP): "
+        f"youtube={settings.rate_limit_youtube_per_minute}, "
+        f"metadata={settings.rate_limit_metadata_per_minute}, "
+        f"image={settings.rate_limit_image_per_minute} "
+        f"(0 = disabled)"
+    )
     logger.info("=" * 60)
     
     yield
@@ -215,6 +224,110 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal server error"}
     )
+
+
+# ===========================================
+# Rate Limiting Middleware
+# ===========================================
+#
+# Sliding-window rate limiter implemented with an in-memory deque per (IP, endpoint-group).
+# No external dependencies required.
+#
+# Endpoint groups and their limits (from config):
+#   "youtube"  → /api/v1/youtube          — 10 req/min  (calls Google YouTube API)
+#   "metadata" → /api/v1/metadata, /favicon — 20 req/min (cheap OG scraping)
+#   "image"    → /api/v1/image            — 60 req/min  (image proxy, many per page)
+#
+# Health check endpoints (/health/*) are always exempt.
+#
+# Memory: each active IP×group bucket holds at most `limit` timestamps (deque).
+# Buckets older than 60 s are evicted on every request, so memory stays bounded.
+
+# Map path prefixes → (config limit, bucket key)
+_RATE_LIMIT_GROUPS: list[tuple[str, str]] = [
+    ("/api/v1/youtube",  "youtube"),
+    ("/api/v1/image",    "image"),
+    ("/api/v1/metadata", "metadata"),
+    ("/api/v1/favicon",  "metadata"),  # same budget as metadata
+]
+
+# { (ip, group) → deque of epoch-second timestamps }
+_rate_limit_buckets: dict[tuple[str, str], deque] = defaultdict(deque)
+
+
+def _get_rate_limit(group: str) -> int:
+    """Return the configured per-minute limit for the given endpoint group (0 = disabled)."""
+    if group == "youtube":
+        return settings.rate_limit_youtube_per_minute
+    if group == "image":
+        return settings.rate_limit_image_per_minute
+    if group == "metadata":
+        return settings.rate_limit_metadata_per_minute
+    return 0
+
+
+def _resolve_group(path: str) -> str | None:
+    """Return the rate-limit group name for a request path, or None if exempt."""
+    for prefix, group in _RATE_LIMIT_GROUPS:
+        if path.startswith(prefix):
+            return group
+    return None
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """
+    Per-IP sliding-window rate limiter.
+
+    Exempt paths: /health/* and any path that doesn't match a known group.
+    Returns HTTP 429 with a Retry-After header when the limit is exceeded.
+    """
+    path = request.url.path
+
+    # Health checks are always exempt
+    if path.startswith("/health"):
+        return await call_next(request)
+
+    group = _resolve_group(path)
+    if group is None:
+        return await call_next(request)
+
+    limit = _get_rate_limit(group)
+    if limit == 0:
+        # Rate limiting disabled for this group
+        return await call_next(request)
+
+    # Determine client IP (trust X-Forwarded-For set by Caddy/reverse proxy)
+    forwarded_for = request.headers.get("x-forwarded-for")
+    client_ip = forwarded_for.split(",")[0].strip() if forwarded_for else (
+        request.client.host if request.client else "unknown"
+    )
+
+    bucket_key = (client_ip, group)
+    now = time.monotonic()
+    window_start = now - 60.0  # 1-minute sliding window
+
+    bucket = _rate_limit_buckets[bucket_key]
+
+    # Evict timestamps outside the current window
+    while bucket and bucket[0] < window_start:
+        bucket.popleft()
+
+    if len(bucket) >= limit:
+        # Oldest request in window tells us when the window opens up
+        retry_after = int(60 - (now - bucket[0])) + 1
+        logger.warning(
+            f"[RateLimit] IP={client_ip} group={group} limit={limit}/min exceeded "
+            f"(retry_after={retry_after}s)"
+        )
+        return JSONResponse(
+            status_code=429,
+            content={"detail": f"Rate limit exceeded. Maximum {limit} requests per minute for this endpoint."},
+            headers={"Retry-After": str(retry_after)}
+        )
+
+    bucket.append(now)
+    return await call_next(request)
 
 
 # ===========================================

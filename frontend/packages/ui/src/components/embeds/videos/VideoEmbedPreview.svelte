@@ -186,14 +186,20 @@
     return undefined;
   });
   
-  // Raw thumbnail URL: use prop or construct from video ID
+  // Raw thumbnail URL: use prop or construct from video ID.
+  // When a full API fetch was performed, `thumbnail` is the best available resolution
+  // (maxres > high > medium > default) as stored by createYouTubeEmbed().
+  // When no API fetch was performed (static embed / no credits), `thumbnail` is null
+  // and we fall back to hqdefault.jpg — guaranteed to exist for every YouTube video.
+  // maxresdefault.jpg only exists for HD uploads, so using it as a fallback causes
+  // unnecessary 404s and a visible delay before the onerror fallback fires.
   let rawThumbnailUrl = $derived.by(() => {
     if (thumbnail) {
       return thumbnail;
     }
-    // Fallback: construct thumbnail URL from video ID
+    // Fallback: construct thumbnail URL from video ID using hqdefault (always available)
     if (effectiveVideoId) {
-      return `https://img.youtube.com/vi/${effectiveVideoId}/maxresdefault.jpg`;
+      return `https://img.youtube.com/vi/${effectiveVideoId}/hqdefault.jpg`;
     }
     return '';
   });
@@ -359,14 +365,11 @@
               loading="lazy"
               crossorigin="anonymous"
               onerror={(e) => {
-                // Try fallback thumbnail quality (also proxied)
+                // Primary thumbnail is hqdefault (universally available for all videos).
+                // If the proxied request still fails (proxy down, network error, etc.)
+                // just hide the image — no further fallback attempts needed.
                 const img = e.target as HTMLImageElement;
-                if (img.src.includes('maxresdefault')) {
-                  const fallbackRaw = `https://img.youtube.com/vi/${effectiveVideoId}/hqdefault.jpg`;
-                  img.src = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(fallbackRaw)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
-                } else {
-                  img.style.display = 'none';
-                }
+                img.style.display = 'none';
               }}
             />
           </div>
