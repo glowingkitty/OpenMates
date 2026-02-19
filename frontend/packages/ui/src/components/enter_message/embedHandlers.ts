@@ -5,6 +5,10 @@ import { resizeImage } from "./utils";
 import { generateUUID } from "../../message_parsing/utils";
 import { uploadFileToServer } from "./services/uploadService";
 import { embedStore } from "../../services/embedStore";
+import {
+  createCodeEmbed,
+  detectLanguageFromContent,
+} from "./services/codeEmbedService";
 
 /**
  * Ensure the editor has an empty paragraph at the very beginning so that when
@@ -407,32 +411,80 @@ export async function insertAudio(editor: Editor, file: File): Promise<void> {
 
 /**
  * Inserts a code file embed into the editor.
+ *
+ * This reads the file content, creates a proper TOON embed via createCodeEmbed()
+ * (which includes PII detection and redaction), and inserts the embed reference
+ * block into the editor — the same flow as pasted code.
+ *
+ * PII protection:
+ * - File content is scanned for PII before being stored
+ * - Placeholders replace sensitive values in the TOON embed content
+ * - PII mappings are stored separately under master-key encryption
+ * - The LLM/server only ever sees the redacted code
  */
 export async function insertCodeFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
   ensureLeadingParagraph(editor);
-  const url = URL.createObjectURL(file);
-  const language = getLanguageFromFilename(file.name);
 
+  // Read the file content as text
+  let fileContent: string;
+  try {
+    fileContent = await file.text();
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to read code file content:", error);
+    // Fall back to a minimal embed with just filename/language info if reading fails
+    const language = getLanguageFromFilename(file.name);
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "embed",
+        attrs: {
+          id: generateUUID(),
+          type: "code-code",
+          status: "error",
+          contentRef: null,
+          src: URL.createObjectURL(file),
+          filename: file.name,
+          language: language,
+        },
+      })
+      .insertContent(" ")
+      .run();
+    setTimeout(() => editor.commands.focus("end"), 50);
+    return;
+  }
+
+  // Detect language: prefer filename extension, fall back to content heuristics
+  const language =
+    getLanguageFromFilename(file.name) ||
+    detectLanguageFromContent(fileContent) ||
+    "text";
+
+  // Create a proper TOON embed with PII detection and redaction.
+  // This is the same path as pasted code — ensures consistent PII protection
+  // regardless of whether code arrives via paste or file drop.
+  const result = await createCodeEmbed(fileContent, language, file.name);
+
+  if (result.piiRedactedCount > 0) {
+    console.info(
+      `[EmbedHandlers] Code file embed created with ${result.piiRedactedCount} PII item(s) redacted`,
+      { filename: file.name, embed_id: result.embed_id },
+    );
+  }
+
+  // Insert the embed reference block into the editor
+  // The reference block (e.g. ```json\n{"type":"code","embed_id":"..."}\n```)
+  // is what the message serializer uses to load the embed from EmbedStore
   editor
     .chain()
     .focus()
-    .insertContent({
-      type: "embed",
-      attrs: {
-        id: generateUUID(),
-        type: "code-code", // Must match the renderer registry key in embed_renderers/index.ts
-        status: "finished",
-        contentRef: null,
-        src: url,
-        filename: file.name,
-        language: language,
-      },
-    })
-    .insertContent(" ") // Add space after
+    .insertContent(result.embedReference)
+    .insertContent(" ")
     .run();
+
   setTimeout(() => {
     editor.commands.focus("end");
   }, 50);

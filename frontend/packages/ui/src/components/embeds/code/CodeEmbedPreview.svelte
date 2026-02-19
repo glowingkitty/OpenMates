@@ -24,7 +24,8 @@
   import { text } from '@repo/ui';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
-  import { embedPIIStore } from '../../../stores/embedPIIStore';
+  import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
+  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   
   /**
    * Props for code embed preview
@@ -104,6 +105,27 @@
   $effect(() => {
     const unsub = embedPIIStore.subscribe((state) => { embedPIIState = state; });
     return unsub;
+  });
+
+  // Load embed-level PII mappings from EmbedStore and register them in the global store.
+  // These cover PII that was redacted when the code embed was created (file drop or paste).
+  // They are stored separately from the embed content (under embed_pii:{embed_id}, master-key
+  // encrypted) so they are never exposed via share links.
+  // We clean up on unmount to avoid stale mappings if the embed is removed from view.
+  $effect(() => {
+    if (!id) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(id).then((mappings) => {
+      if (cancelled) return;
+      if (mappings.length > 0) {
+        addEmbedPIIMappings(id, mappings);
+        console.debug('[CodeEmbedPreview] Registered embed-level PII mappings:', id, mappings.length);
+      }
+    });
+    return () => {
+      cancelled = true;
+      removeEmbedPIIMappings(id);
+    };
   });
 
   /**

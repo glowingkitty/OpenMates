@@ -1,21 +1,48 @@
 /**
  * Code Embed Service
  *
- * Creates proper embed entries for code blocks pasted by users.
+ * Creates proper embed entries for code blocks pasted by users or dropped as files.
  * Follows the same pattern as urlMetadataService.ts for consistency.
  *
+ * PII Protection Architecture:
+ * - Before TOON-encoding, PII is detected in the code content using piiDetectionService
+ * - The code stored in the TOON payload uses placeholders (e.g. [EMAIL_1], [AWS_KEY_1])
+ * - PII mappings ({placeholder, original, type}[]) are stored separately in EmbedStore
+ *   under key `embed_pii:{embed_id}`, encrypted with the master key
+ * - This separation ensures that:
+ *   1. The LLM/server only ever sees redacted code
+ *   2. Share links (which use the embed key, not the master key) never expose PII mappings
+ *   3. Only the owner can restore originals — recipients of shared embeds see placeholders
+ *
  * Flow:
- * 1. User pastes multi-line text
- * 2. This service creates an embed with unique embed_id
- * 3. Embed is stored in EmbedStore (encrypted)
- * 4. Returns embed reference for insertion into message
- * 5. When message is sent, embed is loaded from EmbedStore and sent to server
+ * 1. User pastes or drops a code file
+ * 2. PII is detected in the code content
+ * 3. Placeholders replace originals in the code
+ * 4. Embed TOON content is created with the redacted code
+ * 5. PII mappings are stored separately under master-key encryption
+ * 6. Embed is stored in EmbedStore; returns embed reference for insertion into message
+ * 7. When message is sent, embed (with placeholders) is sent to server
+ * 8. The embedPIIStore merges embed-level mappings for display toggling
  */
 
 import { embedStore } from "../../../services/embedStore";
 import { generateUUID } from "../../../message_parsing/utils";
 import { createEmbedReferenceBlock } from "./urlMetadataService";
 import { encode as toonEncode } from "@toon-format/toon";
+import {
+  detectPII,
+  replacePIIWithPlaceholders,
+  createPIIMappingsForStorage,
+  type PIIMappingForStorage,
+  type PIIDetectionOptions,
+  type PersonalDataForDetection,
+} from "./piiDetectionService";
+import {
+  personalDataStore,
+  type PIIDetectionSettings,
+} from "../../../stores/personalDataStore";
+import { get } from "svelte/store";
+import type { EmbedType } from "../../../message_parsing/types";
 
 /**
  * Result of creating a code embed
@@ -27,20 +54,161 @@ export interface CodeEmbedCreationResult {
   type: "code";
   /** Markdown embed reference block to insert into message content */
   embedReference: string;
+  /** Number of PII items that were redacted (0 if none) */
+  piiRedactedCount: number;
 }
 
 /**
- * Creates a proper embed from pasted code/text content.
- * This function:
- * 1. Generates a unique embed_id
- * 2. Encodes content as TOON for storage efficiency
- * 3. Stores the embed in EmbedStore (encrypted)
- * 4. Returns the embed reference for insertion into message content
+ * Build PII detection options from the user's current privacy settings.
+ * Respects the master toggle and per-category toggles in personalDataStore.
+ * User-defined personal data entries (names, addresses, etc.) are included.
+ *
+ * Returns null if PII detection is disabled by the user.
+ */
+function buildCodePIIDetectionOptions(): PIIDetectionOptions | null {
+  try {
+    const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
+
+    // Respect the master toggle — if disabled, skip all detection
+    if (!piiSettings.masterEnabled) {
+      return null;
+    }
+
+    // Build set of disabled categories from user's per-category toggles
+    const disabledCategories = new Set<string>();
+    for (const [category, enabled] of Object.entries(piiSettings.categories)) {
+      if (!enabled) disabledCategories.add(category);
+    }
+
+    // Get user-defined personal data entries (names, addresses, etc.)
+    // NOTE: User-specific entries are kept client-side only (zero-knowledge architecture).
+    // TODO: In a future iteration, consider server-side user-specific PII detection
+    //       for document processing (pdf, docx, xlsx). Requires careful privacy architecture
+    //       to avoid leaking user's personal data definitions to the server.
+    const enabledPersonalEntries = get(personalDataStore.enabledEntries);
+    const personalDataEntries: PersonalDataForDetection[] =
+      enabledPersonalEntries.map((entry) => {
+        const result: PersonalDataForDetection = {
+          id: entry.id,
+          textToHide: entry.textToHide,
+          replaceWith: entry.replaceWith,
+        };
+        // For address entries, include individual lines as additional search texts
+        if (entry.type === "address" && entry.addressLines) {
+          const additionalTexts: string[] = [];
+          if (entry.addressLines.street)
+            additionalTexts.push(entry.addressLines.street);
+          if (entry.addressLines.city)
+            additionalTexts.push(entry.addressLines.city);
+          result.additionalTexts = additionalTexts;
+        }
+        return result;
+      });
+
+    return {
+      disabledCategories,
+      personalDataEntries,
+      // No excludedIds for embed PII — the user cannot click-to-exclude in the embed flow
+      // (unlike MessageInput where highlights are interactive)
+    };
+  } catch (error) {
+    // If reading settings fails, skip detection rather than crashing
+    console.warn(
+      "[codeEmbedService] Could not read PII settings, skipping detection:",
+      error,
+    );
+    return null;
+  }
+}
+
+/**
+ * Store PII mappings for an embed separately from the embed content.
+ *
+ * Why separate storage:
+ * - The embed TOON content (stored in Directus, shared via share link) only contains
+ *   the redacted code — never the PII mappings.
+ * - PII mappings are stored under the master key (not the embed key), so sharing
+ *   the embed key (for share links) never exposes the originals.
+ * - Only the embed owner, who has the master key, can restore originals for display.
+ *
+ * @param embedId - The embed's unique ID
+ * @param piiMappings - Array of {placeholder, original, type} mappings
+ */
+async function storeEmbedPIIMappings(
+  embedId: string,
+  piiMappings: PIIMappingForStorage[],
+): Promise<void> {
+  if (piiMappings.length === 0) return;
+
+  const piiKey = `embed_pii:${embedId}`;
+  const piiData = {
+    embed_id: embedId,
+    pii_mappings: piiMappings,
+    created_at: Date.now(),
+  };
+
+  try {
+    // Store using master-key encryption (same as all other embedStore.put() entries)
+    await embedStore.put(piiKey, piiData, "code-code" as EmbedType);
+    console.info(
+      "[codeEmbedService] Stored PII mappings for embed:",
+      embedId,
+      `(${piiMappings.length} mappings)`,
+    );
+  } catch (error) {
+    // Log but don't block — the redacted embed still works, just no owner-side restoration
+    console.error(
+      "[codeEmbedService] Failed to store PII mappings for embed:",
+      embedId,
+      error,
+    );
+  }
+}
+
+/**
+ * Load PII mappings for an embed from separate storage.
+ * Returns an empty array if no mappings exist (embed has no PII, or mappings lost).
+ *
+ * @param embedId - The embed's unique ID
+ */
+export async function loadEmbedPIIMappings(
+  embedId: string,
+): Promise<PIIMappingForStorage[]> {
+  const piiKey = `embed_pii:${embedId}`;
+  try {
+    const piiData = await embedStore.get(piiKey);
+    if (
+      piiData &&
+      piiData.pii_mappings &&
+      Array.isArray(piiData.pii_mappings)
+    ) {
+      return piiData.pii_mappings as PIIMappingForStorage[];
+    }
+  } catch (error) {
+    console.debug(
+      "[codeEmbedService] No PII mappings found for embed:",
+      embedId,
+      error,
+    );
+  }
+  return [];
+}
+
+/**
+ * Creates a proper embed from pasted or file-loaded code/text content.
+ *
+ * PII-aware flow:
+ * 1. Run PII detection on the code content (respects user's privacy settings)
+ * 2. Replace PII with placeholders in the code
+ * 3. Create TOON embed content with the redacted code
+ * 4. Store PII mappings separately (master-key encrypted, not in TOON)
+ * 5. Store the embed in EmbedStore
+ * 6. Return the embed reference for insertion into message content
  *
  * @param content The code/text content to embed
  * @param language The language/format identifier (e.g., 'markdown', 'python', 'text')
  * @param filename Optional filename for the code
- * @returns CodeEmbedCreationResult with embed_id and markdown reference
+ * @returns CodeEmbedCreationResult with embed_id, markdown reference, and PII count
  */
 export async function createCodeEmbed(
   content: string,
@@ -50,23 +218,65 @@ export async function createCodeEmbed(
   // Generate unique embed_id
   const embed_id = generateUUID();
 
-  // Count lines for metadata
-  const lineCount = content.split("\n").length;
-
   console.debug("[codeEmbedService] Creating code embed:", {
     embed_id,
     language,
-    lineCount,
+    lineCount: content.split("\n").length,
     contentLength: content.length,
     filename: filename || "none",
   });
 
-  // Prepare embed content for storage
-  // This structure matches what chatSyncServiceSenders.ts creates for code blocks
+  // ── PII Detection & Redaction ────────────────────────────────────────────
+  // Detect sensitive data in the code content and replace with placeholders.
+  // This ensures the LLM/server only ever sees redacted code.
+  let codeContent = content;
+  let piiMappingsForStorage: PIIMappingForStorage[] = [];
+
+  const detectionOptions = buildCodePIIDetectionOptions();
+  if (detectionOptions && content.length >= 6) {
+    try {
+      const piiMatches = detectPII(content, detectionOptions);
+
+      if (piiMatches.length > 0) {
+        console.debug(
+          "[codeEmbedService] Detected PII in code embed, redacting:",
+          piiMatches.map((m) => ({
+            type: m.type,
+            placeholder: m.placeholder,
+            // Don't log the actual match value for security
+            matchLength: m.match.length,
+          })),
+        );
+
+        // Replace PII originals with placeholders in the code
+        codeContent = replacePIIWithPlaceholders(content, piiMatches);
+
+        // Create storage mappings ({placeholder, original, type}) for owner-side restoration
+        piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
+
+        console.info(
+          `[codeEmbedService] Redacted ${piiMatches.length} PII item(s) in code embed ${embed_id}`,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[codeEmbedService] PII detection failed for code embed:",
+        error,
+      );
+      // Continue with unredacted content — log the failure but don't block the embed
+    }
+  }
+
+  // ── Build TOON Content ───────────────────────────────────────────────────
+  // The TOON content contains the REDACTED code (with placeholders).
+  // pii_mappings are stored SEPARATELY — never embedded in the TOON.
+  // This ensures that sharing the embed key (via a share link) does NOT expose
+  // PII originals; only the owner's master key can decrypt the pii_mappings.
+  const lineCount = codeContent.split("\n").length;
   const embedContent = {
     type: "code",
     language: language,
-    code: content,
+    code: codeContent, // Redacted code — placeholders where PII was
     filename: filename || null,
     status: "finished",
     line_count: lineCount,
@@ -115,7 +325,8 @@ export async function createCodeEmbed(
     updatedAt: now,
   };
 
-  // Store in EmbedStore (will be encrypted with master key)
+  // ── Store Embed in EmbedStore ────────────────────────────────────────────
+  // The embed content (with redacted code) is stored encrypted with the master key.
   try {
     await embedStore.put(`embed:${embed_id}`, embedData, "code-code");
     console.info(
@@ -130,6 +341,15 @@ export async function createCodeEmbed(
     // Continue anyway - embed can still be sent with message
   }
 
+  // ── Store PII Mappings Separately ───────────────────────────────────────
+  // PII mappings are stored under a separate key (`embed_pii:{embed_id}`) using
+  // master-key encryption. This ensures:
+  // - Share links (which provide the embed key) cannot decrypt PII mappings
+  // - Only the owner (who has the master key) can restore originals
+  if (piiMappingsForStorage.length > 0) {
+    await storeEmbedPIIMappings(embed_id, piiMappingsForStorage);
+  }
+
   // Create the embed reference JSON block
   // Note: For code embeds we don't include a URL fallback since there's no URL
   const embedReference = createEmbedReferenceBlock("code", embed_id);
@@ -138,6 +358,7 @@ export async function createCodeEmbed(
     embed_id,
     type: "code",
     embedReference,
+    piiRedactedCount: piiMappingsForStorage.length,
   };
 }
 
@@ -265,7 +486,7 @@ export function detectLanguageFromContent(text: string): string | null {
   if (/^\w+:\s*$/.test(firstLine) && content.includes("\n  ")) return "yaml";
 
   // JSON (starts with { or [)
-  if (/^\s*[{\[]/.test(firstLine)) {
+  if (/^\s*[{[]/.test(firstLine)) {
     try {
       JSON.parse(text);
       return "json";

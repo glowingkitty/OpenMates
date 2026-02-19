@@ -9,15 +9,35 @@
  *   // Render component with props
  */
 
-import type { Component, ComponentProps } from "svelte";
+import type { Component } from "svelte";
+import type { PIIMapping } from "../types/chat";
+
+/**
+ * Data passed to each fullscreen resolver.
+ * Uses unknown for deeply nested decoded content to avoid unsafe any usage
+ * while still allowing optional chaining access.
+ */
+interface EmbedFullscreenData {
+  embedId?: string;
+  onClose?: () => void;
+  decodedContent?: Record<string, unknown>;
+  attrs?: Record<string, unknown>;
+  embedData?: Record<string, unknown>;
+  hasPreviousEmbed?: boolean;
+  hasNextEmbed?: boolean;
+  onNavigatePrevious?: () => void;
+  onNavigateNext?: () => void;
+  showChatButton?: boolean;
+  onShowChat?: () => void;
+}
 
 /**
  * Fullscreen component resolver function type
  * Takes embed data and returns component props
  */
 type FullscreenComponentResolver = (
-  embedFullscreenData: any,
-) => Promise<{ component: Component; props: Record<string, any> } | null>;
+  embedFullscreenData: EmbedFullscreenData,
+) => Promise<{ component: Component; props: Record<string, unknown> } | null>;
 
 /**
  * Registry of embed type to fullscreen component resolvers
@@ -37,262 +57,301 @@ async function initializeRegistry(): Promise<void> {
   }
 
   // App skill use embeds - need special handling based on app_id + skill_id
-  fullscreenComponentRegistry.set("app-skill-use", async (data: any) => {
-    const appId = data.decodedContent?.app_id || "";
-    const skillId = data.decodedContent?.skill_id || "";
+  fullscreenComponentRegistry.set(
+    "app-skill-use",
+    async (data: EmbedFullscreenData) => {
+      const appId = data.decodedContent?.app_id || "";
+      const skillId = data.decodedContent?.skill_id || "";
 
-    // Web search
-    if (appId === "web" && skillId === "search") {
-      const { default: component } =
-        await import("../components/embeds/web/WebSearchEmbedFullscreen.svelte");
-      return {
-        component,
-        props: {
-          query: data.decodedContent?.query || "",
-          provider: data.decodedContent?.provider || "Brave",
-          results: data.decodedContent?.results || [],
-          onClose: data.onClose,
-          embedId: data.embedId, // Add embedId for sharing functionality
-        },
-      };
-    }
+      // Web search
+      if (appId === "web" && skillId === "search") {
+        const { default: component } =
+          await import("../components/embeds/web/WebSearchEmbedFullscreen.svelte");
+        return {
+          component,
+          props: {
+            query: data.decodedContent?.query || "",
+            provider: data.decodedContent?.provider || "Brave",
+            results: data.decodedContent?.results || [],
+            onClose: data.onClose,
+            embedId: data.embedId, // Add embedId for sharing functionality
+          },
+        };
+      }
 
-    // News search
-    if (appId === "news" && skillId === "search") {
-      const { default: component } =
-        await import("../components/embeds/news/NewsSearchEmbedFullscreen.svelte");
-      return {
-        component,
-        props: {
-          query: data.decodedContent?.query || "",
-          provider: data.decodedContent?.provider || "Brave",
-          results: data.decodedContent?.results || [],
-          onClose: data.onClose,
-          embedId: data.embedId, // Add embedId for sharing functionality
-        },
-      };
-    }
+      // News search
+      if (appId === "news" && skillId === "search") {
+        const { default: component } =
+          await import("../components/embeds/news/NewsSearchEmbedFullscreen.svelte");
+        return {
+          component,
+          props: {
+            query: data.decodedContent?.query || "",
+            provider: data.decodedContent?.provider || "Brave",
+            results: data.decodedContent?.results || [],
+            onClose: data.onClose,
+            embedId: data.embedId, // Add embedId for sharing functionality
+          },
+        };
+      }
 
-    // Videos search
-    if (appId === "videos" && skillId === "search") {
-      const { default: component } =
-        await import("../components/embeds/videos/VideosSearchEmbedFullscreen.svelte");
-      return {
-        component,
-        props: {
-          query: data.decodedContent?.query || "",
-          provider: data.decodedContent?.provider || "Brave Search",
-          // Pass embed_ids for loading child video embeds from embedStore
-          embedIds: data.decodedContent?.embed_ids || "",
-          // Fallback: legacy results prop
-          results: data.decodedContent?.results || [],
-          onClose: data.onClose,
-          embedId: data.embedId, // Add embedId for sharing functionality
-        },
-      };
-    }
+      // Videos search
+      if (appId === "videos" && skillId === "search") {
+        const { default: component } =
+          await import("../components/embeds/videos/VideosSearchEmbedFullscreen.svelte");
+        return {
+          component,
+          props: {
+            query: data.decodedContent?.query || "",
+            provider: data.decodedContent?.provider || "Brave Search",
+            // Pass embed_ids for loading child video embeds from embedStore
+            embedIds: data.decodedContent?.embed_ids || "",
+            // Fallback: legacy results prop
+            results: data.decodedContent?.results || [],
+            onClose: data.onClose,
+            embedId: data.embedId, // Add embedId for sharing functionality
+          },
+        };
+      }
 
-    // Maps search
-    if (appId === "maps" && skillId === "search") {
-      const { default: component } =
-        await import("../components/embeds/maps/MapsSearchEmbedFullscreen.svelte");
-      return {
-        component,
-        props: {
-          query: data.decodedContent?.query || "",
-          provider: data.decodedContent?.provider || "Google",
-          results: data.decodedContent?.results || [],
-          onClose: data.onClose,
-          embedId: data.embedId, // Add embedId for sharing functionality
-        },
-      };
-    }
+      // Maps search
+      if (appId === "maps" && skillId === "search") {
+        const { default: component } =
+          await import("../components/embeds/maps/MapsSearchEmbedFullscreen.svelte");
+        return {
+          component,
+          props: {
+            query: data.decodedContent?.query || "",
+            provider: data.decodedContent?.provider || "Google",
+            results: data.decodedContent?.results || [],
+            onClose: data.onClose,
+            embedId: data.embedId, // Add embedId for sharing functionality
+          },
+        };
+      }
 
-    // Video transcript
-    if (appId === "videos" && skillId === "get_transcript") {
-      const { default: component } =
-        await import("../components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte");
-      return {
-        component,
-        props: {
-          results: data.decodedContent?.results || [],
-          status: data.embedData?.status || "finished",
-          onClose: data.onClose,
-          embedId: data.embedId, // Add embedId for sharing functionality
-        },
-      };
-    }
+      // Video transcript
+      if (appId === "videos" && skillId === "get_transcript") {
+        const { default: component } =
+          await import("../components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte");
+        return {
+          component,
+          props: {
+            results: data.decodedContent?.results || [],
+            status: data.embedData?.status || "finished",
+            onClose: data.onClose,
+            embedId: data.embedId, // Add embedId for sharing functionality
+          },
+        };
+      }
 
-    // Web read
-    if (appId === "web" && skillId === "read") {
-      const { default: component } =
-        await import("../components/embeds/web/WebReadEmbedFullscreen.svelte");
-      return {
-        component,
-        props: {
-          results: data.decodedContent?.results || [],
-          status: data.embedData?.status || "finished",
-          onClose: data.onClose,
-          embedId: data.embedId, // Add embedId for sharing functionality
-        },
-      };
-    }
+      // Web read
+      if (appId === "web" && skillId === "read") {
+        const { default: component } =
+          await import("../components/embeds/web/WebReadEmbedFullscreen.svelte");
+        return {
+          component,
+          props: {
+            results: data.decodedContent?.results || [],
+            status: data.embedData?.status || "finished",
+            onClose: data.onClose,
+            embedId: data.embedId, // Add embedId for sharing functionality
+          },
+        };
+      }
 
-    // Code get docs
-    if (appId === "code" && skillId === "get_docs") {
-      const { default: component } =
-        await import("../components/embeds/code/CodeGetDocsEmbedFullscreen.svelte");
-      return {
-        component,
-        props: {
-          results: data.decodedContent?.results || [],
-          library: data.decodedContent?.library || "",
-          status: data.embedData?.status || "finished",
-          onClose: data.onClose,
-          embedId: data.embedId, // Add embedId for sharing functionality
-        },
-      };
-    }
+      // Code get docs
+      if (appId === "code" && skillId === "get_docs") {
+        const { default: component } =
+          await import("../components/embeds/code/CodeGetDocsEmbedFullscreen.svelte");
+        return {
+          component,
+          props: {
+            results: data.decodedContent?.results || [],
+            library: data.decodedContent?.library || "",
+            status: data.embedData?.status || "finished",
+            onClose: data.onClose,
+            embedId: data.embedId, // Add embedId for sharing functionality
+          },
+        };
+      }
 
-    // Image generation
-    if (
-      appId === "images" &&
-      (skillId === "generate" || skillId === "generate_draft")
-    ) {
-      const { default: component } =
-        await import("../components/embeds/images/ImageGenerateEmbedFullscreen.svelte");
-      return {
-        component,
-        props: {
-          prompt: data.decodedContent?.prompt || "",
-          model: data.decodedContent?.model || "",
-          aspectRatio: data.decodedContent?.aspect_ratio || "",
-          s3BaseUrl: data.decodedContent?.s3_base_url || "",
-          files: data.decodedContent?.files || undefined,
-          aesKey: data.decodedContent?.aes_key || "",
-          aesNonce: data.decodedContent?.aes_nonce || "",
-          status: data.embedData?.status || "finished",
-          error: data.decodedContent?.error || "",
-          onClose: data.onClose,
-          embedId: data.embedId,
-          skillId: data.decodedContent?.skill_id || skillId || "generate",
-        },
-      };
-    }
+      // Image generation
+      if (
+        appId === "images" &&
+        (skillId === "generate" || skillId === "generate_draft")
+      ) {
+        const { default: component } =
+          await import("../components/embeds/images/ImageGenerateEmbedFullscreen.svelte");
+        return {
+          component,
+          props: {
+            prompt: data.decodedContent?.prompt || "",
+            model: data.decodedContent?.model || "",
+            aspectRatio: data.decodedContent?.aspect_ratio || "",
+            s3BaseUrl: data.decodedContent?.s3_base_url || "",
+            files: data.decodedContent?.files || undefined,
+            aesKey: data.decodedContent?.aes_key || "",
+            aesNonce: data.decodedContent?.aes_nonce || "",
+            status: data.embedData?.status || "finished",
+            error: data.decodedContent?.error || "",
+            onClose: data.onClose,
+            embedId: data.embedId,
+            skillId: data.decodedContent?.skill_id || skillId || "generate",
+          },
+        };
+      }
 
-    // Fallback for unknown app skills
-    return null;
-  });
+      // Fallback for unknown app skills
+      return null;
+    },
+  );
 
   // Website embeds
-  fullscreenComponentRegistry.set("web-website", async (data: any) => {
-    const { default: component } =
-      await import("../components/embeds/web/WebsiteEmbedFullscreen.svelte");
-    const url = data.decodedContent?.url || data.attrs?.url || "";
-    if (!url) return null;
+  fullscreenComponentRegistry.set(
+    "web-website",
+    async (data: EmbedFullscreenData) => {
+      const { default: component } =
+        await import("../components/embeds/web/WebsiteEmbedFullscreen.svelte");
+      const url = data.decodedContent?.url || data.attrs?.url || "";
+      if (!url) return null;
 
-    // Debug logging for website embed props
-    console.debug("[embedFullscreenHandler] Website embed props:", {
-      url,
-      extra_snippets: data.decodedContent?.extra_snippets,
-      page_age: data.decodedContent?.page_age,
-      hasDecodedContent: !!data.decodedContent,
-    });
-
-    return {
-      component,
-      props: {
+      // Debug logging for website embed props
+      console.debug("[embedFullscreenHandler] Website embed props:", {
         url,
-        title: data.decodedContent?.title || data.attrs?.title,
-        description:
-          data.decodedContent?.description || data.attrs?.description,
-        favicon:
-          data.decodedContent?.meta_url_favicon ||
-          data.decodedContent?.favicon ||
-          data.attrs?.favicon,
-        image:
-          data.decodedContent?.thumbnail_original ||
-          data.decodedContent?.image ||
-          data.attrs?.image,
-        extra_snippets: data.decodedContent?.extra_snippets, // Backend TOON format: pipe-delimited string
-        meta_url_favicon: data.decodedContent?.meta_url_favicon,
-        thumbnail_original: data.decodedContent?.thumbnail_original,
-        dataDate: data.decodedContent?.page_age, // Map page_age to dataDate for display
-        onClose: data.onClose,
-        embedId: data.embedId, // Add embedId for sharing functionality
-      },
-    };
-  });
+        extra_snippets: data.decodedContent?.extra_snippets,
+        page_age: data.decodedContent?.page_age,
+        hasDecodedContent: !!data.decodedContent,
+      });
+
+      return {
+        component,
+        props: {
+          url,
+          title: data.decodedContent?.title || data.attrs?.title,
+          description:
+            data.decodedContent?.description || data.attrs?.description,
+          favicon:
+            data.decodedContent?.meta_url_favicon ||
+            data.decodedContent?.favicon ||
+            data.attrs?.favicon,
+          image:
+            data.decodedContent?.thumbnail_original ||
+            data.decodedContent?.image ||
+            data.attrs?.image,
+          extra_snippets: data.decodedContent?.extra_snippets, // Backend TOON format: pipe-delimited string
+          meta_url_favicon: data.decodedContent?.meta_url_favicon,
+          thumbnail_original: data.decodedContent?.thumbnail_original,
+          dataDate: data.decodedContent?.page_age, // Map page_age to dataDate for display
+          onClose: data.onClose,
+          embedId: data.embedId, // Add embedId for sharing functionality
+        },
+      };
+    },
+  );
 
   // Code embeds
-  fullscreenComponentRegistry.set("code-code", async (data: any) => {
-    const { default: component } =
-      await import("../components/embeds/code/CodeEmbedFullscreen.svelte");
-    const codeContent = data.decodedContent?.code || data.attrs?.code || "";
-    if (!codeContent) return null;
+  fullscreenComponentRegistry.set(
+    "code-code",
+    async (data: EmbedFullscreenData) => {
+      const { default: component } =
+        await import("../components/embeds/code/CodeEmbedFullscreen.svelte");
+      const codeContent = data.decodedContent?.code || data.attrs?.code || "";
+      if (!codeContent) return null;
 
-    return {
-      component,
-      props: {
-        codeContent,
-        language: data.decodedContent?.language || data.attrs?.language,
-        filename: data.decodedContent?.filename || data.attrs?.filename,
-        lineCount: data.decodedContent?.lineCount || data.attrs?.lineCount || 0,
-        onClose: data.onClose,
-        embedId: data.embedId, // Add embedId for sharing functionality
-      },
-    };
-  });
+      // Merge PII mappings from two sources:
+      // 1. Message-level mappings (from the global embedPIIStore, set by ActiveChat)
+      // 2. Embed-level mappings (from EmbedStore's embed_pii:{embed_id} entry)
+      // This ensures the fullscreen view can show/hide PII from both sources.
+      const { getEmbedPIIState } = await import("../stores/embedPIIStore");
+      const { loadEmbedPIIMappings } =
+        await import("../components/enter_message/services/codeEmbedService");
+
+      const currentPIIState = getEmbedPIIState();
+      let embedLevelMappings: PIIMapping[] = [];
+      if (data.embedId) {
+        embedLevelMappings = await loadEmbedPIIMappings(data.embedId);
+      }
+
+      // Merge: message-level first, then embed-level (dedup by placeholder is not needed since
+      // embed-level and message-level use independent counters and won't collide in practice)
+      const mergedMappings = [
+        ...currentPIIState.mappings,
+        ...embedLevelMappings,
+      ];
+
+      return {
+        component,
+        props: {
+          codeContent,
+          language: data.decodedContent?.language || data.attrs?.language,
+          filename: data.decodedContent?.filename || data.attrs?.filename,
+          lineCount:
+            data.decodedContent?.lineCount || data.attrs?.lineCount || 0,
+          onClose: data.onClose,
+          embedId: data.embedId, // Add embedId for sharing functionality
+          piiMappings: mergedMappings,
+          piiRevealed: currentPIIState.revealed,
+        },
+      };
+    },
+  );
 
   // Document embeds
-  fullscreenComponentRegistry.set("docs-doc", async (data: any) => {
-    const { default: component } =
-      await import("../components/embeds/docs/DocsEmbedFullscreen.svelte");
-    const htmlContent = data.decodedContent?.html || data.attrs?.code || "";
-    if (!htmlContent) return null;
+  fullscreenComponentRegistry.set(
+    "docs-doc",
+    async (data: EmbedFullscreenData) => {
+      const { default: component } =
+        await import("../components/embeds/docs/DocsEmbedFullscreen.svelte");
+      const htmlContent = data.decodedContent?.html || data.attrs?.code || "";
+      if (!htmlContent) return null;
 
-    return {
-      component,
-      props: {
-        htmlContent,
-        title: data.decodedContent?.title || data.attrs?.title,
-        filename: data.decodedContent?.filename || data.attrs?.filename,
-        wordCount:
-          data.decodedContent?.word_count || data.attrs?.wordCount || 0,
-        onClose: data.onClose,
-        embedId: data.embedId,
-      },
-    };
-  });
+      return {
+        component,
+        props: {
+          htmlContent,
+          title: data.decodedContent?.title || data.attrs?.title,
+          filename: data.decodedContent?.filename || data.attrs?.filename,
+          wordCount:
+            data.decodedContent?.word_count || data.attrs?.wordCount || 0,
+          onClose: data.onClose,
+          embedId: data.embedId,
+        },
+      };
+    },
+  );
 
   // Sheet/Table embeds
-  fullscreenComponentRegistry.set("sheets-sheet", async (data: any) => {
-    const { default: component } =
-      await import("../components/embeds/sheets/SheetEmbedFullscreen.svelte");
-    const tableContent =
-      data.decodedContent?.code ||
-      data.decodedContent?.table ||
-      data.attrs?.code ||
-      "";
-    if (!tableContent) return null;
+  fullscreenComponentRegistry.set(
+    "sheets-sheet",
+    async (data: EmbedFullscreenData) => {
+      const { default: component } =
+        await import("../components/embeds/sheets/SheetEmbedFullscreen.svelte");
+      const tableContent =
+        data.decodedContent?.code ||
+        data.decodedContent?.table ||
+        data.attrs?.code ||
+        "";
+      if (!tableContent) return null;
 
-    return {
-      component,
-      props: {
-        tableContent,
-        title: data.decodedContent?.title || data.attrs?.title,
-        rowCount: data.decodedContent?.rows || data.attrs?.rows || 0,
-        colCount: data.decodedContent?.cols || data.attrs?.cols || 0,
-        onClose: data.onClose,
-        embedId: data.embedId,
-      },
-    };
-  });
+      return {
+        component,
+        props: {
+          tableContent,
+          title: data.decodedContent?.title || data.attrs?.title,
+          rowCount: data.decodedContent?.rows || data.attrs?.rows || 0,
+          colCount: data.decodedContent?.cols || data.attrs?.cols || 0,
+          onClose: data.onClose,
+          embedId: data.embedId,
+        },
+      };
+    },
+  );
 
   // Maps location embeds (user-inserted via MapsView picker)
   // Uses MapsLocationEmbedFullscreen which shows an interactive Leaflet map + details card.
   // Data comes from the "maps" embed node attrs (preciseLat/preciseLon) or decoded TOON content.
-  fullscreenComponentRegistry.set("maps", async (data: any) => {
+  fullscreenComponentRegistry.set("maps", async (data: EmbedFullscreenData) => {
     const { default: component } =
       await import("../components/embeds/maps/MapsLocationEmbedFullscreen.svelte");
 
@@ -333,55 +392,58 @@ async function initializeRegistry(): Promise<void> {
   // Video embeds
   // Constructs full VideoMetadata from decodedContent so fullscreen displays
   // all video details (title, channel, duration, thumbnail, etc.) without re-fetching
-  fullscreenComponentRegistry.set("videos-video", async (data: any) => {
-    const { default: component } =
-      await import("../components/embeds/videos/VideoEmbedFullscreen.svelte");
-    const url = data.decodedContent?.url || data.attrs?.url || "";
-    if (!url) return null;
+  fullscreenComponentRegistry.set(
+    "videos-video",
+    async (data: EmbedFullscreenData) => {
+      const { default: component } =
+        await import("../components/embeds/videos/VideoEmbedFullscreen.svelte");
+      const url = data.decodedContent?.url || data.attrs?.url || "";
+      if (!url) return null;
 
-    // Construct VideoMetadata from decoded content
-    // Maps backend TOON format (snake_case) to VideoMetadata format (camelCase)
-    // This ensures fullscreen displays the same data as preview without re-fetching
-    const metadata = {
-      videoId: data.decodedContent?.video_id || "",
-      title: data.decodedContent?.title || data.attrs?.title,
-      description: data.decodedContent?.description,
-      channelName: data.decodedContent?.channel_name,
-      channelId: data.decodedContent?.channel_id,
-      thumbnailUrl: data.decodedContent?.thumbnail,
-      // Construct duration object from backend format
-      duration:
-        data.decodedContent?.duration_seconds ||
-        data.decodedContent?.duration_formatted
-          ? {
-              totalSeconds: data.decodedContent?.duration_seconds || 0,
-              formatted: data.decodedContent?.duration_formatted || "",
-            }
-          : undefined,
-      viewCount: data.decodedContent?.view_count,
-      likeCount: data.decodedContent?.like_count,
-      publishedAt: data.decodedContent?.published_at,
-    };
-
-    console.debug("[embedFullscreenHandler] Video embed metadata:", {
-      videoId: metadata.videoId,
-      title: metadata.title?.substring(0, 50),
-      channelName: metadata.channelName,
-      duration: metadata.duration?.formatted,
-      hasThumbnail: !!metadata.thumbnailUrl,
-    });
-
-    return {
-      component,
-      props: {
-        url,
+      // Construct VideoMetadata from decoded content
+      // Maps backend TOON format (snake_case) to VideoMetadata format (camelCase)
+      // This ensures fullscreen displays the same data as preview without re-fetching
+      const metadata = {
+        videoId: data.decodedContent?.video_id || "",
         title: data.decodedContent?.title || data.attrs?.title,
-        onClose: data.onClose,
-        embedId: data.embedId, // Add embedId for sharing functionality
-        metadata, // Pass full video metadata to fullscreen
-      },
-    };
-  });
+        description: data.decodedContent?.description,
+        channelName: data.decodedContent?.channel_name,
+        channelId: data.decodedContent?.channel_id,
+        thumbnailUrl: data.decodedContent?.thumbnail,
+        // Construct duration object from backend format
+        duration:
+          data.decodedContent?.duration_seconds ||
+          data.decodedContent?.duration_formatted
+            ? {
+                totalSeconds: data.decodedContent?.duration_seconds || 0,
+                formatted: data.decodedContent?.duration_formatted || "",
+              }
+            : undefined,
+        viewCount: data.decodedContent?.view_count,
+        likeCount: data.decodedContent?.like_count,
+        publishedAt: data.decodedContent?.published_at,
+      };
+
+      console.debug("[embedFullscreenHandler] Video embed metadata:", {
+        videoId: metadata.videoId,
+        title: (metadata.title as string | undefined)?.substring(0, 50),
+        channelName: metadata.channelName,
+        duration: metadata.duration?.formatted,
+        hasThumbnail: !!metadata.thumbnailUrl,
+      });
+
+      return {
+        component,
+        props: {
+          url,
+          title: data.decodedContent?.title || data.attrs?.title,
+          onClose: data.onClose,
+          embedId: data.embedId, // Add embedId for sharing functionality
+          metadata, // Pass full video metadata to fullscreen
+        },
+      };
+    },
+  );
 }
 
 /**
@@ -393,8 +455,8 @@ async function initializeRegistry(): Promise<void> {
  */
 export async function getFullscreenComponent(
   embedType: string,
-  embedFullscreenData: any,
-): Promise<{ component: Component; props: Record<string, any> } | null> {
+  embedFullscreenData: EmbedFullscreenData,
+): Promise<{ component: Component; props: Record<string, unknown> } | null> {
   await initializeRegistry();
 
   const resolver = fullscreenComponentRegistry.get(embedType);
