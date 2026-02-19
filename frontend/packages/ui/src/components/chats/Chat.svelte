@@ -277,7 +277,7 @@
           if (type === 'video') return ' [Video] ';
           if (type === 'website') return ' [Website] ';
           if (type === 'image') return ' [Image] ';
-          if (type === 'code') return ' [Code] ';
+          if (type === 'code' || type === 'code-code' || type === 'code-code-group') return ' [Code] ';
           if (type) return ` [${type}] `;
         } catch {
           // Not valid JSON — fall through to generic code-block handler

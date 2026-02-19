@@ -180,18 +180,29 @@
     return $text('embeds.code_snippet');
   });
   
-  // Build status text: line count + language (always use code_info.text format)
+  // Build status text: line count + language (always use code_info.text format).
+  // When line count is not yet available (embed data still loading from EmbedStore),
+  // fall back to just the display language so "Completed" is never shown.
   let statusText = $derived.by(() => {
     const lineCount = actualLineCount;
-    if (lineCount === 0) return '';
-    
-    // Build line count text with proper singular/plural handling
-    const lineCountText = lineCount === 1 
-      ? $text('embeds.code_line_singular')
-      : $text('embeds.code_line_plural');
-    
     const languageToShow = displayLanguage;
-    return languageToShow ? `${lineCount} ${lineCountText}, ${languageToShow}` : `${lineCount} ${lineCountText}`;
+
+    if (lineCount > 0) {
+      // Full info: "42 lines, Python"
+      const lineCountText = lineCount === 1
+        ? $text('embeds.code_line_singular')
+        : $text('embeds.code_line_plural');
+      return languageToShow
+        ? `${lineCount} ${lineCountText}, ${languageToShow}`
+        : `${lineCount} ${lineCountText}`;
+    }
+
+    // Line count not available yet — show language only so we never fall back to "Completed"
+    if (languageToShow) return languageToShow;
+
+    // Last resort: return a single space so BasicInfosBar uses customStatusText
+    // (a non-empty customStatusText suppresses the default "Completed" fallback)
+    return ' ';
   });
   
   // Map skillId to icon name

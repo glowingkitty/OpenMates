@@ -49,7 +49,8 @@
     // URL metadata service - creates proper embeds with embed_id for LLM context
     import { createEmbedFromUrl } from './services/urlMetadataService';
     // Code embed service - creates proper embeds for pasted code/text
-    import { createCodeEmbedFromPastedText } from './services/codeEmbedService';
+    import { createCodeEmbedFromPastedText, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
+    import { generateUUID } from '../../message_parsing/utils';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -1094,9 +1095,41 @@
                             // VS Code includes a 'vscode-editor-data' MIME type with JSON containing the 'mode' (language)
                             const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
                             
-                            // Create a proper embed in EmbedStore (async)
-                            // This follows the same pattern as URL embeds
-                            // Pass VS Code editor data for automatic language detection
+                            if (!$authStore.isAuthenticated) {
+                                // Unauthenticated / demo mode: EmbedStore is unavailable (no encryption keys).
+                                // Insert a preview embed node with the code stored inline in the node `code`
+                                // attribute — GroupRenderer reads this directly without EmbedStore.
+                                const vsCodeLang = detectLanguageFromVSCode(vsCodeEditorData);
+                                const language = vsCodeLang || detectLanguageFromContent(text) || 'text';
+                                const embedId = generateUUID();
+                                const lineCount = text.split('\n').length;
+                                
+                                console.debug('[MessageInput] Demo mode — inserting inline code embed:', {
+                                    language, lineCount, embedId
+                                });
+                                
+                                editor.commands.insertContent({
+                                    type: 'embed',
+                                    attrs: {
+                                        id: embedId,
+                                        type: 'code-code',
+                                        status: 'finished',
+                                        // "preview:code:" prefix tells GroupRenderer to read code from item.code attr
+                                        contentRef: `preview:code:${embedId}`,
+                                        code: text,
+                                        language,
+                                        lineCount,
+                                    }
+                                });
+                                editor.commands.insertContent(' ');
+                                editor.commands.focus('end');
+                                hasContent = !isContentEmptyExceptMention(editor);
+                                return true;
+                            }
+                            
+                            // Authenticated path: create a proper embed in EmbedStore (async).
+                            // This follows the same pattern as URL embeds.
+                            // Pass VS Code editor data for automatic language detection.
                             createCodeEmbedFromPastedText({ text, vsCodeEditorData }).then(async (embedResult) => {
                                 console.info('[MessageInput] Created code embed for pasted text:', {
                                     embed_id: embedResult.embed_id,

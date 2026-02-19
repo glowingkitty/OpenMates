@@ -53,7 +53,7 @@ export async function processFiles(
       );
     } else if (isCodeOrTextFile(file.name)) {
       editor.commands.focus("end");
-      await insertCodeFile(editor, file);
+      await insertCodeFile(editor, file, isAuthenticated);
     } else {
       // Unsupported file type — skip silently
       console.warn(

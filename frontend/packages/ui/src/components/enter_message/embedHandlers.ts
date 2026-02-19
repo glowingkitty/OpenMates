@@ -412,19 +412,25 @@ export async function insertAudio(editor: Editor, file: File): Promise<void> {
 /**
  * Inserts a code file embed into the editor.
  *
- * This reads the file content, creates a proper TOON embed via createCodeEmbed()
- * (which includes PII detection and redaction), and inserts the embed reference
- * block into the editor — the same flow as pasted code.
+ * For authenticated users:
+ *   Reads file content, creates a TOON embed via createCodeEmbed() (PII detection &
+ *   redaction included), stores it in EmbedStore, and inserts an embed reference block.
+ *
+ * For unauthenticated users (demo/preview mode):
+ *   Skips EmbedStore (no encryption keys available) and inserts a preview embed node
+ *   with the code content stored inline in the node's `code` attribute. This allows
+ *   the preview to render without needing the server or IndexedDB decryption.
+ *   PII detection is still run so the inline code uses the same redaction path.
  *
  * PII protection:
- * - File content is scanned for PII before being stored
- * - Placeholders replace sensitive values in the TOON embed content
- * - PII mappings are stored separately under master-key encryption
- * - The LLM/server only ever sees the redacted code
+ * - File content is scanned for PII before being stored or shown
+ * - Placeholders replace sensitive values in the code
+ * - PII mappings are stored separately under master-key encryption (authenticated only)
  */
 export async function insertCodeFile(
   editor: Editor,
   file: File,
+  isAuthenticated: boolean = true,
 ): Promise<void> {
   ensureLeadingParagraph(editor);
 
@@ -463,7 +469,44 @@ export async function insertCodeFile(
     detectLanguageFromContent(fileContent) ||
     "text";
 
-  // Create a proper TOON embed with PII detection and redaction.
+  if (!isAuthenticated) {
+    // Unauthenticated / demo mode: insert a preview embed node with the code stored
+    // inline in the node attributes. EmbedStore is not available without auth keys,
+    // so we use the same "preview:" contentRef convention that pasted embeds use
+    // during write mode — the GroupRenderer reads `item.code` for these nodes.
+    const embedId = generateUUID();
+    const lineCount = fileContent.split("\n").length;
+
+    console.debug(
+      "[EmbedHandlers] Demo mode — inserting inline code embed (unauthenticated):",
+      { filename: file.name, language, lineCount, embedId },
+    );
+
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "embed",
+        attrs: {
+          id: embedId,
+          type: "code-code",
+          status: "finished",
+          // Use "preview:code:" prefix so GroupRenderer reads code from `item.code` attr
+          contentRef: `preview:code:${embedId}`,
+          code: fileContent,
+          filename: file.name,
+          language: language,
+          lineCount: lineCount,
+        },
+      })
+      .insertContent(" ")
+      .run();
+
+    setTimeout(() => editor.commands.focus("end"), 50);
+    return;
+  }
+
+  // Authenticated path: create a proper TOON embed with PII detection and redaction.
   // This is the same path as pasted code — ensures consistent PII protection
   // regardless of whether code arrives via paste or file drop.
   const result = await createCodeEmbed(fileContent, language, file.name);
