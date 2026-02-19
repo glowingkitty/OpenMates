@@ -24,24 +24,24 @@ welcome:
 
 welcome.description:
   context: Description for the OpenMates welcome/onboarding focus mode
-  en: Discover OpenMates and find the right tools for your needs.
-  de: Entdecke OpenMates und finde die richtigen Werkzeuge für deine Bedürfnisse.
-  zh: 探索 OpenMates，找到适合您需求的工具。
-  es: Descubre OpenMates y encuentra las herramientas adecuadas para tus necesidades.
-  fr: Découvrez OpenMates et trouvez les bons outils pour vos besoins.
-  pt: Descubra o OpenMates e encontre as ferramentas certas para suas necessidades.
-  ru: Откройте для себя OpenMates и найдите нужные инструменты.
-  ja: OpenMates を探索して、あなたのニーズに合ったツールを見つけましょう。
-  ko: OpenMates를 탐색하고 나에게 맞는 도구를 찾아보세요.
-  it: Scopri OpenMates e trova gli strumenti giusti per le tue esigenze.
-  tr: OpenMates'i keşfedin ve ihtiyaçlarınıza uygun araçları bulun.
-  vi: Khám phá OpenMates và tìm công cụ phù hợp với nhu cầu của bạn.
-  id: Jelajahi OpenMates dan temukan alat yang tepat untuk kebutuhanmu.
-  pl: Odkryj OpenMates i znajdź odpowiednie narzędzia dla swoich potrzeb.
-  nl: Ontdek OpenMates en vind de juiste tools voor jouw behoeften.
-  ar: اكتشف OpenMates وابحث عن الأدوات المناسبة لاحتياجاتك.
-  hi: OpenMates को एक्सप्लोर करें और अपनी जरूरतों के लिए सही टूल खोजें।
-  th: สำรวจ OpenMates และค้นหาเครื่องมือที่เหมาะกับความต้องการของคุณ
-  cs: Prozkoumejte OpenMates a najděte správné nástroje pro vaše potřeby.
-  sv: Utforska OpenMates och hitta rätt verktyg för dina behov.
+  en: Discover OpenMates and find the right tools.
+  de: Entdecke OpenMates und finde die richtigen Tools.
+  zh: 探索 OpenMates，找到适合您的工具。
+  es: Descubre OpenMates y las herramientas para ti.
+  fr: Découvrez OpenMates et les bons outils.
+  pt: Descubra o OpenMates e as ferramentas certas.
+  ru: Откройте для себя OpenMates и нужные инструменты.
+  ja: OpenMates を探索して最適なツールを見つけよう。
+  ko: OpenMates를 탐색하고 맞는 도구를 찾아보세요.
+  it: Scopri OpenMates e gli strumenti giusti per te.
+  tr: OpenMates'i keşfedin ve doğru araçları bulun.
+  vi: Khám phá OpenMates và tìm công cụ phù hợp.
+  id: Jelajahi OpenMates dan temukan alat yang tepat.
+  pl: Odkryj OpenMates i znajdź odpowiednie narzędzia.
+  nl: Ontdek OpenMates en vind de juiste tools.
+  ar: اكتشف OpenMates وابحث عن الأدوات المناسبة.
+  hi: OpenMates को एक्सप्लोर करें और सही टूल खोजें।
+  th: สำรวจ OpenMates และค้นหาเครื่องมือที่เหมาะกับคุณ
+  cs: Prozkoumejte OpenMates a najděte správné nástroje.
+  sv: Utforska OpenMates och hitta rätt verktyg.
   verified_by_human: [en]

@@ -24,24 +24,24 @@ share_usecase:
 
 share_usecase.description:
   context: Description for the share use case skill — anonymously shares how the user wants to use OpenMates
-  en: Anonymously share how you want to use OpenMates to help us improve.
-  de: Teile anonym, wie du OpenMates nutzen möchtest, um uns zu helfen, es zu verbessern.
-  zh: 匿名分享您希望如何使用 OpenMates，帮助我们改进。
-  es: Comparte de forma anónima cómo quieres usar OpenMates para ayudarnos a mejorar.
-  fr: Partagez anonymement comment vous souhaitez utiliser OpenMates pour nous aider à nous améliorer.
-  pt: Compartilhe anonimamente como você quer usar o OpenMates para nos ajudar a melhorar.
-  ru: Анонимно поделитесь тем, как вы хотите использовать OpenMates, чтобы помочь нам стать лучше.
-  ja: OpenMates の使い方を匿名で共有して改善にご協力ください。
-  ko: OpenMates를 어떻게 사용하고 싶은지 익명으로 공유해 개선을 도와주세요.
-  it: Condividi anonimamente come vuoi usare OpenMates per aiutarci a migliorare.
-  tr: OpenMates'i nasıl kullanmak istediğini anonim olarak paylaşarak bizi geliştirmene yardım et.
-  vi: Chia sẻ ẩn danh cách bạn muốn dùng OpenMates để giúp chúng tôi cải thiện.
-  id: Bagikan secara anonim bagaimana kamu ingin menggunakan OpenMates untuk membantu kami berkembang.
-  pl: Anonimowo podziel się tym, jak chcesz używać OpenMates, aby pomóc nam się poprawić.
-  nl: Deel anoniem hoe je OpenMates wil gebruiken om ons te helpen verbeteren.
-  ar: شارك بشكل مجهول كيف تريد استخدام OpenMates لمساعدتنا على التحسين.
-  hi: बताएं कि आप OpenMates का उपयोग कैसे करना चाहते हैं — यह गुमनाम रूप से साझा किया जाएगा।
-  th: แชร์แบบไม่ระบุตัวตนว่าคุณต้องการใช้ OpenMates อย่างไรเพื่อช่วยให้เราปรับปรุง
-  cs: Anonymně sdílejte, jak chcete používat OpenMates, a pomozte nám se zlepšit.
-  sv: Dela anonymt hur du vill använda OpenMates för att hjälpa oss att förbättra oss.
+  en: Anonymously share how you want to use OpenMates.
+  de: Teile anonym, wie du OpenMates nutzen möchtest.
+  zh: 匿名分享您希望如何使用 OpenMates。
+  es: Comparte de forma anónima cómo usarás OpenMates.
+  fr: Partagez anonymement votre utilisation d'OpenMates.
+  pt: Compartilhe anonimamente como usará o OpenMates.
+  ru: Анонимно поделитесь тем, как вы используете OpenMates.
+  ja: OpenMates の使い方を匿名で共有してください。
+  ko: OpenMates 사용 방식을 익명으로 공유하세요.
+  it: Condividi anonimamente come usi OpenMates.
+  tr: OpenMates'i nasıl kullanmak istediğini anonim paylaş.
+  vi: Chia sẻ ẩn danh cách bạn muốn dùng OpenMates.
+  id: Bagikan secara anonim cara kamu ingin pakai OpenMates.
+  pl: Anonimowo podziel się, jak chcesz używać OpenMates.
+  nl: Deel anoniem hoe je OpenMates wilt gebruiken.
+  ar: شارك بشكل مجهول كيف تريد استخدام OpenMates.
+  hi: बताएं OpenMates कैसे उपयोग करना चाहते हैं (गुमनाम)।
+  th: แชร์แบบไม่ระบุตัวตนว่าจะใช้ OpenMates อย่างไร
+  cs: Anonymně sdílejte, jak chcete používat OpenMates.
+  sv: Dela anonymt hur du vill använda OpenMates.
   verified_by_human: [en]

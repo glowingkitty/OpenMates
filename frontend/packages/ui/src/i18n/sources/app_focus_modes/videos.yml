@@ -26,7 +26,7 @@ analyze_video:
 analyze_video.description:
   context: Description for analyze video focus mode in the Videos app
   en: Analyze, fact-check, and detect bias in videos.
-  de: Videos analysieren, Fakten prüfen und Voreingenommenheit erkennen.
+  de: Videos analysieren, Fakten prüfen, Bias erkennen.
   zh: 分析视频，核实事实并检测偏见。
   es: Analiza, verifica hechos y detecta sesgo en videos.
   fr: Analysez, vérifiez les faits et détectez les biais.
@@ -35,7 +35,7 @@ analyze_video.description:
   ja: 動画の分析、ファクトチェック、偏向の検出。
   ko: 동영상 분석, 팩트체크 및 편향 감지.
   it: Analizza, verifica i fatti e rileva pregiudizi.
-  tr: Videoları analiz edin, doğrulayın ve önyargı tespit edin.
+  tr: Videoları analiz edin, doğrulayın, bias bulun.
   vi: Phân tích, kiểm tra sự thật và phát hiện thiên vị.
   id: Analisis, cek fakta, dan deteksi bias dalam video.
   pl: Analizuj, sprawdzaj fakty i wykrywaj stronniczość.
@@ -43,8 +43,8 @@ analyze_video.description:
   ar: حلل وتحقق من الحقائق واكشف التحيز في الفيديوهات.
   hi: वीडियो का विश्लेषण, तथ्य-जांच और पूर्वाग्रह पहचानें।
   th: วิเคราะห์ ตรวจสอบข้อเท็จจริง และตรวจจับอคติในวิดีโอ
-  cs: Analyzujte, ověřte fakta a odhalte zaujatost ve videích.
-  sv: Analysera, faktagranska och upptäcka partiskhet i videor.
+  cs: Analyzujte fakta a odhalte zaujatost ve videích.
+  sv: Analysera, faktagranska och identifiera partiskhet.
   verified_by_human:
     - en
     - de
