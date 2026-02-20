@@ -495,6 +495,19 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
 
+    // Handle daily inspiration deliveries from server.
+    // Sent both on-connect (pending delivery) and after background Celery generation.
+    // Payload: { inspirations: DailyInspiration[], user_id: string }
+    webSocketService.on("daily_inspiration", (payload) =>
+      aiHandlers.handleDailyInspirationImpl(
+        this,
+        payload as {
+          inspirations: import("../stores/dailyInspirationStore").DailyInspiration[];
+          user_id: string;
+        },
+      ),
+    );
+
     // Import and register app settings/memories handlers
     import("./chatSyncServiceHandlersAppSettings").then((module) => {
       webSocketService.on("request_app_settings_memories", (payload) =>

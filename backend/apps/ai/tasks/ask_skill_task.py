@@ -1628,6 +1628,31 @@ async def _async_process_ai_skill_ask_task(
                         f"(non-fatal, will not affect main response): {e_topics}"
                     )
 
+            # --- Trigger first-run daily inspiration generation ---
+            # After the first ever paid request, generate 3 inspirations immediately so the
+            # user sees them on their next app open without waiting for the daily job.
+            # Guarded by a first-run flag in cache to prevent re-triggering on every request.
+            if (
+                request_data.user_id
+                and not getattr(request_data, 'is_incognito', False)
+                and cache_service_instance
+                and secrets_manager
+            ):
+                try:
+                    from backend.core.api.app.tasks.daily_inspiration_tasks import trigger_first_run_inspirations
+                    await trigger_first_run_inspirations(
+                        user_id=request_data.user_id,
+                        cache_service=cache_service_instance,
+                        secrets_manager=secrets_manager,
+                        task_id=task_id,
+                    )
+                except Exception as e_first_run:
+                    # Non-fatal: daily inspiration generation is a best-effort feature
+                    logger.warning(
+                        f"[Task ID: {task_id}] First-run daily inspiration trigger failed "
+                        f"(non-fatal): {e_first_run}"
+                    )
+
         # --- Cache debug data for postprocessor stage ---
         # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
         # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process

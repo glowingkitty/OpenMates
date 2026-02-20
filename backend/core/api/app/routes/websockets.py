@@ -40,6 +40,7 @@ from .handlers.websocket_handlers.system_message_handler import handle_chat_syst
 from .handlers.websocket_handlers.reject_settings_memory_suggestion_handler import handle_reject_settings_memory_suggestion # Handler for rejecting settings/memory suggestions
 from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
+from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
 
 logger = logging.getLogger(__name__)
 
@@ -1256,6 +1257,60 @@ async def _deliver_pending_reminders(
         logger.error(f"[PENDING_DELIVERY] Error delivering pending items: {e}", exc_info=True)
 
 
+async def _deliver_pending_inspirations(
+    cache_service: CacheService,
+    manager: ConnectionManager,
+    user_id: str,
+    device_fingerprint_hash: str,
+) -> None:
+    """
+    Deliver any pending Daily Inspiration items that were generated while the user was offline.
+
+    Called as a background task after WebSocket connection is established (same pattern as
+    _deliver_pending_reminders). Uses a brief delay to let the client finish initialization.
+
+    The `daily_inspiration` event is handled by the frontend's chatSyncService which stores
+    inspirations in the dailyInspirationStore. The content is plaintext — the client treats
+    it the same as chat messages and does not persist it to Directus.
+    """
+    try:
+        # Brief delay to let the client finish WebSocket setup and initial sync
+        await asyncio.sleep(3)
+
+        pending_inspirations = await cache_service.get_pending_inspirations(user_id)
+        if not pending_inspirations:
+            return
+
+        logger.info(
+            f"[PENDING_INSPIRATIONS] Delivering {len(pending_inspirations)} pending inspiration(s) "
+            f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
+        )
+
+        await manager.send_personal_message(
+            message={
+                "type": "daily_inspiration",
+                "payload": {
+                    "inspirations": pending_inspirations,
+                    "user_id": user_id,
+                },
+            },
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash,
+        )
+
+        # Clear pending cache after successful delivery
+        await cache_service.clear_pending_inspirations(user_id)
+        logger.debug(
+            f"[PENDING_INSPIRATIONS] Delivered and cleared pending inspirations for user {user_id[:8]}..."
+        )
+
+    except Exception as e:
+        logger.error(
+            f"[PENDING_INSPIRATIONS] Error delivering pending inspirations for user {user_id[:8]}...: {e}",
+            exc_info=True,
+        )
+
+
 async def _deliver_pending_embeds(
     cache_service: CacheService,
     encryption_service: EncryptionService,
@@ -1419,6 +1474,11 @@ async def websocket_endpoint(
         _deliver_pending_embeds(
             cache_service, encryption_service, manager, user_id, user_id_hash, device_fingerprint_hash
         )
+    )
+
+    # Deliver any Daily Inspiration items generated while the user was offline
+    asyncio.create_task(
+        _deliver_pending_inspirations(cache_service, manager, user_id, device_fingerprint_hash)
     )
     
     # NOTE: Pending app settings/memories permission requests are no longer re-delivered
@@ -1982,6 +2042,16 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
+                )
+
+            elif message_type == "inspiration_viewed":
+                # Client reports that a Daily Inspiration banner was seen by the user.
+                # Record the view in cache for the daily generation job (view count → generation count).
+                logger.debug(f"Handling inspiration_viewed from user {user_id[:8]}... payload: {payload}")
+                await handle_inspiration_viewed(
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    payload=payload,
                 )
 
             else:

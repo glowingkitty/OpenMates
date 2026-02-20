@@ -3373,3 +3373,67 @@ export function handlePreprocessingStepImpl(
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daily Inspiration
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Handle the `daily_inspiration` WebSocket event.
+ *
+ * Payload shape (from backend):
+ *   { inspirations: DailyInspiration[], user_id: string }
+ *
+ * The backend sends this event:
+ *   - On WebSocket connect (pending delivery queue) — if inspirations were
+ *     generated while the user was offline
+ *   - After background Celery generation completes (real-time push)
+ *
+ * This handler simply forwards the inspirations to the Svelte store so the
+ * DailyInspirationBanner component can display them. No persistence is required
+ * on the client — the banner is purely ephemeral UI; the backend caches the data.
+ */
+export function handleDailyInspirationImpl(
+  _serviceInstance: import("./chatSyncService").ChatSynchronizationService,
+  payload: {
+    inspirations: import("../stores/dailyInspirationStore").DailyInspiration[];
+    user_id: string;
+  },
+): void {
+  console.info("[ChatSyncService:AI] Received daily_inspiration event:", {
+    count: payload?.inspirations?.length ?? 0,
+    user_id: payload?.user_id,
+  });
+
+  if (!payload?.inspirations || !Array.isArray(payload.inspirations)) {
+    console.error(
+      "[ChatSyncService:AI] Invalid daily_inspiration payload — missing 'inspirations' array:",
+      payload,
+    );
+    return;
+  }
+
+  if (payload.inspirations.length === 0) {
+    console.warn(
+      "[ChatSyncService:AI] Received empty daily_inspiration list — skipping store update",
+    );
+    return;
+  }
+
+  // Lazily import the store to avoid circular dependencies.
+  // The store is a simple writable; this import is synchronous in the bundler.
+  import("../stores/dailyInspirationStore")
+    .then(({ dailyInspirationStore }) => {
+      dailyInspirationStore.setInspirations(payload.inspirations);
+      console.debug(
+        "[ChatSyncService:AI] Daily inspirations loaded into store:",
+        payload.inspirations.length,
+      );
+    })
+    .catch((err) => {
+      console.error(
+        "[ChatSyncService:AI] Failed to import dailyInspirationStore:",
+        err,
+      );
+    });
+}

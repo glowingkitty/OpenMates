@@ -105,6 +105,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.daily_inspiration_tasks'},  # Daily Inspiration generation tasks (routed to persistence queue)
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -869,6 +870,9 @@ _EXPLICIT_TASK_ROUTES = {
 
     # PDF processing tasks
     "apps.pdf.tasks.process_pdf": "app_pdf",
+
+    # Daily Inspiration tasks
+    "daily_inspiration.generate_daily": "persistence",
 }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
@@ -1060,6 +1064,15 @@ app.conf.beat_schedule = {
     'auto-delete-old-chats-daily': {
         'task': 'app.tasks.auto_delete_tasks.auto_delete_old_chats',
         'schedule': crontab(hour=2, minute=30),  # Daily 02:30 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily Inspiration generation - generates personalized inspirations for active users.
+    # Runs at 06:00 UTC (morning delivery before users start their day in most timezones).
+    # Only generates for users who made a paid request in the last 24 hours and viewed
+    # at least 1 inspiration. Count per user = number of inspirations they viewed (1-3).
+    'generate-daily-inspirations': {
+        'task': 'daily_inspiration.generate_daily',
+        'schedule': crontab(hour=6, minute=0),  # Daily at 06:00 UTC
         'options': {'queue': 'persistence'},
     },
 }

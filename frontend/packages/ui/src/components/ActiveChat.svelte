@@ -92,6 +92,8 @@
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
+    import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
+    import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import type { 
         WebSearchSkillPreviewData,
@@ -3625,6 +3627,110 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // on the new chat screen (user is already in "new chat" mode, no need to dismiss).
 
     /**
+     * Handler for clicking a Daily Inspiration banner.
+     *
+     * Creates a local-only chat (zero-knowledge: encrypted title + first assistant
+     * message) immediately, without triggering an LLM request. The user can then
+     * read the inspiration and send their own reply to start the actual conversation.
+     *
+     * Steps:
+     *  1. Generate a new chat UUID + chat encryption key
+     *  2. Encrypt the phrase as the chat title
+     *  3. Persist the Chat record to IndexedDB
+     *  4. Build and encrypt a first assistant message containing the phrase
+     *     (and YouTube video embed markdown if a video is attached)
+     *  5. Save the message to IndexedDB
+     *  6. Navigate to the new chat
+     */
+    async function handleStartChatFromInspiration(inspiration: DailyInspiration) {
+        console.info('[ActiveChat] Starting chat from daily inspiration:', inspiration.inspiration_id);
+
+        try {
+            const { generateChatKey, encryptWithChatKey } = await import('../services/cryptoService');
+
+            const chatId = crypto.randomUUID();
+            const chatKey = generateChatKey();
+            if (!chatKey) {
+                console.error('[ActiveChat] Failed to generate chat key for inspiration chat');
+                return;
+            }
+
+            // Store chat key so subsequent reads work
+            chatDB.setChatKey(chatId, chatKey);
+
+            const now = Math.floor(Date.now() / 1000);
+            const phrase = inspiration.phrase;
+
+            // Encrypt the chat title (the inspiration phrase)
+            const encryptedTitle = await encryptWithChatKey(phrase, chatKey);
+
+            // Build the first assistant message content
+            // Include a YouTube video embed if available
+            let messageContent = phrase;
+            if (inspiration.video) {
+                const videoUrl = `https://www.youtube.com/watch?v=${inspiration.video.youtube_id}`;
+                // Embed as a markdown link + video reference so the embed system can detect it
+                messageContent = `${phrase}\n\n${videoUrl}`;
+            }
+
+            const encryptedContent = await encryptWithChatKey(messageContent, chatKey);
+
+            // Encrypt category and icon for proper mate display
+            const encryptedCategory = await encryptWithChatKey(inspiration.category, chatKey);
+
+            // Build the Chat object (mirrors the shape used by reminder handler)
+            const newChat = {
+                chat_id: chatId,
+                title: phrase,           // Cleartext for immediate local display
+                encrypted_title: encryptedTitle,
+                created_at: now,
+                updated_at: now,
+                messages_v: 0,
+                title_v: 0,
+                last_edited_overall_timestamp: now,
+                unread_count: 0,
+                encrypted_category: encryptedCategory,
+                category: inspiration.category,
+            };
+
+            await chatDB.updateChat(newChat as import('../types/chat').Chat);
+
+            // Build and save the first assistant message
+            const messageId = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
+            const assistantMessage = {
+                message_id: messageId,
+                chat_id: chatId,
+                role: 'assistant' as const,
+                content: messageContent,    // Cleartext for local display
+                encrypted_content: encryptedContent,
+                encrypted_category: encryptedCategory,
+                category: inspiration.category,
+                created_at: now,
+                status: 'synced' as const,
+            };
+
+            await chatDB.saveMessage(assistantMessage);
+
+            console.info(`[ActiveChat] Created inspiration chat ${chatId} with message ${messageId}`);
+
+            // Navigate to the new chat (same pattern as handleResumeLastChat)
+            phasedSyncState.markInitialChatLoaded();
+            activeChatStore.setActiveChat(chatId);
+            await loadChat(newChat as import('../types/chat').Chat);
+
+            // Notify chat list sidebar
+            window.dispatchEvent(new CustomEvent('globalChatSelected', {
+                bubbles: true,
+                composed: true,
+                detail: { chatId },
+            }));
+
+        } catch (err) {
+            console.error('[ActiveChat] Error creating chat from inspiration:', err);
+        }
+    }
+
+    /**
      * Handler for the share button click.
      * Opens the settings menu and navigates to the share submenu.
      * This allows users to share the current chat with various options
@@ -6096,6 +6202,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             ></button> -->
                         </div>
                     </div>
+
+                    <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
+                    <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
+                    <!-- Only shown to authenticated users; store is empty for guests -->
+                    {#if showWelcome && !hideWelcomeForKeyboard && $authStore.isAuthenticated}
+                        <DailyInspirationBanner onStartChat={handleStartChatFromInspiration} />
+                    {/if}
 
                     <!-- Welcome greeting – always visible on the new chat screen -->
                     <!-- Also hide on mobile when keyboard is open to free up vertical space -->
