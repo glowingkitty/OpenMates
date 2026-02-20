@@ -2,7 +2,7 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
-    // import { slide } from 'svelte/transition'; // Used by record hint (currently commented out)
+    import { fly } from 'svelte/transition';
     // Assuming text store is available for translations
     import { text } from '@repo/ui'; // Adjust path if needed
 
@@ -82,11 +82,14 @@
             use:tooltip
         ></button>
         {#if showSendButton}
+            <!-- fly in from right (x: 40) so camera/record buttons shift smoothly -->
             {#if isAuthenticated}
                 <button
                     class="send-button"
                     onclick={handleSendMessageClick}
                     aria-label={$text('enter_message.send')}
+                    in:fly={{ x: 40, duration: 200 }}
+                    out:fly={{ x: 40, duration: 150 }}
                 >
                    {$text('enter_message.send')}
                 </button>
@@ -96,6 +99,8 @@
                     class="send-button"
                     onclick={handleSignUpClick}
                     aria-label={$text('signup.sign_up')}
+                    in:fly={{ x: 40, duration: 200 }}
+                    out:fly={{ x: 40, duration: 150 }}
                 >
                    {$text('signup.sign_up')}
                 </button>
@@ -126,8 +131,10 @@
     }
 
      .right-buttons {
-        gap: 0.5rem; /* Smaller gap for right side */
+        gap: 1rem; /* Match left-buttons gap for consistent spacing */
         flex-wrap: nowrap;
+        /* Smooth shift when send button appears/disappears */
+        transition: gap 200ms ease;
     }
 
     .send-button {
