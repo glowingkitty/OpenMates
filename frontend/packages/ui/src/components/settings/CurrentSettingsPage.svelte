@@ -279,51 +279,52 @@
             
             <!-- Incognito mode toggle - appears above Usage like language toggles -->
             <!-- Only show for authenticated users -->
-            <!-- TODO: Temporarily commented out - incognito mode is too buggy and needs more testing -->
-            <!-- {#if isAuthenticated}
-                <SettingsItem
-                    type="quickaction"
-                    icon="subsetting_icon subsetting_icon_incognito"
-                    title={$text('settings.incognito')}
-                    hasToggle={true}
-                    checked={incognitoToggleChecked}
-                    onClick={async () => {
-                        // Get current value from store to ensure we're toggling from the correct state
-                        const currentValue = $incognitoMode;
-                        const newValue = !currentValue;
+            {#if isAuthenticated}
+                <div data-testid="incognito-toggle-wrapper">
+                    <SettingsItem
+                        type="quickaction"
+                        icon="subsetting_icon subsetting_icon_incognito"
+                        title={$text('settings.incognito')}
+                        hasToggle={true}
+                        checked={incognitoToggleChecked}
+                        onClick={async () => {
+                            // Get current value from store to ensure we're toggling from the correct state
+                            const currentValue = $incognitoMode;
+                            const newValue = !currentValue;
 
-                        // CRITICAL: If mode is currently ON and we're turning it OFF, just toggle it off
-                        // Don't show the info screen when turning off
-                        if (currentValue && !newValue) {
-                            // Update local state immediately for responsive UI
-                            incognitoToggleChecked = newValue;
+                            // CRITICAL: If mode is currently ON and we're turning it OFF, just toggle it off
+                            // Don't show the info screen when turning off
+                            if (currentValue && !newValue) {
+                                // Update local state immediately for responsive UI
+                                incognitoToggleChecked = newValue;
 
-                            // Update store (handles deletion of incognito chats when disabling)
-                            await incognitoMode.set(newValue);
+                                // Update store (handles deletion of incognito chats when disabling)
+                                await incognitoMode.set(newValue);
+
+                                // Dispatch to parent for any additional handling
+                                handleQuickSettingClick('incognito');
+                                return; // Exit early - don't navigate to info screen
+                            }
+
+                            // If mode is currently OFF and we're turning it ON, show info screen first
+                            // The info screen will handle actually activating the mode when user confirms
+                            // Don't update the toggle state yet - let the info screen handle activation
+                            // This prevents the toggle from appearing "on" before the user confirms
+                            if (newValue) {
+                                // Navigate to incognito info submenu - user will confirm activation there
+                                showSettingsView('incognito/info', null);
+                            } else {
+                                // This shouldn't happen (we already handled turning off above), but just in case
+                                incognitoToggleChecked = newValue;
+                                await incognitoMode.set(newValue);
+                            }
 
                             // Dispatch to parent for any additional handling
                             handleQuickSettingClick('incognito');
-                            return; // Exit early - don't navigate to info screen
-                        }
-
-                        // If mode is currently OFF and we're turning it ON, show info screen first
-                        // The info screen will handle actually activating the mode when user confirms
-                        // Don't update the toggle state yet - let the info screen handle activation
-                        // This prevents the toggle from appearing "on" before the user confirms
-                        if (newValue) {
-                            // Navigate to incognito info submenu - user will confirm activation there
-                            showSettingsView('incognito/info', null);
-                        } else {
-                            // This shouldn't happen (we already handled turning off above), but just in case
-                            incognitoToggleChecked = newValue;
-                            await incognitoMode.set(newValue);
-                        }
-
-                        // Dispatch to parent for any additional handling
-                        handleQuickSettingClick('incognito');
-                    }}
-                />
-            {/if} -->
+                        }}
+                    />
+                </div>
+            {/if}
 
             <!-- Regular Settings -->
             {#each Object.entries(settingsViews).filter(([key, _]) => isTopLevelView(key)) as [key, _]}

@@ -104,7 +104,7 @@ changes to the documentation (to keep the documentation up to date).
     </div>
 
     <div class="info-footer">
-        <button onclick={handleActivate}>
+        <button data-testid="incognito-activate-button" onclick={handleActivate}>
             {$text('settings.incognito_explainer_understood')}
         </button>
     </div>
