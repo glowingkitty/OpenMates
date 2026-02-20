@@ -70,7 +70,7 @@ OpenMates/
 ```
 ## Task Summary
 
-**Commit:** [abc1234](https://github.com/glowingkitty/OpenMates/commit/abc1234) (or "No commit" if nothing was committed)
+**Commit:** [abc1234](<commit-url>) (or "No commit" if nothing was committed)
 
 **Problems Identified:** <root cause, error messages, symptoms — or "N/A" for feature work>
 
@@ -118,6 +118,23 @@ Rules: be honest about risks, be specific with file references, and always expla
 - No exceptions for "well-known" packages — they change too
 
 See `docs/claude/backend-standards.md` → "Package and Dependency Management" and `docs/claude/frontend-standards.md` → "Package and Dependency Management" for full details.
+
+### No Private Infrastructure Details in Committed Files (CRITICAL)
+
+**This is an open-source repository.** Never commit files containing real infrastructure details. ALL of the following must use generic placeholders (e.g., `<YOUR_DOMAIN>`, `<YOUR_EMAIL>`) in any committed file:
+
+- **Domain names** — real project domains, subdomains, or internal hostnames
+- **Email addresses** — ACME emails, personal emails, team emails
+- **SSH keys** — public or private keys
+- **GitHub repository URLs** — org/repo paths that identify the real project
+- **IP addresses** — public or private server IPs
+- **Server usernames** — real usernames used on servers
+- **API keys, tokens, passwords** — even "example" ones that look real
+- **Internal architecture details** — private network layouts, port mappings to specific services
+
+**Template files** (`.example`, cloud-init templates, Caddyfile templates) are fine to commit, but ONLY with `<PLACEHOLDER>` values. Self-hosters should be able to use the templates by filling in their own values.
+
+**If you are unsure whether a value is private:** treat it as private and use a placeholder.
 
 ### Logging Rule
 
