@@ -918,6 +918,13 @@
   // The messageHighlightStore is set by handleSearchMessageSnippetClick in Chats.svelte
   // AFTER the chat is selected, so ChatHistory is already mounting when this effect fires.
   // We still retry up to 30 times (3 seconds) to account for messages loading from IndexedDB.
+  //
+  // Two-phase scrolling:
+  //   Phase 1 — Scroll the message element into view (message may still be rendering).
+  //   Phase 2 — After a brief delay for the in-message mark highlights to be applied
+  //             (ChatMessage.svelte adds them in a requestAnimationFrame), scroll to the
+  //             first <mark class="search-match"> inside the message so the exact match
+  //             is centered in the viewport, not just the top of the message.
   $effect(() => {
     if (container && $messageHighlightStore) {
       const messageId = $messageHighlightStore;
@@ -932,14 +939,29 @@
           
           if (targetMessage) {
             const messageTop = (targetMessage as HTMLElement).offsetTop;
-            // Scroll so the message has 100px of breathing room from the top of the container
+            // Phase 1: Scroll so the message has 100px of breathing room from the top
             const scrollPosition = Math.max(0, messageTop - 100);
-            
             container.scrollTo({
               top: scrollPosition,
               behavior: 'smooth'
             });
             console.debug(`[ChatHistory] Scrolled to highlighted message ${messageId} (attempt ${attempts + 1})`);
+
+            // Phase 2: After two rAF cycles (enough for ChatMessage's own rAF to fire
+            // and apply <mark class="search-match"> nodes), scroll to the first match
+            // element so the exact matched text is visible, not just the message header.
+            // We use two nested requestAnimationFrame calls:
+            //   - First rAF: Svelte/markdown renderer has painted
+            //   - Second rAF: ChatMessage's highlight rAF has fired and marks are in DOM
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                const firstMark = targetMessage.querySelector('mark.search-match');
+                if (firstMark) {
+                  firstMark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                  console.debug(`[ChatHistory] Scrolled to first search-match mark in message ${messageId}`);
+                }
+              });
+            });
           } else if (attempts < MAX_ATTEMPTS) {
             // Message not found yet — messages may still be decrypting from IndexedDB
             setTimeout(() => attemptScroll(attempts + 1), 100);

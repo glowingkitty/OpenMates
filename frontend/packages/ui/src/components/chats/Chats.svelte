@@ -1923,6 +1923,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 * Search state is preserved (not cleared) so it is still active when the panel reopens.
 	 * @param chat - The chat containing the matched message
 	 * @param messageId - The message ID to scroll to and highlight
+	 * @param embedId - Optional embed ID (without "embed:" prefix) when the match is inside an embed.
+	 *                  When provided, an embedfullscreen event is dispatched after scrolling so the
+	 *                  embed opens and the matched text is visible inside it.
+	 * @param embedType - Optional embed type (e.g., "web-website-group") for the fullscreen event.
 	 *
 	 * IMPORTANT: messageHighlightStore is set AFTER handleChatClick resolves.
 	 * This ensures ChatHistory has already begun mounting/loading messages before
@@ -1930,7 +1934,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 * the $effect in ChatHistory fires before messages are rendered, resulting in the
 	 * scroll target not being found and silently giving up.
 	 */
-	async function handleSearchMessageSnippetClick(chat: ChatType, messageId: string): Promise<void> {
+	async function handleSearchMessageSnippetClick(chat: ChatType, messageId: string, embedId?: string, embedType?: string): Promise<void> {
 		const isMobile = window.innerWidth < 730;
 		if (isMobile) {
 			// Mobile: open the chat and close the panel so user sees the highlighted message.
@@ -1946,6 +1950,28 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// when the component is already mounted and messages are loading/loaded.
 		// This avoids the race where the store is set before container is available.
 		messageHighlightStore.set(messageId);
+
+		// If the matched text is inside an embed, open it in fullscreen after a short
+		// delay so the message has time to render and scroll into view first.
+		// ActiveChat listens on document for 'embedfullscreen' events and handles loading
+		// fresh embed data from the EmbedStore, so we only need to provide the embed ID.
+		if (embedId) {
+			setTimeout(() => {
+				const event = new CustomEvent('embedfullscreen', {
+					bubbles: true,
+					cancelable: true,
+					detail: {
+						embedId,
+						embedType: embedType || '',
+						attrs: {},
+						embedData: null,    // ActiveChat will load fresh data from EmbedStore
+						decodedContent: null,
+					},
+				});
+				document.dispatchEvent(event);
+				console.debug('[Chats] Dispatched embedfullscreen for search result:', { embedId, embedType });
+			}, 400); // 400 ms: enough time for the message scroll to complete before the embed opens
+		}
 	}
 
 	/**

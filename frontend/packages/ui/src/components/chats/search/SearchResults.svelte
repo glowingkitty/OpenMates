@@ -42,8 +42,10 @@
      * Called when a message snippet is clicked.
      * Does NOT close search — keeps it open so user can continue browsing matches.
      * The parent navigates to the chat and triggers scroll-to-message.
+     * When the snippet comes from an embed, embedId and embedType are provided so
+     * the parent can open the embed fullscreen view after navigating to the message.
      */
-    onMessageSnippetClick: (chat: ChatType, messageId: string) => void;
+    onMessageSnippetClick: (chat: ChatType, messageId: string, embedId?: string, embedType?: string) => void;
     /** Called when a settings result is clicked */
     onSettingsClick: (path: string, title: string, icon?: string, translationKey?: string) => void;
     /** Called when an app catalog result is clicked */
@@ -420,7 +422,7 @@
                 class:focused={snippetIsFocused}
                 data-result-id={snippet.messageId}
                 title={$text('chats.search.go_to_message')}
-                onclick={() => onMessageSnippetClick(chatResult.chat, snippet.messageId)}
+                onclick={() => onMessageSnippetClick(chatResult.chat, snippet.messageId, snippet.embedId, snippet.embedType)}
               >
                 {#if snippet.embedSourceLabel}
                   <!-- Embed source label: shows "Web page · <snippet>" or "Code · <snippet>" -->

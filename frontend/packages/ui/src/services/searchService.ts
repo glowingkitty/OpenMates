@@ -47,6 +47,20 @@ export interface MessageMatchSnippet {
    * Used by SearchResults.svelte to show "Found in: Web page" context labels.
    */
   embedSourceLabel?: string;
+  /**
+   * The embed ID (without "embed:" prefix) when this snippet comes from an embed.
+   * Used to dispatch an embedfullscreen event when the user clicks the snippet,
+   * opening the embed and highlighting the matched text inside it.
+   * Undefined for regular message text snippets.
+   */
+  embedId?: string;
+  /**
+   * The normalized embed type (e.g., "web-website-group", "code-code") when this
+   * snippet comes from an embed. Passed to the embedfullscreen event so ActiveChat
+   * can select the correct fullscreen component.
+   * Undefined for regular message text snippets.
+   */
+  embedType?: string;
 }
 
 /** A chat search result containing title match info and message match snippets */
@@ -100,8 +114,17 @@ export interface SearchResults {
 
 /** Number of characters to show before and after a match in message snippets */
 const SNIPPET_CONTEXT_CHARS = 50;
-/** Maximum number of message snippets to show per chat */
-const MAX_SNIPPETS_PER_CHAT = 3;
+/**
+ * Maximum number of message snippets to show per chat.
+ * Raised to 5 so results from multiple messages can all appear.
+ */
+const MAX_SNIPPETS_PER_CHAT = 5;
+/**
+ * Maximum snippets shown from a single message.
+ * Caps how many embed variants of the same message are shown,
+ * so different messages each get representation in the results.
+ */
+const MAX_SNIPPETS_PER_MESSAGE = 2;
 /**
  * Maximum characters to extract from a single embed for search indexing.
  * Caps RAM usage per embed — a typical web page scrape can be 10k+ chars.
@@ -341,7 +364,7 @@ async function resolveEmbedText(
   embedId: string,
   embedType: string,
   _referenceData?: Record<string, unknown>,
-): Promise<{ text: string; sourceLabel: string } | null> {
+): Promise<{ text: string; sourceLabel: string; embedType: string } | null> {
   try {
     // Lazy-load the heavy embedStore and TOON decoder only when needed.
     // Both are imported here (inside the function) to avoid a circular dependency,
@@ -426,7 +449,7 @@ async function resolveEmbedText(
     // Determine the human-readable source label for this embed type
     const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
 
-    return { text: combined, sourceLabel };
+    return { text: combined, sourceLabel, embedType: normalizedType };
   } catch (error) {
     // Non-critical: if embed resolution fails, simply skip this embed
     console.debug(
@@ -460,6 +483,10 @@ const messageIndex = new Map<
     createdAt: number;
     /** Present when this entry represents embed content rather than raw message text */
     embedSourceLabel?: string;
+    /** The embed ID (without "embed:" prefix) when this entry is from an embed */
+    embedId?: string;
+    /** The normalized embed type (e.g., "web-website-group", "code-code") for fullscreen dispatch */
+    embedType?: string;
   }>
 >();
 
@@ -512,6 +539,8 @@ async function indexChatMessages(chatId: string): Promise<void> {
       content: string;
       createdAt: number;
       embedSourceLabel?: string;
+      embedId?: string;
+      embedType?: string;
     }> = [];
 
     for (const msg of messages) {
@@ -547,6 +576,9 @@ async function indexChatMessages(chatId: string): Promise<void> {
             content: result.text,
             createdAt: msg.created_at,
             embedSourceLabel: result.sourceLabel,
+            // Store embed ID and type so clicking the search result can open the embed
+            embedId: ref.embed_id,
+            embedType: result.embedType,
           });
         }
       }
@@ -635,6 +667,8 @@ export async function addMessageToIndex(
     content: string;
     createdAt: number;
     embedSourceLabel?: string;
+    embedId?: string;
+    embedType?: string;
   }> = [];
 
   // 1. Index the message's own text
@@ -657,6 +691,8 @@ export async function addMessageToIndex(
       content: result.text,
       createdAt: message.created_at,
       embedSourceLabel: result.sourceLabel,
+      embedId: ref.embed_id,
+      embedType: result.embedType,
     });
   }
 
@@ -757,11 +793,13 @@ function buildSnippet(
 
 /**
  * Search messages (and embed content) in a single chat.
- * Returns up to MAX_SNIPPETS_PER_CHAT snippet matches, preferring message-text matches
- * over embed matches when both exist (message text is always shown first in the UI).
+ * Returns up to MAX_SNIPPETS_PER_CHAT snippet matches across distinct messages,
+ * with at most MAX_SNIPPETS_PER_MESSAGE snippets from any single message.
+ * Preferring message-text matches over embed matches (message text shown first).
  *
  * Embed-sourced snippets include an embedSourceLabel so the results UI can show
- * "Found in: Web page" / "Found in: Code" context labels.
+ * "Found in: Web page" / "Found in: Code" context labels, and an embedId so
+ * clicking the result opens the embed fullscreen view.
  */
 function searchMessagesInChat(
   chatId: string,
@@ -771,6 +809,8 @@ function searchMessagesInChat(
   if (!entries) return [];
 
   const snippets: MessageMatchSnippet[] = [];
+  // Count how many snippets we've already emitted for each message ID
+  const snippetsPerMessage = new Map<string, number>();
   const lowerQuery = query.toLowerCase();
 
   // Search from newest to oldest (most relevant first).
@@ -786,6 +826,11 @@ function searchMessagesInChat(
 
   for (const entry of sorted) {
     if (snippets.length >= MAX_SNIPPETS_PER_CHAT) break;
+
+    // Cap how many snippets come from the same message (prevents one embed-heavy
+    // message from consuming all result slots and hiding other messages)
+    const countForMsg = snippetsPerMessage.get(entry.messageId) ?? 0;
+    if (countForMsg >= MAX_SNIPPETS_PER_MESSAGE) continue;
 
     const lowerContent = entry.content.toLowerCase();
     const idx = lowerContent.indexOf(lowerQuery);
@@ -804,7 +849,10 @@ function searchMessagesInChat(
       matchStart: snippetMatchStart,
       matchLength: snippetMatchLength,
       embedSourceLabel: entry.embedSourceLabel,
+      embedId: entry.embedId,
+      embedType: entry.embedType,
     });
+    snippetsPerMessage.set(entry.messageId, countForMsg + 1);
   }
 
   return snippets;
