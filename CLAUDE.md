@@ -223,6 +223,14 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - You are adding or modifying user-facing strings (labels, messages, errors shown to users)
 - You are editing translation/i18n files
 
+#### `docs/claude/planning.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are implementing a new feature, significant refactor, or multi-file change
+- The task is non-trivial and requires understanding data flow or component interaction
+- You need to plan before writing code
+
 #### `docs/claude/logging-and-docs.md`
 
 **MUST READ when ANY of these are true:**
