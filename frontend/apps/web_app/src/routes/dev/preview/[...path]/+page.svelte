@@ -11,7 +11,7 @@
   - Loads .preview.ts companion file for mock props (if it exists)
   - Theme toggle (light/dark)
   - Viewport resize controls for responsive testing
-  - Background options (transparent, white, grey, dark) for visual inspection
+  - Background options (auto = follows theme, grid = checkered) for visual inspection
   - Prop editor for overriding mock props
 -->
 <script lang="ts">
@@ -102,7 +102,12 @@
 
 	/** UI state for the preview controls */
 	let viewportWidth = $state<number | null>(null);
-	let background = $state<'transparent' | 'white' | 'grey' | 'dark'>('white');
+	/**
+	 * Background mode for the preview canvas.
+	 * - 'auto': follows the current theme (white in light mode, dark in dark mode) — DEFAULT
+	 * - 'grid': checkered grid pattern (useful for transparency inspection)
+	 */
+	let background = $state<'auto' | 'grid'>('auto');
 	let showPropsEditor = $state(false);
 	let propsError = $state<string | null>(null);
 
@@ -296,32 +301,38 @@
 		{ label: 'Desktop', value: 1440 }
 	];
 
-	/** Background options */
+	/**
+	 * Background options for the preview canvas.
+	 * 'auto' follows the selected theme automatically.
+	 * 'grid' shows a checkered pattern for inspecting transparency.
+	 */
 	const backgroundOptions: { label: string; value: typeof background }[] = [
-		{ label: 'White', value: 'white' },
-		{ label: 'Grey', value: 'grey' },
-		{ label: 'Dark', value: 'dark' },
-		{ label: 'Grid', value: 'transparent' }
+		{ label: 'Auto', value: 'auto' },
+		{ label: 'Grid', value: 'grid' }
 	];
 
-	/** Background CSS for the preview container */
+	/**
+	 * Background CSS for the preview container.
+	 * 'auto' uses CSS variables so it reacts to the data-theme attribute —
+	 * var(--color-grey-0) resolves to white in light mode and near-black in dark mode.
+	 * 'grid' renders a checkered pattern; grid colors also adapt to the theme.
+	 */
 	let backgroundStyle = $derived.by(() => {
 		switch (background) {
-			case 'white':
-				return 'background: #ffffff;';
-			case 'grey':
-				return 'background: var(--color-grey-20);';
-			case 'dark':
-				return 'background: #1a1a1a;';
-			case 'transparent':
-				return `background-image: linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
-					linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
-					linear-gradient(45deg, transparent 75%, #e0e0e0 75%),
-					linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
+			case 'grid':
+				// Use theme-aware colors for the grid squares so it looks right
+				// in both light and dark mode.
+				return `background-color: var(--color-grey-0);
+					background-image: linear-gradient(45deg, var(--color-grey-20) 25%, transparent 25%),
+					linear-gradient(-45deg, var(--color-grey-20) 25%, transparent 25%),
+					linear-gradient(45deg, transparent 75%, var(--color-grey-20) 75%),
+					linear-gradient(-45deg, transparent 75%, var(--color-grey-20) 75%);
 					background-size: 20px 20px;
 					background-position: 0 0, 0 10px, 10px -10px, -10px 0px;`;
+			case 'auto':
 			default:
-				return 'background: #ffffff;';
+				// Follows the theme: white in light mode, dark in dark mode.
+				return 'background: var(--color-grey-0);';
 		}
 	});
 
@@ -414,23 +425,26 @@
 	<!-- Variant selector (only shown when preview file has variants) -->
 	{#if Object.keys(variants).length > 0}
 		<div class="variant-bar">
+			<!-- Label is pinned left; buttons scroll independently -->
 			<span class="variant-label">Variants:</span>
-			<button
-				class="variant-btn"
-				class:active={activeVariant === 'default'}
-				onclick={() => (activeVariant = 'default')}
-			>
-				Default
-			</button>
-			{#each Object.keys(variants) as variantName}
+			<div class="variant-scroll">
 				<button
 					class="variant-btn"
-					class:active={activeVariant === variantName}
-					onclick={() => (activeVariant = variantName)}
+					class:active={activeVariant === 'default'}
+					onclick={() => (activeVariant = 'default')}
 				>
-					{variantName}
+					Default
 				</button>
-			{/each}
+				{#each Object.keys(variants) as variantName}
+					<button
+						class="variant-btn"
+						class:active={activeVariant === variantName}
+						onclick={() => (activeVariant = variantName)}
+					>
+						{variantName}
+					</button>
+				{/each}
+			</div>
 		</div>
 	{/if}
 
@@ -441,16 +455,14 @@
 				<div class="props-header">
 					<h3>Props</h3>
 					{#if hasManualEdits}
-						<button class="props-reset" onclick={resetManualOverrides}>
-							Reset
-						</button>
+						<button class="props-reset" onclick={resetManualOverrides}> Reset </button>
 					{/if}
 				</div>
 				{#if !hasPreviewFile}
 					<p class="props-hint">
 						No <code>.preview.ts</code> file found.<br />
-						Create <code>{componentName}.preview.ts</code> next to the component
-						to define mock props and variants.
+						Create <code>{componentName}.preview.ts</code> next to the component to define mock props
+						and variants.
 					</p>
 				{/if}
 				<textarea
@@ -467,8 +479,14 @@
 
 		<!-- Component render area -->
 		<div class="preview-container" style={backgroundStyle}>
+			<!--
+				Viewport wrapper: when a preset width is selected, this div constrains the
+				content width and shows dashed cutoff lines at both sides so the developer
+				can clearly see where the viewport edge falls relative to the component.
+			-->
 			<div
 				class="preview-viewport"
+				class:preview-viewport--constrained={viewportWidth !== null}
 				style={viewportWidth ? `max-width: ${viewportWidth}px; margin: 0 auto;` : ''}
 			>
 				{#if isLoading}
@@ -502,11 +520,11 @@
 							<p class="hint">
 								This component likely requires props that aren't provided.
 								{#if !hasPreviewFile}
-									Create a <code>{componentName}.preview.ts</code> file
-									next to the component to define mock props.
+									Create a <code>{componentName}.preview.ts</code> file next to the component to define
+									mock props.
 								{:else}
-									Check the <strong>.preview.ts</strong> file — the mock
-									props may be missing required fields.
+									Check the <strong>.preview.ts</strong> file — the mock props may be missing required
+									fields.
 								{/if}
 							</p>
 							<div class="error-actions">
@@ -658,11 +676,34 @@
 		background: var(--color-grey-10);
 		border-bottom: 1px solid var(--color-grey-25);
 		flex-shrink: 0;
+		/* Prevent the bar itself from wrapping or overflowing */
+		min-width: 0;
+		overflow: hidden;
 	}
 
 	.variant-label {
 		font-size: 12px;
 		color: var(--color-font-tertiary);
+		/* Pin the label in place while the scroll container scrolls */
+		flex-shrink: 0;
+	}
+
+	/* Scrollable inner container for variant buttons */
+	.variant-scroll {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		overflow-x: auto;
+		/* Hide the scrollbar visually but keep it functional */
+		scrollbar-width: none;
+		-ms-overflow-style: none;
+		flex: 1;
+		min-width: 0;
+		padding-bottom: 2px; /* avoid clipping box-shadow on focused buttons */
+	}
+
+	.variant-scroll::-webkit-scrollbar {
+		display: none;
 	}
 
 	.variant-btn {
@@ -674,6 +715,9 @@
 		font-size: 12px;
 		cursor: pointer;
 		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
+		/* Prevent buttons from shrinking when there are many */
+		flex-shrink: 0;
+		white-space: nowrap;
 	}
 
 	.variant-btn.active {
@@ -782,6 +826,48 @@
 
 	.preview-viewport {
 		width: 100%;
+	}
+
+	/**
+	 * When a viewport preset is active, show dashed lines at both sides of the
+	 * constrained content area. This makes it immediately clear where the
+	 * viewport edge falls — useful for testing responsive behaviour.
+	 *
+	 * We use box-shadow (inset) so the indicator doesn't affect layout.
+	 * A subtle left/right border with a dash pattern created via outline-offset
+	 * won't work reliably, so instead we use a pseudo-element approach:
+	 * left and right dashed borders rendered via the ::before/::after pseudo-elements
+	 * positioned outside the content but still inside the scrollable container.
+	 */
+	.preview-viewport--constrained {
+		position: relative;
+	}
+
+	.preview-viewport--constrained::before,
+	.preview-viewport--constrained::after {
+		content: '';
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 0;
+		/* Dashed line rendered as a border on the pseudo-element */
+		border-style: dashed;
+		border-color: var(--color-primary-start);
+		border-width: 0;
+		opacity: 0.5;
+		pointer-events: none;
+	}
+
+	/* Left cutoff line */
+	.preview-viewport--constrained::before {
+		left: 0;
+		border-left-width: 1px;
+	}
+
+	/* Right cutoff line */
+	.preview-viewport--constrained::after {
+		right: 0;
+		border-right-width: 1px;
 	}
 
 	.component-mount {
