@@ -308,8 +308,18 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 		await loginToApp(pageA, logA);
 		await screenshotA(pageA, 'logged-in');
 
-		// Small gap to avoid the SAME OTP being used and possibly rejected
-		await pageA.waitForTimeout(2000);
+		// Wait until the TOTP window rolls over before logging in Session B.
+		// TOTP codes are 30-second windows; reusing the same code in the same window
+		// is rejected by the server. We calculate how many ms remain in the current
+		// window and wait for it to expire + a small buffer.
+		{
+			const msInWindow = Date.now() % 30000;
+			const msUntilNextWindow = 30000 - msInWindow + 500; // +500ms buffer
+			logA(
+				`Waiting ${Math.ceil(msUntilNextWindow / 1000)}s for new OTP window before Session B login…`
+			);
+			await pageA.waitForTimeout(msUntilNextWindow);
+		}
 
 		await loginToApp(pageB, logB);
 		await screenshotB(pageB, 'logged-in');
