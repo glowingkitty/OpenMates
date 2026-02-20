@@ -51,6 +51,10 @@ class AppSkillDefinition(BaseModel):
     preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this skill (1-3 sentences).")
     # REST API configuration — controls how the skill is exposed in the public API docs
     api_config: Optional[AppSkillApiConfig] = Field(default=None, description="REST API configuration for this skill. Controls GET/POST endpoint exposure in /docs.")
+    # Whether this skill appears in the App Store UI and REST API app listings.
+    # Set to False for internal LLM-only skills that are triggered automatically
+    # (e.g., pdf.read/search/view — invoked when a PDF is uploaded, not purchased directly).
+    show_in_app_store: bool = Field(default=True, description="Whether to show this skill in the App Store and REST API app listings. Set to False for internal LLM-only skills.")
 
 class AppFocusDefinition(BaseModel):
     """Defines the structure for a focus mode within an app's metadata."""

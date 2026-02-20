@@ -20,10 +20,22 @@ icon_image: |
 category: work
 last_updated: "2026-02-20"
 
+instructions:
+  # Injected into the system prompt whenever the PDF app is available.
+  # Tells the LLM how to handle uploaded PDFs and which internal skills to use.
+  - instruction: |
+      **PDF uploads**
+      When the user uploads a PDF, it is processed automatically (OCR + screenshots).
+      Once ready, use pdf.read to load text from specific pages, pdf.search to find
+      keywords across all pages, and pdf.view for visual page analysis (charts, figures,
+      handwriting). All three skills are internal tools — do not mention them by name
+      to the user.
+
 skills:
   - id: read
     name_translation_key: pdf.read
     description_translation_key: pdf.read.description
+    show_in_app_store: false # Internal LLM-only skill — not a purchasable feature
     preprocessor_hint: >
       Load and read the raw text content (markdown) of specific pages from an uploaded
       PDF document. Use when the user asks what a PDF says, wants you to summarise
@@ -72,6 +84,7 @@ skills:
   - id: search
     name_translation_key: pdf.search
     description_translation_key: pdf.search.description
+    show_in_app_store: false # Internal LLM-only skill — not a purchasable feature
     preprocessor_hint: >
       Search for specific text, keywords, or phrases across all pages of an uploaded PDF.
       Returns matching text blocks with surrounding context and page numbers.
@@ -121,6 +134,7 @@ skills:
   - id: view
     name_translation_key: pdf.view
     description_translation_key: pdf.view.description
+    show_in_app_store: false # Internal LLM-only skill — not a purchasable feature
     preprocessor_hint: >
       View one or more page screenshots from an uploaded PDF using vision AI (Gemini Flash).
       Use when the user asks about the visual layout, diagrams, charts, figures, or images

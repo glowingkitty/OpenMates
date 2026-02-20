@@ -1017,11 +1017,16 @@ async def list_apps(
                 fallback=""
             )
             
-            # Convert skills - filter by stage and API key availability
+            # Convert skills - filter by stage, app store visibility, and API key availability
             skills = []
             for skill in app_metadata.skills or []:
                 skill_stage = getattr(skill, 'stage', 'development').lower()
                 if skill_stage not in allowed_stages:
+                    continue
+                
+                # Skip internal LLM-only skills that should not appear in the App Store
+                if not getattr(skill, 'show_in_app_store', True):
+                    logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - show_in_app_store=False")
                     continue
                 
                 # Check if skill is available based on API key configuration
@@ -1348,11 +1353,15 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         fallback=""
                     )
                     
-                    # Convert skills - filter by stage
+                    # Convert skills - filter by stage and app store visibility
                     skills = []
                     for skill in captured_app_metadata.skills or []:
                         skill_stage = getattr(skill, 'stage', 'development').lower()
                         if skill_stage not in allowed:
+                            continue
+                        
+                        # Skip internal LLM-only skills that should not appear in the App Store
+                        if not getattr(skill, 'show_in_app_store', True):
                             continue
                         
                         skill_name = resolve_translation(
