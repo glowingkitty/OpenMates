@@ -138,6 +138,31 @@ See `docs/claude/backend-standards.md` → "Package and Dependency Management" a
 - **Check git status** before committing; files may already be committed by another assistant. Only add and commit what you actually changed this session.
 - **If the API or a service appears down**, another assistant may be in the middle of rebuilding/restarting Docker containers. Before assuming a real failure, check whether a restart is in progress and wait for it to complete. See the "Service Unavailable During Concurrent Work" section in `docs/claude/debugging.md`.
 
+#### Session Coordination (CRITICAL)
+
+All concurrent sessions coordinate through a shared file: **`.claude/sessions.md`** (gitignored, lives only on the dev server). **You MUST use this file** to avoid duplicate work and conflicts.
+
+**On session start:**
+
+1. Generate a random 4-char hex session ID: `python3 -c "import secrets; print(secrets.token_hex(2))"`
+2. Register yourself in the Active Sessions table in `.claude/sessions.md`
+
+**Before fixing a Vercel deployment error:**
+
+1. Read `.claude/sessions.md` → check the Vercel Deployment Lock
+2. If another session holds the lock (and it's <5 min old) → **wait and poll every 30s**
+3. If no lock is held → claim the lock, fix the error, then release the lock immediately
+
+**Before rebuilding Docker containers:**
+
+1. Read `.claude/sessions.md` → check the Docker Rebuild Lock
+2. If another session holds the lock → **wait and poll every 30s**
+3. If no lock is held → claim the lock, rebuild, then release the lock immediately
+
+**Lock staleness:** If a lock's `Last updated` is 5+ minutes old, assume the holding session crashed and take over.
+
+See `docs/claude/concurrent-sessions.md` for the full protocol, lock format, and file ownership tracking.
+
 ### Svelte 5 (CRITICAL)
 
 **USE SVELTE 5 RUNES ONLY:**
@@ -250,6 +275,15 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - You are implementing a new feature, significant refactor, or multi-file change
 - The task is non-trivial and requires understanding data flow or component interaction
 - You need to plan before writing code
+
+#### `docs/claude/concurrent-sessions.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are about to check or fix a Vercel deployment error
+- You are about to rebuild or restart Docker containers
+- You are starting a new session (to register yourself)
+- Another assistant's work may conflict with yours (e.g., editing the same files)
 
 #### `docs/claude/logging-and-docs.md`
 

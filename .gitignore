@@ -211,6 +211,7 @@ backend/preview/Caddyfile
 .roo*
 .turbo
 
+.claude
 .cursor
 .svelte-kit
 
