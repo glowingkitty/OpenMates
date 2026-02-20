@@ -72,8 +72,7 @@
 
         <!-- Audio recording: press-and-hold to record, release to transcribe via Mistral Voxtral -->
         <button
-            class="record-button {isRecordButtonPressed ? 'recording' : ''}"
-            style="z-index: 901;"
+            class="clickable-icon icon_recordaudio {isRecordButtonPressed ? 'recording' : ''}"
             onmousedown={handleRecordMouseDown}
             onmouseup={handleRecordMouseUp}
             onmouseleave={handleRecordMouseLeave}
@@ -81,9 +80,7 @@
             ontouchend={handleRecordTouchEnd}
             aria-label={$text('enter_message.attachments.record_audio')}
             use:tooltip
-        >
-            <div class="clickable-icon icon_recordaudio"></div>
-        </button>
+        ></button>
         {#if showSendButton}
             {#if isAuthenticated}
                 <button
