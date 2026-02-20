@@ -160,11 +160,6 @@
       <div class="skill-icon" data-skill-icon={skillIconName}></div>
     {/if}
     
-    <!-- Optional action button (e.g., play/pause for audio embeds) -->
-    {#if actionButton}
-      {@render actionButton()}
-    {/if}
-    
     <!-- Status text with optional favicon next to title -->
     <div class="status-text" class:single-line={!showStatus}>
       <span class="status-label">
@@ -188,6 +183,11 @@
         <span class="status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
       {/if}
     </div>
+    
+    <!-- Optional action button on the right (e.g., play/pause for audio embeds) -->
+    {#if actionButton}
+      {@render actionButton()}
+    {/if}
     
     <!-- Stop button (only when processing) -->
     {#if status === 'processing'}

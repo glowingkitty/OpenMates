@@ -541,13 +541,23 @@
     color: #fff;
   }
 
-  /* ---- Play/Pause button (rendered inside BasicInfosBar via actionButton snippet) ---- */
+  /* ---- Play/Pause button (rendered inside BasicInfosBar via actionButton snippet) ----
+     Must override ALL global button styles from buttons.css which applies:
+     background-color, padding: 25px 30px, border-radius: 20px, filter: drop-shadow,
+     min-width: 112px, height: 41px, margin-right: 10px, scale on hover/active.
+     Follows the same pattern as .stop-button in BasicInfosBar.svelte. */
   .play-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--color-app-audio, #e05555);
-    border: none;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    background: var(--color-app-audio, #e05555) !important;
+    background-color: var(--color-app-audio, #e05555) !important;
+    border: none !important;
+    padding: 0 !important;
+    min-width: auto !important;
+    filter: none !important;
+    margin-left: auto !important;
+    margin-right: 10px !important;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -559,12 +569,16 @@
   }
 
   .play-btn:hover {
-    background: color-mix(in srgb, var(--color-app-audio, #e05555) 85%, #000 15%);
+    background: color-mix(in srgb, var(--color-app-audio, #e05555) 85%, #000 15%) !important;
+    background-color: color-mix(in srgb, var(--color-app-audio, #e05555) 85%, #000 15%) !important;
     transform: scale(1.05);
+    scale: 1 !important; /* Override scale: 1.02 from buttons.css */
   }
 
   .play-btn:active {
     transform: scale(0.97);
+    scale: 1 !important; /* Override scale: 0.98 from buttons.css */
+    filter: none !important;
   }
 
   /* Play icon: CSS-only right-pointing triangle */
