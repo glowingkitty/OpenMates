@@ -90,6 +90,10 @@
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let leafletMap: any = null;
 
+  // ResizeObserver to call invalidateSize whenever the map container changes dimensions.
+  // This handles the opening animation (scale 0.5→1.0 over 300ms) and any future resizes.
+  let mapResizeObserver: ResizeObserver | null = null;
+
   // Show "Nearby:" prefix when the pin was randomised (area/imprecise mode)
   let showNearbyLabel = $derived(locationType === 'area');
 
@@ -186,6 +190,24 @@
 
       L.marker([lat, lon], { icon: customIcon }).addTo(leafletMap);
 
+      // Attach a ResizeObserver to the map container so Leaflet re-measures itself
+      // whenever the element's rendered size changes.  This is necessary because:
+      //   1. UnifiedEmbedFullscreen opens with a scale(0.5)→scale(1) CSS animation (300ms).
+      //      Leaflet reads container dimensions at init time, before the animation completes,
+      //      and therefore gets incorrect tile layout — resulting in a mostly black area.
+      //   2. A plain setTimeout(invalidateSize, 350) would fix the animation case, but
+      //      ResizeObserver is more reliable: it fires for every real layout change
+      //      (animation frames, panel resizes, orientation changes, etc.) without guessing
+      //      a fixed delay.
+      if (mapContainer && typeof ResizeObserver !== 'undefined') {
+        mapResizeObserver = new ResizeObserver(() => {
+          if (leafletMap) {
+            leafletMap.invalidateSize();
+          }
+        });
+        mapResizeObserver.observe(mapContainer);
+      }
+
       console.debug('[MapsLocationEmbedFullscreen] Leaflet map initialised at', lat, lon);
     } catch (err) {
       console.error('[MapsLocationEmbedFullscreen] Failed to init Leaflet map:', err);
@@ -201,6 +223,12 @@
   });
 
   onDestroy(() => {
+    // Disconnect the ResizeObserver before removing the map to avoid any
+    // invalidateSize calls on a destroyed instance.
+    if (mapResizeObserver) {
+      mapResizeObserver.disconnect();
+      mapResizeObserver = null;
+    }
     if (leafletMap) {
       try {
         leafletMap.remove();
