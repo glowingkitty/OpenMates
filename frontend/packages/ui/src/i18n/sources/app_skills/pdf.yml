@@ -100,6 +100,31 @@ view.processing:
   verified_by_human:
     - en
 
+view.viewing:
+  context: Status text shown on PDF embed card while the AI is viewing page screenshots (skill is executing)
+  en: "Viewing\u2026"
+  de: "Wird angesehen\u2026"
+  zh: "\u67e5\u770b\u4e2d\u2026"
+  es: "Viendo\u2026"
+  fr: "Visionnage\u2026"
+  pt: "Visualizando\u2026"
+  ru: "\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u2026"
+  ja: "\u78ba\u8a8d\u4e2d\u2026"
+  ko: "\ubcf4\ub294 \uc911\u2026"
+  it: "Visualizzazione\u2026"
+  tr: "G\u00f6r\u00fcnt\u00fcleniyor\u2026"
+  vi: "\u0110ang xem\u2026"
+  id: "Melihat\u2026"
+  pl: "Wy\u015bwietlanie\u2026"
+  nl: "Bekijken\u2026"
+  ar: "\u062c\u0627\u0631\u064a \u0627\u0644\u0639\u0631\u0636\u2026"
+  hi: "\u0926\u0947\u0916\u093e \u091c\u093e \u0930\u0939\u093e \u0939\u0948\u2026"
+  th: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e14\u0e39\u2026"
+  cs: "Prohl\u00ed\u017een\u00ed\u2026"
+  sv: "Visas\u2026"
+  verified_by_human:
+    - en
+
 view.upload_failed:
   context: Status text shown on PDF embed card when the upload has failed
   en: Upload failed

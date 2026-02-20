@@ -129,9 +129,6 @@ skills:
     stage: development
     class_path: |
       backend.apps.pdf.skills.view_skill.ViewSkill
-    providers:
-      - Google
-    full_model_reference: google/gemini-2-5-flash-preview
     api_config:
       expose_get: false
     tool_schema:

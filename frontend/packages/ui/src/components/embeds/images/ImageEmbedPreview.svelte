@@ -33,6 +33,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
+  import { skillPreviewService } from '../../../services/skillPreviewService';
 
   /** Max display length for the filename in the card title (chars) */
   const MAX_FILENAME_LENGTH = 30;
@@ -112,6 +113,34 @@
   let isLoadingImage = $state(false);
   let imageError = $state<string | undefined>(undefined);
 
+  /**
+   * When the images.view skill is executing, show "Viewing…" status on this embed.
+   * Set to true when a skill_execution_status event with app_id="images", skill_id="view",
+   * status="processing", and preview_data.embed_id matching our id is received.
+   * Reset to false when skill finishes or errors.
+   */
+  let isBeingViewed = $state(false);
+
+  // Subscribe to skill preview updates to show "Viewing…" state while images.view runs
+  function handleSkillPreviewUpdate(event: Event): void {
+    const customEvent = event as CustomEvent;
+    const { previewData } = customEvent.detail || {};
+    if (!previewData) return;
+    // Only react to images.view skill events for our embed
+    if (previewData.app_id !== 'images' || previewData.skill_id !== 'view') return;
+    const embedId = (previewData as Record<string, unknown>).embed_id as string | undefined;
+    if (embedId && embedId !== id) return;
+    // Set viewing state based on skill status
+    if (previewData.status === 'processing') {
+      isBeingViewed = true;
+    } else {
+      // finished or error — revert to normal
+      isBeingViewed = false;
+    }
+  }
+
+  skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
+
   // Portrait detection: detected after the image loads naturally.
   // For portrait images (height > width) we expand the embed card height so the
   // full image is visible instead of being cropped by object-fit: cover.
@@ -178,6 +207,8 @@
       retainedS3Key = undefined;
     }
     observer?.disconnect();
+    // Unsubscribe from skill preview updates
+    skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
   });
 
   // --- Derived state ---
@@ -185,9 +216,12 @@
   let status = $derived(statusProp);
   let previewS3Key = $derived(s3Files?.preview?.s3_key);
 
-  /** Map our upload-specific status to the UnifiedEmbedPreview status union */
+  /** Map our upload-specific status to the UnifiedEmbedPreview status union.
+   *  When being viewed by the AI (isBeingViewed), show the processing spinner. */
   let unifiedStatus = $derived(
-    status === 'uploading' ? 'processing' : status as 'processing' | 'finished' | 'error',
+    isBeingViewed ? 'processing'
+    : status === 'uploading' ? 'processing'
+    : status as 'processing' | 'finished' | 'error',
   );
 
   /** Whether we have a local blob URL (editor context) */
@@ -264,6 +298,8 @@
    * - no displayUrl yet (S3 loading)    → empty (UnifiedEmbedPreview shows its own skeleton)
    */
   let statusText = $derived.by(() => {
+    // When the AI is actively viewing this image, show "Viewing…" regardless of upload status
+    if (isBeingViewed) return $text('app_skills.images.view.viewing');
     if (status === 'uploading') return $text('app_skills.images.view.uploading');
     if (status === 'error') return uploadError || $text('app_skills.images.view.upload_failed');
     if (imageError) return imageError;

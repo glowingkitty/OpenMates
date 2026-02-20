@@ -300,24 +300,73 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
                     if "-" in tool_call_id:
                         func_name = "-".join(tool_call_id.split("-")[:-1]) if tool_call_id.count("-") > 1 else tool_call_id.split("-")[0]
                 
-                # Parse tool result content
-                try:
-                    if isinstance(tool_content, str):
-                        tool_response = json.loads(tool_content)
+                # Parse tool result content — can be a string (TOON/JSON) or a list
+                # of multimodal content blocks (from image/PDF view skills).
+                if isinstance(tool_content, list):
+                    # Multimodal tool result: convert each block to a Gemini Part.
+                    # We send these as inline Parts alongside a FunctionResponse wrapper
+                    # so Gemini sees both the function acknowledgment and the image data.
+                    if func_name:
+                        # Send a FunctionResponse with an empty body first to satisfy
+                        # Gemini's requirement that every function call has a response.
+                        # The actual image data comes as separate inlineData Parts.
+                        function_response_part = types.Part.from_function_response(
+                            name=func_name,
+                            response={"status": "ok", "type": "multimodal"}
+                        )
+                        tool_response_parts.append(function_response_part)
+                        
+                        # Convert each content block to a Gemini Part
+                        for block in tool_content:
+                            block_type = block.get("type", "")
+                            if block_type == "text":
+                                text_val = block.get("text", "")
+                                if text_val:
+                                    tool_response_parts.append(types.Part.from_text(text=text_val))
+                            elif block_type == "image_url":
+                                image_url_data = block.get("image_url", {})
+                                url = image_url_data.get("url", "")
+                                # Expect data URI: "data:<mime>;base64,<data>"
+                                if url.startswith("data:") and ";base64," in url:
+                                    header, b64_data = url.split(";base64,", 1)
+                                    mime_type = header[len("data:"):]  # e.g. "image/webp"
+                                    image_bytes = base64.b64decode(b64_data)
+                                    tool_response_parts.append(
+                                        types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"[google_client] image_url block has non-data URL: {url[:60]}"
+                                    )
+                            else:
+                                logger.warning(
+                                    f"[google_client] Unknown block type in multimodal tool result: {block_type}"
+                                )
+                        logger.debug(
+                            f"Prepared multimodal tool response for func={func_name}: "
+                            f"{len(tool_content)} blocks"
+                        )
                     else:
-                        tool_response = tool_content
-                except (json.JSONDecodeError, TypeError):
-                    tool_response = {"result": tool_content}
-                
-                if func_name:
-                    function_response_part = types.Part.from_function_response(
-                        name=func_name,
-                        response=tool_response
-                    )
-                    tool_response_parts.append(function_response_part)
-                    logger.debug(f"Prepared tool response part: name={func_name}, response_keys={list(tool_response.keys()) if isinstance(tool_response, dict) else 'string'}")
+                        logger.warning(f"Multimodal tool message without function name, skipping. tool_call_id={tool_call_id}")
                 else:
-                    logger.warning(f"Tool message without function name, skipping. tool_call_id={tool_call_id}")
+                    # Plain text (TOON/JSON) tool result
+                    try:
+                        if isinstance(tool_content, str):
+                            tool_response = json.loads(tool_content)
+                        else:
+                            tool_response = tool_content
+                    except (json.JSONDecodeError, TypeError):
+                        tool_response = {"result": tool_content}
+                    
+                    if func_name:
+                        function_response_part = types.Part.from_function_response(
+                            name=func_name,
+                            response=tool_response
+                        )
+                        tool_response_parts.append(function_response_part)
+                        logger.debug(f"Prepared tool response part: name={func_name}, response_keys={list(tool_response.keys()) if isinstance(tool_response, dict) else 'string'}")
+                    else:
+                        logger.warning(f"Tool message without function name, skipping. tool_call_id={tool_call_id}")
                 
                 i += 1
             

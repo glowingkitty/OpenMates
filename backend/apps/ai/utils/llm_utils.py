@@ -530,16 +530,24 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                 continue
             
             content_input = msg.get("content", "")
-            # Tool content is already plain text (TOON or JSON), not Tiptap JSON
-            plain_text_content = content_input if isinstance(content_input, str) else str(content_input)
+            # Tool content is either plain text (TOON/JSON) or a list of content blocks
+            # (multimodal tool results from skills like images.view / pdf.view that return
+            # image_url blocks directly). Pass lists through unchanged so downstream
+            # provider adapters (Anthropic, Google) can handle the image blocks properly.
+            plain_text_content: Any = (
+                content_input
+                if isinstance(content_input, (str, list))
+                else str(content_input)
+            )
             
             # Check if this tool result has ignore_fields_for_inference metadata
             # If so, filter the results before sending to LLM (to reduce token usage)
             # This ensures follow-up requests also respect the filtering
             # For example, fields like "type", "hash", "meta_url.favicon", "thumbnail.original" 
             # will be removed from tool results in follow-up requests
+            # NOTE: Skip filtering for multimodal list content (image blocks from view skills)
             ignore_fields_for_inference = msg.get("ignore_fields_for_inference")
-            if ignore_fields_for_inference and plain_text_content:
+            if ignore_fields_for_inference and plain_text_content and isinstance(plain_text_content, str):
                 try:
                     # Import filtering function (lazy import to avoid circular dependency)
                     from backend.apps.ai.processing.main_processor import _filter_skill_results_for_llm
@@ -666,14 +674,14 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                         except Exception:
                             # If both TOON and JSON decode fail, use content as-is
                             logger.warning(
-                                f"Failed to decode tool result content for filtering (TOON and JSON decode failed). "
-                                f"Using content as-is. This may result in higher token usage."
+                                "Failed to decode tool result content for filtering (TOON and JSON decode failed). "
+                                "Using content as-is. This may result in higher token usage."
                             )
                 except ImportError:
                     # If import fails (circular dependency), use content as-is
                     logger.warning(
-                        f"Could not import _filter_skill_results_for_llm for filtering tool results. "
-                        f"Using content as-is. This may result in higher token usage."
+                        "Could not import _filter_skill_results_for_llm for filtering tool results. "
+                        "Using content as-is. This may result in higher token usage."
                     )
                 except Exception as e:
                     # If filtering fails for any reason, use content as-is

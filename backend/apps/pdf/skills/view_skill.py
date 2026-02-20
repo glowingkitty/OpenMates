@@ -1,14 +1,23 @@
 # backend/apps/pdf/skills/view_skill.py
 #
-# pdf.view skill — vision analysis of PDF page screenshots via Gemini Flash.
+# pdf.view skill — returns PDF page screenshots as multimodal content blocks.
 #
 # Architecture:
 #   Mirrors the pattern from images/skills/view_skill.py:
 #     1. Unwrap AES key via Vault Transit.
-#     2. Download + decrypt page screenshot PNG from S3.
-#     3. Base64-encode and pass to the AI model as a multimodal vision prompt.
+#     2. Download + decrypt page screenshot PNGs from S3.
+#     3. Return a list of content blocks (text labels + image_url blocks)
+#        so the MAIN inference model sees the page screenshots directly.
+#
+#   Key architectural change from previous approach:
+#     - Previously: skill called Gemini Flash internally and returned a text
+#       analysis string. The main model never saw the page images.
+#     - Now: skill returns multimodal content blocks. The framework
+#       (llm_utils.py + provider adapters) passes them to the main LLM.
+#
 #   Up to 5 pages can be viewed in a single call. Each page screenshot is
-#   included as a separate image in the message.
+#   included as a separate image block preceded by a "[Page N of M]" label
+#   so the LLM knows which page it is looking at.
 #
 #   Use cases:
 #   - Diagrams, charts, figures that OCR may misrepresent.
@@ -58,22 +67,28 @@ class ViewRequest(BaseModel):
 
 
 class ViewResponse(BaseModel):
-    """Response model for the pdf.view skill."""
+    """
+    Response model for the pdf.view skill (for OpenAPI docs).
+
+    At runtime, execute() returns a List of content blocks (not this model),
+    which the framework forwards as a multimodal tool result to the main LLM.
+    This model exists only to document the skill's output shape in the REST API.
+    """
 
     success: bool = Field(default=False)
     embed_id: Optional[str] = Field(None)
     pages_viewed: List[int] = Field(default_factory=list)
-    analysis: Optional[str] = Field(None)
     error: Optional[str] = Field(None)
 
 
 class ViewSkill(BaseSkill):
     """
-    Skill for visually analysing page screenshots from an uploaded PDF.
+    Skill for loading page screenshots from an uploaded PDF and returning
+    them as multimodal content blocks so the main inference model can see them.
 
-    Downloads and decrypts page screenshots from S3, then passes them to the
-    Gemini Flash vision model for analysis. Follows the same decrypt+vision
-    pattern as images.view.
+    Downloads and decrypts page screenshots from S3, then returns them as
+    image_url blocks (with page labels) in a content list. The framework's
+    llm_utils.py passes the list through to the provider adapters unchanged.
     """
 
     VAULT_TOKEN_PATH: str = "/vault-data/api.token"
@@ -119,9 +134,20 @@ class ViewSkill(BaseSkill):
         query: str,
         vault_key_id: Optional[str] = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> List[Dict[str, Any]]:
         """
-        Visually analyse page screenshots from a PDF.
+        Load page screenshots from a PDF and return them as a multimodal content list.
+
+        Returns a list of content blocks that will become the tool result
+        passed directly to the main inference model:
+          [
+            {"type": "text", "text": "PDF pages 1, 2 from: <filename>"},
+            {"type": "text", "text": "[Page 1 of 12]"},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}},
+            {"type": "text", "text": "[Page 2 of 12]"},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}},
+            ...
+          ]
 
         Steps:
         1. Resolve vault_key_id.
@@ -129,19 +155,30 @@ class ViewSkill(BaseSkill):
         3. For each requested page (up to MAX_PAGES_PER_CALL):
            a. Download encrypted screenshot from S3.
            b. Decrypt with AES-256-GCM.
-           c. Encode as base64.
-        4. Pass all page images + query to vision AI model.
+           c. Encode as base64 and add to content blocks.
+        4. Return the content list.
+
+        Args:
+            embed_id: Embed ID of the PDF.
+            vault_wrapped_aes_key: Vault-wrapped AES key from embed content.
+            screenshot_s3_keys: Map of page number strings → S3 keys.
+            s3_base_url: S3 bucket base URL.
+            aes_nonce: Base64 AES-GCM nonce.
+            pages: 1-indexed page numbers to view (capped at MAX_PAGES_PER_CALL).
+            query: The user's question about the pages (not used here — the
+                   main LLM processes it after seeing the pages in the tool result).
+            vault_key_id: Optional Vault key ID; falls back to kwargs['user_vault_key_id'].
+            **kwargs: Additional context (user_id, user_vault_key_id, filename, etc.).
+
+        Returns:
+            List of content blocks for multimodal tool result, or error message block.
         """
         log_prefix = f"[pdf.view] [embed:{embed_id[:8]}...]"
 
         resolved_vault_key_id = vault_key_id or kwargs.get("user_vault_key_id")
         if not resolved_vault_key_id:
             logger.error(f"{log_prefix} vault_key_id not available")
-            return ViewResponse(
-                success=False,
-                embed_id=embed_id,
-                error="Cannot decrypt screenshots: vault key ID not available",
-            ).dict()
+            return [{"type": "text", "text": f"Error: Cannot view PDF {embed_id} — vault key ID not available."}]
 
         # Limit to MAX_PAGES_PER_CALL
         pages_to_view = pages[:MAX_PAGES_PER_CALL]
@@ -150,6 +187,9 @@ class ViewSkill(BaseSkill):
                 f"{log_prefix} Requested {len(pages)} pages; capping at {MAX_PAGES_PER_CALL}"
             )
 
+        # Determine total page count for labels (from screenshot_s3_keys keys)
+        total_pages = len(screenshot_s3_keys)
+
         try:
             # Unwrap AES key once
             logger.info(f"{log_prefix} Unwrapping AES key")
@@ -157,13 +197,10 @@ class ViewSkill(BaseSkill):
             nonce_bytes = base64.b64decode(aes_nonce)
             aesgcm = AESGCM(aes_key_bytes)
 
-            # Build multimodal content for the AI call
-            # Start with the text query, then add each page image
-            multimodal_content: List[Dict[str, Any]] = [
-                {"type": "text", "text": query},
-            ]
-
+            # Build multimodal content blocks
+            content_blocks: List[Dict[str, Any]] = []
             pages_viewed: List[int] = []
+
             for page_num in pages_to_view:
                 s3_key = screenshot_s3_keys.get(str(page_num))
                 if not s3_key:
@@ -175,60 +212,38 @@ class ViewSkill(BaseSkill):
                 plaintext = aesgcm.decrypt(nonce_bytes, encrypted, None)
 
                 page_b64 = base64.b64encode(plaintext).decode("utf-8")
-                multimodal_content.append(
-                    {
-                        "type": "text",
-                        "text": f"[Page {page_num}]",
-                    }
-                )
-                multimodal_content.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{page_b64}",
-                            "detail": "high",
-                        },
-                    }
-                )
+
+                # Page label so LLM knows which page it is looking at
+                content_blocks.append({
+                    "type": "text",
+                    "text": f"[Page {page_num} of {total_pages}]",
+                })
+                content_blocks.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{page_b64}",
+                        "detail": "high",
+                    },
+                })
                 pages_viewed.append(page_num)
 
             if not pages_viewed:
-                return ViewResponse(
-                    success=False,
-                    embed_id=embed_id,
-                    error="No valid screenshots found for the requested pages",
-                ).dict()
+                return [{"type": "text", "text": f"Error: No valid screenshots found for the requested pages in PDF {embed_id}."}]
 
+            # Prepend a summary text block so the LLM has context
+            filename = kwargs.get("filename") or embed_id
             pages_label = ", ".join(str(p) for p in pages_viewed)
-            system_prompt = (
-                "You are an expert document analyst with strong visual analysis skills. "
-                "You will be shown one or more pages from a PDF document. "
-                f"The pages shown are: {pages_label}. "
-                "Analyse the visual content carefully and respond to the user's query "
-                "with accurate, detailed observations about diagrams, figures, tables, "
-                "text layout, and any other visual elements present."
-            )
+            summary_block: Dict[str, Any] = {
+                "type": "text",
+                "text": f"PDF pages {pages_label} from: {filename}",
+            }
+            content_blocks.insert(0, summary_block)
 
             logger.info(
-                f"{log_prefix} Calling vision model for {len(pages_viewed)} pages"
+                f"{log_prefix} Returning {len(pages_viewed)} page screenshot(s) as multimodal content"
             )
-            analysis = await self.call_provider(
-                messages=[{"role": "user", "content": multimodal_content}],
-                system_prompt=system_prompt,
-                **kwargs,
-            )
-
-            return ViewResponse(
-                success=True,
-                embed_id=embed_id,
-                pages_viewed=pages_viewed,
-                analysis=analysis,
-            ).dict()
+            return content_blocks
 
         except Exception as e:
             logger.error(f"{log_prefix} pdf.view failed: {e}", exc_info=True)
-            return ViewResponse(
-                success=False,
-                embed_id=embed_id,
-                error=f"Vision analysis failed: {e}",
-            ).dict()
+            return [{"type": "text", "text": f"Error: Failed to load PDF screenshots for {embed_id} — {e}"}]

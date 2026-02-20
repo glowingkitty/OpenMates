@@ -23,7 +23,10 @@
 -->
 
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import { text } from '@repo/ui';
+  import { skillPreviewService } from '../../../services/skillPreviewService';
 
   /** Max display length for the filename in the card title (chars) */
   const MAX_FILENAME_LENGTH = 30;
@@ -58,13 +61,46 @@
   let status = $derived(statusProp);
 
   /**
+   * When the pdf.view skill is executing, show "Viewing…" status on this embed.
+   * Set to true when skill_execution_status event with app_id="pdf", skill_id="view",
+   * status="processing", and preview_data.embed_id matching our id is received.
+   * Reset to false when skill finishes or errors.
+   */
+  let isBeingViewed = $state(false);
+
+  // Subscribe to skill preview updates to show "Viewing…" state while pdf.view runs
+  function handleSkillPreviewUpdate(event: Event): void {
+    const customEvent = event as CustomEvent;
+    const { previewData } = customEvent.detail || {};
+    if (!previewData) return;
+    // Only react to pdf.view skill events for our embed
+    if (previewData.app_id !== 'pdf' || previewData.skill_id !== 'view') return;
+    const embedId = (previewData as Record<string, unknown>).embed_id as string | undefined;
+    if (embedId && embedId !== id) return;
+    // Set viewing state based on skill status
+    if (previewData.status === 'processing') {
+      isBeingViewed = true;
+    } else {
+      // finished or error — revert to normal
+      isBeingViewed = false;
+    }
+  }
+
+  skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
+
+  onDestroy(() => {
+    skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
+  });
+
+  /**
    * Map upload-specific status to the UnifiedEmbedPreview status union.
    * 'uploading' → 'processing' (shows the animated spinner in the card).
+   * 'viewing'   → 'processing' (shows spinner while AI views pages).
    */
   let unifiedStatus = $derived(
-    status === 'uploading'
-      ? 'processing'
-      : (status as 'processing' | 'finished' | 'error'),
+    isBeingViewed ? 'processing'
+    : status === 'uploading' ? 'processing'
+    : (status as 'processing' | 'finished' | 'error'),
   );
 
   /**
@@ -90,20 +126,23 @@
 
   /**
    * Card subtitle (customStatusText):
+   * - 'viewing'    → "Viewing…"      (AI is actively reading page screenshots)
    * - 'uploading'  → "Uploading…"
    * - 'processing' → "Reading PDF…"  (OCR + screenshot generation running)
    * - 'finished'   → "42 pages" (or plain "PDF" if page count unavailable)
    * - 'error'      → error message
    */
   let statusText = $derived.by(() => {
-    if (status === 'uploading') return 'Uploading\u2026';
-    if (status === 'error') return uploadError || 'Upload failed';
-    if (status === 'processing') return 'Reading PDF\u2026';
+    // When the AI is actively viewing this PDF, show "Viewing…"
+    if (isBeingViewed) return $text('app_skills.pdf.view.viewing');
+    if (status === 'uploading') return $text('app_skills.pdf.view.uploading');
+    if (status === 'error') return uploadError || $text('app_skills.pdf.view.upload_failed');
+    if (status === 'processing') return $text('app_skills.pdf.view.processing');
     if (status === 'finished') {
       if (pageCount && pageCount > 0) {
         return pageCount === 1 ? '1 page' : `${pageCount} pages`;
       }
-      return 'PDF';
+      return $text('app_skills.pdf.view');
     }
     return '';
   });
