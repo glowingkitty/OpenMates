@@ -3044,23 +3044,30 @@ async function updateChatListFromDBInternal(force = false) {
 				}}
 				aria-label={$text('chats.scroll_to_active_chat', { default: 'Scroll to active chat' })}
 			>
-				<!-- Arrow icon indicating scroll direction -->
-				<span
-					class="pin-arrow clickable-icon"
-					class:icon_arrow_up={activeChatOutOfViewDirection === 'top'}
-					class:icon_arrow_down={activeChatOutOfViewDirection === 'bottom'}
-				></span>
-				<!-- Category circle + icon (matches Chat.svelte rendering pattern) -->
+				<!-- Category circle + icon — matches Chat.svelte's rendering pattern exactly.
+				     No arrow icon: the pin position (top/bottom) makes direction self-evident. -->
 				{#if activePinCategory}
 					{@const pinIconName = activePinIcon || getFallbackIconForCategory(activePinCategory)}
 					{@const PinIconComponent = getLucideIcon(pinIconName)}
 					{@const pinGradient = getCategoryGradientColors(activePinCategory)}
-					<div
-						class="active-chat-pin-circle"
-						style={pinGradient ? `background: linear-gradient(135deg, ${pinGradient.start}, ${pinGradient.end})` : 'background: #cccccc'}
-					>
-						<div class="active-chat-pin-icon">
-							<PinIconComponent size={12} color="white" />
+					<div class="active-chat-pin-circle-wrapper">
+						<div
+							class="active-chat-pin-circle"
+							style={pinGradient ? `background: linear-gradient(135deg, ${pinGradient.start}, ${pinGradient.end})` : 'background: #cccccc'}
+						>
+							<div class="active-chat-pin-icon">
+								<PinIconComponent size={16} color="white" />
+							</div>
+						</div>
+					</div>
+				{:else}
+					<!-- No category yet (new/legacy chat) — show grey placeholder circle -->
+					{@const NoCategIcon = getLucideIcon('circle-help')}
+					<div class="active-chat-pin-circle-wrapper">
+						<div class="active-chat-pin-circle" style="background: #cccccc">
+							<div class="active-chat-pin-icon">
+								<NoCategIcon size={16} color="white" />
+							</div>
 						</div>
 					</div>
 				{/if}
@@ -3901,7 +3908,9 @@ async function updateChatListFromDBInternal(force = false) {
 
     /* --- Active-chat sticky pin --- */
     /* Shown when the active chat item scrolls out of the visible scroll area.
-       Positioned absolutely over the scroll container so it doesn't disturb layout. */
+       Positioned absolutely over the scroll container so it doesn't disturb layout.
+       Background is fully opaque to ensure readability regardless of scroll position —
+       no opacity changes so the chat list behind is never visible through the pin. */
     .active-chat-pin {
         position: absolute;
         left: 0;
@@ -3909,9 +3918,11 @@ async function updateChatListFromDBInternal(force = false) {
         z-index: 20;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         padding: 6px 14px;
+        /* Solid opaque background — never transparent, never changes opacity on scroll */
         background-color: var(--color-grey-30);
+        opacity: 1 !important;
         border: none;
         border-radius: 0;
         cursor: pointer;
@@ -3920,9 +3931,7 @@ async function updateChatListFromDBInternal(force = false) {
         color: var(--color-text-primary);
         text-align: left;
         transition: background-color 0.15s ease;
-        overflow: hidden;
         white-space: nowrap;
-        text-overflow: ellipsis;
     }
 
     .active-chat-pin:hover {
@@ -3932,31 +3941,15 @@ async function updateChatListFromDBInternal(force = false) {
     /* Pin anchored just below the top buttons container */
     .active-chat-pin.pin-top {
         top: 0;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         border-bottom: 1px solid var(--color-grey-40);
     }
 
     /* Pin anchored at the very bottom of the scroll container */
     .active-chat-pin.pin-bottom {
         bottom: 0;
-        box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
         border-top: 1px solid var(--color-grey-40);
-    }
-
-    .active-chat-pin .pin-arrow {
-        flex-shrink: 0;
-        opacity: 0.7;
-    }
-
-    /* Inline icon definitions for the pin arrows — uses up.svg / down.svg from the icon set */
-    .active-chat-pin .pin-arrow.icon_arrow_up {
-        -webkit-mask-image: url("@openmates/ui/static/icons/up.svg");
-        mask-image: url("@openmates/ui/static/icons/up.svg");
-    }
-
-    .active-chat-pin .pin-arrow.icon_arrow_down {
-        -webkit-mask-image: url("@openmates/ui/static/icons/down.svg");
-        mask-image: url("@openmates/ui/static/icons/down.svg");
     }
 
     .active-chat-pin-label {
@@ -3964,20 +3957,34 @@ async function updateChatListFromDBInternal(force = false) {
         white-space: nowrap;
         text-overflow: ellipsis;
         min-width: 0;
+        flex: 1;
     }
 
-    /* Category circle shown next to the chat title in the sticky pin — mirrors Chat.svelte's circle */
+    /* Category circle wrapper — mirrors .category-circle-wrapper in Chat.svelte */
+    .active-chat-pin-circle-wrapper {
+        flex: 0 0 28px;
+        position: relative;
+        height: 28px;
+    }
+
+    /* Category circle — mirrors .category-circle in Chat.svelte exactly (28px, same shadow/border) */
     .active-chat-pin-circle {
-        flex-shrink: 0;
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
+        position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        border: 2px solid var(--color-background);
+        transition: all 0.2s ease;
     }
 
+    /* Icon inside the circle — mirrors .category-icon in Chat.svelte */
     .active-chat-pin-icon {
+        width: 16px;
+        height: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
