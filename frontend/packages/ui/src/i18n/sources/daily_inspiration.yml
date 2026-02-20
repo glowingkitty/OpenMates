@@ -2,33 +2,36 @@
 # Translation strings for the Daily Inspiration feature.
 # Used by DailyInspirationBanner.svelte.
 #
-# IMPORTANT: Flat keys only — never nested YAML. Dots are part of the key name.
+# NOTE: This is a top-level file named daily_inspiration.yml.
+# The build script uses the filename as the namespace, so keys here become
+# daily_inspiration.<key> in the JSON (e.g. "label" → "daily_inspiration.label").
+# Do NOT prefix keys with "daily_inspiration." — that would double-nest them.
 
-"daily_inspiration.label":
+label:
   context: Label shown at the top of each Daily Inspiration banner (next to book icon)
   en: Daily inspiration
   de: Tägliche Inspiration
   verified_by_human: []
 
-"daily_inspiration.click_to_start_chat":
+click_to_start_chat:
   context: Call-to-action button at the bottom of a Daily Inspiration banner
   en: Click to start chat
   de: Klicken um Chat zu starten
   verified_by_human: []
 
-"daily_inspiration.next":
+next:
   context: Accessible label for the "next inspiration" navigation arrow button
   en: Next inspiration
   de: Nächste Inspiration
   verified_by_human: []
 
-"daily_inspiration.previous":
+previous:
   context: Accessible label for the "previous inspiration" navigation arrow button
   en: Previous inspiration
   de: Vorherige Inspiration
   verified_by_human: []
 
-"daily_inspiration.watch_video":
+watch_video:
   context: Accessible label for the video thumbnail play button overlay
   en: Watch video
   de: Video ansehen
