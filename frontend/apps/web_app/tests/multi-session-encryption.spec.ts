@@ -179,9 +179,10 @@ async function navigateToChatById(
 	chatId: string,
 	logFn: (msg: string) => void
 ): Promise<void> {
-	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+	// Use a relative URL so Playwright's configured baseURL is applied.
+	// An absolute URL bypasses baseURL and can hit the wrong host in Docker.
 	logFn(`Navigating to chat ${chatId}…`);
-	await page.goto(`${baseUrl}/chat?chat-id=${chatId}`);
+	await page.goto(`/chat?chat-id=${chatId}`);
 	await page.waitForTimeout(5000); // Allow sync to complete
 	logFn(`At chat ${chatId}.`);
 }
