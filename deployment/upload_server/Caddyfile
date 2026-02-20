@@ -2,12 +2,12 @@
 #
 # Production Caddyfile template for the OpenMates Upload Server VM.
 #
-# BEFORE USING: Replace ALL <PLACEHOLDER> values with your actual values.
-# Search for "<" to find all placeholders that need replacing.
+# DO NOT EDIT PLACEHOLDERS MANUALLY — use the render script instead:
+#   python scripts/render-deploy-config.py deployment/upload_server/Caddyfile
 #
-# DEPLOYMENT:
-#   sudo cp ~/projects/OpenMates/deployment/upload_server/Caddyfile /etc/caddy/Caddyfile
-#   # Edit to replace <PLACEHOLDER> values
+# Or render and apply directly on the server:
+#   python scripts/render-deploy-config.py deployment/upload_server/Caddyfile \
+#     | sudo tee /etc/caddy/Caddyfile > /dev/null
 #   sudo systemctl reload caddy
 #
 # WHAT THIS DOES:
@@ -15,7 +15,6 @@
 #   - Proxies /health and /v1/upload/* to the app-uploads container on localhost:8000
 #   - Adds security headers (HSTS, nosniff, etc.)
 #   - Aborts all requests to paths not explicitly allowed
-#   - Logs requests in JSON format for monitoring
 #
 # SECURITY:
 #   - Only /health and /v1/upload/* are routed — everything else is aborted
@@ -24,13 +23,13 @@
 
 {
 	# Email for ACME account (Let's Encrypt certificate issuance)
-	email <YOUR_ACME_EMAIL>
+	email ${DEPLOY_ACME_EMAIL}
 }
 
-<YOUR_UPLOAD_DOMAIN> {
+${DEPLOY_UPLOAD_DOMAIN} {
 	# --- Logging ---
 	log {
-		output file /var/log/caddy/<YOUR_UPLOAD_DOMAIN>.log {
+		output file /var/log/caddy/${DEPLOY_UPLOAD_DOMAIN}.log {
 			roll_size 100mb
 			roll_keep 10
 			roll_keep_for 720h # 30 days
@@ -60,15 +59,13 @@
 	# --- Request Routing ---
 	route {
 		# 1. Handle OPTIONS preflight requests (CORS)
-		#    The upload service's FastAPI CORS middleware handles the actual headers.
-		#    Caddy just proxies the OPTIONS request through.
 		handle @upload_options {
 			reverse_proxy localhost:8000 {
 				header_up Host {http.request.host}
 			}
 		}
 
-		# 2. Health check endpoint (used by monitoring and smoke tests)
+		# 2. Health check endpoint
 		handle @upload_health {
 			reverse_proxy localhost:8000 {
 				header_up Host {http.request.host}
@@ -82,7 +79,7 @@
 			}
 		}
 
-		# 4. Abort all other requests — no other paths should be accessible
+		# 4. Abort all other requests
 		handle {
 			abort
 		}

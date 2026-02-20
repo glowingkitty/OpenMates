@@ -2,17 +2,11 @@
 #
 # Cloud-init template for the OpenMates Upload Server VM.
 #
-# BEFORE USING: Replace ALL <PLACEHOLDER> values with your actual values.
-# Search for "<" to find all placeholders that need replacing.
+# DO NOT EDIT PLACEHOLDERS MANUALLY — use the render script instead:
+#   python scripts/render-deploy-config.py deployment/upload_server/upload-cloud-config.yaml
 #
-# HOW TO USE:
-#   1. Replace all <PLACEHOLDER> values below.
-#   2. In your cloud provider console, create a new server:
-#      - Image: Ubuntu 24.04 (or latest LTS)
-#      - Networking: enable private network (same network as the main API server)
-#      - User data: paste this entire file into the "Cloud config" / "User data" field.
-#   3. Wait ~3-5 minutes for cloud-init to complete after the VM boots.
-#   4. SSH in as the user defined below and follow the manual steps.
+# The script reads DEPLOY_* variables from your .env file and outputs
+# a ready-to-paste cloud-init YAML with all values filled in.
 #
 # WHAT THIS DOES (automated on first boot):
 #   - Creates a non-root user with sudo, disables root login + password SSH
@@ -26,32 +20,28 @@
 # MANUAL STEPS AFTER SSH-ING IN:
 #   1. cat ~/github_deploy_key.pub → add to GitHub repo as Deploy Key (read-only)
 #   2. ssh -T git@github.com → verify access
-#   3. git clone <YOUR_REPO_SSH_URL> ~/projects/OpenMates
+#   3. git clone ${DEPLOY_REPO_SSH_URL} ~/projects/OpenMates
 #   4. Create ~/projects/OpenMates/backend/apps/uploads/.env (see .env.example)
-#   5. Copy the production Caddyfile:
-#      sudo cp ~/projects/OpenMates/deployment/upload_server/Caddyfile /etc/caddy/Caddyfile
-#      Edit it to replace <PLACEHOLDER> values, then: sudo systemctl reload caddy
+#   5. Render and apply the production Caddyfile:
+#      python scripts/render-deploy-config.py deployment/upload_server/Caddyfile \
+#        | sudo tee /etc/caddy/Caddyfile > /dev/null
+#      sudo systemctl reload caddy
 #   6. Start the upload server:
 #      cd ~/projects/OpenMates
 #      docker compose -f backend/apps/uploads/docker-compose.yml \
 #                     -f backend/apps/uploads/docker-compose.prod.yml up -d
-#   7. Verify: curl https://<YOUR_UPLOAD_DOMAIN>/health
-#
-# SECURITY NOTE:
-#   This file is a TEMPLATE for an open-source project.
-#   NEVER commit real SSH keys, tokens, domains, emails, or secrets.
-#   ALL infrastructure-specific values MUST use <PLACEHOLDER> format.
+#   7. Verify: curl https://${DEPLOY_UPLOAD_DOMAIN}/health
 
 # ---------------------------------------------------------------------------
 # User setup
 # ---------------------------------------------------------------------------
 users:
-  - name: <YOUR_USERNAME>
+  - name: ${DEPLOY_USERNAME}
     groups: [sudo, docker]
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
     ssh_authorized_keys:
-      - <YOUR_SSH_PUBLIC_KEY> # e.g. ssh-ed25519 AAAA... user@host
+      - ${DEPLOY_SSH_PUBLIC_KEY}
 
 # Disable root login and password authentication
 ssh_pwauth: false
@@ -80,14 +70,12 @@ runcmd:
   # --- Install Docker ---
   - curl -fsSL https://get.docker.com -o get-docker.sh
   - sh get-docker.sh
-  - usermod -aG docker <YOUR_USERNAME>
+  - usermod -aG docker ${DEPLOY_USERNAME}
   - systemctl enable docker
   - systemctl start docker
   - rm -f get-docker.sh
 
   # --- Install Docker Compose (standalone binary) ---
-  # The Docker install script (get.docker.com) installs docker-compose-plugin,
-  # but we also install the standalone binary for compatibility with `docker-compose` CLI.
   - curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
   - chmod +x /usr/local/bin/docker-compose
   - ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
@@ -100,21 +88,21 @@ runcmd:
   - systemctl enable caddy
 
   # --- Generate SSH deploy key for GitHub ---
-  - sudo -u <YOUR_USERNAME> mkdir -p /home/<YOUR_USERNAME>/.ssh
-  - sudo -u <YOUR_USERNAME> ssh-keygen -t ed25519 -C "<YOUR_USERNAME>@upload-server" -f /home/<YOUR_USERNAME>/.ssh/id_ed25519 -N ""
-  - sudo -u <YOUR_USERNAME> chmod 700 /home/<YOUR_USERNAME>/.ssh
-  - sudo -u <YOUR_USERNAME> chmod 600 /home/<YOUR_USERNAME>/.ssh/id_ed25519
-  - sudo -u <YOUR_USERNAME> chmod 644 /home/<YOUR_USERNAME>/.ssh/id_ed25519.pub
+  - sudo -u ${DEPLOY_USERNAME} mkdir -p /home/${DEPLOY_USERNAME}/.ssh
+  - sudo -u ${DEPLOY_USERNAME} ssh-keygen -t ed25519 -C "${DEPLOY_USERNAME}@upload-server" -f /home/${DEPLOY_USERNAME}/.ssh/id_ed25519 -N ""
+  - sudo -u ${DEPLOY_USERNAME} chmod 700 /home/${DEPLOY_USERNAME}/.ssh
+  - sudo -u ${DEPLOY_USERNAME} chmod 600 /home/${DEPLOY_USERNAME}/.ssh/id_ed25519
+  - sudo -u ${DEPLOY_USERNAME} chmod 644 /home/${DEPLOY_USERNAME}/.ssh/id_ed25519.pub
 
   # Copy public key for easy access
-  - sudo -u <YOUR_USERNAME> cp /home/<YOUR_USERNAME>/.ssh/id_ed25519.pub /home/<YOUR_USERNAME>/github_deploy_key.pub
+  - sudo -u ${DEPLOY_USERNAME} cp /home/${DEPLOY_USERNAME}/.ssh/id_ed25519.pub /home/${DEPLOY_USERNAME}/github_deploy_key.pub
 
   # Add GitHub to known hosts (prevents interactive prompt on first git clone)
-  - sudo -u <YOUR_USERNAME> ssh-keyscan github.com >> /home/<YOUR_USERNAME>/.ssh/known_hosts
-  - sudo -u <YOUR_USERNAME> chmod 644 /home/<YOUR_USERNAME>/.ssh/known_hosts
+  - sudo -u ${DEPLOY_USERNAME} ssh-keyscan github.com >> /home/${DEPLOY_USERNAME}/.ssh/known_hosts
+  - sudo -u ${DEPLOY_USERNAME} chmod 644 /home/${DEPLOY_USERNAME}/.ssh/known_hosts
 
   # --- Create project directory ---
-  - sudo -u <YOUR_USERNAME> mkdir -p /home/<YOUR_USERNAME>/projects
+  - sudo -u ${DEPLOY_USERNAME} mkdir -p /home/${DEPLOY_USERNAME}/projects
 
   # --- Configure UFW firewall ---
   - ufw default deny incoming
@@ -136,14 +124,9 @@ runcmd:
 # Config files written on first boot
 # ---------------------------------------------------------------------------
 write_files:
-  # Placeholder Caddyfile — replaced in manual step 5 with the production config
+  # Placeholder Caddyfile — replaced after cloning the repo (manual step 5)
   - path: /etc/caddy/Caddyfile
     content: |
-      # Placeholder — replace with the production Caddyfile from:
-      # ~/projects/OpenMates/deployment/upload_server/Caddyfile
-      #
-      # sudo cp ~/projects/OpenMates/deployment/upload_server/Caddyfile /etc/caddy/Caddyfile
-      # sudo systemctl reload caddy
       :80 {
         respond "Upload server — Caddy not yet configured" 503
       }
@@ -168,4 +151,4 @@ write_files:
 # ---------------------------------------------------------------------------
 final_message: |
   Upload Server cloud-init complete.
-  SSH in as your configured user and follow ~/SETUP_INSTRUCTIONS.txt
+  SSH in as '${DEPLOY_USERNAME}' and follow the manual steps in the template header.
