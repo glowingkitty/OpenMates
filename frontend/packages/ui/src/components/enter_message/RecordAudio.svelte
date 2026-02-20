@@ -6,7 +6,8 @@
 
     // Define dispatched events more precisely
     const dispatch = createEventDispatcher<{
-        audiorecorded: { blob: Blob; duration: number };
+        // blob: raw audio data; duration: in seconds; mimeType: e.g. 'audio/webm'
+        audiorecorded: { blob: Blob; duration: number; mimeType: string };
         close: void; // Dispatched when the component should close (after recording/cancel)
         cancel: void; // Dispatched specifically on cancellation (drag or external call)
         recordingStateChange: { active: boolean }; // Renamed from layoutChange
@@ -130,14 +131,15 @@
                 }
 
                 if (!isCancelled && recordedChunks.length > 0) {
-                    const blob = new Blob(recordedChunks, { type: mediaRecorder?.mimeType || mimeType });
+                    const finalMimeType = mediaRecorder?.mimeType || mimeType;
+                    const blob = new Blob(recordedChunks, { type: finalMimeType });
                     const finalDuration = recordingTime; // Use time captured before stop
                     logger.info('Audio recording finished successfully:', {
                         blobSize: `${(blob.size / 1024).toFixed(2)} KB`,
                         duration: `${finalDuration}s (${formatTime(finalDuration)})`,
                         mimeType: blob.type,
                     });
-                    dispatch('audiorecorded', { blob, duration: finalDuration });
+                    dispatch('audiorecorded', { blob, duration: finalDuration, mimeType: finalMimeType });
                 } else if (isCancelled) {
                     logger.info('Recording was cancelled, not dispatching audiorecorded.');
                     dispatch('cancel'); // Dispatch specific cancel event

@@ -10,6 +10,7 @@ import {
   detectLanguageFromContent,
 } from "./services/codeEmbedService";
 import { encode as toonEncode } from "@toon-format/toon";
+import { getApiUrl } from "../../config/api";
 
 /**
  * Ensure the editor has an empty paragraph at the very beginning so that when
@@ -570,37 +571,320 @@ export async function insertEpub(editor: Editor, file: File): Promise<void> {
 }
 
 /**
- * Inserts a recording embed (audio) into the editor.
+ * Inserts a recording embed (audio) into the editor and triggers the upload +
+ * Mistral Voxtral transcription pipeline in parallel.
+ *
+ * Flow:
+ *  1. Create a local blob URL for immediate audio playback (no server round-trip).
+ *  2. Generate a stable embed ID used to reference the node after insertion.
+ *  3. Insert the embed node with status: 'uploading' immediately (non-blocking).
+ *  4. In parallel:
+ *     a. Upload audio blob to the upload server (AES-256-GCM + S3 pipeline).
+ *     b. After upload completes, call the audio.transcribe skill with the
+ *        S3 file reference. Update embed status to 'transcribing' in between.
+ *  5. On success: update node with transcript text and status: 'finished'.
+ *  6. On failure: update node with status: 'error' and error message.
+ *
+ * Demo mode (unauthenticated users):
+ *  - Insert with status: 'finished' immediately — no server upload or transcription.
+ *  - The blob URL allows local playback but the embed is visual-only.
+ *
+ * @param editor       TipTap editor instance.
+ * @param blob         Raw audio Blob from MediaRecorder.
+ * @param mimeType     MIME type reported by MediaRecorder (e.g. 'audio/webm').
+ * @param duration     Pre-formatted duration string (e.g. "0:42").
+ * @param isAuthenticated  Whether the user is logged in (controls upload behaviour).
  */
-export function insertRecording(
+export async function insertRecording(
   editor: Editor,
-  url: string,
-  filename: string,
+  blob: Blob,
+  mimeType: string,
   duration: string,
-): void {
-  ensureLeadingParagraph(editor);
-  editor
-    .chain()
-    .focus()
-    .insertContent([
+  isAuthenticated: boolean = true,
+): Promise<void> {
+  const timestamp = Date.now();
+  // Derive a sensible filename from the MIME type (e.g. audio/webm → .webm)
+  const ext = mimeType.split("/")[1]?.split(";")[0] || "webm";
+  const filename = `recording_${timestamp}.${ext}`;
+
+  // Create a local blob URL for instant audio playback while uploading
+  const blobUrl = URL.createObjectURL(blob);
+
+  // Create a File object so we can pass it to uploadFileToServer (which takes File)
+  const file = new File([blob], filename, { type: mimeType });
+
+  const embedId = generateUUID();
+
+  if (!isAuthenticated) {
+    // Demo mode: insert finished immediately — no server upload or transcription.
+    console.debug(
+      "[EmbedHandlers] Demo mode — inserting recording without server upload",
+    );
+    ensureLeadingParagraph(editor);
+    editor.commands.insertContent([
       {
         type: "embed",
         attrs: {
-          id: generateUUID(),
+          id: embedId,
           type: "recording",
           status: "finished",
           contentRef: null,
-          src: url,
-          filename: filename,
-          duration: duration, // Already formatted
+          blobUrl,
+          filename,
+          duration,
+          mimeType,
+          uploadEmbedId: null,
+          transcript: null,
+          s3Files: null,
+          s3BaseUrl: null,
+          aesKey: null,
+          aesNonce: null,
+          vaultWrappedAesKey: null,
+          uploadError: null,
         },
       },
       { type: "text", text: " " },
-    ])
-    .run();
-  setTimeout(() => {
-    editor.commands.focus("end");
-  }, 50);
+    ]);
+    setTimeout(() => editor.commands.focus("end"), 50);
+    return;
+  }
+
+  // Insert the embed node immediately with status: 'uploading'.
+  // The RecordingRenderer shows a compact player with the local blob URL so
+  // the user can see (and even play) their recording while upload is in flight.
+  ensureLeadingParagraph(editor);
+  editor.commands.insertContent([
+    {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "recording",
+        status: "uploading",
+        contentRef: null,
+        blobUrl,
+        filename,
+        duration,
+        mimeType,
+        // Populated after server response:
+        uploadEmbedId: null,
+        transcript: null,
+        s3Files: null,
+        s3BaseUrl: null,
+        aesKey: null,
+        aesNonce: null,
+        vaultWrappedAesKey: null,
+        uploadError: null,
+      },
+    },
+    { type: "text", text: " " },
+  ]);
+  setTimeout(() => editor.commands.focus("end"), 50);
+
+  // Register an AbortController so the upload can be cancelled (Stop button / Backspace).
+  const controller = new AbortController();
+  _uploadControllers.set(embedId, controller);
+
+  _performRecordingUpload(
+    editor,
+    embedId,
+    file,
+    mimeType,
+    controller.signal,
+  ).catch((err) => {
+    console.error(
+      "[EmbedHandlers] Unhandled error in _performRecordingUpload:",
+      err,
+    );
+  });
+}
+
+/**
+ * Performs the full audio upload + transcription pipeline for a recording embed.
+ *
+ * Steps:
+ *  1. Upload audio to the upload server → get S3 keys + AES key.
+ *  2. Update embed node to status: 'transcribing' with S3 data.
+ *  3. Call POST /v1/apps/audio/skills/transcribe with the S3 file reference.
+ *  4. Update embed node with transcript text and status: 'finished'.
+ *
+ * Errors at any step set status: 'error' on the embed node.
+ */
+async function _performRecordingUpload(
+  editor: Editor,
+  localEmbedId: string,
+  file: File,
+  mimeType: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  // Helper: update embed node attrs via a ProseMirror transaction.
+  function updateEmbedNode(updates: Record<string, unknown>): void {
+    const { state, dispatch } = editor.view;
+    const tr = state.tr;
+    let found = false;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "embed" && node.attrs.id === localEmbedId) {
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...updates });
+        found = true;
+        return false;
+      }
+      return true;
+    });
+    if (found) dispatch(tr);
+  }
+
+  try {
+    // -----------------------------------------------------------------------
+    // Step 1: Upload audio blob to the upload server
+    // -----------------------------------------------------------------------
+    const uploadResult = await uploadFileToServer(file, signal);
+
+    // Remove the AbortController — upload completed successfully
+    _uploadControllers.delete(localEmbedId);
+
+    // -----------------------------------------------------------------------
+    // Step 2: Update embed with S3 data, transition to 'transcribing'
+    // -----------------------------------------------------------------------
+    updateEmbedNode({
+      status: "transcribing",
+      uploadEmbedId: uploadResult.embed_id,
+      s3Files: uploadResult.files,
+      s3BaseUrl: uploadResult.s3_base_url,
+      aesKey: uploadResult.aes_key,
+      aesNonce: uploadResult.aes_nonce,
+      vaultWrappedAesKey: uploadResult.vault_wrapped_aes_key,
+      uploadError: null,
+    });
+
+    // -----------------------------------------------------------------------
+    // Step 3: Call the audio.transcribe skill via the backend API
+    //
+    // POST /v1/apps/audio/skills/transcribe
+    // Body: { requests: [{ request_id, embed_id, s3_key, s3_base_url, aes_key, aes_nonce, vault_wrapped_aes_key, filename, mime_type }] }
+    // -----------------------------------------------------------------------
+    const apiUrl = getApiUrl();
+    const transcribeUrl = `${apiUrl}/v1/apps/audio/skills/transcribe`;
+
+    // Use the 'original' variant key if present, otherwise the first available key
+    const s3Key =
+      uploadResult.files?.original?.s3_key ??
+      Object.values(uploadResult.files ?? {})[0]?.s3_key;
+
+    if (!s3Key) {
+      console.error(
+        "[EmbedHandlers] No S3 key found after audio upload:",
+        uploadResult.files,
+      );
+      updateEmbedNode({
+        status: "error",
+        uploadError: "Upload succeeded but no file key returned",
+      });
+      return;
+    }
+
+    const transcribeBody = {
+      requests: [
+        {
+          request_id: localEmbedId,
+          embed_id: uploadResult.embed_id,
+          s3_key: s3Key,
+          s3_base_url: uploadResult.s3_base_url,
+          aes_key: uploadResult.aes_key,
+          aes_nonce: uploadResult.aes_nonce,
+          vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+          filename: file.name,
+          mime_type: mimeType,
+        },
+      ],
+    };
+
+    let transcribeResponse: Response;
+    try {
+      transcribeResponse = await fetch(transcribeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(transcribeBody),
+        signal,
+      });
+    } catch (fetchError) {
+      if (fetchError instanceof Error && fetchError.name === "AbortError")
+        throw fetchError;
+      console.error("[EmbedHandlers] Transcription network error:", fetchError);
+      updateEmbedNode({
+        status: "finished", // Upload succeeded; transcription failed non-fatally
+        uploadError: "Transcription failed: network error",
+      });
+      return;
+    }
+
+    if (!transcribeResponse.ok) {
+      let detail = `Transcription failed (${transcribeResponse.status})`;
+      try {
+        const errBody = await transcribeResponse.json();
+        detail = errBody.detail || detail;
+      } catch {
+        // Response body not JSON — ignore
+      }
+      console.error("[EmbedHandlers] Transcription API error:", detail);
+      // Keep status 'finished' since the audio upload succeeded — transcript just missing
+      updateEmbedNode({ status: "finished", uploadError: detail });
+      return;
+    }
+
+    // -----------------------------------------------------------------------
+    // Step 4: Parse transcript and update embed to 'finished'
+    // -----------------------------------------------------------------------
+    let transcriptText: string | undefined;
+    try {
+      const responseData = await transcribeResponse.json();
+      // Response shape: { results: [{ request_id, transcript, error }] }
+      const result = responseData?.results?.find(
+        (r: { request_id: string; transcript?: string }) =>
+          r.request_id === localEmbedId,
+      );
+      transcriptText = result?.transcript ?? undefined;
+    } catch (parseError) {
+      console.error(
+        "[EmbedHandlers] Failed to parse transcription response:",
+        parseError,
+      );
+    }
+
+    updateEmbedNode({
+      status: "finished",
+      transcript: transcriptText ?? null,
+      uploadError: null,
+    });
+
+    console.debug(
+      `[EmbedHandlers] Recording ${localEmbedId} upload + transcription complete.`,
+      { hasTranscript: !!transcriptText },
+    );
+  } catch (err) {
+    // Remove the AbortController regardless of error type
+    _uploadControllers.delete(localEmbedId);
+
+    // AbortError: upload was cancelled by the user (Stop button / Backspace)
+    if (
+      err instanceof Error &&
+      (err.name === "AbortError" || err.message === "Upload cancelled")
+    ) {
+      console.debug(
+        "[EmbedHandlers] Recording upload cancelled for embed:",
+        localEmbedId,
+      );
+      return;
+    }
+
+    console.error(
+      "[EmbedHandlers] Recording upload/transcription failed:",
+      err,
+    );
+    updateEmbedNode({
+      status: "error",
+      uploadError: err instanceof Error ? err.message : "Upload failed",
+    });
+  }
 }
 
 /**

@@ -2496,13 +2496,13 @@
             observeEmbedGroupContainers();
         });
     }
-    async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number }>) {
-        const { blob, duration } = event.detail;
-        const url = URL.createObjectURL(blob);
-        const filename = `audio_${Date.now()}.webm`;
+    async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number, mimeType: string }>) {
+        const { blob, duration, mimeType } = event.detail;
         const formattedDuration = formatDuration(duration);
         if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
-        insertRecording(editor, url, filename, formattedDuration);
+        // insertRecording() uploads to server + triggers Mistral Voxtral transcription in parallel.
+        // It does NOT need a pre-created blob URL — it creates its own internally.
+        await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated);
         hasContent = true;
         handleStopRecordingCleanup(); // Called here after recording is inserted
     }

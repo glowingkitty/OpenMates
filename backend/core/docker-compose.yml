@@ -419,6 +419,58 @@ services:
       retries: 3
       start_period: 30s # Give app time to start before first healthcheck
 
+  app-audio:
+    container_name: app-audio
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: audio
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "audio" # For Dockerfile.base ARG and base_main.py
+      AUDIO_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      - ../../backend/apps:/app/apps
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      # AUDIO_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   app-news:
     container_name: app-news
     build:

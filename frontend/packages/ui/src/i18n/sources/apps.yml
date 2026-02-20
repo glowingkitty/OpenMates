@@ -274,6 +274,52 @@ life_coaching.description:
   cs: Naplánujte si další kroky v životě.
   sv: Planera dina nästa steg i livet.
   verified_by_human: [en, de]
+audio:
+  context: App name for the Audio app (voice notes with AI transcription)
+  en: Audio
+  de: Audio
+  zh: 音频
+  es: Audio
+  fr: Audio
+  pt: Áudio
+  ru: Аудио
+  ja: 音声
+  ko: 오디오
+  it: Audio
+  tr: Ses
+  vi: Âm thanh
+  id: Audio
+  pl: Audio
+  nl: Audio
+  ar: صوت
+  hi: ऑडियो
+  th: เสียง
+  cs: Zvuk
+  sv: Ljud
+  verified_by_human: []
+audio.description:
+  context: Description for the Audio app (voice note recording + AI transcription)
+  en: Record voice notes and get transcripts.
+  de: Sprachnotizen aufnehmen und Transkripte erhalten.
+  zh: 录制语音笔记并获取转录。
+  es: Graba notas de voz y obtén transcripciones.
+  fr: Enregistrez des notes vocales et obtenez des transcriptions.
+  pt: Grave notas de voz e obtenha transcrições.
+  ru: Записывайте голосовые заметки и получайте расшифровки.
+  ja: 音声メモを録音してテキストに変換します。
+  ko: 음성 노트를 녹음하고 텍스트로 변환하세요.
+  it: Registra note vocali e ottieni trascrizioni.
+  tr: Sesli notlar kaydedin ve transkripsiyonlar alın.
+  vi: Ghi âm ghi chú giọng nói và nhận bản ghi.
+  id: Rekam catatan suara dan dapatkan transkripsi.
+  pl: Nagrywaj notatki głosowe i uzyskuj transkrypcje.
+  nl: Neem spraaknotities op en ontvang transcripties.
+  ar: سجّل ملاحظات صوتية واحصل على نصوص.
+  hi: वॉयस नोट रिकॉर्ड करें और ट्रांस्क्रिप्ट प्राप्त करें।
+  th: บันทึกโน้ตเสียงและรับข้อความถอดเสียง
+  cs: Nahrajte hlasové poznámky a získejte přepisy.
+  sv: Spela in röstanteckningar och få transkriberingar.
+  verified_by_human: []
 videos:
   context: App name for the Videos app
   en: Videos

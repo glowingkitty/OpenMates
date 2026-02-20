@@ -1,0 +1,215 @@
+transcribe:
+  context: Skill name shown on voice recording embed card
+  en: Voice Note
+  de: Sprachnotiz
+  zh: 语音笔记
+  es: Nota de voz
+  fr: Note vocale
+  pt: Nota de voz
+  ru: Голосовая заметка
+  ja: 音声メモ
+  ko: 음성 메모
+  it: Nota vocale
+  tr: Sesli not
+  vi: Ghi âm
+  id: Catatan suara
+  pl: Notatka głosowa
+  nl: Spraaknotitie
+  ar: ملاحظة صوتية
+  hi: वॉयस नोट
+  th: บันทึกเสียง
+  cs: Hlasová poznámka
+  sv: Röstanteckning
+  verified_by_human: []
+
+transcribe.description:
+  context: Description shown below the skill name on voice recording embed card
+  en: Voice recording
+  de: Sprachaufnahme
+  zh: 语音录音
+  es: Grabación de voz
+  fr: Enregistrement vocal
+  pt: Gravação de voz
+  ru: Голосовая запись
+  ja: 音声録音
+  ko: 음성 녹음
+  it: Registrazione vocale
+  tr: Ses kaydı
+  vi: Ghi âm giọng nói
+  id: Rekaman suara
+  pl: Nagranie głosowe
+  nl: Geluidsopname
+  ar: تسجيل صوتي
+  hi: आवाज़ की रिकॉर्डिंग
+  th: บันทึกเสียง
+  cs: Hlasová nahrávka
+  sv: Röstinspelning
+  verified_by_human: []
+
+transcribe.uploading:
+  context: Status shown on voice recording embed card while audio is uploading
+  en: Uploading…
+  de: Wird hochgeladen…
+  zh: 上传中…
+  es: Subiendo…
+  fr: Envoi en cours…
+  pt: Enviando…
+  ru: Загрузка…
+  ja: アップロード中…
+  ko: 업로드 중…
+  it: Caricamento…
+  tr: Yükleniyor…
+  vi: Đang tải lên…
+  id: Mengunggah…
+  pl: Przesyłanie…
+  nl: Uploaden…
+  ar: جاري الرفع…
+  hi: अपलोड हो रहा है…
+  th: กำลังอัปโหลด…
+  cs: Nahrávání…
+  sv: Laddar upp…
+  verified_by_human: []
+
+transcribe.transcribing:
+  context: Status shown on voice recording embed card while transcript is being generated
+  en: Transcribing…
+  de: Wird transkribiert…
+  zh: 转录中…
+  es: Transcribiendo…
+  fr: Transcription en cours…
+  pt: Transcrevendo…
+  ru: Транскрибирование…
+  ja: 文字起こし中…
+  ko: 변환 중…
+  it: Trascrizione in corso…
+  tr: Dönüştürülüyor…
+  vi: Đang chuyển đổi…
+  id: Mentranskripsikan…
+  pl: Transkrypcja…
+  nl: Transcriberen…
+  ar: جاري النسخ…
+  hi: ट्रांस्क्राइब हो रहा है…
+  th: กำลังถอดเสียง…
+  cs: Přepis…
+  sv: Transkriberar…
+  verified_by_human: []
+
+transcribe.upload_failed:
+  context: Error status on voice recording embed card when upload fails
+  en: Upload failed
+  de: Hochladen fehlgeschlagen
+  zh: 上传失败
+  es: Error al subir
+  fr: Envoi échoué
+  pt: Falha no envio
+  ru: Ошибка загрузки
+  ja: アップロード失敗
+  ko: 업로드 실패
+  it: Caricamento fallito
+  tr: Yükleme başarısız
+  vi: Tải lên thất bại
+  id: Gagal mengunggah
+  pl: Przesyłanie nie powiodło się
+  nl: Uploaden mislukt
+  ar: فشل الرفع
+  hi: अपलोड विफल
+  th: อัปโหลดไม่สำเร็จ
+  cs: Nahrávání se nezdařilo
+  sv: Uppladdning misslyckades
+  verified_by_human: []
+
+transcribe.transcription_failed:
+  context: Error status on voice recording embed card when transcription fails
+  en: Transcription failed
+  de: Transkription fehlgeschlagen
+  zh: 转录失败
+  es: Transcripción fallida
+  fr: Transcription échouée
+  pt: Transcrição falhou
+  ru: Транскрибирование не удалось
+  ja: 文字起こし失敗
+  ko: 변환 실패
+  it: Trascrizione fallita
+  tr: Dönüştürme başarısız
+  vi: Chuyển đổi thất bại
+  id: Transkripsi gagal
+  pl: Transkrypcja nie powiodła się
+  nl: Transcriptie mislukt
+  ar: فشل النسخ
+  hi: ट्रांस्क्रिप्शन विफल
+  th: ถอดเสียงไม่สำเร็จ
+  cs: Přepis se nezdařil
+  sv: Transkription misslyckades
+  verified_by_human: []
+
+transcribe.no_transcript:
+  context: Message shown in recording embed when no transcript is available yet
+  en: Transcript not available
+  de: Transkript nicht verfügbar
+  zh: 转录不可用
+  es: Transcripción no disponible
+  fr: Transcription non disponible
+  pt: Transcrição não disponível
+  ru: Транскрипт недоступен
+  ja: 文字起こしが利用できません
+  ko: 변환을 사용할 수 없음
+  it: Trascrizione non disponibile
+  tr: Transkript mevcut değil
+  vi: Không có bản ghi
+  id: Transkripsi tidak tersedia
+  pl: Transkrypcja niedostępna
+  nl: Transcript niet beschikbaar
+  ar: النص غير متوفر
+  hi: ट्रांस्क्रिप्ट उपलब्ध नहीं
+  th: ไม่มีข้อความถอดเสียง
+  cs: Přepis není dostupný
+  sv: Transkription ej tillgänglig
+  verified_by_human: []
+
+transcribe.edit_transcript:
+  context: Placeholder text in the editable transcript textarea on recording embed fullscreen
+  en: Edit transcript…
+  de: Transkript bearbeiten…
+  zh: 编辑转录…
+  es: Editar transcripción…
+  fr: Modifier la transcription…
+  pt: Editar transcrição…
+  ru: Редактировать транскрипт…
+  ja: 文字起こしを編集…
+  ko: 변환 편집…
+  it: Modifica trascrizione…
+  tr: Transkripti düzenle…
+  vi: Chỉnh sửa bản ghi…
+  id: Edit transkripsi…
+  pl: Edytuj transkrypcję…
+  nl: Transcript bewerken…
+  ar: تعديل النص…
+  hi: ट्रांस्क्रिप्ट संपादित करें…
+  th: แก้ไขข้อความถอดเสียง…
+  cs: Upravit přepis…
+  sv: Redigera transkription…
+  verified_by_human: []
+
+transcribe.signup_to_upload:
+  context: Status shown on recording embed for unauthenticated users who cannot upload
+  en: Sign up to upload recording
+  de: Registrieren, um Aufnahme hochzuladen
+  zh: 注册以上传录音
+  es: Regístrate para subir la grabación
+  fr: S'inscrire pour envoyer l'enregistrement
+  pt: Cadastre-se para enviar a gravação
+  ru: Зарегистрируйтесь, чтобы загрузить запись
+  ja: 録音をアップロードするには登録してください
+  ko: 녹음을 업로드하려면 가입하세요
+  it: Iscriviti per caricare la registrazione
+  tr: Kaydı yüklemek için kaydolun
+  vi: Đăng ký để tải ghi âm
+  id: Daftar untuk mengunggah rekaman
+  pl: Zarejestruj się, aby przesłać nagranie
+  nl: Registreer om opname te uploaden
+  ar: سجّل للرفع التسجيل
+  hi: रिकॉर्डिंग अपलोड करने के लिए साइन अप करें
+  th: ลงทะเบียนเพื่ออัปโหลดการบันทึก
+  cs: Zaregistrujte se pro nahrání záznamu
+  sv: Registrera dig för att ladda upp inspelning
+  verified_by_human: []

@@ -1,0 +1,61 @@
+name_translation_key: audio
+description_translation_key: audio.description
+icon_image: |
+  audio.svg
+category: communication
+last_updated: "2026-02-20"
+skills:
+  - id: transcribe
+    name_translation_key: app_skills.audio.transcribe
+    description_translation_key: app_skills.audio.transcribe.description
+    preprocessor_hint: >
+      Transcribe an audio recording uploaded by the user to text using Mistral Voxtral.
+      Use this skill when the user has attached a voice recording and the transcript is needed.
+    stage: development
+    class_path: |
+      backend.apps.audio.skills.transcribe_skill.TranscribeSkill
+    providers:
+      - Mistral
+    full_model_reference: mistral/voxtral-mini-2602
+    api_config:
+      expose_get: false # POST-only — internal tool called by frontend upload pipeline
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: |
+            Array of transcription request objects. Each object must contain
+            's3_base_url', 's3_key', 'aes_key', 'aes_nonce', and 'vault_wrapped_aes_key'
+            to fetch and decrypt the audio from S3, plus optional 'language' hint.
+          items:
+            type: object
+            properties:
+              s3_base_url:
+                type: string
+                description: "S3 base URL for the encrypted audio file."
+              s3_key:
+                type: string
+                description: "S3 object key for the encrypted audio file."
+              aes_key:
+                type: string
+                description: "Base64-encoded plaintext AES-256 key for decryption."
+              aes_nonce:
+                type: string
+                description: "Base64-encoded AES-GCM nonce."
+              vault_wrapped_aes_key:
+                type: string
+                description: "Vault Transit-wrapped AES key (server-side decryption)."
+              language:
+                type: string
+                description: "Optional ISO 639-1 language hint (e.g. 'en', 'de')."
+              filename:
+                type: string
+                description: "Original filename of the audio recording."
+            required:
+              - s3_base_url
+              - s3_key
+              - aes_key
+              - aes_nonce
+      required:
+        - requests

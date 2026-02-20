@@ -231,6 +231,25 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       // No contentRef — embed was not stored (e.g. storage failed). Omit silently.
       return "";
 
+    case "recording":
+      // Audio recording embeds: serialized as embed references pointing to EmbedStore.
+      // The TOON content (S3 keys, AES key, transcript) was stored by handleSend()
+      // in sendHandlers.ts after the recording was uploaded and transcribed.
+      // The backend uses the transcript for LLM context and the S3 reference for
+      // future audio skill processing.
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify(
+          { type: "audio-recording", embed_id },
+          null,
+          2,
+        );
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // No contentRef — either still uploading/transcribing (should not happen at
+      // send time as handleSend blocks on uploading embeds) or demo mode (no upload).
+      return "";
+
     default:
       // Check if this is a group type that can be handled by a group handler
       if (attrs.type.endsWith("-group")) {

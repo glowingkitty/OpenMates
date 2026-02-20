@@ -289,13 +289,18 @@ export async function handleSend(
     return;
   }
 
-  // UPLOAD GUARD: Block sending while any image embed is still uploading.
-  // Embeds with status 'uploading' are not yet ready — their S3 keys and AES
-  // keys have not been returned by the server yet, so we can't build TOON content.
-  // The embed node is updated to status 'finished' by _performUpload() on completion.
+  // UPLOAD GUARD: Block sending while any embed is still uploading or being
+  // processed by a backend skill (e.g. transcription for audio recordings).
+  // 'uploading' — file upload to S3 in flight; S3 keys not yet returned.
+  // 'transcribing' — audio upload done but Mistral Voxtral transcription pending.
+  // Both states mean the embed content is incomplete and cannot be serialized.
   let hasUploadingEmbeds = false;
   editor.view.state.doc.descendants((node) => {
-    if (node.type.name === "embed" && node.attrs.status === "uploading") {
+    if (
+      node.type.name === "embed" &&
+      (node.attrs.status === "uploading" ||
+        node.attrs.status === "transcribing")
+    ) {
       hasUploadingEmbeds = true;
       return false; // Stop traversal
     }
@@ -303,7 +308,7 @@ export async function handleSend(
   });
   if (hasUploadingEmbeds) {
     notificationStore.warning(
-      "Please wait for your images to finish uploading.",
+      "Please wait for your files to finish uploading.",
     );
     return;
   }
@@ -413,6 +418,115 @@ export async function handleSend(
     // Non-fatal: message will still send but image embeds may not be stored correctly.
     // Surface the error so it's visible (no silent failures).
     throw embedRegError;
+  }
+
+  // =========================================================================
+  // AUDIO RECORDING EMBED REGISTRATION
+  // For each 'recording' embed that has been successfully uploaded and
+  // transcribed (status: 'finished', uploadEmbedId present), build a TOON
+  // content object and store it in EmbedStore so the serializer can emit a
+  // proper embed reference: ```json\n{"type":"audio-recording","embed_id":"..."}\n```
+  // The TOON content stores all S3/AES metadata plus the transcript text so
+  // the backend can inject it as context for the LLM.
+  // =========================================================================
+  try {
+    const { encode: toonEncodeAudio } = await import("@toon-format/toon");
+    const { embedStore: audioEmbedStore } =
+      await import("../../../services/embedStore");
+
+    interface UploadedRecordingNode {
+      attrs: Record<string, unknown>;
+    }
+    const uploadedRecordingNodes: UploadedRecordingNode[] = [];
+    editor.view.state.doc.descendants((node) => {
+      if (
+        node.type.name === "embed" &&
+        node.attrs.type === "recording" &&
+        node.attrs.status === "finished" &&
+        node.attrs.uploadEmbedId &&
+        !node.attrs.contentRef // Not yet registered
+      ) {
+        uploadedRecordingNodes.push({ attrs: { ...node.attrs } });
+      }
+      return true;
+    });
+
+    for (const { attrs } of uploadedRecordingNodes) {
+      const uploadEmbedId = attrs.uploadEmbedId as string;
+
+      // Build TOON content for the audio recording embed.
+      // The backend audio skill (transcribe) expects this shape.
+      const embedContent = {
+        app_id: "audio",
+        skill_id: "transcribe",
+        type: "audio-recording",
+        status: "finished",
+        filename: attrs.filename || null,
+        duration: attrs.duration || null,
+        mime_type: attrs.mimeType || null,
+        transcript: attrs.transcript || null,
+        s3_base_url: attrs.s3BaseUrl || null,
+        files: attrs.s3Files || null,
+        aes_key: attrs.aesKey || null,
+        aes_nonce: attrs.aesNonce || null,
+        vault_wrapped_aes_key: attrs.vaultWrappedAesKey || null,
+      };
+
+      let toonContent: string;
+      try {
+        toonContent = toonEncodeAudio(embedContent);
+      } catch {
+        toonContent = JSON.stringify(embedContent);
+      }
+
+      const now = Date.now();
+      const textPreview =
+        (attrs.transcript as string) ||
+        (attrs.filename as string) ||
+        "Voice note";
+
+      await audioEmbedStore.put(
+        `embed:${uploadEmbedId}`,
+        {
+          embed_id: uploadEmbedId,
+          type: "audio-recording",
+          status: "finished",
+          content: toonContent,
+          text_preview: textPreview,
+          createdAt: now,
+          updatedAt: now,
+        },
+        "audio-recording",
+      );
+
+      console.debug(
+        `[handleSend] Registered audio recording embed ${uploadEmbedId} in EmbedStore`,
+      );
+
+      // Update the embed node's contentRef so the serializer emits a proper embed reference
+      const { state: recState, dispatch: recDispatch } = editor.view;
+      const recTr = recState.tr;
+      recState.doc.descendants((node, nodePos) => {
+        if (
+          node.type.name === "embed" &&
+          node.attrs.uploadEmbedId === uploadEmbedId
+        ) {
+          recTr.setNodeMarkup(nodePos, undefined, {
+            ...node.attrs,
+            contentRef: `embed:${uploadEmbedId}`,
+          });
+          return false;
+        }
+        return true;
+      });
+      recDispatch(recTr);
+    }
+  } catch (recEmbedRegError) {
+    console.error(
+      "[handleSend] Error registering audio recording embeds:",
+      recEmbedRegError,
+    );
+    throw recEmbedRegError;
   }
 
   // Get the TipTap editor content as JSON
