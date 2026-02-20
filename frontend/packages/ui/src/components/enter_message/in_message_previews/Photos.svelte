@@ -37,13 +37,48 @@
     // Derived: whether to show the uploading overlay
     let isUploading = $derived(status === 'uploading');
     let isError = $derived(status === 'error');
+
+    // --- Portrait detection ---
+    // Detect if the image is portrait (taller than wide) so we can show
+    // its full height instead of cropping it.
+    // The preview container width is fixed at 300px (InlinePreviewBase).
+    // For portrait images we compute a proportional height capped at 400px.
+    const DEFAULT_HEIGHT_PX = 200;
+    const MAX_HEIGHT_PX = 400;
+    const CONTAINER_WIDTH_PX = 300;
+
+    let isPortrait = $state(false);
+    let cardHeight = $state(`${DEFAULT_HEIGHT_PX}px`);
+
+    $effect(() => {
+        // Re-run when src changes (e.g. after blob URL is replaced by S3 URL)
+        if (!src) return;
+
+        const img = new Image();
+        img.onload = () => {
+            const { naturalWidth, naturalHeight } = img;
+            if (!naturalWidth || !naturalHeight) return;
+
+            if (naturalHeight > naturalWidth) {
+                // Portrait: scale height proportionally to the 300px container width
+                const neededHeight = Math.round((CONTAINER_WIDTH_PX * naturalHeight) / naturalWidth);
+                isPortrait = true;
+                cardHeight = `${Math.min(neededHeight, MAX_HEIGHT_PX)}px`;
+            } else {
+                isPortrait = false;
+                cardHeight = `${DEFAULT_HEIGHT_PX}px`;
+            }
+        };
+        img.src = src;
+    });
 </script>
 
-<InlinePreviewBase {id} type={isRecording ? 'photos_recording' : 'photos'} {src} {filename} height="200px">
+<InlinePreviewBase {id} type={isRecording ? 'photos_recording' : 'photos'} {src} {filename} height={cardHeight}>
     <div class="photo-container">
         <div 
             class="photo-preview" 
             class:uploading={isUploading}
+            class:portrait={isPortrait}
             style="background-image: url('{src}')"
             data-original-url={originalUrl || src}
         ></div>
@@ -80,6 +115,16 @@
         background-size: cover;
         background-repeat: no-repeat;
         transition: opacity 0.2s ease;
+    }
+
+    /*
+     * Portrait (vertical) images: use contain so the full image height is
+     * visible. The container height is expanded dynamically via the cardHeight
+     * state variable passed to InlinePreviewBase.
+     */
+    .photo-preview.portrait {
+        background-size: contain;
+        background-color: var(--color-grey-15, #f0f0f0);
     }
 
     /* Dim the photo while uploading or on error */

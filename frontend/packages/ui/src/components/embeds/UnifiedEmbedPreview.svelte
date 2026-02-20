@@ -77,6 +77,12 @@
     showSkillIcon?: boolean;
     /** Whether the details content contains a full-width image (removes padding, adds negative margin) */
     hasFullWidthImage?: boolean;
+    /**
+     * Override the fixed card height (px value, e.g. 350).
+     * Used for portrait/vertical images so the full image height is visible
+     * instead of being cropped. Only affects the desktop layout.
+     */
+    customHeight?: number;
     /** Callback when embed data is updated - allows child components to update their specific data */
     onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown> }) => void;
     /** Optional snippet rendered before the title text in BasicInfosBar (e.g., category circle) */
@@ -101,6 +107,7 @@
     customStatusText,
     showSkillIcon = true,
     hasFullWidthImage = false,
+    customHeight,
     onEmbedDataUpdated,
     titleIcon
   }: Props = $props();
@@ -626,7 +633,10 @@
   data-app-id={appId}
   data-skill-id={skillId}
   data-status={status}
-  style={tiltTransform ? `transform: ${tiltTransform};` : ''}
+  style={[
+    tiltTransform ? `transform: ${tiltTransform};` : '',
+    (!useMobileLayout && customHeight) ? `height: ${customHeight}px; min-height: ${customHeight}px; max-height: ${customHeight}px;` : ''
+  ].filter(Boolean).join(' ')}
   {...((status === 'finished' || status === 'error') ? {
     role: 'button',
     tabindex: 0,
