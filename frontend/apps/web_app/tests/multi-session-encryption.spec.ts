@@ -5,12 +5,17 @@
  *
  * Tests that two browsers logged in as the same user can both:
  * - Send/receive messages without content decryption errors
- * - See the same chat content correctly decrypted
+ * - See the same chat content correctly decrypted via real-time sync
  * - Handle 4 sequential chats all working correctly across both sessions
  *
- * This specifically targets the issue where concurrent sessions cause
- * encryption key conflicts (e.g. a new chat key generated in session A
- * isn't available in session B until synced, leading to decryption errors).
+ * How it works:
+ * 1. Session A and Session B both log in and stay on /chat
+ * 2. Session A creates a new chat and sends a message
+ * 3. Session A waits for the AI response
+ * 4. Session B discovers the new chat via the sidebar (real-time WebSocket sync)
+ *    and clicks on it — exactly how a real user on a second device would see it
+ * 5. Session B asserts the messages are decrypted correctly
+ * 6. Repeat for 4 chats total
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL
@@ -45,7 +50,7 @@ function createSessionLogs(): SessionLogs {
 }
 
 /**
- * Attach console + network listeners to a page.
+ * Attach console listeners to a page.
  * Decryption errors are captured separately for easy assertion.
  */
 function attachListeners(page: any, label: string, logs: SessionLogs) {
@@ -76,7 +81,6 @@ function attachListeners(page: any, label: string, logs: SessionLogs) {
 
 /**
  * Perform the full login flow (email → password+OTP → redirect to /chat).
- * Reuses the same selectors validated in chat-flow.spec.ts.
  */
 async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void> {
 	await page.goto('/');
@@ -145,8 +149,6 @@ async function sendMessageAndGetChatId(
 	logFn(`Message sent: "${message}"`);
 
 	// Wait for a real UUID chat ID in the URL (not the demo-for-everyone placeholder).
-	// The demo chat uses chat-id=demo-for-everyone; real chats use UUIDs like
-	// "2a43c594-cc80-4be2-9148-d41658f7717f". We poll until we see a UUID.
 	const uuidPattern = /chat-id=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 	await expect(page).toHaveURL(uuidPattern, { timeout: 20000 });
 	const url = page.url();
@@ -172,19 +174,41 @@ async function waitForAssistantResponse(
 	logFn(`Got assistant response with "${expectedText}".`);
 }
 
-// ─── Navigate to a specific chat ─────────────────────────────────────────────
+// ─── Wait for chat to appear in Session B's sidebar via real-time sync ───────
 
-async function navigateToChatById(
+/**
+ * Waits for a chat to appear in Session B's sidebar via real-time WebSocket sync.
+ * Then clicks on the chat to open it. This is how a real user on a second device
+ * discovers a chat created on their first device.
+ *
+ * We look for the chat by waiting for the chat title to appear in the sidebar.
+ * New chats get titled by the AI based on the first message content, so we match
+ * on a substring of the expected title.
+ */
+async function waitForChatInSidebarAndClick(
 	page: any,
-	chatId: string,
-	logFn: (msg: string) => void
+	expectedTitleFragment: string,
+	logFn: (msg: string) => void,
+	timeoutMs: number = 60000
 ): Promise<void> {
-	// Use a relative URL so Playwright's configured baseURL is applied.
-	// An absolute URL bypasses baseURL and can hit the wrong host in Docker.
-	logFn(`Navigating to chat ${chatId}…`);
-	await page.goto(`/chat?chat-id=${chatId}`);
-	await page.waitForTimeout(5000); // Allow sync to complete
-	logFn(`At chat ${chatId}.`);
+	logFn(`Waiting for chat with title containing "${expectedTitleFragment}" to appear in sidebar…`);
+
+	// The sidebar shows chat items with class .chat-item-wrapper, containing .chat-title
+	// Wait for a chat title matching our expected fragment to appear
+	const chatItem = page.locator('.chat-item-wrapper', {
+		has: page.locator('.chat-title', {
+			hasText: new RegExp(expectedTitleFragment, 'i')
+		})
+	});
+
+	// Wait for it to appear (delivered via WebSocket real-time sync)
+	await expect(chatItem.first()).toBeVisible({ timeout: timeoutMs });
+	logFn(`Chat "${expectedTitleFragment}" appeared in sidebar — clicking to open.`);
+
+	// Click the chat to open it
+	await chatItem.first().click();
+	await page.waitForTimeout(3000); // Allow messages to load and decrypt
+	logFn(`Opened chat "${expectedTitleFragment}" in Session B.`);
 }
 
 // ─── Assert messages visible without decryption errors ───────────────────────
@@ -192,11 +216,12 @@ async function navigateToChatById(
 /**
  * Asserts that:
  * 1. The assistant message exists and contains the expected text.
- * 2. No decryption error banners / error messages are visible in the chat.
+ * 2. No decryption error console.errors were captured for this session.
+ * 3. No error states visible in the UI (e.g. "[decryption error]" placeholder text).
  */
 async function assertChatDecryptedCorrectly(
 	page: any,
-	expectedAssistantText: string,
+	expectedAssistantText: string | RegExp,
 	sessionLabel: string,
 	logs: SessionLogs,
 	logFn: (msg: string) => void
@@ -205,7 +230,18 @@ async function assertChatDecryptedCorrectly(
 
 	// 1. The last assistant message should contain the expected text
 	const assistantMsgs = page.locator('.message-wrapper.assistant');
-	await expect(assistantMsgs.last()).toContainText(expectedAssistantText, { timeout: 30000 });
+	if (typeof expectedAssistantText === 'string') {
+		await expect(assistantMsgs.last()).toContainText(expectedAssistantText, { timeout: 30000 });
+	} else {
+		// Regex match — just ensure the assistant message is visible
+		await expect(assistantMsgs.last()).toBeVisible({ timeout: 30000 });
+		const text = await assistantMsgs.last().innerText();
+		if (!expectedAssistantText.test(text)) {
+			throw new Error(
+				`[${sessionLabel}] Assistant response "${text}" does not match expected pattern ${expectedAssistantText}`
+			);
+		}
+	}
 
 	// 2. No console decryption errors should have been captured for this session
 	if (logs.decryptionErrors.length > 0) {
@@ -242,13 +278,6 @@ async function assertChatDecryptedCorrectly(
 
 async function deleteActiveChat(page: any, logFn: (msg: string) => void): Promise<void> {
 	logFn('Deleting active chat via context menu…');
-
-	// Ensure sidebar is visible
-	const sidebarToggle = page.locator('.sidebar-toggle-button');
-	if (await sidebarToggle.isVisible()) {
-		await sidebarToggle.click();
-		await page.waitForTimeout(500);
-	}
 
 	const activeChatItem = page.locator('.chat-item-wrapper.active');
 	if (!(await activeChatItem.isVisible())) {
@@ -304,17 +333,16 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 	const chatIds: string[] = [];
 
 	try {
-		// ── Step 1: Log in both sessions concurrently ─────────────────────
+		// ── Step 1: Log in both sessions ─────────────────────────────────
 		logA('Logging in Session A…');
 		logB('Logging in Session B…');
-		// Log in A first to get the OTP window, then B with a fresh OTP
+
 		await loginToApp(pageA, logA);
 		await screenshotA(pageA, 'logged-in');
 
 		// Wait until the TOTP window rolls over before logging in Session B.
-		// TOTP codes are 30-second windows; reusing the same code in the same window
-		// is rejected by the server. We calculate how many ms remain in the current
-		// window and wait for it to expire + a small buffer.
+		// TOTP codes are 30-second windows; reusing the same code in the same
+		// window is rejected by the server.
 		{
 			const msInWindow = Date.now() % 30000;
 			const msUntilNextWindow = 30000 - msInWindow + 500; // +500ms buffer
@@ -329,37 +357,65 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 
 		logA('Both sessions logged in successfully.');
 
+		// Allow both sessions to complete their initial sync (Phase 1/2/3).
+		// Session B needs its WebSocket connection established so it can receive
+		// real-time updates when Session A creates chats.
+		logA('Waiting 10s for initial sync to complete on both sessions…');
+		await pageA.waitForTimeout(10000);
+		await screenshotA(pageA, 'after-sync');
+		await screenshotB(pageB, 'after-sync');
+
 		// ── Steps 2–5: 4 chat rounds ──────────────────────────────────────
+		// Each round: Session A creates chat → waits for AI response →
+		// Session B discovers the chat in the sidebar via real-time sync → clicks it →
+		// both sessions verify messages are decrypted correctly.
 		const chatScenarios = [
-			{ question: 'What is the capital of France?', expectedAnswer: 'Paris' },
-			{ question: 'What is 5 multiplied by 7?', expectedAnswer: '35' },
+			{
+				question: 'What is the capital of France?',
+				expectedAnswer: 'Paris' as string | RegExp,
+				expectedTitle: 'Capital'
+			},
+			{
+				question: 'What is 5 multiplied by 7?',
+				expectedAnswer: '35' as string | RegExp,
+				expectedTitle: '5'
+			},
 			{
 				question: 'Name one planet in our solar system.',
-				expectedAnswer: /(Mercury|Venus|Earth|Mars|Jupiter|Saturn|Uranus|Neptune)/i
+				expectedAnswer: /(Mercury|Venus|Earth|Mars|Jupiter|Saturn|Uranus|Neptune)/i as
+					| string
+					| RegExp,
+				expectedTitle: 'planet'
 			},
-			{ question: 'What color is the sky on a clear day?', expectedAnswer: 'blue' }
+			{
+				question: 'What color is the sky on a clear day?',
+				expectedAnswer: 'blue' as string | RegExp,
+				expectedTitle: 'sky'
+			}
 		];
 
 		for (let i = 0; i < chatScenarios.length; i++) {
-			const { question, expectedAnswer } = chatScenarios[i];
+			const { question, expectedAnswer, expectedTitle } = chatScenarios[i];
 			const chatNum = i + 1;
-			const expectedText = typeof expectedAnswer === 'string' ? expectedAnswer : 'planet'; // fallback label for logging
 
 			logA(`\n===== CHAT ${chatNum}/4 =====`);
 			logA(`Question: "${question}"`);
 
-			// ── Start a new chat in Session A and send the message ────────
+			// Reset error logs for this round so we only check errors per-chat
+			logsA.decryptionErrors = [];
+			logsB.decryptionErrors = [];
+
+			// ── Session A: Start a new chat and send the message ──────────
 			await startNewChat(pageA, logA);
 			await screenshotA(pageA, `chat${chatNum}-new-chat`);
 
 			const chatId = await sendMessageAndGetChatId(pageA, question, logA);
 			chatIds.push(chatId);
 
-			// ── Wait for AI response in Session A ─────────────────────────
+			// ── Session A: Wait for AI response ──────────────────────────
 			if (typeof expectedAnswer === 'string') {
 				await waitForAssistantResponse(pageA, expectedAnswer, logA);
 			} else {
-				// Regex case — wait for any assistant response to appear
 				logA('Waiting for assistant response (regex match)…');
 				const assistantMsgA = pageA.locator('.message-wrapper.assistant');
 				await expect(assistantMsgA.last()).toBeVisible({ timeout: 60000 });
@@ -368,66 +424,54 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 
 			await screenshotA(pageA, `chat${chatNum}-response-a`);
 
-			// ── Assert no decryption errors in Session A ──────────────────
-			if (typeof expectedAnswer === 'string') {
-				await assertChatDecryptedCorrectly(pageA, expectedAnswer, 'SESSION-A', logsA, logA);
-			} else {
-				// For regex: just check no decryption errors exist
-				if (logsA.decryptionErrors.length > 0) {
-					throw new Error(
-						`[SESSION-A] Decryption errors at chat ${chatNum}:\n${logsA.decryptionErrors.join('\n')}`
-					);
-				}
-			}
+			// ── Session A: Assert no decryption errors ───────────────────
+			await assertChatDecryptedCorrectly(
+				pageA,
+				expectedAnswer,
+				`SESSION-A-chat${chatNum}`,
+				logsA,
+				logA
+			);
 
-			// ── Navigate Session B to the same chat ───────────────────────
-			logB(`Navigating Session B to chat ${chatId}…`);
-			await navigateToChatById(pageB, chatId, logB);
-			await screenshotB(pageB, `chat${chatNum}-session-b-view`);
+			// ── Session B: Wait for the chat to appear in sidebar ─────────
+			// The chat should arrive via real-time WebSocket sync.
+			// We match on a fragment of the expected title (AI-generated from the question).
+			await screenshotB(pageB, `chat${chatNum}-before-sidebar-check`);
+			await waitForChatInSidebarAndClick(pageB, expectedTitle, logB, 60000);
+			await screenshotB(pageB, `chat${chatNum}-session-b-opened`);
 
-			// ── Assert chat is readable in Session B without errors ────────
-			if (typeof expectedAnswer === 'string') {
-				await assertChatDecryptedCorrectly(pageB, expectedAnswer, 'SESSION-B', logsB, logB);
-			} else {
-				// For regex: check the assistant message is visible and no decrypt errors
-				const assistantMsgB = pageB.locator('.message-wrapper.assistant');
-				await expect(assistantMsgB.last()).toBeVisible({ timeout: 30000 });
-				if (logsB.decryptionErrors.length > 0) {
-					throw new Error(
-						`[SESSION-B] Decryption errors at chat ${chatNum}:\n${logsB.decryptionErrors.join('\n')}`
-					);
-				}
-				logB(`Chat ${chatNum} readable in Session B — no decryption errors.`);
-			}
+			// ── Session B: Assert messages are decrypted correctly ─────────
+			await assertChatDecryptedCorrectly(
+				pageB,
+				expectedAnswer,
+				`SESSION-B-chat${chatNum}`,
+				logsB,
+				logB
+			);
 
 			await screenshotB(pageB, `chat${chatNum}-verified-b`);
-			logA(`Chat ${chatNum} verified on both sessions ✓`);
-
-			// ── After each round, reset Session B to home so it can see sidebar ──
-			// This simulates the real user flow where Session B discovers the new chat
-			// via the sidebar, rather than being navigated directly.
-			if (i < chatScenarios.length - 1) {
-				await pageB.goto('/');
-				await pageB.waitForTimeout(2000);
-			}
+			logA(`Chat ${chatNum} verified on both sessions — no decryption errors.`);
 		}
 
 		// ── Final summary ─────────────────────────────────────────────────
-		logA(`\n=== ALL 4 CHATS VERIFIED ===`);
-		logA(`Total decryption errors in Session A: ${logsA.decryptionErrors.length}`);
-		logA(`Total decryption errors in Session B: ${logsB.decryptionErrors.length}`);
-		logB(`Total console logs in Session B: ${logsB.consoleLogs.length}`);
-
-		// Fail the test explicitly if there were any decryption errors in either session
-		expect(logsA.decryptionErrors.length).toBe(0);
-		expect(logsB.decryptionErrors.length).toBe(0);
+		logA(`\n=== ALL 4 CHATS VERIFIED SUCCESSFULLY ===`);
+		logA(`No decryption errors detected in either session.`);
 	} finally {
 		// ── Cleanup: delete all test chats from Session A ─────────────────
 		logA('Cleaning up test chats…');
 		for (const chatId of chatIds) {
 			try {
-				await navigateToChatById(pageA, chatId, logA);
-				await deleteActiveChat(pageA, logA);
+				// Click the chat in Session A's sidebar to select it, then delete
+				const chatItem = pageA.locator('.chat-item-wrapper', {
+					has: pageA.locator(`[data-chat-id="${chatId}"]`)
+				});
+				if (await chatItem.isVisible().catch(() => false)) {
+					await chatItem.click();
+					await pageA.waitForTimeout(1000);
+					await deleteActiveChat(pageA, logA);
+				} else {
+					logA(`Chat ${chatId} not found in sidebar — may already be cleaned up.`);
+				}
 			} catch (err) {
 				// Best-effort cleanup — don't fail the test on cleanup errors
 				logA(`Warning: could not delete chat ${chatId}: ${err}`);
