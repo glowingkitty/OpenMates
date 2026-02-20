@@ -82,6 +82,41 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 1
 
 ---
 
+## Service Unavailable During Concurrent Work
+
+Multiple assistants may work on the codebase simultaneously. If an API call or test fails with a connection error, 502, or similar "service unavailable" symptom, **do not immediately assume a real bug**. Another assistant may be rebuilding or restarting containers at that moment.
+
+### Protocol When a Service Appears Down
+
+1. **Check container status first:**
+
+   ```bash
+   docker compose --env-file .env -f backend/core/docker-compose.yml ps
+   ```
+
+   Look for containers in `starting`, `restarting`, or `exited` state.
+
+2. **Check recent logs for restart/build activity:**
+
+   ```bash
+   # See if the container recently started (build + restart in progress)
+   docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 2m api task-worker
+   ```
+
+   Signs of an in-progress restart: log lines like `Booting worker`, `Application startup complete`, `Waiting for application startup`, or build output.
+
+3. **Wait and retry — don't give up immediately:**
+   - If logs show a restart is in progress, wait 15–30 seconds and retry.
+   - Repeat up to 3–4 times before concluding the service is genuinely broken.
+
+   ```bash
+   sleep 20 && curl -f http://localhost:8000/health
+   ```
+
+4. **Only escalate if the service is still down after ~2 minutes** with no active restart activity in the logs. At that point, investigate as a real failure using the standard debugging steps below.
+
+---
+
 ## Debugging Backend Issues
 
 ### Where to Look First (by Problem Type)

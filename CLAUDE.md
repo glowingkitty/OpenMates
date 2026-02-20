@@ -116,6 +116,7 @@ Rules: be honest about risks, be specific with file references, and always expla
 - **Several assistants may work on the codebase at the same time.** File content or git state can change between your turns.
 - **Re-read files before editing** if you haven't touched them recently — another assistant may have changed them.
 - **Check git status** before committing; files may already be committed by another assistant. Only add and commit what you actually changed this session.
+- **If the API or a service appears down**, another assistant may be in the middle of rebuilding/restarting Docker containers. Before assuming a real failure, check whether a restart is in progress and wait for it to complete. See the "Service Unavailable During Concurrent Work" section in `docs/claude/debugging.md`.
 
 ### Svelte 5 (CRITICAL)
 
