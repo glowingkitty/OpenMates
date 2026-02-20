@@ -69,7 +69,7 @@
         extractChatLinkFromYAML
     } from './fileHandlers';
     import {
-        insertVideo,
+        // insertVideo, // Disabled: video upload not yet supported — re-enable with handleVideoRecorded
         insertImage,
         insertRecording,
         insertMap
@@ -2493,24 +2493,27 @@
             observeEmbedGroupContainers();
         });
     }
-    /**
-     * Handle a video recorded from the CameraView (desktop webcam overlay).
-     * Routes through insertVideo — same embed pipeline as video uploads.
+    /* VIDEO RECORDING DISABLED — re-enable when video upload support is added.
+     * To re-enable:
+     *   1. Uncomment this function.
+     *   2. Re-add `on:videorecorded={handleVideoRecorded}` to <CameraView> in the template.
+     *   3. Restore `video/*` in the cameraInput accept attribute.
+     *
+     * async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {
+     *     const { blob, duration } = event.detail;
+     *     const mimeType = blob.type || 'video/webm';
+     *     const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+     *     const file = new File([blob], `camera_${Date.now()}.${ext}`, { type: mimeType });
+     *     showCamera = false;
+     *     await tick();
+     *     await insertVideo(editor, file, duration, false);
+     *     hasContent = true;
+     *     tick().then(() => {
+     *         updateEmbedGroupLayouts();
+     *         observeEmbedGroupContainers();
+     *     });
+     * }
      */
-    async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {
-        const { blob, duration } = event.detail;
-        const mimeType = blob.type || 'video/webm';
-        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-        const file = new File([blob], `camera_${Date.now()}.${ext}`, { type: mimeType });
-        showCamera = false;
-        await tick();
-        await insertVideo(editor, file, duration, false);
-        hasContent = true;
-        tick().then(() => {
-            updateEmbedGroupLayouts();
-            observeEmbedGroupContainers();
-        });
-    }
     async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number, mimeType: string }>) {
         const { blob, duration, mimeType } = event.detail;
         const formattedDuration = formatDuration(duration);
@@ -2931,7 +2934,8 @@
 
         <!-- Only images and code/text files are supported. Extensions mirror isCodeOrTextFile() in utils/fileHelpers.ts. -->
         <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.py,.js,.ts,.html,.css,.json,.svelte,.java,.cpp,.c,.h,.hpp,.rs,.go,.rb,.php,.swift,.kt,.txt,.md,.xml,.yaml,.yml,.sh,.bash,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,Dockerfile" />
-        <input bind:this={cameraInput} type="file" accept="image/*,video/*" capture="environment" onchange={onFileSelected} style="display: none" />
+        <!-- Video capture disabled: video upload not yet supported. Remove video/* when re-enabling. -->
+        <input bind:this={cameraInput} type="file" accept="image/*" capture="environment" onchange={onFileSelected} style="display: none" />
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
@@ -2940,7 +2944,8 @@
         </div>
 
         {#if showCamera}
-            <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} on:videorecorded={handleVideoRecorded} />
+            <!-- on:videorecorded removed — video recording disabled until upload support is added -->
+            <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} />
         {/if}
 
         <!-- Action Buttons Component: fades in when input is focused, fades out when unfocused.
