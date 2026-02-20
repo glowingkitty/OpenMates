@@ -1,0 +1,219 @@
+#cloud-config
+#
+# Cloud-init template for the OpenMates Upload Server VM (Hetzner CAX21).
+#
+# HOW TO USE:
+#   1. Replace <YOUR_SSH_PUBLIC_KEY> with your actual SSH public key.
+#   2. In the Hetzner Cloud Console, create a new server:
+#      - Image: Ubuntu 24.04 (or latest LTS)
+#      - Type: CAX21 (or your chosen plan)
+#      - Networking: enable private network (same vSwitch as the main API server)
+#      - User data: paste this entire file into the "Cloud config" / "User data" field.
+#   3. Wait ~3-5 minutes for cloud-init to complete after the VM boots.
+#   4. SSH in as 'superdev' and follow the manual steps below.
+#
+# WHAT THIS DOES (automated on first boot):
+#   - Creates a 'superdev' user with sudo, disables root login + password SSH
+#   - Updates the OS and installs essential packages
+#   - Installs Docker, Docker Compose, and Caddy (via official repos)
+#   - Generates an SSH deploy key for GitHub access
+#   - Configures UFW firewall (only ports 22, 80, 443)
+#   - Configures fail2ban for SSH brute-force protection
+#   - Writes an initial Caddyfile placeholder (you'll replace it in the manual steps)
+#
+# MANUAL STEPS AFTER SSH-ING IN:
+#   1. cat ~/github_deploy_key.pub → add to GitHub repo as Deploy Key (read-only)
+#   2. ssh -T git@github.com → verify access
+#   3. git clone git@github.com:glowingkitty/OpenMates.git ~/projects/OpenMates
+#   4. Create ~/projects/OpenMates/backend/apps/uploads/.env (see .env.example)
+#   5. Copy the production Caddyfile:
+#      sudo cp ~/projects/OpenMates/deployment/upload_server/Caddyfile /etc/caddy/Caddyfile
+#      sudo systemctl reload caddy
+#   6. Start the upload server:
+#      cd ~/projects/OpenMates
+#      docker compose -f backend/apps/uploads/docker-compose.yml \
+#                     -f backend/apps/uploads/docker-compose.prod.yml up -d
+#   7. Verify: curl https://upload.openmates.org/health
+#
+# SECURITY NOTE:
+#   This file is a TEMPLATE. Never commit real SSH keys, tokens, or secrets.
+#   Replace all <PLACEHOLDER> values before use.
+
+# ---------------------------------------------------------------------------
+# User setup
+# ---------------------------------------------------------------------------
+users:
+  - name: superdev
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - <YOUR_SSH_PUBLIC_KEY> # Replace with your actual public key (ssh-rsa ... or ssh-ed25519 ...)
+
+# Disable root login and password authentication
+ssh_pwauth: false
+disable_root: true
+
+# ---------------------------------------------------------------------------
+# System updates and package installation
+# ---------------------------------------------------------------------------
+package_update: true
+package_upgrade: true
+
+packages:
+  - ufw
+  - fail2ban
+  - git
+  - curl
+  - wget
+  - unzip
+  - htop
+  - nano
+
+# ---------------------------------------------------------------------------
+# Runtime commands (executed in order on first boot)
+# ---------------------------------------------------------------------------
+runcmd:
+  # --- Install Docker ---
+  - curl -fsSL https://get.docker.com -o get-docker.sh
+  - sh get-docker.sh
+  - usermod -aG docker superdev
+  - systemctl enable docker
+  - systemctl start docker
+  - rm -f get-docker.sh
+
+  # --- Install Docker Compose (standalone binary) ---
+  # The Docker install script (get.docker.com) installs docker-compose-plugin,
+  # but we also install the standalone binary for compatibility with `docker-compose` CLI.
+  - curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  - chmod +x /usr/local/bin/docker-compose
+  - ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+  # --- Install Caddy (official Debian repo) ---
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+  - apt update
+  - apt install -y caddy
+  - systemctl enable caddy
+
+  # --- Generate SSH deploy key for GitHub ---
+  - sudo -u superdev mkdir -p /home/superdev/.ssh
+  - sudo -u superdev ssh-keygen -t ed25519 -C "superdev@upload-server" -f /home/superdev/.ssh/id_ed25519 -N ""
+  - sudo -u superdev chmod 700 /home/superdev/.ssh
+  - sudo -u superdev chmod 600 /home/superdev/.ssh/id_ed25519
+  - sudo -u superdev chmod 644 /home/superdev/.ssh/id_ed25519.pub
+
+  # Copy public key for easy access
+  - sudo -u superdev cp /home/superdev/.ssh/id_ed25519.pub /home/superdev/github_deploy_key.pub
+
+  # Add GitHub to known hosts (prevents interactive prompt on first git clone)
+  - sudo -u superdev ssh-keyscan github.com >> /home/superdev/.ssh/known_hosts
+  - sudo -u superdev chmod 644 /home/superdev/.ssh/known_hosts
+
+  # --- Setup instructions file ---
+  - |
+    cat > /home/superdev/SETUP_INSTRUCTIONS.txt << 'HEREDOC'
+    ================================================
+    OpenMates Upload Server — Post-Boot Setup
+    ================================================
+
+    SSH PUBLIC KEY FOR GITHUB:
+    (see ~/github_deploy_key.pub)
+
+    NEXT STEPS:
+    1. cat ~/github_deploy_key.pub
+       → Copy the key and add it to GitHub:
+         Repo → Settings → Deploy Keys → Add deploy key (read-only)
+
+    2. ssh -T git@github.com
+       → Should say "Hi ...! You've successfully authenticated"
+
+    3. git clone git@github.com:glowingkitty/OpenMates.git ~/projects/OpenMates
+
+    4. Create the .env file:
+       cp ~/projects/OpenMates/backend/apps/uploads/.env.example \
+          ~/projects/OpenMates/backend/apps/uploads/.env
+       nano ~/projects/OpenMates/backend/apps/uploads/.env
+       → Fill in all <PLACEHOLDER> values
+
+    5. Apply the production Caddyfile:
+       sudo cp ~/projects/OpenMates/deployment/upload_server/Caddyfile /etc/caddy/Caddyfile
+       sudo systemctl reload caddy
+
+    6. Start the upload server:
+       cd ~/projects/OpenMates
+       docker compose -f backend/apps/uploads/docker-compose.yml \
+                      -f backend/apps/uploads/docker-compose.prod.yml up -d
+
+    7. Verify:
+       curl https://upload.openmates.org/health
+       docker compose -f backend/apps/uploads/docker-compose.yml logs -f
+
+    ================================================
+    HEREDOC
+  - chown superdev:superdev /home/superdev/SETUP_INSTRUCTIONS.txt
+  # --- Create project directory ---
+  - sudo -u superdev mkdir -p /home/superdev/projects
+
+  # --- Configure UFW firewall ---
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow ssh
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+
+  # --- Configure fail2ban ---
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # --- Set up Caddy log directory ---
+  - mkdir -p /var/log/caddy
+  - chown -R caddy:caddy /var/log/caddy
+
+# ---------------------------------------------------------------------------
+# Config files written on first boot
+# ---------------------------------------------------------------------------
+write_files:
+  # Placeholder Caddyfile — replaced in manual step 5 with the production config
+  - path: /etc/caddy/Caddyfile
+    content: |
+      # Placeholder — replace with the production Caddyfile from:
+      # ~/projects/OpenMates/deployment/upload_server/Caddyfile
+      #
+      # sudo cp ~/projects/OpenMates/deployment/upload_server/Caddyfile /etc/caddy/Caddyfile
+      # sudo systemctl reload caddy
+      :80 {
+        respond "Upload server — Caddy not yet configured" 503
+      }
+    owner: root:root
+    permissions: "0644"
+
+  # fail2ban SSH jail
+  - path: /etc/fail2ban/jail.local
+    content: |
+      [sshd]
+      enabled = true
+      port = ssh
+      filter = sshd
+      logpath = /var/log/auth.log
+      maxretry = 3
+      bantime = 3600
+      findtime = 600
+    permissions: "0644"
+
+# ---------------------------------------------------------------------------
+# Final message (shown in cloud-init logs)
+# ---------------------------------------------------------------------------
+final_message: |
+  ================================================
+  Upload Server setup complete!
+  ================================================
+
+  SSH in as 'superdev' and follow ~/SETUP_INSTRUCTIONS.txt
+
+  Quick start:
+    1. cat ~/github_deploy_key.pub → add to GitHub
+    2. git clone git@github.com:glowingkitty/OpenMates.git ~/projects/OpenMates
+    3. Create .env, apply Caddyfile, start with docker compose (prod override)
+  ================================================
