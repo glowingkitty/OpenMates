@@ -2674,7 +2674,7 @@ async function updateChatListFromDBInternal(force = false) {
                             chatData.chat.draft = chat.encrypted_draft_md;
                         } else {
                             const { decryptWithMasterKey } = await import('../../services/cryptoService');
-                            const decryptedDraft = decryptWithMasterKey(chat.encrypted_draft_md);
+                            const decryptedDraft = await decryptWithMasterKey(chat.encrypted_draft_md);
                             if (decryptedDraft) {
                                 chatData.chat.draft = decryptedDraft;
                             }
