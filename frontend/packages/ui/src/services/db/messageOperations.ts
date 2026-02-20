@@ -917,6 +917,121 @@ export async function batchSaveMessages(
 }
 
 /**
+ * Update only the status field of a message in-place, without touching encrypted content.
+ *
+ * WHY THIS EXISTS — THE BUG IT FIXES:
+ * The naive approach of `getMessage() → mutate → saveMessage()` causes silent data
+ * corruption when changing a message status to "synced". `saveMessage()` calls
+ * `encryptMessageFields()`, which calls `getOrGenerateChatKey()`. If the chat key
+ * has been evicted from the in-memory cache (a real race condition during the
+ * new-chat flow), a NEW random key is generated and the message is re-encrypted with
+ * it. But `encrypted_chat_key` on the chat still holds the original key. From that
+ * point forward, decryption fails with "[Content decryption failed]" on the sending
+ * device, while other devices (which only ever see the server-persisted copy encrypted
+ * with the correct original key) work fine.
+ *
+ * THE FIX:
+ * Read the raw IndexedDB record (no decryption), patch only `status`, and write it
+ * back. The encrypted fields are never touched, so no key is ever needed.
+ *
+ * @param dbInstance - Reference to the ChatDatabase instance
+ * @param message_id - The ID of the message to update
+ * @param newStatus - The new status to set
+ * @returns Promise that resolves when the update is complete
+ */
+export async function updateMessageStatus(
+  dbInstance: ChatDatabaseInstance,
+  message_id: string,
+  newStatus: Message["status"],
+): Promise<void> {
+  await dbInstance.init();
+
+  console.debug(
+    `[ChatDatabase] updateMessageStatus: ${message_id} → "${newStatus}" (raw in-place, no re-encryption)`,
+  );
+
+  if (!dbInstance.db) {
+    throw new Error("Database not initialized");
+  }
+
+  return new Promise((resolve, reject) => {
+    // Open a single readwrite transaction that covers the full get→patch→put cycle.
+    // All operations are queued synchronously inside the transaction callbacks, so
+    // the transaction stays alive until oncomplete fires.
+    const tx = (dbInstance.db as IDBDatabase).transaction(
+      MESSAGES_STORE_NAME,
+      "readwrite",
+    );
+    const store = tx.objectStore(MESSAGES_STORE_NAME);
+
+    // Step 1: Read the raw (still-encrypted) record by primary key.
+    const getRequest = store.get(message_id);
+
+    getRequest.onsuccess = () => {
+      const rawRecord = getRequest.result as Message | undefined;
+
+      if (!rawRecord) {
+        // Message doesn't exist yet. This can happen if the confirmation arrives
+        // before the message was saved locally (very rare). Nothing to do.
+        console.warn(
+          `[ChatDatabase] updateMessageStatus: message ${message_id} not found in IndexedDB, skipping status update`,
+        );
+        resolve();
+        return;
+      }
+
+      // Step 2: Patch only the status field. Encrypted fields are untouched.
+      const patched: Message = { ...rawRecord, status: newStatus };
+
+      // Step 3: Write the patched record back using the SAME transaction.
+      // Queueing the put synchronously in the onsuccess callback keeps the
+      // transaction alive — no async gap means no auto-commit.
+      const putRequest = store.put(patched);
+
+      putRequest.onerror = () => {
+        console.error(
+          `[ChatDatabase] updateMessageStatus: put failed for ${message_id}:`,
+          putRequest.error,
+        );
+        // Don't reject here — let tx.onerror handle it to avoid double-rejection.
+      };
+    };
+
+    getRequest.onerror = () => {
+      console.error(
+        `[ChatDatabase] updateMessageStatus: get failed for ${message_id}:`,
+        getRequest.error,
+      );
+      // Let tx.onerror handle the rejection.
+    };
+
+    tx.oncomplete = () => {
+      console.debug(
+        `[ChatDatabase] updateMessageStatus: ✅ status updated to "${newStatus}" for ${message_id}`,
+      );
+      resolve();
+    };
+
+    tx.onerror = () => {
+      console.error(
+        `[ChatDatabase] updateMessageStatus: ❌ transaction error for ${message_id}:`,
+        tx.error,
+      );
+      reject(tx.error);
+    };
+
+    tx.onabort = () => {
+      console.error(
+        `[ChatDatabase] updateMessageStatus: ❌ transaction aborted for ${message_id}`,
+      );
+      reject(
+        new Error(`Transaction aborted for updateMessageStatus(${message_id})`),
+      );
+    };
+  });
+}
+
+/**
  * Delete a specific message by message_id
  * NOTE: Can be called during init() cleanup, so may need to handle uninitialized DB
  */

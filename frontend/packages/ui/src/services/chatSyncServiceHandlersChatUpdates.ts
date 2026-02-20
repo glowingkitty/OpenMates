@@ -685,28 +685,32 @@ export async function handleChatMessageConfirmedImpl(
     return;
   }
 
-  // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
-  // Instead, use separate transactions or ensure all operations complete before transaction finishes
-  // The issue is that getMessage uses the transaction in an async callback, and by the time
-  // saveMessage tries to use it, the transaction might have finished
+  // CRITICAL FIX: Use updateMessageStatus() instead of getMessage() → mutate → saveMessage().
+  //
+  // The naive mutate-and-save approach triggers encryptMessageFields() which calls
+  // getOrGenerateChatKey(). If the chat key has been evicted from the in-memory cache
+  // (a real race condition during the new-chat flow), a NEW random key is generated and
+  // the message is silently re-encrypted with it — while encrypted_chat_key on the chat
+  // still holds the original key. Subsequent decryption attempts use the original key and
+  // fail with "[Content decryption failed]" on the sending device. Other devices, which
+  // only ever received the server-persisted copy (encrypted with the correct original key),
+  // are unaffected and work fine.
+  //
+  // updateMessageStatus() reads the raw (still-encrypted) IndexedDB record, patches ONLY
+  // the status field, and writes it back — no encryption, no key operations, no risk.
   try {
-    // Use separate transactions for each operation to avoid InvalidStateError
-    const messageToUpdate = await chatDB.getMessage(payload.message_id);
+    await chatDB.updateMessageStatus(payload.message_id, "synced");
 
-    if (messageToUpdate) {
-      // Ensure the message belongs to the correct chat, though this should be guaranteed by message_id uniqueness
-      if (messageToUpdate.chat_id === payload.chat_id) {
-        messageToUpdate.status = "synced";
-        // Use a new transaction for saveMessage
-        await chatDB.saveMessage(messageToUpdate);
-      } else {
-        console.warn(
-          `[ChatSyncService:ChatUpdates] Confirmed message (id: ${payload.message_id}) found, but belongs to chat ${messageToUpdate.chat_id} instead of expected ${payload.chat_id}.`,
-        );
-      }
-    } else {
+    // Verify the message belongs to this chat (log only; updateMessageStatus already
+    // succeeded so there is nothing to roll back).
+    const confirmedMessage = await chatDB.getMessage(payload.message_id);
+    if (!confirmedMessage) {
       console.warn(
         `[ChatSyncService:ChatUpdates] Confirmed message (id: ${payload.message_id}) not found in local DB for chat ${payload.chat_id}.`,
+      );
+    } else if (confirmedMessage.chat_id !== payload.chat_id) {
+      console.warn(
+        `[ChatSyncService:ChatUpdates] Confirmed message (id: ${payload.message_id}) belongs to chat ${confirmedMessage.chat_id} instead of expected ${payload.chat_id}.`,
       );
     }
 

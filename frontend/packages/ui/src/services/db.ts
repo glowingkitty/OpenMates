@@ -635,12 +635,16 @@ class ChatDatabase {
     }
 
     // Pending embed operations store (v19) - offline queue for embed encryption
-    if (!db.objectStoreNames.contains(this.PENDING_EMBED_OPERATIONS_STORE_NAME)) {
+    if (
+      !db.objectStoreNames.contains(this.PENDING_EMBED_OPERATIONS_STORE_NAME)
+    ) {
       const pendingEmbedOpsStore = db.createObjectStore(
         this.PENDING_EMBED_OPERATIONS_STORE_NAME,
         { keyPath: "operation_id" },
       );
-      pendingEmbedOpsStore.createIndex("embed_id", "embed_id", { unique: false });
+      pendingEmbedOpsStore.createIndex("embed_id", "embed_id", {
+        unique: false,
+      });
       pendingEmbedOpsStore.createIndex("created_at", "created_at", {
         unique: false,
       });
@@ -963,6 +967,26 @@ class ChatDatabase {
 
   async getAllMessages(duringInit: boolean = false): Promise<Message[]> {
     return messageOps.getAllMessages(this, duringInit);
+  }
+
+  /**
+   * Update only the status field of a message without re-encrypting any content.
+   *
+   * Use this instead of `getMessage() → mutate → saveMessage()` whenever only
+   * the status needs to change. The `saveMessage()` path calls `encryptMessageFields()`
+   * which calls `getOrGenerateChatKey()` — if the key is not in the in-memory cache
+   * it silently generates a NEW key, re-encrypting the message with it while
+   * `encrypted_chat_key` still holds the original key. This causes "[Content decryption
+   * failed]" on the sending device while other devices work fine.
+   *
+   * This method reads the raw IndexedDB record, patches only `status`, and writes it
+   * back — no encryption or key operations involved.
+   */
+  async updateMessageStatus(
+    message_id: string,
+    newStatus: Message["status"],
+  ): Promise<void> {
+    return messageOps.updateMessageStatus(this, message_id, newStatus);
   }
 
   async deleteMessage(
@@ -1486,7 +1510,9 @@ class ChatDatabase {
    * Add a pending embed operation to the offline queue.
    * Called when the WebSocket is disconnected during embed encryption.
    */
-  async addPendingEmbedOperation(operation: PendingEmbedOperation): Promise<void> {
+  async addPendingEmbedOperation(
+    operation: PendingEmbedOperation,
+  ): Promise<void> {
     await this.init();
     const transaction = await this.getTransaction(
       this.PENDING_EMBED_OPERATIONS_STORE_NAME,
