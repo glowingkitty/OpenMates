@@ -60,7 +60,12 @@ export type ProcessingPhase =
       showIcon: boolean;
       completedSteps: PreprocessorStepResult[];
     }
-  | { phase: "typing"; statusLines: string[]; showIcon: boolean }
+  | {
+      phase: "typing";
+      statusLines: string[];
+      showIcon: boolean;
+      completedSteps: PreprocessorStepResult[];
+    }
   | null;
 
 export interface Message {

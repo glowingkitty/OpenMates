@@ -622,10 +622,12 @@ async def handle_preprocessing(
         logger.info(f"{log_prefix} Loaded fast_preprocess_request_tool (Call A) and preprocess_request_tool (Call B).")
     else:
         # --- Follow-up message: single call (same as before the split) ---
-        # Add harmful_or_illegal, misuse_risk, and output_language to the required list for Call B
+        # Add category, harmful_or_illegal, misuse_risk, and output_language to the required list for Call B
         # (on first messages those come from Call A, but on follow-ups there is no Call A).
+        # Category is critical for follow-ups: without it, the LLM doesn't return a category and
+        # the system falls back to 'general_knowledge', losing the specialized mate from the first message.
         logger.info(f"{log_prefix} Follow-up message — single-call preprocessing (no Call A).")
-        follow_up_extra_required = ["harmful_or_illegal", "misuse_risk", "output_language"]
+        follow_up_extra_required = ["category", "harmful_or_illegal", "misuse_risk", "output_language"]
         required_list = tool_definition_for_llm.get("function", {}).get("parameters", {}).get("required", [])
         for field in follow_up_extra_required:
             if field not in required_list:
@@ -766,11 +768,41 @@ async def handle_preprocessing(
     now = datetime.datetime.now(datetime.timezone.utc)
     date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
 
+    # --- Fetch previous category for follow-up messages ---
+    # On follow-up messages, we need the previous category to guide the LLM towards
+    # keeping the same mate/category unless the topic has clearly changed.
+    # This prevents follow-up questions from falling back to 'general_knowledge'.
+    previous_category: Optional[str] = None
+    if not is_first_message and cache_service and request_data.user_id and request_data.chat_id:
+        try:
+            chat_list_item = await cache_service.get_chat_list_item_data(
+                request_data.user_id, request_data.chat_id, refresh_ttl=False
+            )
+            if chat_list_item and hasattr(chat_list_item, 'last_mate_category') and chat_list_item.last_mate_category:
+                previous_category = chat_list_item.last_mate_category
+                logger.info(
+                    f"{log_prefix} Retrieved previous category '{previous_category}' from cache "
+                    f"for follow-up category continuity."
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} No previous category found in cache for chat {request_data.chat_id}. "
+                    f"LLM will select category without bias."
+                )
+        except Exception as e:
+            logger.warning(
+                f"{log_prefix} Failed to fetch previous category from cache: {e}. "
+                f"LLM will select category without bias."
+            )
+
     dynamic_context = {
         "CATEGORIES_LIST": available_categories_list,
         "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else [],
         "AVAILABLE_FOCUS_MODES": available_focus_modes_list if available_focus_modes_list else [],
-        "CURRENT_DATE_TIME": date_time_str
+        "CURRENT_DATE_TIME": date_time_str,
+        # PREVIOUS_CATEGORY: provided for follow-up messages so the LLM defaults to the
+        # previous category unless the topic has clearly changed. Empty string if unknown.
+        "PREVIOUS_CATEGORY": previous_category or "none (first message or unknown)"
     }
 
     import asyncio as _asyncio

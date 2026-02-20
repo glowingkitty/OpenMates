@@ -178,13 +178,21 @@ preprocess_request_tool:
       # --- Follow-up message only (when title already exists) ---
       # The fields below are added to the required list on follow-up messages only.
       # On first messages, these come from the parallel fast_preprocess_request_tool call.
-      12. **harmful_or_illegal** (follow-up only): Assess the likelihood that the request or its intent is harmful **to others**, illegal, unethical, or promotes hate speech, discrimination, violence, or non-consensual activities. **Self-harm or crisis situations should NOT contribute to this score; they are handled by category selection.**
+      12. **category** (follow-up only): Re-evaluate the category for the current message in an ongoing conversation.
+          - Choose the most fitting category from the dynamically provided {CATEGORIES_LIST}.
+          - **CRITICAL: Default to the PREVIOUS category (provided as {PREVIOUS_CATEGORY}) unless the user's new message is CLEARLY about a very different topic.**
+          - Follow-up questions, clarifications, or continuations of the same topic should KEEP the previous category.
+          - Only change the category if the user explicitly shifts to a fundamentally different subject area (e.g., from coding to cooking, from history to mathematics).
+          - If in doubt, keep the previous category — consistency is better than unnecessary switches.
+          - **Crisis/Self-Harm Handling**: If the request clearly implies self-harm or an immediate crisis, **you MUST select 'life_coach_psychology'** regardless of previous category.
+          - If the category is unclear and there is no previous category, select 'general_knowledge'.
+      13. **harmful_or_illegal** (follow-up only): Assess the likelihood that the request or its intent is harmful **to others**, illegal, unethical, or promotes hate speech, discrimination, violence, or non-consensual activities. **Self-harm or crisis situations should NOT contribute to this score; they are handled by category selection.**
           - Score from 0.0 (no harm to others/illegality) to 10.0 (extremely harmful to others/illegal). Requests >= 7.0 may be auto-rejected.
           - **Nuance for Harm Reduction**: Distinguish between requests for information aimed at harm reduction and requests for producing illegal items/substances. Harm reduction queries should generally receive a lower score than direct requests for illicit production/activity.
           - **Right to Repair & Device Ownership**: Jailbreaking, rooting, unlocking, or repairing owned devices should score 0.0-1.0 unless there's clear intent to harm others.
-      13. **misuse_risk** (follow-up only): Assess the likelihood that the request could be used to facilitate scams, hacking, or other malicious activities.
+      14. **misuse_risk** (follow-up only): Assess the likelihood that the request could be used to facilitate scams, hacking, or other malicious activities.
           - Score from 0 (very low risk) to 10 (very high risk). Consider intent.
-      14. **output_language** (follow-up only): Detect the ISO 639-1 two-letter language code of the user's core request/instruction (NOT quoted text, code, or data). Default to "en" if uncertain.
+      15. **output_language** (follow-up only): Detect the ISO 639-1 two-letter language code of the user's core request/instruction (NOT quoted text, code, or data). Default to "en" if uncertain.
     parameters:
       type: "object"
       properties:
@@ -238,6 +246,9 @@ preprocess_request_tool:
           items:
             type: "string"
           maxItems: 10
+        category:
+          type: "string"
+          description: "Most fitting category for the request, chosen from {CATEGORIES_LIST}. On follow-ups, default to the previous category ({PREVIOUS_CATEGORY}) unless the topic has CLEARLY changed to a fundamentally different area. Use 'life_coach_psychology' for crisis/self-harm, 'general_knowledge' only if no previous category and topic is unclear."
         harmful_or_illegal:
           type: "number"
           description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Device ownership activities (jailbreaking, rooting, right-to-repair) should score 0.0-1.0."
@@ -260,7 +271,7 @@ preprocess_request_tool:
         - "relevant_embedded_previews"
         - "chat_summary"
         - "chat_tags"
-        # harmful_or_illegal, misuse_risk, output_language are added to required by Python
+        # category, harmful_or_illegal, misuse_risk, output_language are added to required by Python
         # on follow-up messages (when is_first_message is False)
 
 base_ethics_instruction: |
