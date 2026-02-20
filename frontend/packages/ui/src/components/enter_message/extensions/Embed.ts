@@ -517,6 +517,21 @@ export const Embed = Node.create<EmbedOptions>({
       originalFile: { default: null, rendered: false },
       /** Number of pages in an uploaded PDF (set by insertPDF after upload completes) */
       pageCount: { default: null, rendered: false },
+
+      // -----------------------------------------------------------------------
+      // Recording-specific attributes
+      // Set by insertRecording() and _performRecordingUpload() in embedHandlers.ts.
+      // Used by RecordingRenderer.ts → RecordingEmbedPreview.svelte.
+      // rendered: false — ephemeral editor-session data, not serialized to HTML.
+      // -----------------------------------------------------------------------
+      /** Local blob URL for instant audio playback while uploading (editor context only) */
+      blobUrl: { default: null, rendered: false },
+      /** Transcribed text returned by Mistral Voxtral */
+      transcript: { default: null, rendered: false },
+      /** Formatted duration string (e.g. "0:42") */
+      duration: { default: null, rendered: false },
+      /** MIME type of the original recording (e.g. 'audio/webm') */
+      mimeType: { default: null, rendered: false },
     };
   },
 
