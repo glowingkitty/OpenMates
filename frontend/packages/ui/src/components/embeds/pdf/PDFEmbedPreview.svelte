@@ -46,6 +46,12 @@
     isMobile?: boolean;
     /** Called when the user clicks the stop button during upload */
     onStop?: () => void;
+    /**
+     * Called when the user clicks the embed card after it reaches 'finished' state.
+     * ActiveChat.svelte handles this by mounting PDFEmbedFullscreen.svelte.
+     * When absent, clicking is a no-op (e.g. during upload or on error).
+     */
+    onFullscreen?: () => void;
   }
 
   let {
@@ -56,6 +62,7 @@
     uploadError,
     isMobile = false,
     onStop,
+    onFullscreen,
   }: Props = $props();
 
   let status = $derived(statusProp);
@@ -149,6 +156,12 @@
 
   /** Show the stop button only during active upload (not during OCR processing) */
   let showStop = $derived(status === 'uploading' && !!onStop);
+
+  /**
+   * Only pass onFullscreen when status is 'finished' — clicking a processing
+   * or error card should not open the fullscreen viewer.
+   */
+  let handleFullscreen = $derived(status === 'finished' ? onFullscreen : undefined);
 </script>
 
 <UnifiedEmbedPreview
@@ -160,6 +173,7 @@
   {skillName}
   {isMobile}
   onStop={showStop ? onStop : undefined}
+  onFullscreen={handleFullscreen}
   showStatus={true}
   customStatusText={statusText}
   showSkillIcon={false}

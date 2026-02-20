@@ -24,27 +24,28 @@ transcribe:
 
 transcribe.description:
   context: Description shown below the skill name on voice recording embed card
-  en: Voice recording
-  de: Sprachaufnahme
-  zh: 语音录音
-  es: Grabación de voz
-  fr: Enregistrement vocal
-  pt: Gravação de voz
-  ru: Голосовая запись
-  ja: 音声録音
-  ko: 음성 녹음
-  it: Registrazione vocale
-  tr: Ses kaydı
-  vi: Ghi âm giọng nói
-  id: Rekaman suara
-  pl: Nagranie głosowe
-  nl: Geluidsopname
-  ar: تسجيل صوتي
-  hi: आवाज़ की रिकॉर्डिंग
-  th: บันทึกเสียง
-  cs: Hlasová nahrávka
-  sv: Röstinspelning
-  verified_by_human: []
+  en: Transcribed voice recording
+  de: Transkribierte Sprachaufnahme
+  zh: 已转录的语音录音
+  es: Grabación de voz transcrita
+  fr: Enregistrement vocal transcrit
+  pt: Gravação de voz transcrita
+  ru: Расшифрованная запись
+  ja: 文字起こしした音声録音
+  ko: 변환된 음성 녹음
+  it: Registrazione vocale trascritta
+  tr: Transkript edilmiş ses kaydı
+  vi: Ghi âm đã chuyển văn bản
+  id: Rekaman suara yang ditranskripsi
+  pl: Transkrybowane nagranie głosowe
+  nl: Getranscribeerde geluidsopname
+  ar: تسجيل صوتي مُحوَّل
+  hi: ट्रांसक्राइब की गई आवाज़
+  th: บันทึกเสียงที่ถอดเสียงแล้ว
+  cs: Přepsaná hlasová nahrávka
+  sv: Transkriberad röstinspelning
+  verified_by_human:
+    - en
 
 transcribe.uploading:
   context: Status shown on voice recording embed card while audio is uploading

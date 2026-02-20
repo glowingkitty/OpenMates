@@ -303,7 +303,7 @@ audio.description:
   de: Sprachnotizen aufnehmen und Transkripte erhalten.
   zh: 录制语音笔记并获取转录。
   es: Graba notas de voz y obtén transcripciones.
-  fr: Enregistrez des notes vocales et obtenez des transcriptions.
+  fr: "Enregistrez des notes vocales et transcrivez-les."
   pt: Grave notas de voz e obtenha transcrições.
   ru: Записывайте голосовые заметки и получайте расшифровки.
   ja: 音声メモを録音してテキストに変換します。
@@ -1685,7 +1685,7 @@ pdf.description:
   de: PDFs hochladen und deren Inhalt lesen oder durchsuchen.
   zh: 上传PDF并读取或搜索内容。
   es: Sube PDFs y lee o busca en su contenido.
-  fr: Téléversez des PDFs et lisez ou recherchez leur contenu.
+  fr: "T\u00e9l\u00e9versez des PDFs et lisez ou recherchez."
   pt: Carregue PDFs e leia ou pesquise o conteúdo.
   ru: Загружайте PDF и читайте или ищите их содержимое.
   ja: PDFをアップロードしてコンテンツを読んだり検索したりできます。

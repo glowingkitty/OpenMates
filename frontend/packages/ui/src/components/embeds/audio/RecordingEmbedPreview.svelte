@@ -23,12 +23,14 @@
      - Transcript shown as preview text once available.
 
   B) Read-only context (blobUrl absent, S3 data present — received/sent message):
-     - Audio is fetched and decrypted from S3 on demand.
+     - Audio is lazily fetched and decrypted from S3 (original variant key) using AES-256-GCM.
+     - Shows a skeleton while loading, then the audio player once decrypted.
      - Transcript shown from embed content.
-     - Fullscreen opens editable transcript view (for editor context only).
+     - Fullscreen available when status is 'finished'.
 
   Fullscreen: calls onFullscreen() → RecordingRenderer.ts fires 'recordingfullscreen'
-  CustomEvent → MessageInput.svelte / ActiveChat handles it.
+  CustomEvent → ActiveChat.svelte (via document listener or MessageInput relay) opens
+  RecordingEmbedFullscreen.svelte.
 
   Stop button: calls onStop() → RecordingRenderer.ts fires 'cancelrecordingupload'
   CustomEvent → Embed.ts node view listener calls cancelUpload(id) + deletes the node.
@@ -38,6 +40,7 @@
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
+  import { fetchAndDecryptAudio, releaseCachedAudio } from './audioEmbedCrypto';
 
   /** Max chars of transcript to show in the preview card before truncating */
   const MAX_TRANSCRIPT_PREVIEW = 120;
@@ -100,9 +103,18 @@
     onStop,
   }: Props = $props();
 
-  // Reference reserved props in a no-op to prevent ESLint from flagging them
-  // as unused. They are exposed for future read-only context use (S3 audio fetch).
-  void filename; void s3Files; void s3BaseUrl; void aesKey; void aesNonce;
+  // Reference filename in a no-op to prevent ESLint from flagging it as unused.
+  // It is passed through to the fullscreen event via RecordingRenderer.
+  void filename;
+
+  // --- Audio playback state ---
+
+  /** Resolved audio source: local blobUrl (editor) or decrypted S3 blob URL (read-only) */
+  let resolvedAudioSrc = $state<string | undefined>(blobUrl);
+  /** True while fetching + decrypting audio from S3 */
+  let isLoadingAudio = $state(false);
+  /** Error message if S3 fetch/decrypt fails */
+  let audioLoadError = $state<string | undefined>(undefined);
 
   // Audio element reference for the playback controls
   let audioEl: HTMLAudioElement | undefined = $state(undefined);
@@ -110,11 +122,15 @@
   let currentTime = $state(0);
   let totalDuration = $state(0);
 
-  // Cleanup: revoke the local blob URL on destroy to avoid memory leaks.
-  // (Only revoke blob: URLs — S3 URLs must not be revoked.)
+  // Track retained S3 cache key for cleanup on unmount
+  let retainedS3Key: string | undefined = undefined;
+
+  // Cleanup on unmount
   onDestroy(() => {
-    if (audioEl) {
-      audioEl.pause();
+    if (audioEl) audioEl.pause();
+    if (retainedS3Key) {
+      releaseCachedAudio(retainedS3Key);
+      retainedS3Key = undefined;
     }
   });
 
@@ -129,13 +145,69 @@
       : (status as 'processing' | 'finished' | 'error'),
   );
 
-  /** Whether we have a playable audio source */
-  let hasAudioSrc = $derived(!!blobUrl);
-
-  /** Whether fullscreen (transcript editing) is available */
-  let isFullscreenEnabled = $derived(
-    status === 'finished' && (!!transcript || !!blobUrl),
+  /**
+   * S3 key for the original audio file.
+   * Used to fetch audio in read-only context (no blobUrl).
+   */
+  let audioS3Key = $derived(
+    s3Files?.original?.s3_key ?? Object.values(s3Files ?? {})[0]?.s3_key,
   );
+
+  /**
+   * Whether we have a playable audio source (local blob or decrypted S3 URL).
+   */
+  let hasAudioSrc = $derived(!!resolvedAudioSrc);
+
+  /**
+   * Whether fullscreen is available:
+   * - status must be 'finished'
+   * - need either a transcript, a local blob, or S3 data to show something useful
+   */
+  let isFullscreenEnabled = $derived(
+    status === 'finished' && (!!transcript || !!blobUrl || !!audioS3Key),
+  );
+
+  /**
+   * Lazily fetch and decrypt audio from S3 when:
+   * - No local blobUrl (read-only / received message context)
+   * - S3 data is present: s3Files, s3BaseUrl, aesKey, aesNonce
+   * - Status is 'finished' (upload and transcription completed)
+   *
+   * Uses $effect so it re-runs if the S3 key or auth data changes.
+   */
+  $effect(() => {
+    // Already have a local blob URL — nothing to fetch
+    if (blobUrl) {
+      resolvedAudioSrc = blobUrl;
+      return;
+    }
+
+    // Not yet finished or missing required S3 data — skip
+    if (status !== 'finished') return;
+    if (!audioS3Key || !s3BaseUrl || !aesKey || !aesNonce) return;
+
+    // Avoid re-fetching if we already resolved this key
+    if (retainedS3Key === audioS3Key && resolvedAudioSrc) return;
+
+    isLoadingAudio = true;
+    audioLoadError = undefined;
+
+    // Determine MIME type from s3_key extension (webm is the primary recording format)
+    const ext = audioS3Key.split('.').pop()?.toLowerCase() ?? 'webm';
+    const mimeType = ext === 'mp4' ? 'audio/mp4' : ext === 'ogg' ? 'audio/ogg' : 'audio/webm';
+
+    fetchAndDecryptAudio(s3BaseUrl, audioS3Key, aesKey, aesNonce, mimeType)
+      .then((url) => {
+        resolvedAudioSrc = url;
+        retainedS3Key = audioS3Key;
+        isLoadingAudio = false;
+      })
+      .catch((err: unknown) => {
+        console.error('[RecordingEmbedPreview] Failed to fetch/decrypt audio from S3:', err);
+        audioLoadError = 'Audio unavailable';
+        isLoadingAudio = false;
+      });
+  });
 
   /** Whether to show the stop button */
   let showStop = $derived(hasAudioSrc && status === 'uploading' && !!onStop);
@@ -247,12 +319,12 @@
       {#if hasAudioSrc && status !== 'error'}
         <!--
           Audio player: compact waveform-style bar + play/pause button.
-          Uses the local blob URL in editor context.
-          Hidden audio element provides playback control.
+          In editor context: uses local blob URL directly.
+          In read-only context: uses decrypted S3 blob URL fetched by $effect above.
         -->
         <audio
           bind:this={audioEl}
-          src={blobUrl}
+          src={resolvedAudioSrc}
           onplay={handleAudioPlay}
           onpause={handleAudioPause}
           onended={handleAudioEnded}
@@ -325,7 +397,10 @@
         </div>
 
       {:else}
-        <!-- Skeleton: upload in progress or no blob URL (received message, read-only) -->
+        <!--
+          Skeleton: shown while uploading, transcribing, or while the S3 audio
+          is being fetched and decrypted in read-only context.
+        -->
         <div class="skeleton-content">
           <div class="skeleton-player-row">
             <div class="skeleton-circle"></div>
@@ -334,8 +409,13 @@
               <div class="skeleton-line short"></div>
             </div>
           </div>
-          {#if status === 'transcribing'}
+          {#if status === 'transcribing' || isLoadingAudio}
             <div class="skeleton-line medium"></div>
+          {:else if audioLoadError}
+            <p class="audio-load-error">{audioLoadError}</p>
+          {:else if transcriptPreview}
+            <!-- Show transcript even if audio couldn't be loaded -->
+            <p class="transcript-preview">{transcriptPreview}</p>
           {/if}
         </div>
       {/if}
@@ -511,6 +591,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* ---- Audio load error ---- */
+  .audio-load-error {
+    margin: 0;
+    font-size: 11px;
+    color: var(--color-grey-50, #888);
   }
 
   /* ---- Skeleton loading ---- */

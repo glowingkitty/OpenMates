@@ -126,7 +126,7 @@ skills:
       Use when the user asks about the visual layout, diagrams, charts, figures, or images
       on specific pages. Also useful when text OCR may have been imperfect (e.g. complex
       tables, mathematical notation, handwriting). Up to 5 pages can be viewed per call.
-    stage: planning # Hidden: embed display handler, not a user-callable skill
+    stage: development # Hidden from app store; LLM uses this for visual page analysis
     class_path: |
       backend.apps.pdf.skills.view_skill.ViewSkill
     api_config:

@@ -202,26 +202,26 @@ read:
 
 read.description:
   context: Description for the PDF read skill shown in skill selection UI (max 2 lines)
-  en: Read and extract text from specific pages of an uploaded PDF.
-  de: Text aus bestimmten Seiten eines hochgeladenen PDFs lesen und extrahieren.
-  zh: 从上传PDF的特定页面读取并提取文本。
-  es: Lee y extrae texto de páginas específicas de un PDF subido.
-  fr: Lisez et extrayez le texte de pages spécifiques d'un PDF téléversé.
-  pt: Leia e extraia texto de páginas específicas de um PDF carregado.
-  ru: Читать и извлекать текст из конкретных страниц загруженного PDF.
-  ja: アップロードされたPDFの特定のページからテキストを読み取り抽出します。
-  ko: 업로드된 PDF의 특정 페이지에서 텍스트를 읽고 추출합니다.
-  it: Leggi ed estrai testo da pagine specifiche di un PDF caricato.
-  tr: Yüklenen bir PDF'in belirli sayfalarından metin okuyun ve çıkarın.
-  vi: "\u0110\u1ecdc v\u00e0 tr\u00edch xu\u1ea5t v\u0103n b\u1ea3n t\u1eeb c\u00e1c trang c\u1ee5 th\u1ec3 c\u1ee7a PDF \u0111\u00e3 t\u1ea3i l\u00ean."
-  id: Baca dan ekstrak teks dari halaman tertentu PDF yang diunggah.
-  pl: "Odczytaj i wyodr\u0119bnij tekst z okre\u015blonych stron przes\u0142anego PDF."
-  nl: Lees en extraheer tekst van specifieke pagina's van een geüploade PDF.
-  ar: "\u0627\u0642\u0631\u0623 \u0648\u0627\u0633\u062a\u062e\u0631\u062c \u0627\u0644\u0646\u0635 \u0645\u0646 \u0635\u0641\u062d\u0627\u062a \u0645\u062d\u062f\u062f\u0629 \u0645\u0646 PDF \u0645\u0631\u0641\u0648\u0639."
-  hi: "\u0905\u092a\u0932\u094b\u0921 \u0915\u093f\u090f \u0917\u090f PDF \u0915\u0947 \u0935\u093f\u0936\u093f\u0937\u094d\u091f \u092a\u0943\u0937\u094d\u0920\u094b\u0902 \u0938\u0947 \u091f\u0947\u0915\u094d\u0938\u094d\u091f \u092a\u0922\u093c\u0947\u0902 \u0914\u0930 \u0928\u093f\u0915\u093e\u0932\u0947\u0902\u0964"
-  th: "\u0e2d\u0e48\u0e32\u0e19\u0e41\u0e25\u0e30\u0e14\u0e36\u0e07\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e08\u0e32\u0e01\u0e2b\u0e19\u0e49\u0e32\u0e17\u0e35\u0e48\u0e40\u0e09\u0e1e\u0e32\u0e30\u0e02\u0e2d\u0e07 PDF \u0e17\u0e35\u0e48\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14"
-  cs: "P\u0159e\u010dt\u011bte a extrahujte text z konkr\u00e9tn\u00edch str\u00e1nek nahr\u00e1van\u00e9ho PDF."
-  sv: "L\u00e4s och extrahera text fr\u00e5n specifika sidor i en uppladdad PDF."
+  en: Read text from specific pages of a PDF.
+  de: Text aus bestimmten Seiten eines PDFs lesen.
+  zh: 从PDF的特定页面读取文本。
+  es: Lee texto de páginas específicas de un PDF.
+  fr: Lire le texte de pages précises d'un PDF.
+  pt: Leia texto de páginas específicas de um PDF.
+  ru: Читать текст из конкретных страниц PDF.
+  ja: PDFの特定ページからテキストを読み取る。
+  ko: PDF의 특정 페이지에서 텍스트를 읽습니다.
+  it: Leggi testo da pagine specifiche di un PDF.
+  tr: PDF'in belirli sayfalarından metin okuyun.
+  vi: "\u0110\u1ecdc v\u0103n b\u1ea3n t\u1eeb c\u00e1c trang c\u1ee5 th\u1ec3 c\u1ee7a PDF."
+  id: Baca teks dari halaman tertentu PDF.
+  pl: "Odczytaj tekst z okre\u015blonych stron PDF."
+  nl: Lees tekst van specifieke pagina's van een PDF.
+  ar: "\u0627\u0642\u0631\u0623 \u0646\u0635\u0627\u064b \u0645\u0646 \u0635\u0641\u062d\u0627\u062a \u0645\u062d\u062f\u062f\u0629 \u0641\u064a PDF."
+  hi: "PDF \u0915\u0947 \u0935\u093f\u0936\u093f\u0937\u094d\u091f \u092a\u0943\u0937\u094d\u0920\u094b\u0902 \u0938\u0947 \u091f\u0947\u0915\u094d\u0938\u094d\u091f \u092a\u0922\u093c\u0947\u0902\u0964"
+  th: "\u0e2d\u0e48\u0e32\u0e19\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e08\u0e32\u0e01\u0e2b\u0e19\u0e49\u0e32\u0e17\u0e35\u0e48\u0e40\u0e09\u0e1e\u0e32\u0e30\u0e02\u0e2d\u0e07 PDF"
+  cs: "P\u0159e\u010dt\u011bte text z konkr\u00e9tn\u00edch str\u00e1nek PDF."
+  sv: "L\u00e4s text fr\u00e5n specifika sidor i en PDF."
   verified_by_human:
     - en
 
@@ -252,25 +252,25 @@ search:
 
 search.description:
   context: Description for the PDF search skill shown in skill selection UI (max 2 lines)
-  en: Search for keywords and phrases across all pages of an uploaded PDF.
-  de: Schlüsselwörter und Phrasen in allen Seiten eines hochgeladenen PDFs suchen.
-  zh: 在上传PDF的所有页面中搜索关键词和短语。
-  es: Busca palabras clave y frases en todas las páginas de un PDF subido.
-  fr: Recherchez des mots-clés dans toutes les pages d'un PDF téléversé.
-  pt: Pesquise palavras-chave em todas as páginas de um PDF carregado.
-  ru: Поиск ключевых слов и фраз на всех страницах загруженного PDF.
-  ja: アップロードされたPDFのすべてのページでキーワードと語句を検索します。
-  ko: 업로드된 PDF의 모든 페이지에서 키워드와 구문을 검색합니다.
-  it: Cerca parole chiave e frasi in tutte le pagine di un PDF caricato.
-  tr: Yüklenen bir PDF'in tüm sayfalarında anahtar kelimeler arayın.
-  vi: "T\u00ecm ki\u1ebfm t\u1eeb kh\u00f3a v\u00e0 c\u1ee5m t\u1eeb tr\u00ean t\u1ea5t c\u1ea3 c\u00e1c trang c\u1ee7a PDF \u0111\u00e3 t\u1ea3i l\u00ean."
-  id: Cari kata kunci di semua halaman PDF yang diunggah.
-  pl: "Szukaj s\u0142\u00f3w kluczowych we wszystkich stronach przes\u0142anego PDF."
-  nl: Zoek naar trefwoorden in alle pagina's van een geüploade PDF.
-  ar: "\u0627\u0628\u062d\u062b \u0639\u0646 \u0643\u0644\u0645\u0627\u062a \u0631\u0626\u064a\u0633\u064a\u0629 \u0639\u0628\u0631 \u062c\u0645\u064a\u0639 \u0635\u0641\u062d\u0627\u062a PDF \u0627\u0644\u0645\u0631\u0641\u0648\u0639."
-  hi: "\u0905\u092a\u0932\u094b\u0621 \u0915\u093f\u090f \u0917\u090f PDF \u0915\u0947 \u0938\u092d\u0940 \u092a\u0943\u0937\u094d\u0920\u094b\u0902 \u092e\u0947\u0902 \u0915\u0940\u0935\u0930\u094d\u0921 \u0916\u094b\u091c\u0947\u0902\u0964"
-  th: "\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e04\u0e33\u0e2a\u0e33\u0e04\u0e31\u0e0d\u0e43\u0e19\u0e17\u0e38\u0e01\u0e2b\u0e19\u0e49\u0e32\u0e02\u0e2d\u0e07 PDF \u0e17\u0e35\u0e48\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14"
-  cs: "Hledejte kl\u00ed\u010dov\u00e1 slova ve v\u0161ech str\u00e1nk\u00e1ch nahr\u00e1van\u00e9ho PDF."
-  sv: "S\u00f6k efter nyckelord i alla sidor av en uppladdad PDF."
+  en: Search for keywords across all pages of a PDF.
+  de: "Schl\u00fcsselw\u00f6rter in allen Seiten eines PDFs suchen."
+  zh: 在PDF的所有页面中搜索关键词。
+  es: Busca palabras clave en todas las páginas de un PDF.
+  fr: "Rechercher des mots-cl\u00e9s dans toutes les pages d'un PDF."
+  pt: Pesquise palavras-chave em todas as páginas de um PDF.
+  ru: Поиск ключевых слов на всех страницах PDF.
+  ja: PDFの全ページでキーワードを検索します。
+  ko: PDF의 모든 페이지에서 키워드를 검색합니다.
+  it: Cerca parole chiave in tutte le pagine di un PDF.
+  tr: "PDF'in t\u00fcm sayfalar\u0131nda anahtar kelimeler aray\u0131n."
+  vi: "T\u00ecm ki\u1ebfm t\u1eeb kh\u00f3a tr\u00ean t\u1ea5t c\u1ea3 c\u00e1c trang c\u1ee7a PDF."
+  id: Cari kata kunci di semua halaman PDF.
+  pl: "Szukaj s\u0142\u00f3w kluczowych na wszystkich stronach PDF."
+  nl: "Zoek naar trefwoorden in alle pagina's van een PDF."
+  ar: "\u0627\u0628\u062d\u062b \u0639\u0646 \u0643\u0644\u0645\u0627\u062a \u0631\u0626\u064a\u0633\u064a\u0629 \u0641\u064a \u062c\u0645\u064a\u0639 \u0635\u0641\u062d\u0627\u062a PDF."
+  hi: "PDF \u0915\u0947 \u0938\u092d\u0940 \u092a\u0943\u0937\u094d\u0920\u094b\u0902 \u092e\u0947\u0902 \u0915\u0940\u0935\u0930\u094d\u0921 \u0916\u094b\u091c\u0947\u0902\u0964"
+  th: "\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e04\u0e33\u0e2a\u0e33\u0e04\u0e31\u0e0d\u0e43\u0e19\u0e17\u0e38\u0e01\u0e2b\u0e19\u0e49\u0e32\u0e02\u0e2d\u0e07 PDF"
+  cs: "Hledejte kl\u00ed\u010dov\u00e1 slova ve v\u0161ech str\u00e1nk\u00e1ch PDF."
+  sv: "S\u00f6k efter nyckelord i alla sidor av en PDF."
   verified_by_human:
     - en

@@ -38,6 +38,8 @@
     import TravelStaysEmbedFullscreen from './embeds/travel/TravelStaysEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import UploadedImageFullscreen from './embeds/images/UploadedImageFullscreen.svelte';
+    import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
+    import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
     import { userProfile } from '../stores/userProfile';
     import { 
@@ -465,6 +467,24 @@
         lineCount: 0
     });
 
+    // PDF embed fullscreen — triggered by clicking a finished PDF embed (editor or read-only)
+    let showPdfEmbedFullscreen = $state(false);
+    let pdfFullscreenData = $state<{ filename?: string; pageCount?: number }>({});
+
+    // Recording embed fullscreen — triggered by clicking a finished voice recording embed
+    let showRecordingFullscreen = $state(false);
+    let recordingFullscreenData = $state<{
+        transcript?: string;
+        blobUrl?: string;
+        filename?: string;
+        duration?: string;
+        s3Files?: Record<string, { s3_key: string; size_bytes: number }>;
+        s3BaseUrl?: string;
+        aesKey?: string;
+        aesNonce?: string;
+        embedId?: string;
+    }>({});
+
     // Uploaded image fullscreen — triggered by clicking an in-editor upload embed
     let showUploadedImageFullscreen = $state(false);
     let uploadedImageFullscreenData = $state<{
@@ -774,6 +794,20 @@
         showCodeFullscreen = true;
     }
 
+    function handlePdfFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received pdffullscreen event:', event.detail);
+        pdfFullscreenData = {
+            filename: event.detail.filename,
+            pageCount: event.detail.pageCount,
+        };
+        showPdfEmbedFullscreen = true;
+    }
+
+    function handleClosePdfFullscreen() {
+        showPdfEmbedFullscreen = false;
+        pdfFullscreenData = {};
+    }
+
     function handleImageFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received imagefullscreen event:', event.detail);
         uploadedImageFullscreenData = {
@@ -793,6 +827,27 @@
     function handleCloseUploadedImageFullscreen() {
         showUploadedImageFullscreen = false;
         uploadedImageFullscreenData = {};
+    }
+
+    function handleRecordingFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received recordingfullscreen event:', event.detail);
+        recordingFullscreenData = {
+            transcript: event.detail.transcript,
+            blobUrl: event.detail.blobUrl,
+            filename: event.detail.filename,
+            duration: event.detail.duration,
+            s3Files: event.detail.s3Files,
+            s3BaseUrl: event.detail.s3BaseUrl,
+            aesKey: event.detail.aesKey,
+            aesNonce: event.detail.aesNonce,
+            embedId: event.detail.embedId,
+        };
+        showRecordingFullscreen = true;
+    }
+
+    function handleCloseRecordingFullscreen() {
+        showRecordingFullscreen = false;
+        recordingFullscreenData = {};
     }
 
     // Normalize embed result arrays for fullscreen components with strict prop types.
@@ -3645,6 +3700,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleStartChatFromInspiration(inspiration: DailyInspiration) {
         console.info('[ActiveChat] Starting chat from daily inspiration:', inspiration.inspiration_id);
 
+        // Unauthenticated users: open the login interface instead of creating a chat.
+        // The same pattern used by the message-input signup button (handleOpenLoginInterface).
+        if (!$authStore.isAuthenticated) {
+            console.debug('[ActiveChat] Guest clicked inspiration banner – opening login interface');
+            loginInterfaceOpen.set(true);
+            if ($panelState.isActivityHistoryOpen) {
+                panelState.toggleChats();
+            }
+            return;
+        }
+
         try {
             const { generateChatKey, encryptWithChatKey } = await import('../services/cryptoService');
 
@@ -4940,11 +5006,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
         window.addEventListener('openSignupInterface', handleOpenSignupInterface);
         
-        // Add event listener for embed fullscreen events
+        // Add event listener for embed fullscreen events (app-skill-use, code, video, etc.)
+        // This fires via document.dispatchEvent so it works from both editor and read-only messages.
         const embedFullscreenHandler = (event: CustomEvent) => {
             handleEmbedFullscreen(event);
         };
         document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
+
+        // Add document-level listeners for image/PDF/recording fullscreen events.
+        // These events bubble from TipTap node views (both editor and read-only messages).
+        // The Svelte on:imagefullscreen / on:pdffullscreen / on:recordingfullscreen directives
+        // on <MessageInput> only relay events from the editor context; the document listeners
+        // here catch the same events when they originate from read-only chat messages.
+        const imagefullscreenHandler = (event: Event) => {
+            handleImageFullscreen(event as CustomEvent);
+        };
+        const pdffullscreenHandler = (event: Event) => {
+            handlePdfFullscreen(event as CustomEvent);
+        };
+        const recordingfullscreenHandler = (event: Event) => {
+            handleRecordingFullscreen(event as CustomEvent);
+        };
+        document.addEventListener('imagefullscreen', imagefullscreenHandler);
+        document.addEventListener('pdffullscreen', pdffullscreenHandler);
+        document.addEventListener('recordingfullscreen', recordingfullscreenHandler);
         
         // --- Focus mode event listeners ---
         // Handle focus mode rejection (user clicked during countdown to cancel activation)
@@ -6022,6 +6107,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Remove embed and video PiP fullscreen listeners
             document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
             document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListenerCallback);
+            // Remove image/PDF/recording fullscreen document listeners
+            document.removeEventListener('imagefullscreen', imagefullscreenHandler);
+            document.removeEventListener('pdffullscreen', pdffullscreenHandler);
+            document.removeEventListener('recordingfullscreen', recordingfullscreenHandler);
             // Remove focus mode event listeners
             document.removeEventListener('focusModeRejected', focusModeRejectedHandler as EventListenerCallback);
             document.removeEventListener('focusModeDeactivated', focusModeDeactivatedHandler as EventListenerCallback);
@@ -6205,8 +6294,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                     <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
                     <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
-                    <!-- Only shown to authenticated users; store is empty for guests -->
-                    {#if showWelcome && !hideWelcomeForKeyboard && $authStore.isAuthenticated}
+                    <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
+                    {#if showWelcome && !hideWelcomeForKeyboard}
                         <DailyInspirationBanner onStartChat={handleStartChatFromInspiration} />
                     {/if}
 
@@ -6415,6 +6504,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 showActionButtons={showActionButtons}
                                 on:codefullscreen={handleCodeFullscreen}
                                 on:imagefullscreen={handleImageFullscreen}
+                                on:pdffullscreen={handlePdfFullscreen}
+                                on:recordingfullscreen={handleRecordingFullscreen}
                                 on:sendMessage={handleSendMessage}
                                 on:heightchange={handleInputHeightChange}
                                 on:draftSaved={handleDraftSaved}
@@ -6459,6 +6550,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     fileSize={uploadedImageFullscreenData.fileSize}
                     fileType={uploadedImageFullscreenData.fileType}
                     onClose={handleCloseUploadedImageFullscreen}
+                />
+            {/if}
+
+            {#if showPdfEmbedFullscreen}
+                <PDFEmbedFullscreen
+                    filename={pdfFullscreenData.filename}
+                    pageCount={pdfFullscreenData.pageCount}
+                    onClose={handleClosePdfFullscreen}
+                />
+            {/if}
+
+            {#if showRecordingFullscreen}
+                <RecordingEmbedFullscreen
+                    transcript={recordingFullscreenData.transcript}
+                    blobUrl={recordingFullscreenData.blobUrl}
+                    filename={recordingFullscreenData.filename}
+                    duration={recordingFullscreenData.duration}
+                    s3Files={recordingFullscreenData.s3Files}
+                    s3BaseUrl={recordingFullscreenData.s3BaseUrl}
+                    aesKey={recordingFullscreenData.aesKey}
+                    aesNonce={recordingFullscreenData.aesNonce}
+                    embedId={recordingFullscreenData.embedId}
+                    onClose={handleCloseRecordingFullscreen}
                 />
             {/if}
             

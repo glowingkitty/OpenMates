@@ -157,8 +157,7 @@
 }
 
 .message-field.recording-active {
-  /* Adjust padding when recording is active to accommodate RecordAudio component */
-  padding-bottom: 120px;
+  /* RecordAudio now uses an absolute inset overlay — no extra padding needed */
 }
 
 /* Scrollable area */

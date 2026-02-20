@@ -1925,6 +1925,8 @@
         editorElement?.addEventListener('keydown', handleKeyDown);
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         editorElement?.addEventListener('imagefullscreen', handleImageFullscreen as EventListener);
+        editorElement?.addEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
+        editorElement?.addEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.addEventListener('click', handleEditorClick); // For PII click handling
         // Listen for stop-button upload cancellations from image embeds.
         // This event is dispatched by Embed.ts after the embed node is deleted so
@@ -2011,6 +2013,8 @@
         editorElement?.removeEventListener('keydown', handleKeyDown);
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         editorElement?.removeEventListener('imagefullscreen', handleImageFullscreen as EventListener);
+        editorElement?.removeEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
+        editorElement?.removeEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.removeEventListener('click', handleEditorClick);
         editorElement?.removeEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
@@ -2309,6 +2313,8 @@
     }
     function handleCodeFullscreen(event: CustomEvent) { dispatch('codefullscreen', event.detail); }
     function handleImageFullscreen(event: CustomEvent) { dispatch('imagefullscreen', event.detail); }
+    function handlePdfFullscreen(event: CustomEvent) { dispatch('pdffullscreen', event.detail); }
+    function handleRecordingFullscreen(event: CustomEvent) { dispatch('recordingfullscreen', event.detail); }
     function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }
     function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushSaveDraft(); }
     function handleResize() { checkScrollable(); updateHeight(); }
@@ -2682,19 +2688,25 @@
     function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
         handleRecordMouseDownLogic(event.detail.originalEvent);
     }
-    function onRecordMouseUp(event: CustomEvent<{ originalEvent: MouseEvent }>) {
-        // Pass the component ref to the logic handler
+    async function onRecordMouseUp(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        // Wait for Svelte to render RecordAudio (bind:this is set after the #if block mounts).
+        // If the user releases exactly when the 200ms hold timer fires, showRecordAudioUI
+        // becomes true but the DOM update hasn't committed yet, so recordAudioComponent is
+        // still undefined. tick() ensures the component ref is available before we call stop().
+        await tick();
         handleRecordMouseUpLogic(recordAudioComponent);
     }
-    function onRecordMouseLeave(event: CustomEvent<{ originalEvent: MouseEvent }>) {
-        // Pass the component ref to the logic handler
+    async function onRecordMouseLeave(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        // Same tick() reasoning as onRecordMouseUp — component ref may not be set yet.
+        await tick();
         handleRecordMouseLeaveLogic(recordAudioComponent);
     }
     function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
         handleRecordTouchStartLogic(event.detail.originalEvent);
     }
-    function onRecordTouchEnd(event: CustomEvent<{ originalEvent: TouchEvent }>) {
-        // Pass the component ref to the logic handler
+    async function onRecordTouchEnd(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+        // Same tick() reasoning as onRecordMouseUp.
+        await tick();
         handleRecordTouchEndLogic(recordAudioComponent);
     }
 
@@ -2940,6 +2952,7 @@
                     showSendButton={hasContent}
                     isAuthenticated={$authStore.isAuthenticated}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
+                    micPermissionState={$recordingState.micPermissionState}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}

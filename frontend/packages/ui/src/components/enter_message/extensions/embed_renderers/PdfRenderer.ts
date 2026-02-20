@@ -10,6 +10,10 @@
 //   onStop() → fires 'cancelpdfupload' CustomEvent (bubbles) on the content element
 //   → Embed.ts node view listener calls cancelUpload(id) + deletes the node.
 //
+// Fullscreen (status 'finished' only):
+//   onFullscreen() → fires 'pdffullscreen' CustomEvent (bubbles) on the content element
+//   → MessageInput.svelte re-dispatches → ActiveChat.svelte mounts PDFEmbedFullscreen.
+//
 // Lifecycle:
 //   1. User drops/selects PDF → insertPDF() inserts node with status:'uploading'
 //   2. Server upload completes → _performPdfUpload() sets status:'processing' + metadata
@@ -74,6 +78,26 @@ export class PdfRenderer implements EmbedRenderer {
         );
       };
 
+      // Fullscreen handler: fires a bubbling event so MessageInput.svelte
+      // can re-dispatch it to ActiveChat.svelte, which mounts PDFEmbedFullscreen.
+      // Only wired when status is 'finished' (PDFEmbedPreview guards this too,
+      // but we skip creating the handler entirely for clarity).
+      const handleFullscreen =
+        attrs.status === "finished"
+          ? () => {
+              content.dispatchEvent(
+                new CustomEvent("pdffullscreen", {
+                  bubbles: true,
+                  composed: true,
+                  detail: {
+                    filename: attrs.filename,
+                    pageCount: attrs.pageCount ?? null,
+                  },
+                }),
+              );
+            }
+          : undefined;
+
       const component = mount(PDFEmbedPreview, {
         target: content,
         props: {
@@ -88,6 +112,7 @@ export class PdfRenderer implements EmbedRenderer {
           uploadError: attrs.uploadError ?? undefined,
           isMobile: false,
           onStop: handleStop,
+          onFullscreen: handleFullscreen,
         },
       });
 
