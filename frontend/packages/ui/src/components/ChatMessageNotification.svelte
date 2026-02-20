@@ -74,13 +74,17 @@
     }
     
     /**
-     * Handle clicking on notification content to navigate to chat
+     * Handle clicking on notification content to navigate to chat.
+     * Adds scroll=latest-response so the chat opens scrolled to the top of the
+     * new assistant message rather than the bottom, letting the user read from
+     * the beginning of the reply.
      */
     function handleNotificationClick(): void {
         handleNotificationInteraction();
         if (notification.chatId) {
-            // Navigate to the chat using the correct hash format: #chat-id={chatId}
-            window.location.hash = `chat-id=${notification.chatId}`;
+            // Navigate to the chat with scroll=latest-response so loadChat positions
+            // the view at the top of the new assistant message (not the bottom).
+            window.location.hash = `chat-id=${notification.chatId}&scroll=latest-response`;
             handleDismiss();
         }
     }

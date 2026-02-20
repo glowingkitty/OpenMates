@@ -116,6 +116,7 @@
         scrollToTop: () => void;
         scrollToBottom: (smooth?: boolean) => void;
         restoreScrollPosition: (messageId: string) => void;
+        scrollToLatestAssistantMessage: () => void;
     };
 
     type MessageInputFieldRef = {
@@ -2196,8 +2197,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 lines.push(providerLine);
             }
 
-            processingPhase = { phase: 'typing', statusLines: lines, showIcon: true };
-            console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length });
+            // Carry forward completedSteps from the processing phase so the step cards
+            // (chat title, selected mate, selected model) remain visible during the typing phase.
+            // They only disappear when the overlay clears (first streaming chunk + min display time).
+            const carrySteps = processingPhase?.phase === 'processing'
+                ? processingPhase.completedSteps
+                : (processingPhase?.phase === 'typing' ? processingPhase.completedSteps : []);
+            processingPhase = { phase: 'typing', statusLines: lines, showIcon: true, completedSteps: carrySteps };
+            console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length, completedSteps: carrySteps.length });
         }
     }
 
@@ -4143,7 +4150,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     // Update the loadChat function
-    export async function loadChat(chat: Chat) {
+    export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean }) {
         // Clear any active processing phase indicator from the previous chat
         clearProcessingPhase();
         
@@ -4264,6 +4271,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Reset scroll position tracking for new chat
         lastSavedMessageId = null;
+        
+        // CRITICAL: Reset thinking state when switching chats.
+        // If the user navigated away while a thinking stream was in progress for this chat,
+        // the thinkingContentByTask map still holds the stale entry with isStreaming=true.
+        // handleAiThinkingComplete is ignored for background chats (different chat_id), so
+        // without this reset the thinking block keeps showing "Thinking..." indefinitely.
+        // The thinking content is persisted to IndexedDB by chatSyncServiceHandlersAI and
+        // will be loaded via msg.original_message?.thinking_content with isStreaming=false.
+        thinkingContentByTask = new Map();
         
         let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
@@ -4536,9 +4552,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     return;
                 }
                 
+                // When coming from a background-chat notification, scroll to the top of the
+                // latest assistant message so the user can read the reply from the beginning.
+                if (options?.scrollToLatestResponse) {
+                    chatHistoryRef.scrollToLatestAssistantMessage();
+                    console.debug('[ActiveChat] Notification navigation - scrolled to top of latest assistant message');
+                    setTimeout(() => {
+                        isAtBottom = false;
+                        console.debug('[ActiveChat] Set isAtBottom=false after scrolling to latest assistant message');
+                    }, 200);
                 // For public chats (demo + legal), always scroll to top (user hasn't read them yet)
                 // Also scroll to top for shared chats on non-authenticated devices (they can't reuse scroll position)
-                if (isPublicChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
+                } else if (isPublicChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
                     chatHistoryRef.scrollToTop();
                     console.debug(`[ActiveChat] ${isPublicChat(currentChat.chat_id) ? 'Public chat' : 'Shared chat on non-authenticated device'} - scrolled to top (unread)`);
                     // After scrolling to top, explicitly set isAtBottom to false
@@ -7536,11 +7561,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: 6px 12px 4px;
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
-           Uses the page background color (--color-grey-0) fading from transparent at the top. */
+           Uses the active chat background color (--color-grey-20) fading from transparent at the top
+           to match the chat area background seamlessly. */
         background: linear-gradient(
             to bottom,
             transparent 0%,
-            var(--color-grey-0, #fff) 40%
+            var(--color-grey-20) 40%
         );
         position: relative;
         z-index: 1;

@@ -1004,6 +1004,45 @@
     }
   }
 
+  /**
+   * Scroll to the top of the last assistant message so the user can read the
+   * response from the beginning. Used when navigating from a background-chat
+   * notification where the user hasn't seen the reply yet.
+   *
+   * Shows a small sliver of the preceding user message (≈40px) so context is
+   * clear, then the assistant message starts at the top of the visible area.
+   * Falls back to scrollToBottom() if no assistant message is found.
+   */
+  export function scrollToLatestAssistantMessage() {
+    if (!container) {
+      console.warn("[ChatHistory] Container not found for scrollToLatestAssistantMessage");
+      return;
+    }
+
+    const attemptScroll = (attempts = 0) => {
+      // Find all assistant message wrapper elements by their CSS class
+      // (ChatHistory renders assistant messages with class "message-wrapper assistant")
+      const assistantMessages = container.querySelectorAll('.message-wrapper.assistant');
+      const lastAssistant = assistantMessages[assistantMessages.length - 1] as HTMLElement | undefined;
+
+      if (lastAssistant) {
+        // Scroll so the top of the assistant message is ~40px from the top of the
+        // container – showing a thin sliver of the user message above for context.
+        const scrollPosition = Math.max(0, lastAssistant.offsetTop - 40);
+        container.scrollTo({ top: scrollPosition, behavior: 'auto' });
+        console.debug(`[ChatHistory] Scrolled to top of latest assistant message (offsetTop=${lastAssistant.offsetTop})`);
+      } else if (attempts < 15) {
+        // Messages may not be in the DOM yet – retry after a short delay
+        setTimeout(() => attemptScroll(attempts + 1), 50);
+      } else {
+        console.warn("[ChatHistory] No assistant message found after retries – falling back to scrollToBottom");
+        scrollToBottom();
+      }
+    };
+
+    requestAnimationFrame(() => attemptScroll());
+  }
+
   // Scroll position tracking for cross-device sync
   let scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let isRestoringScroll = false;
@@ -1349,11 +1388,12 @@
 {#if showCenteredIndicator && processingPhase}
     <div class="ai-processing-overlay" transition:fade={{ duration: 200 }}>
         <div class="ai-status-indicator">
-            <!-- Accumulated preprocessing step cards: shown during the 'processing' phase.
+            <!-- Accumulated preprocessing step cards: shown during 'processing' and 'typing' phases.
                  Cards appear above the spinner as each step is completed by the backend.
+                 They persist through the typing phase so users can read them until streaming starts.
                  Skipped steps (skipped=true) are never added here.
                  Each card uses a CSS stagger delay for a visual cascade effect. -->
-            {#if processingPhase.phase === 'processing' && processingPhase.completedSteps.length > 0}
+            {#if (processingPhase.phase === 'processing' || processingPhase.phase === 'typing') && processingPhase.completedSteps.length > 0}
                 <div class="preprocessing-steps-list">
                     {#each processingPhase.completedSteps as step, idx (step.step)}
                         <div

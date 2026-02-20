@@ -124,9 +124,13 @@
 	 * Supports both user chats (from IndexedDB) and demo/legal chats (from static data)
 	 * After loading, immediately clears the URL to prevent sharing chat history
 	 */
-	async function handleChatDeepLink(chatId: string, messageId?: string | null) {
+	async function handleChatDeepLink(
+		chatId: string,
+		messageId?: string | null,
+		scrollToLatestResponse?: boolean
+	) {
 		console.debug(
-			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}`
+			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}${scrollToLatestResponse ? ' (scroll to latest response)' : ''}`
 		);
 
 		// If messageId is provided, set it in the highlight store
@@ -176,7 +180,7 @@
 					const translatedChat = translateDemoChat(publicChat);
 					const chat = convertDemoChatToChat(translatedChat);
 
-					activeChat.loadChat(chat);
+					activeChat.loadChat(chat, { scrollToLatestResponse });
 
 					// Dispatch globalChatSelected event so Chats.svelte highlights the chat
 					const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -238,7 +242,7 @@
 
 				const loadSessionStorageChat = async (retries = 20): Promise<void> => {
 					if (activeChat) {
-						activeChat.loadChat(virtualChat);
+						activeChat.loadChat(virtualChat, { scrollToLatestResponse });
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
 						const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -279,7 +283,7 @@
 
 					// Load the chat if activeChat component is ready
 					if (activeChat) {
-						activeChat.loadChat(chat);
+						activeChat.loadChat(chat, { scrollToLatestResponse });
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
 						const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {

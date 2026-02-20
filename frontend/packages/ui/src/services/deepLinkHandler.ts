@@ -1,6 +1,6 @@
 /**
  * Unified Deep Link Handler
- * 
+ *
  * Centralizes all deep link processing to avoid collisions and ensure consistent behavior.
  * Handles all URL hash-based deep links:
  * - #chat-id={id} / #chat-id={id} - Chat deep links
@@ -9,168 +9,192 @@
  * - #embed-id={id} / #embed_id={id} - Embed deep links
  */
 
-import { replaceState } from '$app/navigation';
+import { replaceState } from "$app/navigation";
 
-export type DeepLinkType = 
-    | 'chat'
-    | 'settings'
-    | 'signup'
-    | 'embed'
-    | 'unknown';
+export type DeepLinkType = "chat" | "settings" | "signup" | "embed" | "unknown";
 
 export interface DeepLinkResult {
-    type: DeepLinkType;
-    processed: boolean;
-    requiresAuth?: boolean;
-    data?: any;
+  type: DeepLinkType;
+  processed: boolean;
+  requiresAuth?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data?: any;
 }
 
 export interface DeepLinkHandlers {
-    onChat?: (chatId: string, messageId?: string | null) => Promise<void>;
-    onSettings?: (path: string, hash: string) => void;
-    onSignup?: (step: string) => void;
-    onEmbed?: (embedId: string) => Promise<void>;
-    onNoHash?: () => Promise<void>; // Handler for when no hash is present
-    requiresAuthentication?: (settingsPath: string) => boolean;
-    isAuthenticated?: () => boolean;
-    openSettings?: () => void;
-    openLogin?: () => void;
-    setSettingsDeepLink?: (path: string) => void;
+  onChat?: (
+    chatId: string,
+    messageId?: string | null,
+    scrollToLatestResponse?: boolean,
+  ) => Promise<void>;
+  onSettings?: (path: string, hash: string) => void;
+  onSignup?: (step: string) => void;
+  onEmbed?: (embedId: string) => Promise<void>;
+  onNoHash?: () => Promise<void>; // Handler for when no hash is present
+  requiresAuthentication?: (settingsPath: string) => boolean;
+  isAuthenticated?: () => boolean;
+  openSettings?: () => void;
+  openLogin?: () => void;
+  setSettingsDeepLink?: (path: string) => void;
 }
 
 /**
  * Parse a hash string to extract deep link information
  */
-export function parseDeepLink(hash: string): { type: DeepLinkType; data: any } | null {
-    if (!hash || !hash.startsWith('#')) {
-        return null;
-    }
+export function parseDeepLink(
+  hash: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): { type: DeepLinkType; data: any } | null {
+  if (!hash || !hash.startsWith("#")) {
+    return null;
+  }
 
-    // Chat deep links: #chat-id={id} or #chat-id={id} or #chatid={id}
-    // Also support / prefix (e.g. /#chatid=...)
-    const normalizedHash = hash.startsWith('#/') ? '#' + hash.substring(2) : hash;
-    const chatMatch = normalizedHash.match(/^#chat[-_]?id=([^&]+)(?:&message[-_]?id=(.+))?$/);
-    if (chatMatch) {
-        return {
-            type: 'chat',
-            data: { 
-                chatId: chatMatch[1],
-                messageId: chatMatch[2] || null
-            }
-        };
-    }
+  // Chat deep links: #chat-id={id} or #chat-id={id} or #chatid={id}
+  // Also support / prefix (e.g. /#chatid=...)
+  // Optional params: &message-id={id}  &scroll=latest-response
+  const normalizedHash = hash.startsWith("#/") ? "#" + hash.substring(2) : hash;
+  const chatMatch = normalizedHash.match(
+    /^#chat[-_]?id=([^&]+)((?:&[^=]+=.[^&]*)*)$/,
+  );
+  if (chatMatch) {
+    const chatId = chatMatch[1];
+    const extraParams = chatMatch[2] || "";
+    // Extract optional message-id param
+    const messageIdMatch = extraParams.match(/&message[-_]?id=([^&]+)/);
+    const messageId = messageIdMatch ? messageIdMatch[1] : null;
+    // Extract optional scroll param — 'latest-response' means scroll to top of newest assistant message
+    const scrollMatch = extraParams.match(/&scroll=([^&]+)/);
+    const scrollToLatestResponse = scrollMatch
+      ? scrollMatch[1] === "latest-response"
+      : false;
+    return {
+      type: "chat",
+      data: {
+        chatId,
+        messageId,
+        scrollToLatestResponse,
+      },
+    };
+  }
 
-    // Settings deep links: #settings/{path}
-    if (normalizedHash.startsWith('#settings')) {
-        const settingsPath = normalizedHash.substring('#settings'.length);
-        return {
-            type: 'settings',
-            data: { path: settingsPath, fullHash: normalizedHash }
-        };
-    }
+  // Settings deep links: #settings/{path}
+  if (normalizedHash.startsWith("#settings")) {
+    const settingsPath = normalizedHash.substring("#settings".length);
+    return {
+      type: "settings",
+      data: { path: settingsPath, fullHash: normalizedHash },
+    };
+  }
 
-    // Signup deep links: #signup/{step}
-    if (hash.startsWith('#signup/')) {
-        const step = hash.substring('#signup/'.length);
-        return {
-            type: 'signup',
-            data: { step }
-        };
-    }
+  // Signup deep links: #signup/{step}
+  if (hash.startsWith("#signup/")) {
+    const step = hash.substring("#signup/".length);
+    return {
+      type: "signup",
+      data: { step },
+    };
+  }
 
-    // Embed deep links: #embed-id={id} or #embed_id={id}
-    const embedMatch = hash.match(/^#embed[-_]id=(.+)$/);
-    if (embedMatch) {
-        const embedId = embedMatch[1].split('&')[0].split('?')[0]; // Remove query params
-        return {
-            type: 'embed',
-            data: { embedId }
-        };
-    }
+  // Embed deep links: #embed-id={id} or #embed_id={id}
+  const embedMatch = hash.match(/^#embed[-_]id=(.+)$/);
+  if (embedMatch) {
+    const embedId = embedMatch[1].split("&")[0].split("?")[0]; // Remove query params
+    return {
+      type: "embed",
+      data: { embedId },
+    };
+  }
 
-    return { type: 'unknown', data: null };
+  return { type: "unknown", data: null };
 }
 
 /**
  * Process a deep link with the provided handlers
  */
 export async function processDeepLink(
-    hash: string,
-    handlers: DeepLinkHandlers
+  hash: string,
+  handlers: DeepLinkHandlers,
 ): Promise<DeepLinkResult> {
-    // Handle empty/no hash case
-    if (!hash || hash === '#') {
-        if (handlers.onNoHash) {
-            await handlers.onNoHash();
-            return { type: 'unknown', processed: true }; // Successfully processed "no hash" case
+  // Handle empty/no hash case
+  if (!hash || hash === "#") {
+    if (handlers.onNoHash) {
+      await handlers.onNoHash();
+      return { type: "unknown", processed: true }; // Successfully processed "no hash" case
+    }
+    return { type: "unknown", processed: false };
+  }
+
+  const parsed = parseDeepLink(hash);
+
+  if (!parsed) {
+    // Still try onNoHash if hash exists but is unknown format
+    if (handlers.onNoHash) {
+      await handlers.onNoHash();
+      return { type: "unknown", processed: true };
+    }
+    return { type: "unknown", processed: false };
+  }
+
+  switch (parsed.type) {
+    case "chat":
+      if (handlers.onChat) {
+        await handlers.onChat(
+          parsed.data.chatId,
+          parsed.data.messageId,
+          parsed.data.scrollToLatestResponse,
+        );
+        return { type: "chat", processed: true };
+      }
+      break;
+
+    case "settings":
+      if (handlers.onSettings) {
+        const settingsPath = parsed.data.path;
+
+        // Check if authentication is required
+        if (handlers.requiresAuthentication && handlers.isAuthenticated) {
+          const needsAuth = handlers.requiresAuthentication(settingsPath);
+          if (needsAuth && !handlers.isAuthenticated()) {
+            // Store for processing after login
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("pendingDeepLink", hash);
+            }
+            if (handlers.openLogin) {
+              handlers.openLogin();
+            }
+            // Clear hash to keep URL clean
+            if (typeof window !== "undefined") {
+              replaceState(
+                window.location.pathname + window.location.search,
+                {},
+              );
+            }
+            return { type: "settings", processed: false, requiresAuth: true };
+          }
         }
-        return { type: 'unknown', processed: false };
-    }
 
-    const parsed = parseDeepLink(hash);
+        // Process settings deep link
+        handlers.onSettings(settingsPath, parsed.data.fullHash);
+        return { type: "settings", processed: true, requiresAuth: false };
+      }
+      break;
 
-    if (!parsed) {
-        // Still try onNoHash if hash exists but is unknown format
-        if (handlers.onNoHash) {
-            await handlers.onNoHash();
-            return { type: 'unknown', processed: true };
-        }
-        return { type: 'unknown', processed: false };
-    }
+    case "signup":
+      if (handlers.onSignup) {
+        handlers.onSignup(parsed.data.step);
+        return { type: "signup", processed: true };
+      }
+      break;
 
-    switch (parsed.type) {
-        case 'chat':
-            if (handlers.onChat) {
-                await handlers.onChat(parsed.data.chatId, parsed.data.messageId);
-                return { type: 'chat', processed: true };
-            }
-            break;
+    case "embed":
+      if (handlers.onEmbed) {
+        await handlers.onEmbed(parsed.data.embedId);
+        return { type: "embed", processed: true };
+      }
+      break;
+  }
 
-        case 'settings':
-            if (handlers.onSettings) {
-                const settingsPath = parsed.data.path;
-                
-                // Check if authentication is required
-                if (handlers.requiresAuthentication && handlers.isAuthenticated) {
-                    const needsAuth = handlers.requiresAuthentication(settingsPath);
-                    if (needsAuth && !handlers.isAuthenticated()) {
-                        // Store for processing after login
-                        if (typeof window !== 'undefined') {
-                            sessionStorage.setItem('pendingDeepLink', hash);
-                        }
-                        if (handlers.openLogin) {
-                            handlers.openLogin();
-                        }
-                        // Clear hash to keep URL clean
-                        if (typeof window !== 'undefined') {
-                            replaceState(window.location.pathname + window.location.search, {});
-                        }
-                        return { type: 'settings', processed: false, requiresAuth: true };
-                    }
-                }
-                
-                // Process settings deep link
-                handlers.onSettings(settingsPath, parsed.data.fullHash);
-                return { type: 'settings', processed: true, requiresAuth: false };
-            }
-            break;
-
-        case 'signup':
-            if (handlers.onSignup) {
-                handlers.onSignup(parsed.data.step);
-                return { type: 'signup', processed: true };
-            }
-            break;
-
-        case 'embed':
-            if (handlers.onEmbed) {
-                await handlers.onEmbed(parsed.data.embedId);
-                return { type: 'embed', processed: true };
-            }
-            break;
-    }
-
-    return { type: parsed.type, processed: false };
+  return { type: parsed.type, processed: false };
 }
 
 /**
@@ -178,84 +202,101 @@ export async function processDeepLink(
  * Similar to the original processSettingsDeepLink function
  */
 export function processSettingsDeepLink(
-    hash: string,
-    handlers: {
-        openSettings: () => void;
-        setSettingsDeepLink: (path: string) => void;
-    }
+  hash: string,
+  handlers: {
+    openSettings: () => void;
+    setSettingsDeepLink: (path: string) => void;
+  },
 ): void {
-    const settingsPath = hash.substring('#settings'.length);
-    
-    handlers.openSettings();
-    
-    // Check for special deep links that need to keep hash in URL (like refund, newsletter confirm, etc.)
-    const refundMatch = settingsPath.match(/^\/billing\/invoices\/[^/]+\/refund$/);
-    const newsletterConfirmMatch = settingsPath.match(/^\/newsletter\/confirm\/(.+)$/);
-    const newsletterUnsubscribeMatch = settingsPath.match(/^\/newsletter\/unsubscribe\/(.+)$/);
-    const emailBlockMatch = settingsPath.match(/^\/email\/block\/(.+)$/);
-    const accountDeleteMatch = settingsPath.match(/^\/account\/delete\/[^/]+$/);
-    
-    if (refundMatch || newsletterConfirmMatch || newsletterUnsubscribeMatch || emailBlockMatch || accountDeleteMatch) {
-        // These deep links keep the hash for component processing
-        // Navigate to the base settings page
-        if (refundMatch) {
-            handlers.setSettingsDeepLink('billing/invoices');
-        } else if (newsletterConfirmMatch || newsletterUnsubscribeMatch || emailBlockMatch) {
-            handlers.setSettingsDeepLink('newsletter');
-        } else if (accountDeleteMatch) {
-            // Extract the path from the hash to include the ID
-            // This ensures Settings.svelte can extract the activeAccountId
-            const path = hash.startsWith('#settings/') ? hash.substring('#settings/'.length) : 'account/delete';
-            handlers.setSettingsDeepLink(path);
-        }
-        // Don't clear hash - component will process it
-        return;
-    }
-    
-    // Regular settings paths
-    if (settingsPath.startsWith('/')) {
-        const pathWithParams = settingsPath.substring(1); // Remove leading slash
-        // Strip query parameters for path matching (they remain in window.location.hash)
-        let path = pathWithParams.split('?')[0];
-        
-        // Map common aliases - handle 'appstore' prefix (with or without subpath)
-        // e.g., 'appstore' -> 'app_store', 'appstore/web' -> 'app_store/web'
-        if (path === 'appstore' || path.startsWith('appstore/')) {
-            path = 'app_store' + path.substring('appstore'.length);
-        }
-        // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
-        path = path.replace(/-/g, '_');
-        
-        // Normalize app store sub-routes from plural to singular form
-        // Deep links may use plural forms (e.g., 'skills', 'focuses') but routes use singular ('skill', 'focus')
-        // Pattern: app_store/{appId}/skills/{skillId} -> app_store/{appId}/skill/{skillId}
-        // Pattern: app_store/{appId}/focuses/{focusModeId} -> app_store/{appId}/focus/{focusModeId}
-        if (path.startsWith('app_store/')) {
-            path = path.replace(/\/skills\//, '/skill/');
-            path = path.replace(/\/focuses\//, '/focus/');
-        }
-        
-        handlers.setSettingsDeepLink(path);
-        
-        // Clear the hash after processing
-        if (typeof window !== 'undefined') {
-            replaceState(window.location.pathname + window.location.search, {});
-        }
-    } else if (settingsPath === '') {
-        handlers.setSettingsDeepLink('main');
-        
-        // Clear the hash after processing
-        if (typeof window !== 'undefined') {
-            replaceState(window.location.pathname + window.location.search, {});
-        }
-    } else {
-        console.warn(`[deepLinkHandler] Invalid settings deep link hash: ${hash}`);
-        handlers.setSettingsDeepLink('main');
-        
-        // Clear the hash after processing
-        if (typeof window !== 'undefined') {
-            replaceState(window.location.pathname + window.location.search, {});
-        }
-    }
-}
+  const settingsPath = hash.substring("#settings".length);
 
+  handlers.openSettings();
+
+  // Check for special deep links that need to keep hash in URL (like refund, newsletter confirm, etc.)
+  const refundMatch = settingsPath.match(
+    /^\/billing\/invoices\/[^/]+\/refund$/,
+  );
+  const newsletterConfirmMatch = settingsPath.match(
+    /^\/newsletter\/confirm\/(.+)$/,
+  );
+  const newsletterUnsubscribeMatch = settingsPath.match(
+    /^\/newsletter\/unsubscribe\/(.+)$/,
+  );
+  const emailBlockMatch = settingsPath.match(/^\/email\/block\/(.+)$/);
+  const accountDeleteMatch = settingsPath.match(/^\/account\/delete\/[^/]+$/);
+
+  if (
+    refundMatch ||
+    newsletterConfirmMatch ||
+    newsletterUnsubscribeMatch ||
+    emailBlockMatch ||
+    accountDeleteMatch
+  ) {
+    // These deep links keep the hash for component processing
+    // Navigate to the base settings page
+    if (refundMatch) {
+      handlers.setSettingsDeepLink("billing/invoices");
+    } else if (
+      newsletterConfirmMatch ||
+      newsletterUnsubscribeMatch ||
+      emailBlockMatch
+    ) {
+      handlers.setSettingsDeepLink("newsletter");
+    } else if (accountDeleteMatch) {
+      // Extract the path from the hash to include the ID
+      // This ensures Settings.svelte can extract the activeAccountId
+      const path = hash.startsWith("#settings/")
+        ? hash.substring("#settings/".length)
+        : "account/delete";
+      handlers.setSettingsDeepLink(path);
+    }
+    // Don't clear hash - component will process it
+    return;
+  }
+
+  // Regular settings paths
+  if (settingsPath.startsWith("/")) {
+    const pathWithParams = settingsPath.substring(1); // Remove leading slash
+    // Strip query parameters for path matching (they remain in window.location.hash)
+    let path = pathWithParams.split("?")[0];
+
+    // Map common aliases - handle 'appstore' prefix (with or without subpath)
+    // e.g., 'appstore' -> 'app_store', 'appstore/web' -> 'app_store/web'
+    if (path === "appstore" || path.startsWith("appstore/")) {
+      path = "app_store" + path.substring("appstore".length);
+    }
+    // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
+    path = path.replace(/-/g, "_");
+
+    // Normalize app store sub-routes from plural to singular form
+    // Deep links may use plural forms (e.g., 'skills', 'focuses') but routes use singular ('skill', 'focus')
+    // Pattern: app_store/{appId}/skills/{skillId} -> app_store/{appId}/skill/{skillId}
+    // Pattern: app_store/{appId}/focuses/{focusModeId} -> app_store/{appId}/focus/{focusModeId}
+    if (path.startsWith("app_store/")) {
+      path = path.replace(/\/skills\//, "/skill/");
+      path = path.replace(/\/focuses\//, "/focus/");
+    }
+
+    handlers.setSettingsDeepLink(path);
+
+    // Clear the hash after processing
+    if (typeof window !== "undefined") {
+      replaceState(window.location.pathname + window.location.search, {});
+    }
+  } else if (settingsPath === "") {
+    handlers.setSettingsDeepLink("main");
+
+    // Clear the hash after processing
+    if (typeof window !== "undefined") {
+      replaceState(window.location.pathname + window.location.search, {});
+    }
+  } else {
+    console.warn(`[deepLinkHandler] Invalid settings deep link hash: ${hash}`);
+    handlers.setSettingsDeepLink("main");
+
+    // Clear the hash after processing
+    if (typeof window !== "undefined") {
+      replaceState(window.location.pathname + window.location.search, {});
+    }
+  }
+}
