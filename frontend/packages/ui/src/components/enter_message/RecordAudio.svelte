@@ -10,16 +10,26 @@
   │  [00:01]   ← Slide left to cancel     [●mic]         │  ← controls row
   └──────────────────────────────────────────────────────┘
 
-  The component:
-  1. Starts MediaRecorder immediately on mount.
-  2. Tracks recording duration with a 1-second interval timer.
-  3. Monitors drag distance — dragging left >100px cancels the recording.
-  4. Exposes stop() and cancel() for parent control (called on mouse/touch up).
-  5. Dispatches:
-     - audiorecorded: { blob, duration, mimeType }  — on successful stop
-     - cancel                                        — on cancellation
-     - close                                         — always after stop or cancel
-     - recordingStateChange: { active }              — mirrors recording state
+  Release / stop behaviour:
+  ─────────────────────────
+  The overlay covers the entire message field (inset:0, z-index:200), so the
+  original mic button underneath can never receive mouseup/touchend after the
+  overlay mounts. We therefore own ALL pointer-release and keyboard events here,
+  via document-level listeners attached on mount and removed on destroy:
+
+    • mouseup   → stop()  (complete recording → audiorecorded event)
+    • touchend  → stop()  (complete recording on mobile)
+    • keydown Escape → cancel()  (discard recording)
+
+  Drag-left-to-cancel:
+  ────────────────────
+  mousemove / touchmove track horizontal displacement from the start position.
+  Dragging left >100px triggers cancel(). The mic circle follows the drag so
+  the user gets visual feedback.
+
+  Exported methods (called by parent as fallback):
+    stop()   — complete the recording
+    cancel() — discard the recording
 -->
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
@@ -53,12 +63,15 @@
     let startPosition = { x: 0, y: 0 };
     let currentPosition = { x: 0, y: 0 };
     let isCancelled = false;
+    // Whether stop() has already been called (prevents double-stop from both
+    // document mouseup and parent's onRecordMouseUp after tick()).
+    let stopAlreadyCalled = false;
     // Horizontal drag offset for the cancel animation (negative = dragging left)
     let dragOffsetX = $state(0);
 
     const logger = {
         debug: (...args: any[]) => console.debug('[RecordAudio]', ...args),
-        info: (...args: any[]) => console.info('[RecordAudio]', ...args),
+        info:  (...args: any[]) => console.info('[RecordAudio]',  ...args),
         error: (...args: any[]) => console.error('[RecordAudio]', ...args),
     };
 
@@ -68,9 +81,13 @@
         startPosition = { ...initialPosition };
         currentPosition = { ...startPosition };
 
+        // Attach document-level listeners so release / Escape work even though
+        // the overlay completely covers the original mic button.
+        document.addEventListener('mouseup',   handleDocumentMouseUp);
+        document.addEventListener('touchend',  handleDocumentTouchEnd);
         document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleDocumentMouseUp);
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('keydown',   handleKeyDown);
 
         initializeAndStartRecording();
         dispatch('recordingStateChange', { active: true });
@@ -78,16 +95,22 @@
 
     onDestroy(() => {
         logger.debug('Component destroying.');
-        stopInternal(true);
+        // Guard: don't double-stop if stop/cancel already ran
+        if (!stopAlreadyCalled) {
+            stopInternal(true);
+        }
+        document.removeEventListener('mouseup',   handleDocumentMouseUp);
+        document.removeEventListener('touchend',  handleDocumentTouchEnd);
         document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleDocumentMouseUp);
         document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('keydown',   handleKeyDown);
         dispatch('recordingStateChange', { active: false });
     });
 
     // --- Recording Logic ---
     async function initializeAndStartRecording() {
         isCancelled = false;
+        stopAlreadyCalled = false;
         recordedChunks = [];
 
         try {
@@ -104,12 +127,13 @@
                 logger.info('Internal audio stream acquired.');
             }
 
-            // Prefer mp4 on iOS; fall back to webm or browser default
+            // Prefer mp4 on iOS; fall back to webm or ogg
             let mimeType = 'audio/webm';
             if (MediaRecorder.isTypeSupported('audio/mp4')) {
                 mimeType = 'audio/mp4';
             } else if (!MediaRecorder.isTypeSupported('audio/webm')) {
                 mimeType = 'audio/ogg';
+                logger.info('Using fallback mimeType:', mimeType);
             }
 
             mediaRecorder = new MediaRecorder(streamToUse, {
@@ -124,6 +148,7 @@
             mediaRecorder.onstop = () => {
                 logger.debug('MediaRecorder stopped.');
 
+                // Release the mic track
                 if (internalStream) {
                     internalStream.getTracks().forEach(track => track.stop());
                     internalStream = null;
@@ -135,16 +160,13 @@
                     const finalDuration = recordingTime;
                     logger.info('Recording finished:', {
                         blobSize: `${(blob.size / 1024).toFixed(2)} KB`,
-                        duration: `${finalDuration}s`,
-                        mimeType: blob.type,
+                        duration:  `${finalDuration}s`,
+                        mimeType:  blob.type,
                     });
                     dispatch('audiorecorded', { blob, duration: finalDuration, mimeType: finalMimeType });
-                } else if (isCancelled) {
-                    logger.info('Recording cancelled.');
-                    dispatch('cancel');
                 } else {
-                    logger.info('Recording stopped with no data.');
-                    if (!isCancelled) dispatch('cancel');
+                    logger.info(isCancelled ? 'Recording cancelled.' : 'Recording stopped with no data.');
+                    dispatch('cancel');
                 }
 
                 isRecording = false;
@@ -176,15 +198,16 @@
         }
     }
 
+    /**
+     * Core stop/cancel — all paths converge here.
+     * Guards against double-invocation via stopAlreadyCalled.
+     */
     function stopInternal(cancelled = false) {
-        if (!isRecording && mediaRecorder?.state !== 'recording' && mediaRecorder?.state !== 'paused') {
-            stopRecordingTimer();
-            if (internalStream) {
-                internalStream.getTracks().forEach(track => track.stop());
-                internalStream = null;
-            }
+        if (stopAlreadyCalled) {
+            logger.debug('stopInternal: already called, ignoring duplicate.');
             return;
         }
+        stopAlreadyCalled = true;
 
         isCancelled = isCancelled || cancelled;
         logger.info(`Stopping recording. Cancelled: ${isCancelled}`);
@@ -194,9 +217,9 @@
 
         if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
             try {
-                mediaRecorder.stop();
+                mediaRecorder.stop(); // fires onstop → dispatches events
             } catch (e) {
-                logger.error('Error stopping MediaRecorder:', e);
+                logger.error('Error calling mediaRecorder.stop():', e);
                 if (internalStream) {
                     internalStream.getTracks().forEach(track => track.stop());
                     internalStream = null;
@@ -204,6 +227,7 @@
                 dispatch('close');
             }
         } else {
+            // Recorder was never started or already stopped (e.g. error path)
             if (internalStream) {
                 internalStream.getTracks().forEach(track => track.stop());
                 internalStream = null;
@@ -216,9 +240,7 @@
     function startRecordingTimer() {
         stopRecordingTimer();
         recordingTime = 0;
-        recordingInterval = setInterval(() => {
-            recordingTime++;
-        }, 1000);
+        recordingInterval = setInterval(() => { recordingTime++; }, 1000);
     }
 
     function stopRecordingTimer() {
@@ -229,9 +251,37 @@
     }
 
     function formatTime(seconds: number): string {
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = seconds % 60;
-        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // --- Document-level pointer release → complete recording ---
+
+    /**
+     * mouseup anywhere on the document completes the recording.
+     * This fires even though the overlay covers the original mic button.
+     */
+    function handleDocumentMouseUp(_event: MouseEvent) {
+        logger.debug('Document mouseup — completing recording.');
+        stopInternal(false); // not cancelled
+    }
+
+    /**
+     * touchend anywhere on the document completes the recording on mobile.
+     */
+    function handleDocumentTouchEnd(_event: TouchEvent) {
+        logger.debug('Document touchend — completing recording.');
+        stopInternal(false);
+    }
+
+    // --- Escape key → cancel recording ---
+    function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === 'Escape') {
+            logger.debug('Escape pressed — cancelling recording.');
+            event.preventDefault();
+            stopInternal(true); // cancelled
+        }
     }
 
     // --- Drag / Cancel Logic ---
@@ -239,12 +289,6 @@
         if (!isRecording) return;
         currentPosition = { x: event.clientX, y: event.clientY };
         updateDragState();
-    }
-
-    // Listen for mouseup on document so releasing outside the button still triggers stop
-    function handleDocumentMouseUp(_event: MouseEvent) {
-        // Let the parent's onRecordMouseUp handle completion; this is just a safety fallback
-        // to avoid getting stuck in recording state if the event is missed by the button.
     }
 
     function handleTouchMove(event: TouchEvent) {
@@ -261,34 +305,35 @@
         const deltaY = currentPosition.y - startPosition.y;
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-        // Only track leftward drag for cancel (ignore rightward and vertical)
-        dragOffsetX = Math.min(0, deltaX); // clamp to negative only
+        // Only show leftward drag visually
+        dragOffsetX = Math.min(0, deltaX);
 
-        // Cancel when dragged left more than 100px
+        // Cancel when dragged left >100px total distance AND mostly horizontal
         if (distance > 100 && deltaX < -60) {
             logger.debug('Recording cancelled by drag.');
             stopInternal(true);
         }
     }
 
-    // --- Exported Methods for Parent Control ---
-    /** Stops the recording and dispatches 'audiorecorded' if successful. */
+    // --- Exported Methods (called by parent as fallback via bind:this) ---
+
+    /** Complete the recording (produces audiorecorded event). */
     export function stop() {
-        logger.debug('stop() called externally.');
+        logger.debug('stop() called by parent.');
         stopInternal(false);
     }
 
-    /** Cancels the recording, preventing the 'audiorecorded' event. */
+    /** Cancel the recording (no audiorecorded event). */
     export function cancel() {
-        logger.debug('cancel() called externally.');
+        logger.debug('cancel() called by parent.');
         stopInternal(true);
     }
 </script>
 
 <!--
-  The recording overlay fills the full message-field using absolute positioning.
-  It sits on top of the editor content and action buttons, giving the full
-  purple-gradient "recording mode" look from the Figma design.
+  Full overlay covering .message-field.
+  pointer-events: none on the overlay itself so clicks/taps fall through to
+  document-level listeners — no need to intercept on the div.
 -->
 <div class="record-overlay" transition:fade={{ duration: 150 }}>
     <!-- Top: "Release to finish" heading -->
@@ -296,20 +341,20 @@
         <span class="release-text">{@html $text('enter_message.record_audio.release_to_finish')}</span>
     </div>
 
-    <!-- Bottom: timer | cancel hint | mic button -->
+    <!-- Bottom controls: timer | cancel hint | mic circle -->
     <div class="record-controls">
-        <!-- Red timer pill (left) -->
+        <!-- Red timer pill -->
         <div class="timer-pill">
             {formatTime(recordingTime)}
         </div>
 
-        <!-- Cancel hint (center, partially hidden by drag) -->
+        <!-- "← Slide left to cancel" hint, fades as user drags left -->
         <div class="cancel-hint" style="opacity: {Math.max(0.3, 1 + dragOffsetX / 80)}">
             <span class="cancel-arrow">‹</span>
             <span class="cancel-text">{@html $text('enter_message.record_audio.slide_left_to_cancel')}</span>
         </div>
 
-        <!-- Green mic button (right) — drag position follows cursor -->
+        <!-- Green mic circle follows horizontal drag -->
         <div
             class="mic-button"
             class:recording={isRecording}
@@ -326,7 +371,6 @@
         position: absolute;
         inset: 0;
         border-radius: 24px;
-        /* Purple/blue gradient matching the Figma design */
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         z-index: 200;
         display: flex;
@@ -356,7 +400,7 @@
         letter-spacing: 0.01em;
     }
 
-    /* Bottom controls row: timer | cancel | mic */
+    /* Bottom controls row */
     .record-controls {
         width: 100%;
         display: flex;
@@ -422,10 +466,10 @@
 
     @keyframes mic-pulse {
         0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
-        50% { box-shadow: 0 2px 16px rgba(76, 175, 80, 0.6), 0 0 0 6px rgba(76, 175, 80, 0.2); }
+        50%       { box-shadow: 0 2px 16px rgba(76, 175, 80, 0.6), 0 0 0 6px rgba(76, 175, 80, 0.2); }
     }
 
-    /* Mic icon (mask-based, white) */
+    /* Mic icon (mask-based CSS icon, white) */
     .mic-icon {
         width: 22px;
         height: 22px;
