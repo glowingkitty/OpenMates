@@ -2714,6 +2714,11 @@
         handleRecordMouseUpLogic(recordAudioComponent);
     }
     async function onRecordMouseLeave(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        // When the recording overlay is active, the overlay covers the mic button and
+        // the browser fires a synthetic mouseleave. Ignore it — RecordAudio's own
+        // document-level listeners handle all stop/cancel logic from this point.
+        if ($recordingState.showRecordAudioUI) return;
+
         // Same tick() reasoning as onRecordMouseUp — component ref may not be set yet.
         await tick();
         handleRecordMouseLeaveLogic(recordAudioComponent);
