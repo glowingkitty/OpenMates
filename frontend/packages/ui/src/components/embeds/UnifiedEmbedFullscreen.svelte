@@ -121,6 +121,13 @@
      * If embedIds not provided, these are passed through to content snippet
      */
     legacyResults?: unknown[];
+
+    /**
+     * Optional callback fired when child embeds finish loading.
+     * Use this to trigger side effects (e.g. map initialization) that depend on
+     * loaded children, avoiding the anti-pattern of mutating state inside the template.
+     */
+    onChildrenLoaded?: (children: unknown[]) => void;
     
     /* ============================================
        BasicInfosBar Props (when bottomBar not provided)
@@ -249,6 +256,8 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    // Child embed loading callback
+    onChildrenLoaded,
     // Embed data update props
     currentEmbedId,
     onEmbedDataUpdated,
@@ -375,6 +384,11 @@
     loadedChildren = children;
     isLoadingChildren = false;
     console.debug('[UnifiedEmbedFullscreen] Finished loading', children.length, 'child embeds');
+
+    // Notify parent component that children finished loading (e.g. for map initialization)
+    if (children.length > 0 && onChildrenLoaded) {
+      onChildrenLoaded(children);
+    }
   }
   
   // ============================================

@@ -99,8 +99,9 @@
   let customIcon: DivIcon | null = null;
   let selectedPlaceIndex = $state<number | null>(null);
   
-  // Cached place results for map initialization
-  let cachedPlaceResults = $state<PlaceSearchResult[]>([]);
+  // Cached place results for map initialization (plain variable, not $state).
+  // Updated via onChildrenLoaded callback from UnifiedEmbedFullscreen — never mutated during render.
+  let cachedPlaceResults: PlaceSearchResult[] = [];
   
   // Check dark mode
   let isDarkMode = $derived(() => {
@@ -344,13 +345,17 @@
   });
   
   /**
-   * Effect to initialize map when child embeds finish loading
+   * Called by UnifiedEmbedFullscreen when child place embeds finish loading.
+   * Transforms the loaded children into PlaceSearchResult[] and initializes the map.
+   * This is the correct way to trigger map init — via a callback, not a template side effect.
    */
-  $effect(() => {
-    if (cachedPlaceResults.length > 0 && !map) {
-      initializeMapWithResults(cachedPlaceResults);
-    }
-  });
+  function handleChildrenLoaded(children: unknown[]) {
+    if (map) return; // Already initialized
+    const results = children as PlaceSearchResult[];
+    if (results.length === 0) return;
+    cachedPlaceResults = results;
+    initializeMapWithResults(results);
+  }
 </script>
 
 <!-- 
@@ -373,6 +378,7 @@
   {embedIds}
   childEmbedTransformer={transformToPlaceResult}
   legacyResults={resultsProp}
+  onChildrenLoaded={handleChildrenLoaded}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -382,8 +388,6 @@
 >
   {#snippet content(ctx)}
     {@const placeResults = getPlaceResults(ctx)}
-    <!-- Cache results for map initialization -->
-    {(() => { cachedPlaceResults = placeResults; return ''; })()}
     
     <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
     <div class="fullscreen-header">
