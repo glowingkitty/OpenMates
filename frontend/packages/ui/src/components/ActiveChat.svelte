@@ -2004,6 +2004,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Timestamp of the last completed preprocessing step card, used to enforce
     // a minimum display time (~1500ms) before transitioning to the typing phase.
     let lastStepCardTimestamp = $state(0);
+    // Timestamp when the processing phase overlay first became visible.
+    // Used to enforce a minimum display time before clearing the overlay when
+    // the first streaming chunk (thinking or response) arrives, so users have
+    // enough time to read the step cards (title, mate, model).
+    let processingPhaseStartTimestamp = 0;
+    // Minimum time (ms) the overlay must remain visible once step cards have
+    // appeared before it can be cleared by an incoming chunk.
+    const MIN_OVERLAY_DISPLAY_MS = 2500;
 
     /**
      * Clear the processing phase state.
@@ -2013,6 +2021,47 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         processingPhase = null;
         selectedPreprocessingMateName = null;
         lastStepCardTimestamp = 0;
+        processingPhaseStartTimestamp = 0;
+    }
+
+    /**
+     * Clear the processing phase, but only after the overlay has been visible for
+     * at least MIN_OVERLAY_DISPLAY_MS since the processing phase started.
+     * If the minimum time hasn't elapsed yet, schedules a delayed clear.
+     * Always waits one Svelte tick first so the incoming content is already rendered
+     * before the overlay fades out (prevents a blank-screen flash).
+     *
+     * This ensures the step cards (chat title, selected mate, model) are readable
+     * before they disappear, even when the AI responds very quickly.
+     *
+     * @param capturedChatId - The chat_id at the time the chunk arrived.
+     *   Used to avoid stale clears after a chat switch.
+     */
+    function clearProcessingPhaseWhenReady(capturedChatId: string | null) {
+        tick().then(() => {
+            // Abort if the user switched chats in the meantime
+            if (currentChat?.chat_id !== capturedChatId) return;
+
+            // Enforce minimum overlay display time so step cards stay readable.
+            // processingPhaseStartTimestamp is 0 if no step progression started
+            // (e.g., continuation tasks), in which case we clear immediately.
+            if (processingPhaseStartTimestamp > 0) {
+                const elapsed = Date.now() - processingPhaseStartTimestamp;
+                if (elapsed < MIN_OVERLAY_DISPLAY_MS) {
+                    const remainingDelay = MIN_OVERLAY_DISPLAY_MS - elapsed;
+                    console.debug(`[ActiveChat] Delaying overlay clear by ${remainingDelay}ms so step cards stay visible`);
+                    setTimeout(() => {
+                        if (currentChat?.chat_id !== capturedChatId) return;
+                        clearProcessingPhase();
+                        console.debug('[ActiveChat] Processing phase cleared (delayed, min display elapsed)');
+                    }, remainingDelay);
+                    return;
+                }
+            }
+
+            clearProcessingPhase();
+            console.debug('[ActiveChat] Processing phase cleared (first streaming content rendered)');
+        });
     }
 
     /**
@@ -2034,6 +2083,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const initialText = isNewChat
             ? $text('enter_message.status.generating_title')
             : $text('enter_message.status.analyzing_message');
+
+        // Record when the overlay first became visible so we can enforce a minimum
+        // display time before clearing it when the first streaming chunk arrives.
+        processingPhaseStartTimestamp = Date.now();
 
         processingPhase = {
             phase: 'processing',
@@ -2744,13 +2797,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             newContentLengthForPersistence = newAiMessage.content.length;
             
             // ─── Progressive AI Status Indicator: Clear after render ─────
-            // Wait one Svelte tick so the new assistant message is rendered in the DOM
-            // before fading out the centered overlay. This prevents a visual gap where
-            // neither the overlay nor the message bubble is visible.
-            tick().then(() => {
-                clearProcessingPhase();
-                console.debug('[ActiveChat] Processing phase cleared (first streaming chunk rendered)');
-            });
+            // Wait until the new assistant message is rendered in the DOM before fading
+            // out the centered overlay. Also enforces a minimum display time so step
+            // cards (title, mate, model) remain readable before disappearing.
+            clearProcessingPhaseWhenReady(chunk.chat_id);
             
             console.log(
                 `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
@@ -3126,12 +3176,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             currentMessages = [...currentMessages, placeholderMessage];
             
             // ─── Progressive AI Status Indicator: Clear after render ─────
-            // Wait one Svelte tick so the thinking placeholder is rendered in the DOM
-            // before fading out the centered overlay.
-            tick().then(() => {
-                clearProcessingPhase();
-                console.debug('[ActiveChat] Processing phase cleared (thinking placeholder rendered)');
-            });
+            // Wait until the thinking placeholder is rendered in the DOM before fading
+            // out the centered overlay. Also enforces a minimum display time so step
+            // cards (title, mate, model) remain readable before disappearing.
+            clearProcessingPhaseWhenReady(chunk.chat_id);
         }
         
         // Update thinking content map using message_id (same as task_id)

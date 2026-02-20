@@ -1385,7 +1385,7 @@
                                 <div class="step-model-content">
                                     {#if step.data.provider_icon}
                                         <div class="step-provider-icon-wrapper">
-                                            <Icon name={step.data.provider_icon} type="provider" size="24px" />
+                                            <Icon name={step.data.provider_icon} type="provider" size="32px" />
                                         </div>
                                     {/if}
                                     <div class="step-model-info">
@@ -1668,17 +1668,17 @@
   .preprocessing-steps-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    width: 280px;
-    margin-bottom: 8px;
+    gap: 10px;
+    width: 340px;
+    margin-bottom: 12px;
   }
 
   .preprocessing-step-card {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 8px 12px;
-    border-radius: 10px;
+    gap: 6px;
+    padding: 12px 16px;
+    border-radius: 12px;
     background: var(--color-grey-10, rgba(255, 255, 255, 0.06));
     border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.1));
     /* Stagger in with a small fade + slide-up */
@@ -1691,7 +1691,7 @@
   .step-model-content {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
   }
 
   @keyframes step-card-in {
@@ -1705,11 +1705,11 @@
     }
   }
 
-  /* Mate avatar in step card — inherits .mate-profile category background but smaller */
+  /* Mate avatar in step card — inherits .mate-profile category background but sized up */
   .step-mate-avatar.mate-profile {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
     margin: 0;
     box-shadow: none;
   }
@@ -1719,9 +1719,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
   }
 
   /* Text column for title/mate/model info — vertical layout (label on top, value below) */
@@ -1730,14 +1730,14 @@
   .step-model-info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
     min-width: 0;
     flex: 1;
   }
 
   /* Label prefix for title card ("Chat title:") */
   .step-label {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--color-grey-50, #888);
     white-space: nowrap;
     flex-shrink: 0;
@@ -1745,7 +1745,7 @@
 
   /* Primary value in step card (title text, mate name, model name) */
   .step-value {
-    font-size: 0.8rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--color-grey-70, #ccc);
     white-space: nowrap;
@@ -1755,12 +1755,12 @@
 
   /* Title value gets a bit more space */
   .step-title {
-    max-width: 180px;
+    max-width: 240px;
   }
 
   /* Secondary info (mate description, "via Provider") */
   .step-secondary {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: var(--color-grey-50, #888);
     white-space: nowrap;
     overflow: hidden;
