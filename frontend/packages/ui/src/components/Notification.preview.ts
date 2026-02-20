@@ -121,17 +121,4 @@ export const variants = {
       dismissible: true,
     },
   },
-
-  /** New assistant message notification — triggered when an AI reply arrives in a background chat */
-  newAssistantMessage: {
-    notification: {
-      id: "preview-notification-chat",
-      type: "chat_message" as const,
-      title: "Travel Planning",
-      message:
-        "I found some great options for your trip to Barcelona! Let me share the details.",
-      duration: 0,
-      dismissible: true,
-    },
-  },
 };
