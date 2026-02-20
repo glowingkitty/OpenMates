@@ -1164,6 +1164,28 @@ async def handle_main_processing(
     if active_focus_prompt_text:
         prompt_parts.insert(0, f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---")
 
+    # Enforce response language based on the preprocessor's detected output_language.
+    # Appended last so it sits at the end of the system prompt where LLMs give it high
+    # attention — this overrides any language the mate persona or instructions might imply.
+    # ISO 639-1 code → human-readable name mapping (must stay in sync with SUPPORTED_LANGUAGES
+    # in preprocessor.py). English is skipped — no instruction needed since it's the default.
+    _LANGUAGE_NAMES: dict[str, str] = {
+        "de": "German", "zh": "Chinese", "es": "Spanish", "fr": "French",
+        "pt": "Portuguese", "ru": "Russian", "ja": "Japanese", "ko": "Korean",
+        "it": "Italian", "tr": "Turkish", "vi": "Vietnamese", "id": "Indonesian",
+        "pl": "Polish", "nl": "Dutch", "ar": "Arabic", "hi": "Hindi",
+        "th": "Thai", "cs": "Czech", "sv": "Swedish",
+    }
+    output_language_code = preprocessing_results.output_language or "en"
+    if output_language_code != "en":
+        language_name = _LANGUAGE_NAMES.get(output_language_code, output_language_code)
+        prompt_parts.append(
+            f"IMPORTANT: The user is communicating in {language_name}. "
+            f"You MUST respond entirely in {language_name}. "
+            f"Do not switch to any other language under any circumstances."
+        )
+        logger.debug(f"{log_prefix} Added language enforcement instruction for '{output_language_code}' ({language_name}).")
+
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     
     # Generate tool definitions from discovered apps using the tool generator
