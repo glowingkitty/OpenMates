@@ -101,6 +101,9 @@
     if (iconName === 'image') {
       return 'images'; // Icon name "image" maps to app ID "images"
     }
+    if (iconName === 'book') {
+      return 'books'; // Icon name "book" maps to app ID "books"
+    }
     // For all other cases, use the icon name as-is
     return iconName;
   }
