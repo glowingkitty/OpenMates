@@ -648,3 +648,16 @@
   max-width: calc(100% - 40px);
   text-align: center;
 }
+
+/* Mic permission hint reuses the queued-message-indicator pill style but with a
+   neutral background (not the yellow warning color used for queued messages). */
+.queued-message-indicator.mic-permission-hint {
+  background-color: var(--color-grey-30, rgba(128, 128, 128, 0.3));
+  color: var(--color-text-primary, #000);
+}
+
+/* Blocked state uses an error/red background to signal the user must act. */
+.queued-message-indicator.mic-permission-hint.mic-permission-blocked {
+  background-color: var(--color-error-light, rgba(231, 76, 60, 0.15));
+  color: var(--color-error, #e74c3c);
+}

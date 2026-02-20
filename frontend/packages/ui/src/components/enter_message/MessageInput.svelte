@@ -2949,6 +2949,25 @@
             </div>
         {/if}
 
+        <!-- Mic permission hint — shown below action buttons.
+             Three states drive three distinct messages:
+             · denied   → always-visible error telling user to unblock in settings
+             · granted + showRecordHint → timed "Press and hold" reminder (after first tap)
+             · prompt/unknown + showRecordHint → timed hint to allow mic access (after first tap) -->
+        {#if $recordingState.micPermissionState === 'denied'}
+            <div class="queued-message-indicator mic-permission-hint mic-permission-blocked" transition:fade={{ duration: 200 }}>
+                {$text('enter_message.record_audio.microphone_blocked')}
+            </div>
+        {:else if $recordingState.showRecordHint}
+            <div class="queued-message-indicator mic-permission-hint" transition:fade={{ duration: 200 }}>
+                {#if $recordingState.micPermissionState === 'granted'}
+                    {$text('enter_message.record_audio.press_and_hold_reminder')}
+                {:else}
+                    {$text('enter_message.record_audio.allow_microphone_access')}
+                {/if}
+            </div>
+        {/if}
+
         <!-- Stop Processing Icon - shown when AI task is active -->
         <!-- Debug: activeAITaskId = {activeAITaskId}, currentChatId = {currentChatId} -->
         {#if activeAITaskId || awaitingAITaskStart}

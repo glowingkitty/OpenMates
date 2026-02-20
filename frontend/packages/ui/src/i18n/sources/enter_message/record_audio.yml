@@ -19,7 +19,7 @@ slide_left_to_cancel:
   hi: रद्द करने के लिए बाईं ओर स्लाइड करें
   th: เลื่อนไปทางซ้ายเพื่อยกเลิก
   cs: Přejeďte doleva pro zrušení
-  sv: 'Dra åt vänster för att avbryta'
+  sv: "Dra åt vänster för att avbryta"
   verified_by_human: []
 release_to_finish:
   context: Text shown when recording is in progress
@@ -42,7 +42,7 @@ release_to_finish:
   hi: समाप्त करने के लिए छोड़ें
   th: ปล่อยเพื่อเสร็จสิ้น
   cs: Uvolněte pro dokončení
-  sv: 'Släpp för att slutföra'
+  sv: "Släpp för att slutföra"
   verified_by_human: []
 press_and_hold_reminder:
   context: Text shown when the user has only pressed the record button for less than 500ms
@@ -65,5 +65,53 @@ press_and_hold_reminder:
   hi: रिकॉर्ड करने के लिए दबाएं और होल्ड करें
   th: กดค้างเพื่อบันทึก
   cs: Stiskněte a podržte pro nahrávání
-  sv: 'Tryck och håll kvar för att spela in'
+  sv: "Tryck och håll kvar för att spela in"
+  verified_by_human: []
+
+allow_microphone_access:
+  context: Hint shown below the action buttons when microphone permission has not yet been granted — tapping the mic button will trigger the browser permission popup
+  en: Allow microphone access to record
+  de: Mikrofonzugriff erlauben um aufzunehmen
+  zh: 允许麦克风访问以录音
+  es: Permite el acceso al micrófono para grabar
+  fr: Autoriser l'accès au microphone pour enregistrer
+  pt: Permita o acesso ao microfone para gravar
+  ru: Разрешите доступ к микрофону для записи
+  ja: 録音するにはマイクへのアクセスを許可してください
+  ko: 녹음하려면 마이크 접근을 허용하세요
+  it: Consenti l'accesso al microfono per registrare
+  tr: Kaydetmek için mikrofon erişimine izin verin
+  vi: Cho phép truy cập microphone để ghi âm
+  id: Izinkan akses mikrofon untuk merekam
+  pl: Zezwól na dostęp do mikrofonu, aby nagrać
+  nl: Sta microfoon toegang toe om op te nemen
+  ar: اسمح بالوصول إلى الميكروفون للتسجيل
+  hi: रिकॉर्ड करने के लिए माइक्रोफ़ोन एक्सेस की अनुमति दें
+  th: อนุญาตการเข้าถึงไมโครโฟนเพื่อบันทึก
+  cs: Povolte přístup k mikrofonu pro nahrávání
+  sv: Tillåt mikrofonåtkomst för att spela in
+  verified_by_human: []
+
+microphone_blocked:
+  context: Error hint shown below the action buttons when microphone permission has been permanently denied in browser settings
+  en: Microphone blocked — enable it in browser settings
+  de: Mikrofon gesperrt — in den Browsereinstellungen aktivieren
+  zh: 麦克风已被屏蔽——请在浏览器设置中启用
+  es: Micrófono bloqueado — actívalo en la configuración del navegador
+  fr: Microphone bloqué — activez-le dans les paramètres du navigateur
+  pt: Microfone bloqueado — ative-o nas configurações do navegador
+  ru: Микрофон заблокирован — включите его в настройках браузера
+  ja: マイクがブロックされています — ブラウザ設定で有効にしてください
+  ko: 마이크가 차단되었습니다 — 브라우저 설정에서 활성화하세요
+  it: Microfono bloccato — abilitalo nelle impostazioni del browser
+  tr: Mikrofon engellendi — tarayıcı ayarlarından etkinleştirin
+  vi: Microphone bị chặn — bật trong cài đặt trình duyệt
+  id: Mikrofon diblokir — aktifkan di pengaturan browser
+  pl: Mikrofon zablokowany — włącz go w ustawieniach przeglądarki
+  nl: Microfoon geblokkeerd — schakel in in browserinstellingen
+  ar: الميكروفون محظور — فعّله في إعدادات المتصفح
+  hi: माइक्रोफ़ोन ब्लॉक है — ब्राउज़र सेटिंग्स में इसे सक्षम करें
+  th: ไมโครโฟนถูกบล็อก — เปิดใช้งานในการตั้งค่าเบราว์เซอร์
+  cs: Mikrofon je zablokován — povolte ho v nastavení prohlížeče
+  sv: Mikrofon blockerad — aktivera den i webbläsarinställningarna
   verified_by_human: []
