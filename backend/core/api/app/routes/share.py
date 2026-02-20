@@ -837,6 +837,119 @@ async def get_embed_og_metadata(
             "type": "embed"
         }
 
+# --- Request model for suggesting an embed as daily inspiration ---
+
+class SuggestInspirationRequest(BaseModel):
+    """
+    Request model for suggesting a YouTube video embed as a default Daily Inspiration.
+
+    The client decrypts the embed TOON content locally and sends plaintext video metadata.
+    Only YouTube video embeds are accepted (enforced by embed_type validation).
+    """
+    embed_type: str  # Must be 'video' (YouTube-only for now)
+    video_url: str
+    video_id: str
+    video_title: Optional[str] = None
+    video_channel_name: Optional[str] = None
+    video_channel_id: Optional[str] = None
+    video_channel_thumbnail: Optional[str] = None
+    video_thumbnail: Optional[str] = None
+    video_duration_seconds: Optional[int] = None
+    video_duration_formatted: Optional[str] = None
+    video_view_count: Optional[int] = None
+    video_like_count: Optional[int] = None
+    video_published_at: Optional[str] = None
+
+
+@router.post("/embed/suggest-inspiration")
+@limiter.limit("5/hour")
+async def suggest_embed_as_inspiration(
+    request: Request,
+    payload: SuggestInspirationRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """
+    Suggest a YouTube video embed as a default Daily Inspiration.
+
+    The client must decrypt the embed content locally and send plaintext video metadata.
+    Only 'video' embed_type (YouTube) is accepted.
+
+    On success:
+    - Creates a suggested_daily_inspirations row with status=pending_approval
+    - Dispatches an admin notification email
+
+    Rate limited to 5 suggestions per hour per user.
+    """
+    try:
+        # Only YouTube video embeds are supported
+        if payload.embed_type != "video":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Only 'video' embed type is supported for inspiration suggestions, got '{payload.embed_type}'"
+            )
+
+        if not payload.video_id or not payload.video_url:
+            raise HTTPException(status_code=400, detail="video_id and video_url are required")
+
+        logger.info(
+            f"[SuggestInspiration] User {current_user.id[:8]}... suggesting video_id={payload.video_id}"
+        )
+
+        # Create the suggestion record
+        suggestion = await directus_service.suggested_inspiration.create_suggestion(
+            suggested_by_user_id=current_user.id,
+            video_url=payload.video_url,
+            video_id=payload.video_id,
+            video_title=payload.video_title,
+            video_channel_name=payload.video_channel_name,
+            video_channel_id=payload.video_channel_id,
+            video_thumbnail=payload.video_thumbnail,
+            video_duration_seconds=payload.video_duration_seconds,
+            video_duration_formatted=payload.video_duration_formatted,
+            video_view_count=payload.video_view_count,
+            video_like_count=payload.video_like_count,
+            video_published_at=payload.video_published_at,
+        )
+
+        inspiration_id = suggestion.get("id") if suggestion else None
+
+        # Dispatch admin notification email (non-fatal if this fails)
+        try:
+            admin_email = os.getenv("ADMIN_NOTIFY_EMAIL", "notify@openmates.org")
+            from backend.core.api.app.tasks.celery_config import app as celery_app
+            celery_app.send_task(
+                name="app.tasks.email_tasks.inspiration_suggestion_email_task.send_inspiration_suggestion_notification",
+                kwargs={
+                    "admin_email": admin_email,
+                    "video_id": payload.video_id,
+                    "video_title": payload.video_title or "",
+                    "video_channel_name": payload.video_channel_name or "",
+                    "inspiration_id": inspiration_id or "",
+                },
+                queue="email",
+            )
+            logger.info(
+                f"[SuggestInspiration] Dispatched admin notification for inspiration_id={inspiration_id}"
+            )
+        except Exception as e:
+            logger.error(
+                f"[SuggestInspiration] Failed to dispatch admin notification email: {e}",
+                exc_info=True,
+            )
+
+        return {"success": True, "inspiration_id": inspiration_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[SuggestInspiration] Error creating suggestion for user {current_user.id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Failed to create inspiration suggestion")
+
+
 @router.post("/embed/metadata")
 @limiter.limit("30/minute")
 async def update_embed_share_metadata(

@@ -36,3 +36,15 @@ watch_video:
   en: Watch video
   de: Video ansehen
   verified_by_human: []
+
+suggest_as_inspiration:
+  context: Toggle label in the Share Embed dialog — only shown for video embeds. When enabled, the video is submitted to the admin for review as a Daily Inspiration.
+  en: Suggest as Daily Inspiration
+  de: Als tägliche Inspiration vorschlagen
+  verified_by_human: []
+
+suggest_as_inspiration_description:
+  context: Description shown below the "Suggest as Daily Inspiration" toggle in the Share Embed dialog
+  en: Submit this video to be reviewed and potentially shown to all users as a daily inspiration
+  de: Dieses Video zur Überprüfung einreichen, um es potenziell als tägliche Inspiration für alle Nutzer anzuzeigen
+  verified_by_human: []

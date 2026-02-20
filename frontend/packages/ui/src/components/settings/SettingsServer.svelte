@@ -17,6 +17,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsCommunitySuggestions from './server/SettingsCommunitySuggestions.svelte';
     import SettingsStats from './server/SettingsStats.svelte';
     import SettingsGiftCardGenerator from './server/SettingsGiftCardGenerator.svelte';
+    import SettingsDefaultInspirations from './server/SettingsDefaultInspirations.svelte';
 
     const dispatch = createEventDispatcher();
     
@@ -93,6 +94,23 @@ changes to the documentation (to keep the documentation up to date).
         scrollToTop();
     }
 
+    function showDefaultInspirations(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'defaultInspirations';
+        childComponent = SettingsDefaultInspirations;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/default-inspirations',
+            direction: 'forward',
+            icon: 'inspiration',
+            title: 'Default Daily Inspirations',
+            translationKey: 'settings.server.default_inspirations'
+        });
+
+        scrollToTop();
+    }
+
     function scrollToTop() {
         // Find settings content element and scroll to top
         const settingsContent = document.querySelector('.settings-content-wrapper');
@@ -127,6 +145,12 @@ changes to the documentation (to keep the documentation up to date).
         onClick={() => showCommunitySuggestions()}
     />
     <SettingsItem
+        icon="inspiration"
+        title="Default Daily Inspirations"
+        subtitleTop="Manage suggested YouTube videos shown as default daily inspirations"
+        onClick={() => showDefaultInspirations()}
+    />
+    <SettingsItem
         icon="usage"
         title={$text('settings.server.stats')}
         subtitleTop="View global server usage and growth metrics"
@@ -154,6 +178,11 @@ changes to the documentation (to keep the documentation up to date).
         on:back={handleBack}
     />
 {:else if currentView === 'giftCards' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:back={handleBack}
+    />
+{:else if currentView === 'defaultInspirations' && childComponent}
     {@const Component = childComponent}
     <Component
         on:back={handleBack}

@@ -1,8 +1,16 @@
 // frontend/packages/ui/src/stores/dailyInspirationStore.ts
 // Svelte 4 writable store for Daily Inspiration banners.
 //
-// Stores up to 3 inspiration items received from the backend via WebSocket.
+// Stores up to 3 inspiration items received from the backend via WebSocket or
+// loaded via loadDefaultInspirations() on page load.
+//
 // The store drives DailyInspirationBanner.svelte (carousel on the new chat screen).
+//
+// The store starts EMPTY. The banner is hidden when there are no inspirations
+// (DailyInspirationBanner.svelte wraps content in {#if inspirations.length > 0}).
+// Inspirations are populated by:
+//   1. loadDefaultInspirations() on page load (fetches published server defaults)
+//   2. WebSocket events delivering personalised inspirations (replace defaults)
 //
 // NOTE: Stores in .ts files use Svelte 4 writable (not runes) — this is intentional.
 
@@ -39,6 +47,8 @@ export interface DailyInspirationState {
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
+// Start empty — the banner is hidden until defaults are loaded from the server
+// (loadDefaultInspirations on page load) or personalized ones arrive via WebSocket.
 const initialState: DailyInspirationState = {
   inspirations: [],
   currentIndex: 0,

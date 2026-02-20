@@ -1,0 +1,25 @@
+suggested_daily_inspiration_translations:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    inspiration_id:
+      type: uuid
+      note: "Foreign key to suggested_daily_inspirations.id"
+      required: true
+    language:
+      type: string
+      length: 10
+      note: "Language code (e.g., 'en', 'de', 'zh')"
+      required: true
+    phrase:
+      type: textfield
+      note: "Translated CTA phrase (cleartext)"
+      required: true
+    assistant_response:
+      type: textfield
+      note: "Translated assistant response/context (cleartext)"
+    created_at:
+      type: timestamp
+      note: "When this translation was created"
+  note: "Language translations for suggested_daily_inspirations phrase and assistant_response fields. Video metadata (title, channel) is NOT translated — it stays in the original language."

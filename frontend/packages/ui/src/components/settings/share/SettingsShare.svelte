@@ -131,6 +131,13 @@
     // Check if we're sharing an embed instead of a chat
     let embedContext = $state<EmbedContext | null>(null);
     let isEmbedSharing = $derived(embedContext !== null);
+    // Convenience: the type of the current embed ('video', 'website', etc.), or '' when not sharing an embed
+    let embedType = $derived(embedContext?.type || '');
+
+    // "Suggest as Daily Inspiration" toggle — only applicable for video embeds.
+    // When enabled, the video metadata is submitted to the server for admin review
+    // after the embed share link is generated.
+    let suggestAsInspiration = $state(false);
     
     /**
      * Load and render embed preview component
@@ -601,6 +608,57 @@
                     // Queue server update to mark embed as shared (set is_private=false, is_shared=true)
                     // Uses retry queue for reliability - if the request fails, it will be retried
                     await shareMetadataQueue.queueEmbedShareUpdate(embedContext.embed_id, true);
+                    
+                    // If user opted to suggest this video as a Daily Inspiration, decode the embed
+                    // content locally (client-side decryption) and send plaintext metadata to server.
+                    if (suggestAsInspiration && embedType === 'video') {
+                        try {
+                            console.debug('[SettingsShare] Suggesting embed as daily inspiration:', embedContext.embed_id);
+                            
+                            // Re-load and decode embed content to extract video metadata
+                            const contentRef = `embed:${embedContext.embed_id}`;
+                            const { embedStore } = await import('../../../services/embedStore');
+                            const embedData = await embedStore.get(contentRef);
+                            
+                            if (embedData && embedData.content) {
+                                const decoded = await decodeToonContent(embedData.content);
+                                if (decoded) {
+                                    const { getApiEndpoint: apiEndpoint } = await import('../../../config/api');
+                                    const payload = {
+                                        embed_id: embedContext.embed_id,
+                                        video_id: decoded.video_id || '',
+                                        video_title: decoded.title || embedContext.title || '',
+                                        video_url: decoded.url || '',
+                                        video_thumbnail: decoded.thumbnail || '',
+                                        channel_name: decoded.channel_name || null,
+                                        view_count: decoded.view_count || null,
+                                        duration_seconds: decoded.duration_seconds || null,
+                                        published_at: decoded.published_at || null,
+                                    };
+                                    
+                                    const suggestResponse = await fetch(apiEndpoint('/v1/share/embed/suggest-inspiration'), {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        credentials: 'include',
+                                        body: JSON.stringify(payload),
+                                    });
+                                    
+                                    if (suggestResponse.ok) {
+                                        console.debug('[SettingsShare] Successfully submitted daily inspiration suggestion');
+                                    } else {
+                                        console.warn('[SettingsShare] Failed to submit daily inspiration suggestion:', suggestResponse.status);
+                                    }
+                                } else {
+                                    console.warn('[SettingsShare] Could not decode embed content for inspiration suggestion');
+                                }
+                            } else {
+                                console.warn('[SettingsShare] No embed data available for inspiration suggestion');
+                            }
+                        } catch (suggestionError) {
+                            // Non-fatal: share link is already generated, just log the error
+                            console.error('[SettingsShare] Error submitting daily inspiration suggestion:', suggestionError);
+                        }
+                    }
                 }
                 
                 console.debug('[SettingsShare] Encrypted embed share link generated:', generatedLink);
@@ -1644,6 +1702,31 @@
                         <div class="info-icon">ℹ️</div>
                         <p>
                             {$text('settings.share.share_with_community_info')}
+                        </p>
+                    </div>
+                {/if}
+            {/if}
+
+            <!-- Suggest as Daily Inspiration Toggle (only for video embeds, authenticated users) -->
+            {#if isEmbedSharing && embedType === 'video' && $authStore.isAuthenticated}
+                <div class="option-row">
+                    <div class="option-label">
+                        <div class="icon settings_size inspiration"></div>
+                        <span>{$text('daily_inspiration.suggest_as_inspiration')}</span>
+                    </div>
+                    <Toggle
+                        bind:checked={suggestAsInspiration}
+                        name="suggest-as-inspiration"
+                        ariaLabel="Toggle suggest as daily inspiration"
+                    />
+                </div>
+
+                <!-- Suggestion Explainer -->
+                {#if suggestAsInspiration}
+                    <div class="community-info" transition:slide={{ duration: 200, easing: cubicOut }}>
+                        <div class="info-icon">ℹ️</div>
+                        <p>
+                            {$text('daily_inspiration.suggest_as_inspiration_description')}
                         </p>
                     </div>
                 {/if}

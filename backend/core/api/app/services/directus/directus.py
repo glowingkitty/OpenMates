@@ -31,6 +31,7 @@ from backend.core.api.app.services.directus.analytics_methods import AnalyticsMe
 from backend.core.api.app.services.directus.embed_methods import EmbedMethods # Import EmbedMethods class
 from backend.core.api.app.services.directus.demo_chat_methods import DemoChatMethods # Import DemoChatMethods class
 from backend.core.api.app.services.directus.admin_methods import AdminMethods # Import AdminMethods class
+from backend.core.api.app.services.directus.suggested_daily_inspiration_methods import SuggestedDailyInspirationMethods # Import SuggestedDailyInspirationMethods class
 from backend.core.api.app.services.directus.health_event_methods import HealthEventMethods # Import HealthEventMethods class
 from backend.core.api.app.services.directus.user.user_creation import create_user
 from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, logout_user, logout_all_sessions, refresh_token
@@ -91,6 +92,7 @@ class DirectusService:
         self.demo_chat = DemoChatMethods(self) # Initialize DemoChatMethods
         self.admin = AdminMethods(self) # Initialize AdminMethods
         self.health_event = HealthEventMethods(self) # Initialize HealthEventMethods for historical health tracking
+        self.suggested_inspiration = SuggestedDailyInspirationMethods(self) # Initialize SuggestedDailyInspirationMethods
         
         # Initialize server stats service
         from backend.core.api.app.services.server_stats_service import ServerStatsService

@@ -46,7 +46,8 @@
 		loadSessionStorageDraft,
 		getAllDraftChatIdsWithDrafts,
 		NEW_CHAT_SENTINEL,
-		loadCommunityDemos
+		loadCommunityDemos,
+		loadDefaultInspirations
 	} from '@repo/ui';
 	import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
@@ -688,6 +689,13 @@
 		// and for-developers intro chats without requiring the sidebar (Chats) to be opened first.
 		loadCommunityDemos().catch((error) => {
 			console.error('[+page.svelte] Error loading community demos:', error);
+		});
+
+		// Load default Daily Inspirations from server (published entries curated by admin).
+		// Populates dailyInspirationStore only if it is still empty (personalized ones via
+		// WebSocket have priority). Non-fatal — banner stays hidden if server is unreachable.
+		loadDefaultInspirations().catch((error) => {
+			console.error('[+page.svelte] Error loading default inspirations:', error);
 		});
 
 		// CRITICAL: Read and store the ORIGINAL hash value BEFORE anything can modify it

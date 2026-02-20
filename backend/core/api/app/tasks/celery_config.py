@@ -106,6 +106,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.daily_inspiration_tasks'},  # Daily Inspiration generation tasks (routed to persistence queue)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Default Inspiration generate/translate tasks (admin-curated defaults)
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -873,6 +874,13 @@ _EXPLICIT_TASK_ROUTES = {
 
     # Daily Inspiration tasks
     "daily_inspiration.generate_daily": "persistence",
+
+    # Default Inspiration tasks (admin-curated defaults)
+    "default_inspiration.generate_content": "persistence",
+    "default_inspiration.translate": "persistence",
+
+    # Admin notification email for inspiration suggestions
+    "app.tasks.email_tasks.inspiration_suggestion_email_task.send_inspiration_suggestion_notification": "email",
 }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:

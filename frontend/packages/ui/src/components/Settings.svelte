@@ -73,6 +73,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsCommunitySuggestions from './settings/server/SettingsCommunitySuggestions.svelte';
     import SettingsStats from './settings/server/SettingsStats.svelte';
     import SettingsGiftCardGenerator from './settings/server/SettingsGiftCardGenerator.svelte';
+    import SettingsDefaultInspirations from './settings/server/SettingsDefaultInspirations.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore';
     
     // Import billing sub-components
@@ -221,6 +222,7 @@ changes to the documentation (to keep the documentation up to date).
         'server/community-suggestions': SettingsCommunitySuggestions,
         'server/stats': SettingsStats,
         'server/gift-cards': SettingsGiftCardGenerator,
+        'server/default-inspirations': SettingsDefaultInspirations,
         'interface/language': SettingsLanguage,
         'incognito/info': SettingsIncognitoInfo,
         'account': SettingsAccount,

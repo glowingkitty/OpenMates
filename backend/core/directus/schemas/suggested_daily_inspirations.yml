@@ -1,0 +1,81 @@
+suggested_daily_inspirations:
+  type: collection
+  fields:
+    suggested_by_user_id:
+      type: uuid
+      note: "UUID of the user who submitted the suggestion"
+      required: true
+    status:
+      type: string
+      length: 50
+      default: "pending_approval"
+      note: "Status: 'pending_approval' | 'generating' | 'pending_review' | 'translating' | 'published' | 'generation_failed' | 'translation_failed'"
+    video_url:
+      type: textfield
+      note: "YouTube video URL"
+      required: true
+    video_id:
+      type: string
+      length: 20
+      note: "YouTube video ID (e.g. dQw4w9WgXcQ)"
+      required: true
+    video_title:
+      type: textfield
+      note: "Video title (original language)"
+    video_channel_name:
+      type: textfield
+      note: "YouTube channel name (original language)"
+    video_channel_id:
+      type: string
+      length: 64
+      note: "YouTube channel ID"
+    video_thumbnail:
+      type: textfield
+      note: "Video thumbnail URL"
+    video_duration_seconds:
+      type: integer
+      note: "Video duration in seconds"
+    video_duration_formatted:
+      type: string
+      length: 20
+      note: "Formatted duration (e.g. '3:45')"
+    video_view_count:
+      type: integer
+      note: "View count at time of suggestion"
+    video_like_count:
+      type: integer
+      note: "Like count at time of suggestion"
+    video_published_at:
+      type: textfield
+      note: "ISO 8601 date when the video was published"
+    category:
+      type: string
+      length: 100
+      note: "AI-generated category for this inspiration (cleartext)"
+    phrase:
+      type: textfield
+      note: "AI-generated CTA phrase in English (cleartext, translated separately)"
+    assistant_response:
+      type: textfield
+      note: "AI-generated assistant response/context in English (cleartext, translated separately)"
+    approved_by_admin:
+      type: uuid
+      note: "UUID of the admin user who approved/confirmed this inspiration"
+    approved_at:
+      type: timestamp
+      note: "When the admin confirmed this inspiration"
+    suggested_at:
+      type: timestamp
+      note: "When the user submitted the suggestion"
+      required: true
+    updated_at:
+      type: timestamp
+      note: "When this record was last updated"
+    is_active:
+      type: boolean
+      default: true
+      note: "Whether this entry is active (soft delete)"
+    deactivated_at:
+      type: timestamp
+      note: "When this entry was deactivated (replaced by a newer one)"
+  note: "Community-suggested YouTube videos for Daily Inspiration defaults. Max 3 published at any time — publishing a 4th auto-deactivates the oldest. Status flow: pending_approval → generating → pending_review → translating → published."

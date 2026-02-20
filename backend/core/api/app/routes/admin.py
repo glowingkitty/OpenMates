@@ -812,3 +812,194 @@ async def admin_generate_gift_cards(
     except Exception as e:
         logger.error(f"Error generating gift cards: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to generate gift cards")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Suggested Daily Inspirations — Admin endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+# Status flow:
+#   pending_approval → generating → pending_review → translating → published
+#   (or) generation_failed / translation_failed
+#
+# Max 3 published at any time; the oldest is auto-deactivated when a 4th is published.
+
+
+class ConfirmInspirationRequest(BaseModel):
+    """Request body for admin confirming a pending_review inspiration."""
+    category: Optional[str] = Field(default=None, description="Optionally updated category")
+    phrase: Optional[str] = Field(default=None, description="Optionally updated CTA phrase")
+    assistant_response: Optional[str] = Field(default=None, description="Optionally updated assistant response")
+
+
+@router.get("/default-inspirations")
+@limiter.limit("30/minute")
+async def list_default_inspirations_admin(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """
+    Admin: list all active suggested daily inspirations (all statuses).
+    """
+    try:
+        items = await directus_service.suggested_inspiration.get_all_admin_items()
+        return {"success": True, "inspirations": items}
+    except Exception as e:
+        logger.error(f"[AdminInspirations] Error listing inspirations: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to list inspirations")
+
+
+@router.post("/default-inspirations/{inspiration_id}/generate")
+@limiter.limit("10/minute")
+async def generate_inspiration_content(
+    request: Request,
+    inspiration_id: str,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """
+    Admin: trigger AI content generation for a pending_approval suggestion.
+
+    Dispatches a Celery task that calls Gemini Flash to produce category,
+    CTA phrase, and assistant_response. Admin receives a
+    `default_inspiration_updated` WebSocket event when done.
+    """
+    try:
+        # Verify the record exists and is in pending_approval
+        record = await directus_service.suggested_inspiration.get_by_id(inspiration_id)
+        if not record:
+            raise HTTPException(status_code=404, detail="Inspiration not found")
+
+        current_status = record.get("status", "")
+        if current_status not in ("pending_approval", "generation_failed"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot generate content: current status is '{current_status}'"
+            )
+
+        # Dispatch Celery task
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+        celery_app.send_task(
+            name="default_inspiration.generate_content",
+            kwargs={
+                "inspiration_id": inspiration_id,
+                "admin_user_id": admin_user.id,
+            },
+            queue="persistence",
+        )
+
+        logger.info(
+            f"[AdminInspirations] Dispatched generate_content task for "
+            f"inspiration_id={inspiration_id} by admin={admin_user.id[:8]}..."
+        )
+
+        return {"success": True, "inspiration_id": inspiration_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[AdminInspirations] Error dispatching generate task for {inspiration_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Failed to start content generation")
+
+
+@router.post("/default-inspirations/{inspiration_id}/confirm")
+@limiter.limit("10/minute")
+async def confirm_inspiration(
+    request: Request,
+    inspiration_id: str,
+    payload: ConfirmInspirationRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """
+    Admin: accept and publish a pending_review inspiration.
+
+    Optionally updates category/phrase/assistant_response before publishing.
+    Dispatches the translate Celery task which handles status transitions
+    (translating → published) and sends WS progress events.
+    """
+    try:
+        record = await directus_service.suggested_inspiration.get_by_id(inspiration_id)
+        if not record:
+            raise HTTPException(status_code=404, detail="Inspiration not found")
+
+        current_status = record.get("status", "")
+        if current_status not in ("pending_review", "translation_failed"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot confirm inspiration: current status is '{current_status}'"
+            )
+
+        # Save any admin edits and mark as translating
+        await directus_service.suggested_inspiration.confirm_inspiration(
+            inspiration_id=inspiration_id,
+            admin_user_id=admin_user.id,
+            category=payload.category,
+            phrase=payload.phrase,
+            assistant_response=payload.assistant_response,
+        )
+
+        # Dispatch translation task
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+        celery_app.send_task(
+            name="default_inspiration.translate",
+            kwargs={
+                "inspiration_id": inspiration_id,
+                "admin_user_id": admin_user.id,
+            },
+            queue="persistence",
+        )
+
+        logger.info(
+            f"[AdminInspirations] Confirmed inspiration_id={inspiration_id} by "
+            f"admin={admin_user.id[:8]}... — translation task dispatched"
+        )
+
+        return {"success": True, "inspiration_id": inspiration_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[AdminInspirations] Error confirming inspiration {inspiration_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Failed to confirm inspiration")
+
+
+@router.delete("/default-inspirations/{inspiration_id}")
+@limiter.limit("10/minute")
+async def delete_inspiration(
+    request: Request,
+    inspiration_id: str,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """
+    Admin: soft-delete an inspiration entry.
+    """
+    try:
+        record = await directus_service.suggested_inspiration.get_by_id(inspiration_id)
+        if not record:
+            raise HTTPException(status_code=404, detail="Inspiration not found")
+
+        await directus_service.suggested_inspiration.deactivate_inspiration(inspiration_id)
+
+        logger.info(
+            f"[AdminInspirations] Deleted inspiration_id={inspiration_id} by "
+            f"admin={admin_user.id[:8]}..."
+        )
+
+        return {"success": True, "inspiration_id": inspiration_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[AdminInspirations] Error deleting inspiration {inspiration_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Failed to delete inspiration")

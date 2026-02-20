@@ -41,6 +41,9 @@ export {
 /** Load community demo chats (example chats) on page load or language change. */
 export { loadCommunityDemos } from "./loadCommunityDemos";
 
+/** Load published default Daily Inspirations from server on page load. */
+export { loadDefaultInspirations } from "./loadDefaultInspirations";
+
 /**
  * Intro chats shown in sidebar for new/non-authenticated users
  * (excluding legal docs - they're accessed via dedicated routes)
