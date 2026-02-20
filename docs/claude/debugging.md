@@ -4,11 +4,54 @@ Load this document when investigating bugs, reading logs, or troubleshooting Doc
 
 ---
 
-## Debugging Backend Issues
+## CRITICAL: Production vs Development Debugging
 
-**ALWAYS use docker compose terminal commands to check logs** when debugging backend issues.
+**ALWAYS determine which server the issue is on FIRST.** The `dev` branch runs on the development server; the `main` branch runs on production. These are completely separate environments.
 
-### Basic Log Commands
+### Production Server Debugging (ALWAYS use Admin Debug CLI)
+
+**For production issues, ALWAYS use the Admin Debug CLI** (`backend/scripts/admin_debug_cli.py`). This script runs locally on the dev server via `docker exec` but queries the **production API** remotely. Do NOT use local `docker compose logs` commands — those only show dev server logs.
+
+```bash
+# Query production task-worker logs (last 30 min)
+docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services task-worker --since 30
+
+# Search production logs for errors
+docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services api,task-worker --search "ERROR|WARNING" --since 60
+
+# Query production task lifecycle events (e.g. to verify a Celery task ran)
+docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services task-worker --since 15 --search "TASK_LIFECYCLE"
+
+# Inspect a production user
+docker exec api python /app/backend/scripts/admin_debug_cli.py user someone@example.com
+
+# Inspect a production chat
+docker exec api python /app/backend/scripts/admin_debug_cli.py chat <chat_id>
+
+# List production issues
+docker exec api python /app/backend/scripts/admin_debug_cli.py issues
+```
+
+**Key flags:**
+
+- By default, the CLI targets **production** (`https://api.openmates.org`)
+- Add `--dev` to target the development server instead
+- Add `--json` for raw JSON output
+- Add `--lines 500` to increase log output (default: 100, max: 500)
+
+**Available commands:** `logs`, `issues`, `issue <id>`, `issue-delete <id>`, `user <email>`, `chat <id>`, `embed <id>`, `requests`, `newsletter`
+
+**When to also check production code:** If something should be working but isn't (e.g., a task was queued but never executed), check whether the code exists on the `main` branch:
+
+```bash
+git fetch origin main
+git grep "function_or_task_name" main
+git show main:path/to/file.py
+```
+
+### Development Server Debugging (Local Docker Compose)
+
+**For dev server issues, use `docker compose` commands directly** — these read logs from the local Docker containers.
 
 ```bash
 docker compose --env-file .env -f backend/core/docker-compose.yml logs <service-name>              # View logs
@@ -17,7 +60,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs --tail=10
 docker compose --env-file .env -f backend/core/docker-compose.yml logs -f -t <service-name>       # With timestamps
 ```
 
-### Time-Based Log Filtering
+### Time-Based Log Filtering (Dev Server Only)
 
 ```bash
 # Logs from the last N minutes
@@ -27,7 +70,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 5
 docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 1h api
 ```
 
-### Log Level Filtering
+### Log Level Filtering (Dev Server Only)
 
 ```bash
 # Only errors and warnings
@@ -36,6 +79,10 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs --tail 50
 # Errors with context
 docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 10m api task-worker | rg -B3 -A3 "ERROR"
 ```
+
+---
+
+## Debugging Backend Issues
 
 ### Where to Look First (by Problem Type)
 

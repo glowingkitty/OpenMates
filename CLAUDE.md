@@ -63,6 +63,28 @@ OpenMates/
 - Explain key architecture decisions in comments
 - Link to relevant architecture docs where appropriate
 
+### Task Completion Summary (CRITICAL)
+
+**After completing every task (commit, lint, push — all done), end your final response with a structured summary.** Keep it concise — bullet points, not paragraphs. Use "N/A" for sections that don't apply.
+
+```
+## Task Summary
+
+**Commit:** [abc1234](https://github.com/glowingkitty/OpenMates/commit/abc1234) (or "No commit" if nothing was committed)
+
+**Problems Identified:** <root cause, error messages, symptoms — or "N/A" for feature work>
+
+**Changes:** <what changed and why, with file:line references>
+
+**Architecture Decisions:** <decision → reasoning → alternatives rejected and why — or "N/A">
+
+**Testing:** <what was tested, how, results>
+
+**Risks:** <what could break, untested edge cases, things to monitor — or "Low risk">
+```
+
+Rules: be honest about risks, be specific with file references, and always explain _why_ alternatives were rejected (not just list them).
+
 ### Auto-Commit After Every Task (CRITICAL)
 
 - **ALWAYS commit and push to `dev` after completing a feature or bug fix** — do not wait for the user to ask.
@@ -160,6 +182,7 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - The user reports a bug, error, or unexpected behavior
 - You need to read Docker logs or troubleshoot a service
 - The task involves investigating why something doesn't work
+- **You need to debug a production issue** (CRITICAL: use Admin Debug CLI, not local docker compose)
 
 #### `docs/claude/inspection-scripts.md`
 
@@ -168,6 +191,7 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - You need to inspect server state (chats, users, issues, cache, AI requests)
 - You need to run diagnostic commands on the running services
 - The user asks you to check or look up data on the server
+- You need to debug production server state remotely (use Admin Debug CLI)
 
 #### `docs/claude/git-and-deployment.md`
 
