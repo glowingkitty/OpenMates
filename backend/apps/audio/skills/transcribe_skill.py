@@ -18,6 +18,8 @@
 import logging
 import base64
 import io
+import math
+import hashlib
 import httpx
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
@@ -423,6 +425,7 @@ class TranscribeSkill(BaseSkill):
         self,
         requests: List[Dict[str, Any]],
         secrets_manager: Optional[SecretsManager] = None,
+        user_id: Optional[str] = None,
         **kwargs,
     ) -> TranscribeResponse:
         """
@@ -431,9 +434,15 @@ class TranscribeSkill(BaseSkill):
         Processes all requests in parallel (asyncio.gather) for best performance.
         Each request fetches+decrypts its own audio file and calls Mistral independently.
 
+        After successful transcription, charges credits based on audio duration:
+          - 3 credits per minute (Mistral Voxtral Mini costs $0.003/min ≈ 3 credits)
+          - 1-minute minimum (recordings < 1 min always cost 3 credits)
+          - Total = max(1, ceil(total_duration_seconds / 60)) * 3
+
         Args:
             requests: Array of transcription request objects (see TranscribeRequest model).
             secrets_manager: SecretsManager instance injected by the app.
+            user_id: The authenticated user's ID (injected by BaseApp route handler).
 
         Returns:
             TranscribeResponse with grouped results per request ID.
@@ -443,7 +452,8 @@ class TranscribeSkill(BaseSkill):
         1. Request received in FastAPI route (app-audio container).
         2. This async method is called directly (no Celery dispatch).
         3. S3 fetch + Mistral API calls use async httpx (non-blocking).
-        4. Results returned directly to caller.
+        4. Credits charged based on total transcribed duration.
+        5. Results returned directly to caller.
         """
         # Get or create SecretsManager using BaseSkill helper
         secrets_manager, error_response = await self._get_or_create_secrets_manager(
@@ -505,4 +515,70 @@ class TranscribeSkill(BaseSkill):
             f"[TranscribeSkill] Completed: {success_count}/{len(validated_requests)} succeeded, "
             f"{len(errors)} failed"
         )
+
+        # --- Billing ---
+        # Charge 3 credits/min (minimum 1 minute) for each successfully transcribed audio.
+        # Pricing rationale: Mistral Voxtral Mini costs $0.003/min ≈ 1 credit; 3x markup applied.
+        # The 1-minute minimum ensures very short clips are still charged fairly.
+        # Billing is non-fatal: failures are logged but do not break the transcription response.
+        if user_id and grouped_results:
+            try:
+                user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+                # Sum duration_seconds across all successful transcription results
+                total_duration_seconds: float = 0.0
+                for group in grouped_results:
+                    for result_item in group.get("results", []):
+                        if isinstance(result_item, dict) and not result_item.get("error"):
+                            duration = result_item.get("duration_seconds")
+                            if duration and isinstance(duration, (int, float)) and duration > 0:
+                                total_duration_seconds += duration
+
+                if total_duration_seconds > 0 and success_count > 0:
+                    # Round up to nearest minute, enforce 1-minute minimum per request
+                    total_minutes = max(success_count, math.ceil(total_duration_seconds / 60))
+                    credits_to_charge = total_minutes * 3
+                    logger.info(
+                        f"[TranscribeSkill] Charging {credits_to_charge} credits for user "
+                        f"{user_id_hash[:8]}... ({total_duration_seconds:.1f}s total, "
+                        f"{total_minutes} billed minutes × 3 credits)"
+                    )
+                    await self.app.charge_user_credits(
+                        user_id=user_id,
+                        user_id_hash=user_id_hash,
+                        credits_to_charge=credits_to_charge,
+                        skill_id=self.skill_id,
+                        app_id=self.app_id,
+                        usage_details={
+                            "duration_seconds": total_duration_seconds,
+                            "billed_minutes": total_minutes,
+                            "requests_transcribed": success_count,
+                        }
+                    )
+                elif success_count > 0:
+                    # Duration not returned by Mistral — apply 1-minute minimum per successful request
+                    credits_to_charge = success_count * 3
+                    logger.warning(
+                        f"[TranscribeSkill] No duration returned from Mistral for {success_count} request(s). "
+                        f"Applying 1-minute minimum: {credits_to_charge} credits."
+                    )
+                    await self.app.charge_user_credits(
+                        user_id=user_id,
+                        user_id_hash=user_id_hash,
+                        credits_to_charge=credits_to_charge,
+                        skill_id=self.skill_id,
+                        app_id=self.app_id,
+                        usage_details={
+                            "duration_seconds": 0,
+                            "billed_minutes": success_count,
+                            "requests_transcribed": success_count,
+                            "note": "duration unavailable — 1-minute minimum applied",
+                        }
+                    )
+            except Exception as billing_error:
+                # Billing failure must never break transcription — log and continue
+                logger.error(
+                    f"[TranscribeSkill] Credit charge failed (non-fatal): {billing_error}",
+                    exc_info=True
+                )
+
         return response

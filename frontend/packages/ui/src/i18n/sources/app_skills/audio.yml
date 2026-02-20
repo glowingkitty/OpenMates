@@ -1,25 +1,25 @@
 transcribe:
-  context: Skill name shown on voice recording embed card
-  en: Voice Note
-  de: Sprachnotiz
-  zh: 语音笔记
-  es: Nota de voz
-  fr: Note vocale
-  pt: Nota de voz
-  ru: Голосовая заметка
-  ja: 音声メモ
-  ko: 음성 메모
-  it: Nota vocale
-  tr: Sesli not
-  vi: Ghi âm
-  id: Catatan suara
-  pl: Notatka głosowa
-  nl: Spraaknotitie
-  ar: ملاحظة صوتية
-  hi: वॉयस नोट
-  th: บันทึกเสียง
-  cs: Hlasová poznámka
-  sv: Röstanteckning
+  context: Skill name shown on voice recording embed card and in the app store
+  en: Get Transcript
+  de: Transkript erstellen
+  zh: 获取转录
+  es: Obtener transcripción
+  fr: Obtenir la transcription
+  pt: Obter transcrição
+  ru: Получить транскрипт
+  ja: 文字起こしを取得
+  ko: 자막 가져오기
+  it: Ottieni trascrizione
+  tr: Transkript al
+  vi: Lấy bản ghi
+  id: Dapatkan transkrip
+  pl: Pobierz transkrypcję
+  nl: Transcript ophalen
+  ar: الحصول على النص
+  hi: प्रतिलिपि प्राप्त करें
+  th: รับสำเนา
+  cs: Získat přepis
+  sv: Hämta transkription
   verified_by_human: []
 
 transcribe.description:
@@ -212,4 +212,76 @@ transcribe.signup_to_upload:
   th: ลงทะเบียนเพื่ออัปโหลดการบันทึก
   cs: Zaregistrujte se pro nahrání záznamu
   sv: Registrera dig för att ladda upp inspelning
+  verified_by_human: []
+
+transcribe.how_to_use.1:
+  context: Example prompt for the audio Get Transcript skill - record and transcribe
+  en: "Record your voice and I'll transcribe it"
+  de: "Nimm deine Stimme auf und ich transkribiere sie"
+  zh: "录制你的声音，我会将其转录"
+  es: "Graba tu voz y la transcribiré"
+  fr: "Enregistre ta voix et je la transcrirai"
+  pt: "Grave sua voz e eu a transcreverei"
+  ru: "Запишите свой голос, и я его расшифрую"
+  ja: "音声を録音すると文字起こしします"
+  ko: "목소리를 녹음하면 자막으로 변환해드립니다"
+  it: "Registra la tua voce e la trascrivo"
+  tr: "Sesinizi kaydedin, ben de yazıya dökerim"
+  vi: "Ghi âm giọng nói của bạn và tôi sẽ chuyển thành văn bản"
+  id: "Rekam suara Anda dan saya akan mentranskripsikannya"
+  pl: "Nagraj swój głos, a ja go przepiszę"
+  nl: "Neem je stem op en ik transcribeer het"
+  ar: "سجّل صوتك وسأحوّله إلى نص"
+  hi: "अपनी आवाज़ रिकॉर्ड करें और मैं उसे ट्रांसक्राइब करूँगा"
+  th: "บันทึกเสียงของคุณและฉันจะถอดเสียงให้"
+  cs: "Nahrajte svůj hlas a já ho přepíšu"
+  sv: "Spela in din röst och jag transkriberar den"
+  verified_by_human: []
+
+transcribe.how_to_use.2:
+  context: Example prompt for the audio Get Transcript skill - transcribe uploaded audio
+  en: "Transcribe this audio file for me"
+  de: "Transkribiere diese Audiodatei für mich"
+  zh: "帮我转录这个音频文件"
+  es: "Transcribe este archivo de audio para mí"
+  fr: "Transcris ce fichier audio pour moi"
+  pt: "Transcreva este arquivo de áudio para mim"
+  ru: "Расшифруй этот аудиофайл для меня"
+  ja: "この音声ファイルを文字起こしして"
+  ko: "이 오디오 파일을 자막으로 변환해줘"
+  it: "Trascrivi questo file audio per me"
+  tr: "Bu ses dosyasını benim için yazıya döker misin"
+  vi: "Hãy chuyển tệp âm thanh này thành văn bản cho tôi"
+  id: "Tolong transkripsikan file audio ini untuk saya"
+  pl: "Proszę transkrybuj ten plik audio dla mnie"
+  nl: "Transcribeer dit audiobestand voor mij"
+  ar: "انسخ هذا الملف الصوتي لي"
+  hi: "मेरे लिए इस ऑडियो फ़ाइल को ट्रांसक्राइब करें"
+  th: "ถอดเสียงไฟล์เสียงนี้ให้ฉัน"
+  cs: "Přepiš mi tento zvukový soubor"
+  sv: "Transkribera den här ljudfilen åt mig"
+  verified_by_human: []
+
+transcribe.how_to_use.3:
+  context: Example prompt for the audio Get Transcript skill - transcribe and summarize
+  en: "Transcribe this meeting recording and summarize the key decisions"
+  de: "Transkribiere diese Besprechungsaufnahme und fasse die wichtigsten Entscheidungen zusammen"
+  zh: "转录这段会议录音并总结关键决定"
+  es: "Transcribe esta grabación de reunión y resume las decisiones clave"
+  fr: "Transcris cet enregistrement de réunion et résume les décisions clés"
+  pt: "Transcreva esta gravação de reunião e resuma as principais decisões"
+  ru: "Расшифруй эту запись совещания и выдели ключевые решения"
+  ja: "この会議の録音を文字起こしして、重要な決定事項をまとめて"
+  ko: "이 회의 녹음을 자막으로 변환하고 주요 결정 사항을 요약해줘"
+  it: "Trascrivi questa registrazione della riunione e riassumi le decisioni chiave"
+  tr: "Bu toplantı kaydını yazıya dök ve önemli kararları özetle"
+  vi: "Chuyển bản ghi buổi họp này thành văn bản và tóm tắt các quyết định chính"
+  id: "Transkripsikan rekaman rapat ini dan rangkum keputusan-keputusan penting"
+  pl: "Transkrybuj to nagranie ze spotkania i podsumuj kluczowe decyzje"
+  nl: "Transcribeer deze vergaderopname en vat de belangrijkste beslissingen samen"
+  ar: "انسخ هذا التسجيل للاجتماع ولخص القرارات الرئيسية"
+  hi: "इस मीटिंग रिकॉर्डिंग को ट्रांसक्राइब करें और मुख्य निर्णयों का सारांश दें"
+  th: "ถอดเสียงการบันทึกการประชุมนี้และสรุปการตัดสินใจสำคัญ"
+  cs: "Přepiš tento záznam schůzky a shrň klíčová rozhodnutí"
+  sv: "Transkribera den här mötesinspelningen och sammanfatta de viktigaste besluten"
   verified_by_human: []

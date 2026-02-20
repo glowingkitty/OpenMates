@@ -17,8 +17,10 @@ skills:
     providers:
       - Mistral
     full_model_reference: mistral/voxtral-mini-2602
+    pricing:
+      per_minute: 3 # $0.003/min Mistral cost; 1-minute minimum enforced in skill (~3x markup)
     api_config:
-      expose_get: false # POST-only — internal tool called by frontend upload pipeline
+      expose_get: true # Expose GET so REST API callers can query skill metadata + use for uploaded audio
     tool_schema:
       type: object
       properties:

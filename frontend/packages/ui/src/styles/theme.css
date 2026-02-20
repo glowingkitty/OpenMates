@@ -336,6 +336,15 @@
     var(--color-app-pcbdesign-end) 90.06%
   );
 
+  /* App/PDF */
+  --color-app-pdf-start: #b50d0e;
+  --color-app-pdf-end: #f42c2d;
+  --color-app-pdf: linear-gradient(
+    135deg,
+    var(--color-app-pdf-start) 9.04%,
+    var(--color-app-pdf-end) 90.06%
+  );
+
   /* App/PDF Editor */
   --color-app-pdfeditor-start: #b50d0e;
   --color-app-pdfeditor-end: #f42c2d;

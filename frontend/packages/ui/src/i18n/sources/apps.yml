@@ -1681,24 +1681,24 @@ pdf:
   verified_by_human: [en, de]
 pdf.description:
   context: Description for the PDF app
-  en: Upload PDFs and extract text, search, and view pages.
-  de: PDFs hochladen und Text extrahieren, suchen und Seiten ansehen.
-  zh: 上传PDF并提取文本、搜索和查看页面。
-  es: Sube PDFs y extrae texto, busca y visualiza páginas.
-  fr: Téléversez des PDFs et extrayez du texte, recherchez et visualisez.
-  pt: Carregue PDFs e extraia texto, pesquise e visualize páginas.
-  ru: Загружайте PDF и извлекайте текст, ищите и просматривайте страницы.
-  ja: PDFをアップロードしてテキストを抽出、検索、ページを表示。
-  ko: PDF를 업로드하여 텍스트 추출, 검색 및 페이지 보기.
-  it: Carica PDF ed estrai testo, cerca e visualizza le pagine.
-  tr: PDF yükleyin ve metin çıkarın, arayın ve sayfaları görüntüleyin.
-  vi: "T\u1ea3i PDF l\u00ean v\u00e0 tr\u00edch xu\u1ea5t v\u0103n b\u1ea3n, t\u00ecm ki\u1ebfm v\u00e0 xem trang."
-  id: Unggah PDF dan ekstrak teks, cari, dan lihat halaman.
-  pl: "Prze\u015blij PDF i wyodr\u0119bnij tekst, szukaj i przegl\u0105daj strony."
-  nl: Upload PDF's en extraheer tekst, zoek en bekijk pagina's.
-  ar: "\u0627\u0631\u0641\u0639 PDF \u0648\u0627\u0633\u062a\u062e\u0631\u062c \u0627\u0644\u0646\u0635\u060c \u0627\u0628\u062d\u062b \u0648\u0639\u0627\u064a\u0646 \u0627\u0644\u0635\u0641\u062d\u0627\u062a."
-  hi: "PDF \u0905\u092a\u0932\u094b\u0921 \u0915\u0930\u0947\u0902 \u0914\u0930 \u091f\u0947\u0915\u094d\u0938\u094d\u091f \u0928\u093f\u0915\u093e\u0932\u0947\u0902\u002c \u0916\u094b\u091c\u0947\u0902 \u0914\u0930 \u092a\u0943\u0937\u094d\u0920 \u0926\u0947\u0916\u0947\u0902\u0964"
-  th: "\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14 PDF \u0e41\u0e25\u0e30\u0e14\u0e36\u0e07\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u002c \u0e04\u0e49\u0e19\u0e2b\u0e32 \u0e41\u0e25\u0e30\u0e14\u0e39\u0e2b\u0e19\u0e49\u0e32"
-  cs: "Nahrajte PDF a extrahujte text\u002c prohledejte a zobrazte str\u00e1nky."
-  sv: "Ladda upp PDF och extrahera text\u002c s\u00f6k och visa sidor."
+  en: Upload PDFs and read or search their content.
+  de: PDFs hochladen und deren Inhalt lesen oder durchsuchen.
+  zh: 上传PDF并读取或搜索内容。
+  es: Sube PDFs y lee o busca en su contenido.
+  fr: Téléversez des PDFs et lisez ou recherchez leur contenu.
+  pt: Carregue PDFs e leia ou pesquise o conteúdo.
+  ru: Загружайте PDF и читайте или ищите их содержимое.
+  ja: PDFをアップロードしてコンテンツを読んだり検索したりできます。
+  ko: PDF를 업로드하여 내용을 읽거나 검색하세요.
+  it: Carica PDF e leggi o cerca il loro contenuto.
+  tr: PDF yükleyin ve içeriklerini okuyun veya arayın.
+  vi: "T\u1ea3i PDF l\u00ean v\u00e0 \u0111\u1ecdc ho\u1eb7c t\u00ecm ki\u1ebfm n\u1ed9i dung."
+  id: Unggah PDF dan baca atau cari isinya.
+  pl: "Prze\u015blij PDF i czytaj lub szukaj ich tre\u015bci."
+  nl: Upload PDF's en lees of doorzoek de inhoud.
+  ar: "\u0627\u0631\u0641\u0639 PDF \u0648\u0627\u0642\u0631\u0623 \u0623\u0648 \u0627\u0628\u062d\u062b \u0641\u064a \u0645\u062d\u062a\u0648\u0627\u0647\u0627."
+  hi: "PDF \u0905\u092a\u0932\u094b\u0921 \u0915\u0930\u0947\u0902 \u0914\u0930 \u0909\u0928\u0915\u0940 \u0938\u093e\u092e\u0917\u094d\u0930\u0940 \u092a\u0922\u093c\u0947\u0902 \u092f\u093e \u0916\u094b\u091c\u0947\u0902\u0964"
+  th: "\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14 PDF \u0e41\u0e25\u0e30\u0e2d\u0e48\u0e32\u0e19\u0e2b\u0e23\u0e37\u0e2d\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e40\u0e19\u0e37\u0e49\u0e2d\u0e2b\u0e32"
+  cs: "Nahrajte PDF a \u010dt\u011bte nebo prohledejte jejich obsah."
+  sv: "Ladda upp PDF och l\u00e4s eller s\u00f6k i inneh\u00e5llet."
   verified_by_human: [en, de]
