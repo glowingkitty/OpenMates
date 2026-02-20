@@ -429,12 +429,6 @@ function parseAppYaml(appId, filePath) {
           continue;
         }
 
-        // Skip skills explicitly hidden from the App Store (e.g. internal LLM-only skills
-        // like pdf.read/search/view that are triggered automatically, not purchased directly)
-        if (skill.show_in_app_store === false) {
-          continue;
-        }
-
         // Auto-prepend "app_skills." prefix to skill translation keys if not already present
         const skillMetadata = {
           id: (skill.id || "").trim(),
@@ -600,8 +594,7 @@ function parseAppYaml(appId, filePath) {
           typeof focus.systemprompt_translation_key === "string" &&
           focus.systemprompt_translation_key.trim()
         ) {
-          focusMetadata.system_prompt_translation_key =
-            focus.systemprompt_translation_key.trim();
+          focusMetadata.system_prompt_translation_key = focus.systemprompt_translation_key.trim();
         }
 
         if (
