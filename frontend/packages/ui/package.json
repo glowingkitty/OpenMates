@@ -41,7 +41,7 @@
     "@revolut/checkout": "^1.1.23",
     "@stripe/stripe-js": "^7.9.0",
     "@sveltejs/adapter-auto": "^6.1.0",
-    "@sveltejs/kit": "^2.49.5",
+    "@sveltejs/kit": "^2.52.2",
     "@tiptap/core": "^3.4.3",
     "@tiptap/extension-highlight": "^3.4.3",
     "@tiptap/extension-link": "^3.4.3",
