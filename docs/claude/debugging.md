@@ -4,6 +4,52 @@ Load this document when investigating bugs, reading logs, or troubleshooting Doc
 
 ---
 
+## CRITICAL: Ask Clarifying Questions Before Debugging
+
+**Before touching any logs or code, you MUST establish the following two facts:**
+
+1. **Who reported the issue?** — Was it a regular user (via the in-app issue reporter) or an admin?
+2. **Which server?** — Did the issue occur on the **dev** server or **production**?
+
+### Decision Tree
+
+```
+Issue source?
+├── Reported by a REGULAR USER (via in-app issue reporter)
+│   └── Do NOT ask the user for more context — they cannot provide it beyond what is in the report.
+│       Instead, read the issue report carefully and proceed with what is given.
+│       → Still confirm with the admin presenting the issue: dev or production?
+│
+└── Reported by an ADMIN (directly in this chat)
+    └── Ask the following clarifying questions BEFORE starting any investigation:
+        1. "Was this issue on the dev server or production?"
+        2. "Can you share any additional context — steps to reproduce, error messages,
+           approximate time it happened, or the user account affected?"
+        Then wait for answers before proceeding.
+```
+
+### Why This Matters
+
+- **Dev vs production** determines which debugging tools to use (local `docker compose` vs Admin Debug CLI).
+  Getting this wrong wastes time investigating the wrong environment.
+- **Admin vs user report** determines whether asking follow-up questions is useful.
+  A regular user's issue report contains everything available — pushing the admin to ask the user for more
+  information rarely yields actionable details and delays investigation.
+
+### Minimum Required Context Before Debugging
+
+| Context Item          | Required?    | Source                              |
+| --------------------- | ------------ | ----------------------------------- |
+| Dev or production?    | Always       | Ask admin if not obvious from issue |
+| Admin or user report? | Always       | Visible from issue report metadata  |
+| Error message / logs  | If available | Check issue report or ask admin     |
+| Approximate time      | Helpful      | Ask admin (narrows log search)      |
+| Affected user/chat ID | Helpful      | Often in issue report               |
+
+**Only proceed to log investigation after you have at minimum: dev-or-production confirmed.**
+
+---
+
 ## CRITICAL: Production vs Development Debugging
 
 **ALWAYS determine which server the issue is on FIRST.** The `dev` branch runs on the development server; the `main` branch runs on production. These are completely separate environments.
