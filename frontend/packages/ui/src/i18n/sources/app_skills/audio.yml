@@ -143,6 +143,54 @@ transcribe.transcription_failed:
   sv: Transkription misslyckades
   verified_by_human: []
 
+transcribe.no_credits:
+  context: Persistent toast and error state message shown when user has 0 credits and tries to transcribe a voice recording
+  en: You ran out of credits. Buy more to continue transcribing voice notes.
+  de: Dein Guthaben ist aufgebraucht. Kaufe mehr, um weiter Sprachnotizen zu transkribieren.
+  zh: 您的点数已用完。购买更多以继续转录语音备忘录。
+  es: Te has quedado sin créditos. Compra más para seguir transcribiendo notas de voz.
+  fr: Vous avez épuisé vos crédits. Achetez-en plus pour continuer à transcrire les notes vocales.
+  pt: Você ficou sem créditos. Compre mais para continuar transcrevendo notas de voz.
+  ru: У вас закончились кредиты. Купите ещё, чтобы продолжить транскрибирование голосовых заметок.
+  ja: クレジットが不足しています。音声メモの文字起こしを続けるためにクレジットを購入してください。
+  ko: 크레딧이 부족합니다. 음성 메모 변환을 계속하려면 더 구매하세요.
+  it: Hai esaurito i crediti. Acquistane altri per continuare a trascrivere le note vocali.
+  tr: Krediniz tükendi. Sesli notları yazmaya devam etmek için daha fazla satın alın.
+  vi: Bạn đã hết tín dụng. Mua thêm để tiếp tục chuyển đổi ghi chú giọng nói.
+  id: Kredit Anda habis. Beli lebih banyak untuk melanjutkan transkripsi catatan suara.
+  pl: Twoje kredyty się skończyły. Kup więcej, aby kontynuować transkrypcję notatek głosowych.
+  nl: Je hebt geen credits meer. Koop er meer om door te gaan met het transcriberen van spraakmemo's.
+  ar: لقد نفدت رصيدك. اشترِ المزيد لمواصلة نسخ الملاحظات الصوتية.
+  hi: आपके क्रेडिट समाप्त हो गए। वॉइस नोट्स ट्रांस्क्राइब करना जारी रखने के लिए और खरीदें।
+  th: เครดิตของคุณหมดแล้ว ซื้อเพิ่มเพื่อถอดเสียงบันทึกเสียงต่อไป
+  cs: Vyčerpali jste kredity. Zakupte další pro pokračování v přepisu hlasových poznámek.
+  sv: Du har slut på krediter. Köp mer för att fortsätta transkribera röstanteckningar.
+  verified_by_human: []
+
+transcribe.retry:
+  context: Button label on the voice recording error card to retry a failed transcription
+  en: Retry
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Tekrar dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองใหม่
+  cs: Zkusit znovu
+  sv: Försök igen
+  verified_by_human: []
+
 transcribe.no_transcript:
   context: Message shown in recording embed when no transcript is available yet
   en: Transcript not available
