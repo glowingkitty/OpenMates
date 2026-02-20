@@ -289,9 +289,12 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 	// ── Open two independent browser contexts ────────────────────────────
 	// Using a fresh browser launch to guarantee separate storage (separate IndexedDB,
 	// separate in-memory master keys) — exactly what happens with two real browsers.
+	// IMPORTANT: manually created contexts do NOT inherit playwright.config.ts baseURL,
+	// so we must pass it explicitly so that page.goto('/...') resolves correctly.
+	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
 	const browser = await chromium.launch();
-	const contextA = await browser.newContext();
-	const contextB = await browser.newContext();
+	const contextA = await browser.newContext({ baseURL });
+	const contextB = await browser.newContext({ baseURL });
 	const pageA = await contextA.newPage();
 	const pageB = await contextB.newPage();
 
