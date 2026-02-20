@@ -318,11 +318,11 @@
 
 <style>
     .camera-overlay {
+        /* Fill the .message-field container edge-to-edge, matching the MapsView overlay.
+           The message-field grows to 400px when showCamera is true (see MessageInput.svelte
+           containerStyle / showCamera logic), so this overlay will be exactly 400px tall. */
         position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 400px;
+        inset: 0;
         background: #000;
         z-index: 1000;
         display: flex;

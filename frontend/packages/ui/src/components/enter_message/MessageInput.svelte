@@ -163,8 +163,17 @@
     let previousHeight = 0;
     
     // Computed state for showing action buttons
-    // Shows when prop is true OR when field is focused
-    let shouldShowActionButtons = $derived(showActionButtons || isMessageFieldFocused);
+    // Shows when prop is true OR when field is focused OR when recording is in progress.
+    // CRITICAL: Keep action buttons visible while record button is pressed or recording
+    // is active — otherwise the onmouseup/touchend handlers on the record button are
+    // removed from the DOM before they can fire (because the editor blur clears
+    // isMessageFieldFocused after 150ms, hiding ActionButtons mid-interaction).
+    let shouldShowActionButtons = $derived(
+        showActionButtons ||
+        isMessageFieldFocused ||
+        $recordingState.isRecordButtonPressed ||
+        $recordingState.showRecordAudioUI
+    );
 
     // --- Original Markdown Tracking ---
     let originalMarkdown = '';
@@ -2788,8 +2797,11 @@
     // When the map overlay is open the field must be tall enough to show the map.
     // We use a fixed height so the editor sits below the map controls and the
     // message-field container grows, making the map fill edge-to-edge.
+    // When the map overlay or camera overlay is open, grow the container to a fixed height
+    // so the overlay fills edge-to-edge (same as maps). Without this the desktop camera
+    // view renders at a tiny default height.
     let containerStyle = $derived(
-        showMaps
+        (showMaps || showCamera)
             ? 'height: 400px; max-height: 400px;'
             : isFullscreen
                 ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);`
