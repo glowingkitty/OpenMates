@@ -175,6 +175,20 @@
         $recordingState.showRecordAudioUI
     );
 
+    // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
+    // in ActionButtons (and force it visible even when there's text in the editor).
+    // Set to true when showRecordHint fires AND mic is granted; auto-resets after 1.5s.
+    let highlightPressHold = $state(false);
+    let highlightTimeout: ReturnType<typeof setTimeout> | null = null;
+    $effect(() => {
+        // React to showRecordHint changing to true while mic is already granted
+        if ($recordingState.showRecordHint && $recordingState.micPermissionState === 'granted') {
+            highlightPressHold = true;
+            clearTimeout(highlightTimeout ?? undefined);
+            highlightTimeout = setTimeout(() => { highlightPressHold = false; }, 1500);
+        }
+    });
+
     // --- Original Markdown Tracking ---
     let originalMarkdown = '';
     let isUpdatingFromMarkdown = false;
@@ -2958,6 +2972,7 @@
                     isAuthenticated={$authStore.isAuthenticated}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
+                    {highlightPressHold}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
@@ -2980,21 +2995,17 @@
         {/if}
 
         <!-- Mic permission hint — shown below action buttons.
-             Three states drive three distinct messages:
-             · denied   → always-visible error telling user to unblock in settings
-             · granted + showRecordHint → timed "Press and hold" reminder (after first tap)
-             · prompt/unknown + showRecordHint → timed hint to allow mic access (after first tap) -->
+             · denied → always-visible error telling user to unblock in settings
+             · prompt/unknown + showRecordHint → timed hint to allow mic access
+             · granted + single tap → handled by highlightPressHold prop on ActionButtons
+               (no separate hint div needed; the inline label flashes instead) -->
         {#if $recordingState.micPermissionState === 'denied'}
             <div class="queued-message-indicator mic-permission-hint mic-permission-blocked" transition:fade={{ duration: 200 }}>
                 {$text('enter_message.record_audio.microphone_blocked')}
             </div>
-        {:else if $recordingState.showRecordHint}
+        {:else if $recordingState.showRecordHint && $recordingState.micPermissionState !== 'granted'}
             <div class="queued-message-indicator mic-permission-hint" transition:fade={{ duration: 200 }}>
-                {#if $recordingState.micPermissionState === 'granted'}
-                    {$text('enter_message.record_audio.press_and_hold_reminder')}
-                {:else}
-                    {$text('enter_message.record_audio.allow_microphone_access')}
-                {/if}
+                {$text('enter_message.record_audio.allow_microphone_access')}
             </div>
         {/if}
 

@@ -13,6 +13,12 @@
 
   When the send button is visible the label is hidden to keep the row compact.
   When mic permission is denied the label is also hidden.
+
+  Single-tap feedback (highlightPressHold):
+    When the user taps (but does not hold) the mic button, the parent sets
+    highlightPressHold=true for ~1.5s. This:
+      - Makes the label visible even if showSendButton=true (temporarily overrides)
+      - Plays a brief highlight animation so the user notices "Press & hold"
 -->
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
@@ -26,12 +32,18 @@
         isAuthenticated?: boolean;
         /** Mic permission state — controls whether "Press & hold to record" label is shown */
         micPermissionState?: 'unknown' | 'granted' | 'prompt' | 'denied';
+        /**
+         * When true, briefly highlight the "Press & hold to record" label (and force
+         * it visible even when showSendButton is true). Set by parent on a short tap.
+         */
+        highlightPressHold?: boolean;
     }
     let {
         showSendButton = false,
         isRecordButtonPressed = false,
         isAuthenticated = true,
-        micPermissionState = 'unknown'
+        micPermissionState = 'unknown',
+        highlightPressHold = false
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -51,10 +63,12 @@
 
     /**
      * Show the "Press & hold to record" inline label when:
-     *  - No content yet (send button hidden)
+     *  - No content yet (send button hidden), OR the parent is highlighting it
      *  - Mic not permanently denied
      */
-    let showPressHoldLabel = $derived(!showSendButton && micPermissionState !== 'denied');
+    let showPressHoldLabel = $derived(
+        (!showSendButton || highlightPressHold) && micPermissionState !== 'denied'
+    );
 </script>
 
 <div class="action-buttons">
@@ -80,9 +94,10 @@
             use:tooltip
         ></button>
 
-        <!-- "Press & hold to record" inline label — hidden when send button is visible or mic blocked -->
+        <!-- "Press & hold to record" inline label — hidden when send button is visible or mic blocked.
+             When highlightPressHold is true the label is force-shown and briefly flashes. -->
         {#if showPressHoldLabel}
-            <span class="press-hold-label" aria-hidden="true">
+            <span class="press-hold-label {highlightPressHold ? 'highlighted' : ''}" aria-hidden="true">
                 {$text('enter_message.record_audio.press_and_hold_reminder')}
             </span>
         {/if}
@@ -166,9 +181,23 @@
         animation: label-fade-in 0.2s ease;
     }
 
+    /* Brief highlight when the user taps (but does not hold) the mic button.
+       Pulses to a more visible colour then fades back to the muted default. */
+    .press-hold-label.highlighted {
+        animation: label-highlight 1.4s ease forwards;
+        font-weight: 600;
+    }
+
     @keyframes label-fade-in {
         from { opacity: 0; }
-        to { opacity: 1; }
+        to   { opacity: 1; }
+    }
+
+    @keyframes label-highlight {
+        0%   { color: var(--color-font-tertiary, rgba(0, 0, 0, 0.4)); font-weight: 400; }
+        15%  { color: var(--color-font-primary,  rgba(0, 0, 0, 0.85)); font-weight: 600; }
+        60%  { color: var(--color-font-primary,  rgba(0, 0, 0, 0.85)); font-weight: 600; }
+        100% { color: var(--color-font-tertiary, rgba(0, 0, 0, 0.4)); font-weight: 400; }
     }
 
     .send-button {

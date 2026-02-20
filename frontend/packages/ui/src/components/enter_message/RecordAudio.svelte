@@ -68,6 +68,15 @@
     let stopAlreadyCalled = false;
     // Horizontal drag offset for the cancel animation (negative = dragging left)
     let dragOffsetX = $state(0);
+    // Guard: ignore pointer-release events until the MediaRecorder has actually
+    // started. Without this, a queued/bubbled mouseup from the original press
+    // interaction fires before getUserMedia resolves, causing stopInternal to see
+    // mediaRecorder=null and immediately dispatch 'close'.
+    let readyForRelease = false;
+    // If a release event arrives while readyForRelease is false, we record that
+    // fact here so we can stop immediately once the recorder becomes ready.
+    // null = no pending release; false = complete; true = cancel.
+    let pendingReleaseCancel: boolean | null = null;
 
     const logger = {
         debug: (...args: any[]) => console.debug('[RecordAudio]', ...args),
@@ -183,8 +192,19 @@
 
             mediaRecorder.start();
             isRecording = true;
+            readyForRelease = true;
             logger.info('MediaRecorder started.');
             startRecordingTimer();
+
+            // If a pointer-release or Escape arrived while we were waiting for
+            // getUserMedia + MediaRecorder init, honour it now.
+            if (pendingReleaseCancel !== null) {
+                const shouldCancel = pendingReleaseCancel;
+                pendingReleaseCancel = null;
+                logger.info(`Executing deferred ${shouldCancel ? 'cancel' : 'stop'}.`);
+                stopInternal(shouldCancel);
+                return;
+            }
 
         } catch (err) {
             logger.error('Failed to initialize recording:', err);
@@ -261,16 +281,31 @@
     /**
      * mouseup anywhere on the document completes the recording.
      * This fires even though the overlay covers the original mic button.
+     *
+     * Ignored until readyForRelease is true — prevents a queued/bubbled mouseup
+     * from the original press interaction from stopping the recording before the
+     * MediaRecorder has had time to initialise (getUserMedia is async).
      */
     function handleDocumentMouseUp(_event: MouseEvent) {
+        if (!readyForRelease) {
+            logger.debug('Document mouseup — deferred (not ready for release yet).');
+            pendingReleaseCancel = false; // queue: complete when ready
+            return;
+        }
         logger.debug('Document mouseup — completing recording.');
         stopInternal(false); // not cancelled
     }
 
     /**
      * touchend anywhere on the document completes the recording on mobile.
+     * Same readyForRelease guard as mouseup.
      */
     function handleDocumentTouchEnd(_event: TouchEvent) {
+        if (!readyForRelease) {
+            logger.debug('Document touchend — deferred (not ready for release yet).');
+            pendingReleaseCancel = false; // queue: complete when ready
+            return;
+        }
         logger.debug('Document touchend — completing recording.');
         stopInternal(false);
     }
@@ -278,21 +313,26 @@
     // --- Escape key → cancel recording ---
     function handleKeyDown(event: KeyboardEvent) {
         if (event.key === 'Escape') {
-            logger.debug('Escape pressed — cancelling recording.');
             event.preventDefault();
+            if (!readyForRelease) {
+                logger.debug('Escape pressed — deferred cancel (not ready yet).');
+                pendingReleaseCancel = true;
+                return;
+            }
+            logger.debug('Escape pressed — cancelling recording.');
             stopInternal(true); // cancelled
         }
     }
 
     // --- Drag / Cancel Logic ---
     function handleMouseMove(event: MouseEvent) {
-        if (!isRecording) return;
+        if (!isRecording || !readyForRelease) return;
         currentPosition = { x: event.clientX, y: event.clientY };
         updateDragState();
     }
 
     function handleTouchMove(event: TouchEvent) {
-        if (!isRecording) return;
+        if (!isRecording || !readyForRelease) return;
         event.preventDefault();
         if (event.touches.length > 0) {
             currentPosition = { x: event.touches[0].clientX, y: event.touches[0].clientY };
@@ -319,12 +359,22 @@
 
     /** Complete the recording (produces audiorecorded event). */
     export function stop() {
+        if (!readyForRelease) {
+            logger.debug('stop() called by parent — deferred (not ready for release yet).');
+            pendingReleaseCancel = false;
+            return;
+        }
         logger.debug('stop() called by parent.');
         stopInternal(false);
     }
 
     /** Cancel the recording (no audiorecorded event). */
     export function cancel() {
+        if (!readyForRelease) {
+            logger.debug('cancel() called by parent — deferred (not ready for release yet).');
+            pendingReleaseCancel = true;
+            return;
+        }
         logger.debug('cancel() called by parent.');
         stopInternal(true);
     }
