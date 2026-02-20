@@ -9,16 +9,12 @@
     // Props using Svelte 5 $props()
     interface Props {
         showSendButton?: boolean;
-        // isRecordButtonPressed?: boolean; // Used by record button (currently commented out)
-        // showRecordHint?: boolean;        // Used by record hint (currently commented out)
-        // micPermissionGranted?: boolean;  // Used by record button (currently commented out)
-        isAuthenticated?: boolean; // Add authentication state prop
+        isRecordButtonPressed?: boolean;
+        isAuthenticated?: boolean;
     }
     let { 
         showSendButton = false,
-        // isRecordButtonPressed = false,
-        // showRecordHint = false,
-        // micPermissionGranted = false,
+        isRecordButtonPressed = false,
         isAuthenticated = true // Default to true for backwards compatibility
     }: Props = $props();
 
@@ -42,12 +38,12 @@
         dispatch('signUpClick');
     }
 
-    // --- Record Button Handlers (currently commented out — feature not yet available) ---
-    // function handleRecordMouseDown(event: MouseEvent) { dispatch('recordMouseDown', { originalEvent: event }); }
-    // function handleRecordMouseUp(event: MouseEvent) { dispatch('recordMouseUp', { originalEvent: event }); }
-    // function handleRecordMouseLeave(event: MouseEvent) { dispatch('recordMouseLeave', { originalEvent: event }); }
-    // function handleRecordTouchStart(event: TouchEvent) { dispatch('recordTouchStart', { originalEvent: event }); }
-    // function handleRecordTouchEnd(event: TouchEvent) { dispatch('recordTouchEnd', { originalEvent: event }); }
+    // --- Record Button Handlers ---
+    function handleRecordMouseDown(event: MouseEvent) { dispatch('recordMouseDown', { originalEvent: event }); }
+    function handleRecordMouseUp(event: MouseEvent) { dispatch('recordMouseUp', { originalEvent: event }); }
+    function handleRecordMouseLeave(event: MouseEvent) { dispatch('recordMouseLeave', { originalEvent: event }); }
+    function handleRecordTouchStart(event: TouchEvent) { event.preventDefault(); dispatch('recordTouchStart', { originalEvent: event }); }
+    function handleRecordTouchEnd(event: TouchEvent) { dispatch('recordTouchEnd', { originalEvent: event }); }
 
 </script>
 
@@ -74,30 +70,20 @@
             use:tooltip
         ></button>
 
-        <!-- Audio recording feature: TODO uncomment once available -->
-        <!-- {#if showRecordHint}
-            <span
-                class="record-hint-inline"
-                transition:slide={{ duration: 200 }}
-            >
-                {$text('enter_message.attachments.record_audio.hint')}
-            </span>
-        {/if}
-
+        <!-- Audio recording: press-and-hold to record, release to transcribe via Mistral Voxtral -->
         <button
             class="record-button {isRecordButtonPressed ? 'recording' : ''}"
             style="z-index: 901;"
-            on:mousedown={handleRecordMouseDown}
-            on:mouseup={handleRecordMouseUp}
-            on:mouseleave={handleRecordMouseLeave}
-            on:touchstart|preventDefault={handleRecordTouchStart}
-            on:touchend={handleRecordTouchEnd}
+            onmousedown={handleRecordMouseDown}
+            onmouseup={handleRecordMouseUp}
+            onmouseleave={handleRecordMouseLeave}
+            ontouchstart={handleRecordTouchStart}
+            ontouchend={handleRecordTouchEnd}
             aria-label={$text('enter_message.attachments.record_audio')}
             use:tooltip
         >
             <div class="clickable-icon icon_recordaudio"></div>
         </button>
-        -->
         {#if showSendButton}
             {#if isAuthenticated}
                 <button

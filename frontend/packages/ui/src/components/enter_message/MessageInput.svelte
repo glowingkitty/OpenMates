@@ -2927,11 +2927,17 @@
                 <ActionButtons
                     showSendButton={hasContent}
                     isAuthenticated={$authStore.isAuthenticated}
+                    isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
                     on:sendMessage={handleSendMessage}
                     on:signUpClick={handleSignUpClick}
+                    on:recordMouseDown={onRecordMouseDown}
+                    on:recordMouseUp={onRecordMouseUp}
+                    on:recordMouseLeave={onRecordMouseLeave}
+                    on:recordTouchStart={onRecordTouchStart}
+                    on:recordTouchEnd={onRecordTouchEnd}
                 />
             </div>
         {/if}
