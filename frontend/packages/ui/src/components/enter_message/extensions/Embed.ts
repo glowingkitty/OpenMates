@@ -515,6 +515,8 @@ export const Embed = Node.create<EmbedOptions>({
       aiDetection: { default: null, rendered: false },
       /** The original File object (only in editor session, not serialized) */
       originalFile: { default: null, rendered: false },
+      /** Number of pages in an uploaded PDF (set by insertPDF after upload completes) */
+      pageCount: { default: null, rendered: false },
     };
   },
 
@@ -568,6 +570,7 @@ export const Embed = Node.create<EmbedOptions>({
         "videos-video", // VideoEmbedPreview uses UnifiedEmbedPreview
         "image", // ImageEmbedPreview uses UnifiedEmbedPreview (uploaded images)
         "maps", // MapLocationEmbedPreview renders Leaflet map inline
+        "pdf", // PDFEmbedPreview renders the PDF upload status card
       ];
 
       if (svelteComponentEmbedTypes.includes(currentAttrs.type)) {
@@ -682,6 +685,39 @@ export const Embed = Node.create<EmbedOptions>({
           // This bypasses the text-change guard in handleEditorUpdate (which skips
           // draft saves when getText() hasn't changed — e.g. image-only editor).
           // The event bubbles up to the editor's DOM view where MessageInput listens.
+          editor.view.dom.dispatchEvent(
+            new CustomEvent("embed-upload-cancelled", {
+              bubbles: true,
+              detail: { embedId },
+            }),
+          );
+        });
+      }
+
+      // For PDF embeds: listen for 'cancelpdfupload' fired by PDFEmbedPreview Stop button.
+      // Same pattern as cancelimageupload above.
+      if (currentAttrs.type === "pdf") {
+        wrapper.addEventListener("cancelpdfupload", (e) => {
+          const embedId = (e as CustomEvent<{ embedId: string }>).detail
+            ?.embedId;
+          if (embedId) cancelUpload(embedId);
+          if (typeof getPos === "function") {
+            const pos = getPos();
+            const nodeSize = editor.state.doc.nodeAt(pos)?.nodeSize ?? 1;
+            const to = pos + nodeSize;
+            const hardBreakAfter = editor.state.doc.nodeAt(to);
+            const deleteTo =
+              hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+            editor
+              .chain()
+              .focus()
+              .deleteRange({ from: pos, to: deleteTo })
+              .run();
+          }
+          console.debug(
+            "[Embed] Stop button: cancelled upload and deleted PDF embed:",
+            embedId,
+          );
           editor.view.dom.dispatchEvent(
             new CustomEvent("embed-upload-cancelled", {
               bubbles: true,
@@ -1207,6 +1243,28 @@ export const Embed = Node.create<EmbedOptions>({
               }
               console.debug(
                 "[Embed] Deleted image embed and cancelled upload:",
+                attrs.id,
+              );
+              return true;
+
+            case "pdf":
+              // PDF embeds are deleted entirely on Backspace — cancel any in-flight upload
+              // and remove the node (same pattern as image embeds).
+              if (attrs.id) {
+                cancelUpload(attrs.id);
+              }
+              {
+                const hardBreakAfterPdf = editor.state.doc.nodeAt(to);
+                const deleteToPdf =
+                  hardBreakAfterPdf?.type.name === "hardBreak" ? to + 1 : to;
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange({ from, to: deleteToPdf })
+                  .run();
+              }
+              console.debug(
+                "[Embed] Deleted PDF embed and cancelled upload:",
                 attrs.id,
               );
               return true;

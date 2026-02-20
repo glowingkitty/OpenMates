@@ -1019,6 +1019,112 @@ services:
       cms-setup:
         condition: service_completed_successfully
 
+  app-pdf:
+    container_name: app-pdf
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: pdf
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      APP_NAME: "pdf"
+      PDF_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../backend/apps/pdf:/app/pdf
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Celery worker for PDF processing tasks (OCR, screenshots, TOC detection)
+  app-pdf-worker:
+    container_name: app-pdf-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONDONTWRITEBYTECODE: "1"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CELERY_QUEUES: "app_pdf"
+      CELERY_AUTOSCALE_MAX: "4" # PDF processing is CPU/memory intensive — cap concurrency
+      CELERY_AUTOSCALE_MIN: "1"
+    command: >
+      sh -c "chown celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=app_pdf \
+             --autoscale=4,1 \
+             --max-tasks-per-child=10 \
+             --max-memory-per-child=1000000 \
+             --prefetch-multiplier=1 \
+             --autoreload"
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+
   #########################################################################
   ##### In-Memory Cache (Dragonfly)
   #########################################################################

@@ -1317,3 +1317,67 @@ async def notify_test_run_summary(
             status_code=500,
             detail=f"Failed to dispatch notifications: {str(e)}"
         )
+
+
+# ---------------------------------------------------------------------------
+# PDF processing trigger endpoint
+# Called by the uploads server after a PDF is stored in S3.
+# Dispatches the background OCR/TOC/screenshot processing Celery task.
+# ---------------------------------------------------------------------------
+
+class PdfProcessPayload(BaseModel):
+    """Payload sent by the uploads server to trigger PDF background processing."""
+    embed_id: str = Field(..., description="Embed ID for the uploaded PDF.")
+    user_id: str = Field(..., description="User ID who uploaded the PDF.")
+    vault_key_id: str = Field(..., description="User's Vault Transit key ID for decryption.")
+    s3_key: str = Field(..., description="S3 key of the encrypted PDF file.")
+    s3_base_url: str = Field(..., description="S3 bucket base URL.")
+    vault_wrapped_aes_key: str = Field(..., description="Vault-wrapped AES key for the PDF.")
+    aes_nonce: str = Field(..., description="Base64 AES-GCM nonce for the PDF.")
+    filename: str = Field(..., description="Original filename of the PDF.")
+    page_count: int = Field(..., description="Number of pages in the PDF.")
+    credits_charged: int = Field(default=0, description="Credits charged upfront (for refund on failure).")
+    user_id_hash: str = Field(default="", description="SHA256 hash of user_id for billing.")
+    chat_id: Optional[str] = Field(None, description="Chat ID (may be available from context).")
+    message_id: Optional[str] = Field(None, description="Message ID (may be available from context).")
+
+
+@router.post("/pdf/process", status_code=202)
+async def trigger_pdf_processing(payload: PdfProcessPayload) -> Dict[str, Any]:
+    """
+    Trigger background PDF processing after a successful upload.
+
+    Called by the uploads microservice (fire-and-forget pattern).
+    Dispatches a Celery task on the app_pdf queue to run:
+      - Mistral OCR
+      - Page screenshot rendering (pymupdf)
+      - TOC and legend detection (Groq)
+      - S3 artefact upload
+      - Embed TOON content delivery to client
+
+    Returns 202 Accepted immediately; processing happens in the background.
+    """
+    logger.info(
+        f"[PDF Process] Triggering background processing for embed {payload.embed_id[:8]}... "
+        f"({payload.page_count} pages, user {payload.user_id[:8]}...)"
+    )
+
+    from backend.core.api.app.tasks.celery_config import send_task_validated
+
+    task_result = send_task_validated(
+        task_name="apps.pdf.tasks.process_pdf",
+        kwargs={"arguments": payload.dict()},
+        queue="app_pdf",
+    )
+
+    logger.info(
+        f"[PDF Process] Task dispatched: task_id={task_result.id}, "
+        f"embed_id={payload.embed_id[:8]}..."
+    )
+
+    return {
+        "status": "accepted",
+        "task_id": task_result.id,
+        "embed_id": payload.embed_id,
+        "page_count": payload.page_count,
+    }

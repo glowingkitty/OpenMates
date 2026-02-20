@@ -348,6 +348,138 @@ async function _performUpload(
 }
 
 /**
+ * Inserts a PDF embed into the editor and triggers the server upload + OCR pipeline.
+ *
+ * Upload flow (authenticated users only — no demo mode for PDFs):
+ *  1. Insert the embed node immediately with status: 'uploading' and the filename.
+ *  2. Upload the PDF to the server in the background.
+ *  3. On success: update the embed node with S3 keys, AES metadata, page_count,
+ *     and status: 'processing' (background OCR will update to 'finished' via WebSocket).
+ *  4. On failure: update the embed node with status: 'error'.
+ *
+ * The server triggers background OCR processing (Mistral + pymupdf) after the upload
+ * and delivers the final embed content via WebSocket embed_update event.
+ */
+export async function insertPDF(editor: Editor, file: File): Promise<void> {
+  // Generate a stable embed ID to reference the node after insertion
+  const embedId = generateUUID();
+
+  // Insert immediately with status: 'uploading' so the send button is blocked
+  // until the upload completes and we have at least the S3 keys.
+  ensureLeadingParagraph(editor);
+  editor.commands.insertContent([
+    {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "pdf",
+        status: "uploading",
+        contentRef: null,
+        filename: file.name,
+        // Populated after server response:
+        uploadEmbedId: null,
+        pageCount: null,
+        s3BaseUrl: null,
+        aesNonce: null,
+        vaultWrappedAesKey: null,
+        uploadError: null,
+      },
+    },
+    {
+      type: "text",
+      text: " ",
+    },
+  ]);
+  setTimeout(() => {
+    editor.commands.focus("end");
+  }, 50);
+
+  // Register an AbortController so the upload can be cancelled.
+  const controller = new AbortController();
+  _uploadControllers.set(embedId, controller);
+  _performPdfUpload(editor, embedId, file, controller.signal).catch((err) => {
+    console.error("[EmbedHandlers] Unhandled error in _performPdfUpload:", err);
+  });
+}
+
+/**
+ * Performs the actual PDF upload and updates the embed node on completion.
+ * After a successful upload the status is set to 'processing' — the background
+ * OCR pipeline on the server will push the final 'finished' state via WebSocket.
+ */
+async function _performPdfUpload(
+  editor: Editor,
+  localEmbedId: string,
+  file: File,
+  signal?: AbortSignal,
+): Promise<void> {
+  // Helper: update embed node attrs via a ProseMirror transaction.
+  function updateEmbedNode(updates: Record<string, unknown>): void {
+    const { state, dispatch } = editor.view;
+    const tr = state.tr;
+    let found = false;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "embed" && node.attrs.id === localEmbedId) {
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...updates });
+        found = true;
+        return false;
+      }
+      return true;
+    });
+    if (found) dispatch(tr);
+  }
+
+  try {
+    const result = await uploadFileToServer(file, signal);
+
+    // Remove the AbortController — upload completed successfully
+    _uploadControllers.delete(localEmbedId);
+
+    // Transition to 'processing' — the server is now running OCR in the background.
+    // The WebSocket embed_update event will push the final 'finished' state later.
+    updateEmbedNode({
+      status: "processing",
+      uploadEmbedId: result.embed_id,
+      // page_count is returned by the upload server for PDFs (see UploadFileResponse)
+      pageCount: result.page_count ?? null,
+      s3BaseUrl: result.s3_base_url,
+      aesNonce: result.aes_nonce,
+      vaultWrappedAesKey: result.vault_wrapped_aes_key,
+      uploadError: null,
+    });
+
+    console.debug(
+      "[EmbedHandlers] PDF upload complete — processing in background:",
+      { filename: file.name, embed_id: result.embed_id },
+    );
+  } catch (uploadError) {
+    // Remove the AbortController regardless of error type
+    _uploadControllers.delete(localEmbedId);
+
+    // AbortError: upload was cancelled (user deleted embed or stopped)
+    if (
+      uploadError instanceof Error &&
+      (uploadError.name === "AbortError" ||
+        uploadError.message === "Upload cancelled")
+    ) {
+      console.debug(
+        "[EmbedHandlers] PDF upload cancelled for embed:",
+        localEmbedId,
+      );
+      return;
+    }
+
+    console.error("[EmbedHandlers] PDF upload failed:", uploadError);
+
+    updateEmbedNode({
+      status: "error",
+      uploadError:
+        uploadError instanceof Error ? uploadError.message : "Upload failed",
+    });
+  }
+}
+
+/**
  * Inserts a generic file or PDF embed into the editor.
  */
 export async function insertFile(

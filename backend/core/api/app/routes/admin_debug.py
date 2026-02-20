@@ -100,10 +100,12 @@ ALLOWED_LOG_SERVICES = [
     "app-code",
     "app-travel",
     "app-images",
+    "app-pdf",
     # App workers
     "app-ai-worker",
     "app-web-worker",
     "app-images-worker",
+    "app-pdf-worker",
     # Infrastructure (cache only - safe to query)
     "cache",
 ]

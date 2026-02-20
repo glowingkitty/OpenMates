@@ -2,18 +2,34 @@
 #
 # POST /v1/upload/file — the core upload endpoint.
 #
-# Full pipeline for image uploads (Phase 1):
+# Full pipeline for supported file types:
+#
+# Images pipeline:
 #   1. Authenticate user via refresh token cookie (forwarded to core API)
 #   2. Validate file size (100 MB limit) and MIME type whitelist
 #   3. Compute SHA-256 hash → check deduplication via core API
 #   4. ClamAV malware scan (blocks until result; 422 if threat detected)
-#   5. [Images] SightEngine AI-generated detection (non-blocking; stores score as metadata)
-#   6. [Images] Generate WEBP preview via Pillow
+#   5. SightEngine AI-generated detection (non-blocking; stores score as metadata)
+#   6. Generate WEBP preview via Pillow
 #   7. Generate random AES-256 key, encrypt file + preview with AES-256-GCM
 #   8. Vault-wrap the AES key via core API internal endpoint
 #   9. Upload encrypted bytes to S3 chatfiles bucket
 #   10. Store upload record via core API internal endpoint
 #   11. Return JSON with embed_id, S3 keys, AES key, vault_wrapped_aes_key
+#
+# PDF pipeline:
+#   1. Authenticate user
+#   2. Validate file size and MIME type
+#   3. Compute SHA-256 hash → check deduplication
+#   4. ClamAV malware scan
+#   5. Extract page count via pymupdf (quick, no rendering)
+#   6. Charge user 3 credits/page upfront via core API billing
+#   7. Encrypt PDF bytes with AES-256-GCM
+#   8. Vault-wrap the AES key
+#   9. Upload encrypted PDF to S3
+#   10. Store upload record
+#   11. Trigger background OCR processing via POST /internal/pdf/process (fire-and-forget)
+#   12. Return JSON with embed_id, page_count, S3 key, AES key
 #
 # Architecture (security isolation):
 #   - This service has NO access to Directus, the main Vault, or any user data.
@@ -24,8 +40,8 @@
 #     access user data, or reach the main Vault.
 #
 # Concurrent uploads: FastAPI's async event loop naturally handles multiple
-# simultaneous requests. Blocking operations (ClamAV, Pillow) run in thread
-# pools via asyncio.to_thread().
+# simultaneous requests. Blocking operations (ClamAV, Pillow, pymupdf) run in
+# thread pools via asyncio.to_thread().
 
 import hashlib
 import logging
@@ -46,7 +62,7 @@ router = APIRouter(prefix="/v1/upload", tags=["Upload"])
 # File type configuration
 # ---------------------------------------------------------------------------
 
-# Allowed MIME types for Phase 1 (images only)
+# Allowed MIME types (images + PDFs)
 ALLOWED_IMAGE_MIMES = {
     "image/jpeg",
     "image/jpg",
@@ -58,6 +74,18 @@ ALLOWED_IMAGE_MIMES = {
     "image/bmp",
     "image/tiff",
 }
+
+ALLOWED_PDF_MIMES = {
+    "application/pdf",
+}
+
+ALLOWED_MIMES = ALLOWED_IMAGE_MIMES | ALLOWED_PDF_MIMES
+
+# Maximum PDF page count (1000 pages max)
+MAX_PDF_PAGES = 1000
+
+# Credits charged per PDF page (3 credits/page)
+PDF_CREDITS_PER_PAGE = 3
 
 # Maximum upload size: 100 MB
 MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 MB
@@ -96,6 +124,8 @@ class UploadFileResponse(BaseModel):
     malware_scan: str = Field(..., description="ClamAV result: 'clean'")
     ai_detection: Optional[AIDetectionMetadata] = Field(None, description="AI-generated detection result (images only)")
     deduplicated: bool = Field(default=False, description="True if this file was already uploaded by this user")
+    # PDF-specific fields (only set when content_type is application/pdf)
+    page_count: Optional[int] = Field(None, description="Number of pages in the PDF (set for PDFs only)")
 
 
 # ---------------------------------------------------------------------------
@@ -312,15 +342,19 @@ async def upload_file(
         detected_mime = content_type
 
     is_image = detected_mime in ALLOWED_IMAGE_MIMES or content_type in ALLOWED_IMAGE_MIMES
+    is_pdf = detected_mime in ALLOWED_PDF_MIMES or content_type in ALLOWED_PDF_MIMES
 
-    if not is_image:
+    if not is_image and not is_pdf:
         logger.warning(
             f"{log_prefix} Rejected: unsupported MIME type detected={detected_mime!r}, "
             f"declared={content_type!r}"
         )
         raise HTTPException(
             status_code=415,
-            detail=f"Unsupported file type: {detected_mime}. Supported: images (JPEG, PNG, WEBP, GIF, HEIC)",
+            detail=(
+                f"Unsupported file type: {detected_mime}. "
+                "Supported: images (JPEG, PNG, WEBP, GIF, HEIC) and PDFs."
+            ),
         )
 
     # Use the detected MIME type (more reliable than Content-Type header)
@@ -361,6 +395,7 @@ async def upload_file(
                 else None
             ),
             deduplicated=True,
+            page_count=existing_record.get("page_count"),
         )
 
     # --- 6. ClamAV malware scan ---
@@ -380,6 +415,27 @@ async def upload_file(
             detail=f"File rejected: threat detected ({scan_result.threat_name})",
         )
     logger.info(f"{log_prefix} ClamAV scan: clean")
+
+    # ===========================================================================
+    # PDF BRANCH: separate processing pipeline for PDFs
+    # ===========================================================================
+    if is_pdf:
+        return await _handle_pdf_upload(
+            request=request,
+            file_bytes=file_bytes,
+            filename=filename,
+            content_type=content_type,
+            content_hash=content_hash,
+            user_id=user_id,
+            vault_key_id=vault_key_id,
+            core_api_url=core_api_url,
+            internal_token=internal_token,
+            log_prefix=log_prefix,
+        )
+
+    # ===========================================================================
+    # IMAGE BRANCH: original pipeline continues below
+    # ===========================================================================
 
     # --- 7. [Images] SightEngine AI detection (non-blocking — never rejects upload) ---
     ai_detection_result = None
@@ -528,4 +584,215 @@ async def upload_file(
         malware_scan="clean",
         ai_detection=ai_detection_result,
         deduplicated=False,
+    )
+
+
+# ---------------------------------------------------------------------------
+# PDF upload helper
+# ---------------------------------------------------------------------------
+
+async def _handle_pdf_upload(
+    request: Any,
+    file_bytes: bytes,
+    filename: str,
+    content_type: str,
+    content_hash: str,
+    user_id: str,
+    vault_key_id: str,
+    core_api_url: str,
+    internal_token: str,
+    log_prefix: str,
+) -> UploadFileResponse:
+    """
+    Handle the PDF-specific upload pipeline:
+      1. Extract page count via pymupdf (no rendering)
+      2. Charge credits upfront (3 credits/page) via core API billing
+      3. Encrypt PDF with AES-256-GCM
+      4. Vault-wrap the AES key
+      5. Upload to S3
+      6. Store upload record
+      7. Trigger background OCR processing (fire-and-forget)
+
+    Returns UploadFileResponse with page_count set.
+    """
+    import asyncio
+
+    # --- PDF 1. Extract page count via pymupdf ---
+    try:
+        import fitz  # type: ignore[import]  # pymupdf
+
+        def _count_pages(pdf_bytes: bytes) -> int:
+            """Count pages in PDF bytes synchronously (runs in threadpool)."""
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            count = len(doc)
+            doc.close()
+            return count
+
+        page_count = await asyncio.to_thread(_count_pages, file_bytes)
+        logger.info(f"{log_prefix} PDF page count: {page_count}")
+    except ImportError:
+        logger.error(f"{log_prefix} pymupdf (fitz) not installed — cannot count PDF pages")
+        raise HTTPException(status_code=500, detail="PDF processing library not available")
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to count PDF pages: {e}", exc_info=True)
+        raise HTTPException(status_code=422, detail=f"Invalid or corrupt PDF file: {e}")
+
+    if page_count > MAX_PDF_PAGES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"PDF too large: {page_count} pages. Maximum allowed is {MAX_PDF_PAGES} pages.",
+        )
+    if page_count == 0:
+        raise HTTPException(status_code=422, detail="PDF has no pages.")
+
+    # --- PDF 2. Charge credits upfront (3 credits/page) ---
+    import hashlib as _hashlib
+    credits_to_charge = page_count * PDF_CREDITS_PER_PAGE
+    user_id_hash = _hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            charge_resp = await client.post(
+                f"{core_api_url}/internal/billing/charge",
+                json={
+                    "user_id": user_id,
+                    "user_id_hash": user_id_hash,
+                    "credits": credits_to_charge,
+                    "skill_id": "process",
+                    "app_id": "pdf",
+                    "usage_details": {
+                        "page_count": page_count,
+                        "credits_per_page": PDF_CREDITS_PER_PAGE,
+                        "filename": filename,
+                    },
+                },
+                headers={"X-Internal-Service-Token": internal_token},
+            )
+        if charge_resp.status_code == 402:
+            logger.warning(f"{log_prefix} Insufficient credits for PDF ({page_count} pages = {credits_to_charge} credits)")
+            raise HTTPException(status_code=402, detail="Insufficient credits for PDF processing")
+        elif charge_resp.status_code not in (200, 201):
+            logger.error(f"{log_prefix} Billing charge failed: {charge_resp.status_code} {charge_resp.text[:200]}")
+            raise HTTPException(status_code=503, detail="Billing service unavailable")
+        logger.info(f"{log_prefix} Charged {credits_to_charge} credits for {page_count}-page PDF")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Credit charge request failed: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Billing service unavailable")
+
+    # --- PDF 3. AES-256-GCM encryption ---
+    crypto_service = request.app.state.file_encryption
+    encrypted_pdf, aes_key_b64, nonce_b64 = crypto_service.encrypt_bytes(file_bytes)
+
+    # --- PDF 4. Vault-wrap the AES key ---
+    try:
+        vault_wrapped_aes_key = await _wrap_key_via_api(
+            core_api_url, internal_token, aes_key_b64, vault_key_id
+        )
+    except RuntimeError as e:
+        logger.error(f"{log_prefix} Vault key wrap failed: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Encryption service unavailable")
+
+    # --- PDF 5. Upload to S3 ---
+    embed_id = str(uuid.uuid4())
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    s3_prefix = f"{user_id}/{content_hash}"
+    s3_service = request.app.state.s3
+    pdf_s3_key = f"{s3_prefix}/{timestamp}_original.bin"
+
+    try:
+        await s3_service.upload_file(s3_key=pdf_s3_key, content=encrypted_pdf)
+        logger.info(f"{log_prefix} PDF uploaded to S3: {pdf_s3_key}")
+    except RuntimeError as e:
+        logger.error(f"{log_prefix} S3 upload failed: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="File storage service unavailable")
+
+    s3_base_url = s3_service.get_base_url()
+
+    # --- PDF 6. Build files metadata and store upload record ---
+    files_metadata = {
+        "original": FileVariantMetadata(
+            s3_key=pdf_s3_key,
+            width=0,  # Not applicable for PDFs
+            height=0,
+            size_bytes=len(encrypted_pdf),
+            format="pdf",
+        ),
+    }
+
+    upload_record = {
+        "embed_id": embed_id,
+        "user_id": user_id,
+        "content_hash": content_hash,
+        "original_filename": filename,
+        "content_type": content_type,
+        "file_size_bytes": len(file_bytes),
+        "s3_base_url": s3_base_url,
+        "files_metadata": {k: v.model_dump() for k, v in files_metadata.items()},
+        "aes_key": aes_key_b64,
+        "aes_nonce": nonce_b64,
+        "vault_wrapped_aes_key": vault_wrapped_aes_key,
+        "malware_scan": "clean",
+        "ai_detection": None,
+        "created_at": int(datetime.now(timezone.utc).timestamp()),
+        # PDF-specific metadata
+        "page_count": page_count,
+    }
+    await _store_record_via_api(core_api_url, internal_token, upload_record)
+
+    # --- PDF 7. Trigger background OCR processing (fire-and-forget) ---
+    async def _trigger_pdf_processing() -> None:
+        """Fire background OCR task via core API internal endpoint."""
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    f"{core_api_url}/internal/pdf/process",
+                    json={
+                        "embed_id": embed_id,
+                        "user_id": user_id,
+                        "vault_key_id": vault_key_id,
+                        "s3_key": pdf_s3_key,
+                        "s3_base_url": s3_base_url,
+                        "vault_wrapped_aes_key": vault_wrapped_aes_key,
+                        "aes_nonce": nonce_b64,
+                        "filename": filename,
+                        "page_count": page_count,
+                        "credits_charged": credits_to_charge,
+                        "user_id_hash": user_id_hash,
+                    },
+                    headers={"X-Internal-Service-Token": internal_token},
+                )
+            if resp.status_code not in (200, 201, 202):
+                logger.warning(
+                    f"{log_prefix} PDF process trigger returned {resp.status_code}: {resp.text[:200]}"
+                )
+            else:
+                logger.info(f"{log_prefix} PDF background processing triggered successfully")
+        except Exception as exc:
+            # Non-fatal: processing will be retried or user will see un-OCR'd embed
+            logger.warning(f"{log_prefix} Failed to trigger PDF background processing: {exc}")
+
+    import asyncio as _asyncio
+    _asyncio.create_task(_trigger_pdf_processing())
+
+    logger.info(
+        f"{log_prefix} PDF upload complete — embed_id={embed_id}, "
+        f"pages={page_count}, hash={content_hash[:16]}..."
+    )
+
+    return UploadFileResponse(
+        embed_id=embed_id,
+        filename=filename,
+        content_type=content_type,
+        content_hash=content_hash,
+        files=files_metadata,
+        s3_base_url=s3_base_url,
+        aes_key=aes_key_b64,
+        aes_nonce=nonce_b64,
+        vault_wrapped_aes_key=vault_wrapped_aes_key,
+        malware_scan="clean",
+        ai_detection=None,
+        deduplicated=False,
+        page_count=page_count,
     )

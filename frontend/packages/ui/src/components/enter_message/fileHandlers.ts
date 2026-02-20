@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import { insertCodeFile, insertImage } from "./embedHandlers"; // Only images and code/text files are accepted via the upload button
+import { insertCodeFile, insertImage, insertPDF } from "./embedHandlers"; // Only images, PDFs, and code/text files are accepted via the upload button
 import { isCodeOrTextFile } from "./utils"; // Import necessary utils
 
 // File size limits (consider moving to a config file later)
@@ -38,8 +38,8 @@ export async function processFiles(
       continue; // Skip this file
     }
 
-    // Only images and code/text files are supported via the upload button.
-    // All other file types (video, audio, PDF, EPUB, etc.) are silently skipped.
+    // Supported via the upload button: images, PDFs (authenticated only), code/text files.
+    // All other file types (video, audio, EPUB, etc.) are silently skipped.
     if (file.type.startsWith("image/")) {
       editor.commands.focus("end");
       // Pass isAuthenticated — unauthenticated users get demo mode (local preview only)
@@ -51,6 +51,16 @@ export async function processFiles(
         undefined,
         isAuthenticated,
       );
+    } else if (file.type === "application/pdf") {
+      // PDF upload requires authentication — no demo mode (server-side OCR pipeline)
+      if (isAuthenticated) {
+        editor.commands.focus("end");
+        await insertPDF(editor, file);
+      } else {
+        console.warn(
+          "[FileHandlers] PDF upload requires authentication — skipping in demo mode",
+        );
+      }
     } else if (isCodeOrTextFile(file.name)) {
       editor.commands.focus("end");
       await insertCodeFile(editor, file, isAuthenticated);

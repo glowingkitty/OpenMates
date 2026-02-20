@@ -139,6 +139,9 @@ export class EmbedStore {
         return "docs-doc" as EmbedType;
       case "sheet":
         return "sheets-sheet" as EmbedType;
+      case "pdf":
+        // PDF type comes from server as "pdf" — pass through as-is (no remapping needed)
+        return "pdf" as EmbedType;
       default:
         return type as EmbedType;
     }

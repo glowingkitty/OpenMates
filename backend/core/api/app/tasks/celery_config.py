@@ -104,6 +104,7 @@ TASK_CONFIG = [
     {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
+    {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -865,6 +866,9 @@ _EXPLICIT_TASK_ROUTES = {
 
     # Auto-delete tasks
     "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
+
+    # PDF processing tasks
+    "apps.pdf.tasks.process_pdf": "app_pdf",
 }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:

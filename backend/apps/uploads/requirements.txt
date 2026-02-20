@@ -26,3 +26,6 @@ Pillow==12.1.1
 pyclamd==0.4.0
 # MIME type detection (uses libmagic under the hood)
 python-magic==0.4.27
+# PDF processing: page count extraction (no rendering required at upload time)
+# Full rendering (screenshots) happens in the pdf app worker after upload
+pymupdf==1.25.5

@@ -76,6 +76,11 @@ export interface UploadFileResponse {
   ai_detection: AIDetectionMetadata | null;
   /** True if this file was already uploaded by this user (deduplication hit) */
   deduplicated: boolean;
+  /**
+   * Number of pages in the PDF (only present for application/pdf uploads).
+   * Returned by the upload server after pymupdf page-count extraction.
+   */
+  page_count?: number;
 }
 
 // ---------------------------------------------------------------------------

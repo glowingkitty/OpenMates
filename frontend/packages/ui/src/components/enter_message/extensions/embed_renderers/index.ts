@@ -2,6 +2,7 @@
 
 import { GroupRenderer } from "./GroupRenderer";
 import { ImageRenderer } from "./ImageRenderer";
+import { PdfRenderer } from "./PdfRenderer";
 import { RecordingRenderer } from "./RecordingRenderer";
 import { AppSkillUseRenderer } from "./AppSkillUseRenderer";
 import { FocusModeActivationRenderer } from "./FocusModeActivationRenderer";
@@ -38,6 +39,8 @@ export const embedRenderers: EmbedRendererRegistry = {
   "travel-connection-group": new GroupRenderer(),
   // Image renderer for static images and SVGs (used in legal documents)
   image: new ImageRenderer(),
+  // PDF upload embed renderer — mounts PDFEmbedPreview in the editor
+  pdf: new PdfRenderer(),
   // Audio recording embed renderer — mounts RecordingEmbedPreview in the editor
   recording: new RecordingRenderer(),
   // Map location embed renderer — mounts MapsLocationEmbedPreview in the editor
