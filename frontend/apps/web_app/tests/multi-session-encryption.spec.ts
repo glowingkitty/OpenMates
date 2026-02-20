@@ -144,10 +144,15 @@ async function sendMessageAndGetChatId(
 	await sendButton.click();
 	logFn(`Message sent: "${message}"`);
 
-	// Wait for chat ID to appear in URL
-	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 20000 });
+	// Wait for a real UUID chat ID in the URL (not the demo-for-everyone placeholder).
+	// The demo chat uses chat-id=demo-for-everyone; real chats use UUIDs like
+	// "2a43c594-cc80-4be2-9148-d41658f7717f". We poll until we see a UUID.
+	const uuidPattern = /chat-id=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+	await expect(page).toHaveURL(uuidPattern, { timeout: 20000 });
 	const url = page.url();
-	const match = url.match(/chat-id=([a-zA-Z0-9-]+)/);
+	const match = url.match(
+		/chat-id=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+	);
 	const chatId = match ? match[1] : 'unknown';
 	logFn(`Chat ID: ${chatId}`);
 	return chatId;
