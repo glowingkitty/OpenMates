@@ -70,7 +70,36 @@ State explicitly what success looks like and how to verify it:
 - What specific test or check proves it works?
 - Are there UI states, API responses, or log outputs to verify?
 
-### 6. Flag Risks and Unknowns
+### 6. Suggest E2E Test Specs
+
+**Propose concrete end-to-end test descriptions** that would verify the feature works correctly. Write them as `spec.ts`-style test names — descriptive enough that the user can evaluate whether each test is worth implementing.
+
+Do NOT write the test code during planning. Just list the test descriptions. The user decides which ones to implement after reviewing the plan.
+
+**Example format:**
+
+> **Suggested E2E Tests:**
+>
+> - `should display new message in chat for all connected members`
+> - `should show error toast when sending message to a chat the user is not a member of`
+> - `should persist message after page reload`
+> - `should show sending indicator while message is in transit`
+
+**Why this matters:**
+
+- Forces thinking about testability during design, not after implementation
+- Catches untestable designs early — if you can't describe a test, the scope may be unclear
+- Test descriptions double as acceptance criteria
+- Gives the user control over test investment — they pick which tests matter
+
+**Guidelines:**
+
+- Cover the happy path, at least one error case, and any critical edge cases
+- Write test names in plain language (`should ...` format)
+- Group by feature area if there are many tests
+- Keep the list focused — 3-8 tests per feature, not 30
+
+### 7. Flag Risks and Unknowns
 
 List anything that could block progress, cause regressions, or require rework:
 
@@ -111,6 +140,11 @@ Use this template for your plan. Keep it concise — bullet points, not essays.
 **Done When:**
 - <criterion 1>
 - <criterion 2>
+
+**Suggested E2E Tests:**
+- `should <test description 1>`
+- `should <test description 2>`
+- `should <error case description>`
 
 **Risks:**
 - <risk 1>
