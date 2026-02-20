@@ -174,6 +174,24 @@ class BillingService:
             
             logger.info(f"Successfully charged {credits_to_deduct} credits from user {user_id}. New balance: {new_credits}")
 
+            # Track paid request timestamp for Daily Inspiration eligibility.
+            # The daily inspiration generation job uses this to identify active users
+            # (only users who made a paid request in the last 24h get new inspirations).
+            # Non-fatal: if caching fails, the user may not get personalized inspirations
+            # on this cycle but the core billing flow is unaffected.
+            # Skip for incognito chats (is_incognito is checked below when usage_details is parsed,
+            # but we need it here too — read it directly from usage_details).
+            _is_incognito_charge = (
+                usage_details.get("is_incognito", False) if usage_details else False
+            )
+            if not _is_incognito_charge:
+                try:
+                    await self.cache_service.track_inspiration_paid_request(user_id=user_id)
+                except Exception as e_track:
+                    logger.warning(
+                        f"Failed to track paid request for daily inspiration (non-fatal): {e_track}"
+                    )
+
             # 4.5. Update Server Global Stats (Incremental)
             # Track credits used and decrease total liability
             if payment_enabled:

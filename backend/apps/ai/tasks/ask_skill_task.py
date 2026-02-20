@@ -1603,6 +1603,31 @@ async def _async_process_ai_skill_ask_task(
             await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)
             logger.info(f"[Task ID: {task_id}] Published post-processing results to Redis channel '{postprocessing_channel}'")
 
+            # --- Cache daily inspiration topic suggestions ---
+            # Store the LLM-generated topic suggestions for later use in personalized daily inspiration generation.
+            # These are cached server-side (rolling 50, 24h TTL) and used by the daily generation job/trigger.
+            # Non-fatal: if caching fails, daily inspiration generation will proceed without personalization.
+            if (
+                postprocessing_result.daily_inspiration_topic_suggestions
+                and request_data.user_id
+                and not getattr(request_data, 'is_incognito', False)
+            ):
+                try:
+                    await cache_service_instance.store_inspiration_topic_suggestions(
+                        user_id=request_data.user_id,
+                        new_suggestions=postprocessing_result.daily_inspiration_topic_suggestions,
+                    )
+                    logger.debug(
+                        f"[Task ID: {task_id}] Stored {len(postprocessing_result.daily_inspiration_topic_suggestions)} "
+                        f"daily inspiration topic suggestions for user {request_data.user_id[:8]}..."
+                    )
+                except Exception as e_topics:
+                    # Non-fatal: daily inspiration personalization is a best-effort feature
+                    logger.warning(
+                        f"[Task ID: {task_id}] Failed to cache daily inspiration topic suggestions "
+                        f"(non-fatal, will not affect main response): {e_topics}"
+                    )
+
         # --- Cache debug data for postprocessor stage ---
         # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
         # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process

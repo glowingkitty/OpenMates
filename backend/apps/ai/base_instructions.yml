@@ -488,6 +488,15 @@ postprocess_response_tool:
          - Return app IDs like: ["web", "code", "images", "travel", "health"]
          - Only include apps that actually exist in the system
          - If no apps are clearly relevant, return an empty array
+
+      5. **daily_inspiration_topic_suggestions**: Generate 3 short topic/interest phrases based on what the user discussed or expressed curiosity about.
+         - These are captured to inform future personalized daily inspiration generation
+         - Each phrase should be a concise topic (2-5 words) that could inspire a fascinating educational video, article, or exploration
+         - Capture genuine interests revealed in the conversation, not generic topics
+         - Example good topics: "Meiji Restoration industrialization", "black hole event horizon", "sourdough fermentation science", "Roman engineering aqueducts"
+         - Example bad topics (too generic): "history", "science", "cooking", "technology"
+         - **ALWAYS generate 3 topics** — even if the conversation is narrow, find adjacent or related topics the user might find interesting
+         - **LANGUAGE**: Always generate topics in English (used for video/content search queries)
     parameters:
       type: "object"
       properties:
@@ -540,11 +549,19 @@ postprocess_response_tool:
           items:
             type: "string"
           maxItems: 3
+        daily_inspiration_topic_suggestions:
+          type: "array"
+          description: "3 concise topic/interest phrases (2-5 words each, in English) based on what the user discussed or showed curiosity about. Used to personalize daily inspiration content. Capture specific topics, not broad categories. Always generate exactly 3."
+          items:
+            type: "string"
+          minItems: 3
+          maxItems: 3
       required:
         - "follow_up_request_suggestions"
         - "new_chat_request_suggestions"
         - "harmful_response"
         - "chat_summary"
+        - "daily_inspiration_topic_suggestions"
 
 url_correction_tool:
   type: "function"

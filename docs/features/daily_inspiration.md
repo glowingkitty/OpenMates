@@ -3,10 +3,13 @@
 ![Daily Inspiration](../images/dailyinspiration.jpg)
 
 ## Overview
+
 Daily Inspiration is a feature that provides users with three curated, thought-provoking prompts each day designed to spark curiosity, encourage exploration, and inspire learning. These inspirations appear as interactive banners in the new chat screen, allowing users to discover fascinating topics and start meaningful conversations.
 
 ## Purpose
+
 Daily Inspiration aims to:
+
 - Encourage curiosity-driven learning and exploration through video content
 - Present users with interesting facts, questions, and topics they might not have considered
 - Create opportunities for discovery and intellectual growth via educational videos
@@ -17,6 +20,7 @@ Daily Inspiration aims to:
 ### Post-Processing Integration
 
 #### Topic Suggestions Collection
+
 During the post-processing phase of message handling, the system collects topic suggestions that inform daily inspiration generation:
 
 - **Output Field**: `daily_inspiration_topic_suggestions` (array of 3 topic suggestions)
@@ -24,6 +28,7 @@ During the post-processing phase of message handling, the system collects topic 
 - **Purpose**: These suggestions capture user interests and conversation topics that can inform personalized daily inspirations
 
 #### Server-Side Caching
+
 Topic suggestions are stored server-side with encryption and time-based expiration:
 
 - **Storage**: Encrypted cache entries per user
@@ -35,6 +40,7 @@ Topic suggestions are stored server-side with encryption and time-based expirati
 ### Daily Generation Process
 
 #### Generation Triggers
+
 Daily inspirations are generated through two mechanisms:
 
 1. **Immediate Generation (First Paid Request)**
@@ -53,6 +59,7 @@ Daily inspirations are generated through two mechanisms:
    - **Dynamic Quantity**: Generates only as many new inspirations as the user viewed the previous day (1 viewed = 1 new, 3 viewed = 3 new, etc.)
 
 #### Load Distribution
+
 To prevent server overload and ensure scalability, daily inspiration generation is spaced out over time:
 
 - **Distribution Strategy**: Instead of processing all users simultaneously, generation is distributed across a time window
@@ -71,16 +78,20 @@ To prevent server overload and ensure scalability, daily inspiration generation 
   - Failed generations can be retried without affecting the entire batch
 
 #### Activity Criteria
+
 New daily inspirations are only generated for users who:
+
 - Made at least one **paid request** to the server within the last 24 hours (tracked via Unix timestamp)
 - This ensures costs are only incurred for users who are actively using the platform and participate in covering costs
 
 **View Tracking**:
+
 - The server tracks which daily inspiration IDs have been viewed by each user
 - Only inspiration IDs are stored (inspirations themselves are stored client-side encrypted, just like messages)
 - This tracking enables the system to generate only as many new inspirations as were actually viewed
 
 **Cost Optimization**:
+
 - If a user viewed 0 inspirations: No new inspirations generated (saves costs)
 - If a user viewed 1 inspiration: 1 new inspiration generated
 - If a user viewed 2 inspirations: 2 new inspirations generated
@@ -90,6 +101,7 @@ New daily inspirations are only generated for users who:
 If a user hasn't made a paid request in the last 24 hours, their existing daily inspirations are preserved (since they haven't seen them yet or aren't actively using the platform).
 
 #### Generation Function Call Structure
+
 Each daily inspiration contains:
 
 1. **Phrase/Fact**: A thought-provoking phrase or fascinating fact that encourages exploration
@@ -111,6 +123,7 @@ Each daily inspiration contains:
 ### Delivery and Caching
 
 #### Real-Time Delivery (WebSocket)
+
 When daily inspirations are generated, the system attempts immediate delivery:
 
 - **Logged-In Users**: Daily inspirations are delivered immediately via WebSocket to all active connections for that user
@@ -127,35 +140,38 @@ When daily inspirations are generated, the system attempts immediate delivery:
   - **Note**: Server can decrypt cached inspirations using vault key (needed for delivery), but they are never stored in Directus
 
 #### Cache Expiration Policy
+
 - **Cache Duration**: 7 days from generation timestamp
 - **Rationale**:
   - Balances user experience (users may not log in daily) with data retention policies
   - After 7 days, inspirations are considered stale and no longer relevant
   - Prevents indefinite storage of unused data
   - Aligns with privacy best practices (minimal data retention)
-- **Expiration Behavior**: 
+- **Expiration Behavior**:
   - If user logs in within 7 days: Cached inspirations are delivered via WebSocket, then removed from cache
   - If user doesn't log in within 7 days: Cached inspirations are automatically dropped (no delivery)
   - Expired cache entries are cleaned up automatically by the cache service
 
 #### Delivery Flow
+
 1. **Generation Completes** → Check if user has active WebSocket connections
-2. **If Connected**: 
+2. **If Connected**:
    - Encrypt inspirations with user's vault key (server-side encryption)
    - Send encrypted inspirations immediately via WebSocket
    - Client receives and stores (may re-encrypt with client-side keys if needed)
    - No caching needed
-3. **If Not Connected**: 
+3. **If Not Connected**:
    - Encrypt inspirations with user's vault key (server-side encryption)
    - Store encrypted inspirations in server-side cache (7-day expiry)
    - Server can decrypt using vault key when user logs in
-4. **On User Login**: 
+4. **On User Login**:
    - Check cache for pending inspirations
    - Decrypt cached inspirations using user's vault key
    - Deliver decrypted inspirations via WebSocket
    - Remove from cache immediately after delivery
 
 **Privacy Compliance**:
+
 - **Logged-in users**: Inspirations delivered immediately via WebSocket (client-side encrypted, same as messages)
 - **Offline users**: Inspirations cached with server-side encryption using user's vault key
   - Server can decrypt using vault key (needed for WebSocket delivery on login)
@@ -167,6 +183,7 @@ When daily inspirations are generated, the system attempts immediate delivery:
 ### Video Processing
 
 #### Video Search and Selection
+
 Videos are retrieved using a three-step process to ensure high-quality, relevant, and popular content:
 
 1. **Initial Search**: Use Brave Search API to find relevant videos
@@ -194,6 +211,7 @@ Videos are retrieved using a three-step process to ensure high-quality, relevant
    - **Purpose**: Ensure the selected video is both highly relevant to the topic AND popular/engaging, preventing irrelevant but highly-viewed videos from being selected
 
 #### Video Processing Pipeline
+
 Selected videos undergo processing before storage:
 
 1. **Retrieval**: Fetch video metadata from the search results
@@ -203,6 +221,7 @@ Selected videos undergo processing before storage:
 5. **Metadata**: Store original video URL, provider information, and video duration
 
 #### Video URL and Favicon
+
 For each daily inspiration video:
 
 - **Original URL**: Stored to enable opening source in new tab
@@ -213,6 +232,7 @@ For each daily inspiration video:
 ## User Interface
 
 ### Banner Display
+
 Daily inspirations appear as banners at the top of the new chat screen:
 
 - **Location**: Top of the new chat interface
@@ -226,6 +246,7 @@ Daily inspirations appear as banners at the top of the new chat screen:
   - Favicon indicating video source
 
 ### Time-Based Sorting
+
 The order of daily inspirations changes based on time of day:
 
 - **5:00 AM - 1:00 PM (5-13)**: First inspiration optimized for morning engagement
@@ -235,25 +256,21 @@ The order of daily inspirations changes based on time of day:
 This ensures users see the most relevant inspiration first based on their typical usage patterns.
 
 ### Chat Initiation
+
 When a user clicks "Click to start chat" on a daily inspiration:
 
 1. **Local Chat Creation**: A new chat is created **locally only** (no server request initially)
    - Chat is created with predefined title and assistant message
    - Follows the standard client-side encryption system
    - Chat is synced to other devices automatically (same as any other chat)
-   
 2. **Initial Message**: The inspiration phrase/fact is set as the assistant's first message
    - Example: "The Meiji Restoration modernized Japan in just decades—want to discuss how they industrialized so rapidly?"
-   
 3. **Chat Title**: Pre-populated with the generated title from the inspiration
-   
 4. **Mate/Category**: Set to the inspiration's category
-   
 5. **Video Search Embed**: The chat automatically includes the video search embed
    - Shows all the videos that were searched during inspiration generation
    - Displays the full video search results from Brave search
    - Provides video content that encourages direct learning about the inspiration topic
-   
 6. **LLM Inference**: **No LLM inference occurs** until the user responds to the chat
    - The initial message and embed are pre-generated
    - User must send a message to trigger normal chat processing and billing
@@ -261,6 +278,7 @@ When a user clicks "Click to start chat" on a daily inspiration:
 ## Billing and Cost Management
 
 ### Free Generation
+
 Daily inspiration generation is **not billed to users**:
 
 - **Generation Cost**: Absorbed by the platform (not charged to user account)
@@ -270,6 +288,7 @@ Daily inspiration generation is **not billed to users**:
 ### Cost Analysis
 
 **Base Cost Per Inspiration** (approximate):
+
 - LLM generation for inspiration (Qwen3 235B): ~$0.012 per inspiration (1,600 input + 60 output tokens)
 - LLM generation for video selection (Qwen3 235B): ~$0.008 per inspiration (1,200 input + 40 output tokens for top 20 video evaluation)
 - Brave Search API: ~$0.005 per video search
@@ -277,17 +296,20 @@ Daily inspiration generation is **not billed to users**:
 - **Total per inspiration**: ~$0.025 (includes LLM-based video selection)
 
 **Optimized Cost Per User Per Month** (with view-based generation):
+
 - **Best case** (user views 0 inspirations): $0.00/month (no generation)
 - **Low engagement** (user views 1 inspiration/day): ~$0.75/month (30 × 1 × $0.025)
 - **Medium engagement** (user views 2 inspirations/day): ~$1.50/month (30 × 2 × $0.025)
 - **High engagement** (user views 3 inspirations/day): ~$2.25/month (30 × 3 × $0.025)
 
 **Cost Savings**:
+
 - View-based generation can reduce costs by 0-67% compared to always generating 3 inspirations
 - Only generating for users with paid requests ensures costs align with revenue-generating users
 - Immediate first generation provides value without waiting, improving user experience
 
 **Cost Absorption Justification**:
+
 - At ~$0.75-$2.25 per active user per month, costs are reasonable to absorb
 - Encourages exploration and engagement, potentially leading to more paid requests
 - Costs scale with actual user engagement (view-based generation)
@@ -295,6 +317,7 @@ Daily inspiration generation is **not billed to users**:
 - LLM-based video selection ensures higher quality, more relevant content, improving user experience and engagement
 
 ### Cost Optimization
+
 To manage generation costs:
 
 - **Individual Processing**: One LLM call per user (prevents context mixing, ensures personalized results)
@@ -319,94 +342,101 @@ To manage generation costs:
 ## Data Flow
 
 ### Topic Suggestion Collection
+
 ```
-User Message → Post-Processing → Extract daily_inspiration_topic_suggestions → 
+User Message → Post-Processing → Extract daily_inspiration_topic_suggestions →
 Encrypt → Store in Cache (24h expiry, last 50 per user)
 ```
 
 ### Daily Inspiration Generation
 
 #### Immediate Generation (First Paid Request)
+
 ```
-User Makes First Paid Request → Post-Processing Completes → 
-Load Last 50 Topic Suggestions → 
-Individual LLM Function Call → 
-Generate 3 Inspirations → 
+User Makes First Paid Request → Post-Processing Completes →
+Load Last 50 Topic Suggestions →
+Individual LLM Function Call →
+Generate 3 Inspirations →
 For Each Inspiration:
-  Video Search (Brave Search API) → 
-  Extract YouTube Video IDs → 
-  Batch Request View Counts & Engagement Metrics (YouTube API) → 
-  Sort by View Count → 
-  Select Top 20 Videos → 
-  LLM-Based Video Selection (evaluates relevance, view counts, likes) → 
-  Select Best Video → 
-  Video Processing (thumbnail extraction) → 
-  Upload to previews.openmates.org → 
-Store Inspiration Data → 
+  Video Search (Brave Search API) →
+  Extract YouTube Video IDs →
+  Batch Request View Counts & Engagement Metrics (YouTube API) →
+  Sort by View Count →
+  Select Top 20 Videos →
+  LLM-Based Video Selection (evaluates relevance, view counts, likes) →
+  Select Best Video →
+  Video Processing (thumbnail extraction) →
+  Upload to previews.openmates.org →
+Store Inspiration Data →
 Deliver to UI (replaces default/placeholder inspirations)
 ```
 
 #### Scheduled Daily Generation
+
 ```
-Daily Scheduled Job → 
-Identify Users with Paid Requests in Last 24h → 
+Daily Scheduled Job →
+Identify Users with Paid Requests in Last 24h →
 For Each User:
-  Count Viewed Inspiration IDs from Previous Day → 
+  Count Viewed Inspiration IDs from Previous Day →
   If Count > 0:
-    Load Last 50 Topic Suggestions → 
-    Individual LLM Function Call → 
-    Generate N Inspirations (N = count of viewed inspirations) → 
+    Load Last 50 Topic Suggestions →
+    Individual LLM Function Call →
+    Generate N Inspirations (N = count of viewed inspirations) →
     For Each Inspiration:
-      Video Search (Brave Search API) → 
-      Extract YouTube Video IDs → 
-      Batch Request View Counts & Engagement Metrics (YouTube API, 1 quota per batch of 50) → 
-      Sort by View Count → 
-      Select Top 20 Videos → 
-      LLM-Based Video Selection (evaluates relevance, view counts, likes) → 
-      Select Best Video → 
-      Video Processing (thumbnail extraction) → 
-      Upload to previews.openmates.org → 
-    Encrypt Inspiration Data (server-side encryption with user's vault key) → 
+      Video Search (Brave Search API) →
+      Extract YouTube Video IDs →
+      Batch Request View Counts & Engagement Metrics (YouTube API, 1 quota per batch of 50) →
+      Sort by View Count →
+      Select Top 20 Videos →
+      LLM-Based Video Selection (evaluates relevance, view counts, likes) →
+      Select Best Video →
+      Video Processing (thumbnail extraction) →
+      Upload to previews.openmates.org →
+    Encrypt Inspiration Data (server-side encryption with user's vault key) →
     Check User WebSocket Connection Status:
-      If Connected: Deliver Immediately via WebSocket → 
-      If Not Connected: Store Encrypted in Server Cache (7-day expiry) → 
-    Clear Previous Day's View Tracking → 
+      If Connected: Deliver Immediately via WebSocket →
+      If Not Connected: Store Encrypted in Server Cache (7-day expiry) →
+    Clear Previous Day's View Tracking →
   Cache Cleanup: Remove Expired Entries (>7 days old)
 ```
 
 ### User Interaction
 
 #### View Tracking
+
 ```
-User Views Banner → 
-  Client Sends Inspiration ID to Server → 
-  Server Tracks Inspiration ID as Viewed (stored server-side) → 
+User Views Banner →
+  Client Sends Inspiration ID to Server →
+  Server Tracks Inspiration ID as Viewed (stored server-side) →
   Server Updates View Count for Next Day's Generation
 ```
 
 **View Tracking Details**:
+
 - When a daily inspiration banner becomes visible in the UI, the client sends the inspiration ID to the server
 - Server stores only the inspiration ID (not the content, which remains client-side encrypted)
 - This tracking enables the system to determine how many inspirations to generate the next day
 - View tracking is cleared after daily generation completes
 
 #### Chat Initiation Flow
+
 ```
-User Swipes/Selects Inspiration → 
-Clicks "Start Chat" → Local Chat Created (encrypted, synced) → 
-Inspiration Message + Video Search Embed Displayed → 
-User Responds → LLM Inference Triggered → 
+User Swipes/Selects Inspiration →
+Clicks "Start Chat" → Local Chat Created (encrypted, synced) →
+Inspiration Message + Video Search Embed Displayed →
+User Responds → LLM Inference Triggered →
 Normal Chat Flow (billed)
 ```
 
 #### Login and Cache Delivery
+
 ```
-User Logs In → WebSocket Connection Established → 
-Server Checks Cache for Pending Inspirations → 
+User Logs In → WebSocket Connection Established →
+Server Checks Cache for Pending Inspirations →
 If Found (within 7-day window):
-  Decrypt Cached Inspirations (using user's vault key) → 
-  Deliver Decrypted Inspirations via WebSocket → 
-  Remove from Cache → 
+  Decrypt Cached Inspirations (using user's vault key) →
+  Deliver Decrypted Inspirations via WebSocket →
+  Remove from Cache →
   Client Stores Locally (may re-encrypt with client-side keys if needed)
 If Not Found or Expired:
   User Sees Existing Inspirations (if any) or Default Placeholders
@@ -415,6 +445,7 @@ If Not Found or Expired:
 ## Technical Implementation Details
 
 ### Cache Structure
+
 ```python
 # Pseudo-structure for topic suggestions cache
 cache_key = f"daily_inspiration_topics:{user_id}"
@@ -429,6 +460,7 @@ expiry = 24_hours
 ```
 
 ### View Tracking Structure
+
 ```python
 # Server-side tracking of viewed inspiration IDs
 # Stored per user, cleared after daily generation
@@ -445,6 +477,7 @@ view_tracking_value = {
 ```
 
 ### Paid Request Tracking
+
 ```python
 # Server-side tracking of last paid request timestamp
 paid_request_key = f"daily_inspiration_last_paid_request:{user_id}"
@@ -456,6 +489,7 @@ paid_request_value = {
 ```
 
 ### Delivery Cache Structure
+
 ```python
 # Server-side cache for offline users (7-day expiry)
 # Stores server-side encrypted inspiration data temporarily until user logs in
@@ -479,10 +513,13 @@ expiry = 7_days  # Automatically cleaned up after 7 days if not delivered
 ```
 
 ### Daily Inspiration Data Structure
+
 ```python
 # Structure for each daily inspiration
 {
     "id": "unique_inspiration_id",
+    "content_type": "video",  # Content type indicator for extensibility (see Future Content Types)
+                              # Current: "video" only. Future: "article", "fact", "challenge", "project", "podcast"
     "phrase": "The Meiji Restoration modernized Japan...",
     "video_url": "https://...",
     "video_thumbnail_url": "https://previews.openmates.org/.../thumbnail.jpg",
@@ -499,29 +536,48 @@ expiry = 7_days  # Automatically cleaned up after 7 days if not delivered
 ```
 
 ### Function Calling Schema
+
 The LLM function for generating daily inspirations should accept:
+
 - User's recent topic suggestions (last 50)
 - User's chat history summary (optional, for personalization)
 - Current date/time context
 - Number of inspirations to generate (1-3, based on how many were viewed the previous day)
 
 And return:
+
 - Array of N inspiration objects (where N = requested count, typically 1-3), each containing:
   - `phrase`: The inspiration text
   - `video_search_query`: Query for video search (used to generate video search embed)
   - `chat_title`: Title for the chat
   - `category`: Category/mate identifier
+  - `content_type`: Type of content (currently always `"video"`; included for future extensibility)
 
 **Note**: The video search query is also used to generate the video search embed that appears in the chat when the user clicks "Start Chat". This embed shows all the videos that were searched, providing video content that encourages direct learning about the inspiration topic.
 
 **Generation Scenarios**:
+
 - **First paid request**: Always generate 3 inspirations (replaces default/placeholder)
 - **Daily scheduled job**: Generate N inspirations where N = count of viewed inspirations from previous day (0-3)
 
 ## Future Enhancements
 
+### Future Content Types
+
+The `content_type` field in the data structure is designed for extensibility. Currently only `"video"` is implemented, but the architecture supports adding alternative content types for users who prefer different learning formats:
+
+- **`"article"`**: Use Brave web search to find a relevant article or blog post. Display a link preview (thumbnail, title, site favicon, estimated read time). Good for in-depth learners.
+- **`"fact"`**: Pure text-based inspiration with no external content. A fascinating fact paired with a curiosity-sparking question, leading directly to a chat conversation. Zero external API cost.
+- **`"challenge"`**: A hands-on prompt that invites the user to try something practical. Example: "Build a simple weather widget today — what stack would you use?" The "content" IS the conversation.
+- **`"project"`**: A guided project idea paired with a step-by-step outline. Leads to a structured project planning chat.
+- **`"podcast"`**: Use Brave search to find a relevant podcast episode. Display audio player embed with episode title, show name, and duration. Good for on-the-go learners.
+
+When adding new content types, the generation function schema, video processor module, and frontend banner component should be extended to handle the new type. The LLM generation function should include a `content_type` selection parameter when multiple types are available.
+
 ### Potential Improvements
+
 - **Personalization**: Use more user context (past chats, interests) to generate highly relevant inspirations
+- **Multiple Content Types**: Roll out article, fact, and challenge content types in addition to video
 - **A/B Testing**: Test different inspiration styles and formats
 - **User Feedback**: Allow users to rate or provide feedback on inspirations
 - **Analytics**: Track which inspirations lead to longer, more engaging conversations
@@ -529,19 +585,21 @@ And return:
 - **Localization**: Adapt inspiration content and language for different regions
 
 ### Integration Opportunities
+
 - **Learning Paths**: Connect inspirations to structured learning paths
-- **Community Sharing**: Allow users to share interesting inspirations with others
 - **Follow-up Suggestions**: Link daily inspirations to follow-up conversation suggestions
 - **Weekly Themes**: Organize inspirations around weekly themes or topics
 
 ## Error Handling
 
 ### Generation Failures
+
 - **Graceful Degradation**: If generation fails, show previous day's inspirations
 - **Retry Logic**: Implement retry mechanism for transient failures
 - **Logging**: Comprehensive logging for debugging generation issues
 
 ### Video Processing Failures
+
 - **Fallback Thumbnails**: Use default placeholder if video processing fails
 - **URL Validation**: Validate video URLs before processing
 - **Timeout Handling**: Set appropriate timeouts for video metadata retrieval
@@ -549,10 +607,12 @@ And return:
 - **Insufficient Videos**: If fewer than 20 videos are found, process all available videos with LLM for selection
 
 ### Cache Failures
+
 - **Topic Suggestions Cache**: If cache unavailable, generate without topic suggestions
 - **Recovery**: Rebuild cache from recent post-processing results if needed
 
 ### Delivery Failures
+
 - **WebSocket Delivery Failure**: If WebSocket delivery fails for logged-in user, fall back to cache (7-day expiry)
 - **Cache Expiration**: If user logs in after 7 days, cached inspirations are dropped (considered stale)
 - **Graceful Degradation**: User sees existing inspirations or default placeholders if delivery fails
@@ -561,7 +621,8 @@ And return:
 ## Security and Privacy
 
 ### Data Protection
-- **Encryption**: 
+
+- **Encryption**:
   - Topic suggestions: Encrypted server-side with user's vault key
   - Daily inspirations (logged-in): Delivered immediately via WebSocket (client-side encrypted, same as messages)
   - Daily inspirations (offline): Server-side encrypted with user's vault key for caching
@@ -569,7 +630,7 @@ And return:
     - Never stored in Directus
 - **User Isolation**: Each user's inspirations are isolated and private
 - **No PII**: Inspiration generation doesn't expose personal information
-- **Temporary Caching**: 
+- **Temporary Caching**:
   - Offline user inspirations cached server-side for maximum 7 days
   - Encrypted with user's vault key (server-side encryption)
   - Cache automatically expires and is cleaned up
@@ -577,6 +638,7 @@ And return:
   - Removed immediately after successful WebSocket delivery
 
 ### Video Security
+
 - **URL Validation**: Validate and sanitize video URLs
 - **Content Filtering**: Ensure videos meet content guidelines (use safe search via brave search API)
 - **Source Attribution**: Properly attribute video sources

@@ -150,6 +150,12 @@ class PostProcessingResult(BaseModel):
     relevant_settings_memory_categories: List[str] = Field(default_factory=list, description="Up to 3 category IDs (format: app_id.item_type) that could have new entries based on conversation")
     # Phase 2 output: Actual suggested entries (populated by separate memory generation step)
     suggested_settings_memories: List[SuggestedSettingsMemoryEntry] = Field(default_factory=list, description="Up to 3 suggested new settings/memory entries")
+    # Daily inspiration: Topic suggestions collected from conversation for personalized inspiration generation
+    # Cached server-side (24h TTL, rolling 50 per user) to inform daily inspiration LLM calls
+    daily_inspiration_topic_suggestions: List[str] = Field(
+        default_factory=list,
+        description="3 concise topic/interest phrases (in English) capturing what the user discussed or showed curiosity about"
+    )
 
 
 async def handle_postprocessing(
@@ -375,13 +381,29 @@ async def handle_postprocessing(
         logger.warning(f"[Task ID: {task_id}] [PostProcessor] chat_summary missing or empty from post-processing LLM. Will fall back to preprocessing summary.")
         postproc_chat_summary = None
 
+    # Parse and validate daily inspiration topic suggestions
+    # These are short topic phrases (English, 2-5 words) capturing user interests from the conversation.
+    # Stored in server-side cache to inform personalized daily inspiration generation later.
+    raw_topic_suggestions = llm_result.arguments.get("daily_inspiration_topic_suggestions", [])
+    validated_topic_suggestions = []
+    if raw_topic_suggestions and isinstance(raw_topic_suggestions, list):
+        for topic in raw_topic_suggestions[:3]:  # Limit to 3
+            if isinstance(topic, str) and topic.strip():
+                validated_topic_suggestions.append(topic.strip())
+    if len(validated_topic_suggestions) < 3:
+        logger.warning(
+            f"[Task ID: {task_id}] [PostProcessor] Only {len(validated_topic_suggestions)} daily inspiration "
+            f"topic suggestions generated (expected 3)"
+        )
+
     result = PostProcessingResult(
         follow_up_request_suggestions=llm_result.arguments.get("follow_up_request_suggestions", []),
         new_chat_request_suggestions=llm_result.arguments.get("new_chat_request_suggestions", []),
         harmful_response=llm_result.arguments.get("harmful_response", 0.0),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
-        relevant_settings_memory_categories=validated_categories[:3]  # Limit to 3 categories for Phase 2
+        relevant_settings_memory_categories=validated_categories[:3],  # Limit to 3 categories for Phase 2
+        daily_inspiration_topic_suggestions=validated_topic_suggestions,
     )
 
     # Validate that we have the required number of suggestions
@@ -399,9 +421,14 @@ async def handle_postprocessing(
         logger.info(f"[Task ID: {task_id}] [PostProcessor] Filtered {len(raw_categories) - len(validated_categories)} invalid category IDs. "
                    f"Returning {len(validated_categories)} validated categories: {validated_categories}")
 
-    logger.info(f"[Task ID: {task_id}] [PostProcessor] Phase 1 complete: {len(result.follow_up_request_suggestions)} follow-up suggestions, "
-               f"{len(result.new_chat_request_suggestions)} new chat suggestions, {len(result.top_recommended_apps_for_user)} app recommendations, "
-               f"{len(result.relevant_settings_memory_categories)} relevant categories for memory generation")
+    logger.info(
+        f"[Task ID: {task_id}] [PostProcessor] Phase 1 complete: "
+        f"{len(result.follow_up_request_suggestions)} follow-up suggestions, "
+        f"{len(result.new_chat_request_suggestions)} new chat suggestions, "
+        f"{len(result.top_recommended_apps_for_user)} app recommendations, "
+        f"{len(result.relevant_settings_memory_categories)} relevant categories for memory generation, "
+        f"{len(result.daily_inspiration_topic_suggestions)} daily inspiration topic suggestions"
+    )
 
     return result
 
