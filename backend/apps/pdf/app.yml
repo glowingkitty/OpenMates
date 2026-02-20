@@ -119,8 +119,8 @@ skills:
         - query
 
   - id: view
-    name_translation_key: pdf.view
-    description_translation_key: pdf.view.description
+    name_translation_key: pdf.view.skill_name
+    description_translation_key: pdf.view.skill_description
     preprocessor_hint: >
       View one or more page screenshots from an uploaded PDF using vision AI (Gemini Flash).
       Use when the user asks about the visual layout, diagrams, charts, figures, or images

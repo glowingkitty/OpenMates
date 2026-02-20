@@ -1,5 +1,5 @@
 view:
-  context: Skill name shown on uploaded PDF embed card in read-only message display
+  context: Skill name shown on uploaded PDF embed card in read-only message display (keep as "PDF" — embed label)
   en: PDF
   de: PDF
   zh: PDF
@@ -24,8 +24,33 @@ view:
     - en
     - de
 
+view.skill_name:
+  context: Skill name shown in the App Store for the PDF view skill (distinct from embed label)
+  en: View
+  de: Ansehen
+  zh: 查看
+  es: Ver
+  fr: Voir
+  pt: Ver
+  ru: Просмотр
+  ja: 表示
+  ko: 보기
+  it: Visualizza
+  tr: Görüntüle
+  vi: Xem
+  id: Lihat
+  pl: Podgląd
+  nl: Bekijken
+  ar: عرض
+  hi: देखें
+  th: ดู
+  cs: Zobrazit
+  sv: Visa
+  verified_by_human:
+    - en
+
 view.description:
-  context: Description shown below the skill name on uploaded PDF embed card
+  context: Description shown below the skill name on uploaded PDF embed card (keep as "Uploaded PDF" — embed label)
   en: Uploaded PDF
   de: Hochgeladenes PDF
   zh: 已上传的PDF
@@ -49,6 +74,31 @@ view.description:
   verified_by_human:
     - en
     - de
+
+view.skill_description:
+  context: Description shown in the App Store for the PDF view skill (distinct from embed description)
+  en: View page screenshots with vision AI.
+  de: Seiten-Screenshots mit Vision-KI ansehen.
+  zh: 使用视觉AI查看页面截图。
+  es: Ver capturas de páginas con IA visual.
+  fr: Voir les captures de pages avec l'IA visuelle.
+  pt: Visualizar capturas de páginas com IA visual.
+  ru: Просмотр скриншотов страниц с помощью ИИ-зрения.
+  ja: ビジョンAIでページのスクリーンショットを表示。
+  ko: 비전 AI로 페이지 스크린샷을 봅니다.
+  it: Visualizza screenshot delle pagine con IA visiva.
+  tr: Sayfa ekran görüntülerini yapay zeka ile görüntüleyin.
+  vi: Xem ảnh chụp trang bằng AI thị giác.
+  id: Lihat tangkapan layar halaman dengan AI visual.
+  pl: Wyświetl zrzuty stron za pomocą AI wizji.
+  nl: Bekijk paginascreenshots met visuele AI.
+  ar: عرض لقطات الصفحات باستخدام الذكاء الاصطناعي البصري.
+  hi: विज़न AI से पेज स्क्रीनशॉट देखें।
+  th: ดูภาพหน้าจอหน้าด้วย AI การมองเห็น
+  cs: Zobrazit snímky stránek pomocí vizuální AI.
+  sv: Visa sidskärmdumpar med visuell AI.
+  verified_by_human:
+    - en
 
 view.uploading:
   context: Status text shown on PDF embed card while the file is being uploaded
