@@ -103,6 +103,7 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 2. Run linter to verify changes: `./scripts/lint_changed.sh --ts --svelte --path frontend/`
 3. Commit and push changes to git
 4. The web app is **automatically built and deployed** when changes are pushed
+5. **CRITICAL: Wait for and verify the Vercel deployment succeeded** — do NOT assume the push means a successful deployment. See `docs/claude/git-and-deployment.md` → "Vercel Deployment Check" for the full procedure. Fix any build errors and re-push until the status shows "● Ready".
 
 **Only start a dev server if:**
 
@@ -135,7 +136,23 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 
 ---
 
-## Package and Dependency Management
+## Package and Dependency Management (CRITICAL)
 
-- **Verify Versions**: ALWAYS check for the latest stable version of a package before installing
-- **No Hallucinations**: NEVER assume or hallucinate version numbers. Verify using terminal tools or web search.
+**NEVER add a package with a version number from memory.** LLM training data is outdated — versions you "know" may be months or years behind. Every new or updated dependency MUST have its version verified before being written into any file.
+
+### Mandatory Version Lookup Steps
+
+Before adding or updating ANY npm/pnpm package:
+
+1. **Look up the latest version** using web search (e.g., search `<package-name> npm latest version`) or run:
+   ```bash
+   pnpm info <package-name> version
+   ```
+2. **Use the exact version returned** — do not guess, do not use a version from memory.
+3. **Use a precise version** (e.g., `"1.2.3"`) or a conservative range (e.g., `"^1.2.3"`). Do NOT use `"latest"` or `"*"`.
+
+### Prohibited
+
+- Writing `"package": "1.x.x"` based on what you think the current version is
+- Using `"latest"` or `"*"` as a version specifier
+- Skipping the lookup because the package "seems well-known"

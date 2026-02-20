@@ -208,6 +208,44 @@ class MySkillResponse(BaseModel):
 
 ---
 
+## Package and Dependency Management (CRITICAL)
+
+**NEVER add a package or Docker base image with a version number from memory.** LLM training data is outdated — versions you "know" may be months or years behind. Every new or updated dependency MUST have its version verified before being written into any file.
+
+### pip / Python packages
+
+Before adding or updating ANY Python package in `requirements.txt` or `pyproject.toml`:
+
+1. **Look up the latest version** using web search (e.g., search `<package-name> pypi latest version`) or run:
+   ```bash
+   pip index versions <package-name>
+   # or
+   pip install <package-name>== 2>&1 | grep "from versions"
+   ```
+2. **Use the exact latest stable version returned** — do not guess, do not use a version from memory.
+3. **Pin to an exact version** (e.g., `package==1.2.3`) in requirements files. Do NOT use `package` (unpinned) or `package>=1.0`.
+
+### Docker base images
+
+Before changing any `FROM` line in a `Dockerfile`:
+
+1. **Look up the latest stable tag** on Docker Hub (web search: `<image-name> docker hub tags`) or run:
+   ```bash
+   docker pull <image-name>:latest
+   docker inspect <image-name>:latest | grep -i version
+   ```
+2. **Use a specific version tag** (e.g., `python:3.12.4-slim`) — do NOT use `:latest` in Dockerfiles committed to the repo.
+3. Never assume the tag you remember is current.
+
+### Prohibited
+
+- Writing `package==1.x.x` based on what you think the current version is
+- Using unpinned dependencies (`package` with no version)
+- Using `:latest` as a Docker image tag in committed Dockerfiles
+- Skipping the lookup because the package "seems well-known"
+
+---
+
 ## Security Best Practices
 
 - Validate all input data

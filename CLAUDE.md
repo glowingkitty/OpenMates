@@ -90,6 +90,7 @@ Rules: be honest about risks, be specific with file references, and always expla
 - **ALWAYS commit and push to `dev` after completing a feature or bug fix** — do not wait for the user to ask.
 - Only add files you actually modified in the current session (never `git add .`).
 - Run the linter and fix all errors before committing.
+- **After pushing frontend files (`frontend/`) or any `.yml` files**, wait for and verify the Vercel deployment succeeded before marking the task complete. Fix any build errors and re-deploy until the status is "● Ready". See `docs/claude/git-and-deployment.md` for the full verification procedure.
 - See `docs/claude/git-and-deployment.md` for commit message format and full workflow.
 
 ### Explicit Consent Required for Destructive/External Actions
@@ -98,6 +99,25 @@ Rules: be honest about risks, be specific with file references, and always expla
 - **NEVER merge branches** unless the user explicitly asks for it.
 - **NEVER create or publish GitHub releases** unless the user explicitly asks for one — exception: when the user asks to create a PR, also preparing a draft release as part of that workflow is permitted.
 - These actions affect production and other developers — they require clear, unambiguous user intent.
+
+### Dependency Version Verification (CRITICAL)
+
+**NEVER write a version number for any package or Docker image from memory.** LLM training data is outdated — the version you "know" may be months or years old. This applies to ALL dependency types without exception:
+
+| Type             | How to verify                                                        |
+| ---------------- | -------------------------------------------------------------------- |
+| **pip**          | `pip index versions <package>` or web search `<package> pypi latest` |
+| **pnpm/npm**     | `pnpm info <package> version` or web search `<package> npm latest`   |
+| **Docker image** | Check Docker Hub tags via web search `<image> docker hub tags`       |
+
+**Rules:**
+
+- Always look up the version before writing it into any file
+- Use exact pinned versions (e.g., `package==1.2.3`, `"package": "1.2.3"`, `image:1.2.3-slim`)
+- Never use `latest`, `*`, or an unpinned dependency in committed files
+- No exceptions for "well-known" packages — they change too
+
+See `docs/claude/backend-standards.md` → "Package and Dependency Management" and `docs/claude/frontend-standards.md` → "Package and Dependency Management" for full details.
 
 ### Logging Rule
 
