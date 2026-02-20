@@ -774,7 +774,7 @@ export class ChatSynchronizationService extends EventTarget {
           // Use get() to read the current translated string from the i18n store.
           // This is the standard way to read a Svelte store outside a component.
           const { get } = await import("svelte/store");
-          const { text } = await import("../i18n");
+          const { text } = await import("../i18n/translations");
           const t = get(text);
 
           notificationStore.addNotificationWithOptions("warning", {
