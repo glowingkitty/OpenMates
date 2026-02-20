@@ -5,26 +5,33 @@
 
   Architecture mirrors ImageEmbedPreview:
   - No skill icon (showSkillIcon=false)
-  - skillName = "Voice Note" (i18n key: app_skills.audio.transcribe)
+  - skillName = "Audio recording" (i18n key: app_skills.audio.transcribe.audio_recording)
   - customStatusText = dynamic subtitle reflecting upload/transcription state
-  - Shows waveform-style bars + transcript preview in the details snippet
+  - Play/pause button lives in BasicInfosBar via the actionButton snippet slot
+  - Details area shows transcript preview, shimmer placeholder, or signup prompt
 
   Status lifecycle:
-    'uploading'      → "Uploading…"         (audio blob uploading to server)
-    'transcribing'   → "Transcribing…"      (upload done, Mistral Voxtral running)
-    'finished'       → transcript preview   (or "Transcript not available")
-    'error'          → error message        (upload failed or transcription failed)
+    'uploading'      → "Processing…"       (audio blob uploading to server)
+    'transcribing'   → "Processing…"       (upload done, Mistral Voxtral running)
+    'finished'       → duration string     (or "Signup to upload…" for unauth)
+    'error'          → error message       (upload failed or transcription failed)
+
+  Details area content:
+    Unauth user      → "Signup to see transcript here."
+    Processing       → Shimmer placeholder (gradient sweep, 4 lines)
+    Finished         → Transcript preview (truncated)
+    Error            → Error icon + message + optional retry button
 
   Rendering contexts:
 
   A) Editor context (blobUrl set — local blob from recording session):
      - Shows audio player using the local blob URL.
-     - Status shown as subtitle.
+     - Play button in BasicInfosBar.
      - Transcript shown as preview text once available.
 
   B) Read-only context (blobUrl absent, S3 data present — received/sent message):
      - Audio is lazily fetched and decrypted from S3 (original variant key) using AES-256-GCM.
-     - Shows a skeleton while loading, then the audio player once decrypted.
+     - Shows shimmer placeholder while loading, then play button once decrypted.
      - Transcript shown from embed content.
      - Fullscreen available when status is 'finished'.
 
@@ -126,8 +133,6 @@
   // Audio element reference for the playback controls
   let audioEl: HTMLAudioElement | undefined = $state(undefined);
   let isPlaying = $state(false);
-  let currentTime = $state(0);
-  let totalDuration = $state(0);
 
   // Track retained S3 cache key for cleanup on unmount
   let retainedS3Key: string | undefined = undefined;
@@ -220,15 +225,16 @@
   let showStop = $derived(hasAudioSrc && status === 'uploading' && !!onStop);
 
   /**
-   * Card subtitle text based on current status:
-   * - uploading    → "Uploading…"
-   * - transcribing → "Transcribing…"
-   * - error        → error message
-   * - finished     → duration + "Voice recording" or "Sign up to upload"
+   * Card subtitle text (shown below "Audio recording" in BasicInfosBar):
+   * - uploading/transcribing → "Processing…"
+   * - error                  → error message
+   * - finished (unauth)      → "Signup to upload…"
+   * - finished (auth)        → duration string or "Transcribed voice recording"
    */
   let statusText = $derived.by(() => {
-    if (status === 'uploading') return $text('app_skills.audio.transcribe.uploading');
-    if (status === 'transcribing') return $text('app_skills.audio.transcribe.transcribing');
+    if (status === 'uploading' || status === 'transcribing') {
+      return $text('app_skills.audio.transcribe.processing');
+    }
     if (status === 'error') {
       return uploadError || $text('app_skills.audio.transcribe.upload_failed');
     }
@@ -250,14 +256,11 @@
     return transcript.slice(0, MAX_TRANSCRIPT_PREVIEW - 1) + '\u2026';
   });
 
-  /** Progress bar fill percentage (0–100) */
-  let progressPercent = $derived(
-    totalDuration > 0 ? Math.round((currentTime / totalDuration) * 100) : 0,
-  );
-
   // --- Audio controls ---
 
-  function togglePlayback() {
+  function togglePlayback(e: MouseEvent) {
+    // Prevent the click from bubbling to UnifiedEmbedPreview (which opens fullscreen)
+    e.stopPropagation();
     if (!audioEl) return;
     if (isPlaying) {
       audioEl.pause();
@@ -278,33 +281,27 @@
 
   function handleAudioEnded() {
     isPlaying = false;
-    currentTime = 0;
-  }
-
-  function handleAudioTimeUpdate() {
-    if (audioEl) currentTime = audioEl.currentTime;
-  }
-
-  function handleAudioLoadedMetadata() {
-    if (audioEl) totalDuration = audioEl.duration;
-  }
-
-  function handleProgressClick(e: MouseEvent) {
-    if (!audioEl || !totalDuration) return;
-    const bar = e.currentTarget as HTMLElement;
-    const rect = bar.getBoundingClientRect();
-    const fraction = (e.clientX - rect.left) / rect.width;
-    audioEl.currentTime = fraction * totalDuration;
-  }
-
-  /** Format seconds into MM:SS display string */
-  function formatSeconds(s: number): string {
-    if (!isFinite(s) || isNaN(s)) return '0:00';
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, '0')}`;
   }
 </script>
+
+<!--
+  Hidden audio element at component top level (outside snippets).
+  Snippets are rendered inside UnifiedEmbedPreview where pointer-events: none
+  is applied to children of clickable embeds. The audio element doesn't need
+  pointer events but must be in the DOM for JS playback control.
+-->
+{#if hasAudioSrc && status !== 'error'}
+  <audio
+    bind:this={audioEl}
+    src={resolvedAudioSrc}
+    onplay={handleAudioPlay}
+    onpause={handleAudioPause}
+    onended={handleAudioEnded}
+    preload="metadata"
+    style="display:none"
+    aria-hidden="true"
+  ></audio>
+{/if}
 
 <UnifiedEmbedPreview
   {id}
@@ -312,7 +309,7 @@
   skillId="transcribe"
   skillIconName="microphone"
   status={unifiedStatus}
-  skillName={$text('app_skills.audio.transcribe')}
+  skillName={$text('app_skills.audio.transcribe.audio_recording')}
   {isMobile}
   onFullscreen={isFullscreenEnabled ? onFullscreen : undefined}
   onStop={showStop ? onStop : undefined}
@@ -320,84 +317,45 @@
   customStatusText={statusText}
   showSkillIcon={false}
 >
+  {#snippet actionButton()}
+    <!--
+      Play/pause button rendered inside BasicInfosBar between the app icon
+      and the status text. Needs pointer-events: auto to override the
+      pointer-events: none on clickable embed children, and stopPropagation
+      to prevent fullscreen opening on click.
+    -->
+    {#if hasAudioSrc && status === 'finished'}
+      <button
+        class="play-btn"
+        onclick={togglePlayback}
+        type="button"
+        aria-label={isPlaying ? 'Pause' : 'Play'}
+        style="pointer-events: auto !important;"
+      >
+        {#if isPlaying}
+          <span class="pause-icon">
+            <span class="bar"></span>
+            <span class="bar"></span>
+          </span>
+        {:else}
+          <span class="play-icon"></span>
+        {/if}
+      </button>
+    {/if}
+  {/snippet}
+
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="recording-preview" class:mobile={isMobileSnippet}>
 
-      {#if hasAudioSrc && status !== 'error'}
+      {#if !isAuthenticated && status === 'finished'}
         <!--
-          Audio player: compact waveform-style bar + play/pause button.
-          In editor context: uses local blob URL directly.
-          In read-only context: uses decrypted S3 blob URL fetched by $effect above.
+          Unauthenticated user: show signup prompt in the details area.
+          They can still play the local recording but cannot see transcripts.
         -->
-        <audio
-          bind:this={audioEl}
-          src={resolvedAudioSrc}
-          onplay={handleAudioPlay}
-          onpause={handleAudioPause}
-          onended={handleAudioEnded}
-          ontimeupdate={handleAudioTimeUpdate}
-          onloadedmetadata={handleAudioLoadedMetadata}
-          preload="metadata"
-          style="display:none"
-          aria-hidden="true"
-        ></audio>
-
-        <div class="player-row">
-          <!-- Play/Pause button with aria-label for accessibility -->
-          <button
-            class="play-btn"
-            onclick={togglePlayback}
-            type="button"
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-          >
-            {#if isPlaying}
-              <!-- Pause icon: two vertical bars -->
-              <span class="pause-icon">
-                <span class="bar"></span>
-                <span class="bar"></span>
-              </span>
-            {:else}
-              <!-- Play icon: right-pointing triangle -->
-              <span class="play-icon"></span>
-            {/if}
-          </button>
-
-          <!-- Progress bar + time -->
-          <div class="progress-area">
-            <!-- Seek bar — button role makes it natively interactive and accessible -->
-            <button
-              class="progress-bar"
-              type="button"
-              role="slider"
-              aria-label="Seek audio"
-              aria-valuenow={progressPercent}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              onclick={handleProgressClick}
-            >
-              <div
-                class="progress-fill"
-                style="width: {progressPercent}%"
-              ></div>
-            </button>
-            <span class="time-label">
-              {formatSeconds(currentTime)} / {formatSeconds(totalDuration || 0)}
-            </span>
-          </div>
-        </div>
-
-        {#if status === 'transcribing'}
-          <!-- Show transcribing placeholder while waiting for transcript -->
-          <div class="transcript-loading">
-            <div class="skeleton-line long"></div>
-            <div class="skeleton-line short"></div>
-          </div>
-        {:else if transcriptPreview}
-          <p class="transcript-preview">{transcriptPreview}</p>
-        {/if}
+        <p class="signup-prompt">{$text('app_skills.audio.transcribe.signup_to_see_transcript')}</p>
 
       {:else if status === 'error'}
-        <!-- Error state: no audio playback, just an error indicator -->
+        <!-- Error state: error icon + message + optional retry button -->
         <div class="error-state">
           <span class="error-icon">!</span>
           <span class="error-text">{uploadError || $text('app_skills.audio.transcribe.upload_failed')}</span>
@@ -413,28 +371,32 @@
           {/if}
         </div>
 
+      {:else if status === 'uploading' || status === 'transcribing' || isLoadingAudio}
+        <!--
+          Processing / loading state: shimmer placeholder lines.
+          Gradient sweep animation (not pulse) for a polished look.
+        -->
+        <div class="shimmer-container">
+          <div class="shimmer-line" style="width: 90%;"></div>
+          <div class="shimmer-line" style="width: 75%;"></div>
+          <div class="shimmer-line" style="width: 85%;"></div>
+          <div class="shimmer-line" style="width: 55%;"></div>
+        </div>
+
+      {:else if transcriptPreview}
+        <!-- Finished with transcript: show truncated preview text -->
+        <p class="transcript-preview">{transcriptPreview}</p>
+
+      {:else if audioLoadError}
+        <!-- Audio loading failed but we might still have no transcript -->
+        <p class="audio-load-error">{audioLoadError}</p>
+
       {:else}
         <!--
-          Skeleton: shown while uploading, transcribing, or while the S3 audio
-          is being fetched and decrypted in read-only context.
+          Finished but no transcript available yet.
+          Could be a recording that hasn't been transcribed or data still loading.
         -->
-        <div class="skeleton-content">
-          <div class="skeleton-player-row">
-            <div class="skeleton-circle"></div>
-            <div class="skeleton-bar-area">
-              <div class="skeleton-line long"></div>
-              <div class="skeleton-line short"></div>
-            </div>
-          </div>
-          {#if status === 'transcribing' || isLoadingAudio}
-            <div class="skeleton-line medium"></div>
-          {:else if audioLoadError}
-            <p class="audio-load-error">{audioLoadError}</p>
-          {:else if transcriptPreview}
-            <!-- Show transcript even if audio couldn't be loaded -->
-            <p class="transcript-preview">{transcriptPreview}</p>
-          {/if}
-        </div>
+        <p class="no-transcript">{$text('app_skills.audio.transcribe.no_transcript')}</p>
       {/if}
 
     </div>
@@ -442,12 +404,14 @@
 </UnifiedEmbedPreview>
 
 <style>
+  /* ---- Details area container ---- */
   .recording-preview {
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    justify-content: center;
+    gap: 8px;
     padding: 14px 16px;
     box-sizing: border-box;
     overflow: hidden;
@@ -455,107 +419,16 @@
 
   .recording-preview.mobile {
     padding: 10px 12px;
-    gap: 8px;
+    gap: 6px;
   }
 
-  /* ---- Audio player row ---- */
-  .player-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-  }
-
-  /* Play / Pause button */
-  .play-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--color-app-audio, #e05555);
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: background 0.15s ease, transform 0.1s ease;
-  }
-
-  .play-btn:hover {
-    background: color-mix(in srgb, var(--color-app-audio, #e05555) 85%, #000 15%);
-    transform: scale(1.05);
-  }
-
-  .play-btn:active {
-    transform: scale(0.97);
-  }
-
-  /* Play icon: CSS-only right-pointing triangle */
-  .play-icon {
-    width: 0;
-    height: 0;
-    border-top: 7px solid transparent;
-    border-bottom: 7px solid transparent;
-    border-left: 12px solid white;
-    margin-left: 2px; /* optical centering */
-  }
-
-  /* Pause icon: two vertical bars */
-  .pause-icon {
-    display: flex;
-    gap: 3px;
-    align-items: center;
-    height: 14px;
-  }
-
-  .pause-icon .bar {
-    width: 3px;
-    height: 14px;
-    background: white;
-    border-radius: 2px;
-  }
-
-  /* Progress bar */
-  .progress-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-  }
-
-  .progress-bar {
-    height: 4px;
-    background: var(--color-grey-20, #e0e0e0);
-    border-radius: 2px;
-    cursor: pointer;
-    overflow: hidden;
-    position: relative;
-    /* Reset button defaults */
-    border: none;
-    padding: 0;
-    width: 100%;
-    display: block;
-  }
-
-  .progress-bar:hover {
-    height: 6px;
-    margin-top: -1px;
-  }
-
-  .progress-fill {
-    height: 100%;
-    background: var(--color-app-audio, #e05555);
-    border-radius: 2px;
-    transition: width 0.1s linear;
-    min-width: 0;
-  }
-
-  .time-label {
-    font-size: 11px;
+  /* ---- Signup prompt for unauthenticated users ---- */
+  .signup-prompt {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
     color: var(--color-grey-50, #888);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
+    font-style: italic;
   }
 
   /* ---- Transcript preview text ---- */
@@ -565,18 +438,56 @@
     line-height: 1.5;
     color: var(--color-grey-70, #444);
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
   }
 
-  /* ---- Transcribing loading placeholder ---- */
-  .transcript-loading {
+  /* ---- No transcript message ---- */
+  .no-transcript {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--color-grey-50, #888);
+  }
+
+  /* ---- Audio load error ---- */
+  .audio-load-error {
+    margin: 0;
+    font-size: 11px;
+    color: var(--color-grey-50, #888);
+  }
+
+  /* ---- Shimmer placeholder (gradient sweep) ---- */
+  .shimmer-container {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 8px;
+    padding: 4px 0;
+  }
+
+  .shimmer-line {
+    height: 10px;
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-15, #f0f0f0) 25%,
+      var(--color-grey-10, #f8f8f8) 50%,
+      var(--color-grey-15, #f0f0f0) 75%
+    );
+    background-size: 200% 100%;
+    border-radius: 4px;
+    animation: shimmerSweep 1.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmerSweep {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 
   /* ---- Error state ---- */
@@ -630,74 +541,78 @@
     color: #fff;
   }
 
-  /* ---- Audio load error ---- */
-  .audio-load-error {
-    margin: 0;
-    font-size: 11px;
-    color: var(--color-grey-50, #888);
-  }
-
-  /* ---- Skeleton loading ---- */
-  .skeleton-content {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-  }
-
-  .skeleton-player-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .skeleton-circle {
+  /* ---- Play/Pause button (rendered inside BasicInfosBar via actionButton snippet) ---- */
+  .play-btn {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: var(--color-grey-15, #f0f0f0);
-    flex-shrink: 0;
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-
-  .skeleton-bar-area {
-    flex: 1;
+    background: var(--color-app-audio, #e05555);
+    border: none;
+    cursor: pointer;
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease, transform 0.1s ease;
+    /* Override pointer-events: none from UnifiedEmbedPreview clickable children */
+    pointer-events: auto !important;
   }
 
-  .skeleton-line {
-    height: 10px;
-    background: var(--color-grey-15, #f0f0f0);
-    border-radius: 4px;
-    animation: pulse 1.5s ease-in-out infinite;
+  .play-btn:hover {
+    background: color-mix(in srgb, var(--color-app-audio, #e05555) 85%, #000 15%);
+    transform: scale(1.05);
   }
 
-  .skeleton-line.long { width: 80%; }
-  .skeleton-line.medium { width: 65%; }
-  .skeleton-line.short { width: 45%; }
+  .play-btn:active {
+    transform: scale(0.97);
+  }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
+  /* Play icon: CSS-only right-pointing triangle */
+  .play-icon {
+    width: 0;
+    height: 0;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 12px solid white;
+    margin-left: 2px; /* optical centering */
+  }
+
+  /* Pause icon: two vertical bars */
+  .pause-icon {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    height: 14px;
+  }
+
+  .pause-icon .bar {
+    width: 3px;
+    height: 14px;
+    background: white;
+    border-radius: 2px;
   }
 
   /* ---- Dark mode ---- */
-  :global(.dark) .progress-bar {
-    background: var(--color-grey-70, #444);
-  }
-
   :global(.dark) .transcript-preview {
     color: var(--color-grey-30, #ccc);
   }
 
-  :global(.dark) .skeleton-circle,
-  :global(.dark) .skeleton-line {
-    background: var(--color-grey-80, #333);
+  :global(.dark) .shimmer-line {
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-80, #333) 25%,
+      var(--color-grey-75, #3a3a3a) 50%,
+      var(--color-grey-80, #333) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmerSweep 1.5s ease-in-out infinite;
   }
 
-  :global(.dark) .time-label {
+  :global(.dark) .signup-prompt {
+    color: var(--color-grey-40, #aaa);
+  }
+
+  :global(.dark) .no-transcript {
     color: var(--color-grey-40, #aaa);
   }
 </style>

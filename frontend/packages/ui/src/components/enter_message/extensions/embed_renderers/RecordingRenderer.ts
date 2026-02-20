@@ -32,7 +32,9 @@
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { mount, unmount } from "svelte";
+import { get } from "svelte/store";
 import RecordingEmbedPreview from "../../../embeds/audio/RecordingEmbedPreview.svelte";
+import { authStore } from "../../../../stores/authStore";
 
 // Track mounted Svelte components for cleanup (keyed by the DOM element)
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -156,6 +158,9 @@ export class RecordingRenderer implements EmbedRenderer {
         );
       };
 
+      // Read auth state from authStore (same pattern as ImageRenderer.ts)
+      const isAuthenticated = get(authStore).isAuthenticated;
+
       const component = mount(RecordingEmbedPreview, {
         target: content,
         props: {
@@ -175,7 +180,7 @@ export class RecordingRenderer implements EmbedRenderer {
           aesKey: attrs.aesKey,
           aesNonce: attrs.aesNonce,
           isMobile: false,
-          isAuthenticated: true,
+          isAuthenticated,
           onFullscreen: handleFullscreen,
           onStop: handleStop,
           // onRetry is only available when upload succeeded (s3Files present)

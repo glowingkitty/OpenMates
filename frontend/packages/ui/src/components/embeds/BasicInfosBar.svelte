@@ -14,7 +14,6 @@
 -->
 
 <script lang="ts">
-  // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
   /**
@@ -49,6 +48,8 @@
     customStatusText?: string;
     /** Optional snippet rendered before the title text (e.g., a small category circle for chat embeds) */
     titleIcon?: import('svelte').Snippet;
+    /** Optional snippet rendered between the app icon and the status text (e.g., a play button for audio embeds) */
+    actionButton?: import('svelte').Snippet;
   }
   
   let {
@@ -65,8 +66,15 @@
     faviconIsCircular = false,
     showSkillIcon = true,
     customStatusText,
-    titleIcon
+    titleIcon,
+    actionButton
   }: Props = $props();
+
+  // Silence lint for props that exist in the interface for API consistency
+  // but are not directly used in the template. skillId is used by data attributes
+  // in parent components; taskId is reserved for future cancellation logic.
+  void skillId;
+  void taskId;
   
   // Status text from translations or custom text
   let statusText = $derived(() => {
@@ -150,6 +158,11 @@
     <!-- Skill icon (29x29px) - only show for app skills -->
     {#if showSkillIcon}
       <div class="skill-icon" data-skill-icon={skillIconName}></div>
+    {/if}
+    
+    <!-- Optional action button (e.g., play/pause for audio embeds) -->
+    {#if actionButton}
+      {@render actionButton()}
     {/if}
     
     <!-- Status text with optional favicon next to title -->

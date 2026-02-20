@@ -87,6 +87,8 @@
     onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown> }) => void;
     /** Optional snippet rendered before the title text in BasicInfosBar (e.g., category circle) */
     titleIcon?: import('svelte').Snippet;
+    /** Optional snippet rendered between the app icon and the status text in BasicInfosBar (e.g., play button for audio) */
+    actionButton?: import('svelte').Snippet;
   }
   
   let {
@@ -109,7 +111,8 @@
     hasFullWidthImage = false,
     customHeight,
     onEmbedDataUpdated,
-    titleIcon
+    titleIcon,
+    actionButton
   }: Props = $props();
   
   // Local reactive state for status - can be updated when embedUpdated fires
@@ -686,6 +689,7 @@
         {showSkillIcon}
         customStatusText={customStatusText}
         {titleIcon}
+        {actionButton}
       />
     </div>
   {:else}
@@ -719,6 +723,7 @@
         {showSkillIcon}
         customStatusText={customStatusText}
         {titleIcon}
+        {actionButton}
       />
     </div>
   {/if}
