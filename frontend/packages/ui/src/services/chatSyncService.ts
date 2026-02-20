@@ -741,6 +741,67 @@ export class ChatSynchronizationService extends EventTarget {
         );
       });
 
+    // GLOBAL CREDITS-DEPLETED NOTIFICATION
+    // When any user_credits_updated WebSocket event drops the balance to 0 (and the
+    // previous balance was > 0), show a persistent warning notification globally so
+    // the user is informed regardless of which page they are on.
+    // Settings.svelte and Signup.svelte also listen for this event to update their
+    // local credit counters — those remain unchanged. This handler is an additional
+    // global listener for the notification only.
+    //
+    // Pattern: track previous credits in a closure variable; on each event, compare.
+    // On first event we learn the current balance but don't know the "previous" value,
+    // so we skip the notification to avoid false positives on page load.
+    let _prevCredits: number | undefined = undefined;
+
+    webSocketService.on("user_credits_updated", async (payload) => {
+      try {
+        const credits: number =
+          typeof payload?.credits === "number" ? payload.credits : -1;
+        if (credits < 0) return; // malformed payload — ignore
+
+        // Update the userProfile store so credit displays stay in sync
+        const { updateCredits } = await import("../stores/userProfile");
+        updateCredits(credits);
+
+        // Only show the notification when balance transitions from >0 → 0.
+        // Skip on first event (_prevCredits is undefined) to avoid false alert on connect.
+        if (_prevCredits !== undefined && _prevCredits > 0 && credits === 0) {
+          const { settingsDeepLink } =
+            await import("../stores/settingsDeepLinkStore");
+          const { panelState } = await import("../stores/panelStateStore");
+
+          // Use get() to read the current translated string from the i18n store.
+          // This is the standard way to read a Svelte store outside a component.
+          const { get } = await import("svelte/store");
+          const { text } = await import("../i18n");
+          const t = get(text);
+
+          notificationStore.addNotificationWithOptions("warning", {
+            message: t("app_skills.audio.transcribe.no_credits"),
+            actionLabel: t("billing.buy_credits"),
+            onAction: () => {
+              settingsDeepLink.set("billing/buy-credits");
+              panelState.openSettings();
+            },
+            duration: 0, // persistent until dismissed
+            dismissible: true,
+          });
+
+          console.info(
+            "[ChatSyncService] Credits depleted (>0 → 0): showing persistent buy-credits notification",
+          );
+        }
+
+        _prevCredits = credits;
+      } catch (e) {
+        console.error(
+          "[ChatSyncService] Error handling user_credits_updated:",
+          e,
+        );
+      }
+    });
+
     // DATA INCONSISTENCY RE-SYNC LISTENER
     // When Phase 2/3 detects that local message count < server message count,
     // a chatDataInconsistency event is dispatched. Without this listener, the

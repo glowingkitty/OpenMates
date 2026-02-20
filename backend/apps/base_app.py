@@ -651,6 +651,32 @@ class BaseApp:
         async def health_check():
             return {"status": "ok", "app_id": self.id, "name_translation_key": self.name_translation_key}
 
+    async def get_user_credits(self, user_id: str) -> int:
+        """
+        Fetch the current credit balance for a user via the internal API.
+
+        Used for pre-flight checks before expensive operations (e.g., transcription).
+        Returns 0 on any failure (cache miss, network error) — callers must treat
+        0 as "unknown" and only block when explicitly < minimum required.
+
+        Args:
+            user_id: The authenticated user's ID.
+
+        Returns:
+            Current credit balance as an integer (0 if unknown).
+        """
+        try:
+            response = await self._make_internal_api_request(
+                "GET",
+                "/internal/billing/balance",
+                params={"user_id": user_id}
+            )
+            credits = response.get("credits", 0)
+            return int(credits) if isinstance(credits, (int, float)) else 0
+        except Exception as e:
+            logger.warning(f"[BaseApp] Could not fetch credit balance for user {user_id} (non-fatal): {e}")
+            return 0
+
     async def charge_user_credits(
         self,
         user_id: str,

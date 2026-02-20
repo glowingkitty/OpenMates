@@ -72,7 +72,8 @@
         // insertVideo, // Disabled: video upload not yet supported — re-enable with handleVideoRecorded
         insertImage,
         insertRecording,
-        insertMap
+        insertMap,
+        retryTranscription
     } from './embedHandlers';
     import {
         handleEmbedInteraction as handleMenuEmbedInteraction,
@@ -1941,6 +1942,7 @@
         editorElement?.addEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.addEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
         editorElement?.addEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
+        editorElement?.addEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         editorElement?.addEventListener('click', handleEditorClick); // For PII click handling
         // Listen for stop-button upload cancellations from image embeds.
         // This event is dispatched by Embed.ts after the embed node is deleted so
@@ -2029,6 +2031,7 @@
         editorElement?.removeEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.removeEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
         editorElement?.removeEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
+        editorElement?.removeEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         editorElement?.removeEventListener('click', handleEditorClick);
         editorElement?.removeEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
@@ -2329,6 +2332,20 @@
     function handleImageFullscreen(event: CustomEvent) { dispatch('imagefullscreen', event.detail); }
     function handlePdfFullscreen(event: CustomEvent) { dispatch('pdffullscreen', event.detail); }
     function handleRecordingFullscreen(event: CustomEvent) { dispatch('recordingfullscreen', event.detail); }
+
+    /**
+     * Handle retry transcription events bubbled up from RecordingEmbedPreview via
+     * RecordingRenderer.ts. The event carries the embedId; we pass it along with
+     * the live editor reference to retryTranscription() which re-runs only the
+     * transcription step using the already-uploaded S3 data.
+     */
+    function handleRetryRecordingTranscription(event: CustomEvent) {
+        const { embedId } = event.detail as { embedId: string };
+        if (!editor || editor.isDestroyed || !embedId) return;
+        retryTranscription(editor, embedId).catch((err) => {
+            console.error('[MessageInput] retryTranscription failed:', err);
+        });
+    }
     function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }
     function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushSaveDraft(); }
     function handleResize() { checkScrollable(); updateHeight(); }

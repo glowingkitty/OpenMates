@@ -471,6 +471,35 @@ class CreditChargePayload(BaseModel):
     api_key_hash: Optional[str] = None  # SHA-256 hash of API key for tracking
     device_hash: Optional[str] = None  # SHA-256 hash of device for tracking
 
+@router.get("/billing/balance")
+async def get_user_credit_balance(
+    user_id: str,
+    cache_service: CacheService = Depends(get_cache_service)
+) -> Dict[str, Any]:
+    """
+    Returns the current credit balance for a user.
+
+    Reads from cache (fast, sub-millisecond). Used by app services for
+    pre-flight credit checks before expensive operations (e.g., transcription).
+
+    Returns 0 if user is not found in cache — callers should treat this as
+    "unknown balance" and proceed rather than block on a cache miss.
+    """
+    try:
+        user = await cache_service.get_user_by_id(user_id)
+        if not user or not isinstance(user, dict):
+            logger.debug(f"[InternalAPI] User {user_id} not found in cache for balance check — returning 0")
+            return {"user_id": user_id, "credits": 0, "cached": False}
+        credits = user.get("credits", 0)
+        if not isinstance(credits, int):
+            credits = 0
+        return {"user_id": user_id, "credits": credits, "cached": True}
+    except Exception as e:
+        logger.error(f"[InternalAPI] Error fetching credit balance for user {user_id}: {e}", exc_info=True)
+        # Return 0 rather than 500 — balance check is non-critical, callers must handle gracefully
+        return {"user_id": user_id, "credits": 0, "cached": False}
+
+
 @router.post("/billing/charge")
 async def charge_credits_route(
     payload: CreditChargePayload,

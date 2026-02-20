@@ -11,6 +11,9 @@ import {
 } from "./services/codeEmbedService";
 import { encode as toonEncode } from "@toon-format/toon";
 import { getApiUrl } from "../../config/api";
+import { notificationStore } from "../../stores/notificationStore";
+import { settingsDeepLink } from "../../stores/settingsDeepLinkStore";
+import { panelState } from "../../stores/panelStateStore";
 
 /**
  * Ensure the editor has an empty paragraph at the very beginning so that when
@@ -831,6 +834,194 @@ export async function insertRecording(
 }
 
 /**
+ * Retry transcription for a recording embed whose transcription previously failed.
+ *
+ * The audio file is already uploaded to S3 — only the transcription step is re-run.
+ * All required S3 metadata (s3Files, s3BaseUrl, aesKey, aesNonce) must be present on
+ * the embed node (they are set during the original upload step and survive the error).
+ *
+ * Called by RecordingRenderer.ts → onRetry prop on RecordingEmbedPreview.svelte.
+ *
+ * @param editor   The TipTap Editor instance (needed for ProseMirror transactions).
+ * @param embedId  The unique ID of the recording embed node to retry.
+ */
+export async function retryTranscription(
+  editor: Editor,
+  embedId: string,
+): Promise<void> {
+  // Read the current embed node attrs from the ProseMirror document
+  let attrs: Record<string, unknown> | null = null;
+  editor.state.doc.descendants((node) => {
+    if (node.type.name === "embed" && node.attrs.id === embedId) {
+      attrs = { ...node.attrs };
+      return false;
+    }
+    return true;
+  });
+
+  if (!attrs) {
+    console.warn(
+      "[EmbedHandlers] retryTranscription: embed node not found for id",
+      embedId,
+    );
+    return;
+  }
+
+  // Require S3 data — if absent, the original upload failed and retry is not possible
+  const s3Files = attrs.s3Files as
+    | Record<string, { s3_key: string; size_bytes: number }>
+    | null
+    | undefined;
+  const s3BaseUrl = attrs.s3BaseUrl as string | null | undefined;
+  const aesKey = attrs.aesKey as string | null | undefined;
+  const aesNonce = attrs.aesNonce as string | null | undefined;
+  const vaultWrappedAesKey = attrs.vaultWrappedAesKey as
+    | string
+    | null
+    | undefined;
+  const filename = (attrs.filename as string | undefined) || "recording.webm";
+  const mimeType = (attrs.mimeType as string | undefined) || "audio/webm";
+
+  if (!s3Files || !s3BaseUrl || !aesKey || !aesNonce) {
+    console.warn(
+      "[EmbedHandlers] retryTranscription: missing S3 data — cannot retry without re-uploading",
+      embedId,
+    );
+    return;
+  }
+
+  // Helper: update embed node attrs via ProseMirror transaction (same pattern as _performRecordingUpload)
+  function updateEmbedNode(updates: Record<string, unknown>): void {
+    const { state, dispatch } = editor.view;
+    const tr = state.tr;
+    let found = false;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === "embed" && node.attrs.id === embedId) {
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...updates });
+        found = true;
+        return false;
+      }
+      return true;
+    });
+    if (found) dispatch(tr);
+  }
+
+  // Transition back to 'transcribing' so the UI shows the loading skeleton
+  updateEmbedNode({ status: "transcribing", uploadError: null });
+
+  // Re-run the transcription step only (same logic as _performRecordingUpload Step 3–4)
+  const apiUrl = getApiUrl();
+  const transcribeUrl = `${apiUrl}/v1/apps/audio/skills/transcribe`;
+
+  const s3Key = s3Files.original?.s3_key ?? Object.values(s3Files)[0]?.s3_key;
+  if (!s3Key) {
+    console.error(
+      "[EmbedHandlers] retryTranscription: no s3_key found in s3Files",
+      s3Files,
+    );
+    updateEmbedNode({
+      status: "error",
+      uploadError: "Retry failed: file reference missing",
+    });
+    return;
+  }
+
+  const transcribeBody = {
+    requests: [
+      {
+        request_id: embedId,
+        embed_id: attrs.uploadEmbedId,
+        s3_key: s3Key,
+        s3_base_url: s3BaseUrl,
+        aes_key: aesKey,
+        aes_nonce: aesNonce,
+        vault_wrapped_aes_key: vaultWrappedAesKey,
+        filename,
+        mime_type: mimeType,
+      },
+    ],
+  };
+
+  let transcribeResponse: Response;
+  try {
+    transcribeResponse = await fetch(transcribeUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(transcribeBody),
+    });
+  } catch (fetchError) {
+    console.error(
+      "[EmbedHandlers] retryTranscription network error:",
+      fetchError,
+    );
+    updateEmbedNode({
+      status: "error",
+      uploadError: "Retry failed: network error",
+    });
+    return;
+  }
+
+  if (!transcribeResponse.ok) {
+    let detail = `Transcription failed (${transcribeResponse.status})`;
+    try {
+      const errBody = await transcribeResponse.json();
+      detail = errBody.detail || detail;
+    } catch {
+      // Response not JSON — ignore
+    }
+    console.error("[EmbedHandlers] retryTranscription API error:", detail);
+
+    if (transcribeResponse.status === 402) {
+      updateEmbedNode({
+        status: "error",
+        uploadError: "Not enough credits to transcribe",
+      });
+      notificationStore.addNotificationWithOptions("error", {
+        message: "Not enough credits to transcribe your voice recording.",
+        actionLabel: "Buy Credits",
+        onAction: () => {
+          settingsDeepLink.set("billing/buy-credits");
+          panelState.openSettings();
+        },
+        duration: 0,
+        dismissible: true,
+      });
+    } else {
+      updateEmbedNode({ status: "error", uploadError: detail });
+    }
+    return;
+  }
+
+  // Parse transcript and update embed to 'finished'
+  let transcriptText: string | undefined;
+  try {
+    const responseData = await transcribeResponse.json();
+    const result = responseData?.results?.find(
+      (r: { request_id: string; transcript?: string }) =>
+        r.request_id === embedId,
+    );
+    transcriptText = result?.transcript ?? undefined;
+  } catch (parseError) {
+    console.error(
+      "[EmbedHandlers] retryTranscription: failed to parse response:",
+      parseError,
+    );
+  }
+
+  updateEmbedNode({
+    status: "finished",
+    transcript: transcriptText ?? null,
+    uploadError: null,
+  });
+
+  console.debug(
+    `[EmbedHandlers] retryTranscription complete for embed ${embedId}.`,
+    { hasTranscript: !!transcriptText },
+  );
+}
+
+/**
  * Performs the full audio upload + transcription pipeline for a recording embed.
  *
  * Steps:
@@ -958,8 +1149,30 @@ async function _performRecordingUpload(
         // Response body not JSON — ignore
       }
       console.error("[EmbedHandlers] Transcription API error:", detail);
-      // Keep status 'finished' since the audio upload succeeded — transcript just missing
-      updateEmbedNode({ status: "finished", uploadError: detail });
+
+      if (transcribeResponse.status === 402) {
+        // Not enough credits — set error state so the retry button appears.
+        // The audio file is already on S3; user can retry once they have credits.
+        updateEmbedNode({
+          status: "error",
+          uploadError: "Not enough credits to transcribe",
+        });
+        // Show a persistent notification with a direct "Buy Credits" action.
+        notificationStore.addNotificationWithOptions("error", {
+          message: "Not enough credits to transcribe your voice recording.",
+          actionLabel: "Buy Credits",
+          onAction: () => {
+            settingsDeepLink.set("billing/buy-credits");
+            panelState.openSettings();
+          },
+          duration: 0, // Persistent — user must dismiss explicitly
+          dismissible: true,
+        });
+      } else {
+        // Other server-side failures — set error state (upload succeeded, transcript missing).
+        // The retry button will appear so the user can try again.
+        updateEmbedNode({ status: "error", uploadError: detail });
+      }
       return;
     }
 

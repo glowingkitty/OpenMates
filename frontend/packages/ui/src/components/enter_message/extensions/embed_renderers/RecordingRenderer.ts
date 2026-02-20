@@ -22,6 +22,12 @@
 //   'recordingfullscreen'    — Fullscreen clicked when status is 'finished'.
 //                              Handled by MessageInput.svelte → ActiveChat.svelte.
 //                              Detail: { transcript, blobUrl, filename, s3Files, aesKey, aesNonce }
+//
+//   'retryrecordingtranscription' — Retry button clicked when status is 'error' and
+//                                   upload already succeeded (s3Files is present).
+//                                   Handled by MessageInput.svelte which calls
+//                                   retryTranscription(editor, embedId).
+//                                   Detail: { embedId }
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
@@ -136,6 +142,20 @@ export class RecordingRenderer implements EmbedRenderer {
         );
       };
 
+      const handleRetry = () => {
+        // Bubble 'retryrecordingtranscription' so MessageInput.svelte can call
+        // retryTranscription(editor, embedId) with the live editor reference.
+        // This avoids needing an editor reference inside the renderer
+        // (EmbedRenderContext does not expose the editor instance).
+        content.dispatchEvent(
+          new CustomEvent("retryrecordingtranscription", {
+            bubbles: true,
+            composed: true,
+            detail: { embedId: attrs.id },
+          }),
+        );
+      };
+
       const component = mount(RecordingEmbedPreview, {
         target: content,
         props: {
@@ -158,6 +178,10 @@ export class RecordingRenderer implements EmbedRenderer {
           isAuthenticated: true,
           onFullscreen: handleFullscreen,
           onStop: handleStop,
+          // onRetry is only available when upload succeeded (s3Files present)
+          // and status is 'error' (transcription failed). Guard prevents showing
+          // retry when upload itself failed (no S3 data to retry from).
+          onRetry: attrs.s3Files ? handleRetry : undefined,
         },
       });
 

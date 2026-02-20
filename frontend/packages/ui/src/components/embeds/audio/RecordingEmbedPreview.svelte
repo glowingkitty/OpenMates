@@ -79,6 +79,12 @@
     onFullscreen?: () => void;
     /** Called when user clicks the stop button during upload */
     onStop?: () => void;
+    /**
+     * Called when user clicks the retry button in error state.
+     * Only available when upload succeeded (s3Files present) so transcription
+     * can be retried without re-uploading. Passed from RecordingRenderer.ts.
+     */
+    onRetry?: () => void;
   }
 
   let {
@@ -101,6 +107,7 @@
     isAuthenticated = true,
     onFullscreen,
     onStop,
+    onRetry,
   }: Props = $props();
 
   // Reference filename in a no-op to prevent ESLint from flagging it as unused.
@@ -394,6 +401,16 @@
         <div class="error-state">
           <span class="error-icon">!</span>
           <span class="error-text">{uploadError || $text('app_skills.audio.transcribe.upload_failed')}</span>
+          {#if onRetry}
+            <!--
+              Retry button: shown only when upload succeeded and s3Files is present,
+              so transcription can be retried without re-uploading the audio.
+              Fires 'retryrecordingtranscription' CustomEvent via RecordingRenderer.ts.
+            -->
+            <button class="retry-btn" type="button" onclick={onRetry}>
+              {$text('app_skills.audio.transcribe.retry')}
+            </button>
+          {/if}
         </div>
 
       {:else}
@@ -591,6 +608,26 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* Retry button in error state */
+  .retry-btn {
+    flex-shrink: 0;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 4px;
+    border: 1px solid var(--color-app-audio, #e05555);
+    color: var(--color-app-audio, #e05555);
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .retry-btn:hover {
+    background: var(--color-app-audio, #e05555);
+    color: #fff;
   }
 
   /* ---- Audio load error ---- */

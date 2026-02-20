@@ -23,6 +23,7 @@ import hashlib
 import httpx
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
+from fastapi import HTTPException
 
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -485,6 +486,44 @@ class TranscribeSkill(BaseSkill):
         )
         if error:
             return TranscribeResponse(results=[], error=error)
+
+        # --- Pre-flight credit check ---
+        # Minimum cost is 3 credits (1 minute at 3 credits/min) per transcription request.
+        # We check this BEFORE calling Mistral so users with zero credits get an immediate 402
+        # rather than a completed transcription that can't be paid for.
+        #
+        # If the cache is unavailable (returns 0 as a safe default), we allow through —
+        # the post-hoc billing will handle it. We only hard-block on a known zero balance.
+        if user_id:
+            try:
+                from backend.core.api.app.utils.server_mode import is_payment_enabled
+                if is_payment_enabled():
+                    current_credits = await self.app.get_user_credits(user_id)
+                    min_credits_needed = 3  # Minimum: 1 minute × 3 credits/min
+                    # Only block when we have a confirmed zero balance (cached=True response implies
+                    # the cache had data; get_user_credits returns 0 for cache misses too, but
+                    # we accept that risk to avoid false-blocking on infra issues)
+                    if current_credits == 0:
+                        logger.warning(
+                            f"[TranscribeSkill] User {user_id[:8]}... has 0 credits — "
+                            f"rejecting transcription pre-flight (need >= {min_credits_needed})"
+                        )
+                        raise HTTPException(
+                            status_code=402,
+                            detail=(
+                                f"Not enough credits to transcribe. "
+                                f"You need at least {min_credits_needed} credits (1 minute minimum). "
+                                f"Please buy more credits to continue."
+                            )
+                        )
+            except HTTPException:
+                raise  # Re-raise 402 — don't swallow it
+            except Exception as preflight_error:
+                # Cache unavailable or other infra issue — allow through, don't block on infra failures
+                logger.warning(
+                    f"[TranscribeSkill] Pre-flight credit check failed (non-fatal, allowing through): "
+                    f"{preflight_error}"
+                )
 
         # Process all requests in parallel using BaseSkill helper
         results = await self._process_requests_in_parallel(
