@@ -14,7 +14,7 @@ overrides:
   js-yaml: 4.1.1
   tmp: 0.2.5
   got: 11.8.5
-  tar: ^7.5.7
+  tar: ^7.5.8
   lodash: ^4.17.23
 
 importers:
@@ -69,8 +69,8 @@ importers:
         specifier: ^3.0.10
         version: 3.0.10(@sveltejs/kit@2.49.5(@sveltejs/vite-plugin-svelte@6.2.0(svelte@5.39.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(svelte@5.39.2)(typescript@5.9.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))
       '@sveltejs/adapter-vercel':
-        specifier: ^6.3.1
-        version: 6.3.1(@sveltejs/kit@2.49.5(@sveltejs/vite-plugin-svelte@6.2.0(svelte@5.39.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(svelte@5.39.2)(typescript@5.9.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(rollup@2.79.2)
+        specifier: ^6.3.2
+        version: 6.3.2(@sveltejs/kit@2.49.5(@sveltejs/vite-plugin-svelte@6.2.0(svelte@5.39.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(svelte@5.39.2)(typescript@5.9.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(rollup@2.79.2)
       '@sveltejs/kit':
         specifier: 2.49.5
         version: 2.49.5(@sveltejs/vite-plugin-svelte@6.2.0(svelte@5.39.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(svelte@5.39.2)(typescript@5.9.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1))
@@ -1943,8 +1943,8 @@ packages:
     peerDependencies:
       '@sveltejs/kit': 2.49.5
 
-  '@sveltejs/adapter-vercel@6.3.1':
-    resolution: {integrity: sha512-Dn8QCSq63oW1t0DqZrS74HR8RAUG8LcGnGoErJnHU/pDALIxP7qzfWjRDiw7sxrpnfMZzJMOkWPghF3PAhSHYA==}
+  '@sveltejs/adapter-vercel@6.3.2':
+    resolution: {integrity: sha512-b9zkpCDWb5iuNtSgSabd2jBekFk+2WaaH454bC5Kl1dH8Fxt9SP4k4nug/Yek+sLvceK8SKcuuRIFuI91GJ+wA==}
     engines: {node: '>=20.0'}
     peerDependencies:
       '@sveltejs/kit': 2.49.5
@@ -4902,8 +4902,8 @@ packages:
   tailwind-merge@3.4.1:
     resolution: {integrity: sha512-2OA0rFqWOkITEAOFWSBSApYkDeH9t2B3XSJuI4YztKBzK3mX0737A2qtxDZ7xkw9Zfh0bWl+r34sF3HXV+Ig7Q==}
 
-  tar@7.5.7:
-    resolution: {integrity: sha512-fov56fJiRuThVFXD6o6/Q354S7pnWMJIVlDBYijsTNx6jKSE4pvrDTs6lUnmGvNyfJwFQQwWy3owKz1ucIhveQ==}
+  tar@7.5.9:
+    resolution: {integrity: sha512-BTLcK0xsDh2+PUe9F6c2TlRp4zOOBMTkoQHQIWSIzI0R7KG46uEwq4OPk2W7bZcprBMsuaeFsqwYr7pjh6CuHg==}
     engines: {node: '>=18'}
 
   temp-dir@2.0.0:
@@ -6430,7 +6430,7 @@ snapshots:
       node-fetch: 2.7.0
       nopt: 8.1.0
       semver: 7.7.2
-      tar: 7.5.7
+      tar: 7.5.9
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -7109,7 +7109,7 @@ snapshots:
     dependencies:
       '@sveltejs/kit': 2.49.5(@sveltejs/vite-plugin-svelte@6.2.0(svelte@5.39.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(svelte@5.39.2)(typescript@5.9.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1))
 
-  '@sveltejs/adapter-vercel@6.3.1(@sveltejs/kit@2.49.5(@sveltejs/vite-plugin-svelte@6.2.0(svelte@5.39.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(svelte@5.39.2)(typescript@5.9.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(rollup@2.79.2)':
+  '@sveltejs/adapter-vercel@6.3.2(@sveltejs/kit@2.49.5(@sveltejs/vite-plugin-svelte@6.2.0(svelte@5.39.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(svelte@5.39.2)(typescript@5.9.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(rollup@2.79.2)':
     dependencies:
       '@sveltejs/kit': 2.49.5(@sveltejs/vite-plugin-svelte@6.2.0(svelte@5.39.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1)))(svelte@5.39.2)(typescript@5.9.2)(vite@7.3.0(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.1))
       '@vercel/nft': 1.3.0(rollup@2.79.2)
@@ -10341,7 +10341,7 @@ snapshots:
 
   tailwind-merge@3.4.1: {}
 
-  tar@7.5.7:
+  tar@7.5.9:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
