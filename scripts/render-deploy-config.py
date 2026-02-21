@@ -28,8 +28,9 @@ Notes:
     - Only ${VAR_NAME} patterns are substituted (not $VAR or other formats).
     - Caddy runtime variables like {http.request.host} are NOT touched because
       they don't start with $ — only ${...} patterns are matched.
-    - The script warns about any unresolved ${...} placeholders in the output.
-    - Variables with empty values in .env are treated as unset (will warn).
+    - The script FAILS (exit 1) if any ${...} placeholders remain unresolved.
+      Use --no-strict to allow unresolved placeholders and only warn.
+    - Variables with empty values in .env are treated as unset (will fail).
 """
 
 import argparse
@@ -166,9 +167,9 @@ def main() -> None:
         default=None,
     )
     parser.add_argument(
-        "--strict",
+        "--no-strict",
         action="store_true",
-        help="Exit with error code 1 if any placeholders are unresolved",
+        help="Allow unresolved placeholders (default is to fail on any unresolved placeholder)",
     )
     args = parser.parse_args()
 
@@ -203,11 +204,17 @@ def main() -> None:
             print(
                 f"  Line {line_num}: ${{{var_name}}}  ({line_text})", file=sys.stderr
             )
-        print(
-            "\nSet these variables in your .env file and re-run.", file=sys.stderr
-        )
-        if args.strict:
+        if not args.no_strict:
+            print(
+                "\nERROR: Aborting — set these variables in your .env file and re-run.",
+                file=sys.stderr,
+            )
             sys.exit(1)
+        else:
+            print(
+                "\nWARNING: Continuing with unresolved placeholders (--no-strict).",
+                file=sys.stderr,
+            )
 
     # Output rendered template to stdout
     print(rendered, end="")
