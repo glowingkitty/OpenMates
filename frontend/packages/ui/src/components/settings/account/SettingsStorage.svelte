@@ -179,8 +179,10 @@ Billing runs every Sunday at 03:00 UTC.
         <div class="usage-card">
             <div class="usage-label">
                 {$text('settings.storage.storage_total_used', {
-                    used: formatBytes(overview.total_bytes),
-                    free: formatBytes(overview.free_bytes),
+                    values: {
+                        used: formatBytes(overview.total_bytes),
+                        free: formatBytes(overview.free_bytes),
+                    }
                 })}
             </div>
 
@@ -213,7 +215,7 @@ Billing runs every Sunday at 03:00 UTC.
                 <div class="billing-row">
                     <span class="billing-key">{$text('settings.storage.storage_weekly_cost')}</span>
                     <span class="billing-value highlight">
-                        {$text('settings.storage.storage_credits_per_week', { credits: overview.weekly_cost_credits })}
+                        {$text('settings.storage.storage_credits_per_week', { values: { credits: overview.weekly_cost_credits } })}
                     </span>
                 </div>
                 {#if overview.next_billing_date}
@@ -242,7 +244,7 @@ Billing runs every Sunday at 03:00 UTC.
                             <div class="breakdown-info">
                                 <span class="breakdown-name">{$text(categoryLabel(item.category))}</span>
                                 <span class="breakdown-count">
-                                    {$text('settings.storage.storage_files_count', { count: item.file_count })}
+                                    {$text('settings.storage.storage_files_count', { values: { count: item.file_count } })}
                                 </span>
                             </div>
                             <span class="breakdown-size">{formatBytes(item.bytes_used)}</span>

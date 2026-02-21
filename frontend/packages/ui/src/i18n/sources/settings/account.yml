@@ -95,6 +95,29 @@ passkeys:
   cs: Přístupové klíče
   sv: Åtkomstnycklar
   verified_by_human: []
+storage:
+  context: Storage overview submenu under Account settings (header title shown when navigating into account/storage)
+  en: Storage
+  de: Speicher
+  zh: 存储
+  es: Almacenamiento
+  fr: Stockage
+  pt: Armazenamento
+  ru: Хранилище
+  ja: ストレージ
+  ko: 저장소
+  it: Archiviazione
+  tr: Depolama
+  vi: Lưu trữ
+  id: Penyimpanan
+  pl: Przechowywanie
+  nl: Opslag
+  ar: التخزين
+  hi: संग्रहण
+  th: การจัดเก็บ
+  cs: Úložiště
+  sv: Lagring
+  verified_by_human: []
 delete:
   context: Delete Account submenu under Account settings
   en: Delete
