@@ -120,10 +120,29 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 		.locator('.login-wrapper')
 		.isVisible()
 		.catch(() => false);
+	const loginWrapperCount = await page.locator('.login-wrapper').count();
 	const emailInputCount = await page.locator(SELECTORS.emailInput).count();
+	const emailInputAllCount = await page.locator('input[type="email"]').count();
+	const activeChContainerCount = await page.locator('.active-chat-container').count();
+	const activeChatLoginMode = await page.locator('.active-chat-container.login-mode').count();
+	// Dump all inputs in DOM
+	const allInputs = await page.evaluate(() => {
+		return Array.from(document.querySelectorAll('input')).map((el) => ({
+			type: el.type,
+			name: el.name,
+			visible: el.offsetWidth > 0 && el.offsetHeight > 0,
+			style: el.getAttribute('style') || '',
+			id: el.id
+		}));
+	});
 	logCheckpoint('DOM diagnostic after login button click.', {
 		loginWrapperVisible,
+		loginWrapperCount,
 		emailInputCount,
+		emailInputAllCount,
+		activeChContainerCount,
+		activeChatLoginMode,
+		allInputs,
 		url: page.url()
 	});
 
