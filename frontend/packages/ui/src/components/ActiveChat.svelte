@@ -6212,11 +6212,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                 class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
             >
-                <!-- Incognito mode banner - shows for incognito chats or new chats when incognito mode is active -->
-                {#if currentChat?.is_incognito || (showWelcome && $incognitoMode)}
+                <!-- Incognito mode banner - shows for incognito chats (when not on welcome screen) or on welcome screen when incognito mode is active -->
+                <!-- IMPORTANT: Condition must be mutually exclusive with the "applies to new chats only" banner below.
+                     Banner 2 shows when: $incognitoMode && currentChat && !currentChat.is_incognito && !showWelcome
+                     This banner shows when: (currentChat.is_incognito && !showWelcome) || (showWelcome && $incognitoMode)
+                     These two are mutually exclusive: banner 2 requires !showWelcome && !is_incognito,
+                     banner 1 requires is_incognito || showWelcome — never both true simultaneously. -->
+                {#if (currentChat?.is_incognito && !showWelcome) || (showWelcome && $incognitoMode)}
                     <div class="incognito-banner">
                         <div class="incognito-banner-icon">
-                            <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
+                            <div class="icon settings_size subsetting_icon incognito"></div>
                         </div>
                         <span class="incognito-banner-text">{$text('settings.incognito')}</span>
                     </div>
@@ -6486,7 +6491,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {#if $incognitoMode && currentChat && !currentChat.is_incognito && !showWelcome}
                             <div class="incognito-mode-applies-banner" transition:fade={{ duration: 200 }}>
                                 <div class="incognito-mode-applies-icon">
-                                    <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
+                                    <div class="icon settings_size subsetting_icon incognito"></div>
                                 </div>
                                 <span class="incognito-mode-applies-text">
                                     {$text('settings.incognito_mode_applies_to_new_chats_only')}

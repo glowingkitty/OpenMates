@@ -78,7 +78,18 @@
     // Local state for incognito toggle that syncs with store
     let incognitoToggleChecked = $state(false);
     
-    // Sync local toggle state with store
+    // Guard to prevent the onClick handler from firing twice in the same tick.
+    // Toggle.svelte uses bind:checked on a checkbox inside a <label>, and SettingsItem wraps
+    // it in a div with its own onclick. In Safari and some other browsers this can trigger
+    // the parent onClick callback twice (once from the toggle-container div click, once from
+    // the label/input synthetic click), causing a double-toggle where deactivation immediately
+    // re-activates incognito mode.
+    let incognitoClickInProgress = $state(false);
+    
+    // Sync local toggle state with store.
+    // Note: we only sync FROM the store TO local state (not the other way around).
+    // The local state is the source of truth for the UI; the store is updated explicitly
+    // in the onClick handler.
     $effect(() => {
         incognitoToggleChecked = $incognitoMode;
     });
@@ -283,40 +294,57 @@
                 <div data-testid="incognito-toggle-wrapper">
                     <SettingsItem
                         type="quickaction"
-                        icon="subsetting_icon subsetting_icon_incognito"
+                        icon="subsetting_icon incognito"
                         title={$text('settings.incognito')}
                         hasToggle={true}
                         checked={incognitoToggleChecked}
                         onClick={async () => {
-                            // Get current value from store to ensure we're toggling from the correct state
+                            // Guard against double-fire: in Safari, clicking the toggle can trigger
+                            // onClick twice in the same tick (once from the toggle-container div,
+                            // once from the label's synthetic click event). Without this guard,
+                            // deactivation would immediately re-activate incognito mode.
+                            if (incognitoClickInProgress) {
+                                console.debug('[CurrentSettingsPage] incognito onClick: ignoring duplicate fire');
+                                return;
+                            }
+                            incognitoClickInProgress = true;
+                            // Reset the guard after the current microtask queue is flushed.
+                            // Using Promise.resolve() ensures the guard is active for any synchronous
+                            // re-entrant calls but resets before the next user interaction.
+                            Promise.resolve().then(() => { incognitoClickInProgress = false; });
+
+                            // Read the intended new value from the store (source of truth).
+                            // We read from the store (not incognitoToggleChecked) because the Toggle's
+                            // bind:checked may have already flipped the local state before onClick fires.
                             const currentValue = $incognitoMode;
                             const newValue = !currentValue;
 
-                            // CRITICAL: If mode is currently ON and we're turning it OFF, just toggle it off
-                            // Don't show the info screen when turning off
+                            // CRITICAL: If mode is currently ON and we're turning it OFF, just toggle it off.
+                            // Don't show the info screen when turning off.
                             if (currentValue && !newValue) {
                                 // Update local state immediately for responsive UI
-                                incognitoToggleChecked = newValue;
+                                incognitoToggleChecked = false;
 
                                 // Update store (handles deletion of incognito chats when disabling)
-                                await incognitoMode.set(newValue);
+                                await incognitoMode.set(false);
 
                                 // Dispatch to parent for any additional handling
                                 handleQuickSettingClick('incognito');
                                 return; // Exit early - don't navigate to info screen
                             }
 
-                            // If mode is currently OFF and we're turning it ON, show info screen first
-                            // The info screen will handle actually activating the mode when user confirms
-                            // Don't update the toggle state yet - let the info screen handle activation
-                            // This prevents the toggle from appearing "on" before the user confirms
+                            // If mode is currently OFF and we're turning it ON, show info screen first.
+                            // The info screen will handle actually activating the mode when user confirms.
+                            // Don't update the toggle state yet — keep it off until the user confirms.
+                            // This prevents the toggle from appearing "on" before the user confirms.
                             if (newValue) {
+                                // Revert the toggle visual state: keep it OFF until user confirms on info screen.
+                                // The Toggle's bind:checked may have already flipped it to true (optimistic),
+                                // so we reset it here to wait for confirmation.
+                                incognitoToggleChecked = false;
+
                                 // Navigate to incognito info submenu - user will confirm activation there
                                 showSettingsView('incognito/info', null);
-                            } else {
-                                // This shouldn't happen (we already handled turning off above), but just in case
-                                incognitoToggleChecked = newValue;
-                                await incognitoMode.set(newValue);
                             }
 
                             // Dispatch to parent for any additional handling
@@ -338,7 +366,7 @@
             <!-- Only show logout button for authenticated users -->
             {#if username}
                 <SettingsItem 
-                    icon="subsetting_icon subsetting_icon_logout" 
+                    icon="subsetting_icon logout" 
                     title={$text('settings.logout')} 
                     onClick={handleLogout} 
                 />
