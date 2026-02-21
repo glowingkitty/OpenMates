@@ -16,7 +16,7 @@ WORKDIR /app
 # Only dependency is httpx for Vault API calls
 RUN pip install --no-cache-dir httpx==0.28.1
 
-COPY setup_vault.py .
+COPY backend/upload/vault/setup_vault.py .
 RUN chmod +x setup_vault.py
 
 CMD ["python", "setup_vault.py"]
