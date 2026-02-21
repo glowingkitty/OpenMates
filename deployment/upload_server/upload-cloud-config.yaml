@@ -30,8 +30,7 @@
 #                SECRET__HETZNER__*, SECRET__SIGHTENGINE__*)
 #   2. Start the upload server:
 #      cd ~/projects/OpenMates
-#      docker compose -f backend/upload/docker-compose.yml \
-#                     -f backend/upload/docker-compose.prod.yml up -d
+#      docker compose -f backend/upload/docker-compose.yml up -d
 #   3. Verify: curl https://${DEPLOY_UPLOAD_DOMAIN}/health
 
 # ---------------------------------------------------------------------------
@@ -261,8 +260,7 @@ final_message: |
 
   2. Start the upload server:
      cd ~/projects/OpenMates
-     docker compose -f backend/upload/docker-compose.yml \
-                    -f backend/upload/docker-compose.prod.yml up -d
+     docker compose -f backend/upload/docker-compose.yml up -d
 
   3. Verify:
      curl https://${DEPLOY_UPLOAD_DOMAIN}/health

@@ -1,6 +1,11 @@
 # backend/upload/docker-compose.yml
 #
-# Docker Compose for the app-uploads microservice, ClamAV, and local Vault.
+# Docker Compose for the OpenMates Upload Server (dedicated VM).
+# Runs the upload microservice, ClamAV, and a local Vault.
+#
+# USAGE (on the upload VM):
+#   cd ~/projects/OpenMates
+#   docker compose -f backend/upload/docker-compose.yml up -d
 #
 # SECURITY ARCHITECTURE:
 #   The uploads service runs on a SEPARATE VM with zero access to the main
@@ -17,32 +22,19 @@
 #     - Access user data (no Directus access)
 #     - Reach the main Vault
 #
-# DEPLOYMENT MODELS:
-#
-#   Production (separate VM — upload.openmates.org):
-#     Run this compose file standalone on the uploads VM.
-#     Set CORE_API_URL to the internal/private address of the API server.
-#     ClamAV and local Vault run as sidecars on the same VM.
-#     The uploads VM does NOT join the openmates Docker network (different host).
-#
-#   Development (same server as core stack):
-#     Use docker-compose.override.yml to join the 'openmates' network so that
-#     CORE_API_URL=http://api:8000 resolves via Docker DNS.
-#     The port mapping (127.0.0.1:8004:8000) lets Caddy proxy /api/uploads/* to it.
-#
-# ENVIRONMENT VARIABLES (required — define in project root .env or shell):
-#   PROD_CORE_API_URL                  — URL of the prod core API (private IP on upload VM)
+# ENVIRONMENT VARIABLES (define in backend/upload/.env):
+#   PROD_CORE_API_URL                  — Private IP URL of the prod core API
 #   PROD_INTERNAL_API_SHARED_TOKEN     — Shared secret matching the prod API server
-#   DEV_CORE_API_URL                   — URL of the dev core API (private IP on upload VM)
+#   DEV_CORE_API_URL                   — Private IP URL of the dev core API
 #   DEV_INTERNAL_API_SHARED_TOKEN      — Shared secret matching the dev API server
 #   UPLOADS_VAULT_ROOT_TOKEN           — Root token for the local Vault (random UUID)
-#   SECRET__HETZNER__S3_ACCESS_KEY    — S3 access key (migrated into local Vault by vault-setup)
-#   SECRET__HETZNER__S3_SECRET_KEY    — S3 secret key
-#   SECRET__HETZNER__S3_REGION_NAME   — S3 region (e.g. nbg1)
-#   SECRET__SIGHTENGINE__API_USER     — SightEngine API user (optional — AI detection disabled if unset)
-#   SECRET__SIGHTENGINE__API_SECRET   — SightEngine API secret
-#   SERVER_ENVIRONMENT        — "development" | "production"
-#   LOG_LEVEL                 — "info" | "debug" | "warning"
+#   SECRET__HETZNER__S3_ACCESS_KEY     — S3 access key (migrated into local Vault)
+#   SECRET__HETZNER__S3_SECRET_KEY     — S3 secret key
+#   SECRET__HETZNER__S3_REGION_NAME    — S3 region (e.g. nbg1)
+#   SECRET__SIGHTENGINE__API_USER      — SightEngine API user (optional)
+#   SECRET__SIGHTENGINE__API_SECRET    — SightEngine API secret
+#   SERVER_ENVIRONMENT                 — "production"
+#   LOG_LEVEL                          — "info" | "debug" | "warning"
 
 name: openmates-uploads
 
@@ -86,7 +78,7 @@ services:
       # Build context is project root so Dockerfile can COPY backend/
       context: ../../
       dockerfile: backend/upload/vault/Dockerfile
-    env_file: ../../.env
+    env_file: .env
     environment:
       VAULT_ADDR: "http://vault:8200"
       VAULT_TOKEN: "${UPLOADS_VAULT_ROOT_TOKEN}"
@@ -119,31 +111,30 @@ services:
       context: ../../
       dockerfile: backend/upload/Dockerfile
     restart: unless-stopped
-    env_file: ../../.env
+    env_file: .env
+    ports:
+      # Expose on localhost only — Caddy on this VM proxies to this port.
+      - "127.0.0.1:8000:8000"
     environment:
       PYTHONPATH: "/app"
       UPLOADS_APP_INTERNAL_PORT: "8000"
       # Core API credentials — two pairs, one per environment.
-      # Caddy injects X-Target-Env ("dev" or "prod") and the upload service
-      # picks the right pair for each request. See backend/upload/routes/upload_route.py.
-      #
-      # On the upload VM (prod): set PROD_CORE_API_URL to the prod server private IP
-      #   and DEV_CORE_API_URL to the dev server private IP.
-      # On dev (docker-compose.override.yml): both point to http://api:8000 via Docker DNS.
-      PROD_CORE_API_URL: "${PROD_CORE_API_URL:-http://api:8000}"
-      PROD_INTERNAL_API_SHARED_TOKEN: "${PROD_INTERNAL_API_SHARED_TOKEN:-${INTERNAL_API_SHARED_TOKEN}}"
-      DEV_CORE_API_URL: "${DEV_CORE_API_URL:-http://api:8000}"
-      DEV_INTERNAL_API_SHARED_TOKEN: "${DEV_INTERNAL_API_SHARED_TOKEN:-${INTERNAL_API_SHARED_TOKEN}}"
+      # Caddy injects X-Target-Env ("dev" or "prod") based on the request's
+      # Origin header, and the upload service picks the right pair for each
+      # request. See backend/upload/routes/upload_route.py.
+      PROD_CORE_API_URL: "${PROD_CORE_API_URL}"
+      PROD_INTERNAL_API_SHARED_TOKEN: "${PROD_INTERNAL_API_SHARED_TOKEN}"
+      DEV_CORE_API_URL: "${DEV_CORE_API_URL}"
+      DEV_INTERNAL_API_SHARED_TOKEN: "${DEV_INTERNAL_API_SHARED_TOKEN}"
       # Local Vault — for S3 and SightEngine credentials ONLY.
       # This is NOT the main Vault. It runs as a sidecar in this compose stack.
       VAULT_URL: "http://vault:8200"
       # ClamAV — always runs as a sidecar in the same compose stack
       CLAMAV_HOST: "clamav"
       CLAMAV_PORT: "3310"
-      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT:-development}"
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT:-production}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
     volumes:
-      - ../../backend:/app/backend
       # Vault API token written by vault-setup init container
       - vault-setup-data:/vault-data:ro
     networks:
@@ -196,8 +187,6 @@ services:
 networks:
   uploads:
     # Internal network for uploads <-> clamav <-> vault communication.
-    # In dev (docker-compose.override.yml) app-uploads ALSO joins the 'openmates'
-    # network so it can reach the core API via Docker DNS.
     driver: bridge
 
 # ---------------------------------------------------------------------------
@@ -211,6 +200,4 @@ volumes:
   vault-setup-data:
     # Shared between vault-setup (writer) and app-uploads (reader).
     # Contains the scoped Vault API token file (api.token).
-    # NOT external — owned by this compose stack (unlike the old design
-    # that depended on the core stack's vault-setup-data volume).
     name: openmates-uploads-vault-setup-data
