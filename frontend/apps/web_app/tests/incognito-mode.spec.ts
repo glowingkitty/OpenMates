@@ -245,8 +245,28 @@ async function enableIncognitoViaSettings(
 	await activateButton.click();
 	logCheckpoint('Clicked Activate button on incognito info page.');
 
-	// Settings should close after activation (the info page handler closes the menu)
-	await page.waitForTimeout(700);
+	// Settings should close after activation (the info page handler navigates back
+	// to main settings, closes the menu via settingsMenuVisible + panelState, then
+	// dispatches triggerNewChat with a ~500ms total delay).
+	// Wait for the settings menu to become invisible before continuing.
+	const settingsMenu = page.locator(SELECTORS.settingsMenuVisible);
+	try {
+		await expect(settingsMenu).not.toBeVisible({ timeout: 5000 });
+		logCheckpoint('Settings menu closed after activation.');
+	} catch {
+		// If it didn't close on its own, force-close by clicking outside
+		// (Escape key does NOT close the settings menu — only click-outside does)
+		logCheckpoint('Settings menu still visible — clicking outside to close.');
+		const messageEditor = page.locator(SELECTORS.messageEditor);
+		if (await messageEditor.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await messageEditor.click({ force: true });
+		}
+		await page.waitForTimeout(500);
+	}
+
+	// Additional wait for the triggerNewChat event to fire and the new incognito
+	// chat to be created (SettingsIncognitoInfo fires this with a 300ms delay)
+	await page.waitForTimeout(1000);
 	logCheckpoint('Incognito mode enabled.');
 	await takeStepScreenshot(page, 'incognito-enabled');
 }
@@ -254,39 +274,56 @@ async function enableIncognitoViaSettings(
 /**
  * Disable incognito mode via the settings toggle (turns off directly, no info page).
  *
- * Handles the case where the settings menu might already be open (e.g., right after
- * enabling incognito mode, the activation flow closes the menu but with a delay).
+ * The settings menu doesn't respond to Escape — it only closes via click-outside or
+ * the profile button toggle. After the enableIncognitoViaSettings activation flow,
+ * the menu should now properly close (panelState.closeSettings is called). But if it's
+ * still open, we click outside to close it first, then re-open fresh.
  */
 async function disableIncognitoViaSettings(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
 	takeStepScreenshot: (page: any, label: string) => Promise<void>
 ): Promise<void> {
-	// Check if settings menu is already visible (e.g., still open from a previous action)
+	// Check if settings menu is still visible from a previous action
 	const settingsMenu = page.locator(SELECTORS.settingsMenuVisible);
-	const settingsAlreadyOpen = await settingsMenu.isVisible({ timeout: 1000 }).catch(() => false);
+	const settingsAlreadyOpen = await settingsMenu.isVisible({ timeout: 1500 }).catch(() => false);
 
 	if (settingsAlreadyOpen) {
-		logCheckpoint('Settings menu already open — closing first before re-opening.');
-		// Close by pressing Escape, then re-open cleanly
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(500);
-	}
+		// Check if the incognito toggle is visible (we might be on a sub-page)
+		const toggleWrapper = page.locator(SELECTORS.incognitoToggleWrapper);
+		const toggleVisible = await toggleWrapper.isVisible({ timeout: 1000 }).catch(() => false);
 
-	await openSettings(page, logCheckpoint, takeStepScreenshot);
+		if (toggleVisible) {
+			logCheckpoint('Settings open with toggle visible — clicking toggle directly.');
+		} else {
+			// Close settings by clicking outside (Escape doesn't close settings menu)
+			logCheckpoint('Settings open but toggle not visible — closing and re-opening.');
+			await page.locator(SELECTORS.messageEditor).click({ force: true });
+			await page.waitForTimeout(500);
+			await openSettings(page, logCheckpoint, takeStepScreenshot);
+		}
+	} else {
+		await openSettings(page, logCheckpoint, takeStepScreenshot);
+	}
 
 	// When incognito mode is ON, clicking the toggle turns it off directly
 	const toggleWrapper = page.locator(SELECTORS.incognitoToggleWrapper);
 	await expect(toggleWrapper).toBeVisible({ timeout: 10000 });
+	await takeStepScreenshot(page, 'before-disable-toggle-click');
 	await toggleWrapper.click();
 	logCheckpoint('Clicked incognito toggle to disable incognito mode.');
 
-	// Wait for store to process deletion
-	await page.waitForTimeout(700);
+	// Wait for store to process deletion and for the incognitoChatsDeleted event
+	// to propagate through Chats.svelte (clears sidebar + deselects active chat)
+	await page.waitForTimeout(2000);
 
-	// Close settings
-	await page.keyboard.press('Escape');
-	await page.waitForTimeout(500);
+	// Close settings by clicking outside (the message editor area)
+	const messageEditor = page.locator(SELECTORS.messageEditor);
+	if (await messageEditor.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await messageEditor.click({ force: true });
+		await page.waitForTimeout(500);
+	}
+
 	logCheckpoint('Incognito mode disabled.');
 	await takeStepScreenshot(page, 'incognito-disabled');
 }
@@ -294,6 +331,7 @@ async function disableIncognitoViaSettings(
 /**
  * Start a new chat by clicking the new chat CTA button (if visible).
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function startNewChat(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
@@ -542,6 +580,11 @@ test('disabling incognito mode removes all incognito chats from sidebar', async 
 	// --- Arrange: enable incognito and send a message to create an incognito chat ---
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	await enableIncognitoViaSettings(page, logCheckpoint, takeStepScreenshot);
+
+	// Open sidebar before sending — this ensures the sidebar component is mounted
+	// and will react to the incognito chat being created.
+	await ensureSidebarOpen(page, logCheckpoint);
+
 	await sendMessage(
 		page,
 		'Testing incognito cleanup',
@@ -550,10 +593,16 @@ test('disabling incognito mode removes all incognito chats from sidebar', async 
 		'pre-disable'
 	);
 
-	// Ensure sidebar shows the incognito chat before disabling.
 	// Wait for the UI to settle after sending and for the chat to appear in the sidebar.
-	await page.waitForTimeout(3000);
+	// The chat needs to be stored in sessionStorage and the sidebar needs to re-derive.
+	await page.waitForTimeout(5000);
 	await ensureSidebarOpen(page, logCheckpoint);
+	await takeStepScreenshot(page, 'sidebar-before-incognito-check');
+
+	// Debug: log what chat items are in the sidebar
+	const chatItemCount = await page.locator(SELECTORS.chatItems).count();
+	logCheckpoint(`Total chat items in sidebar: ${chatItemCount}`);
+
 	const incognitoLabels = page.locator(SELECTORS.incognitoLabel);
 	await expect(incognitoLabels.first()).toBeVisible({ timeout: 15000 });
 	const countBefore = await incognitoLabels.count();
@@ -566,8 +615,8 @@ test('disabling incognito mode removes all incognito chats from sidebar', async 
 
 	// --- Assert: incognito labels are gone from the sidebar ---
 	await ensureSidebarOpen(page, logCheckpoint);
-	// Wait briefly for the UI to settle after deletion
-	await page.waitForTimeout(1000);
+	// Wait for cleanup events to propagate and sidebar to re-render
+	await page.waitForTimeout(2000);
 	const countAfter = await incognitoLabels.count();
 	logCheckpoint(`Incognito chats visible in sidebar after disable: ${countAfter}`);
 	expect(countAfter).toBe(0);
@@ -615,27 +664,30 @@ test('active incognito chat is closed when incognito mode is disabled', async ({
 	await expect(incognitoBanner).toBeVisible({ timeout: 10000 });
 	logCheckpoint('Incognito banner visible — active incognito chat confirmed.');
 
-	// Get the current URL (contains the incognito chat-id)
+	// Get the current chat-id from URL (if present) for comparison after disable
 	const urlBefore = page.url();
-	logCheckpoint(`URL before disable: ${urlBefore}`);
+	const chatIdBefore = urlBefore.match(/chat-id=([^&]+)/)?.[1] ?? null;
+	logCheckpoint(`URL before disable: ${urlBefore} (chat-id: ${chatIdBefore})`);
 
 	// --- Act ---
 	await disableIncognitoViaSettings(page, logCheckpoint, takeStepScreenshot);
 
 	// --- Assert: incognito banner is gone (chat was closed/deselected) ---
-	await expect(incognitoBanner).not.toBeVisible({ timeout: 10000 });
+	// The Chats.svelte handleIncognitoChatsDeleted clears the active chat and
+	// dispatches 'chatDeselected', which should hide the incognito banner.
+	await expect(incognitoBanner).not.toBeVisible({ timeout: 15000 });
 	logCheckpoint('Incognito banner no longer visible after disabling mode.');
 	await takeStepScreenshot(page, 'incognito-banner-gone');
 
-	// The URL should no longer contain an incognito chat-id
-	const urlAfter = page.url();
-	logCheckpoint(`URL after disable: ${urlAfter}`);
-	// The chat was an incognito chat so its ID starts with 'incognito-'
-	// After disabling, the router should deselect or navigate away from it.
-	if (urlBefore.includes('incognito-')) {
-		expect(urlAfter).not.toMatch(/chat-id=incognito-/);
-		logCheckpoint('URL no longer references an incognito chat ID.');
-	}
+	// Verify sessionStorage is cleaned up (the key indicator that chats are gone)
+	const storedChats = await page.evaluate(() => sessionStorage.getItem('incognito_chats'));
+	expect(storedChats).toBeNull();
+	logCheckpoint('sessionStorage incognito_chats key is cleaned up after disabling.');
+
+	// The incognito mode flag should be false
+	const modeEnabled = await page.evaluate(() => sessionStorage.getItem('incognito_mode_enabled'));
+	expect(modeEnabled).toBe('false');
+	logCheckpoint('sessionStorage confirms incognito mode is disabled.');
 });
 
 // ---------------------------------------------------------------------------

@@ -1419,14 +1419,22 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// Listen for incognito chats deletion event (when incognito mode is disabled)
 		handleIncognitoChatsDeleted = async () => {
 			console.debug('[Chats] Incognito chats deleted event received');
-			// Clear incognito chats from state
+
+			// IMPORTANT: Capture whether the active chat is incognito BEFORE clearing
+			// the incognitoChats array, because allChats is a $derived value that
+			// re-computes immediately when incognitoChats changes — after clearing,
+			// the incognito chat won't appear in allChats anymore.
+			const wasViewingIncognitoChat = selectedChatId
+				? incognitoChats.some(c => c.chat_id === selectedChatId)
+				: false;
+
+			// Clear incognito chats from state (triggers allChats re-derivation)
 			incognitoChats = [];
 			incognitoChatsTrigger++;
-			
-			// If the currently selected chat is an incognito chat, deselect it
-			// Check before clearing (since we just cleared the array)
-			const currentChat = allChats.find(c => c.chat_id === selectedChatId);
-			if (currentChat?.is_incognito) {
+
+			// If the currently selected chat was an incognito chat, deselect it
+			if (wasViewingIncognitoChat) {
+				console.debug('[Chats] Active chat was incognito — deselecting');
 				selectedChatId = null;
 				activeChatStore.clearActiveChat();
 				dispatch('chatDeselected');

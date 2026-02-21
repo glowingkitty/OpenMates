@@ -29,15 +29,23 @@ changes to the documentation (to keep the documentation up to date).
             title: ''
         });
         
-        // Close settings menu by dispatching close event
-        // This ensures the settings menu closes before creating the new chat
+        // Close settings menu before creating the new chat.
+        // CRITICAL: Must close BOTH settingsMenuVisible store AND panelState to prevent
+        // the Settings.svelte $effect from re-opening the menu. The panelState effect
+        // (line ~1400 of Settings.svelte) checks if panelState.isSettingsOpen is true
+        // while isMenuVisible is false, and re-opens the menu if so.
         if (typeof window !== 'undefined') {
             // Wait a bit for the navigation animation to complete
             await new Promise(resolve => setTimeout(resolve, 300));
             
-            // Close settings menu
+            // Close settings menu via store
             const { settingsMenuVisible } = await import('../../Settings.svelte');
             settingsMenuVisible.set(false);
+
+            // Also close panelState to prevent the panelState sync $effect
+            // from re-opening the menu
+            const { panelState } = await import('../../../stores/panelStateStore');
+            panelState.closeSettings();
             
             // Wait a bit more for the menu to close
             await new Promise(resolve => setTimeout(resolve, 200));
