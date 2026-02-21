@@ -2,7 +2,7 @@
 // Replaces individual embed extensions with a single, type-agnostic embed node
 
 import { Node, mergeAttributes } from "@tiptap/core";
-import { EmbedNodeAttributes, EmbedType } from "../../../message_parsing/types";
+import { EmbedNodeAttributes } from "../../../message_parsing/types";
 import { getEmbedRenderer, embedRenderers } from "./embed_renderers";
 import { groupHandlerRegistry } from "../../../message_parsing/groupHandlers";
 import { cancelUpload } from "../embedHandlers";
@@ -881,6 +881,18 @@ export const Embed = Node.create<EmbedOptions>({
             wrapper.classList.remove("embed-unified-container");
             wrapper.classList.remove("embed-processing");
             wrapper.classList.remove("embed-finished");
+
+            // CRITICAL: Forward the attr update to the renderer so the Svelte
+            // component's props are updated (e.g. status: 'uploading' → 'finished').
+            // Without this call the mounted Svelte component never sees the new
+            // attrs and stays permanently in its initial state (e.g. "uploading").
+            if (renderer?.update) {
+              renderer.update({
+                attrs: newAttrs,
+                container,
+                content: mountTarget,
+              });
+            }
           } else {
             // Update classes for non-Svelte component embeds
             if (newAttrs.type && newAttrs.type.endsWith("-group")) {
@@ -1120,21 +1132,24 @@ export const Embed = Node.create<EmbedOptions>({
                   }
                   return true;
 
-                case "delete-group":
+                case "delete-group": {
                   // Just delete the group and any following hard break
-                  const hardBreakAfter = editor.state.doc.nodeAt(to);
-                  const deleteTo =
-                    hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+                  const hardBreakAfterGroup = editor.state.doc.nodeAt(to);
+                  const deleteToGroup =
+                    hardBreakAfterGroup?.type.name === "hardBreak"
+                      ? to + 1
+                      : to;
 
                   editor
                     .chain()
                     .focus()
-                    .deleteRange({ from, to: deleteTo })
+                    .deleteRange({ from, to: deleteToGroup })
                     .run();
 
                   // Clean up all embeds in the group since the entire group is deleted
                   cleanupRemovedGroupEmbeds(attrs);
                   return true;
+                }
               }
             }
 
@@ -1173,7 +1188,7 @@ export const Embed = Node.create<EmbedOptions>({
                 markdown,
               );
               break;
-            case "code-code":
+            case "code-code": {
               const language = attrs.language || "";
               const filename = attrs.filename ? `:${attrs.filename}` : "";
 
@@ -1194,6 +1209,7 @@ export const Embed = Node.create<EmbedOptions>({
                 );
               }
               break;
+            }
             case "docs-doc":
               // For preview embeds, restore content WITHOUT closing fence for continued editing
               // For real embeds, just restore the fence
