@@ -122,6 +122,17 @@ class AppYAML(BaseModel):
     id: Optional[str] = None # Made id optional, will be derived if not present
     name_translation_key: str # Translation key for app name (e.g., "app_translations.web") - required
     description_translation_key: str # Translation key for app description (e.g., "apps.web.description") - required (no backwards compatibility)
+    expose_in_api: bool = Field(
+        default=True,
+        description=(
+            "Whether to expose this app in the public REST API docs (/docs) and the "
+            "list-apps endpoint. Set to false for apps whose skills rely on zero-knowledge "
+            "encryption or other client-side crypto flows that cannot be executed via a "
+            "stateless REST call (e.g., the images app). When false, the app-level GET "
+            "endpoint and all skill endpoints are registered with include_in_schema=False "
+            "so they are invisible in OpenAPI docs but still reachable at runtime."
+        ),
+    )
     icon_image: Optional[str] = Field(default=None, pattern=r'.+\.svg$') # Filename ending with .svg
     icon_colorgradient: Optional[IconColorGradient] = None
     skills: List[AppSkillDefinition] = []

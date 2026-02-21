@@ -4,6 +4,10 @@ icon_image: |
   image.svg
 category: work
 last_updated: "2026-01-17"
+# All image skills rely on zero-knowledge (client-side) encryption or WebSocket-based
+# crypto flows that cannot be executed via a stateless REST call. Hide the entire app
+# from the public /docs so the API reference does not show unusable endpoints.
+expose_in_api: false
 settings_and_memories:
   # Preferred styles: Image styles and aesthetics the user prefers
   - id: preferred_styles
@@ -113,7 +117,8 @@ skills:
     class_path: |
       backend.apps.images.skills.view_skill.ViewSkill
     api_config:
-      expose_get: false # POST-only — no metadata GET endpoint (internal tool)
+      expose_get: false # Hidden — requires Vault Transit-wrapped AES key (zero-knowledge encryption)
+      expose_post: false # Hidden — requires client-side decryption context (zero-knowledge). Not usable via stateless REST.
     tool_schema:
       type: object
       properties:

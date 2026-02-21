@@ -1003,6 +1003,13 @@ async def list_apps(
         
         apps = []
         for app_id, app_metadata in discovered_apps.items():
+            # Skip apps that are explicitly hidden from the public REST API.
+            # These apps (e.g., images) rely on zero-knowledge encryption or other
+            # client-side crypto flows that cannot be executed via stateless REST calls.
+            if not getattr(app_metadata, 'expose_in_api', True):
+                logger.debug(f"Skipping app '{app_id}' from list_apps response (expose_in_api=False)")
+                continue
+
             # Resolve app name and description
             app_name = resolve_translation(
                 translation_service,
@@ -1444,6 +1451,14 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             
             return get_app_handler
         
+        # Determine whether this app should be visible in the OpenAPI docs.
+        # Apps with expose_in_api=False (e.g., images) rely on zero-knowledge encryption
+        # or other client-side crypto flows that cannot be executed via a stateless REST
+        # call. Their endpoints are still registered so the server can route requests, but
+        # they are hidden from /docs to avoid misleading REST API consumers.
+        expose_in_api = getattr(app_metadata, 'expose_in_api', True)
+        include_in_schema = expose_in_api
+
         # Register GET /v1/apps/{app_id} endpoint
         handler = create_get_app_handler(app_id, app_metadata)
         # Apply rate limiting and add security requirement
@@ -1457,7 +1472,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             name=f"get_app_{app_id}",
             summary=f"Get metadata for {app_name}",
             description=f"Get metadata for the {app_name} app. {app_description}".strip(),
-            dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
+            dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+            include_in_schema=include_in_schema,  # Hide from /docs when expose_in_api=False
         )
         
         # Register routes for each skill in the app
@@ -2281,7 +2297,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     name=f"get_skill_{app_id}_{skill.id}",
                     summary=f"Get metadata for {skill_name}",
                     description=f"Get metadata for the {skill_name} skill including pricing information. Requires API key authentication.",
-                    dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
+                    dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+                    include_in_schema=include_in_schema,  # Hide from /docs when app has expose_in_api=False
                 )
             
             # Register POST /v1/apps/{app_id}/skills/{skill_id} endpoint
@@ -2338,7 +2355,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 name=f"execute_skill_{app_id}_{skill.id}",
                 summary=f"Execute {skill_name}",
                 description=f"Execute the {skill_name} skill. The skill will be executed, billed, and a usage entry will be created automatically. Requires API key authentication.",
-                dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
+                dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+                include_in_schema=include_in_schema,  # Hide from /docs when app has expose_in_api=False
             )
             
             logger.info(f"Registered routes for skill: GET/POST /v1/apps/{app_id}/skills/{skill.id}")
