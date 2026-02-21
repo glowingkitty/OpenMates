@@ -5401,6 +5401,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         window.addEventListener('triggerNewChat', handleTriggerNewChat);
         
+        // Listen for incognitoChatsDeleted event (when user disables incognito mode).
+        // When incognito is disabled, all incognito chats are deleted from sessionStorage.
+        // If the active chat is an incognito chat, we must reset the view to a new chat —
+        // otherwise the incognito banner remains visible because currentChat.is_incognito is
+        // still true. This handler is the authoritative reset in ActiveChat; the Chats.svelte
+        // chatDeselected path is unreliable after re-login (selectedChatId may be null).
+        const handleIncognitoChatsDeleted = () => {
+            console.debug('[ActiveChat] incognitoChatsDeleted event received - resetting to new chat if needed');
+            if (currentChat?.is_incognito) {
+                console.debug('[ActiveChat] Current chat is incognito — clearing to new chat state after disable');
+                handleNewChatClick();
+            }
+        };
+        window.addEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted);
+        
         // Listen for hiddenChatsLocked and hiddenChatsAutoLocked events - if current chat is hidden, close it and show new chat window
         // This handler works for both manual lock and auto-lock (after inactivity)
         const handleHiddenChatsLocked = async () => {
@@ -6193,6 +6208,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListenerCallback);
             }
             window.removeEventListener('triggerNewChat', handleTriggerNewChat as EventListenerCallback);
+            window.removeEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted as EventListenerCallback);
             window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked as EventListenerCallback);
             window.removeEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked as EventListenerCallback);
             window.removeEventListener('setRetryMessage', handleSetRetryMessage);
