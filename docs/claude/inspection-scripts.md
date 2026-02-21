@@ -17,6 +17,10 @@ docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1
 docker exec api python /app/backend/scripts/inspect_embed.py <embed_id>
 
 # Inspect a specific issue report (decrypts all fields, fetches S3 YAML report)
+# NOTE: The "Chat/Embed URL" field may show a /share/chat/... URL. This does NOT mean the
+# user is reporting an issue with a shared chat they opened. It means the user OWNS that chat
+# and voluntarily shared it so you can inspect it — necessary because chats are zero-knowledge
+# encrypted and otherwise inaccessible. Treat it as a regular user chat, not a shared/foreign chat.
 docker exec api python /app/backend/scripts/inspect_issue.py <issue_id>
 
 # List recent unprocessed issues
