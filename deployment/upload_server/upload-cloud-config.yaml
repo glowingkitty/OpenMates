@@ -18,7 +18,8 @@
 #       - PROD_CORE_API_URL and DEV_CORE_API_URL pre-filled from DEPLOY_* vars
 #       - API keys left as <PLACEHOLDER> for manual fill-in
 #   - Writes and applies the production Caddyfile (TLS + reverse proxy)
-#     for both prod (${DEPLOY_UPLOAD_DOMAIN}) and dev (${DEPLOY_DEV_UPLOAD_DOMAIN})
+#     for the single upload domain (${DEPLOY_UPLOAD_DOMAIN}); Origin header
+#     determines whether to route to the prod or dev core API
 #   - Configures UFW firewall (only ports 22, 80, 443)
 #   - Configures fail2ban for SSH brute-force protection
 #
@@ -135,8 +136,10 @@ runcmd:
 write_files:
   # Production Caddyfile — DEPLOY_* placeholders are substituted by the render
   # script at provisioning time (before pasting into Hetzner user data).
-  # Two domain blocks: prod (${DEPLOY_UPLOAD_DOMAIN}) and dev (${DEPLOY_DEV_UPLOAD_DOMAIN}).
-  # Each block injects X-Target-Env so FastAPI picks the right API credentials.
+  # Single domain block: Origin header determines prod vs dev routing.
+  # Requests from openmates.org → X-Target-Env: prod
+  # Requests from app.dev.openmates.org → X-Target-Env: dev
+  # All other origins are blocked.
   - path: /etc/caddy/Caddyfile
     content: |
       {
@@ -165,83 +168,65 @@ write_files:
           -Server
         }
 
+        # Health endpoint — always accessible, no origin check
         @upload_health path /health
-        @upload_api path /v1/upload/*
-        @upload_options method OPTIONS
-
-        route {
-          handle @upload_options {
-            reverse_proxy localhost:8000 {
-              header_up Host {http.request.host}
-              header_up X-Target-Env "prod"
-            }
-          }
-          handle @upload_health {
-            reverse_proxy localhost:8000 {
-              header_up Host {http.request.host}
-              header_up X-Target-Env "prod"
-            }
-          }
-          handle @upload_api {
-            reverse_proxy localhost:8000 {
-              header_up Host {http.request.host}
-              header_up X-Target-Env "prod"
-            }
-          }
-          handle {
-            abort
+        handle @upload_health {
+          reverse_proxy localhost:8000 {
+            header_up Host {http.request.host}
           }
         }
-      }
 
-      ${DEPLOY_DEV_UPLOAD_DOMAIN} {
-        log {
-          output file /var/log/caddy/${DEPLOY_DEV_UPLOAD_DOMAIN}.log {
-            roll_size 100mb
-            roll_keep 10
-            roll_keep_for 720h
+        # Requests from the production web app
+        @prod_origin expression {header.Origin} == "https://openmates.org"
+        handle @prod_origin {
+          @upload_api path /v1/upload/*
+          @upload_options method OPTIONS
+          route {
+            handle @upload_options {
+              reverse_proxy localhost:8000 {
+                header_up Host {http.request.host}
+                header_up X-Target-Env "prod"
+              }
+            }
+            handle @upload_api {
+              reverse_proxy localhost:8000 {
+                header_up Host {http.request.host}
+                header_up X-Target-Env "prod"
+              }
+            }
+            handle {
+              abort
+            }
           }
-          format json
-          level INFO
         }
 
-        encode gzip zstd
-
-        header {
-          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-          X-Content-Type-Options "nosniff"
-          X-Frame-Options "DENY"
-          Referrer-Policy "strict-origin-when-cross-origin"
-          Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
-          -Server
+        # Requests from the dev web app
+        @dev_origin expression {header.Origin} == "https://app.dev.openmates.org"
+        handle @dev_origin {
+          @upload_api path /v1/upload/*
+          @upload_options method OPTIONS
+          route {
+            handle @upload_options {
+              reverse_proxy localhost:8000 {
+                header_up Host {http.request.host}
+                header_up X-Target-Env "dev"
+              }
+            }
+            handle @upload_api {
+              reverse_proxy localhost:8000 {
+                header_up Host {http.request.host}
+                header_up X-Target-Env "dev"
+              }
+            }
+            handle {
+              abort
+            }
+          }
         }
 
-        @upload_health path /health
-        @upload_api path /v1/upload/*
-        @upload_options method OPTIONS
-
-        route {
-          handle @upload_options {
-            reverse_proxy localhost:8000 {
-              header_up Host {http.request.host}
-              header_up X-Target-Env "dev"
-            }
-          }
-          handle @upload_health {
-            reverse_proxy localhost:8000 {
-              header_up Host {http.request.host}
-              header_up X-Target-Env "dev"
-            }
-          }
-          handle @upload_api {
-            reverse_proxy localhost:8000 {
-              header_up Host {http.request.host}
-              header_up X-Target-Env "dev"
-            }
-          }
-          handle {
-            abort
-          }
+        # Block everything else — missing or unrecognised Origin
+        handle {
+          abort
         }
       }
     owner: root:root
