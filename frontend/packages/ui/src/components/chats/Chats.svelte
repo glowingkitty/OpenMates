@@ -1442,6 +1442,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		};
 		window.addEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted);
 
+		// Reload incognito chats whenever the service writes a new/updated chat to sessionStorage.
+		// This fires from incognitoChatService.persistToSessionStorage() so the sidebar updates
+		// in real time after a message is sent (without needing a page refresh).
+		const handleIncognitoChatsUpdated = async () => {
+			await loadIncognitoChats();
+		};
+		window.addEventListener('incognitoChatsUpdated', handleIncognitoChatsUpdated);
+
 		// Listen for show hidden chat unlock modal event
 		handleShowHiddenChatUnlock = (event: Event) => {
 			const customEvent = event as CustomEvent<{ chatId?: string }>;
@@ -1702,6 +1710,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		if (handleIncognitoChatsDeleted) {
 			window.removeEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted);
 		}
+		window.removeEventListener('incognitoChatsUpdated', handleIncognitoChatsUpdated);
 
 		// Clean up hidden chats event listeners
         if (handleShowHiddenChatUnlock) {
