@@ -1087,12 +1087,12 @@
        the items left-aligned inside it. */
     .advantages-list {
         list-style: none;
-        margin: 0 auto 1.5rem auto;
+        margin: 0 auto 0.75rem auto;
         padding: 0;
         width: fit-content;
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
+        gap: 0.2rem;
     }
 
     .advantage-item {
