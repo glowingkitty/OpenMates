@@ -76,6 +76,19 @@ Account Settings - Main menu for account-related settings including Security, Ex
     }
 
     /**
+     * Navigate to Storage overview submenu.
+     * Shows total storage usage, per-category breakdown, and billing info.
+     */
+    function navigateToStorage() {
+        dispatch('openSettings', {
+            settingsPath: 'account/storage',
+            direction: 'forward',
+            icon: 'storage',
+            title: $text('settings.storage.storage')
+        });
+    }
+
+    /**
      * Navigate to Delete Account submenu.
      * Dispatches navigation event to parent Settings component.
      */
@@ -116,6 +129,13 @@ Account Settings - Main menu for account-related settings including Security, Ex
     icon="download"
     title={$text('settings.account.export')}
     onClick={navigateToExportData}
+/>
+
+<SettingsItem
+    type="submenu"
+    icon="storage"
+    title={$text('settings.storage.storage')}
+    onClick={navigateToStorage}
 />
 
 <SettingsItem

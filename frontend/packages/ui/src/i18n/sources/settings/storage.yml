@@ -1,0 +1,529 @@
+storage:
+  context: Storage submenu item under Account settings
+  en: Storage
+  de: Speicher
+  zh: 存储
+  es: Almacenamiento
+  fr: Stockage
+  pt: Armazenamento
+  ru: Хранилище
+  ja: ストレージ
+  ko: 저장소
+  it: Archiviazione
+  tr: Depolama
+  vi: Lưu trữ
+  id: Penyimpanan
+  pl: Przechowywanie
+  nl: Opslag
+  ar: التخزين
+  hi: संग्रहण
+  th: การจัดเก็บ
+  cs: Úložiště
+  sv: Lagring
+  verified_by_human: []
+storage_title:
+  context: Title for the storage overview settings page
+  en: Storage
+  de: Speichernutzung
+  zh: 存储
+  es: Almacenamiento
+  fr: Stockage
+  pt: Armazenamento
+  ru: Хранилище
+  ja: ストレージ
+  ko: 저장소
+  it: Archiviazione
+  tr: Depolama
+  vi: Lưu trữ
+  id: Penyimpanan
+  pl: Przechowywanie
+  nl: Opslag
+  ar: التخزين
+  hi: संग्रहण
+  th: การจัดเก็บ
+  cs: Úložiště
+  sv: Lagring
+  verified_by_human: []
+storage_loading:
+  context: Loading state message while fetching storage usage data
+  en: Loading storage usage…
+  de: Speichernutzung wird geladen…
+  zh: 正在加载存储用量…
+  es: Cargando uso de almacenamiento…
+  fr: Chargement de l'utilisation du stockage…
+  pt: Carregando uso de armazenamento…
+  ru: Загрузка использования хранилища…
+  ja: ストレージ使用量を読み込んでいます…
+  ko: 저장소 사용량 로딩 중…
+  it: Caricamento utilizzo spazio di archiviazione…
+  tr: Depolama kullanımı yükleniyor…
+  vi: Đang tải dung lượng lưu trữ…
+  id: Memuat penggunaan penyimpanan…
+  pl: Ładowanie wykorzystania pamięci…
+  nl: Opslaggebruik laden…
+  ar: جارٍ تحميل استخدام التخزين…
+  hi: संग्रहण उपयोग लोड हो रहा है…
+  th: กำลังโหลดการใช้พื้นที่เก็บข้อมูล…
+  cs: Načítám využití úložiště…
+  sv: Laddar lagringsutnyttjande…
+  verified_by_human: []
+storage_error:
+  context: Error message displayed when storage usage data fails to load
+  en: Failed to load storage usage. Please try again.
+  de: Speichernutzung konnte nicht geladen werden. Bitte erneut versuchen.
+  zh: 无法加载存储用量，请重试。
+  es: No se pudo cargar el uso de almacenamiento. Inténtalo de nuevo.
+  fr: Impossible de charger l'utilisation du stockage. Veuillez réessayer.
+  pt: Falha ao carregar o uso de armazenamento. Por favor, tente novamente.
+  ru: Не удалось загрузить данные о хранилище. Пожалуйста, попробуйте ещё раз.
+  ja: ストレージ使用量の読み込みに失敗しました。もう一度お試しください。
+  ko: 저장소 사용량을 불러오지 못했습니다. 다시 시도해 주세요.
+  it: Impossibile caricare l'utilizzo dello spazio di archiviazione. Riprova.
+  tr: Depolama kullanımı yüklenemedi. Lütfen tekrar deneyin.
+  vi: Không thể tải dung lượng lưu trữ. Vui lòng thử lại.
+  id: Gagal memuat penggunaan penyimpanan. Silakan coba lagi.
+  pl: Nie udało się załadować wykorzystania pamięci. Spróbuj ponownie.
+  nl: Opslaggebruik kon niet worden geladen. Probeer het opnieuw.
+  ar: فشل تحميل استخدام التخزين. يرجى المحاولة مرة أخرى.
+  hi: संग्रहण उपयोग लोड नहीं हो सका। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถโหลดการใช้พื้นที่เก็บข้อมูลได้ โปรดลองอีกครั้ง
+  cs: Nepodařilo se načíst využití úložiště. Zkuste to prosím znovu.
+  sv: Det gick inte att ladda lagringsutnyttjandet. Försök igen.
+  verified_by_human: []
+storage_total_used:
+  context: "Label showing how much total storage the user is using out of the free tier. {used} = formatted size used, {free} = free tier size."
+  en: "{used} used of {free} free"
+  de: "{used} verwendet von {free} kostenlos"
+  zh: "已使用 {used}，免费额度 {free}"
+  es: "{used} usados de {free} gratis"
+  fr: "{used} utilisé sur {free} gratuits"
+  pt: "{used} usado de {free} gratuitos"
+  ru: "{used} использовано из {free} бесплатных"
+  ja: "{free} 無料のうち {used} 使用"
+  ko: "{free} 무료 중 {used} 사용됨"
+  it: "{used} utilizzati di {free} gratuiti"
+  tr: "{free} ücretsizden {used} kullanıldı"
+  vi: "Đã dùng {used} trong {free} miễn phí"
+  id: "{used} digunakan dari {free} gratis"
+  pl: "{used} użyte z {free} darmowych"
+  nl: "{used} gebruikt van {free} gratis"
+  ar: "{used} مستخدم من {free} مجاني"
+  hi: "{free} निःशुल्क में से {used} उपयोग किया"
+  th: "ใช้ {used} จาก {free} ฟรี"
+  cs: "{used} použito z {free} zdarma"
+  sv: "{used} används av {free} gratis"
+  verified_by_human: []
+storage_free_tier_label:
+  context: Label for the free storage tier section
+  en: Free tier
+  de: Kostenloses Kontingent
+  zh: 免费额度
+  es: Nivel gratuito
+  fr: Niveau gratuit
+  pt: Nível gratuito
+  ru: Бесплатный уровень
+  ja: 無料枠
+  ko: 무료 티어
+  it: Piano gratuito
+  tr: Ücretsiz katman
+  vi: Gói miễn phí
+  id: Tingkat gratis
+  pl: Poziom darmowy
+  nl: Gratis laag
+  ar: المستوى المجاني
+  hi: निःशुल्क स्तर
+  th: ระดับฟรี
+  cs: Bezplatná úroveň
+  sv: Gratisplan
+  verified_by_human: []
+storage_within_free_tier:
+  context: Message shown when the user's storage usage is within the free 1 GB tier
+  en: You are within the free storage tier — no charges apply.
+  de: Du nutzt das kostenlose Speicherkontingent – keine Kosten anfallen.
+  zh: 您在免费存储额度内——无需付费。
+  es: Estás dentro del nivel de almacenamiento gratuito — no se aplican cargos.
+  fr: Vous êtes dans le niveau de stockage gratuit — aucun frais ne s'applique.
+  pt: Você está no nível de armazenamento gratuito — nenhuma cobrança se aplica.
+  ru: Вы находитесь в пределах бесплатного хранилища — плата не взимается.
+  ja: 無料ストレージ枠内です。料金はかかりません。
+  ko: 무료 저장소 티어 내에 있습니다 — 요금이 부과되지 않습니다.
+  it: Sei nel livello gratuito di archiviazione — nessun addebito applicato.
+  tr: Ücretsiz depolama katmanındasın — ücret alınmaz.
+  vi: Bạn đang trong gói lưu trữ miễn phí — không phát sinh phí.
+  id: Kamu berada dalam tingkat penyimpanan gratis — tidak ada biaya.
+  pl: Jesteś w bezpłatnym poziomie pamięci — brak opłat.
+  nl: Je bevindt je in de gratis opslaglaag — geen kosten van toepassing.
+  ar: أنت ضمن مستوى التخزين المجاني — لا توجد رسوم.
+  hi: आप निःशुल्क संग्रहण स्तर में हैं — कोई शुल्क नहीं लगेगा।
+  th: คุณอยู่ในระดับพื้นที่เก็บข้อมูลฟรี — ไม่มีการเรียกเก็บเงิน
+  cs: Jste v bezplatné úrovni úložiště — žádné poplatky se neúčtují.
+  sv: Du befinner dig i den gratis lagringsnivån — inga avgifter tillämpas.
+  verified_by_human: []
+storage_billable:
+  context: Label for billable storage above the free tier
+  en: Billable storage
+  de: Abrechenbarer Speicher
+  zh: 计费存储
+  es: Almacenamiento facturable
+  fr: Stockage facturable
+  pt: Armazenamento faturável
+  ru: Тарифицируемое хранилище
+  ja: 課金対象ストレージ
+  ko: 청구 가능한 저장소
+  it: Spazio addebitabile
+  tr: Faturalandırılabilir depolama
+  vi: Lưu trữ tính phí
+  id: Penyimpanan yang dapat ditagih
+  pl: Płatna przestrzeń
+  nl: Factureerbare opslag
+  ar: التخزين القابل للفوترة
+  hi: बिलयोग्य संग्रहण
+  th: พื้นที่เก็บข้อมูลที่ต้องชำระ
+  cs: Zpoplatněné úložiště
+  sv: Fakturerbart lagringsutrymme
+  verified_by_human: []
+storage_weekly_cost:
+  context: Label for the weekly storage cost in credits
+  en: Weekly cost
+  de: Wöchentliche Kosten
+  zh: 每周费用
+  es: Costo semanal
+  fr: Coût hebdomadaire
+  pt: Custo semanal
+  ru: Еженедельная стоимость
+  ja: 週次コスト
+  ko: 주간 비용
+  it: Costo settimanale
+  tr: Haftalık maliyet
+  vi: Chi phí hàng tuần
+  id: Biaya mingguan
+  pl: Koszt tygodniowy
+  nl: Wekelijkse kosten
+  ar: التكلفة الأسبوعية
+  hi: साप्ताहिक लागत
+  th: ค่าใช้จ่ายรายสัปดาห์
+  cs: Týdenní náklady
+  sv: Veckokostnad
+  verified_by_human: []
+storage_credits_per_week:
+  context: Inline value for weekly cost in credits (e.g. "6 credits / week"). {credits} is a number.
+  en: "{credits} credits / week"
+  de: "{credits} Guthaben / Woche"
+  zh: "{credits} 积分 / 周"
+  es: "{credits} créditos / semana"
+  fr: "{credits} crédits / semaine"
+  pt: "{credits} créditos / semana"
+  ru: "{credits} кредитов / неделю"
+  ja: "{credits} クレジット / 週"
+  ko: "{credits} 크레딧 / 주"
+  it: "{credits} crediti / settimana"
+  tr: "{credits} kredi / hafta"
+  vi: "{credits} tín dụng / tuần"
+  id: "{credits} kredit / minggu"
+  pl: "{credits} kredytów / tydzień"
+  nl: "{credits} credits / week"
+  ar: "{credits} ائتمانات / أسبوع"
+  hi: "{credits} क्रेडिट / सप्ताह"
+  th: "{credits} เครดิต / สัปดาห์"
+  cs: "{credits} kreditů / týden"
+  sv: "{credits} krediter / vecka"
+  verified_by_human: []
+storage_next_billing:
+  context: Label for the next billing date
+  en: Next billing
+  de: Nächste Abrechnung
+  zh: 下次计费
+  es: Próxima facturación
+  fr: Prochaine facturation
+  pt: Próxima cobrança
+  ru: Следующее списание
+  ja: 次回請求
+  ko: 다음 청구
+  it: Prossima fatturazione
+  tr: Sonraki faturalama
+  vi: Lần thanh toán tiếp theo
+  id: Tagihan berikutnya
+  pl: Następne rozliczenie
+  nl: Volgende facturering
+  ar: الفوترة التالية
+  hi: अगला बिलिंग
+  th: การเรียกเก็บเงินครั้งถัดไป
+  cs: Příští fakturace
+  sv: Nästa fakturering
+  verified_by_human: []
+storage_last_billed:
+  context: Label for the date the user was last charged for storage
+  en: Last billed
+  de: Zuletzt abgerechnet
+  zh: 上次计费
+  es: Última facturación
+  fr: Dernière facturation
+  pt: Última cobrança
+  ru: Последнее списание
+  ja: 前回請求
+  ko: 마지막 청구
+  it: Ultima fatturazione
+  tr: Son faturalama
+  vi: Lần thanh toán cuối
+  id: Terakhir ditagih
+  pl: Ostatnie rozliczenie
+  nl: Laatste facturering
+  ar: آخر فاتورة
+  hi: पिछला बिलिंग
+  th: ล่าสุดที่เรียกเก็บเงิน
+  cs: Naposledy fakturováno
+  sv: Senast fakturerat
+  verified_by_human: []
+storage_category_images:
+  context: Storage category label for image files
+  en: Images
+  de: Bilder
+  zh: 图片
+  es: Imágenes
+  fr: Images
+  pt: Imagens
+  ru: Изображения
+  ja: 画像
+  ko: 이미지
+  it: Immagini
+  tr: Görseller
+  vi: Hình ảnh
+  id: Gambar
+  pl: Obrazy
+  nl: Afbeeldingen
+  ar: الصور
+  hi: छवियाँ
+  th: รูปภาพ
+  cs: Obrázky
+  sv: Bilder
+  verified_by_human: []
+storage_category_videos:
+  context: Storage category label for video files
+  en: Videos
+  de: Videos
+  zh: 视频
+  es: Videos
+  fr: Vidéos
+  pt: Vídeos
+  ru: Видео
+  ja: 動画
+  ko: 동영상
+  it: Video
+  tr: Videolar
+  vi: Video
+  id: Video
+  pl: Filmy
+  nl: Video's
+  ar: مقاطع الفيديو
+  hi: वीडियो
+  th: วิดีโอ
+  cs: Videa
+  sv: Videor
+  verified_by_human: []
+storage_category_audio:
+  context: Storage category label for audio files
+  en: Audio
+  de: Audio
+  zh: 音频
+  es: Audio
+  fr: Audio
+  pt: Áudio
+  ru: Аудио
+  ja: オーディオ
+  ko: 오디오
+  it: Audio
+  tr: Ses
+  vi: Âm thanh
+  id: Audio
+  pl: Audio
+  nl: Audio
+  ar: الصوت
+  hi: ऑडियो
+  th: เสียง
+  cs: Zvuk
+  sv: Ljud
+  verified_by_human: []
+storage_category_pdf:
+  context: Storage category label for PDF files
+  en: PDF
+  de: PDF
+  zh: PDF
+  es: PDF
+  fr: PDF
+  pt: PDF
+  ru: PDF
+  ja: PDF
+  ko: PDF
+  it: PDF
+  tr: PDF
+  vi: PDF
+  id: PDF
+  pl: PDF
+  nl: PDF
+  ar: PDF
+  hi: PDF
+  th: PDF
+  cs: PDF
+  sv: PDF
+  verified_by_human: []
+storage_category_code:
+  context: Storage category label for code and text files
+  en: Code & Text
+  de: Code & Text
+  zh: 代码与文本
+  es: Código y Texto
+  fr: Code et Texte
+  pt: Código e Texto
+  ru: Код и Текст
+  ja: コードとテキスト
+  ko: 코드 및 텍스트
+  it: Codice e Testo
+  tr: Kod ve Metin
+  vi: Mã nguồn & Văn bản
+  id: Kode & Teks
+  pl: Kod i Tekst
+  nl: Code & Tekst
+  ar: الكود والنص
+  hi: कोड और टेक्स्ट
+  th: โค้ดและข้อความ
+  cs: Kód a Text
+  sv: Kod och Text
+  verified_by_human: []
+storage_category_docs:
+  context: Storage category label for word processor document files (e.g. Word, ODT)
+  en: Documents
+  de: Dokumente
+  zh: 文档
+  es: Documentos
+  fr: Documents
+  pt: Documentos
+  ru: Документы
+  ja: ドキュメント
+  ko: 문서
+  it: Documenti
+  tr: Belgeler
+  vi: Tài liệu
+  id: Dokumen
+  pl: Dokumenty
+  nl: Documenten
+  ar: المستندات
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokumenty
+  sv: Dokument
+  verified_by_human: []
+storage_category_sheets:
+  context: Storage category label for spreadsheet files (e.g. Excel, ODS)
+  en: Spreadsheets
+  de: Tabellen
+  zh: 电子表格
+  es: Hojas de cálculo
+  fr: Tableurs
+  pt: Planilhas
+  ru: Таблицы
+  ja: スプレッドシート
+  ko: 스프레드시트
+  it: Fogli di calcolo
+  tr: Tablolar
+  vi: Bảng tính
+  id: Spreadsheet
+  pl: Arkusze kalkulacyjne
+  nl: Spreadsheets
+  ar: جداول البيانات
+  hi: स्प्रेडशीट
+  th: สเปรดชีต
+  cs: Tabulky
+  sv: Kalkylblad
+  verified_by_human: []
+storage_category_archives:
+  context: Storage category label for archive/compressed files (e.g. ZIP, TAR, 7Z)
+  en: Archives
+  de: Archive
+  zh: 压缩文件
+  es: Archivos comprimidos
+  fr: Archives
+  pt: Arquivos compactados
+  ru: Архивы
+  ja: アーカイブ
+  ko: 아카이브
+  it: Archivi
+  tr: Arşivler
+  vi: File nén
+  id: Arsip
+  pl: Archiwa
+  nl: Archieven
+  ar: الأرشيفات
+  hi: आर्काइव
+  th: ไฟล์บีบอัด
+  cs: Archivy
+  sv: Arkiv
+  verified_by_human: []
+storage_category_other:
+  context: Storage category label for other/uncategorized files
+  en: Other
+  de: Sonstige
+  zh: 其他
+  es: Otros
+  fr: Autres
+  pt: Outros
+  ru: Прочее
+  ja: その他
+  ko: 기타
+  it: Altro
+  tr: Diğer
+  vi: Khác
+  id: Lainnya
+  pl: Inne
+  nl: Overige
+  ar: أخرى
+  hi: अन्य
+  th: อื่นๆ
+  cs: Ostatní
+  sv: Övrigt
+  verified_by_human: []
+storage_files_count:
+  context: Number of files in a storage category (e.g. "3 files"). {count} is a number.
+  en: "{count} files"
+  de: "{count} Dateien"
+  zh: "{count} 个文件"
+  es: "{count} archivos"
+  fr: "{count} fichiers"
+  pt: "{count} arquivos"
+  ru: "{count} файлов"
+  ja: "{count} ファイル"
+  ko: "{count} 파일"
+  it: "{count} file"
+  tr: "{count} dosya"
+  vi: "{count} tệp"
+  id: "{count} file"
+  pl: "{count} pliki"
+  nl: "{count} bestanden"
+  ar: "{count} ملفات"
+  hi: "{count} फ़ाइलें"
+  th: "{count} ไฟล์"
+  cs: "{count} souborů"
+  sv: "{count} filer"
+  verified_by_human: []
+storage_breakdown_title:
+  context: Section heading for the per-category storage breakdown list
+  en: Breakdown by type
+  de: Aufschlüsselung nach Typ
+  zh: 按类型细分
+  es: Desglose por tipo
+  fr: Répartition par type
+  pt: Detalhamento por tipo
+  ru: Разбивка по типу
+  ja: タイプ別内訳
+  ko: 유형별 분류
+  it: Suddivisione per tipo
+  tr: Türe göre dağılım
+  vi: Phân loại theo loại
+  id: Rincian berdasarkan jenis
+  pl: Podział według typu
+  nl: Verdeling per type
+  ar: التقسيم حسب النوع
+  hi: प्रकार के अनुसार विभाजन
+  th: แยกตามประเภท
+  cs: Rozdělení podle typu
+  sv: Uppdelning efter typ
+  verified_by_human: []

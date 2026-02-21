@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 import logging
+import math
 import time
 import os
 import random
@@ -10,7 +11,7 @@ import hashlib
 import json
 import glob
 from typing import Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field # Import BaseModel and Field for response models
 
 from backend.core.api.app.services.directus import DirectusService
@@ -23,7 +24,7 @@ from backend.core.api.app.services.s3 import S3UploadService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days  # Import request/response models
+from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, StorageOverviewResponse, StorageCategoryBreakdown  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
@@ -3764,3 +3765,212 @@ async def update_auto_delete_chats(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="An error occurred while saving auto-delete setting")
+
+
+# ─── Storage Overview ─────────────────────────────────────────────────────────
+
+# Mirrors the constants in storage_billing_tasks.py — update both if pricing changes.
+_STORAGE_FREE_BYTES: int = 1_073_741_824       # 1 GB
+_STORAGE_CREDITS_PER_GB_PER_WEEK: int = 3
+
+
+def _classify_mime_type(mime: str) -> str:
+    """
+    Map a MIME type string to one of the standard storage category names.
+
+    Categories (must match i18n keys storage.category.<name>):
+      images, videos, audio, pdf, code, docs, sheets, archives, other
+    """
+    if not mime:
+        return "other"
+    lower = mime.lower()
+
+    if lower.startswith("image/"):
+        return "images"
+    if lower.startswith("video/"):
+        return "videos"
+    if lower.startswith("audio/"):
+        return "audio"
+    if lower == "application/pdf":
+        return "pdf"
+    if lower.startswith("text/") or lower in (
+        "application/json",
+        "application/xml",
+        "application/javascript",
+        "application/x-javascript",
+        "application/typescript",
+        "application/x-typescript",
+        "application/x-sh",
+        "application/x-python",
+        "application/x-ruby",
+        "application/x-perl",
+    ):
+        return "code"
+    if lower in (
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+        "application/vnd.oasis.opendocument.text",
+        "application/rtf",
+    ):
+        return "docs"
+    if lower in (
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+        "application/vnd.oasis.opendocument.spreadsheet",
+    ):
+        return "sheets"
+    if lower in (
+        "application/zip",
+        "application/x-zip-compressed",
+        "application/x-tar",
+        "application/gzip",
+        "application/x-gzip",
+        "application/x-bzip2",
+        "application/x-7z-compressed",
+        "application/x-rar-compressed",
+        "application/vnd.rar",
+    ):
+        return "archives"
+    return "other"
+
+
+def _next_billing_timestamp() -> int:
+    """
+    Return the Unix timestamp of the next Sunday at 03:00 UTC.
+    This mirrors the weekly billing schedule in storage_billing_tasks.py.
+    """
+    now = datetime.now(timezone.utc)
+    # weekday(): Mon=0 … Sun=6
+    days_until_sunday = (6 - now.weekday()) % 7
+    # If today is already Sunday and it's past 03:00, roll to next Sunday.
+    if days_until_sunday == 0 and (now.hour > 3 or (now.hour == 3 and now.minute > 0)):
+        days_until_sunday = 7
+    next_sunday = (now + timedelta(days=days_until_sunday)).replace(
+        hour=3, minute=0, second=0, microsecond=0
+    )
+    return int(next_sunday.timestamp())
+
+
+@router.get("/storage", response_model=StorageOverviewResponse)
+@limiter.limit("30/minute")
+async def get_storage_overview(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> StorageOverviewResponse:
+    """
+    Return the current user's storage usage, broken down by file-type category,
+    along with billing information (free tier, weekly cost, next billing date).
+
+    Source of truth: the `upload_files` collection is queried directly so that
+    the numbers are accurate immediately after file deletions (the cached
+    `storage_used_bytes` counter on directus_users is only reconciled during
+    the weekly billing run).
+
+    Endpoint: GET /v1/settings/storage
+    """
+    user_id: str = current_user.id
+    logger.info(f"[Storage] Fetching storage overview for user {user_id}")
+
+    try:
+        # ── 1. Fetch all upload_files records for the user ──────────────────
+        # We need content_type and file_size_bytes for each file so we can
+        # categorise them in Python.  Directus aggregate + groupBy on
+        # content_type would give us bytes per MIME type but not file_count,
+        # so fetching fields directly is simpler and accurate.
+        files_result = await directus_service.get_items(
+            "upload_files",
+            params={
+                "filter": {"user_id": {"_eq": user_id}},
+                "fields": "content_type,file_size_bytes",
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+
+        # ── 2. Aggregate into categories ────────────────────────────────────
+        # category_name → {"bytes": int, "count": int}
+        category_map: Dict[str, Dict[str, int]] = {}
+
+        total_bytes: int = 0
+        total_files: int = 0
+
+        if files_result and isinstance(files_result, list):
+            for row in files_result:
+                mime: str = row.get("content_type") or ""
+                size: int = int(row.get("file_size_bytes") or 0)
+                cat: str = _classify_mime_type(mime)
+
+                if cat not in category_map:
+                    category_map[cat] = {"bytes": 0, "count": 0}
+                category_map[cat]["bytes"] += size
+                category_map[cat]["count"] += 1
+
+                total_bytes += size
+                total_files += 1
+
+        # ── 3. Build ordered breakdown list ─────────────────────────────────
+        # Only include categories that have at least one file.
+        category_order = ["images", "videos", "audio", "pdf", "code", "docs", "sheets", "archives", "other"]
+        breakdown = [
+            StorageCategoryBreakdown(
+                category=cat,
+                bytes_used=category_map[cat]["bytes"],
+                file_count=category_map[cat]["count"],
+            )
+            for cat in category_order
+            if cat in category_map
+        ]
+
+        # ── 4. Compute billing fields ────────────────────────────────────────
+        billable_gb: int = 0
+        weekly_cost_credits: int = 0
+        next_billing_date: Optional[int] = None
+
+        if total_bytes > _STORAGE_FREE_BYTES:
+            billable_gb = math.ceil((total_bytes - _STORAGE_FREE_BYTES) / _STORAGE_FREE_BYTES)
+            weekly_cost_credits = billable_gb * _STORAGE_CREDITS_PER_GB_PER_WEEK
+            next_billing_date = _next_billing_timestamp()
+
+        # ── 5. Fetch last_billed_at from directus_users ──────────────────────
+        last_billed_at: Optional[int] = None
+        try:
+            user_fields = await directus_service.get_user_fields_direct(
+                user_id, ["storage_last_billed_at"]
+            )
+            raw_ts = (user_fields or {}).get("storage_last_billed_at")
+            if raw_ts is not None:
+                last_billed_at = int(raw_ts)
+        except Exception as e_lba:
+            # Non-fatal: proceed without last_billed_at
+            logger.warning(
+                f"[Storage] Could not fetch storage_last_billed_at for user {user_id}: {e_lba}"
+            )
+
+        logger.info(
+            f"[Storage] User {user_id}: total_bytes={total_bytes}, total_files={total_files}, "
+            f"billable_gb={billable_gb}, weekly_cost={weekly_cost_credits}"
+        )
+
+        return StorageOverviewResponse(
+            total_bytes=total_bytes,
+            total_files=total_files,
+            free_bytes=_STORAGE_FREE_BYTES,
+            billable_gb=billable_gb,
+            credits_per_gb_per_week=_STORAGE_CREDITS_PER_GB_PER_WEEK,
+            weekly_cost_credits=weekly_cost_credits,
+            next_billing_date=next_billing_date,
+            last_billed_at=last_billed_at,
+            breakdown=breakdown,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[Storage] Unexpected error fetching storage overview for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Failed to fetch storage overview")

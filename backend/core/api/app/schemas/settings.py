@@ -1,5 +1,5 @@
-from pydantic import BaseModel, field_validator
-from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List
 
 class LanguageUpdateRequest(BaseModel):
     language: str
@@ -126,3 +126,70 @@ class AutoDeleteChatsRequest(BaseModel):
 def period_to_days(period: str) -> Optional[int]:
     """Convert a UI period string to an integer day count (None for 'never')."""
     return _PERIOD_TO_DAYS.get(period)
+
+
+# ─── Storage Overview ─────────────────────────────────────────────────────────
+
+class StorageCategoryBreakdown(BaseModel):
+    """
+    Storage usage broken down by a single file-type category.
+
+    Each category maps to a group of MIME types so the frontend can display
+    a per-app or per-type breakdown (e.g. Images, Videos, Audio, PDF, Code,
+    Docs, Sheets, Archives, Other).
+    """
+    category: str = Field(description="Category name, e.g. 'images', 'videos', 'audio'")
+    bytes_used: int = Field(default=0, description="Total bytes stored in this category")
+    file_count: int = Field(default=0, description="Number of uploaded files in this category")
+
+
+class StorageOverviewResponse(BaseModel):
+    """
+    Response model for GET /v1/settings/storage.
+
+    Provides the current user's total storage usage, a per-category breakdown
+    (for the Files app panel in account settings), the free tier, cost info,
+    and the next scheduled billing date.
+
+    Pricing model (mirrors storage_billing_tasks.py):
+      - First 1 GB is always free.
+      - 3 credits per GB per week above the free tier.
+    """
+    # ─── Totals ──────────────────────────────────────────────────────────────
+    total_bytes: int = Field(default=0, description="Total bytes stored across all file types")
+    total_files: int = Field(default=0, description="Total number of uploaded files")
+
+    # ─── Free tier info ───────────────────────────────────────────────────────
+    free_bytes: int = Field(
+        default=1_073_741_824,
+        description="Free storage allowance in bytes (always 1 GB = 1,073,741,824 bytes)"
+    )
+
+    # ─── Billing ─────────────────────────────────────────────────────────────
+    billable_gb: int = Field(
+        default=0,
+        description="Number of GB above the free tier (ceiling). 0 if within free tier."
+    )
+    credits_per_gb_per_week: int = Field(
+        default=3,
+        description="Credits charged per billable GB per week"
+    )
+    weekly_cost_credits: int = Field(
+        default=0,
+        description="Total credits charged per week. 0 if within free tier."
+    )
+    next_billing_date: Optional[int] = Field(
+        default=None,
+        description="Unix timestamp of the next weekly billing date (next Sunday 03:00 UTC). "
+                    "None if the user is within the free tier."
+    )
+    last_billed_at: Optional[int] = Field(
+        default=None,
+        description="Unix timestamp of the last successful billing run for this user."
+    )
+
+    # ─── Per-category breakdown ───────────────────────────────────────────────
+    breakdown: List[StorageCategoryBreakdown] = Field(
+        default_factory=list,
+        description="Storage usage broken down by file-type category."
+    )
