@@ -12,22 +12,22 @@
 #   - Creates a non-root user with sudo, disables root login + password SSH
 #   - Updates the OS and installs essential packages
 #   - Installs Docker, Docker Compose, and Caddy (via official repos)
+#   - Clones the repo (dev branch) into ~/projects/OpenMates
 #   - Configures UFW firewall (only ports 22, 80, 443)
 #   - Configures fail2ban for SSH brute-force protection
 #   - Writes an initial Caddyfile placeholder (replaced in manual steps)
 #
 # MANUAL STEPS AFTER SSH-ING IN:
-#   1. git clone --branch dev https://github.com/glowingkitty/OpenMates.git ~/projects/OpenMates
-#   2. Create ~/projects/OpenMates/backend/apps/uploads/.env (see .env.example)
-#   3. Render and apply the production Caddyfile:
+#   1. Create ~/projects/OpenMates/backend/apps/uploads/.env (see .env.example)
+#   2. Render and apply the production Caddyfile:
 #      python scripts/render-deploy-config.py deployment/upload_server/Caddyfile \
 #        | sudo tee /etc/caddy/Caddyfile > /dev/null
 #      sudo systemctl reload caddy
-#   4. Start the upload server:
+#   3. Start the upload server:
 #      cd ~/projects/OpenMates
 #      docker compose -f backend/apps/uploads/docker-compose.yml \
 #                     -f backend/apps/uploads/docker-compose.prod.yml up -d
-#   5. Verify: curl https://${DEPLOY_UPLOAD_DOMAIN}/health
+#   4. Verify: curl https://${DEPLOY_UPLOAD_DOMAIN}/health
 
 # ---------------------------------------------------------------------------
 # User setup
@@ -87,8 +87,9 @@ runcmd:
   - DEBIAN_FRONTEND=noninteractive apt install -y -o DPkg::options::="--force-confold" caddy
   - systemctl enable caddy
 
-  # --- Create project directory ---
+  # --- Clone repo ---
   - sudo -u ${DEPLOY_USERNAME} mkdir -p /home/${DEPLOY_USERNAME}/projects
+  - sudo -u ${DEPLOY_USERNAME} git clone --branch dev https://github.com/glowingkitty/OpenMates.git /home/${DEPLOY_USERNAME}/projects/OpenMates
 
   # --- Configure UFW firewall ---
   - ufw default deny incoming
@@ -139,4 +140,4 @@ write_files:
 # ---------------------------------------------------------------------------
 final_message: |
   Upload Server cloud-init complete.
-  SSH in as '${DEPLOY_USERNAME}' and follow the manual steps in the template header.
+  SSH in as '${DEPLOY_USERNAME}' and complete the 4 manual steps in the template header.
