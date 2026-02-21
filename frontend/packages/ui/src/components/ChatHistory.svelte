@@ -26,8 +26,10 @@
   } from '../services/chatSyncServiceHandlersAppSettings';
   import type { SuggestedSettingsMemoryEntry } from '../types/apps';
   
-  // Icon component for provider icons in preprocessing step cards
-  import Icon from './Icon.svelte';
+  // ChatHeader: permanent display-only card shown at the top of new chats (title + category circle)
+  import ChatHeader from './ChatHeader.svelte';
+  // Note: Icon was previously used for preprocessing step cards (now removed).
+  // If Icon is needed elsewhere in future, re-import it.
 
   // Import the permission dialog component and its store for inline rendering
   // The permission dialog is rendered as part of the chat history (scrollable with messages)
@@ -41,7 +43,8 @@
   } from '../stores/appSettingsMemoriesPermissionStore';
   import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
-  import { text } from '@repo/ui'; // For translations (preprocessing step card labels)
+  // Note: 'text' from '@repo/ui' was previously used for preprocessing step card labels.
+  // Those step cards have been removed, so the import is no longer needed.
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -419,7 +422,14 @@
     rejectedSuggestionHashes = null,
     onSuggestionAdded = undefined,
     onSuggestionRejected = undefined,
-    onSuggestionOpenForCustomize = undefined
+    onSuggestionOpenForCustomize = undefined,
+    // Chat header props: shown at the top of new chats only.
+    // chatTitle / chatCategory / chatIcon are the decrypted metadata once received.
+    // isNewChatGeneratingTitle=true shows the "Generating title..." placeholder instead.
+    chatTitle = '',
+    chatCategory = null,
+    chatIcon = null,
+    isNewChatGeneratingTitle = false,
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
@@ -431,6 +441,15 @@
     onSuggestionAdded?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user adds a suggestion
     onSuggestionRejected?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user rejects a suggestion
     onSuggestionOpenForCustomize?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user opens suggestion to customize (deep link to create form)
+    /** Decrypted title to show in the permanent header card (new chats only). */
+    chatTitle?: string;
+    /** Decrypted category (e.g. "technology") for the gradient circle (new chats only). */
+    chatCategory?: string | null;
+    /** Decrypted icon name (e.g. "cpu") for the category circle (new chats only). */
+    chatIcon?: string | null;
+    /** True while the server is still generating the title/category/icon for a new chat.
+     *  Shows the "Generating title..." shimmer placeholder instead of the full card. */
+    isNewChatGeneratingTitle?: boolean;
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -554,10 +573,15 @@
     messages.some(m => m.status === 'streaming')
   );
   
-  // Whether to show the centered AI status overlay.
-  // Driven by processingPhase prop from ActiveChat (sending → processing → typing → null).
-  // The overlay shows status text during all phases and adds the AI icon during processing/typing.
-  let showCenteredIndicator = $derived(processingPhase !== null);
+  // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
+  // `processingPhase !== null` to know when AI processing is happening (affects scroll behaviour).
+
+  // Whether to show the chat header card (or its loading placeholder) at the top of the chat.
+  // Only shown for new chats — existing chats opened from the sidebar never show this.
+  // The header is visible as long as either:
+  //   a) isNewChatGeneratingTitle is true (placeholder state), or
+  //   b) the title + category have been received (full card state)
+  let showChatHeader = $derived(isNewChatGeneratingTitle || !!(chatTitle && chatCategory));
   
   // Whether the streaming spacer should be active.
   // The spacer ensures the scroll position remains valid after the user-message scroll
@@ -1308,6 +1332,23 @@
              class:has-messages={displayMessages.length > 0}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
+
+            <!-- Chat header card: shown at the top of new chats where the server generated
+                 a title/category/icon. Permanently visible when the chat is open.
+                 During the brief period after the first message is sent and before the
+                 server returns metadata, this shows a "Generating title..." shimmer
+                 placeholder instead (isNewChatGeneratingTitle=true). -->
+            {#if showChatHeader}
+                <div class="chat-header-wrapper">
+                    <ChatHeader
+                        title={chatTitle}
+                        category={chatCategory}
+                        icon={chatIcon}
+                        isLoading={isNewChatGeneratingTitle}
+                    />
+                </div>
+            {/if}
+
             {#each displayMessages as msg, msgIndex (msg.id)}
                 <!-- Disable fade/flip animations for streaming and processing messages
                      to prevent visual glitches when content height changes rapidly.
@@ -1379,95 +1420,6 @@
     
 </div>
 
-<!-- AI Status Overlay: Centered status indicator with progressive phase display.
-     Positioned absolutely over the scroll container via the wrapper.
-     Shows phased status text (Sending -> Processing steps -> Typing) with optional AI icon.
-     During the 'processing' phase, completed preprocessing step cards accumulate above the spinner.
-     The AI icon only appears during processing and typing phases (when showIcon=true).
-     Fades out entirely when the assistant response begins streaming. -->
-{#if showCenteredIndicator && processingPhase}
-    <div class="ai-processing-overlay" transition:fade={{ duration: 200 }}>
-        <div class="ai-status-indicator">
-            <!-- Accumulated preprocessing step cards: shown during 'processing' and 'typing' phases.
-                 Cards appear above the spinner as each step is completed by the backend.
-                 They persist through the typing phase so users can read them until streaming starts.
-                 Skipped steps (skipped=true) are never added here.
-                 Each card uses a CSS stagger delay for a visual cascade effect. -->
-            {#if (processingPhase.phase === 'processing' || processingPhase.phase === 'typing') && processingPhase.completedSteps.length > 0}
-                <div class="preprocessing-steps-list">
-                    {#each processingPhase.completedSteps as step, idx (step.step)}
-                        <div
-                            class="preprocessing-step-card"
-                            style="animation-delay: {idx * 150}ms"
-                            in:fade={{ duration: 250 }}
-                        >
-                            {#if step.step === 'title_generated' && step.data?.title}
-                                <!-- Chat title card: vertical layout (label on top, title below) -->
-                                <div class="step-title-info">
-                                    <span class="step-label">{$text('enter_message.preprocessing_step.chat_title_label')}</span>
-                                    <span class="step-value step-title">{step.data.title}</span>
-                                </div>
-                            {:else if step.step === 'mate_selected' && step.data?.mate_category}
-                                <!-- Mate card: label + avatar + name + description -->
-                                <span class="step-label">{$text('enter_message.preprocessing_step.selected_mate_label')}</span>
-                                <div class="step-mate-content">
-                                    <div class="step-mate-avatar mate-profile {step.data.mate_category}"></div>
-                                    <div class="step-mate-info">
-                                        <span class="step-value step-mate-name">{step.data.mate_name ?? ''}</span>
-                                        {#if step.data.mate_description}
-                                            <span class="step-secondary">{step.data.mate_description}</span>
-                                        {/if}
-                                    </div>
-                                </div>
-                            {:else if step.step === 'model_selected' && step.data?.model_name}
-                                <!-- Model card: label + provider icon + model name + provider info -->
-                                <span class="step-label">{$text('enter_message.preprocessing_step.selected_model_label')}</span>
-                                <div class="step-model-content">
-                                    {#if step.data.provider_icon}
-                                        <div class="step-provider-icon-wrapper">
-                                            <Icon name={step.data.provider_icon} type="provider" size="32px" />
-                                        </div>
-                                    {/if}
-                                    <div class="step-model-info">
-                                        <span class="step-value step-model-name">{step.data.model_name}</span>
-                                        {#if step.data.provider_name}
-                                            <span class="step-secondary">via {step.data.provider_name}{step.data.server_region ? ' (' + step.data.server_region + ')' : ''}</span>
-                                        {/if}
-                                    </div>
-                                </div>
-                            {/if}
-                        </div>
-                    {/each}
-                </div>
-            {/if}
-
-            <!-- AI icon: only shown when showIcon is true (processing and typing phases) -->
-            {#if processingPhase.phase !== 'sending' && processingPhase.showIcon}
-                <div class="ai-processing-icon" transition:fade={{ duration: 300 }}></div>
-            {/if}
-
-            <!-- Status text: shown during all phases with shimmer animation.
-                 Uses {#key} with absolute positioning so outgoing/incoming text
-                 crossfade in the same spot without shifting the layout. -->
-            <div class="ai-status-text-container">
-                {#key processingPhase.statusLines.join('|')}
-                    <div
-                        class="ai-status-text"
-                        class:phase-sending={processingPhase.phase === 'sending'}
-                        class:phase-processing={processingPhase.phase === 'processing'}
-                        class:phase-typing={processingPhase.phase === 'typing'}
-                        in:fade={{ duration: 200, delay: 150 }}
-                        out:fade={{ duration: 150 }}
-                    >
-                        {#each processingPhase.statusLines as line, index}
-                            <span class={index === 0 ? 'status-primary-line' : index === 1 ? 'status-secondary-line' : 'status-tertiary-line'}>{line}</span>
-                        {/each}
-                    </div>
-                {/key}
-            </div>
-        </div>
-    </div>
-{/if}
 </div>
 
 <style>
@@ -1583,227 +1535,12 @@
     max-width: 900px;
   }
 
-  /* AI Status Overlay: Centered indicator shown during message processing lifecycle.
-     Positioned absolutely over the scroll container (sibling, not child).
-     This ensures it stays visually centered regardless of scroll position. */
-  .ai-processing-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    pointer-events: none;
-    z-index: 10;
-  }
-
-  /* Vertical layout container for the AI icon and status text */
-  .ai-status-indicator {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-
-  /* AI icon with shimmer animation — shown during processing and typing phases */
-  .ai-processing-icon {
-    width: 56px;
-    height: 56px;
-    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-    mask-image: url('@openmates/ui/static/icons/ai.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    background: linear-gradient(
-      90deg,
-      var(--color-grey-30, #ccc) 0%,
-      var(--color-grey-30, #ccc) 40%,
-      var(--color-grey-10, #f0f0f0) 50%,
-      var(--color-grey-30, #ccc) 60%,
-      var(--color-grey-30, #ccc) 100%
-    );
-    background-size: 200% 100%;
-    animation: ai-processing-shimmer 1.5s infinite linear;
-  }
-
-  /* Fixed-size container for the status text — prevents layout shifts during crossfade.
-     The inner .ai-status-text is positioned absolutely so old and new text overlap
-     in the same spot during the {#key} transition. */
-  .ai-status-text-container {
-    position: relative;
-    width: 260px;
-    min-height: 3.6em; /* enough for 3 lines: typing + model + provider */
-  }
-
-  /* Status text below the AI icon — shows phase-specific messages.
-     Positioned absolutely within the container to prevent layout jumps during crossfade. */
-  .ai-status-text {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    font-size: 0.85rem;
-    font-style: italic;
-    text-align: center;
-  }
-
-  /* Shimmer text effect for all phases */
-  .ai-status-text.phase-sending,
-  .ai-status-text.phase-processing,
-  .ai-status-text.phase-typing {
-    background: linear-gradient(
-      90deg,
-      var(--color-grey-60) 0%,
-      var(--color-grey-60) 40%,
-      var(--color-grey-40) 50%,
-      var(--color-grey-60) 60%,
-      var(--color-grey-60) 100%
-    );
-    background-size: 200% 100%;
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    animation: ai-processing-shimmer 1.5s infinite linear;
-  }
-
-  /* Primary line (first line): slightly larger for emphasis */
-  .ai-status-text .status-primary-line {
-    font-size: 0.85rem;
-  }
-
-  /* Secondary line (e.g., model name): smaller, more subtle */
-  .ai-status-text .status-secondary-line {
-    font-size: 0.75rem;
-    opacity: 0.8;
-  }
-
-  /* Tertiary line (e.g., "via Provider 🇺🇸"): even smaller and more subtle */
-  .ai-status-text .status-tertiary-line {
-    font-size: 0.7rem;
-    opacity: 0.65;
-  }
-
-  @keyframes ai-processing-shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-
-  /* ─── Preprocessing step cards ──────────────────────────────────────────────
-     These cards accumulate above the spinner during the 'processing' phase as
-     each preprocessing step (title, mate, model) completes on the backend.
-     Cards appear sequentially with a stagger delay via inline style. */
-
-  .preprocessing-steps-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 340px;
-    margin-bottom: 12px;
-  }
-
-  .preprocessing-step-card {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 12px 16px;
-    border-radius: 12px;
-    background: var(--color-grey-10, rgba(255, 255, 255, 0.06));
-    border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.1));
-    /* Stagger in with a small fade + slide-up */
-    animation: step-card-in 0.3s ease-out both;
-    animation-delay: inherit; /* filled by inline style */
-  }
-
-  /* Horizontal row for mate/model content (icon/avatar + text) within the vertical card */
-  .step-mate-content,
-  .step-model-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  @keyframes step-card-in {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Mate avatar in step card — inherits .mate-profile category background but sized up */
-  .step-mate-avatar.mate-profile {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    margin: 0;
-    box-shadow: none;
-  }
-
-  /* Provider icon wrapper in step card */
-  .step-provider-icon-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-  }
-
-  /* Text column for title/mate/model info — vertical layout (label on top, value below) */
-  .step-title-info,
-  .step-mate-info,
-  .step-model-info {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-    flex: 1;
-  }
-
-  /* Label prefix for title card ("Chat title:") */
-  .step-label {
-    font-size: 0.8rem;
-    color: var(--color-grey-50, #888);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  /* Primary value in step card (title text, mate name, model name) */
-  .step-value {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-grey-70, #ccc);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* Title value gets a bit more space */
-  .step-title {
-    max-width: 240px;
-  }
-
-  /* Secondary info (mate description, "via Provider") */
-  .step-secondary {
-    font-size: 0.8rem;
-    color: var(--color-grey-50, #888);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  /* Wrapper for the ChatHeader component at the top of new chats.
+     Full width, constrained to match message content width. */
+  .chat-header-wrapper {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 4px;
   }
 </style>

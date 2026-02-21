@@ -2056,6 +2056,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Whether the current message being processed is for a new chat (no title yet).
     // Determines the initial spinner text (new chat starts with "Generating chat title...").
     let isNewChatProcessing = $state(false);
+    // Whether we are currently showing the "Generating title..." placeholder in the chat header.
+    // Set to true when a new-chat message is sent; cleared when title/category/icon arrive.
+    let isNewChatGeneratingTitle = $state(false);
+    // Decrypted chat header metadata for new chats, populated once the server sends title/category/icon.
+    let activeChatDecryptedTitle = $state<string>('');
+    let activeChatDecryptedCategory = $state<string | null>(null);
+    let activeChatDecryptedIcon = $state<string | null>(null);
     // Mate name captured from the mate_selected preprocessing step, used for the
     // "{Mate} is typing..." spinner text after model_selected arrives.
     let selectedPreprocessingMateName = $state<string | null>(null);
@@ -2080,6 +2087,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         selectedPreprocessingMateName = null;
         lastStepCardTimestamp = 0;
         processingPhaseStartTimestamp = 0;
+        // Do NOT clear isNewChatGeneratingTitle / activeChatDecrypted* here —
+        // those are cleared explicitly on chat switch via resetChatHeaderState().
+    }
+
+    /**
+     * Reset the chat header state (new-chat title/category/icon placeholder).
+     * Called when switching to a different chat or starting a fresh new chat.
+     * Must be separate from clearProcessingPhase so that the header remains
+     * visible even after streaming begins (clearProcessingPhase fires early).
+     */
+    function resetChatHeaderState() {
+        isNewChatGeneratingTitle = false;
+        activeChatDecryptedTitle = '';
+        activeChatDecryptedCategory = null;
+        activeChatDecryptedIcon = null;
     }
 
     /**
@@ -3481,6 +3503,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // steps to show later when ai_task_initiated arrives.
         const chatForNewCheck = newChat || currentChat;
         isNewChatProcessing = !chatForNewCheck?.title_v || chatForNewCheck.title_v === 0;
+
+        // If this is a new chat, show the "Generating title..." placeholder in the chat header.
+        // This is cleared once the title/category/icon arrive via a title_updated or metadata_updated event.
+        if (isNewChatProcessing) {
+            isNewChatGeneratingTitle = true;
+            activeChatDecryptedTitle = '';
+            activeChatDecryptedCategory = null;
+            activeChatDecryptedIcon = null;
+        }
         
         // Start the centered status indicator immediately with "Sending..."
         processingPhase = {
@@ -3529,6 +3560,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Clear any active processing phase indicator
         clearProcessingPhase();
+        // Reset the chat header state (new-chat title placeholder) for the fresh chat
+        resetChatHeaderState();
         
         // Generate a new temporary chat ID for the new chat
         temporaryChatId = crypto.randomUUID();
@@ -3978,6 +4011,48 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
         
         console.debug('[ActiveChat] handleChatUpdated: Processing event for active chat.');
+
+        // ─── Chat Header: decrypt & display title/category/icon when they arrive ───────
+        // When we sent a message for a new chat, isNewChatGeneratingTitle is true and the
+        // chat header shows a "Generating title..." placeholder. Once the server sends the
+        // encrypted title (title_updated) or category/icon (metadata_updated), decrypt and
+        // populate the header — then hide the placeholder.
+        if (isNewChatGeneratingTitle && incomingChatMetadata && (detail.type === 'title_updated' || detail.type === 'metadata_updated')) {
+            const chatToDecrypt = incomingChatMetadata;
+            console.debug(`[ActiveChat] handleChatUpdated: Decrypting chat header metadata (type=${detail.type})`, chatToDecrypt);
+            try {
+                const { decryptWithChatKey } = await import('../services/cryptoService');
+                const chatKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                if (chatKey) {
+                    let decryptedTitle = activeChatDecryptedTitle;
+                    let decryptedCategory = activeChatDecryptedCategory;
+                    let decryptedIcon = activeChatDecryptedIcon;
+
+                    if (chatToDecrypt.encrypted_title) {
+                        try { decryptedTitle = await decryptWithChatKey(chatToDecrypt.encrypted_title, chatKey) ?? ''; } catch { /* keep previous */ }
+                    }
+                    if (chatToDecrypt.encrypted_category) {
+                        try { decryptedCategory = await decryptWithChatKey(chatToDecrypt.encrypted_category, chatKey); } catch { /* keep previous */ }
+                    }
+                    if (chatToDecrypt.encrypted_icon) {
+                        try { decryptedIcon = await decryptWithChatKey(chatToDecrypt.encrypted_icon, chatKey); } catch { /* keep previous */ }
+                    }
+
+                    activeChatDecryptedTitle = decryptedTitle ?? '';
+                    activeChatDecryptedCategory = decryptedCategory;
+                    activeChatDecryptedIcon = decryptedIcon;
+
+                    // Once we have at least a title, reveal the full card and hide the placeholder.
+                    if (activeChatDecryptedTitle && activeChatDecryptedCategory) {
+                        isNewChatGeneratingTitle = false;
+                        console.info('[ActiveChat] Chat header ready:', activeChatDecryptedTitle, activeChatDecryptedCategory, activeChatDecryptedIcon);
+                    }
+                }
+            } catch (err) {
+                console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat header metadata:', err);
+            }
+        }
+
         // let messagesNeedRefresh = false; // No longer relying on this for DB reload within this handler
         // let previousMessagesV = currentChat?.messages_v; // Not needed for direct comparison here anymore
 
@@ -4220,6 +4295,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean }) {
         // Clear any active processing phase indicator from the previous chat
         clearProcessingPhase();
+        // Reset the chat header (new-chat title placeholder) when switching to any chat.
+        // Existing chats loaded from the sidebar never show this header.
+        resetChatHeaderState();
         
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat
@@ -6508,6 +6586,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {thinkingContentByTask}
                         {settingsMemoriesSuggestions}
                         {rejectedSuggestionHashes}
+                        chatTitle={activeChatDecryptedTitle}
+                        chatCategory={activeChatDecryptedCategory}
+                        chatIcon={activeChatDecryptedIcon}
+                        {isNewChatGeneratingTitle}
                         onSuggestionAdded={handleSettingsMemorySuggestionAdded}
                         onSuggestionRejected={handleSettingsMemorySuggestionRejected}
                         onSuggestionOpenForCustomize={handleSettingsMemorySuggestionOpenForCustomize}
@@ -7644,17 +7726,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         align-items: center;
         gap: 2px;
         text-align: center;
-        font-size: 0.8rem;
+        font-size: 1rem;
         color: var(--color-grey-60);
-        padding: 6px 12px 4px;
+        padding: 10px 16px 8px;
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
            Uses the active chat background color (--color-grey-20) fading from transparent at the top
-           to match the chat area background seamlessly. */
+           to match the chat area background seamlessly. Taller gradient to cover the larger text. */
         background: linear-gradient(
             to bottom,
             transparent 0%,
-            var(--color-grey-20) 40%
+            var(--color-grey-20) 55%
         );
         position: relative;
         z-index: 1;
@@ -7662,7 +7744,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     
     /* Primary line: "{mate} is typing..." — prominent */
     .typing-indicator .indicator-primary-line {
-        font-size: 0.8rem;
+        font-size: 1rem;
     }
     
     /* Secondary line: "Powered by {model}" — smaller, subtler */
