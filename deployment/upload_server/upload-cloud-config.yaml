@@ -193,4 +193,17 @@ write_files:
 # ---------------------------------------------------------------------------
 final_message: |
   Upload Server cloud-init complete.
-  SSH in as '${DEPLOY_USERNAME}' and complete the 3 manual steps in the template header.
+  SSH in as '${DEPLOY_USERNAME}' and run the following commands:
+
+  1. Fill in the secrets:
+     cp ~/projects/OpenMates/backend/apps/uploads/.env.example \
+        ~/projects/OpenMates/backend/apps/uploads/.env
+     nano ~/projects/OpenMates/backend/apps/uploads/.env
+
+  2. Start the upload server:
+     cd ~/projects/OpenMates
+     docker compose -f backend/apps/uploads/docker-compose.yml \
+                    -f backend/apps/uploads/docker-compose.prod.yml up -d
+
+  3. Verify:
+     curl https://${DEPLOY_UPLOAD_DOMAIN}/health
