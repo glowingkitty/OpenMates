@@ -17,14 +17,14 @@
 #        decrypts it locally using the AES key from the embed.
 #
 #   A stateless REST API call has no WebSocket, no browser crypto, and no
-#   master key — so it cannot complete step 3 or 4. Exposing a POST endpoint
-#   would either require the server to store the AES key in plaintext (breaking
+#   master key — so it cannot complete step 3 or 4. Exposing endpoints would
+#   either require the server to store the AES key in plaintext (breaking
 #   zero-knowledge) or return a result the caller can never decrypt.
 #
-#   Therefore the POST endpoints for generate / generate_draft are intentionally
-#   omitted from the public REST API docs (api_config.expose_post: false in
-#   app.yml). The GET metadata endpoints remain visible so developers know the
-#   skill exists and can read the docs.
+#   Therefore BOTH the GET metadata and POST execution endpoints for
+#   generate / generate_draft are intentionally omitted from the public REST
+#   API docs (api_config.expose_get: false, api_config.expose_post: false in
+#   app.yml). The skills are completely hidden from /docs.
 #
 # TODO: Once the OpenMates CLI is implemented, add full integration tests here.
 #   The CLI will authenticate (obtaining the master key), derive the embed key,
@@ -32,8 +32,8 @@
 #   as the web app does — enabling end-to-end testing of image generation.
 #
 # Current tests:
-#   - GET  /v1/apps/images/skills/generate       → metadata visible (200)
-#   - GET  /v1/apps/images/skills/generate_draft → metadata visible (200)
+#   - GET  /v1/apps/images/skills/generate       → 404 (endpoint not registered)
+#   - GET  /v1/apps/images/skills/generate_draft → 404 (endpoint not registered)
 #   - POST /v1/apps/images/skills/generate       → 404 (endpoint not registered)
 #   - POST /v1/apps/images/skills/generate_draft → 404 (endpoint not registered)
 #
@@ -43,41 +43,48 @@
 import pytest
 
 
-# ─── GET metadata endpoints (should remain visible in REST API docs) ──────────
+# ─── GET metadata endpoints must NOT be registered (fully hidden from REST API docs) ─
 
 @pytest.mark.integration
-def test_images_generate_skill_metadata_visible(api_client):
+def test_images_generate_skill_metadata_hidden(api_client):
     """
-    GET /v1/apps/images/skills/generate returns skill metadata.
+    GET /v1/apps/images/skills/generate is not registered in the public REST API.
 
-    The GET endpoint must remain accessible so REST API developers can discover
-    the skill, read its description, and understand it requires the web app or
-    CLI for actual execution.
+    Both the GET metadata and POST execution endpoints are hidden (api_config:
+    expose_get: false, expose_post: false) to prevent the skill from appearing in
+    /docs at all. Image generation requires a WebSocket connection and client-side
+    encryption — it cannot be used from a stateless REST client without breaking
+    the zero-knowledge architecture.
+
+    Expected: 404 Not Found — no route is registered for this path.
     """
     response = api_client.get("/v1/apps/images/skills/generate")
-    assert response.status_code == 200, (
-        f"Expected 200 for skill metadata, got {response.status_code}: {response.text}"
+    assert response.status_code == 404, (
+        f"Expected 404 (GET not registered), got {response.status_code}: {response.text}"
     )
-    data = response.json()
-    assert data.get("id") == "generate", f"Unexpected skill id: {data.get('id')}"
-    print(f"[OK] GET /v1/apps/images/skills/generate → 200, skill id={data.get('id')}")
+    print(
+        "[OK] GET /v1/apps/images/skills/generate → 404 "
+        "(endpoint intentionally not registered — use web app or CLI)"
+    )
 
 
 @pytest.mark.integration
-def test_images_generate_draft_skill_metadata_visible(api_client):
+def test_images_generate_draft_skill_metadata_hidden(api_client):
     """
-    GET /v1/apps/images/skills/generate_draft returns skill metadata.
+    GET /v1/apps/images/skills/generate_draft is not registered in the public REST API.
 
-    Same rationale as test_images_generate_skill_metadata_visible — the metadata
-    endpoint must be accessible even though POST is disabled.
+    Same rationale as test_images_generate_skill_metadata_hidden.
+
+    Expected: 404 Not Found — no route is registered for this path.
     """
     response = api_client.get("/v1/apps/images/skills/generate_draft")
-    assert response.status_code == 200, (
-        f"Expected 200 for skill metadata, got {response.status_code}: {response.text}"
+    assert response.status_code == 404, (
+        f"Expected 404 (GET not registered), got {response.status_code}: {response.text}"
     )
-    data = response.json()
-    assert data.get("id") == "generate_draft", f"Unexpected skill id: {data.get('id')}"
-    print(f"[OK] GET /v1/apps/images/skills/generate_draft → 200, skill id={data.get('id')}")
+    print(
+        "[OK] GET /v1/apps/images/skills/generate_draft → 404 "
+        "(endpoint intentionally not registered — use web app or CLI)"
+    )
 
 
 # ─── POST endpoints must NOT be registered (zero-knowledge enforcement) ───────
@@ -88,11 +95,11 @@ def test_images_generate_post_not_supported(api_client):
     POST /v1/apps/images/skills/generate is not available via the public REST API.
 
     Image generation requires a WebSocket connection and client-side encryption
-    (browser crypto / CLI). The POST endpoint is intentionally omitted from the
-    API (api_config.expose_post: false) to prevent confusion and protect the
-    zero-knowledge architecture.
+    (browser crypto / CLI). Both GET and POST endpoints are intentionally omitted
+    from the API (api_config.expose_get: false, api_config.expose_post: false) to
+    keep the skill completely hidden from /docs and prevent confusion.
 
-    Expected: 405 Method Not Allowed — the GET route exists (metadata) but POST is not registered.
+    Expected: 404 Not Found — no route is registered for this path at all.
 
     TODO: Once the CLI is implemented, replace this test with a full end-to-end
     test that authenticates, derives the master key, dispatches the Celery task,
@@ -104,13 +111,12 @@ def test_images_generate_post_not_supported(api_client):
         "/v1/apps/images/skills/generate",
         json=payload,
     )
-    # 405 Method Not Allowed because GET is registered for the path but POST is not.
-    # (404 would appear only if no method at all were registered for the path.)
-    assert response.status_code == 405, (
-        f"Expected 405 (POST not registered), got {response.status_code}: {response.text}"
+    # 404 Not Found because neither GET nor POST is registered for this path.
+    assert response.status_code == 404, (
+        f"Expected 404 (POST not registered), got {response.status_code}: {response.text}"
     )
     print(
-        "[OK] POST /v1/apps/images/skills/generate → 405 "
+        "[OK] POST /v1/apps/images/skills/generate → 404 "
         "(endpoint intentionally not registered — use web app or CLI)"
     )
 
@@ -122,6 +128,8 @@ def test_images_generate_draft_post_not_supported(api_client):
 
     Same rationale as test_images_generate_post_not_supported.
 
+    Expected: 404 Not Found — no route is registered for this path at all.
+
     TODO: Once the CLI is implemented, replace this test with a full end-to-end
     test covering the draft (FLUX-Schnell) generation path.
     """
@@ -130,11 +138,11 @@ def test_images_generate_draft_post_not_supported(api_client):
         "/v1/apps/images/skills/generate_draft",
         json=payload,
     )
-    # 405 Method Not Allowed because GET is registered for the path but POST is not.
-    assert response.status_code == 405, (
-        f"Expected 405 (POST not registered), got {response.status_code}: {response.text}"
+    # 404 Not Found because neither GET nor POST is registered for this path.
+    assert response.status_code == 404, (
+        f"Expected 404 (POST not registered), got {response.status_code}: {response.text}"
     )
     print(
-        "[OK] POST /v1/apps/images/skills/generate_draft → 405 "
+        "[OK] POST /v1/apps/images/skills/generate_draft → 404 "
         "(endpoint intentionally not registered — use web app or CLI)"
     )

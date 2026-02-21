@@ -35,6 +35,7 @@ skills:
     name_translation_key: images.generate
     description_translation_key: images.generate.description
     api_config:
+      expose_get: false # Hidden from REST API docs — image generation requires WebSocket + browser crypto (zero-knowledge). Use the web app or CLI instead.
       expose_post: false # POST requires client-side encryption (WebSocket + browser crypto). Use the web app or CLI instead.
     preprocessor_hint: >
       Generate high-quality images from text prompts and/or reference images.
@@ -148,6 +149,7 @@ skills:
     name_translation_key: images.generate_draft
     description_translation_key: images.generate_draft.description
     api_config:
+      expose_get: false # Hidden from REST API docs — image generation requires WebSocket + browser crypto (zero-knowledge). Use the web app or CLI instead.
       expose_post: false # POST requires client-side encryption (WebSocket + browser crypto). Use the web app or CLI instead.
     preprocessor_hint: >
       Quickly generate a draft/preview image from a text prompt.
