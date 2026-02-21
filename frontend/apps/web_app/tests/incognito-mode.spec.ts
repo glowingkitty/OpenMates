@@ -102,12 +102,30 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	// -------------------------------------------------------------------------
 
 	await page.goto('/');
+	await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {
+		logCheckpoint('WARNING: networkidle timeout — continuing anyway.');
+	});
 	await takeStepScreenshot(page, '01-home');
 
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
+
+	// Wait a moment for the login dialog to mount and render
+	await page.waitForTimeout(2000);
 	await takeStepScreenshot(page, '02-login-dialog');
+
+	// Diagnostic: dump DOM state to understand what rendered
+	const loginWrapperVisible = await page
+		.locator('.login-wrapper')
+		.isVisible()
+		.catch(() => false);
+	const emailInputCount = await page.locator(SELECTORS.emailInput).count();
+	logCheckpoint('DOM diagnostic after login button click.', {
+		loginWrapperVisible,
+		emailInputCount,
+		url: page.url()
+	});
 
 	const emailInput = page.locator(SELECTORS.emailInput);
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
