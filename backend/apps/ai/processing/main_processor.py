@@ -1101,6 +1101,16 @@ async def handle_main_processing(
     else:
         logger.warning(f"{log_prefix} [APP_INSTRUCTIONS] No discovered apps - app-specific instructions unavailable")
     
+    # === IMAGE CONTENT SAFETY INSTRUCTION ===
+    # Conditionally inject prompt-injection defence for image uploads.
+    # Only included when the images-view skill is preselected by the preprocessor,
+    # so conversations without images pay zero extra tokens for this instruction.
+    if preselected_skills and "images-view" in preselected_skills:
+        image_safety_instruction = base_instructions.get("base_image_content_safety_instruction", "")
+        if image_safety_instruction:
+            prompt_parts.append(image_safety_instruction)
+            logger.info(f"{log_prefix} [IMAGE_SAFETY] Injected image content safety instruction (images-view is preselected)")
+    
     # Add generic proactive skill usage instruction (only when apps are available)
     # This encourages using available skills proactively for time-sensitive queries
     if discovered_apps_metadata:
