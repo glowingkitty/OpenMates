@@ -11,7 +11,9 @@
 #   sudo systemctl reload caddy
 #
 # WHAT THIS DOES:
-#   - Terminates TLS via Let's Encrypt for the upload domain
+#   - Terminates TLS via Let's Encrypt for both upload domains (dev + prod)
+#   - Injects X-Target-Env header (dev or prod) so FastAPI knows which
+#     CORE_API_URL and INTERNAL_API_SHARED_TOKEN pair to use
 #   - Proxies /health and /v1/upload/* to the app-uploads container on localhost:8000
 #   - Adds security headers (HSTS, nosniff, etc.)
 #   - Aborts all requests to paths not explicitly allowed
@@ -19,6 +21,7 @@
 # SECURITY:
 #   - Only /health and /v1/upload/* are routed — everything else is aborted
 #   - The upload container is only exposed on localhost (127.0.0.1:8000)
+#   - X-Target-Env is set by Caddy (trusted), never by the client
 #   - CORS is handled by the upload service itself (FastAPI middleware)
 
 {
@@ -26,8 +29,10 @@
 	email ${DEPLOY_ACME_EMAIL}
 }
 
+# ---------------------------------------------------------------------------
+# Production upload domain — routes to prod core API
+# ---------------------------------------------------------------------------
 ${DEPLOY_UPLOAD_DOMAIN} {
-	# --- Logging ---
 	log {
 		output file /var/log/caddy/${DEPLOY_UPLOAD_DOMAIN}.log {
 			roll_size 100mb
@@ -38,10 +43,8 @@ ${DEPLOY_UPLOAD_DOMAIN} {
 		level INFO
 	}
 
-	# --- Compression ---
 	encode gzip zstd
 
-	# --- Security Headers ---
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		X-Content-Type-Options "nosniff"
@@ -51,35 +54,87 @@ ${DEPLOY_UPLOAD_DOMAIN} {
 		-Server
 	}
 
-	# --- Request Matchers ---
 	@upload_health path /health
 	@upload_api path /v1/upload/*
 	@upload_options method OPTIONS
 
-	# --- Request Routing ---
 	route {
-		# 1. Handle OPTIONS preflight requests (CORS)
 		handle @upload_options {
 			reverse_proxy localhost:8000 {
 				header_up Host {http.request.host}
+				# Tell FastAPI to use prod credentials
+				header_up X-Target-Env "prod"
 			}
 		}
-
-		# 2. Health check endpoint
 		handle @upload_health {
 			reverse_proxy localhost:8000 {
 				header_up Host {http.request.host}
+				header_up X-Target-Env "prod"
 			}
 		}
-
-		# 3. Upload API endpoints (/v1/upload/*)
 		handle @upload_api {
 			reverse_proxy localhost:8000 {
 				header_up Host {http.request.host}
+				# Tell FastAPI to use prod credentials
+				header_up X-Target-Env "prod"
 			}
 		}
+		handle {
+			abort
+		}
+	}
+}
 
-		# 4. Abort all other requests
+# ---------------------------------------------------------------------------
+# Dev upload domain — routes to dev core API
+# ---------------------------------------------------------------------------
+${DEPLOY_DEV_UPLOAD_DOMAIN} {
+	log {
+		output file /var/log/caddy/${DEPLOY_DEV_UPLOAD_DOMAIN}.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+		-Server
+	}
+
+	@upload_health path /health
+	@upload_api path /v1/upload/*
+	@upload_options method OPTIONS
+
+	route {
+		handle @upload_options {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+				# Tell FastAPI to use dev credentials
+				header_up X-Target-Env "dev"
+			}
+		}
+		handle @upload_health {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+				header_up X-Target-Env "dev"
+			}
+		}
+		handle @upload_api {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+				# Tell FastAPI to use dev credentials
+				header_up X-Target-Env "dev"
+			}
+		}
 		handle {
 			abort
 		}

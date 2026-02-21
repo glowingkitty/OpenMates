@@ -31,9 +31,11 @@
 #     The port mapping (127.0.0.1:8004:8000) lets Caddy proxy /api/uploads/* to it.
 #
 # ENVIRONMENT VARIABLES (required — define in project root .env or shell):
-#   CORE_API_URL              — URL of the core API (http://api:8000 on dev, private IP on prod)
-#   INTERNAL_API_SHARED_TOKEN — Shared secret for internal service-to-service auth
-#   UPLOADS_VAULT_ROOT_TOKEN  — Root token for the local Vault (random UUID)
+#   PROD_CORE_API_URL                  — URL of the prod core API (private IP on upload VM)
+#   PROD_INTERNAL_API_SHARED_TOKEN     — Shared secret matching the prod API server
+#   DEV_CORE_API_URL                   — URL of the dev core API (private IP on upload VM)
+#   DEV_INTERNAL_API_SHARED_TOKEN      — Shared secret matching the dev API server
+#   UPLOADS_VAULT_ROOT_TOKEN           — Root token for the local Vault (random UUID)
 #   SECRET__HETZNER__S3_ACCESS_KEY    — S3 access key (migrated into local Vault by vault-setup)
 #   SECRET__HETZNER__S3_SECRET_KEY    — S3 secret key
 #   SECRET__HETZNER__S3_REGION_NAME   — S3 region (e.g. nbg1)
@@ -121,11 +123,17 @@ services:
     environment:
       PYTHONPATH: "/app"
       UPLOADS_APP_INTERNAL_PORT: "8000"
-      # Core API URL — the ONLY external service this container contacts.
-      # On dev: http://api:8000 (Docker DNS via override network).
-      # On prod VM: http://<main-server-private-ip>:8000
-      CORE_API_URL: "${CORE_API_URL:-http://api:8000}"
-      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      # Core API credentials — two pairs, one per environment.
+      # Caddy injects X-Target-Env ("dev" or "prod") and the upload service
+      # picks the right pair for each request. See backend/upload/routes/upload_route.py.
+      #
+      # On the upload VM (prod): set PROD_CORE_API_URL to the prod server private IP
+      #   and DEV_CORE_API_URL to the dev server private IP.
+      # On dev (docker-compose.override.yml): both point to http://api:8000 via Docker DNS.
+      PROD_CORE_API_URL: "${PROD_CORE_API_URL:-http://api:8000}"
+      PROD_INTERNAL_API_SHARED_TOKEN: "${PROD_INTERNAL_API_SHARED_TOKEN:-${INTERNAL_API_SHARED_TOKEN}}"
+      DEV_CORE_API_URL: "${DEV_CORE_API_URL:-http://api:8000}"
+      DEV_INTERNAL_API_SHARED_TOKEN: "${DEV_INTERNAL_API_SHARED_TOKEN:-${INTERNAL_API_SHARED_TOKEN}}"
       # Local Vault — for S3 and SightEngine credentials ONLY.
       # This is NOT the main Vault. It runs as a sidecar in this compose stack.
       VAULT_URL: "http://vault:8200"

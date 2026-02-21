@@ -129,6 +129,43 @@ class UploadFileResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Target environment resolution — picks core API credentials based on which
+# domain the request arrived on, as signalled by Caddy via X-Target-Env.
+#
+# Caddy sets X-Target-Env to "prod" or "dev" based on the incoming domain:
+#   upload.openmates.org     → X-Target-Env: prod → PROD_CORE_API_URL + PROD_INTERNAL_API_SHARED_TOKEN
+#   upload.dev.openmates.org → X-Target-Env: dev  → DEV_CORE_API_URL  + DEV_INTERNAL_API_SHARED_TOKEN
+#
+# This header is injected by Caddy (trusted proxy) and is never forwarded from
+# the client — it is stripped by the reverse_proxy block in the Caddyfile and
+# replaced with the server-set value, so it cannot be spoofed.
+# ---------------------------------------------------------------------------
+
+def _get_core_api_credentials(request: Request) -> tuple[str, str]:
+    """
+    Return the (core_api_url, internal_token) pair for this request.
+
+    Reads the X-Target-Env header set by Caddy:
+      - "prod" → PROD_CORE_API_URL + PROD_INTERNAL_API_SHARED_TOKEN
+      - "dev"  → DEV_CORE_API_URL  + DEV_INTERNAL_API_SHARED_TOKEN
+      - missing/other → falls back to PROD (safest default)
+    """
+    target_env = request.headers.get("X-Target-Env", "prod").lower()
+
+    if target_env == "dev":
+        core_api_url = os.environ.get("DEV_CORE_API_URL", "")
+        internal_token = os.environ.get("DEV_INTERNAL_API_SHARED_TOKEN", "")
+        if not core_api_url:
+            logger.error("[Upload] X-Target-Env=dev but DEV_CORE_API_URL is not set")
+            raise HTTPException(status_code=503, detail="Dev core API not configured")
+    else:
+        core_api_url = os.environ.get("PROD_CORE_API_URL", "http://api:8000")
+        internal_token = os.environ.get("PROD_INTERNAL_API_SHARED_TOKEN", "")
+
+    return core_api_url, internal_token
+
+
+# ---------------------------------------------------------------------------
 # Auth dependency — reuse cookie-based auth via core API internal endpoint
 # ---------------------------------------------------------------------------
 
@@ -153,8 +190,7 @@ async def get_authenticated_user(
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Not authenticated: Missing token")
 
-    core_api_url = os.environ.get("CORE_API_URL", "http://api:8000")
-    internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
+    core_api_url, internal_token = _get_core_api_credentials(request)
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -308,9 +344,8 @@ async def upload_file(
     vault_key_id: str = user["vault_key_id"]
     log_prefix = f"[Upload] [user:{user_id[:8]}...]"
 
-    # Core API connection details (used for all internal API calls)
-    core_api_url = os.environ.get("CORE_API_URL", "http://api:8000")
-    internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
+    # Core API connection details — selected based on X-Target-Env header set by Caddy
+    core_api_url, internal_token = _get_core_api_credentials(request)
 
     # --- 1. Read file bytes ---
     file_bytes = await file.read()

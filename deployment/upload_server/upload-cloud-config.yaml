@@ -13,15 +13,20 @@
 #   - Updates the OS and installs essential packages
 #   - Installs Docker, Docker Compose, and Caddy (via official repos)
 #   - Clones the repo (dev branch) into ~/projects/OpenMates
+#   - Generates backend/upload/.env from .env.example with:
+#       - UPLOADS_VAULT_ROOT_TOKEN auto-generated (random UUID)
+#       - PROD_CORE_API_URL and DEV_CORE_API_URL pre-filled from DEPLOY_* vars
+#       - API keys left as <PLACEHOLDER> for manual fill-in
 #   - Writes and applies the production Caddyfile (TLS + reverse proxy)
+#     for both prod (${DEPLOY_UPLOAD_DOMAIN}) and dev (${DEPLOY_DEV_UPLOAD_DOMAIN})
 #   - Configures UFW firewall (only ports 22, 80, 443)
 #   - Configures fail2ban for SSH brute-force protection
 #
 # MANUAL STEPS AFTER SSH-ING IN (secrets only):
-#   1. Create ~/projects/OpenMates/backend/upload/.env:
-#      cp ~/projects/OpenMates/backend/upload/.env.example \
-#         ~/projects/OpenMates/backend/upload/.env
+#   1. Fill in the API keys in ~/projects/OpenMates/backend/upload/.env:
 #      nano ~/projects/OpenMates/backend/upload/.env
+#      (fill in: PROD_INTERNAL_API_SHARED_TOKEN, DEV_INTERNAL_API_SHARED_TOKEN,
+#                SECRET__HETZNER__*, SECRET__SIGHTENGINE__*)
 #   2. Start the upload server:
 #      cd ~/projects/OpenMates
 #      docker compose -f backend/upload/docker-compose.yml \
@@ -90,6 +95,19 @@ runcmd:
   - sudo -u ${DEPLOY_USERNAME} mkdir -p /home/${DEPLOY_USERNAME}/projects
   - sudo -u ${DEPLOY_USERNAME} git clone --branch dev https://github.com/glowingkitty/OpenMates.git /home/${DEPLOY_USERNAME}/projects/OpenMates
 
+  # --- Generate .env from .env.example ---
+  # Copies .env.example to .env, then substitutes the values we already know:
+  #   - UPLOADS_VAULT_ROOT_TOKEN: generated fresh (random UUID)
+  #   - PROD_CORE_API_URL / DEV_CORE_API_URL: filled from DEPLOY_* vars (private IPs)
+  # API keys (S3, SightEngine, shared tokens) are left as <PLACEHOLDER> for manual fill-in.
+  - sudo -u ${DEPLOY_USERNAME} cp /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env.example /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+  - VAULT_TOKEN=$(python3 -c "import uuid; print(uuid.uuid4())")
+  - sed -i "s|UPLOADS_VAULT_ROOT_TOKEN=<RANDOM_UUID>|UPLOADS_VAULT_ROOT_TOKEN=${VAULT_TOKEN}|" /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+  - sed -i "s|PROD_CORE_API_URL=http://<PROD_SERVER_PRIVATE_IP>:8000|PROD_CORE_API_URL=http://${DEPLOY_MAIN_SERVER_PRIVATE_IP}:8000|" /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+  - sed -i "s|DEV_CORE_API_URL=http://<DEV_SERVER_PRIVATE_IP>:8000|DEV_CORE_API_URL=http://${DEPLOY_DEV_SERVER_PRIVATE_IP}:8000|" /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+  - chown ${DEPLOY_USERNAME}:${DEPLOY_USERNAME} /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+  - chmod 600 /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+
   # --- Configure UFW firewall ---
   - ufw default deny incoming
   - ufw default allow outgoing
@@ -108,8 +126,7 @@ runcmd:
   - chown -R caddy:caddy /var/log/caddy
 
   # --- Apply production Caddyfile ---
-  # Write the final Caddyfile (with DEPLOY_* vars already substituted by the
-  # render script at provisioning time) and reload Caddy.
+  # The Caddyfile was written by write_files with DEPLOY_* vars already substituted.
   - systemctl reload caddy
   - systemctl start caddy
 
@@ -119,6 +136,8 @@ runcmd:
 write_files:
   # Production Caddyfile — DEPLOY_* placeholders are substituted by the render
   # script at provisioning time (before pasting into Hetzner user data).
+  # Two domain blocks: prod (${DEPLOY_UPLOAD_DOMAIN}) and dev (${DEPLOY_DEV_UPLOAD_DOMAIN}).
+  # Each block injects X-Target-Env so FastAPI picks the right API credentials.
   - path: /etc/caddy/Caddyfile
     content: |
       {
@@ -155,16 +174,70 @@ write_files:
           handle @upload_options {
             reverse_proxy localhost:8000 {
               header_up Host {http.request.host}
+              header_up X-Target-Env "prod"
             }
           }
           handle @upload_health {
             reverse_proxy localhost:8000 {
               header_up Host {http.request.host}
+              header_up X-Target-Env "prod"
             }
           }
           handle @upload_api {
             reverse_proxy localhost:8000 {
               header_up Host {http.request.host}
+              header_up X-Target-Env "prod"
+            }
+          }
+          handle {
+            abort
+          }
+        }
+      }
+
+      ${DEPLOY_DEV_UPLOAD_DOMAIN} {
+        log {
+          output file /var/log/caddy/${DEPLOY_DEV_UPLOAD_DOMAIN}.log {
+            roll_size 100mb
+            roll_keep 10
+            roll_keep_for 720h
+          }
+          format json
+          level INFO
+        }
+
+        encode gzip zstd
+
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+          -Server
+        }
+
+        @upload_health path /health
+        @upload_api path /v1/upload/*
+        @upload_options method OPTIONS
+
+        route {
+          handle @upload_options {
+            reverse_proxy localhost:8000 {
+              header_up Host {http.request.host}
+              header_up X-Target-Env "dev"
+            }
+          }
+          handle @upload_health {
+            reverse_proxy localhost:8000 {
+              header_up Host {http.request.host}
+              header_up X-Target-Env "dev"
+            }
+          }
+          handle @upload_api {
+            reverse_proxy localhost:8000 {
+              header_up Host {http.request.host}
+              header_up X-Target-Env "dev"
             }
           }
           handle {
@@ -195,10 +268,12 @@ final_message: |
   Upload Server cloud-init complete.
   SSH in as '${DEPLOY_USERNAME}' and run the following commands:
 
-  1. Fill in the secrets:
-     cp ~/projects/OpenMates/backend/upload/.env.example \
-        ~/projects/OpenMates/backend/upload/.env
+  1. Fill in the remaining secrets in the .env (already pre-filled: UPLOADS_VAULT_ROOT_TOKEN, PROD_CORE_API_URL, DEV_CORE_API_URL):
      nano ~/projects/OpenMates/backend/upload/.env
+     (fill in: PROD_INTERNAL_API_SHARED_TOKEN, DEV_INTERNAL_API_SHARED_TOKEN,
+               SECRET__HETZNER__S3_ACCESS_KEY, SECRET__HETZNER__S3_SECRET_KEY,
+               SECRET__HETZNER__S3_REGION_NAME,
+               SECRET__SIGHTENGINE__API_USER, SECRET__SIGHTENGINE__API_SECRET)
 
   2. Start the upload server:
      cd ~/projects/OpenMates
