@@ -9,9 +9,9 @@
 #
 # SECURITY ARCHITECTURE:
 #   The uploads service runs on a SEPARATE VM with zero access to the main
-#   Vault, Directus, or any user data. A local Vault (dev mode, in-memory)
-#   stores ONLY S3 and SightEngine credentials. All Directus queries and
-#   Vault Transit key wrapping are proxied through the core API's internal
+#   Vault, Directus, or any user data. A local Vault (production mode, file
+#   storage) stores ONLY S3 and SightEngine credentials. All Directus queries
+#   and Vault Transit key wrapping are proxied through the core API's internal
 #   endpoints (/internal/uploads/*), secured by INTERNAL_API_SHARED_TOKEN.
 #
 #   If this VM is compromised, the attacker gets:
@@ -27,7 +27,6 @@
 #   PROD_INTERNAL_API_SHARED_TOKEN     — Shared secret matching the prod API server
 #   DEV_CORE_API_URL                   — Private IP URL of the dev core API
 #   DEV_INTERNAL_API_SHARED_TOKEN      — Shared secret matching the dev API server
-#   UPLOADS_VAULT_ROOT_TOKEN           — Root token for the local Vault (random UUID)
 #   SECRET__HETZNER__S3_ACCESS_KEY     — S3 access key (migrated into local Vault)
 #   SECRET__HETZNER__S3_SECRET_KEY     — S3 secret key
 #   SECRET__HETZNER__S3_REGION_NAME    — S3 region (e.g. nbg1)
@@ -40,11 +39,12 @@ name: openmates-uploads
 
 services:
   # ---------------------------------------------------------------------------
-  # Local Vault (dev mode — in-memory, no persistence needed)
+  # Local Vault (production mode — file storage, persistent across restarts)
   # ---------------------------------------------------------------------------
   # This Vault instance stores ONLY S3 and SightEngine credentials.
   # It has NO Transit engine, NO user keys, NO connection to the main Vault.
-  # Dev mode = in-memory storage, auto-unsealed, root token from env var.
+  # Production mode = file storage at /vault/file on a named Docker volume.
+  # vault-setup initializes + unseals on first run, then auto-unseals on restart.
   vault:
     container_name: uploads-vault
     image: hashicorp/vault:1.19
@@ -52,11 +52,13 @@ services:
     cap_add:
       - IPC_LOCK
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: "${UPLOADS_VAULT_ROOT_TOKEN}"
-      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
       VAULT_LOG_LEVEL: "info"
-    # Dev mode: no config file needed — Vault starts unsealed with root token.
-    # Data is in-memory only and lost on restart (vault-setup re-populates on every start).
+    volumes:
+      # Vault config (vault.hcl — file storage, TLS disabled)
+      - ./vault/config:/vault/config:ro
+      # Persistent file storage — Vault data survives container restarts
+      - vault-data:/vault/file
+    command: ["vault", "server", "-config=/vault/config/vault.hcl"]
     networks:
       - uploads
     healthcheck:
@@ -67,11 +69,13 @@ services:
       start_period: 5s
 
   # ---------------------------------------------------------------------------
-  # Vault Setup (init container — populates local Vault with credentials)
+  # Vault Setup (init container — initializes, unseals, and populates Vault)
   # ---------------------------------------------------------------------------
-  # Runs once on startup to migrate SECRET__* env vars into the local Vault's
-  # KV v2 engine. Creates a scoped read-only token that app-uploads uses.
-  # Re-runs on every stack start (idempotent — Vault is in-memory).
+  # On first boot: initializes Vault, saves unseal key + root token to
+  # vault-setup-data volume, enables KV v2, creates policy + scoped API token.
+  # On subsequent restarts: loads saved root token, auto-unseals, reuses
+  # existing API token (or creates a new one if expired).
+  # Migrates SECRET__* env vars into Vault KV on first run (idempotent).
   vault-setup:
     container_name: uploads-vault-setup
     build:
@@ -81,9 +85,10 @@ services:
     env_file: .env
     environment:
       VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "${UPLOADS_VAULT_ROOT_TOKEN}"
+      VAULT_AUTO_UNSEAL: "true"
     volumes:
-      # Write the scoped API token to a shared volume for app-uploads to read
+      # Persistent volume for unseal key, root token, and scoped API token.
+      # vault-setup writes here; app-uploads reads api.token from here (read-only).
       - vault-setup-data:/app/data
     networks:
       - uploads
@@ -95,11 +100,6 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 5
-    command: >
-      sh -c "echo 'Waiting for local Vault to be ready...' &&
-             sleep 3 &&
-             python setup_vault.py &&
-             echo 'Local Vault setup complete.'"
 
   # ---------------------------------------------------------------------------
   # File Uploads Microservice
@@ -135,7 +135,7 @@ services:
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT:-production}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
     volumes:
-      # Vault API token written by vault-setup init container
+      # Vault API token written by vault-setup init container (read-only)
       - vault-setup-data:/vault-data:ro
     networks:
       - uploads
@@ -197,7 +197,14 @@ volumes:
     # Persist ClamAV virus signature database across container restarts.
     # Without this, ClamAV re-downloads ~200 MB of signatures on every restart.
     name: openmates-clamav-db
+  vault-data:
+    # Persistent Vault file storage — Vault data (KV secrets, policies, tokens)
+    # survives container restarts. vault-setup auto-unseals on each restart
+    # using the unseal key saved in vault-setup-data.
+    name: openmates-uploads-vault-data
   vault-setup-data:
     # Shared between vault-setup (writer) and app-uploads (reader).
-    # Contains the scoped Vault API token file (api.token).
+    # Contains: unseal.key, root.token, api.token
+    # app-uploads mounts this read-only at /vault-data and waits for api.token
+    # before starting uvicorn (via wait-for-vault.sh).
     name: openmates-uploads-vault-setup-data

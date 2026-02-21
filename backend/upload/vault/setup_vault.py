@@ -1,30 +1,16 @@
 #!/usr/bin/env python3
 """
-Vault Setup Script for the OpenMates Uploads Service (Local Vault)
+Vault Setup Script for the OpenMates Upload Server.
 
-This script sets up a local HashiCorp Vault instance on the uploads VM.
-It is intentionally much simpler than the core Vault setup because the
-uploads Vault only stores API credentials (S3, SightEngine) — no transit
-engine, no user keys, no complex policies.
+Mirrors the core API vault-setup pattern:
+  - Initializes Vault on first run (saves unseal key + root token to persistent volume)
+  - Auto-unseals on subsequent restarts using the saved unseal key
+  - Creates a read-only KV policy + scoped API token (saved to /app/data/api.token)
+  - Migrates SECRET__* env vars into Vault KV on first run
+  - Skips already-migrated secrets (IMPORTED_TO_VAULT sentinel or migration flag in Vault)
 
-What this script does:
-  1. Waits for the local Vault (dev mode) to become available
-  2. Enables the KV v2 secrets engine
-  3. Creates a read-only policy for the app-uploads service
-  4. Creates a scoped API token with read-only KV access
-  5. Migrates SECRET__* env vars into Vault KV (same convention as core)
-  6. Writes the API token to /vault-data/api.token for app-uploads to read
-
-The local Vault runs in dev mode (in-memory storage). If it restarts,
-this setup script re-runs automatically and re-populates from env vars.
-This is by design — the env vars are the source of truth, and this Vault
-is a hardened runtime cache that protects secrets from process-level exploits.
-
-Security model:
-  - The app-uploads service token can ONLY read KV secrets (no write, no transit)
-  - Even if app-uploads is fully compromised via a malicious file exploit,
-    the attacker only gets read access to S3 + SightEngine credentials
-  - They get ZERO access to the main Vault, Directus, or any user data
+After first successful run, replace SECRET__* values in .env with IMPORTED_TO_VAULT
+(or remove them). The vault-data Docker volume keeps secrets across container restarts.
 """
 
 import asyncio
@@ -32,6 +18,7 @@ import logging
 import os
 import stat
 import sys
+from typing import Optional
 
 import httpx
 
@@ -50,178 +37,224 @@ logger = logging.getLogger("uploads-vault-setup")
 # Configuration
 # ---------------------------------------------------------------------------
 
-VAULT_ADDR = os.environ.get("VAULT_ADDR", "http://vault:8200")
-VAULT_TOKEN = os.environ.get("VAULT_TOKEN", "root")
-API_TOKEN_FILE = "/vault-data/api.token"
-SECRET_PREFIX = "SECRET__"
+VAULT_ADDR      = os.environ.get("VAULT_ADDR", "http://vault:8200")
+VAULT_TOKEN_ENV = os.environ.get("VAULT_TOKEN", "")  # Only used as fallback
 
+DATA_DIR        = "/app/data"
+UNSEAL_KEY_FILE = f"{DATA_DIR}/unseal.key"
+ROOT_TOKEN_FILE = f"{DATA_DIR}/root.token"
+API_TOKEN_FILE  = f"{DATA_DIR}/api.token"
+
+SECRET_PREFIX              = "SECRET__"
+MIGRATION_FLAG_PATH        = "kv/data/system_flags/migration_status"
+MIGRATION_FLAG_KEY         = "initial_env_secrets_migrated"
+AUTO_UNSEAL                = os.environ.get("VAULT_AUTO_UNSEAL", "true").lower() == "true"
 
 # ---------------------------------------------------------------------------
-# Vault API helpers
+# HTTP helpers
 # ---------------------------------------------------------------------------
 
-async def vault_request(
-    client: httpx.AsyncClient,
-    method: str,
-    path: str,
-    data: dict | None = None,
-) -> dict | None:
-    """Make a request to the local Vault API."""
+async def vault_get(client: httpx.AsyncClient, path: str, token: str) -> Optional[dict]:
     url = f"{VAULT_ADDR}/v1/{path}"
-    headers = {"X-Vault-Token": VAULT_TOKEN}
-
     try:
-        if method == "get":
-            resp = await client.get(url, headers=headers)
-        elif method == "post":
-            resp = await client.post(url, headers=headers, json=data)
-        else:
-            resp = await getattr(client, method)(url, headers=headers, json=data)
-
+        resp = await client.get(url, headers={"X-Vault-Token": token}, timeout=10.0)
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
         return resp.json() if resp.text else {}
     except httpx.HTTPStatusError as e:
-        logger.error(f"Vault HTTP error on {path}: {e.response.status_code} {e.response.text[:200]}")
-        raise
-    except Exception as e:
-        logger.error(f"Vault request error on {path}: {e}")
+        logger.error(f"GET {path}: {e.response.status_code} {e.response.text[:200]}")
         raise
 
 
-async def wait_for_vault(client: httpx.AsyncClient, max_retries: int = 30, delay: float = 2.0) -> None:
-    """Wait for the local Vault dev server to become available."""
+async def vault_post(client: httpx.AsyncClient, path: str, token: str, data: dict) -> Optional[dict]:
+    url = f"{VAULT_ADDR}/v1/{path}"
+    try:
+        resp = await client.post(url, headers={"X-Vault-Token": token}, json=data, timeout=10.0)
+        resp.raise_for_status()
+        return resp.json() if resp.text else {}
+    except httpx.HTTPStatusError as e:
+        logger.error(f"POST {path}: {e.response.status_code} {e.response.text[:200]}")
+        raise
+
+
+async def wait_for_vault(client: httpx.AsyncClient, max_retries: int = 60, delay: float = 3.0) -> dict:
+    """Wait for Vault to respond. Returns the health/init status JSON."""
     logger.info(f"Waiting for Vault at {VAULT_ADDR}...")
     for attempt in range(max_retries):
         try:
             resp = await client.get(f"{VAULT_ADDR}/v1/sys/health", timeout=5.0)
-            logger.info(f"Vault health check: status={resp.status_code}")
-            return  # Vault is up (200=initialized+unsealed in dev mode)
+            # health returns non-200 for sealed/uninit but still valid JSON
+            data = resp.json()
+            logger.info(f"Vault health: initialized={data.get('initialized')}, sealed={data.get('sealed')}")
+            return data
         except Exception as e:
             if attempt < max_retries - 1:
-                logger.debug(f"Vault not ready (attempt {attempt + 1}/{max_retries}): {e}")
+                logger.debug(f"Vault not ready ({attempt+1}/{max_retries}): {e}")
                 await asyncio.sleep(delay)
             else:
                 raise RuntimeError(f"Vault did not become available after {max_retries} attempts")
-
+    return {}  # unreachable
 
 # ---------------------------------------------------------------------------
-# KV engine setup
+# Persistent file helpers
 # ---------------------------------------------------------------------------
 
-async def enable_kv_engine(client: httpx.AsyncClient) -> None:
-    """Enable KV v2 secrets engine if not already enabled."""
-    logger.info("Checking KV v2 secrets engine...")
+def _write_file(path: str, content: str, mode: int) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(content)
+    os.chmod(path, mode)
+
+
+def _read_file(path: str) -> Optional[str]:
     try:
-        mounts = await vault_request(client, "get", "sys/mounts")
-        if mounts and "kv/" in mounts.get("data", {}):
-            logger.info("KV v2 engine already enabled")
-            return
+        with open(path, "r") as f:
+            return f.read().strip() or None
+    except FileNotFoundError:
+        return None
 
-        logger.info("Enabling KV v2 secrets engine...")
-        await vault_request(client, "post", "sys/mounts/kv", {
-            "type": "kv",
-            "options": {"version": "2"},
-            "description": "KV store for uploads service API credentials",
-        })
-        logger.info("KV v2 engine enabled successfully")
-    except Exception as e:
-        logger.error(f"Failed to enable KV engine: {e}")
-        raise
 
+def save_unseal_key(key: str) -> None:
+    if os.path.exists(UNSEAL_KEY_FILE):
+        logger.info("Unseal key already saved, not overwriting")
+        return
+    _write_file(UNSEAL_KEY_FILE, key, stat.S_IRUSR | stat.S_IWUSR)  # 600
+    logger.info(f"Unseal key saved to {UNSEAL_KEY_FILE}")
+
+
+def save_root_token(token: str) -> None:
+    _write_file(ROOT_TOKEN_FILE, token, stat.S_IRUSR | stat.S_IWUSR)  # 600
+    logger.info(f"Root token saved to {ROOT_TOKEN_FILE}")
+
+
+def save_api_token(token: str) -> None:
+    _write_file(API_TOKEN_FILE, token, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)  # 644
+    logger.info(f"API token saved to {API_TOKEN_FILE}")
 
 # ---------------------------------------------------------------------------
-# Policy creation
+# Vault operations
 # ---------------------------------------------------------------------------
 
-async def create_uploads_policy(client: httpx.AsyncClient) -> None:
-    """
-    Create a read-only policy for the app-uploads service.
+async def initialize_vault(client: httpx.AsyncClient) -> str:
+    """Initialize Vault and return the root token. Saves unseal key and root token to disk."""
+    logger.info("Initializing Vault for the first time...")
+    resp = await client.post(
+        f"{VAULT_ADDR}/v1/sys/init",
+        json={"secret_shares": 1, "secret_threshold": 1},
+        timeout=15.0,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    root_token = data["root_token"]
+    unseal_key  = data["keys"][0]
 
-    This policy only allows reading from kv/data/providers/* paths.
-    The app-uploads service cannot write secrets, manage keys, or do
-    anything beyond fetching its runtime credentials.
-    """
-    logger.info("Creating uploads-service read-only policy...")
+    save_unseal_key(unseal_key)
+    save_root_token(root_token)
 
+    print("\n" + "=" * 72, flush=True)
+    print("VAULT INITIALIZED — SAVE THESE CREDENTIALS OFFLINE NOW", flush=True)
+    print("=" * 72, flush=True)
+    print(f"ROOT TOKEN : {root_token}", flush=True)
+    print(f"UNSEAL KEY : {unseal_key}", flush=True)
+    print("=" * 72, flush=True)
+    print("You will NOT see these again. Store them securely offline.", flush=True)
+    print("=" * 72 + "\n", flush=True)
+
+    return root_token
+
+
+async def unseal_vault(client: httpx.AsyncClient) -> None:
+    """Unseal Vault using the saved unseal key."""
+    unseal_key = _read_file(UNSEAL_KEY_FILE)
+    if not unseal_key:
+        logger.error("No unseal key found — cannot auto-unseal. Unseal manually:")
+        logger.error("  docker exec uploads-vault vault operator unseal <KEY>")
+        raise RuntimeError("Unseal key not found")
+    resp = await client.post(
+        f"{VAULT_ADDR}/v1/sys/unseal",
+        json={"key": unseal_key},
+        timeout=10.0,
+    )
+    resp.raise_for_status()
+    result = resp.json()
+    if result.get("sealed"):
+        raise RuntimeError("Vault still sealed after unseal attempt")
+    logger.info("Vault unsealed successfully")
+
+
+async def enable_kv_engine(client: httpx.AsyncClient, token: str) -> None:
+    mounts = await vault_get(client, "sys/mounts", token)
+    if mounts and "kv/" in mounts.get("data", {}):
+        logger.info("KV v2 engine already enabled")
+        return
+    await vault_post(client, "sys/mounts/kv", token, {
+        "type": "kv",
+        "options": {"version": "2"},
+        "description": "KV store for upload service API credentials",
+    })
+    logger.info("KV v2 engine enabled")
+
+
+async def create_policy(client: httpx.AsyncClient, token: str) -> None:
     policy_hcl = """
-    # Uploads service policy — READ-ONLY access to provider credentials.
-    # This is the ONLY policy assigned to the app-uploads token.
+    # uploads-service policy — READ-ONLY access to provider credentials.
 
-    # Allow reading provider secrets (S3, SightEngine, future keys)
     path "kv/data/providers/*" {
       capabilities = ["read"]
     }
 
-    # Allow listing provider paths (needed for initialization checks)
     path "kv/metadata/providers/*" {
       capabilities = ["list", "read"]
     }
 
-    # Allow token self-lookup (for health checks)
     path "auth/token/lookup-self" {
       capabilities = ["read"]
     }
     """
-
-    await vault_request(client, "post", "sys/policies/acl/uploads-service", {
-        "policy": policy_hcl,
-    })
+    await vault_post(client, "sys/policies/acl/uploads-service", token, {"policy": policy_hcl})
     logger.info("uploads-service policy created/updated")
 
 
-# ---------------------------------------------------------------------------
-# Token creation
-# ---------------------------------------------------------------------------
+async def create_or_reuse_api_token(client: httpx.AsyncClient, root_token: str) -> str:
+    """Return an existing valid api token or create a new one."""
+    existing = _read_file(API_TOKEN_FILE)
+    if existing:
+        # Validate it still works
+        try:
+            resp = await vault_get(client, "auth/token/lookup-self", existing)
+            if resp and resp.get("data", {}).get("ttl", 0) > 0:
+                policies = resp["data"].get("policies", [])
+                if "uploads-service" in policies:
+                    logger.info("Existing API token is valid, reusing it")
+                    return existing
+        except Exception:
+            pass
+        logger.info("Existing API token invalid or expired, creating a new one")
 
-async def create_uploads_token(client: httpx.AsyncClient) -> str:
-    """
-    Create a scoped token for the app-uploads service.
-
-    The token has:
-    - uploads-service policy only (read-only KV access)
-    - 1-year TTL (re-created on every stack restart anyway since dev mode)
-    - Renewable for safety
-    """
-    logger.info("Creating uploads-service API token...")
-
-    result = await vault_request(client, "post", "auth/token/create", {
+    result = await vault_post(client, "auth/token/create", root_token, {
         "policies": ["uploads-service"],
         "display_name": "uploads-service-token",
-        "ttl": "8760h",  # 1 year
+        "ttl": "8760h",
         "renewable": True,
     })
-
     if not result or "auth" not in result:
-        raise RuntimeError("Failed to create uploads service token: invalid response")
-
+        raise RuntimeError(f"Unexpected response from Vault token/create: {result!r}")
     token = result["auth"]["client_token"]
-    masked = f"{token[:4]}...{token[-4:]}" if len(token) >= 8 else "****"
-    logger.info(f"Uploads service token created: {masked}")
+    masked = f"{token[:4]}...{token[-4:]}"
+    logger.info(f"API token created: {masked}")
+    save_api_token(token)
     return token
 
 
-def save_api_token(token: str) -> None:
-    """Save the API token to the shared volume for app-uploads to read."""
-    os.makedirs(os.path.dirname(API_TOKEN_FILE), exist_ok=True)
-    with open(API_TOKEN_FILE, "w") as f:
-        f.write(token)
-    # 644 permissions — app-uploads container needs to read this
-    os.chmod(API_TOKEN_FILE, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
-    logger.info(f"API token saved to {API_TOKEN_FILE}")
-
-
 # ---------------------------------------------------------------------------
-# Secret migration (SECRET__PROVIDER__KEY → kv/data/providers/{provider})
+# Secret migration
 # ---------------------------------------------------------------------------
 
-def find_secrets_in_env() -> dict[str, tuple[str, str, str]]:
+def find_secrets_in_env() -> dict[str, tuple[str, str]]:
     """
-    Parse SECRET__PROVIDER__KEY env vars into Vault paths.
-
-    Returns dict of env_var_name → (vault_path, vault_key, value).
-    Uses the same naming convention as the core Vault setup.
+    Parse SECRET__PROVIDER__KEY env vars.
+    Returns {env_var: (vault_path, vault_key)}, skipping IMPORTED_TO_VAULT values.
     """
     secrets = {}
     for env_var, value in os.environ.items():
@@ -229,67 +262,56 @@ def find_secrets_in_env() -> dict[str, tuple[str, str, str]]:
             continue
         if not value or not value.strip() or value == "IMPORTED_TO_VAULT":
             continue
-
         remainder = env_var[len(SECRET_PREFIX):]
         parts = remainder.split("__", 1)
         if len(parts) != 2 or not parts[0] or not parts[1]:
             logger.warning(f"Skipping unparseable env var: {env_var}")
             continue
-
-        provider = parts[0].lower()
-        key = parts[1].lower()
-        vault_path = f"kv/data/providers/{provider}"
-        secrets[env_var] = (vault_path, key, value)
-
+        vault_path = f"kv/data/providers/{parts[0].lower()}"
+        vault_key  = parts[1].lower()
+        secrets[env_var] = (vault_path, vault_key)
     return secrets
 
 
-async def migrate_secrets(client: httpx.AsyncClient) -> int:
-    """
-    Write SECRET__* env vars to Vault KV.
+async def check_migration_done(client: httpx.AsyncClient, token: str) -> bool:
+    resp = await vault_get(client, MIGRATION_FLAG_PATH, token)
+    if resp and resp.get("data", {}).get("data", {}).get(MIGRATION_FLAG_KEY) is True:
+        return True
+    return False
 
-    Merges with existing data at each path to avoid overwriting
-    secrets from other env vars targeting the same provider path.
-    Returns the number of secrets successfully written.
-    """
+
+async def migrate_secrets(client: httpx.AsyncClient, token: str) -> None:
+    """Write SECRET__* env vars to Vault KV. Idempotent — merges with existing data."""
     env_secrets = find_secrets_in_env()
     if not env_secrets:
-        logger.info("No SECRET__* env vars found to migrate")
-        return 0
+        logger.info("No SECRET__* env vars to migrate (all already IMPORTED_TO_VAULT or none set)")
+        return
 
-    logger.info(f"Found {len(env_secrets)} secrets to migrate to Vault KV")
-
-    # Group by vault_path to do fewer writes
+    # Group by vault_path
     by_path: dict[str, dict[str, str]] = {}
-    for env_var, (vault_path, key, value) in env_secrets.items():
-        if vault_path not in by_path:
-            by_path[vault_path] = {}
-        by_path[vault_path][key] = value
+    for env_var, (vault_path, vault_key) in env_secrets.items():
+        by_path.setdefault(vault_path, {})[vault_key] = os.environ[env_var]
 
-    count = 0
     for vault_path, kv_data in by_path.items():
+        # Merge with existing
+        existing: dict = {}
         try:
-            # Read existing data at this path (merge, don't overwrite)
-            existing = {}
-            try:
-                resp = await vault_request(client, "get", vault_path)
-                if resp and "data" in resp and "data" in resp["data"]:
-                    existing = resp["data"]["data"]
-            except Exception:
-                pass  # Path doesn't exist yet, that's fine
+            resp = await vault_get(client, vault_path, token)
+            if resp and "data" in resp and "data" in resp["data"]:
+                existing = resp["data"]["data"]
+        except Exception:
+            pass
+        existing.update(kv_data)
+        await vault_post(client, vault_path, token, {"data": existing})
+        for key in kv_data:
+            logger.info(f"  Wrote '{key}' to {vault_path}")
 
-            # Merge new secrets into existing
-            existing.update(kv_data)
-            await vault_request(client, "post", vault_path, {"data": existing})
+    logger.info(f"Migrated {sum(len(v) for v in by_path.values())} secrets to Vault KV")
 
-            for key in kv_data:
-                logger.info(f"  Wrote secret '{key}' to {vault_path}")
-                count += 1
 
-        except Exception as e:
-            logger.error(f"Failed to write secrets to {vault_path}: {e}", exc_info=True)
-
-    return count
+async def set_migration_flag(client: httpx.AsyncClient, token: str) -> None:
+    await vault_post(client, MIGRATION_FLAG_PATH, token, {"data": {MIGRATION_FLAG_KEY: True}})
+    logger.info("Migration flag set in Vault KV")
 
 
 # ---------------------------------------------------------------------------
@@ -297,34 +319,63 @@ async def migrate_secrets(client: httpx.AsyncClient) -> int:
 # ---------------------------------------------------------------------------
 
 async def main() -> None:
-    """Main setup routine for the uploads local Vault."""
     logger.info("=" * 60)
-    logger.info("OpenMates Uploads — Local Vault Setup")
+    logger.info("OpenMates Upload Server — Vault Setup")
     logger.info("=" * 60)
 
     async with httpx.AsyncClient(timeout=30.0) as client:
+
         # 1. Wait for Vault
-        await wait_for_vault(client)
+        health = await wait_for_vault(client)
+        initialized = health.get("initialized", False)
+        sealed       = health.get("sealed", True)
 
-        # 2. Enable KV v2 engine
-        await enable_kv_engine(client)
+        # 2. Initialize if needed (first ever boot)
+        if not initialized:
+            root_token = await initialize_vault(client)
+            # Vault auto-unseals during init
+        else:
+            # Load saved root token
+            root_token = _read_file(ROOT_TOKEN_FILE)
+            if not root_token:
+                logger.error("Vault is initialized but no saved root token found.")
+                logger.error(f"Ensure {ROOT_TOKEN_FILE} exists on the vault-setup-data volume.")
+                sys.exit(1)
 
-        # 3. Create read-only policy for uploads service
-        await create_uploads_policy(client)
+            # Unseal if sealed
+            if sealed:
+                if not AUTO_UNSEAL:
+                    logger.warning("AUTO_UNSEAL=false — skipping auto-unseal")
+                else:
+                    await unseal_vault(client)
 
-        # 4. Create scoped API token
-        token = await create_uploads_token(client)
-        save_api_token(token)
+        # 3. Enable KV engine
+        await enable_kv_engine(client, root_token)
 
-        # 5. Migrate secrets from env vars to Vault KV
-        migrated = await migrate_secrets(client)
+        # 4. Create policy
+        await create_policy(client, root_token)
 
-        logger.info("=" * 60)
-        logger.info("Vault Setup Complete")
-        logger.info(f"  Secrets migrated: {migrated}")
-        logger.info(f"  API token file: {API_TOKEN_FILE}")
-        logger.info("  Policy: uploads-service (read-only KV)")
-        logger.info("=" * 60)
+        # 5. Create or reuse API token
+        await create_or_reuse_api_token(client, root_token)
+
+        # 6. Migrate secrets (first run only — subsequent runs skip via migration flag)
+        already_migrated = await check_migration_done(client, root_token)
+        if already_migrated:
+            logger.info("Secrets already migrated to Vault (migration flag found)")
+            # Still sync any new SECRET__* vars added since last run
+            await migrate_secrets(client, root_token)
+        else:
+            await migrate_secrets(client, root_token)
+            await set_migration_flag(client, root_token)
+
+    logger.info("=" * 60)
+    logger.info("Vault Setup Complete")
+    logger.info(f"  API token: {API_TOKEN_FILE}")
+    logger.info(f"  Unseal key: {UNSEAL_KEY_FILE}")
+    logger.info(f"  Root token: {ROOT_TOKEN_FILE}")
+    logger.info("=" * 60)
+    logger.info("After verifying secrets are in Vault, set SECRET__* values")
+    logger.info("in .env to IMPORTED_TO_VAULT to prevent re-processing.")
 
 
 if __name__ == "__main__":

@@ -46,6 +46,11 @@ COPY backend/shared/python_utils /app/backend_shared/python_utils
 RUN mkdir -p /app/backend && touch /app/backend/__init__.py
 COPY backend/upload/ /app/backend/upload/
 
+# Copy the startup script that waits for the Vault API token before starting uvicorn.
+# Mirrors the wait-for-vault.sh pattern used by the core API.
+COPY backend/upload/vault/wait-for-vault.sh /app/wait-for-vault.sh
+RUN chmod +x /app/wait-for-vault.sh
+
 # Set common environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -53,5 +58,5 @@ ENV PYTHONPATH="/app"
 
 EXPOSE 8000
 
-# Run the uploads FastAPI app via uvicorn
-CMD ["uvicorn", "backend.upload.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-use-colors"]
+# Wait for vault-setup to write the API token, then start uvicorn.
+CMD ["/app/wait-for-vault.sh"]
