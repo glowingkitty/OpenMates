@@ -17,7 +17,7 @@
 #   - Writes an initial Caddyfile placeholder (replaced in manual steps)
 #
 # MANUAL STEPS AFTER SSH-ING IN:
-#   1. git clone https://github.com/glowingkitty/OpenMates.git ~/projects/OpenMates
+#   1. git clone --branch dev https://github.com/glowingkitty/OpenMates.git ~/projects/OpenMates
 #   2. Create ~/projects/OpenMates/backend/apps/uploads/.env (see .env.example)
 #   3. Render and apply the production Caddyfile:
 #      python scripts/render-deploy-config.py deployment/upload_server/Caddyfile \
