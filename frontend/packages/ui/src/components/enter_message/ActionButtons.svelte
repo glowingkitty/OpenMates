@@ -7,18 +7,17 @@
     Right: [Camera]  "Press & hold to record" [Mic]  [Send?]
 
   The "Press & hold to record" label is shown inline to the left of the mic icon
-  (matching the Figma messagefield/singlepress_record design) when:
-    - No content is in the editor (showSendButton=false)
-    - AND mic permission is granted or unknown (not denied)
+  (matching the Figma messagefield/singlepress_record design) ONLY when:
+    - The user single-tapped the mic button (highlightPressHold=true, ~1.5s window)
+    - AND mic permission is already granted
 
-  When the send button is visible the label is hidden to keep the row compact.
-  When mic permission is denied the label is also hidden.
+  It is NOT shown by default — only as direct feedback after a single tap.
+  When mic permission is denied the label is never shown.
 
   Single-tap feedback (highlightPressHold):
     When the user taps (but does not hold) the mic button, the parent sets
-    highlightPressHold=true for ~1.5s. This:
-      - Makes the label visible even if showSendButton=true (temporarily overrides)
-      - Plays a brief highlight animation so the user notices "Press & hold"
+    highlightPressHold=true for ~1.5s after confirming mic is granted.
+    This shows and briefly animates the label so the user notices "Press & hold".
 -->
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
@@ -62,12 +61,17 @@
     function handleRecordTouchEnd(event: TouchEvent) { dispatch('recordTouchEnd', { originalEvent: event }); }
 
     /**
-     * Show the "Press & hold to record" inline label when:
-     *  - No content yet (send button hidden), OR the parent is highlighting it
-     *  - Mic not permanently denied
+     * Show the "Press & hold to record" inline label only when:
+     *  - The user single-tapped the mic button (highlightPressHold=true, set by parent)
+     *  - AND mic is already granted (not denied/prompt/unknown)
+     *
+     * We intentionally do NOT show it by default (even when no send button is visible),
+     * because it is distracting before the user has interacted with the mic button.
+     * The parent sets highlightPressHold=true for ~1.5s after a short tap so the hint
+     * appears only as direct feedback to the tap.
      */
     let showPressHoldLabel = $derived(
-        (!showSendButton || highlightPressHold) && micPermissionState !== 'denied'
+        highlightPressHold && micPermissionState === 'granted'
     );
 </script>
 
