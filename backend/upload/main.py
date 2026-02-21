@@ -34,6 +34,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -145,6 +146,26 @@ app = FastAPI(
     # Override via environment if needed for debugging.
     docs_url="/docs" if os.environ.get("SERVER_ENVIRONMENT") != "production" else None,
     redoc_url=None,
+)
+
+# ---------------------------------------------------------------------------
+# CORS middleware
+# ---------------------------------------------------------------------------
+# Allow requests from the production and dev web apps.
+# Caddy already gate-keeps by Origin header (blocks unrecognised origins before
+# they reach FastAPI), but the browser still requires CORS response headers on
+# the actual response — so FastAPI must echo them back.
+# Credentials (cookies) must be included for cookie-based auth to work.
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://openmates.org",
+        "https://app.dev.openmates.org",
+    ],
+    allow_credentials=True,
+    allow_methods=["POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Requested-With"],
 )
 
 # Attach rate limiter error handler
