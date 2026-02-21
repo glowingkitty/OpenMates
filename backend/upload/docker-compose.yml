@@ -1,4 +1,4 @@
-# backend/apps/uploads/docker-compose.yml
+# backend/upload/docker-compose.yml
 #
 # Docker Compose for the app-uploads microservice, ClamAV, and local Vault.
 #
@@ -83,7 +83,7 @@ services:
     build:
       # Build context is project root so Dockerfile can COPY backend/
       context: ../../
-      dockerfile: backend/apps/uploads/vault/Dockerfile
+      dockerfile: backend/upload/vault/Dockerfile
     env_file: ../../.env
     environment:
       VAULT_ADDR: "http://vault:8200"
@@ -115,7 +115,7 @@ services:
     build:
       # Build context is the project root so the Dockerfile can COPY backend/
       context: ../../
-      dockerfile: backend/apps/uploads/Dockerfile
+      dockerfile: backend/upload/Dockerfile
     restart: unless-stopped
     env_file: ../../.env
     environment:

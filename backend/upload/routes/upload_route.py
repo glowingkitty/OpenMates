@@ -1,4 +1,4 @@
-# backend/apps/uploads/routes/upload_route.py
+# backend/upload/routes/upload_route.py
 #
 # POST /v1/upload/file — the core upload endpoint.
 #

@@ -1,4 +1,4 @@
-# backend/apps/uploads/services/sightengine_service.py
+# backend/upload/services/sightengine_service.py
 #
 # SightEngine AI-generated image detection service.
 #

@@ -1,4 +1,4 @@
-# backend/apps/uploads/Dockerfile
+# backend/upload/Dockerfile
 #
 # Dedicated Dockerfile for the uploads microservice.
 # Unlike other app services that use Dockerfile.base, uploads needs additional
@@ -27,7 +27,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python requirements (uploads-specific superset of core requirements)
-COPY backend/apps/uploads/requirements.txt .
+COPY backend/upload/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy shared backend framework code (same as Dockerfile.base)
@@ -41,7 +41,7 @@ COPY backend/shared/python_schemas /app/backend_shared/python_schemas
 COPY backend/shared/python_utils /app/backend_shared/python_utils
 
 # Copy the uploads app code
-COPY backend/apps/uploads/ /app/uploads/
+COPY backend/upload/ /app/uploads/
 
 # Set common environment variables
 ENV PYTHONUNBUFFERED=1

@@ -1,4 +1,4 @@
-# backend/apps/uploads/vault/Dockerfile
+# backend/upload/vault/Dockerfile
 #
 # Lightweight init container for the uploads VM local Vault.
 # Runs once at stack startup to:

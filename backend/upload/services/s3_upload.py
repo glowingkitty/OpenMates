@@ -1,4 +1,4 @@
-# backend/apps/uploads/services/s3_upload.py
+# backend/upload/services/s3_upload.py
 #
 # Lightweight S3 upload wrapper for the uploads microservice.
 #

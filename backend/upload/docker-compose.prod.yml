@@ -1,11 +1,11 @@
-# backend/apps/uploads/docker-compose.prod.yml
+# backend/upload/docker-compose.prod.yml
 #
 # Production overrides for the uploads service on the dedicated upload VM.
 #
 # USAGE (on the upload VM):
 #   cd ~/projects/OpenMates
-#   docker compose -f backend/apps/uploads/docker-compose.yml \
-#                  -f backend/apps/uploads/docker-compose.prod.yml up -d
+#   docker compose -f backend/upload/docker-compose.yml \
+#                  -f backend/upload/docker-compose.prod.yml up -d
 #
 # WHY THIS EXISTS:
 #   The base docker-compose.yml does NOT expose any ports (by design — the dev
@@ -15,7 +15,7 @@
 #
 #   The base file also uses env_file: ../../.env (project root .env, shared with
 #   the core stack on dev). On the upload VM, we override this to use a local
-#   .env file at backend/apps/uploads/.env (upload-specific credentials only).
+#   .env file at backend/upload/.env (upload-specific credentials only).
 #
 # WHAT THIS DOES:
 #   - Exposes app-uploads on 127.0.0.1:8000 (localhost only — Caddy proxies to it)

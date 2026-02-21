@@ -1,4 +1,4 @@
-# backend/apps/uploads/docker-compose.override.yml
+# backend/upload/docker-compose.override.yml
 #
 # Development overrides for the uploads service.
 # Applied automatically when running docker compose from the uploads directory on the dev server.

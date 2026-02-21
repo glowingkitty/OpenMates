@@ -63,9 +63,9 @@ The upload service runs on a **separate Hetzner CAX21 VM** from the main server.
 
 See:
 
-- [`backend/apps/uploads/docker-compose.yml`](../../backend/apps/uploads/docker-compose.yml) — local Vault + vault-setup + ClamAV service definitions
-- [`backend/apps/uploads/vault/setup_vault.py`](../../backend/apps/uploads/vault/setup_vault.py) — KV migration script
-- [`backend/apps/uploads/vault/Dockerfile`](../../backend/apps/uploads/vault/Dockerfile) — vault-setup init container image
+- [`backend/upload/docker-compose.yml`](../../backend/upload/docker-compose.yml) — local Vault + vault-setup + ClamAV service definitions
+- [`backend/upload/vault/setup_vault.py`](../../backend/upload/vault/setup_vault.py) — KV migration script
+- [`backend/upload/vault/Dockerfile`](../../backend/upload/vault/Dockerfile) — vault-setup init container image
 
 ---
 
@@ -113,7 +113,7 @@ See:
 
 See:
 
-- [`backend/apps/uploads/services/file_encryption.py`](../../backend/apps/uploads/services/file_encryption.py) — pure AES-256-GCM encryption (no Vault)
+- [`backend/upload/services/file_encryption.py`](../../backend/upload/services/file_encryption.py) — pure AES-256-GCM encryption (no Vault)
 - [`backend/core/api/app/routes/internal_api.py`](../../backend/core/api/app/routes/internal_api.py) — `/internal/uploads/wrap-key` endpoint
 
 ---
@@ -141,7 +141,7 @@ Browser → Caddy → app-uploads (POST /v1/upload/file)
 
 See:
 
-- [`backend/apps/uploads/routes/upload_route.py`](../../backend/apps/uploads/routes/upload_route.py) — full upload endpoint implementation
+- [`backend/upload/routes/upload_route.py`](../../backend/upload/routes/upload_route.py) — full upload endpoint implementation
 - [`backend/core/api/app/routes/internal_api.py`](../../backend/core/api/app/routes/internal_api.py) — all three proxy endpoints
 
 ### Frontend embed flow
@@ -205,18 +205,18 @@ All three are implemented in [`backend/core/api/app/routes/internal_api.py`](../
 
 | Path                                                                                                                 | Description                                                           |
 | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| [`backend/apps/uploads/main.py`](../../backend/apps/uploads/main.py)                                                 | FastAPI app, lifespan startup (ClamAV, encryption, SightEngine, S3)   |
-| [`backend/apps/uploads/routes/upload_route.py`](../../backend/apps/uploads/routes/upload_route.py)                   | `POST /v1/upload/file` — full upload pipeline                         |
-| [`backend/apps/uploads/services/malware_scanner.py`](../../backend/apps/uploads/services/malware_scanner.py)         | ClamAV TCP socket client                                              |
-| [`backend/apps/uploads/services/file_encryption.py`](../../backend/apps/uploads/services/file_encryption.py)         | Pure AES-256-GCM encryption (no Vault)                                |
-| [`backend/apps/uploads/services/preview_generator.py`](../../backend/apps/uploads/services/preview_generator.py)     | Pillow WEBP preview generation                                        |
-| [`backend/apps/uploads/services/sightengine_service.py`](../../backend/apps/uploads/services/sightengine_service.py) | SightEngine AI detection (credentials from local Vault)               |
-| [`backend/apps/uploads/services/s3_upload.py`](../../backend/apps/uploads/services/s3_upload.py)                     | S3 upload for chatfiles bucket (credentials from local Vault)         |
-| [`backend/apps/uploads/vault/setup_vault.py`](../../backend/apps/uploads/vault/setup_vault.py)                       | Local Vault init: KV v2, policy, scoped token, SECRET\_\_\* migration |
-| [`backend/apps/uploads/vault/Dockerfile`](../../backend/apps/uploads/vault/Dockerfile)                               | vault-setup init container image                                      |
-| [`backend/apps/uploads/docker-compose.yml`](../../backend/apps/uploads/docker-compose.yml)                           | Vault, vault-setup, ClamAV, app-uploads service definitions           |
-| [`backend/apps/uploads/docker-compose.override.yml`](../../backend/apps/uploads/docker-compose.override.yml)         | Dev overrides (openmates network join, port 8004)                     |
-| [`backend/apps/uploads/Dockerfile`](../../backend/apps/uploads/Dockerfile)                                           | Upload service image (libmagic1, Pillow deps)                         |
+| [`backend/upload/main.py`](../../backend/upload/main.py)                                                 | FastAPI app, lifespan startup (ClamAV, encryption, SightEngine, S3)   |
+| [`backend/upload/routes/upload_route.py`](../../backend/upload/routes/upload_route.py)                   | `POST /v1/upload/file` — full upload pipeline                         |
+| [`backend/upload/services/malware_scanner.py`](../../backend/upload/services/malware_scanner.py)         | ClamAV TCP socket client                                              |
+| [`backend/upload/services/file_encryption.py`](../../backend/upload/services/file_encryption.py)         | Pure AES-256-GCM encryption (no Vault)                                |
+| [`backend/upload/services/preview_generator.py`](../../backend/upload/services/preview_generator.py)     | Pillow WEBP preview generation                                        |
+| [`backend/upload/services/sightengine_service.py`](../../backend/upload/services/sightengine_service.py) | SightEngine AI detection (credentials from local Vault)               |
+| [`backend/upload/services/s3_upload.py`](../../backend/upload/services/s3_upload.py)                     | S3 upload for chatfiles bucket (credentials from local Vault)         |
+| [`backend/upload/vault/setup_vault.py`](../../backend/upload/vault/setup_vault.py)                       | Local Vault init: KV v2, policy, scoped token, SECRET\_\_\* migration |
+| [`backend/upload/vault/Dockerfile`](../../backend/upload/vault/Dockerfile)                               | vault-setup init container image                                      |
+| [`backend/upload/docker-compose.yml`](../../backend/upload/docker-compose.yml)                           | Vault, vault-setup, ClamAV, app-uploads service definitions           |
+| [`backend/upload/docker-compose.override.yml`](../../backend/upload/docker-compose.override.yml)         | Dev overrides (openmates network join, port 8004)                     |
+| [`backend/upload/Dockerfile`](../../backend/upload/Dockerfile)                                           | Upload service image (libmagic1, Pillow deps)                         |
 
 ### Core Server additions
 
@@ -405,4 +405,4 @@ The `storage_used_bytes` counter is also corrected authoritatively by the weekly
 
 - [Message Processing Architecture](./message-processing.md) — how AI skills consume uploaded file embed data
 - [`backend/core/api/app/routes/internal_api.py`](../../backend/core/api/app/routes/internal_api.py) — internal proxy endpoint implementations
-- [`backend/apps/uploads/routes/upload_route.py`](../../backend/apps/uploads/routes/upload_route.py) — full upload pipeline code
+- [`backend/upload/routes/upload_route.py`](../../backend/upload/routes/upload_route.py) — full upload pipeline code

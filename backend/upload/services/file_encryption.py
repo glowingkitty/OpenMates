@@ -1,4 +1,4 @@
-# backend/apps/uploads/services/file_encryption.py
+# backend/upload/services/file_encryption.py
 #
 # Pure AES-256-GCM file encryption service for uploaded files.
 #

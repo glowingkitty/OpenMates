@@ -1,4 +1,4 @@
-# backend/apps/uploads/services/preview_generator.py
+# backend/upload/services/preview_generator.py
 #
 # Image processing service for uploaded files.
 #

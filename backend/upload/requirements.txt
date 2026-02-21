@@ -1,4 +1,4 @@
-# backend/apps/uploads/requirements.txt
+# backend/upload/requirements.txt
 #
 # Requirements for the uploads microservice.
 # Includes core API deps plus uploads-specific packages.

@@ -1,4 +1,4 @@
-# backend/apps/uploads/main.py
+# backend/upload/main.py
 #
 # FastAPI application entrypoint for the app-uploads microservice.
 #
@@ -38,12 +38,12 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from backend.apps.uploads.routes.upload_route import router as upload_router
-from backend.apps.uploads.services.malware_scanner import MalwareScannerService
-from backend.apps.uploads.services.file_encryption import FileEncryptionService
-from backend.apps.uploads.services.preview_generator import PreviewGeneratorService
-from backend.apps.uploads.services.sightengine_service import SightEngineService
-from backend.apps.uploads.services.s3_upload import UploadsS3Service
+from backend.upload.routes.upload_route import router as upload_router
+from backend.upload.services.malware_scanner import MalwareScannerService
+from backend.upload.services.file_encryption import FileEncryptionService
+from backend.upload.services.preview_generator import PreviewGeneratorService
+from backend.upload.services.sightengine_service import SightEngineService
+from backend.upload.services.s3_upload import UploadsS3Service
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +181,7 @@ if __name__ == "__main__":
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
     uvicorn.run(
-        "backend.apps.uploads.main:app",
+        "backend.upload.main:app",
         host="0.0.0.0",
         port=int(os.environ.get("UPLOADS_APP_INTERNAL_PORT", "8000")),
         reload=False,

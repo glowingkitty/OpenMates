@@ -18,14 +18,14 @@
 #   - Configures fail2ban for SSH brute-force protection
 #
 # MANUAL STEPS AFTER SSH-ING IN (secrets only):
-#   1. Create ~/projects/OpenMates/backend/apps/uploads/.env:
-#      cp ~/projects/OpenMates/backend/apps/uploads/.env.example \
-#         ~/projects/OpenMates/backend/apps/uploads/.env
-#      nano ~/projects/OpenMates/backend/apps/uploads/.env
+#   1. Create ~/projects/OpenMates/backend/upload/.env:
+#      cp ~/projects/OpenMates/backend/upload/.env.example \
+#         ~/projects/OpenMates/backend/upload/.env
+#      nano ~/projects/OpenMates/backend/upload/.env
 #   2. Start the upload server:
 #      cd ~/projects/OpenMates
-#      docker compose -f backend/apps/uploads/docker-compose.yml \
-#                     -f backend/apps/uploads/docker-compose.prod.yml up -d
+#      docker compose -f backend/upload/docker-compose.yml \
+#                     -f backend/upload/docker-compose.prod.yml up -d
 #   3. Verify: curl https://${DEPLOY_UPLOAD_DOMAIN}/health
 
 # ---------------------------------------------------------------------------
@@ -196,14 +196,14 @@ final_message: |
   SSH in as '${DEPLOY_USERNAME}' and run the following commands:
 
   1. Fill in the secrets:
-     cp ~/projects/OpenMates/backend/apps/uploads/.env.example \
-        ~/projects/OpenMates/backend/apps/uploads/.env
-     nano ~/projects/OpenMates/backend/apps/uploads/.env
+     cp ~/projects/OpenMates/backend/upload/.env.example \
+        ~/projects/OpenMates/backend/upload/.env
+     nano ~/projects/OpenMates/backend/upload/.env
 
   2. Start the upload server:
      cd ~/projects/OpenMates
-     docker compose -f backend/apps/uploads/docker-compose.yml \
-                    -f backend/apps/uploads/docker-compose.prod.yml up -d
+     docker compose -f backend/upload/docker-compose.yml \
+                    -f backend/upload/docker-compose.prod.yml up -d
 
   3. Verify:
      curl https://${DEPLOY_UPLOAD_DOMAIN}/health
