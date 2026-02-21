@@ -404,34 +404,52 @@ async def upload_file(
         core_api_url, internal_token, user_id, content_hash
     )
     if existing_record:
-        logger.info(
-            f"{log_prefix} Duplicate detected (content_hash={content_hash[:16]}...) — "
-            f"returning existing embed_id: {existing_record.get('embed_id')}"
-        )
-        # Reconstruct response from stored record
+        # Validate that the referenced S3 objects actually exist before returning
+        # the cached record. Records can be stale if a previous upload failed
+        # mid-way (e.g. bucket misconfiguration) — silently falling back to a
+        # fresh upload is safer than returning a broken embed that cannot decrypt.
         files_data = existing_record.get("files_metadata", {})
-        return UploadFileResponse(
-            embed_id=existing_record["embed_id"],
-            filename=existing_record.get("original_filename", filename),
-            content_type=existing_record.get("content_type", content_type),
-            content_hash=content_hash,
-            files={
-                k: FileVariantMetadata(**v)
-                for k, v in files_data.items()
-            },
-            s3_base_url=existing_record["s3_base_url"],
-            aes_key=existing_record["aes_key"],
-            aes_nonce=existing_record["aes_nonce"],
-            vault_wrapped_aes_key=existing_record["vault_wrapped_aes_key"],
-            malware_scan="clean",
-            ai_detection=(
-                AIDetectionMetadata(**existing_record["ai_detection"])
-                if existing_record.get("ai_detection")
-                else None
-            ),
-            deduplicated=True,
-            page_count=existing_record.get("page_count"),
+        sample_key = next(
+            (v.get("s3_key") for v in files_data.values() if v.get("s3_key")),
+            None,
         )
+        s3_service = request.app.state.s3
+        s3_ok = await s3_service.check_file_exists(sample_key) if sample_key else False
+
+        if not s3_ok:
+            logger.warning(
+                f"{log_prefix} Dedup hit (content_hash={content_hash[:16]}...) but S3 object "
+                f"missing for key {sample_key!r} — discarding stale record, re-uploading"
+            )
+            existing_record = None  # Fall through to fresh upload below
+        else:
+            logger.info(
+                f"{log_prefix} Duplicate detected (content_hash={content_hash[:16]}...) — "
+                f"returning existing embed_id: {existing_record.get('embed_id')}"
+            )
+            # Reconstruct response from stored record
+            return UploadFileResponse(
+                embed_id=existing_record["embed_id"],
+                filename=existing_record.get("original_filename", filename),
+                content_type=existing_record.get("content_type", content_type),
+                content_hash=content_hash,
+                files={
+                    k: FileVariantMetadata(**v)
+                    for k, v in files_data.items()
+                },
+                s3_base_url=existing_record["s3_base_url"],
+                aes_key=existing_record["aes_key"],
+                aes_nonce=existing_record["aes_nonce"],
+                vault_wrapped_aes_key=existing_record["vault_wrapped_aes_key"],
+                malware_scan="clean",
+                ai_detection=(
+                    AIDetectionMetadata(**existing_record["ai_detection"])
+                    if existing_record.get("ai_detection")
+                    else None
+                ),
+                deduplicated=True,
+                page_count=existing_record.get("page_count"),
+            )
 
     # --- 6. ClamAV malware scan ---
     malware_service = request.app.state.malware_scanner

@@ -168,6 +168,41 @@ class UploadsS3Service:
             )
             raise RuntimeError(f"S3 upload failed: {e}") from e
 
+    async def check_file_exists(self, s3_key: str) -> bool:
+        """
+        Check whether an object exists in the S3 bucket without downloading it.
+
+        Used to validate deduplication hits — a stored record may reference S3
+        objects that were never actually uploaded (e.g. due to a prior bucket
+        misconfiguration). If the head_object call returns 404 the record is stale.
+
+        Returns True if the object exists, False otherwise.
+        Does NOT raise — any error (network, permissions) is treated as "not found"
+        so the caller falls back to a fresh upload rather than returning a broken record.
+        """
+        if self.client is None:
+            return False
+
+        import asyncio
+
+        def _head() -> bool:
+            try:
+                self.client.head_object(Bucket=self.bucket_name, Key=s3_key)
+                return True
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                if error_code in ("404", "NoSuchKey"):
+                    return False
+                # Any other error (permissions, network): treat as not found
+                logger.warning(f"[S3Upload] head_object error for {s3_key}: {e}")
+                return False
+
+        try:
+            return await asyncio.to_thread(_head)
+        except Exception as e:
+            logger.warning(f"[S3Upload] check_file_exists failed for {s3_key}: {e}")
+            return False
+
     def get_base_url(self) -> str:
         """Return the base URL for constructing full file URLs (for embed content)."""
         return f"https://{self.bucket_name}.{self.base_domain}"

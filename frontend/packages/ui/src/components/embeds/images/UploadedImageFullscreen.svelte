@@ -211,8 +211,16 @@
       retainedFullKey = fullFileData.s3_key;
       retainCachedImage(fullFileData.s3_key);
     } catch (err) {
-      console.error('[UploadedImageFullscreen] Failed to load full image:', err);
-      imageError = err instanceof Error ? err.message : 'Failed to load image';
+      // DOMException (from crypto.subtle.decrypt) serialises as {} with console.error —
+      // extract the message explicitly so we get a meaningful error in the console.
+      const errMsg =
+        err instanceof DOMException
+          ? `DOMException(${err.name}): ${err.message || 'decryption failed'}`
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      console.error('[UploadedImageFullscreen] Failed to load full image:', errMsg, err);
+      imageError = errMsg || 'Failed to load image';
     } finally {
       isLoadingImage = false;
     }
