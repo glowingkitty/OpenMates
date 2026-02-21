@@ -267,6 +267,66 @@ async function _performUpload(
   try {
     const result = await uploadFileToServer(file, signal);
 
+    // Register the embed in EmbedStore immediately after upload — do NOT wait for
+    // handleSend. This ensures the draft serialiser can emit a proper embed reference
+    // block (```json {"type":"image","embed_id":"..."}```) so the image survives a
+    // page reload. Without this, the draft markdown drops the image entirely because
+    // serializeEmbedToMarkdown() only emits an image block when contentRef is set.
+    //
+    // handleSend() filters by !node.attrs.contentRef, so it will skip re-registering
+    // nodes that already have contentRef set — the operation is fully idempotent.
+    const uploadEmbedId = result.embed_id;
+    try {
+      const { encode: toonEncode } = await import("@toon-format/toon");
+      const embedContent = {
+        app_id: "images",
+        skill_id: "upload",
+        type: "image",
+        status: "finished",
+        filename: file.name || null,
+        content_hash: result.content_hash || null,
+        s3_base_url: result.s3_base_url || null,
+        files: result.files || null,
+        aes_key: result.aes_key || null,
+        aes_nonce: result.aes_nonce || null,
+        vault_wrapped_aes_key: result.vault_wrapped_aes_key || null,
+        ai_detection: result.ai_detection || null,
+      };
+
+      let toonContent: string;
+      try {
+        toonContent = toonEncode(embedContent);
+      } catch {
+        toonContent = JSON.stringify(embedContent);
+      }
+
+      const now = Date.now();
+      await embedStore.put(
+        `embed:${uploadEmbedId}`,
+        {
+          embed_id: uploadEmbedId,
+          type: "images-image",
+          status: "finished",
+          content: toonContent,
+          text_preview: file.name || "Uploaded image",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "images-image",
+      );
+      console.debug(
+        "[EmbedHandlers] Registered uploaded image in EmbedStore for draft persistence:",
+        uploadEmbedId,
+      );
+    } catch (storeError) {
+      // Non-fatal: the image is still uploaded — the draft just won't survive a reload.
+      // Surface the error so it's visible (no silent failures).
+      console.error(
+        "[EmbedHandlers] Failed to register uploaded image in EmbedStore:",
+        storeError,
+      );
+    }
+
     // Update the embed node with the server response data.
     // We use a ProseMirror transaction to update the node atomically.
     const { state, dispatch } = editor.view;
@@ -289,6 +349,9 @@ async function _performUpload(
           contentHash: result.content_hash,
           aiDetection: result.ai_detection,
           uploadError: null,
+          // Set contentRef so the draft serialiser can persist this embed immediately.
+          // handleSend() skips nodes where contentRef is already set (idempotent).
+          contentRef: `embed:${uploadEmbedId}`,
         });
         updated = true;
         return false; // Stop traversal

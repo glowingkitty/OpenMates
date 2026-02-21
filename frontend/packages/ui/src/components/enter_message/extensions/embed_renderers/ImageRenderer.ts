@@ -25,6 +25,7 @@ import { mount, unmount } from "svelte";
 import { get } from "svelte/store";
 import ImageEmbedPreview from "../../../embeds/images/ImageEmbedPreview.svelte";
 import { authStore } from "../../../../stores/authStore";
+import { embedStore } from "../../../../services/embedStore";
 
 // Track mounted Svelte components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -72,7 +73,7 @@ interface ImageEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
 export class ImageRenderer implements EmbedRenderer {
   type = "image";
 
-  render(context: EmbedRenderContext): void {
+  render(context: EmbedRenderContext): void | Promise<void> {
     const { content } = context;
     const attrs = context.attrs as ImageEmbedAttrs;
 
@@ -85,6 +86,106 @@ export class ImageRenderer implements EmbedRenderer {
     if (attrs.src || (attrs.s3Files && attrs.aesKey)) {
       this._renderImageComponent(content, attrs);
       return;
+    }
+
+    // -----------------------------------------------------------------------
+    // Case 2b: Restored draft node — contentRef is set (embed:{id}) but
+    // s3Files/aesKey are absent because they were stored as rendered:false
+    // attrs (never serialised). Load the S3/AES metadata from EmbedStore
+    // and re-render once the data is available.
+    //
+    // This happens when the user uploads an image, doesn't send, then
+    // reloads the page. The draft restores the embed node with only
+    // contentRef; _performUpload registered the full embed in EmbedStore
+    // before setting contentRef so we can retrieve the data here.
+    // -----------------------------------------------------------------------
+    if (
+      attrs.contentRef &&
+      attrs.contentRef.startsWith("embed:") &&
+      !attrs.url
+    ) {
+      const embedId = attrs.contentRef.replace("embed:", "");
+      // Show a loading spinner while we fetch from EmbedStore
+      content.innerHTML =
+        '<div class="image-embed-loading" style="display:flex;align-items:center;justify-content:center;min-height:80px;"><div class="loading-spinner" style="width:24px;height:24px;border:2px solid var(--color-grey-20,#eaeaea);border-top-color:var(--color-primary-50,#5b8dd9);border-radius:50%;animation:spin 0.8s linear infinite;"></div></div>';
+
+      return embedStore
+        .get(attrs.contentRef)
+        .then(async (embedData) => {
+          if (!embedData?.content) {
+            // EmbedStore miss — image cannot be restored (e.g. different device/browser)
+            console.warn(
+              "[ImageRenderer] EmbedStore miss for restored draft image:",
+              embedId,
+            );
+            content.innerHTML =
+              '<div class="image-error" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable (reload the page)</div>';
+            return;
+          }
+          // Decode the TOON/JSON content stored by _performUpload to extract S3/AES metadata.
+          // The content field holds the TOON-encoded embedContent object whose top-level
+          // fields are: s3_base_url, files, aes_key, aes_nonce, filename, etc.
+          let parsed: Record<string, unknown> = {};
+          const rawContent = embedData.content as string;
+          try {
+            // Try TOON decode first (the primary storage format)
+            const { decode: toonDecode } = await import("@toon-format/toon");
+            parsed = toonDecode(rawContent) as Record<string, unknown>;
+          } catch {
+            // Fall back to JSON (used when toonEncode itself failed at storage time)
+            try {
+              parsed = JSON.parse(rawContent);
+            } catch {
+              console.warn(
+                "[ImageRenderer] Could not parse EmbedStore content for restored draft image:",
+                embedId,
+              );
+            }
+          }
+
+          const s3Files = parsed.files as
+            | ImageEmbedAttrs["s3Files"]
+            | undefined;
+          const s3BaseUrl = parsed.s3_base_url as string | undefined;
+          const aesKey = parsed.aes_key as string | undefined;
+          const aesNonce = parsed.aes_nonce as string | undefined;
+          const filename = (parsed.filename as string) || attrs.filename;
+
+          if (!s3Files || !aesKey || !s3BaseUrl) {
+            console.warn(
+              "[ImageRenderer] EmbedStore entry missing S3 data for restored draft image:",
+              embedId,
+              parsed,
+            );
+            content.innerHTML =
+              '<div class="image-error" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>';
+            return;
+          }
+
+          // Re-render with full S3 data from EmbedStore
+          const restoredAttrs: ImageEmbedAttrs = {
+            ...attrs,
+            s3Files,
+            s3BaseUrl,
+            aesKey,
+            aesNonce,
+            filename: filename || undefined,
+            status: "finished",
+          };
+          this._renderImageComponent(content, restoredAttrs);
+          console.debug(
+            "[ImageRenderer] Restored draft image embed from EmbedStore:",
+            embedId,
+          );
+        })
+        .catch((err) => {
+          console.error(
+            "[ImageRenderer] Failed to load restored draft image from EmbedStore:",
+            err,
+          );
+          content.innerHTML =
+            '<div class="image-error" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>';
+        });
     }
 
     // -----------------------------------------------------------------------
