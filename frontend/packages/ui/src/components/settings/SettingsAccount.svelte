@@ -84,7 +84,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
             settingsPath: 'account/storage',
             direction: 'forward',
             icon: 'storage',
-            title: $text('settings.storage.storage')
+            title: $text('settings.storage')
         });
     }
 
@@ -134,7 +134,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
 <SettingsItem
     type="submenu"
     icon="storage"
-    title={$text('settings.storage.storage')}
+    title={$text('settings.storage')}
     onClick={navigateToStorage}
 />
 
