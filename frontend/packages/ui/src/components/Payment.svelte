@@ -28,7 +28,8 @@
         disableWebSocketHandlers = false, // When true, don't register WebSocket handlers (e.g., when used in Settings)
         supportContribution = false, // When true, this is a supporter contribution
         supportEmail = null, // Email for supporter contributions (non-authenticated users)
-        isRecurring = false // When true, this is a recurring monthly subscription
+        isRecurring = false, // When true, this is a recurring monthly subscription
+        initialProviderOverride = null // When set, forces a specific provider on first load (e.g. 'polar' when user clicked non-EU card)
     }: {
         purchasePrice?: number;
         currency?: string;
@@ -42,6 +43,7 @@
         supportContribution?: boolean;
         supportEmail?: string | null;
         isRecurring?: boolean;
+        initialProviderOverride?: 'stripe' | 'polar' | null;
     } = $props();
 
     let hasConsentedToLimitedRefund = $state(false);
@@ -805,6 +807,12 @@
             getUserEmail();
         }
         if (initialState === 'idle') {
+            // Apply initial provider override before fetching config, so the correct
+            // provider is requested from the start (e.g. when navigating here via
+            // the "Pay with a non-EU card" button in the saved-methods screen).
+            if (initialProviderOverride) {
+                providerOverride = initialProviderOverride;
+            }
             fetchConfigAndInitialize();
         }
         
@@ -883,11 +891,6 @@
                         .replace('{amount}', (purchasePrice / 100).toString())}
                 {/if}
             </button>
-
-            <p class="vat-info color-grey-60">
-                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                {@html $text('signup.vat_info')}
-            </p>
 
             <!-- Switch to EU / Stripe -->
             <div class="provider-switch-container">
@@ -1062,14 +1065,6 @@
     .polar-pay-button:disabled {
         opacity: 0.7;
         cursor: not-allowed;
-    }
-
-    /* VAT info text below Polar button */
-    .vat-info {
-        font-size: 14px;
-        text-align: center;
-        margin-top: 10px;
-        margin-bottom: 10px;
     }
 
     /* Error message for Polar checkout failures */

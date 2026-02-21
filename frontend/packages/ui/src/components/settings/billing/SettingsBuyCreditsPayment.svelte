@@ -387,7 +387,9 @@ Supports both saved payment methods and new payment form
     {/if}
 {:else}
     <!-- Show payment form for new payment method or Polar provider.
-         The <Payment> component handles provider detection and switching internally. -->
+         Pass savedMethodProviderOverride as initialProviderOverride so the Payment component
+         immediately requests the correct provider (e.g. 'polar' when user clicked non-EU card),
+         instead of re-detecting from geo which could fall back to stripe. -->
     <div class="payment-container">
         <Payment
             purchasePrice={selectedPrice()}
@@ -396,6 +398,7 @@ Supports both saved payment methods and new payment form
             requireConsent={true}
             compact={false}
             disableWebSocketHandlers={true}
+            initialProviderOverride={savedMethodProviderOverride}
             on:paymentStateChange={handlePaymentComplete}
         />
     </div>

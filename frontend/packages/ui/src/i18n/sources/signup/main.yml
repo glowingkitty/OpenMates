@@ -5128,39 +5128,15 @@ full_name_on_card:
   sv: Fullständigt namn på kortet
   verified_by_human: []
 vat_info:
-  context: Info text about VAT charges
-  en: "Only EU cards currently accepted.
-
-    No VAT charged according to §19 UStG (small business regulation).
-
-    "
-  de: "Nur EU Karten aktuell akzeptiert.
-
-    Keine MwSt. gemäß §19 UStG (Kleinunternehmerregelung).
-
-    "
-  zh: "仅接受欧盟卡。
-
-    根据 §19 UStG（小企业规定）不收取增值税。
-
-    "
-  es: "Solo se aceptan tarjetas de la UE actualmente.
-
-    No se cobra IVA según §19 UStG (regulación de pequeños negocios).
-
-    "
-  fr: "Seules les cartes de l'UE sont actuellement acceptées.
-
-    Aucune TVA facturée conformément à l'article 19 de la loi allemande sur la TVA (réglementation des petites entreprises).
-
-    "
+  context: Info text about VAT charges shown on the Stripe payment form
+  en: "No VAT charged according to §19 UStG (small business regulation)."
+  de: "Keine MwSt. gemäß §19 UStG (Kleinunternehmerregelung)."
+  zh: "根据 §19 UStG（小企业规定）不收取增值税。"
+  es: "No se cobra IVA según §19 UStG (regulación de pequeños negocios)."
+  fr: "Aucune TVA facturée conformément à l'article 19 de la loi allemande sur la TVA (réglementation des petites entreprises)."
   pt: ""
   ru: ""
-  ja: "現在、EUカードのみ受け付けています。
-
-    §19 UStG（小規模事業者規定）に基づき、VATは課税されません。
-
-    "
+  ja: "§19 UStG（小規模事業者規定）に基づき、VATは課税されません。"
   ko: ""
   it: ""
   tr: ""
