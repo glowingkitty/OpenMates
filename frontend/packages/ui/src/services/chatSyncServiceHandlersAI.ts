@@ -3429,6 +3429,25 @@ export function handleDailyInspirationImpl(
         "[ChatSyncService:AI] Daily inspirations loaded into store:",
         payload.inspirations.length,
       );
+
+      // Send ACK to the server so it can clear the pending delivery cache.
+      // Without this ACK, the server keeps the inspirations in Redis and
+      // re-delivers them on every reconnect (safety net for dropped connections).
+      webSocketService
+        .sendMessage("daily_inspiration_received", {})
+        .then(() => {
+          console.debug(
+            "[ChatSyncService:AI] Sent daily_inspiration_received ACK to server",
+          );
+        })
+        .catch((ackErr) => {
+          // Non-fatal: if the ACK fails the server will re-deliver on the
+          // next connection, which is the correct fallback behaviour.
+          console.warn(
+            "[ChatSyncService:AI] Failed to send daily_inspiration_received ACK (non-fatal):",
+            ackErr,
+          );
+        });
     })
     .catch((err) => {
       console.error(

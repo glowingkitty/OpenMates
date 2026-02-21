@@ -3720,6 +3720,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         try {
             const { generateChatKey, encryptWithChatKey } = await import('../services/cryptoService');
+            const { createEmbedReferenceBlock } = await import('../components/enter_message/services/urlMetadataService');
+            const { encode: toonEncode } = await import('@toon-format/toon');
+            const { embedStore } = await import('../services/embedStore');
+            const { generateUUID } = await import('../message_parsing/utils');
 
             const chatId = crypto.randomUUID();
             const chatKey = generateChatKey();
@@ -3732,18 +3736,81 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatDB.setChatKey(chatId, chatKey);
 
             const now = Math.floor(Date.now() / 1000);
+            const nowMs = Date.now();
             const phrase = inspiration.phrase;
 
             // Encrypt the chat title (the inspiration phrase)
             const encryptedTitle = await encryptWithChatKey(phrase, chatKey);
 
-            // Build the first assistant message content
-            // Include a YouTube video embed if available
+            // Build the first assistant message content.
+            // If a video is available, create a proper embed with the rich metadata
+            // from the inspiration (title, channel, views, duration, etc.) instead
+            // of just pasting a bare URL. This gives the user a full YouTube embed
+            // card immediately, without waiting for an API call or server round-trip.
             let messageContent = phrase;
             if (inspiration.video) {
-                const videoUrl = `https://www.youtube.com/watch?v=${inspiration.video.youtube_id}`;
-                // Embed as a markdown link + video reference so the embed system can detect it
-                messageContent = `${phrase}\n\n${videoUrl}`;
+                const video = inspiration.video;
+                const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
+                const embedId = generateUUID();
+
+                // Format duration if available (e.g. 273 → "4:33")
+                let durationFormatted: string | null = null;
+                if (video.duration_seconds != null) {
+                    const mins = Math.floor(video.duration_seconds / 60);
+                    const secs = video.duration_seconds % 60;
+                    durationFormatted = `${mins}:${secs.toString().padStart(2, '0')}`;
+                }
+
+                // Build the embed content using the same TOON schema as createStaticYouTubeEmbed
+                // but populated with the rich metadata we already have from the inspiration.
+                const embedContent = {
+                    url: videoUrl,
+                    video_id: video.youtube_id,
+                    title: video.title || null,
+                    description: null,
+                    channel_name: video.channel_name || null,
+                    channel_id: null,
+                    channel_thumbnail: null,
+                    thumbnail: video.thumbnail_url || null,
+                    duration_seconds: video.duration_seconds ?? null,
+                    duration_formatted: durationFormatted,
+                    view_count: video.view_count ?? null,
+                    like_count: null,
+                    published_at: video.published_at || null,
+                    fetched_at: new Date().toISOString(),
+                };
+
+                // Encode as TOON for storage efficiency (same as urlMetadataService)
+                let toonContent: string;
+                try {
+                    toonContent = toonEncode(embedContent);
+                } catch {
+                    toonContent = JSON.stringify(embedContent);
+                }
+
+                const embedData = {
+                    embed_id: embedId,
+                    type: 'video',
+                    status: 'finished',
+                    content: toonContent,
+                    text_preview: video.title || 'YouTube Video',
+                    createdAt: nowMs,
+                    updatedAt: nowMs,
+                };
+
+                // Store the embed in EmbedStore (same namespace as regular YouTube embeds)
+                try {
+                    await embedStore.put(`embed:${embedId}`, embedData, 'videos-video');
+                    console.info(`[ActiveChat] Stored inspiration video embed in EmbedStore: ${embedId}`);
+                } catch (embedErr) {
+                    console.error('[ActiveChat] Failed to store inspiration embed:', embedErr);
+                }
+
+                // Build the embed reference block and include it in the message content.
+                // The message rendering pipeline uses this JSON block to resolve + display
+                // the embed card inline, exactly like embeds created by the URL metadata service.
+                const embedReference = createEmbedReferenceBlock('video', embedId, videoUrl);
+                messageContent = `${phrase}\n\n${embedReference}`;
             }
 
             const encryptedContent = await encryptWithChatKey(messageContent, chatKey);

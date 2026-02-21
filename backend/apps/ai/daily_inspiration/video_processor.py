@@ -171,12 +171,15 @@ async def _enrich_with_youtube(
 async def find_video_candidates(
     topic_phrase: str,
     secrets_manager: SecretsManager,
+    language: str = "en",
+    country: str = "us",
+    search_lang: str = "en",
 ) -> List[Dict[str, Any]]:
     """
     Find and enrich YouTube video candidates for a given topic phrase.
 
     Full pipeline:
-    1. Brave video search for the phrase
+    1. Brave video search for the phrase (using the user's locale for better results)
     2. Filter to YouTube-only results
     3. YouTube Data API enrichment (view count, duration)
     4. Sort by view count descending
@@ -185,6 +188,10 @@ async def find_video_candidates(
     Args:
         topic_phrase: The inspiration phrase to search for (e.g., "Why cats always land on feet")
         secrets_manager: For provider API key retrieval
+        language: User's UI language code (e.g. "en", "de"). Used for logging only;
+                  actual Brave params are passed via ``country`` and ``search_lang``.
+        country: ISO 3166-1 alpha-2 country code for Brave search localisation
+        search_lang: Language code for Brave search results
 
     Returns:
         List of enriched candidate dicts (up to TOP_CANDIDATES_FOR_LLM), each with:
@@ -196,15 +203,18 @@ async def find_video_candidates(
         - duration_seconds: Optional[int]
         - published_at: Optional[str]
     """
-    logger.info(f"[DailyInspiration] Searching videos for phrase: '{topic_phrase}'")
+    logger.info(
+        f"[DailyInspiration] Searching videos for phrase: '{topic_phrase}' "
+        f"(lang={language}, country={country}, search_lang={search_lang})"
+    )
 
     try:
         search_result = await search_videos(
             query=f"{topic_phrase} educational",
             secrets_manager=secrets_manager,
             count=BRAVE_RESULTS_PER_QUERY,
-            country="us",
-            search_lang="en",
+            country=country,
+            search_lang=search_lang,
             safesearch="moderate",
             sanitize_output=False,  # No LLM sanitization needed for internal use
         )

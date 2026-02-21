@@ -41,6 +41,7 @@ from .handlers.websocket_handlers.reject_settings_memory_suggestion_handler impo
 from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
+from .handlers.websocket_handlers.inspiration_received_handler import handle_inspiration_received  # ACK handler for pending inspiration delivery
 
 logger = logging.getLogger(__name__)
 
@@ -1272,6 +1273,13 @@ async def _deliver_pending_inspirations(
     The `daily_inspiration` event is handled by the frontend's chatSyncService which stores
     inspirations in the dailyInspirationStore. The content is plaintext — the client treats
     it the same as chat messages and does not persist it to Directus.
+
+    NOTE: The pending cache is NOT cleared here. Instead, the client sends a
+    `daily_inspiration_received` ACK message once it has successfully processed
+    and stored the inspirations. The ACK handler
+    (handle_inspiration_received) then clears the pending cache.
+    This prevents data loss when the WebSocket disconnects before the client
+    finishes processing the delivery.
     """
     try:
         # Brief delay to let the client finish WebSocket setup and initial sync
@@ -1298,10 +1306,12 @@ async def _deliver_pending_inspirations(
             device_fingerprint_hash=device_fingerprint_hash,
         )
 
-        # Clear pending cache after successful delivery
-        await cache_service.clear_pending_inspirations(user_id)
+        # Do NOT clear pending cache here — wait for client ACK
+        # (daily_inspiration_received message). This ensures inspirations
+        # survive if the WebSocket drops before the client processes them.
         logger.debug(
-            f"[PENDING_INSPIRATIONS] Delivered and cleared pending inspirations for user {user_id[:8]}..."
+            f"[PENDING_INSPIRATIONS] Delivered pending inspirations to user {user_id[:8]}... "
+            f"(awaiting client ACK to clear cache)"
         )
 
     except Exception as e:
@@ -2049,6 +2059,16 @@ async def websocket_endpoint(
                 # Record the view in cache for the daily generation job (view count → generation count).
                 logger.debug(f"Handling inspiration_viewed from user {user_id[:8]}... payload: {payload}")
                 await handle_inspiration_viewed(
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    payload=payload,
+                )
+
+            elif message_type == "daily_inspiration_received":
+                # Client ACKs that it received and stored the pending daily inspirations.
+                # Now safe to clear the pending delivery cache so they are not re-delivered.
+                logger.debug(f"Handling daily_inspiration_received ACK from user {user_id[:8]}...")
+                await handle_inspiration_received(
                     cache_service=cache_service,
                     user_id=user_id,
                     payload=payload,

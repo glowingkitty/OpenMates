@@ -52,6 +52,7 @@ async def generate_and_deliver_inspirations_for_user(
     *,
     is_online: bool = False,
     task_instance: Optional[Any] = None,
+    language: str = "en",
 ) -> bool:
     """
     Generate `count` inspirations for a user and deliver them.
@@ -68,6 +69,8 @@ async def generate_and_deliver_inspirations_for_user(
         task_id: Logging context
         is_online: Whether the user has an active WebSocket connection right now
         task_instance: BaseServiceTask instance (used for publish_websocket_event when online)
+        language: User's UI language code (e.g. "en", "de"). Controls the language
+                  of the generated curiosity phrase and the Brave video search locale.
 
     Returns:
         True if generation and delivery succeeded, False on error
@@ -86,13 +89,14 @@ async def generate_and_deliver_inspirations_for_user(
         f"for user {user_id[:8]}..."
     )
 
-    # Run generation
+    # Run generation (language controls LLM phrase language + Brave search locale)
     inspirations = await generate_inspirations(
         user_id=user_id,
         count=count,
         topic_suggestions=topic_suggestions,
         secrets_manager=secrets_manager,
         task_id=task_id,
+        language=language,
     )
 
     if not inspirations:
@@ -188,6 +192,7 @@ async def trigger_first_run_inspirations(
     cache_service: Any,
     secrets_manager: Any,
     task_id: str = "daily_inspiration_first_run",
+    language: str = "en",
 ) -> None:
     """
     Trigger immediate inspiration generation for a user's first paid request.
@@ -200,6 +205,7 @@ async def trigger_first_run_inspirations(
         cache_service: Initialized CacheService instance
         secrets_manager: Initialized SecretsManager instance
         task_id: Logging context
+        language: User's UI language code (e.g. "en", "de")
     """
     # Check if we've already done the first run for this user
     already_done = await _is_first_run_done(cache_service, user_id)
@@ -225,6 +231,7 @@ async def trigger_first_run_inspirations(
         task_id=task_id,
         is_online=False,  # Use pending cache for reliability
         task_instance=None,
+        language=language,
     )
 
 
@@ -315,15 +322,28 @@ async def _generate_daily_inspirations_async(task: BaseServiceTask) -> Dict[str,
             continue
 
         try:
-            # Check 24h activity
-            is_active = await cache_service.had_paid_request_in_last_24h(user_id)
-            if not is_active:
+            # Read the full paid-request tracking data (timestamp + language)
+            paid_data = await cache_service.get_inspiration_paid_request_data(user_id)
+            if not paid_data:
+                logger.debug(
+                    f"[DailyInspiration][{task_id}] User {user_id[:8]}... has no paid request data — skipping"
+                )
+                skipped += 1
+                continue
+
+            # Check 24h activity using the timestamp from paid_data
+            import time as _time
+            last_ts = paid_data.get("last_paid_request_timestamp", 0)
+            if (_time.time() - last_ts) >= 86400:
                 logger.debug(
                     f"[DailyInspiration][{task_id}] User {user_id[:8]}... has no paid request "
                     "in last 24h — skipping"
                 )
                 skipped += 1
                 continue
+
+            # Extract the user's language for personalised generation
+            user_language = paid_data.get("language", "en") or "en"
 
             # How many inspirations did this user view?
             viewed_count = await cache_service.get_viewed_inspiration_count(user_id)
@@ -344,6 +364,7 @@ async def _generate_daily_inspirations_async(task: BaseServiceTask) -> Dict[str,
                 task_id=task_id,
                 is_online=False,  # Daily job always uses pending cache for reliability
                 task_instance=None,
+                language=user_language,
             )
 
             if success:

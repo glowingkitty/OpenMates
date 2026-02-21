@@ -191,16 +191,18 @@ class InspirationCacheMixin:
     # Paid request tracking
     # ──────────────────────────────────────────────────────────────────────────
 
-    async def track_inspiration_paid_request(self, user_id: str) -> bool:
+    async def track_inspiration_paid_request(self, user_id: str, language: str = "en") -> bool:
         """
         Record that a user made a paid AI request (for daily inspiration eligibility).
 
         Called after each successful paid request. The stored timestamp is used by
         the daily generation job to identify active users who should receive new
-        daily inspirations.
+        daily inspirations. The language is stored so that generated inspirations
+        can be personalised to the user's preferred locale.
 
         Args:
             user_id: User UUID
+            language: User's UI language code (e.g. "en", "de", "es"). Defaults to "en".
 
         Returns:
             True on success, False on error
@@ -213,11 +215,15 @@ class InspirationCacheMixin:
         key = self._inspiration_paid_request_key(user_id)
         try:
             now_ts = int(time.time())
-            payload = json.dumps({"last_paid_request_timestamp": now_ts})
+            payload = json.dumps({
+                "last_paid_request_timestamp": now_ts,
+                "language": language or "en",
+            })
             # 48h TTL so daily jobs can reliably look back 24h
             await client.set(key, payload, ex=PAID_REQUEST_TTL_SECONDS)
             logger.debug(
-                f"[CACHE] Tracked paid request for inspiration eligibility: user {user_id[:8]}... at ts={now_ts}"
+                f"[CACHE] Tracked paid request for inspiration eligibility: user {user_id[:8]}... "
+                f"at ts={now_ts}, lang={language or 'en'}"
             )
             return True
         except Exception as e:
@@ -226,6 +232,41 @@ class InspirationCacheMixin:
                 exc_info=True,
             )
             return False
+
+    async def get_inspiration_paid_request_data(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the full paid-request tracking data for a user (timestamp + language).
+
+        Returns None if the user has never made a paid request or if the entry
+        has expired (after 48h, meaning no paid request in the last 2 days).
+
+        Args:
+            user_id: User UUID
+
+        Returns:
+            Dict with 'last_paid_request_timestamp' (int) and 'language' (str), or None
+        """
+        client = await self.client
+        if not client:
+            logger.error("[CACHE] Redis client not available for get_inspiration_paid_request_data")
+            return None
+
+        key = self._inspiration_paid_request_key(user_id)
+        try:
+            raw = await client.get(key)
+            if not raw:
+                return None
+
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8")
+
+            return json.loads(raw)
+        except Exception as e:
+            logger.error(
+                f"[CACHE] Failed to retrieve paid request data for user {user_id[:8]}...: {e}",
+                exc_info=True,
+            )
+            return None
 
     async def get_inspiration_last_paid_request_timestamp(self, user_id: str) -> Optional[int]:
         """
@@ -240,28 +281,10 @@ class InspirationCacheMixin:
         Returns:
             Unix timestamp (int) or None
         """
-        client = await self.client
-        if not client:
-            logger.error("[CACHE] Redis client not available for get_inspiration_last_paid_request_timestamp")
+        data = await self.get_inspiration_paid_request_data(user_id)
+        if data is None:
             return None
-
-        key = self._inspiration_paid_request_key(user_id)
-        try:
-            raw = await client.get(key)
-            if not raw:
-                return None
-
-            if isinstance(raw, bytes):
-                raw = raw.decode("utf-8")
-
-            data = json.loads(raw)
-            return data.get("last_paid_request_timestamp")
-        except Exception as e:
-            logger.error(
-                f"[CACHE] Failed to retrieve last paid request timestamp for user {user_id[:8]}...: {e}",
-                exc_info=True,
-            )
-            return None
+        return data.get("last_paid_request_timestamp")
 
     async def had_paid_request_in_last_24h(self, user_id: str) -> bool:
         """

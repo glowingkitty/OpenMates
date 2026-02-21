@@ -186,7 +186,12 @@ class BillingService:
             )
             if not _is_incognito_charge:
                 try:
-                    await self.cache_service.track_inspiration_paid_request(user_id=user_id)
+                    # Pass the user's UI language so generated inspirations match their locale.
+                    # The language is available on the cached user profile (set during login).
+                    _user_language = user.get("language", "en") or "en"
+                    await self.cache_service.track_inspiration_paid_request(
+                        user_id=user_id, language=_user_language
+                    )
                 except Exception as e_track:
                     logger.warning(
                         f"Failed to track paid request for daily inspiration (non-fatal): {e_track}"

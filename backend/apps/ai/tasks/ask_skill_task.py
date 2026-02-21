@@ -1640,11 +1640,18 @@ async def _async_process_ai_skill_ask_task(
             ):
                 try:
                     from backend.core.api.app.tasks.daily_inspiration_tasks import trigger_first_run_inspirations
+                    # Resolve the user's UI language so first-run inspirations are generated
+                    # in their preferred locale (phrases + Brave search localisation).
+                    _inspiration_language = (
+                        request_data.user_preferences.get("language", "en")
+                        if request_data.user_preferences else "en"
+                    ) or "en"
                     await trigger_first_run_inspirations(
                         user_id=request_data.user_id,
                         cache_service=cache_service_instance,
                         secrets_manager=secrets_manager,
                         task_id=task_id,
+                        language=_inspiration_language,
                     )
                 except Exception as e_first_run:
                     # Non-fatal: daily inspiration generation is a best-effort feature
