@@ -80,7 +80,7 @@ When creating tests (with consent), ensure they meet these criteria:
 | Backend API endpoint   | `pytest -s backend/tests/test_rest_api_external.py` |
 | Backend business logic | `pytest backend/apps/<app>/tests/`                  |
 | Frontend component     | `npm run test:unit -- <component>.test.ts`          |
-| Full user flow         | Playwright E2E for that flow                        |
+| Full user flow         | Playwright E2E via Docker (see E2E section below)   |
 
 ---
 
@@ -108,6 +108,8 @@ npm run test:unit -- --coverage
 
 ### End-to-End (Playwright)
 
+**CRITICAL: ALL `spec.ts` Playwright tests MUST be run via Docker.** Do NOT run `npx playwright test` locally — the local environment does not have the required browsers/dependencies and local runs are unreliable. Always use `docker-compose.playwright.yml`.
+
 **CRITICAL: Always verify deployment before running E2E tests.** Playwright tests run against the deployed dev server (`https://app.dev.openmates.org`), NOT a local dev server. After pushing frontend changes, you MUST wait for the Vercel deployment to complete before running tests.
 
 ```bash
@@ -117,21 +119,44 @@ sleep 150
 # 2. Verify deployment status — must show "● Ready"
 vercel ls open-mates-webapp 2>&1 | head -5
 
-# 3. Only then run the tests:
-cd frontend/apps/web_app && npx playwright test tests/<test-file>.spec.ts --output=/tmp/pw-results
+# 3. Only then run the tests via Docker:
 
-# Or via Docker (for signup/auth flows):
-docker compose -f docker-compose.playwright.yml run --rm \
+# Run a specific test file:
+docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
+  -e PLAYWRIGHT_TEST_FILE="<test-file>.spec.ts" \
+  playwright
+
+# Run tests matching a pattern (grep by test title):
+docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
+  -e PLAYWRIGHT_TEST_GREP="<regex-pattern>" \
+  playwright
+
+# Run all tests:
+docker compose --env-file .env -f docker-compose.playwright.yml run --rm playwright
+
+# Run signup/auth flows (needs extra env vars):
+docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
   -e SIGNUP_TEST_EMAIL_DOMAINS \
   -e MAILOSAUR_API_KEY \
-  -e PLAYWRIGHT_TEST_BASE_URL \
   -e PLAYWRIGHT_TEST_FILE="signup-flow.spec.ts" \
   playwright
 ```
 
-**Known issues:**
-- `test-results/.last-run.json` may be owned by root — always use `--output=/tmp/pw-results` to avoid permission errors
-- The Playwright config (`playwright.config.ts`) uses `PLAYWRIGHT_TEST_BASE_URL` env var, defaulting to `https://app.dev.openmates.org`
+**Environment variables:**
+
+- `PLAYWRIGHT_TEST_FILE` — target a specific test file (e.g., `"login.spec.ts"`)
+- `PLAYWRIGHT_TEST_GREP` — filter tests by title regex (e.g., `"should redirect"`)
+- `PLAYWRIGHT_TEST_BASE_URL` — override the target URL (defaults to `https://app.dev.openmates.org`)
+- Test credentials (`OPENMATES_TEST_ACCOUNT_EMAIL`, etc.) are loaded from `.env` via `--env-file`
+
+**Why Docker only:**
+
+- The dev server does not have Playwright browsers installed locally
+- Local `npx playwright test` runs fail with missing browser errors
+- The Docker image (`mcr.microsoft.com/playwright`) includes all required browsers and dependencies
+- Docker ensures consistent, reproducible test runs across all sessions
+
+**Artifacts:** Test screenshots and other artifacts are written to `./playwright-artifacts/` on the host (mounted into the container).
 
 ---
 
