@@ -13,21 +13,20 @@
 #   - Updates the OS and installs essential packages
 #   - Installs Docker, Docker Compose, and Caddy (via official repos)
 #   - Clones the repo (dev branch) into ~/projects/OpenMates
+#   - Writes and applies the production Caddyfile (TLS + reverse proxy)
 #   - Configures UFW firewall (only ports 22, 80, 443)
 #   - Configures fail2ban for SSH brute-force protection
-#   - Writes an initial Caddyfile placeholder (replaced in manual steps)
 #
-# MANUAL STEPS AFTER SSH-ING IN:
-#   1. Create ~/projects/OpenMates/backend/apps/uploads/.env (see .env.example)
-#   2. Render and apply the production Caddyfile:
-#      python scripts/render-deploy-config.py deployment/upload_server/Caddyfile \
-#        | sudo tee /etc/caddy/Caddyfile > /dev/null
-#      sudo systemctl reload caddy
-#   3. Start the upload server:
+# MANUAL STEPS AFTER SSH-ING IN (secrets only):
+#   1. Create ~/projects/OpenMates/backend/apps/uploads/.env:
+#      cp ~/projects/OpenMates/backend/apps/uploads/.env.example \
+#         ~/projects/OpenMates/backend/apps/uploads/.env
+#      nano ~/projects/OpenMates/backend/apps/uploads/.env
+#   2. Start the upload server:
 #      cd ~/projects/OpenMates
 #      docker compose -f backend/apps/uploads/docker-compose.yml \
 #                     -f backend/apps/uploads/docker-compose.prod.yml up -d
-#   4. Verify: curl https://${DEPLOY_UPLOAD_DOMAIN}/health
+#   3. Verify: curl https://${DEPLOY_UPLOAD_DOMAIN}/health
 
 # ---------------------------------------------------------------------------
 # User setup
@@ -78,7 +77,7 @@ runcmd:
   - ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
   # --- Install Caddy (official Debian repo) ---
-  # write_files runs before runcmd, so the placeholder Caddyfile already exists.
+  # write_files runs before runcmd, so the production Caddyfile already exists.
   # DEBIAN_FRONTEND=noninteractive + --force-confold prevents dpkg from prompting
   # about the existing Caddyfile (it would hang with no stdin in cloud-init).
   - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
@@ -107,17 +106,71 @@ runcmd:
   # Must run after Caddy is installed so the caddy system user exists.
   - mkdir -p /var/log/caddy
   - chown -R caddy:caddy /var/log/caddy
+
+  # --- Apply production Caddyfile ---
+  # Write the final Caddyfile (with DEPLOY_* vars already substituted by the
+  # render script at provisioning time) and reload Caddy.
+  - systemctl reload caddy
   - systemctl start caddy
 
 # ---------------------------------------------------------------------------
 # Config files written on first boot
 # ---------------------------------------------------------------------------
 write_files:
-  # Placeholder Caddyfile — replaced after cloning the repo (manual step 5)
+  # Production Caddyfile — DEPLOY_* placeholders are substituted by the render
+  # script at provisioning time (before pasting into Hetzner user data).
   - path: /etc/caddy/Caddyfile
     content: |
-      :80 {
-        respond "Upload server — Caddy not yet configured" 503
+      {
+        email ${DEPLOY_ACME_EMAIL}
+      }
+
+      ${DEPLOY_UPLOAD_DOMAIN} {
+        log {
+          output file /var/log/caddy/${DEPLOY_UPLOAD_DOMAIN}.log {
+            roll_size 100mb
+            roll_keep 10
+            roll_keep_for 720h
+          }
+          format json
+          level INFO
+        }
+
+        encode gzip zstd
+
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+          -Server
+        }
+
+        @upload_health path /health
+        @upload_api path /v1/upload/*
+        @upload_options method OPTIONS
+
+        route {
+          handle @upload_options {
+            reverse_proxy localhost:8000 {
+              header_up Host {http.request.host}
+            }
+          }
+          handle @upload_health {
+            reverse_proxy localhost:8000 {
+              header_up Host {http.request.host}
+            }
+          }
+          handle @upload_api {
+            reverse_proxy localhost:8000 {
+              header_up Host {http.request.host}
+            }
+          }
+          handle {
+            abort
+          }
+        }
       }
     owner: root:root
     permissions: "0644"
@@ -140,4 +193,4 @@ write_files:
 # ---------------------------------------------------------------------------
 final_message: |
   Upload Server cloud-init complete.
-  SSH in as '${DEPLOY_USERNAME}' and complete the 4 manual steps in the template header.
+  SSH in as '${DEPLOY_USERNAME}' and complete the 3 manual steps in the template header.
