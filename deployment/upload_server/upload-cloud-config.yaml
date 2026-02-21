@@ -101,8 +101,7 @@ runcmd:
   #   - PROD_CORE_API_URL / DEV_CORE_API_URL: filled from DEPLOY_* vars (private IPs)
   # API keys (S3, SightEngine, shared tokens) are left as <PLACEHOLDER> for manual fill-in.
   - sudo -u ${DEPLOY_USERNAME} cp /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env.example /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
-  - VAULT_TOKEN=$(python3 -c "import uuid; print(uuid.uuid4())")
-  - sed -i "s|UPLOADS_VAULT_ROOT_TOKEN=<RANDOM_UUID>|UPLOADS_VAULT_ROOT_TOKEN=${VAULT_TOKEN}|" /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+  - sed -i "s|UPLOADS_VAULT_ROOT_TOKEN=<RANDOM_UUID>|UPLOADS_VAULT_ROOT_TOKEN=$(python3 -c 'import uuid; print(uuid.uuid4())')|" /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
   - sed -i "s|PROD_CORE_API_URL=http://<PROD_SERVER_PRIVATE_IP>:8000|PROD_CORE_API_URL=http://${DEPLOY_MAIN_SERVER_PRIVATE_IP}:8000|" /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
   - sed -i "s|DEV_CORE_API_URL=http://<DEV_SERVER_PRIVATE_IP>:8000|DEV_CORE_API_URL=http://${DEPLOY_DEV_SERVER_PRIVATE_IP}:8000|" /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
   - chown ${DEPLOY_USERNAME}:${DEPLOY_USERNAME} /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
