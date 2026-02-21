@@ -48,7 +48,7 @@
 
 <SettingsItem
     type="submenu"
-    icon="subsetting_icon subsetting_icon_coins"
+    icon="subsetting_icon coins"
     title={$text('settings.support.one_time')}
     subtitleTop={$text('settings.support.one_time_description')}
     onClick={openSupportOneTime}
@@ -56,7 +56,7 @@
 
 <SettingsItem
     type="submenu"
-    icon="subsetting_icon subsetting_icon_calendar"
+    icon="subsetting_icon calendar"
     title={$text('settings.support.monthly')}
     subtitleTop={$text('settings.support.monthly_description')}
     onClick={openSupportMonthly}
@@ -64,7 +64,7 @@
 
 <SettingsItem
     type="submenu"
-    icon="subsetting_icon subsetting_icon_volunteering"
+    icon="subsetting_icon volunteering"
     title={$text('settings.support_sponsor_github')}
     subtitleTop={$text('settings.support_sponsor_github_description')}
     onClick={openGitHubSponsors}

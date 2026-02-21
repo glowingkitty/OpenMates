@@ -107,7 +107,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <!-- Buy Credits Menu Item -->
 <SettingsItem
     type="submenu"
-    icon="subsetting_icon subsetting_icon_coins"
+    icon="subsetting_icon coins"
     title={$text('settings.billing.buy_credits')}
     onClick={() => navigateToSubview('buy-credits')}
 />
@@ -115,7 +115,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <!-- Auto Top-up Menu Item -->
 <SettingsItem
     type="submenu"
-    icon="subsetting_icon subsetting_icon_reload"
+    icon="subsetting_icon reload"
     title={$text('settings.billing.auto_topup')}
     onClick={() => navigateToSubview('auto-topup')}
 />
@@ -123,13 +123,13 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <!-- Invoices Menu Item -->
 <SettingsItem
     type="submenu"
-    icon="subsetting_icon subsetting_icon_document"
+    icon="subsetting_icon document"
     title={$text('settings.billing.invoices')}
     onClick={() => navigateToSubview('invoices')}
 />
 
 {#if errorMessage}
-    <div class="error-message">{errorMessage}</div>
+    <div class="settings-error">{errorMessage}</div>
 {/if}
 <!-- TODO: Create separate components for sub-views:
      - SettingsBillingBuyCredits.svelte
@@ -177,22 +177,16 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     .coin-icon {
         width: 28px;
         height: 28px;
-        background-image: url('@openmates/ui/static/icons/coins.svg');
-        background-size: contain;
-        background-repeat: no-repeat;
-        filter: invert(1);
+        -webkit-mask-image: url('@openmates/ui/static/icons/coins.svg');
+        -webkit-mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-image: url('@openmates/ui/static/icons/coins.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        background-color: var(--color-grey-90);
     }
 
-    /* Error Message */
-    .error-message {
-        background: rgba(223, 27, 65, 0.1);
-        color: #df1b41;
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 13px;
-        border: 1px solid rgba(223, 27, 65, 0.3);
-        margin-top: 8px;
-    }
+    /* Error uses global .settings-error from settings.css */
 
     /* Responsive Styles */
     @media (max-width: 768px) {

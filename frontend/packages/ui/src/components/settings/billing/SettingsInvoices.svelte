@@ -529,7 +529,7 @@ Invoices Settings - View and download past invoices
     <div class="error-message">{errorMessage}</div>
     <SettingsItem
         type="quickaction"
-        icon="subsetting_icon subsetting_icon_reload"
+        icon="subsetting_icon reload"
         title={$text('login.retry')}
         onClick={fetchInvoices}
     />

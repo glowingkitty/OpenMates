@@ -10,6 +10,7 @@
 	import '@repo/ui/src/styles/icons.css';
 	import '@repo/ui/src/styles/auth.css';
 	import '@repo/ui/src/styles/markdown.css';
+	import '@repo/ui/src/styles/settings.css';
 	// KaTeX CSS is imported via markdown.css
 	import {
 		// components
@@ -91,7 +92,10 @@
 			const vv = window.visualViewport;
 			if (vv && Math.abs(vv.scale - 1) < 0.01) return; // Already at 1x, no reset needed
 			// Temporarily set a strict viewport to force zoom reset
-			vp.setAttribute('content', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1');
+			vp.setAttribute(
+				'content',
+				'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1'
+			);
 			requestAnimationFrame(() => {
 				// Restore the original viewport content on the next frame
 				vp.setAttribute('content', original);

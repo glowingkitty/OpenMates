@@ -154,7 +154,7 @@
     {#each monthlyTiers as tier}
         <SettingsItem
             type="submenu"
-            icon="subsetting_icon subsetting_icon_calendar"
+            icon="subsetting_icon calendar"
             title={formatCurrency(tier.amount, currency) + '/' + $text('settings.support.monthly.per_month')}
             onClick={() => selectMonthlyTier(tier)}
         />

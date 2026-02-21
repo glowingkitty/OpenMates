@@ -45,7 +45,7 @@ Chat Settings - Notification preferences and chat-related settings
 <div class="chat-settings-container">
     <SettingsItem
         type="submenu"
-        icon="subsetting_icon subsetting_icon_announcement"
+        icon="subsetting_icon announcement"
         title={$text('settings.chat.notifications')}
         subtitleTop={notificationStatus}
         onClick={navigateToNotifications}

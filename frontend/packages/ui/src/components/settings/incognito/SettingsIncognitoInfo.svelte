@@ -52,7 +52,7 @@ changes to the documentation (to keep the documentation up to date).
 <div class="incognito-info-container">
     <div class="info-header">
         <div class="info-icon">
-            <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
+            <div class="icon settings_size subsetting_icon incognito"></div>
         </div>
         <h2 class="info-title">{$text('settings.incognito')}</h2>
     </div>

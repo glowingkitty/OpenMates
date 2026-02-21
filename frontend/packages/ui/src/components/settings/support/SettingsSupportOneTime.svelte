@@ -150,7 +150,7 @@
     {#each supportTiers as tier}
         <SettingsItem
             type="submenu"
-            icon="subsetting_icon subsetting_icon_heart"
+            icon="subsetting_icon heart"
             title={formatCurrency(tier.amount, currency)}
             onClick={() => selectSupportTier(tier)}
         />

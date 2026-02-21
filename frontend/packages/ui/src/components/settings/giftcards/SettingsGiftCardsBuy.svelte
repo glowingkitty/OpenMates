@@ -57,7 +57,7 @@ Buy Gift Cards - Credit tier selection for purchasing gift cards
 {#each pricingTiers as tier}
     <SettingsItem
         type="submenu"
-        icon="subsetting_icon subsetting_icon_coins"
+        icon="subsetting_icon coins"
         title={formatCredits(tier.credits)}
         subtitle={formatCurrency(getTierPrice(tier), selectedCurrency)}
         onClick={() => selectGiftCardTier(tier)}

@@ -234,7 +234,7 @@ changes to the documentation (to keep the documentation up to date).
     {#each sortedLanguages as language}
         <SettingsItem 
             type="quickaction"
-            icon="subsetting_icon subsetting_icon_language"
+            icon="subsetting_icon language"
             title={language.name}
             hasToggle={true}
             checked={currentLanguage === language.code}

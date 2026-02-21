@@ -70,15 +70,15 @@ Based on Figma design: settings/privacy (node 1895:20576)
 </script>
 
 <!-- Privacy Policy Info -->
-<div class="privacy-description">
-    <p class="description-text">
+<div class="settings-description">
+    <p class="settings-description-text">
         {$text('settings.privacy.description')}
     </p>
     <a
         href="https://openmates.org/privacy"
         target="_blank"
         rel="noopener noreferrer"
-        class="privacy-link"
+        class="settings-gradient-link"
     >
         {$text('settings.privacy.open_privacy_policy')}
     </a>
@@ -200,51 +200,9 @@ Based on Figma design: settings/privacy (node 1895:20576)
     title={$text('settings.privacy.auto_deletion.invoices.value')}
 />
 
-<!-- Compliance note -->
-<div class="compliance-note">
+<!-- Compliance note — uses global .settings-note from settings.css -->
+<div class="settings-note">
     <p>{$text('settings.privacy.auto_deletion.compliance_note')}</p>
 </div>
 
-<style>
-    .privacy-description {
-        padding: 10px 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .description-text {
-        font-size: 16px;
-        color: var(--color-grey-100);
-        line-height: 1.5;
-        margin: 0;
-    }
-
-    .privacy-link {
-        font-size: 16px;
-        font-weight: 700;
-        background: var(--gradient-primary);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        text-decoration: none;
-        cursor: pointer;
-    }
-
-    .privacy-link:hover {
-        opacity: 0.8;
-    }
-
-    .compliance-note {
-        padding: 10px 16px;
-    }
-
-    .compliance-note p {
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--color-grey-60);
-        line-height: 1.5;
-        margin: 0;
-        font-style: italic;
-    }
-</style>
+<!-- All styles moved to global settings.css: .settings-description, .settings-gradient-link, .settings-note -->

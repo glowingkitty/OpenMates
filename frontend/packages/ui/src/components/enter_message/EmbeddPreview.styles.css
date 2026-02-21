@@ -1,22 +1,6 @@
 /* Embed Preview Component Styles */
 
-/* CSS Variables for App-Specific Gradients - using theme.css colors */
-:root {
-  /* Web App Gradient - using theme.css colors */
-  --gradient-web: var(--color-app-web);
-
-  /* Code App Gradient - using theme.css colors */
-  --gradient-code: var(--color-app-code);
-
-  /* Sheets App Gradient - using theme.css colors */
-  --gradient-sheets: var(--color-app-sheets);
-
-  /* Docs App Gradient - using theme.css colors */
-  --gradient-docs: var(--color-app-docs);
-
-  /* Videos App Gradient - using theme.css colors */
-  --gradient-videos: var(--color-app-videos);
-}
+/* App-specific gradient colors are sourced directly from theme.css --color-app-* tokens */
 
 /* Full-width wrapper to prevent cursor positioning after embeds */
 :global(.ProseMirror .embed-full-width-wrapper) {
@@ -194,23 +178,23 @@
 
 /* App-Specific Gradient Classes */
 :global(.ProseMirror .embed-unified-container .embed-app-icon.web) {
-  background: var(--gradient-web);
+  background: var(--color-app-web);
 }
 
 :global(.ProseMirror .embed-unified-container .embed-app-icon.code) {
-  background: var(--gradient-code);
+  background: var(--color-app-code);
 }
 
 :global(.ProseMirror .embed-unified-container .embed-app-icon.sheets) {
-  background: var(--gradient-sheets);
+  background: var(--color-app-sheets);
 }
 
 :global(.ProseMirror .embed-unified-container .embed-app-icon.docs) {
-  background: var(--gradient-docs);
+  background: var(--color-app-docs);
 }
 
 :global(.ProseMirror .embed-unified-container .embed-app-icon.videos) {
-  background: var(--gradient-videos);
+  background: var(--color-app-videos);
 }
 
 /* App Icon (25x25px white icon inside circle) */

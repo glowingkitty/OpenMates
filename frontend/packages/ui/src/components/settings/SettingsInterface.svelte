@@ -137,7 +137,7 @@ changes to the documentation (to keep the documentation up to date).
 {#if currentView === 'main'}
     <SettingsItem 
         type="subsubmenu"
-        icon="subsetting_icon subsetting_icon_language"
+        icon="subsetting_icon language"
         subtitle={$text('settings.interface.language')}
         title={currentLanguageObj.name}
         onClick={() => showLanguageSettings()}

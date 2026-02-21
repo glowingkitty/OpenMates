@@ -570,6 +570,20 @@
     var(--color-app-chat-end) 90.06%
   );
 
+  /* Semantic tokens — error, warning, and UI radii */
+  --color-error: #e74c3c;
+  --color-error-light: rgba(231, 76, 60, 0.1);
+  --color-warning: #e67e22;
+  --color-warning-bg: rgba(230, 126, 34, 0.1);
+  --border-radius-medium: 8px;
+
+  /* Gradient alias for the primary gradient (used in settings links, credits icons, etc.) */
+  --gradient-primary: linear-gradient(
+    135deg,
+    var(--color-primary-start) 9.04%,
+    var(--color-primary-end) 90.06%
+  );
+
   /* Default theme (light) */
   --color-grey-0: #ffffff;
   --color-grey-10: #f9f9f9;
@@ -773,6 +787,12 @@ main::-webkit-scrollbar-thumb {
 
   --color-footer-start: #293d7f;
   --color-footer-end: #263969;
+
+  /* Semantic tokens - dark mode */
+  --color-error: #ff6b6b;
+  --color-error-light: rgba(255, 107, 107, 0.15);
+  --color-warning: #f0a050;
+  --color-warning-bg: rgba(240, 160, 80, 0.15);
 
   /* App/Code - dark mode */
   --color-app-code-start: #1b8fe3;

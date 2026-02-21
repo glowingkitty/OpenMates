@@ -74,171 +74,83 @@
   }
 }
 
-/* Define specific icon masks using CSS variables */
+/*
+ * Subsetting icon definitions — dot-modifier syntax (.subsetting_icon.NAME)
+ * Each icon sets a CSS variable that the generic [class*="subsetting_icon"] rule
+ * picks up for the ::after mask-image. Add new icons here as needed.
+ */
 .subsetting_icon.team {
   --icon-mask-image: url("@openmates/ui/static/icons/team.svg");
 }
-
 .subsetting_icon.incognito {
   --icon-mask-image: url("@openmates/ui/static/icons/anonym.svg");
 }
-
 .subsetting_icon.guest {
   --icon-mask-image: url("@openmates/ui/static/icons/guest.svg");
 }
-
 .subsetting_icon.offline {
   --icon-mask-image: url("@openmates/ui/static/icons/offline.svg");
 }
-
 .subsetting_icon.logout {
   --icon-mask-image: url("@openmates/ui/static/icons/logout.svg");
 }
-
 .subsetting_icon.language {
   --icon-mask-image: url("@openmates/ui/static/icons/language.svg");
 }
-
 .subsetting_icon.security {
   --icon-mask-image: url("@openmates/ui/static/icons/lock.svg");
 }
-
 .subsetting_icon.volunteering {
   --icon-mask-image: url("@openmates/ui/static/icons/volunteering.svg");
 }
+.subsetting_icon.settings {
+  --icon-mask-image: url("@openmates/ui/static/icons/settings.svg");
+}
+.subsetting_icon.download {
+  --icon-mask-image: url("@openmates/ui/static/icons/download.svg");
+}
+.subsetting_icon.coins {
+  --icon-mask-image: url("@openmates/ui/static/icons/coins.svg");
+}
+.subsetting_icon.reload {
+  --icon-mask-image: url("@openmates/ui/static/icons/reload.svg");
+}
+.subsetting_icon.document {
+  --icon-mask-image: url("@openmates/ui/static/icons/pdf.svg");
+}
+.subsetting_icon.calendar {
+  --icon-mask-image: url("@openmates/ui/static/icons/calendar.svg");
+}
+.subsetting_icon.announcement {
+  --icon-mask-image: url("@openmates/ui/static/icons/announcement.svg");
+}
+.subsetting_icon.chat {
+  --icon-mask-image: url("@openmates/ui/static/icons/chat.svg");
+}
+.subsetting_icon.cloud {
+  --icon-mask-image: url("@openmates/ui/static/icons/cloud.svg");
+}
+.subsetting_icon.key {
+  --icon-mask-image: url("@openmates/ui/static/icons/key.svg");
+}
+.subsetting_icon.devices {
+  --icon-mask-image: url("@openmates/ui/static/icons/devices.svg");
+}
+.subsetting_icon.email {
+  --icon-mask-image: url("@openmates/ui/static/icons/mail.svg");
+}
+.subsetting_icon.heart {
+  --icon-mask-image: url("@openmates/ui/static/icons/heart.svg");
+}
+.subsetting_icon.low_balance {
+  --icon-mask-image: url("@openmates/ui/static/icons/coins.svg");
+}
 
-/* Add new modify icon for the subsubmenu items */
+/* Modify icon for subsubmenu items */
 .clickable-icon.icon_modify {
   -webkit-mask-image: url("@openmates/ui/static/icons/create.svg");
   mask-image: url("@openmates/ui/static/icons/create.svg");
 }
-
-/* Keep existing classes for backward compatibility */
-.subsetting_icon_team {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/team.svg");
-    mask-image: url("@openmates/ui/static/icons/team.svg");
-  }
-}
-
-.subsetting_icon_incognito {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/anonym.svg");
-    mask-image: url("@openmates/ui/static/icons/anonym.svg");
-  }
-}
-
-.subsetting_icon_guest {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/guest.svg");
-    mask-image: url("@openmates/ui/static/icons/guest.svg");
-  }
-}
-
-.subsetting_icon_offline {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/offline.svg");
-    mask-image: url("@openmates/ui/static/icons/offline.svg");
-  }
-}
-
-.subsetting_icon_logout {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/logout.svg");
-    mask-image: url("@openmates/ui/static/icons/logout.svg");
-  }
-}
-
-.subsetting_icon_language {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/language.svg");
-    mask-image: url("@openmates/ui/static/icons/language.svg");
-  }
-}
-
-.subsetting_icon_settings {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/settings.svg");
-    mask-image: url("@openmates/ui/static/icons/settings.svg");
-  }
-}
-
-.subsetting_icon_security {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/lock.svg");
-    mask-image: url("@openmates/ui/static/icons/lock.svg");
-  }
-}
-
-.subsetting_icon_volunteering {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/volunteering.svg");
-    mask-image: url("@openmates/ui/static/icons/volunteering.svg");
-  }
-}
-
-.subsetting_icon_download {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/download.svg");
-    mask-image: url("@openmates/ui/static/icons/download.svg");
-  }
-}
-
-.subsetting_icon_coins {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/coins.svg");
-    mask-image: url("@openmates/ui/static/icons/coins.svg");
-  }
-}
-
-.subsetting_icon_reload {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/reload.svg");
-    mask-image: url("@openmates/ui/static/icons/reload.svg");
-  }
-}
-
-.subsetting_icon_document {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/pdf.svg");
-    mask-image: url("@openmates/ui/static/icons/pdf.svg");
-  }
-}
-
-.subsetting_icon_calendar {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/calendar.svg");
-    mask-image: url("@openmates/ui/static/icons/calendar.svg");
-  }
-}
-
-.subsetting_icon_announcement {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/announcement.svg");
-    mask-image: url("@openmates/ui/static/icons/announcement.svg");
-  }
-}
-
-.subsetting_icon_chat {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/chat.svg");
-    mask-image: url("@openmates/ui/static/icons/chat.svg");
-  }
-}
-
-.subsetting_icon_cloud {
-  &::after {
-    -webkit-mask-image: url("@openmates/ui/static/icons/cloud.svg");
-    mask-image: url("@openmates/ui/static/icons/cloud.svg");
-  }
-}
-/* 
-.subsetting_icon_low_balance {
-  &::after {
-    -webkit-mask-image: url('@openmates/ui/static/icons/low_balance.svg');
-    mask-image: url('@openmates/ui/static/icons/low_balance.svg');
-  }
-} */
 
 button.clickable-icon {
   /* Reset all previous properties from button css*/

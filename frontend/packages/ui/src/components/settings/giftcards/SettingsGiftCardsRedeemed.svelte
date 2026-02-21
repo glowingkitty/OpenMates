@@ -86,7 +86,7 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
     {#each redeemedCards as card}
         <SettingsItem
             type="nested"
-            icon="subsetting_icon subsetting_icon_coins"
+            icon="subsetting_icon coins"
             title={card.gift_card_code}
             subtitle={`${formatCredits(card.credits_value)} ${$text('settings.gift_cards.credits')} - ${formatDate(card.redeemed_at)}`}
         />

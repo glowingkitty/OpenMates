@@ -1421,7 +1421,7 @@ Usage Settings - View usage statistics and export usage data
     <div class="error-message">{errorMessage}</div>
         <SettingsItem
             type="quickaction"
-            icon="subsetting_icon subsetting_icon_reload"
+            icon="subsetting_icon reload"
             title={$text('login.retry')}
             onClick={() => fetchUsageSummaries(activeTab, loadedMonths)}
         />

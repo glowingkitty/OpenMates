@@ -120,7 +120,7 @@
     // Add subsetting_icon for subsetting type
     type === 'subsetting' ? 'subsetting_icon' : '',
     // Add specific icon class for subsetting type
-    type === 'subsetting' ? `subsetting_icon_${lowerCaseName}` : '',
+    type === 'subsetting' ? lowerCaseName : '',
     // Add placeholder class
     type === 'placeholder' ? 'placeholder-icon' : '',
     // Add no-animation class to disable fade-in animation

@@ -52,75 +52,14 @@ changes to the documentation (to keep the documentation up to date).
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
     import CurrentSettingsPage from './settings/CurrentSettingsPage.svelte';
-    
-    // Import all settings components
-    import SettingsInterface from './settings/SettingsInterface.svelte';
-    import SettingsUsage from './settings/SettingsUsage.svelte';
-    import SettingsBilling from './settings/SettingsBilling.svelte';
-    import SettingsAppStore from './settings/SettingsAppStore.svelte';
-    import SettingsAllApps from './settings/SettingsAllApps.svelte';
-    import AppDetailsWrapper from './settings/AppDetailsWrapper.svelte';
-    import SettingsShared from './settings/SettingsShared.svelte';
-    import SettingsDevelopers from './settings/SettingsDevelopers.svelte';
-    import SettingsApiKeys from './settings/developers/SettingsApiKeys.svelte';
-    import SettingsDevices from './settings/developers/SettingsDevices.svelte';
-    import SettingsServer from './settings/SettingsServer.svelte';
     import SettingsItem from './SettingsItem.svelte';
-    import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
-    import SettingsTimezone from './settings/account/SettingsTimezone.svelte';
-    import SettingsIncognitoInfo from './settings/incognito/SettingsIncognitoInfo.svelte';
-    import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
-    import SettingsCommunitySuggestions from './settings/server/SettingsCommunitySuggestions.svelte';
-    import SettingsStats from './settings/server/SettingsStats.svelte';
-    import SettingsGiftCardGenerator from './settings/server/SettingsGiftCardGenerator.svelte';
-    import SettingsDefaultInspirations from './settings/server/SettingsDefaultInspirations.svelte';
+    
+    // Import all settings route definitions and the dynamic wrapper component
+    import { baseSettingsViews, AppDetailsWrapper } from './settings/settingsRoutes';
     import { appSkillsStore } from '../stores/appSkillsStore';
-    
-    // Import billing sub-components
-    import SettingsBuyCredits from './settings/billing/SettingsBuyCredits.svelte';
-    import SettingsBuyCreditsPayment from './settings/billing/SettingsBuyCreditsPayment.svelte';
-    import SettingsBuyCreditsConfirmation from './settings/billing/SettingsBuyCreditsConfirmation.svelte';
-    import SettingsRedeemGiftCard from './settings/billing/SettingsRedeemGiftCard.svelte';
-    import SettingsAutoTopUp from './settings/billing/SettingsAutoTopUp.svelte';
-    import SettingsLowBalanceAutotopup from './settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte';
-    import SettingsMonthlyAutotopup from './settings/billing/autotopup/SettingsMonthlyAutotopup.svelte';
-    import SettingsInvoices from './settings/billing/SettingsInvoices.svelte';
-    
-    // Import gift cards components
-    import SettingsGiftCards from './settings/giftcards/SettingsGiftCards.svelte';
-    import SettingsGiftCardsRedeem from './settings/giftcards/SettingsGiftCardsRedeem.svelte';
-    import SettingsGiftCardsRedeemed from './settings/giftcards/SettingsGiftCardsRedeemed.svelte';
-    import SettingsGiftCardsBuy from './settings/giftcards/SettingsGiftCardsBuy.svelte';
-    import SettingsGiftCardsBuyPayment from './settings/giftcards/SettingsGiftCardsBuyPayment.svelte';
-    import SettingsGiftCardsPurchaseConfirmation from './settings/giftcards/SettingsGiftCardsPurchaseConfirmation.svelte';
-    
-    // Import share settings component
-    import SettingsShare from './settings/share/SettingsShare.svelte';
-    // Import tip settings component
-    import SettingsTip from './settings/tip/SettingsTip.svelte';
-    // Import newsletter settings component
-    import SettingsNewsletter from './settings/SettingsNewsletter.svelte';
-    // Import support settings component
-    import SettingsSupport from './settings/SettingsSupport.svelte';
-    import SettingsSupportOneTime from './settings/support/SettingsSupportOneTime.svelte';
-    import SettingsSupportMonthly from './settings/support/SettingsSupportMonthly.svelte';
-    // Import report issue settings component
-    import SettingsReportIssue from './settings/SettingsReportIssue.svelte';
-    // Import chat settings components
-    import SettingsChat from './settings/SettingsChat.svelte';
-    import SettingsChatNotifications from './settings/chat/SettingsChatNotifications.svelte';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
-
-    // Import privacy settings components
-    import SettingsPrivacy from './settings/SettingsPrivacy.svelte';
-    import SettingsHidePersonalData from './settings/privacy/SettingsHidePersonalData.svelte';
-    import SettingsAddName from './settings/privacy/SettingsAddName.svelte';
-    import SettingsAddAddress from './settings/privacy/SettingsAddAddress.svelte';
-    import SettingsAddBirthday from './settings/privacy/SettingsAddBirthday.svelte';
-    import SettingsAddCustomEntry from './settings/privacy/SettingsAddCustomEntry.svelte';
-    import SettingsAutoDeletion from './settings/privacy/SettingsAutoDeletion.svelte';
     
 
     // Create event dispatcher for forwarding events to parent components
@@ -164,92 +103,6 @@ changes to the documentation (to keep the documentation up to date).
     // const baseHelpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
     // let currentHelpLink = $state(baseHelpLink);
 
-    // Import account and security settings components
-    import SettingsAccount from './settings/SettingsAccount.svelte';
-    import SettingsSecurity from './settings/SettingsSecurity.svelte';
-    import SettingsPasskeys from './settings/SettingsPasskeys.svelte';
-    import SettingsPassword from './settings/security/SettingsPassword.svelte';
-    import SettingsTwoFactorAuth from './settings/security/SettingsTwoFactorAuth.svelte';
-    import SettingsRecoveryKey from './settings/security/SettingsRecoveryKey.svelte';
-    import SettingsEmail from './settings/account/SettingsEmail.svelte';
-    import SettingsDeleteAccount from './settings/account/SettingsDeleteAccount.svelte';
-    import SettingsExportAccount from './settings/account/SettingsExportAccount.svelte'; // GDPR Article 20 - Data Portability
-    
-    // Define base settingsViews map for component mapping
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const baseSettingsViews: Record<string, any> = {
-        // Privacy settings — anonymization, device permissions, auto deletion
-        'privacy': SettingsPrivacy,
-        'privacy/hide-personal-data': SettingsHidePersonalData,
-        'privacy/hide-personal-data/add-name': SettingsAddName,
-        'privacy/hide-personal-data/add-address': SettingsAddAddress,
-        'privacy/hide-personal-data/add-birthday': SettingsAddBirthday,
-        'privacy/hide-personal-data/add-custom': SettingsAddCustomEntry,
-        // Auto-deletion period editing — one component, three routes (category determined from path)
-        'privacy/auto-deletion/chats': SettingsAutoDeletion,
-        'privacy/auto-deletion/files': SettingsAutoDeletion,
-        'privacy/auto-deletion/usage_data': SettingsAutoDeletion,
-        // 'user': SettingsUser,
-        'usage': SettingsUsage,
-        'chat': SettingsChat,
-        'chat/notifications': SettingsChatNotifications,
-        'billing': SettingsBilling,
-        'billing/buy-credits': SettingsBuyCredits,
-        'billing/buy-credits/payment': SettingsBuyCreditsPayment,
-        'billing/buy-credits/confirmation': SettingsBuyCreditsConfirmation,
-        'billing/redeem-giftcard': SettingsRedeemGiftCard,
-        'billing/auto-topup': SettingsAutoTopUp,
-        'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
-        'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
-        'billing/invoices': SettingsInvoices,
-        'gift_cards': SettingsGiftCards,
-        'gift_cards/redeem': SettingsGiftCardsRedeem,
-        'gift_cards/redeemed': SettingsGiftCardsRedeemed,
-        'gift_cards/buy': SettingsGiftCardsBuy,
-        'gift_cards/buy/payment': SettingsGiftCardsBuyPayment,
-        'gift_cards/buy/confirmation': SettingsGiftCardsPurchaseConfirmation,
-        'app_store': SettingsAppStore,
-        'app_store/all': SettingsAllApps,
-        // 'mates': SettingsMates,
-        'shared': SettingsShared,
-        // 'messengers': SettingsMessengers,
-        'developers': SettingsDevelopers,
-        'developers/api-keys': SettingsApiKeys,
-        'developers/devices': SettingsDevices,
-        'interface': SettingsInterface,
-        'server': SettingsServer,
-        'server/software-update': SettingsSoftwareUpdate,
-        'server/community-suggestions': SettingsCommunitySuggestions,
-        'server/stats': SettingsStats,
-        'server/gift-cards': SettingsGiftCardGenerator,
-        'server/default-inspirations': SettingsDefaultInspirations,
-        'interface/language': SettingsLanguage,
-        'incognito/info': SettingsIncognitoInfo,
-        'account': SettingsAccount,
-        'account/timezone': SettingsTimezone,
-        'account/email': SettingsEmail,
-        'account/security': SettingsSecurity,
-        'account/security/passkeys': SettingsPasskeys,
-        'account/security/password': SettingsPassword,
-        'account/security/2fa': SettingsTwoFactorAuth,
-        'account/security/recovery-key': SettingsRecoveryKey,
-        'account/export': SettingsExportAccount, // GDPR Article 20 - Data Portability
-        'account/delete': SettingsDeleteAccount, // Alias for account/delete-account (maps to account/delete_account after normalization)
-        // 'server/software-update': SettingsSoftwareUpdate,
-        // Share chat settings - allows users to share the current chat
-        'shared/share': SettingsShare,
-        // Tip creator settings - allows users to tip creators
-        'shared/tip': SettingsTip,
-        // Newsletter settings - allows anyone to subscribe to newsletter
-        'newsletter': SettingsNewsletter,
-        // Support settings - allows users to support the project
-        'support': SettingsSupport,
-        'support/one-time': SettingsSupportOneTime,
-        'support/monthly': SettingsSupportMonthly,
-        // Report issue settings - allows users (including non-authenticated) to report issues
-        'report_issue': SettingsReportIssue
-    };
-    
     /**
      * Dynamically build settingsViews including app detail routes and nested sub-routes.
      * This creates:

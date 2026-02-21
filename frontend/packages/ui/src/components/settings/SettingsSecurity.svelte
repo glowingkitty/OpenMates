@@ -85,7 +85,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     // ========================================================================
     
     /** Password menu item subtitle based on whether user has password */
-    let passwordSubtitle = $derived(() => {
+    let passwordSubtitle = $derived.by(() => {
         if (isLoading || hasPassword === null) {
             return '';
         }
@@ -95,7 +95,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     });
     
     /** 2FA menu item subtitle based on whether user has 2FA enabled */
-    let tfaSubtitle = $derived(() => {
+    let tfaSubtitle = $derived.by(() => {
         if (isLoading || has2FA === null) {
             return '';
         }
@@ -108,7 +108,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     });
     
     /** Recovery Key menu item subtitle based on whether user has recovery key set */
-    let recoveryKeySubtitle = $derived(() => {
+    let recoveryKeySubtitle = $derived.by(() => {
         if (isLoading || hasRecoveryKey === null) {
             return '';
         }
@@ -191,7 +191,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     type="submenu"
     icon="password"
     title={$text('settings.account.password')}
-    subtitle={passwordSubtitle()}
+    subtitle={passwordSubtitle}
     onClick={navigateToPassword}
 />
 
@@ -200,7 +200,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     type="submenu"
     icon="tfa"
     title={$text('settings.security.tfa_title')}
-    subtitle={tfaSubtitle()}
+    subtitle={tfaSubtitle}
     onClick={navigateTo2FA}
 />
 
@@ -209,6 +209,6 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     type="submenu"
     icon="recovery_key"
     title={$text('settings.security.recovery_key_title')}
-    subtitle={recoveryKeySubtitle()}
+    subtitle={recoveryKeySubtitle}
     onClick={navigateToRecoveryKey}
 />

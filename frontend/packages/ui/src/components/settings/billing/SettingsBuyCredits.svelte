@@ -53,7 +53,7 @@ Buy Credits - Credit tier selection
 {#each pricingTiers as tier}
     <SettingsItem
         type="submenu"
-        icon="subsetting_icon subsetting_icon_coins"
+        icon="subsetting_icon coins"
         title={formatCredits(tier.credits)}
         subtitle={formatCurrency(getTierPrice(tier), selectedCurrency)}
         onClick={() => selectCreditTier(tier)}
