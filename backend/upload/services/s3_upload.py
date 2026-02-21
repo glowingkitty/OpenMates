@@ -94,9 +94,11 @@ class UploadsS3Service:
         from urllib.parse import urlparse
         self.base_domain = urlparse(self.endpoint_url).netloc
 
-        # Resolve the chatfiles bucket name from env (mirrors core API's get_bucket_name)
+        # Resolve the chatfiles bucket name — must match core API's s3/config.py:
+        #   production  → "openmates-chatfiles"
+        #   anything else → "dev-openmates-chatfiles"
         env_suffix = os.environ.get("SERVER_ENVIRONMENT", "development")
-        self.bucket_name = f"chatfiles-{env_suffix}" if env_suffix != "production" else "chatfiles"
+        self.bucket_name = "openmates-chatfiles" if env_suffix == "production" else "dev-openmates-chatfiles"
 
         config = Config(
             signature_version="s3v4",
