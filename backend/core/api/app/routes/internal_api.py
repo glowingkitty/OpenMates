@@ -1068,7 +1068,8 @@ async def wrap_upload_aes_key(
 
     try:
         # encrypt_with_user_key calls Vault Transit POST /transit/encrypt/{vault_key_id}
-        vault_wrapped = await encryption_service.encrypt_with_user_key(
+        # Returns (ciphertext, key_version) — we only need the ciphertext for key wrapping.
+        vault_wrapped, _key_version = await encryption_service.encrypt_with_user_key(
             payload.aes_key_b64, payload.vault_key_id
         )
 
