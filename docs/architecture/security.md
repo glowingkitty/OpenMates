@@ -13,14 +13,14 @@
 
 ## Security Controls Summary
 
-| Category              | Status         | Details                                        | Documentation                                       |
-| --------------------- | -------------- | ---------------------------------------------- | --------------------------------------------------- |
-| **Authentication**    | ✅ 6/8         | Zero-knowledge login, 2FA mandatory            | [Signup & Login](./signup_login.md)                 |
-| **Encryption**        | ✅ 7/7         | AES-256-GCM, Client-Managed & Server-Managed   | [Encryption Tiers](#encryption-tiers-dual-mode)     |
-| **Email Privacy**     | ✅ Implemented | Client-side encrypted storage                  | [Email Privacy](./email_privacy.md)                 |
-| **PII Anonymization** | ✅ Implemented | Client-side detection, placeholder replacement | [PII Anonymization](./pii_anonymization.md)         |
-| **Device Management** | 🔄 Planned     | QR login, remote logout                        | [Device Management](./device_session_management.md) |
-| **Passkey Support**   | ✅ Implemented | WebAuthn with PRF extension                    | [Passkeys](./passkeys.md)                           |
+| Category              | Status         | Details                                        | Documentation                                   |
+| --------------------- | -------------- | ---------------------------------------------- | ----------------------------------------------- |
+| **Authentication**    | ✅ 6/8         | Zero-knowledge login, 2FA mandatory            | [Signup & Login](./signup-and-auth.md)          |
+| **Encryption**        | ✅ 7/7         | AES-256-GCM, Client-Managed & Server-Managed   | [Encryption Tiers](#encryption-tiers-dual-mode) |
+| **Email Privacy**     | ✅ Implemented | Client-side encrypted storage                  | [Email Privacy](./email-privacy.md)             |
+| **PII Anonymization** | ✅ Implemented | Client-side detection, placeholder replacement | [PII Anonymization](./pii-protection.md)        |
+| **Device Management** | 🔄 Planned     | QR login, remote logout                        | [Device Management](./device-sessions.md)       |
+| **Passkey Support**   | ✅ Implemented | WebAuthn with PRF extension                    | [Passkeys](./passkeys.md)                       |
 
 ## Encryption Tiers (Dual-Mode)
 
@@ -122,18 +122,18 @@ Downloads Decrypted File ←─────  │ 5. Stores encrypted file in S3
 
 ### New to OpenMates Security?
 
-1. **Authentication flows**: Start with [Signup & Login](./signup_login.md)
-2. **Client-side encryption**: See [Zero-Knowledge Storage](./zero_knowledge_storage.md)
-3. **Email privacy**: Check [Email Privacy](./email_privacy.md)
-4. **Device management**: Review [Device & Session Management](./device_session_management.md)
+1. **Authentication flows**: Start with [Signup & Login](./signup-and-auth.md)
+2. **Client-side encryption**: See [Zero-Knowledge Storage](./zero-knowledge-storage.md)
+3. **Email privacy**: Check [Email Privacy](./email-privacy.md)
+4. **Device management**: Review [Device & Session Management](./device-sessions.md)
 5. **Passkey implementation**: See [Passkeys](./passkeys.md)
 
 ### Working on Specific Features?
 
-- **User signup/login**: [Signup & Login](./signup_login.md) + `backend/core/api/app/routes/auth_routes/auth_login.py`
-- **Chat encryption**: [Zero-Knowledge Storage](./zero_knowledge_storage.md) + `frontend/packages/ui/src/services/cryptoService.ts`
-- **Email handling**: [Email Privacy](./email_privacy.md) + `backend/core/api/app/utils/encryption.py`
-- **Session security**: [Device Management](./device_session_management.md) + WebSocket handlers
+- **User signup/login**: [Signup & Login](./signup-and-auth.md) + `backend/core/api/app/routes/auth_routes/auth_login.py`
+- **Chat encryption**: [Zero-Knowledge Storage](./zero-knowledge-storage.md) + `frontend/packages/ui/src/services/cryptoService.ts`
+- **Email handling**: [Email Privacy](./email-privacy.md) + `backend/core/api/app/utils/encryption.py`
+- **Session security**: [Device Management](./device-sessions.md) + WebSocket handlers
 
 ## Key Implementation Files
 
@@ -152,8 +152,8 @@ Downloads Decrypted File ←─────  │ 5. Stores encrypted file in S3
 ### Safety & AI Security
 
 - **[`backend/apps/ai/processing/preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)**: Request safety analysis
-- **[Prompt Injection Protection](./prompt_injection_protection.md)**: LLM safety architecture
-- **[LLM Hallucination Mitigation](./llm_hallucination_mitigation.md)**: Controls to reduce fabricated URLs, tool-result hallucinations, and planned improvements
+- **[Prompt Injection Protection](./prompt-injection.md)**: LLM safety architecture
+- **[LLM Hallucination Mitigation](./hallucination-mitigation.md)**: Controls to reduce fabricated URLs, tool-result hallucinations, and planned improvements
 
 ## Security Design Assumptions
 

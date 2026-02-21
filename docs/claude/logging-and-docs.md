@@ -82,8 +82,8 @@ Use relative paths with function/class anchors (NOT line numbers, NO copy & past
 #### Critical Architecture Docs to Keep in Sync
 
 - `docs/architecture/sync.md` → Sync and encryption flows
-- `docs/architecture/message_processing.md` → AI message handling
-- `docs/architecture/payment_processing.md` → Billing flows
+- `docs/architecture/message-processing.md` → AI message handling
+- `docs/architecture/payment-processing.md` → Billing flows
 
 ### DRY Principle for Documentation
 
@@ -100,7 +100,7 @@ The message processing system uses a multi-phase approach...
 
 ## Message Processing
 
-For details, see [Message Processing Architecture](../architecture/message_processing.md)
+For details, see [Message Processing Architecture](../architecture/message-processing.md)
 ```
 
 ### Navigation

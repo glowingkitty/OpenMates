@@ -1,37 +1,37 @@
 # OpenMates™
 
-[![OpenMates header image](./docs/slides/openmates_pitch_slides/intro.jpg)](https://openmates.org)
+[![OpenMates header image](./docs/internal/slides/openmates_pitch_slides/intro.jpg)](https://openmates.org)
 
 ## What is OpenMates?
 
 OpenMates™ aims to become an open source alternative to ChatGPT, Claude, Manus, etc. - focused on the best user experience, fulfilling your tasks using a wide range of apps, zero-knowledge encryption by default and compatibility with a wide range of AI models - making it also independent of specific companies. Currently in an alpha stage online. The perfect time for you to join in on the development with your feedback & contributions.
 
-
-[Click to show project overview slides PDF](./docs/slides/openmates_overview_slides.pdf)
+[Click to show project overview slides PDF](./docs/internal/slides/openmates_overview_slides.pdf)
 
 [Support OpenMates financially](https://openmates.org/#settings/support)
 
-> *The following documentation (as well as the code) are still in an early alpha stage. Keep in mind the current release of OpenMates is for developers and early testers only and some features are still missing.*
+> _The following documentation (as well as the code) are still in an early alpha stage. Keep in mind the current release of OpenMates is for developers and early testers only and some features are still missing._
 
 ### Goal
 
-![Goal header image](./docs/slides/openmates_pitch_slides/goal.jpg)
+![Goal header image](./docs/internal/slides/openmates_pitch_slides/goal.jpg)
 
 OpenMates aims to be the most user-friendly, privacy-focused and provider-independent AI agent software. Beyond being a powerful tool for daily tasks, it is designed with a strong focus on **education and inspiration** — empowering users to learn and discover new ideas through interactive AI assistance.
 
 #### Apps
 
-![Apps header image](./docs/slides/openmates_pitch_slides/apps.jpg)
+![Apps header image](./docs/internal/slides/openmates_pitch_slides/apps.jpg)
 
 Apps are one of the core components of OpenMates. They allow your digital team mates to use various external providers to fullfill your requests - from searching the web, finding meetups, finding restaurants, generating images, transcribing videos, and much more.
 
-[Click here to learn more](./docs/architecture/apps/README.md)
+[Click here to learn more](./docs/apps/README.md)
 
 ### Completed
 
-![Completed header image](./docs/slides/openmates_pitch_slides/completed.jpg)
+![Completed header image](./docs/internal/slides/openmates_pitch_slides/completed.jpg)
 
 The [alpha release of OpenMates](https://openmates.org) is available and includes core features like:
+
 - **Apps & AI Agents**: Fulfill tasks using a wide range of integrated apps (Web search, Videos, Maps, News, etc.)
 - **Zero-Knowledge Encryption**: Privacy by default with client-side encryption for all your chats and data.
 - **Unified UI**: A modern interface that seamlessly integrates media previews and app skill details.
@@ -43,7 +43,7 @@ A more stable and feature-rich beta release is planned for 2026.
 
 ### What's next
 
-![What's next header image](./docs/slides/openmates_pitch_slides/whats_next.jpg)
+![What's next header image](./docs/internal/slides/openmates_pitch_slides/whats_next.jpg)
 
 While many core features are implemented, we are continuously improving OpenMates. Our next focus areas include:
 
@@ -55,11 +55,11 @@ While many core features are implemented, we are continuously improving OpenMate
 
 ### How to contribute
 
-![How to contribute header image](./docs/slides/openmates_pitch_slides/contribute.jpg)
+![How to contribute header image](./docs/internal/slides/openmates_pitch_slides/contribute.jpg)
 
 You can help by testing the web app and providing feedback. You can also help by contributing to the code.
 
-[Click here to learn how to contribute](./docs/contributing.md)
+[Click here to learn how to contribute](./docs/contributing/contributing.md)
 
 ## Cloud web app
 
@@ -98,15 +98,15 @@ If you provide OpenMates as a network service to others (like a public website o
 
 ![Self hosted setup header image](./docs/images/selfhostedsetup_header.png)
 
-Learn how to self-host OpenMates by reading the [Self-Hosting Edition Guide](./docs/self-hosting-edition.md).
+Learn how to self-host OpenMates by reading the [Self-Hosting Guide](./docs/self-hosting/setup.md).
 
 ## Design Guidelines
 
-[![Design Guidelines header image](./docs/images/designguidelines_header.png)](./docs/designguidelines/README.md)
+[![Design Guidelines header image](./docs/images/designguidelines_header.png)](./docs/design-guide/README.md)
 
 A great UX & UI design that makes OpenMates accessible to everyone and not just tech enthusiasts is one of the key differences from other AI agent software.
 
-[Show design guidelines](./docs/designguidelines/README.md)
+[Show design guidelines](./docs/design-guide/README.md)
 
 ## Architecture
 

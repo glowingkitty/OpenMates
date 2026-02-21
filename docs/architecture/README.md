@@ -2,109 +2,69 @@
 
 ![Architecture header image](../images/architecture_header.png)
 
-## Quick links
+Technical architecture documentation for developers and contributors. For user-facing guides, see the [User Guide](../user-guide/README.md).
 
-- **Servers**: [servers.md](servers.md)
-- **Signup & login**: [signup_login.md](signup_login.md)
-- **Security**: [security.md](security.md)
-- **Message processing**: [message_processing.md](message_processing.md)
-- **Message parsing**: [message_parsing.md](message_parsing.md)
-- **Embeds**: [embeds.md](embeds.md)
-- **AI model selection**: [ai_model_selection.md](ai_model_selection.md)
-- **Pricing**: [pricing.md](pricing.md)
-- **Translations**: [translations.md](translations.md)
-- **Sync**: [sync.md](sync.md)
-- **Share a chat**: [share_chat.md](share_chat.md)
-- **File Upload**: [file_upload.md](file_upload.md)
-- **Creator Program**: [creator_program.md](creator_program.md)
+## Core Systems
 
-## Apps
+- [Servers](servers.md) - Docker Compose infrastructure, container architecture
+- [Security](security.md) - Zero-knowledge encryption, Vault key management
+- [Zero-Knowledge Storage](zero-knowledge-storage.md) - Encrypted storage architecture
+- [Signup & Authentication](signup-and-auth.md) - Auth flows, passkeys, 2FA
+- [Passkeys](passkeys.md) - WebAuthn/PRF implementation details
+- [Account Recovery](account-recovery.md) - Account reset and recovery flows
+- [Account Backup](account-backup.md) - GDPR data export architecture
 
-- **Apps overview**: [apps/README.md](apps/README.md)
-- **App skills**: [apps/app_skills.md](apps/app_skills.md)
-- **Code**: [apps/code.md](apps/code.md)
-- **Events**: [apps/events.md](apps/events.md)
-- **Fitness**: [apps/fitness.md](apps/fitness.md)
-- **Images**: [apps/images.md](apps/images.md)
-- **Mail**: [apps/mail.md](apps/mail.md)
-- **Music**: [apps/music.md](apps/music.md)
-- **News**: [apps/news.md](apps/news.md)
-- **Slides**: [apps/slides.md](apps/slides.md)
-- **Study**: [apps/study.md](apps/study.md)
-- **Travel**: [apps/travel.md](apps/travel.md)
-- **Videos**: [apps/videos.md](apps/videos.md)
-- **Web**: [apps/web.md](apps/web.md)
-- **Jobs**: [apps/jobs.md](apps/jobs.md)
-- **Docs**: [apps/docs.md](apps/docs.md)
-- **PDF**: [apps/pdf.md](apps/pdf.md)
-- **Sheets**: [apps/sheets.md](apps/sheets.md)
+## Message Pipeline
 
-## Servers
+- [Message Processing](message-processing.md) - Full request/response pipeline with encryption
+- [Message Parsing](message-parsing.md) - Client-side TipTap JSON parsing and rendering
+- [Message Input Field](message-input-field.md) - Input field architecture and embed detection
+- [Message Previews Grouping](message-previews-grouping.md) - Dynamic embed grouping
+- [Embeds](embeds.md) - First-class embed entity system
 
-### Backend
+## AI & Models
 
-- Docker compose setup
-  - api docker (FastAPI)
-  - cms dockers (Directus & PostgreSQL)
-  - task-worker dockers (celery worker & scheduler)
-  - cache docker (Dragonfly)
-  - logging dockers (Grafana, Loki, Prometheus)
-  - app-ai docker & other docker containers for each app
+- [AI Model Selection](ai-model-selection.md) - Provider configuration and automatic routing
+- [Thinking Models](thinking-models.md) - Support for reasoning models (Gemini, Claude, o-series)
+- [Hallucination Mitigation](hallucination-mitigation.md) - Reducing AI hallucinations
+- [Preprocessing Model Comparison](preprocessing-model-comparison.md) - Mistral model benchmarks
+- [Mates](mates.md) - Specialized AI assistant identities and routing
+- [Followup Suggestions](followup-suggestions.md) - Post-processing follow-up generation
 
-### Frontend
+## Privacy & Security
 
-- svelte web app
-  - can run either directly via docker-compose (default) or via pnpm dev mode for better debugging/ live code updates (only relevant for contributors)
+- [PII Protection](pii-protection.md) - Client-side PII detection and anonymization
+- [Prompt Injection](prompt-injection.md) - Defense-in-depth against prompt injection
+- [Sensitive Data Redaction](sensitive-data-redaction.md) - Redacting PII before LLM processing
+- [Email Privacy](email-privacy.md) - Client-side email encryption
 
-[Click here to read more](servers.md)
+## Data & Sync
 
-## Signup & login architecture
+- [Sync](sync.md) - 3-phase multi-device sync with zero-knowledge encryption
+- [Device Sessions](device-sessions.md) - Device and session management
+- [Translations](translations.md) - YAML-based i18n system
 
-### Current signup & login implementation
+## Payments & Billing
 
-- user signup & login via email + password + 2FA OTP (mandatory)
+- [Payment Processing](payment-processing.md) - Stripe integration, receipts, anti-fraud
 
-### Signup & login plans for improvements
+## Infrastructure
 
-- multiple signup / login options:
-  - email + passkey (recommended)
-  - email + hardware key / yubikey
-  - email + password (requires additional 2FA OTP to enhance security)
+- [Health Checks](health-checks.md) - Service monitoring and health endpoints
+- [Logging](logging.md) - Backend logging with JSON formatting
+- [Admin Console Log Forwarding](admin-console-log-forwarding.md) - Browser log forwarding to Loki
+- [Developer Settings](developer-settings.md) - API key and device management
+- [File Upload Pipeline](file-upload-pipeline.md) - 10-step secure upload pipeline
+- [Vector Personalization](vector-personalization.md) - Client-side semantic search
 
-[Click here to read more](signup_login.md)
+## API & Integration
 
-## Security architecture
+- [REST API](rest-api.md) - Programmatic access to skills and focus modes
+- [Docs Web App](docs-web-app.md) - Documentation site architecture
+- [Web App](web-app.md) - Unified website and chat app architecture
 
-### Current Security
+## Apps Architecture
 
-- **Zero-Knowledge Architecture**: Encryption and decryption of chats and sensitive user data (app settings, memories, etc.) happen on the user device, not on the server.
-- **Vault Key Management**: User encryption keys are wrapped and stored in HashiCorp Vault, but the server never has access to the plaintext keys required to decrypt user content.
-- **Device Storage**: User devices store chats in a local encrypted database (IndexedDB) for fast access and offline capability.
-- **API Key Security**: Third-party API keys are securely stored in HashiCorp Vault.
+For individual app documentation, see the [Apps](../apps/README.md) section. For technical details:
 
-[Click here to read more](security.md)
-
-## Processing architecture of messages
-
-- user sends message in web app
-- fastapi docker receives message via websocket
-- after authentication message is forwarded to celery to execute via the AI app / Ask skill the request
-- billing-precheck
-  - checks if user has enough minimum credits for request
-- pre-processing (by default using cheap Mistral API on EU servers)
-  - detect harmful / illegal request (and reject if clearly detected)
-  - generate chat title
-  - detect complexity level
-  - detect temperature (creativity level needed)
-  - match category to forward to right mate
-  - user message is encrypted on user device and sent to server for zero-knowledge storage
-- main-processing (model/provider depends on complexity level)
-  - process request via LLM
-  - if app skill or app focus mode is requested, the system executes it via tool calling
-  - stream back response back to frontend via websocket (if chat is open on device, else wait for completed message to notify about completed message)
-- post-processing (by default using cheap Mistral API on EU servers)
-  - check harmfulness & misuse for scams / causing harm risk
-  - based on last user question and assistant response: suggest 6 possible follow up questions which are shown to user, which user can click on to add them to message input field
-  - assistant response is encrypted on user device and sent to server for zero-knowledge storage
-- billing
-  - user is charged in credits for main processing (for input tokens and output tokens)
+- [App Skills Architecture](app-skills.md) - JSON/TOON output, skill cancellation, embed storage
