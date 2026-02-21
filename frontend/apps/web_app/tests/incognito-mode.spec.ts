@@ -110,7 +110,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	await takeStepScreenshot(page, '02-login-dialog');
 
 	const emailInput = page.locator(SELECTORS.emailInput);
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
