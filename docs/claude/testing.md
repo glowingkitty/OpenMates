@@ -62,6 +62,35 @@ When creating tests (with consent), ensure they meet these criteria:
 
 ---
 
+### E2E Test Planning (CRITICAL — do this BEFORE writing any code)
+
+**Before writing any Playwright spec file, you MUST:**
+
+1. **Write the test plan in natural language first** — describe each user action as a numbered step (e.g., "click the map icon", "type Berlin Hbf", "press send"). Do NOT write code yet.
+2. **Get user approval** on the plan before implementing.
+3. **Investigate DOM interactions** — for each step that touches a complex component (editor, map, overlay, modal), read the source to understand:
+   - What CSS selectors/elements are involved
+   - What side effects the interaction triggers (e.g., clicking an embed card opens fullscreen)
+   - Where the cursor/focus lands after the action
+4. **Read `chat-flow.spec.ts` first** — it is the simplest passing test and defines the proven patterns for login, message sending, and response assertion. Use it as the baseline template. Key patterns to copy:
+   - Use `toContainText('expected text', { timeout: 45000 })` to wait for AI responses — do NOT poll for loading indicators to disappear
+   - Use `test.setTimeout(120000)` with `test.slow()` (triples timeout to 360s) — not 300s as base
+   - Use `page.keyboard.type()` to type into the TipTap editor — never `fill()`
+
+Skipping the planning step leads to failed iterations from unanticipated interaction side-effects (overlays blocking clicks, wrong selectors, etc.) that waste much more time than planning upfront.
+
+---
+
+### TipTap Editor Interaction in Playwright
+
+The message editor uses TipTap (ProseMirror). Key gotchas for E2E tests:
+
+- **Never click the editor content area after inserting an embed** — the click may land on an embed card node, triggering its fullscreen overlay, which then intercepts subsequent clicks (including the send button). Instead, call `page.keyboard.type()` directly — embed insertion helpers like `insertMap()` call `editor.commands.focus("end")` to position the cursor after the embed automatically.
+- **Use `page.keyboard.type()`, not `editorContent.fill()`** — TipTap is not a native input; `fill()` does not work. Always type via the keyboard as shown in `chat-flow.spec.ts`.
+- **If a fullscreen overlay accidentally opens**, press `await page.keyboard.press('Escape')` before continuing.
+
+---
+
 ## Test Location Standards
 
 | Test Type               | Location                                               | Naming               |

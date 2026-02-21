@@ -210,6 +210,46 @@ Multiple assistants may work on the codebase simultaneously. If an API call or t
 | Scheduled task failures | `task-scheduler`               | `task-worker`                 |
 | User data issues        | `cms`, `cms-database`          | `api`                         |
 
+### Debugging Embed Resolution Failures
+
+When the AI receives raw embed JSON (e.g. `{"type": "location", "embed_id": "16c2b7c5-..."}`) instead of resolved content, the embed resolution pipeline failed silently. Symptoms: AI searches for a UUID string, mentions unrelated cities, or gives a nonsensical answer about the embed content.
+
+**Pipeline:**
+
+```
+Client insert → EmbedStore (memory + Redis, encrypted with user_vault_key_id)
+  → On send: serialised as {"type": "location", "embed_id": "..."}
+  → Server: resolve_embed_references_in_content(content, user_vault_key_id, log_prefix)
+  → Redis lookup: embed:{id} → decrypt → TOON block → LLM context
+```
+
+**Correct function signature** (any deviation causes a silent `TypeError` caught by `except Exception`):
+
+```python
+resolve_embed_references_in_content(
+    content=content_plain,
+    user_vault_key_id=user_vault_key_id,
+    log_prefix=f"[Chat {chat_id}]"
+)
+# NOT: resolve_embed_references_in_content(chat_id=..., user_id=..., encryption_service=...)
+```
+
+**Key files:**
+
+- Resolution logic: `backend/core/api/app/services/embed_service.py` → `resolve_embed_references_in_content()` and `_get_cached_embed_toon()`
+- Where it's called for the current user message: `backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py` (resolve _before_ adding to history and before duplicate-detection)
+
+**Common failure modes:**
+
+- Wrong kwargs passed to `resolve_embed_references_in_content()` — silent `TypeError` swallowed by broad `except Exception`, falls back to raw JSON
+- Embed resolved _after_ the duplicate-detection check — unresolved content never matches already-resolved history entries, causing the same message to appear twice in the LLM context
+- Embed key expired in Redis (TTL passed since the user composed the message)
+- Wrong `user_vault_key_id` (key mismatch → decryption returns `None`)
+
+**How to verify:** Use `inspect_last_requests.py` to dump the AI request payload and check whether the history contains TOON blocks (`\`\`\`toon\n...\`\`\``) or raw `{"embed_id": "..."}` JSON strings. Raw JSON = resolution failed.
+
+---
+
 ### Quick Debug Commands
 
 ```bash
