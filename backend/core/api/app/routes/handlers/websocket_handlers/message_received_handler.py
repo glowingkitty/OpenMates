@@ -1079,41 +1079,45 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         logger.info(f"New chat {chat_id} has no cached history (expected). Proceeding with empty history.")
             
             # Ensure the current message (which triggered the AI) is the last one in the history.
+            # IMPORTANT: We first resolve the current message's embeds so we can accurately detect
+            # whether a resolved version of this message is already in the history. Without resolving
+            # first, the check would compare raw embed references (e.g. ```json{"embed_id":"..."}```)
+            # against already-resolved TOON blocks, causing a false "not found" result and a duplicate
+            # unresolved entry being appended.
+            resolved_current_content = content_plain
+            try:
+                from backend.core.api.app.services.embed_service import EmbedService
+                embed_service = EmbedService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service
+                )
+                resolved_current_content = await embed_service.resolve_embed_references_in_content(
+                    content=content_plain,
+                    user_vault_key_id=user_vault_key_id,
+                    log_prefix=f"[Chat {chat_id}]"
+                )
+                if resolved_current_content != content_plain:
+                    logger.info(f"Resolved embed references in current user message {message_id}. "
+                               f"Original length: {len(content_plain)}, Resolved length: {len(resolved_current_content)}")
+            except Exception as e_resolve:
+                logger.warning(f"Failed to resolve embed references in current message {message_id}: {e_resolve}. Using original content.")
+                resolved_current_content = content_plain
+
+            # Check if this message (raw or resolved) is already present in the history.
+            # We match on timestamp + role, and also compare content against both the raw
+            # content_plain and the resolved version to handle all cases:
+            # - Message was already added with resolved toon content (from cache/client path)
+            # - Message was already added with raw content (edge case)
             current_message_in_history = any(
-                m.content == content_plain and 
-                m.created_at == client_timestamp_unix and 
-                m.role == role # Check role instead of sender_name for "user"
+                m.created_at == client_timestamp_unix and
+                m.role == role and
+                (m.content == content_plain or m.content == resolved_current_content)
                 for m in message_history_for_ai
             )
 
             if not current_message_in_history:
                 logger.debug(f"Current user message {message_id} not found in history. Appending it now.")
-                
-                # CRITICAL FIX: Resolve embed references in the current message content
-                # The content_plain may contain embed references like {"type": "code", "embed_id": "..."}
-                # These need to be replaced with actual embed content for the AI to understand
-                resolved_current_content = content_plain
-                try:
-                    from backend.core.api.app.services.embed_service import EmbedService
-                    embed_service = EmbedService(
-                        cache_service=cache_service,
-                        directus_service=directus_service,
-                        encryption_service=encryption_service
-                    )
-                    resolved_current_content = await embed_service.resolve_embed_references_in_content(
-                        content=content_plain,
-                        chat_id=chat_id,
-                        user_id=user_id,
-                        encryption_service=encryption_service,
-                        user_vault_key_id=user_vault_key_id
-                    )
-                    if resolved_current_content != content_plain:
-                        logger.info(f"Resolved embed references in current user message {message_id}. "
-                                   f"Original length: {len(content_plain)}, Resolved length: {len(resolved_current_content)}")
-                except Exception as e_resolve:
-                    logger.warning(f"Failed to resolve embed references in current message {message_id}: {e_resolve}. Using original content.")
-                    resolved_current_content = content_plain
-                
                 message_history_for_ai.append(
                     AIHistoryMessage(
                         role=role, # Current message's role
