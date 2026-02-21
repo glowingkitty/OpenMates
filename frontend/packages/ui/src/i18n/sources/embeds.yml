@@ -3013,3 +3013,219 @@ maps_location.nearby:
   cs: V blízkosti
   sv: I närheten av
   verified_by_human: []
+
+health.doctor_with_slots:
+  context: Singular label in the health appointment search preview card — "1 doctor available"
+  en: doctor available
+  de: Arzt verfügbar
+  zh: 位医生可预约
+  es: médico disponible
+  fr: médecin disponible
+  pt: médico disponível
+  ru: врач доступен
+  ja: 医師が利用可能
+  ko: 의사 이용 가능
+  it: medico disponibile
+  tr: doktor mevcut
+  vi: bác sĩ có lịch trống
+  id: dokter tersedia
+  pl: lekarz dostępny
+  nl: arts beschikbaar
+  ar: طبيب متاح
+  hi: डॉक्टर उपलब्ध
+  th: แพทย์ว่าง
+  cs: lékař k dispozici
+  sv: läkare tillgänglig
+  verified_by_human: []
+
+health.doctors_with_slots:
+  context: Plural label in the health appointment search preview card — "3 doctors available"
+  en: doctors available
+  de: Ärzte verfügbar
+  zh: 位医生可预约
+  es: médicos disponibles
+  fr: médecins disponibles
+  pt: médicos disponíveis
+  ru: врачи доступны
+  ja: 医師が利用可能
+  ko: 의사 이용 가능
+  it: medici disponibili
+  tr: doktor mevcut
+  vi: bác sĩ có lịch trống
+  id: dokter tersedia
+  pl: lekarze dostępni
+  nl: artsen beschikbaar
+  ar: أطباء متاحون
+  hi: डॉक्टर उपलब्ध हैं
+  th: แพทย์ว่าง
+  cs: lékaři k dispozici
+  sv: läkare tillgängliga
+  verified_by_human: []
+
+health.book_slot:
+  context: Button label to book a specific appointment slot on the health appointment fullscreen card
+  en: Book
+  de: Buchen
+  zh: 预约
+  es: Reservar
+  fr: Réserver
+  pt: Reservar
+  ru: Записаться
+  ja: 予約
+  ko: 예약
+  it: Prenota
+  tr: Rezervasyon yap
+  vi: Đặt lịch
+  id: Pesan
+  pl: Zarezerwuj
+  nl: Boeken
+  ar: احجز
+  hi: बुक करें
+  th: จอง
+  cs: Rezervovat
+  sv: Boka
+  verified_by_human: []
+
+health.view_practice:
+  context: Link label to view the doctor's practice page on Doctolib
+  en: View practice
+  de: Praxis ansehen
+  zh: 查看诊所
+  es: Ver consulta
+  fr: Voir le cabinet
+  pt: Ver consultório
+  ru: Посмотреть практику
+  ja: 診療所を見る
+  ko: 의원 보기
+  it: Vedi studio
+  tr: Kliniği gör
+  vi: Xem phòng khám
+  id: Lihat praktik
+  pl: Zobacz praktykę
+  nl: Praktijk bekijken
+  ar: عرض العيادة
+  hi: प्रैक्टिस देखें
+  th: ดูคลินิก
+  cs: Zobrazit praxi
+  sv: Visa praktik
+  verified_by_human: []
+
+health.no_slots_available:
+  context: Shown on a doctor card when no appointment slots were found
+  en: No slots available
+  de: Keine Termine verfügbar
+  zh: 暂无可用时间段
+  es: Sin citas disponibles
+  fr: Aucun créneau disponible
+  pt: Sem horários disponíveis
+  ru: Нет доступных слотов
+  ja: 空きスロットなし
+  ko: 이용 가능한 슬롯 없음
+  it: Nessun posto disponibile
+  tr: Müsait slot yok
+  vi: Không có lịch trống
+  id: Tidak ada slot tersedia
+  pl: Brak dostępnych terminów
+  nl: Geen slots beschikbaar
+  ar: لا توجد مواعيد متاحة
+  hi: कोई स्लॉट उपलब्ध नहीं
+  th: ไม่มีช่วงเวลาว่าง
+  cs: Žádné dostupné termíny
+  sv: Inga lediga tider
+  verified_by_human: []
+
+health.next_slot:
+  context: Label for the next available appointment slot time on a doctor card
+  en: Next available
+  de: Nächster Termin
+  zh: 下一个可用时间
+  es: Próxima disponibilidad
+  fr: Prochain disponible
+  pt: Próximo disponível
+  ru: Ближайший доступный
+  ja: 次の空き時間
+  ko: 다음 이용 가능
+  it: Prossimo disponibile
+  tr: Sonraki müsait
+  vi: Lịch trống tiếp theo
+  id: Berikutnya tersedia
+  pl: Następny dostępny
+  nl: Volgende beschikbaar
+  ar: التالي المتاح
+  hi: अगला उपलब्ध
+  th: ถัดไปที่ว่าง
+  cs: Příští dostupný
+  sv: Nästa tillgänglig
+  verified_by_human: []
+
+health.telehealth:
+  context: Badge label shown on a doctor card when the doctor offers telehealth / video consultations
+  en: Telehealth
+  de: Telemedizin
+  zh: 远程医疗
+  es: Telemedicina
+  fr: Téléconsultation
+  pt: Telemedicina
+  ru: Телемедицина
+  ja: テレヘルス
+  ko: 원격 진료
+  it: Telemedicina
+  tr: Tele sağlık
+  vi: Khám từ xa
+  id: Telemedisin
+  pl: Telemedycyna
+  nl: Telezorg
+  ar: الرعاية الصحية عن بُعد
+  hi: टेलीहेल्थ
+  th: ทางไกล
+  cs: Telemedicína
+  sv: Telemedicin
+  verified_by_human: []
+
+health.book_on_doctolib:
+  context: Link label to open booking on Doctolib
+  en: Book on Doctolib
+  de: Auf Doctolib buchen
+  zh: 在 Doctolib 预约
+  es: Reservar en Doctolib
+  fr: Réserver sur Doctolib
+  pt: Reservar no Doctolib
+  ru: Забронировать на Doctolib
+  ja: Doctolib で予約
+  ko: Doctolib에서 예약
+  it: Prenota su Doctolib
+  tr: Doctolib'de rezervasyon yap
+  vi: Đặt lịch trên Doctolib
+  id: Pesan di Doctolib
+  pl: Zarezerwuj na Doctolib
+  nl: Boek op Doctolib
+  ar: احجز على Doctolib
+  hi: Doctolib पर बुक करें
+  th: จองบน Doctolib
+  cs: Rezervovat na Doctolib
+  sv: Boka på Doctolib
+  verified_by_human: []
+
+health.no_appointments_found:
+  context: Empty state message in the health appointment search fullscreen when no results are found
+  en: No appointments found.
+  de: Keine Termine gefunden.
+  zh: 未找到预约。
+  es: No se encontraron citas.
+  fr: Aucun rendez-vous trouvé.
+  pt: Nenhuma consulta encontrada.
+  ru: Записи не найдены.
+  ja: 予約が見つかりません。
+  ko: 예약을 찾을 수 없습니다.
+  it: Nessun appuntamento trovato.
+  tr: Randevu bulunamadı.
+  vi: Không tìm thấy cuộc hẹn.
+  id: Tidak ada janji ditemukan.
+  pl: Nie znaleziono wizyt.
+  nl: Geen afspraken gevonden.
+  ar: لم يتم العثور على مواعيد.
+  hi: कोई अपॉइंटमेंट नहीं मिला।
+  th: ไม่พบการนัดหมาย
+  cs: Žádné termíny nenalezeny.
+  sv: Inga bokningar hittades.
+  verified_by_human: []

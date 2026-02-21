@@ -3,7 +3,7 @@ description_translation_key: health.description
 icon_image: |
   heart.svg
 category: personal
-last_updated: '2025-11-12'
+last_updated: "2025-11-12"
 settings_and_memories:
   - id: appointments
     name_translation_key: health.appointments
@@ -24,14 +24,14 @@ settings_and_memories:
         appointment_type:
           type: string
           enum:
-          - doctor_visit
-          - operation
-          - specialist
-          - dental
-          - eye_care
-          - therapy
-          - vaccination
-          - other
+            - doctor_visit
+            - operation
+            - specialist
+            - dental
+            - eye_care
+            - therapy
+            - vaccination
+            - other
           description: Type of appointment
         where:
           type: string
@@ -44,8 +44,8 @@ settings_and_memories:
           type: string
           description: Optional notes (reason, location, contact, etc.)
       required:
-      - appointment_type
-      - date
+        - appointment_type
+        - date
   - id: medical_history
     name_translation_key: health.medical_history
     description_translation_key: health.medical_history.description
@@ -60,13 +60,13 @@ settings_and_memories:
         condition_type:
           type: string
           enum:
-          - surgery
-          - chronic_condition
-          - allergy
-          - medication
-          - vaccination
-          - injury
-          - other
+            - surgery
+            - chronic_condition
+            - allergy
+            - medication
+            - vaccination
+            - injury
+            - other
           description: Type of medical event
         name:
           type: string
@@ -80,9 +80,9 @@ settings_and_memories:
           type: string
           description: Optional details (status, doctor, treatment notes)
       required:
-      - condition_type
-      - name
-      - date
+        - condition_type
+        - name
+        - date
   - id: symptoms_log
     name_translation_key: health.symptoms_log
     description_translation_key: health.symptoms_log.description
@@ -101,23 +101,23 @@ settings_and_memories:
         severity:
           type: string
           enum:
-          - mild
-          - moderate
-          - severe
+            - mild
+            - moderate
+            - severe
           description: Severity level
         frequency:
           type: string
           enum:
-          - occasional
-          - intermittent
-          - constant
+            - occasional
+            - intermittent
+            - constant
           description: How often it occurs
         notes:
           type: string
           description: Additional details about the symptom
       required:
-      - symptom
-      - date_onset
+        - symptom
+        - date_onset
   - id: sleep_diary
     name_translation_key: health.sleep_diary
     description_translation_key: health.sleep_diary.description
@@ -140,36 +140,134 @@ settings_and_memories:
           description: HH:MM time when user woke up in 24-hour format
         sleep_duration_hours:
           type: number
-          description: Total hours of sleep (can be calculated from bedtime/wake_time
+          description:
+            Total hours of sleep (can be calculated from bedtime/wake_time
             or manually entered)
         sleep_quality:
           type: string
           enum:
-          - poor
-          - fair
-          - good
-          - excellent
+            - poor
+            - fair
+            - good
+            - excellent
           description: Overall sleep quality rating
         notes:
           type: string
-          description: Additional notes about the sleep period (dreams, restlessness,
+          description:
+            Additional notes about the sleep period (dreams, restlessness,
             specific disturbances, etc.)
       required:
-      - date
+        - date
 skills:
   - id: search_appointments
-    name_translation_key: health.search_appointments
-    description_translation_key: health.search_appointments.description
-    stage: planning
-    class_path: |
-      skills.search_appointments.SearchAppointmentsSkill
+    name_translation_key: app_skills.health.search_appointments
+    description_translation_key: app_skills.health.search_appointments.description
+    preprocessor_hint: >
+      Search for available doctor/specialist appointments by speciality and city.
+      Returns real-time availability with direct booking links. Costs 15 credits per search.
+    stage: production
+    class_path: backend.apps.health.skills.search_appointments_skill.SearchAppointmentsSkill
+    pricing:
+      per_unit:
+        credits: 15
     providers:
-      - Jameda
       - Doctolib
+    exclude_fields_for_llm:
+      - type
+      - hash
+      - visit_motive_id
+      - agenda_id
+      - practice_id
+    suggestions_follow_up_requests:
+      - Filter for telehealth appointments only
+      - Search for private insurance options
+      - Find an earlier appointment
+      - Show doctors who speak English
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of appointment search requests. Each request searches for
+            available doctor appointments for a given speciality and city.
+          items:
+            type: object
+            properties:
+              speciality:
+                type: string
+                description: >
+                  Doctor speciality or type. Supports German and English names.
+                  Examples: "augenarzt", "hautarzt", "allgemeinmedizin", "zahnarzt",
+                  "gynäkologie", "kardiologie", "orthopädie", "neurologie",
+                  "kinderarzt", "hno", "physiotherapie", "urologie",
+                  "ophthalmologist", "dermatologist", "general_practitioner",
+                  "dentist", "cardiologist", "neurologist", "pediatrician".
+              city:
+                type: string
+                description: >
+                  City where to search for appointments. Supports German and English
+                  city names. Examples: "Berlin", "München", "Munich", "Hamburg",
+                  "Köln", "Frankfurt", "Stuttgart", "Düsseldorf", "Dresden",
+                  "Leipzig", "Hannover", "Nürnberg", "Bonn", "Heidelberg".
+              provider_platform:
+                type: string
+                description: >
+                  Booking platform to search. Currently supported: "doctolib_de"
+                  (Doctolib Germany). Future: "jameda", "doctolib_fr", "zocdoc".
+                enum:
+                  - doctolib_de
+                default: doctolib_de
+              insurance_sector:
+                type: string
+                description: >
+                  Insurance type filter. "public" for gesetzliche Krankenversicherung
+                  (GKV), "private" for private Krankenversicherung (PKV).
+                  Omit to show results for all insurance types.
+                enum:
+                  - public
+                  - private
+              telehealth:
+                type: boolean
+                description: >
+                  If true, only return doctors offering telehealth (video consultation)
+                  appointments. Defaults to false.
+                default: false
+              language:
+                type: string
+                description: >
+                  Filter for doctors who speak a specific language.
+                  Language codes: "de" (German), "gb" (English), "ru" (Russian),
+                  "tr" (Turkish), "ar" (Arabic), "fr" (French), "es" (Spanish),
+                  "it" (Italian), "pl" (Polish), "ro" (Romanian), "zh" (Chinese).
+              days_ahead:
+                type: integer
+                description: >
+                  How many days ahead to search for appointments. Must be one of
+                  1, 3, 7, or 14 (Doctolib API constraint). Defaults to 7.
+                enum:
+                  - 1
+                  - 3
+                  - 7
+                  - 14
+                default: 7
+              max_doctors:
+                type: integer
+                description: >
+                  Maximum number of doctors to check for availability. Higher values
+                  return more results but take longer. Defaults to 10.
+                default: 10
+            required:
+              - speciality
+              - city
+      required:
+        - requests
+
   - id: create_report
     name_translation_key: health.create_report
     description_translation_key: health.create_report.description
     stage: planning
+
 focuses:
   - id: prepare_doctor_report
     name_translation_key: health.prepare_doctor_report
@@ -179,9 +277,7 @@ focuses:
     name_translation_key: health.health_insights
     description_translation_key: health.health_insights.description
     stage: planning
-      You are a health expert.
   - id: prepare_doctor_appointment
     name_translation_key: health.prepare_doctor_appointment
     description_translation_key: health.prepare_doctor_appointment.description
     stage: planning
-      You are a health expert.

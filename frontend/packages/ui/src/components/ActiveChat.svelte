@@ -36,6 +36,7 @@
     import TravelSearchEmbedFullscreen from './embeds/travel/TravelSearchEmbedFullscreen.svelte';
     import TravelPriceCalendarEmbedFullscreen from './embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte';
     import TravelStaysEmbedFullscreen from './embeds/travel/TravelStaysEmbedFullscreen.svelte';
+    import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import UploadedImageFullscreen from './embeds/images/UploadedImageFullscreen.svelte';
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
@@ -6934,10 +6935,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'videos' && skillId === 'get_transcript'}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                         />
+                     {:else if appId === 'health' && skillId === 'search_appointments'}
+                         <!-- Health Search Appointments Fullscreen -->
+                         <HealthSearchEmbedFullscreen
+                             query={embedFullscreenData.decodedContent?.query || ''}
+                             provider={embedFullscreenData.decodedContent?.provider || 'Doctolib'}
+                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
+                             results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
+                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
+                             embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                         />
+                     {:else if appId === 'videos' && skillId === 'get_transcript'}
                         <!-- Video Transcript Fullscreen -->
                         {@const previewData: VideoTranscriptSkillPreviewData = {
                             app_id: 'videos',

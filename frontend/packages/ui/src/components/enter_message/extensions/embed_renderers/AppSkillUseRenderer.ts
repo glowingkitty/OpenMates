@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Renderer for app_skill_use embeds (app skill execution results).
  * Handles preview rendering and fullscreen view integration.
@@ -8,6 +9,9 @@
  * - Web search results (parent app_skill_use with child website embeds)
  * - Video transcript skills
  * - Other app skills (generic fallback)
+ *
+ * Note: `any` is intentionally used throughout this file for embed data
+ * received from dynamic TOON-decoded content with unknown schemas.
  */
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
@@ -30,6 +34,7 @@ import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPr
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -222,6 +227,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For travel search_stays, render stays preview
       if (appId === "travel" && skillId === "search_stays") {
         return this.renderTravelStaysComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For health search_appointments, render health appointment search preview
+      if (appId === "health" && skillId === "search_appointments") {
+        return this.renderHealthSearchComponent(
           attrs,
           embedData,
           decodedContent,
@@ -913,6 +928,76 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting TravelStaysEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render health search_appointments embed using Svelte component.
+   * Mirrors renderTravelSearchComponent exactly — same props pattern.
+   */
+  private renderHealthSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "Doctolib";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(HealthSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted HealthSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting HealthSearchEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
