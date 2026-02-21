@@ -12,25 +12,22 @@
 #   - Creates a non-root user with sudo, disables root login + password SSH
 #   - Updates the OS and installs essential packages
 #   - Installs Docker, Docker Compose, and Caddy (via official repos)
-#   - Generates an SSH deploy key for GitHub access
 #   - Configures UFW firewall (only ports 22, 80, 443)
 #   - Configures fail2ban for SSH brute-force protection
 #   - Writes an initial Caddyfile placeholder (replaced in manual steps)
 #
 # MANUAL STEPS AFTER SSH-ING IN:
-#   1. cat ~/github_deploy_key.pub → add to GitHub repo as Deploy Key (read-only)
-#   2. ssh -T git@github.com → verify access
-#   3. git clone ${DEPLOY_REPO_SSH_URL} ~/projects/OpenMates
-#   4. Create ~/projects/OpenMates/backend/apps/uploads/.env (see .env.example)
-#   5. Render and apply the production Caddyfile:
+#   1. git clone https://github.com/glowingkitty/OpenMates.git ~/projects/OpenMates
+#   2. Create ~/projects/OpenMates/backend/apps/uploads/.env (see .env.example)
+#   3. Render and apply the production Caddyfile:
 #      python scripts/render-deploy-config.py deployment/upload_server/Caddyfile \
 #        | sudo tee /etc/caddy/Caddyfile > /dev/null
 #      sudo systemctl reload caddy
-#   6. Start the upload server:
+#   4. Start the upload server:
 #      cd ~/projects/OpenMates
 #      docker compose -f backend/apps/uploads/docker-compose.yml \
 #                     -f backend/apps/uploads/docker-compose.prod.yml up -d
-#   7. Verify: curl https://${DEPLOY_UPLOAD_DOMAIN}/health
+#   5. Verify: curl https://${DEPLOY_UPLOAD_DOMAIN}/health
 
 # ---------------------------------------------------------------------------
 # User setup
@@ -81,25 +78,14 @@ runcmd:
   - ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
   # --- Install Caddy (official Debian repo) ---
+  # write_files runs before runcmd, so the placeholder Caddyfile already exists.
+  # DEBIAN_FRONTEND=noninteractive + --force-confold prevents dpkg from prompting
+  # about the existing Caddyfile (it would hang with no stdin in cloud-init).
   - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
   - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
   - apt update
-  - apt install -y caddy
+  - DEBIAN_FRONTEND=noninteractive apt install -y -o DPkg::options::="--force-confold" caddy
   - systemctl enable caddy
-
-  # --- Generate SSH deploy key for GitHub ---
-  - sudo -u ${DEPLOY_USERNAME} mkdir -p /home/${DEPLOY_USERNAME}/.ssh
-  - sudo -u ${DEPLOY_USERNAME} ssh-keygen -t ed25519 -C "${DEPLOY_USERNAME}@upload-server" -f /home/${DEPLOY_USERNAME}/.ssh/id_ed25519 -N ""
-  - sudo -u ${DEPLOY_USERNAME} chmod 700 /home/${DEPLOY_USERNAME}/.ssh
-  - sudo -u ${DEPLOY_USERNAME} chmod 600 /home/${DEPLOY_USERNAME}/.ssh/id_ed25519
-  - sudo -u ${DEPLOY_USERNAME} chmod 644 /home/${DEPLOY_USERNAME}/.ssh/id_ed25519.pub
-
-  # Copy public key for easy access
-  - sudo -u ${DEPLOY_USERNAME} cp /home/${DEPLOY_USERNAME}/.ssh/id_ed25519.pub /home/${DEPLOY_USERNAME}/github_deploy_key.pub
-
-  # Add GitHub to known hosts (prevents interactive prompt on first git clone)
-  - sudo -u ${DEPLOY_USERNAME} ssh-keyscan github.com >> /home/${DEPLOY_USERNAME}/.ssh/known_hosts
-  - sudo -u ${DEPLOY_USERNAME} chmod 644 /home/${DEPLOY_USERNAME}/.ssh/known_hosts
 
   # --- Create project directory ---
   - sudo -u ${DEPLOY_USERNAME} mkdir -p /home/${DEPLOY_USERNAME}/projects
@@ -117,8 +103,10 @@ runcmd:
   - systemctl start fail2ban
 
   # --- Set up Caddy log directory ---
+  # Must run after Caddy is installed so the caddy system user exists.
   - mkdir -p /var/log/caddy
   - chown -R caddy:caddy /var/log/caddy
+  - systemctl start caddy
 
 # ---------------------------------------------------------------------------
 # Config files written on first boot
