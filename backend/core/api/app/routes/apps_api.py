@@ -2285,6 +2285,20 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 )
             
             # Register POST /v1/apps/{app_id}/skills/{skill_id} endpoint
+            # Respect api_config.expose_post — some skills (e.g., images/generate) require
+            # client-side encryption flows (WebSocket + browser crypto) and cannot be executed
+            # meaningfully via a stateless REST API call. Their POST endpoint is intentionally
+            # omitted from /docs to avoid misleading REST API consumers.
+            # The GET metadata endpoint remains so developers know the skill exists.
+            should_expose_post = True
+            if skill.api_config and not skill.api_config.expose_post:
+                should_expose_post = False
+                logger.info(f"Skipping POST endpoint for skill {app_id}/{skill.id} (api_config.expose_post=false)")
+
+            if not should_expose_post:
+                logger.info(f"Registered routes for skill: GET /v1/apps/{app_id}/skills/{skill.id} (POST omitted)")
+                continue
+
             post_handler = create_post_skill_handler(app_id, skill, app_metadata)
             
             # Determine response model - check if handler uses a custom response model

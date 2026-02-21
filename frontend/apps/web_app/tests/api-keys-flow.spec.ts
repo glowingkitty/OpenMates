@@ -384,7 +384,260 @@ test('create button is disabled when API key name is empty', async ({ page }: { 
 });
 
 // ---------------------------------------------------------------------------
-// Test 3: At 5-key limit, create button is disabled and limit warning shown
+// Test 3: Create key → REST API blocked → approve device → REST API works → save key
+// ---------------------------------------------------------------------------
+//
+// This test verifies the full API key + device approval lifecycle:
+//   1. Create a new API key (capturing the raw key value)
+//   2. Make a REST API call with that key — expect 401/blocked (device not approved)
+//   3. Navigate to Settings > Developers > Devices
+//   4. Find the pending device and click Approve
+//   5. Make the same REST API call again — expect 200 (device now approved)
+//   6. Save the working key to playwright-artifacts/api_key.txt so pytest can use it
+//
+// The REST API endpoint used is GET /v1/settings/api-keys — requires API key auth,
+// returns the user's key list (cheap, no side effects, works with Bearer auth).
+//
+// REQUIRED ENV VARS:
+// - OPENMATES_TEST_ACCOUNT_EMAIL
+// - OPENMATES_TEST_ACCOUNT_PASSWORD
+// - OPENMATES_TEST_ACCOUNT_OTP_KEY
+// - PLAYWRIGHT_TEST_BASE_URL (or defaults to https://app.dev.openmates.org)
+
+const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
+const ARTIFACTS_DIR = process.env.PLAYWRIGHT_ARTIFACTS_DIR || '/workspace/artifacts';
+
+test('creates API key, verifies device approval flow, and saves working key', async ({
+	page,
+	request
+}: {
+	page: any;
+	request: any;
+}) => {
+	test.slow();
+	test.setTimeout(300000);
+
+	page.on('console', (msg: any) =>
+		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
+	);
+	page.on('request', (req: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] >> ${req.method()} ${req.url()}`)
+	);
+	page.on('response', (res: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
+	);
+
+	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
+	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
+	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+
+	const log = createSignupLogger('API_KEY_DEVICE_APPROVAL');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
+
+	// ── Phase 1: Login ────────────────────────────────────────────────────────
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(2000);
+
+	// ── Phase 2: Navigate to API Keys and create a new key ───────────────────
+	await navigateToApiKeys(page, log);
+	await screenshot(page, 'api-keys-page');
+
+	// Delete any leftover E2E-RestAPI keys from previous runs
+	log('Cleaning up leftover E2E-RestAPI keys from previous runs...');
+	for (let i = 0; i < 5; i++) {
+		const staleKey = page
+			.locator('.api-key-item')
+			.filter({ has: page.locator('.key-name').filter({ hasText: /E2E-RestAPI/i }) })
+			.first();
+		const staleVisible = await staleKey.isVisible({ timeout: 1500 }).catch(() => false);
+		if (!staleVisible) break;
+		const staleDeleteBtn = staleKey.locator('.btn-delete');
+		if (await staleDeleteBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+			page.once('dialog', (dialog: any) => dialog.accept());
+			await staleDeleteBtn.click();
+			await page.waitForTimeout(1500);
+			log('Deleted stale E2E-RestAPI key.');
+		} else {
+			break;
+		}
+	}
+
+	// If already at the 5-key limit, delete one to make room
+	const limitWarning = page.locator('.api-keys-container .limit-warning');
+	const isAtLimit = await limitWarning.isVisible({ timeout: 2000 }).catch(() => false);
+	if (isAtLimit) {
+		log('At 5-key limit — deleting first key to make room...');
+		const firstDeleteBtn = page.locator('.api-key-item .btn-delete').first();
+		if (await firstDeleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+			page.once('dialog', (dialog: any) => dialog.accept());
+			await firstDeleteBtn.click();
+			await page.waitForTimeout(2000);
+		}
+	}
+
+	// Create a new API key
+	const createButton = page.locator('.api-keys-container .btn-create');
+	await expect(createButton).toBeVisible({ timeout: 5000 });
+	await expect(createButton).toBeEnabled();
+	await createButton.click();
+	log('Clicked Create New API Key.');
+
+	const keyName = `E2E-RestAPI-${Date.now()}`;
+	const nameInput = page.locator('.modal .name-input');
+	await expect(nameInput).toBeVisible({ timeout: 5000 });
+	await nameInput.fill(keyName);
+	log(`Entered key name: "${keyName}"`);
+
+	const createConfirmButton = page.locator('button.btn-create-confirm');
+	await expect(createConfirmButton).toBeEnabled({ timeout: 3000 });
+	await createConfirmButton.click();
+	log('Clicked Create API Key confirm.');
+
+	// Capture the raw key value from the "API Key Created" modal
+	const createdKeyEl = page.locator('.created-key');
+	await expect(createdKeyEl).toBeVisible({ timeout: 15000 });
+	await screenshot(page, 'key-created');
+
+	const rawApiKey = (await createdKeyEl.textContent())?.trim() ?? '';
+	expect(rawApiKey).toMatch(/^sk-api-[A-Za-z0-9]+$/);
+	log(`Captured API key: "${rawApiKey.slice(0, 12)}..."`);
+
+	// Dismiss the key-reveal modal
+	const doneButton = page.locator('button.btn-done');
+	await expect(doneButton).toBeVisible({ timeout: 3000 });
+	await doneButton.click();
+	log('Dismissed key modal.');
+	await page.waitForTimeout(1000);
+
+	// ── Phase 3: Make REST API call — expect it to be blocked (device pending) ─
+	log(`Making REST API call to ${API_BASE_URL}/v1/settings/api-keys with new key...`);
+	const blockedResponse = await request.get(`${API_BASE_URL}/v1/settings/api-keys`, {
+		headers: { Authorization: `Bearer ${rawApiKey}` }
+	});
+	log(`REST API response (before device approval): ${blockedResponse.status()}`);
+	await screenshot(page, 'api-call-before-approval');
+
+	// The device is pending — the API should block the request (401 or 403)
+	expect(
+		[401, 403].includes(blockedResponse.status()),
+		`Expected 401 or 403 (device not yet approved), got ${blockedResponse.status()}`
+	).toBe(true);
+	log('Confirmed: REST API call correctly blocked before device approval.');
+
+	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
+	// Go back until we can see the "Devices" menuitem in the Developers submenu.
+	// We may be one or two levels deep (API Keys page → Developers → see Devices).
+	const settingsBackButton = page.locator('.settings-header .nav-button .icon_back.visible');
+	for (let backClicks = 0; backClicks < 5; backClicks++) {
+		// Check if "Devices" menuitem is already visible
+		const devicesCheck = page
+			.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+			.filter({ hasText: 'Manage devices that' })
+			.first();
+		const devicesCheckByTitle = page
+			.locator('.settings-menu.visible')
+			.getByRole('menuitem')
+			.filter({ hasText: /^devices$/i })
+			.first();
+		const alreadyVisible =
+			(await devicesCheck.isVisible({ timeout: 800 }).catch(() => false)) ||
+			(await devicesCheckByTitle.isVisible({ timeout: 800 }).catch(() => false));
+		if (alreadyVisible) break;
+		const backVisible = await settingsBackButton.isVisible({ timeout: 800 }).catch(() => false);
+		if (!backVisible) break;
+		await settingsBackButton.click();
+		await page.waitForTimeout(600);
+	}
+	log('Back at Developers submenu.');
+
+	// Click "Devices" menu item (title is "Devices", description is "Manage devices that...")
+	await page.waitForTimeout(500); // Allow submenu to settle
+	const settingsMenu2 = page.locator('.settings-menu.visible');
+	const devicesItemByTitle = settingsMenu2
+		.getByRole('menuitem')
+		.filter({ hasText: /^devices$/i })
+		.first();
+	const devicesItemByDesc = settingsMenu2
+		.locator('.menu-item[role="menuitem"]')
+		.filter({ hasText: 'Manage devices that' })
+		.first();
+	const devicesVisible = await devicesItemByTitle.isVisible({ timeout: 5000 }).catch(() => false);
+	const devicesItem = devicesVisible ? devicesItemByTitle : devicesItemByDesc;
+	await expect(devicesItem).toBeVisible({ timeout: 8000 });
+	await devicesItem.click();
+	log('Navigated to Devices page.');
+	await screenshot(page, 'devices-page');
+
+	// Wait for devices list to load
+	const devicesContainer = page.locator('.devices-container');
+	await expect(devicesContainer).toBeVisible({ timeout: 8000 });
+
+	// Find the pending device card (has orange border / .pending class) and approve it
+	// Give the device a moment to appear (it was just registered by the API call above)
+	await page.waitForTimeout(2000);
+
+	// Reload devices in case the pending device hasn't appeared yet
+	// The devices list auto-loads on mount — try refreshing the page section
+	const pendingCard = page.locator('.device-card.pending').first();
+	await expect(pendingCard).toBeVisible({ timeout: 15000 });
+	log('Found pending device card.');
+	await screenshot(page, 'pending-device');
+
+	const approveButton = pendingCard.locator('.btn-approve');
+	await expect(approveButton).toBeVisible({ timeout: 5000 });
+	await approveButton.click();
+	log('Clicked Approve button.');
+
+	// Wait for the device to move to "approved" state (card loses .pending class)
+	await expect(pendingCard).not.toBeVisible({ timeout: 10000 });
+	log('Pending device card is gone — device approved.');
+
+	// Verify approved badge appears on the (now-reloaded) device list
+	const approvedBadge = devicesContainer.locator('.status-badge.approved').first();
+	await expect(approvedBadge).toBeVisible({ timeout: 8000 });
+	log('Confirmed: Approved status badge is visible.');
+	await screenshot(page, 'device-approved');
+
+	// ── Phase 5: Make REST API call again — expect 200 ───────────────────────
+	log(`Making REST API call to ${API_BASE_URL}/v1/settings/api-keys with approved key...`);
+	const approvedResponse = await request.get(`${API_BASE_URL}/v1/settings/api-keys`, {
+		headers: { Authorization: `Bearer ${rawApiKey}` }
+	});
+	log(`REST API response (after device approval): ${approvedResponse.status()}`);
+	await screenshot(page, 'api-call-after-approval');
+
+	expect(approvedResponse.status()).toBe(200);
+	const approvedData = await approvedResponse.json();
+	expect(approvedData).toHaveProperty('api_keys');
+	log('Confirmed: REST API call succeeded after device approval!');
+
+	// ── Phase 6: Save the working API key to artifacts ───────────────────────
+	// Write to a file that the pytest tests can read (mounted at /artifacts in Docker)
+	const fs = require('fs');
+	const path = require('path');
+
+	const artifactsDir = ARTIFACTS_DIR;
+	if (!fs.existsSync(artifactsDir)) {
+		fs.mkdirSync(artifactsDir, { recursive: true });
+	}
+
+	const keyFilePath = path.join(artifactsDir, 'api_key.txt');
+	fs.writeFileSync(keyFilePath, rawApiKey, 'utf8');
+	log(`Saved working API key to: ${keyFilePath}`);
+
+	// Also log it clearly so it's visible in test output even without the file
+	console.log(`\n${'='.repeat(60)}`);
+	console.log(`NEW WORKING API KEY: ${rawApiKey}`);
+	console.log(`Update .env: OPENMATES_TEST_ACCOUNT_API_KEY="${rawApiKey}"`);
+	console.log('='.repeat(60));
+
+	await screenshot(page, 'done');
+	log('Test complete. API key lifecycle with device approval verified.');
+});
+
+// ---------------------------------------------------------------------------
+// Test 5: At 5-key limit, create button is disabled and limit warning shown
 // ---------------------------------------------------------------------------
 
 test('shows limit warning and disabled create button when 5 API keys exist', async ({

@@ -80,6 +80,12 @@ Issue source?
 
 **ALWAYS determine which server the issue is on FIRST.** The `dev` branch runs on the development server; the `main` branch runs on production. These are completely separate environments.
 
+> **Architecture reminder:** The assistant (Claude Code) executes **directly on the dev server** — the same machine that runs the Docker containers. This means:
+>
+> - `docker compose` commands and `docker exec` commands run against **local containers and the local database** — this IS the dev environment.
+> - `api.dev.openmates.org` is the public-facing URL of this same dev server. There is no separate dev database; the local PostgreSQL container is the dev database.
+> - To access **production**, you must use the Admin Debug CLI (which sends HTTP requests to `api.openmates.org` over the network) — never `docker compose` for production.
+
 ### Production Server Debugging (ALWAYS use Admin Debug CLI)
 
 **For production issues, ALWAYS use the Admin Debug CLI** (`backend/scripts/admin_debug_cli.py`). This script runs locally on the dev server via `docker exec` but queries the **production API** remotely. Do NOT use local `docker compose logs` commands — those only show dev server logs.

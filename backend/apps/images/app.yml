@@ -34,6 +34,8 @@ skills:
   - id: generate
     name_translation_key: images.generate
     description_translation_key: images.generate.description
+    api_config:
+      expose_post: false # POST requires client-side encryption (WebSocket + browser crypto). Use the web app or CLI instead.
     preprocessor_hint: >
       Generate high-quality images from text prompts and/or reference images.
       Also use for: mockups, design concepts, visual mockup creation, logo mockups,
@@ -145,6 +147,8 @@ skills:
   - id: generate_draft
     name_translation_key: images.generate_draft
     description_translation_key: images.generate_draft.description
+    api_config:
+      expose_post: false # POST requires client-side encryption (WebSocket + browser crypto). Use the web app or CLI instead.
     preprocessor_hint: >
       Quickly generate a draft/preview image from a text prompt.
       Also use for: quick mockups, rough design concepts, draft illustrations,

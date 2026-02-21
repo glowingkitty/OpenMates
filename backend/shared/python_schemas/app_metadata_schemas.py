@@ -25,9 +25,11 @@ class AppSkillApiConfig(BaseModel):
     
     Controls how the skill is exposed in the public REST API (/v1/apps/{app_id}/skills/{skill_id}).
     By default, skills expose both GET (metadata) and POST (execute) endpoints.
-    Use this to restrict visibility (e.g., POST-only for write-only skills).
+    Use this to restrict visibility (e.g., GET-only for skills that require client-side encryption
+    flows and cannot be executed meaningfully via a stateless REST API call).
     """
     expose_get: bool = Field(default=True, description="Whether to expose a GET endpoint for skill metadata. Set to false for skills that should only accept POST requests (e.g., write-only anonymous data collection).")
+    expose_post: bool = Field(default=True, description="Whether to expose a POST endpoint for skill execution. Set to false for skills that require client-side encryption flows (e.g., image generation) and cannot be executed via a stateless REST API call. The GET metadata endpoint remains visible so developers know the skill exists.")
 
 
 class AppSkillDefinition(BaseModel):
