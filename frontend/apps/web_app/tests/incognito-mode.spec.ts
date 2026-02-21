@@ -63,7 +63,9 @@ const SELECTORS = {
 
 	// Incognito visual indicators
 	incognitoBanner: '.incognito-banner',
-	incognitoLabel: '.incognito-label',
+	// The incognito group header is an h2.group-title rendered inside the INCOGNITO chat group.
+	// It replaces the old per-chat .incognito-label badge (removed in favour of a single group header).
+	incognitoGroupHeader: 'h2.group-title',
 
 	// Chat list
 	chatItems: '.chat-item'
@@ -287,10 +289,12 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 
 	await takeStepScreenshot(page, '09-sidebar-after-send');
 
-	// Assert: incognito label visible on at least one sidebar chat item
-	const incognitoLabel = page.locator(SELECTORS.incognitoLabel);
-	await expect(incognitoLabel.first()).toBeVisible({ timeout: 15000 });
-	logCheckpoint('✓ Incognito label visible in sidebar.');
+	// Assert: INCOGNITO group header visible in the sidebar (replaced per-chat badges)
+	const incognitoGroupHeader = page
+		.locator(SELECTORS.incognitoGroupHeader)
+		.filter({ hasText: /incognito/i });
+	await expect(incognitoGroupHeader.first()).toBeVisible({ timeout: 15000 });
+	logCheckpoint('✓ Incognito group header visible in sidebar.');
 
 	// Assert: sessionStorage has the incognito chat
 	const storedChats = await page.evaluate(() => sessionStorage.getItem('incognito_chats'));
@@ -370,10 +374,14 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 			await page.waitForTimeout(500);
 		}
 	}
-	await expect(incognitoLabel.first()).toBeVisible({ timeout: 15000 });
-	const labelCount = await incognitoLabel.count();
-	expect(labelCount).toBe(chatCountAfter);
-	logCheckpoint(`✓ Sidebar shows ${labelCount} incognito label(s) after reload.`);
+	await expect(incognitoGroupHeader.first()).toBeVisible({ timeout: 15000 });
+	// Verify the incognito chat items under the group match the expected count
+	const incognitoChatItems = page.locator('.chat-item.incognito');
+	const itemCount = await incognitoChatItems.count();
+	expect(itemCount).toBe(chatCountAfter);
+	logCheckpoint(
+		`✓ Sidebar shows INCOGNITO group header with ${itemCount} chat item(s) after reload.`
+	);
 	await takeStepScreenshot(page, '11-after-reload');
 
 	// -------------------------------------------------------------------------
@@ -382,10 +390,15 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 
 	logCheckpoint('--- Scenario 4+5: Disable incognito, chats removed + banner gone ---');
 
-	// Record the count of incognito labels before disabling (to verify they're gone)
-	const labelsBeforeDisable = await incognitoLabel.count();
-	logCheckpoint(`Incognito labels before disable: ${labelsBeforeDisable}`);
-	expect(labelsBeforeDisable).toBeGreaterThan(0);
+	// Record whether the INCOGNITO group header is visible before disabling (to verify it's gone later)
+	const groupHeaderVisibleBeforeDisable = await incognitoGroupHeader
+		.first()
+		.isVisible()
+		.catch(() => false);
+	logCheckpoint(
+		`Incognito group header visible before disable: ${groupHeaderVisibleBeforeDisable}`
+	);
+	expect(groupHeaderVisibleBeforeDisable).toBe(true);
 
 	// Open settings and disable the toggle
 	await profileButton.click();
@@ -416,10 +429,13 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 		}
 	}
 	await page.waitForTimeout(2000);
-	const labelsAfterDisable = await incognitoLabel.count();
-	logCheckpoint(`Incognito labels after disable: ${labelsAfterDisable}`);
-	expect(labelsAfterDisable).toBe(0);
-	logCheckpoint('✓ All incognito labels removed from sidebar.');
+	const groupHeaderVisibleAfterDisable = await incognitoGroupHeader
+		.first()
+		.isVisible()
+		.catch(() => false);
+	logCheckpoint(`Incognito group header visible after disable: ${groupHeaderVisibleAfterDisable}`);
+	expect(groupHeaderVisibleAfterDisable).toBe(false);
+	logCheckpoint('✓ Incognito group header removed from sidebar after disable.');
 
 	// Assert (Scenario 5): incognito banner gone
 	await expect(incognitoBanner).not.toBeVisible({ timeout: 10000 });
