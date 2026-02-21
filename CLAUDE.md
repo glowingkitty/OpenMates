@@ -63,6 +63,31 @@ OpenMates/
 - Explain key architecture decisions in comments
 - Link to relevant architecture docs where appropriate
 
+### Unexpected Failures During a Task (CRITICAL)
+
+If you encounter a failure that is **not directly related to the task you were assigned**
+(e.g. a broken feature you didn't touch, a test failing on something outside your scope):
+
+1. **STOP immediately.** Do not attempt to fix it.
+2. **Check git history first** — did your session or a concurrent session recently touch the broken code?
+   ```bash
+   git log -5 -- <file-that-contains-the-broken-code>
+   ```
+3. **If your session did NOT change the broken code:** report it to the user and ask for instructions. Do not attempt a fix.
+4. **If your session DID change the broken code:** revert your change, verify the revert fixes it, then report what happened and ask how to proceed.
+
+**Never spend more than 2 investigation attempts on a problem outside your assigned scope without explicit user approval to continue.**
+
+### Debugging Attempt Limit (CRITICAL)
+
+If you have tried the **same fix approach 2 times** and it has not worked:
+
+- **STOP.**
+- Summarize what you tried, what the symptoms are, and what you suspect the root cause is.
+- Ask the user how to proceed.
+
+Do not keep iterating with minor variations of the same approach (e.g. adding more diagnostic logs, increasing timeouts, trying different selectors for the same missing element). This wastes cycles and can mask the real problem.
+
 ### Task Completion Summary (CRITICAL)
 
 **After completing every task (commit, lint, push — all done), end your final response with a structured summary.** Keep it concise — bullet points, not paragraphs. Use "N/A" for sections that don't apply.

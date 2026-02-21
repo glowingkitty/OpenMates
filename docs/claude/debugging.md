@@ -4,6 +4,32 @@ Load this document when investigating bugs, reading logs, or troubleshooting Doc
 
 ---
 
+## CRITICAL: Verify a Regression Before Attempting to Fix It
+
+Before spending any effort debugging a suspected regression, confirm it is actually caused by recent changes.
+
+**Step 1: Check whether your session (or a concurrent session) touched the broken code**
+
+```bash
+git log -5 -- <file-that-contains-the-broken-code>
+```
+
+If none of the recent commits are from your session or a concurrent session, **do not attempt a fix** — report to the user instead.
+
+**Step 2: Verify the feature worked before your changes**
+
+```bash
+git show <last-commit-before-yours>:<path/to/file> | grep -A5 -B5 "relevant function"
+```
+
+**Step 3: If you cannot confirm it was working before — STOP and ASK**
+
+Say: "I cannot confirm this was working before my changes — it may be a pre-existing issue. How would you like me to proceed?"
+
+It is always better to ask than to spend multiple test cycles trying to fix something that was broken long before your session started.
+
+---
+
 ## CRITICAL: Ask Clarifying Questions Before Debugging
 
 **Before touching any logs or code, you MUST establish the following two facts:**
