@@ -6,11 +6,11 @@
 // VITE_UPLOAD_URL: Single URL for self-hosted deployments (takes precedence)
 // VITE_UPLOAD_URL_DEV/PROD: Environment-specific upload server URLs for cloud deployments
 // The upload server (app-uploads microservice) is a separate VM — NOT proxied through the web app.
-// Dev:  https://upload.dev.openmates.org
-// Prod: https://upload.openmates.org
+// Both dev and prod deployments use the same upload server: https://upload.openmates.org
+// The upload server distinguishes dev vs prod requests via the Origin header (set by Caddy).
 export const uploadUrls = {
   development:
-    import.meta.env.VITE_UPLOAD_URL_DEV || "https://upload.dev.openmates.org",
+    import.meta.env.VITE_UPLOAD_URL_DEV || "https://upload.openmates.org",
   production:
     import.meta.env.VITE_UPLOAD_URL_PROD || "https://upload.openmates.org",
 } as const;
