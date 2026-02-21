@@ -12,10 +12,10 @@
 #
 # Output filetype routing:
 #   output_filetype="svg"        → Recraft V4 Vector pipeline
-#     quality="default"          → recraftv4_vector     ($0.08/image,  80 credits)
+#     quality="default"          → recraftv4_vector     ($0.08/image, 100 credits)
 #     quality="max"              → recraftv4_pro_vector ($0.30/image, 300 credits)
 #   output_filetype="png"|"jpg" with recraft model → Recraft V4 Raster pipeline
-#     quality="default"          → recraftv4     ($0.04/image,  40 credits, 1024×1024)
+#     quality="default"          → recraftv4     ($0.04/image,  50 credits, 1024×1024)
 #     quality="max"              → recraftv4_pro ($0.25/image, 250 credits, 2048×2048)
 #   output_filetype="png"|"jpg" with google model  → Google Gemini (default)
 #   output_filetype="png"|"jpg" with bfl/flux model → fal.ai FLUX
@@ -41,8 +41,8 @@ class ImageGenerationRequest(BaseModel):
       - output_filetype (optional): "png", "jpg", or "svg". Defaults to "png".
                           Use "svg" to generate scalable vector graphics via Recraft V4.
       - quality         (optional): "default" or "max". Controls model tier:
-                          For svg:   "default" → recraftv4_vector (80 cr), "max" → recraftv4_pro_vector (300 cr)
-                          For raster with recraft model: "default" → recraftv4 (40 cr), "max" → recraftv4_pro (250 cr)
+                          For svg:   "default" → recraftv4_vector (100 cr), "max" → recraftv4_pro_vector (300 cr)
+                          For raster with recraft model: "default" → recraftv4 (50 cr), "max" → recraftv4_pro (250 cr)
                           For other raster models (google, flux): quality is ignored.
     """
 
@@ -88,10 +88,10 @@ class GenerateSkill(BaseSkill):
 
     Supports three output modes:
     - Vector (svg):              routes to Recraft V4 Vector API
-                                 quality="default" → recraftv4_vector     ( 80 credits)
+                                 quality="default" → recraftv4_vector     (100 credits)
                                  quality="max"     → recraftv4_pro_vector (300 credits)
     - Raster (png/jpg) + recraft model: routes to Recraft V4 Raster API
-                                 quality="default" → recraftv4     ( 40 credits, 1024×1024)
+                                 quality="default" → recraftv4     ( 50 credits, 1024×1024)
                                  quality="max"     → recraftv4_pro (250 credits, 2048×2048)
     - Raster (png/jpg) + other model: routes to Google Gemini (default) or fal.ai FLUX
 
@@ -179,8 +179,8 @@ class GenerateSkill(BaseSkill):
                 output_filetype = "png"
 
             # quality only applies to SVG output (selects Recraft model tier):
-            #   "default" → recraftv4_vector     (80 credits,  $0.08/image)
-            #   "max"     → recraftv4_pro_vector  (300 credits, $0.30/image)
+            #   "default" → recraftv4_vector     (100 credits, $0.08/image API cost)
+            #   "max"     → recraftv4_pro_vector  (300 credits, $0.30/image API cost)
             quality = str(req.get("quality", "default")).lower()
             if quality not in ("default", "max"):
                 logger.warning(

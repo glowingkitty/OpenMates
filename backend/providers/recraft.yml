@@ -11,12 +11,12 @@
 # Vault secret: kv/data/providers/recraft → api_key
 #
 # Raster models (PNG/JPG output, output_filetype != "svg"):
-#   recraftv4:     $0.04/image →  40 credits (1024×1024)
-#   recraftv4_pro: $0.25/image → 250 credits (2048×2048)
+#   recraftv4:     $0.04/image →  50 credits (1024×1024)  [25% margin above break-even]
+#   recraftv4_pro: $0.25/image → 250 credits (2048×2048)  [break-even]
 #
 # Vector models (SVG output, output_filetype == "svg"):
-#   recraftv4_vector:     $0.08/image →  80 credits (default quality)
-#   recraftv4_pro_vector: $0.30/image → 300 credits (max quality)
+#   recraftv4_vector:     $0.08/image → 100 credits (default quality)  [25% margin above break-even]
+#   recraftv4_pro_vector: $0.30/image → 300 credits (max quality)      [break-even]
 
 provider_id: "recraft"
 name: "Recraft"
@@ -42,7 +42,7 @@ models:
         region: "US"
     pricing:
       per_unit:
-        credits: 40 # $0.04 / $0.001 = 40 credits (exact break-even, no markup)
+        credits: 50 # $0.04 / $0.001 = 40 break-even; 50 credits = $0.05 charged (~25% margin)
         unit_name: "image"
     costs:
       output_per_image:
@@ -92,7 +92,7 @@ models:
         region: "US"
     pricing:
       per_unit:
-        credits: 80 # $0.08 / $0.001 = 80 credits (exact break-even, no markup)
+        credits: 100 # $0.08 / $0.001 = 80 break-even; 100 credits = $0.10 charged (~25% margin)
         unit_name: "image"
     costs:
       output_per_image:
@@ -124,11 +124,16 @@ models:
         price: 0.30
         currency: USD
 
-# Pricing formula (app skills — NO profit margin, pure cost pass-through):
-# credits_per_image = cost_usd / credit_value_usd
-# credit_value_usd  = 0.001 (1 credit = $0.001, based on $110 / 110,000 credits)
+# Pricing notes (credit_value_usd = $0.001; based on $110 / 110,000 credits):
 #
-# recraftv4:            $0.04 / 0.001 = 40 credits
-# recraftv4_pro:        $0.25 / 0.001 = 250 credits
-# recraftv4_vector:     $0.08 / 0.001 = 80 credits
-# recraftv4_pro_vector: $0.30 / 0.001 = 300 credits
+# Break-even formula:  credits_break_even = cost_usd / 0.001
+#
+# Model                 API cost   Break-even   Charged   Margin
+# recraftv4             $0.04      40 credits    50 cr     +25%
+# recraftv4_pro         $0.25     250 credits   250 cr      0%  (pass-through)
+# recraftv4_vector      $0.08      80 credits   100 cr     +25%
+# recraftv4_pro_vector  $0.30     300 credits   300 cr      0%  (pass-through)
+#
+# Rationale: default-quality models carry a 25% margin to cover infrastructure overhead
+# and to encourage upgrading to pro tiers for demanding use cases. Pro models remain
+# at break-even to stay competitive for high-volume usage.

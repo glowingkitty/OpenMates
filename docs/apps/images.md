@@ -182,3 +182,113 @@ Before any external processing, all privacy-sensitive EXIF metadata (GPS, etc.) 
 #### Skill "Reverse image search"
 
 - Uses Google Image search API (via SerpApi) for high-quality visual discovery.
+
+---
+
+## Planned: Image Editing Skills (Recraft API)
+
+The following skills are planned as **separate images app skills** using the [Recraft API](https://www.recraft.ai/docs/api-reference/pricing). Each will be its own skill (not part of `images.generate`) to keep routing logic clean and billing transparent. None of these are implemented yet.
+
+All planned skills below use Recraft V3 models (the editing endpoints are V3-only per Recraft's API).
+
+### `images.edit_inpaint` — Inpainting (erase and redraw a region)
+
+Fill or replace a masked region of an image using a text prompt.
+
+- **Recraft endpoint**: image inpainting
+- **Models / costs**:
+  - Raster: `recraftv3` — $0.04/image (API cost)
+  - Vector: `recraftv3_vector` — $0.08/image (API cost)
+- **Inputs**: source image, mask image, text prompt, output_filetype
+- **Use case**: remove objects, fix artifacts, replace backgrounds in a specific area
+
+### `images.edit_replace_background` — Background replacement
+
+Replace the entire background of an image while preserving the foreground subject.
+
+- **Recraft endpoint**: replace background
+- **Models / costs**:
+  - Raster: `recraftv3` — $0.04/image (API cost)
+  - Vector: `recraftv3_vector` — $0.08/image (API cost)
+- **Inputs**: source image, text prompt describing the new background
+- **Use case**: product photography, portrait backgrounds, scene transplants
+
+### `images.edit_generate_background` — Background generation (subject-aware)
+
+Generate a contextually fitting background around a subject without an explicit prompt — Recraft infers the scene.
+
+- **Recraft endpoint**: generate background
+- **Models / costs**:
+  - Raster: `recraftv3` — $0.04/image (API cost)
+  - Vector: `recraftv3_vector` — $0.08/image (API cost)
+- **Inputs**: source image (subject/foreground extracted)
+- **Use case**: seamless background synthesis for cut-out subjects
+
+### `images.edit_image_to_image` — Image-to-image transformation
+
+Transform an existing image using a text prompt (style transfer, scene modification, etc.).
+
+- **Recraft endpoint**: image to image
+- **Models / costs**:
+  - Raster: `recraftv3` — $0.04/image (API cost)
+  - Vector: `recraftv3_vector` — $0.08/image (API cost)
+- **Inputs**: source image, text prompt, strength parameter
+- **Use case**: restyling, converting a sketch to a rendered scene, variant generation
+
+### `images.edit_erase_region` — Region eraser
+
+Erase a masked region of the image (fills with contextually aware content or transparent pixels).
+
+- **Recraft endpoint**: erase region
+- **Cost**: $0.002/request (API cost) — very cheap utility operation
+- **Inputs**: source image, mask image
+- **Use case**: remove unwanted objects, clean up images
+
+### `images.variate` — Image variation
+
+Generate a variation of an existing image while preserving its general composition.
+
+- **Recraft endpoint**: variate image
+- **Cost**: $0.04/request (API cost)
+- **Inputs**: source image, optional strength/seed
+- **Use case**: A/B testing variations, exploring alternatives from a base generation
+
+### `images.upscale` — Image upscaling
+
+Upscale an image to a higher resolution using one of two modes:
+
+| Mode       | Endpoint         | Cost           | Description                                                               |
+| ---------- | ---------------- | -------------- | ------------------------------------------------------------------------- |
+| `crisp`    | crisp upscale    | $0.004/request | Fast upscale, preserves hard edges — best for UI/icons/vector-style art   |
+| `creative` | creative upscale | $0.25/request  | AI-enhanced upscale that adds detail — best for photos and complex scenes |
+
+- **Inputs**: source image, mode (`crisp` \| `creative`)
+- **Use case**: prepare images for print, enhance low-res assets
+
+### `images.remove_background` — Background removal
+
+Remove the background from an image to produce a transparent PNG.
+
+- **Recraft endpoint**: image background removal
+- **Cost**: $0.01/request (API cost)
+- **Inputs**: source image
+- **Use case**: product photography, sticker creation, compositing
+
+### `images.vectorize` — Raster-to-vector conversion
+
+Convert an existing raster image (PNG/JPG) to a scalable SVG vector.
+
+- **Recraft endpoint**: image vectorization
+- **Cost**: $0.01/request (API cost)
+- **Inputs**: source image (PNG/JPG)
+- **Use case**: convert logos, icons, or illustrations to infinitely scalable SVG
+
+### `images.create_style` — Style creation
+
+Create a reusable Recraft style from reference images. The resulting style ID can be passed to future `images.generate` calls to apply a consistent visual style.
+
+- **Recraft endpoint**: image style creation
+- **Cost**: $0.04/request (API cost)
+- **Inputs**: one or more reference images
+- **Output**: a `style_id` string stored on the user's account
+- **Use case**: brand consistency, series of images with a unified aesthetic
