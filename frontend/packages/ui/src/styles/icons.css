@@ -131,10 +131,10 @@
   --icon-mask-image: url("@openmates/ui/static/icons/cloud.svg");
 }
 .subsetting_icon.key {
-  --icon-mask-image: url("@openmates/ui/static/icons/key.svg");
+  --icon-mask-image: url("@openmates/ui/static/icons/security_key.svg");
 }
 .subsetting_icon.devices {
-  --icon-mask-image: url("@openmates/ui/static/icons/devices.svg");
+  --icon-mask-image: url("@openmates/ui/static/icons/desktop.svg");
 }
 .subsetting_icon.email {
   --icon-mask-image: url("@openmates/ui/static/icons/mail.svg");
