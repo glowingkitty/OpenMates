@@ -299,20 +299,51 @@ class PaymentService:
         self,
         payment_intent_id: str,
         amount: Optional[int] = None,
+        provider: Optional[str] = None,
+        reason: str = "customer_request",
     ) -> Optional[Dict[str, Any]]:
         """
-        Refund a payment. Currently only supported for Stripe.
-        Polar refunds must be issued via the Polar dashboard (Phase 1).
+        Refund a payment via the appropriate provider.
+
+        Provider routing order:
+        1. Explicit provider override (if given)
+        2. Revolut (if active — legacy migration path)
+        3. Stripe (if order ID starts with 'pi_')
+        4. Polar (if initialized and order ID doesn't match other providers)
+
+        Args:
+            payment_intent_id: Provider-specific order/payment ID.
+                               For Stripe: PaymentIntent ID ('pi_...').
+                               For Polar: the Polar Order UUID (from invoices.provider_order_id).
+            amount: Refund amount in smallest currency unit (cents). If None, full refund (Stripe only).
+            provider: Explicit provider name ('stripe', 'polar', 'revolut') to bypass auto-detection.
+            reason: Refund reason (used by Polar). Default: 'customer_request'.
+
+        Returns:
+            Dict with 'refund_id', 'amount', 'currency', 'status' on success, None on error.
         """
+        # Explicit provider override
+        if provider == "polar" and self._polar_provider:
+            return await self._polar_provider.refund_payment(payment_intent_id, amount, reason=reason)
+        if provider == "stripe" and self._stripe_provider:
+            return await self._stripe_provider.refund_payment(payment_intent_id, amount)
+        if provider == "revolut" and self._revolut_provider:
+            return await self._revolut_provider.refund_payment(payment_intent_id, amount)
+
+        # Auto-detection fallback (for backwards compatibility)
         if self._revolut_provider and hasattr(self._revolut_provider, "refund_payment"):
             return await self._revolut_provider.refund_payment(payment_intent_id, amount)
 
         if self._stripe_provider and payment_intent_id.startswith("pi_"):
             return await self._stripe_provider.refund_payment(payment_intent_id, amount)
 
+        # Polar fallback: non-pi_ order ID with Polar initialized
+        if self._polar_provider:
+            return await self._polar_provider.refund_payment(payment_intent_id, amount, reason=reason)
+
         logger.warning(
             f"PaymentService.refund_payment: cannot determine provider for order "
-            f"'{payment_intent_id}'. Polar refunds require the Polar dashboard."
+            f"'{payment_intent_id}' (provider={provider}). No matching provider available."
         )
         return None
 

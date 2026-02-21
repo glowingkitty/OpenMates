@@ -400,20 +400,95 @@ class PolarService:
         self,
         payment_intent_id: str,
         amount: Optional[int] = None,
+        reason: str = "customer_request",
     ) -> Optional[Dict[str, Any]]:
         """
-        Polar refunds are initiated via the Polar dashboard or their Refunds API.
-        Phase 1: not implemented — returns None to indicate unsupported.
+        Issue a refund via the Polar Refunds API (POST /v1/refunds).
 
-        Note: Polar as MoR handles tax-inclusive refunds automatically when
-        issued through their system. Self-service refunds via API require
-        the Polar Refunds endpoint (POST /v1/refunds).
+        Polar as MoR handles tax-inclusive refunds automatically — the refund
+        amount is the gross amount (including tax). Polar calculates and adjusts
+        the tax portion internally and issues the credit note to the buyer.
+
+        Args:
+            payment_intent_id: The Polar **Order UUID** (not the checkout session ID).
+                               This is the provider_order_id stored in the invoices table.
+            amount: Refund amount in cents. Required by Polar (minimum 1).
+                    If None, we cannot proceed — Polar requires an explicit amount.
+            reason: Refund reason enum. One of: 'duplicate', 'fraudulent',
+                    'customer_request', 'service_disruption',
+                    'satisfaction_guarantee', 'dispute_prevention', 'other'.
+
+        Returns:
+            Dict with 'refund_id', 'amount', 'currency', 'status' on success,
+            or None on error.
         """
-        logger.warning(
-            f"PolarService.refund_payment called for order {payment_intent_id} but refunds "
-            "via API are not implemented in Phase 1. Use the Polar dashboard to issue refunds."
-        )
-        return None
+        if not self._access_token:
+            logger.error("PolarService: access token not initialized")
+            return None
+
+        if not amount or amount < 1:
+            logger.error(
+                f"PolarService: refund_payment requires a positive amount "
+                f"(got {amount}) for order {payment_intent_id}"
+            )
+            return None
+
+        payload: Dict[str, Any] = {
+            "order_id": payment_intent_id,
+            "reason": reason,
+            "amount": amount,
+            "comment": "Refund initiated via OpenMates",
+            "revoke_benefits": False,  # We don't use Polar Benefits
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT) as client:
+                response = await client.post(
+                    f"{self._api_base}/refunds",
+                    headers=self._get_headers(),
+                    json=payload,
+                )
+
+            if response.status_code not in (200, 201):
+                logger.error(
+                    f"PolarService: refund failed for order {payment_intent_id}. "
+                    f"Status: {response.status_code}, Body: {response.text[:500]}"
+                )
+                return None
+
+            data = response.json()
+            refund_id = data.get("id")
+            refund_status = data.get("status", "unknown")
+            refund_amount = data.get("amount", amount)
+            refund_currency = data.get("currency", "usd")
+
+            logger.info(
+                f"PolarService: refund {refund_id} created for order "
+                f"{payment_intent_id} — amount={refund_amount}, "
+                f"status={refund_status}, currency={refund_currency}"
+            )
+
+            return {
+                "refund_id": refund_id,
+                "amount": refund_amount,
+                "currency": refund_currency,
+                "status": refund_status,
+            }
+
+        except httpx.RequestError as exc:
+            logger.error(
+                f"PolarService: HTTP error issuing refund for order "
+                f"{payment_intent_id}: {exc}",
+                exc_info=True,
+            )
+            return None
+        except Exception as exc:
+            logger.error(
+                f"PolarService: unexpected error issuing refund for order "
+                f"{payment_intent_id}: {exc}",
+                exc_info=True,
+            )
+            return None
 
     async def close(self) -> None:
         """No persistent connections to clean up (httpx clients are context-managed)."""

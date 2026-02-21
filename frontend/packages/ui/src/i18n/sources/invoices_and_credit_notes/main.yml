@@ -814,6 +814,29 @@ credit_note:
   cs: ""
   sv: ""
   verified_by_human: []
+refund_confirmation_title:
+  context: PDF document title for Polar refund confirmations (Polar is Merchant of Record so we cannot issue a credit note, only a refund confirmation)
+  en: Refund Confirmation
+  de: Rückerstattungsbestätigung
+  zh: 退款确认
+  es: Confirmación de reembolso
+  fr: Confirmation de remboursement
+  pt: ""
+  ru: ""
+  ja: 返金確認
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 credit_note_number:
   context: Credit note number label
   en: Credit note number

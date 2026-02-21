@@ -43,6 +43,7 @@ def process_invoice_and_send_email(
     is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
     is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
     provider: Optional[str] = None,  # Payment provider ("stripe", "polar", "revolut") — controls PDF document type
+    provider_order_id: Optional[str] = None,  # Provider-specific order ID for refunds (e.g. Polar Order UUID)
 ) -> bool:
     """
     Celery task to generate invoice/payment confirmation, upload to S3, save to Directus, and send email.
@@ -59,7 +60,8 @@ def process_invoice_and_send_email(
                 self, order_id, user_id, credits_purchased,
                 sender_addressline1, sender_addressline2, sender_addressline3,
                 sender_country, sender_email, sender_vat,
-                email_encryption_key, is_gift_card, is_auto_topup, provider
+                email_encryption_key, is_gift_card, is_auto_topup, provider,
+                provider_order_id
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
@@ -85,6 +87,7 @@ async def _async_process_invoice_and_send_email(
     is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
     is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
     provider: Optional[str] = None,  # Payment provider ("stripe", "polar", "revolut")
+    provider_order_id: Optional[str] = None,  # Provider-specific order ID for refunds (e.g. Polar Order UUID)
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -483,7 +486,9 @@ async def _async_process_invoice_and_send_email(
             "encrypted_aes_key": encrypted_aes_key_vault, # Store the Vault-wrapped AES key
             "encrypted_filename": encrypted_filename, # Store encrypted filename for download
             "aes_nonce": nonce_b64, # Store the base64 encoded nonce
-            "is_gift_card": is_gift_card  # Store gift card flag for invoice display
+            "is_gift_card": is_gift_card,  # Store gift card flag for invoice display
+            "provider": provider,  # Payment provider for routing refunds correctly
+            "provider_order_id": provider_order_id,  # Polar Order UUID for refund API (None for Stripe/Revolut)
         }
         logger.info("Prepared Directus payload for invoice")
 
@@ -705,75 +710,65 @@ async def _async_process_invoice_and_send_email(
             logger.info(f"Skipping 'payment_completed' event for gift card purchase (order {order_id}). Gift card notification already sent via webhook.")
 
         # 14. Process Income Transaction in Invoice Ninja
-        logger.info(f"Processing income transaction in Invoice Ninja for Order ID: {order_id}, provider={effective_provider}")
-        try:
-            # Access InvoiceNinjaService via the base task property
-            invoice_ninja_service = task.invoice_ninja_service
+        # Skip for Polar: Polar is the Merchant of Record and handles all tax/accounting
+        # documents. We only record our periodic payout from Polar, not individual customer
+        # transactions. Invoice Ninja recording is only needed for Stripe/Revolut where
+        # OpenMates is the seller of record.
+        if effective_provider == "polar":
+            logger.info(
+                f"Skipping Invoice Ninja recording for Polar order {order_id}: "
+                f"Polar is MoR, individual transactions are not recorded in our accounting."
+            )
+        else:
+            logger.info(f"Processing income transaction in Invoice Ninja for Order ID: {order_id}, provider={effective_provider}")
+            try:
+                # Access InvoiceNinjaService via the base task property
+                invoice_ninja_service = task.invoice_ninja_service
 
-            # Extract necessary details for Invoice Ninja
-            customer_firstname = ""
-            customer_lastname = ""
-            if cardholder_name:  # Check if cardholder_name is not None or empty
-                if ' ' in cardholder_name:
-                    name_parts = cardholder_name.split(' ', 1)
-                    customer_firstname = name_parts[0]
-                    customer_lastname = name_parts[-1] if len(name_parts) > 1 else ""
-                else:
-                    customer_firstname = cardholder_name
+                # Extract necessary details for Invoice Ninja
+                customer_firstname = ""
+                customer_lastname = ""
+                if cardholder_name:  # Check if cardholder_name is not None or empty
+                    if ' ' in cardholder_name:
+                        name_parts = cardholder_name.split(' ', 1)
+                        customer_firstname = name_parts[0]
+                        customer_lastname = name_parts[-1] if len(name_parts) > 1 else ""
+                    else:
+                        customer_firstname = cardholder_name
 
-            # Ensure customer_country_code is a string, even if country_code is None
-            customer_country_code = country_code if country_code is not None else ""
+                # Ensure customer_country_code is a string, even if country_code is None
+                customer_country_code = country_code if country_code is not None else ""
 
-            # For Polar: Invoice Ninja should record the net payout (what we actually receive),
-            # not the gross charged to the buyer. Polar as MoR remits taxes and takes its fee.
-            # The net payout amount is stored by PolarService.get_order() in "net_amount".
-            # For Stripe/Revolut: use the full charged amount.
-            if effective_provider == "polar":
-                net_amount = payment_order_details.get("net_amount")
-                if net_amount is not None:
-                    purchase_price_value = float(net_amount) / 100
-                    logger.info(
-                        f"Polar order {order_id}: using net payout {purchase_price_value:.2f} {currency_paid} "
-                        f"for Invoice Ninja (gross was {float(amount_paid) / 100:.2f})"
-                    )
-                else:
-                    # Net amount not available — fall back to gross and log a warning
-                    purchase_price_value = float(amount_paid) / 100 if amount_paid is not None else 0.0
-                    logger.warning(
-                        f"Polar order {order_id}: net_amount not available, using gross amount for Invoice Ninja. "
-                        f"Check PolarService.get_order() normalization."
-                    )
-            else:
                 # Amount is in smallest unit (cents), convert to currency units
                 purchase_price_value = float(amount_paid) / 100 if amount_paid is not None else 0.0
 
-            # card_brand_lower may be unbound if no successful_payment was found above;
-            # default to empty string so Invoice Ninja call doesn't fail
-            card_brand_lower_safe = card_brand.lower() if card_brand else ""
+                # card_brand_lower may be unbound if no successful_payment was found above;
+                # default to empty string so Invoice Ninja call doesn't fail
+                card_brand_lower_safe = card_brand.lower() if card_brand else ""
 
-            # Pass the English PDF bytes as custom_pdf_data and other required fields
-            invoice_ninja_service.process_income_transaction(
-                user_hash=user_id_hash,  # Using user_id_hash as user_hash
-                external_order_id=order_id,
-                customer_firstname=customer_firstname,
-                customer_lastname=customer_lastname,
-                customer_account_id=account_id,  # Use account_id instead of email
-                customer_country_code=customer_country_code,  # Use the sanitized country code
-                credits_value=credits_purchased,
-                currency_code=currency_paid,
-                purchase_price_value=purchase_price_value,
-                invoice_date=date_str_iso,  # Pass generated invoice date
-                due_date=date_str_iso,  # Pass generated due date (same as invoice date)
-                payment_processor=effective_provider,  # Use the resolved provider name
-                card_brand_lower=card_brand_lower_safe,
-                custom_invoice_number=invoice_number,  # Pass generated invoice number
-                custom_pdf_data=pdf_bytes_en,  # Pass the English PDF bytes
-                is_gift_card=is_gift_card  # Pass gift card flag
-            )
+                # Pass the English PDF bytes as custom_pdf_data and other required fields
+                invoice_ninja_service.process_income_transaction(
+                    user_hash=user_id_hash,  # Using user_id_hash as user_hash
+                    external_order_id=order_id,
+                    customer_firstname=customer_firstname,
+                    customer_lastname=customer_lastname,
+                    customer_account_id=account_id,  # Use account_id instead of email
+                    customer_country_code=customer_country_code,  # Use the sanitized country code
+                    credits_value=credits_purchased,
+                    currency_code=currency_paid,
+                    purchase_price_value=purchase_price_value,
+                    invoice_date=date_str_iso,  # Pass generated invoice date
+                    due_date=date_str_iso,  # Pass generated due date (same as invoice date)
+                    payment_processor=effective_provider,  # Use the resolved provider name
+                    card_brand_lower=card_brand_lower_safe,
+                    custom_invoice_number=invoice_number,  # Pass generated invoice number
+                    custom_pdf_data=pdf_bytes_en,  # Pass the English PDF bytes
+                    is_gift_card=is_gift_card  # Pass gift card flag
+                )
 
-        except Exception as ninja_err:
-            logger.error(f"Error processing income transaction in Invoice Ninja: {str(ninja_err)}", exc_info=True)
-            # Log the error but do not fail the main task
+            except Exception as ninja_err:
+                logger.error(f"Error processing income transaction in Invoice Ninja: {str(ninja_err)}", exc_info=True)
+                # Log the error but do not fail the main task
 
         return True # Indicate overall success if email sent and invoice processed (even if Ninja failed)
 

@@ -19,8 +19,17 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         """Get the credit note translation disclaimer text"""
         return self.t["invoices_and_credit_notes"]["this_credit_note_is_a_translation"]["text"]
         
-    def generate_credit_note(self, credit_note_data, lang="en", currency="eur"):
-        """Generate a credit note PDF with the specified language and currency"""
+    def generate_credit_note(self, credit_note_data, lang="en", currency="eur", document_type="credit_note"):
+        """
+        Generate a credit note / refund confirmation PDF.
+
+        Args:
+            credit_note_data: Dictionary with credit note data (amounts, numbers, etc.)
+            lang: Language code for translations
+            currency: Currency code (e.g. 'eur', 'usd')
+            document_type: 'credit_note' for Stripe/Revolut (OpenMates is seller),
+                          'refund_confirmation' for Polar (Polar is MoR, we only confirm).
+        """
         # Create a buffer for the PDF
         buffer = io.BytesIO()
         
@@ -77,8 +86,14 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         # Reduce the initial spacer to move content up
         elements.append(Spacer(1, 5))  # Reduced from 20 to 5
         
-        # Create header with Credit Note and OpenMates side by side - no extra padding
-        credit_note_text = Paragraph(sanitize_html_for_reportlab(self.t["invoices_and_credit_notes"]["credit_note"]["text"]), self.styles['Heading1'])
+        # Create header with Credit Note / Refund Confirmation and OpenMates side by side
+        # For Polar refunds: use "Refund Confirmation" because Polar is MoR and issues the
+        # official credit note. For Stripe/Revolut: use "Credit Note" (we are the seller).
+        if document_type == "refund_confirmation":
+            title_key = "refund_confirmation_title"
+        else:
+            title_key = "credit_note"
+        credit_note_text = Paragraph(sanitize_html_for_reportlab(self.t["invoices_and_credit_notes"][title_key]["text"]), self.styles['Heading1'])
         
         # Create a custom paragraph with two differently colored parts for "OpenMates"
         open_text = '<font color="#4867CD">Open</font><font color="black">Mates</font>'

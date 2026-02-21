@@ -2577,6 +2577,7 @@ class DeleteAccountRequest(BaseModel):
     confirm_data_deletion: bool  # User must confirm they understand data will be deleted
     auth_method: str  # "passkey" or "2fa_otp"
     auth_code: Optional[str] = None  # OTP code for 2FA, or credential_id for passkey
+    email_encryption_key: Optional[str] = None  # Client-side email encryption key for sending refund emails during deletion
 
 
 async def _calculate_delete_account_preview(
@@ -2874,7 +2875,8 @@ async def delete_account(
                 "reason": "User requested account deletion",
                 "ip_address": client_ip,
                 "device_fingerprint": device_fingerprint,
-                "refund_invoices": True
+                "refund_invoices": True,
+                "email_encryption_key": delete_request.email_encryption_key,
             },
             queue="user_init"  # Use user_init queue for account deletion
         )
