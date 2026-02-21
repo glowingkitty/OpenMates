@@ -610,6 +610,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let handleContextMenuSelect: (event: Event) => void; // Handler for selecting chat from context menu
 	let handleContextMenuBulkAction: (event: Event) => void; // Handler for bulk actions from context menu
 	let handleIncognitoChatsDeleted: () => void; // Handler for incognito chats deletion event
+	let handleIncognitoChatsUpdated: () => Promise<void>; // Handler for incognito chats updated event
 	let handleShowHiddenChatUnlock: (event: Event) => void; // Handler for show hidden chat unlock modal
 	let handleShowOverscrollUnlockForHide: (event: Event) => void; // Handler for show overscroll unlock for hiding chat
 	let handleHiddenChatsAutoLocked: () => void; // Handler for hidden chats auto-locked event
@@ -1445,7 +1446,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// Reload incognito chats whenever the service writes a new/updated chat to sessionStorage.
 		// This fires from incognitoChatService.persistToSessionStorage() so the sidebar updates
 		// in real time after a message is sent (without needing a page refresh).
-		const handleIncognitoChatsUpdated = async () => {
+		handleIncognitoChatsUpdated = async () => {
 			await loadIncognitoChats();
 		};
 		window.addEventListener('incognitoChatsUpdated', handleIncognitoChatsUpdated);
@@ -1710,7 +1711,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		if (handleIncognitoChatsDeleted) {
 			window.removeEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted);
 		}
-		window.removeEventListener('incognitoChatsUpdated', handleIncognitoChatsUpdated);
+		if (handleIncognitoChatsUpdated) {
+			window.removeEventListener('incognitoChatsUpdated', handleIncognitoChatsUpdated);
+		}
 
 		// Clean up hidden chats event listeners
         if (handleShowHiddenChatUnlock) {
