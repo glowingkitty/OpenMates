@@ -1,21 +1,79 @@
 # backend/providers/recraft.yml
 #
-# Configuration for Recraft AI — the only production-grade model for SVG vector generation.
-# Used when output_filetype="svg" is requested in the images.generate skill.
+# Configuration for Recraft AI — used for both raster (PNG/JPG) and vector (SVG)
+# image generation via the images.generate skill.
 #
 # Pricing philosophy for app skills:
 #   - No profit margin. Credits charged = exact break-even (1× cost pass-through).
 #   - Formula: credits_per_image = cost_usd / 0.001 (1 credit = $0.001)
 #
-# API docs: https://www.recraft.ai/docs/api-reference/pricing
+# API pricing source: https://www.recraft.ai/docs/api-reference/pricing
 # Vault secret: kv/data/providers/recraft → api_key
+#
+# Raster models (PNG/JPG output, output_filetype != "svg"):
+#   recraftv4:     $0.04/image →  40 credits (1024×1024)
+#   recraftv4_pro: $0.25/image → 250 credits (2048×2048)
+#
+# Vector models (SVG output, output_filetype == "svg"):
+#   recraftv4_vector:     $0.08/image →  80 credits (default quality)
+#   recraftv4_pro_vector: $0.30/image → 300 credits (max quality)
 
 provider_id: "recraft"
 name: "Recraft"
-description: "State-of-the-art vector image generation. The only AI capable of producing true SVG graphics from text prompts."
+description: "State-of-the-art image generation for both raster (PNG/JPG) and vector (SVG) output. The only AI capable of producing true SVG vector graphics from text prompts."
 logo_svg: "icons/recraft.svg"
 
 models:
+  - id: "recraftv4"
+    name: "Recraft V4"
+    description: "1024×1024 raster image generation from text prompts. Fast and cost-effective. Best for photos, realistic scenes, and general illustration."
+    country_origin: "US"
+    for_app_skill: "images.generate" # Used when output_filetype=png/jpg, quality=default
+    release_date: "2026-02-01"
+    input_types:
+      - text
+    output_types:
+      - image # Returns PNG
+    default_server: "recraft"
+    servers:
+      - id: "recraft"
+        name: "Recraft API"
+        model_id: "recraftv4"
+        region: "US"
+    pricing:
+      per_unit:
+        credits: 40 # $0.04 / $0.001 = 40 credits (exact break-even, no markup)
+        unit_name: "image"
+    costs:
+      output_per_image:
+        price: 0.04
+        currency: USD
+
+  - id: "recraftv4_pro"
+    name: "Recraft V4 Pro"
+    description: "2048×2048 high-resolution raster image generation. Best for print-ready assets, large-format output, and highly detailed compositions."
+    country_origin: "US"
+    for_app_skill: "images.generate" # Used when output_filetype=png/jpg, quality=max
+    release_date: "2026-02-01"
+    input_types:
+      - text
+    output_types:
+      - image # Returns PNG
+    default_server: "recraft"
+    servers:
+      - id: "recraft"
+        name: "Recraft API"
+        model_id: "recraftv4_pro"
+        region: "US"
+    pricing:
+      per_unit:
+        credits: 250 # $0.25 / $0.001 = 250 credits (exact break-even, no markup)
+        unit_name: "image"
+    costs:
+      output_per_image:
+        price: 0.25
+        currency: USD
+
   - id: "recraftv4_vector"
     name: "Recraft V4 Vector"
     description: "1MP vector generation from text prompts. Best for icons, logos, illustrations, and web graphics."
@@ -70,5 +128,7 @@ models:
 # credits_per_image = cost_usd / credit_value_usd
 # credit_value_usd  = 0.001 (1 credit = $0.001, based on $110 / 110,000 credits)
 #
+# recraftv4:            $0.04 / 0.001 = 40 credits
+# recraftv4_pro:        $0.25 / 0.001 = 250 credits
 # recraftv4_vector:     $0.08 / 0.001 = 80 credits
 # recraftv4_pro_vector: $0.30 / 0.001 = 300 credits

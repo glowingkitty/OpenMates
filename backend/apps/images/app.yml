@@ -76,16 +76,22 @@ skills:
                   Output file format. Use "svg" to generate a scalable vector graphic (SVG) via
                   Recraft V4 — ideal for logos, icons, illustrations, and any graphic that needs
                   to be scalable, editable in design tools, or used at any size without quality loss.
-                  Use "png" (default) for photos, realistic scenes, and detailed raster images.
+                  Use "png" or "jpg" for photos, realistic scenes, and detailed raster images.
+                  When a Recraft model is selected, Recraft V4 is used for raster output as well.
                 enum: ["png", "jpg", "svg"]
                 default: "png"
               quality:
                 type: string
                 description: |
-                  Generation quality. Only relevant when output_filetype="svg".
-                  "default" uses Recraft V4 Vector (1MP, 80 credits — good for web/UI use).
-                  "max" uses Recraft V4 Pro Vector (4MP, 300 credits — best for print, large-format,
-                  or highly detailed vector illustrations).
+                  Generation quality. Controls which model tier is used when Recraft is the provider.
+                  For SVG output (output_filetype="svg"):
+                    "default" uses Recraft V4 Vector (1MP, 80 credits — good for web/UI use).
+                    "max" uses Recraft V4 Pro Vector (4MP, 300 credits — best for print, large-format,
+                    or highly detailed vector illustrations).
+                  For raster output (output_filetype="png"/"jpg") with a Recraft model selected:
+                    "default" uses Recraft V4 (1024×1024, 40 credits — fast, cost-effective).
+                    "max" uses Recraft V4 Pro (2048×2048, 250 credits — high-resolution, print-ready).
+                  For other raster models (Google Gemini, FLUX), quality is ignored.
                 enum: ["default", "max"]
                 default: "default"
             required:

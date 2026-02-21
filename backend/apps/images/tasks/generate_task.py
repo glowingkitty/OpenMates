@@ -34,8 +34,11 @@ from backend.shared.providers.google.gemini_image import generate_image_google
 from backend.shared.providers.fal.flux import generate_image_fal_flux
 from backend.shared.providers.recraft.recraft import (
     generate_vector_recraft,
+    generate_raster_recraft,
     RECRAFT_MODEL_DEFAULT,
     RECRAFT_MODEL_MAX,
+    RECRAFT_RASTER_MODEL_DEFAULT,
+    RECRAFT_RASTER_MODEL_MAX,
 )
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
@@ -229,9 +232,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         #
         # Routing logic:
         #   output_filetype == "svg"  → Recraft V4 Vector (returns SVG bytes)
-        #     quality == "default"    → recraftv4_vector     (80 credits,  $0.08)
+        #     quality == "default"    → recraftv4_vector     ( 80 credits, $0.08)
         #     quality == "max"        → recraftv4_pro_vector (300 credits, $0.30)
-        #   output_filetype == "png"/"jpg" → raster pipeline (Google / fal.ai FLUX)
+        #   output_filetype == "png"/"jpg" and "recraft" in model_ref → Recraft V4 Raster
+        #     quality == "default"    → recraftv4     ( 40 credits, $0.04, 1024×1024)
+        #     quality == "max"        → recraftv4_pro (250 credits, $0.25, 2048×2048)
+        #   output_filetype == "png"/"jpg" and "google" in model_ref → Google Gemini (default)
+        #   output_filetype == "png"/"jpg" and "bfl"/"flux" in model_ref → fal.ai FLUX
         #
         # actual_model:    full provider reference for logging and XMP metadata
         # display_model_id: short model ID for embed content (matches frontend modelsMetadata)
@@ -263,6 +270,26 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             display_model_id = recraft_model_id
             # Override model_ref for billing so pricing is looked up from recraft.yml
             model_ref = f"recraft/{recraft_model_id}"
+
+        elif model_ref and "recraft" in model_ref:
+            # --- Raster branch: Recraft V4 PNG/JPG ---
+            # Recraft V4 also supports high-quality raster generation.
+            # quality selects between the two Recraft raster model tiers:
+            #   "default" → recraftv4     ( 40 credits, $0.04, 1024×1024)
+            #   "max"     → recraftv4_pro (250 credits, $0.25, 2048×2048)
+            recraft_raster_model_id = (
+                RECRAFT_RASTER_MODEL_MAX if quality == "max" else RECRAFT_RASTER_MODEL_DEFAULT
+            )
+            image_bytes = await generate_raster_recraft(
+                prompt=prompt,
+                secrets_manager=task._secrets_manager,
+                model_id=recraft_raster_model_id,
+                size=aspect_ratio,  # Recraft accepts "w:h" format natively
+            )
+            actual_model = f"Recraft {recraft_raster_model_id}"
+            display_model_id = recraft_raster_model_id
+            # Override model_ref for billing so pricing is looked up from recraft.yml
+            model_ref = f"recraft/{recraft_raster_model_id}"
 
         elif model_ref and "google" in model_ref:
             # --- Raster branch: Google Gemini image generation ---
