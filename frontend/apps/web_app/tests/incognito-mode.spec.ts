@@ -116,33 +116,26 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	await takeStepScreenshot(page, '02-login-dialog');
 
 	// Diagnostic: dump DOM state to understand what rendered
-	const loginWrapperVisible = await page
-		.locator('.login-wrapper')
-		.isVisible()
-		.catch(() => false);
 	const loginWrapperCount = await page.locator('.login-wrapper').count();
 	const emailInputCount = await page.locator(SELECTORS.emailInput).count();
-	const emailInputAllCount = await page.locator('input[type="email"]').count();
-	const activeChContainerCount = await page.locator('.active-chat-container').count();
 	const activeChatLoginMode = await page.locator('.active-chat-container.login-mode').count();
-	// Dump all inputs in DOM
-	const allInputs = await page.evaluate(() => {
-		return Array.from(document.querySelectorAll('input')).map((el) => ({
-			type: el.type,
-			name: el.name,
-			visible: el.offsetWidth > 0 && el.offsetHeight > 0,
-			style: el.getAttribute('style') || '',
-			id: el.id
-		}));
+	// Check the actual store value from inside the page context
+	const storeValues = await page.evaluate(() => {
+		// Try to access the Svelte store via window (if exported)
+		const w = window as any;
+		return {
+			loginInterfaceOpen: w.__loginInterfaceOpen ?? 'not exposed',
+			hasActiveChatContainer: !!document.querySelector('.active-chat-container'),
+			bodyChildren: document.body.children.length,
+			htmlSnippet:
+				document.querySelector('.active-chat-container')?.innerHTML?.slice(0, 500) ?? 'not found'
+		};
 	});
 	logCheckpoint('DOM diagnostic after login button click.', {
-		loginWrapperVisible,
 		loginWrapperCount,
 		emailInputCount,
-		emailInputAllCount,
-		activeChContainerCount,
 		activeChatLoginMode,
-		allInputs,
+		storeValues,
 		url: page.url()
 	});
 
