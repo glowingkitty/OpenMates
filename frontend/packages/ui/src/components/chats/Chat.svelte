@@ -444,6 +444,42 @@
       return;
     }
 
+    // INCOGNITO CHAT HANDLING: Incognito chats store title/category/icon directly (no encryption,
+    // no IndexedDB). All metadata is read directly from the chat object, and messages are loaded
+    // from incognitoChatService (sessionStorage). We must handle these before the public chat path
+    // because incognito chats are NOT in IndexedDB and chatMetadataCache will return nothing.
+    if (currentChat.is_incognito) {
+      // Title is stored plaintext on the chat object (incognito chats don't use encrypted_title)
+      // No draft support for incognito chats - they are ephemeral session-only chats
+      draftTextContent = '';
+      cachedMetadata = null;
+
+      // Load the last message from sessionStorage via incognitoChatService
+      try {
+        const { incognitoChatService } = await import('../../services/incognitoChatService');
+        const messages = await incognitoChatService.getMessagesForChat(currentChat.chat_id);
+        lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+      } catch (error) {
+        console.debug(`[Chat] Error loading incognito messages for ${currentChat.chat_id}:`, error);
+        lastMessage = null;
+      }
+
+      // Category and icon are stored plaintext on the chat object
+      chatCategory = currentChat.category || null;
+      const iconField = currentChat.icon;
+      if (iconField) {
+        const iconNames = iconField.split(',');
+        chatIcon = iconNames.length > 0 ? iconNames[0] : null;
+      } else {
+        chatIcon = null;
+      }
+
+      // No displayLabel/displayText for incognito chats (they have no draft status)
+      displayLabel = '';
+      displayText = '';
+      return;
+    }
+
     // PUBLIC CHAT HANDLING (demo + legal): Public chats have plaintext titles and categories, no encryption
     if (isPublicChat(currentChat.chat_id)) {
       // CRITICAL: For non-authenticated users, check sessionStorage for drafts
@@ -1978,12 +2014,8 @@
                   <span class="clickable-icon icon_pin" title="Pinned"></span>
                 </span>
               {/if}
-              {#if chat.is_incognito}
-                <span class="incognito-label">
-                  <span class="icon icon_incognito"></span>
-                  {$text('settings.incognito')}
-                </span>
-              {/if}
+              <!-- Incognito label badge removed: incognito chats are now grouped under their own
+                   "INCOGNITO" sidebar section header, making per-chat badges redundant. -->
             </div>
             {#if typingIndicatorInTitleView}
               <span class="status-message typing-shimmer">
@@ -2237,23 +2269,6 @@
     justify-content: center;
     border: 2px solid var(--color-background);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-  }
-
-  .incognito-label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.75em;
-    color: var(--color-grey-60);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 500;
-  }
-
-  .incognito-label .icon {
-    width: 12px;
-    height: 12px;
-    opacity: 0.7;
   }
 
   /* Category circle styles */

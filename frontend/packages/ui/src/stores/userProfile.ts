@@ -59,6 +59,10 @@ export interface UserProfile {
   email_notification_preferences?: {
     aiResponses: boolean; // Notify when AI completes a response
   };
+  // Incognito mode explainer screen: once the user activates incognito for the first time and
+  // confirms the explainer, we set this flag so the explainer is never shown again.
+  // Stored in IndexedDB only — no backend sync needed (device-local UX preference).
+  incognito_explainer_seen?: boolean;
 }
 
 // Default currency is now EUR

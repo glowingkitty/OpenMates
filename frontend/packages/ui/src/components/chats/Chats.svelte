@@ -501,7 +501,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	// Static group keys — chats in these groups (intro, examples, legal, shared_by_others) are always shown,
 	// regardless of the phased loading tier. Only user chats (time-based groups) are subject to the display limit.
-	const STATIC_GROUP_KEYS = ['shared_by_others', 'intro', 'examples', 'legal'];
+	// STATIC_GROUP_KEYS are excluded from time-based grouping and from the phased-load limit.
+	// 'incognito' is listed first so it renders at the top of the sidebar (above user time-groups).
+	// 'shared_by_others' comes before intro/examples/legal since those are real user-shared chats.
+	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'legal'];
 
 	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
 	// Tier 1 ('initial'): Show first 20 USER chats (fast render during sync), plus all static chats (intro, examples, legal)
@@ -3422,12 +3425,18 @@ async function updateChatListFromDBInternal(force = false) {
 			{/snippet}
 			
 			<div class="chat-groups">
-				<!-- 1. User chat groups (time-based: today, yesterday, month groups, etc.) -->
+				<!-- 1. Incognito chat group — shown at the top so active session chats are immediately visible.
+				     Only rendered when incognito mode is active and there are incognito chats. -->
+				{#each orderedStaticChatGroups.filter(([k]) => k === 'incognito') as [groupKey, groupItems] (groupKey)}
+					{@render chatGroupSnippet(groupKey, groupItems)}
+				{/each}
+
+				<!-- 2. User chat groups (time-based: today, yesterday, month groups, etc.) -->
 				{#each orderedUserChatGroups as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}
 				{/each}
 				
-				<!-- 2. "Show more" button — placed ABOVE static sections (intro, examples, legal)
+				<!-- 3. "Show more" button — placed ABOVE static sections (intro, examples, legal)
 				     so users don't have to scroll past non-user content to load more of their chats -->
 				{#if showMoreButtonVisible}
 					<div class="load-more-container">
@@ -3445,8 +3454,8 @@ async function updateChatListFromDBInternal(force = false) {
 					</div>
 				{/if}
 				
-				<!-- 3. Static chat groups (shared_by_others, intro, examples, legal) -->
-				{#each orderedStaticChatGroups as [groupKey, groupItems] (groupKey)}
+				<!-- 4. Other static chat groups (shared_by_others, intro, examples, legal) -->
+				{#each orderedStaticChatGroups.filter(([k]) => k !== 'incognito') as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}
 				{/each}
 			</div>

@@ -161,26 +161,26 @@ previous_30_days:
   verified_by_human: []
 days_ago:
   context: Chats from {days} days ago
-  en: '{days} days ago'
-  de: '{days} Tage her'
-  zh: '{days} 天前'
-  es: '{days} días atrás'
+  en: "{days} days ago"
+  de: "{days} Tage her"
+  zh: "{days} 天前"
+  es: "{days} días atrás"
   fr: il y a {days} jours
-  pt: '{days} dias atrás'
-  ru: '{days} дней назад'
-  ja: '{days}日前'
-  ko: '{days}일 전'
-  it: '{days} giorni fa'
-  tr: '{days} gün önce'
-  vi: '{days} ngày trước'
-  id: '{days} hari yang lalu'
-  pl: '{days} dni temu'
-  nl: '{days} dagen geleden'
-  ar: 'قبل {days} أيام'
-  hi: '{days} दिन पहले'
-  th: '{days} วันที่แล้ว'
-  cs: 'Před {days} dny'
-  sv: 'För {days} dagar sedan'
+  pt: "{days} dias atrás"
+  ru: "{days} дней назад"
+  ja: "{days}日前"
+  ko: "{days}일 전"
+  it: "{days} giorni fa"
+  tr: "{days} gün önce"
+  vi: "{days} ngày trước"
+  id: "{days} hari yang lalu"
+  pl: "{days} dni temu"
+  nl: "{days} dagen geleden"
+  ar: "قبل {days} أيام"
+  hi: "{days} दिन पहले"
+  th: "{days} วันที่แล้ว"
+  cs: "Před {days} dny"
+  sv: "För {days} dagar sedan"
   verified_by_human: []
 loading_chats:
   context: Loading message for chat list
@@ -273,6 +273,29 @@ sync_complete:
   th: ซิงค์เสร็จสิ้น
   cs: Synchronizace dokončena
   sv: Synkronisering slutförd
+  verified_by_human: []
+incognito:
+  context: Group title for incognito chats in the sidebar — these are ephemeral session-only chats
+  en: INCOGNITO
+  de: INKOGNITO
+  zh: 隐私
+  es: INCÓGNITO
+  fr: INCOGNITO
+  pt: INCÓGNITO
+  ru: ИНКОГНИТО
+  ja: シークレット
+  ko: 시크릿
+  it: INCOGNITO
+  tr: GİZLİ
+  vi: ẨN DANH
+  id: PENYAMARAN
+  pl: INCOGNITO
+  nl: INCOGNITO
+  ar: متخفي
+  hi: गुप्त
+  th: ไม่ระบุตัวตน
+  cs: INKOGNITO
+  sv: INKOGNITO
   verified_by_human: []
 intro:
   context: Group title for intro chats

@@ -1240,6 +1240,29 @@ credits_response_label:
   cs: Odpověď
   sv: Svar
   verified_by_human: []
+incognito_chat:
+  context: Label shown for usage entries from an incognito chat (ephemeral, never synced to server)
+  en: Incognito chat
+  de: Inkognito-Chat
+  zh: 隐私聊天
+  es: Chat incógnito
+  fr: Chat incognito
+  pt: Chat incógnito
+  ru: Инкогнито-чат
+  ja: シークレットチャット
+  ko: 시크릿 채팅
+  it: Chat incognito
+  tr: Gizli sohbet
+  vi: Cuộc trò chuyện ẩn danh
+  id: Obrolan penyamaran
+  pl: Czat incognito
+  nl: Incognito gesprek
+  ar: محادثة متخفية
+  hi: गुप्त चैट
+  th: แชทไม่ระบุตัวตน
+  cs: Inkognito chat
+  sv: Inkognitosamtal
+  verified_by_human: []
 deleted_chat:
   context: Label shown for usage entries from a chat that has been deleted
   en: Deleted chat

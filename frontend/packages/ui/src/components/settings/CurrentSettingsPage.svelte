@@ -333,18 +333,23 @@
                                 return; // Exit early - don't navigate to info screen
                             }
 
-                            // If mode is currently OFF and we're turning it ON, show info screen first.
-                            // The info screen will handle actually activating the mode when user confirms.
-                            // Don't update the toggle state yet — keep it off until the user confirms.
-                            // This prevents the toggle from appearing "on" before the user confirms.
+                            // If mode is currently OFF and we're turning it ON:
+                            // - If the user has already seen the explainer before, activate immediately.
+                            // - Otherwise show the info/explainer screen first so the user confirms.
                             if (newValue) {
-                                // Revert the toggle visual state: keep it OFF until user confirms on info screen.
-                                // The Toggle's bind:checked may have already flipped it to true (optimistic),
-                                // so we reset it here to wait for confirmation.
-                                incognitoToggleChecked = false;
+                                if ($userProfile.incognito_explainer_seen) {
+                                    // User already confirmed the explainer before — activate immediately.
+                                    await incognitoMode.set(true);
+                                    incognitoToggleChecked = true;
+                                } else {
+                                    // First time — show explainer. Keep toggle OFF until user confirms.
+                                    // The Toggle's bind:checked may have already flipped it to true (optimistic),
+                                    // so we reset it here to wait for confirmation.
+                                    incognitoToggleChecked = false;
 
-                                // Navigate to incognito info submenu - user will confirm activation there
-                                showSettingsView('incognito/info', null);
+                                    // Navigate to incognito info submenu - user will confirm activation there
+                                    showSettingsView('incognito/info', null);
+                                }
                             }
 
                             // Dispatch to parent for any additional handling

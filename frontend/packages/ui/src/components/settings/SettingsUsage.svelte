@@ -1554,16 +1554,17 @@ Usage Settings - View usage statistics and export usage data
         {/each}
     {:else if overviewSelectedChatId}
         <!-- LEVEL 1: Chat entries list (all skill uses for this chat) -->
+        {@const isOverviewIncognito = overviewSelectedChatId === 'incognito'}
         {@const chatCached = chatMetadataMap.get(overviewSelectedChatId)}
         {@const chatMeta = chatCached?.metadata}
         {@const chatObj = chatCached?.chat}
         {@const chatIsHidden = chatObj ? ((chatObj as any).is_hidden_candidate || (chatObj as any).is_hidden) : false}
-        {@const chatCanShow = !chatIsHidden || (chatIsHidden && hiddenChatsUnlocked)}
+        {@const chatCanShow = !isOverviewIncognito && (!chatIsHidden || (chatIsHidden && hiddenChatsUnlocked))}
         {@const chatCategory = chatCanShow ? (chatMeta?.category || null) : null}
-        {@const chatIconName = chatCanShow ? (chatMeta?.icon || (chatCategory ? getFallbackIconForCategory(chatCategory) : 'help-circle')) : 'help-circle'}
+        {@const chatIconName = isOverviewIncognito ? 'incognito' : (chatCanShow ? (chatMeta?.icon || (chatCategory ? getFallbackIconForCategory(chatCategory) : 'help-circle')) : 'help-circle')}
         {@const chatGradient = chatCanShow && chatCategory ? getCategoryGradientColors(chatCategory) : null}
-        {@const ChatIcon = getLucideIcon(chatIconName)}
-        {@const chatTitle = chatCanShow ? (chatMeta?.title || chatObj?.title || 'Chat') : 'Chat'}
+        {@const ChatIcon = isOverviewIncognito ? null : getLucideIcon(chatIconName)}
+        {@const chatTitle = isOverviewIncognito ? $text('settings.usage.incognito_chat') : (chatCanShow ? (chatMeta?.title || chatObj?.title || 'Chat') : 'Chat')}
         
         <div class="usage-detail-view">
             <button 
@@ -1579,14 +1580,24 @@ Usage Settings - View usage statistics and export usage data
             
             <div class="detail-header">
                 <div class="detail-icon-wrapper">
-                    <div 
-                        class="chat-usage-icon-circle" 
-                        style={chatGradient ? `background: linear-gradient(135deg, ${chatGradient.start}, ${chatGradient.end})` : 'background: #cccccc'}
-                    >
-                        <div class="chat-usage-icon">
-                            <ChatIcon size={16} color="white" />
+                    {#if isOverviewIncognito}
+                        <div class="chat-usage-icon-circle" style="background: #555555;">
+                            <div class="chat-usage-icon">
+                                <div class="icon icon_incognito" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"></div>
+                            </div>
                         </div>
-                    </div>
+                    {:else}
+                        <div 
+                            class="chat-usage-icon-circle" 
+                            style={chatGradient ? `background: linear-gradient(135deg, ${chatGradient.start}, ${chatGradient.end})` : 'background: #cccccc'}
+                        >
+                            <div class="chat-usage-icon">
+                                {#if ChatIcon}
+                                    <ChatIcon size={16} color="white" />
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
                 <div class="detail-title-wrapper">
                     <h3 class="detail-title">{chatTitle}</h3>
@@ -1677,14 +1688,15 @@ Usage Settings - View usage statistics and export usage data
                                 {@const cached = chatMetadataMap.get(item.chat_id)}
                                 {@const metadata = cached?.metadata}
                                 {@const chat = cached?.chat}
+                                {@const isIncognitoChat = item.chat_id === 'incognito'}
                                 {@const isDeletedChat = cached?.isDeleted === true || item.is_deleted === true}
                                 {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
-                                {@const canShowDetails = !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
+                                {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
                                 {@const category = canShowDetails ? (metadata?.category || null) : null}
-                                {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle')}
+                                {@const iconName = isIncognitoChat ? 'incognito' : (canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle'))}
                                 {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
-                                {@const IconComponent = isDeletedChat ? null : getLucideIcon(iconName)}
-                                {@const title = isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')}
+                                {@const IconComponent = (isDeletedChat || isIncognitoChat) ? null : getLucideIcon(iconName)}
+                                {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat'))}
                                 
                                 <button
                                     type="button"
@@ -1696,7 +1708,13 @@ Usage Settings - View usage statistics and export usage data
                                     }}
                                 >
                                     <div class="chat-usage-icon-wrapper">
-                                        {#if isDeletedChat}
+                                        {#if isIncognitoChat}
+                                            <div class="chat-usage-icon-circle" style="background: #555555;">
+                                                <div class="chat-usage-icon">
+                                                    <div class="icon icon_incognito" style="width: 14px; height: 14px; filter: brightness(0) invert(1);"></div>
+                                                </div>
+                                            </div>
+                                        {:else if isDeletedChat}
                                             <div class="chat-usage-icon-circle deleted-icon-circle">
                                                 <div class="chat-usage-icon">
                                                     <div class="clickable-icon icon_delete" style="width: 14px; height: 14px;"></div>
@@ -1775,27 +1793,38 @@ Usage Settings - View usage statistics and export usage data
         </button>
         
         {#if selectedChatId}
+            {@const isSelectedIncognito = selectedChatId === 'incognito'}
             {@const selectedChatMetadata = chatMetadataMap.get(selectedChatId)}
             {@const selectedChat = selectedChatMetadata?.chat}
             {@const selectedMetadata = selectedChatMetadata?.metadata}
             {@const selectedIsHiddenChat = selectedChat ? ((selectedChat as any).is_hidden_candidate || (selectedChat as any).is_hidden) : false}
-            {@const selectedCanShowDetails = !selectedIsHiddenChat || (selectedIsHiddenChat && hiddenChatsUnlocked)}
+            {@const selectedCanShowDetails = !isSelectedIncognito && (!selectedIsHiddenChat || (selectedIsHiddenChat && hiddenChatsUnlocked))}
             {@const selectedCategory = selectedCanShowDetails ? (selectedMetadata?.category || null) : null}
-            {@const selectedIconName = selectedCanShowDetails ? (selectedMetadata?.icon || (selectedCategory ? getFallbackIconForCategory(selectedCategory) : 'help-circle')) : 'help-circle'}
+            {@const selectedIconName = isSelectedIncognito ? 'incognito' : (selectedCanShowDetails ? (selectedMetadata?.icon || (selectedCategory ? getFallbackIconForCategory(selectedCategory) : 'help-circle')) : 'help-circle')}
             {@const selectedGradientColors = selectedCanShowDetails && selectedCategory ? getCategoryGradientColors(selectedCategory) : null}
-            {@const SelectedIconComponent = getLucideIcon(selectedIconName)}
-            {@const selectedTitle = selectedCanShowDetails ? (selectedMetadata?.title || selectedChat?.title || 'Chat') : 'Chat'}
+            {@const SelectedIconComponent = isSelectedIncognito ? null : getLucideIcon(selectedIconName)}
+            {@const selectedTitle = isSelectedIncognito ? $text('settings.usage.incognito_chat') : (selectedCanShowDetails ? (selectedMetadata?.title || selectedChat?.title || 'Chat') : 'Chat')}
             
             <div class="detail-header">
                 <div class="detail-icon-wrapper">
-                    <div 
-                        class="detail-icon-circle" 
-                        style={selectedGradientColors ? `background: linear-gradient(135deg, ${selectedGradientColors.start}, ${selectedGradientColors.end})` : 'background: #cccccc'}
-                    >
-                        <div class="detail-icon">
-                            <SelectedIconComponent size={20} color="white" />
+                    {#if isSelectedIncognito}
+                        <div class="detail-icon-circle" style="background: #555555;">
+                            <div class="detail-icon">
+                                <div class="icon icon_incognito" style="width: 20px; height: 20px; filter: brightness(0) invert(1);"></div>
+                            </div>
                         </div>
-                    </div>
+                    {:else}
+                        <div 
+                            class="detail-icon-circle" 
+                            style={selectedGradientColors ? `background: linear-gradient(135deg, ${selectedGradientColors.start}, ${selectedGradientColors.end})` : 'background: #cccccc'}
+                        >
+                            <div class="detail-icon">
+                                {#if SelectedIconComponent}
+                                    <SelectedIconComponent size={20} color="white" />
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
                 <div class="detail-info">
                     <h3>{selectedTitle}</h3>
@@ -2033,14 +2062,15 @@ Usage Settings - View usage statistics and export usage data
                         {@const chat = summary.chat}
                         {@const metadata = summary.metadata}
                         {@const cachedEntry = chatMetadataMap.get(summary.chat_id)}
+                        {@const isIncognitoChat = summary.chat_id === 'incognito'}
                         {@const isDeletedChat = cachedEntry?.isDeleted === true}
                         {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
-                        {@const canShowDetails = !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
+                        {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
                         {@const category = canShowDetails ? (metadata?.category || null) : null}
-                        {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle')}
+                        {@const iconName = isIncognitoChat ? 'incognito' : (canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle'))}
                         {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
-                        {@const IconComponent = isDeletedChat ? null : getLucideIcon(iconName)}
-                        {@const title = isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')}
+                        {@const IconComponent = (isDeletedChat || isIncognitoChat) ? null : getLucideIcon(iconName)}
+                        {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat'))}
                         
                         <button
                             type="button"
@@ -2054,7 +2084,13 @@ Usage Settings - View usage statistics and export usage data
                             aria-label={$text('settings.usage.view_chat_details')}
                         >
                             <div class="chat-usage-icon-wrapper">
-                                {#if isDeletedChat}
+                                {#if isIncognitoChat}
+                                    <div class="chat-usage-icon-circle" style="background: #555555;">
+                                        <div class="chat-usage-icon">
+                                            <div class="icon icon_incognito" style="width: 14px; height: 14px; filter: brightness(0) invert(1);"></div>
+                                        </div>
+                                    </div>
+                                {:else if isDeletedChat}
                                     <div class="chat-usage-icon-circle deleted-icon-circle">
                                         <div class="chat-usage-icon">
                                             <div class="clickable-icon icon_delete" style="width: 14px; height: 14px;"></div>

@@ -30,6 +30,9 @@ class IncognitoChatService {
       if (stored) {
         const chatsArray = JSON.parse(stored) as Chat[];
         chatsArray.forEach((chat: Chat) => {
+          // Ensure group_key is always set to 'incognito' even for chats stored before this field was added
+          chat.is_incognito = true;
+          chat.group_key = "incognito";
           this.chats.set(chat.chat_id, chat);
         });
         console.debug(
@@ -69,8 +72,11 @@ class IncognitoChatService {
       return;
     }
 
-    // Ensure chat is marked as incognito
+    // Ensure chat is marked as incognito and grouped under the dedicated incognito sidebar section.
+    // group_key='incognito' causes chatGroupUtils.groupChats() to bucket it there instead of into
+    // time-based groups (today/yesterday/…). The sidebar then renders it under its own header.
     chat.is_incognito = true;
+    chat.group_key = "incognito";
 
     // Store in memory
     this.chats.set(chat.chat_id, chat);
@@ -180,6 +186,7 @@ class IncognitoChatService {
       const metadata = chatsArray.map((chat) => ({
         chat_id: chat.chat_id,
         is_incognito: true,
+        group_key: "incognito",
         encrypted_title: chat.encrypted_title,
         title: chat.title,
         created_at: chat.created_at,

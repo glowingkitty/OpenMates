@@ -13,6 +13,7 @@ changes to the documentation (to keep the documentation up to date).
     import { text } from '@repo/ui';
     import { createEventDispatcher } from 'svelte';
     import { incognitoMode } from '../../../stores/incognitoModeStore';
+    import { updateProfile } from '../../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
 
@@ -28,6 +29,10 @@ changes to the documentation (to keep the documentation up to date).
      * properly syncs all three visibility sources.
      */
     async function handleActivate() {
+        // Mark explainer as seen so it won't show again on future activations.
+        // This persists to IndexedDB via updateProfile (device-local preference).
+        updateProfile({ incognito_explainer_seen: true });
+
         // Activate incognito mode
         await incognitoMode.set(true);
         
