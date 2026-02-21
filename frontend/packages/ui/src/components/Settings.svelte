@@ -907,8 +907,12 @@ changes to the documentation (to keep the documentation up to date).
                 teamEnabled.set(isTeamEnabled);
                 break;
             case 'incognito':
-                // Store handles the toggle and deletion of incognito chats
-                incognitoMode.toggle();
+                // No-op: CurrentSettingsPage.svelte manages incognito state directly.
+                // When disabling: it calls incognitoMode.set(false) before dispatching this event.
+                // When enabling: it navigates to the info screen; SettingsIncognitoInfo.svelte
+                // calls incognitoMode.set(true) on confirmation.
+                // Calling incognitoMode.toggle() here would double-toggle and immediately
+                // reverse the state that CurrentSettingsPage just set.
                 break;
             case 'guest':
                 isGuestEnabled = !isGuestEnabled;
