@@ -41,7 +41,10 @@ COPY backend/shared/python_schemas /app/backend_shared/python_schemas
 COPY backend/shared/python_utils /app/backend_shared/python_utils
 
 # Copy the uploads app code
-COPY backend/upload/ /app/uploads/
+# Must live at /app/backend/upload/ so that `from backend.upload.*` imports resolve
+# with PYTHONPATH=/app.
+RUN mkdir -p /app/backend && touch /app/backend/__init__.py
+COPY backend/upload/ /app/backend/upload/
 
 # Set common environment variables
 ENV PYTHONUNBUFFERED=1
@@ -51,4 +54,4 @@ ENV PYTHONPATH="/app"
 EXPOSE 8000
 
 # Run the uploads FastAPI app via uvicorn
-CMD ["uvicorn", "uploads.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-use-colors"]
+CMD ["uvicorn", "backend.upload.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-use-colors"]
