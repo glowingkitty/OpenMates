@@ -16,12 +16,23 @@ changes to the documentation (to keep the documentation up to date).
 
     const dispatch = createEventDispatcher();
 
-    // Activate incognito mode, navigate back to main settings, close settings menu, and trigger new chat
+    /**
+     * Activate incognito mode, close the settings menu, and start a new incognito chat.
+     *
+     * Settings.svelte has THREE sources of truth for menu visibility (isMenuVisible,
+     * settingsMenuVisible store, panelState). Setting stores from here is unreliable
+     * because Svelte 5 effect ordering can cause the menu to re-open.
+     *
+     * Instead, we dispatch a 'closeSettingsMenu' window event that Settings.svelte
+     * listens for and handles by calling toggleMenu() — the only function that
+     * properly syncs all three visibility sources.
+     */
     async function handleActivate() {
         // Activate incognito mode
         await incognitoMode.set(true);
         
-        // Navigate back to main settings
+        // Navigate back to main settings (in case user wants to re-open settings later,
+        // they'll land on the main page rather than the incognito info sub-page)
         dispatch('openSettings', {
             settingsPath: 'main',
             direction: 'backward',
@@ -29,29 +40,18 @@ changes to the documentation (to keep the documentation up to date).
             title: ''
         });
         
-        // Close settings menu before creating the new chat.
-        // CRITICAL: Must close BOTH settingsMenuVisible store AND panelState to prevent
-        // the Settings.svelte $effect from re-opening the menu. The panelState effect
-        // (line ~1400 of Settings.svelte) checks if panelState.isSettingsOpen is true
-        // while isMenuVisible is false, and re-opens the menu if so.
         if (typeof window !== 'undefined') {
-            // Wait a bit for the navigation animation to complete
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Brief delay to let the navigation animation start
+            await new Promise(resolve => setTimeout(resolve, 150));
             
-            // Close settings menu via store
-            const { settingsMenuVisible } = await import('../../Settings.svelte');
-            settingsMenuVisible.set(false);
-
-            // Also close panelState to prevent the panelState sync $effect
-            // from re-opening the menu
-            const { panelState } = await import('../../../stores/panelStateStore');
-            panelState.closeSettings();
+            // Close settings menu via window event — this calls toggleMenu() in
+            // Settings.svelte which properly syncs all three visibility sources
+            window.dispatchEvent(new CustomEvent('closeSettingsMenu'));
             
-            // Wait a bit more for the menu to close
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // Wait for the menu close animation to complete
+            await new Promise(resolve => setTimeout(resolve, 350));
             
-            // Dispatch event to trigger new chat creation
-            // This allows the user to immediately start a new incognito chat
+            // Trigger new incognito chat creation
             window.dispatchEvent(new CustomEvent('triggerNewChat'));
         }
     }

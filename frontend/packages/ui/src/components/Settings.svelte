@@ -1000,6 +1000,18 @@ changes to the documentation (to keep the documentation up to date).
         updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
+
+        // Listen for programmatic close requests from child components
+        // (e.g., SettingsIncognitoInfo calls this after activating incognito mode).
+        // This is more reliable than setting stores because it calls toggleMenu()
+        // directly, which properly syncs all three visibility sources
+        // (isMenuVisible, settingsMenuVisible store, panelState).
+        const handleCloseSettingsMenu = () => {
+            if (isMenuVisible) {
+                toggleMenu();
+            }
+        };
+        window.addEventListener('closeSettingsMenu', handleCloseSettingsMenu);
         
         // Add listener for language changes
         languageChangeHandler = () => {
@@ -1077,6 +1089,7 @@ changes to the documentation (to keep the documentation up to date).
         return () => {
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
+            window.removeEventListener('closeSettingsMenu', handleCloseSettingsMenu);
             window.removeEventListener('language-changed', languageChangeHandler);
             webSocketService.off('user_credits_updated', handleCreditUpdate);
             webSocketService.off('user_admin_status_updated', handleAdminStatusUpdate);
