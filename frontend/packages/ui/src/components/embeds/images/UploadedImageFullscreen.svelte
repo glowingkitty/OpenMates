@@ -77,11 +77,16 @@
   // Progressive loading: show cached preview instantly while full-res loads.
   // -------------------------------------------------------------------------
 
+  /** Max number of times to attempt loading the full image before giving up. */
+  const MAX_FULL_IMAGE_RETRIES = 3;
+
   let previewImageUrl = $state<string | undefined>(undefined);
   let fullImageUrl = $state<string | undefined>(undefined);
   let isLoadingImage = $state(false);
   let imageError = $state<string | undefined>(undefined);
   let isDownloading = $state(false);
+  /** How many times we have attempted to load the full image. */
+  let loadRetryCount = $state(0);
 
   // Track retained S3 keys so we release LRU cache references on unmount
   let retainedPreviewKey: string | undefined = undefined;
@@ -175,6 +180,14 @@
     if (fullImageUrl) return;
     if (!s3BaseUrl || !aesKey || !aesNonce) return; // guard — caller should check
 
+    // Prevent infinite retry loops — give up after MAX_FULL_IMAGE_RETRIES attempts
+    if (loadRetryCount >= MAX_FULL_IMAGE_RETRIES) {
+      console.warn(
+        `[UploadedImageFullscreen] Giving up after ${MAX_FULL_IMAGE_RETRIES} failed attempts`,
+      );
+      return;
+    }
+
     // --- S3 path: progressive load ---
 
     // Step 1: Show cached preview instantly for progressive loading
@@ -201,11 +214,15 @@
       return;
     }
 
+    loadRetryCount += 1;
     isLoadingImage = true;
     imageError = undefined;
 
     try {
-      console.debug('[UploadedImageFullscreen] Loading full image from S3:', fullFileData.s3_key);
+      console.debug(
+        `[UploadedImageFullscreen] Loading full image from S3 (attempt ${loadRetryCount}/${MAX_FULL_IMAGE_RETRIES}):`,
+        fullFileData.s3_key,
+      );
       const blob = await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce);
       fullImageUrl = URL.createObjectURL(blob);
       retainedFullKey = fullFileData.s3_key;
@@ -219,7 +236,11 @@
           : err instanceof Error
             ? err.message
             : String(err);
-      console.error('[UploadedImageFullscreen] Failed to load full image:', errMsg, err);
+      console.error(
+        `[UploadedImageFullscreen] Failed to load full image (attempt ${loadRetryCount}/${MAX_FULL_IMAGE_RETRIES}):`,
+        errMsg,
+        err,
+      );
       imageError = errMsg || 'Failed to load image';
     } finally {
       isLoadingImage = false;
@@ -237,7 +258,7 @@
     const currentKey = aesKey;
     const currentNonce = aesNonce;
 
-    if (!fullImageUrl && !isLoadingImage) {
+    if (!fullImageUrl && !isLoadingImage && !imageError) {
       // Use the locally-read values so the compiler knows they're dependencies.
       if (!currentS3 || !currentKey || !currentNonce) {
         // Blob path: use local src when S3 is not available

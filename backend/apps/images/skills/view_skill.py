@@ -128,7 +128,7 @@ class ViewSkill(BaseSkill):
         log_prefix = f"[images.view] [embed:{embed_id[:8]}...]"
 
         # Connect to Redis (same instance used by all backend services)
-        redis_password = os.environ.get("CACHE_PASSWORD", "")
+        redis_password = os.environ.get("DRAGONFLY_PASSWORD", "")
         redis_url = f"redis://default:{url_quote(redis_password, safe='')}@cache:6379/0"
         redis_client = aioredis.from_url(redis_url, decode_responses=True)
 

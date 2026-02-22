@@ -181,6 +181,7 @@ class UploadsS3Service:
                 Key=s3_key,
                 Body=content,
                 ContentType="application/octet-stream",  # Always octet-stream since encrypted
+                ACL="public-read",  # Required for direct browser fetches — matches core API's S3UploadService
             )
 
         try:
