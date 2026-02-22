@@ -1,4 +1,4 @@
-// frontend/apps/web_app/src/routes/demo/chat/+page.server.ts
+// frontend/apps/web_app/src/routes/(seo)/demo/chat/+page.server.ts
 //
 // Server-side data loader for the demo chat listing/index page at /demo/chat/.
 //

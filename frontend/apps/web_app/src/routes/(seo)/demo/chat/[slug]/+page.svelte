@@ -1,14 +1,15 @@
 <!--
-	frontend/apps/web_app/src/routes/demo/chat/[slug]/+page@.svelte
+	frontend/apps/web_app/src/routes/(seo)/demo/chat/[slug]/+page.svelte
 
 	SEO page for individual demo chats at /demo/chat/{slug}.
 
-	WHY "+page@.svelte" (layout reset):
+	WHY (seo) ROUTE GROUP:
 	  The root +layout.svelte wraps everything in {#if loaded} where loaded is only set
 	  inside onMount (browser-only). During SSR, onMount never runs, so loaded=false and
 	  {#render children()} is never called — the entire page body is suppressed in SSR output.
-	  The "@" suffix resets the layout chain so this page renders without any parent layout,
-	  giving crawlers/Google the full server-rendered HTML they need to index.
+	  By placing this page in the (seo) route group (which has its own minimal +layout.svelte
+	  that simply renders children), the root layout's loading guard is bypassed and the full
+	  server-rendered HTML is emitted for crawlers/Google to index.
 
 	ARCHITECTURE — How this works:
 	  1. Server renders this page to HTML (via +page.server.ts).

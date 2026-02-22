@@ -1,4 +1,4 @@
-// frontend/apps/web_app/src/routes/demo/chat/[slug]/+page.server.ts
+// frontend/apps/web_app/src/routes/(seo)/demo/chat/[slug]/+page.server.ts
 //
 // Server-side data loader for SEO demo chat pages at /demo/chat/[slug].
 //
