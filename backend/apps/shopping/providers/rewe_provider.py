@@ -45,7 +45,6 @@ See: docs/architecture/shopping-cookie-pool.md (TODO: write this doc)
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 import time
@@ -186,7 +185,7 @@ def _pick_freshest_cookie_entry(pool: list[dict]) -> Optional[dict]:
     if not pool:
         return None
 
-    valid: list[dict] = []
+    valid: list[tuple[float, dict]] = []
     now = time.time()
 
     for entry in pool:
@@ -396,20 +395,30 @@ async def search_products(
 
     if secrets_manager:
         try:
-            secret_data = await secrets_manager.get_secret(VAULT_SECRET_PATH)
-            pool = secret_data.get("cookie_pool", [])
-            cookie_entry = _pick_freshest_cookie_entry(pool)
-            if cookie_entry:
-                proxy_url = cookie_entry.get("proxy")
-                user_agent = cookie_entry.get("user_agent")
-                logger.info(
-                    "REWE cookie pool: using entry harvested_at=%s",
-                    cookie_entry.get("harvested_at", "unknown"),
-                )
+            # Use get_secrets_from_path to retrieve the full dict at the path.
+            # get_secret(path, key) only returns a single string value and requires
+            # two arguments — it cannot return the nested cookie_pool structure.
+            secret_data = await secrets_manager.get_secrets_from_path(VAULT_SECRET_PATH)
+            if secret_data:
+                pool = secret_data.get("cookie_pool", [])
+                cookie_entry = _pick_freshest_cookie_entry(pool)
+                if cookie_entry:
+                    proxy_url = cookie_entry.get("proxy")
+                    user_agent = cookie_entry.get("user_agent")
+                    logger.info(
+                        "REWE cookie pool: using entry harvested_at=%s",
+                        cookie_entry.get("harvested_at", "unknown"),
+                    )
+                else:
+                    logger.warning(
+                        "REWE cookie pool is empty or all entries are stale. "
+                        "Proceeding without authentication — prices will be unavailable."
+                    )
             else:
                 logger.warning(
-                    "REWE cookie pool is empty or all entries are stale. "
-                    "Proceeding without authentication — prices will be unavailable."
+                    "REWE cookie pool not found in Vault at path %s. "
+                    "Proceeding without authentication — prices will be unavailable.",
+                    VAULT_SECRET_PATH,
                 )
         except Exception as e:
             logger.error("Failed to load REWE cookie pool from Vault: %s", e, exc_info=True)
@@ -450,16 +459,13 @@ async def search_products(
         "yes" if proxy_url else "no",
     )
 
-    # Configure proxy if available
-    proxies = None
-    if proxy_url:
-        proxies = {"http://": proxy_url, "https://": proxy_url}
-
     # Execute request (follow redirects: shop.rewe.de → www.rewe.de)
+    # NOTE: httpx ≥ 0.20 removed the `proxies` dict kwarg. Use `proxy=` (single URL)
+    # for a single proxy URL; omit the kwarg entirely when no proxy is configured.
     async with httpx.AsyncClient(
         follow_redirects=True,
         timeout=20.0,
-        proxies=proxies,
+        **({"proxy": proxy_url} if proxy_url else {}),
     ) as client:
         response = await client.get(SEARCH_API_URL, headers=headers, params=params)
         response.raise_for_status()
