@@ -3389,9 +3389,14 @@ export function handlePreprocessingStepImpl(
  *     generated while the user was offline
  *   - After background Celery generation completes (real-time push)
  *
- * This handler simply forwards the inspirations to the Svelte store so the
- * DailyInspirationBanner component can display them. No persistence is required
- * on the client — the banner is purely ephemeral UI; the backend caches the data.
+ * PERSISTENCE FLOW:
+ *   1. Set inspirations in Svelte store immediately (for instant UI update)
+ *   2. Send ACK to server to clear Redis pending queue
+ *   3. Encrypt and save to IndexedDB (survives page reload)
+ *   4. Sync encrypted blobs to Directus API (survives re-login / new device)
+ *
+ * Steps 3 and 4 are asynchronous and non-blocking — the banner shows
+ * immediately while persistence happens in the background.
  */
 export function handleDailyInspirationImpl(
   _serviceInstance: import("./chatSyncService").ChatSynchronizationService,
@@ -3421,18 +3426,22 @@ export function handleDailyInspirationImpl(
   }
 
   // Lazily import the store to avoid circular dependencies.
-  // The store is a simple writable; this import is synchronous in the bundler.
-  import("../stores/dailyInspirationStore")
-    .then(({ dailyInspirationStore }) => {
+  Promise.all([
+    import("../stores/dailyInspirationStore"),
+    import("./dailyInspirationDB"),
+  ])
+    .then(async ([{ dailyInspirationStore }, dailyInspirationDB]) => {
+      // 1. Update the Svelte store immediately so the banner appears at once
       dailyInspirationStore.setInspirations(payload.inspirations);
       console.debug(
         "[ChatSyncService:AI] Daily inspirations loaded into store:",
         payload.inspirations.length,
       );
 
-      // Send ACK to the server so it can clear the pending delivery cache.
-      // Without this ACK, the server keeps the inspirations in Redis and
-      // re-delivers them on every reconnect (safety net for dropped connections).
+      // 2. Send ACK to the server so it can clear the pending Redis queue.
+      //    We send the ACK NOW (not after persistence) so the server clears its
+      //    queue immediately. Persistence to IndexedDB/Directus takes over as the
+      //    durable storage source.
       webSocketService
         .sendMessage("daily_inspiration_received", {})
         .then(() => {
@@ -3441,18 +3450,74 @@ export function handleDailyInspirationImpl(
           );
         })
         .catch((ackErr) => {
-          // Non-fatal: if the ACK fails the server will re-deliver on the
-          // next connection, which is the correct fallback behaviour.
+          // Non-fatal: if the ACK fails the server will re-deliver on next connect
           console.warn(
             "[ChatSyncService:AI] Failed to send daily_inspiration_received ACK (non-fatal):",
             ackErr,
           );
         });
+
+      // 3 & 4. Persist inspirations to IndexedDB + Directus API (non-blocking)
+      // Run in background so UI is never blocked by encryption or network calls.
+      persistInspirations(payload.inspirations, dailyInspirationDB).catch(
+        (persistErr) => {
+          console.error(
+            "[ChatSyncService:AI] Background persistence of inspirations failed:",
+            persistErr,
+          );
+        },
+      );
     })
     .catch((err) => {
       console.error(
-        "[ChatSyncService:AI] Failed to import dailyInspirationStore:",
+        "[ChatSyncService:AI] Failed to import stores/modules for daily inspiration:",
         err,
       );
     });
+}
+
+/**
+ * Persist personalised inspirations to IndexedDB and then sync to the API.
+ *
+ * Called asynchronously from handleDailyInspirationImpl so it does not block
+ * the store update or the ACK.
+ */
+async function persistInspirations(
+  inspirations: import("../stores/dailyInspirationStore").DailyInspiration[],
+  dailyInspirationDB: typeof import("./dailyInspirationDB"),
+): Promise<void> {
+  const storedRecords: import("./dailyInspirationDB").StoredDailyInspiration[] =
+    [];
+
+  for (const inspiration of inspirations) {
+    // The assistant_response for persistence is just the phrase text at this point.
+    // The full embed reference block (phrase + embed) is built in handleStartChatFromInspiration
+    // when the user actually clicks the banner. For persistence we only need the phrase
+    // so the server can store something meaningful.
+    const assistantResponse =
+      inspiration.assistant_response ?? inspiration.phrase;
+
+    const record = await dailyInspirationDB.saveInspirationToIndexedDB(
+      inspiration,
+      assistantResponse,
+    );
+
+    if (record) {
+      storedRecords.push(record);
+      console.debug(
+        "[ChatSyncService:AI] Persisted inspiration to IndexedDB:",
+        inspiration.inspiration_id,
+      );
+    } else {
+      console.warn(
+        "[ChatSyncService:AI] Failed to persist inspiration to IndexedDB:",
+        inspiration.inspiration_id,
+      );
+    }
+  }
+
+  // Sync to Directus API (so cross-device / re-login works)
+  if (storedRecords.length > 0) {
+    await dailyInspirationDB.syncInspirationsToAPI(storedRecords);
+  }
 }

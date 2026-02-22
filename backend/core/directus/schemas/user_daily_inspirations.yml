@@ -1,0 +1,112 @@
+# backend/core/directus/schemas/user_daily_inspirations.yml
+#
+# Stores received daily inspiration entries per user, encrypted client-side.
+#
+# Architecture:
+# - Each user receives up to 3 personalized daily inspirations per day
+# - Inspirations are delivered via WebSocket and persisted here for sync across
+#   devices and sessions (solving the "appeared then vanished on reload" problem)
+# - All content fields are encrypted with the user's master key (AES-GCM 256)
+# - The video embed is stored as a regular embed (see embeds collection)
+# - Once opened (user clicks to start chat), is_opened is set to true and the
+#   next unopened inspiration becomes the default display in the carousel
+# - Rows expire automatically via TTL on the frontend (do not store indefinitely)
+#
+# Sync flow:
+# 1. Backend generates inspirations → delivers via WebSocket daily_inspiration event
+# 2. Client receives inspirations, creates embed for video, saves to IndexedDB,
+#    then calls POST /v1/daily-inspirations to persist to Directus
+# 3. On login (phased sync), client calls GET /v1/daily-inspirations to restore
+#    any inspirations that were not yet seen on this device
+
+user_daily_inspirations:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary Key - Directus record ID"
+
+    daily_inspiration_id:
+      type: string
+      note: "[Indexed] Client-generated UUID for this inspiration entry (stable across devices)"
+      options:
+        unique: true
+
+    hashed_user_id:
+      type: string
+      note: "[Indexed] SHA256 hash of user ID (privacy-preserving ownership)"
+
+    embed_id:
+      type: string
+      note: "[Indexed] UUID of the associated embed record (the video embed). Null if no video."
+
+    encrypted_phrase:
+      type: text
+      note: "[Encrypted] The inspiration phrase / CTA message. Encrypted with user master key."
+
+    encrypted_assistant_response:
+      type: text
+      note: "[Encrypted] The full first assistant message content (may include embed reference block). Encrypted with user master key."
+
+    encrypted_title:
+      type: text
+      note: "[Encrypted] The chat title (same as phrase for daily inspirations). Encrypted with user master key."
+
+    encrypted_category:
+      type: text
+      note: "[Encrypted] Category identifier (e.g. 'software_development', 'finance'). Encrypted with user master key."
+
+    encrypted_icon:
+      type: text
+      note: "[Encrypted] Icon name for category display. Encrypted with user master key."
+
+    is_opened:
+      type: boolean
+      default: false
+      note: "Whether the user has clicked to start a chat from this inspiration. Set client-side, synced here."
+
+    opened_chat_id:
+      type: string
+      note: "[Optional] The hashed chat_id of the chat created from this inspiration."
+
+    generated_at:
+      type: integer
+      note: "Unix timestamp (seconds) when the inspiration was generated on the backend."
+
+    content_type:
+      type: string
+      note: "Content type identifier, currently always 'video'. Reserved for future types."
+
+    created_at:
+      type: integer
+      note: "Unix timestamp (seconds) when this record was first persisted."
+
+    updated_at:
+      type: integer
+      note: "Unix timestamp (seconds) when this record was last updated (e.g. when opened)."
+
+  indexes:
+    - name: idx_user_generated
+      fields: [hashed_user_id, generated_at]
+      note: "For fetching user's inspirations ordered by generation time (newest first)"
+
+    - name: idx_user_opened
+      fields: [hashed_user_id, is_opened]
+      note: "For quickly finding unopened inspirations per user"
+
+    - name: idx_embed_id
+      fields: [embed_id]
+      note: "For looking up inspiration by its embed"
+
+  notes: |
+    User-specific daily inspiration entries received from the backend.
+
+    - Each user can have up to 3 active inspirations at a time (the current day's batch)
+    - Inspirations are encrypted client-side before syncing to this collection
+    - The embed for the video is stored separately in the embeds collection
+    - is_opened tracks whether a chat was started from this inspiration
+    - Once opened, the inspiration is still shown in the carousel but not as the first/default
+    - The next unopened inspiration becomes the default carousel display
+    - Inspirations should be soft-expired after ~7 days (frontend handles this)
+    - On login, the client fetches all non-expired inspirations from this collection
+      to restore the carousel state (critical for the "re-login hours later" use case)

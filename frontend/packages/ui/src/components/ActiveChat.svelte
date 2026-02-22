@@ -3888,6 +3888,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             console.info(`[ActiveChat] Created inspiration chat ${chatId} with message ${messageId}`);
 
+            // Mark the inspiration as opened — the carousel stays visible but the
+            // next unopened entry becomes the default. Do this before navigating
+            // so the banner updates immediately if the user goes back.
+            const { dailyInspirationStore: inspirationStore } = await import('../stores/dailyInspirationStore');
+            const { markInspirationOpenedInIndexedDB, markInspirationOpenedOnAPI } = await import('../services/dailyInspirationDB');
+
+            // Hashed chat ID used as the opened_chat_id reference
+            const openedChatId = chatId;
+
+            // Update the Svelte store immediately (optimistic update)
+            inspirationStore.markOpened(inspiration.inspiration_id, openedChatId);
+
+            // Persist to IndexedDB and API in the background (non-blocking, non-fatal)
+            markInspirationOpenedInIndexedDB(inspiration.inspiration_id, openedChatId).catch((err: unknown) => {
+                console.error('[ActiveChat] Failed to mark inspiration opened in IndexedDB:', err);
+            });
+            markInspirationOpenedOnAPI(inspiration.inspiration_id, openedChatId).catch((err: unknown) => {
+                console.error('[ActiveChat] Failed to mark inspiration opened on API:', err);
+            });
+
             // Navigate to the new chat (same pattern as handleResumeLastChat)
             phasedSyncState.markInitialChatLoaded();
             activeChatStore.setActiveChat(chatId);

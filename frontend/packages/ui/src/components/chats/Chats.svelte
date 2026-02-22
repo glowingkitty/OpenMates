@@ -923,7 +923,54 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		setTimeout(() => {
 			syncComplete = false;
 		}, 1000);
+
+		// ── Login-sync: restore inspirations from Directus when IndexedDB is empty ──
+		// This handles the "re-login on a new device / cleared browser" scenario.
+		// If IndexedDB already has inspirations, loadDefaultInspirations() loaded them
+		// before this event. We only call the API if the store is still empty after sync.
+		syncInspirationLoginFallback();
 	};
+
+	/**
+	 * Attempt to load persisted inspirations from the API after phased sync completes.
+	 *
+	 * Called when the daily inspiration Svelte store is still empty after sync.
+	 * This handles the "re-login on a fresh device / cleared browser data" scenario
+	 * where IndexedDB has no inspirations but the user's Directus account has saved ones.
+	 *
+	 * Non-fatal: errors are logged but do not affect chat sync or UI stability.
+	 */
+	async function syncInspirationLoginFallback(): Promise<void> {
+		try {
+			const { dailyInspirationStore: inspirationStore } = await import('../../stores/dailyInspirationStore');
+			const { get: svGet } = await import('svelte/store');
+
+			const currentState = svGet(inspirationStore);
+			if (currentState.inspirations.length > 0) {
+				// Already populated (IndexedDB load or WS delivery) — nothing to do
+				return;
+			}
+
+			console.debug('[Chats] Inspiration store empty after sync — checking API for saved inspirations');
+
+			const { loadInspirationsFromAPI } = await import('../../services/dailyInspirationDB');
+			const inspirations = await loadInspirationsFromAPI();
+
+			if (inspirations.length > 0) {
+				// Re-check in case WS delivered them while we were loading from API
+				const nowState = svGet(inspirationStore);
+				if (nowState.inspirations.length === 0) {
+					inspirationStore.setInspirations(inspirations);
+					console.debug(`[Chats] Loaded ${inspirations.length} inspiration(s) from API after login sync`);
+				} else {
+					console.debug('[Chats] WS delivered inspirations while loading from API — keeping WS data');
+				}
+			}
+		} catch (error) {
+			// Non-fatal: banner will show server defaults or remain hidden
+			console.error('[Chats] syncInspirationLoginFallback failed (non-fatal):', error);
+		}
+	}
 
 	/**
 	 * Handles "Show more" button click — 3-tier progressive loading:

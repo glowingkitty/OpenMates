@@ -104,7 +104,9 @@ class ChatDatabase {
   // Version 17: (Removed) Was app_settings_memories_actions store - now using system messages instead
   // Version 18: Added pending_embed_share_updates store for embed share metadata retry queue
   // Version 19: Added pending_embed_operations store for offline embed queue
-  private readonly VERSION = 19;
+  // Version 20: Added daily_inspirations store for client-side persistence of personalised inspirations
+  private readonly VERSION = 20;
+  public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
   private initializationPromise: Promise<void> | null = null;
 
   // Flag to prevent new operations during database deletion
@@ -649,6 +651,23 @@ class ChatDatabase {
         unique: false,
       });
       console.debug("[ChatDatabase] Created pending_embed_operations store");
+    }
+
+    // Daily inspirations store (v20) - client-side persistence for personalised inspiration carousel.
+    // Entries are encrypted with the master key (same as embeds) so content stays private.
+    // Indexed by generated_at to support incremental sync and TTL-based cleanup.
+    if (!db.objectStoreNames.contains(this.DAILY_INSPIRATIONS_STORE_NAME)) {
+      const dailyInspirationsStore = db.createObjectStore(
+        this.DAILY_INSPIRATIONS_STORE_NAME,
+        { keyPath: "inspiration_id" },
+      );
+      dailyInspirationsStore.createIndex("generated_at", "generated_at", {
+        unique: false,
+      });
+      dailyInspirationsStore.createIndex("is_opened", "is_opened", {
+        unique: false,
+      });
+      console.debug("[ChatDatabase] Created daily_inspirations store (v20)");
     }
 
     // Note: app_settings_memories_actions store was removed in favor of system messages
