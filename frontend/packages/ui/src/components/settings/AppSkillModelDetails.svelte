@@ -252,11 +252,13 @@
         </div>
         
         <!-- Pricing section -->
-        <!-- Models for image/audio skills may not have token pricing in modelsMetadata.
-             Their pricing is defined in the skill's appsMetadata. We show whatever is
-             available: token pricing from the model, or the skill-level per-unit/per-minute
-             pricing via the skill metadata (passed here as context). -->
+        <!-- Priority order:
+             1. Model-level token pricing (AI text models: input/output tokens per credit)
+             2. Model-level unit pricing (image/audio models: per_unit or per_minute from modelsMetadata)
+             3. Skill-level pricing fallback (per_unit/per_minute from appsMetadata, for edge cases
+                where the model has no pricing data of its own) -->
         {#if model.pricing?.input_tokens_per_credit || model.pricing?.output_tokens_per_credit}
+            <!-- Token-based pricing (AI text models) -->
             <div class="section">
                 <SettingsItem
                     type="heading"
@@ -284,8 +286,40 @@
                     {/if}
                 </div>
             </div>
+        {:else if model.pricing?.per_unit || model.pricing?.per_minute !== undefined}
+            <!-- Per-unit / per-minute pricing from model metadata (image/audio models) -->
+            <div class="section">
+                <SettingsItem
+                    type="heading"
+                    icon="credits"
+                    title={$text('settings.app_store.skills.model_detail.pricing')}
+                />
+                <div class="pricing-content">
+                    {#if model.pricing?.per_unit}
+                        <div class="pricing-row">
+                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <span class="pricing-value">
+                                {model.pricing.per_unit.credits} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
+                                {model.pricing.per_unit.unit_name === 'image'
+                                    ? $text('settings.app_store.skills.model_detail.per_image')
+                                    : model.pricing.per_unit.unit_name === 'megapixel'
+                                    ? $text('settings.app_store.skills.model_detail.per_megapixel')
+                                    : `/ ${model.pricing.per_unit.unit_name}`}
+                            </span>
+                        </div>
+                    {:else if model.pricing?.per_minute !== undefined}
+                        <div class="pricing-row">
+                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <span class="pricing-value">
+                                {model.pricing.per_minute} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
+                                {$text('settings.app_store.skills.model_detail.per_minute')}
+                            </span>
+                        </div>
+                    {/if}
+                </div>
+            </div>
         {:else if skill?.pricing}
-            <!-- Skill-level pricing (per image, per megapixel, per minute) -->
+            <!-- Fallback: skill-level pricing when the model itself has no pricing data -->
             <div class="section">
                 <SettingsItem
                     type="heading"
