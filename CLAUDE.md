@@ -118,6 +118,33 @@ Rules: be honest about risks, be specific with file references, and always expla
 - **After pushing frontend files (`frontend/`) or any `.yml` files**, wait for and verify the Vercel deployment succeeded before marking the task complete. Fix any build errors and re-deploy until the status is "● Ready". See `docs/claude/git-and-deployment.md` for the full verification procedure.
 - See `docs/claude/git-and-deployment.md` for commit message format and full workflow.
 
+### Research Before Implementing New Apps, Skills, or Features (CRITICAL)
+
+**Before implementing any new app, skill, external API integration, or significant feature, you MUST:**
+
+1. **Search for relevant official documentation** using web search tools — do NOT rely on training data, which may be months or years out of date. Look up:
+   - Current API availability and pricing (free vs. paid tiers)
+   - What the API can actually do (capabilities vs. limitations)
+   - Authentication requirements
+   - Rate limits and terms of service
+
+2. **Read the relevant project docs** — check `docs/apps/` and `docs/architecture/` for any existing research or architecture decisions on the topic.
+
+3. **Ask clarifying questions before writing any code.** Present your findings to the user and ask about:
+   - Whether the API's actual capabilities match what the feature needs
+   - Whether paid API access is acceptable (never assume)
+   - Any ambiguous requirements that could affect design choices
+   - Alternative approaches if the primary option has blockers
+
+4. **Do not start implementation until the user confirms the approach.** Wasted implementation due to a misunderstood API or capability gap is much more costly than a short clarification exchange.
+
+**Example triggers for this rule:**
+
+- Integrating with a third-party API (events, maps, payments, social platforms, etc.)
+- Implementing a new AI skill or tool
+- Adding a new backend app or service
+- Building a feature that touches external data sources
+
 ### Explicit Consent Required for Destructive/External Actions
 
 - **NEVER create pull requests** unless the user explicitly asks for one. No exceptions.
