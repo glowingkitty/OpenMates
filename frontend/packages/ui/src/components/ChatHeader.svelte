@@ -148,9 +148,12 @@
 
   .chat-header-card {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 16px;
-    padding: 14px 16px;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px 16px 16px;
+    margin-top: 16px;
     margin-bottom: 8px;
     border-radius: 14px;
     background: var(--color-grey-10, rgba(255, 255, 255, 0.04));
@@ -187,16 +190,17 @@
     justify-content: center;
   }
 
-  /* Title: larger than sidebar (16px → 20px) with medium weight */
+  /* Title: centered below the icon circle, slightly smaller than before */
   .chat-header-title-wrapper {
-    flex: 1;
+    width: 100%;
     min-width: 0;
     overflow: hidden;
+    text-align: center;
   }
 
   .chat-header-title {
     display: block;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--color-text);
     white-space: nowrap;
