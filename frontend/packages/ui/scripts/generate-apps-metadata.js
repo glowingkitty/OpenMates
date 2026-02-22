@@ -429,6 +429,16 @@ function parseAppYaml(appId, filePath) {
           continue;
         }
 
+        // Skip internal skills — they are invoked automatically by the backend and
+        // must never appear in the app store or settings UI (e.g., images.view,
+        // audio.transcribe). Users don't select these manually.
+        if (skill.internal === true) {
+          console.log(
+            `[generate-apps-metadata]   Skipping internal skill: ${appId}.${skill.id}`,
+          );
+          continue;
+        }
+
         // Auto-prepend "app_skills." prefix to skill translation keys if not already present
         const skillMetadata = {
           id: (skill.id || "").trim(),
@@ -594,7 +604,8 @@ function parseAppYaml(appId, filePath) {
           typeof focus.systemprompt_translation_key === "string" &&
           focus.systemprompt_translation_key.trim()
         ) {
-          focusMetadata.system_prompt_translation_key = focus.systemprompt_translation_key.trim();
+          focusMetadata.system_prompt_translation_key =
+            focus.systemprompt_translation_key.trim();
         }
 
         if (

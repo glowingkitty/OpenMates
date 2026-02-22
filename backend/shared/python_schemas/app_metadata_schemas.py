@@ -53,6 +53,11 @@ class AppSkillDefinition(BaseModel):
     preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this skill (1-3 sentences).")
     # REST API configuration — controls how the skill is exposed in the public API docs
     api_config: Optional[AppSkillApiConfig] = Field(default=None, description="REST API configuration for this skill. Controls GET/POST endpoint exposure in /docs.")
+    # Internal skills are used by the AI backend only and must NOT be shown to users
+    # in the app store or settings UI. Set internal: true for skills that are invoked
+    # automatically (e.g., images.view for uploaded images, audio.transcribe for
+    # voice recordings) — users never discover or invoke these manually.
+    internal: Optional[bool] = Field(default=False, description="If true, this skill is hidden from the app store and settings UI. It is invoked automatically by the backend and is not user-facing.")
 
 class AppFocusDefinition(BaseModel):
     """Defines the structure for a focus mode within an app's metadata."""
