@@ -117,7 +117,7 @@ docker exec api python /app/backend/scripts/admin_debug_cli.py issues
 - Add `--json` for raw JSON output
 - Add `--lines 500` to increase log output (default: 100, max: 500)
 
-**Available commands:** `logs`, `issues`, `issue <id>`, `issue-delete <id>`, `user <email>`, `chat <id>`, `embed <id>`, `requests`, `newsletter`
+**Available commands:** `logs`, `upload-logs`, `preview-logs`, `upload-update`, `preview-update`, `issues`, `issue <id>`, `issue-delete <id>`, `user <email>`, `chat <id>`, `embed <id>`, `requests`, `newsletter`
 
 **When to also check production code:** If something should be working but isn't (e.g., a task was queued but never executed), check whether the code exists on the `main` branch:
 
@@ -126,6 +126,34 @@ git fetch origin main
 git grep "function_or_task_name" main
 git show main:path/to/file.py
 ```
+
+### Upload / Preview Server Debugging (ALWAYS use Admin Debug CLI)
+
+The upload server (`upload.openmates.org`) and preview server (`preview.openmates.org`) run on **separate VMs** — they have no Loki, no `docker compose` access from the dev server, and no connection to the core API's log infrastructure. Use the Admin Debug CLI exclusively for these servers.
+
+```bash
+# Upload server logs (default: app-uploads, last 60 min)
+docker exec api python /app/backend/scripts/admin_debug_cli.py upload-logs
+
+# Upload server logs — specific services, filtered
+docker exec api python /app/backend/scripts/admin_debug_cli.py upload-logs --services app-uploads,clamav --since 30 --search "ERROR"
+
+# Preview server logs
+docker exec api python /app/backend/scripts/admin_debug_cli.py preview-logs --since 30 --lines 200
+
+# Trigger a full self-update on the upload server (git pull + rebuild + restart)
+# Returns 202 immediately; use upload-logs to monitor progress
+docker exec api python /app/backend/scripts/admin_debug_cli.py upload-update
+
+# Trigger a full self-update on the preview server
+docker exec api python /app/backend/scripts/admin_debug_cli.py preview-update
+```
+
+**Allowed services for `upload-logs`:** `app-uploads`, `clamav`, `vault`
+
+**Note:** `upload-update` and `preview-update` return HTTP 202 immediately — the rebuild runs in the background. Poll with `upload-logs` / `preview-logs` to see progress.
+
+---
 
 ### Development Server Debugging (Local Docker Compose)
 
