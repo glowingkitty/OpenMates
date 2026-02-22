@@ -737,7 +737,8 @@ class SearchAppointmentsSkill(BaseSkill):
         validated, err = self._validate_requests_array(
             requests=requests,
             required_field="speciality",
-            skill_name="search_appointments",
+            field_display_name="speciality",
+            empty_error_message="No appointment search requests provided. 'requests' array must contain at least one request with a 'speciality' field.",
             logger=logger,
         )
         if err:
