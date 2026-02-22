@@ -31,7 +31,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.routes import admin_logs_router, admin_update_router, favicon_router, image_router, metadata_router, youtube_router, health_router
+from app.routes import favicon_router, image_router, metadata_router, youtube_router, health_router
 from app.services import fetch_service, youtube_service, cache_service
 
 # ===========================================
@@ -457,13 +457,9 @@ app.include_router(favicon_router)
 app.include_router(image_router)
 app.include_router(metadata_router)
 app.include_router(youtube_router)
-# Admin endpoints — exempt from referer validation, rate limiting, and API key auth.
-# Protected by their own X-Admin-Log-Key shared secret (ADMIN_LOG_API_KEY env var).
-# admin_logs_router:  GET  /admin/logs   — fetch Docker logs
-# admin_update_router: POST /admin/update — git pull + rebuild + restart
-# NOTE: admin_update_router intentionally absent from the core API server.
-app.include_router(admin_logs_router)
-app.include_router(admin_update_router)
+# Admin endpoints (/admin/logs, /admin/update) are handled by the dedicated
+# admin-sidecar container, NOT by this service. See docker-compose.preview.yml.
+# This keeps the Docker socket and ADMIN_LOG_API_KEY out of this container.
 
 
 # ===========================================

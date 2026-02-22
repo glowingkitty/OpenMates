@@ -129,11 +129,13 @@ DEV_API_URL = "https://api.dev.openmates.org/v1/admin/debug"
 
 # Upload and preview servers run on separate VMs — always hit their public URLs.
 # (There is no dev-specific upload or preview server.)
+# Caddy on each VM routes /admin/* to the admin-sidecar container (port 8001),
+# which holds the Docker socket. The main service containers do NOT have Docker access.
 UPLOAD_SERVER_URL = "https://upload.openmates.org/admin/logs"
 PREVIEW_SERVER_URL = "https://preview.openmates.org/admin/logs"
 
 # Update endpoints — trigger git pull + rebuild + restart on the satellite VM.
-# These exist ONLY on the upload and preview servers, never on the core API server.
+# Served by the admin-sidecar container. Never available on the core API server.
 UPLOAD_SERVER_UPDATE_URL = "https://upload.openmates.org/admin/update"
 PREVIEW_SERVER_UPDATE_URL = "https://preview.openmates.org/admin/update"
 
@@ -371,9 +373,11 @@ async def cmd_upload_logs(args, _unused_api_key: str):
     Calls GET https://upload.openmates.org/admin/logs using the admin log API key
     stored in core Vault at kv/data/providers/upload_server (key: admin_log_api_key).
 
-    The upload server runs docker compose logs internally and returns the output.
-    Requires ADMIN_LOG_API_KEY to be set on the upload VM and the same value
-    stored in the core Vault via SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY.
+    The request is served by the admin-sidecar container on the upload VM (port 8001,
+    proxied by Caddy). The sidecar runs docker compose logs and returns the output.
+    The main app-uploads container does NOT have Docker socket access.
+    Requires ADMIN_LOG_API_KEY to be set on the upload VM's admin-sidecar and the
+    same value stored in the core Vault via SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY.
     """
     api_key = await get_satellite_log_key(
         vault_path="kv/data/providers/upload_server",
@@ -408,8 +412,10 @@ async def cmd_preview_logs(args, _unused_api_key: str):
     Calls GET https://preview.openmates.org/admin/logs using the admin log API key
     stored in core Vault at kv/data/providers/preview_server (key: admin_log_api_key).
 
-    Requires ADMIN_LOG_API_KEY to be set on the preview VM and the same value
-    stored in the core Vault via SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY.
+    The request is served by the admin-sidecar container on the preview VM (port 8001,
+    proxied by Caddy). The sidecar runs docker compose logs and returns the output.
+    Requires ADMIN_LOG_API_KEY to be set on the preview VM's admin-sidecar and the
+    same value stored in the core Vault via SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY.
     """
     api_key = await get_satellite_log_key(
         vault_path="kv/data/providers/preview_server",

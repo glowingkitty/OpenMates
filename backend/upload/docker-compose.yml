@@ -104,6 +104,12 @@ services:
   # ---------------------------------------------------------------------------
   # File Uploads Microservice
   # ---------------------------------------------------------------------------
+  # Handles user file uploads: malware scanning, AI detection, preview generation,
+  # and encrypted S3 storage.
+  #
+  # Security: this container intentionally has NO Docker socket access.
+  # Admin operations (logs, update) are handled by the admin-sidecar container.
+  # This limits the blast radius if a malicious upload ever escapes the container.
   app-uploads:
     container_name: app-uploads
     build:
@@ -134,23 +140,10 @@ services:
       CLAMAV_PORT: "3310"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT:-production}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
-      # Admin log API key — used by GET /admin/logs endpoint for operational debugging.
-      # Fetched remotely by admin_debug_cli.py upload-logs via X-Admin-Log-Key header.
-      # Set this in .env (same value as SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY on core server).
-      ADMIN_LOG_API_KEY: "${ADMIN_LOG_API_KEY:-}"
     volumes:
       # Vault API token written by vault-setup init container (read-only)
       - vault-setup-data:/vault-data:ro
-      # Docker socket (read-only) — allows /admin/logs to run `docker compose logs`
-      # via subprocess to fetch container logs from this compose stack.
-      # Required for: admin_debug_cli.py upload-logs
-      # The group_add below grants access without running as root.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    group_add:
-      # Add the docker group so the container user can access the Docker socket.
-      # Find the GID with: stat -c %g /var/run/docker.sock
-      # This value is typically 999 on Debian/Ubuntu, but may vary per host.
-      - "${DOCKER_GID:-999}"
+      # NO Docker socket mount here — the admin-sidecar handles that
     networks:
       - uploads
     depends_on:
@@ -170,6 +163,74 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s # Extra time to wait for ClamAV startup
+
+  # ---------------------------------------------------------------------------
+  # Admin Sidecar
+  # ---------------------------------------------------------------------------
+  # Tiny isolated container that holds the Docker socket and ADMIN_LOG_API_KEY.
+  # Exposes only /admin/logs (GET) and /admin/update (POST).
+  # The main 'app-uploads' container has NO Docker socket — this is intentional.
+  #
+  # Security rationale: app-uploads processes user-controlled file uploads.
+  # Isolating Docker socket access into a dedicated container limits the blast
+  # radius if a malicious upload ever escapes the container sandbox.
+  #
+  # Caddy on this VM should route /admin/* to admin-sidecar:8001.
+  # Do NOT expose port 8001 to the public internet — let Caddy handle routing.
+  admin-sidecar:
+    container_name: uploads-admin-sidecar
+    build:
+      # Build context is project root so Dockerfile can COPY backend/admin_sidecar/
+      context: ../../
+      dockerfile: backend/admin_sidecar/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Admin authentication — same key as SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY
+      # on the core server (set in .env on this VM).
+      ADMIN_LOG_API_KEY: "${ADMIN_LOG_API_KEY:-}"
+
+      # Docker Compose project to query and manage
+      COMPOSE_PROJECT: "openmates-uploads"
+
+      # Path to the compose file (relative to GIT_WORK_DIR)
+      COMPOSE_FILE: "backend/upload/docker-compose.yml"
+
+      # Which services are queryable via /admin/logs
+      SERVICES_ALLOWED: "app-uploads,clamav,vault"
+
+      # Which service to rebuild and restart via /admin/update
+      SERVICE_UPDATE_TARGET: "app-uploads"
+
+      # Git repository root on the host (where `git pull` runs)
+      GIT_WORK_DIR: "${GIT_WORK_DIR:-/app}"
+
+      PORT: "8001"
+    # Bind to localhost only — Caddy proxies from the outside
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      # Docker socket — this container needs it; app-uploads does NOT
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount the project root so `git pull` and `docker compose` can run
+      - "${GIT_WORK_DIR:-/app}:${GIT_WORK_DIR:-/app}"
+    group_add:
+      # Add the docker group so this container can access the Docker socket.
+      # Find the GID with: stat -c %g /var/run/docker.sock
+      # Typically 999 on Debian/Ubuntu — may vary per host.
+      - "${DOCKER_GID:-999}"
+    networks:
+      - uploads
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   # ---------------------------------------------------------------------------
   # ClamAV Malware Scanner (sidecar — always co-located with app-uploads)

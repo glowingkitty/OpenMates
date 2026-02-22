@@ -1,0 +1,8 @@
+# backend/admin_sidecar/requirements.txt
+#
+# Minimal dependencies for the admin sidecar container.
+# This container only serves /admin/logs and /admin/update —
+# it needs nothing beyond a web framework and an HTTP server.
+
+fastapi==0.128.0
+uvicorn[standard]==0.40.0
