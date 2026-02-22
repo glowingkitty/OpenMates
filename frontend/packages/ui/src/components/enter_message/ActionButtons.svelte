@@ -57,7 +57,13 @@
     function handleRecordMouseDown(event: MouseEvent) { dispatch('recordMouseDown', { originalEvent: event }); }
     function handleRecordMouseUp(event: MouseEvent) { dispatch('recordMouseUp', { originalEvent: event }); }
     function handleRecordMouseLeave(event: MouseEvent) { dispatch('recordMouseLeave', { originalEvent: event }); }
-    function handleRecordTouchStart(event: TouchEvent) { event.preventDefault(); dispatch('recordTouchStart', { originalEvent: event }); }
+    function handleRecordTouchStart(event: TouchEvent) {
+        // Do NOT call event.preventDefault() here.
+        // On Firefox iOS, preventDefault() on touchstart consumes the user-gesture token
+        // that getUserMedia() requires to show the microphone permission prompt.
+        // Scroll prevention during a hold is handled by `touch-action: none` on the button.
+        dispatch('recordTouchStart', { originalEvent: event });
+    }
     function handleRecordTouchEnd(event: TouchEvent) { dispatch('recordTouchEnd', { originalEvent: event }); }
 
     /**
@@ -202,6 +208,13 @@
         15%  { color: var(--color-font-primary,  rgba(0, 0, 0, 0.85)); font-weight: 600; }
         60%  { color: var(--color-font-primary,  rgba(0, 0, 0, 0.85)); font-weight: 600; }
         100% { color: var(--color-font-tertiary, rgba(0, 0, 0, 0.4)); font-weight: 400; }
+    }
+
+    /* Prevent page scroll during the press-and-hold recording gesture.
+       We rely on CSS instead of event.preventDefault() so that Firefox iOS
+       retains the user-gesture token needed for getUserMedia(). */
+    .icon_recordaudio {
+        touch-action: none;
     }
 
     .send-button {

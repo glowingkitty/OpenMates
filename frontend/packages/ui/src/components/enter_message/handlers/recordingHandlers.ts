@@ -184,7 +184,12 @@ export function handleRecordMouseLeave(recordAudioComponent?: {
 }
 
 export async function handleRecordTouchStart(event: TouchEvent) {
-  event.preventDefault();
+  // NOTE: Do NOT call event.preventDefault() here.
+  // On Firefox iOS (and some other mobile browsers), calling preventDefault() on
+  // touchstart consumes the user gesture token. getUserMedia() requires an active
+  // user gesture — if the token is consumed before the async call, the browser
+  // silently refuses to show the permission popup and the stream is never returned.
+  // Scroll prevention is handled at the CSS level (touch-action: none on the button).
 
   const { micPermissionState } = get(recordingState);
 

@@ -742,6 +742,40 @@ export const Embed = Node.create<EmbedOptions>({
         });
       }
 
+      // For recording embeds: listen for 'cancelrecordingupload' fired by the Stop button
+      // in RecordingEmbedPreview (via RecordingRenderer). Cancel the in-flight upload and
+      // delete the node from the document. Same pattern as cancelimageupload/cancelpdfupload.
+      if (currentAttrs.type === "recording") {
+        wrapper.addEventListener("cancelrecordingupload", (e) => {
+          const embedId = (e as CustomEvent<{ embedId: string }>).detail
+            ?.embedId;
+          if (embedId) cancelUpload(embedId);
+          if (typeof getPos === "function") {
+            const pos = getPos();
+            const nodeSize = editor.state.doc.nodeAt(pos)?.nodeSize ?? 1;
+            const to = pos + nodeSize;
+            const hardBreakAfter = editor.state.doc.nodeAt(to);
+            const deleteTo =
+              hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+            editor
+              .chain()
+              .focus()
+              .deleteRange({ from: pos, to: deleteTo })
+              .run();
+          }
+          console.debug(
+            "[Embed] Stop button: cancelled upload and deleted recording embed:",
+            embedId,
+          );
+          editor.view.dom.dispatchEvent(
+            new CustomEvent("embed-upload-cancelled", {
+              bubbles: true,
+              detail: { embedId },
+            }),
+          );
+        });
+      }
+
       // Make the node selectable and add basic interaction
       // BUT: Skip click handlers for image embeds (they should not be clickable)
       // For Svelte component embeds, they handle their own click events
@@ -1296,6 +1330,28 @@ export const Embed = Node.create<EmbedOptions>({
               }
               console.debug(
                 "[Embed] Deleted PDF embed and cancelled upload:",
+                attrs.id,
+              );
+              return true;
+
+            case "recording":
+              // Recording embeds are deleted entirely on Backspace — cancel any
+              // in-flight upload and remove the node (same pattern as image/PDF).
+              if (attrs.id) {
+                cancelUpload(attrs.id);
+              }
+              {
+                const hardBreakAfterRec = editor.state.doc.nodeAt(to);
+                const deleteToRec =
+                  hardBreakAfterRec?.type.name === "hardBreak" ? to + 1 : to;
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange({ from, to: deleteToRec })
+                  .run();
+              }
+              console.debug(
+                "[Embed] Deleted recording embed and cancelled upload:",
                 attrs.id,
               );
               return true;
