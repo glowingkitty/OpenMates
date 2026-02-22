@@ -33,7 +33,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -181,11 +181,15 @@ app.include_router(upload_router)
 # ---------------------------------------------------------------------------
 
 @app.get("/health", tags=["Health"])
-async def health_check() -> dict:
+@limiter.limit("30/minute")
+async def health_check(request: Request) -> dict:
     """
     Lightweight health check for Docker.
     Returns 200 if the service is running. Does NOT check downstream services
     (ClamAV, S3, local Vault) — those are validated at startup.
+
+    Rate-limited to 30/min per IP to prevent abuse as a reconnaissance or
+    keep-alive probing tool.
     """
     return {"status": "ok", "service": "app-uploads"}
 
