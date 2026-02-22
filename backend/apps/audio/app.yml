@@ -21,6 +21,7 @@ skills:
       per_minute: 3 # $0.003/min Mistral cost; 1-minute minimum enforced in skill (~3x markup)
     api_config:
       expose_get: true # Expose GET so REST API callers can query skill metadata + use for uploaded audio
+      expose_post: false # Custom POST registered by _register_audio_custom_routes() — uses session+API key auth
     tool_schema:
       type: object
       properties:

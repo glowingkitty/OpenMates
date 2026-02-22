@@ -1289,6 +1289,105 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
     logger.info("Registered custom route: POST /v1/apps/travel/booking-link")
 
 
+def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
+    """
+    Register audio-specific REST endpoints that require session or API key authentication.
+
+    Overrides the generic skill POST registration for the 'transcribe' skill so that the
+    webapp (which authenticates via session cookies, not API keys) can call it directly.
+
+    The generic ``create_post_skill_handler`` only accepts API key auth (``ApiKeyAuth``).
+    Transcription is initiated by the webapp, which has no API key — it uses the session
+    cookie for authentication.  This custom handler uses ``get_current_user_or_api_key``
+    instead, mirroring the pattern used by ``_register_travel_custom_routes``.
+
+    Billing for the transcribe skill is handled entirely inside ``TranscribeSkill.execute()``
+    in the ``app-audio`` container, so this handler does NOT charge credits itself.
+
+    Currently registers:
+    - POST /v1/apps/audio/skills/transcribe — Audio transcription via Mistral Voxtral.
+      Accepts session cookies (webapp) or Bearer API key (external clients).
+    """
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+
+    async def transcribe_handler(
+        request_body: Dict[str, Any] = Body(..., description="Transcription request matching the audio/transcribe tool_schema."),
+        request: Request = None,
+        user=Depends(get_current_user_or_api_key),
+        cache_service: CacheService = Depends(get_cache_service),
+        directus_service: DirectusService = Depends(get_directus_service),
+    ) -> SkillResponse:
+        """
+        Transcribe an audio recording that has been uploaded to S3.
+
+        The recording must already be encrypted and stored in S3.  Pass the S3 location
+        and AES-256-GCM decryption keys in the ``requests`` array.  The skill fetches,
+        decrypts, and sends the audio to Mistral Voxtral for transcription.
+
+        Credits are charged based on audio duration (3 credits/min, 1-min minimum).
+
+        Supports both session authentication (webapp) and API key authentication (external).
+        """
+        # Extract user_id from the User object returned by get_current_user_or_api_key.
+        # Works for both session auth (User.id) and API key auth (User.id from profile fetch).
+        user_id = user.id if hasattr(user, "id") else str(user)
+
+        try:
+            logger.info(f"Audio transcribe: User {user_id[:8]}... initiating transcription")
+
+            # Build a user_info dict compatible with call_app_skill's expectations.
+            # api_key_encrypted_name and api_key_hash are not available for session auth —
+            # use empty string / None as safe defaults.  The transcribe skill ignores them.
+            user_info = {
+                "user_id": user_id,
+                "api_key_encrypted_name": "",
+                "api_key_hash": None,
+                "device_hash": None,
+            }
+
+            result = await call_app_skill(
+                app_id="audio",
+                skill_id="transcribe",
+                input_data=request_body,
+                parameters={},
+                user_info=user_info,
+            )
+
+            return SkillResponse(
+                success=True,
+                data=result,
+                credits_charged=None,  # Charged inside TranscribeSkill.execute()
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Audio transcribe error for user {user_id[:8]}...: {e}",
+                exc_info=True,
+            )
+            return SkillResponse(success=False, error=f"Transcription failed: {str(e)}")
+
+    # Register the endpoint without ApiKeyAuth dependency — auth is handled inside the handler
+    # via get_current_user_or_api_key, which accepts both session cookies and API keys.
+    app.add_api_route(
+        path="/v1/apps/audio/skills/transcribe",
+        endpoint=limiter.limit("30/minute")(transcribe_handler),
+        methods=["POST"],
+        response_model=SkillResponse,
+        tags=[f"Apps | {app_name.capitalize()}"],
+        name="audio_transcribe",
+        summary="Transcribe audio recording",
+        description=(
+            "Transcribe an encrypted audio recording stored in S3 using Mistral Voxtral Mini. "
+            "Pass the S3 location and AES-256-GCM decryption keys in the 'requests' array. "
+            "Credits are charged based on audio duration (3 credits/min, 1-min minimum). "
+            "Supports both session and API key authentication."
+        ),
+    )
+    logger.info("Registered custom route: POST /v1/apps/audio/skills/transcribe")
+
+
 def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYAML]):
     """
     Dynamically register explicit routes for each app and each skill.
@@ -2364,5 +2463,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
         # Register app-specific custom endpoints (non-skill routes)
         if app_id == "travel":
             _register_travel_custom_routes(app, app_name)
+        if app_id == "audio":
+            _register_audio_custom_routes(app, app_name)
         
         logger.info(f"Registered routes for app: GET /v1/apps/{app_id}")
