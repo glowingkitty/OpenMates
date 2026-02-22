@@ -14,8 +14,9 @@
  *   The upload server is a SEPARATE VM (not proxied through the web app server).
  *   The web app is a static site — it has no server-side proxy.
  *   The upload URL is configured via VITE_UPLOAD_URL* build-time env vars (see config/api.ts).
- *   Dev:  https://upload.dev.openmates.org
- *   Prod: https://upload.openmates.org
+ *   Both dev and prod use the same upload server: https://upload.openmates.org
+ *   There is only one upload server — the X-Target-Env header (set by Caddy based on the Origin)
+ *   tells the upload server whether the request is from the dev or prod web app.
  *
  * Security:
  *   - The auth_refresh_token cookie is sent automatically (same-site, httponly).
