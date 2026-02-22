@@ -64,6 +64,31 @@
                 ? $text(focusMode.system_prompt_translation_key)
                 : ''
     );
+
+    /**
+     * Bullet-point process summary.
+     * Resolved from process_translation_key — each line starting with "- " is a bullet.
+     * Falls back to empty string if not defined.
+     */
+    let focusModeProcess = $derived(
+        focusMode?.process_translation_key
+            ? $text(focusMode.process_translation_key)
+            : ''
+    );
+
+    /**
+     * Parse the process text into individual bullet point strings.
+     * Filters lines that start with "- " and strips the leading dash.
+     */
+    let processBullets = $derived(
+        focusModeProcess
+            ? focusModeProcess
+                .split('\n')
+                .map((line: string) => line.trim())
+                .filter((line: string) => line.startsWith('- '))
+                .map((line: string) => line.slice(2).trim())
+            : []
+    );
     
     /**
      * Navigate back to app details.
@@ -147,6 +172,23 @@
             </div>
         {/if}
         
+        <!-- Bullet-point summary section: concise list of what the focus mode does step-by-step.
+             Derived from the process_translation_key field in appsMetadata.ts. -->
+        {#if processBullets.length > 0}
+            <div class="section">
+                <SettingsItem 
+                    type="heading"
+                    icon="app"
+                    title={$text('settings.app_store.focus_modes.summary')}
+                />
+                <ul class="process-bullets">
+                    {#each processBullets as bullet}
+                        <li class="process-bullet">{bullet}</li>
+                    {/each}
+                </ul>
+            </div>
+        {/if}
+
         <!-- Instructions section: quote-style block, first 10 lines by default, "Show full instruction" to expand -->
         <div class="section">
             <SettingsItem 
@@ -209,6 +251,34 @@
         line-height: 1.6;
     }
     
+    /* Bullet-point process summary list */
+    .process-bullets {
+        margin: 0.5rem 0 0 0;
+        padding: 0 0 0 1.25rem;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .process-bullet {
+        position: relative;
+        padding-left: 1.25rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: var(--color-grey-100);
+    }
+
+    .process-bullet::before {
+        content: '•';
+        position: absolute;
+        left: 0;
+        color: var(--color-primary-start, #5856d6);
+        font-weight: 700;
+        font-size: 1rem;
+        line-height: 1.5;
+    }
+
     .instructions-block {
         position: relative;
         margin-top: 0.5rem;

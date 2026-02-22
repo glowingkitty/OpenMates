@@ -43,6 +43,7 @@
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
+    import { appSkillsStore } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
     import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
@@ -2423,6 +2424,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+    
+    // Decrypted active focus mode ID for the current chat (e.g. "jobs-career_insights").
+    // Updated whenever the chat changes or a focus_mode_activated / focusModeDeactivated event fires.
+    // Used to render the "Focus active" header banner in the chat view.
+    let activeFocusId = $state<string | null>(null);
+    // App ID extracted from the active focus ID (e.g. "jobs" from "jobs-career_insights")
+    let activeFocusAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
+    // Focus mode key within the app (e.g. "career_insights" from "jobs-career_insights")
+    let activeFocusModeKey = $derived(activeFocusId ? activeFocusId.split('-').slice(1).join('-') : null);
+    // Resolved focus mode metadata for the banner name translation
+    let activeFocusModeMetadata = $derived.by(() => {
+        if (!activeFocusAppId || !activeFocusModeKey) return null;
+        const apps = appSkillsStore.getState().apps;
+        const app = apps[activeFocusAppId];
+        return app?.focus_modes?.find(f => f.id === activeFocusModeKey) ?? null;
+    });
     // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
     // won't trigger re-evaluation of $derived values that depend on this variable
     let currentTypingStatus = $state<AITypingStatus | null>(null);
@@ -2463,6 +2480,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Reactive variable to determine when to show follow-up suggestions
     // Only show when user has explicitly focused the message input (clicked to type)
     let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
+
+    // Load and refresh the active focus ID whenever the current chat changes.
+    // Uses chatMetadataCache to decrypt encrypted_active_focus_id from IndexedDB.
+    $effect(() => {
+        const chatId = currentChat?.chat_id;
+        if (!chatId) {
+            activeFocusId = null;
+            return;
+        }
+        // Read asynchronously — use the cached value if available
+        (async () => {
+            try {
+                const { chatMetadataCache } = await import('../services/chatMetadataCache');
+                const metadata = await chatMetadataCache.getDecryptedMetadata(currentChat!);
+                // Only update if the chat hasn't changed since we started loading
+                if (currentChat?.chat_id === chatId) {
+                    activeFocusId = metadata?.activeFocusId ?? null;
+                }
+            } catch (e) {
+                console.warn('[ActiveChat] Could not load active focus ID:', e);
+                activeFocusId = null;
+            }
+        })();
+    });
 
     // PII visibility state: tracks whether current chat has sensitive data and if it's revealed
     // Only show the toggle button when the chat actually contains PII-anonymized messages
@@ -5296,8 +5337,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const { focusId } = event.detail || {};
             console.debug('[ActiveChat] Focus mode deactivated:', focusId);
             handleFocusModeDeactivation(focusId);
+            // Clear the banner state immediately so the header banner disappears
+            activeFocusId = null;
         };
         document.addEventListener('focusModeDeactivated', focusModeDeactivatedHandler as EventListenerCallback);
+        
+        // Listen for focus mode activation events from chatSyncService to update the banner
+        const focusModeActivatedHandler = (event: CustomEvent) => {
+            const { chat_id, focus_id } = event.detail || {};
+            if (chat_id && focus_id && currentChat?.chat_id === chat_id) {
+                console.debug('[ActiveChat] Focus mode activated, updating banner:', focus_id);
+                activeFocusId = focus_id;
+            }
+        };
+        chatSyncService.addEventListener('focusModeActivated', focusModeActivatedHandler as EventListenerCallback);
         
         // Handle focus mode details request (user clicked "Details" in context menu)
         const focusModeDetailsHandler = (event: CustomEvent) => {
@@ -6360,6 +6413,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             document.removeEventListener('focusModeDeactivated', focusModeDeactivatedHandler as EventListenerCallback);
             document.removeEventListener('focusModeDetailsRequested', focusModeDetailsHandler as EventListenerCallback);
             document.removeEventListener('focusModeContextMenu', focusModeContextMenuHandler as EventListenerCallback);
+            chatSyncService.removeEventListener('focusModeActivated', focusModeActivatedHandler as EventListenerCallback);
         };
     });
 
@@ -6709,6 +6763,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                  onSuggestionClick={handleSuggestionClick}
                              />
                          {/if}
+
+                        <!-- Focus active banner: shown when a focus mode is active in the current chat.
+                             Fixed small header above the message input so users always know a focus mode is engaged.
+                             Clicking the banner deep-links to the focus mode settings page. -->
+                        {#if activeFocusId && activeFocusAppId && !showWelcome}
+                            {@const focusModeDeepLink = `app_store/${activeFocusAppId}/focus/${activeFocusModeKey}`}
+                            <button
+                                class="focus-active-banner"
+                                data-focus-id={activeFocusId}
+                                data-app-id={activeFocusAppId}
+                                transition:fade={{ duration: 200 }}
+                                aria-label={$text('embeds.focus_mode.active_banner')}
+                                onclick={() => {
+                                    settingsDeepLink.set(focusModeDeepLink);
+                                    panelState.openSettings();
+                                }}
+                            >
+                                <span class="focus-active-banner-icon"></span>
+                                <span class="focus-active-banner-text">
+                                    {$text('embeds.focus_mode.active_banner')}
+                                    {#if activeFocusModeMetadata}
+                                        &middot; {$text(activeFocusModeMetadata.name_translation_key)}
+                                    {/if}
+                                </span>
+                                <span class="focus-active-banner-arrow"></span>
+                            </button>
+                        {/if}
 
                         <!-- Banner for non-incognito chats when incognito mode is active -->
                         {#if $incognitoMode && currentChat && !currentChat.is_incognito && !showWelcome}
@@ -8067,6 +8148,76 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /* Banner for non-incognito chats when incognito mode is active */
+    /* Focus active banner: compact pill shown above message input when a focus mode is active.
+       Clicking it opens the focus mode settings page (deep link). */
+    .focus-active-banner {
+        width: 100%;
+        min-height: 36px;
+        background: linear-gradient(90deg, rgba(var(--color-primary-rgb, 88, 86, 214), 0.10), rgba(var(--color-primary-rgb, 88, 86, 214), 0.05));
+        border: 1px solid rgba(var(--color-primary-rgb, 88, 86, 214), 0.25);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        flex-shrink: 0;
+        cursor: pointer;
+        text-align: left;
+        font-family: var(--font-family-primary);
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .focus-active-banner:hover {
+        background: linear-gradient(90deg, rgba(var(--color-primary-rgb, 88, 86, 214), 0.15), rgba(var(--color-primary-rgb, 88, 86, 214), 0.08));
+        border-color: rgba(var(--color-primary-rgb, 88, 86, 214), 0.4);
+    }
+
+    .focus-active-banner-icon {
+        width: 16px;
+        height: 16px;
+        display: block;
+        flex-shrink: 0;
+        background-color: var(--color-primary-start, #5856d6);
+        -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg');
+        mask-image: url('@openmates/ui/static/icons/filter.svg');
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+    }
+
+    .focus-active-banner-text {
+        flex: 1;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-primary-start, #5856d6);
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .focus-active-banner-arrow {
+        width: 14px;
+        height: 14px;
+        display: block;
+        flex-shrink: 0;
+        background-color: var(--color-primary-start, #5856d6);
+        opacity: 0.6;
+        -webkit-mask-image: url('@openmates/ui/static/icons/open.svg');
+        mask-image: url('@openmates/ui/static/icons/open.svg');
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+    }
+
     .incognito-mode-applies-banner {
         width: 100%;
         min-height: 40px;

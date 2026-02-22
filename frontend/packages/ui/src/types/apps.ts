@@ -79,6 +79,8 @@ export interface FocusModeMetadata {
   id: string;
   name_translation_key: string; // Translation key for focus mode name
   description_translation_key: string; // Translation key for focus mode description
+  /** Translation key for bullet-point process summary (from app.yml process field) */
+  process_translation_key?: string;
   /** Literal system prompt used when this focus mode is activated (from app.yml systemprompt) */
   system_prompt?: string;
   /** Translation key for system prompt when literal is not set (from app.yml systemprompt_translation_key) */

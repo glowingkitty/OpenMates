@@ -82,7 +82,7 @@
   let categoryGradientColors: { start: string; end: string } | null = $state(null);
   let chatCategory: string | null = $state(null); // Store the chat's category (null if not set by server)
   let chatIcon: string | null = $state(null); // Store the chat's icon (null if not set by server)
-  
+
   // Context menu state
   let showContextMenu = $state(false);
   let contextMenuX = $state(0);
@@ -427,6 +427,12 @@
 
   // Store cached metadata at component level
   let cachedMetadata: DecryptedChatMetadata | null = $state(null);
+
+  // Active focus mode badge: derived from cachedMetadata.activeFocusId.
+  // Shows a small circle in the bottom-right of the category circle when a focus mode is active.
+  // Format of activeFocusId: "{app_id}-{focus_mode_id}" e.g. "jobs-career_insights"
+  let activeFocusId = $derived(cachedMetadata?.activeFocusId ?? null);
+  let activeFocusBadgeAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
   
   // CRITICAL: Track if we're waiting for title (reactive variable for template)
   // This ensures we keep showing "Processing..." until title is ready
@@ -1947,7 +1953,7 @@
                 {@const chatIconName = chatIcon || getFallbackIconForCategory(chatCategory)}
                 {@const IconComponent = getLucideIcon(chatIconName)}
                 <div class="category-circle-wrapper">
-                  <div 
+                   <div 
                     class="category-circle" 
                     style={categoryGradientColors ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})` : 'background: #cccccc'}
                   >
@@ -1965,6 +1971,17 @@
                       </div>
                     {/if}
                   </div>
+                  <!-- Focus mode badge: small circle in bottom-right when a focus mode is active -->
+                  {#if activeFocusBadgeAppId}
+                    <div
+                      class="focus-mode-badge"
+                      style="background: var(--color-app-{activeFocusBadgeAppId}, #5856d6);"
+                      title={activeFocusId ?? ''}
+                      aria-label="Focus mode active"
+                    >
+                      <span class="focus-mode-badge-icon"></span>
+                    </div>
+                  {/if}
                 </div>
               {:else}
                 <!-- Category is null - backend hasn't set it yet or it's a legacy chat -->
@@ -2280,6 +2297,38 @@
     flex: 0 0 28px;
     position: relative;
     height: 28px;
+  }
+
+  /* Focus mode badge: small circle overlaid at the bottom-right of the category circle.
+     Indicates an active focus mode is engaged in this chat. */
+  .focus-mode-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--color-background);
+    z-index: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  .focus-mode-badge-icon {
+    width: 7px;
+    height: 7px;
+    display: block;
+    background-color: white;
+    -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg');
+    mask-image: url('@openmates/ui/static/icons/filter.svg');
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
   }
 
   .category-circle {

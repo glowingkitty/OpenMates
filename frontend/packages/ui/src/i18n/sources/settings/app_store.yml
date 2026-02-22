@@ -664,6 +664,29 @@ focus_modes.show_less:
   cs: Zobrazit méně
   sv: Visa mindre
   verified_by_human: []
+focus_modes.summary:
+  context: Section heading for the bullet-point process summary on the focus mode settings detail page. Shows what steps the AI takes when this focus mode is active.
+  en: What this focus mode does
+  de: Was dieser Fokusmodus macht
+  zh: 此专注模式的功能
+  es: Qué hace este modo de enfoque
+  fr: Ce que fait ce mode focus
+  pt: O que este modo de foco faz
+  ru: Что делает этот режим фокуса
+  ja: このフォーカスモードの機能
+  ko: 이 포커스 모드가 하는 일
+  it: Cosa fa questa modalità di focus
+  tr: Bu odak modu ne yapar
+  vi: Chế độ tập trung này làm gì
+  id: Apa yang dilakukan mode fokus ini
+  pl: Co robi ten tryb skupienia
+  nl: Wat deze focusmodus doet
+  ar: ما يفعله وضع التركيز هذا
+  hi: यह फोकस मोड क्या करता है
+  th: โหมดโฟกัสนี้ทำอะไร
+  cs: Co dělá tento režim zaměření
+  sv: Vad detta fokusläge gör
+  verified_by_human: []
 focus_modes.no_description:
   context: Message when focus mode has no description
   en: No description available for this focus mode.

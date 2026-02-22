@@ -23,6 +23,18 @@ career_insights:
   verified_by_human:
     - en
     - de
+career_insights.process:
+  context: Bullet-point process summary for career insights focus mode, shown on the settings page. Each line starts with "- ".
+  en: |
+    - Understands your current job situation and what's prompting a change
+    - Explores what energizes and drains you in past and current roles
+    - Identifies your core skills, strengths, and areas of expertise
+    - Discusses your values, interests, and priorities in a career
+    - Considers practical constraints (location, finances, family, timeline)
+    - Suggests 2–4 concrete career directions that match your profile
+    - Provides actionable next steps (networking, upskilling, job boards)
+  verified_by_human:
+    - en
 career_insights.description:
   context: Description for career insights focus mode in the Jobs app
   en: Find the right career based on your strengths.

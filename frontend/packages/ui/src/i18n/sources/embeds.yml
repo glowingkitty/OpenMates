@@ -2147,6 +2147,29 @@ context_menu.details:
   cs: Podrobnosti
   sv: Detaljer
   verified_by_human: []
+focus_mode.active_banner:
+  context: Fixed header banner text shown in ActiveChat when a focus mode is active for the current chat. Short label indicating an active focus session.
+  en: Focus active
+  de: Fokus aktiv
+  zh: 专注模式激活中
+  es: Enfoque activo
+  fr: Mode focus actif
+  pt: Foco ativo
+  ru: Фокус активен
+  ja: フォーカス中
+  ko: 포커스 활성
+  it: Focus attivo
+  tr: Odak aktif
+  vi: Đang tập trung
+  id: Fokus aktif
+  pl: Skupienie aktywne
+  nl: Focus actief
+  ar: التركيز نشط
+  hi: फोकस सक्रिय
+  th: โฟกัสใช้งาน
+  cs: Zaměření aktivní
+  sv: Fokus aktivt
+  verified_by_human: []
 focus_mode.activated:
   context: Status text shown on focus mode embed after activation completes
   en: Focus activated
