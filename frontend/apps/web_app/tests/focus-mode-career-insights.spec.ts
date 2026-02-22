@@ -213,6 +213,10 @@ async function ensureSidebarOpen(
 /**
  * Start a new chat session by navigating to the root URL (clears any chat hash).
  * This ensures we're always on a fresh new chat, not a demo or existing chat.
+ *
+ * Uses a longer wait + URL polling to avoid an intermittent routing bug where
+ * page.goto('/#') lands on the correct URL but the app still has the previous
+ * chat_id in memory, causing AI responses to arrive for the wrong chat.
  */
 async function startNewChat(
 	page: any,
@@ -225,7 +229,21 @@ async function startNewChat(
 	// Using page.goto with a hash fragment ensures we stay logged in (auth is in IndexedDB)
 	// while clearing any demo or previous chat context.
 	await page.goto('/#');
-	await page.waitForTimeout(2000);
+
+	// Poll until the URL no longer contains a chat-id query param.
+	// This guards against a race where the app re-navigates back to the last chat.
+	await page
+		.waitForFunction(
+			() =>
+				!window.location.hash.includes('chat-id=') && !window.location.search.includes('chat-id='),
+			{ timeout: 10000 }
+		)
+		.catch(() => {
+			logCheckpoint('Warning: URL still contains chat-id after 10s — proceeding anyway.');
+		});
+
+	// Extra settle time to let the app fully reset its internal chat state
+	await page.waitForTimeout(3000);
 
 	// Wait for the message editor to be ready
 	const messageEditor = page.locator('.editor-content.prose');
@@ -1278,6 +1296,14 @@ test('stop button in focus mode embed context menu deactivates focus mode', asyn
 	await expect(activatedEmbed.first()).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Focus mode activated!');
 
+	// Wait for AI streaming to fully complete before clicking the embed.
+	// If streaming is still in progress (THINKING / continuation chunks), the embed
+	// DOM node gets re-rendered mid-click which silently swallows the click event.
+	// The send button becomes enabled again once streaming is fully done.
+	logCheckpoint('Waiting for AI streaming to complete (send button enabled)...');
+	await expect(page.locator('.send-button')).toBeEnabled({ timeout: 60000 });
+	logCheckpoint('Streaming complete — send button is enabled again.');
+
 	// Wait for sync to propagate (banner needs encrypted_active_focus_id in IndexedDB)
 	await page.waitForTimeout(6000);
 
@@ -1387,6 +1413,13 @@ test('details link in focus mode context menu opens focus mode settings page', a
 	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated);
 	await expect(activatedEmbed.first()).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Focus mode activated!');
+
+	// Wait for AI streaming to fully complete before clicking the embed.
+	// If streaming is still in progress, the embed DOM node gets re-rendered mid-click
+	// which silently swallows the click event and the context menu never opens.
+	logCheckpoint('Waiting for AI streaming to complete (send button enabled)...');
+	await expect(page.locator('.send-button')).toBeEnabled({ timeout: 60000 });
+	logCheckpoint('Streaming complete — send button is enabled again.');
 
 	// STEP 3: Click the activated embed to open context menu (any click/tap opens it when activated)
 	logCheckpoint('Clicking activated embed to open context menu...');

@@ -923,6 +923,11 @@
     const customEvent = event as CustomEvent;
     const chatId = customEvent.detail?.chat_id;
     if (chat && chatId === chat.chat_id) {
+      // Explicitly invalidate the cache here so that updateDisplayInfo reads the fresh
+      // encrypted_active_focus_id from IndexedDB rather than a stale cached value.
+      // chatSyncService also invalidates before dispatching, but there can be a race
+      // if updateDisplayInfo runs before the invalidation propagates across async boundaries.
+      chatMetadataCache.invalidateChat(chat.chat_id);
       // Fetch the updated chat (chatSyncService already wrote the new encrypted_active_focus_id)
       const freshChat = await chatDB.getChat(chat.chat_id).catch(() => null);
       await updateDisplayInfo(freshChat ?? chat);

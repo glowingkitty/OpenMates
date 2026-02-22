@@ -8149,8 +8149,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* Banner for non-incognito chats when incognito mode is active */
     /* Focus active banner: compact pill shown above message input when a focus mode is active.
-       Clicking it opens the focus mode settings page (deep link). */
+       Clicking it opens the focus mode settings page (deep link).
+       position:relative + z-index:3 ensures it sits above the scroll-to-bottom button
+       (position:absolute, z-index:2) which otherwise intercepts pointer events on the banner. */
     .focus-active-banner {
+        position: relative;
+        z-index: 3;
         width: 100%;
         min-height: 36px;
         background: linear-gradient(90deg, rgba(var(--color-primary-rgb, 88, 86, 214), 0.10), rgba(var(--color-primary-rgb, 88, 86, 214), 0.05));
