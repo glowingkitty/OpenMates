@@ -8,9 +8,6 @@ skills:
   - id: transcribe
     name_translation_key: app_skills.audio.transcribe
     description_translation_key: app_skills.audio.transcribe.description
-    # Internal: invoked automatically by the backend when the user sends a voice recording.
-    # Never shown in the app store or settings UI — users don't select this manually.
-    internal: true
     preprocessor_hint: >
       Transcribe an audio recording uploaded by the user to text using Mistral Voxtral.
       Use this skill when the user has attached a voice recording and the transcript is needed.
