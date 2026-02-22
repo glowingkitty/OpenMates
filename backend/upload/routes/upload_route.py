@@ -31,6 +31,18 @@
 #   11. Trigger background OCR processing via POST /internal/pdf/process (fire-and-forget)
 #   12. Return JSON with embed_id, page_count, S3 key, AES key
 #
+# Audio pipeline:
+#   1. Authenticate user
+#   2. Validate file size and MIME type
+#   3. Compute SHA-256 hash → check deduplication
+#   4. ClamAV malware scan
+#   5. Encrypt audio bytes with AES-256-GCM (single 'original' variant — no preview)
+#   6. Vault-wrap the AES key
+#   7. Upload encrypted audio to S3
+#   8. Store upload record
+#   9. Return JSON with embed_id, S3 key, AES key
+#      (Transcription is triggered separately by the frontend via app-audio/skills/transcribe)
+#
 # Architecture (security isolation):
 #   - This service has NO access to Directus, the main Vault, or any user data.
 #   - All Directus and Vault operations are proxied through the core API's
@@ -63,7 +75,7 @@ router = APIRouter(prefix="/v1/upload", tags=["Upload"])
 # File type configuration
 # ---------------------------------------------------------------------------
 
-# Allowed MIME types (images + PDFs)
+# Allowed MIME types (images + PDFs + audio)
 ALLOWED_IMAGE_MIMES = {
     "image/jpeg",
     "image/jpg",
@@ -80,7 +92,20 @@ ALLOWED_PDF_MIMES = {
     "application/pdf",
 }
 
-ALLOWED_MIMES = ALLOWED_IMAGE_MIMES | ALLOWED_PDF_MIMES
+# Audio MIME types accepted from browser MediaRecorder.
+# Firefox iOS typically produces audio/ogg;codecs=opus, Chrome/Safari produce audio/webm.
+# We also allow audio/mp4 (Safari fallback) and audio/mpeg for completeness.
+ALLOWED_AUDIO_MIMES = {
+    "audio/webm",
+    "audio/ogg",
+    "audio/mp4",
+    "audio/mpeg",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/aac",
+}
+
+ALLOWED_MIMES = ALLOWED_IMAGE_MIMES | ALLOWED_PDF_MIMES | ALLOWED_AUDIO_MIMES
 
 # Maximum PDF page count (1000 pages max)
 MAX_PDF_PAGES = 1000
@@ -397,8 +422,17 @@ async def upload_file(
 
     is_image = detected_mime in ALLOWED_IMAGE_MIMES or content_type in ALLOWED_IMAGE_MIMES
     is_pdf = detected_mime in ALLOWED_PDF_MIMES or content_type in ALLOWED_PDF_MIMES
+    # Audio: check both detected MIME and declared Content-Type because python-magic
+    # may not distinguish audio/ogg;codecs=opus from plain audio/ogg.
+    # We strip codec parameters (e.g. "audio/ogg;codecs=opus" → "audio/ogg") before checking.
+    declared_audio_base = content_type.split(";")[0].strip()
+    detected_audio_base = detected_mime.split(";")[0].strip()
+    is_audio = (
+        detected_audio_base in ALLOWED_AUDIO_MIMES
+        or declared_audio_base in ALLOWED_AUDIO_MIMES
+    )
 
-    if not is_image and not is_pdf:
+    if not is_image and not is_pdf and not is_audio:
         logger.warning(
             f"{log_prefix} [3/13] REJECTED — unsupported MIME type "
             f"detected={detected_mime!r} declared={content_type!r}"
@@ -407,13 +441,18 @@ async def upload_file(
             status_code=415,
             detail=(
                 f"Unsupported file type: {detected_mime}. "
-                "Supported: images (JPEG, PNG, WEBP, GIF, HEIC) and PDFs."
+                "Supported: images (JPEG, PNG, WEBP, GIF, HEIC), PDFs, and audio (WebM, OGG, MP4)."
             ),
         )
 
-    # Use the detected MIME type (more reliable than Content-Type header)
-    content_type = detected_mime
-    file_kind = "image" if is_image else "PDF"
+    # Use the detected MIME type (more reliable than Content-Type header).
+    # For audio, prefer the declared Content-Type with codec info stripped — python-magic
+    # maps many audio formats to generic types (e.g. audio/ogg regardless of codec).
+    if is_audio:
+        content_type = declared_audio_base if declared_audio_base in ALLOWED_AUDIO_MIMES else detected_audio_base
+    else:
+        content_type = detected_mime
+    file_kind = "image" if is_image else ("PDF" if is_pdf else "audio")
     logger.info(
         f"{log_prefix} [3/13] MIME check: OK — detected {detected_mime!r} ({file_kind})"
     )
@@ -512,6 +551,25 @@ async def upload_file(
     # ===========================================================================
     if is_pdf:
         return await _handle_pdf_upload(
+            request=request,
+            file_bytes=file_bytes,
+            filename=filename,
+            content_type=content_type,
+            content_hash=content_hash,
+            user_id=user_id,
+            vault_key_id=vault_key_id,
+            core_api_url=core_api_url,
+            internal_token=internal_token,
+            log_prefix=log_prefix,
+            target_env=target_env,
+        )
+
+    # ===========================================================================
+    # AUDIO BRANCH: encrypt + upload raw bytes, no preview or AI detection.
+    # Transcription is triggered separately by the frontend via app-audio.
+    # ===========================================================================
+    if is_audio:
+        return await _handle_audio_upload(
             request=request,
             file_bytes=file_bytes,
             filename=filename,
@@ -1013,4 +1071,158 @@ async def _handle_pdf_upload(
         ai_detection=None,
         deduplicated=False,
         page_count=page_count,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Audio upload helper
+# ---------------------------------------------------------------------------
+
+async def _handle_audio_upload(
+    request: Any,
+    file_bytes: bytes,
+    filename: str,
+    content_type: str,
+    content_hash: str,
+    user_id: str,
+    vault_key_id: str,
+    core_api_url: str,
+    internal_token: str,
+    log_prefix: str,
+    target_env: str = "prod",
+) -> UploadFileResponse:
+    """
+    Handle the audio upload pipeline.
+
+    Audio files require no preview generation or AI-generated-content detection.
+    The pipeline is:
+      1. Encrypt the raw audio bytes with AES-256-GCM (single 'original' variant)
+      2. Vault-wrap the AES key via core API Transit proxy
+      3. Upload the encrypted audio to S3
+      4. Store the upload record via core API
+      5. Return UploadFileResponse
+
+    Transcription is NOT triggered here — the frontend calls
+    POST /v1/apps/audio/skills/transcribe separately after receiving this response.
+    """
+    audio_start = time.monotonic()
+    logger.info(
+        f"{log_prefix} ── Audio Upload started ─────────────────────────────"
+    )
+    logger.info(
+        f"{log_prefix} [Audio-1/4] Encrypting audio with AES-256-GCM "
+        f"({len(file_bytes)/1024:.1f} KB, type={content_type!r})..."
+    )
+
+    # --- Audio 1. AES-256-GCM encryption (single original variant) ---
+    encrypt_start = time.monotonic()
+    crypto_service = request.app.state.file_encryption
+    encrypted_audio, aes_key_b64, nonce_b64 = crypto_service.encrypt_bytes(file_bytes)
+    encrypt_elapsed = (time.monotonic() - encrypt_start) * 1000
+    logger.info(
+        f"{log_prefix} [Audio-1/4] Encryption done ({encrypt_elapsed:.0f} ms): "
+        f"{len(encrypted_audio)/1024:.1f} KB encrypted"
+    )
+
+    # --- Audio 2. Vault-wrap the AES key ---
+    logger.info(
+        f"{log_prefix} [Audio-2/4] Vault-wrapping AES key via core API Transit proxy..."
+    )
+    vault_start = time.monotonic()
+    try:
+        vault_wrapped_aes_key = await _wrap_key_via_api(
+            core_api_url, internal_token, aes_key_b64, vault_key_id
+        )
+        vault_elapsed = (time.monotonic() - vault_start) * 1000
+        logger.info(
+            f"{log_prefix} [Audio-2/4] Vault key wrap: OK "
+            f"(vault_key_id={vault_key_id[:8]}..., {vault_elapsed:.0f} ms)"
+        )
+    except RuntimeError as e:
+        logger.error(f"{log_prefix} [Audio-2/4] Vault key wrap FAILED: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Encryption service unavailable")
+
+    # --- Audio 3. Upload encrypted audio to S3 ---
+    embed_id = str(uuid.uuid4())
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    s3_prefix = f"{user_id}/{content_hash}"
+    s3_service = request.app.state.s3
+    audio_s3_key = f"{s3_prefix}/{timestamp}_original.bin"
+
+    logger.info(
+        f"{log_prefix} [Audio-3/4] Uploading encrypted audio to S3 "
+        f"(embed_id={embed_id}, key={audio_s3_key})..."
+    )
+    s3_start = time.monotonic()
+    try:
+        await s3_service.upload_file(
+            s3_key=audio_s3_key, content=encrypted_audio, target_env=target_env
+        )
+        s3_elapsed = (time.monotonic() - s3_start) * 1000
+        logger.info(
+            f"{log_prefix} [Audio-3/4] S3 upload: OK ({s3_elapsed:.0f} ms) — "
+            f"{len(encrypted_audio)/1024:.1f} KB → {audio_s3_key}"
+        )
+    except RuntimeError as e:
+        logger.error(f"{log_prefix} [Audio-3/4] S3 upload FAILED: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="File storage service unavailable")
+
+    s3_base_url = s3_service.get_base_url(target_env=target_env)
+
+    # --- Audio 4. Build files metadata and store upload record ---
+    files_metadata = {
+        "original": FileVariantMetadata(
+            s3_key=audio_s3_key,
+            width=0,   # Not applicable for audio
+            height=0,
+            size_bytes=len(encrypted_audio),
+            format=content_type.split("/")[-1].split(";")[0],  # e.g. "webm", "ogg"
+        ),
+    }
+
+    logger.info(
+        f"{log_prefix} [Audio-4/4] Storing upload record in Directus (via core API)..."
+    )
+    upload_record = {
+        "embed_id": embed_id,
+        "user_id": user_id,
+        "content_hash": content_hash,
+        "original_filename": filename,
+        "content_type": content_type,
+        "file_size_bytes": len(file_bytes),
+        "s3_base_url": s3_base_url,
+        "files_metadata": {k: v.model_dump() for k, v in files_metadata.items()},
+        "aes_key": aes_key_b64,
+        "aes_nonce": nonce_b64,
+        "vault_wrapped_aes_key": vault_wrapped_aes_key,
+        "malware_scan": "clean",
+        "ai_detection": None,
+        "created_at": int(datetime.now(timezone.utc).timestamp()),
+    }
+    await _store_record_via_api(core_api_url, internal_token, upload_record)
+    logger.info(f"{log_prefix} [Audio-4/4] Record stored: OK")
+
+    total_elapsed = (time.monotonic() - audio_start) * 1000
+    logger.info(
+        f"{log_prefix} ── Audio Upload COMPLETE ────────────────────────────"
+    )
+    logger.info(
+        f"{log_prefix} embed_id={embed_id} | type={content_type} | "
+        f"hash={content_hash[:16]}... | size={len(file_bytes)/1024:.1f} KB | "
+        f"total={total_elapsed:.0f} ms"
+    )
+
+    return UploadFileResponse(
+        embed_id=embed_id,
+        filename=filename,
+        content_type=content_type,
+        content_hash=content_hash,
+        files=files_metadata,
+        s3_base_url=s3_base_url,
+        aes_key=aes_key_b64,
+        aes_nonce=nonce_b64,
+        vault_wrapped_aes_key=vault_wrapped_aes_key,
+        malware_scan="clean",
+        ai_detection=None,
+        deduplicated=False,
     )
