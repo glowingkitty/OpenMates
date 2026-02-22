@@ -30,6 +30,7 @@ import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPr
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
+import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -953,6 +954,25 @@ export class GroupRenderer implements EmbedRenderer {
             aesNonce: decodedContent?.aes_nonce || embedData?.aes_nonce || "",
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || embedData?.error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle health.search_appointments skill
+      if (appId === "health" && skillId === "search_appointments") {
+        const component = mount(HealthSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Doctolib",
+            status,
+            results,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

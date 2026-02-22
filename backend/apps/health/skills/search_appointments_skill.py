@@ -325,8 +325,11 @@ async def _search_doctors(
             payload["filters"]["telehealth"] = True
         if language:
             payload["filters"]["languages"] = [language]
-        if days_ahead is not None:
-            payload["filters"]["availabilitiesBefore"] = days_ahead
+        # NOTE: Do NOT pass 'availabilitiesBefore' to /phs_proxy/raw.
+        # Empirically, that filter causes Doctolib to return 0 results regardless
+        # of actual availability. The days_ahead window is already applied per-doctor
+        # via the 'limit' parameter in _fetch_availability() → /search/availabilities.json.
+        # days_ahead is intentionally unused in this search phase.
 
         url = f"{DOCTOLIB_BASE_URL}/phs_proxy/raw?page={page}"
         logger.debug(
