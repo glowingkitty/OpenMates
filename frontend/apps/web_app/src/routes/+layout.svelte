@@ -192,13 +192,24 @@
 	});
 </script>
 
+<!--
+	Rendering strategy:
+	  - `{@render children()}` is called unconditionally so SEO routes (inside the
+	    (seo) layout group) emit their full HTML server-side for crawlers to index.
+	  - MetaTags and OfflineBanner are SPA-specific; they only mount after `loaded`
+	    (= after waitLocale() + initializeTheme() run in onMount), preventing FOUC.
+	  - The SPA root (/) has ssr=false so its children render empty on the server;
+	    the `{#if loaded}` on SPA-specific children preserves existing behaviour.
+	  - The `<main>` wrapper is always present; on SPA routes it's empty until
+	    hydration completes (same as before — the SPA mounts into the Svelte body div).
+-->
 {#if loaded}
 	<MetaTags />
 	<OfflineBanner />
-	<main>
-		{@render children()}
-	</main>
 {/if}
+<main>
+	{@render children()}
+</main>
 
 <style>
 	/* Apply background color to the body */

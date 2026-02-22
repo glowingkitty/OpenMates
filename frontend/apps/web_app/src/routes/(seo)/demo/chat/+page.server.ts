@@ -52,9 +52,8 @@ const CATEGORY_CONFIG: Record<string, { label: string; order: number }> = {
 	news: { label: 'News', order: 6 }
 };
 
-export const prerender = 'auto';
-export const ssr = true;
-export const csr = true;
+// Note: prerender / ssr / csr page options must be exported from +page.ts, not here.
+// They are silently ignored in +page.server.ts. See (seo)/demo/chat/+page.ts.
 
 export const load: PageServerLoad = async ({ fetch, setHeaders, url }) => {
 	const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
