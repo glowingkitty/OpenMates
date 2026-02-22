@@ -1868,7 +1868,11 @@
             <span class="draft-content-as-title">{truncateText(displayText, 60)}</span>
           {/if}
         </div>
-      {:else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo}
+      {:else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo && !cachedMetadata?.title && !chat.title}
+        <!-- Status-only layout: only shown when we genuinely have no title yet.
+             Once title/category/icon arrive (cachedMetadata.title or chat.title is set),
+             we fall through to the chat-with-profile layout so the title is shown immediately
+             even while the AI is still processing the response. -->
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}

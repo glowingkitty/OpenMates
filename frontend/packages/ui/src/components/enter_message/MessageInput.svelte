@@ -2170,6 +2170,48 @@
             // Clear any queued message text
             queuedMessageText = null;
             
+            // OPTIMISTIC: Immediately cancel all processing embed cards for this chat.
+            // Without this, embed cards stay stuck on "Processing..." until the server
+            // confirms the cancellation (which can take several seconds). By cancelling them
+            // in the embedStore immediately, UnifiedEmbedPreview gets "cancelled" status
+            // right away so the user sees "Canceled" instantly instead of waiting.
+            try {
+                const { embedStore } = await import('../../services/embedStore');
+                const cancelledEmbedIds = embedStore.cancelProcessingEmbeds(currentChatId);
+                // Dispatch embedUpdated events for each cancelled embed so UnifiedEmbedPreview re-renders
+                for (const embedId of cancelledEmbedIds) {
+                    chatSyncService.dispatchEvent(
+                        new CustomEvent('embedUpdated', {
+                            detail: {
+                                embed_id: embedId,
+                                chat_id: currentChatId,
+                                status: 'cancelled',
+                            },
+                        }),
+                    );
+                }
+                if (cancelledEmbedIds.length > 0) {
+                    console.info(`[MessageInput] Optimistically cancelled ${cancelledEmbedIds.length} processing embed(s) for chat ${currentChatId}`);
+                }
+            } catch (err) {
+                console.warn('[MessageInput] Failed to optimistically cancel processing embeds:', err);
+            }
+
+            // OPTIMISTIC: Immediately fire aiTaskEnded so ActiveChat stops the thinking animation
+            // and clears the progressive processing phase. Without this, the thinking animation
+            // keeps spinning until the backend confirms cancellation. The backend will also fire
+            // aiTaskEnded when it confirms, but that second fire is harmless (idempotent).
+            chatSyncService.dispatchEvent(
+                new CustomEvent('aiTaskEnded', {
+                    detail: {
+                        chatId: currentChatId,
+                        taskId: taskId,
+                        status: 'cancelled',
+                    },
+                }),
+            );
+            console.debug('[MessageInput] Optimistically dispatched aiTaskEnded (cancelled) for immediate thinking/phase cleanup');
+            
             // Send cancellation request to backend
             // The backend will confirm via 'aiTaskEnded' event, which will trigger final cleanup
             // Pass currentChatId so server can clear active task marker immediately
