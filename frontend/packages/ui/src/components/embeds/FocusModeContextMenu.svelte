@@ -169,12 +169,21 @@
   }
 
   // Event listeners
+  // IMPORTANT: mousedown/touchstart listeners are registered with a short delay to avoid
+  // the race condition where the click that opens the menu immediately closes it.
+  // The user clicks the embed → FocusModeActivationEmbed dispatches focusModeContextMenu →
+  // ActiveChat sets show=true → this component mounts → if we register mousedown immediately,
+  // the same mousedown event that triggered the open would fire handleClickOutside and close the menu.
+  let clickOutsideTimeout: ReturnType<typeof setTimeout> | null = null;
   onMount(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
+    clickOutsideTimeout = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }, 100);
     document.addEventListener('scroll', handleScroll, true);
 
     return () => {
+      if (clickOutsideTimeout) clearTimeout(clickOutsideTimeout);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
       document.removeEventListener('scroll', handleScroll, true);

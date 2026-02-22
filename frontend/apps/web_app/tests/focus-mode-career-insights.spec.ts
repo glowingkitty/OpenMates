@@ -1281,9 +1281,9 @@ test('stop button in focus mode embed context menu deactivates focus mode', asyn
 	// Wait for sync to propagate (banner needs encrypted_active_focus_id in IndexedDB)
 	await page.waitForTimeout(6000);
 
-	// STEP 3: Right-click the activated embed to open context menu
-	logCheckpoint('Right-clicking activated embed to open context menu...');
-	await activatedEmbed.first().click({ button: 'right' });
+	// STEP 3: Click the activated embed to open context menu (any click/tap opens it when activated)
+	logCheckpoint('Clicking activated embed to open context menu...');
+	await activatedEmbed.first().click();
 	await page.waitForTimeout(500);
 	await takeStepScreenshot(page, 'stop-context-menu-opened');
 
@@ -1344,7 +1344,7 @@ test('stop button in focus mode embed context menu deactivates focus mode', asyn
 // ---------------------------------------------------------------------------
 // Test 8: Context menu Details link opens focus mode settings page
 //
-// After focus mode activates, right-click to open context menu,
+// After focus mode activates, click to open context menu,
 // then click "Details" — the settings panel should open to the
 // focus mode details page (deep link: app_store/jobs/focus/career_insights).
 // ---------------------------------------------------------------------------
@@ -1388,9 +1388,9 @@ test('details link in focus mode context menu opens focus mode settings page', a
 	await expect(activatedEmbed.first()).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Focus mode activated!');
 
-	// STEP 3: Right-click the activated embed to open context menu
-	logCheckpoint('Right-clicking activated embed to open context menu...');
-	await activatedEmbed.first().click({ button: 'right' });
+	// STEP 3: Click the activated embed to open context menu (any click/tap opens it when activated)
+	logCheckpoint('Clicking activated embed to open context menu...');
+	await activatedEmbed.first().click();
 	await page.waitForTimeout(500);
 	await takeStepScreenshot(page, 'details-context-menu-opened');
 
