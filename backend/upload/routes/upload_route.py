@@ -46,6 +46,7 @@
 import hashlib
 import logging
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Optional, Any, Dict
@@ -347,22 +348,34 @@ async def upload_file(
     # Core API connection details — selected based on X-Target-Env header set by Caddy
     core_api_url, internal_token = _get_core_api_credentials(request)
 
+    upload_start = time.monotonic()
+
     # --- 1. Read file bytes ---
     file_bytes = await file.read()
     filename = file.filename or "upload"
     content_type = file.content_type or "application/octet-stream"
 
     logger.info(
-        f"{log_prefix} Received upload: {filename!r} "
-        f"({len(file_bytes)} bytes, {content_type})"
+        f"{log_prefix} ── Upload started ──────────────────────────────────"
+    )
+    logger.info(
+        f"{log_prefix} [1/13] File received: {filename!r} "
+        f"({len(file_bytes) / 1024:.1f} KB, declared type: {content_type})"
     )
 
     # --- 2. Size validation ---
     if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+        logger.warning(
+            f"{log_prefix} [2/13] REJECTED — file too large: "
+            f"{len(file_bytes) / (1024*1024):.1f} MB > {MAX_FILE_SIZE_BYTES // (1024*1024)} MB limit"
+        )
         raise HTTPException(
             status_code=413,
             detail=f"File too large. Maximum allowed size is {MAX_FILE_SIZE_BYTES // (1024*1024)} MB",
         )
+    logger.info(
+        f"{log_prefix} [2/13] Size check: OK ({len(file_bytes) / 1024:.1f} KB ≤ 100 MB limit)"
+    )
 
     # --- 3. MIME type validation (whitelist) ---
     # Also verify using python-magic for safety (don't trust Content-Type header alone)
@@ -381,8 +394,8 @@ async def upload_file(
 
     if not is_image and not is_pdf:
         logger.warning(
-            f"{log_prefix} Rejected: unsupported MIME type detected={detected_mime!r}, "
-            f"declared={content_type!r}"
+            f"{log_prefix} [3/13] REJECTED — unsupported MIME type "
+            f"detected={detected_mime!r} declared={content_type!r}"
         )
         raise HTTPException(
             status_code=415,
@@ -394,12 +407,17 @@ async def upload_file(
 
     # Use the detected MIME type (more reliable than Content-Type header)
     content_type = detected_mime
+    file_kind = "image" if is_image else "PDF"
+    logger.info(
+        f"{log_prefix} [3/13] MIME check: OK — detected {detected_mime!r} ({file_kind})"
+    )
 
     # --- 4. SHA-256 hash for deduplication ---
     content_hash = hashlib.sha256(file_bytes).hexdigest()
-    logger.debug(f"{log_prefix} Content hash: {content_hash}")
+    logger.info(f"{log_prefix} [4/13] SHA-256 hash: {content_hash[:16]}...{content_hash[-8:]}")
 
     # --- 5. Deduplication check (via core API → Directus) ---
+    logger.info(f"{log_prefix} [5/13] Checking for duplicate (content hash lookup)...")
     existing_record = await _check_duplicate_via_api(
         core_api_url, internal_token, user_id, content_hash
     )
@@ -414,18 +432,21 @@ async def upload_file(
             None,
         )
         s3_service = request.app.state.s3
+        logger.info(f"{log_prefix} [5/13] Duplicate found — verifying S3 object exists: {sample_key!r}")
         s3_ok = await s3_service.check_file_exists(sample_key) if sample_key else False
 
         if not s3_ok:
             logger.warning(
-                f"{log_prefix} Dedup hit (content_hash={content_hash[:16]}...) but S3 object "
-                f"missing for key {sample_key!r} — discarding stale record, re-uploading"
+                f"{log_prefix} [5/13] Duplicate record found but S3 object MISSING "
+                f"(key={sample_key!r}) — discarding stale record, proceeding with fresh upload"
             )
             existing_record = None  # Fall through to fresh upload below
         else:
+            elapsed = time.monotonic() - upload_start
             logger.info(
-                f"{log_prefix} Duplicate detected (content_hash={content_hash[:16]}...) — "
-                f"returning existing embed_id: {existing_record.get('embed_id')}"
+                f"{log_prefix} [5/13] Duplicate confirmed — S3 object exists. "
+                f"Returning cached embed_id={existing_record.get('embed_id')} "
+                f"({elapsed*1000:.0f} ms total)"
             )
             # Reconstruct response from stored record
             return UploadFileResponse(
@@ -450,24 +471,30 @@ async def upload_file(
                 deduplicated=True,
                 page_count=existing_record.get("page_count"),
             )
+    else:
+        logger.info(f"{log_prefix} [5/13] No duplicate found — proceeding with fresh upload")
 
     # --- 6. ClamAV malware scan ---
+    logger.info(f"{log_prefix} [6/13] Starting ClamAV malware scan ({len(file_bytes) / 1024:.1f} KB)...")
+    scan_start = time.monotonic()
     malware_service = request.app.state.malware_scanner
     try:
         scan_result = await malware_service.scan(file_bytes)
     except RuntimeError as e:
-        logger.error(f"{log_prefix} ClamAV scan failed: {e}", exc_info=True)
+        logger.error(f"{log_prefix} [6/13] ClamAV scan FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="Malware scanning service unavailable")
 
+    scan_elapsed = (time.monotonic() - scan_start) * 1000
     if not scan_result.is_clean:
         logger.warning(
-            f"{log_prefix} MALWARE DETECTED in {filename!r}: {scan_result.threat_name}"
+            f"{log_prefix} [6/13] MALWARE DETECTED in {filename!r}: "
+            f"{scan_result.threat_name} (scanned in {scan_elapsed:.0f} ms)"
         )
         raise HTTPException(
             status_code=422,
             detail=f"File rejected: threat detected ({scan_result.threat_name})",
         )
-    logger.info(f"{log_prefix} ClamAV scan: clean")
+    logger.info(f"{log_prefix} [6/13] ClamAV scan: CLEAN ✓ ({scan_elapsed:.0f} ms)")
 
     # ===========================================================================
     # PDF BRANCH: separate processing pipeline for PDFs
@@ -494,29 +521,56 @@ async def upload_file(
     ai_detection_result = None
     if is_image:
         sightengine = request.app.state.sightengine
-        ai_result = await sightengine.check_image(file_bytes, filename=filename)
-        if ai_result is not None:
-            ai_detection_result = AIDetectionMetadata(
-                ai_generated=ai_result.ai_generated,
-                provider=ai_result.provider,
-            )
+        if sightengine.is_enabled:
+            logger.info(f"{log_prefix} [7/13] AI detection: running SightEngine genai check...")
+            ai_start = time.monotonic()
+            ai_result = await sightengine.check_image(file_bytes, filename=filename)
+            ai_elapsed = (time.monotonic() - ai_start) * 1000
+            if ai_result is not None:
+                ai_detection_result = AIDetectionMetadata(
+                    ai_generated=ai_result.ai_generated,
+                    provider=ai_result.provider,
+                )
+                label = "LIKELY AI-GENERATED" if ai_result.ai_generated > 0.7 else (
+                    "possibly AI" if ai_result.ai_generated > 0.4 else "likely real/photo"
+                )
+                logger.info(
+                    f"{log_prefix} [7/13] AI detection: score={ai_result.ai_generated:.3f} "
+                    f"→ {label} ({ai_elapsed:.0f} ms)"
+                )
+            else:
+                logger.warning(
+                    f"{log_prefix} [7/13] AI detection: SightEngine returned None "
+                    f"(non-fatal, upload continues without score) ({ai_elapsed:.0f} ms)"
+                )
+        else:
             logger.info(
-                f"{log_prefix} AI detection: {ai_result.ai_generated:.3f} "
-                f"({'likely AI' if ai_result.ai_generated > 0.7 else 'likely real'})"
+                f"{log_prefix} [7/13] AI detection: SKIPPED "
+                f"(SightEngine not configured — set SECRET__SIGHTENGINE__* to enable)"
             )
+    else:
+        logger.info(f"{log_prefix} [7/13] AI detection: SKIPPED (PDFs are not checked)")
 
     # --- 8. [Images] Preview generation ---
+    logger.info(f"{log_prefix} [8/13] Generating WEBP previews (original + full + preview variants)...")
+    preview_start = time.monotonic()
     preview_service = request.app.state.preview_generator
     preview_result = await preview_service.generate_image_preview(file_bytes)
+    preview_elapsed = (time.monotonic() - preview_start) * 1000
     logger.info(
-        f"{log_prefix} Preview generated: "
-        f"original {preview_result.original_width}x{preview_result.original_height}, "
-        f"full {preview_result.full_width}x{preview_result.full_height}, "
-        f"preview {preview_result.preview_width}x{preview_result.preview_height}"
+        f"{log_prefix} [8/13] Previews generated ({preview_elapsed:.0f} ms): "
+        f"original={preview_result.original_width}x{preview_result.original_height} "
+        f"({len(preview_result.original_bytes)/1024:.1f} KB), "
+        f"full={preview_result.full_width}x{preview_result.full_height} "
+        f"({len(preview_result.full_webp_bytes)/1024:.1f} KB), "
+        f"preview={preview_result.preview_width}x{preview_result.preview_height} "
+        f"({len(preview_result.preview_webp_bytes)/1024:.1f} KB)"
     )
 
     # --- 9. AES-256-GCM encryption ---
     # All three variants share the same AES key and nonce, matching generate_task.py.
+    logger.info(f"{log_prefix} [9/13] Encrypting 3 variants with AES-256-GCM (random key per file)...")
+    encrypt_start = time.monotonic()
     crypto_service = request.app.state.file_encryption
 
     # Encrypt original (re-encoded bytes)
@@ -530,14 +584,27 @@ async def upload_file(
     encrypted_preview = crypto_service.encrypt_bytes_with_key(
         preview_result.preview_webp_bytes, aes_key_b64, nonce_b64
     )
+    encrypt_elapsed = (time.monotonic() - encrypt_start) * 1000
+    total_encrypted_kb = (len(encrypted_original) + len(encrypted_full) + len(encrypted_preview)) / 1024
+    logger.info(
+        f"{log_prefix} [9/13] Encryption done ({encrypt_elapsed:.0f} ms): "
+        f"total encrypted size {total_encrypted_kb:.1f} KB across 3 variants"
+    )
 
     # --- 10. Vault-wrap the AES key via core API (never touches main Vault directly) ---
+    logger.info(f"{log_prefix} [10/13] Vault-wrapping AES key via core API Transit proxy...")
+    vault_start = time.monotonic()
     try:
         vault_wrapped_aes_key = await _wrap_key_via_api(
             core_api_url, internal_token, aes_key_b64, vault_key_id
         )
+        vault_elapsed = (time.monotonic() - vault_start) * 1000
+        logger.info(
+            f"{log_prefix} [10/13] Vault key wrap: OK "
+            f"(vault_key_id={vault_key_id[:8]}..., {vault_elapsed:.0f} ms)"
+        )
     except RuntimeError as e:
-        logger.error(f"{log_prefix} Vault key wrap failed: {e}", exc_info=True)
+        logger.error(f"{log_prefix} [10/13] Vault key wrap FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="Encryption service unavailable")
 
     # --- 11. S3 upload — three variants (original, full, preview) ---
@@ -550,6 +617,11 @@ async def upload_file(
     full_s3_key = f"{s3_prefix}/{timestamp}_full.bin"
     preview_s3_key = f"{s3_prefix}/{timestamp}_preview.bin"
 
+    logger.info(
+        f"{log_prefix} [11/13] Uploading 3 encrypted variants to S3 "
+        f"(embed_id={embed_id})..."
+    )
+    s3_start = time.monotonic()
     try:
         await s3_service.upload_file(
             s3_key=original_s3_key,
@@ -563,12 +635,13 @@ async def upload_file(
             s3_key=preview_s3_key,
             content=encrypted_preview,
         )
+        s3_elapsed = (time.monotonic() - s3_start) * 1000
         logger.info(
-            f"{log_prefix} Uploaded to S3: original={original_s3_key}, "
-            f"full={full_s3_key}, preview={preview_s3_key}"
+            f"{log_prefix} [11/13] S3 upload: OK ({s3_elapsed:.0f} ms) — "
+            f"keys: original={original_s3_key}, full={full_s3_key}, preview={preview_s3_key}"
         )
     except RuntimeError as e:
-        logger.error(f"{log_prefix} S3 upload failed: {e}", exc_info=True)
+        logger.error(f"{log_prefix} [11/13] S3 upload FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="File storage service unavailable")
 
     s3_base_url = s3_service.get_base_url()
@@ -599,6 +672,7 @@ async def upload_file(
     }
 
     # --- 13. Store upload record via core API (never touches Directus directly) ---
+    logger.info(f"{log_prefix} [13/13] Storing upload record in Directus (via core API)...")
     ai_detection_dict = ai_detection_result.model_dump() if ai_detection_result else None
     upload_record = {
         "embed_id": embed_id,
@@ -618,10 +692,15 @@ async def upload_file(
     }
     await _store_record_via_api(core_api_url, internal_token, upload_record)
 
+    total_elapsed = (time.monotonic() - upload_start) * 1000
+    ai_score_str = f"{ai_detection_result.ai_generated:.3f}" if ai_detection_result else "n/a (skipped)"
     logger.info(
-        f"{log_prefix} Upload complete — embed_id={embed_id}, "
-        f"hash={content_hash[:16]}..., ai_generated="
-        f"{ai_detection_result.ai_generated if ai_detection_result else 'n/a'}"
+        f"{log_prefix} ── Upload COMPLETE ─────────────────────────────────"
+    )
+    logger.info(
+        f"{log_prefix} embed_id={embed_id} | hash={content_hash[:16]}... | "
+        f"type={content_type} | size={len(file_bytes)/1024:.1f} KB | "
+        f"ai_score={ai_score_str} | total={total_elapsed:.0f} ms"
     )
 
     return UploadFileResponse(
@@ -670,6 +749,15 @@ async def _handle_pdf_upload(
     """
     import asyncio
 
+    pdf_start = time.monotonic()
+    logger.info(
+        f"{log_prefix} ── PDF Upload started ──────────────────────────────"
+    )
+    logger.info(
+        f"{log_prefix} [PDF-1/7] Extracting page count via pymupdf "
+        f"({len(file_bytes)/1024:.1f} KB)..."
+    )
+
     # --- PDF 1. Extract page count via pymupdf ---
     try:
         import fitz  # type: ignore[import]  # pymupdf
@@ -682,20 +770,24 @@ async def _handle_pdf_upload(
             return count
 
         page_count = await asyncio.to_thread(_count_pages, file_bytes)
-        logger.info(f"{log_prefix} PDF page count: {page_count}")
+        logger.info(f"{log_prefix} [PDF-1/7] Page count: {page_count} pages")
     except ImportError:
-        logger.error(f"{log_prefix} pymupdf (fitz) not installed — cannot count PDF pages")
+        logger.error(f"{log_prefix} [PDF-1/7] FAILED — pymupdf (fitz) not installed")
         raise HTTPException(status_code=500, detail="PDF processing library not available")
     except Exception as e:
-        logger.error(f"{log_prefix} Failed to count PDF pages: {e}", exc_info=True)
+        logger.error(f"{log_prefix} [PDF-1/7] FAILED — invalid or corrupt PDF: {e}", exc_info=True)
         raise HTTPException(status_code=422, detail=f"Invalid or corrupt PDF file: {e}")
 
     if page_count > MAX_PDF_PAGES:
+        logger.warning(
+            f"{log_prefix} [PDF-1/7] REJECTED — {page_count} pages exceeds {MAX_PDF_PAGES} page limit"
+        )
         raise HTTPException(
             status_code=422,
             detail=f"PDF too large: {page_count} pages. Maximum allowed is {MAX_PDF_PAGES} pages.",
         )
     if page_count == 0:
+        logger.warning(f"{log_prefix} [PDF-1/7] REJECTED — PDF has no pages")
         raise HTTPException(status_code=422, detail="PDF has no pages.")
 
     # --- PDF 2. Charge credits upfront (3 credits/page) ---
@@ -703,6 +795,10 @@ async def _handle_pdf_upload(
     credits_to_charge = page_count * PDF_CREDITS_PER_PAGE
     user_id_hash = _hashlib.sha256(user_id.encode("utf-8")).hexdigest()
 
+    logger.info(
+        f"{log_prefix} [PDF-2/7] Charging {credits_to_charge} credits "
+        f"({page_count} pages × {PDF_CREDITS_PER_PAGE} credits/page)..."
+    )
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             charge_resp = await client.post(
@@ -722,29 +818,57 @@ async def _handle_pdf_upload(
                 headers={"X-Internal-Service-Token": internal_token},
             )
         if charge_resp.status_code == 402:
-            logger.warning(f"{log_prefix} Insufficient credits for PDF ({page_count} pages = {credits_to_charge} credits)")
+            logger.warning(
+                f"{log_prefix} [PDF-2/7] REJECTED — insufficient credits: "
+                f"need {credits_to_charge} for {page_count}-page PDF"
+            )
             raise HTTPException(status_code=402, detail="Insufficient credits for PDF processing")
         elif charge_resp.status_code not in (200, 201):
-            logger.error(f"{log_prefix} Billing charge failed: {charge_resp.status_code} {charge_resp.text[:200]}")
+            logger.error(
+                f"{log_prefix} [PDF-2/7] Billing charge FAILED: "
+                f"HTTP {charge_resp.status_code} — {charge_resp.text[:200]}"
+            )
             raise HTTPException(status_code=503, detail="Billing service unavailable")
-        logger.info(f"{log_prefix} Charged {credits_to_charge} credits for {page_count}-page PDF")
+        logger.info(
+            f"{log_prefix} [PDF-2/7] Credits charged: OK — "
+            f"{credits_to_charge} credits deducted"
+        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"{log_prefix} Credit charge request failed: {e}", exc_info=True)
+        logger.error(f"{log_prefix} [PDF-2/7] Credit charge request FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="Billing service unavailable")
 
     # --- PDF 3. AES-256-GCM encryption ---
+    logger.info(
+        f"{log_prefix} [PDF-3/7] Encrypting PDF with AES-256-GCM "
+        f"({len(file_bytes)/1024:.1f} KB)..."
+    )
+    encrypt_start = time.monotonic()
     crypto_service = request.app.state.file_encryption
     encrypted_pdf, aes_key_b64, nonce_b64 = crypto_service.encrypt_bytes(file_bytes)
+    encrypt_elapsed = (time.monotonic() - encrypt_start) * 1000
+    logger.info(
+        f"{log_prefix} [PDF-3/7] Encryption done ({encrypt_elapsed:.0f} ms): "
+        f"{len(encrypted_pdf)/1024:.1f} KB encrypted"
+    )
 
     # --- PDF 4. Vault-wrap the AES key ---
+    logger.info(
+        f"{log_prefix} [PDF-4/7] Vault-wrapping AES key via core API Transit proxy..."
+    )
+    vault_start = time.monotonic()
     try:
         vault_wrapped_aes_key = await _wrap_key_via_api(
             core_api_url, internal_token, aes_key_b64, vault_key_id
         )
+        vault_elapsed = (time.monotonic() - vault_start) * 1000
+        logger.info(
+            f"{log_prefix} [PDF-4/7] Vault key wrap: OK "
+            f"(vault_key_id={vault_key_id[:8]}..., {vault_elapsed:.0f} ms)"
+        )
     except RuntimeError as e:
-        logger.error(f"{log_prefix} Vault key wrap failed: {e}", exc_info=True)
+        logger.error(f"{log_prefix} [PDF-4/7] Vault key wrap FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="Encryption service unavailable")
 
     # --- PDF 5. Upload to S3 ---
@@ -754,11 +878,20 @@ async def _handle_pdf_upload(
     s3_service = request.app.state.s3
     pdf_s3_key = f"{s3_prefix}/{timestamp}_original.bin"
 
+    logger.info(
+        f"{log_prefix} [PDF-5/7] Uploading encrypted PDF to S3 "
+        f"(embed_id={embed_id}, key={pdf_s3_key})..."
+    )
+    s3_start = time.monotonic()
     try:
         await s3_service.upload_file(s3_key=pdf_s3_key, content=encrypted_pdf)
-        logger.info(f"{log_prefix} PDF uploaded to S3: {pdf_s3_key}")
+        s3_elapsed = (time.monotonic() - s3_start) * 1000
+        logger.info(
+            f"{log_prefix} [PDF-5/7] S3 upload: OK ({s3_elapsed:.0f} ms) — "
+            f"{len(encrypted_pdf)/1024:.1f} KB → {pdf_s3_key}"
+        )
     except RuntimeError as e:
-        logger.error(f"{log_prefix} S3 upload failed: {e}", exc_info=True)
+        logger.error(f"{log_prefix} [PDF-5/7] S3 upload FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="File storage service unavailable")
 
     s3_base_url = s3_service.get_base_url()
@@ -774,6 +907,9 @@ async def _handle_pdf_upload(
         ),
     }
 
+    logger.info(
+        f"{log_prefix} [PDF-6/7] Storing upload record in Directus (via core API)..."
+    )
     upload_record = {
         "embed_id": embed_id,
         "user_id": user_id,
@@ -793,8 +929,13 @@ async def _handle_pdf_upload(
         "page_count": page_count,
     }
     await _store_record_via_api(core_api_url, internal_token, upload_record)
+    logger.info(f"{log_prefix} [PDF-6/7] Record stored: OK")
 
     # --- PDF 7. Trigger background OCR processing (fire-and-forget) ---
+    logger.info(
+        f"{log_prefix} [PDF-7/7] Triggering background OCR processing "
+        f"(fire-and-forget, non-blocking)..."
+    )
     async def _trigger_pdf_processing() -> None:
         """Fire background OCR task via core API internal endpoint."""
         try:
@@ -818,20 +959,28 @@ async def _handle_pdf_upload(
                 )
             if resp.status_code not in (200, 201, 202):
                 logger.warning(
-                    f"{log_prefix} PDF process trigger returned {resp.status_code}: {resp.text[:200]}"
+                    f"{log_prefix} [PDF-7/7] OCR trigger returned HTTP "
+                    f"{resp.status_code}: {resp.text[:200]}"
                 )
             else:
-                logger.info(f"{log_prefix} PDF background processing triggered successfully")
+                logger.info(f"{log_prefix} [PDF-7/7] OCR processing triggered: OK")
         except Exception as exc:
             # Non-fatal: processing will be retried or user will see un-OCR'd embed
-            logger.warning(f"{log_prefix} Failed to trigger PDF background processing: {exc}")
+            logger.warning(
+                f"{log_prefix} [PDF-7/7] OCR trigger FAILED (non-fatal): {exc}"
+            )
 
     import asyncio as _asyncio
     _asyncio.create_task(_trigger_pdf_processing())
 
+    total_elapsed = (time.monotonic() - pdf_start) * 1000
     logger.info(
-        f"{log_prefix} PDF upload complete — embed_id={embed_id}, "
-        f"pages={page_count}, hash={content_hash[:16]}..."
+        f"{log_prefix} ── PDF Upload COMPLETE ──────────────────────────────"
+    )
+    logger.info(
+        f"{log_prefix} embed_id={embed_id} | pages={page_count} | "
+        f"hash={content_hash[:16]}... | size={len(file_bytes)/1024:.1f} KB | "
+        f"credits={credits_to_charge} | total={total_elapsed:.0f} ms"
     )
 
     return UploadFileResponse(
