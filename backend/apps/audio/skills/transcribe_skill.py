@@ -93,6 +93,11 @@ class TranscribeResponse(BaseModel):
         description="The provider used for transcription."
     )
     error: Optional[str] = Field(None, description="Top-level error if processing completely failed.")
+    # Required by BaseSkill._build_response_with_errors — transcription has no follow-up suggestions
+    suggestions_follow_up_requests: Optional[List[str]] = Field(
+        None,
+        description="Not used for transcription; present for BaseSkill compatibility."
+    )
     ignore_fields_for_inference: Optional[List[str]] = Field(
         default_factory=lambda: ["type"],
         description="Fields excluded from LLM inference to reduce token usage."
@@ -540,12 +545,13 @@ class TranscribeSkill(BaseSkill):
             logger=logger,
         )
 
-        # Build response
+        # Build response — transcription has no follow-up suggestions (suggestions=None)
         response = self._build_response_with_errors(
             response_class=TranscribeResponse,
             grouped_results=grouped_results,
             errors=errors,
             provider="Mistral Voxtral",
+            suggestions=None,
             logger=logger,
         )
 

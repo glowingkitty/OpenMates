@@ -221,8 +221,14 @@
       });
   });
 
-  /** Whether to show the stop button */
-  let showStop = $derived(hasAudioSrc && status === 'uploading' && !!onStop);
+  /**
+   * Whether to show the stop button.
+   * Shown during 'uploading' AND 'transcribing' — both phases can be cancelled.
+   * The AbortController in embedHandlers stays registered until transcription
+   * completes/fails, so cancelUpload() aborts either the upload fetch or the
+   * transcription fetch, whichever is currently in flight.
+   */
+  let showStop = $derived(hasAudioSrc && (status === 'uploading' || status === 'transcribing') && !!onStop);
 
   /**
    * Card subtitle text (shown below "Audio recording" in BasicInfosBar):

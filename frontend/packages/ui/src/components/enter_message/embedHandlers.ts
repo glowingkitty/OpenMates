@@ -1057,14 +1057,15 @@ export async function retryTranscription(
   }
 
   // Parse transcript and update embed to 'finished'
+  // Response shape from BaseSkill._build_response_with_errors:
+  // { results: [{ id: request_id, results: [{ transcript, s3_key, ... }] }] }
   let transcriptText: string | undefined;
   try {
     const responseData = await transcribeResponse.json();
-    const result = responseData?.results?.find(
-      (r: { request_id: string; transcript?: string }) =>
-        r.request_id === embedId,
+    const group = responseData?.results?.find(
+      (r: { id: string }) => r.id === embedId,
     );
-    transcriptText = result?.transcript ?? undefined;
+    transcriptText = group?.results?.[0]?.transcript ?? undefined;
   } catch (parseError) {
     console.error(
       "[EmbedHandlers] retryTranscription: failed to parse response:",
@@ -1124,8 +1125,10 @@ async function _performRecordingUpload(
     // -----------------------------------------------------------------------
     const uploadResult = await uploadFileToServer(file, signal);
 
-    // Remove the AbortController — upload completed successfully
-    _uploadControllers.delete(localEmbedId);
+    // NOTE: Do NOT remove the AbortController here yet — we keep it registered
+    // so that cancelUpload() can also abort the transcription fetch in Step 3.
+    // The controller is removed after the full pipeline (upload + transcription)
+    // completes or fails.
 
     // -----------------------------------------------------------------------
     // Step 2: Update embed with S3 data, transition to 'transcribing'
@@ -1195,6 +1198,8 @@ async function _performRecordingUpload(
     } catch (fetchError) {
       if (fetchError instanceof Error && fetchError.name === "AbortError")
         throw fetchError;
+      // Non-abort network error — clean up controller and return
+      _uploadControllers.delete(localEmbedId);
       console.error("[EmbedHandlers] Transcription network error:", fetchError);
       updateEmbedNode({
         status: "finished", // Upload succeeded; transcription failed non-fatally
@@ -1204,6 +1209,8 @@ async function _performRecordingUpload(
     }
 
     if (!transcribeResponse.ok) {
+      // API error — clean up controller and return
+      _uploadControllers.delete(localEmbedId);
       let detail = `Transcription failed (${transcribeResponse.status})`;
       try {
         const errBody = await transcribeResponse.json();
@@ -1245,18 +1252,22 @@ async function _performRecordingUpload(
     let transcriptText: string | undefined;
     try {
       const responseData = await transcribeResponse.json();
-      // Response shape: { results: [{ request_id, transcript, error }] }
-      const result = responseData?.results?.find(
-        (r: { request_id: string; transcript?: string }) =>
-          r.request_id === localEmbedId,
+      // Response shape from BaseSkill._build_response_with_errors:
+      // { results: [{ id: request_id, results: [{ transcript, s3_key, ... }] }] }
+      const group = responseData?.results?.find(
+        (r: { id: string }) => r.id === localEmbedId,
       );
-      transcriptText = result?.transcript ?? undefined;
+      transcriptText = group?.results?.[0]?.transcript ?? undefined;
     } catch (parseError) {
       console.error(
         "[EmbedHandlers] Failed to parse transcription response:",
         parseError,
       );
     }
+
+    // Remove the AbortController — the full pipeline (upload + transcription) is done.
+    // Must happen AFTER the transcription fetch so cancelUpload() can still abort it.
+    _uploadControllers.delete(localEmbedId);
 
     updateEmbedNode({
       status: "finished",
