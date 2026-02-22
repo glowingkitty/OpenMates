@@ -110,8 +110,8 @@
      */
     function getIconName(iconImage: string | undefined): string {
         if (!iconImage) return 'app';
-        // Remove .svg extension and return the name
-        let iconName = iconImage.replace(/\.svg$/, '');
+        // Remove .svg extension and trim whitespace (YAML block scalars add a trailing newline)
+        let iconName = iconImage.replace(/\.svg$/, '').trim();
         // Handle special case: email.svg -> mail (since the icon file is mail.svg)
         if (iconName === 'email') {
             iconName = 'mail';
@@ -120,6 +120,11 @@
         // This ensures the correct CSS variable --color-app-code is used instead of --color-app-coding
         if (iconName === 'coding') {
             iconName = 'code';
+        }
+        // Handle special case: heart.svg -> health (since the app ID is "health" but icon file is heart.svg)
+        // This ensures the correct CSS class app-health and --color-app-health are used instead of app-heart
+        if (iconName === 'heart') {
+            iconName = 'health';
         }
         return iconName;
     }

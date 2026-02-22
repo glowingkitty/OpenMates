@@ -170,6 +170,7 @@ skills:
     pricing:
       per_unit:
         credits: 10
+        unit_name: request
     providers:
       - Doctolib
     exclude_fields_for_llm:
