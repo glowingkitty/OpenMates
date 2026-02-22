@@ -1428,10 +1428,18 @@ class EmbedService:
                 # Non-dict TOON (unusual) — return as-is
                 return toon_content
 
-            # Only filter image embeds (app_id="images"). Other embed types
-            # (search results, web pages, etc.) pass through unchanged.
+            # Only filter uploaded image embeds (app_id="images", skill_id="upload").
+            # Other embed types (search results, web pages, etc.) pass through unchanged.
+            #
+            # IMPORTANT: We must NOT filter app_skill_use embeds that wrap an images.view
+            # result (app_id="images", skill_id="view"). Those embeds are tracking
+            # placeholders whose embed_id is an internal task reference — NOT the crypto
+            # address of the image. If we inject their embed_id here, the LLM will call
+            # images.view with the wrong ID (the placeholder's UUID instead of the upload's
+            # UUID), causing the skill to fail with "missing vault_wrapped_aes_key".
             app_id = decoded.get("app_id")
-            if app_id != "images":
+            skill_id = decoded.get("skill_id")
+            if app_id != "images" or skill_id != "upload":
                 return toon_content
 
             # Strip crypto/infra fields

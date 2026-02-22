@@ -128,6 +128,27 @@ class UploadsS3Service:
             f"region: {self.region_name}, endpoint: {self.endpoint_url}"
         )
 
+        # ARCHITECTURE: Hetzner Object Storage does NOT support per-object ACLs via
+        # put_object(ACL="public-read"). The only way to make objects publicly readable
+        # on Hetzner is via a bucket-level ACL. We enforce this here at startup so that
+        # all encrypted blobs uploaded by this service are browser-fetchable (required
+        # for client-side AES-GCM decryption in imageEmbedCrypto.ts).
+        #
+        # We apply the ACL to BOTH the dev and prod chatfiles buckets since this service
+        # handles requests for both environments (via X-Target-Env header routing).
+        for bucket_name in (self.bucket_name_dev, self.bucket_name_prod):
+            try:
+                self.client.put_bucket_acl(Bucket=bucket_name, ACL="public-read")
+                logger.info(f"[S3Upload] Set public-read ACL on bucket '{bucket_name}'")
+            except ClientError as acl_e:
+                # Log but do not abort startup — the bucket may already have the ACL set,
+                # or it may not exist yet (created on first upload). Either way, we should
+                # not prevent the service from starting.
+                logger.warning(
+                    f"[S3Upload] Failed to set public-read ACL on bucket '{bucket_name}': {acl_e}. "
+                    f"Uploaded objects may return 403 on direct browser fetch until this is resolved."
+                )
+
     def get_bucket_for_env(self, target_env: str = "prod") -> str:
         """
         Return the correct S3 bucket name for the given environment.
