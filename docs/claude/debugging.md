@@ -278,9 +278,91 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 
 **Core services:** `api`, `cms`, `cms-database`, `cms-setup`, `task-worker`, `task-scheduler`
 
-**App services:** `app-ai`, `app-web`, `app-videos`, `app-news`, `app-maps`, `app-code`, `app-ai-worker`, `app-web-worker`
+**App services:** `app-ai`, `app-web`, `app-videos`, `app-news`, `app-maps`, `app-code`, `app-audio`, `app-travel`, `app-jobs`, `app-reminder`, `app-pdf`, `app-docs`, `app-images`, `app-openmates`, `app-health`, `app-ai-worker`, `app-web-worker`
 
 **Infrastructure:** `cache`, `vault`, `vault-setup`, `prometheus`, `cadvisor`, `loki`, `promtail`
+
+---
+
+## App Missing from Settings App Store
+
+If an app with skills is **not showing in the settings app store**, the most likely cause is that the app's health status is unknown or unhealthy. The app store only shows apps with skills if they appear as `healthy` in `/v1/health`.
+
+### Diagnostic steps
+
+**Step 1: Check `/v1/health` for the missing app**
+
+```bash
+curl -s https://api.dev.openmates.org/v1/health | python3 -m json.tool | grep -A8 '"<app_id>"'
+```
+
+- If the app is **absent** from the `apps` section → the `api` container didn't discover it at startup (or the health check task hasn't run yet). See Step 2.
+- If the app is present but `"status": "unhealthy"` → the `app-<id>` container is down. See Step 3.
+
+**Step 2: App absent from `/v1/health` entirely**
+
+The `api` discovers apps at startup by calling `http://app-<id>:8000/metadata`. If the app container wasn't running at startup time, the app won't be in `app.state.discovered_apps_metadata` and gets filtered out of `/v1/health`.
+
+```bash
+# Check if the app container is up and reachable
+docker exec api curl -s http://app-<id>:8000/health
+
+# Check what's in the Redis discovery cache
+docker exec api python3 -c "
+import asyncio, json, sys
+sys.path.insert(0, '/app')
+from backend.core.api.app.services.cache import CacheService
+async def main():
+    c = CacheService()
+    client = await c.client
+    val = await client.get('discovered_apps_metadata_v1')
+    print('Apps in cache:', list(json.loads(val).keys()) if val else 'EMPTY')
+asyncio.run(main())
+"
+```
+
+If the container is healthy but missing from the cache, trigger a health check task to force re-discovery:
+
+```bash
+docker exec api python3 -c "
+import sys; sys.path.insert(0, '/app')
+from backend.core.api.app.tasks.health_check_tasks import check_all_apps_health
+check_all_apps_health.apply()
+print('Done')
+"
+```
+
+The `/v1/health` endpoint now also reads `discovered_apps_metadata_v1` from Redis (in addition to `app.state`), so after the task runs the app should appear in `/v1/health` without restarting the API.
+
+If the task runs successfully but the app is still missing from `/v1/health`, restart the `api` container:
+
+```bash
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml restart api
+```
+
+**Step 3: App present but `"status": "unhealthy"`**
+
+```bash
+# Check the app container logs
+docker compose --env-file .env -f backend/core/docker-compose.yml logs --tail=50 app-<id>
+```
+
+**Step 4: Verify the frontend appsMetadata has skills for this app**
+
+`appsMetadata.ts` is generated at build time from `backend/apps/<id>/app.yml`. Apps with no production skills have `skills: []` and bypass the health filter entirely (always shown). Apps with production skills require health to be `healthy`.
+
+```bash
+# Confirm skills are listed in appsMetadata.ts (generated file, not committed)
+grep -A5 '"<app_id>"' frontend/packages/ui/src/data/appsMetadata.ts
+```
+
+If the app has `skills: []` but `app.yml` has production skills, regenerate:
+
+```bash
+cd frontend/packages/ui && npm run generate-apps-metadata
+```
+
+Note: `appsMetadata.ts` is gitignored — it is regenerated automatically by the Vercel build from `app.yml`. No commit needed.
 
 ---
 

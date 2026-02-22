@@ -1366,14 +1366,43 @@ def create_app() -> FastAPI:
         from backend.core.api.app.services.cache import CacheService
         import json
         
-        # Get discovered apps from app state (already filtered by stage during startup)
-        # This ensures we only return health status for apps that should be included
+        # Build the set of discovered app IDs from two sources:
+        # 1. app.state.discovered_apps_metadata — populated at API startup (stage-filtered)
+        # 2. discovered_apps_metadata_v1 Redis cache — updated by the periodic health check
+        #    task whenever it re-discovers apps. This catches apps whose containers started
+        #    AFTER the API started (e.g. a newly added app-* service), so they appear in
+        #    /v1/health within one health-check cycle (~1 min) without requiring an API restart.
         discovered_app_ids = set()
         if hasattr(request.app.state, 'discovered_apps_metadata'):
             discovered_app_ids = set(request.app.state.discovered_apps_metadata.keys())
-            logger.debug(f"Health check: Filtering apps by discovered_apps_metadata. Found {len(discovered_app_ids)} app(s): {sorted(discovered_app_ids)}")
+            logger.debug(f"Health check: Loaded {len(discovered_app_ids)} app(s) from app.state: {sorted(discovered_app_ids)}")
         else:
-            logger.warning("Health check: discovered_apps_metadata not found in app.state. All apps from cache will be included.")
+            logger.warning("Health check: discovered_apps_metadata not found in app.state.")
+
+        # Supplement with the Redis cache written by the health check task.
+        # This allows newly-started app containers to be picked up without an API restart.
+        try:
+            _cache_service_tmp = CacheService()
+            _cache_client_tmp = await _cache_service_tmp.client
+            if _cache_client_tmp:
+                _cached_meta_json = await _cache_client_tmp.get("discovered_apps_metadata_v1")
+                if _cached_meta_json:
+                    if isinstance(_cached_meta_json, bytes):
+                        _cached_meta_json = _cached_meta_json.decode("utf-8")
+                    _cached_meta = json.loads(_cached_meta_json)
+                    _cached_ids = set(_cached_meta.keys())
+                    _new_ids = _cached_ids - discovered_app_ids
+                    if _new_ids:
+                        logger.info(
+                            f"Health check: Found {len(_new_ids)} additional app(s) in Redis cache "
+                            f"not present in app.state: {sorted(_new_ids)}. Including them."
+                        )
+                    discovered_app_ids |= _cached_ids
+        except Exception as _e:
+            logger.warning(f"Health check: Could not read discovered_apps_metadata_v1 from Redis: {_e}")
+
+        if discovered_app_ids:
+            logger.debug(f"Health check: Filtering apps by combined discovered set ({len(discovered_app_ids)} app(s)): {sorted(discovered_app_ids)}")
         
         # Get provider, app, and external service health status from cache
         providers_health = {}

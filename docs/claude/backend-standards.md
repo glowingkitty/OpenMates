@@ -24,7 +24,22 @@ Rebuild only the containers whose code you actually changed. Do NOT rebuild the 
 | `backend/apps/news/`    | `app-news`                                 |
 | `backend/apps/maps/`    | `app-maps`                                 |
 | `backend/apps/code/`    | `app-code`                                 |
+| `backend/apps/health/`  | `app-health`                               |
 | `backend/shared/`       | All app containers that import shared code |
+
+### Adding a new app container (CRITICAL)
+
+When you add a new `app-<id>` service to `docker-compose.yml` and start it for the first time, the `api` container will **not** automatically discover it. The `api` discovers app containers at startup by calling `http://app-<id>:8000/metadata`. If the new container starts after the `api`, it is silently skipped.
+
+**After starting a new `app-<id>` container, always restart `api`:**
+
+```bash
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml restart api
+```
+
+This triggers re-discovery so the new app appears in `/v1/health` and the settings app store.
+
+Note: The periodic health check task (runs every ~1 min) will eventually update the Redis discovery cache, and `/v1/health` now reads from that cache as a fallback. But the `api`'s in-memory `app.state.discovered_apps_metadata` (used for skill routing) won't update until restart, so a restart is still required for full functionality.
 
 **Rebuild and restart only the relevant containers:**
 
