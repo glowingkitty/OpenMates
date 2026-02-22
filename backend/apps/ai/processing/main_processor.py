@@ -2500,6 +2500,14 @@ async def handle_main_processing(
                             skill_arguments = skill_arguments.copy()
                             skill_arguments["_placeholder_embed_ids"] = _placeholder_ids
                     
+                    # Inject user_vault_key_id as server-side context for skills that need
+                    # Vault Transit access (e.g. images-view needs it to look up embed
+                    # crypto details from the Redis cache). Underscore prefix ensures it is
+                    # stripped before Pydantic validation in base_app.py.
+                    if user_vault_key_id:
+                        skill_arguments = skill_arguments.copy()
+                        skill_arguments["_user_vault_key_id"] = user_vault_key_id
+
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation
@@ -3327,14 +3335,23 @@ async def handle_main_processing(
                                     # DEBUG: Log what's being passed to update_embed_with_results
                                     if results and len(results) > 0:
                                         first_result = results[0]
-                                        logger.info(
-                                            f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
-                                            f"results[0] keys: {list(first_result.keys())}, "
-                                            f"has_thumbnail={'thumbnail' in first_result}, "
-                                            f"has_meta_url={'meta_url' in first_result}, "
-                                            f"thumbnail={first_result.get('thumbnail')}, "
-                                            f"meta_url={first_result.get('meta_url')}"
-                                        )
+                                        # Guard against non-dict results (e.g. images-view returns
+                                        # a list of content blocks, not a dict)
+                                        if isinstance(first_result, dict):
+                                            logger.info(
+                                                f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
+                                                f"results[0] keys: {list(first_result.keys())}, "
+                                                f"has_thumbnail={'thumbnail' in first_result}, "
+                                                f"has_meta_url={'meta_url' in first_result}, "
+                                                f"thumbnail={first_result.get('thumbnail')}, "
+                                                f"meta_url={first_result.get('meta_url')}"
+                                            )
+                                        else:
+                                            logger.info(
+                                                f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
+                                                f"results[0] type: {type(first_result).__name__}, "
+                                                f"len: {len(first_result) if hasattr(first_result, '__len__') else 'N/A'}"
+                                            )
                                     
                                     updated_embed_data = await embed_service.update_embed_with_results(
                                         embed_id=single_embed_id,

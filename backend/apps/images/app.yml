@@ -109,47 +109,25 @@ skills:
     name_translation_key: images.view
     description_translation_key: images.view.description
     preprocessor_hint: >
-      Analyse, describe, or answer questions about an image that the user uploaded
-      to the chat. Use this skill when the user references an uploaded image embed
-      and wants the AI to look at it, describe it, read text in it, identify objects,
-      or answer any visual question about it.
+      Load an image into the conversation so the AI can see it. Use this skill
+      when the user references an uploaded image embed and wants the AI to look
+      at it, describe it, read text in it, identify objects, or answer any visual
+      question about it. Only requires the embed_id — the server resolves all
+      cryptographic and storage details automatically.
     stage: development
     class_path: |
       backend.apps.images.skills.view_skill.ViewSkill
     api_config:
-      expose_get: false # Hidden — requires Vault Transit-wrapped AES key (zero-knowledge encryption)
-      expose_post: false # Hidden — requires client-side decryption context (zero-knowledge). Not usable via stateless REST.
+      expose_get: false # Hidden — requires server-side embed lookup with Vault Transit decryption
+      expose_post: false # Hidden — requires server-side context (user_vault_key_id). Not usable via stateless REST.
     tool_schema:
       type: object
       properties:
         embed_id:
           type: string
-          description: "The embed_id of the uploaded image to analyse."
-        vault_wrapped_aes_key:
-          type: string
-          description: "Vault Transit-wrapped AES key from the embed metadata."
-        s3_key:
-          type: string
-          description: "S3 object key for the encrypted image file (use 'original' variant)."
-        s3_base_url:
-          type: string
-          description: "S3 base URL for the file storage bucket."
-        aes_nonce:
-          type: string
-          description: "Base64 AES-GCM nonce for this file variant."
-        query:
-          type: string
-          description: "The user's question or instruction about the image."
-        vault_key_id:
-          type: string
-          description: "The user's Vault Transit key ID (optional, resolved from context)."
+          description: "The embed_id of the image to load into the conversation."
       required:
         - embed_id
-        - vault_wrapped_aes_key
-        - s3_key
-        - s3_base_url
-        - aes_nonce
-        - query
   - id: generate_draft
     name_translation_key: images.generate_draft
     description_translation_key: images.generate_draft.description

@@ -254,6 +254,9 @@ class BaseApp:
             # Placeholder embed IDs from main_processor - allows async skills (e.g., images.generate)
             # to update existing placeholder embeds instead of creating new ones
             placeholder_embed_ids = request_body.get("_placeholder_embed_ids")
+            # User's Vault Transit key ID — injected by main_processor for skills that need
+            # server-side Vault access (e.g. images-view looks up embed crypto details)
+            user_vault_key_id = request_body.get("_user_vault_key_id")
 
             # Initialize skill instance
             # Extract full_model_reference from skill_definition
@@ -294,7 +297,8 @@ class BaseApp:
                 "external_request": external_request,
                 "chat_id": chat_id,
                 "message_id": message_id,
-                "placeholder_embed_ids": placeholder_embed_ids
+                "placeholder_embed_ids": placeholder_embed_ids,
+                "user_vault_key_id": user_vault_key_id,
             }
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}

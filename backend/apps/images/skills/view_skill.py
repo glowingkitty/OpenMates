@@ -1,34 +1,31 @@
 # backend/apps/images/skills/view_skill.py
 #
-# Skill that allows the AI to view an uploaded image directly.
+# Skill that loads an uploaded/generated image so the main LLM can see it.
 #
 # Architecture:
-#   When a user attaches an uploaded image to a chat message and asks the AI
-#   about it, the AI processor extracts the embed's TOON content (which contains
-#   the vault_wrapped_aes_key and S3 file keys) and calls this skill.
-#
-#   This skill:
-#     1. Accepts the vault_wrapped_aes_key and s3_key from the embed metadata
-#     2. Unwraps the AES key via Vault Transit (using the user's vault_key_id)
-#     3. Downloads the encrypted file from S3
-#     4. Decrypts with AES-256-GCM
-#     5. Returns the image as a multimodal content list (image_url block)
+#   The LLM calls this skill with only an embed_id. The skill then:
+#     1. Looks up the embed's encrypted content from the Redis cache
+#     2. Decrypts the embed content using the user's Vault Transit key
+#     3. Extracts vault_wrapped_aes_key, s3_key, s3_base_url, aes_nonce from
+#        the decrypted embed content (these fields are never exposed to the LLM)
+#     4. Unwraps the AES key via Vault Transit
+#     5. Downloads the encrypted file from S3
+#     6. Decrypts with AES-256-GCM
+#     7. Returns the image as a multimodal content list (image_url block)
 #        so the MAIN inference model sees the image directly via tool result
 #
-#   The key architectural difference from the previous approach:
-#     - Previously: skill called a sub-model (Gemini Flash) internally and
-#       returned a text analysis string. The main model never saw the image.
-#     - Now: skill returns a list of content blocks (text label + image_url).
-#       The framework (llm_utils.py + provider adapters) passes this list
-#       directly as the tool result to the main inference model.
+#   This design keeps all cryptographic and infrastructure details (S3 keys,
+#   Vault-wrapped AES keys, nonces) entirely server-side. The LLM only needs
+#   to know the embed_id to request viewing an image.
 #
 #   Security:
-#     - The vault_wrapped_aes_key can ONLY be unwrapped if the Vault token has
-#       permission for the user's transit key — the server controls decryption.
+#     - The plaintext aes_key (used by the client) is never sent to the LLM.
+#     - vault_wrapped_aes_key, s3_key, aes_nonce are resolved server-side,
+#       not passed through the LLM context or tool call.
 #     - Plaintext image bytes exist only transiently in memory during this call.
-#     - The plaintext aes_key is never logged or persisted by this skill.
 
 import base64
+import json as json_lib
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -49,45 +46,12 @@ logger = logging.getLogger(__name__)
 class ViewRequest(BaseModel):
     """
     Request model for the images.view skill.
-    The AI processor populates these fields from the uploaded image embed's
-    TOON content when the user asks about an image they uploaded.
+    The LLM only needs to provide the embed_id — all cryptographic and
+    storage details are resolved server-side from the embed cache.
     """
     embed_id: str = Field(
         ...,
-        description="The embed_id of the uploaded image to view."
-    )
-    vault_wrapped_aes_key: str = Field(
-        ...,
-        description=(
-            "Vault Transit-wrapped AES key from the embed metadata. "
-            "The skill unwraps this via Vault to decrypt the image."
-        )
-    )
-    s3_key: str = Field(
-        ...,
-        description=(
-            "S3 object key for the image variant to view "
-            "(e.g. 'user-id/sha256.../original.bin')."
-        )
-    )
-    s3_base_url: str = Field(
-        ...,
-        description="S3 base URL (e.g. 'https://chatfiles.nbg1.your-objectstorage.com')."
-    )
-    aes_nonce: str = Field(
-        ...,
-        description="Base64 AES-GCM nonce used when encrypting this file variant."
-    )
-    query: str = Field(
-        ...,
-        description="The user's question or instruction about the image."
-    )
-    vault_key_id: Optional[str] = Field(
-        None,
-        description=(
-            "The user's Vault Transit key ID. If omitted, the skill tries "
-            "to get it from user context."
-        )
+        description="The embed_id of the image to load into the conversation."
     )
 
 
@@ -110,14 +74,17 @@ class ViewResponse(BaseModel):
 
 class ViewSkill(BaseSkill):
     """
-    Skill for loading an uploaded image and returning it as a multimodal
-    content block so the main inference model can see it directly.
+    Skill for loading an image and returning it as a multimodal content block
+    so the main inference model can see it directly.
 
-    Unlike the old approach (which called Gemini Flash internally), this skill
-    now returns the raw image bytes (base64-encoded) as an image_url content
-    block. The framework's llm_utils.py passes the list through unchanged to
-    the provider adapters, which convert the image_url block to the correct
-    format for the active LLM (Anthropic image source, Google inlineData, etc.).
+    The LLM calls this with only embed_id. The skill resolves all crypto and
+    storage details server-side by looking up the embed from the Redis cache
+    and decrypting its content via Vault Transit.
+
+    Returns the raw image bytes (base64-encoded) as an image_url content block.
+    The framework's llm_utils.py passes the list through unchanged to the
+    provider adapters, which convert the image_url block to the correct format
+    for the active LLM (Anthropic image source, Google inlineData, etc.).
     """
 
     # Vault token path — same as other services that read Vault secrets
@@ -130,6 +97,96 @@ class ViewSkill(BaseSkill):
         if not token:
             raise RuntimeError("Vault token file is empty")
         return token
+
+    async def _lookup_embed_content(
+        self, embed_id: str, user_vault_key_id: str
+    ) -> Dict[str, Any]:
+        """
+        Look up an embed's decrypted content from the Redis cache.
+
+        The embed is stored in Redis at key ``embed:{embed_id}`` as a JSON dict
+        with an ``encrypted_content`` field that holds a Vault Transit-encrypted
+        TOON string. This method decrypts the content using the user's Vault key
+        and decodes the TOON to return the raw content dict.
+
+        Args:
+            embed_id: The embed ID to look up.
+            user_vault_key_id: The user's Vault Transit key ID for decryption.
+
+        Returns:
+            Decoded embed content dict (contains vault_wrapped_aes_key, s3_base_url,
+            files, aes_nonce, etc.).
+
+        Raises:
+            RuntimeError: If the embed is not found in cache, has no encrypted
+                content, or decryption/decoding fails.
+        """
+        import redis.asyncio as aioredis
+        from toon_format import decode as toon_decode
+        from urllib.parse import quote as url_quote
+
+        log_prefix = f"[images.view] [embed:{embed_id[:8]}...]"
+
+        # Connect to Redis (same instance used by all backend services)
+        redis_password = os.environ.get("CACHE_PASSWORD", "")
+        redis_url = f"redis://default:{url_quote(redis_password, safe='')}@cache:6379/0"
+        redis_client = aioredis.from_url(redis_url, decode_responses=True)
+
+        try:
+            cache_key = f"embed:{embed_id}"
+            embed_json = await redis_client.get(cache_key)
+            if not embed_json:
+                raise RuntimeError(
+                    f"Embed {embed_id} not found in cache — it may have expired "
+                    f"(24h TTL). Please ask the user to re-upload the image."
+                )
+
+            embed_data = json_lib.loads(embed_json)
+            encrypted_content = embed_data.get("encrypted_content")
+            if not encrypted_content:
+                raise RuntimeError(
+                    f"Embed {embed_id} has no encrypted_content in cache"
+                )
+
+            # Decrypt the content using Vault Transit (same as EncryptionService.decrypt_with_user_key)
+            vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
+            token = self._load_vault_token()
+
+            decrypt_url = f"{vault_url}/v1/transit/decrypt/{user_vault_key_id}"
+            payload = {"ciphertext": encrypted_content}
+
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.post(
+                    decrypt_url,
+                    json=payload,
+                    headers={"X-Vault-Token": token},
+                )
+
+            if resp.status_code != 200:
+                raise RuntimeError(
+                    f"Vault transit decrypt failed for embed content: "
+                    f"HTTP {resp.status_code} — {resp.text[:200]}"
+                )
+
+            plaintext_b64 = resp.json()["data"]["plaintext"]
+            plaintext_toon = base64.b64decode(plaintext_b64).decode("utf-8")
+
+            # Decode TOON to get the content dict
+            decoded = toon_decode(plaintext_toon)
+            if not isinstance(decoded, dict):
+                raise RuntimeError(
+                    f"Embed {embed_id} TOON content decoded to "
+                    f"{type(decoded).__name__}, expected dict"
+                )
+
+            logger.info(
+                f"{log_prefix} Successfully looked up embed from cache "
+                f"(keys: {list(decoded.keys())})"
+            )
+            return decoded
+
+        finally:
+            await redis_client.aclose()
 
     async def _unwrap_aes_key(self, vault_wrapped_aes_key: str, vault_key_id: str) -> bytes:
         """
@@ -196,16 +253,14 @@ class ViewSkill(BaseSkill):
     async def execute(
         self,
         embed_id: str,
-        vault_wrapped_aes_key: str,
-        s3_key: str,
-        s3_base_url: str,
-        aes_nonce: str,
-        query: str,
-        vault_key_id: Optional[str] = None,
         **kwargs: Any,
     ) -> List[Dict[str, Any]]:
         """
-        Load an uploaded image and return it as a multimodal content list.
+        Load an image and return it as a multimodal content list.
+
+        The LLM only provides embed_id. All cryptographic and storage details
+        (vault_wrapped_aes_key, s3_key, s3_base_url, aes_nonce) are resolved
+        server-side by looking up the embed from the Redis cache.
 
         Returns a list of content blocks that will become the tool result
         passed directly to the main inference model:
@@ -221,59 +276,82 @@ class ViewSkill(BaseSkill):
           - Google: converted to inlineData Parts in google_client.py
 
         Steps:
-        1. Get the user's vault_key_id from kwargs if not provided.
-        2. Unwrap the AES key via Vault Transit.
-        3. Download the encrypted file from S3.
-        4. Decrypt with AES-256-GCM.
-        5. Return base64-encoded image as a content block list.
+        1. Get user_vault_key_id from kwargs (injected by the pipeline).
+        2. Look up embed content from Redis cache (decrypt via Vault Transit).
+        3. Extract vault_wrapped_aes_key, s3_base_url, s3_key, aes_nonce from content.
+        4. Unwrap the AES key via Vault Transit.
+        5. Download the encrypted file from S3.
+        6. Decrypt with AES-256-GCM.
+        7. Return base64-encoded image as a content block list.
 
         Args:
             embed_id: Embed ID of the image.
-            vault_wrapped_aes_key: Vault-wrapped AES key from embed content.
-            s3_key: S3 object key for the encrypted file.
-            s3_base_url: S3 bucket base URL.
-            aes_nonce: Base64 AES-GCM nonce.
-            query: The user's question about the image (not used here — the
-                   main LLM processes it after seeing the image in the tool result).
-            vault_key_id: Optional Vault key ID; falls back to kwargs['user_vault_key_id'].
-            **kwargs: Additional context (user_id, user_vault_key_id, filename, etc.).
+            **kwargs: Context injected by the pipeline (user_vault_key_id, user_id, etc.).
 
         Returns:
-            List of content blocks for multimodal tool result, or a plain dict
-            on error (for graceful degradation).
+            List of content blocks for multimodal tool result, or a text error
+            block on failure (for graceful degradation).
         """
         log_prefix = f"[images.view] [embed:{embed_id[:8]}...]"
 
-        # --- Resolve vault_key_id ---
-        resolved_vault_key_id = vault_key_id or kwargs.get("user_vault_key_id")
-        if not resolved_vault_key_id:
-            logger.error(f"{log_prefix} vault_key_id not available — cannot decrypt image")
+        # --- Step 1: Resolve user_vault_key_id from pipeline context ---
+        user_vault_key_id = kwargs.get("user_vault_key_id")
+        if not user_vault_key_id:
+            logger.error(f"{log_prefix} user_vault_key_id not available — cannot look up embed")
             return [{"type": "text", "text": f"Error: Cannot view image {embed_id} — vault key ID not available."}]
 
         try:
-            # --- Step 1: Unwrap AES key via Vault ---
-            logger.info(f"{log_prefix} Unwrapping AES key via Vault transit key {resolved_vault_key_id}")
-            aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, resolved_vault_key_id)
+            # --- Step 2: Look up embed content from Redis cache ---
+            logger.info(f"{log_prefix} Looking up embed content from cache")
+            embed_content = await self._lookup_embed_content(embed_id, user_vault_key_id)
 
-            # --- Step 2: Download encrypted file from S3 ---
+            # --- Step 3: Extract required fields from embed content ---
+            vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
+            s3_base_url = embed_content.get("s3_base_url")
+            aes_nonce = embed_content.get("aes_nonce")
+            files = embed_content.get("files", {})
+            filename = embed_content.get("filename") or embed_id
+
+            if not vault_wrapped_aes_key:
+                raise RuntimeError("Embed content missing vault_wrapped_aes_key")
+            if not s3_base_url:
+                raise RuntimeError("Embed content missing s3_base_url")
+            if not aes_nonce:
+                raise RuntimeError("Embed content missing aes_nonce")
+
+            # Prefer the "full" variant (good quality, reasonable size for LLM vision).
+            # Fall back to "original" if "full" is not available.
+            s3_key = None
+            for variant_name in ("full", "original", "preview"):
+                variant = files.get(variant_name)
+                if variant and variant.get("s3_key"):
+                    s3_key = variant["s3_key"]
+                    logger.info(f"{log_prefix} Using '{variant_name}' variant: {s3_key}")
+                    break
+
+            if not s3_key:
+                raise RuntimeError(
+                    f"Embed content has no file variants with s3_key "
+                    f"(available: {list(files.keys())})"
+                )
+
+            # --- Step 4: Unwrap AES key via Vault Transit ---
+            logger.info(f"{log_prefix} Unwrapping AES key via Vault transit key {user_vault_key_id}")
+            aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, user_vault_key_id)
+
+            # --- Step 5: Download encrypted file from S3 ---
             logger.info(f"{log_prefix} Downloading encrypted image from S3: {s3_key}")
             encrypted_bytes = await self._download_from_s3(s3_base_url, s3_key)
 
-            # --- Step 3: Decrypt with AES-256-GCM ---
+            # --- Step 6: Decrypt with AES-256-GCM ---
             nonce_bytes = base64.b64decode(aes_nonce)
             aesgcm = AESGCM(aes_key_bytes)
             plaintext_bytes = aesgcm.decrypt(nonce_bytes, encrypted_bytes, None)
             logger.info(f"{log_prefix} Decrypted image: {len(plaintext_bytes)} bytes")
 
-            # --- Step 4: Encode as base64 for multimodal tool result ---
+            # --- Step 7: Encode and return as multimodal content list ---
             image_b64 = base64.b64encode(plaintext_bytes).decode("utf-8")
 
-            # Determine the label (filename if available, else embed_id)
-            filename = kwargs.get("filename") or embed_id
-
-            # --- Step 5: Return multimodal content list ---
-            # The main LLM will see this image in the tool result and can analyse it
-            # in context of the surrounding conversation and user query.
             logger.info(f"{log_prefix} Returning image as multimodal content block")
             return [
                 {
@@ -290,7 +368,7 @@ class ViewSkill(BaseSkill):
             ]
 
         except RuntimeError as e:
-            logger.error(f"{log_prefix} Failed to decrypt/download image: {e}", exc_info=True)
+            logger.error(f"{log_prefix} Failed to load image: {e}", exc_info=True)
             return [{"type": "text", "text": f"Error: Failed to access image {embed_id} — {e}"}]
         except Exception as e:
             logger.error(f"{log_prefix} Unexpected error during image load: {e}", exc_info=True)

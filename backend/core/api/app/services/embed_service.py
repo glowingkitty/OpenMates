@@ -1381,6 +1381,87 @@ class EmbedService:
             logger.error(f"{log_prefix} Error retrieving embed {embed_id} from cache: {e}", exc_info=True)
             return None
 
+    # ---- Fields to strip from embed TOON before showing to LLM ----
+    # These are cryptographic and infrastructure details that the LLM doesn't
+    # need for reasoning. The images-view skill resolves them server-side by
+    # embed_id. Stripping them also prevents the plaintext aes_key (used only
+    # by the client for local decryption) from ever entering the LLM context.
+    _TOON_LLM_STRIP_FIELDS = frozenset({
+        "aes_key",               # Plaintext AES key — client-only, never for LLM
+        "vault_wrapped_aes_key", # Opaque Vault ciphertext — resolved server-side
+        "aes_nonce",             # AES-GCM nonce — resolved server-side
+        "s3_base_url",           # S3 bucket URL — resolved server-side
+        "files",                 # Nested s3_key per variant — resolved server-side
+        "content_hash",          # Internal dedup hash — not useful for LLM
+    })
+
+    def _filter_toon_for_llm(
+        self, toon_content: str, embed_id: str, log_prefix: str = ""
+    ) -> str:
+        """
+        Filter a TOON-encoded embed content string for LLM consumption.
+
+        Decodes the TOON, strips cryptographic/infrastructure fields that the
+        LLM doesn't need, injects ``embed_id`` (which is NOT stored inside the
+        embed content — it's the Redis key), and re-encodes to TOON.
+
+        For image embeds (app_id="images"), the LLM sees only:
+          - embed_id, app_id, skill_id, type, status
+          - filename (uploaded images)
+          - ai_detection (uploaded images — sightengine scan result)
+          - prompt, model, aspect_ratio, output_filetype, generated_at (generated images)
+
+        If decoding/re-encoding fails, returns the original TOON unchanged
+        to avoid data loss.
+
+        Args:
+            toon_content: Raw TOON string from the embed cache.
+            embed_id: The embed's ID (injected into the filtered content).
+            log_prefix: Logging prefix.
+
+        Returns:
+            Filtered TOON string safe for LLM context.
+        """
+        try:
+            decoded = decode(toon_content)
+            if not isinstance(decoded, dict):
+                # Non-dict TOON (unusual) — return as-is
+                return toon_content
+
+            # Only filter image embeds (app_id="images"). Other embed types
+            # (search results, web pages, etc.) pass through unchanged.
+            app_id = decoded.get("app_id")
+            if app_id != "images":
+                return toon_content
+
+            # Strip crypto/infra fields
+            filtered = {
+                k: v for k, v in decoded.items()
+                if k not in self._TOON_LLM_STRIP_FIELDS
+            }
+
+            # Inject embed_id so the LLM can reference the image in tool calls
+            # (embed_id is the Redis key, not stored inside the content itself)
+            filtered["embed_id"] = embed_id
+
+            # Re-encode to TOON
+            filtered_toon = encode(filtered)
+            logger.debug(
+                f"{log_prefix} Filtered image embed TOON for LLM: "
+                f"{len(toon_content)} → {len(filtered_toon)} chars "
+                f"(stripped {len(decoded) - len(filtered)} fields, "
+                f"remaining: {list(filtered.keys())})"
+            )
+            return filtered_toon
+
+        except Exception as e:
+            # On any failure, return the original TOON to avoid data loss
+            logger.warning(
+                f"{log_prefix} Failed to filter TOON for LLM (embed {embed_id}): {e}. "
+                f"Returning original TOON."
+            )
+            return toon_content
+
     async def resolve_embed_references_in_content(
         self,
         content: str,
@@ -1486,12 +1567,19 @@ class EmbedService:
                     )
                     resolved_parts.append(embed_ref_info["full_match"])  # Keep original reference
             else:
-                # Replace embed reference with TOON content directly
+                # Filter the TOON content before showing to the LLM.
+                # Strip cryptographic and infrastructure fields that the LLM doesn't need
+                # (vault_wrapped_aes_key, aes_key, aes_nonce, s3_base_url, files with s3_keys).
+                # The view skill looks these up server-side by embed_id from the cache.
+                # This also prevents the plaintext aes_key from entering the LLM context.
+                filtered_toon = self._filter_toon_for_llm(toon_content, embed_id, log_prefix)
+                
+                # Replace embed reference with filtered TOON content
                 # TOON format is space-efficient (30-60% savings vs JSON) and LLM can process it
                 # Format as code block to preserve TOON structure
-                resolved_text = f"```toon\n{toon_content}\n```"
+                resolved_text = f"```toon\n{filtered_toon}\n```"
                 
-                logger.debug(f"{log_prefix} Resolved embed reference {embed_id} ({embed_type}) with TOON content ({len(toon_content)} chars)")
+                logger.debug(f"{log_prefix} Resolved embed reference {embed_id} ({embed_type}) with filtered TOON content ({len(filtered_toon)} chars, was {len(toon_content)} chars)")
                 resolved_parts.append(resolved_text)
             
             last_end = match.end()
