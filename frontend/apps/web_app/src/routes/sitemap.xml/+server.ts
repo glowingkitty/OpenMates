@@ -28,6 +28,29 @@ export const prerender = false; // Always SSR so new demo chats appear without r
 
 export const GET: RequestHandler = async ({ fetch, url }) => {
 	const siteOrigin = url.origin;
+
+	// Block sitemap on dev/staging hostnames — we only want production to be indexed.
+	// Matches the same logic used in robots.txt/+server.ts.
+	const hostname = url.hostname;
+	const isDevHost =
+		hostname.includes('.dev.') ||
+		hostname.startsWith('dev.') ||
+		hostname === 'localhost' ||
+		hostname === '127.0.0.1';
+	if (isDevHost) {
+		// Return an empty (but valid) sitemap so crawlers don't get a parse error,
+		// while ensuring no URLs are submitted for indexing on dev/staging.
+		return new Response(
+			'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>',
+			{
+				headers: {
+					'Content-Type': 'application/xml; charset=utf-8',
+					'Cache-Control': 'no-store'
+				}
+			}
+		);
+	}
+
 	const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
 
 	// Fetch all published demo chats to include in sitemap

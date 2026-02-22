@@ -56,6 +56,15 @@ const CATEGORY_CONFIG: Record<string, { label: string; order: number }> = {
 // They are silently ignored in +page.server.ts. See (seo)/demo/chat/+page.ts.
 
 export const load: PageServerLoad = async ({ fetch, setHeaders, url }) => {
+	// Detect development/staging hostnames so the page can emit noindex meta tags.
+	// Matches the same logic used in robots.txt/+server.ts and [slug]/+page.server.ts.
+	const hostname = url.hostname;
+	const isDevHost =
+		hostname.includes('.dev.') ||
+		hostname.startsWith('dev.') ||
+		hostname === 'localhost' ||
+		hostname === '127.0.0.1';
+
 	const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
 
 	let allChats: DemoChatListItem[] = [];
@@ -106,6 +115,9 @@ export const load: PageServerLoad = async ({ fetch, setHeaders, url }) => {
 	return {
 		groups,
 		totalCount: allChats.length,
-		canonicalUrl
+		canonicalUrl,
+		// True on dev/staging hostnames — page.svelte emits noindex meta to prevent
+		// Google from indexing preview deployments.
+		isDevHost
 	};
 };

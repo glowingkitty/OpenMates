@@ -42,7 +42,11 @@
 		content="Explore example AI conversations covering travel, coding, news, learning, and more. Try OpenMates with real demo chats."
 	/>
 	<link rel="canonical" href={data.canonicalUrl} />
-	<meta name="robots" content="index, follow" />
+	<!--
+		noindex on dev/staging hostnames — prevents preview deployments from being indexed.
+		Production deployments (openmates.org) get index,follow.
+	-->
+	<meta name="robots" content={data.isDevHost ? 'noindex, nofollow' : 'index, follow'} />
 
 	<!-- Open Graph -->
 	<meta property="og:type" content="website" />

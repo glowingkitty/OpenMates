@@ -57,6 +57,15 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders, url }) =
 		error(404, 'Demo chat not found');
 	}
 
+	// Detect development/staging hostnames so the page can emit noindex meta tags.
+	// Matches the same logic used in robots.txt/+server.ts.
+	const hostname = url.hostname;
+	const isDevHost =
+		hostname.includes('.dev.') ||
+		hostname.startsWith('dev.') ||
+		hostname === 'localhost' ||
+		hostname === '127.0.0.1';
+
 	const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
 
 	let chatData: DemoChatResponse;
@@ -141,6 +150,9 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders, url }) =
 		messages: visibleMessages,
 		canonicalUrl,
 		jsonLd: JSON.stringify(jsonLd),
+		// True on dev/staging hostnames — page.svelte emits noindex meta to prevent
+		// Google from indexing preview deployments.
+		isDevHost,
 		// The SPA deep link URL — used by the redirect script in +page.svelte
 		// Format: /#chat-id={slug} which the existing processDeepLink handler in +page.svelte
 		// recognises and uses to pre-load the demo chat in the SPA

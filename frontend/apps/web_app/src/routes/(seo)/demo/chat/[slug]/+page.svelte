@@ -54,7 +54,12 @@
 	<title>{data.title} — OpenMates</title>
 	<meta name="description" content={data.summary || data.title} />
 	<link rel="canonical" href={data.canonicalUrl} />
-	<meta name="robots" content="index, follow" />
+	<!--
+		noindex on dev/staging hostnames — prevents preview deployments from being indexed.
+		Production deployments (openmates.org) get index,follow.
+		Matches the same hostname logic in robots.txt/+server.ts.
+	-->
+	<meta name="robots" content={data.isDevHost ? 'noindex, nofollow' : 'index, follow'} />
 
 	<!-- Open Graph -->
 	<meta property="og:type" content="article" />
