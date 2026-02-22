@@ -933,6 +933,13 @@ async def _consume_main_processing_stream(
     # Track if we filtered out fake tool calls (LLM attempted to use unavailable tools)
     # This is used at the end to show a generic fallback message if the response would be empty
     fake_tool_calls_filtered = False
+    
+    # Track if the current multi-chunk code block has language 'toon' and needs content-based
+    # validation at closing fence. 'toon' blocks can be either:
+    # a) Fake tool calls (contain "tool:", "tool_code", or '"tool":' patterns) → filter out
+    # b) Real code that the LLM mislabelled as 'toon' (e.g. YAML, Python) → deliver to user
+    # We defer the decision until the closing fence when we have the full content.
+    toon_pending_validation = False
 
     # Track embed IDs that failed during skill execution (received from main_processor)
     # Their embed references will be stripped from the final message content before persistence
@@ -1578,17 +1585,27 @@ async def _consume_main_processing_stream(
                             current_code_content = '\n'.join(content_lines_after_fence)
                         
                         # HARDENING: Check for suspicious languages that indicate fake tool calls
-                        # These should NEVER be shown to users as code blocks
-                        is_suspicious_language = current_code_language and current_code_language.lower() in ('tool_code', 'toon')
-                        if is_suspicious_language:
-                            logger.warning(
-                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Multi-chunk code block started with "
-                                f"suspicious language '{current_code_language}'. This indicates the LLM is trying "
-                                f"to fake a tool call. Will replace with fallback message when code block closes."
-                            )
-                            # Mark this as a suspicious code block - we'll accumulate content
-                            # and replace with fallback message when closing fence is found
-                            # Don't create an embed for suspicious languages
+                        # 'tool_code' is ALWAYS a fake tool call — never a valid programming language.
+                        # 'toon' MIGHT be a fake tool call, but could also be real code that the LLM
+                        # mislabelled (since 'toon' is our internal encoding format visible in context).
+                        # For 'toon', we defer the decision to closing fence when we have full content.
+                        is_definitely_suspicious = current_code_language and current_code_language.lower() == 'tool_code'
+                        is_toon_needs_validation = current_code_language and current_code_language.lower() == 'toon'
+                        if is_definitely_suspicious or is_toon_needs_validation:
+                            if is_toon_needs_validation:
+                                toon_pending_validation = True
+                                logger.info(
+                                    f"{log_prefix} [TOON_PENDING_VALIDATION] Multi-chunk code block started with "
+                                    f"language 'toon'. Will accumulate content and check at closing fence "
+                                    f"whether this is a fake tool call or real code."
+                                )
+                            else:
+                                logger.warning(
+                                    f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Multi-chunk code block started with "
+                                    f"suspicious language '{current_code_language}'. This indicates the LLM is trying "
+                                    f"to fake a tool call. Will replace with fallback message when code block closes."
+                                )
+                            # Don't create an embed yet — accumulate content and decide at closing fence
                             chunk = ""  # Don't emit opening fence
                             continue  # Skip embed creation, just track the content
                         
@@ -1722,14 +1739,25 @@ async def _consume_main_processing_stream(
                         # Without this, a bare ``` followed by "toon" in the next chunk would
                         # create an embed placeholder before the closing-fence filter catches it,
                         # leaving an orphaned embed reference in the message.
-                        is_suspicious_language = current_code_language and current_code_language.lower() in ('tool_code', 'toon')
-                        if is_suspicious_language:
-                            logger.warning(
-                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Code block language '{current_code_language}' "
-                                f"resolved after bare fence is suspicious (fake tool call). "
-                                f"Will accumulate content and filter at closing fence."
-                            )
-                            # Don't create an embed - just track content and wait for closing fence
+                        # 'tool_code' is ALWAYS suspicious. 'toon' needs content-based validation
+                        # at closing fence (it could be real code mislabelled by the LLM).
+                        is_definitely_suspicious = current_code_language and current_code_language.lower() == 'tool_code'
+                        is_toon_needs_validation = current_code_language and current_code_language.lower() == 'toon'
+                        if is_definitely_suspicious or is_toon_needs_validation:
+                            if is_toon_needs_validation:
+                                toon_pending_validation = True
+                                logger.info(
+                                    f"{log_prefix} [TOON_PENDING_VALIDATION] Code block language 'toon' "
+                                    f"resolved after bare fence. Will accumulate content and check at "
+                                    f"closing fence whether this is a fake tool call or real code."
+                                )
+                            else:
+                                logger.warning(
+                                    f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Code block language '{current_code_language}' "
+                                    f"resolved after bare fence is suspicious (fake tool call). "
+                                    f"Will accumulate content and filter at closing fence."
+                                )
+                            # Don't create an embed yet - accumulate content and decide at closing fence
                             chunk = ""
                             continue
 
@@ -1834,8 +1862,36 @@ async def _consume_main_processing_stream(
                         current_code_content += code_chunk_content
                         
                         # HARDENING: Check if this was a suspicious code block (fake tool call)
-                        # If so, output fallback message instead of the code block
-                        is_suspicious_language = current_code_language and current_code_language.lower() in ('tool_code', 'toon')
+                        # 'tool_code' is ALWAYS a fake tool call.
+                        # 'toon' needs content-based validation: only filter if it contains
+                        # tool call patterns ('"tool":', 'tool_code', 'tool:').
+                        # If 'toon' block has real code content, treat it as a normal code block.
+                        is_tool_code_language = current_code_language and current_code_language.lower() == 'tool_code'
+                        
+                        # Content-based check for toon blocks: only flag as fake if content
+                        # actually contains tool call patterns (matching the single-chunk check)
+                        is_toon_fake_tool = False
+                        if toon_pending_validation and current_code_language and current_code_language.lower() == 'toon':
+                            if ('"tool":' in current_code_content
+                                    or 'tool_code' in current_code_content
+                                    or 'tool:' in current_code_content.lower()):
+                                is_toon_fake_tool = True
+                                logger.warning(
+                                    f"{log_prefix} [TOON_VALIDATED_AS_FAKE] Toon block content contains "
+                                    f"tool call patterns — confirmed as fake tool call. "
+                                    f"Content length: {len(current_code_content)} chars."
+                                )
+                            else:
+                                # This toon block is real code, NOT a fake tool call.
+                                # The LLM mislabelled it (likely mimicking toon encoding seen in context).
+                                # We'll handle it as a normal code block below.
+                                toon_pending_validation = False
+                                logger.info(
+                                    f"{log_prefix} [TOON_VALIDATED_AS_REAL_CODE] Toon block does NOT contain "
+                                    f"tool call patterns — treating as real code block. "
+                                    f"Content length: {len(current_code_content)} chars. "
+                                    f"Will create embed and deliver to user."
+                                )
                         
                         # Also check for JSON-like fake tool calls in content
                         is_json_fake_tool = False
@@ -1851,7 +1907,7 @@ async def _consume_main_processing_stream(
                                 except (json.JSONDecodeError, Exception):
                                     pass
                         
-                        if is_suspicious_language or is_json_fake_tool:
+                        if is_tool_code_language or is_toon_fake_tool or is_json_fake_tool:
                             # Determine the fake tool name for logging
                             if fake_tool_name_from_content:
                                 fake_tool_name = fake_tool_name_from_content
@@ -1900,8 +1956,8 @@ async def _consume_main_processing_stream(
                                         f"orphaned embed {current_code_embed_id}: {e}"
                                     )
                             
-                            # Set the flag so we know we filtered fake tool calls
-                            # This is used at the end to show a fallback if response is empty
+                            # Reset toon_pending_validation and set filtered flag
+                            toon_pending_validation = False
                             fake_tool_calls_filtered = True
                             
                             # Reset state - silently drop this content
@@ -1914,6 +1970,68 @@ async def _consume_main_processing_stream(
                             # Set chunk to empty and skip to next iteration
                             chunk = ""
                             continue
+                        
+                        # TOON RECOVERY: If toon_pending_validation is True but we reached here,
+                        # the toon block was validated as real code. Create embed retroactively
+                        # and finalize it with the accumulated content.
+                        if toon_pending_validation and not current_code_embed_id:
+                            toon_pending_validation = False
+                            if directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    
+                                    # Create code embed placeholder and finalize immediately
+                                    # Use empty language since 'toon' is not a real language
+                                    embed_data = await embed_service.create_code_embed_placeholder(
+                                        language="",
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        filename=current_code_filename,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Finalize with full content
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=current_code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            log_prefix=log_prefix
+                                        )
+                                        
+                                        logger.info(
+                                            f"{log_prefix} [TOON_RECOVERED] Created and finalized code embed "
+                                            f"{current_code_embed_id} for toon block validated as real code "
+                                            f"({len(current_code_content)} chars)"
+                                        )
+                                        
+                                        # Inject embed reference into the response chunk
+                                        # (same pattern as normal multi-chunk code block finalization)
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                except Exception as e:
+                                    logger.error(
+                                        f"{log_prefix} [TOON_RECOVERED] Error creating embed for "
+                                        f"toon-validated code block: {e}", exc_info=True
+                                    )
+                                finally:
+                                    # Always reset state after toon recovery attempt
+                                    in_code_block = False
+                                    current_code_language = ""
+                                    current_code_filename = None
+                                    current_code_content = ""
+                                    current_code_embed_id = None
                         # Finalize embed (only for real code/document blocks, not fake tool calls)
                         elif current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
                             try:
