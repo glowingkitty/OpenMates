@@ -778,9 +778,12 @@ export const Embed = Node.create<EmbedOptions>({
 
       // Make the node selectable and add basic interaction
       // BUT: Skip click handlers for image embeds (they should not be clickable)
-      // For Svelte component embeds, they handle their own click events
+      // For Svelte component embeds, they handle their own click events.
+      // focus-mode-activation also handles its own clicks (reject during countdown,
+      // context menu after activation) — ProseMirror click/mousedown handlers interfere.
       const skipClickHandler =
         currentAttrs.type === "image" ||
+        currentAttrs.type === "focus-mode-activation" ||
         svelteComponentEmbedTypes.includes(currentAttrs.type);
       if (!skipClickHandler) {
         container.addEventListener("click", () => {
