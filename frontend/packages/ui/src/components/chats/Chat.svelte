@@ -917,6 +917,18 @@
     }
   }
   
+  // Handler for focus mode activation/deactivation events from chatSyncService.
+  // Refreshes cachedMetadata for this chat entry so the sidebar badge updates immediately.
+  async function handleFocusModeChange(event: Event) {
+    const customEvent = event as CustomEvent;
+    const chatId = customEvent.detail?.chat_id;
+    if (chat && chatId === chat.chat_id) {
+      // Fetch the updated chat (chatSyncService already wrote the new encrypted_active_focus_id)
+      const freshChat = await chatDB.getChat(chat.chat_id).catch(() => null);
+      await updateDisplayInfo(freshChat ?? chat);
+    }
+  }
+
   // Handler for hiding chat after unlock
   function handleHideChatAfterUnlock(event: Event) {
     const customEvent = event as CustomEvent<{ chatId: string }>;
@@ -942,6 +954,12 @@
     
     // Listen for hide chat after unlock event
     window.addEventListener('hideChatAfterUnlock', handleHideChatAfterUnlock);
+
+    // Listen for focus mode activation/deactivation to refresh the badge in the sidebar.
+    // chatSyncService invalidates chatMetadataCache before dispatching this event, so
+    // re-running updateDisplayInfo will pick up the fresh encrypted_active_focus_id.
+    chatSyncService.addEventListener('focusModeActivated', handleFocusModeChange as EventListener);
+    chatSyncService.addEventListener('focusModeDeactivated', handleFocusModeChange as EventListener);
   });
 
   onDestroy(() => {
@@ -955,6 +973,8 @@
     chatSyncService.removeEventListener('aiTaskInitiated', handleChatOrMessageUpdated as EventListener);
     chatSyncService.removeEventListener('aiTaskEnded', handleChatOrMessageUpdated as EventListener);
     window.removeEventListener('hideChatAfterUnlock', handleHideChatAfterUnlock);
+    chatSyncService.removeEventListener('focusModeActivated', handleFocusModeChange as EventListener);
+    chatSyncService.removeEventListener('focusModeDeactivated', handleFocusModeChange as EventListener);
   });
 
   function truncateText(textToTruncate: string, maxLength: number = 60): string { // Renamed param

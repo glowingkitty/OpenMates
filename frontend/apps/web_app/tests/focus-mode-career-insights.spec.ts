@@ -587,12 +587,10 @@ test('clicking focus mode embed during countdown rejects focus mode activation',
 	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'reject-career');
 
 	// ======================================================================
-	// STEP 3: Wait for assistant response and focus mode embed
+	// STEP 3: Wait for the focus mode embed to appear during streaming
+	// (No need to wait for the full .message-wrapper.assistant — the embed
+	// appears while the AI is still streaming, within the 90s waitForFocusModeEmbed timeout)
 	// ======================================================================
-	logCheckpoint('Waiting for assistant response...');
-	const assistantMessage = page.locator('.message-wrapper.assistant');
-	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
-
 	const focusModeEmbed = await waitForFocusModeEmbed(
 		page,
 		logCheckpoint,
