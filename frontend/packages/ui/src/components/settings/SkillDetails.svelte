@@ -3,14 +3,26 @@
      
      This component is used for the app_store/{app_id}/skill/{skill_id} nested route.
      
+     **Multi-model skills** (e.g. images.generate, images.generate_draft, audio.transcribe):
+     When the modelsMetadata contains models tagged with `for_app_skill === "{appId}.{skillId}"`,
+     the Providers and Pricing sections are replaced by a clickable model list — the same UI
+     pattern used by the AI Ask skill. Clicking a model navigates to:
+       app_store/{app_id}/skill/{skill_id}/model/{model_id}
+     which renders AppSkillModelDetails.svelte.
+     
+     **Single-pricing skills** (no models in modelsMetadata):
+     Keeps the original flat Providers + Pricing display.
+     
      **Backend Implementation**:
-     - Data source: Static appsMetadata.ts (generated at build time)
+     - Data source: Static appsMetadata.ts and modelsMetadata.ts (generated at build time)
      - Store: frontend/packages/ui/src/stores/appSkillsStore.ts
      - Types: frontend/packages/ui/src/types/apps.ts
 -->
 
 <script lang="ts">
     import { appSkillsStore } from '../../stores/appSkillsStore';
+    import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
+    import { getProviderIconUrl } from '../../data/providerIcons';
     import SettingsItem from '../SettingsItem.svelte';
     import type { AppMetadata, SkillMetadata, SkillPricing } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -36,6 +48,18 @@
     );
     
     /**
+     * Look up all models whose `for_app_skill` matches "{appId}.{skillId}".
+     * When this list is non-empty the skill supports multiple distinct models,
+     * so we render a clickable model list instead of the flat pricing text.
+     */
+    let skillModels = $derived<AIModelMetadata[]>(
+        modelsMetadata.filter(m => m.for_app_skill === `${appId}.${skillId}`)
+    );
+    
+    /** Whether this skill has models to show in a list. */
+    let hasModels = $derived(skillModels.length > 0);
+    
+    /**
      * Get the translated skill description.
      */
     let skillDescription = $derived(
@@ -48,6 +72,7 @@
      * Format pricing information for display.
      * Returns an array of strings for token pricing (to display on separate lines),
      * or a single string for other pricing types.
+     * Only used when hasModels is false.
      */
     function formatPricing(pricing: SkillPricing | undefined): string | string[] {
         // Never show "Free" - if no pricing provided, default to 1 credit minimum
@@ -96,6 +121,7 @@
     /**
      * Get formatted pricing for display.
      * Returns either a string or array of strings (for token pricing).
+     * Only relevant when hasModels is false.
      */
     let formattedPricing = $derived(formatPricing(skill?.pricing));
     
@@ -146,6 +172,19 @@
             title: app?.name_translation_key ? $text(app.name_translation_key) : appId
         });
     }
+    
+    /**
+     * Navigate to a specific model's detail page.
+     * Used when this skill has multiple models (hasModels === true).
+     */
+    function handleModelClick(model: AIModelMetadata) {
+        dispatch('openSettings', {
+            settingsPath: `app_store/${appId}/skill/${skillId}/model/${model.id}`,
+            direction: 'forward',
+            icon: getIconName(app?.icon_image),
+            title: model.name
+        });
+    }
 </script>
 
 <div class="skill-details">
@@ -185,43 +224,87 @@
             </div>
         {/if}
         
-        <!-- Providers section -->
-        {#if skill.providers && skill.providers.length > 0}
+        {#if hasModels}
+            <!-- 
+                Multi-model skill: show a clickable model list instead of flat Providers + Pricing.
+                Each model row navigates to its detail page with pricing breakdown.
+                This matches the UI pattern used by the AI Ask skill.
+            -->
             <div class="section">
                 <SettingsItem 
                     type="heading"
-                    icon="provider"
-                    title={$text('settings.app_store.skills.providers')}
+                    icon="icon_search"
+                    title={$text('settings.app_store.skills.models')}
+                />
+                <div class="models-list">
+                    {#each skillModels as model (model.id)}
+                        <div
+                            class="model-item"
+                            role="button"
+                            tabindex="0"
+                            onclick={() => handleModelClick(model)}
+                            onkeydown={(e) => e.key === 'Enter' && handleModelClick(model)}
+                        >
+                            <div class="model-icon">
+                                <img
+                                    src={getProviderIconUrl(model.logo_svg)}
+                                    alt={model.provider_name}
+                                    class="provider-logo"
+                                />
+                            </div>
+                            <div class="model-info">
+                                <span class="model-name">{model.name}</span>
+                                <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider').replace('{provider}', model.provider_name)}</span>
+                            </div>
+                            <!-- Chevron to indicate clickability -->
+                            <span class="model-chevron">›</span>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        {:else}
+            <!-- 
+                Single-pricing skill: keep original Providers + Pricing display.
+            -->
+            
+            <!-- Providers section -->
+            {#if skill.providers && skill.providers.length > 0}
+                <div class="section">
+                    <SettingsItem 
+                        type="heading"
+                        icon="provider"
+                        title={$text('settings.app_store.skills.providers')}
+                    />
+                    <div class="content">
+                        <ul class="providers-list">
+                            {#each skill.providers as provider}
+                                <li>{provider}</li>
+                            {/each}
+                        </ul>
+                    </div>
+                </div>
+            {/if}
+            
+            <!-- Pricing section - always show, even if free -->
+            <div class="section">
+                <SettingsItem 
+                    type="heading"
+                    icon="credits"
+                    title={$text('settings.app_store.skills.pricing')}
                 />
                 <div class="content">
-                    <ul class="providers-list">
-                        {#each skill.providers as provider}
-                            <li>{provider}</li>
+                    {#if Array.isArray(formattedPricing)}
+                        <!-- Token pricing: display each line separately -->
+                        {#each formattedPricing as pricingLine}
+                            <p class="pricing">{pricingLine}</p>
                         {/each}
-                    </ul>
+                    {:else}
+                        <!-- Other pricing types: single line -->
+                        <p class="pricing">{formattedPricing}</p>
+                    {/if}
                 </div>
             </div>
         {/if}
-        
-        <!-- Pricing section - always show, even if free -->
-        <div class="section">
-            <SettingsItem 
-                type="heading"
-                icon="credits"
-                title={$text('settings.app_store.skills.pricing')}
-            />
-            <div class="content">
-                {#if Array.isArray(formattedPricing)}
-                    <!-- Token pricing: display each line separately -->
-                    {#each formattedPricing as pricingLine}
-                        <p class="pricing">{pricingLine}</p>
-                    {/each}
-                {:else}
-                    <!-- Other pricing types: single line -->
-                    <p class="pricing">{formattedPricing}</p>
-                {/if}
-            </div>
-        </div>
     {/if}
 </div>
 
@@ -352,6 +435,78 @@
         word-break: break-word;
     }
 
+    /* Models list (multi-model skill) — matches AiAskSkillSettings.svelte style */
+    .models-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        margin-left: 10px;
+    }
+    
+    .model-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    
+    .model-item:hover {
+        background: var(--color-grey-10);
+    }
+    
+    .model-icon {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .provider-logo {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        object-fit: contain;
+        background: var(--color-grey-10);
+        padding: 4px;
+    }
+    
+    .model-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .model-name {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--color-primary-start);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .model-provider {
+        font-size: 0.875rem;
+        color: var(--color-grey-60);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .model-chevron {
+        flex-shrink: 0;
+        font-size: 1.25rem;
+        color: var(--color-grey-40);
+        line-height: 1;
+    }
+    
     .error {
         padding: 3rem;
         text-align: center;
@@ -373,5 +528,13 @@
     .back-button:hover {
         background: var(--button-hover-background, #e0e0e0);
     }
+    
+    /* Dark mode */
+    :global(.dark) .model-item:hover {
+        background: var(--color-grey-15);
+    }
+    
+    :global(.dark) .provider-logo {
+        background: var(--color-grey-20);
+    }
 </style>
-

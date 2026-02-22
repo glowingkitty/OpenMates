@@ -1270,3 +1270,394 @@ plus_n_more:
   fr: "+ {count} de plus"
   it: "+ {count} in più"
   verified_by_human: []
+skills.models:
+  context: Section heading for available models list on a skill details page
+  en: Models
+  de: Modelle
+  zh: 模型
+  es: Modelos
+  fr: Modèles
+  pt: Modelos
+  ru: Модели
+  ja: モデル
+  ko: 모델
+  it: Modelli
+  tr: Modeller
+  vi: Mô hình
+  id: Model
+  pl: Modele
+  nl: Modellen
+  ar: النماذج
+  hi: मॉडल
+  th: โมเดล
+  cs: Modely
+  sv: Modeller
+  verified_by_human: []
+skills.model_detail.model_info:
+  context: Section heading for model information on the skill model detail page
+  en: Model Information
+  de: Modellinformationen
+  zh: 模型信息
+  es: Información del modelo
+  fr: Informations sur le modèle
+  pt: Informações do modelo
+  ru: Информация о модели
+  ja: モデル情報
+  ko: 모델 정보
+  it: Informazioni sul modello
+  tr: Model bilgisi
+  vi: Thông tin mô hình
+  id: Informasi model
+  pl: Informacje o modelu
+  nl: Modelinformatie
+  ar: معلومات النموذج
+  hi: मॉडल जानकारी
+  th: ข้อมูลโมเดล
+  cs: Informace o modelu
+  sv: Modellinformation
+  verified_by_human: []
+skills.model_detail.origin:
+  context: Label for model origin/provider country on skill model detail page
+  en: Origin
+  de: Herkunft
+  zh: 来源
+  es: Origen
+  fr: Origine
+  pt: Origem
+  ru: Происхождение
+  ja: 出所
+  ko: 출처
+  it: Origine
+  tr: Köken
+  vi: Nguồn gốc
+  id: Asal
+  pl: Pochodzenie
+  nl: Origine
+  ar: المصدر
+  hi: उत्पत्ति
+  th: แหล่งกำเนิด
+  cs: Původ
+  sv: Ursprung
+  verified_by_human: []
+skills.model_detail.release_date:
+  context: Label for model release date on skill model detail page
+  en: Released
+  de: Veröffentlicht
+  zh: 发布日期
+  es: Lanzado
+  fr: Publié
+  pt: Lançado
+  ru: Выпущено
+  ja: リリース日
+  ko: 출시일
+  it: Rilasciato
+  tr: Yayınlandı
+  vi: Ngày phát hành
+  id: Dirilis
+  pl: Wydano
+  nl: Uitgebracht
+  ar: تاريخ الإصدار
+  hi: जारी किया गया
+  th: วันที่เปิดตัว
+  cs: Vydáno
+  sv: Utgiven
+  verified_by_human: []
+skills.model_detail.tier:
+  context: Label for model pricing tier on skill model detail page
+  en: Tier
+  de: Stufe
+  zh: 级别
+  es: Nivel
+  fr: Niveau
+  pt: Nível
+  ru: Уровень
+  ja: ティア
+  ko: 등급
+  it: Livello
+  tr: Kademe
+  vi: Bậc
+  id: Tingkat
+  pl: Poziom
+  nl: Tier
+  ar: المستوى
+  hi: स्तर
+  th: ระดับ
+  cs: Úroveň
+  sv: Nivå
+  verified_by_human: []
+skills.model_detail.tier_economy:
+  context: Economy tier badge label on skill model detail page
+  en: Economy
+  de: Economy
+  zh: 经济
+  es: Económico
+  fr: Économique
+  pt: Econômico
+  ru: Эконом
+  ja: エコノミー
+  ko: 이코노미
+  it: Economy
+  tr: Ekonomi
+  vi: Kinh tế
+  id: Ekonomi
+  pl: Economy
+  nl: Economy
+  ar: اقتصادي
+  hi: इकोनॉमी
+  th: ประหยัด
+  cs: Economy
+  sv: Economy
+  verified_by_human: []
+skills.model_detail.tier_standard:
+  context: Standard tier badge label on skill model detail page
+  en: Standard
+  de: Standard
+  zh: 标准
+  es: Estándar
+  fr: Standard
+  pt: Padrão
+  ru: Стандарт
+  ja: スタンダード
+  ko: 스탠다드
+  it: Standard
+  tr: Standart
+  vi: Tiêu chuẩn
+  id: Standar
+  pl: Standard
+  nl: Standard
+  ar: قياسي
+  hi: स्टैंडर्ड
+  th: มาตรฐาน
+  cs: Standard
+  sv: Standard
+  verified_by_human: []
+skills.model_detail.tier_premium:
+  context: Premium tier badge label on skill model detail page
+  en: Premium
+  de: Premium
+  zh: 高级
+  es: Premium
+  fr: Premium
+  pt: Premium
+  ru: Премиум
+  ja: プレミアム
+  ko: 프리미엄
+  it: Premium
+  tr: Premium
+  vi: Cao cấp
+  id: Premium
+  pl: Premium
+  nl: Premium
+  ar: بريميوم
+  hi: प्रीमियम
+  th: พรีเมียม
+  cs: Premium
+  sv: Premium
+  verified_by_human: []
+skills.model_detail.input_types:
+  context: Label for supported input types on skill model detail page
+  en: Accepts
+  de: Akzeptiert
+  zh: 接受
+  es: Acepta
+  fr: Accepte
+  pt: Aceita
+  ru: Принимает
+  ja: 受け付けるもの
+  ko: 입력 유형
+  it: Accetta
+  tr: Kabul eder
+  vi: Chấp nhận
+  id: Menerima
+  pl: Akceptuje
+  nl: Accepteert
+  ar: يقبل
+  hi: स्वीकार करता है
+  th: ยอมรับ
+  cs: Přijímá
+  sv: Accepterar
+  verified_by_human: []
+skills.model_detail.output_types:
+  context: Label for supported output types on skill model detail page
+  en: Outputs
+  de: Ausgaben
+  zh: 输出
+  es: Salidas
+  fr: Sorties
+  pt: Saídas
+  ru: Выводит
+  ja: 出力
+  ko: 출력 유형
+  it: Output
+  tr: Çıktılar
+  vi: Xuất ra
+  id: Keluaran
+  pl: Wyjścia
+  nl: Uitvoer
+  ar: يخرج
+  hi: आउटपुट
+  th: ส่งออก
+  cs: Výstupy
+  sv: Utdata
+  verified_by_human: []
+skills.model_detail.pricing:
+  context: Section heading for pricing on skill model detail page
+  en: Pricing
+  de: Preise
+  zh: 定价
+  es: Precios
+  fr: Tarification
+  pt: Preços
+  ru: Цены
+  ja: 価格
+  ko: 가격
+  it: Prezzi
+  tr: Fiyatlandırma
+  vi: Định giá
+  id: Harga
+  pl: Ceny
+  nl: Prijzen
+  ar: التسعير
+  hi: मूल्य निर्धारण
+  th: ราคา
+  cs: Ceny
+  sv: Prissättning
+  verified_by_human: []
+skills.model_detail.provider:
+  context: Section heading for provider/server info on skill model detail page
+  en: Provider
+  de: Anbieter
+  zh: 提供商
+  es: Proveedor
+  fr: Fournisseur
+  pt: Provedor
+  ru: Провайдер
+  ja: プロバイダー
+  ko: 제공자
+  it: Fornitore
+  tr: Sağlayıcı
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawca
+  nl: Provider
+  ar: المزود
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatel
+  sv: Leverantör
+  verified_by_human: []
+skills.model_detail.model_not_found:
+  context: Error message when skill model is not found on detail page
+  en: Model not found.
+  de: Modell nicht gefunden.
+  zh: 未找到模型。
+  es: Modelo no encontrado.
+  fr: Modèle introuvable.
+  pt: Modelo não encontrado.
+  ru: Модель не найдена.
+  ja: モデルが見つかりません。
+  ko: 모델을 찾을 수 없습니다.
+  it: Modello non trovato.
+  tr: Model bulunamadı.
+  vi: Không tìm thấy mô hình.
+  id: Model tidak ditemukan.
+  pl: Nie znaleziono modelu.
+  nl: Model niet gevonden.
+  ar: لم يتم العثور على النموذج.
+  hi: मॉडल नहीं मिला।
+  th: ไม่พบโมเดล
+  cs: Model nenalezen.
+  sv: Modell hittades inte.
+  verified_by_human: []
+skills.model_detail.per_image:
+  context: Pricing unit label showing cost per generated image
+  en: per image
+  de: pro Bild
+  zh: 每张图片
+  es: por imagen
+  fr: par image
+  pt: por imagem
+  ru: за изображение
+  ja: 画像1枚あたり
+  ko: 이미지당
+  it: per immagine
+  tr: görsel başına
+  vi: mỗi ảnh
+  id: per gambar
+  pl: za obraz
+  nl: per afbeelding
+  ar: لكل صورة
+  hi: प्रति छवि
+  th: ต่อภาพ
+  cs: za obrázek
+  sv: per bild
+  verified_by_human: []
+skills.model_detail.per_megapixel:
+  context: Pricing unit label showing cost per megapixel
+  en: per megapixel
+  de: pro Megapixel
+  zh: 每兆像素
+  es: por megapíxel
+  fr: par mégapixel
+  pt: por megapixel
+  ru: за мегапиксель
+  ja: メガピクセルあたり
+  ko: 메가픽셀당
+  it: per megapixel
+  tr: megapiksel başına
+  vi: mỗi megapixel
+  id: per megapiksel
+  pl: za megapiksel
+  nl: per megapixel
+  ar: لكل ميغابكسل
+  hi: प्रति मेगापिक्सेल
+  th: ต่อเมกะพิกเซล
+  cs: za megapixel
+  sv: per megapixel
+  verified_by_human: []
+skills.model_detail.per_minute:
+  context: Pricing unit label showing cost per minute of audio
+  en: per minute
+  de: pro Minute
+  zh: 每分钟
+  es: por minuto
+  fr: par minute
+  pt: por minuto
+  ru: за минуту
+  ja: 1分あたり
+  ko: 분당
+  it: per minuto
+  tr: dakika başına
+  vi: mỗi phút
+  id: per menit
+  pl: za minutę
+  nl: per minuut
+  ar: في الدقيقة
+  hi: प्रति मिनट
+  th: ต่อนาที
+  cs: za minutu
+  sv: per minut
+  verified_by_human: []
+skills.model_detail.servers:
+  context: Label for the server/infrastructure region on model detail page
+  en: Servers
+  de: Server
+  zh: 服务器
+  es: Servidores
+  fr: Serveurs
+  pt: Servidores
+  ru: Серверы
+  ja: サーバー
+  ko: 서버
+  it: Server
+  tr: Sunucular
+  vi: Máy chủ
+  id: Server
+  pl: Serwery
+  nl: Servers
+  ar: الخوادم
+  hi: सर्वर
+  th: เซิร์ฟเวอร์
+  cs: Servery
+  sv: Servrar
+  verified_by_human: []
