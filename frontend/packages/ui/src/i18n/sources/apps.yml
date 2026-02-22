@@ -1702,3 +1702,49 @@ pdf.description:
   cs: "Nahrajte PDF a \u010dt\u011bte nebo prohledejte jejich obsah."
   sv: "Ladda upp PDF och l\u00e4s eller s\u00f6k i inneh\u00e5llet."
   verified_by_human: [en, de]
+shopping:
+  context: App name for the Shopping app
+  en: Shopping
+  de: Einkaufen
+  zh: 购物
+  es: Compras
+  fr: Courses
+  pt: Compras
+  ru: Покупки
+  ja: ショッピング
+  ko: 쇼핑
+  it: Spesa
+  tr: Alışveriş
+  vi: Mua sắm
+  id: Belanja
+  pl: Zakupy
+  nl: Boodschappen
+  ar: التسوق
+  hi: खरीदारी
+  th: ช้อปปิ้ง
+  cs: Nakupování
+  sv: Shopping
+  verified_by_human: [en, de]
+shopping.description:
+  context: Description for the Shopping app
+  en: Search supermarket products and compare prices.
+  de: Supermarktprodukte suchen und Preise vergleichen.
+  zh: 搜索超市产品并比较价格。
+  es: Busca productos en el supermercado y compara precios.
+  fr: Cherchez des produits en supermarché et comparez les prix.
+  pt: Pesquise produtos no supermercado e compare preços.
+  ru: Ищите товары в супермаркете и сравнивайте цены.
+  ja: スーパーマーケット商品を検索して価格を比較。
+  ko: 슈퍼마켓 제품 검색 및 가격 비교.
+  it: Cerca prodotti al supermercato e confronta i prezzi.
+  tr: Süpermarket ürünlerini arayın ve fiyatları karşılaştırın.
+  vi: Tìm kiếm sản phẩm siêu thị và so sánh giá.
+  id: Cari produk supermarket dan bandingkan harga.
+  pl: Szukaj produktów w supermarkecie i porównuj ceny.
+  nl: Zoek supermarktproducten en vergelijk prijzen.
+  ar: ابحث عن منتجات السوبر ماركت وقارن الأسعار.
+  hi: सुपरमार्केट उत्पाद खोजें और कीमतें तुलना करें।
+  th: ค้นหาสินค้าในซุปเปอร์มาร์เก็ตและเปรียบเทียบราคา
+  cs: Hledejte produkty v supermarketu a porovnávejte ceny.
+  sv: Sök supermarketprodukter och jämför priser.
+  verified_by_human: [en, de]

@@ -1,0 +1,92 @@
+preferred_supermarkets:
+  context: Settings/memory name for preferred supermarkets in Shopping app
+  en: Preferred Supermarkets
+  de: Bevorzugte Supermärkte
+  zh: 首选超市
+  es: Supermercados preferidos
+  fr: Supermarchés préférés
+  pt: Supermercados preferidos
+  ru: Предпочитаемые супермаркеты
+  ja: 好みのスーパーマーケット
+  ko: 선호 슈퍼마켓
+  it: Supermercati preferiti
+  tr: Tercih edilen süpermarketler
+  vi: Siêu thị ưa thích
+  id: Supermarket yang disukai
+  pl: Preferowane supermarkety
+  nl: Favoriete supermarkten
+  ar: محلات السوبر ماركت المفضلة
+  hi: पसंदीदा सुपरमार्केट
+  th: ซุปเปอร์มาร์เก็ตที่ชอบ
+  cs: Preferované supermarkety
+  sv: Föredragna supermarkets
+  verified_by_human: [en, de]
+preferred_supermarkets.description:
+  context: Description for preferred supermarkets settings/memory in Shopping app
+  en: Your preferred supermarkets for product searches.
+  de: Deine bevorzugten Supermärkte für Produktsuchen.
+  zh: 您偏好的超市以便产品搜索。
+  es: Tus supermercados preferidos para buscar productos.
+  fr: Vos supermarchés préférés pour rechercher des produits.
+  pt: Seus supermercados preferidos para pesquisas de produtos.
+  ru: Ваши предпочитаемые супермаркеты для поиска товаров.
+  ja: 商品検索に使用するお気に入りのスーパーマーケット。
+  ko: 제품 검색을 위한 선호 슈퍼마켓.
+  it: I tuoi supermercati preferiti per la ricerca di prodotti.
+  tr: Ürün aramaları için tercih ettiğiniz süpermarketler.
+  vi: Siêu thị ưa thích để tìm kiếm sản phẩm.
+  id: Supermarket yang Anda sukai untuk pencarian produk.
+  pl: Twoje preferowane supermarkety do wyszukiwania produktów.
+  nl: Je favoriete supermarkten voor productzoekingen.
+  ar: محلات السوبر ماركت المفضلة لديك لعمليات البحث عن المنتجات.
+  hi: उत्पाद खोजों के लिए आपके पसंदीदा सुपरमार्केट।
+  th: ซุปเปอร์มาร์เก็ตที่ชอบสำหรับการค้นหาสินค้า
+  cs: Vaše preferované supermarkety pro vyhledávání produktů.
+  sv: Dina föredragna supermarkets för produktsökningar.
+  verified_by_human: [en, de]
+dietary_preferences:
+  context: Settings/memory name for dietary preferences in Shopping app
+  en: Dietary Preferences
+  de: Ernährungsvorlieben
+  zh: 饮食偏好
+  es: Preferencias dietéticas
+  fr: Préférences alimentaires
+  pt: Preferências alimentares
+  ru: Диетические предпочтения
+  ja: 食事の好み
+  ko: 식이 선호도
+  it: Preferenze alimentari
+  tr: Diyet tercihleri
+  vi: Sở thích ăn uống
+  id: Preferensi diet
+  pl: Preferencje żywieniowe
+  nl: Dieetvoorkeuren
+  ar: التفضيلات الغذائية
+  hi: आहार संबंधी प्राथमिकताएं
+  th: ความชอบด้านอาหาร
+  cs: Stravovací preference
+  sv: Kostpreferenser
+  verified_by_human: [en, de]
+dietary_preferences.description:
+  context: Description for dietary preferences settings/memory in Shopping app
+  en: Your dietary needs (vegan, vegetarian, gluten-free, etc.).
+  de: Deine Ernährungsbedürfnisse (vegan, vegetarisch, glutenfrei etc.).
+  zh: 您的饮食需求（纯素、素食、无麸质等）。
+  es: Tus necesidades dietéticas (vegana, vegetariana, sin gluten, etc.).
+  fr: Vos besoins alimentaires (vegan, végétarien, sans gluten, etc.).
+  pt: Suas necessidades alimentares (vegano, vegetariano, sem glúten, etc.).
+  ru: Ваши диетические потребности (веган, вегетарианец, без глютена и т.д.).
+  ja: 食事の必要条件（ビーガン、ベジタリアン、グルテンフリーなど）。
+  ko: 식이 요건 (비건, 채식주의자, 글루텐 프리 등).
+  it: Le tue esigenze alimentari (vegano, vegetariano, senza glutine, ecc.).
+  tr: Diyet ihtiyaçlarınız (vegan, vejetaryen, glutensiz vb.).
+  vi: Nhu cầu ăn uống của bạn (thuần chay, chay, không gluten, v.v.).
+  id: Kebutuhan diet Anda (vegan, vegetarian, bebas gluten, dll.).
+  pl: Twoje potrzeby żywieniowe (wegańskie, wegetariańskie, bezglutenowe itp.).
+  nl: Jouw dieetbehoeften (veganistisch, vegetarisch, glutenvrij, etc.).
+  ar: احتياجاتك الغذائية (نباتي، خالٍ من الغلوتين، إلخ).
+  hi: आपकी आहार संबंधी जरूरतें (वीगन, शाकाहारी, ग्लूटेन-मुक्त आदि)।
+  th: ความต้องการด้านอาหารของคุณ (วีแกน, มังสวิรัติ, ปราศจากกลูเตน ฯลฯ)
+  cs: Vaše stravovací potřeby (vegan, vegetarián, bezlepkový atd.).
+  sv: Dina kostbehov (vegan, vegetarian, glutenfri, etc.).
+  verified_by_human: [en, de]

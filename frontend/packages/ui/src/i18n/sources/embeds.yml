@@ -3229,3 +3229,164 @@ health.no_appointments_found:
   cs: Žádné termíny nenalezeny.
   sv: Inga bokningar hittades.
   verified_by_human: []
+shopping.product:
+  context: Singular label for a shopping product result
+  en: product
+  de: Produkt
+  zh: 产品
+  es: producto
+  fr: produit
+  pt: produto
+  ru: продукт
+  ja: 商品
+  ko: 제품
+  it: prodotto
+  tr: ürün
+  vi: sản phẩm
+  id: produk
+  pl: produkt
+  nl: product
+  ar: منتج
+  hi: उत्पाद
+  th: สินค้า
+  cs: produkt
+  sv: produkt
+  verified_by_human: [en, de]
+shopping.products:
+  context: Plural label for shopping product results
+  en: products
+  de: Produkte
+  zh: 产品
+  es: productos
+  fr: produits
+  pt: produtos
+  ru: продукты
+  ja: 商品
+  ko: 제품
+  it: prodotti
+  tr: ürünler
+  vi: sản phẩm
+  id: produk
+  pl: produkty
+  nl: producten
+  ar: منتجات
+  hi: उत्पाद
+  th: สินค้า
+  cs: produkty
+  sv: produkter
+  verified_by_human: [en, de]
+shopping.sale:
+  context: Badge label for products on sale / reduced price
+  en: Sale
+  de: Angebot
+  zh: 特价
+  es: Oferta
+  fr: Soldes
+  pt: Promoção
+  ru: Скидка
+  ja: セール
+  ko: 세일
+  it: Offerta
+  tr: İndirim
+  vi: Giảm giá
+  id: Diskon
+  pl: Przecena
+  nl: Aanbieding
+  ar: خصم
+  hi: बिक्री
+  th: ลดราคา
+  cs: Sleva
+  sv: Rea
+  verified_by_human: [en, de]
+shopping.new:
+  context: Badge label for newly listed products
+  en: New
+  de: Neu
+  zh: 新品
+  es: Nuevo
+  fr: Nouveau
+  pt: Novo
+  ru: Новинка
+  ja: 新着
+  ko: 신상품
+  it: Nuovo
+  tr: Yeni
+  vi: Mới
+  id: Baru
+  pl: Nowy
+  nl: Nieuw
+  ar: جديد
+  hi: नया
+  th: ใหม่
+  cs: Nový
+  sv: Ny
+  verified_by_human: [en, de]
+shopping.price_unavailable:
+  context: Text shown when product price is not available
+  en: Price unavailable
+  de: Preis nicht verfügbar
+  zh: 价格不可用
+  es: Precio no disponible
+  fr: Prix indisponible
+  pt: Preço indisponível
+  ru: Цена недоступна
+  ja: 価格不明
+  ko: 가격 없음
+  it: Prezzo non disponibile
+  tr: Fiyat mevcut değil
+  vi: Không có giá
+  id: Harga tidak tersedia
+  pl: Cena niedostępna
+  nl: Prijs niet beschikbaar
+  ar: السعر غير متاح
+  hi: कीमत उपलब्ध नहीं
+  th: ไม่มีราคา
+  cs: Cena není dostupná
+  sv: Pris ej tillgängligt
+  verified_by_human: [en, de]
+shopping.no_results:
+  context: Message when no products were found
+  en: No products found.
+  de: Keine Produkte gefunden.
+  zh: 未找到产品。
+  es: No se encontraron productos.
+  fr: Aucun produit trouvé.
+  pt: Nenhum produto encontrado.
+  ru: Продукты не найдены.
+  ja: 商品が見つかりません。
+  ko: 제품을 찾을 수 없습니다.
+  it: Nessun prodotto trovato.
+  tr: Ürün bulunamadı.
+  vi: Không tìm thấy sản phẩm.
+  id: Tidak ada produk ditemukan.
+  pl: Nie znaleziono produktów.
+  nl: Geen producten gevonden.
+  ar: لم يتم العثور على منتجات.
+  hi: कोई उत्पाद नहीं मिला।
+  th: ไม่พบสินค้า
+  cs: Žádné produkty nenalezeny.
+  sv: Inga produkter hittades.
+  verified_by_human: [en, de]
+shopping.search_products:
+  context: Shopping search products skill label shown in BasicInfosBar
+  en: Search Products
+  de: Produkte suchen
+  zh: 搜索产品
+  es: Buscar productos
+  fr: Rechercher des produits
+  pt: Pesquisar produtos
+  ru: Поиск продуктов
+  ja: 商品を検索
+  ko: 제품 검색
+  it: Cerca prodotti
+  tr: Ürün ara
+  vi: Tìm kiếm sản phẩm
+  id: Cari produk
+  pl: Szukaj produktów
+  nl: Producten zoeken
+  ar: البحث عن المنتجات
+  hi: उत्पाद खोजें
+  th: ค้นหาสินค้า
+  cs: Hledat produkty
+  sv: Sök produkter
+  verified_by_human: [en, de]

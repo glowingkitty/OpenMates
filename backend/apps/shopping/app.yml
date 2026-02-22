@@ -1,0 +1,143 @@
+# Shopping app — REWE online supermarket product search
+#
+# Searches the REWE online shop for products with live prices.
+# Uses a Playwright-harvested cookie pool stored in Vault to authenticate
+# requests to the REWE API, which requires an active session for pricing.
+# All API calls are routed through a residential proxy because the Cloudflare
+# cf_clearance cookie is IP-bound to the session that harvested it.
+#
+# Provider: REWE (shop.rewe.de)
+# Pricing data: market-specific, scoped to Berlin (PLZ 10115) by default
+
+name_translation_key: shopping
+description_translation_key: shopping.description
+icon_image: |
+  shopping.svg
+category: lifestyle
+last_updated: "2026-02-22"
+settings_and_memories:
+  # Preferred supermarkets: stores the user prefers to shop at
+  - id: preferred_supermarkets
+    name_translation_key: shopping.preferred_supermarkets
+    description_translation_key: shopping.preferred_supermarkets.description
+    type: list
+    stage: production
+    example_translation_keys:
+      - "shopping.preferred_supermarkets.example_1"
+      - "shopping.preferred_supermarkets.example_2"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Supermarket name (e.g., REWE, Aldi, Lidl)
+          is_title: true
+      required:
+        - name
+
+  # Dietary preferences: dietary restrictions and preferences
+  - id: dietary_preferences
+    name_translation_key: shopping.dietary_preferences
+    description_translation_key: shopping.dietary_preferences.description
+    type: list
+    stage: production
+    example_translation_keys:
+      - "shopping.dietary_preferences.example_1"
+      - "shopping.dietary_preferences.example_2"
+      - "shopping.dietary_preferences.example_3"
+    schema:
+      type: object
+      properties:
+        preference:
+          type: string
+          description: Dietary preference or restriction
+          enum:
+            - organic
+            - vegan
+            - vegetarian
+            - dairy_free
+            - gluten_free
+            - halal
+            - kosher
+          is_title: true
+      required:
+        - preference
+
+skills:
+  # -----------------------------------------------------------------------
+  # Search Products — search REWE online shop for products with live prices
+  # -----------------------------------------------------------------------
+  - id: search_products
+    name_translation_key: app_skills.shopping.search_products
+    description_translation_key: app_skills.shopping.search_products.description
+    preprocessor_hint: >
+      Search the REWE online supermarket for products with real-time prices.
+      Returns products with current prices, dietary tags, and purchase links.
+      Costs 10 credits per search. Best for grocery price comparisons and shopping lists.
+    stage: production
+    class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
+    pricing:
+      per_unit:
+        credits: 10
+    providers:
+      - REWE
+    exclude_fields_for_llm:
+      - type
+      - product_id
+      - image_url
+      - category_ids
+      - order_limit
+      - search_rank
+    suggestions_follow_up_requests:
+      - Filter for organic products only
+      - Show the cheapest option
+      - Find similar products at a lower price
+      - Add to shopping list
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of product search requests. Each request searches for
+            products matching a query on the REWE online shop.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: >
+                  Search query in German or English, e.g. "milch", "bio joghurt",
+                  "pasta barilla", "cola", "reiniger". REWE is a German supermarket
+                  so German terms often yield better results.
+              max_results:
+                type: integer
+                description: Maximum number of products to return (1-20, default 10).
+                default: 10
+              sort:
+                type: string
+                description: >
+                  Sort order for results.
+                  "relevance" — best match first (default).
+                  "price_asc" — cheapest first.
+                  "price_desc" — most expensive first.
+                  "new" — newest products first.
+                enum:
+                  - relevance
+                  - price_asc
+                  - price_desc
+                  - new
+                default: relevance
+              service_type:
+                type: string
+                description: >
+                  Fulfilment type. "DELIVERY" for home delivery (default).
+                  "CLICK_AND_COLLECT" for store pickup.
+                enum:
+                  - DELIVERY
+                  - CLICK_AND_COLLECT
+                default: DELIVERY
+            required:
+              - query
+      required:
+        - requests
