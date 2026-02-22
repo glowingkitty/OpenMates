@@ -44,6 +44,12 @@ class UploadsS3Service:
         self.region_name: Optional[str] = None
         self.endpoint_url: Optional[str] = None
         self.base_domain: Optional[str] = None
+        # Per-environment bucket names — the upload service is shared across
+        # dev and prod, so we initialise BOTH buckets at startup and select
+        # the correct one per-request via get_bucket_for_env().
+        self.bucket_name_prod: str = "openmates-chatfiles"
+        self.bucket_name_dev: str = "dev-openmates-chatfiles"
+        # Legacy: kept for callers that don't pass an env (defaults to prod for safety)
         self.bucket_name: Optional[str] = None
 
     def _load_vault_token(self) -> str:
@@ -94,11 +100,11 @@ class UploadsS3Service:
         from urllib.parse import urlparse
         self.base_domain = urlparse(self.endpoint_url).netloc
 
-        # Resolve the chatfiles bucket name — must match core API's s3/config.py:
-        #   production  → "openmates-chatfiles"
-        #   anything else → "dev-openmates-chatfiles"
-        env_suffix = os.environ.get("SERVER_ENVIRONMENT", "development")
-        self.bucket_name = "openmates-chatfiles" if env_suffix == "production" else "dev-openmates-chatfiles"
+        # The upload service is shared across dev and prod environments.
+        # Both bucket names are known at startup (no env-based selection here).
+        # Per-request bucket selection uses get_bucket_for_env(target_env).
+        # Legacy self.bucket_name defaults to prod for backward compatibility.
+        self.bucket_name = self.bucket_name_prod
 
         config = Config(
             signature_version="s3v4",
@@ -122,11 +128,30 @@ class UploadsS3Service:
             f"region: {self.region_name}, endpoint: {self.endpoint_url}"
         )
 
+    def get_bucket_for_env(self, target_env: str = "prod") -> str:
+        """
+        Return the correct S3 bucket name for the given environment.
+
+        The upload service is shared across dev and prod. Caddy injects
+        X-Target-Env ("dev" or "prod") per request, which flows through to
+        this method so uploads go to the correct bucket.
+
+        Args:
+            target_env: "dev" or "prod" (from X-Target-Env header).
+
+        Returns:
+            The bucket name for the specified environment.
+        """
+        if target_env == "dev":
+            return self.bucket_name_dev
+        return self.bucket_name_prod
+
     async def upload_file(
         self,
         s3_key: str,
         content: bytes,
         content_type: str = "application/octet-stream",
+        target_env: str = "prod",
     ) -> str:
         """
         Upload encrypted file bytes to S3.
@@ -136,6 +161,7 @@ class UploadsS3Service:
             content: AES-GCM encrypted file bytes to store.
             content_type: MIME type for S3 metadata (informational only; all uploads
                           are stored as application/octet-stream since content is encrypted).
+            target_env: "dev" or "prod" — selects the correct S3 bucket.
 
         Returns:
             The S3 object key (same as s3_key input) for storage in embed metadata.
@@ -146,11 +172,12 @@ class UploadsS3Service:
         if self.client is None:
             raise RuntimeError("[S3Upload] S3 client not initialised — call initialize() first")
 
+        bucket = self.get_bucket_for_env(target_env)
         import asyncio
 
         def _put() -> None:
             self.client.put_object(
-                Bucket=self.bucket_name,
+                Bucket=bucket,
                 Key=s3_key,
                 Body=content,
                 ContentType="application/octet-stream",  # Always octet-stream since encrypted
@@ -159,22 +186,26 @@ class UploadsS3Service:
         try:
             await asyncio.to_thread(_put)
             logger.info(
-                f"[S3Upload] Uploaded {len(content)} bytes → s3://{self.bucket_name}/{s3_key}"
+                f"[S3Upload] Uploaded {len(content)} bytes → s3://{bucket}/{s3_key}"
             )
             return s3_key
         except ClientError as e:
             logger.error(
-                f"[S3Upload] Upload failed for key {s3_key}: {e}", exc_info=True
+                f"[S3Upload] Upload failed for key {s3_key} (bucket={bucket}): {e}", exc_info=True
             )
             raise RuntimeError(f"S3 upload failed: {e}") from e
 
-    async def check_file_exists(self, s3_key: str) -> bool:
+    async def check_file_exists(self, s3_key: str, target_env: str = "prod") -> bool:
         """
         Check whether an object exists in the S3 bucket without downloading it.
 
         Used to validate deduplication hits — a stored record may reference S3
         objects that were never actually uploaded (e.g. due to a prior bucket
         misconfiguration). If the head_object call returns 404 the record is stale.
+
+        Args:
+            s3_key: The S3 object key to check.
+            target_env: "dev" or "prod" — selects the correct S3 bucket.
 
         Returns True if the object exists, False otherwise.
         Does NOT raise — any error (network, permissions) is treated as "not found"
@@ -183,11 +214,12 @@ class UploadsS3Service:
         if self.client is None:
             return False
 
+        bucket = self.get_bucket_for_env(target_env)
         import asyncio
 
         def _head() -> bool:
             try:
-                self.client.head_object(Bucket=self.bucket_name, Key=s3_key)
+                self.client.head_object(Bucket=bucket, Key=s3_key)
                 return True
             except ClientError as e:
                 error_code = e.response.get("Error", {}).get("Code", "")
@@ -203,6 +235,12 @@ class UploadsS3Service:
             logger.warning(f"[S3Upload] check_file_exists failed for {s3_key}: {e}")
             return False
 
-    def get_base_url(self) -> str:
-        """Return the base URL for constructing full file URLs (for embed content)."""
-        return f"https://{self.bucket_name}.{self.base_domain}"
+    def get_base_url(self, target_env: str = "prod") -> str:
+        """
+        Return the base URL for constructing full file URLs (for embed content).
+
+        Args:
+            target_env: "dev" or "prod" — selects the correct S3 bucket.
+        """
+        bucket = self.get_bucket_for_env(target_env)
+        return f"https://{bucket}.{self.base_domain}"

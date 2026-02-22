@@ -348,6 +348,11 @@ async def upload_file(
     # Core API connection details — selected based on X-Target-Env header set by Caddy
     core_api_url, internal_token = _get_core_api_credentials(request)
 
+    # Determine which S3 bucket to use (dev vs prod) based on the same header.
+    # This ensures the s3_base_url in the response points to the correct bucket
+    # for the requesting environment (prevents CORS failures on dev).
+    target_env = request.headers.get("X-Target-Env", "prod").lower()
+
     upload_start = time.monotonic()
 
     # --- 1. Read file bytes ---
@@ -433,7 +438,7 @@ async def upload_file(
         )
         s3_service = request.app.state.s3
         logger.info(f"{log_prefix} [5/13] Duplicate found — verifying S3 object exists: {sample_key!r}")
-        s3_ok = await s3_service.check_file_exists(sample_key) if sample_key else False
+        s3_ok = await s3_service.check_file_exists(sample_key, target_env=target_env) if sample_key else False
 
         if not s3_ok:
             logger.warning(
@@ -448,7 +453,12 @@ async def upload_file(
                 f"Returning cached embed_id={existing_record.get('embed_id')} "
                 f"({elapsed*1000:.0f} ms total)"
             )
-            # Reconstruct response from stored record
+            # Reconstruct response from stored record.
+            # Always recompute s3_base_url from the current target_env rather
+            # than trusting the stored value — old records may have the wrong
+            # bucket URL due to the shared-service bucket bug.
+            s3_service_for_dedup = request.app.state.s3
+            dedup_s3_base_url = s3_service_for_dedup.get_base_url(target_env=target_env)
             return UploadFileResponse(
                 embed_id=existing_record["embed_id"],
                 filename=existing_record.get("original_filename", filename),
@@ -458,7 +468,7 @@ async def upload_file(
                     k: FileVariantMetadata(**v)
                     for k, v in files_data.items()
                 },
-                s3_base_url=existing_record["s3_base_url"],
+                s3_base_url=dedup_s3_base_url,
                 aes_key=existing_record["aes_key"],
                 aes_nonce=existing_record["aes_nonce"],
                 vault_wrapped_aes_key=existing_record["vault_wrapped_aes_key"],
@@ -511,6 +521,7 @@ async def upload_file(
             core_api_url=core_api_url,
             internal_token=internal_token,
             log_prefix=log_prefix,
+            target_env=target_env,
         )
 
     # ===========================================================================
@@ -626,14 +637,17 @@ async def upload_file(
         await s3_service.upload_file(
             s3_key=original_s3_key,
             content=encrypted_original,
+            target_env=target_env,
         )
         await s3_service.upload_file(
             s3_key=full_s3_key,
             content=encrypted_full,
+            target_env=target_env,
         )
         await s3_service.upload_file(
             s3_key=preview_s3_key,
             content=encrypted_preview,
+            target_env=target_env,
         )
         s3_elapsed = (time.monotonic() - s3_start) * 1000
         logger.info(
@@ -644,7 +658,7 @@ async def upload_file(
         logger.error(f"{log_prefix} [11/13] S3 upload FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="File storage service unavailable")
 
-    s3_base_url = s3_service.get_base_url()
+    s3_base_url = s3_service.get_base_url(target_env=target_env)
 
     # --- 12. Build files metadata dict (matches generate_task.py structure) ---
     files_metadata = {
@@ -734,6 +748,7 @@ async def _handle_pdf_upload(
     core_api_url: str,
     internal_token: str,
     log_prefix: str,
+    target_env: str = "prod",
 ) -> UploadFileResponse:
     """
     Handle the PDF-specific upload pipeline:
@@ -884,7 +899,7 @@ async def _handle_pdf_upload(
     )
     s3_start = time.monotonic()
     try:
-        await s3_service.upload_file(s3_key=pdf_s3_key, content=encrypted_pdf)
+        await s3_service.upload_file(s3_key=pdf_s3_key, content=encrypted_pdf, target_env=target_env)
         s3_elapsed = (time.monotonic() - s3_start) * 1000
         logger.info(
             f"{log_prefix} [PDF-5/7] S3 upload: OK ({s3_elapsed:.0f} ms) — "
@@ -894,7 +909,7 @@ async def _handle_pdf_upload(
         logger.error(f"{log_prefix} [PDF-5/7] S3 upload FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="File storage service unavailable")
 
-    s3_base_url = s3_service.get_base_url()
+    s3_base_url = s3_service.get_base_url(target_env=target_env)
 
     # --- PDF 6. Build files metadata and store upload record ---
     files_metadata = {
