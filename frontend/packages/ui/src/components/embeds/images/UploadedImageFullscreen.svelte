@@ -327,6 +327,12 @@
           <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" onclick={handleImageClick}>
             <img src={fullImageUrl} alt={filename} class="full-image" />
           </a>
+          {#if files}
+            <!-- AI badge: indicates this image was uploaded and is accessible to the AI -->
+            <div class="ai-badge" aria-hidden="true">
+              <span class="ai-badge-icon"></span>
+            </div>
+          {/if}
         </div>
       {:else if previewImageUrl && isLoadingImage}
         <!-- Progressive: show blurred preview while full-res loads -->
@@ -386,6 +392,7 @@
      ========================================================================== */
 
   .image-wrapper {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -393,6 +400,38 @@
     height: 100%;
     max-width: 100%;
     max-height: 100%;
+  }
+
+  /* AI badge: top-right corner indicator that the AI has access to this image */
+  .ai-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  .ai-badge-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+    background: #ffffff;
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
   }
 
   .image-link {

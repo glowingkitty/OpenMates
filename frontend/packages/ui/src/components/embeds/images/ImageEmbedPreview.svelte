@@ -113,6 +113,11 @@
   let isLoadingImage = $state(false);
   let imageError = $state<string | undefined>(undefined);
 
+  /** Max number of times to attempt loading the preview image before giving up. */
+  const MAX_IMAGE_LOAD_RETRIES = 3;
+  /** How many times we have attempted to load the preview image. */
+  let loadRetryCount = $state(0);
+
   /**
    * When the images.view skill is executing, show "Viewing…" status on this embed.
    * Set to true when a skill_execution_status event with app_id="images", skill_id="view",
@@ -140,6 +145,14 @@
   }
 
   skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
+
+  /**
+   * Show the AI badge icon in the top-right corner of the image when the image
+   * has been uploaded and processed by the AI pipeline (i.e., S3 storage is
+   * present). This signals to the user that the AI can see and access this image.
+   * Uses statusProp directly (status is derived later and not yet in scope here).
+   */
+  let showAiBadge = $derived(!!s3Files && statusProp === 'finished');
 
   // Portrait detection: detected after the image loads naturally.
   // For portrait images (height > width) we expand the embed card height so the
@@ -345,6 +358,15 @@
     // Don't reload if we already have the image URL
     if (imageUrl) return;
 
+    // Prevent infinite retry loops — give up after MAX_IMAGE_LOAD_RETRIES attempts
+    if (loadRetryCount >= MAX_IMAGE_LOAD_RETRIES) {
+      console.warn(
+        `[ImageEmbedPreview] Giving up after ${MAX_IMAGE_LOAD_RETRIES} failed attempts:`,
+        previewS3Key,
+      );
+      return;
+    }
+
     // Check shared cache first — instant hit if another component already decrypted this
     const cachedUrl = getCachedImageUrl(previewS3Key);
     if (cachedUrl) {
@@ -355,11 +377,15 @@
       return;
     }
 
+    loadRetryCount += 1;
     isLoadingImage = true;
     imageError = undefined;
 
     try {
-      console.debug('[ImageEmbedPreview] Loading preview image from S3:', previewS3Key);
+      console.debug(
+        `[ImageEmbedPreview] Loading preview image from S3 (attempt ${loadRetryCount}/${MAX_IMAGE_LOAD_RETRIES}):`,
+        previewS3Key,
+      );
       const blob = await fetchAndDecryptImage(s3BaseUrl, previewS3Key, aesKey, aesNonce);
       imageUrl = URL.createObjectURL(blob);
       if (retainedS3Key && retainedS3Key !== previewS3Key) releaseCachedImage(retainedS3Key);
@@ -370,7 +396,10 @@
       const errorDetail = err instanceof Error
         ? `${err.name}: ${err.message || '(no message)'}`
         : String(err);
-      console.error('[ImageEmbedPreview] Failed to load preview image:', errorDetail);
+      console.error(
+        `[ImageEmbedPreview] Failed to load preview image (attempt ${loadRetryCount}/${MAX_IMAGE_LOAD_RETRIES}):`,
+        errorDetail,
+      );
       imageError = err instanceof Error
         ? (err.message || err.name || 'Failed to decrypt image')
         : 'Failed to load image';
@@ -381,8 +410,20 @@
 
   // Load image from S3 when in read-only context (no local blob URL).
   // Triggered lazily once the embed scrolls into view.
+  // Guards: don't retry if already failed permanently (imageError set + retries exhausted).
   $effect(() => {
-    if (!src && isInView && status === 'finished' && previewS3Key && s3BaseUrl && aesKey && aesNonce && !imageUrl && !isLoadingImage) {
+    if (
+      !src &&
+      isInView &&
+      status === 'finished' &&
+      previewS3Key &&
+      s3BaseUrl &&
+      aesKey &&
+      aesNonce &&
+      !imageUrl &&
+      !isLoadingImage &&
+      !imageError
+    ) {
       loadPreviewImage();
     }
   });
@@ -426,6 +467,12 @@
             onload={handleImageLoad}
             onclick={isFullscreenEnabled ? onFullscreen : undefined}
           />
+          {#if showAiBadge}
+            <!-- AI badge: indicates this image was uploaded and is accessible to the AI -->
+            <div class="ai-badge" aria-hidden="true">
+              <span class="ai-badge-icon"></span>
+            </div>
+          {/if}
         </div>
 
       {:else if imageError}
@@ -465,6 +512,7 @@
 
   /* Full-bleed image container */
   .image-content {
+    position: relative;
     width: 100%;
     height: 100%;
     overflow: hidden;
@@ -498,6 +546,38 @@
 
   .image-content.clickable:hover .preview-image {
     opacity: 0.92;
+  }
+
+  /* AI badge: top-right corner indicator that the AI has access to this image */
+  .ai-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  .ai-badge-icon {
+    display: block;
+    width: 14px;
+    height: 14px;
+    background: #ffffff;
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
   }
 
   /* Loading skeleton */
