@@ -3,7 +3,7 @@
 # component for all skills within the application framework. It will encapsulate
 # common logic, configuration handling, and integration points for skills.
 
-from typing import Optional, Dict, Any, Union, Tuple, Set, List, Callable, Type, TYPE_CHECKING
+from typing import Optional, Dict, Any, Tuple, Set, List, Callable, Type, TYPE_CHECKING
 from pydantic import BaseModel, Field, validator
 import asyncio # For potential async operations
 import time # For generating timestamps
@@ -11,7 +11,7 @@ import logging
 import hashlib
 
 # Import shared utilities
-from backend.shared.python_utils.billing_utils import calculate_total_credits, BillingError, MINIMUM_CREDITS_CHARGED
+from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
 
 if TYPE_CHECKING:
     from apps.base_app import BaseApp # For type hinting self.app
@@ -45,17 +45,27 @@ class SkillPricing(BaseModel):
     """
     Defines the pricing structure for a skill, compatible with billing_utils.
     This structure should be mirrored in the skill's app.yml if it has custom pricing.
+
+    The per_minute field accepts either:
+    - A plain int/float (e.g. `per_minute: 3`) — coerced to MinutePricingConfig(credits=3)
+    - A dict with 'credits' key (e.g. `per_minute: {credits: 3}`)
+    This allows app.yml to use the simple int shorthand while AppPricing (app_metadata_schemas.py)
+    also stores per_minute as Optional[int].
     """
     tokens: Optional[TokenPricingConfig] = None
     per_unit: Optional[UnitPricingConfig] = None
     per_minute: Optional[MinutePricingConfig] = None
     fixed: Optional[FixedPricingConfig] = None
 
-    @validator('*', pre=True, always=True)
-    def ensure_at_least_one_pricing_method(cls, v, values):
-        # This validator is tricky because it runs for each field.
-        # A root_validator would be better if we need to ensure at least one is set.
-        # For now, we'll assume the config is valid if provided.
+    @validator('per_minute', pre=True, always=True)
+    def coerce_per_minute(cls, v):
+        """
+        Coerce a plain int/float value for per_minute into the expected
+        MinutePricingConfig dict format, so that app.yml can use the shorthand
+        ``per_minute: 3`` instead of ``per_minute: {credits: 3}``.
+        """
+        if isinstance(v, (int, float)):
+            return {"credits": float(v)}
         return v
 
 class BaseSkill:
