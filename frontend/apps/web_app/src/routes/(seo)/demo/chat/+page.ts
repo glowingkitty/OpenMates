@@ -2,13 +2,14 @@
 //
 // Page options for the demo chat listing page at /demo/chat/.
 //
-// prerender='auto': if all slugs are known at build time, prerender as static HTML.
+// prerender=false: always SSR on request — the demo chat list changes over time and
+// BACKEND_URL is not forwarded through Turborepo at Vercel build time, so prerendering
+// would produce an empty page. SSR ensures crawlers always get live data.
 // ssr=true: server-renders for crawlers (main purpose of this page).
 // csr=true: client-side hydration fires the onMount redirect for human browsers.
 
-// Use 'auto' so the page can be prerendered as a static file if no dynamic data
-// is required. If the backend is unavailable at build time, SSR serves it on demand.
-export const prerender = 'auto';
+// Never prerender — always SSR at request time so the backend is reachable.
+export const prerender = false;
 
 // SSR must be true — this page exists for crawlers that need server-rendered HTML.
 export const ssr = true;
