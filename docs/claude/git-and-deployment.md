@@ -46,45 +46,16 @@ feat: add user authentication flow
 
 ### Issue-Linked Commits
 
-**When a commit resolves or attempts to fix a reported issue, you MUST include the issue ID and a brief, anonymized description of the issue in the commit body.** This applies whether the fix is complete or partial.
+When fixing a reported issue (fully or partially), add this line at the end of the commit body:
 
-**Rules:**
-
-- Always include the issue ID (e.g. `Issue: abc12345`)
-- Include a short plain-English description of the problem (1 sentence)
-- **NEVER include any personal identifying information** — no email addresses, usernames, user IDs, real names, or any other data that could identify the affected user
-- Place the issue reference at the end of the commit body, after the bullet points
-
-**Format:**
-
-```bash
-<type>: <description>
-
-- <change 1>
-- <change 2>
-
-Issue: <issue_id> — <short anonymous description of the problem>
+```
+Issue: <issue_id> — <one sentence describing the problem, no PII>
 ```
 
-**Example:**
+No emails, usernames, or user IDs. Example:
 
-```bash
-fix: resolve WebSocket disconnect on message send
-
-- Catch and handle connection reset errors in message_received_handler
-- Add retry logic for transient network failures
-
-Issue: 7f3a2c1d — WebSocket connection dropped after sending a message with an embed
 ```
-
-**Anti-pattern (NEVER do this):**
-
-```bash
-# ❌ Contains PII — never include emails or usernames
-Issue: 7f3a2c1d — user john.doe@example.com reported disconnect
-
-# ❌ No issue reference at all when fixing a reported issue
-fix: resolve WebSocket disconnect on message send
+Issue: 7f3a2c1d — WebSocket dropped after sending a message with an embed
 ```
 
 ### Pre-commit Checklist
