@@ -9,14 +9,17 @@ This script is designed to be run via docker exec:
     docker exec api python /app/backend/scripts/admin_debug_cli.py <command> [options]
 
 Commands:
-    logs          - Query Docker Compose logs from Loki
+    logs          - Query Docker Compose logs from Loki (core API server)
+    upload-logs   - Query Docker logs from the upload server (upload.openmates.org)
+    preview-logs  - Query Docker logs from the preview server (preview.openmates.org)
     issues        - List issue reports
     issue         - Get details of a specific issue
     issue-delete  - Delete an issue (after confirmed fixed)
     user          - Inspect a user by email
-    chat        - Inspect a chat by ID
-    embed       - Inspect an embed by ID
-    requests    - Inspect recent AI requests
+    chat          - Inspect a chat by ID
+    embed         - Inspect an embed by ID
+    requests      - Inspect recent AI requests
+    newsletter    - Inspect newsletter subscription data
 
 Examples:
     # Get logs from api service in last 30 minutes
@@ -24,6 +27,15 @@ Examples:
 
     # Get logs with error filtering
     docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services api,task-worker --search "ERROR|WARNING"
+
+    # Get upload server logs (last 60 min, app-uploads service)
+    docker exec api python /app/backend/scripts/admin_debug_cli.py upload-logs
+
+    # Get upload server logs with filtering
+    docker exec api python /app/backend/scripts/admin_debug_cli.py upload-logs --services app-uploads,clamav --since 30 --search "ERROR"
+
+    # Get preview server logs
+    docker exec api python /app/backend/scripts/admin_debug_cli.py preview-logs --since 30 --lines 200
 
     # List unprocessed issues
     docker exec api python /app/backend/scripts/admin_debug_cli.py issues
@@ -34,13 +46,21 @@ Examples:
     # Inspect a chat
     docker exec api python /app/backend/scripts/admin_debug_cli.py chat <chat_id>
 
-Vault Secret Path:
-    The admin API key is stored in Vault at:
-    kv/data/providers/admin with key "debug_cli__api_key"
-    (following the SECRET__{PROVIDER}__{KEY} convention)
-    
-    To set this up, add to your environment:
-    SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx
+Vault Secret Paths:
+    Core API admin key:
+        kv/data/providers/admin  key: "debug_cli__api_key"
+        Set via: SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx
+
+    Upload server admin log key:
+        kv/data/providers/upload_server  key: "admin_log_api_key"
+        Set via: SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY=<random-key>
+        Also add ADMIN_LOG_API_KEY=<same-key> to the upload VM's .env
+
+    Preview server admin log key:
+        kv/data/providers/preview_server  key: "admin_log_api_key"
+        Set via: SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY=<random-key>
+        Also add ADMIN_LOG_API_KEY=<same-key> to the preview VM's .env
+
     Then restart vault-setup to import: docker compose ... restart vault-setup
 """
 
@@ -98,6 +118,11 @@ def censor_emails_in_data(data: object) -> object:
 # For production debugging, we hit the external API
 PROD_API_URL = "https://api.openmates.org/v1/admin/debug"
 DEV_API_URL = "https://api.dev.openmates.org/v1/admin/debug"
+
+# Upload and preview servers run on separate VMs — always hit their public URLs.
+# (There is no dev-specific upload or preview server.)
+UPLOAD_SERVER_URL = "https://upload.openmates.org/admin/logs"
+PREVIEW_SERVER_URL = "https://preview.openmates.org/admin/logs"
 
 
 async def get_api_key_from_vault() -> str:
@@ -204,6 +229,198 @@ async def cmd_logs(args, api_key: str):
             print(f"Search pattern: {result.get('search_pattern')}")
         print()
         print(result.get("logs", "No logs found"))
+
+
+async def get_satellite_log_key(vault_path: str, vault_key: str, server_name: str) -> str:
+    """
+    Fetch a satellite server's admin log API key from the core Vault.
+
+    The key is stored under SECRET__{PROVIDER}__{KEY} convention and imported
+    into Vault by vault-setup. For example:
+        SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY → kv/data/providers/upload_server
+        key: "admin_log_api_key"
+
+    Args:
+        vault_path:  Vault KV path (e.g. "kv/data/providers/upload_server")
+        vault_key:   Key within that path (e.g. "admin_log_api_key")
+        server_name: Human-readable name for error messages (e.g. "upload server")
+
+    Returns:
+        The API key string.
+    """
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+    secrets_manager = SecretsManager()
+    await secrets_manager.initialize()
+
+    try:
+        api_key = await secrets_manager.get_secret(vault_path, vault_key)
+        if not api_key:
+            print(
+                f"Error: Admin log key for {server_name} not found in Vault at "
+                f"{vault_path} (key: {vault_key})",
+                file=sys.stderr,
+            )
+            print("", file=sys.stderr)
+            print(f"To set up the {server_name} admin log key:", file=sys.stderr)
+            print(
+                "1. Generate a random secret: python3 -c \"import secrets; print(secrets.token_hex(32))\"",
+                file=sys.stderr,
+            )
+            if "upload" in server_name:
+                print(
+                    "2. Add to core server .env: SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY=<key>",
+                    file=sys.stderr,
+                )
+                print("3. Add to upload VM's .env: ADMIN_LOG_API_KEY=<same-key>", file=sys.stderr)
+            else:
+                print(
+                    "2. Add to core server .env: SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY=<key>",
+                    file=sys.stderr,
+                )
+                print("3. Add to preview VM's .env: ADMIN_LOG_API_KEY=<same-key>", file=sys.stderr)
+            print("4. Restart vault-setup: docker compose ... restart vault-setup", file=sys.stderr)
+            sys.exit(1)
+        return api_key
+    finally:
+        await secrets_manager.aclose()
+
+
+async def _fetch_satellite_logs(
+    url: str,
+    api_key: str,
+    services: Optional[str],
+    lines: int,
+    since: int,
+    search: Optional[str],
+) -> str:
+    """
+    Call the /admin/logs endpoint on a satellite server (upload or preview).
+
+    Args:
+        url:      Full URL of the admin logs endpoint.
+        api_key:  X-Admin-Log-Key secret.
+        services: Comma-separated service names (or None for default).
+        lines:    Number of log lines to return.
+        since:    Time window in minutes.
+        search:   Optional regex filter.
+
+    Returns:
+        Log output as plain text.
+    """
+    params: dict = {
+        "lines": lines,
+        "since_minutes": since,
+    }
+    if services:
+        params["services"] = services
+    if search:
+        params["search"] = search
+
+    headers = {"X-Admin-Log-Key": api_key}
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(url, headers=headers, params=params)
+
+        if response.status_code == 401:
+            print("Error: Invalid admin log API key", file=sys.stderr)
+            sys.exit(1)
+        elif response.status_code == 503:
+            print(
+                "Error: Admin logs endpoint not configured on the server "
+                "(ADMIN_LOG_API_KEY env var not set on the satellite VM)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        elif response.status_code == 400:
+            print(f"Error: {response.text}", file=sys.stderr)
+            sys.exit(1)
+        elif response.status_code != 200:
+            print(f"Error: Server returned {response.status_code}", file=sys.stderr)
+            print(response.text, file=sys.stderr)
+            sys.exit(1)
+
+        return response.text
+
+    except httpx.ConnectError:
+        print(f"Error: Could not connect to {url}", file=sys.stderr)
+        sys.exit(1)
+    except httpx.TimeoutException:
+        print("Error: Request timed out (log fetch took > 60s)", file=sys.stderr)
+        sys.exit(1)
+
+
+async def cmd_upload_logs(args, _unused_api_key: str):
+    """
+    Fetch logs from the upload server (upload.openmates.org).
+
+    Calls GET https://upload.openmates.org/admin/logs using the admin log API key
+    stored in core Vault at kv/data/providers/upload_server (key: admin_log_api_key).
+
+    The upload server runs docker compose logs internally and returns the output.
+    Requires ADMIN_LOG_API_KEY to be set on the upload VM and the same value
+    stored in the core Vault via SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/upload_server",
+        vault_key="admin_log_api_key",
+        server_name="upload server",
+    )
+
+    output = await _fetch_satellite_logs(
+        url=UPLOAD_SERVER_URL,
+        api_key=api_key,
+        services=args.services,
+        lines=args.lines,
+        since=args.since,
+        search=args.search,
+    )
+
+    if args.json:
+        print(json.dumps({"logs": output, "server": "upload"}))
+    else:
+        services_label = args.services or "app-uploads"
+        print(f"=== Upload Server Logs [{services_label}] — last {args.since} min ===")
+        if args.search:
+            print(f"Search pattern: {args.search}")
+        print()
+        print(output)
+
+
+async def cmd_preview_logs(args, _unused_api_key: str):
+    """
+    Fetch logs from the preview server (preview.openmates.org).
+
+    Calls GET https://preview.openmates.org/admin/logs using the admin log API key
+    stored in core Vault at kv/data/providers/preview_server (key: admin_log_api_key).
+
+    Requires ADMIN_LOG_API_KEY to be set on the preview VM and the same value
+    stored in the core Vault via SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/preview_server",
+        vault_key="admin_log_api_key",
+        server_name="preview server",
+    )
+
+    output = await _fetch_satellite_logs(
+        url=PREVIEW_SERVER_URL,
+        api_key=api_key,
+        services=args.services,
+        lines=args.lines,
+        since=args.since,
+        search=args.search,
+    )
+
+    if args.json:
+        print(json.dumps({"logs": output, "server": "preview"}))
+    else:
+        print(f"=== Preview Server Logs — last {args.since} min ===")
+        if args.search:
+            print(f"Search pattern: {args.search}")
+        print()
+        print(output)
 
 
 async def cmd_issues(args, api_key: str):
@@ -518,13 +735,22 @@ async def cmd_newsletter(args, api_key: str):
 
 async def async_main(args):
     """Async main function."""
-    # Get API key from Vault
+    # upload-logs and preview-logs fetch their own Vault keys internally —
+    # they don't need the core API admin key and don't target dev vs prod.
+    _satellite_commands = {"upload-logs", "preview-logs"}
+    if args.command in _satellite_commands:
+        # Satellite commands are not server-specific (there is only one upload/preview VM).
+        # Pass None as api_key — the commands fetch their own keys from Vault.
+        await args.func(args, None)
+        return
+
+    # Get core API key from Vault (used by all other commands)
     api_key = await get_api_key_from_vault()
-    
+
     # Show which server we're using
     server = "DEVELOPMENT" if args.dev else "PRODUCTION"
     print(f"[Using {server} server]\n", file=sys.stderr)
-    
+
     # Call the appropriate command
     await args.func(args, api_key)
 
@@ -540,14 +766,72 @@ def main():
     
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
     
-    # logs command
-    logs_parser = subparsers.add_parser("logs", help="Query Docker Compose logs")
+    # logs command (core API server via Loki)
+    logs_parser = subparsers.add_parser("logs", help="Query Docker Compose logs from core API server (via Loki)")
     logs_parser.add_argument("--services", "-s", help="Comma-separated list of services (default: all)")
     logs_parser.add_argument("--lines", "-n", type=int, default=100, help="Lines per service (default: 100, max: 500)")
     logs_parser.add_argument("--since", "-t", type=int, default=60, help="Minutes to look back (default: 60, max: 1440)")
     logs_parser.add_argument("--search", "-g", help="Regex pattern to filter logs")
     logs_parser.set_defaults(func=cmd_logs)
-    
+
+    # upload-logs command (upload.openmates.org — separate VM, no Loki)
+    upload_logs_parser = subparsers.add_parser(
+        "upload-logs",
+        help="Query Docker logs from the upload server (upload.openmates.org)",
+    )
+    upload_logs_parser.add_argument(
+        "--services", "-s",
+        default=None,
+        help="Comma-separated services (default: app-uploads). Allowed: app-uploads, clamav, vault",
+    )
+    upload_logs_parser.add_argument(
+        "--lines", "-n",
+        type=int,
+        default=100,
+        help="Lines per service (default: 100, max: 500)",
+    )
+    upload_logs_parser.add_argument(
+        "--since", "-t",
+        type=int,
+        default=60,
+        help="Minutes to look back (default: 60, max: 1440)",
+    )
+    upload_logs_parser.add_argument(
+        "--search", "-g",
+        default=None,
+        help="Regex pattern to filter log lines (case-insensitive)",
+    )
+    upload_logs_parser.set_defaults(func=cmd_upload_logs)
+
+    # preview-logs command (preview.openmates.org — separate VM, no Loki)
+    preview_logs_parser = subparsers.add_parser(
+        "preview-logs",
+        help="Query Docker logs from the preview server (preview.openmates.org)",
+    )
+    preview_logs_parser.add_argument(
+        "--services", "-s",
+        default=None,
+        help="Services to fetch (default: preview). Currently only: preview",
+    )
+    preview_logs_parser.add_argument(
+        "--lines", "-n",
+        type=int,
+        default=100,
+        help="Number of log lines (default: 100, max: 500)",
+    )
+    preview_logs_parser.add_argument(
+        "--since", "-t",
+        type=int,
+        default=60,
+        help="Minutes to look back (default: 60, max: 1440)",
+    )
+    preview_logs_parser.add_argument(
+        "--search", "-g",
+        default=None,
+        help="Regex pattern to filter log lines (case-insensitive)",
+    )
+    preview_logs_parser.set_defaults(func=cmd_preview_logs)
+
     # issues command
     issues_parser = subparsers.add_parser("issues", help="List issue reports")
     issues_parser.add_argument("--search", "-s", help="Search in title/description")

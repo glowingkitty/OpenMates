@@ -247,11 +247,61 @@ CLI wrapper (`backend/scripts/admin_debug_cli.py`) for the Admin Debug API. **Us
 
 **Setup:** Add `SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx` to `.env`, restart vault-setup, then confirm the new device in Settings > Developers > Devices on production.
 
-**Commands:** `logs`, `issues`, `issue <id>`, `user <email>`, `chat <id>`, `embed <id>`, `requests`. Add `--dev` for dev server, `--json` for raw output.
+**Commands:** `logs`, `upload-logs`, `preview-logs`, `issues`, `issue <id>`, `user <email>`, `chat <id>`, `embed <id>`, `requests`. Add `--dev` for dev server, `--json` for raw output.
 
 ```bash
-# Examples
+# Core API server logs (via Loki)
 docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services api,task-worker --search "ERROR" --since 30
+
+# Upload server logs (upload.openmates.org — separate VM, no Loki)
+docker exec api python /app/backend/scripts/admin_debug_cli.py upload-logs
+docker exec api python /app/backend/scripts/admin_debug_cli.py upload-logs --services app-uploads,clamav --since 30 --search "ERROR"
+
+# Preview server logs (preview.openmates.org — separate VM, no Loki)
+docker exec api python /app/backend/scripts/admin_debug_cli.py preview-logs
+docker exec api python /app/backend/scripts/admin_debug_cli.py preview-logs --since 30 --search "WARNING|ERROR" --lines 200
+
+# Other commands
 docker exec api python /app/backend/scripts/admin_debug_cli.py user someone@example.com
 docker exec api python /app/backend/scripts/admin_debug_cli.py issues
 ```
+
+### Setup for upload-logs / preview-logs
+
+The satellite log commands require additional API keys stored in the core Vault:
+
+1. Generate two random keys:
+
+   ```bash
+   python3 -c "import secrets; print(secrets.token_hex(32))"  # for upload
+   python3 -c "import secrets; print(secrets.token_hex(32))"  # for preview
+   ```
+
+2. Add to core server `.env`:
+
+   ```
+   SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY=<upload-key>
+   SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY=<preview-key>
+   ```
+
+3. Add to the **upload VM**'s `backend/upload/.env`:
+
+   ```
+   ADMIN_LOG_API_KEY=<upload-key>   # must match SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY
+   ```
+
+4. Add to the **preview VM**'s `.env` (root `.env` that docker-compose.preview.yml reads):
+
+   ```
+   ADMIN_LOG_API_KEY=<preview-key>  # must match SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY
+   ```
+
+5. Restart vault-setup on the core server to import the new keys:
+
+   ```bash
+   docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml restart vault-setup
+   ```
+
+6. Rebuild and restart the upload and preview containers on their VMs to pick up `ADMIN_LOG_API_KEY`.
+
+**Note:** The upload and preview servers need the Docker socket mounted at `/var/run/docker.sock` inside their containers (plus `docker` CLI available) to run `docker compose logs`. See the next section for docker-compose additions.

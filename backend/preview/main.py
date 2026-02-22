@@ -31,7 +31,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.routes import favicon_router, image_router, metadata_router, youtube_router, health_router
+from app.routes import admin_logs_router, favicon_router, image_router, metadata_router, youtube_router, health_router
 from app.services import fetch_service, youtube_service, cache_service
 
 # ===========================================
@@ -284,8 +284,8 @@ async def rate_limit_middleware(request: Request, call_next):
     """
     path = request.url.path
 
-    # Health checks are always exempt
-    if path.startswith("/health"):
+    # Health checks and admin endpoints are always exempt from rate limiting
+    if path.startswith("/health") or path.startswith("/admin"):
         return await call_next(request)
 
     group = _resolve_group(path)
@@ -376,8 +376,8 @@ if settings.validate_referer:
         - Referer matching one of the allowed patterns
         - Health check endpoints (always allowed)
         """
-        # Always allow health checks
-        if request.url.path.startswith("/health"):
+        # Always allow health checks and admin endpoints (server-to-server, no referer)
+        if request.url.path.startswith("/health") or request.url.path.startswith("/admin"):
             return await call_next(request)
         
         # Get Referer header
@@ -432,8 +432,8 @@ if settings.api_key:
         
         Skips validation for health check endpoints.
         """
-        # Skip auth for health checks
-        if request.url.path.startswith("/health"):
+        # Skip auth for health checks and admin endpoints (admin uses its own X-Admin-Log-Key)
+        if request.url.path.startswith("/health") or request.url.path.startswith("/admin"):
             return await call_next(request)
         
         api_key = request.headers.get("X-API-Key")
@@ -457,6 +457,9 @@ app.include_router(favicon_router)
 app.include_router(image_router)
 app.include_router(metadata_router)
 app.include_router(youtube_router)
+# Admin log endpoint — exempt from referer validation, rate limiting, and API key auth.
+# Protected by its own X-Admin-Log-Key shared secret (ADMIN_LOG_API_KEY env var).
+app.include_router(admin_logs_router)
 
 
 # ===========================================

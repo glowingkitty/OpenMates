@@ -134,9 +134,23 @@ services:
       CLAMAV_PORT: "3310"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT:-production}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
+      # Admin log API key — used by GET /admin/logs endpoint for operational debugging.
+      # Fetched remotely by admin_debug_cli.py upload-logs via X-Admin-Log-Key header.
+      # Set this in .env (same value as SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY on core server).
+      ADMIN_LOG_API_KEY: "${ADMIN_LOG_API_KEY:-}"
     volumes:
       # Vault API token written by vault-setup init container (read-only)
       - vault-setup-data:/vault-data:ro
+      # Docker socket (read-only) — allows /admin/logs to run `docker compose logs`
+      # via subprocess to fetch container logs from this compose stack.
+      # Required for: admin_debug_cli.py upload-logs
+      # The group_add below grants access without running as root.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    group_add:
+      # Add the docker group so the container user can access the Docker socket.
+      # Find the GID with: stat -c %g /var/run/docker.sock
+      # This value is typically 999 on Debian/Ubuntu, but may vary per host.
+      - "${DOCKER_GID:-999}"
     networks:
       - uploads
     depends_on:
