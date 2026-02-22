@@ -2,8 +2,8 @@
 # Shared utilities and models for OpenAI implementations (including via OpenRouter)
 
 import logging
-from typing import Dict, Any, List, Optional, Union
-from pydantic import BaseModel, Field
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -126,14 +126,21 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
     'minimum' and 'maximum' fields for integer and number types, even though these are valid 
     JSON Schema fields. This function removes these fields to ensure compatibility.
     
-    Note: The original schema (with min/max) is kept in app.yml and used for
+    Also converts integer/number enum values to strings. Google Gemini's SDK validates
+    FunctionDeclaration parameters with Pydantic and requires all enum values to be strings,
+    even for integer-typed fields (e.g., enum: [1, 3, 7, 14] must become ["1", "3", "7", "14"]).
+    String enum values are safe for all other providers too, since the LLM will return the
+    string and we cast it back to int when we validate tool call arguments against app.yml.
+    
+    Note: The original schema (with min/max and integer enums) is kept in app.yml and used for
     validation when we receive tool call arguments from the LLM.
     
     Args:
         schema: The JSON schema dictionary to sanitize
         
     Returns:
-        A sanitized copy of the schema with minimum/maximum fields removed from integer and number properties
+        A sanitized copy of the schema with minimum/maximum removed and enum values
+        converted to strings for integer and number properties
     """
     if not isinstance(schema, dict):
         return schema
@@ -151,12 +158,16 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
         # After converting to anyOf, we still need to recursively sanitize the anyOf items
         # This will be handled by the anyOf processing below
     
-    # If this is a property definition with type 'integer' or 'number', remove minimum/maximum
-    # Cerebras and other providers reject schemas with minimum/maximum for both integer and number types
+    # If this is a property definition with type 'integer' or 'number':
+    # 1. Remove minimum/maximum fields (Cerebras and other providers reject them)
+    # 2. Convert enum values to strings — Google Gemini's SDK (Pydantic-validated
+    #    FunctionDeclaration) requires all enum entries to be strings, even for integer types.
+    #    Other providers accept string enums fine; we cast back to int at validation time.
     if sanitized.get("type") in ("integer", "number"):
-        # Remove minimum and maximum fields (LLM providers don't accept them)
         sanitized.pop("minimum", None)
         sanitized.pop("maximum", None)
+        if "enum" in sanitized and isinstance(sanitized["enum"], list):
+            sanitized["enum"] = [str(v) for v in sanitized["enum"]]
     
     # Recursively sanitize nested structures
     if "properties" in sanitized:
