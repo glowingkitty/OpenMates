@@ -390,6 +390,7 @@
     --icon-url-publishing: url('@openmates/ui/static/icons/publishing.svg');
     --icon-url-question: url('@openmates/ui/static/icons/question.svg');
     --icon-url-rating: url('@openmates/ui/static/icons/rating.svg');
+    --icon-url-recraft: url('@openmates/ui/static/icons/recraft.svg');
     --icon-url-reasoning: url('@openmates/ui/static/icons/reasoning.svg');
     --icon-url-record_video: url('@openmates/ui/static/icons/record_video.svg');
     --icon-url-recordaudio: url('@openmates/ui/static/icons/recordaudio.svg');
