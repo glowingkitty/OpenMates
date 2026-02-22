@@ -1,7 +1,14 @@
 <!--
-	frontend/apps/web_app/src/routes/demo/chat/[slug]/+page.svelte
+	frontend/apps/web_app/src/routes/demo/chat/[slug]/+page@.svelte
 
 	SEO page for individual demo chats at /demo/chat/{slug}.
+
+	WHY "+page@.svelte" (layout reset):
+	  The root +layout.svelte wraps everything in {#if loaded} where loaded is only set
+	  inside onMount (browser-only). During SSR, onMount never runs, so loaded=false and
+	  {#render children()} is never called — the entire page body is suppressed in SSR output.
+	  The "@" suffix resets the layout chain so this page renders without any parent layout,
+	  giving crawlers/Google the full server-rendered HTML they need to index.
 
 	ARCHITECTURE — How this works:
 	  1. Server renders this page to HTML (via +page.server.ts).
@@ -64,8 +71,9 @@
 	<meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
 
 	<!-- JSON-LD structured data (TechArticle / NewsArticle / Article depending on category) -->
+	<!-- Split closing tag so the HTML parser doesn't confuse this template literal with a script block close -->
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-	{@html `<script type="application/ld+json">${data.jsonLd}</script>`}
+	{@html `<script type="application/ld+json">${data.jsonLd}<` + `/script>`}
 </svelte:head>
 
 <!--

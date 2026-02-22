@@ -1,5 +1,5 @@
 <!--
-	frontend/apps/web_app/src/routes/demo/chat/+page.svelte
+	frontend/apps/web_app/src/routes/demo/chat/+page@.svelte
 
 	Listing/index page for all demo chats at /demo/chat/.
 
@@ -8,6 +8,13 @@
 	  - Human browsers are redirected to the SPA home (/#demo) on mount.
 	  - The page groups demo chats by category and provides internal links to /demo/chat/{slug}
 	    so Google can discover and index each individual demo chat page.
+
+	WHY "+page@.svelte" (layout reset):
+	  The root +layout.svelte wraps everything in {#if loaded} where loaded is only set
+	  inside onMount (browser-only). During SSR, onMount never runs, so loaded=false and
+	  {#render children()} is never called — the entire page body is suppressed in SSR output.
+	  The "@" suffix resets the layout chain so this page renders without any parent layout,
+	  giving crawlers/Google the full server-rendered HTML they need to index.
 
 	This is an SSR page — all content is server-rendered for SEO.
 -->
