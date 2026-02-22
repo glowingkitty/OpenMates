@@ -1414,8 +1414,21 @@ export class ChatSynchronizationService extends EventTarget {
 
       for (const msg of orphaned) {
         try {
-          const finalized = { ...msg, status: "synced" as const };
-          await chatDB.saveMessage(finalized);
+          // CRITICAL FIX: Use updateMessageStatus() instead of saveMessage().
+          //
+          // The naive `{ ...msg, status: "synced" } → saveMessage()` approach triggers
+          // encryptMessageFields() which calls getOrGenerateChatKey(). If the chat key
+          // has been evicted from the in-memory cache (a real race condition during
+          // WebSocket reconnect on a new-chat flow), a NEW random key is generated and
+          // the message is silently re-encrypted with it — while encrypted_chat_key on
+          // the chat still holds the original key. Subsequent decryption attempts fail
+          // with "[Content decryption failed]". This is the same class of bug fixed for
+          // the handleChatMessageConfirmedImpl path in commit 65780674.
+          //
+          // updateMessageStatus() reads the raw (still-encrypted) IndexedDB record,
+          // patches ONLY the status field, and writes it back — no encryption, no key
+          // operations, no risk.
+          await chatDB.updateMessageStatus(msg.message_id, "synced");
           console.info(
             `[ChatSyncService] Finalized orphaned ${msg.status} message ${msg.message_id} in chat ${msg.chat_id}`,
           );
@@ -1474,9 +1487,18 @@ export class ChatSynchronizationService extends EventTarget {
       // Update status to 'sending' and retry each message
       for (const message of pendingMessages) {
         try {
-          // Update status to 'sending' before retry
-          const updatedMessage: Message = { ...message, status: "sending" };
-          await chatDB.saveMessage(updatedMessage);
+          // CRITICAL FIX: Use updateMessageStatus() instead of saveMessage() for the
+          // status-only update before retrying. The old code used:
+          //   saveMessage({ ...message, status: "sending" })
+          // which calls encryptMessageFields() → getOrGenerateChatKey(). If the chat key
+          // is absent from the in-memory cache, a NEW random key is registered and all
+          // subsequent operations (embed encryption, etc.) use the wrong key, causing
+          // "[Content decryption failed]" on this device and any device that received the
+          // originally-keyed server copy.
+          //
+          // updateMessageStatus() patches only the status field in IndexedDB without
+          // touching encryption — safe by design.
+          await chatDB.updateMessageStatus(message.message_id, "sending");
 
           // Dispatch event to update UI
           this.dispatchEvent(
@@ -1489,24 +1511,25 @@ export class ChatSynchronizationService extends EventTarget {
             }),
           );
 
-          // Retry sending the message
+          // Retry sending the message (pass original `message` since it already has
+          // the correct encrypted/plaintext fields as stored in IndexedDB)
           console.debug(
             `[ChatSyncService] Retrying message ${message.message_id} for chat ${message.chat_id}`,
           );
-          await this.sendNewMessage(updatedMessage);
+          await this.sendNewMessage(message);
         } catch (error) {
           console.error(
             `[ChatSyncService] Error retrying message ${message.message_id}:`,
             error,
           );
 
-          // Update status back to 'waiting_for_internet' if retry failed
+          // Update status back to 'waiting_for_internet' if retry failed — status-only
+          // update, never needs encryption.
           try {
-            const failedMessage: Message = {
-              ...message,
-              status: "waiting_for_internet",
-            };
-            await chatDB.saveMessage(failedMessage);
+            await chatDB.updateMessageStatus(
+              message.message_id,
+              "waiting_for_internet",
+            );
 
             this.dispatchEvent(
               new CustomEvent("messageStatusChanged", {
