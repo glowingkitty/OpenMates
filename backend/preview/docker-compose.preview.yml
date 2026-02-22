@@ -143,8 +143,9 @@ services:
       # Which service to rebuild and restart via /admin/update
       SERVICE_UPDATE_TARGET: "preview"
 
-      # Git repository root on the host (where `git pull` runs)
-      GIT_WORK_DIR: "${GIT_WORK_DIR:-/app}"
+      # Git repository root on the host (where `git pull` runs).
+      # Must be set in .env (e.g. GIT_WORK_DIR=/home/superdev/projects/OpenMates).
+      GIT_WORK_DIR: "${GIT_WORK_DIR}"
 
       PORT: "8001"
     # Bind to localhost only — Caddy proxies from the outside
@@ -153,8 +154,11 @@ services:
     volumes:
       # Docker socket — this container needs it; the main preview container does NOT
       - /var/run/docker.sock:/var/run/docker.sock
-      # Mount the project root read-only so `git pull` and `docker compose` can run
-      - "${GIT_WORK_DIR:-/app}:${GIT_WORK_DIR:-/app}"
+      # Mount the project root so `git pull` and `docker compose` can run.
+      # GIT_WORK_DIR must be set in .env (e.g. /home/superdev/projects/OpenMates).
+      - type: bind
+        source: "${GIT_WORK_DIR}"
+        target: "${GIT_WORK_DIR}"
     group_add:
       # Add the docker group so this container can access the Docker socket.
       # Find the GID with: stat -c %g /var/run/docker.sock
