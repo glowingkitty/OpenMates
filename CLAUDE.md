@@ -116,6 +116,7 @@ Rules: be honest about risks, be specific with file references, and always expla
 - Only add files you actually modified in the current session (never `git add .`).
 - Run the linter and fix all errors before committing.
 - **After pushing frontend files (`frontend/`) or any `.yml` files**, wait for and verify the Vercel deployment succeeded before marking the task complete. Fix any build errors and re-deploy until the status is "● Ready". See `docs/claude/git-and-deployment.md` for the full verification procedure.
+- **When a commit resolves or attempts to fix a reported issue**, include the issue ID and a short anonymous description in the commit body (no PII — no emails, usernames, or user IDs). See `docs/claude/git-and-deployment.md` → "Issue-Linked Commits" for format.
 - See `docs/claude/git-and-deployment.md` for commit message format and full workflow.
 
 ### Research Before Implementing New Apps, Skills, or Features (CRITICAL)
@@ -353,6 +354,15 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - You are about to rebuild or restart Docker containers
 - You are starting a new session (to register yourself)
 - Another assistant's work may conflict with yours (e.g., editing the same files)
+
+#### `docs/claude/add-api.md`
+
+**MUST READ when ANY of these are true:**
+
+- The user asks to integrate a new external API or data provider
+- You are adding a new third-party API connection (events, maps, payments, social, etc.)
+- The user asks to reverse-engineer or scrape a website as a data source
+- You need to build a test script for an API integration
 
 #### `docs/claude/logging-and-docs.md`
 
