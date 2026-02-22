@@ -164,12 +164,12 @@ skills:
     description_translation_key: app_skills.health.search_appointments.description
     preprocessor_hint: >
       Search for available doctor/specialist appointments by speciality and city.
-      Returns real-time availability with direct booking links. Costs 15 credits per search.
+       Returns real-time availability with direct booking links. Costs 10 credits per search.
     stage: production
     class_path: backend.apps.health.skills.search_appointments_skill.SearchAppointmentsSkill
     pricing:
       per_unit:
-        credits: 15
+        credits: 10
     providers:
       - Doctolib
     exclude_fields_for_llm:
