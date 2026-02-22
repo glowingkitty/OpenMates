@@ -801,10 +801,12 @@ class SearchAppointmentsSkill(BaseSkill):
         httpx.AsyncClient. Wrapping in a closure lets us inject proxy_url without
         changing the signature expected by _process_requests_in_parallel.
         """
-        async def _process(request: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
+        async def _process(req: Dict[str, Any], **kwargs) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
             # Create a fresh client per request — ensures independent proxy IP
             # rotation across concurrent requests (Webshare assigns a new IP per
             # connection when using the rotating endpoint p.webshare.io:80).
+            # NOTE: signature uses 'req' to match the kwarg passed by
+            # BaseSkill._process_requests_in_parallel (which calls req=req).
             client_kwargs: Dict[str, Any] = {
                 "timeout": httpx.Timeout(30.0, connect=10.0),
                 "follow_redirects": True,
@@ -814,6 +816,6 @@ class SearchAppointmentsSkill(BaseSkill):
                 client_kwargs["proxy"] = proxy_url
 
             async with httpx.AsyncClient(**client_kwargs) as client:
-                return await _process_single_doctolib_request(client, request)
+                return await _process_single_doctolib_request(client, req)
 
         return _process
