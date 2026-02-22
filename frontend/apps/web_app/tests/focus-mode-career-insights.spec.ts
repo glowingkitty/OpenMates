@@ -211,31 +211,28 @@ async function ensureSidebarOpen(
 }
 
 /**
- * Start a new chat session by clicking the new chat button.
+ * Start a new chat session by navigating to the root URL (clears any chat hash).
+ * This ensures we're always on a fresh new chat, not a demo or existing chat.
  */
 async function startNewChat(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
 ): Promise<void> {
-	await page.waitForTimeout(1000);
-
 	const currentUrl = page.url();
 	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
 
-	// The new chat CTA button is in ActiveChat.svelte with class .new-chat-cta-button
-	const newChatButton = page.locator('.new-chat-cta-button');
-	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-		logCheckpoint('Found .new-chat-cta-button, clicking it.');
-		await newChatButton.click();
-		await page.waitForTimeout(2000);
-	} else {
-		logCheckpoint(
-			'New Chat button not visible. Already on a fresh chat or demo chat — proceeding.'
-		);
-	}
+	// Navigate to /# to clear the chat hash and land on a fresh new chat.
+	// Using page.goto with a hash fragment ensures we stay logged in (auth is in IndexedDB)
+	// while clearing any demo or previous chat context.
+	await page.goto('/#');
+	await page.waitForTimeout(2000);
+
+	// Wait for the message editor to be ready
+	const messageEditor = page.locator('.editor-content.prose');
+	await expect(messageEditor).toBeVisible({ timeout: 15000 });
 
 	const newUrl = page.url();
-	logCheckpoint(`URL after attempting to start new chat: ${newUrl}`);
+	logCheckpoint(`URL after navigating to fresh chat: ${newUrl}`);
 }
 
 /**

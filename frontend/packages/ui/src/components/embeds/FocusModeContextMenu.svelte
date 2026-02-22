@@ -200,7 +200,7 @@
 
 {#if show}
   <div
-    class="menu-container {show ? 'show' : ''} {showBelow ? 'below' : 'above'}"
+    class="menu-container focus-mode-context-menu {show ? 'show' : ''} {showBelow ? 'below' : 'above'}"
     style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
     bind:this={menuElement}
   >
