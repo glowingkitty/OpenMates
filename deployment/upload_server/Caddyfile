@@ -62,6 +62,17 @@ ${DEPLOY_UPLOAD_DOMAIN} {
 		}
 	}
 
+	# Admin endpoints — served by the isolated admin-sidecar container (port 8001).
+	# The main app-uploads container (port 8000) does NOT have Docker socket access.
+	# Access is controlled by the X-Admin-Log-Key header inside the sidecar itself.
+	# Only reachable server-to-server (no browser Origin header expected here).
+	@admin_paths path /admin/*
+	handle @admin_paths {
+		reverse_proxy localhost:8001 {
+			header_up Host {http.request.host}
+		}
+	}
+
 	# Requests from the production web app (openmates.org)
 	# Self-hosters: replace with your production app domain
 	@prod_origin expression {header.Origin} == "https://openmates.org"

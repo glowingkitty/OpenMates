@@ -446,8 +446,9 @@ async def _trigger_satellite_update(url: str, api_key: str, server_name: str) ->
     """
     Call the POST /admin/update endpoint on a satellite server (upload or preview).
 
-    The response is streamed plain text — each line is printed as it arrives so
-    the operator sees live progress (git pull output, docker build steps, etc.).
+    The endpoint is fire-and-forget: it returns 202 immediately and runs the
+    update (git pull + docker compose build + up -d) in the background.
+    Use the corresponding *-logs command to monitor progress afterward.
 
     Args:
         url:         Full URL of the /admin/update endpoint.
@@ -457,35 +458,39 @@ async def _trigger_satellite_update(url: str, api_key: str, server_name: str) ->
     headers = {"X-Admin-Log-Key": api_key}
 
     try:
-        async with httpx.AsyncClient(timeout=None) as client:
-            # Use stream() so we get the response body as it is produced by the server.
-            # The server streams progress lines one by one as each step completes.
-            async with client.stream("POST", url, headers=headers) as response:
-                if response.status_code == 401:
-                    print("Error: Invalid admin log API key", file=sys.stderr)
-                    sys.exit(1)
-                elif response.status_code == 503:
-                    print(
-                        "Error: Admin update endpoint not configured on the server "
-                        "(ADMIN_LOG_API_KEY env var not set on the satellite VM)",
-                        file=sys.stderr,
-                    )
-                    sys.exit(1)
-                elif response.status_code != 200:
-                    body = await response.aread()
-                    print(f"Error: Server returned {response.status_code}", file=sys.stderr)
-                    print(body.decode(errors="replace"), file=sys.stderr)
-                    sys.exit(1)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, headers=headers)
 
-                # Stream output line by line
-                async for line in response.aiter_lines():
-                    print(line)
+        if response.status_code == 401:
+            print("Error: Invalid admin log API key", file=sys.stderr)
+            sys.exit(1)
+        elif response.status_code == 409:
+            print("Error: An update is already in progress on the server.", file=sys.stderr)
+            print("Use the *-logs command to monitor it.", file=sys.stderr)
+            sys.exit(1)
+        elif response.status_code == 503:
+            print(
+                "Error: Admin update endpoint not configured on the server "
+                "(ADMIN_LOG_API_KEY or SERVICE_UPDATE_TARGET not set on the satellite VM)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        elif response.status_code != 202:
+            print(f"Error: Server returned {response.status_code}", file=sys.stderr)
+            print(response.text, file=sys.stderr)
+            sys.exit(1)
+
+        # 202 Accepted — update started in background
+        try:
+            data = response.json()
+            print(data.get("message", "Update accepted."))
+        except Exception:
+            print("Update accepted (202).")
 
     except httpx.ConnectError:
         print(f"Error: Could not connect to {url}", file=sys.stderr)
         sys.exit(1)
     except httpx.TimeoutException:
-        # Should not happen with timeout=None, but guard anyway
         print("Error: Request timed out", file=sys.stderr)
         sys.exit(1)
 

@@ -1,0 +1,93 @@
+# deployment/preview_server/Caddyfile
+#
+# Production Caddyfile template for the OpenMates Preview Server VM.
+#
+# DO NOT EDIT PLACEHOLDERS MANUALLY — use the render script instead:
+#   python scripts/render-deploy-config.py deployment/preview_server/Caddyfile
+#
+# Or render and apply directly on the server:
+#   python scripts/render-deploy-config.py deployment/preview_server/Caddyfile \
+#     | sudo tee /etc/caddy/Caddyfile > /dev/null
+#   sudo systemctl reload caddy
+#
+# WHAT THIS DOES:
+#   - Terminates TLS via Let's Encrypt for the single preview domain
+#   - Validates the Referer header: only requests originating from openmates.org
+#     domains are forwarded to the preview container (localhost:8080)
+#   - Proxies /health to the preview container with no referer check
+#   - Proxies /admin/* to the isolated admin-sidecar container (localhost:8001)
+#     which holds the Docker socket. The main preview container does NOT.
+#   - Adds security headers (HSTS, nosniff, etc.)
+#   - Blocks all requests with a missing or unrecognised Referer
+#
+# SECURITY:
+#   - Only /health, /admin/*, and requests with valid Referer are routed
+#   - The preview container is only exposed on localhost (127.0.0.1:8080)
+#   - The admin-sidecar is only exposed on localhost (127.0.0.1:8001)
+#   - Access to /admin/* is further protected by X-Admin-Log-Key inside the sidecar
+#   - Self-hosters: replace the Referer regex with your own app domains
+
+{
+	# Email for ACME account (Let's Encrypt certificate issuance)
+	email ${DEPLOY_ACME_EMAIL}
+}
+
+${DEPLOY_PREVIEW_DOMAIN} {
+	log {
+		output file /var/log/caddy/${DEPLOY_PREVIEW_DOMAIN}.log {
+			roll_size 50mb
+			roll_keep 5
+			roll_keep_for 168h # 7 days
+		}
+		format json
+		level INFO
+	}
+
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+		-Server
+	}
+
+	# Health endpoint — always accessible, no referer check needed
+	@preview_health path /health
+	handle @preview_health {
+		reverse_proxy localhost:8080 {
+			header_up Host {http.request.host}
+		}
+	}
+
+	# Admin endpoints — served by the isolated admin-sidecar container (port 8001).
+	# The main preview container (port 8080) does NOT have Docker socket access.
+	# Access is controlled by the X-Admin-Log-Key header inside the sidecar itself.
+	# Only reachable server-to-server (no browser Referer header expected here).
+	@admin_paths path /admin/*
+	handle @admin_paths {
+		reverse_proxy localhost:8001 {
+			header_up Host {http.request.host}
+		}
+	}
+
+	# Valid requests from the openmates.org webapp family.
+	# Matches: openmates.org, dev.openmates.org, app.dev.openmates.org, etc.
+	# Self-hosters: replace with your own app domain regex.
+	@valid_referer expression {header.Referer}.matches("^https://([a-zA-Z0-9-]+\\.)*openmates\\.org(/.*)?$")
+	handle @valid_referer {
+		reverse_proxy localhost:8080 {
+			header_up Host {http.request.host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Block everything else — missing or invalid Referer
+	handle {
+		abort
+	}
+}

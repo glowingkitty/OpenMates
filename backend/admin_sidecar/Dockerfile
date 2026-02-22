@@ -46,7 +46,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Use /sidecar as the app directory — intentionally NOT /app, because the
+# docker-compose volume mount maps GIT_WORK_DIR (defaulting to /app on the host)
+# into the container at the same path. If we used /app, that mount would shadow
+# main.py at runtime, causing "Could not import module main".
+WORKDIR /sidecar
 
 # Install Python dependencies (fastapi + uvicorn only)
 COPY backend/admin_sidecar/requirements.txt .
