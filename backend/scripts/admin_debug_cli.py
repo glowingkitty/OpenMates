@@ -12,6 +12,8 @@ Commands:
     logs          - Query Docker Compose logs from Loki (core API server)
     upload-logs   - Query Docker logs from the upload server (upload.openmates.org)
     preview-logs  - Query Docker logs from the preview server (preview.openmates.org)
+    upload-update - git pull + rebuild + restart upload server containers
+    preview-update - git pull + rebuild + restart preview server containers
     issues        - List issue reports
     issue         - Get details of a specific issue
     issue-delete  - Delete an issue (after confirmed fixed)
@@ -39,6 +41,12 @@ Examples:
 
     # List unprocessed issues
     docker exec api python /app/backend/scripts/admin_debug_cli.py issues
+
+    # Trigger a full self-update of the upload server (git pull + rebuild + restart)
+    docker exec api python /app/backend/scripts/admin_debug_cli.py upload-update
+
+    # Trigger a full self-update of the preview server
+    docker exec api python /app/backend/scripts/admin_debug_cli.py preview-update
 
     # Inspect a user
     docker exec api python /app/backend/scripts/admin_debug_cli.py user someone@example.com
@@ -123,6 +131,11 @@ DEV_API_URL = "https://api.dev.openmates.org/v1/admin/debug"
 # (There is no dev-specific upload or preview server.)
 UPLOAD_SERVER_URL = "https://upload.openmates.org/admin/logs"
 PREVIEW_SERVER_URL = "https://preview.openmates.org/admin/logs"
+
+# Update endpoints — trigger git pull + rebuild + restart on the satellite VM.
+# These exist ONLY on the upload and preview servers, never on the core API server.
+UPLOAD_SERVER_UPDATE_URL = "https://upload.openmates.org/admin/update"
+PREVIEW_SERVER_UPDATE_URL = "https://preview.openmates.org/admin/update"
 
 
 async def get_api_key_from_vault() -> str:
@@ -421,6 +434,110 @@ async def cmd_preview_logs(args, _unused_api_key: str):
             print(f"Search pattern: {args.search}")
         print()
         print(output)
+
+
+async def _trigger_satellite_update(url: str, api_key: str, server_name: str) -> None:
+    """
+    Call the POST /admin/update endpoint on a satellite server (upload or preview).
+
+    The response is streamed plain text — each line is printed as it arrives so
+    the operator sees live progress (git pull output, docker build steps, etc.).
+
+    Args:
+        url:         Full URL of the /admin/update endpoint.
+        api_key:     X-Admin-Log-Key secret.
+        server_name: Human-readable name for error messages (e.g. "upload server").
+    """
+    headers = {"X-Admin-Log-Key": api_key}
+
+    try:
+        async with httpx.AsyncClient(timeout=None) as client:
+            # Use stream() so we get the response body as it is produced by the server.
+            # The server streams progress lines one by one as each step completes.
+            async with client.stream("POST", url, headers=headers) as response:
+                if response.status_code == 401:
+                    print("Error: Invalid admin log API key", file=sys.stderr)
+                    sys.exit(1)
+                elif response.status_code == 503:
+                    print(
+                        "Error: Admin update endpoint not configured on the server "
+                        "(ADMIN_LOG_API_KEY env var not set on the satellite VM)",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
+                elif response.status_code != 200:
+                    body = await response.aread()
+                    print(f"Error: Server returned {response.status_code}", file=sys.stderr)
+                    print(body.decode(errors="replace"), file=sys.stderr)
+                    sys.exit(1)
+
+                # Stream output line by line
+                async for line in response.aiter_lines():
+                    print(line)
+
+    except httpx.ConnectError:
+        print(f"Error: Could not connect to {url}", file=sys.stderr)
+        sys.exit(1)
+    except httpx.TimeoutException:
+        # Should not happen with timeout=None, but guard anyway
+        print("Error: Request timed out", file=sys.stderr)
+        sys.exit(1)
+
+
+async def cmd_upload_update(args, _unused_api_key: str):
+    """
+    Trigger a full self-update of the upload server (upload.openmates.org).
+
+    Calls POST https://upload.openmates.org/admin/update using the admin log API key
+    stored in core Vault at kv/data/providers/upload_server (key: admin_log_api_key).
+
+    The server runs:
+      1. git pull
+      2. docker compose build app-uploads
+      3. docker compose up -d app-uploads
+
+    Progress is streamed line by line so the operator sees live output.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/upload_server",
+        vault_key="admin_log_api_key",
+        server_name="upload server",
+    )
+
+    print("=== Triggering update on upload server ===\n")
+    await _trigger_satellite_update(
+        url=UPLOAD_SERVER_UPDATE_URL,
+        api_key=api_key,
+        server_name="upload server",
+    )
+
+
+async def cmd_preview_update(args, _unused_api_key: str):
+    """
+    Trigger a full self-update of the preview server (preview.openmates.org).
+
+    Calls POST https://preview.openmates.org/admin/update using the admin log API key
+    stored in core Vault at kv/data/providers/preview_server (key: admin_log_api_key).
+
+    The server runs:
+      1. git pull
+      2. docker compose build preview
+      3. docker compose up -d preview
+
+    Progress is streamed line by line so the operator sees live output.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/preview_server",
+        vault_key="admin_log_api_key",
+        server_name="preview server",
+    )
+
+    print("=== Triggering update on preview server ===\n")
+    await _trigger_satellite_update(
+        url=PREVIEW_SERVER_UPDATE_URL,
+        api_key=api_key,
+        server_name="preview server",
+    )
 
 
 async def cmd_issues(args, api_key: str):
@@ -735,9 +852,9 @@ async def cmd_newsletter(args, api_key: str):
 
 async def async_main(args):
     """Async main function."""
-    # upload-logs and preview-logs fetch their own Vault keys internally —
-    # they don't need the core API admin key and don't target dev vs prod.
-    _satellite_commands = {"upload-logs", "preview-logs"}
+    # Satellite commands fetch their own Vault keys internally — they don't need
+    # the core API admin key and don't distinguish between dev and prod.
+    _satellite_commands = {"upload-logs", "preview-logs", "upload-update", "preview-update"}
     if args.command in _satellite_commands:
         # Satellite commands are not server-specific (there is only one upload/preview VM).
         # Pass None as api_key — the commands fetch their own keys from Vault.
@@ -831,6 +948,20 @@ def main():
         help="Regex pattern to filter log lines (case-insensitive)",
     )
     preview_logs_parser.set_defaults(func=cmd_preview_logs)
+
+    # upload-update command (upload.openmates.org — git pull + rebuild + restart)
+    upload_update_parser = subparsers.add_parser(  # noqa: F841
+        "upload-update",
+        help="git pull + rebuild + restart the upload server (upload.openmates.org)",
+    )
+    upload_update_parser.set_defaults(func=cmd_upload_update)
+
+    # preview-update command (preview.openmates.org — git pull + rebuild + restart)
+    preview_update_parser = subparsers.add_parser(  # noqa: F841
+        "preview-update",
+        help="git pull + rebuild + restart the preview server (preview.openmates.org)",
+    )
+    preview_update_parser.set_defaults(func=cmd_preview_update)
 
     # issues command
     issues_parser = subparsers.add_parser("issues", help="List issue reports")

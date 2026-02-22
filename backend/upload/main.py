@@ -40,6 +40,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from backend.upload.routes.admin_logs import router as admin_logs_router
+from backend.upload.routes.admin_update import router as admin_update_router
 from backend.upload.routes.upload_route import router as upload_router
 from backend.upload.services.malware_scanner import MalwareScannerService
 from backend.upload.services.file_encryption import FileEncryptionService
@@ -176,10 +177,14 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Register upload routes
 app.include_router(upload_router)
 
-# Register admin routes (log fetching for operational debugging)
+# Register admin routes (operational debugging and server management)
 # Protected by X-Admin-Log-Key header matching ADMIN_LOG_API_KEY env var.
-# Excluded from CORS since it's called server-to-server, not from the browser.
+# Excluded from CORS since these are called server-to-server, not from the browser.
+# admin_logs_router:   GET  /admin/logs   — fetch Docker logs
+# admin_update_router: POST /admin/update — git pull + rebuild + restart
+# NOTE: admin_update_router intentionally absent from the core API server.
 app.include_router(admin_logs_router)
+app.include_router(admin_update_router)
 
 
 # ---------------------------------------------------------------------------
