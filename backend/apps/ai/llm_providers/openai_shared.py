@@ -160,14 +160,17 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
     
     # If this is a property definition with type 'integer' or 'number':
     # 1. Remove minimum/maximum fields (Cerebras and other providers reject them)
-    # 2. Convert enum values to strings — Google Gemini's SDK (Pydantic-validated
-    #    FunctionDeclaration) requires all enum entries to be strings, even for integer types.
-    #    Other providers accept string enums fine; we cast back to int at validation time.
+    # 2. When the field has an enum, convert both the type and enum values to strings.
+    #    Google's API (and its Pydantic-backed SDK) only allows enum on STRING-typed fields
+    #    (API error: "enum: only allowed for STRING type"). Converting type→"string" and
+    #    enum values→str() is safe for all providers: the LLM returns the chosen string,
+    #    and skills already cast with int() when consuming tool call arguments.
     if sanitized.get("type") in ("integer", "number"):
         sanitized.pop("minimum", None)
         sanitized.pop("maximum", None)
         if "enum" in sanitized and isinstance(sanitized["enum"], list):
             sanitized["enum"] = [str(v) for v in sanitized["enum"]]
+            sanitized["type"] = "string"  # Google API requires STRING type for enum fields
     
     # Recursively sanitize nested structures
     if "properties" in sanitized:
