@@ -34,6 +34,10 @@ import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPr
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
+import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
+import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
+import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 
@@ -331,6 +335,70 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status,
         });
         return this.renderImageGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For images/view skill, render image view preview with original embed fullscreen
+      if (appId === "images" && skillId === "view") {
+        console.debug("[AppSkillUseRenderer] Rendering images view for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderImageViewComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For pdf/view skill, render PDF view preview with original embed fullscreen
+      if (appId === "pdf" && skillId === "view") {
+        console.debug("[AppSkillUseRenderer] Rendering pdf view for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderPdfViewComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For pdf/read skill, render PDF read preview with original embed fullscreen
+      if (appId === "pdf" && skillId === "read") {
+        console.debug("[AppSkillUseRenderer] Rendering pdf read for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderPdfReadComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For pdf/search skill, render PDF search preview with original embed fullscreen
+      if (appId === "pdf" && skillId === "search") {
+        console.debug("[AppSkillUseRenderer] Rendering pdf search for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderPdfSearchComponent(
           attrs,
           embedData,
           decodedContent,
@@ -1730,6 +1798,555 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       content.addEventListener("click", () => {
         this.openFullscreen(attrs, embedData, decodedContent);
       });
+    }
+  }
+
+  /**
+   * Open the ORIGINAL uploaded image's fullscreen viewer.
+   * Resolves the original image upload embed by embed_id, then fires
+   * 'imagefullscreen' CustomEvent so ActiveChat mounts UploadedImageFullscreen.
+   */
+  private async openImageUploadFullscreen(embedId: string): Promise<void> {
+    if (!embedId) {
+      console.warn(
+        "[AppSkillUseRenderer] openImageUploadFullscreen: no embed_id",
+      );
+      return;
+    }
+    try {
+      const uploadEmbed = await resolveEmbed(embedId);
+      if (!uploadEmbed) {
+        console.warn(
+          "[AppSkillUseRenderer] Could not resolve original image embed:",
+          embedId,
+        );
+        return;
+      }
+      const uploadContent = uploadEmbed.content
+        ? await decodeToonContent(uploadEmbed.content)
+        : null;
+
+      const event = new CustomEvent("imagefullscreen", {
+        detail: {
+          src: undefined, // no local blob URL (this is a persisted embed)
+          filename:
+            uploadContent?.filename || (uploadEmbed as any).filename || "",
+          s3Files: uploadContent?.files || undefined,
+          s3BaseUrl: uploadContent?.s3_base_url || "",
+          aesKey: uploadContent?.aes_key || "",
+          aesNonce: uploadContent?.aes_nonce || "",
+          isAuthenticated: true,
+          fileSize: uploadContent?.file_size,
+          fileType: uploadContent?.file_type,
+        },
+        bubbles: true,
+      });
+      document.dispatchEvent(event);
+      console.debug(
+        "[AppSkillUseRenderer] Dispatched imagefullscreen for upload embed:",
+        embedId,
+      );
+    } catch (err) {
+      console.error(
+        "[AppSkillUseRenderer] Failed to open image upload fullscreen:",
+        err,
+      );
+    }
+  }
+
+  /**
+   * Open the ORIGINAL uploaded PDF's fullscreen viewer.
+   * Resolves the original PDF upload embed by embed_id, then fires
+   * 'pdffullscreen' CustomEvent so ActiveChat mounts PDFEmbedFullscreen.
+   */
+  private async openPdfUploadFullscreen(embedId: string): Promise<void> {
+    if (!embedId) {
+      console.warn(
+        "[AppSkillUseRenderer] openPdfUploadFullscreen: no embed_id",
+      );
+      return;
+    }
+    try {
+      const uploadEmbed = await resolveEmbed(embedId);
+      if (!uploadEmbed) {
+        console.warn(
+          "[AppSkillUseRenderer] Could not resolve original PDF embed:",
+          embedId,
+        );
+        return;
+      }
+      const uploadContent = uploadEmbed.content
+        ? await decodeToonContent(uploadEmbed.content)
+        : null;
+
+      const event = new CustomEvent("pdffullscreen", {
+        detail: {
+          filename:
+            uploadContent?.filename || (uploadEmbed as any).filename || "",
+          pageCount:
+            uploadContent?.page_count ??
+            (uploadEmbed as any).page_count ??
+            null,
+        },
+        bubbles: true,
+      });
+      document.dispatchEvent(event);
+      console.debug(
+        "[AppSkillUseRenderer] Dispatched pdffullscreen for upload embed:",
+        embedId,
+      );
+    } catch (err) {
+      console.error(
+        "[AppSkillUseRenderer] Failed to open PDF upload fullscreen:",
+        err,
+      );
+    }
+  }
+
+  /**
+   * Render images/view skill embed using ImageViewEmbedPreview component.
+   * On fullscreen click, opens the original uploaded image's fullscreen viewer.
+   */
+  private renderImageViewComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const error = decodedContent?.error || "";
+
+    // embed_id references the original uploaded image embed
+    const originalEmbedId = decodedContent?.embed_id || "";
+
+    // Filename from the original embed (backend includes it in the skill output text)
+    const filename = decodedContent?.filename || "";
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+
+      // On fullscreen click: open the ORIGINAL uploaded image's fullscreen
+      const handleFullscreen = () => {
+        this.openImageUploadFullscreen(originalEmbedId);
+      };
+
+      const component = mount(ImageViewEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          filename,
+          status: status as "processing" | "finished" | "error",
+          error,
+          isMobile: false,
+          // Only wire fullscreen when we have an original embed to open
+          onFullscreen:
+            status === "finished" && originalEmbedId
+              ? handleFullscreen
+              : undefined,
+          // S3 data will be resolved from the original embed by the component
+          // (passed via AppSkillUseRenderer after resolving the original embed)
+        },
+      });
+
+      mountedComponents.set(content, component);
+
+      // If finished: resolve the original embed to get S3 data for image preview
+      if (status === "finished" && originalEmbedId) {
+        this.resolveAndUpdateImageViewProps(
+          content,
+          originalEmbedId,
+          component,
+          handleFullscreen,
+        );
+      }
+
+      console.debug(
+        "[AppSkillUseRenderer] Mounted ImageViewEmbedPreview component:",
+        {
+          embedId,
+          status,
+          originalEmbedId,
+          filename,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting ImageViewEmbedPreview component:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Resolve the original image upload embed and update the ImageViewEmbedPreview
+   * component with S3 data so it can show the actual image preview.
+   */
+  private async resolveAndUpdateImageViewProps(
+    content: HTMLElement,
+    originalEmbedId: string,
+    component: ReturnType<typeof mount>,
+    handleFullscreen: () => void,
+  ): Promise<void> {
+    try {
+      const uploadEmbed = await resolveEmbed(originalEmbedId);
+      if (!uploadEmbed) return;
+      const uploadContent = uploadEmbed.content
+        ? await decodeToonContent(uploadEmbed.content)
+        : null;
+      if (!uploadContent) return;
+
+      // Re-mount with S3 data populated from the original embed
+      // We need to unmount and re-mount since mount() props can't be updated after mount
+      const existingComponent = mountedComponents.get(content);
+      if (!existingComponent) return;
+
+      try {
+        unmount(existingComponent);
+      } catch {
+        // ignore
+      }
+
+      content.innerHTML = "";
+
+      const s3Files = uploadContent.files as
+        | Record<
+            string,
+            {
+              s3_key: string;
+              width: number;
+              height: number;
+              size_bytes: number;
+              format: string;
+            }
+          >
+        | undefined;
+
+      const updated = mount(ImageViewEmbedPreview, {
+        target: content,
+        props: {
+          id: originalEmbedId,
+          filename: (uploadContent.filename as string) || "",
+          status: "finished" as const,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+          s3BaseUrl: (uploadContent.s3_base_url as string) || "",
+          s3Files,
+          aesKey: (uploadContent.aes_key as string) || "",
+          aesNonce: (uploadContent.aes_nonce as string) || "",
+        },
+      });
+
+      mountedComponents.set(content, updated);
+      console.debug(
+        "[AppSkillUseRenderer] Updated ImageViewEmbedPreview with S3 data for embed:",
+        originalEmbedId,
+      );
+    } catch (err) {
+      console.error(
+        "[AppSkillUseRenderer] Error resolving original image embed for preview:",
+        err,
+      );
+    }
+  }
+
+  /**
+   * Render pdf/view skill embed using PdfViewEmbedPreview component.
+   * On fullscreen click, opens the original uploaded PDF's fullscreen viewer.
+   */
+  private renderPdfViewComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const error = decodedContent?.error || "";
+
+    // embed_id references the original uploaded PDF embed
+    const originalEmbedId = decodedContent?.embed_id || "";
+
+    // Pages viewed (the LLM passes this as an array)
+    const pages: number[] = Array.isArray(decodedContent?.pages)
+      ? decodedContent.pages
+      : [];
+
+    // Filename and page count from the original PDF embed context
+    const filename = decodedContent?.filename || "";
+    const pageCount = decodedContent?.page_count ?? undefined;
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+
+      // On fullscreen click: open the ORIGINAL uploaded PDF's fullscreen
+      const handleFullscreen = () => {
+        this.openPdfUploadFullscreen(originalEmbedId);
+      };
+
+      const component = mount(PdfViewEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          filename,
+          pageCount,
+          pages,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen:
+            status === "finished" && originalEmbedId
+              ? handleFullscreen
+              : undefined,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted PdfViewEmbedPreview component:",
+        {
+          embedId,
+          status,
+          originalEmbedId,
+          pages,
+          filename,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting PdfViewEmbedPreview component:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render pdf/read skill embed using PdfReadEmbedPreview component.
+   * On fullscreen click, opens the original uploaded PDF's fullscreen viewer.
+   */
+  private renderPdfReadComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const error = decodedContent?.error || "";
+
+    // embed_id references the original uploaded PDF embed
+    const originalEmbedId = decodedContent?.embed_id || "";
+
+    // Pages returned and skipped from the read skill response
+    const pagesReturned: number[] = Array.isArray(
+      decodedContent?.pages_returned,
+    )
+      ? decodedContent.pages_returned
+      : [];
+    const pagesSkipped: number[] = Array.isArray(decodedContent?.pages_skipped)
+      ? decodedContent.pages_skipped
+      : [];
+
+    const filename = decodedContent?.filename || "";
+    const pageCount = decodedContent?.page_count ?? undefined;
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+
+      const handleFullscreen = () => {
+        this.openPdfUploadFullscreen(originalEmbedId);
+      };
+
+      const component = mount(PdfReadEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          filename,
+          pagesReturned,
+          pagesSkipped,
+          pageCount,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen:
+            status === "finished" && originalEmbedId
+              ? handleFullscreen
+              : undefined,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted PdfReadEmbedPreview component:",
+        {
+          embedId,
+          status,
+          originalEmbedId,
+          pagesReturned,
+          pagesSkipped,
+          filename,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting PdfReadEmbedPreview component:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render pdf/search skill embed using PdfSearchEmbedPreview component.
+   * On fullscreen click, opens the original uploaded PDF's fullscreen viewer.
+   */
+  private renderPdfSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const error = decodedContent?.error || "";
+
+    // embed_id references the original uploaded PDF embed
+    const originalEmbedId = decodedContent?.embed_id || "";
+
+    // Search-specific fields from the search skill response
+    const query = decodedContent?.query || "";
+    const totalMatches: number | undefined =
+      typeof decodedContent?.total_matches === "number"
+        ? decodedContent.total_matches
+        : undefined;
+    const truncated: boolean = decodedContent?.truncated === true;
+    const filename = decodedContent?.filename || "";
+    const pageCount = decodedContent?.page_count ?? undefined;
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+
+      const handleFullscreen = () => {
+        this.openPdfUploadFullscreen(originalEmbedId);
+      };
+
+      const component = mount(PdfSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          filename,
+          query,
+          totalMatches,
+          truncated,
+          pageCount,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen:
+            status === "finished" && originalEmbedId
+              ? handleFullscreen
+              : undefined,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted PdfSearchEmbedPreview component:",
+        {
+          embedId,
+          status,
+          originalEmbedId,
+          query,
+          totalMatches,
+          filename,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting PdfSearchEmbedPreview component:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }
 
