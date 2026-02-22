@@ -171,13 +171,9 @@ export async function checkAuth(
         );
       }
 
-      // CRITICAL: Prevent duplicate forced logout triggers if already in progress
-      if (get(forcedLogoutInProgress)) {
-        console.debug(
-          "[AuthSessionActions] Forced logout already in progress, skipping duplicate trigger",
-        );
-        return false;
-      }
+      // Track whether forcedLogoutInProgress was already set (e.g. by +page.svelte onMount)
+      // If so, we still need to proceed with cleanup — but skip duplicate notifications and flag-setting.
+      const alreadyForcedLogout = get(forcedLogoutInProgress);
 
       const masterKey = await cryptoService.getKeyFromStorage(); // Use getKeyFromStorage (now async)
       if (!masterKey) {
@@ -189,10 +185,16 @@ export async function checkAuth(
         // This prevents race conditions where other components try to load/decrypt encrypted chats
         // that can no longer be decrypted (because master key is missing).
         // This flag is checked in chat loading and decryption code to skip those operations.
-        forcedLogoutInProgress.set(true);
-        console.debug(
-          "[AuthSessionActions] Set forcedLogoutInProgress to true - blocking encrypted chat loading",
-        );
+        if (!alreadyForcedLogout) {
+          forcedLogoutInProgress.set(true);
+          console.debug(
+            "[AuthSessionActions] Set forcedLogoutInProgress to true - blocking encrypted chat loading",
+          );
+        } else {
+          console.debug(
+            "[AuthSessionActions] forcedLogoutInProgress already true (set by +page.svelte) - proceeding with cleanup",
+          );
+        }
 
         // CRITICAL: Navigate to demo-for-everyone IMMEDIATELY (synchronously) BEFORE auth state changes
         // This ensures any component reading activeChatStore will see demo-for-everyone, not the old chat
@@ -211,36 +213,35 @@ export async function checkAuth(
           isInitialized: true,
         }));
 
-        // Show notification with context-appropriate message:
-        // - If user had stayLoggedIn=true but key is missing → browser evicted storage (unexpected)
-        //   → reassure user their data is safe and they just need to log in again
-        // - If user had stayLoggedIn=false → expected behavior on page reload
-        //   → suggest enabling "Stay logged in"
-        const $text = get(text);
-        const { wasStayLoggedIn } =
-          await import("../services/cryptoKeyStorage");
-        const wasStorageEvicted = wasStayLoggedIn();
+        // Show notification with context-appropriate message — but only if we haven't already
+        // shown one (when +page.svelte sets the flag, it shows its own notification via setTimeout)
+        if (!alreadyForcedLogout) {
+          const $text = get(text);
+          const { wasStayLoggedIn } =
+            await import("../services/cryptoKeyStorage");
+          const wasStorageEvicted = wasStayLoggedIn();
 
-        if (wasStorageEvicted) {
-          // User had stayLoggedIn=true but browser evicted IndexedDB (e.g. iOS Safari storage pressure)
-          // Show reassuring message that data is safe
-          console.warn(
-            "[AuthSessionActions] Storage eviction detected: user had stayLoggedIn=true but master key is missing from IndexedDB",
-          );
-          notificationStore.autoLogout(
-            $text("login.auto_logout_notification.storage_evicted_message"),
-            undefined,
-            10000, // Show for 10 seconds — this is unexpected, give user more time to read
-            $text("login.auto_logout_notification.storage_evicted_title"),
-          );
-        } else {
-          // Normal case: user had stayLoggedIn=false, key was in memory and lost on page reload
-          notificationStore.autoLogout(
-            $text("login.auto_logout_notification.message"),
-            undefined,
-            7000, // Show for 7 seconds so user can read the hint
-            $text("login.auto_logout_notification.title"),
-          );
+          if (wasStorageEvicted) {
+            // User had stayLoggedIn=true but browser evicted IndexedDB (e.g. iOS Safari storage pressure)
+            // Show reassuring message that data is safe
+            console.warn(
+              "[AuthSessionActions] Storage eviction detected: user had stayLoggedIn=true but master key is missing from IndexedDB",
+            );
+            notificationStore.autoLogout(
+              $text("login.auto_logout_notification.storage_evicted_message"),
+              undefined,
+              10000, // Show for 10 seconds — this is unexpected, give user more time to read
+              $text("login.auto_logout_notification.storage_evicted_title"),
+            );
+          } else {
+            // Normal case: user had stayLoggedIn=false, key was in memory and lost on page reload
+            notificationStore.autoLogout(
+              $text("login.auto_logout_notification.message"),
+              undefined,
+              7000, // Show for 7 seconds so user can read the hint
+              $text("login.auto_logout_notification.title"),
+            );
+          }
         }
 
         // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone

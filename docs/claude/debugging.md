@@ -119,6 +119,12 @@ docker exec api python /app/backend/scripts/admin_debug_cli.py issues
 
 **Available commands:** `logs`, `upload-logs`, `preview-logs`, `upload-update`, `preview-update`, `issues`, `issue <id>`, `issue-delete <id>`, `user <email>`, `chat <id>`, `embed <id>`, `requests`, `newsletter`
 
+**Issue inspection notes:**
+
+- `issue <id>` includes the full S3 report (console logs, docker logs, metadata) **by default**
+- Add `--no-logs` to skip fetching the S3 report (faster, useful when you only need the issue description)
+- Example: `docker exec api python /app/backend/scripts/admin_debug_cli.py issue <id> --no-logs`
+
 **When to also check production code:** If something should be working but isn't (e.g., a task was queued but never executed), check whether the code exists on the `main` branch:
 
 ```bash

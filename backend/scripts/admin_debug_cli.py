@@ -606,8 +606,25 @@ async def cmd_issue(args, api_key: str):
         print(f"\nDescription:\n{result.get('description') or 'N/A'}")
         
         if result.get('full_report'):
-            print("\n=== Full Report ===")
-            print(json.dumps(result['full_report'], indent=2))
+            report = result['full_report']
+            # Display console logs separately for readability
+            logs = report.get('logs', {})
+            console_logs = logs.get('console_logs') if isinstance(logs, dict) else None
+            docker_logs = logs.get('docker_compose_logs') if isinstance(logs, dict) else None
+
+            # Print report without logs (they're displayed separately below)
+            report_without_logs = {k: v for k, v in report.items() if k != 'logs'}
+            if report_without_logs:
+                print("\n=== Full Report (metadata) ===")
+                print(json.dumps(report_without_logs, indent=2))
+
+            if console_logs:
+                print("\n=== Console Logs ===")
+                print(str(console_logs))
+
+            if docker_logs:
+                print("\n=== Docker Compose Logs ===")
+                print(str(docker_logs))
 
 
 async def cmd_issue_delete(args, api_key: str):
@@ -985,7 +1002,7 @@ def main():
     # issue command
     issue_parser = subparsers.add_parser("issue", help="Get issue details")
     issue_parser.add_argument("issue_id", help="Issue ID")
-    issue_parser.add_argument("--include-logs", "-l", action="store_true", help="Include related logs")
+    issue_parser.add_argument("--no-logs", dest="include_logs", action="store_false", help="Skip fetching the full YAML report from S3 (logs are included by default)")
     issue_parser.set_defaults(func=cmd_issue)
 
     # issue-delete command
