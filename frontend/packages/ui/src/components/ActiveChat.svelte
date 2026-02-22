@@ -4293,13 +4293,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    // Update the loadChat function
-    export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean }) {
-        // Clear any active processing phase indicator from the previous chat
-        clearProcessingPhase();
-        // Reset the chat header (new-chat title placeholder) when switching to any chat.
-        // Existing chats loaded from the sidebar never show this header.
-        resetChatHeaderState();
+     // Update the loadChat function
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean }) {
+         // Clear any active processing phase indicator from the previous chat
+         clearProcessingPhase();
+         // Reset the chat header state when switching to any chat.
+         // For new chats, handleSendMessage will set isNewChatGeneratingTitle=true.
+         // For existing chats, we decrypt title/category/icon below (after currentChat is set).
+         resetChatHeaderState();
         
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat
@@ -4378,9 +4379,44 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 freshChat = chat;
             }
         }
-        currentChat = freshChat || chat; // currentChat is now just metadata
-        
-        // CRITICAL: Clear liveInputText when switching chats to prevent stale search terms
+         currentChat = freshChat || chat; // currentChat is now just metadata
+
+         // ─── Chat Header: restore title/category/icon for existing chats ────────────────
+         // When navigating to an existing chat (title_v > 0), decrypt and display the
+         // permanent header card (title + gradient icon circle) immediately. This mirrors
+         // the flow for new chats, except we decrypt from the stored chat object directly
+         // rather than waiting for a title_updated / metadata_updated WebSocket event.
+         // isNewChatGeneratingTitle stays false (no shimmer for existing chats).
+         const chatForHeader = currentChat;
+         if (chatForHeader && !isPublicChat(chatForHeader.chat_id) && !chatForHeader.is_incognito &&
+             chatForHeader.title_v && chatForHeader.title_v > 0 && chatForHeader.encrypted_title) {
+             try {
+                 const { decryptWithChatKey } = await import('../services/cryptoService');
+                 const chatKey = chatDB.getOrGenerateChatKey(chatForHeader.chat_id);
+                 if (chatKey) {
+                     let t = '';
+                     let c: string | null = null;
+                     let ic: string | null = null;
+                     try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey) ?? ''; } catch { /* keep blank */ }
+                     if (chatForHeader.encrypted_category) {
+                         try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey); } catch { /* keep null */ }
+                     }
+                     if (chatForHeader.encrypted_icon) {
+                         try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey); } catch { /* keep null */ }
+                     }
+                     if (t && c) {
+                         activeChatDecryptedTitle = t;
+                         activeChatDecryptedCategory = c;
+                         activeChatDecryptedIcon = ic;
+                         console.debug('[ActiveChat] loadChat: Restored chat header for existing chat:', t, c, ic);
+                     }
+                 }
+             } catch (err) {
+                 console.error('[ActiveChat] loadChat: Failed to decrypt header for existing chat:', err);
+             }
+         }
+
+         // CRITICAL: Clear liveInputText when switching chats to prevent stale search terms
         // This ensures followup suggestions show correctly when switching from a new chat with draft to a demo chat
         liveInputText = '';
         console.debug("[ActiveChat] Cleared liveInputText when switching to chat:", chat.chat_id);
