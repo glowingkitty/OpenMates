@@ -1898,6 +1898,47 @@ async def handle_preprocessing(
         else:
             logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
     
+    # --- Rule-based skill forcing: images-view ---
+    # The preprocessing LLM (Mistral Small) occasionally fails to select images-view
+    # even when the message history clearly contains an uploaded image embed. This causes
+    # the main LLM to receive the toon block without a tool to call, leading to hallucinated
+    # image descriptions. We fix this with a deterministic rule: if the message history
+    # contains a toon block with app_id=images and skill_id=upload, force images-view into
+    # the preselected skills. This rule runs AFTER LLM validation so it overrides any
+    # LLM omission. It only fires if the skill is actually available (i.e., the images app
+    # is healthy and discovered).
+    if "images-view" in available_skill_ids and not user_requested_skills_only:
+        # Scan message history for image upload toon blocks.
+        # The toon block format is a fenced code block:
+        #   ```toon
+        #   app_id: images
+        #   skill_id: upload
+        #   ...
+        #   ```
+        has_image_upload_embed = False
+        for msg in request_data.message_history:
+            content = msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else None)
+            if not isinstance(content, str):
+                continue
+            # Quick check before full parse — saves cycles on plain-text messages
+            if "app_id: images" in content and "skill_id: upload" in content:
+                has_image_upload_embed = True
+                break
+
+        if has_image_upload_embed:
+            if "images-view" not in validated_relevant_skills:
+                # Prepend so images-view is first (highest priority tool for image questions)
+                validated_relevant_skills = ["images-view"] + validated_relevant_skills
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced 'images-view' into preselected skills: "
+                    f"detected images/upload toon block in message history. "
+                    f"(Prevents hallucination when preprocessing LLM misses image skill.)"
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] 'images-view' already preselected by LLM — no override needed."
+                )
+
     # --- Determine if hardcoded disclaimer injection is required ---
     # This is a HARDCODED safety mechanism for legal compliance.
     # We do NOT rely on LLM instructions to include disclaimers for sensitive topics.
