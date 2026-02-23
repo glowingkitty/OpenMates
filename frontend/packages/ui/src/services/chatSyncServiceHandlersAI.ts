@@ -3489,16 +3489,109 @@ async function persistInspirations(
   const storedRecords: import("./dailyInspirationDB").StoredDailyInspiration[] =
     [];
 
+  // Lazily import modules needed for embed creation
+  const [
+    { dailyInspirationStore },
+    { embedStore },
+    { encode: toonEncode },
+    { generateUUID },
+  ] = await Promise.all([
+    import("../stores/dailyInspirationStore"),
+    import("./embedStore"),
+    import("@toon-format/toon"),
+    import("../message_parsing/utils"),
+  ]);
+
   for (const inspiration of inspirations) {
-    // The assistant_response for persistence is just the phrase text at this point.
-    // The full embed reference block (phrase + embed) is built in handleStartChatFromInspiration
-    // when the user actually clicks the banner. For persistence we only need the phrase
-    // so the server can store something meaningful.
+    // ── 1. Create a video embed in EmbedStore if this inspiration has a video
+    //       and we haven't already stored one for it.
+    //       This ensures the embed is available for fullscreen preview before
+    //       the user starts a chat (clicking the thumbnail should open the video
+    //       without creating a chat first).
+    let resolvedEmbedId = inspiration.embed_id ?? null;
+
+    if (inspiration.video?.youtube_id && !resolvedEmbedId) {
+      try {
+        const video = inspiration.video;
+        const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
+        const embedId = generateUUID();
+
+        let durationFormatted: string | null = null;
+        if (video.duration_seconds != null) {
+          const mins = Math.floor(video.duration_seconds / 60);
+          const secs = video.duration_seconds % 60;
+          durationFormatted = `${mins}:${secs.toString().padStart(2, "0")}`;
+        }
+
+        const embedContent = {
+          url: videoUrl,
+          video_id: video.youtube_id,
+          title: video.title || null,
+          description: null,
+          channel_name: video.channel_name || null,
+          channel_id: null,
+          channel_thumbnail: null,
+          thumbnail: video.thumbnail_url || null,
+          duration_seconds: video.duration_seconds ?? null,
+          duration_formatted: durationFormatted,
+          view_count: video.view_count ?? null,
+          like_count: null,
+          published_at: video.published_at || null,
+          fetched_at: new Date().toISOString(),
+        };
+
+        let toonContent: string;
+        try {
+          toonContent = toonEncode(embedContent);
+        } catch {
+          toonContent = JSON.stringify(embedContent);
+        }
+
+        const nowMs = Date.now();
+        await embedStore.put(
+          `embed:${embedId}`,
+          {
+            embed_id: embedId,
+            type: "video",
+            status: "finished",
+            content: toonContent,
+            text_preview: video.title || "YouTube Video",
+            createdAt: nowMs,
+            updatedAt: nowMs,
+          },
+          "videos-video",
+        );
+
+        resolvedEmbedId = embedId;
+
+        // Update the Svelte store so DailyInspirationBanner can use the real embed_id
+        dailyInspirationStore.setEmbedId(inspiration.inspiration_id, embedId);
+
+        console.debug(
+          "[ChatSyncService:AI] Pre-stored inspiration video embed:",
+          embedId,
+          "for inspiration:",
+          inspiration.inspiration_id,
+        );
+      } catch (embedErr) {
+        console.error(
+          "[ChatSyncService:AI] Failed to pre-store inspiration embed (non-fatal):",
+          embedErr,
+        );
+        // Non-fatal — fallback to ephemeral preview on click
+      }
+    }
+
+    // ── 2. Persist inspiration metadata (with the resolved embed_id) to IndexedDB
+    const inspirationWithEmbed = resolvedEmbedId
+      ? { ...inspiration, embed_id: resolvedEmbedId }
+      : inspiration;
+
     const assistantResponse =
       inspiration.assistant_response ?? inspiration.phrase;
 
     const record = await dailyInspirationDB.saveInspirationToIndexedDB(
-      inspiration,
+      inspirationWithEmbed,
       assistantResponse,
     );
 

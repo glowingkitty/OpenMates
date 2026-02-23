@@ -3985,12 +3985,54 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 console.error('[ActiveChat] Failed to mark inspiration opened on API:', err);
             });
 
+            // ── Follow-up suggestions ──────────────────────────────────────────
+            // Pre-generate 3 follow-up suggestions for this inspiration chat so
+            // they appear in the MessageInput immediately without a server round-trip.
+            // These are simple "Continue the conversation" prompts derived from the
+            // inspiration phrase and category.
+            try {
+                const { encryptWithChatKey: encryptSuggestions } = await import('../services/cryptoService');
+                const categoryLabel = inspiration.category
+                    ? inspiration.category.charAt(0).toUpperCase() + inspiration.category.slice(1)
+                    : 'this topic';
+                const rawSuggestions = [
+                    `Tell me more about ${categoryLabel.toLowerCase()}`,
+                    `What should I do next to learn about this?`,
+                    `Give me a practical exercise related to this`,
+                ];
+                const encryptedSuggestions = await encryptSuggestions(
+                    JSON.stringify(rawSuggestions),
+                    chatKey,
+                );
+                if (encryptedSuggestions) {
+                    const chatWithSuggestions = {
+                        ...(newChat as import('../types/chat').Chat),
+                        encrypted_follow_up_request_suggestions: encryptedSuggestions,
+                    };
+                    await chatDB.updateChat(chatWithSuggestions);
+                    // Make suggestions available in the UI immediately
+                    followUpSuggestions = rawSuggestions;
+                    console.debug('[ActiveChat] Pre-generated follow-up suggestions for inspiration chat');
+                }
+            } catch (suggErr) {
+                // Non-fatal — suggestions are a nice-to-have
+                console.warn('[ActiveChat] Failed to pre-generate follow-up suggestions:', suggErr);
+            }
+
             // Navigate to the new chat (same pattern as handleResumeLastChat)
             phasedSyncState.markInitialChatLoaded();
             activeChatStore.setActiveChat(chatId);
             await loadChat(newChat as import('../types/chat').Chat);
 
-            // Notify chat list sidebar
+            // Notify Chats.svelte sidebar so the new chat appears immediately.
+            // chatListCache.upsertChat inserts the chat at the top of the cached list,
+            // then localChatListChanged triggers Chats.svelte to re-render.
+            chatListCache.upsertChat(newChat as import('../types/chat').Chat);
+            window.dispatchEvent(new CustomEvent('localChatListChanged', {
+                bubbles: true,
+                composed: true,
+                detail: { reason: 'inspiration_chat_created', chatId },
+            }));
             window.dispatchEvent(new CustomEvent('globalChatSelected', {
                 bubbles: true,
                 composed: true,
@@ -4029,10 +4071,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             durationFormatted = `${mins}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // Build decodedContent matching the VideoEmbedFullscreen expected shape.
-        // The 'preview:' prefix marks it as ephemeral — no EmbedStore lookup,
-        // no URL hash update (handled in handleEmbedFullscreen).
-        const embedId = `preview:youtube-${videoId}`;
+        // If the embed was pre-stored at inspiration-load time (via persistInspirations),
+        // use the real embed_id so it opens through the normal EmbedStore path.
+        // This enables proper fullscreen with all metadata loaded from the store.
+        // Fall back to the ephemeral 'preview:' ID only when the embed isn't stored yet
+        // (e.g. the inspiration arrived from the server but persistInspirations hasn't run).
+        const storedEmbedId = inspiration.embed_id;
+        const embedId = storedEmbedId ? `embed:${storedEmbedId}` : `preview:youtube-${videoId}`;
+        const isEphemeral = !storedEmbedId;
 
         const syntheticEvent = new CustomEvent('embedfullscreen', {
             detail: {
@@ -4042,6 +4088,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     type: 'videos-video',
                     status: 'finished',
                 },
+                // Always pass decodedContent inline — handleEmbedFullscreen will re-load from
+                // EmbedStore when embedId is non-ephemeral, but this serves as a reliable fallback.
                 decodedContent: {
                     url: videoUrl,
                     video_id: videoId,
@@ -4062,7 +4110,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             },
         });
 
-        console.debug('[ActiveChat] Opening inspiration video in fullscreen:', videoId);
+        console.debug('[ActiveChat] Opening inspiration video in fullscreen:', videoId, 'embedId:', embedId, 'ephemeral:', isEphemeral);
         await handleEmbedFullscreen(syntheticEvent as CustomEvent);
     }
 
@@ -8096,13 +8144,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .center-content {
         position: absolute;
         /*
-         * Center vertically in the space BELOW the daily inspiration banner.
-         * Banner height: 240px desktop (+ ~46px for top-buttons-flow row ≈ 286px total).
-         * We want the midpoint of the remaining area, i.e. (100% - 286px) / 2 + 286px,
-         * which simplifies to: top = 50% + 143px.
-         * Using calc so this adapts naturally if the container height changes.
+         * Center vertically in the space below the daily inspiration banner.
+         * Offset of 60px pushes the content just below the banner midpoint.
          */
-        top: calc(50% + 140px);
+        top: calc(50% + 60px);
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -8118,7 +8163,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* Adjust welcome content position for narrow containers */
     .active-chat-container.narrow .center-content {
-        top: calc(50% + 110px);
+        top: calc(50% + 60px);
     }
 
     .team-profile {

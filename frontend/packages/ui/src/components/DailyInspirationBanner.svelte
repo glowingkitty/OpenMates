@@ -371,7 +371,6 @@
     gap: 14px;
     flex: 1;
     min-height: 0;
-    overflow: hidden;
   }
 
   /* ── Left column ──
@@ -459,11 +458,10 @@
   }
 
   /* create.svg icon — use the same icon class as the "New chat" button.
-     Force white color via mask on the icon background */
+     The global .icon_create uses a CSS mask + background shorthand.
+     We override background (not background-color) so the mask color is applied. */
   .banner-cta-icon {
-    /* The global .icon_create class sets background-image and mask.
-       We override background-color to white so it's visible on the gradient. */
-    background-color: rgba(255, 255, 255, 0.85) !important;
+    background: rgba(255, 255, 255, 0.85) !important;
     width: 13px !important;
     height: 13px !important;
     flex-shrink: 0;
@@ -479,25 +477,33 @@
 
   /* ── Right column: embed preview card ──
      flex: 1 gives it exactly the same width as banner-left (50/50 split).
-     Fill the full banner height so the embed is never cut off. */
+     margin-top: -15px pulls the embed flush with the top of the banner (past
+     the banner-inner top padding) so it fills the full gradient height.
+     overflow: visible so the embed card is never clipped.
+     align-items: flex-end on .banner-content ensures the embed card aligns right. */
   .banner-embed-wrapper {
     flex: 1;
     min-width: 0;
-    /* Fill the full banner height (240px banner - 14px top pad - 12px bottom pad) */
     align-self: stretch;
-    overflow: hidden;
+    margin-top: -15px;
+    margin-bottom: -12px;
+    overflow: visible;
     border-radius: 10px;
-    /* Prevent the embedded preview's internal styles from bleeding out */
     position: relative;
     cursor: pointer;
+    /* Right-align the embed content within the wrapper */
+    display: flex;
+    justify-content: flex-end;
   }
 
-  /* Override the embed preview to fill the wrapper fully */
+  /* Make the embed preview card fill the wrapper height and float right */
   .banner-embed-wrapper :global(.embed-preview-container) {
     border-radius: 10px;
     box-shadow: none;
     width: 100%;
-    height: 100%;
+    height: calc(100% + 15px + 12px); /* compensate for negative margins */
+    max-width: 220px;
+    margin-left: auto; /* push card to the right */
   }
 
   /* Force the embed to fill the wrapper height */
