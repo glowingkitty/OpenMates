@@ -257,6 +257,10 @@ class BaseApp:
             # User's Vault Transit key ID — injected by main_processor for skills that need
             # server-side Vault access (e.g. images-view looks up embed crypto details)
             user_vault_key_id = request_body.get("_user_vault_key_id")
+            # Embed file_path → embed_id UUID index — injected by main_processor for skills that
+            # resolve human-readable filenames (embed_ref) to internal embed UUIDs.
+            # e.g. images-view uses this to look up the embed in Redis by file_path (original filename)
+            file_path_index = request_body.get("_file_path_index")
 
             # Initialize skill instance
             # Extract full_model_reference from skill_definition
@@ -299,6 +303,9 @@ class BaseApp:
                 "message_id": message_id,
                 "placeholder_embed_ids": placeholder_embed_ids,
                 "user_vault_key_id": user_vault_key_id,
+                # file_path_index maps embed_ref filenames → embed UUID for skills like images-view
+                # that resolve the human-readable filename passed by the LLM to the internal embed ID
+                "file_path_index": file_path_index,
             }
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}
