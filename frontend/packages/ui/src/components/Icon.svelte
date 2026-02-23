@@ -320,6 +320,7 @@
     --icon-url-desktop: url('@openmates/ui/static/icons/desktop.svg');
     --icon-url-diagram: url('@openmates/ui/static/icons/diagram.svg');
     --icon-url-discord: url('@openmates/ui/static/icons/discord.svg');
+    --icon-url-doctolib: url('@openmates/ui/static/icons/doctolib.svg');
     --icon-url-docs: url('@openmates/ui/static/icons/docs.svg');
     --icon-url-down: url('@openmates/ui/static/icons/down.svg');
     --icon-url-download: url('@openmates/ui/static/icons/download.svg');

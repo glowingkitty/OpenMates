@@ -21,6 +21,7 @@
   import HealthAppointmentEmbedPreview from './HealthAppointmentEmbedPreview.svelte';
   import HealthAppointmentEmbedFullscreen from './HealthAppointmentEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
+  import { getProviderIconUrl } from '../../../data/providerIcons';
 
   /** A single bookable appointment slot */
   interface SlotData {
@@ -83,7 +84,6 @@
 
   let {
     query: queryProp,
-    provider: providerProp,
     embedIds,
     status: statusProp,
     errorMessage: errorMessageProp,
@@ -103,7 +103,6 @@
 
   // Local reactive state — initialized with defaults, synced from props via $effect below
   let localQuery = $state<string>('');
-  let localProvider = $state<string>('Doctolib');
   let localEmbedIds = $state<string | string[] | undefined>(undefined);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
@@ -112,7 +111,6 @@
   // Keep local state in sync with prop changes
   $effect(() => {
     localQuery = queryProp || '';
-    localProvider = providerProp || 'Doctolib';
     localEmbedIds = embedIds;
     localResults = resultsProp || [];
     localStatus = statusProp || 'finished';
@@ -121,7 +119,6 @@
 
   // Derived state
   let query = $derived(localQuery);
-  let provider = $derived(localProvider);
   let embedIdsValue = $derived(localEmbedIds);
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
@@ -130,9 +127,6 @@
 
   // Skill name from translations
   let skillName = $derived($text('app_skills.health.search_appointments'));
-
-  // "via {provider}" text
-  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
 
   /**
    * Transform raw embed content (TOON-decoded) into AppointmentResult format.
@@ -238,7 +232,6 @@
 
     const content = data.decodedContent;
     if (typeof content.query === 'string') localQuery = content.query;
-    if (typeof content.provider === 'string') localProvider = content.provider;
     if (content.embed_ids) localEmbedIds = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
     if (typeof content.error === 'string') localErrorMessage = content.error;
@@ -284,7 +277,14 @@
     <!-- Header: search summary + provider -->
     <div class="fullscreen-header">
       <div class="search-query">{query}</div>
-      <div class="search-provider">{viaProvider}</div>
+      <div class="search-provider">
+        <span>{$text('embeds.via')}</span>
+        <img
+          src={getProviderIconUrl('icons/doctolib.svg')}
+          alt="Doctolib"
+          class="provider-logo"
+        />
+      </div>
     </div>
 
     <!-- Error state -->
@@ -365,9 +365,18 @@
   }
 
   .search-provider {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 16px;
     color: var(--color-font-secondary);
     margin-top: 8px;
+  }
+
+  .search-provider .provider-logo {
+    height: 16px;
+    width: auto;
+    flex-shrink: 0;
   }
 
   @container fullscreen (max-width: 500px) {
@@ -382,6 +391,10 @@
 
     .search-provider {
       font-size: 14px;
+    }
+
+    .search-provider .provider-logo {
+      height: 14px;
     }
   }
 

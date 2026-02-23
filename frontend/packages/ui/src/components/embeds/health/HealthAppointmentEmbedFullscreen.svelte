@@ -18,6 +18,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
+  import { getProviderIconUrl } from '../../../data/providerIcons';
 
   /** A single bookable appointment slot */
   interface SlotData {
@@ -187,6 +188,11 @@
             target="_blank"
             rel="noopener noreferrer"
           >
+            <img
+              src={getProviderIconUrl('icons/doctolib.svg')}
+              alt=""
+              class="doctolib-btn-icon"
+            />
             {$text('embeds.health.book_on_doctolib')}
           </a>
         {/if}
@@ -378,6 +384,9 @@
 
   .practice-link,
   .doctolib-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
     font-size: 14px;
     font-weight: 600;
     color: var(--color-primary);
@@ -386,6 +395,14 @@
     border-radius: 20px;
     border: 1.5px solid var(--color-primary);
     transition: background-color 0.15s;
+  }
+
+  /* White Doctolib logo inside the filled blue button */
+  .doctolib-btn-icon {
+    height: 14px;
+    width: auto;
+    flex-shrink: 0;
+    filter: brightness(0) invert(1);
   }
 
   .practice-link:hover,

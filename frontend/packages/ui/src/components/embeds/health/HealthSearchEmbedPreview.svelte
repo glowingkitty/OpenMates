@@ -22,6 +22,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
+  import { getProviderIconUrl } from '../../../data/providerIcons';
 
   /**
    * A single appointment result (doctor with slots).
@@ -62,7 +63,6 @@
   let {
     id,
     query: queryProp,
-    provider: providerProp,
     status: statusProp,
     results: resultsProp,
     taskId: taskIdProp,
@@ -73,7 +73,6 @@
 
   // Local reactive state — updated by handleEmbedDataUpdated during streaming
   let localQuery = $state<string>('');
-  let localProvider = $state<string>('Doctolib');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults = $state<AppointmentResult[]>([]);
   let localErrorMessage = $state<string>('');
@@ -83,7 +82,6 @@
   // Sync local state from props on mount / prop change
   $effect(() => {
     localQuery = queryProp || '';
-    localProvider = providerProp || 'Doctolib';
     localStatus = statusProp || 'processing';
     localResults = resultsProp || [];
     localTaskId = taskIdProp;
@@ -93,7 +91,6 @@
 
   // Derived state (source of truth for template)
   let query = $derived(localQuery);
-  let provider = $derived(localProvider);
   let status = $derived(localStatus);
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
@@ -122,7 +119,6 @@
     const content = data.decodedContent;
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
-      if (typeof content.provider === 'string') localProvider = content.provider;
       if (typeof content.error === 'string') localErrorMessage = content.error;
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
 
@@ -236,9 +232,6 @@
     }
   });
 
-  // "via {provider}" label
-  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
-
   // Skill display name from translations
   let skillName = $derived($text('app_skills.health.search_appointments'));
 
@@ -279,8 +272,15 @@
       <!-- Search summary: "Augenarzt in Berlin" -->
       <div class="search-query">{searchSummary}</div>
 
-      <!-- Provider label: "via Doctolib" -->
-      <div class="search-provider">{viaProvider}</div>
+      <!-- Provider label: "via Doctolib" with Doctolib logo -->
+      <div class="search-provider">
+        <span>{$text('embeds.via')}</span>
+        <img
+          src={getProviderIconUrl('icons/doctolib.svg')}
+          alt="Doctolib"
+          class="provider-logo"
+        />
+      </div>
 
       <!-- Error state -->
       {#if status === 'error'}
@@ -353,15 +353,28 @@
     line-clamp: 4;
   }
 
-  /* "via Doctolib" label */
+  /* "via Doctolib" label with provider logo */
   .search-provider {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     font-size: 14px;
     color: var(--color-grey-70);
     line-height: 1.3;
   }
 
+  .search-provider .provider-logo {
+    height: 14px;
+    width: auto;
+    flex-shrink: 0;
+  }
+
   .health-search-details.mobile .search-provider {
     font-size: 12px;
+  }
+
+  .health-search-details.mobile .search-provider .provider-logo {
+    height: 12px;
   }
 
   /* Results summary row */

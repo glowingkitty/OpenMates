@@ -1799,6 +1799,14 @@ div.clickable-icon {
   }
 }
 
+.icon.provider-doctolib {
+  &::before {
+    background-image: url("@openmates/ui/static/icons/doctolib.svg");
+    background-size: 70%;
+    filter: unset;
+  }
+}
+
 .icon.provider-slack {
   &::before {
     background-image: url("@openmates/ui/static/icons/slack.svg");
