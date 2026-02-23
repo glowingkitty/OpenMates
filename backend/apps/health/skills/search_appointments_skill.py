@@ -22,11 +22,16 @@ API flow for Doctolib Germany:
   3. POST /phs_proxy/raw?page=N   → Doctor listing (20 per page, paginated)
   4. GET  /search/availabilities.json  → Appointment slots per doctor (parallel)
 
-Booking URL types:
-  - slot_booking_url: /appointments/new?visit_motive_id=X&agenda_id=Y&slot=ISO&...
-    → Deep link to pre-select a specific time slot (what we expose in results)
-  - booking_url: /augenheilkunde/berlin/dr-name?pid=practice-123
-    → Practice page showing all slots (exposed as practice_url in results)
+Slot deep-links are intentionally NOT generated:
+  Doctolib slot URLs (e.g. /appointments/new?slot=ISO&...) encode a specific time
+  slot captured at fetch time.  By the time a user clicks such a link the slot is
+  likely already taken or expired.  Instead we surface slot datetimes as
+  informational data and direct users to the practice page (practice_url) where
+  they can browse live availability and book themselves.
+
+URL types exposed in results:
+  - practice_url: /augenheilkunde/berlin/dr-name?pid=practice-123
+    → Practice page with live availability (always valid)
 """
 
 import asyncio
@@ -413,31 +418,6 @@ async def _fetch_availability(
         return {"availabilities": [], "total": 0, "next_slot": None}
 
 
-def _slot_booking_url(
-    visit_motive_id: int,
-    agenda_id: int,
-    practice_id: int,
-    slot_iso: str,
-    insurance_sector: str,
-) -> str:
-    """
-    Build a deep link to book a specific appointment slot on Doctolib.
-
-    Format: /appointments/new?visit_motive_id=X&agenda_id=Y&slot=ISO&practice_id=Z&insurance_sector=W
-
-    - Authenticated users land directly on the booking confirmation page.
-    - Unauthenticated users are redirected to login, then back to the pre-selected slot.
-    """
-    params = urlencode({
-        "visit_motive_id": visit_motive_id,
-        "agenda_id": agenda_id,
-        "slot": slot_iso,
-        "practice_id": practice_id,
-        "insurance_sector": insurance_sector,
-    })
-    return f"{DOCTOLIB_BASE_URL}/appointments/new?{params}"
-
-
 def _practice_url(provider: Dict[str, Any]) -> str:
     """Return the practice page URL (shows all slots) from the provider link."""
     link = provider.get("link", "")
@@ -483,9 +463,8 @@ async def _process_single_doctolib_request(
         type, hash, name, title, gender, doctor_type, address,
         speciality, languages, telehealth, visit_motive, insurance,
         allows_new_patients, slots_count, next_slot,
-        slots: [ISO datetime strings],
-        slot_links: [booking deep links],
-        practice_url,
+        slots: [{datetime: ISO string}],   # datetimes only — no booking URLs (they expire)
+        practice_url,                      # live availability page, always valid
         provider_platform,
         visit_motive_id, agenda_id, practice_id,  # excluded from LLM
     }
@@ -607,38 +586,20 @@ async def _process_single_doctolib_request(
             for day in avail.get("availabilities", []):
                 all_slots.extend(day.get("slots", []))
 
-            # Build per-slot deep links using the primary (first) agenda ID
             ins_sector_obj = visit_motive.get("insuranceSector") or {}
-            ins_for_link = insurance_sector or (ins_sector_obj.get("type") or "PUBLIC").lower()
             primary_agenda_id = agenda_ids[0] if agenda_ids else None
-
-            slot_links: List[str] = []
-            if primary_agenda_id:
-                slot_links = [
-                    _slot_booking_url(
-                        visit_motive_id=visit_motive_id,
-                        agenda_id=primary_agenda_id,
-                        practice_id=practice_id,
-                        slot_iso=s,
-                        insurance_sector=ins_for_link,
-                    )
-                    for s in all_slots[:MAX_SLOTS_PER_DOCTOR]
-                ]
 
             displayed_slots = all_slots[:MAX_SLOTS_PER_DOCTOR]
 
-            # Zip slots and slot_links into a list of {datetime, booking_url} objects.
-            # This ensures TOON flattening produces slots_0_datetime / slots_0_booking_url
-            # keys (object-list path) rather than a pipe-joined string (scalar-list path),
-            # so the frontend transformer can correctly reconstruct the slots array.
+            # Slots are stored as {datetime} objects only — no booking_url.
+            # Doctolib slot deep-links embed a specific ISO time that expires as soon
+            # as the slot is taken or ages past its window.  Surfacing such links would
+            # show users a broken or wrong booking page.  Instead we show the datetimes
+            # as informational data and direct users to practice_url for live availability.
             slots_objects = [
-                {"datetime": dt, "booking_url": slot_links[i] if i < len(slot_links) else ""}
-                for i, dt in enumerate(displayed_slots)
+                {"datetime": dt}
+                for dt in displayed_slots
             ]
-
-            # next_slot_url: booking deep-link for the very first (nearest) slot.
-            # Used as a fallback in the fullscreen component when the slots array is empty.
-            next_slot_url = slot_links[0] if slot_links else None
 
             result_item: Dict[str, Any] = {
                 "type": "appointment",
@@ -656,14 +617,14 @@ async def _process_single_doctolib_request(
                 "visit_motive": visit_motive.get("name", ""),
                 "insurance": ins_sector_obj.get("type", ""),
                 "allows_new_patients": visit_motive.get("allowNewPatients", True),
-                # Availability — slots is a list of {datetime, booking_url} objects so that
-                # TOON flattening produces indexable keys (slots_0_datetime, etc.) rather than
-                # a pipe-joined string, enabling correct frontend reconstruction.
+                # Availability — slots is a list of {datetime} objects (no booking_url).
+                # Slot deep-links are intentionally omitted: they encode a specific ISO
+                # timestamp that expires once the slot is taken or ages past its window.
+                # Users are directed to practice_url for live availability instead.
                 "slots_count": len(all_slots),
                 "next_slot": avail.get("next_slot") or (all_slots[0] if all_slots else None),
-                "next_slot_url": next_slot_url,
                 "slots": slots_objects,
-                # Booking URLs
+                # Live availability page — always valid, no expiry.
                 "practice_url": _practice_url(provider),
                 # Provider/platform metadata
                 "provider_platform": "Doctolib",

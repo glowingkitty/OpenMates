@@ -23,10 +23,13 @@
   import { text } from '@repo/ui';
   import { getProviderIconUrl } from '../../../data/providerIcons';
 
-  /** A single bookable appointment slot */
+  /**
+   * A single appointment slot — datetime only.
+   * booking_url is optional for backward-compat with cached embeds but is not rendered.
+   */
   interface SlotData {
     datetime: string;
-    booking_url: string;
+    booking_url?: string;
   }
 
   /**
@@ -42,11 +45,16 @@
     address?: string;
     slots_count?: number;
     next_slot?: string;
+    /**
+     * Legacy field — kept for backward-compat with cached embeds but not rendered.
+     * Slot deep-links expire; the practice_url is used for booking instead.
+     */
     next_slot_url?: string;
-    /** Available slots (next few) */
+    /** Available slots (next few, datetimes only) */
     slots?: SlotData[];
     insurance?: string;
     telehealth?: boolean;
+    /** Live availability page — always valid */
     practice_url?: string;
     provider?: string;
   }
@@ -137,53 +145,38 @@
    */
   function transformToAppointmentResult(embedId: string, content: Record<string, unknown>): AppointmentResult {
     // Reconstruct slots array from TOON-flattened or native format.
+    // booking_url is preserved for backward-compat but is not rendered in the UI.
     //
-    // The backend emits slots as [{datetime, booking_url}] objects so that TOON
-    // flattening produces slots_0_datetime / slots_0_booking_url keys (the
-    // object-list path below).  Older cached embeds may still carry the legacy
-    // parallel-list format (slots = pipe-joined ISO string, slot_links = pipe-joined
-    // URLs), so we handle that as a third fallback.
+    // New embeds: slots is [{datetime}] — no booking_url.
+    // Old cached embeds: slots is [{datetime, booking_url}] or TOON-flattened
+    //   slots_0_datetime / slots_0_booking_url keys, or a legacy pipe-joined string.
     let slots: SlotData[] = [];
 
     if (Array.isArray(content.slots)) {
-      // Native (non-TOON-flattened) slots array of {datetime, booking_url} objects.
+      // Native (non-TOON-flattened) slots array
       slots = (content.slots as Record<string, unknown>[]).map(s => ({
         datetime: (s.datetime as string) || '',
-        booking_url: (s.booking_url as string) || '',
+        booking_url: (s.booking_url as string) || undefined,
       }));
     } else {
-      // Try TOON-flattened object-list path: slots_0_datetime, slots_0_booking_url, …
+      // Try TOON-flattened object-list path: slots_0_datetime, (slots_0_booking_url), …
       for (let i = 0; i < 20; i++) {
         const dt = content[`slots_${i}_datetime`];
         if (typeof dt !== 'string') break;
         slots.push({
           datetime: dt,
-          booking_url: (content[`slots_${i}_booking_url`] as string) || '',
+          booking_url: (content[`slots_${i}_booking_url`] as string) || undefined,
         });
       }
 
       // Legacy fallback: backend used to emit slots as a pipe-joined ISO string
-      // and slot_links as a parallel pipe-joined URL string.
       if (slots.length === 0 && typeof content.slots === 'string' && content.slots) {
         const datetimes = (content.slots as string).split('|');
-        const links = typeof content.slot_links === 'string'
-          ? (content.slot_links as string).split('|')
-          : [];
         slots = datetimes
           .filter(dt => dt)
-          .map((dt, i) => ({ datetime: dt, booking_url: links[i] || '' }));
+          .map(dt => ({ datetime: dt }));
       }
     }
-
-    // next_slot_url: prefer the explicit field; fall back to the first slot_links
-    // entry (legacy format) so the "Book on Doctolib" button always works.
-    const nextSlotUrl: string | undefined =
-      (content.next_slot_url as string | undefined) ||
-      (typeof content.slot_links === 'string'
-        ? (content.slot_links as string).split('|')[0] || undefined
-        : undefined) ||
-      slots[0]?.booking_url ||
-      undefined;
 
     return {
       embed_id: embedId,
@@ -193,7 +186,8 @@
       address: content.address as string | undefined,
       slots_count: (content.slots_count as number) || 0,
       next_slot: content.next_slot as string | undefined,
-      next_slot_url: nextSlotUrl,
+      // next_slot_url kept for legacy compat but not rendered; practice_url is used instead
+      next_slot_url: (content.next_slot_url as string | undefined) || undefined,
       slots,
       insurance: content.insurance as string | undefined,
       telehealth: (content.telehealth as boolean) || false,

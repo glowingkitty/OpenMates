@@ -10,9 +10,11 @@
   Shows:
   - Doctor name, speciality, address
   - Telehealth badge if applicable
-  - Grid of available appointment slots, each with a direct Doctolib booking link
-  - "View practice" link (opens the doctor's Doctolib practice page)
-  - Insurance info
+  - Grid of available appointment slots as informational chips (no deep links —
+    slot URLs expire as slots get booked; users are directed to the practice page instead)
+  - Staleness disclaimer below slots
+  - "Book on Doctolib" button linking to the practice_url (live availability page)
+  - "View practice" link (same target)
 -->
 
 <script lang="ts">
@@ -20,12 +22,16 @@
   import { text } from '@repo/ui';
   import { getProviderIconUrl } from '../../../data/providerIcons';
 
-  /** A single bookable appointment slot */
+  /**
+   * A single appointment slot — datetime only.
+   * Slot deep-links are intentionally absent: they encode a specific ISO timestamp
+   * that expires as soon as the slot is taken or ages past its window.
+   */
   interface SlotData {
     /** ISO datetime string */
     datetime: string;
-    /** Deep Doctolib booking URL for this specific slot */
-    booking_url: string;
+    /** Legacy field — may be present in cached embeds but is ignored in the UI */
+    booking_url?: string;
   }
 
   /** Full appointment data for a single doctor */
@@ -42,15 +48,18 @@
     slots_count?: number;
     /** ISO datetime of the next available slot */
     next_slot?: string;
-    /** Deep Doctolib booking URL for the next slot */
+    /**
+     * Legacy field — kept for backward-compat with old cached embeds.
+     * No longer used in the UI; the practice_url is used instead.
+     */
     next_slot_url?: string;
-    /** Available slot list (next few slots) */
+    /** Available slot list (next few slots, datetimes only) */
     slots?: SlotData[];
     /** Insurance sector */
     insurance?: string;
     /** Offers telehealth consultations */
     telehealth?: boolean;
-    /** Practice page URL on Doctolib */
+    /** Live availability page on Doctolib — always valid */
     practice_url?: string;
     /** Doctolib provider label */
     provider?: string;
@@ -94,9 +103,9 @@
     if (appt.slots && Array.isArray(appt.slots) && appt.slots.length > 0) {
       return appt.slots;
     }
-    // Build from next_slot / next_slot_url as fallback (at least one slot)
-    if (appt.next_slot && appt.next_slot_url) {
-      return [{ datetime: appt.next_slot, booking_url: appt.next_slot_url }];
+    // Fallback: synthesise a single slot entry from next_slot if slots array is absent
+    if (appt.next_slot) {
+      return [{ datetime: appt.next_slot }];
     }
     return [];
   }
@@ -145,22 +154,20 @@
         </div>
       </div>
 
-      <!-- Slots section -->
+      <!-- Slots section — datetimes are informational only.
+           Slot deep-links are not available because they encode a specific time
+           that expires once the slot is taken. Users book via the practice page. -->
       {#if hasSlots && slots.length > 0}
         <div class="slots-section">
           <div class="slots-grid">
             {#each slots as slot}
-              <a
-                class="slot-card"
-                href={slot.booking_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <div class="slot-card">
                 <span class="slot-datetime">{formatSlot(slot.datetime)}</span>
-                <span class="slot-book-label">{$text('embeds.health.book_slot')}</span>
-              </a>
+              </div>
             {/each}
           </div>
+          <!-- Staleness disclaimer -->
+          <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated')}</p>
         </div>
       {:else}
         <div class="no-slots-message">
@@ -172,19 +179,8 @@
       <div class="footer-links">
         {#if appointment.practice_url}
           <a
-            class="practice-link"
-            href={appointment.practice_url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {$text('embeds.health.view_practice')}
-          </a>
-        {/if}
-
-        {#if appointment.next_slot_url}
-          <a
             class="doctolib-link"
-            href={appointment.next_slot_url}
+            href={appointment.practice_url}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -321,23 +317,15 @@
     }
   }
 
+  /* Slot chips are informational only — not clickable */
   .slot-card {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     padding: 12px 16px;
     border-radius: 12px;
     background-color: var(--color-grey-5, #f9f9f9);
     border: 1px solid var(--color-grey-20);
-    text-decoration: none;
     gap: 12px;
-    transition: background-color 0.15s, border-color 0.15s;
-    cursor: pointer;
-  }
-
-  .slot-card:hover {
-    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.06);
-    border-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.3);
   }
 
   .slot-datetime {
@@ -348,14 +336,12 @@
     flex: 1;
   }
 
-  .slot-book-label {
-    flex-shrink: 0;
-    padding: 4px 12px;
-    border-radius: 20px;
-    background-color: var(--color-primary);
-    color: #fff;
+  /* Disclaimer shown below the slot grid */
+  .slots-disclaimer {
+    margin-top: 10px;
     font-size: 12px;
-    font-weight: 600;
+    color: var(--color-font-secondary);
+    text-align: center;
     line-height: 1.4;
   }
 
@@ -382,19 +368,23 @@
     margin-top: 16px;
   }
 
-  .practice-link,
   .doctolib-link {
     display: inline-flex;
     align-items: center;
     gap: 7px;
     font-size: 14px;
     font-weight: 600;
-    color: var(--color-primary);
+    background-color: var(--color-primary);
+    color: #fff;
     text-decoration: none;
     padding: 8px 20px;
     border-radius: 20px;
     border: 1.5px solid var(--color-primary);
     transition: background-color 0.15s;
+  }
+
+  .doctolib-link:hover {
+    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.85);
   }
 
   /* White Doctolib logo inside the filled blue button */
@@ -403,19 +393,5 @@
     width: auto;
     flex-shrink: 0;
     filter: brightness(0) invert(1);
-  }
-
-  .practice-link:hover,
-  .doctolib-link:hover {
-    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.08);
-  }
-
-  .doctolib-link {
-    background-color: var(--color-primary);
-    color: #fff;
-  }
-
-  .doctolib-link:hover {
-    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.85);
   }
 </style>

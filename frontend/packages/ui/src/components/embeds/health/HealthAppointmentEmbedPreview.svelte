@@ -8,7 +8,7 @@
   Shows:
   - Doctor name (prominent)
   - Speciality + address
-  - Next available slot date + "Book" deep link
+  - Next available slot date (informational — no booking deep-link, slots expire)
   - Telehealth badge if applicable
   - "No slots available" if slots_count === 0
 -->
@@ -35,7 +35,10 @@
     slotsCount?: number;
     /** ISO datetime of the next available slot */
     nextSlot?: string;
-    /** Deep booking URL for the next slot */
+    /**
+     * Legacy field — kept for backward-compat with cached embeds but not rendered.
+     * Slot deep-links expire; users are directed to the practice page instead.
+     */
     nextSlotUrl?: string;
     /** Insurance sector (e.g., "public", "private") */
     insurance?: string;
@@ -49,6 +52,8 @@
     onFullscreen?: () => void;
   }
 
+  // nextSlotUrl is intentionally not destructured — slot deep-links expire and are
+  // not rendered.  The prop is kept in the interface for backward-compat.
   let {
     id,
     name,
@@ -56,7 +61,6 @@
     address,
     slotsCount = 0,
     nextSlot,
-    nextSlotUrl,
     insurance,
     telehealth = false,
     status = 'finished',
@@ -132,25 +136,12 @@
         </div>
       {/if}
 
-      <!-- Slot info -->
+      <!-- Slot info — informational only, no booking deep-link (slots expire) -->
       {#if hasSlots && nextSlotDisplay}
         <div class="slot-row">
           <span class="next-slot-label">{$text('embeds.health.next_slot')}:</span>
           <span class="next-slot-date">{nextSlotDisplay}</span>
         </div>
-
-        <!-- Book button -->
-        {#if nextSlotUrl}
-          <a
-            class="book-button"
-            href={nextSlotUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onclick={(e) => e.stopPropagation()}
-          >
-            {$text('embeds.health.book_slot')}
-          </a>
-        {/if}
       {:else}
         <div class="no-slots">{$text('embeds.health.no_slots_available')}</div>
       {/if}
@@ -264,27 +255,6 @@
   .next-slot-date {
     color: var(--color-primary);
     font-weight: 600;
-  }
-
-  /* Book button */
-  .book-button {
-    display: inline-block;
-    margin-top: 6px;
-    padding: 5px 14px;
-    border-radius: 20px;
-    background-color: var(--color-primary);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 600;
-    text-decoration: none;
-    line-height: 1.4;
-    transition: opacity 0.15s;
-    cursor: pointer;
-    align-self: flex-start;
-  }
-
-  .book-button:hover {
-    opacity: 0.85;
   }
 
   /* No slots state */
