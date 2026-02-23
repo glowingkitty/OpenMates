@@ -9,6 +9,8 @@ focuses:
   - id: career_insights
     name_translation_key: jobs.career_insights
     description_translation_key: jobs.career_insights.description
+    process_translation_key: focus_modes.jobs_career_insights.process
+    systemprompt_translation_key: focus_modes.jobs_career_insights.systemprompt
     stage: production
     preprocessor_hint: >
       Select when the user expresses career frustration, feels stuck in their job, is considering a career change,

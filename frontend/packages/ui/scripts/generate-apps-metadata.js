@@ -608,6 +608,17 @@ function parseAppYaml(appId, filePath) {
             focus.systemprompt_translation_key.trim();
         }
 
+        // Include bullet-point process summary translation key (for display on settings page).
+        // The resolved text contains lines starting with "- " that are rendered as bullet points.
+        if (
+          focus.process_translation_key &&
+          typeof focus.process_translation_key === "string" &&
+          focus.process_translation_key.trim()
+        ) {
+          focusMetadata.process_translation_key =
+            focus.process_translation_key.trim();
+        }
+
         if (
           focusMetadata.id &&
           focusMetadata.name_translation_key &&
@@ -892,11 +903,20 @@ function generateTypeScript(appsMetadata) {
           `                name_translation_key: ${JSON.stringify(focus.name_translation_key)},`,
         );
         const hasOptionalFocusFields =
+          focus.process_translation_key !== undefined ||
           focus.system_prompt !== undefined ||
           focus.system_prompt_translation_key !== undefined;
         lines.push(
           `                description_translation_key: ${JSON.stringify(focus.description_translation_key)}${hasOptionalFocusFields ? "," : ""}`,
         );
+        if (focus.process_translation_key !== undefined) {
+          const hasMoreAfterProcess =
+            focus.system_prompt !== undefined ||
+            focus.system_prompt_translation_key !== undefined;
+          lines.push(
+            `                process_translation_key: ${JSON.stringify(focus.process_translation_key)}${hasMoreAfterProcess ? "," : ""}`,
+          );
+        }
         if (focus.system_prompt !== undefined) {
           lines.push(
             `                system_prompt: ${JSON.stringify(focus.system_prompt)}${focus.system_prompt_translation_key !== undefined ? "," : ""}`,
