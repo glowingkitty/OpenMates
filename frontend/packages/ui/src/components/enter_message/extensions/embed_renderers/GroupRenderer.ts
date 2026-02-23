@@ -29,6 +29,7 @@ import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 
@@ -963,6 +964,81 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      // Handle images.view skill — shows the original uploaded image.
+      // The decoded content contains the original upload embed_id; we mount the
+      // component first (shows a skeleton) and then resolve the original embed
+      // asynchronously to populate the S3 preview data.
+      if (appId === "images" && skillId === "view") {
+        // embed_id in the skill-use content references the original uploaded image embed
+        const originalEmbedId = decodedContent?.embed_id || "";
+        const filename = decodedContent?.filename || "";
+
+        const handleImageViewFullscreen = () => {
+          if (!originalEmbedId) return;
+          // Open the original uploaded image's fullscreen viewer
+          resolveEmbed(originalEmbedId)
+            .then(async (uploadEmbed) => {
+              if (!uploadEmbed) return;
+              const uploadContent = uploadEmbed.content
+                ? await decodeToonContent(uploadEmbed.content)
+                : null;
+              const event = new CustomEvent("imagefullscreen", {
+                detail: {
+                  src: undefined,
+                  filename:
+                    uploadContent?.filename ||
+                    ((uploadEmbed as Record<string, unknown>)
+                      .filename as string) ||
+                    "",
+                  s3Files: uploadContent?.files || undefined,
+                  s3BaseUrl: uploadContent?.s3_base_url || "",
+                  aesKey: uploadContent?.aes_key || "",
+                  aesNonce: uploadContent?.aes_nonce || "",
+                  isAuthenticated: true,
+                  fileSize: uploadContent?.file_size,
+                  fileType: uploadContent?.file_type,
+                  aiDetection: uploadContent?.ai_detection ?? null,
+                },
+                bubbles: true,
+              });
+              document.dispatchEvent(event);
+            })
+            .catch((err) => {
+              console.error(
+                "[GroupRenderer] Failed to open image upload fullscreen:",
+                err,
+              );
+            });
+        };
+
+        const component = mount(ImageViewEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            filename,
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            isMobile: false,
+            onFullscreen:
+              status === "finished" && originalEmbedId
+                ? handleImageViewFullscreen
+                : undefined,
+          },
+        });
+        mountedComponents.set(target, component);
+
+        // If finished: resolve the original upload embed asynchronously to
+        // populate the S3 preview data in the component.
+        if (status === "finished" && originalEmbedId) {
+          this.resolveAndUpdateImageViewProps(
+            target,
+            originalEmbedId,
+            handleImageViewFullscreen,
+          );
+        }
+        return;
+      }
+
       // Handle health.search_appointments skill
       if (appId === "health" && skillId === "search_appointments") {
         const component = mount(HealthSearchEmbedPreview, {
@@ -1014,6 +1090,81 @@ export class GroupRenderer implements EmbedRenderer {
       decodedContent,
     );
     target.innerHTML = fallbackHtml;
+  }
+
+  /**
+   * Resolve the original image upload embed and re-mount ImageViewEmbedPreview
+   * with the S3 data needed to display the image preview.
+   *
+   * Called asynchronously after the initial mount (which shows a skeleton) so
+   * the group item is visible immediately during streaming.
+   */
+  private async resolveAndUpdateImageViewProps(
+    target: HTMLElement,
+    originalEmbedId: string,
+    handleFullscreen: () => void,
+  ): Promise<void> {
+    try {
+      const uploadEmbed = await resolveEmbed(originalEmbedId);
+      if (!uploadEmbed) return;
+      const uploadContent = uploadEmbed.content
+        ? await decodeToonContent(uploadEmbed.content)
+        : null;
+      if (!uploadContent) return;
+
+      // Re-mount with S3 data from the resolved upload embed.
+      // We unmount + re-mount because Svelte 5 mount() props cannot be updated
+      // after the initial mount.
+      const existingComponent = mountedComponents.get(target);
+      if (!existingComponent) return;
+
+      try {
+        unmount(existingComponent);
+      } catch {
+        // ignore
+      }
+
+      target.innerHTML = "";
+
+      const s3Files = uploadContent.files as
+        | Record<
+            string,
+            {
+              s3_key: string;
+              width: number;
+              height: number;
+              size_bytes: number;
+              format: string;
+            }
+          >
+        | undefined;
+
+      const updated = mount(ImageViewEmbedPreview, {
+        target,
+        props: {
+          id: originalEmbedId,
+          filename: (uploadContent.filename as string) || "",
+          status: "finished" as const,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+          s3BaseUrl: (uploadContent.s3_base_url as string) || "",
+          s3Files,
+          aesKey: (uploadContent.aes_key as string) || "",
+          aesNonce: (uploadContent.aes_nonce as string) || "",
+        },
+      });
+
+      mountedComponents.set(target, updated);
+      console.debug(
+        "[GroupRenderer] Updated ImageViewEmbedPreview with S3 data for upload embed:",
+        originalEmbedId,
+      );
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Error resolving original image embed for ImageViewEmbedPreview:",
+        err,
+      );
+    }
   }
 
   /**

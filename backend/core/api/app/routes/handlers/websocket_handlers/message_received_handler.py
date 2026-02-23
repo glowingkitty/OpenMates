@@ -776,6 +776,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         _seen_embed_refs: Dict[str, int] = {}
         _embed_file_path_index: Dict[str, str] = {}
 
+        # When the current user message is saved to cache before history is loaded (the
+        # normal fast-path), it appears in the history loop AND would be resolved again
+        # as "current message" below.  Resolving the same embed twice through the shared
+        # seen_embed_refs counter assigns a "(2)" suffix to the second occurrence, causing
+        # the LLM to receive TWO TOON blocks for the same image and call images.view twice.
+        #
+        # To prevent this: if the history loop already resolved the current message (matched
+        # by message_id), we record that resolved content here and skip the second resolution.
+        _current_message_resolved_in_history: Optional[str] = None
+
         # Check if client provided chat history (for cache miss or stale cache scenarios)
         # For incognito chats OR duplicated demo chats, client MUST provide full history
         # (no server-side caching for these new/temp chats)
@@ -969,6 +979,22 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                     seen_embed_refs=_seen_embed_refs,
                                 )
                                 _embed_file_path_index.update(_msg_fp_index)
+
+                                # If this history entry IS the current user message (matched by
+                                # message_id), record its already-resolved content so we can reuse
+                                # it below instead of resolving the same message a second time.
+                                # Re-resolving after the seen_embed_refs counter was already updated
+                                # would assign "(2)" suffixes to the same embed_refs, creating
+                                # duplicate file_path_index entries → duplicate LLM TOON blocks →
+                                # skills like images.view called once per duplicate entry.
+                                if msg_cache_data.get("id") == message_id:
+                                    _current_message_resolved_in_history = resolved_content
+                                    logger.debug(
+                                        f"[Chat {chat_id}] Current message {message_id} was resolved "
+                                        f"as part of history — will reuse resolved content to avoid "
+                                        f"duplicate embed_ref suffixes."
+                                    )
+
                                 # Log if any embed references were found but not resolved
                                 if "```json" in decrypted_content and "```json" in resolved_content:
                                     logger.debug(
@@ -1097,27 +1123,42 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             # first, the check would compare raw embed references (e.g. ```json{"embed_id":"..."}```)
             # against already-resolved TOON blocks, causing a false "not found" result and a duplicate
             # unresolved entry being appended.
+            #
+            # DEDUP GUARD: If the current message was already resolved as part of the history loop
+            # above (normal path: message was saved to cache before history was loaded), reuse that
+            # resolved content directly.  Re-resolving it here would advance the shared
+            # seen_embed_refs counter a second time, turning "image.jpg" into "image.jpg (2)" for
+            # the same embed, creating two file_path_index entries for the same image embed_id and
+            # causing skills like images.view to be called twice for the same image.
             resolved_current_content = content_plain
-            try:
-                from backend.core.api.app.services.embed_service import EmbedService
-                embed_service = EmbedService(
-                    cache_service=cache_service,
-                    directus_service=directus_service,
-                    encryption_service=encryption_service
+            if _current_message_resolved_in_history is not None:
+                # Already resolved in the history loop — reuse without touching seen_embed_refs.
+                resolved_current_content = _current_message_resolved_in_history
+                logger.debug(
+                    f"[Chat {chat_id}] Reusing pre-resolved current message {message_id} "
+                    f"(already processed in history loop) to avoid duplicate embed_ref entries."
                 )
-                resolved_current_content, _current_file_path_index = await embed_service.resolve_embed_references_in_content(
-                    content=content_plain,
-                    user_vault_key_id=user_vault_key_id,
-                    log_prefix=f"[Chat {chat_id}]",
-                    seen_embed_refs=_seen_embed_refs
-                )
-                _embed_file_path_index.update(_current_file_path_index)
-                if resolved_current_content != content_plain:
-                    logger.info(f"Resolved embed references in current user message {message_id}. "
-                               f"Original length: {len(content_plain)}, Resolved length: {len(resolved_current_content)}")
-            except Exception as e_resolve:
-                logger.warning(f"Failed to resolve embed references in current message {message_id}: {e_resolve}. Using original content.")
-                resolved_current_content = content_plain
+            else:
+                try:
+                    from backend.core.api.app.services.embed_service import EmbedService
+                    embed_service = EmbedService(
+                        cache_service=cache_service,
+                        directus_service=directus_service,
+                        encryption_service=encryption_service
+                    )
+                    resolved_current_content, _current_file_path_index = await embed_service.resolve_embed_references_in_content(
+                        content=content_plain,
+                        user_vault_key_id=user_vault_key_id,
+                        log_prefix=f"[Chat {chat_id}]",
+                        seen_embed_refs=_seen_embed_refs
+                    )
+                    _embed_file_path_index.update(_current_file_path_index)
+                    if resolved_current_content != content_plain:
+                        logger.info(f"Resolved embed references in current user message {message_id}. "
+                                   f"Original length: {len(content_plain)}, Resolved length: {len(resolved_current_content)}")
+                except Exception as e_resolve:
+                    logger.warning(f"Failed to resolve embed references in current message {message_id}: {e_resolve}. Using original content.")
+                    resolved_current_content = content_plain
 
             # Check if this message (raw or resolved) is already present in the history.
             # We match on timestamp + role, and also compare content against both the raw
