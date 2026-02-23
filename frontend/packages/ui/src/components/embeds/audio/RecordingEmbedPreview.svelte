@@ -48,7 +48,8 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptAudio, releaseCachedAudio } from './audioEmbedCrypto';
-  import { getModelDisplayName } from '../../../utils/modelDisplayName';
+  import { getModelDisplayName, getModelByNameOrId } from '../../../utils/modelDisplayName';
+  import { getProviderIconUrl } from '../../../data/providerIcons';
 
   /** Max chars of transcript to show in the preview card before truncating */
   const MAX_TRANSCRIPT_PREVIEW = 120;
@@ -182,6 +183,16 @@
   );
 
   /**
+   * Resolved metadata and logo URL for the transcription model.
+   * Used to show a circular provider icon alongside the "Transcribing via" and
+   * "Transcribed by" labels. Falls back gracefully when model is unknown.
+   */
+  let modelMetadata = $derived(model ? getModelByNameOrId(model) : undefined);
+  let modelIconUrl = $derived(
+    modelMetadata?.logo_svg ? getProviderIconUrl(modelMetadata.logo_svg) : undefined,
+  );
+
+  /**
    * Lazily fetch and decrypt audio from S3 when:
    * - No local blobUrl (read-only / received message context)
    * - S3 data is present: s3Files, s3BaseUrl, aesKey, aesNonce
@@ -238,14 +249,19 @@
    * - transcribing           → "Transcribing via <model>…" if model known, else "Processing…"
    * - error                  → error message
    * - finished (unauth)      → "Signup to upload…"
-   * - finished (auth)        → duration + "· Transcribed via <model>" or just duration
+   * - finished (auth)        → duration string or "Audio recording" fallback
    */
   let statusText = $derived.by(() => {
     if (status === 'uploading') {
       return $text('app_skills.audio.transcribe.processing');
     }
     if (status === 'transcribing') {
-      if (model) return `${$text('app_skills.audio.transcribe.processing')} · ${getModelDisplayName(model)}`;
+      if (model) {
+        return $text('app_skills.audio.transcribe.transcribing_via').replace(
+          '{model}',
+          getModelDisplayName(model),
+        );
+      }
       return $text('app_skills.audio.transcribe.processing');
     }
     if (status === 'error') {
@@ -253,11 +269,9 @@
     }
     if (status === 'finished') {
       if (!isAuthenticated) return $text('app_skills.audio.transcribe.signup_to_upload');
-      // Show duration (e.g. "0:42") and, if model is known, "· Voxtral Mini"
-      const parts: string[] = [];
-      if (duration) parts.push(duration);
-      if (model) parts.push(getModelDisplayName(model));
-      if (parts.length > 0) return parts.join(' · ');
+      // Show duration (e.g. "0:42") — the "Transcribed by <model>" label is now
+      // rendered above the transcript preview text in the details snippet instead.
+      if (duration) return duration;
       return $text('app_skills.audio.transcribe.description');
     }
     return '';
@@ -390,9 +404,21 @@
 
       {:else if status === 'uploading' || status === 'transcribing' || isLoadingAudio}
         <!--
-          Processing / loading state: shimmer placeholder lines.
-          Gradient sweep animation (not pulse) for a polished look.
+          Processing / loading state: provider info row (when model is known) above
+          the shimmer placeholder lines. The gradient sweep animation gives a polished look.
         -->
+        {#if (status === 'transcribing') && model}
+          <div class="model-info-line">
+            {#if modelIconUrl}
+              <div class="model-icon-circle">
+                <img src={modelIconUrl} alt="" class="model-icon" />
+              </div>
+            {/if}
+            <span class="model-info-text">
+              {$text('app_skills.audio.transcribe.transcribing_via').replace('{model}', getModelDisplayName(model))}
+            </span>
+          </div>
+        {/if}
         <div class="shimmer-container">
           <div class="shimmer-line" style="width: 90%;"></div>
           <div class="shimmer-line" style="width: 75%;"></div>
@@ -401,7 +427,24 @@
         </div>
 
       {:else if transcriptPreview}
-        <!-- Finished with transcript: show truncated preview text -->
+        <!--
+          Finished with transcript: show provider label ("Transcribed by Mistral:")
+          with a circular logo above the truncated preview text.
+          The label is only shown when we know which model was used so it's
+          future-proof if the transcription provider is swapped out.
+        -->
+        {#if model}
+          <div class="model-info-line">
+            {#if modelIconUrl}
+              <div class="model-icon-circle">
+                <img src={modelIconUrl} alt="" class="model-icon" />
+              </div>
+            {/if}
+            <span class="model-info-text">
+              {$text('app_skills.audio.transcribe.transcribed_by').replace('{model}', getModelDisplayName(model))}
+            </span>
+          </div>
+        {/if}
         <p class="transcript-preview">{transcriptPreview}</p>
 
       {:else if audioLoadError}
@@ -446,6 +489,43 @@
     line-height: 1.5;
     color: var(--color-grey-50, #888);
     font-style: italic;
+  }
+
+  /* ---- Provider model info row (used in both transcribing and finished states) ---- */
+  /* Displays a circular provider logo followed by the "Transcribing via / Transcribed by" label */
+  .model-info-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Circular container for the provider logo SVG */
+  .model-icon-circle {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-grey-10, #f5f5f5);
+    border: 1px solid var(--color-grey-20, #e8e8e8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .model-icon {
+    width: 10px;
+    height: 10px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  .model-info-text {
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--color-grey-50, #888);
+    font-weight: 500;
+    letter-spacing: 0.01em;
   }
 
   /* ---- Transcript preview text ---- */

@@ -311,6 +311,54 @@ transcribe.signup_to_see_transcript:
   sv: Registrera dig för att se transkriptionen här.
   verified_by_human: []
 
+transcribe.transcribing_via:
+  context: Subtitle shown on recording embed while Voxtral is transcribing (replaces generic 'Processing…' when model name is known). {model} is replaced with the provider/model display name, e.g. "Transcribing via Mistral…"
+  en: "Transcribing via {model}…"
+  de: "Transkription mit {model}…"
+  zh: "正在通过 {model} 转录…"
+  es: "Transcribiendo con {model}…"
+  fr: "Transcription via {model}…"
+  pt: "Transcrevendo via {model}…"
+  ru: "Транскрибирование через {model}…"
+  ja: "{model} で文字起こし中…"
+  ko: "{model}(으)로 변환 중…"
+  it: "Trascrizione via {model}…"
+  tr: "{model} ile dönüştürülüyor…"
+  vi: "Đang chuyển đổi qua {model}…"
+  id: "Mentranskripsikan melalui {model}…"
+  pl: "Transkrypcja przez {model}…"
+  nl: "Transcriberen via {model}…"
+  ar: "جاري النسخ عبر {model}…"
+  hi: "{model} के माध्यम से ट्रांस्क्राइब हो रहा है…"
+  th: "กำลังถอดเสียงผ่าน {model}…"
+  cs: "Přepis přes {model}…"
+  sv: "Transkriberar via {model}…"
+  verified_by_human: []
+
+transcribe.transcribed_by:
+  context: Label shown above the transcript text in the recording embed preview once transcription is done. {model} is replaced with the provider/model display name, e.g. "Transcribed by Mistral:"
+  en: "Transcribed by {model}:"
+  de: "Transkribiert von {model}:"
+  zh: "由 {model} 转录："
+  es: "Transcrito por {model}:"
+  fr: "Transcrit par {model} :"
+  pt: "Transcrito por {model}:"
+  ru: "Транскрибировано {model}:"
+  ja: "{model} による文字起こし："
+  ko: "{model}이(가) 변환함:"
+  it: "Trascritto da {model}:"
+  tr: "{model} tarafından dönüştürüldü:"
+  vi: "Được chuyển đổi bởi {model}:"
+  id: "Ditranskripsi oleh {model}:"
+  pl: "Transkrybowane przez {model}:"
+  nl: "Getranscribeerd door {model}:"
+  ar: "تمت الترجمة بواسطة {model}:"
+  hi: "{model} द्वारा ट्रांस्क्राइब किया गया:"
+  th: "ถอดเสียงโดย {model}:"
+  cs: "Přepsáno {model}:"
+  sv: "Transkriberat av {model}:"
+  verified_by_human: []
+
 transcribe.processing:
   context: Subtitle shown on recording embed while audio is being uploaded or transcribed
   en: Processing...

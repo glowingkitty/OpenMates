@@ -622,6 +622,9 @@ class TranscribeSkill(BaseSkill):
                         "duration_seconds": total_duration_seconds,
                         "billed_minutes": total_minutes,
                         "requests_transcribed": success_count,
+                        # Include the model ID so usage entries show which provider was used.
+                        # The frontend resolves this to a human-readable name via getModelDisplayName().
+                        "model": VOXTRAL_MODEL,
                     }
                     if chat_id_for_usage:
                         usage_details["chat_id"] = chat_id_for_usage
@@ -645,6 +648,7 @@ class TranscribeSkill(BaseSkill):
                         "billed_minutes": success_count,
                         "requests_transcribed": success_count,
                         "note": "duration unavailable — 1-minute minimum applied",
+                        "model": VOXTRAL_MODEL,
                     }
                     if chat_id_for_usage:
                         usage_details_no_duration["chat_id"] = chat_id_for_usage
