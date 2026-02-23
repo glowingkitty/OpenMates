@@ -1057,12 +1057,12 @@ export async function retryTranscription(
   }
 
   // Parse transcript and update embed to 'finished'
-  // Response shape from BaseSkill._build_response_with_errors:
-  // { results: [{ id: request_id, results: [{ transcript, s3_key, ... }] }] }
+  // Response shape: SkillResponse wrapper from apps_api.py:
+  // { success: true, data: { results: [{ id: request_id, results: [{ transcript, s3_key, ... }] }] } }
   let transcriptText: string | undefined;
   try {
     const responseData = await transcribeResponse.json();
-    const group = responseData?.results?.find(
+    const group = responseData?.data?.results?.find(
       (r: { id: string }) => r.id === embedId,
     );
     transcriptText = group?.results?.[0]?.transcript ?? undefined;
@@ -1252,9 +1252,9 @@ async function _performRecordingUpload(
     let transcriptText: string | undefined;
     try {
       const responseData = await transcribeResponse.json();
-      // Response shape from BaseSkill._build_response_with_errors:
-      // { results: [{ id: request_id, results: [{ transcript, s3_key, ... }] }] }
-      const group = responseData?.results?.find(
+      // Response shape: SkillResponse wrapper from apps_api.py:
+      // { success: true, data: { results: [{ id: request_id, results: [{ transcript, s3_key, ... }] }] } }
+      const group = responseData?.data?.results?.find(
         (r: { id: string }) => r.id === localEmbedId,
       );
       transcriptText = group?.results?.[0]?.transcript ?? undefined;
