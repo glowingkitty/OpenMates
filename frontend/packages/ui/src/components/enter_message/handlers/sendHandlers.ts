@@ -456,6 +456,8 @@ export async function handleSend(
 
       // Build TOON content for the audio recording embed.
       // The backend audio skill (transcribe) expects this shape.
+      // model is included so RecordingRenderer.ts can display "0:42 · voxtral-mini-2602"
+      // in the read-only subtitle when loading from EmbedStore.
       const embedContent = {
         app_id: "audio",
         skill_id: "transcribe",
@@ -465,6 +467,7 @@ export async function handleSend(
         duration: attrs.duration || null,
         mime_type: attrs.mimeType || null,
         transcript: attrs.transcript || null,
+        model: (attrs.model as string) || null,
         s3_base_url: attrs.s3BaseUrl || null,
         files: attrs.s3Files || null,
         aes_key: attrs.aesKey || null,

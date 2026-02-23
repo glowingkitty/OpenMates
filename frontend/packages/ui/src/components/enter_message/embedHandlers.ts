@@ -797,6 +797,14 @@ export async function insertEpub(editor: Editor, file: File): Promise<void> {
 }
 
 /**
+ * Transcription model used by the Mistral Voxtral skill.
+ * Matches VOXTRAL_MODEL in backend/apps/audio/skills/transcribe_skill.py.
+ * Stored in embed node attrs and EmbedStore TOON content so it can be displayed
+ * in the subtitle ("0:42 · voxtral-mini-2602") in both editor and read-only contexts.
+ */
+const VOXTRAL_MODEL = "voxtral-mini-2602";
+
+/**
  * Inserts a recording embed (audio) into the editor and triggers the upload +
  * Mistral Voxtral transcription pipeline in parallel.
  *
@@ -1106,6 +1114,7 @@ export async function retryTranscription(
   updateEmbedNode({
     status: "finished",
     transcript: transcriptText ?? null,
+    model: VOXTRAL_MODEL,
     uploadError: null,
   });
 
@@ -1163,6 +1172,7 @@ async function _performRecordingUpload(
 
     // -----------------------------------------------------------------------
     // Step 2: Update embed with S3 data, transition to 'transcribing'
+    // Include model so the subtitle shows "Processing · voxtral-mini-2602"
     // -----------------------------------------------------------------------
     updateEmbedNode({
       status: "transcribing",
@@ -1172,6 +1182,7 @@ async function _performRecordingUpload(
       aesKey: uploadResult.aes_key,
       aesNonce: uploadResult.aes_nonce,
       vaultWrappedAesKey: uploadResult.vault_wrapped_aes_key,
+      model: VOXTRAL_MODEL,
       uploadError: null,
     });
 
@@ -1309,6 +1320,7 @@ async function _performRecordingUpload(
     updateEmbedNode({
       status: "finished",
       transcript: transcriptText ?? null,
+      model: VOXTRAL_MODEL,
       uploadError: null,
     });
 

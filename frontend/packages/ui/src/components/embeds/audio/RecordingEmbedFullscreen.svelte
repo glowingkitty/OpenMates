@@ -51,14 +51,32 @@
     aesKey?: string;
     /** AES-GCM nonce (base64) */
     aesNonce?: string;
-    /** Embed ID (reserved for future use) */
+    /** Embed ID for transcript edit callback */
     embedId?: string;
+    /**
+     * Transcription model name (e.g. 'voxtral-mini-2602').
+     * Displayed as "Transcribed via voxtral-mini-2602" below the transcript.
+     */
+    model?: string;
+    /**
+     * Whether the transcript is editable.
+     * True when the embed is still in the MessageInput editor (pre-send).
+     * False in read-only message context.
+     */
+    isEditable?: boolean;
+    /**
+     * Called when the user edits the transcript.
+     * Only called when isEditable is true.
+     * The parent (ActiveChat.svelte → MessageInput.svelte) uses this to update the
+     * embed node attrs so the edited transcript is saved when the message is sent.
+     */
+    onTranscriptChange?: (embedId: string, newTranscript: string) => void;
     /** Close handler */
     onClose: () => void;
   }
 
   let {
-    transcript,
+    transcript: transcriptProp,
     blobUrl,
     filename = 'voice_note.webm',
     duration,
@@ -67,18 +85,51 @@
     aesKey,
     aesNonce,
     embedId,
+    model,
+    isEditable = false,
+    onTranscriptChange,
     onClose,
   }: Props = $props();
 
-  // Reserved — not used directly in the template but passed through from event detail
-  void embedId;
+  // -------------------------------------------------------------------------
+  // Editable transcript state
+  // -------------------------------------------------------------------------
+
+  /**
+   * Local transcript value, kept in sync with transcriptProp.
+   * When isEditable is true, the user can modify this in a textarea.
+   * Changes are propagated to the parent via onTranscriptChange().
+   *
+   * Initialised via $effect (not inline $state(transcriptProp)) so that
+   * Svelte 5 correctly tracks prop changes and avoids the
+   * "state_referenced_locally" lint warning.
+   */
+  let editableTranscript = $state<string>('');
+
+  // Sync editableTranscript whenever transcriptProp changes
+  // (e.g. transcription completes while fullscreen is open, or initial mount)
+  $effect(() => {
+    editableTranscript = transcriptProp ?? '';
+  });
+
+  function handleTranscriptInput(e: Event) {
+    const value = (e.currentTarget as HTMLTextAreaElement).value;
+    editableTranscript = value;
+    if (isEditable && embedId && onTranscriptChange) {
+      onTranscriptChange(embedId, value);
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Audio loading state
   // -------------------------------------------------------------------------
 
-  /** Resolved audio source: local blob (editor) or decrypted S3 URL (read-only) */
-  let resolvedAudioSrc = $state<string | undefined>(blobUrl);
+  /**
+   * Resolved audio source: local blob (editor) or decrypted S3 URL (read-only).
+   * Initialised via $effect to avoid the "state_referenced_locally" Svelte 5 warning
+   * that fires when a prop is used directly inside $state().
+   */
+  let resolvedAudioSrc = $state<string | undefined>(undefined);
   let isLoadingAudio = $state(false);
   let audioLoadError = $state<string | undefined>(undefined);
 
@@ -124,8 +175,14 @@
     return filename.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
   });
 
-  /** Info bar subtitle: duration when known */
-  let infoBarSubtitle = $derived(duration || $text('app_skills.audio.transcribe'));
+  /** Info bar subtitle: duration when known, optionally with model name */
+  let infoBarSubtitle = $derived.by(() => {
+    const parts: string[] = [];
+    if (duration) parts.push(duration);
+    if (model) parts.push(model);
+    if (parts.length > 0) return parts.join(' · ');
+    return $text('app_skills.audio.transcribe.description');
+  });
 
   /** Progress bar fill percentage (0–100) */
   let progressPercent = $derived(
@@ -290,10 +347,30 @@
 
       <!-- Transcript section -->
       <div class="transcript-section">
-        {#if transcript}
-          <p class="transcript-text">{transcript}</p>
+        {#if isEditable}
+          <!--
+            Editable transcript textarea: shown when the embed is still in the
+            MessageInput editor (pre-send). The user can correct the AI-generated
+            transcript before sending the message. Changes bubble up via
+            onTranscriptChange so the embed node attrs are updated in the editor.
+          -->
+          <textarea
+            class="transcript-textarea"
+            value={editableTranscript}
+            oninput={handleTranscriptInput}
+            placeholder={$text('app_skills.audio.transcribe.edit_transcript')}
+            aria-label={$text('app_skills.audio.transcribe.edit_transcript')}
+          ></textarea>
+          {#if model}
+            <p class="transcribed-via">Transcribed via {model}</p>
+          {/if}
+        {:else if editableTranscript}
+          <p class="transcript-text">{editableTranscript}</p>
+          {#if model}
+            <p class="transcribed-via">Transcribed via {model}</p>
+          {/if}
         {:else}
-          <p class="no-transcript">No transcript available.</p>
+          <p class="no-transcript">{$text('app_skills.audio.transcribe.no_transcript')}</p>
         {/if}
       </div>
 
@@ -493,6 +570,39 @@
     font-style: italic;
   }
 
+  /* ---- Editable transcript textarea (pre-send, editor context) ---- */
+  .transcript-textarea {
+    width: 100%;
+    min-height: 200px;
+    flex: 1;
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--color-font-primary);
+    background: transparent;
+    border: none;
+    resize: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+    box-sizing: border-box;
+  }
+
+  .transcript-textarea::placeholder {
+    color: var(--color-grey-50, #888);
+    font-style: italic;
+  }
+
+  /* ---- Transcribed-via attribution label ---- */
+  .transcribed-via {
+    margin: 12px 0 0;
+    font-size: 11px;
+    color: var(--color-grey-50, #888);
+    font-style: italic;
+  }
+
   /* ==========================================================================
      Dark mode
      ========================================================================== */
@@ -514,7 +624,15 @@
     color: var(--color-font-primary-dark, #e0e0e0);
   }
 
+  :global(.dark) .transcript-textarea {
+    color: var(--color-font-primary-dark, #e0e0e0);
+  }
+
   :global(.dark) .time-label {
+    color: var(--color-grey-40, #aaa);
+  }
+
+  :global(.dark) .transcribed-via {
     color: var(--color-grey-40, #aaa);
   }
 </style>

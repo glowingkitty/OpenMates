@@ -487,6 +487,10 @@
         aesKey?: string;
         aesNonce?: string;
         embedId?: string;
+        /** Transcription model name (e.g. 'voxtral-mini-2602') */
+        model?: string;
+        /** True when the embed is still in the editor (pre-send), enabling transcript editing */
+        isEditable?: boolean;
     }>({});
 
     // Uploaded image fullscreen — triggered by clicking an in-editor upload embed
@@ -845,8 +849,25 @@
             aesKey: event.detail.aesKey,
             aesNonce: event.detail.aesNonce,
             embedId: event.detail.embedId,
+            model: event.detail.model,
+            isEditable: event.detail.isEditable === true,
         };
         showRecordingFullscreen = true;
+    }
+
+    /**
+     * Handle transcript edits from RecordingEmbedFullscreen (pre-send context).
+     * Fires 'updaterecordingtranscript' CustomEvent on document so MessageInput.svelte
+     * can update the embed node attrs in the TipTap editor.
+     */
+    function handleRecordingTranscriptChange(embedId: string, newTranscript: string) {
+        document.dispatchEvent(
+            new CustomEvent('updaterecordingtranscript', {
+                bubbles: true,
+                composed: true,
+                detail: { embedId, transcript: newTranscript },
+            }),
+        );
     }
 
     function handleCloseRecordingFullscreen() {
@@ -6957,6 +6978,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     aesKey={recordingFullscreenData.aesKey}
                     aesNonce={recordingFullscreenData.aesNonce}
                     embedId={recordingFullscreenData.embedId}
+                    model={recordingFullscreenData.model}
+                    isEditable={recordingFullscreenData.isEditable}
+                    onTranscriptChange={handleRecordingTranscriptChange}
                     onClose={handleCloseRecordingFullscreen}
                 />
             {/if}

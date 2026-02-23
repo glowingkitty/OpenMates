@@ -1946,6 +1946,7 @@
         editorElement?.addEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
         editorElement?.addEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.addEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
+        document.addEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
         editorElement?.addEventListener('click', handleEditorClick); // For PII click handling
         // Listen for stop-button upload cancellations from image embeds.
         // This event is dispatched by Embed.ts after the embed node is deleted so
@@ -2035,6 +2036,7 @@
         editorElement?.removeEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
         editorElement?.removeEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.removeEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
+        document.removeEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
         editorElement?.removeEventListener('click', handleEditorClick);
         editorElement?.removeEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
@@ -2390,6 +2392,33 @@
         retryTranscription(editor, embedId).catch((err) => {
             console.error('[MessageInput] retryTranscription failed:', err);
         });
+    }
+
+    /**
+     * Handle transcript edit events from RecordingEmbedFullscreen (pre-send context).
+     * Fired on document by ActiveChat.svelte.handleRecordingTranscriptChange() when the
+     * user edits the AI-generated transcript in the fullscreen view.
+     * Updates the embed node's transcript attr so the edited text is saved on send.
+     */
+    function handleUpdateRecordingTranscript(event: CustomEvent) {
+        const { embedId, transcript } = event.detail as { embedId: string; transcript: string };
+        if (!editor || editor.isDestroyed || !embedId) return;
+
+        const { state, dispatch } = editor.view;
+        const tr = state.tr;
+        let found = false;
+        state.doc.descendants((node, pos) => {
+            if (node.type.name === 'embed' && node.attrs.id === embedId) {
+                tr.setNodeMarkup(pos, undefined, { ...node.attrs, transcript });
+                found = true;
+                return false;
+            }
+            return true;
+        });
+        if (found) {
+            dispatch(tr);
+            console.debug('[MessageInput] Updated recording embed transcript for:', embedId);
+        }
     }
     function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }
     function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushSaveDraft(); }

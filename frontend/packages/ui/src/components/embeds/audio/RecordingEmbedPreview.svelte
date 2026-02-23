@@ -92,15 +92,15 @@
      * can be retried without re-uploading. Passed from RecordingRenderer.ts.
      */
     onRetry?: () => void;
+    /**
+     * Transcription model name (e.g. 'voxtral-mini-2602').
+     * Shown during 'transcribing' and in the finished subtitle as "Transcribed via <model>".
+     */
+    model?: string;
   }
 
   let {
     id,
-    // filename, s3Files, s3BaseUrl, aesKey, aesNonce are reserved for the read-only
-    // context (received messages, S3 decryption). They are passed through to the
-    // RecordingRenderer's fullscreen event and used by future decryption logic.
-    // Destructured here so Svelte tracks them as props; not used in the template yet.
-    filename,
     status: statusProp,
     blobUrl,
     uploadError,
@@ -115,16 +115,17 @@
     onFullscreen,
     onStop,
     onRetry,
+    model,
   }: Props = $props();
-
-  // Reference filename in a no-op to prevent ESLint from flagging it as unused.
-  // It is passed through to the fullscreen event via RecordingRenderer.
-  void filename;
 
   // --- Audio playback state ---
 
-  /** Resolved audio source: local blobUrl (editor) or decrypted S3 blob URL (read-only) */
-  let resolvedAudioSrc = $state<string | undefined>(blobUrl);
+  /**
+   * Resolved audio source: local blobUrl (editor) or decrypted S3 blob URL (read-only).
+   * Initialised via $effect (not inline $state(blobUrl)) so that Svelte 5 correctly
+   * tracks prop changes and avoids the "state_referenced_locally" lint warning.
+   */
+  let resolvedAudioSrc = $state<string | undefined>(undefined);
   /** True while fetching + decrypting audio from S3 */
   let isLoadingAudio = $state(false);
   /** Error message if S3 fetch/decrypt fails */
@@ -232,13 +233,18 @@
 
   /**
    * Card subtitle text (shown below "Audio recording" in BasicInfosBar):
-   * - uploading/transcribing → "Processing…"
+   * - uploading              → "Processing…"
+   * - transcribing           → "Transcribing via <model>…" if model known, else "Processing…"
    * - error                  → error message
    * - finished (unauth)      → "Signup to upload…"
-   * - finished (auth)        → duration string or "Transcribed voice recording"
+   * - finished (auth)        → duration + "· Transcribed via <model>" or just duration
    */
   let statusText = $derived.by(() => {
-    if (status === 'uploading' || status === 'transcribing') {
+    if (status === 'uploading') {
+      return $text('app_skills.audio.transcribe.processing');
+    }
+    if (status === 'transcribing') {
+      if (model) return `${$text('app_skills.audio.transcribe.processing')} · ${model}`;
       return $text('app_skills.audio.transcribe.processing');
     }
     if (status === 'error') {
@@ -246,7 +252,11 @@
     }
     if (status === 'finished') {
       if (!isAuthenticated) return $text('app_skills.audio.transcribe.signup_to_upload');
-      if (duration) return duration;
+      // Show duration (e.g. "0:42") and, if model is known, "· voxtral-mini-2602"
+      const parts: string[] = [];
+      if (duration) parts.push(duration);
+      if (model) parts.push(model);
+      if (parts.length > 0) return parts.join(' · ');
       return $text('app_skills.audio.transcribe.description');
     }
     return '';
