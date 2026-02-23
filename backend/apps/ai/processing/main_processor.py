@@ -2710,6 +2710,34 @@ async def handle_main_processing(
                 first_response: Optional[Dict[str, Any]] = None  # Initialize to avoid UnboundLocalError
                 grouped_results: Optional[List[Dict[str, Any]]] = None  # Preserve grouping for embed creation
                 
+                # Detect multimodal content block results from view skills (e.g., images.view).
+                # These return [[{"type": "text", ...}, {"type": "image_url", ...}]] — a list
+                # containing a single list of OpenAI-style content blocks.
+                # We must NOT TOON-encode them; instead we pass the inner list directly as
+                # tool_result_content_str so the provider adapters can convert the image_url
+                # block to the LLM-specific format (Anthropic image source, Gemini inlineData, etc.).
+                is_multimodal_result = (
+                    not is_async_skill
+                    and isinstance(results, list)
+                    and len(results) == 1
+                    and isinstance(results[0], list)
+                    and len(results[0]) > 0
+                    and all(
+                        isinstance(b, dict) and b.get("type") in ("text", "image_url")
+                        for b in results[0]
+                    )
+                )
+                if is_multimodal_result:
+                    # Bypass all TOON encoding — set tool_result_content_str to the raw content
+                    # block list so it arrives at the LLM as a proper multimodal tool result.
+                    # preview_data["results_toon"] is set later when is_multimodal_result is False;
+                    # for multimodal results we skip both TOON encoding blocks below.
+                    tool_result_content_str = results[0]
+                    logger.info(
+                        f"{log_prefix} Detected multimodal content block result from '{tool_name}' "
+                        f"({len(results[0])} blocks). Bypassing TOON encoding — passing raw list to LLM."
+                    )
+
                 if not is_async_skill and results and all(isinstance(r, dict) and "results" in r for r in results):
                     first_response = results[0]
                     # Skills no longer provide preview_data - we'll create it in main_processor
@@ -2831,7 +2859,7 @@ async def handle_main_processing(
                 # - profile: {name: "..."} → profile_name: "..."
                 # - meta_url: {favicon: "..."} → meta_url_favicon: "..."
                 # - extra_snippets: [...] → extra_snippets: "|".join([...])
-                if not is_async_skill:
+                if not is_async_skill and not is_multimodal_result:
                     try:
                         # DEBUG: Log original JSON structure (first 15 lines)
                         json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
@@ -2875,7 +2903,7 @@ async def handle_main_processing(
                 # 
                 # IMPORTANT: Flatten nested objects before encoding to enable TOON tabular format
                 # This ensures efficient encoding with tabular arrays instead of repeated field names
-                if not is_async_skill:
+                if not is_async_skill and not is_multimodal_result:
                     try:
                         # DEBUG: Log original JSON structure (first 15 lines)
                         json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
@@ -2928,7 +2956,7 @@ async def handle_main_processing(
                 # For single request: Update the existing placeholder embed
                 # NOTE: Skip for async skills - the Celery task handles embed updates
                 updated_embed_data_list: List[Dict[str, Any]] = []
-                if not is_async_skill and cache_service and user_vault_key_id and directus_service:
+                if not is_async_skill and not is_multimodal_result and cache_service and user_vault_key_id and directus_service:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService
 
@@ -3411,6 +3439,48 @@ async def handle_main_processing(
                     except Exception as e:
                         logger.error(f"{log_prefix} Error creating/updating embeds for '{tool_name}': {e}", exc_info=True)
                         # Continue without embed update - don't fail the entire skill execution
+
+                # For multimodal results (e.g. images.view), the embed update block was skipped above.
+                # If a placeholder embed was created for this tool call, mark it as "finished"
+                # using only the text block (strip image bytes — we don't want to cache MBs of
+                # base64 image data in the embed content).
+                if is_multimodal_result and placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService
+                        embed_service_mm = EmbedService(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service
+                        )
+                        mm_embed_id = placeholder_embed_data.get("embed_id")
+                        if mm_embed_id:
+                            # Extract only the text blocks — skip image_url blocks to avoid
+                            # storing large base64 blobs in the embed cache.
+                            text_only_results = [
+                                block for block in results[0]
+                                if isinstance(block, dict) and block.get("type") == "text"
+                            ]
+                            if not text_only_results:
+                                text_only_results = [{"type": "text", "text": f"[{tool_name}]"}]
+                            logger.info(
+                                f"{log_prefix} Updating multimodal placeholder embed {mm_embed_id} "
+                                f"to finished (text-only, {len(text_only_results)} block(s))"
+                            )
+                            await embed_service_mm.update_embed_with_results(
+                                embed_id=mm_embed_id,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                results=text_only_results,
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
+                    except Exception as e:
+                        logger.warning(f"{log_prefix} Failed to finalize multimodal placeholder embed: {e}", exc_info=True)
 
                 # Publish "finished" status with preview data
                 # This triggers WebSocket event to update the frontend embed preview
