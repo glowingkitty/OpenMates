@@ -1,5 +1,12 @@
 <!-- frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
-     Component for displaying details of a specific focus mode, including description.
+     Component for displaying details of a specific focus mode, including description and instructions.
+     
+     Layout matches the skills detail page (SkillDetails.svelte):
+     - The app icon + focus mode name header is rendered by Settings.svelte (submenu-info block),
+       not here — this component only renders the body content below the header.
+     - Description section: plain text description.
+     - Instructions section: bullet-point summary of what the focus mode does (from
+       process_translation_key), with a "Show full system prompt" button to reveal the raw prompt.
      
      This component is used for the app_store/{app_id}/focus/{focus_mode_id} nested route.
      
@@ -33,15 +40,6 @@
     let app = $derived<AppMetadata | undefined>(storeState.apps[appId]);
     let focusMode = $derived<FocusModeMetadata | undefined>(
         app?.focus_modes.find(f => f.id === focusModeId)
-    );
-    
-    /**
-     * Get the translated focus mode name.
-     */
-    let focusModeName = $derived(
-        focusMode?.name_translation_key 
-            ? $text(focusMode.name_translation_key)
-            : focusModeId
     );
     
     /**
@@ -89,10 +87,18 @@
                 .map((line: string) => line.slice(2).trim())
             : []
     );
-    
+
     /**
-     * Navigate back to app details.
+     * Whether the instructions section has any content to show:
+     * either process bullets or a system prompt.
      */
+    let hasInstructions = $derived(processBullets.length > 0 || focusModeSystemPrompt.length > 0);
+
+    /**
+     * Whether the full system prompt is currently expanded.
+     */
+    let showFullPrompt = $state(false);
+
     /**
      * Get icon name from icon_image filename.
      * Maps icon_image like "ai.svg" to icon name "ai" for the Icon component.
@@ -118,26 +124,6 @@
             title: app?.name_translation_key ? $text(app.name_translation_key) : appId
         });
     }
-
-    const INSTRUCTION_PREVIEW_LINES = 10;
-
-    /** Whether the full instruction text is expanded (vs first 10 lines only). */
-    let showExpandedInstruction = $state(false);
-
-    /** Lines of the system prompt for preview/full display. */
-    let systemPromptLines = $derived(
-        focusModeSystemPrompt ? focusModeSystemPrompt.split('\n') : []
-    );
-
-    /** First N lines joined for preview. */
-    let previewText = $derived(
-        systemPromptLines.length <= INSTRUCTION_PREVIEW_LINES
-            ? focusModeSystemPrompt
-            : systemPromptLines.slice(0, INSTRUCTION_PREVIEW_LINES).join('\n')
-    );
-
-    /** Whether there is more content to expand. */
-    let hasMoreToExpand = $derived(systemPromptLines.length > INSTRUCTION_PREVIEW_LINES);
 </script>
 
 <div class="focus-mode-details">
@@ -147,74 +133,55 @@
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
-        <!-- Focus mode name header -->
-        <div class="focus-mode-header">
-            <h1>{focusModeName}</h1>
-        </div>
-        
-        <!-- Description section -->
+        <!-- Description section - plain text, no heading, matching skill details layout -->
         {#if focusModeDescription}
-            <div class="section">
-                <SettingsItem 
-                    type="heading"
-                    icon="description"
-                    title={$text('settings.app_store.focus_modes.description')}
-                />
-                <div class="content">
-                    <p>{focusModeDescription}</p>
-                </div>
-            </div>
-        {:else}
-            <div class="section">
-                <div class="no-description">
-                    <p>{$text('settings.app_store.focus_modes.no_description')}</p>
-                </div>
+            <div class="description-section">
+                <p class="focus-mode-description">{focusModeDescription}</p>
             </div>
         {/if}
         
-        <!-- Bullet-point summary section: concise list of what the focus mode does step-by-step.
-             Derived from the process_translation_key field in appsMetadata.ts. -->
-        {#if processBullets.length > 0}
-            <div class="section">
-                <SettingsItem 
-                    type="heading"
-                    icon="app"
-                    title={$text('settings.app_store.focus_modes.summary')}
-                />
-                <ul class="process-bullets">
-                    {#each processBullets as bullet}
-                        <li class="process-bullet">{bullet}</li>
-                    {/each}
-                </ul>
-            </div>
-        {/if}
-
-        <!-- Instructions section: quote-style block, first 10 lines by default, "Show full instruction" to expand -->
+        <!-- Instructions section: bullet-point summary of what the focus mode does,
+             plus a collapsible "Show full system prompt" button.
+             Uses process_translation_key bullets when available; falls back to showing
+             the system prompt directly if no process key is defined. -->
         <div class="section">
             <SettingsItem 
                 type="heading"
                 icon="ai"
                 title={$text('settings.app_store.focus_modes.system_prompt')}
             />
-            {#if focusModeSystemPrompt}
-                <div class="instructions-block">
-                    <img class="quote-icon quote-icon-top" src="@openmates/ui/static/icons/quote.svg" alt="" width="24" height="24" />
-                    <img class="quote-icon quote-icon-bottom" src="@openmates/ui/static/icons/quote.svg" alt="" width="24" height="24" />
-                    <pre class="instructions-text" class:expanded={showExpandedInstruction}>{showExpandedInstruction ? focusModeSystemPrompt : previewText}</pre>
-                    {#if hasMoreToExpand}
-                        <button
-                            type="button"
-                            class="instructions-toggle"
-                            onclick={() => (showExpandedInstruction = !showExpandedInstruction)}
-                        >
-                            {showExpandedInstruction
-                                ? $text('settings.app_store.focus_modes.show_less')
-                                : $text('settings.app_store.focus_modes.show_full_instruction')}
-                        </button>
+            {#if hasInstructions}
+                <!-- Bullet-point summary from process_translation_key -->
+                {#if processBullets.length > 0}
+                    <ul class="process-bullets">
+                        {#each processBullets as bullet}
+                            <li class="process-bullet">{bullet}</li>
+                        {/each}
+                    </ul>
+                {/if}
+
+                <!-- System prompt: hidden by default, revealed on button click -->
+                {#if focusModeSystemPrompt}
+                    {#if showFullPrompt}
+                        <div class="instructions-block">
+                            <svg class="quote-icon quote-icon-top" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                            </svg>
+                            <pre class="instructions-text">{focusModeSystemPrompt}</pre>
+                        </div>
                     {/if}
-                </div>
+                    <button
+                        type="button"
+                        class="instructions-toggle"
+                        onclick={() => (showFullPrompt = !showFullPrompt)}
+                    >
+                        {showFullPrompt
+                            ? $text('settings.app_store.focus_modes.show_less')
+                            : $text('settings.app_store.focus_modes.show_full_instruction')}
+                    </button>
+                {/if}
             {:else}
-                <div class="no-description">
+                <div class="no-instructions">
                     <p>{$text('settings.app_store.focus_modes.no_system_prompt')}</p>
                 </div>
             {/if}
@@ -224,36 +191,32 @@
 
 <style>
     .focus-mode-details {
-        padding: 0;
+        padding: 14px;
         max-width: 1400px;
         margin: 0 auto;
     }
-    
-    .focus-mode-header {
-        margin-bottom: 1rem;
+
+    /* Description section — matches .description-section in SkillDetails.svelte */
+    .description-section {
+        margin-bottom: 2rem;
+        padding-left: 0;
     }
-    
-    .focus-mode-header h1 {
+
+    .focus-mode-description {
         margin: 0;
-        font-size: 2rem;
-        font-weight: 600;
-        color: var(--text-primary, #000000);
-    }
-    
-    .section {
-        margin-top: 1.25rem;
-    }
-    
-    .section .content {
-        padding: 0.5rem 0 0 0;
         color: var(--color-grey-100);
         font-size: 1rem;
         line-height: 1.6;
+        text-align: left;
     }
     
+    .section {
+        margin-top: 2rem;
+    }
+
     /* Bullet-point process summary list */
     .process-bullets {
-        margin: 0.5rem 0 0 0;
+        margin: 0.75rem 0 0 10px;
         padding: 0 0 0 1.25rem;
         list-style: none;
         display: flex;
@@ -279,34 +242,27 @@
         line-height: 1.5;
     }
 
+    /* System prompt block — quote-style, matching SkillDetails how-to-use card style */
     .instructions-block {
         position: relative;
-        margin-top: 0.5rem;
-        padding: 1rem 2.5rem 2rem 1.25rem;
+        margin-top: 0.75rem;
+        padding: 1rem 1.25rem 1rem 2.5rem;
         background: var(--color-grey-10, #f5f5f5);
-        border-radius: 8px;
-        border: 1px solid var(--border-color, #e0e0e0);
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
     }
-    
+
     .quote-icon {
         position: absolute;
-        width: 24px;
-        height: 24px;
-        opacity: 0.35;
+        top: 10px;
+        left: 12px;
+        width: 20px;
+        height: 20px;
+        color: var(--color-grey-50);
+        opacity: 0.6;
         pointer-events: none;
     }
-    
-    .quote-icon-top {
-        top: 8px;
-        right: 12px;
-    }
-    
-    .quote-icon-bottom {
-        bottom: 8px;
-        left: 12px;
-        transform: rotate(180deg);
-    }
-    
+
     .instructions-text {
         margin: 0;
         padding: 0;
@@ -318,8 +274,11 @@
         overflow-x: auto;
     }
     
+    /* Toggle button for showing/hiding the full system prompt */
     .instructions-toggle {
+        display: block;
         margin-top: 0.75rem;
+        margin-left: 10px;
         padding: 0.35rem 0.6rem;
         font-size: 0.875rem;
         color: var(--color-primary, #0066cc);
@@ -334,10 +293,14 @@
         text-decoration: underline;
     }
     
-    .no-description {
-        padding: 1.25rem;
-        text-align: center;
-        color: var(--text-secondary, #666666);
+    .no-instructions {
+        padding: 1.25rem 0 0 10px;
+        color: var(--color-grey-60);
+        font-size: 0.95rem;
+    }
+
+    .no-instructions p {
+        margin: 0;
     }
     
     .error {
@@ -362,4 +325,3 @@
         background: var(--button-hover-background, #e0e0e0);
     }
 </style>
-

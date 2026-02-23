@@ -46,6 +46,16 @@ description:
   sv: Undersök ett ämne från flera vinklar.
   verified_by_human:
     - en
+process:
+  context: Step-by-step process description for research focus mode
+  en: |
+    - understands what the user wants to research and clarifies the scope if needed
+    - performs multiple targeted web searches to gather information from diverse sources
+    - explores the topic from different angles (causes, effects, context, counterarguments)
+    - synthesizes findings into a clear, well-structured response
+    - cites sources and highlights areas of uncertainty or conflicting information
+  verified_by_human:
+    - en
 systemprompt:
   context: System prompt for the LLM when research focus mode is active
   en: You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand a topic comprehensively, including its causes, effects, and broader context.

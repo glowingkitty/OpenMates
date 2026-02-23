@@ -301,6 +301,8 @@ focuses:
   - id: research
     name_translation_key: web.research
     description_translation_key: web.research.description
+    process_translation_key: focus_modes.web_research.process
+    systemprompt_translation_key: focus_modes.web_research.systemprompt
     stage: development
     preprocessor_hint: >
       Select when the user wants in-depth research on a topic, asks to investigate or analyze something thoroughly,
