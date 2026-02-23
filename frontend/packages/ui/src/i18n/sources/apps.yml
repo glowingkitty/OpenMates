@@ -1727,24 +1727,24 @@ shopping:
   verified_by_human: [en, de]
 shopping.description:
   context: Description for the Shopping app
-  en: Search supermarket products and compare prices.
-  de: Supermarktprodukte suchen und Preise vergleichen.
-  zh: 搜索超市产品并比较价格。
-  es: Busca productos en el supermercado y compara precios.
-  fr: Cherchez des produits en supermarché et comparez les prix.
-  pt: Pesquise produtos no supermercado e compare preços.
-  ru: Ищите товары в супермаркете и сравнивайте цены.
-  ja: スーパーマーケット商品を検索して価格を比較。
-  ko: 슈퍼마켓 제품 검색 및 가격 비교.
-  it: Cerca prodotti al supermercato e confronta i prezzi.
-  tr: Süpermarket ürünlerini arayın ve fiyatları karşılaştırın.
-  vi: Tìm kiếm sản phẩm siêu thị và so sánh giá.
-  id: Cari produk supermarket dan bandingkan harga.
-  pl: Szukaj produktów w supermarkecie i porównuj ceny.
-  nl: Zoek supermarktproducten en vergelijk prijzen.
-  ar: ابحث عن منتجات السوبر ماركت وقارن الأسعار.
-  hi: सुपरमार्केट उत्पाद खोजें और कीमतें तुलना करें।
-  th: ค้นหาสินค้าในซุปเปอร์มาร์เก็ตและเปรียบเทียบราคา
-  cs: Hledejte produkty v supermarketu a porovnávejte ceny.
-  sv: Sök supermarketprodukter och jämför priser.
+  en: Compare supermarket prices and find deals.
+  de: Supermarktpreise vergleichen und Angebote finden.
+  zh: 比较超市价格，找到优惠。
+  es: Compara precios de supermercado y encuentra ofertas.
+  fr: Comparez les prix des supermarchés et trouvez des offres.
+  pt: Compare preços de supermercado e encontre ofertas.
+  ru: Сравнивайте цены супермаркетов и находите предложения.
+  ja: スーパーの価格を比較してお得情報を見つけよう。
+  ko: 슈퍼마켓 가격 비교 및 할인 찾기.
+  it: Confronta prezzi del supermercato e trova offerte.
+  tr: Süpermarket fiyatlarını karşılaştırın ve fırsatlar bulun.
+  vi: So sánh giá siêu thị và tìm ưu đãi.
+  id: Bandingkan harga supermarket dan temukan penawaran.
+  pl: Porównuj ceny w supermarketach i znajdź okazje.
+  nl: Vergelijk supermarktprijzen en vind aanbiedingen.
+  ar: قارن أسعار السوبر ماركت واعثر على العروض.
+  hi: सुपरमार्केट कीमतें तुलना करें और डील खोजें।
+  th: เปรียบเทียบราคาซุปเปอร์มาร์เก็ตและค้นหาข้อเสนอ
+  cs: Porovnejte ceny v supermarketech a najděte nabídky.
+  sv: Jämför supermarketpriser och hitta erbjudanden.
   verified_by_human: [en, de]

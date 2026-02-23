@@ -23,26 +23,26 @@ search_products:
   verified_by_human: [en, de]
 search_products.description:
   context: Description for shopping search products skill
-  en: Search for products in supermarkets and compare prices.
-  de: Produkte in Supermärkten suchen und Preise vergleichen.
-  zh: 在超市搜索产品并比较价格。
-  es: Busca productos en supermercados y compara precios.
-  fr: Recherchez des produits dans les supermarchés et comparez les prix.
-  pt: Pesquise produtos em supermercados e compare preços.
-  ru: Ищите товары в супермаркетах и сравнивайте цены.
-  ja: スーパーマーケットで商品を検索して価格を比較。
-  ko: 슈퍼마켓에서 제품을 검색하고 가격을 비교하세요.
-  it: Cerca prodotti nei supermercati e confronta i prezzi.
-  tr: Süpermarketlerde ürün arayın ve fiyatları karşılaştırın.
-  vi: Tìm kiếm sản phẩm trong các siêu thị và so sánh giá.
-  id: Cari produk di supermarket dan bandingkan harga.
-  pl: Szukaj produktów w supermarketach i porównuj ceny.
-  nl: Zoek producten in supermarkten en vergelijk prijzen.
-  ar: ابحث عن منتجات في السوبر ماركت وقارن الأسعار.
-  hi: सुपरमार्केट में उत्पाद खोजें और कीमतें तुलना करें।
-  th: ค้นหาสินค้าในซุปเปอร์มาร์เก็ตและเปรียบเทียบราคา
-  cs: Hledejte produkty v supermarketech a porovnávejte ceny.
-  sv: Sök produkter i supermarkets och jämför priser.
+  en: Find and compare products across supermarkets.
+  de: Produkte in Supermärkten finden und vergleichen.
+  zh: 在超市中查找和比较产品。
+  es: Encuentra y compara productos en supermercados.
+  fr: Trouvez et comparez des produits dans les supermarchés.
+  pt: Encontre e compare produtos em supermercados.
+  ru: Найдите и сравните товары в супермаркетах.
+  ja: スーパーマーケットで商品を探して比較する。
+  ko: 슈퍼마켓에서 제품을 찾아 비교하세요.
+  it: Trova e confronta prodotti nei supermercati.
+  tr: Süpermarketlerde ürün bulun ve karşılaştırın.
+  vi: Tìm và so sánh sản phẩm trong các siêu thị.
+  id: Temukan dan bandingkan produk di supermarket.
+  pl: Znajdź i porównaj produkty w supermarketach.
+  nl: Vind en vergelijk producten in supermarkten.
+  ar: ابحث عن منتجات وقارنها في السوبر ماركت.
+  hi: सुपरमार्केट में उत्पाद खोजें और तुलना करें।
+  th: ค้นหาและเปรียบเทียบสินค้าในซุปเปอร์มาร์เก็ต
+  cs: Najděte a porovnejte produkty v supermarketech.
+  sv: Hitta och jämför produkter i supermarkets.
   verified_by_human: []
 
 search_products.how_to_use.1:

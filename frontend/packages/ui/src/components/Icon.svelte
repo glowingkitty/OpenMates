@@ -399,6 +399,7 @@
     --icon-url-recordaudio: url('@openmates/ui/static/icons/recordaudio.svg');
     --icon-url-reminder: url('@openmates/ui/static/icons/reminder.svg');
     --icon-url-restore: url('@openmates/ui/static/icons/restore.svg');
+    --icon-url-rewe: url('@openmates/ui/static/icons/rewe.svg');
     --icon-url-safety: url('@openmates/ui/static/icons/safety.svg');
     --icon-url-search: url('@openmates/ui/static/icons/search.svg');
     --icon-url-secret: url('@openmates/ui/static/icons/secret.svg');
