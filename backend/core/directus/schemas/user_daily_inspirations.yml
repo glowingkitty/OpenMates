@@ -60,6 +60,10 @@ user_daily_inspirations:
       type: text
       note: "[Encrypted] Icon name for category display. Encrypted with user master key."
 
+    encrypted_video_metadata:
+      type: text
+      note: "[Encrypted] JSON blob with DailyInspirationVideo fields (youtube_id, title, thumbnail_url, etc.). Encrypted with user master key. Stored so embed preview survives page reloads and cross-device sync."
+
     is_opened:
       type: boolean
       default: false

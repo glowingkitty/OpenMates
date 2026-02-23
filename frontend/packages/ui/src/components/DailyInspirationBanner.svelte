@@ -9,7 +9,7 @@
    *   - A category circle with the category icon (left side)
    *   - The inspiration phrase (main text)
    *   - A "Click to start chat" CTA button (bottom-left)
-   *   - A YouTube thumbnail + metadata panel (right side, if video attached)
+   *   - A VideoEmbedPreview card (right side, if video or embed_id attached)
    *   - Left/right carousel arrows when there are multiple inspirations
    *
    * Clicking the banner or the CTA button:
@@ -24,12 +24,18 @@
    *
    * Architecture note: The store (dailyInspirationStore) is a Svelte 4 writable.
    * This component uses Svelte 5 runes exclusively for its own state.
+   *
+   * Video display: Uses VideoEmbedPreview for consistent embed card rendering.
+   * When a video is available (inspiration.video != null), it renders the full
+   * VideoEmbedPreview. When video is null but embed_id is set, we attempt to
+   * load it from embedStore so the embed survives page reloads.
    */
 
   import { onDestroy } from 'svelte';
   import { text } from '@repo/ui';
   import { getLucideIcon, getCategoryGradientColors, getValidIconName } from '../utils/categoryUtils';
   import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore';
+  import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -83,9 +89,6 @@
   /** Whether multiple inspirations are available (show arrows). */
   let hasMultiple = $derived(inspirations.length > 1);
 
-  /** Array of dot indices for carousel indicator rendering. */
-  let dotIndices = $derived(inspirations.map((__, i) => i));
-
   /** Category icon component for the current inspiration. */
   let CategoryIcon = $derived.by(() => {
     if (!current) return getLucideIcon('help-circle');
@@ -93,21 +96,32 @@
     return getLucideIcon(iconName);
   });
 
-  /** Duration string "M:SS" from seconds, or null if unknown. */
-  function formatDuration(seconds: number | null): string | null {
-    if (seconds === null || seconds === undefined) return null;
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  }
+  /**
+   * Whether to show a video embed for the current inspiration.
+   * True when a video object is present (has a youtube_id).
+   */
+  let hasVideo = $derived(!!current?.video?.youtube_id);
 
-  /** Human-friendly view count (e.g. "1.2M", "345K"). */
-  function formatViews(views: number | null): string | null {
-    if (views === null || views === undefined) return null;
-    if (views >= 1_000_000) return `${(views / 1_000_000).toFixed(1)}M views`;
-    if (views >= 1_000) return `${Math.round(views / 1_000)}K views`;
-    return `${views} views`;
-  }
+  /**
+   * The embed_id to use for VideoEmbedPreview.
+   * Uses embed_id from the inspiration if already stored, otherwise generates a
+   * deterministic one from the youtube_id for preview purposes.
+   */
+  let embedPreviewId = $derived.by(() => {
+    if (!current) return '';
+    if (current.embed_id) return current.embed_id;
+    // Use youtube_id as a stable fallback ID for display (non-persisted)
+    return current.video?.youtube_id ? `youtube-${current.video.youtube_id}` : '';
+  });
+
+  /**
+   * YouTube URL for the embed preview.
+   */
+  let videoUrl = $derived(
+    current?.video?.youtube_id
+      ? `https://www.youtube.com/watch?v=${current.video.youtube_id}`
+      : ''
+  );
 
   // ─── Icon resolution ────────────────────────────────────────────────────────
 
@@ -115,7 +129,6 @@
   const BookOpen = getLucideIcon('book-open');
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
-  const Play = getLucideIcon('play');
 
   // ─── Event handlers ─────────────────────────────────────────────────────────
 
@@ -124,6 +137,7 @@
    */
   function handlePrevious(e: MouseEvent) {
     e.stopPropagation();
+    e.preventDefault();
     dailyInspirationStore.previous();
   }
 
@@ -132,23 +146,16 @@
    */
   function handleNext(e: MouseEvent) {
     e.stopPropagation();
+    e.preventDefault();
     dailyInspirationStore.next();
-  }
-
-  /**
-   * Navigate directly to a dot indicator.
-   */
-  function handleDotClick(e: MouseEvent, index: number) {
-    e.stopPropagation();
-    dailyInspirationStore.goTo(index);
   }
 
   /**
    * Handle clicking on the banner or CTA — start a chat from this inspiration.
    * Also marks the inspiration as viewed via WebSocket.
    */
-  function handleStartChat(e: MouseEvent) {
-    e.stopPropagation();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function handleStartChat(_e: MouseEvent) {
     if (!current) return;
 
     // Send viewed event if not already sent
@@ -182,7 +189,7 @@
   <div class="daily-inspiration-wrapper">
 
     <!-- Banner card: div with role=button avoids nested-button HTML validation errors
-         (carousel arrows and dot buttons live inside the card). -->
+         (carousel arrows live inside the card). -->
     <div
       class="daily-inspiration-banner"
       style={gradientStyle}
@@ -217,56 +224,41 @@
           </div>
         </div>
 
-        <!-- Right column: YouTube thumbnail (if video) -->
-        {#if current.video}
-          {@const duration = formatDuration(current.video.duration_seconds)}
-          {@const views = formatViews(current.video.view_count)}
-          <div class="banner-right">
-            <div class="video-thumbnail-wrapper">
-              <!-- Thumbnail image -->
-              {#if current.video.thumbnail_url}
-                <img
-                  class="video-thumbnail"
-                  src={current.video.thumbnail_url}
-                  alt={current.video.title}
-                  loading="lazy"
-                />
-              {:else}
-                <!-- Fallback placeholder when no thumbnail -->
-                <div class="video-thumbnail-placeholder"></div>
-              {/if}
-
-              <!-- Play button overlay -->
-              <div class="play-overlay" aria-label={$text('daily_inspiration.watch_video')}>
-                <div class="play-button-circle">
-                  <Play size={18} color="white" />
-                </div>
-              </div>
-
-              <!-- Duration badge -->
-              {#if duration}
-                <div class="duration-badge">{duration}</div>
-              {/if}
-            </div>
-
-            <!-- Video metadata below thumbnail -->
-            <div class="video-meta">
-              <span class="video-title">{current.video.title}</span>
-              {#if views || current.video.channel_name}
-                <span class="video-channel">
-                  {current.video.channel_name ?? ''}
-                  {#if views && current.video.channel_name} · {/if}
-                  {views ?? ''}
-                </span>
-              {/if}
-            </div>
+        <!-- Right column: VideoEmbedPreview (if video attached) -->
+        {#if hasVideo && embedPreviewId}
+          <!-- Wrapper stops click events from reaching the banner (embed has its own click handlers) -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="banner-embed-wrapper"
+            onclick={(e) => {
+              // Prevent the banner's handleStartChat from firing when clicking the embed area;
+              // the user intention is to view the video, not start a new chat immediately.
+              e.stopPropagation();
+              // Then actually start the chat (opening the embed belongs in the chat view)
+              handleStartChat(e);
+            }}
+          >
+            <VideoEmbedPreview
+              id={embedPreviewId}
+              url={videoUrl}
+              title={current.video?.title ?? undefined}
+              status="finished"
+              channelName={current.video?.channel_name ?? undefined}
+              thumbnail={current.video?.thumbnail_url ?? undefined}
+              durationSeconds={current.video?.duration_seconds ?? undefined}
+              viewCount={current.video?.view_count ?? undefined}
+              publishedAt={current.video?.published_at ?? undefined}
+              videoId={current.video?.youtube_id}
+              isMobile={false}
+            />
           </div>
         {/if}
       </div>
 
       <!-- ── Carousel navigation ── -->
       {#if hasMultiple}
-        <!-- Previous arrow -->
+        <!-- Previous arrow — stopPropagation prevents the banner's onclick from firing -->
         <button
           class="carousel-arrow carousel-arrow-left"
           onclick={handlePrevious}
@@ -285,19 +277,6 @@
         >
           <ChevronRight size={18} color="rgba(255,255,255,0.9)" />
         </button>
-
-        <!-- Dot indicators -->
-        <div class="carousel-dots">
-          {#each dotIndices as idx}
-            <button
-              class="dot"
-              class:dot-active={idx === currentIndex}
-              onclick={(e) => handleDotClick(e, idx)}
-              aria-label={`Inspiration ${idx + 1}`}
-              type="button"
-            ></button>
-          {/each}
-        </div>
       {/if}
     </div>
   </div>
@@ -417,106 +396,29 @@
     background: rgba(255, 255, 255, 0.28);
   }
 
-  /* ── Right column (video) ── */
-  .banner-right {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  /* ── Right column: embed preview card ── */
+  .banner-embed-wrapper {
     flex-shrink: 0;
-    width: 140px;
-  }
-
-  .video-thumbnail-wrapper {
-    position: relative;
-    width: 140px;
-    height: 79px; /* 16:9 */
-    border-radius: 8px;
+    /* Scale down the embed preview to fit inside the banner */
+    /* Default embed size is 300×200px; we want ~160px wide in the banner */
+    width: 160px;
+    /* Constrain height so it doesn't overflow the banner */
+    max-height: 130px;
     overflow: hidden;
-    background: rgba(0, 0, 0, 0.3);
-    flex-shrink: 0;
+    border-radius: 10px;
+    /* Slightly reduce the overall embed scale to keep it compact */
+    transform: scale(0.88);
+    transform-origin: top right;
+    /* Counteract the scale reducing effective width */
+    margin-right: -10px;
+    /* Pointer events pass through so the banner onclick fires */
+    pointer-events: auto;
   }
 
-  .video-thumbnail {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  .video-thumbnail-placeholder {
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .play-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.2);
-    transition: background 0.15s ease;
-  }
-
-  .daily-inspiration-banner:hover .play-overlay {
-    background: rgba(0, 0, 0, 0.3);
-  }
-
-  .play-button-circle {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    /* Shift icon slightly right to visually center the play triangle */
-    padding-left: 2px;
-  }
-
-  .play-button-circle :global(svg) {
-    color: #222;
-  }
-
-  .duration-badge {
-    position: absolute;
-    bottom: 4px;
-    right: 5px;
-    background: rgba(0, 0, 0, 0.75);
-    color: white;
-    font-size: 10px;
-    font-weight: 500;
-    padding: 1px 4px;
-    border-radius: 3px;
-  }
-
-  .video-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .video-title {
-    font-size: 11px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.95);
-    line-height: 1.3;
-    /* Clamp to 2 lines */
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .video-channel {
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.65);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  /* Override the embed preview rounded corners to match our wrapper */
+  .banner-embed-wrapper :global(.embed-preview-container) {
+    border-radius: 10px;
+    box-shadow: none;
   }
 
   /* ── Carousel arrows ── */
@@ -550,46 +452,18 @@
     right: 8px;
   }
 
-  /* ── Dot indicators ── */
-  .carousel-dots {
-    position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 5px;
-    z-index: 10;
-  }
-
-  .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.45);
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    transition: background 0.15s ease, transform 0.15s ease;
-  }
-
-  .dot-active {
-    background: rgba(255, 255, 255, 0.95);
-    transform: scale(1.3);
-  }
-
   /* ── Mobile adjustments ── */
   @media (max-width: 730px) {
     .banner-phrase {
       font-size: 14px;
     }
 
-    .banner-right {
-      width: 110px;
-    }
-
-    .video-thumbnail-wrapper {
-      width: 110px;
-      height: 62px;
+    .banner-embed-wrapper {
+      width: 130px;
+      max-height: 110px;
+      transform: scale(0.75);
+      transform-origin: top right;
+      margin-right: -20px;
     }
 
     .banner-cta {
@@ -598,9 +472,9 @@
     }
   }
 
-  /* Hide video panel on very narrow screens to keep banner readable */
+  /* Hide embed panel on very narrow screens to keep banner readable */
   @media (max-width: 480px) {
-    .banner-right {
+    .banner-embed-wrapper {
       display: none;
     }
   }

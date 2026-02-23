@@ -32,6 +32,7 @@ INSPIRATION_ALL_FIELDS = (
     "encrypted_title,"
     "encrypted_category,"
     "encrypted_icon,"
+    "encrypted_video_metadata,"
     "is_opened,"
     "opened_chat_id,"
     "generated_at,"
@@ -96,6 +97,7 @@ class UserDailyInspirationMethods:
                 "encrypted_title": inspiration.get("encrypted_title"),
                 "encrypted_category": inspiration.get("encrypted_category"),
                 "encrypted_icon": inspiration.get("encrypted_icon"),
+                "encrypted_video_metadata": inspiration.get("encrypted_video_metadata"),
                 "is_opened": inspiration.get("is_opened", False),
                 "opened_chat_id": inspiration.get("opened_chat_id"),
                 "generated_at": inspiration.get("generated_at", now_ts),

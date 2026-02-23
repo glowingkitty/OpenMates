@@ -54,6 +54,13 @@ export interface StoredDailyInspiration {
   encrypted_title: string;
   encrypted_category: string;
   encrypted_icon: string | null;
+  /**
+   * Encrypted JSON blob containing the DailyInspirationVideo metadata
+   * (youtube_id, title, thumbnail_url, channel_name, view_count, duration_seconds, published_at).
+   * Stored so the banner embed preview survives page reloads and cross-device sync.
+   * Optional — not present in older records or when content_type != "video".
+   */
+  encrypted_video_metadata: string | null;
   // ─── Cleartext cached decrypted values (for in-memory use, NOT synced) ────
   // Populated after decryption; never written to server.
   _phrase?: string;
@@ -79,17 +86,25 @@ export async function saveInspirationToIndexedDB(
 
     const { encryptWithMasterKey } = await import("./cryptoService");
 
-    // Encrypt the text content fields
+    // Encrypt the text content fields and optional video metadata
+    const videoMetadataJson = inspiration.video
+      ? JSON.stringify(inspiration.video)
+      : null;
+
     const [
       encrypted_phrase,
       encrypted_assistant_response,
       encrypted_title,
       encrypted_category,
+      encrypted_video_metadata,
     ] = await Promise.all([
       encryptWithMasterKey(inspiration.phrase),
       encryptWithMasterKey(assistantResponse),
       encryptWithMasterKey(inspiration.phrase), // title = phrase for inspirations
       encryptWithMasterKey(inspiration.category),
+      videoMetadataJson
+        ? encryptWithMasterKey(videoMetadataJson)
+        : Promise.resolve(null),
     ]);
 
     if (
@@ -116,6 +131,7 @@ export async function saveInspirationToIndexedDB(
       encrypted_title,
       encrypted_category,
       encrypted_icon: null, // icon not currently used
+      encrypted_video_metadata: encrypted_video_metadata ?? null,
     };
 
     await new Promise<void>((resolve, reject) => {
@@ -202,10 +218,19 @@ export async function loadInspirationsFromIndexedDB(): Promise<
     const decrypted: DailyInspiration[] = [];
     for (const record of fresh) {
       try {
-        const [phrase, category] = await Promise.all([
+        // Decrypt phrase, category, and video metadata in parallel
+        const decryptPromises: Promise<string | null>[] = [
           decryptWithMasterKey(record.encrypted_phrase),
           decryptWithMasterKey(record.encrypted_category),
-        ]);
+        ];
+        if (record.encrypted_video_metadata) {
+          decryptPromises.push(
+            decryptWithMasterKey(record.encrypted_video_metadata),
+          );
+        }
+
+        const [phrase, category, videoMetadataJson] =
+          await Promise.all(decryptPromises);
 
         if (!phrase || !category) {
           console.warn(
@@ -214,15 +239,29 @@ export async function loadInspirationsFromIndexedDB(): Promise<
           continue;
         }
 
-        // Reconstruct DailyInspiration without the video metadata
-        // (video metadata is ephemeral from the server; we don't store it locally
-        //  because it's not needed to re-display the banner — only the phrase/category matters)
+        // Reconstruct video metadata from encrypted storage (if present)
+        let video:
+          | import("../stores/dailyInspirationStore").DailyInspirationVideo
+          | null = null;
+        if (videoMetadataJson) {
+          try {
+            video = JSON.parse(
+              videoMetadataJson,
+            ) as import("../stores/dailyInspirationStore").DailyInspirationVideo;
+          } catch (parseErr) {
+            console.warn(
+              `${LOG_PREFIX} Failed to parse video metadata for inspiration ${record.inspiration_id} — continuing without video`,
+              parseErr,
+            );
+          }
+        }
+
         decrypted.push({
           inspiration_id: record.inspiration_id,
           phrase,
           category,
           content_type: record.content_type,
-          video: null, // Not persisted locally — re-fetched from server on next WS connect
+          video,
           generated_at: record.generated_at,
           embed_id: record.embed_id,
           is_opened: record.is_opened,
@@ -371,6 +410,7 @@ export async function syncInspirationsToAPI(
         encrypted_title: r.encrypted_title,
         encrypted_category: r.encrypted_category,
         encrypted_icon: r.encrypted_icon ?? null,
+        encrypted_video_metadata: r.encrypted_video_metadata ?? null,
         is_opened: r.is_opened,
         opened_chat_id: r.opened_chat_id ?? null,
         generated_at: r.generated_at,
@@ -500,10 +540,20 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
           continue;
         }
 
-        const [phrase, category] = await Promise.all([
+        const encVideoMetadata =
+          (record.encrypted_video_metadata as string | null) ?? null;
+
+        // Decrypt phrase, category, and optionally video metadata in parallel
+        const decryptPromises: Promise<string | null>[] = [
           decryptWithMasterKey(encPhrase),
           decryptWithMasterKey(encCategory),
-        ]);
+        ];
+        if (encVideoMetadata) {
+          decryptPromises.push(decryptWithMasterKey(encVideoMetadata));
+        }
+
+        const [phrase, category, videoMetadataJson] =
+          await Promise.all(decryptPromises);
 
         if (!phrase || !category) {
           console.warn(
@@ -512,12 +562,26 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
           continue;
         }
 
+        // Reconstruct video metadata if stored
+        let video:
+          | import("../stores/dailyInspirationStore").DailyInspirationVideo
+          | null = null;
+        if (videoMetadataJson) {
+          try {
+            video = JSON.parse(
+              videoMetadataJson,
+            ) as import("../stores/dailyInspirationStore").DailyInspirationVideo;
+          } catch {
+            // Non-fatal — video metadata is best-effort
+          }
+        }
+
         const inspiration: DailyInspiration = {
           inspiration_id: record.daily_inspiration_id as string,
           phrase,
           category,
           content_type: (record.content_type as string) || "video",
-          video: null, // Not stored on server
+          video,
           generated_at: record.generated_at as number,
           embed_id: (record.embed_id as string | null) ?? null,
           is_opened: (record.is_opened as boolean) ?? false,
@@ -539,6 +603,7 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
           encrypted_title: encTitle,
           encrypted_category: encCategory,
           encrypted_icon: (record.encrypted_icon as string | null) ?? null,
+          encrypted_video_metadata: encVideoMetadata,
         };
 
         // Save to IndexedDB (non-blocking, non-fatal)

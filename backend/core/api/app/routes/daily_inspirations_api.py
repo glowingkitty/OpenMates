@@ -60,6 +60,11 @@ class DailyInspirationSyncItem(BaseModel):
     encrypted_title: str = Field(..., description="Chat title encrypted with master key")
     encrypted_category: str = Field(..., description="Category name encrypted with master key")
     encrypted_icon: Optional[str] = Field(None, description="Icon name encrypted with master key")
+    encrypted_video_metadata: Optional[str] = Field(
+        None,
+        description="JSON blob of DailyInspirationVideo fields encrypted with master key. "
+                    "Stored so the embed preview survives page reloads and cross-device sync.",
+    )
     is_opened: bool = Field(False, description="Whether user has started a chat from this inspiration")
     opened_chat_id: Optional[str] = Field(None, description="Hashed chat ID created from this inspiration")
     generated_at: int = Field(..., description="Unix timestamp when the inspiration was generated")
