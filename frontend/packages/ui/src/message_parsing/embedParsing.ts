@@ -24,6 +24,9 @@ function mapEmbedReferenceType(embedType: string): string {
     sheet: "sheets-sheet",
     document: "docs-doc",
     file: "file",
+    // Audio recording embeds: serialized as "audio-recording" by sendHandlers/serializers,
+    // but the TipTap node type and renderer are registered as "recording".
+    "audio-recording": "recording",
   };
 
   return typeMap[embedType] || embedType;
