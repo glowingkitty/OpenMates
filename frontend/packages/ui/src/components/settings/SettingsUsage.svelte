@@ -15,6 +15,7 @@ Usage Settings - View usage statistics and export usage data
     import Icon from '../Icon.svelte';
     import { decryptWithMasterKey, getKeyFromStorage, decryptChatKeyWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
     import { appsMetadata } from '../../data/appsMetadata';
+    import { getAllDraftAudioChatIds } from '../../stores/draftAudioChatStore';
 
     // Usage entry interface
     interface UsageEntry {
@@ -154,6 +155,11 @@ Usage Settings - View usage statistics and export usage data
     
     // Track if hidden chats are unlocked (reactive state)
     let hiddenChatsUnlocked = $state(false);
+
+    // Set of chat_ids that were pre-allocated for audio recordings in new (not yet sent) chats.
+    // Populated from localStorage on mount. Used to distinguish "Unsent draft" from "Deleted chat"
+    // when a usage entry's chat_id is not found in the Directus chats collection (is_deleted=true).
+    let draftAudioChatIds = $state<Set<string>>(new Set());
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
@@ -958,6 +964,7 @@ Usage Settings - View usage statistics and export usage data
                 icon: icon || null,
                 summary: null,
                 draftPreview: null,
+                activeFocusId: null,
                 lastDecrypted: Date.now(),
             };
         } catch (error) {
@@ -1335,6 +1342,10 @@ Usage Settings - View usage statistics and export usage data
     });
 
     onMount(() => {
+        // Load draft audio chat IDs from localStorage so we can display "Unsent draft" instead of
+        // "Deleted chat" for usage entries linked to recordings that were never sent.
+        draftAudioChatIds = getAllDraftAudioChatIds();
+
         // Load initial data based on default tab (overview)
         const initialLoad = activeTab === 'overview' 
             ? fetchDailyOverview(loadedDays)
@@ -1690,13 +1701,14 @@ Usage Settings - View usage statistics and export usage data
                                 {@const chat = cached?.chat}
                                 {@const isIncognitoChat = item.chat_id === 'incognito'}
                                 {@const isDeletedChat = cached?.isDeleted === true || item.is_deleted === true}
+                                {@const isUnsentDraft = isDeletedChat && item.chat_id != null && draftAudioChatIds.has(item.chat_id)}
                                 {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
                                 {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
                                 {@const category = canShowDetails ? (metadata?.category || null) : null}
                                 {@const iconName = isIncognitoChat ? 'incognito' : (canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle'))}
                                 {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
                                 {@const IconComponent = (isDeletedChat || isIncognitoChat) ? null : getLucideIcon(iconName)}
-                                {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat'))}
+                                {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
                                 
                                 <button
                                     type="button"
@@ -1712,6 +1724,13 @@ Usage Settings - View usage statistics and export usage data
                                             <div class="chat-usage-icon-circle" style="background: #555555;">
                                                 <div class="chat-usage-icon">
                                                     <div class="icon icon_incognito" style="width: 14px; height: 14px; filter: brightness(0) invert(1);"></div>
+                                                </div>
+                                            </div>
+                                        {:else if isUnsentDraft}
+                                            <!-- Unsent draft: mic icon, purple gradient background -->
+                                            <div class="chat-usage-icon-circle" style="background: linear-gradient(135deg, #6B8DD6, #8E37D7);">
+                                                <div class="chat-usage-icon">
+                                                    <div class="clickable-icon icon_recordaudio" style="width: 14px; height: 14px; background: white;"></div>
                                                 </div>
                                             </div>
                                         {:else if isDeletedChat}
@@ -1734,7 +1753,7 @@ Usage Settings - View usage statistics and export usage data
                                         {/if}
                                     </div>
                                     <div class="overview-item-content">
-                                        <div class="overview-item-title" class:deleted-text={isDeletedChat}>{title}</div>
+                                        <div class="overview-item-title" class:deleted-text={isDeletedChat && !isUnsentDraft}>{title}</div>
                                         <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
                                     </div>
                                     <div class="overview-item-credits">
@@ -2064,13 +2083,14 @@ Usage Settings - View usage statistics and export usage data
                         {@const cachedEntry = chatMetadataMap.get(summary.chat_id)}
                         {@const isIncognitoChat = summary.chat_id === 'incognito'}
                         {@const isDeletedChat = cachedEntry?.isDeleted === true}
+                        {@const isUnsentDraft = isDeletedChat && draftAudioChatIds.has(summary.chat_id)}
                         {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
                         {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
                         {@const category = canShowDetails ? (metadata?.category || null) : null}
                         {@const iconName = isIncognitoChat ? 'incognito' : (canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle'))}
                         {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
                         {@const IconComponent = (isDeletedChat || isIncognitoChat) ? null : getLucideIcon(iconName)}
-                        {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat'))}
+                        {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
                         
                         <button
                             type="button"
@@ -2088,6 +2108,13 @@ Usage Settings - View usage statistics and export usage data
                                     <div class="chat-usage-icon-circle" style="background: #555555;">
                                         <div class="chat-usage-icon">
                                             <div class="icon icon_incognito" style="width: 14px; height: 14px; filter: brightness(0) invert(1);"></div>
+                                        </div>
+                                    </div>
+                                {:else if isUnsentDraft}
+                                    <!-- Unsent draft: mic icon, purple gradient background -->
+                                    <div class="chat-usage-icon-circle" style="background: linear-gradient(135deg, #6B8DD6, #8E37D7);">
+                                        <div class="chat-usage-icon">
+                                            <div class="clickable-icon icon_recordaudio" style="width: 14px; height: 14px; background: white;"></div>
                                         </div>
                                     </div>
                                 {:else if isDeletedChat}
@@ -2110,7 +2137,7 @@ Usage Settings - View usage statistics and export usage data
                                 {/if}
                             </div>
                             <div class="chat-usage-content">
-                                <div class="chat-usage-title" class:deleted-text={isDeletedChat}>{title}</div>
+                                <div class="chat-usage-title" class:deleted-text={isDeletedChat && !isUnsentDraft}>{title}</div>
                             </div>
                             <div class="chat-usage-credits">
                                 <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>

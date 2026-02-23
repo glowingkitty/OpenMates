@@ -60,6 +60,15 @@ class TranscribeRequestItem(BaseModel):
     filename: Optional[str] = Field(
         None, description="Original filename of the recording (used to detect audio format)."
     )
+    chat_id: Optional[str] = Field(
+        None,
+        description=(
+            "Chat ID to associate with the usage entry. Pass the current chat_id when recording "
+            "inside an existing chat. For recordings in a new (unsent) chat, pass a pre-allocated "
+            "UUID so the usage entry is linkable if the chat is later sent, or shown as 'Unsent draft' "
+            "if it never is. When absent the usage entry has no chat association."
+        )
+    )
 
 
 class TranscribeRequest(BaseModel):
@@ -569,6 +578,22 @@ class TranscribeSkill(BaseSkill):
         if user_id and grouped_results:
             try:
                 user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+
+                # Extract chat_id from the first request that has one.
+                # All requests in a single call share the same chat context (one recording session),
+                # so taking the first non-empty value is correct.
+                chat_id_for_usage: Optional[str] = None
+                for req_dict in requests_as_dicts:
+                    candidate = req_dict.get("chat_id")
+                    if candidate and isinstance(candidate, str) and candidate.strip():
+                        chat_id_for_usage = candidate.strip()
+                        break
+                if chat_id_for_usage:
+                    logger.debug(
+                        f"[TranscribeSkill] Recording usage will be linked to chat_id "
+                        f"{chat_id_for_usage[:8]}..."
+                    )
+
                 # Sum duration_seconds across all successful transcription results
                 total_duration_seconds: float = 0.0
                 for group in grouped_results:
@@ -587,17 +612,20 @@ class TranscribeSkill(BaseSkill):
                         f"{user_id_hash[:8]}... ({total_duration_seconds:.1f}s total, "
                         f"{total_minutes} billed minutes × 3 credits)"
                     )
+                    usage_details: Dict[str, Any] = {
+                        "duration_seconds": total_duration_seconds,
+                        "billed_minutes": total_minutes,
+                        "requests_transcribed": success_count,
+                    }
+                    if chat_id_for_usage:
+                        usage_details["chat_id"] = chat_id_for_usage
                     await self.app.charge_user_credits(
                         user_id=user_id,
                         user_id_hash=user_id_hash,
                         credits_to_charge=credits_to_charge,
                         skill_id=self.skill_id,
                         app_id=self.app_id,
-                        usage_details={
-                            "duration_seconds": total_duration_seconds,
-                            "billed_minutes": total_minutes,
-                            "requests_transcribed": success_count,
-                        }
+                        usage_details=usage_details,
                     )
                 elif success_count > 0:
                     # Duration not returned by Mistral — apply 1-minute minimum per successful request
@@ -606,18 +634,21 @@ class TranscribeSkill(BaseSkill):
                         f"[TranscribeSkill] No duration returned from Mistral for {success_count} request(s). "
                         f"Applying 1-minute minimum: {credits_to_charge} credits."
                     )
+                    usage_details_no_duration: Dict[str, Any] = {
+                        "duration_seconds": 0,
+                        "billed_minutes": success_count,
+                        "requests_transcribed": success_count,
+                        "note": "duration unavailable — 1-minute minimum applied",
+                    }
+                    if chat_id_for_usage:
+                        usage_details_no_duration["chat_id"] = chat_id_for_usage
                     await self.app.charge_user_credits(
                         user_id=user_id,
                         user_id_hash=user_id_hash,
                         credits_to_charge=credits_to_charge,
                         skill_id=self.skill_id,
                         app_id=self.app_id,
-                        usage_details={
-                            "duration_seconds": 0,
-                            "billed_minutes": success_count,
-                            "requests_transcribed": success_count,
-                            "note": "duration unavailable — 1-minute minimum applied",
-                        }
+                        usage_details=usage_details_no_duration,
                     )
             except Exception as billing_error:
                 # Billing failure must never break transcription — log and continue

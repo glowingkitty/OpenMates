@@ -311,7 +311,8 @@
         if (!editor) return;
         const { blob, duration, mimeType } = event.detail;
         const formattedDuration = formatDuration(duration);
-        await insertRecording(editor, blob, mimeType, formattedDuration, get(authStore).isAuthenticated);
+        // Pass the notification's chatId so the transcription usage entry is linked to the correct chat.
+        await insertRecording(editor, blob, mimeType, formattedDuration, get(authStore).isAuthenticated, notification.chatId ?? undefined);
         replyText = editor.getText();
         handleStopRecordingCleanup();
     }

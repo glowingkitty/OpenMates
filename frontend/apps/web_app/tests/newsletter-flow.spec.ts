@@ -259,7 +259,8 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	// Unique time-based address: nlMMDDHHmm@<domain>
 	const now = new Date();
 	const pad = (n: number) => String(n).padStart(2, '0');
-	const localPart = `nl${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`;
+	// Include seconds so two runs in the same minute get different addresses
+	const localPart = `nl${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 	const testEmail = `${localPart}@${FIRST_DOMAIN}`;
 	log(`Test email address: ${testEmail}`);
 

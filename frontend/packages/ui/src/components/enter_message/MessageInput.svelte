@@ -96,6 +96,9 @@
     // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
     import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
     import { get } from 'svelte/store';
+    // Draft audio chat tracking — links usage entries to pre-allocated UUIDs for unsent recordings
+    import { markChatIdAsDraftAudio, unmarkChatIdAsDraftAudio } from '../../stores/draftAudioChatStore';
+    import { draftEditorUIState } from '../../services/drafts/draftState';
 
     const dispatch = createEventDispatcher();
 
@@ -2591,9 +2594,44 @@
         const { blob, duration, mimeType } = event.detail;
         const formattedDuration = formatDuration(duration);
         if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
+
+        // Determine the chat_id to associate with this recording's usage entry.
+        //
+        // For existing chats: use currentChatId directly.
+        //
+        // For new (not yet sent) chats: pre-allocate a UUID now so the usage entry can be
+        // linked to a chat even before the user presses Send. We store it in:
+        //   1. draftEditorUIState.currentChatId — so handleSend() reuses the same UUID when
+        //      the user eventually sends (this is the existing draft chat mechanism).
+        //   2. draftAudioChatStore (localStorage) — so SettingsUsage can identify the entry
+        //      as an "Unsent draft" if the user never sends.
+        //
+        // If the user sends later, the chat UUID becomes a real chat and the draft marker is
+        // cleared. If they never send, the usage entry stays linked to the pre-allocated UUID
+        // which will have is_deleted=true in the overview (not in Directus chats table) and be
+        // displayed as "Unsent draft" instead of "Deleted chat".
+        let chatIdForRecording: string | undefined;
+        if (currentChatId) {
+            // Recording inside an existing chat — use its ID directly.
+            chatIdForRecording = currentChatId;
+        } else if ($authStore.isAuthenticated) {
+            // New chat context: check if a draft chat UUID was already allocated (e.g. from
+            // a previous recording this session), otherwise generate a fresh one.
+            const draftState = get(draftEditorUIState);
+            let draftChatId = draftState.currentChatId ?? null;
+            if (!draftChatId) {
+                draftChatId = crypto.randomUUID();
+                // Write into draftEditorUIState so handleSend() picks it up as the chat UUID.
+                draftEditorUIState.update((s) => ({ ...s, currentChatId: draftChatId }));
+                console.debug('[MessageInput] Pre-allocated draft chat UUID for audio recording:', draftChatId);
+            }
+            // Mark as draft-audio in localStorage so SettingsUsage shows "Unsent draft".
+            markChatIdAsDraftAudio(draftChatId);
+            chatIdForRecording = draftChatId;
+        }
         // insertRecording() uploads to server + triggers Mistral Voxtral transcription in parallel.
         // It does NOT need a pre-created blob URL — it creates its own internally.
-        await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated);
+        await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording);
         hasContent = true;
         handleStopRecordingCleanup(); // Called here after recording is inserted
     }
@@ -2651,6 +2689,16 @@
             }
             awaitingAITaskTimeoutId = null;
         }, 15000);
+
+        // If a draft audio UUID was pre-allocated for this new chat, clear the "unsent draft"
+        // marker now that the user is sending. The chat UUID is about to become a real chat,
+        // so the usage entry should display under the chat title, not as "Unsent draft".
+        if (!currentChatId) {
+            const draftState = get(draftEditorUIState);
+            if (draftState.currentChatId) {
+                unmarkChatIdAsDraftAudio(draftState.currentChatId);
+            }
+        }
 
         void handleSend(
             editor,

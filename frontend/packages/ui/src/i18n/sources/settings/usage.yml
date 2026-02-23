@@ -1286,6 +1286,29 @@ deleted_chat:
   cs: Smazaný chat
   sv: Borttagen chatt
   verified_by_human: []
+unsent_draft:
+  context: Label shown for usage entries from an audio recording that was made in a new chat that was never sent
+  en: Unsent draft
+  de: Nicht gesendeter Entwurf
+  zh: 未发送的草稿
+  es: Borrador no enviado
+  fr: Brouillon non envoyé
+  pt: Rascunho não enviado
+  ru: Неотправленный черновик
+  ja: 未送信の下書き
+  ko: 전송되지 않은 초안
+  it: Bozza non inviata
+  tr: Gönderilmemiş taslak
+  vi: Bản nháp chưa gửi
+  id: Draf belum terkirim
+  pl: Niewysłany szkic
+  nl: Niet verzonden concept
+  ar: مسودة لم تُرسل
+  hi: न भेजा गया मसौदा
+  th: แบบร่างที่ยังไม่ได้ส่ง
+  cs: Neodeslané návrh
+  sv: Ej skickad utkast
+  verified_by_human: []
 view_app_details:
   context: Aria-label on clickable app usage row for accessibility
   en: View app details
