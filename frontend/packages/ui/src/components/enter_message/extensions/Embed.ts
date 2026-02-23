@@ -586,6 +586,10 @@ export const Embed = Node.create<EmbedOptions>({
         "image", // ImageEmbedPreview uses UnifiedEmbedPreview (uploaded images)
         "maps", // MapLocationEmbedPreview renders Leaflet map inline
         "pdf", // PDFEmbedPreview renders the PDF upload status card
+        "recording", // RecordingEmbedPreview uses UnifiedEmbedPreview — must be here so
+        // renderer.update() is called on status transitions (uploading→transcribing→finished).
+        // Without this, the embed stays stuck on "Processing..." forever because the else
+        // branch in update() does not call renderer.update().
       ];
 
       if (svelteComponentEmbedTypes.includes(currentAttrs.type)) {
