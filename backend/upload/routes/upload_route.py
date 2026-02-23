@@ -339,6 +339,59 @@ async def _store_record_via_api(
         logger.warning(f"[Upload Store] Failed to store upload record (non-fatal): {e}")
 
 
+async def _cache_embed_via_api(
+    core_api_url: str,
+    internal_token: str,
+    embed_id: str,
+    user_id: str,
+    vault_wrapped_aes_key: str,
+    aes_nonce: str,
+    s3_base_url: str,
+    files_metadata: Dict[str, Any],
+    content_type: str,
+    original_filename: str,
+    ai_detection: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    Cache an upload embed in Redis via the core API's /internal/uploads/cache-embed endpoint.
+
+    This is a non-fatal fire-and-forget call.  Without it, app skills such as
+    images-view and pdf-read fail with "Embed not found in cache" because the
+    upload pipeline never wrote the embed into Redis (only AI-generated embeds
+    had Redis entries).  The core API's endpoint writes `embed:{embed_id}` with
+    a 72-hour TTL, matching the structure expected by view_skill / read_skill.
+    """
+    try:
+        payload: Dict[str, Any] = {
+            "embed_id": embed_id,
+            "user_id": user_id,
+            "vault_wrapped_aes_key": vault_wrapped_aes_key,
+            "aes_nonce": aes_nonce,
+            "s3_base_url": s3_base_url,
+            "files": files_metadata,
+            "content_type": content_type,
+            "original_filename": original_filename,
+            "ai_detection": ai_detection,
+        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{core_api_url}/internal/uploads/cache-embed",
+                json=payload,
+                headers={"X-Internal-Service-Token": internal_token},
+            )
+        if resp.status_code not in (200, 201):
+            logger.warning(
+                f"[Upload CacheEmbed] Failed to cache embed {embed_id[:8]}...: "
+                f"HTTP {resp.status_code} {resp.text[:200]}"
+            )
+        else:
+            logger.info(f"[Upload CacheEmbed] Embed {embed_id[:8]}... cached in Redis: OK")
+    except Exception as e:
+        # Non-fatal: upload succeeds; skills will just fail with "not found in cache"
+        # rather than the upload itself failing.
+        logger.warning(f"[Upload CacheEmbed] Failed to cache embed (non-fatal): {e}")
+
+
 # ---------------------------------------------------------------------------
 # Main upload endpoint
 # ---------------------------------------------------------------------------
@@ -765,6 +818,23 @@ async def upload_file(
     }
     await _store_record_via_api(core_api_url, internal_token, upload_record)
 
+    # Cache embed in Redis so that app skills (images-view, etc.) can retrieve
+    # the embed data server-side.  AI-generated embeds are cached by generate_task.py;
+    # user-uploaded embeds were never cached, causing "Embed not found in cache" errors.
+    await _cache_embed_via_api(
+        core_api_url=core_api_url,
+        internal_token=internal_token,
+        embed_id=embed_id,
+        user_id=user_id,
+        vault_wrapped_aes_key=vault_wrapped_aes_key,
+        aes_nonce=nonce_b64,
+        s3_base_url=s3_base_url,
+        files_metadata={k: v.model_dump() for k, v in files_metadata.items()},
+        content_type=content_type,
+        original_filename=filename,
+        ai_detection=ai_detection_dict,
+    )
+
     total_elapsed = (time.monotonic() - upload_start) * 1000
     ai_score_str = f"{ai_detection_result.ai_generated:.3f}" if ai_detection_result else "n/a (skipped)"
     logger.info(
@@ -1004,6 +1074,21 @@ async def _handle_pdf_upload(
     }
     await _store_record_via_api(core_api_url, internal_token, upload_record)
     logger.info(f"{log_prefix} [PDF-6/7] Record stored: OK")
+
+    # Cache embed in Redis so that pdf-read skill can retrieve it server-side.
+    await _cache_embed_via_api(
+        core_api_url=core_api_url,
+        internal_token=internal_token,
+        embed_id=embed_id,
+        user_id=user_id,
+        vault_wrapped_aes_key=vault_wrapped_aes_key,
+        aes_nonce=nonce_b64,
+        s3_base_url=s3_base_url,
+        files_metadata={k: v.model_dump() for k, v in files_metadata.items()},
+        content_type=content_type,
+        original_filename=filename,
+        ai_detection=None,
+    )
 
     # --- PDF 7. Trigger background OCR processing (fire-and-forget) ---
     logger.info(

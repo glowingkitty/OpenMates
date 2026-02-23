@@ -1164,6 +1164,95 @@ async def store_upload_record(
         raise HTTPException(status_code=500, detail=f"Failed to store upload record: {str(e)}")
 
 
+class UploadCacheEmbedRequest(BaseModel):
+    """
+    Request model for caching an upload embed in Redis so that app skills
+    (e.g. images-view, pdf-read) can look it up server-side.
+
+    Background: AI-generated embeds are cached in Redis by generate_task.py.
+    User-uploaded embeds were never cached, so images-view / pdf-read raised
+    "Embed not found in cache" when called on uploaded files.  This endpoint
+    bridges that gap by letting the upload server push the embed data into
+    Redis immediately after a successful upload.
+    """
+    embed_id: str = Field(..., description="UUID used as embed_id in the embed system")
+    user_id: str = Field(..., description="User ID who uploaded the file")
+    vault_wrapped_aes_key: str = Field(..., description="Vault-wrapped AES key (vault:v1:... string)")
+    aes_nonce: str = Field(..., description="Base64 AES-GCM nonce")
+    s3_base_url: str = Field(..., description="S3 base URL for constructing full file URLs")
+    files: Dict[str, Any] = Field(..., description="File variants metadata dict (original/full/preview etc.)")
+    content_type: str = Field(..., description="MIME type of the uploaded file (e.g. image/webp)")
+    original_filename: str = Field(..., description="Original uploaded filename")
+    ai_detection: Optional[Dict[str, Any]] = Field(None, description="AI-generated detection result")
+
+
+@router.post("/uploads/cache-embed")
+async def cache_upload_embed(
+    payload: UploadCacheEmbedRequest,
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Cache an upload embed in Redis so that app skills (images-view, pdf-read, etc.)
+    can retrieve it server-side.
+
+    Called by the app-uploads microservice immediately after a successful upload,
+    alongside /uploads/store-record.  Without this, skills that call
+    embed_service._lookup_embed_content() would get "Embed not found in cache"
+    because the upload pipeline previously never wrote to Redis.
+
+    The cached data mirrors the structure written by generate_task.py for
+    AI-generated images so that view_skill.py and read_skill.py can decrypt
+    and serve both kinds of embeds identically.
+
+    TTL: 72 hours (259200 s) — same as CHAT_MESSAGES_TTL.
+    """
+    import json as json_lib
+
+    log_prefix = f"[UploadCacheEmbed] [user:{payload.user_id[:8]}...] [embed:{payload.embed_id[:8]}...]"
+    logger.info(f"{log_prefix} Caching upload embed in Redis")
+
+    try:
+        client = await cache_service.client
+        if not client:
+            logger.warning(f"{log_prefix} Redis client not available — skipping embed cache")
+            return {"status": "skipped", "reason": "redis_unavailable"}
+
+        # Build embed data matching the structure expected by embed_service._lookup_embed_content()
+        # and view_skill._lookup_embed_content().  Key fields:
+        #   - vault_wrapped_aes_key: needed by the skill to decrypt S3 files
+        #   - s3_base_url + files: needed to construct download URLs
+        #   - aes_nonce: needed for AES-GCM decryption
+        #   - user_id: stored so the fallback persistence task can re-send if needed
+        embed_data: Dict[str, Any] = {
+            "embed_id": payload.embed_id,
+            "user_id": payload.user_id,
+            "type": "image",  # upload server currently handles images (and PDFs as "pdf")
+            "status": "finished",
+            "filename": payload.original_filename,
+            "content_type": payload.content_type,
+            "files": payload.files,
+            "s3_base_url": payload.s3_base_url,
+            "aes_nonce": payload.aes_nonce,
+            "vault_wrapped_aes_key": payload.vault_wrapped_aes_key,
+            "ai_detection": payload.ai_detection,
+            # skill_id / app_id are not set because this is a user upload, not a skill result
+        }
+        if payload.content_type == "application/pdf":
+            embed_data["type"] = "pdf"
+
+        cache_key = f"embed:{payload.embed_id}"
+        await client.set(cache_key, json_lib.dumps(embed_data), ex=259200)  # 72 hours
+
+        logger.info(f"{log_prefix} Upload embed cached at key '{cache_key}' (72h TTL)")
+        return {"status": "success", "embed_id": payload.embed_id}
+
+    except Exception as e:
+        # Non-fatal: the upload already succeeded (file is in S3 and Directus).
+        # Skills will fail with "not found in cache" rather than the upload itself failing.
+        logger.error(f"{log_prefix} Failed to cache upload embed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to cache upload embed: {str(e)}")
+
+
 # --- E2E Test Notification Endpoints ---
 
 class TestFailureNotificationPayload(BaseModel):
