@@ -2087,6 +2087,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let activeChatDecryptedTitle = $state<string>('');
     let activeChatDecryptedCategory = $state<string | null>(null);
     let activeChatDecryptedIcon = $state<string | null>(null);
+    // Decrypted chat summary shown in the header below the title (available after post-processing).
+    let activeChatDecryptedSummary = $state<string | null>(null);
     // Mate name captured from the mate_selected preprocessing step, used for the
     // "{Mate} is typing..." spinner text after model_selected arrives.
     let selectedPreprocessingMateName = $state<string | null>(null);
@@ -2126,6 +2128,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         activeChatDecryptedTitle = '';
         activeChatDecryptedCategory = null;
         activeChatDecryptedIcon = null;
+        activeChatDecryptedSummary = null;
     }
 
     /**
@@ -3575,6 +3578,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             activeChatDecryptedTitle = '';
             activeChatDecryptedCategory = null;
             activeChatDecryptedIcon = null;
+            activeChatDecryptedSummary = null;
         }
         
         // Start the centered status indicator immediately with "Sending..."
@@ -4137,6 +4141,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
 
+        // ─── Chat Header: update summary when post-processing completes ─────────────
+        // The summary arrives separately (post_processing_metadata) after the main header
+        // is already shown. Decrypt and display it immediately so the header updates live.
+        if (detail.type === 'post_processing_metadata' && incomingChatMetadata?.encrypted_chat_summary) {
+            try {
+                const { decryptWithChatKey } = await import('../services/cryptoService');
+                const chatKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                if (chatKey) {
+                    const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, chatKey);
+                    if (decryptedSummary) {
+                        activeChatDecryptedSummary = decryptedSummary;
+                        console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
+                    }
+                }
+            } catch (err) {
+                console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat summary:', err);
+            }
+        }
+
         // let messagesNeedRefresh = false; // No longer relying on this for DB reload within this handler
         // let previousMessagesV = currentChat?.messages_v; // Not needed for direct comparison here anymore
 
@@ -4475,75 +4498,85 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          //                        also accept plaintext category/icon as fallback for older chats
          const chatForHeader = currentChat;
          if (chatForHeader) {
-             if (isPublicChat(chatForHeader.chat_id)) {
-                 // Public chats (demo/legal/community): all metadata is cleartext
-                 const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
-                 const c = chatForHeader.category || null;
-                 // icon is stored as a comma-separated string — use the first icon name only
-                 const rawIcon = chatForHeader.icon || null;
-                 const ic = rawIcon ? (rawIcon.split(',')[0]?.trim() || null) : null;
-                 if (t && c) {
-                     activeChatDecryptedTitle = t;
-                     activeChatDecryptedCategory = c;
-                     activeChatDecryptedIcon = ic;
-                     console.debug('[ActiveChat] loadChat: Restored chat header for public chat:', t, c, ic);
-                 }
-             } else if (chatForHeader.is_incognito) {
-                 // Incognito chats: category and icon are plaintext; title may be blank on new ones
-                 const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
-                 const c = chatForHeader.category || null;
-                 const rawIcon = chatForHeader.icon || null;
-                 const ic = rawIcon ? (rawIcon.split(',')[0]?.trim() || null) : null;
-                 // Show header whenever we have at least a category (title can be empty early on)
-                 if (c) {
-                     activeChatDecryptedTitle = t;
-                     activeChatDecryptedCategory = c;
-                     activeChatDecryptedIcon = ic;
-                     console.debug('[ActiveChat] loadChat: Restored chat header for incognito chat:', t, c, ic);
-                 }
-             } else {
-                 // Regular encrypted chats: decrypt encrypted fields.
-                 // We no longer require title_v > 0 because some chats may have category/icon
-                 // set even when title_v is missing or 0 (e.g. received via older sync path).
-                 // Try to decrypt whenever any encrypted metadata (or plaintext fallback) exists.
-                 const hasEncryptedTitle = !!chatForHeader.encrypted_title;
-                 const hasEncryptedCategory = !!chatForHeader.encrypted_category;
-                 const hasPlaintextCategory = !!chatForHeader.category;
-                 if (hasEncryptedTitle || hasEncryptedCategory || hasPlaintextCategory) {
-                     try {
-                         const { decryptWithChatKey } = await import('../services/cryptoService');
-                         const chatKey = chatDB.getOrGenerateChatKey(chatForHeader.chat_id);
-                         if (chatKey) {
-                             let t = '';
-                             let c: string | null = null;
-                             let ic: string | null = null;
-                             if (chatForHeader.encrypted_title) {
-                                 try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey) ?? ''; } catch { /* keep blank */ }
-                             }
-                             if (chatForHeader.encrypted_category) {
-                                 try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey); } catch { /* keep null */ }
-                             } else if (chatForHeader.category) {
-                                 // Fallback: plaintext category (older chats or partial sync)
-                                 c = chatForHeader.category;
-                             }
-                             if (chatForHeader.encrypted_icon) {
-                                 try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey); } catch { /* keep null */ }
-                             } else if (chatForHeader.icon) {
-                                 // Fallback: plaintext icon (older chats or partial sync)
-                                 ic = chatForHeader.icon.split(',')[0]?.trim() || null;
-                             }
-                             if (t && c) {
-                                 activeChatDecryptedTitle = t;
-                                 activeChatDecryptedCategory = c;
-                                 activeChatDecryptedIcon = ic;
-                                 console.debug('[ActiveChat] loadChat: Restored chat header for existing chat:', t, c, ic);
-                             }
-                         }
-                     } catch (err) {
-                         console.error('[ActiveChat] loadChat: Failed to decrypt header for existing chat:', err);
-                     }
-                 }
-             }
+              if (isPublicChat(chatForHeader.chat_id)) {
+                  // Public chats (demo/legal/community): all metadata is cleartext
+                  const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
+                  const c = chatForHeader.category || null;
+                  // icon is stored as a comma-separated string — use the first icon name only
+                  const rawIcon = chatForHeader.icon || null;
+                  const ic = rawIcon ? (rawIcon.split(',')[0]?.trim() || null) : null;
+                  // summary is also cleartext for public chats
+                  const s = chatForHeader.chat_summary || null;
+                  if (t && c) {
+                      activeChatDecryptedTitle = t;
+                      activeChatDecryptedCategory = c;
+                      activeChatDecryptedIcon = ic;
+                      activeChatDecryptedSummary = s;
+                      console.debug('[ActiveChat] loadChat: Restored chat header for public chat:', t, c, ic);
+                  }
+              } else if (chatForHeader.is_incognito) {
+                  // Incognito chats: category and icon are plaintext; title may be blank on new ones
+                  const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
+                  const c = chatForHeader.category || null;
+                  const rawIcon = chatForHeader.icon || null;
+                  const ic = rawIcon ? (rawIcon.split(',')[0]?.trim() || null) : null;
+                  // Show header whenever we have at least a category (title can be empty early on)
+                  if (c) {
+                      activeChatDecryptedTitle = t;
+                      activeChatDecryptedCategory = c;
+                      activeChatDecryptedIcon = ic;
+                      // Incognito chats do not persist a summary
+                      activeChatDecryptedSummary = null;
+                      console.debug('[ActiveChat] loadChat: Restored chat header for incognito chat:', t, c, ic);
+                  }
+              } else {
+                  // Regular encrypted chats: decrypt encrypted fields.
+                  // We no longer require title_v > 0 because some chats may have category/icon
+                  // set even when title_v is missing or 0 (e.g. received via older sync path).
+                  // Try to decrypt whenever any encrypted metadata (or plaintext fallback) exists.
+                  const hasEncryptedTitle = !!chatForHeader.encrypted_title;
+                  const hasEncryptedCategory = !!chatForHeader.encrypted_category;
+                  const hasPlaintextCategory = !!chatForHeader.category;
+                  if (hasEncryptedTitle || hasEncryptedCategory || hasPlaintextCategory) {
+                      try {
+                          const { decryptWithChatKey } = await import('../services/cryptoService');
+                          const chatKey = chatDB.getOrGenerateChatKey(chatForHeader.chat_id);
+                          if (chatKey) {
+                              let t = '';
+                              let c: string | null = null;
+                              let ic: string | null = null;
+                              let s: string | null = null;
+                              if (chatForHeader.encrypted_title) {
+                                  try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey) ?? ''; } catch { /* keep blank */ }
+                              }
+                              if (chatForHeader.encrypted_category) {
+                                  try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey); } catch { /* keep null */ }
+                              } else if (chatForHeader.category) {
+                                  // Fallback: plaintext category (older chats or partial sync)
+                                  c = chatForHeader.category;
+                              }
+                              if (chatForHeader.encrypted_icon) {
+                                  try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey); } catch { /* keep null */ }
+                              } else if (chatForHeader.icon) {
+                                  // Fallback: plaintext icon (older chats or partial sync)
+                                  ic = chatForHeader.icon.split(',')[0]?.trim() || null;
+                              }
+                              if (chatForHeader.encrypted_chat_summary) {
+                                  try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey); } catch { /* keep null */ }
+                              }
+                              if (t && c) {
+                                  activeChatDecryptedTitle = t;
+                                  activeChatDecryptedCategory = c;
+                                  activeChatDecryptedIcon = ic;
+                                  activeChatDecryptedSummary = s;
+                                  console.debug('[ActiveChat] loadChat: Restored chat header for existing chat:', t, c, ic);
+                              }
+                          }
+                      } catch (err) {
+                          console.error('[ActiveChat] loadChat: Failed to decrypt header for existing chat:', err);
+                      }
+                  }
+              }
          }
 
          // CRITICAL: Clear liveInputText when switching chats to prevent stale search terms
@@ -6773,6 +6806,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         chatTitle={activeChatDecryptedTitle}
                         chatCategory={activeChatDecryptedCategory}
                         chatIcon={activeChatDecryptedIcon}
+                        chatSummary={activeChatDecryptedSummary}
                         {isNewChatGeneratingTitle}
                         onSuggestionAdded={handleSettingsMemorySuggestionAdded}
                         onSuggestionRejected={handleSettingsMemorySuggestionRejected}

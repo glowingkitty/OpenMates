@@ -8,12 +8,13 @@
 
   States:
     - isLoading=true  → shows "Generating title..." placeholder with AI icon shimmer
-    - isLoading=false → shows full card with gradient circle + icon + title
+    - isLoading=false → shows full card with gradient circle + icon + title (+ optional summary)
 
   Props:
     title       - decrypted/plaintext chat title (empty while generating)
     category    - category string (e.g. "technology", "science") — null while generating
     icon        - icon name string (e.g. "cpu") — null while generating
+    summary     - decrypted chat summary (2-3 sentences) — null if not yet generated
     isLoading   - true while title/category/icon are not yet received from the server
 -->
 <script lang="ts">
@@ -26,11 +27,13 @@
     title = '',
     category = null,
     icon = null,
+    summary = null,
     isLoading = false,
   }: {
     title?: string;
     category?: string | null;
     icon?: string | null;
+    summary?: string | null;
     isLoading?: boolean;
   } = $props();
 
@@ -73,10 +76,13 @@
       </div>
     </div>
 
-    <!-- Title text -->
+    <!-- Title and optional summary -->
     <div class="chat-header-title-wrapper">
       <!-- eslint-disable-next-line svelte/no-at-html-tags -->
       <span class="chat-header-title">{@html title}</span>
+      {#if summary}
+        <p class="chat-header-summary">{summary}</p>
+      {/if}
     </div>
   </div>
 {/if}
@@ -207,5 +213,23 @@
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.3;
+  }
+
+  /* Summary: shown below the title when available, 14px muted text */
+  .chat-header-summary {
+    margin: 5px 0 0;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--color-text-muted, var(--color-grey-60));
+    line-height: 1.5;
+    /* Allow wrapping — summary can be 2-3 sentences */
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Clamp to 3 lines max so the header doesn't grow too tall */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
   }
 </style>

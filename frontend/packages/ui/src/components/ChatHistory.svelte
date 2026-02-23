@@ -429,6 +429,7 @@
     chatTitle = '',
     chatCategory = null,
     chatIcon = null,
+    chatSummary = null,
     isNewChatGeneratingTitle = false,
   }: {
     messageInputHeight?: number;
@@ -447,6 +448,8 @@
     chatCategory?: string | null;
     /** Decrypted icon name (e.g. "cpu") for the category circle (new chats only). */
     chatIcon?: string | null;
+    /** Decrypted chat summary — shown as 14px text below the title if available. */
+    chatSummary?: string | null;
     /** True while the server is still generating the title/category/icon for a new chat.
      *  Shows the "Generating title..." shimmer placeholder instead of the full card. */
     isNewChatGeneratingTitle?: boolean;
@@ -1344,6 +1347,7 @@
                         title={chatTitle}
                         category={chatCategory}
                         icon={chatIcon}
+                        summary={chatSummary}
                         isLoading={isNewChatGeneratingTitle}
                     />
                 </div>
