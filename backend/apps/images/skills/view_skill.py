@@ -148,12 +148,15 @@ class ViewSkill(BaseSkill):
                     f"Embed {embed_id} has no encrypted_content in cache"
                 )
 
-            # Decrypt the content using Vault Transit (same as EncryptionService.decrypt_with_user_key)
+            # Decrypt the content using Vault Transit (same as EncryptionService.decrypt_with_user_key).
+            # User keys are created as derived keys, so we must provide the same context that was
+            # used during encryption: base64(key_id). See encryption.py:decrypt_with_user_key.
             vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
             token = self._load_vault_token()
 
             decrypt_url = f"{vault_url}/v1/transit/decrypt/{user_vault_key_id}"
-            payload = {"ciphertext": encrypted_content}
+            context = base64.b64encode(user_vault_key_id.encode()).decode("utf-8")
+            payload = {"ciphertext": encrypted_content, "context": context}
 
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.post(
@@ -206,7 +209,9 @@ class ViewSkill(BaseSkill):
         token = self._load_vault_token()
 
         decrypt_url = f"{vault_url}/v1/transit/decrypt/{vault_key_id}"
-        payload = {"ciphertext": vault_wrapped_aes_key}
+        # User keys are derived — must pass context = base64(key_id) to match encryption.
+        context = base64.b64encode(vault_key_id.encode()).decode("utf-8")
+        payload = {"ciphertext": vault_wrapped_aes_key, "context": context}
 
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(

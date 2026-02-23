@@ -431,11 +431,12 @@ async def _download_decrypt_pdf(
     with open(vault_token_path) as f:
         vault_token = f.read().strip()
 
-    # Unwrap AES key from Vault
+    # Unwrap AES key from Vault. User keys are derived — must pass context = base64(key_id).
+    context = base64.b64encode(vault_key_id.encode()).decode("utf-8")
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
             f"{vault_url}/v1/transit/decrypt/{vault_key_id}",
-            json={"ciphertext": vault_wrapped_aes_key},
+            json={"ciphertext": vault_wrapped_aes_key, "context": context},
             headers={"X-Vault-Token": vault_token},
         )
     if resp.status_code != 200:

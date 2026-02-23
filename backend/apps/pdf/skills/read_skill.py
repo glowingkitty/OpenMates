@@ -112,10 +112,12 @@ class ReadSkill(BaseSkill):
         """Unwrap AES key via Vault Transit."""
         vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
         token = self._load_vault_token()
+        # User keys are derived — must pass context = base64(key_id) to match encryption.
+        context = base64.b64encode(vault_key_id.encode()).decode("utf-8")
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
                 f"{vault_url}/v1/transit/decrypt/{vault_key_id}",
-                json={"ciphertext": vault_wrapped_aes_key},
+                json={"ciphertext": vault_wrapped_aes_key, "context": context},
                 headers={"X-Vault-Token": token},
             )
         if resp.status_code != 200:
