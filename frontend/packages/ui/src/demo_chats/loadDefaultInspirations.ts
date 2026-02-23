@@ -79,10 +79,12 @@ export async function loadDefaultInspirations(): Promise<void> {
         }
       }
     } catch (idbError) {
-      // Non-fatal: master key not available (guest user / session expired) or
-      // IndexedDB not accessible. Fall through to server defaults.
-      console.debug(
-        `${LOG_PREFIX} IndexedDB load skipped or failed (will use server defaults):`,
+      // Non-fatal: fall through to server defaults, but always surface the
+      // actual error so we can diagnose it. Guest users / logged-out sessions
+      // will hit this every page load (expected); authenticated users hitting
+      // this means something is wrong (master key race, DB corruption, etc.).
+      console.error(
+        `${LOG_PREFIX} IndexedDB load failed — falling back to server defaults. Error:`,
         idbError,
       );
     }
@@ -98,8 +100,8 @@ export async function loadDefaultInspirations(): Promise<void> {
     const response = await fetch(url);
 
     if (!response.ok) {
-      console.warn(
-        `${LOG_PREFIX} Server returned ${response.status} — skipping default inspirations`,
+      console.error(
+        `${LOG_PREFIX} Server returned ${response.status} fetching default inspirations — no banner will be shown`,
       );
       return;
     }

@@ -940,13 +940,19 @@ const UPDATE_DEBOUNCE_MS = 300;
 	 * This handles the "re-login on a fresh device / cleared browser data" scenario
 	 * where IndexedDB has no inspirations but the user's Directus account has saved ones.
 	 *
-	 * IMPORTANT: We delay 5 seconds before calling the API. The backend delivers pending
-	 * inspirations via WebSocket with a 3-second delay (asyncio.sleep(3) in
-	 * _deliver_pending_inspirations). If phased sync completes before that 3-second window,
-	 * calling the API immediately would find 0 Directus records (since the user hasn't ACK'd
-	 * and persisted them yet) and give up — before the WS delivery arrives. By waiting
-	 * 5 seconds we give the pending WS delivery time to arrive and populate the store first.
-	 * If the store is already populated after the delay, we skip the API call entirely.
+	 * WAIT STRATEGY — adaptive based on phase1Empty flag:
+	 *
+	 *   phase1Empty = true  (Phase 1 sync reported NO inspirations stored in Directus):
+	 *     → Wait only 1 second. We still need a small window for the WS pending-delivery
+	 *       path (Path C: asyncio.sleep(3) on the server), but since Phase 1 itself
+	 *       completes around the 3 s mark, only truly brand-new WS deliveries
+	 *       can arrive after this point. 1 s is sufficient headroom.
+	 *
+	 *   phase1Empty = false (Phase 1 delivered inspirations OR sync hasn't finished yet):
+	 *     → Wait 3.5 seconds. This is the legacy guard for the WS pending-delivery
+	 *       path when Phase 1 was populated, and also covers the case where Phase 1
+	 *       completes very quickly and the 3 s WS timer hasn't expired yet.
+	 *       (Previously 5 s — reduced to 3.5 s since the WS timer is exactly 3 s.)
 	 *
 	 * Non-fatal: errors are logged but do not affect chat sync or UI stability.
 	 */
@@ -958,12 +964,18 @@ const UPDATE_DEBOUNCE_MS = 300;
 			const initialState = svGet(inspirationStore);
 			if (initialState.inspirations.length > 0) {
 				// Already populated (IndexedDB load or WS delivery) — nothing to do
+				console.debug('[Chats] syncInspirationLoginFallback: store already populated — skipping');
 				return;
 			}
 
-			// Wait for potential pending WS delivery before hitting the API.
-			// The backend sends pending inspirations with a 3s delay; we give it 5s to be safe.
-			await new Promise<void>((resolve) => setTimeout(resolve, 5000));
+			// Adaptive wait: use a short wait when Phase 1 confirmed Directus has nothing,
+			// otherwise give the pending WS delivery (Path C) a bit more time to arrive.
+			const waitMs = initialState.phase1Empty ? 1000 : 3500;
+			console.debug(
+				`[Chats] syncInspirationLoginFallback: waiting ${waitMs}ms (phase1Empty=${initialState.phase1Empty}) ` +
+				'before API fallback'
+			);
+			await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
 
 			// Re-check: WS may have delivered inspirations during the wait
 			const afterWaitState = svGet(inspirationStore);
@@ -972,7 +984,9 @@ const UPDATE_DEBOUNCE_MS = 300;
 				return;
 			}
 
-			console.debug('[Chats] Inspiration store empty after sync + 5s wait — checking API for saved inspirations');
+			console.info(
+				`[Chats] Inspiration store empty after sync + ${waitMs}ms wait — checking API for saved inspirations`
+			);
 
 			const { loadInspirationsFromAPI } = await import('../../services/dailyInspirationDB');
 			const inspirations = await loadInspirationsFromAPI();
@@ -982,14 +996,16 @@ const UPDATE_DEBOUNCE_MS = 300;
 				const nowState = svGet(inspirationStore);
 				if (nowState.inspirations.length === 0) {
 					inspirationStore.setInspirations(inspirations);
-					console.debug(`[Chats] Loaded ${inspirations.length} inspiration(s) from API after login sync`);
+					console.info(`[Chats] Loaded ${inspirations.length} inspiration(s) from API after login sync`);
 				} else {
 					console.debug('[Chats] WS delivered inspirations while loading from API — keeping WS data');
 				}
+			} else {
+				console.info('[Chats] API returned 0 inspirations — banner will remain hidden or show server defaults');
 			}
 		} catch (error) {
 			// Non-fatal: banner will show server defaults or remain hidden
-			console.error('[Chats] syncInspirationLoginFallback failed (non-fatal):', error);
+			console.error('[Chats] syncInspirationLoginFallback failed:', error);
 		}
 	}
 

@@ -550,9 +550,23 @@ export async function handlePhase1LastChatImpl(
         );
       }
     } else {
+      // Phase 1 delivered zero inspirations — the server has none stored for this user.
+      // Signal the fallback in Chats.svelte to use a shorter wait (1 s instead of 5 s):
+      // only fresh WS-delivered inspirations (Path C, asyncio.sleep(3)) can still arrive,
+      // so we just need 1 extra second of headroom past Phase 1 completion.
       console.warn(
-        "[ChatSyncService:CoreSync] ⚠️ No daily inspirations received in Phase 1 - will fall back to 5s fetch",
+        "[ChatSyncService:CoreSync] ⚠️ No daily inspirations received in Phase 1 — marking phase1Empty so fallback uses 1 s wait instead of 5 s",
       );
+      try {
+        const { dailyInspirationStore } =
+          await import("../stores/dailyInspirationStore");
+        dailyInspirationStore.markPhase1Empty();
+      } catch (markErr) {
+        console.error(
+          "[ChatSyncService:CoreSync] Failed to mark phase1Empty on inspiration store:",
+          markErr,
+        );
+      }
     }
 
     // CRITICAL: Save embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)

@@ -59,6 +59,17 @@ export interface DailyInspirationState {
   inspirations: DailyInspiration[];
   /** Currently displayed index (0-based). Prefers the first unopened inspiration. */
   currentIndex: number;
+  /**
+   * Set to true by the Phase 1 sync handler when the server confirmed it has
+   * NO pending or stored inspirations for the user.
+   *
+   * This allows syncInspirationLoginFallback (Chats.svelte) to skip its full
+   * 5-second wait: if Phase 1 delivered nothing AND phase1Empty is true, we
+   * only need a 1-second guard for the WS pending-delivery path (Path C).
+   * The WS pending-delivery fires 3 s after connect, but Phase 1 itself
+   * completes around that same time, so 1 extra second of headroom is enough.
+   */
+  phase1Empty: boolean;
 }
 
 // ─── Initial state ────────────────────────────────────────────────────────────
@@ -68,6 +79,7 @@ export interface DailyInspirationState {
 const initialState: DailyInspirationState = {
   inspirations: [],
   currentIndex: 0,
+  phase1Empty: false,
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -95,10 +107,11 @@ export const dailyInspirationStore = {
    */
   setInspirations: (inspirations: DailyInspiration[]): void => {
     const sliced = inspirations.slice(0, 3);
-    store.set({
+    store.update((state) => ({
+      ...state,
       inspirations: sliced,
       currentIndex: preferredIndex(sliced),
-    });
+    }));
   },
 
   /**
@@ -118,6 +131,7 @@ export const dailyInspirationStore = {
         return i;
       });
       return {
+        ...state,
         inspirations: updatedInspirations,
         // Move to the next unopened inspiration as the new default
         currentIndex: preferredIndex(updatedInspirations),
@@ -176,6 +190,19 @@ export const dailyInspirationStore = {
       if (index < 0 || index >= state.inspirations.length) return state;
       return { ...state, currentIndex: index };
     });
+  },
+
+  /**
+   * Signal that Phase 1 sync completed with zero inspirations from the server.
+   *
+   * Called by the Phase 1 sync handler when daily_inspirations is absent or
+   * empty in the sync payload. This allows syncInspirationLoginFallback to use
+   * a much shorter wait (1 s instead of 5 s) before hitting the REST API,
+   * because we already know there are no stored inspirations in Directus at the
+   * time of login — only fresh WS-delivered ones could arrive (Path C, 3 s).
+   */
+  markPhase1Empty: (): void => {
+    store.update((state) => ({ ...state, phase1Empty: true }));
   },
 
   /**

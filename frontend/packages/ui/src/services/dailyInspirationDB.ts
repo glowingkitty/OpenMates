@@ -212,8 +212,22 @@ export async function loadInspirationsFromIndexedDB(): Promise<
 
     if (fresh.length === 0) return [];
 
-    // Decrypt fresh records
+    // Decrypt fresh records.
+    // IMPORTANT: Probe the master key BEFORE looping — if it is absent every
+    // record will silently fail with null returns (cryptoService logs the error
+    // once per call but does not throw). We surface this as a single clear
+    // error instead of N silent "Decryption failed — skipping" warnings.
     const { decryptWithMasterKey } = await import("./cryptoService");
+    const { getMasterKey } = await import("./cryptoKeyStorage");
+    const masterKeyAvailable = !!(await getMasterKey());
+    if (!masterKeyAvailable) {
+      console.error(
+        `${LOG_PREFIX} Master key not available — cannot decrypt ${fresh.length} IndexedDB inspiration(s). ` +
+          "User is not logged in or 'stay logged in' is disabled. " +
+          "Falling back to server defaults.",
+      );
+      return [];
+    }
 
     const decrypted: DailyInspiration[] = [];
     for (const record of fresh) {
@@ -233,8 +247,11 @@ export async function loadInspirationsFromIndexedDB(): Promise<
           await Promise.all(decryptPromises);
 
         if (!phrase || !category) {
-          console.warn(
-            `${LOG_PREFIX} Decryption failed for inspiration ${record.inspiration_id} — skipping`,
+          // This is unexpected here because we already confirmed the master key
+          // is present above — log as error, not just a warning.
+          console.error(
+            `${LOG_PREFIX} Decryption returned null for inspiration ${record.inspiration_id} despite master key being available — ` +
+              "data may be corrupted or encrypted with a different key. Skipping.",
           );
           continue;
         }
