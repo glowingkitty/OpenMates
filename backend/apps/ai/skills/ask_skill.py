@@ -70,6 +70,11 @@ class AskSkillRequest(BaseModel):
     api_key_hash: Optional[str] = Field(default=None, alias="_api_key_hash", description="SHA-256 hash of the API key for usage tracking.")
     device_hash: Optional[str] = Field(default=None, alias="_device_hash", description="SHA-256 hash of the device for usage tracking.")
     api_key_name: Optional[str] = Field(default=None, alias="_api_key_name", description="Encrypted name of the API key.")
+    # Maps embed_ref (human-readable filename used by the LLM, e.g. "my_photo.jpg") to embed_id UUID.
+    # Built during message history resolution in the WebSocket handler. Forwarded to the AI worker
+    # so skills like images-view can resolve a file_path argument back to the actual embed UUID
+    # for Redis cache lookup — keeping UUIDs invisible to the LLM entirely.
+    embed_file_path_index: Optional[Dict[str, str]] = Field(default=None, description="Maps embed_ref filename → embed_id UUID for server-side skill resolution.")
     
     # Allow populating by name even with aliases
     model_config = {"populate_by_name": True}

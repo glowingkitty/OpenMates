@@ -2508,6 +2508,15 @@ async def handle_main_processing(
                         skill_arguments = skill_arguments.copy()
                         skill_arguments["_user_vault_key_id"] = user_vault_key_id
 
+                    # Inject the embed_ref → embed_id mapping so skills like images-view
+                    # can resolve a human-readable file_path argument (e.g. "my_photo.jpg")
+                    # back to the internal UUID embed_id for Redis/Vault/S3 lookup.
+                    # Underscore prefix causes base_app.py to strip it before Pydantic validation.
+                    embed_file_path_index = getattr(request_data, "embed_file_path_index", None)
+                    if embed_file_path_index:
+                        skill_arguments = skill_arguments.copy()
+                        skill_arguments["_file_path_index"] = embed_file_path_index
+
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation

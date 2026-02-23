@@ -115,8 +115,8 @@ skills:
       Load an image into the conversation so the AI can see it. Use this skill
       when the user references an uploaded image embed and wants the AI to look
       at it, describe it, read text in it, identify objects, or answer any visual
-      question about it. Only requires the embed_id — the server resolves all
-      cryptographic and storage details automatically.
+      question about it. Pass the exact embed_ref (original filename) from the
+      toon block — the server resolves all cryptographic and storage details automatically.
     stage: development
     class_path: |
       backend.apps.images.skills.view_skill.ViewSkill
@@ -126,11 +126,11 @@ skills:
     tool_schema:
       type: object
       properties:
-        embed_id:
+        file_path:
           type: string
-          description: "The embed_id of the image to load into the conversation."
+          description: "The original filename of the image (embed_ref, e.g. 'my_photo.jpg'). Use the exact embed_ref value from the toon block in the user's message."
       required:
-        - embed_id
+        - file_path
   - id: generate_draft
     name_translation_key: images.generate_draft
     description_translation_key: images.generate_draft.description

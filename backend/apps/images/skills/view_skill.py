@@ -3,20 +3,22 @@
 # Skill that loads an uploaded/generated image so the main LLM can see it.
 #
 # Architecture:
-#   The LLM calls this skill with only an embed_id. The skill then:
-#     1. Looks up the embed's encrypted content from the Redis cache
-#     2. Decrypts the embed content using the user's Vault Transit key
-#     3. Extracts vault_wrapped_aes_key, s3_key, s3_base_url, aes_nonce from
+#   The LLM calls this skill with a file_path (original filename, e.g. "my_photo.jpg").
+#   The skill then:
+#     1. Resolves file_path → embed_id UUID via the _file_path_index injected by main_processor.py
+#     2. Looks up the embed's encrypted content from the Redis cache
+#     3. Decrypts the embed content using the user's Vault Transit key
+#     4. Extracts vault_wrapped_aes_key, s3_key, s3_base_url, aes_nonce from
 #        the decrypted embed content (these fields are never exposed to the LLM)
-#     4. Unwraps the AES key via Vault Transit
-#     5. Downloads the encrypted file from S3
-#     6. Decrypts with AES-256-GCM
-#     7. Returns the image as a multimodal content list (image_url block)
+#     5. Unwraps the AES key via Vault Transit
+#     6. Downloads the encrypted file from S3
+#     7. Decrypts with AES-256-GCM
+#     8. Returns the image as a multimodal content list (image_url block)
 #        so the MAIN inference model sees the image directly via tool result
 #
-#   This design keeps all cryptographic and infrastructure details (S3 keys,
-#   Vault-wrapped AES keys, nonces) entirely server-side. The LLM only needs
-#   to know the embed_id to request viewing an image.
+#   Using file_path instead of raw embed_id means the LLM never sees internal UUIDs.
+#   The UUID is invisible to the LLM entirely — it only sees the original filename
+#   as embed_ref in the TOON block, and passes that same filename back here.
 #
 #   Security:
 #     - The plaintext aes_key (used by the client) is never sent to the LLM.
@@ -46,12 +48,12 @@ logger = logging.getLogger(__name__)
 class ViewRequest(BaseModel):
     """
     Request model for the images.view skill.
-    The LLM only needs to provide the embed_id — all cryptographic and
-    storage details are resolved server-side from the embed cache.
+    The LLM provides the original filename (file_path / embed_ref) — all cryptographic and
+    storage details are resolved server-side from the embed cache via the file_path_index.
     """
-    embed_id: str = Field(
+    file_path: str = Field(
         ...,
-        description="The embed_id of the image to load into the conversation."
+        description="The original filename of the image to load (e.g. 'my_photo.jpg'). Use the exact embed_ref value from the toon block."
     )
 
 
@@ -64,7 +66,7 @@ class ViewResponse(BaseModel):
     This model exists only to document the skill's output shape in the REST API.
     """
     success: bool = Field(default=False, description="Whether the image was loaded.")
-    embed_id: Optional[str] = Field(None, description="The embed_id that was viewed.")
+    file_path: Optional[str] = Field(None, description="The file_path that was viewed.")
     error: Optional[str] = Field(None, description="Error message if loading failed.")
 
 
@@ -77,9 +79,10 @@ class ViewSkill(BaseSkill):
     Skill for loading an image and returning it as a multimodal content block
     so the main inference model can see it directly.
 
-    The LLM calls this with only embed_id. The skill resolves all crypto and
-    storage details server-side by looking up the embed from the Redis cache
-    and decrypting its content via Vault Transit.
+    The LLM calls this with file_path (the original filename / embed_ref, e.g. "my_photo.jpg").
+    The skill resolves file_path → embed_id UUID via the _file_path_index injected by
+    main_processor.py, then resolves all crypto and storage details server-side by looking
+    up the embed from the Redis cache and decrypting its content via Vault Transit.
 
     Returns the raw image bytes (base64-encoded) as an image_url content block.
     The framework's llm_utils.py passes the list through unchanged to the
@@ -262,15 +265,15 @@ class ViewSkill(BaseSkill):
 
     async def execute(
         self,
-        embed_id: str,
+        file_path: str,
         **kwargs: Any,
     ) -> List[Dict[str, Any]]:
         """
         Load an image and return it as a multimodal content list.
 
-        The LLM only provides embed_id. All cryptographic and storage details
-        (vault_wrapped_aes_key, s3_key, s3_base_url, aes_nonce) are resolved
-        server-side by looking up the embed from the Redis cache.
+        The LLM provides file_path (the original filename / embed_ref, e.g. "my_photo.jpg").
+        All cryptographic and storage details (vault_wrapped_aes_key, s3_key, s3_base_url,
+        aes_nonce) are resolved server-side by looking up the embed from the Redis cache.
 
         Returns a list of content blocks that will become the tool result
         passed directly to the main inference model:
@@ -286,36 +289,51 @@ class ViewSkill(BaseSkill):
           - Google: converted to inlineData Parts in google_client.py
 
         Steps:
-        1. Get user_vault_key_id from kwargs (injected by the pipeline).
-        2. Look up embed content from Redis cache (decrypt via Vault Transit).
-        3. Extract vault_wrapped_aes_key, s3_base_url, s3_key, aes_nonce from content.
-        4. Unwrap the AES key via Vault Transit.
-        5. Download the encrypted file from S3.
-        6. Decrypt with AES-256-GCM.
-        7. Return base64-encoded image as a content block list.
+        1. Get user_vault_key_id and file_path_index from kwargs (injected by the pipeline).
+        2. Resolve file_path → embed_id UUID via file_path_index.
+        3. Look up embed content from Redis cache (decrypt via Vault Transit).
+        4. Extract vault_wrapped_aes_key, s3_base_url, s3_key, aes_nonce from content.
+        5. Unwrap the AES key via Vault Transit.
+        6. Download the encrypted file from S3.
+        7. Decrypt with AES-256-GCM.
+        8. Return base64-encoded image as a content block list.
 
         Args:
-            embed_id: Embed ID of the image.
-            **kwargs: Context injected by the pipeline (user_vault_key_id, user_id, etc.).
+            file_path: Original filename of the image (embed_ref, e.g. "my_photo.jpg").
+            **kwargs: Context injected by the pipeline (user_vault_key_id, _file_path_index, etc.).
 
         Returns:
             List of content blocks for multimodal tool result, or a text error
             block on failure (for graceful degradation).
         """
-        log_prefix = f"[images.view] [embed:{embed_id[:8]}...]"
+        log_prefix = f"[images.view] [file:{file_path}]"
 
-        # --- Step 1: Resolve user_vault_key_id from pipeline context ---
+        # --- Step 1: Resolve user_vault_key_id and file_path_index from pipeline context ---
         user_vault_key_id = kwargs.get("user_vault_key_id")
         if not user_vault_key_id:
             logger.error(f"{log_prefix} user_vault_key_id not available — cannot look up embed")
-            return [{"type": "text", "text": f"Error: Cannot view image {embed_id} — vault key ID not available."}]
+            return [{"type": "text", "text": f"Error: Cannot view image '{file_path}' — vault key ID not available."}]
+
+        # Resolve the human-readable file_path (embed_ref) → internal embed_id UUID.
+        # The index is built during message history resolution in the WebSocket handler
+        # and forwarded through AskSkillRequest.embed_file_path_index → main_processor.py.
+        file_path_index: Dict[str, str] = kwargs.get("file_path_index") or {}
+        embed_id = file_path_index.get(file_path)
+        if not embed_id:
+            logger.error(
+                f"{log_prefix} file_path '{file_path}' not found in file_path_index "
+                f"(available keys: {list(file_path_index.keys())})"
+            )
+            return [{"type": "text", "text": f"Error: Cannot view image '{file_path}' — embed reference not found. Please re-upload the image."}]
+
+        embed_log_prefix = f"[images.view] [file:{file_path}] [embed:{embed_id[:8]}...]"
 
         try:
-            # --- Step 2: Look up embed content from Redis cache ---
-            logger.info(f"{log_prefix} Looking up embed content from cache")
+            # --- Step 3: Look up embed content from Redis cache ---
+            logger.info(f"{embed_log_prefix} Looking up embed content from cache")
             embed_content = await self._lookup_embed_content(embed_id, user_vault_key_id)
 
-            # --- Step 3: Extract required fields from embed content ---
+            # --- Step 4: Extract required fields from embed content ---
             vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
             s3_base_url = embed_content.get("s3_base_url")
             aes_nonce = embed_content.get("aes_nonce")
@@ -336,7 +354,7 @@ class ViewSkill(BaseSkill):
                 variant = files.get(variant_name)
                 if variant and variant.get("s3_key"):
                     s3_key = variant["s3_key"]
-                    logger.info(f"{log_prefix} Using '{variant_name}' variant: {s3_key}")
+                    logger.info(f"{embed_log_prefix} Using '{variant_name}' variant: {s3_key}")
                     break
 
             if not s3_key:
@@ -345,24 +363,24 @@ class ViewSkill(BaseSkill):
                     f"(available: {list(files.keys())})"
                 )
 
-            # --- Step 4: Unwrap AES key via Vault Transit ---
-            logger.info(f"{log_prefix} Unwrapping AES key via Vault transit key {user_vault_key_id}")
+            # --- Step 5: Unwrap AES key via Vault Transit ---
+            logger.info(f"{embed_log_prefix} Unwrapping AES key via Vault transit key {user_vault_key_id}")
             aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, user_vault_key_id)
 
-            # --- Step 5: Download encrypted file from S3 ---
-            logger.info(f"{log_prefix} Downloading encrypted image from S3: {s3_key}")
+            # --- Step 6: Download encrypted file from S3 ---
+            logger.info(f"{embed_log_prefix} Downloading encrypted image from S3: {s3_key}")
             encrypted_bytes = await self._download_from_s3(s3_base_url, s3_key)
 
-            # --- Step 6: Decrypt with AES-256-GCM ---
+            # --- Step 7: Decrypt with AES-256-GCM ---
             nonce_bytes = base64.b64decode(aes_nonce)
             aesgcm = AESGCM(aes_key_bytes)
             plaintext_bytes = aesgcm.decrypt(nonce_bytes, encrypted_bytes, None)
-            logger.info(f"{log_prefix} Decrypted image: {len(plaintext_bytes)} bytes")
+            logger.info(f"{embed_log_prefix} Decrypted image: {len(plaintext_bytes)} bytes")
 
-            # --- Step 7: Encode and return as multimodal content list ---
+            # --- Step 8: Encode and return as multimodal content list ---
             image_b64 = base64.b64encode(plaintext_bytes).decode("utf-8")
 
-            logger.info(f"{log_prefix} Returning image as multimodal content block")
+            logger.info(f"{embed_log_prefix} Returning image as multimodal content block")
             return [
                 {
                     "type": "text",
@@ -378,8 +396,8 @@ class ViewSkill(BaseSkill):
             ]
 
         except RuntimeError as e:
-            logger.error(f"{log_prefix} Failed to load image: {e}", exc_info=True)
-            return [{"type": "text", "text": f"Error: Failed to access image {embed_id} — {e}"}]
+            logger.error(f"{embed_log_prefix} Failed to load image: {e}", exc_info=True)
+            return [{"type": "text", "text": f"Error: Failed to access image '{file_path}' — {e}"}]
         except Exception as e:
-            logger.error(f"{log_prefix} Unexpected error during image load: {e}", exc_info=True)
-            return [{"type": "text", "text": f"Error: Image loading failed for {embed_id} — {e}"}]
+            logger.error(f"{embed_log_prefix} Unexpected error during image load: {e}", exc_info=True)
+            return [{"type": "text", "text": f"Error: Image loading failed for '{file_path}' — {e}"}]

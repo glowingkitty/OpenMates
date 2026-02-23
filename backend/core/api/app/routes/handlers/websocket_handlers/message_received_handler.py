@@ -766,7 +766,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         logger.debug(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
         
         message_history_for_ai: List[AIHistoryMessage] = []
-        
+
+        # Shared deduplication counter and accumulated index for embed_ref resolution.
+        # A single dict is reused across all resolve_embed_references_in_content calls
+        # within this handler so that:
+        # (a) duplicate filenames across messages get consistent unique suffixes
+        # (b) all embed_ref → embed_id mappings are collected in one place and
+        #     forwarded to the AI task via AskSkillRequest.embed_file_path_index.
+        _seen_embed_refs: Dict[str, int] = {}
+        _embed_file_path_index: Dict[str, str] = {}
+
         # Check if client provided chat history (for cache miss or stale cache scenarios)
         # For incognito chats OR duplicated demo chats, client MUST provide full history
         # (no server-side caching for these new/temp chats)
@@ -816,11 +825,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
-                        resolved_hist_content = await embed_service.resolve_embed_references_in_content(
+                        resolved_hist_content, _msg_fp_index = await embed_service.resolve_embed_references_in_content(
                             content=hist_content,
                             user_vault_key_id=user_vault_key_id,
-                            log_prefix=f"[Chat {chat_id}]"
+                            log_prefix=f"[Chat {chat_id}]",
+                            seen_embed_refs=_seen_embed_refs,
                         )
+                        _embed_file_path_index.update(_msg_fp_index)
                     except Exception as e_resolve:
                         logger.warning(f"Failed to resolve embed references in client-provided message for chat {chat_id}: {e_resolve}. Using original content.")
                         # Continue with original content if resolution fails
@@ -951,11 +962,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                     directus_service=directus_service,
                                     encryption_service=encryption_service
                                 )
-                                resolved_content = await embed_service.resolve_embed_references_in_content(
+                                resolved_content, _msg_fp_index = await embed_service.resolve_embed_references_in_content(
                                     content=decrypted_content,
                                     user_vault_key_id=user_vault_key_id,
-                                    log_prefix=f"[Chat {chat_id}]"
+                                    log_prefix=f"[Chat {chat_id}]",
+                                    seen_embed_refs=_seen_embed_refs,
                                 )
+                                _embed_file_path_index.update(_msg_fp_index)
                                 # Log if any embed references were found but not resolved
                                 if "```json" in decrypted_content and "```json" in resolved_content:
                                     logger.debug(
@@ -1092,11 +1105,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     directus_service=directus_service,
                     encryption_service=encryption_service
                 )
-                resolved_current_content = await embed_service.resolve_embed_references_in_content(
+                resolved_current_content, _current_file_path_index = await embed_service.resolve_embed_references_in_content(
                     content=content_plain,
                     user_vault_key_id=user_vault_key_id,
-                    log_prefix=f"[Chat {chat_id}]"
+                    log_prefix=f"[Chat {chat_id}]",
+                    seen_embed_refs=_seen_embed_refs
                 )
+                _embed_file_path_index.update(_current_file_path_index)
                 if resolved_current_content != content_plain:
                     logger.info(f"Resolved embed references in current user message {message_id}. "
                                f"Original length: {len(content_plain)}, Resolved length: {len(resolved_current_content)}")
@@ -1207,6 +1222,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_preferences=user_preferences_dict,
             app_settings_memories_metadata=app_settings_memories_metadata_from_client,  # Client-provided metadata (source of truth)
             mentioned_settings_memories_cleartext=mentioned_settings_memories_cleartext,  # Cleartext for @memory mentions so backend does not re-request
+            embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
         )
         logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")
 

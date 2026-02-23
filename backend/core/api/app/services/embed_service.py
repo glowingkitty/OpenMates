@@ -1384,8 +1384,9 @@ class EmbedService:
     # ---- Fields to strip from embed TOON before showing to LLM ----
     # These are cryptographic and infrastructure details that the LLM doesn't
     # need for reasoning. The images-view skill resolves them server-side by
-    # embed_id. Stripping them also prevents the plaintext aes_key (used only
-    # by the client for local decryption) from ever entering the LLM context.
+    # embed_ref (filepath/filename). Stripping them also prevents the plaintext
+    # aes_key (used only by the client for local decryption) from ever entering
+    # the LLM context.
     _TOON_LLM_STRIP_FIELDS = frozenset({
         "aes_key",               # Plaintext AES key — client-only, never for LLM
         "vault_wrapped_aes_key", # Opaque Vault ciphertext — resolved server-side
@@ -1396,17 +1397,28 @@ class EmbedService:
     })
 
     def _filter_toon_for_llm(
-        self, toon_content: str, embed_id: str, log_prefix: str = ""
-    ) -> str:
+        self, toon_content: str, embed_id: str, log_prefix: str = "",
+        seen_embed_refs: Optional[Dict[str, int]] = None,
+    ) -> Tuple[str, Optional[str]]:
         """
         Filter a TOON-encoded embed content string for LLM consumption.
 
         Decodes the TOON, strips cryptographic/infrastructure fields that the
-        LLM doesn't need, injects ``embed_id`` (which is NOT stored inside the
-        embed content — it's the Redis key), and re-encodes to TOON.
+        LLM doesn't need, injects ``embed_ref`` (a human-readable filepath or
+        filename) instead of the raw UUID ``embed_id``, and re-encodes to TOON.
 
-        For image embeds (app_id="images"), the LLM sees only:
-          - embed_id, app_id, skill_id, type, status
+        The ``embed_ref`` is what the LLM uses as the argument to skills like
+        ``images-view``.  The server maps ``embed_ref → embed_id`` via the
+        ``embed_file_path_index`` built during resolution.
+
+        Returns a tuple ``(filtered_toon, embed_ref)``:
+          - ``filtered_toon``: the TOON string safe for LLM context
+          - ``embed_ref``: the human-readable reference injected (or ``None``
+            if this embed type does not get an embed_ref injection)
+
+        For image upload embeds (app_id="images", skill_id="upload"), the LLM
+        sees only:
+          - embed_ref, app_id, skill_id, type, status
           - filename (uploaded images)
           - ai_detection (uploaded images — sightengine scan result)
           - prompt, model, aspect_ratio, output_filetype, generated_at (generated images)
@@ -1416,26 +1428,35 @@ class EmbedService:
 
         Args:
             toon_content: Raw TOON string from the embed cache.
-            embed_id: The embed's ID (injected into the filtered content).
+            embed_id: The embed's UUID (used for Redis lookup; NOT shown to LLM).
             log_prefix: Logging prefix.
+            seen_embed_refs: Mutable dict tracking embed_refs already assigned in
+                this resolution pass, used to deduplicate filenames across multiple
+                embeds with the same name.  Key: base embed_ref, value: count seen
+                so far.  Pass the same dict for every call within one resolution
+                pass so duplicates receive a ``(2)``, ``(3)`` suffix.
 
         Returns:
-            Filtered TOON string safe for LLM context.
+            Tuple of (filtered_toon, embed_ref):
+              - filtered_toon: TOON string safe for LLM context
+              - embed_ref: the human-readable reference injected into the TOON
+                (e.g. "my_photo.jpg"), or None if this embed type is not given
+                an embed_ref (passes through unchanged).
         """
         try:
             decoded = decode(toon_content)
             if not isinstance(decoded, dict):
-                # Non-dict TOON (unusual) — return as-is
-                return toon_content
+                # Non-dict TOON (unusual) — return as-is, no embed_ref
+                return toon_content, None
 
             # Route to type-specific filtering logic.
             #
             # IMPORTANT: We must NOT filter app_skill_use embeds that wrap an images.view
             # result (app_id="images", skill_id="view"). Those embeds are tracking
             # placeholders whose embed_id is an internal task reference — NOT the crypto
-            # address of the image. If we inject their embed_id here, the LLM will call
-            # images.view with the wrong ID (the placeholder's UUID instead of the upload's
-            # UUID), causing the skill to fail with "missing vault_wrapped_aes_key".
+            # address of the image. Injecting their embed_id would mislead the LLM into
+            # calling images.view with the wrong ID (the placeholder's UUID instead of the
+            # upload's UUID), causing the skill to fail with "missing vault_wrapped_aes_key".
             app_id = decoded.get("app_id")
             skill_id = decoded.get("skill_id")
             embed_type = decoded.get("type")
@@ -1446,7 +1467,7 @@ class EmbedService:
                 # skills (e.g. re-transcription, audio processing).
                 #
                 # Kept:
-                #   embed_id      — lets the LLM reference this specific recording in a skill call
+                #   embed_ref     — human-readable filename so the LLM can refer to this recording
                 #   type          — discriminator so the LLM knows what it's looking at
                 #   transcript    — the actual speech content (primary inference signal)
                 #   duration      — useful context ("a 2-minute recording said …")
@@ -1457,42 +1478,64 @@ class EmbedService:
                 # Stripped: s3_base_url, files (s3 keys), aes_key, aes_nonce,
                 #           vault_wrapped_aes_key — all crypto/infra, resolved server-side.
                 #           app_id, skill_id — internal routing metadata, not useful to LLM.
+                #           embed_id (UUID) — not shown to LLM; use embed_ref instead.
                 _AUDIO_KEEP = frozenset({
                     "type", "transcript", "duration", "mime_type", "filename", "status"
                 })
                 filtered = {k: v for k, v in decoded.items() if k in _AUDIO_KEEP}
-                filtered["embed_id"] = embed_id
+                # Use filename as embed_ref; fall back to a short UUID prefix.
+                raw_ref = (decoded.get("filename") or embed_id[:8])
+                embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
+                filtered["embed_ref"] = embed_ref
                 filtered_toon = encode(filtered)
                 logger.debug(
                     f"{log_prefix} Filtered audio-recording embed TOON for LLM: "
                     f"{len(toon_content)} → {len(filtered_toon)} chars "
-                    f"(kept: {list(filtered.keys())})"
+                    f"(kept: {list(filtered.keys())}, embed_ref={embed_ref!r})"
                 )
-                return filtered_toon
+                return filtered_toon, embed_ref
 
             if app_id != "images" or skill_id != "upload":
-                # All other embed types (search results, web pages, etc.) pass through unchanged.
-                return toon_content
+                # All other embed types (search results, web pages, etc.) pass through
+                # unchanged — no embed_ref injection needed.
+                return toon_content, None
 
-            # Strip crypto/infra fields from image upload embeds
+            # ----------------------------------------------------------------
+            # Image upload embeds: strip crypto/infra fields; inject embed_ref.
+            # ----------------------------------------------------------------
             filtered = {
                 k: v for k, v in decoded.items()
                 if k not in self._TOON_LLM_STRIP_FIELDS
             }
 
-            # Inject embed_id so the LLM can reference the image in tool calls
-            # (embed_id is the Redis key, not stored inside the content itself)
-            filtered["embed_id"] = embed_id
+            # Build a human-readable embed_ref from the original filename.
+            # The filename stored in the TOON is file.name from the frontend upload
+            # handler (the true original user filename, not the S3 key).
+            # If it is missing or looks like a bare UUID (no extension, 36 chars),
+            # fall back to a short embed_id prefix so the LLM still has something
+            # meaningful to pass to images-view.
+            raw_filename: str = decoded.get("filename") or ""
+            if raw_filename:
+                raw_ref = raw_filename
+            else:
+                raw_ref = embed_id[:8]
+
+            embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
+
+            # Replace any previously injected embed_id with the human-readable
+            # embed_ref.  The UUID is intentionally NOT exposed to the LLM.
+            filtered.pop("embed_id", None)
+            filtered["embed_ref"] = embed_ref
 
             # Re-encode to TOON
             filtered_toon = encode(filtered)
             logger.debug(
                 f"{log_prefix} Filtered image embed TOON for LLM: "
                 f"{len(toon_content)} → {len(filtered_toon)} chars "
-                f"(stripped {len(decoded) - len(filtered)} fields, "
-                f"remaining: {list(filtered.keys())})"
+                f"(stripped {len(decoded) - len(filtered) + 1} fields, "  # +1 for embed_id removal
+                f"remaining: {list(filtered.keys())}, embed_ref={embed_ref!r})"
             )
-            return filtered_toon
+            return filtered_toon, embed_ref
 
         except Exception as e:
             # On any failure, return the original TOON to avoid data loss
@@ -1500,47 +1543,101 @@ class EmbedService:
                 f"{log_prefix} Failed to filter TOON for LLM (embed {embed_id}): {e}. "
                 f"Returning original TOON."
             )
-            return toon_content
+            return toon_content, None
+
+    @staticmethod
+    def _unique_embed_ref(
+        raw_ref: str,
+        seen_embed_refs: Optional[Dict[str, int]],
+    ) -> str:
+        """
+        Return a unique embed_ref string for this resolution pass.
+
+        If ``seen_embed_refs`` is provided and ``raw_ref`` has already been
+        used, append a ``(2)``, ``(3)`` … suffix so every embed in a chat
+        has a distinct, stable reference the LLM can address.
+
+        Args:
+            raw_ref: Desired reference string (e.g. the original filename).
+            seen_embed_refs: Mutable counter dict shared across all calls
+                in one resolution pass.  Pass None to skip deduplication.
+
+        Returns:
+            A unique reference string.
+        """
+        if seen_embed_refs is None:
+            return raw_ref
+
+        count = seen_embed_refs.get(raw_ref, 0)
+        seen_embed_refs[raw_ref] = count + 1
+
+        if count == 0:
+            return raw_ref
+        # Second occurrence gets suffix " (2)", third " (3)", etc.
+        return f"{raw_ref} ({count + 1})"
 
     async def resolve_embed_references_in_content(
         self,
         content: str,
         user_vault_key_id: str,
-        log_prefix: str = ""
-    ) -> str:
+        log_prefix: str = "",
+        # Shared deduplication counter for embed_refs across multiple messages in one
+        # resolution pass.  Caller should create one dict and pass it for every message
+        # in the history so duplicate filenames across messages get consistent suffixes.
+        # Pass None (default) to use a fresh counter per-call.
+        seen_embed_refs: Optional[Dict[str, int]] = None,
+    ) -> Tuple[str, Dict[str, str]]:
         """
         Resolve embed references in message content by replacing JSON code blocks
         with actual embed content from cache (as TOON format).
-        
+
         According to embeds architecture, messages contain embed references like:
         ```json
         {"type": "app_skill_use", "embed_id": "..."}
         ```
-        
+
         This function:
         1. Parses message markdown to find JSON code blocks with embed references
         2. For each embed reference, loads embed from cache
         3. Decrypts TOON content (but keeps as TOON string - not decoded to JSON)
-        4. Replaces embed reference JSON block with TOON code block containing embed content
-        
-        CRITICAL: TOON format is preserved (not decoded to JSON) to maintain space savings
-        (30-60% token reduction vs JSON). LLM can process TOON format directly.
-        
+        4. Filters the TOON for LLM (strips crypto fields; injects embed_ref for
+           image/audio embeds instead of the raw UUID embed_id)
+        5. Replaces embed reference JSON block with TOON code block containing
+           embed content
+
+        CRITICAL: TOON format is preserved (not decoded to JSON) to maintain space
+        savings (30-60% token reduction vs JSON). LLM can process TOON format directly.
+
         Args:
-            content: Message content (markdown) that may contain embed references
-            user_vault_key_id: User's vault key ID for decryption
-            log_prefix: Logging prefix for this operation
-            
+            content: Message content (markdown) that may contain embed references.
+            user_vault_key_id: User's vault key ID for decryption.
+            log_prefix: Logging prefix for this operation.
+            seen_embed_refs: Mutable deduplication counter shared across multiple
+                messages so filenames are unique even across the full history.
+
         Returns:
-            Content with embed references resolved (replaced with TOON code blocks)
+            Tuple of (resolved_content, file_path_index):
+              - resolved_content: Content with embed references resolved
+                (replaced with TOON code blocks).
+              - file_path_index: Mapping of embed_ref → embed_id UUID for every
+                embed that received an embed_ref injection.  Used by main_processor
+                to let skills resolve embed_ref back to the internal UUID for
+                Redis lookups.  Empty dict if no such embeds were encountered.
         """
         import re
         import json as json_lib
-        
+
+        # Per-call deduplication counter if the caller did not provide one.
+        if seen_embed_refs is None:
+            seen_embed_refs = {}
+
+        # Maps embed_ref (human-readable) → embed_id (UUID) for this call.
+        file_path_index: Dict[str, str] = {}
+
         # Pattern to match JSON code blocks that might contain embed references
         # Format: ```json\n{...}\n```
         json_block_pattern = r'```json\s*\n([\s\S]*?)\n```'
-        
+
         # Find all embed references first
         # Embed references now include optional URL field as fallback for LLM inference
         # Format: {"type": "...", "embed_id": "...", "url": "..."} (url is optional but recommended)
@@ -1564,27 +1661,27 @@ class EmbedService:
                         })
             except json_lib.JSONDecodeError:
                 continue
-        
-        # If no embed references found, return original content
+
+        # If no embed references found, return original content with empty index
         if not embed_refs:
-            return content
-        
+            return content, file_path_index
+
         # Resolve all embed references (async)
         resolved_parts = []
         last_end = 0
-        
+
         for embed_ref_info in embed_refs:
             match = embed_ref_info["match"]
             embed_id = embed_ref_info["embed_id"]
             embed_type = embed_ref_info["embed_type"]
             embed_url = embed_ref_info.get("embed_url")  # May be None for legacy references
-            
+
             # Add content before this match
             resolved_parts.append(content[last_end:match.start()])
-            
+
             # Load embed from cache (returns TOON string, not decoded)
             toon_content = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
-            
+
             if not toon_content:
                 # CRITICAL: If embed not found in cache, try to use URL as fallback
                 # This ensures LLM has at least the URL to work with even if full embed content is missing
@@ -1608,26 +1705,36 @@ class EmbedService:
                     resolved_parts.append(embed_ref_info["full_match"])  # Keep original reference
             else:
                 # Filter the TOON content before showing to the LLM.
-                # Strip cryptographic and infrastructure fields that the LLM doesn't need
-                # (vault_wrapped_aes_key, aes_key, aes_nonce, s3_base_url, files with s3_keys).
-                # The view skill looks these up server-side by embed_id from the cache.
-                # This also prevents the plaintext aes_key from entering the LLM context.
-                filtered_toon = self._filter_toon_for_llm(toon_content, embed_id, log_prefix)
-                
+                # Strips crypto/infra fields; injects embed_ref (human-readable filepath
+                # or filename) for image/audio embeds instead of the raw UUID embed_id.
+                filtered_toon, embed_ref = self._filter_toon_for_llm(
+                    toon_content, embed_id, log_prefix, seen_embed_refs
+                )
+
+                # If an embed_ref was assigned, record it in the file_path_index so
+                # skills can resolve it back to the internal UUID at execution time.
+                if embed_ref is not None:
+                    file_path_index[embed_ref] = embed_id
+
                 # Replace embed reference with filtered TOON content
                 # TOON format is space-efficient (30-60% savings vs JSON) and LLM can process it
                 # Format as code block to preserve TOON structure
                 resolved_text = f"```toon\n{filtered_toon}\n```"
-                
-                logger.debug(f"{log_prefix} Resolved embed reference {embed_id} ({embed_type}) with filtered TOON content ({len(filtered_toon)} chars, was {len(toon_content)} chars)")
+
+                logger.debug(
+                    f"{log_prefix} Resolved embed reference {embed_id} ({embed_type}) "
+                    f"with filtered TOON content ({len(filtered_toon)} chars, was "
+                    f"{len(toon_content)} chars)"
+                    + (f", embed_ref={embed_ref!r}" if embed_ref else "")
+                )
                 resolved_parts.append(resolved_text)
-            
+
             last_end = match.end()
-        
+
         # Add remaining content after last match
         resolved_parts.append(content[last_end:])
-        
-        return "".join(resolved_parts)
+
+        return "".join(resolved_parts), file_path_index
 
     async def update_embed_with_results(
         self,
