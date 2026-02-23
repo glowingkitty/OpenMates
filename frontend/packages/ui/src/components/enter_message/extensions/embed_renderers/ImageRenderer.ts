@@ -25,7 +25,8 @@ import { mount, unmount } from "svelte";
 import { get } from "svelte/store";
 import ImageEmbedPreview from "../../../embeds/images/ImageEmbedPreview.svelte";
 import { authStore } from "../../../../stores/authStore";
-import { embedStore } from "../../../../services/embedStore";
+import { resolveEmbed } from "../../../../services/embedResolver";
+import { chatSyncService } from "../../../../services/chatSyncService";
 
 // Track mounted Svelte components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -111,84 +112,129 @@ export class ImageRenderer implements EmbedRenderer {
       !attrs.url
     ) {
       const embedId = attrs.contentRef.replace("embed:", "");
-      // Show a loading spinner while we fetch from EmbedStore
+      // Show a loading spinner while we fetch from EmbedStore (or wait for server response).
       content.innerHTML =
         '<div class="image-embed-loading" style="display:flex;align-items:center;justify-content:center;min-height:80px;"><div class="loading-spinner" style="width:24px;height:24px;border:2px solid var(--color-grey-20,#eaeaea);border-top-color:var(--color-primary-50,#5b8dd9);border-radius:50%;animation:spin 0.8s linear infinite;"></div></div>';
 
-      return embedStore
-        .get(attrs.contentRef)
-        .then(async (embedData) => {
-          if (!embedData?.content) {
-            // EmbedStore miss — image cannot be restored (e.g. different device/browser)
-            console.warn(
-              "[ImageRenderer] EmbedStore miss for restored draft image:",
-              embedId,
-            );
-            content.innerHTML =
-              '<div class="image-error" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable (reload the page)</div>';
-            return;
-          }
-          // Decode the TOON/JSON content stored by _performUpload to extract S3/AES metadata.
-          // The content field holds the TOON-encoded embedContent object whose top-level
-          // fields are: s3_base_url, files, aes_key, aes_nonce, filename, etc.
-          let parsed: Record<string, unknown> = {};
-          const rawContent = embedData.content as string;
+      // Helper: parse the TOON/JSON embed content into S3/AES metadata and render.
+      // Returns true if the embed rendered successfully, false otherwise.
+      const tryRenderFromEmbedData = async (
+        embedData: { content?: unknown } | null,
+      ): Promise<boolean> => {
+        if (!embedData?.content) {
+          return false;
+        }
+        // Decode the TOON/JSON content stored by _performUpload to extract S3/AES metadata.
+        // The content field holds the TOON-encoded embedContent object whose top-level
+        // fields are: s3_base_url, files, aes_key, aes_nonce, filename, etc.
+        let parsed: Record<string, unknown> = {};
+        const rawContent = embedData.content as string;
+        try {
+          // Try TOON decode first (the primary storage format)
+          const { decode: toonDecode } = await import("@toon-format/toon");
+          parsed = toonDecode(rawContent) as Record<string, unknown>;
+        } catch {
+          // Fall back to JSON (used when toonEncode itself failed at storage time)
           try {
-            // Try TOON decode first (the primary storage format)
-            const { decode: toonDecode } = await import("@toon-format/toon");
-            parsed = toonDecode(rawContent) as Record<string, unknown>;
+            parsed = JSON.parse(rawContent);
           } catch {
-            // Fall back to JSON (used when toonEncode itself failed at storage time)
-            try {
-              parsed = JSON.parse(rawContent);
-            } catch {
-              console.warn(
-                "[ImageRenderer] Could not parse EmbedStore content for restored draft image:",
-                embedId,
-              );
-            }
-          }
-
-          const s3Files = parsed.files as
-            | ImageEmbedAttrs["s3Files"]
-            | undefined;
-          const s3BaseUrl = parsed.s3_base_url as string | undefined;
-          const aesKey = parsed.aes_key as string | undefined;
-          const aesNonce = parsed.aes_nonce as string | undefined;
-          const filename = (parsed.filename as string) || attrs.filename;
-          // Extract AI detection from TOON blob (stored by embedHandlers.ts / sendHandlers.ts)
-          const aiDetection = parsed.ai_detection as
-            | { ai_generated: number; provider: string }
-            | null
-            | undefined;
-
-          if (!s3Files || !aesKey || !s3BaseUrl) {
             console.warn(
-              "[ImageRenderer] EmbedStore entry missing S3 data for restored draft image:",
+              "[ImageRenderer] Could not parse EmbedStore content for restored draft image:",
               embedId,
-              parsed,
             );
-            content.innerHTML =
-              '<div class="image-error" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>';
+          }
+        }
+
+        const s3Files = parsed.files as ImageEmbedAttrs["s3Files"] | undefined;
+        const s3BaseUrl = parsed.s3_base_url as string | undefined;
+        const aesKey = parsed.aes_key as string | undefined;
+        const aesNonce = parsed.aes_nonce as string | undefined;
+        const filename = (parsed.filename as string) || attrs.filename;
+        // Extract AI detection from TOON blob (stored by embedHandlers.ts / sendHandlers.ts)
+        const aiDetection = parsed.ai_detection as
+          | { ai_generated: number; provider: string }
+          | null
+          | undefined;
+
+        if (!s3Files || !aesKey || !s3BaseUrl) {
+          console.warn(
+            "[ImageRenderer] EmbedStore entry missing S3 data for restored draft image:",
+            embedId,
+            parsed,
+          );
+          return false;
+        }
+
+        // Re-render with full S3 data from EmbedStore
+        const restoredAttrs: ImageEmbedAttrs = {
+          ...attrs,
+          s3Files,
+          s3BaseUrl,
+          aesKey,
+          aesNonce,
+          filename: filename || undefined,
+          status: "finished",
+          aiDetection: aiDetection ?? null,
+        };
+        this._renderImageComponent(content, restoredAttrs);
+        console.debug(
+          "[ImageRenderer] Restored draft image embed from EmbedStore:",
+          embedId,
+        );
+        return true;
+      };
+
+      return resolveEmbed(embedId)
+        .then(async (embedData) => {
+          if (await tryRenderFromEmbedData(embedData)) {
+            // Successfully rendered — done.
             return;
           }
 
-          // Re-render with full S3 data from EmbedStore
-          const restoredAttrs: ImageEmbedAttrs = {
-            ...attrs,
-            s3Files,
-            s3BaseUrl,
-            aesKey,
-            aesNonce,
-            filename: filename || undefined,
-            status: "finished",
-            aiDetection: aiDetection ?? null,
-          };
-          this._renderImageComponent(content, restoredAttrs);
-          console.debug(
-            "[ImageRenderer] Restored draft image embed from EmbedStore:",
+          // EmbedStore miss — resolveEmbed() has already sent a request_embed WebSocket
+          // message to the server (if authenticated). Register a one-shot listener so
+          // we re-render automatically when the server delivers the embed data.
+          // This handles the cross-device case: the user uploaded the image on another
+          // device/browser so it's not in this device's IndexedDB yet.
+          console.warn(
+            "[ImageRenderer] Image embed not in local store, waiting for server response:",
             embedId,
           );
+
+          const embedUpdatedHandler = (event: Event) => {
+            const customEvent = event as CustomEvent<{ embed_id: string }>;
+            if (customEvent.detail?.embed_id !== embedId) return;
+
+            // Clean up the listener immediately to avoid double-renders
+            chatSyncService.removeEventListener(
+              "embedUpdated",
+              embedUpdatedHandler,
+            );
+
+            // Re-fetch from EmbedStore now that the server has delivered the data
+            resolveEmbed(embedId)
+              .then(async (freshData) => {
+                if (!(await tryRenderFromEmbedData(freshData))) {
+                  // Server delivered data but it's still missing S3 fields
+                  console.warn(
+                    "[ImageRenderer] Image embed data from server is incomplete:",
+                    embedId,
+                  );
+                  content.innerHTML =
+                    '<div class="image-error" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>';
+                }
+              })
+              .catch((err) => {
+                console.error(
+                  "[ImageRenderer] Failed to re-render image after server delivery:",
+                  err,
+                );
+                content.innerHTML =
+                  '<div class="image-error" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>';
+              });
+          };
+
+          chatSyncService.addEventListener("embedUpdated", embedUpdatedHandler);
         })
         .catch((err) => {
           console.error(
