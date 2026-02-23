@@ -1271,8 +1271,8 @@ async def _deliver_pending_inspirations(
     _deliver_pending_reminders). Uses a brief delay to let the client finish initialization.
 
     The `daily_inspiration` event is handled by the frontend's chatSyncService which stores
-    inspirations in the dailyInspirationStore. The content is plaintext — the client treats
-    it the same as chat messages and does not persist it to Directus.
+    inspirations in the dailyInspirationStore. The client decrypts the payload, saves it to
+    IndexedDB, and then persists it to Directus via POST /v1/daily-inspirations (ACK path).
 
     NOTE: The pending cache is NOT cleared here. Instead, the client sends a
     `daily_inspiration_received` ACK message once it has successfully processed

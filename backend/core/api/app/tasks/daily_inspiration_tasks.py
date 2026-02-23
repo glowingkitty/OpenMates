@@ -288,11 +288,15 @@ async def _generate_daily_inspirations_async(task: BaseServiceTask) -> Dict[str,
         pattern = "daily_inspiration_last_paid_request:*"
         active_user_keys: List[str] = []
 
-        # Use SCAN for efficient key enumeration (avoids blocking KEYS command)
+        # Use SCAN for efficient key enumeration (avoids blocking KEYS command).
+        # NOTE: aioredis/redis-py returns keys as bytes — decode to str so that
+        # subsequent string operations (split, comparisons) work correctly.
         cursor = 0
         while True:
             cursor, batch = await client.scan(cursor, match=pattern, count=100)
-            active_user_keys.extend(batch)
+            active_user_keys.extend(
+                k.decode("utf-8") if isinstance(k, bytes) else k for k in batch
+            )
             if cursor == 0:
                 break
 

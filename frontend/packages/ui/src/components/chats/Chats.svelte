@@ -45,7 +45,9 @@
 
 // --- Debounce timer for updateChatListFromDB calls ---
 let updateChatListDebounceTimer: any = null;
-const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
+// 300ms debounce prevents redundant DB reads during rapid sync events mid-session.
+// On cold boot (initial mount) the skipDebounce flag bypasses this for instant display.
+const UPDATE_DEBOUNCE_MS = 300;
 
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
@@ -938,6 +940,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 * This handles the "re-login on a fresh device / cleared browser data" scenario
 	 * where IndexedDB has no inspirations but the user's Directus account has saved ones.
 	 *
+	 * IMPORTANT: We delay 5 seconds before calling the API. The backend delivers pending
+	 * inspirations via WebSocket with a 3-second delay (asyncio.sleep(3) in
+	 * _deliver_pending_inspirations). If phased sync completes before that 3-second window,
+	 * calling the API immediately would find 0 Directus records (since the user hasn't ACK'd
+	 * and persisted them yet) and give up — before the WS delivery arrives. By waiting
+	 * 5 seconds we give the pending WS delivery time to arrive and populate the store first.
+	 * If the store is already populated after the delay, we skip the API call entirely.
+	 *
 	 * Non-fatal: errors are logged but do not affect chat sync or UI stability.
 	 */
 	async function syncInspirationLoginFallback(): Promise<void> {
@@ -945,13 +955,24 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			const { dailyInspirationStore: inspirationStore } = await import('../../stores/dailyInspirationStore');
 			const { get: svGet } = await import('svelte/store');
 
-			const currentState = svGet(inspirationStore);
-			if (currentState.inspirations.length > 0) {
+			const initialState = svGet(inspirationStore);
+			if (initialState.inspirations.length > 0) {
 				// Already populated (IndexedDB load or WS delivery) — nothing to do
 				return;
 			}
 
-			console.debug('[Chats] Inspiration store empty after sync — checking API for saved inspirations');
+			// Wait for potential pending WS delivery before hitting the API.
+			// The backend sends pending inspirations with a 3s delay; we give it 5s to be safe.
+			await new Promise<void>((resolve) => setTimeout(resolve, 5000));
+
+			// Re-check: WS may have delivered inspirations during the wait
+			const afterWaitState = svGet(inspirationStore);
+			if (afterWaitState.inspirations.length > 0) {
+				console.debug('[Chats] WS delivered inspirations during wait — skipping API fallback');
+				return;
+			}
+
+			console.debug('[Chats] Inspiration store empty after sync + 5s wait — checking API for saved inspirations');
 
 			const { loadInspirationsFromAPI } = await import('../../services/dailyInspirationDB');
 			const inspirations = await loadInspirationsFromAPI();
@@ -1719,8 +1740,12 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				// Re-throw other errors
 				throw initError;
 			}
-			await updateChatListFromDB(); // Load and display chats from IndexedDB
-			console.debug("[Chats] Loaded chats from IndexedDB:", allChatsFromDB.length);
+		// FAST INITIAL LOAD: Skip the 300ms debounce and read only the 20 most-recently-edited
+		// chats from IDB. This makes chats appear immediately on tab reload without waiting for
+		// the debounce or reading the full ~100-chat set. Phase 2 sync (arriving ~1-2s later)
+		// calls updateChatListFromDB(true) without a limit to replace this with the full set.
+		await updateChatListFromDB(false, /* skipDebounce */ true, /* limit */ 20);
+		console.debug("[Chats] Loaded chats from IndexedDB:", allChatsFromDB.length);
 		} catch (error) {
 			console.error("[Chats] Error initializing/loading chats from DB:", error);
 			allChatsFromDB = []; // Reset on error - demo/legal chats will still be shown
@@ -2110,8 +2135,23 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
   * Fetches all chats from IndexedDB and updates the component's state.
   * This function is the main source for populating `allChatsFromDB`.
   * It also handles re-selection logic after updates.
+  *
+  * @param force - If true, bypass the in-memory cache and always read from IDB.
+  * @param skipDebounce - If true, call the internal function immediately without the 300ms
+  *   debounce delay. Use on initial mount (cold-boot) for instant first render. The debounce
+  *   is still applied for all mid-session sync events where rapid calls are expected.
+  * @param limit - If set, read only the N most-recently-edited chats from IDB instead of
+  *   the full set. Used on initial mount to show the 20 most recent chats as fast as possible;
+  *   Phase 2/3 sync handlers call without a limit to load the complete set afterwards.
   */
-async function updateChatListFromDB(force = false) { // Corrected function name
+async function updateChatListFromDB(force = false, skipDebounce = false, limit?: number) {
+	// On initial cold-boot mount, skip the debounce so chats appear immediately.
+	// For all other callers (sync events, chat updates) the debounce is still applied.
+	if (skipDebounce) {
+		await updateChatListFromDBInternal(force, limit);
+		return;
+	}
+
 	// Debounce rapid calls to prevent multiple simultaneous DB reads
 	if (updateChatListDebounceTimer) {
 		clearTimeout(updateChatListDebounceTimer);
@@ -2120,15 +2160,15 @@ async function updateChatListFromDB(force = false) { // Corrected function name
 	return new Promise<void>((resolve) => {
 		updateChatListDebounceTimer = setTimeout(async () => {
 			updateChatListDebounceTimer = null;
-			await updateChatListFromDBInternal(force);
+			await updateChatListFromDBInternal(force, limit);
 			resolve();
 		}, UPDATE_DEBOUNCE_MS);
 	});
 }
 
-async function updateChatListFromDBInternal(force = false) {
+async function updateChatListFromDBInternal(force = false, limit?: number) {
 	const cacheStats = chatListCache.getStats();
-	console.debug("[Chats] Updating chat list from DB...", { force, cacheStats, inProgress: chatListCache.isUpdateInProgress() });
+	console.debug("[Chats] Updating chat list from DB...", { force, limit, cacheStats, inProgress: chatListCache.isUpdateInProgress() });
 
 	// Prevent concurrent DB reads
 	if (chatListCache.isUpdateInProgress()) {
@@ -2207,35 +2247,24 @@ async function updateChatListFromDBInternal(force = false) {
 		}
 		
 		const previouslySelectedChatId = selectedChatId;
-		// CRITICAL: Check if database is being deleted (e.g., during logout)
-		// If so, skip database access and keep only demo/legal chats
-		// This prevents errors during logout
-		try {
-			// Ensure DB is initialized before attempting to read
-			await chatDB.init();
-		} catch (initError: any) {
-			// If database is being deleted or unavailable, skip database access
-			if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
-				console.debug("[Chats] Database is being deleted, skipping database access - keeping only demo/legal chats");
-				// Clear user chats from state (keep only demo/legal chats which are already in visiblePublicChats)
-				allChatsFromDB = [];
-				// Don't try to re-select chats if database is unavailable
-				return;
-			}
-			// Re-throw other errors
-			throw initError;
-		}
-		console.debug("[Chats] chatDB.init() complete, fetching chats...");
+		// NOTE: chatDB.init() is intentionally NOT called here.
+		// initializeAndLoadDataFromDB() (or the non-auth path above) already awaits chatDB.init()
+		// before calling this function. Calling init() again is redundant — it deduplicates via
+		// initializationPromise when already open, but adds an unnecessary async hop on cold boot.
+		// If auth changes between init and here the double-check below handles it.
 		
-		// CRITICAL: Double-check auth state after DB init (auth might have changed during init)
+		// CRITICAL: Double-check auth state (auth might have changed while we were waiting)
 		if (!$authStore.isAuthenticated) {
-			console.debug("[Chats] User became unauthenticated during DB init - clearing user chats");
+			console.debug("[Chats] User became unauthenticated - clearing user chats");
 			allChatsFromDB = [];
 			selectedChatId = null;
 			return;
 		}
 		
-		const chatsFromDb = await chatDB.getAllChats(); // Renamed for clarity inside function
+		// Fetch chats from IDB. On initial cold-boot mount a limit of 20 is passed so we only
+		// read the most-recently-edited chats — Phase 2 sync will load the full set shortly after.
+		// All other callers (sync events, chat updates) pass no limit to get the complete set.
+		const chatsFromDb = await chatDB.getAllChats(undefined, limit ? { limit } : undefined);
 		console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);
 		
 		allChatsFromDB = chatsFromDb; // This assignment triggers reactive updates for sorted/grouped lists - Corrected variable
