@@ -226,9 +226,14 @@ class ViewSkill(BaseSkill):
                 f"HTTP {resp.status_code} — {resp.text[:200]}"
             )
 
-        # Vault returns the plaintext as base64
-        plaintext_b64 = resp.json()["data"]["plaintext"]
-        return base64.b64decode(plaintext_b64)
+        # Vault Transit returns plaintext as base64(original_plaintext).
+        # encrypt_with_user_key encoded the input as base64(aes_key_b64) before sending,
+        # so Vault's plaintext = base64(aes_key_b64). We must decode twice:
+        #   1. base64.b64decode(vault_plaintext) → aes_key_b64 as bytes
+        #   2. .decode("utf-8") → aes_key_b64 string
+        #   3. base64.b64decode(aes_key_b64) → raw 32-byte AES key
+        aes_key_b64 = base64.b64decode(resp.json()["data"]["plaintext"]).decode("utf-8")
+        return base64.b64decode(aes_key_b64)
 
     async def _download_from_s3(self, s3_base_url: str, s3_key: str) -> bytes:
         """

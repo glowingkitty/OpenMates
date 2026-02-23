@@ -115,7 +115,10 @@ class ViewSkill(BaseSkill):
             raise RuntimeError(
                 f"Vault transit decrypt failed: HTTP {resp.status_code} — {resp.text[:200]}"
             )
-        return base64.b64decode(resp.json()["data"]["plaintext"])
+        # Double-decode: encrypt_with_user_key does base64(aes_key_b64) before sending to Vault,
+        # so Vault's plaintext = base64(aes_key_b64). Decode twice to get raw AES key bytes.
+        aes_key_b64 = base64.b64decode(resp.json()["data"]["plaintext"]).decode("utf-8")
+        return base64.b64decode(aes_key_b64)
 
     async def _download_from_s3(self, s3_base_url: str, s3_key: str) -> bytes:
         url = f"{s3_base_url.rstrip('/')}/{s3_key}"

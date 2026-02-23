@@ -443,7 +443,10 @@ async def _download_decrypt_pdf(
         raise RuntimeError(
             f"Vault transit decrypt failed: HTTP {resp.status_code} — {resp.text[:200]}"
         )
-    aes_key_bytes = base64.b64decode(resp.json()["data"]["plaintext"])
+    # Double-decode: encrypt_with_user_key does base64(aes_key_b64) before sending to Vault,
+    # so Vault's plaintext = base64(aes_key_b64). Decode twice to get raw AES key bytes.
+    aes_key_b64 = base64.b64decode(resp.json()["data"]["plaintext"]).decode("utf-8")
+    aes_key_bytes = base64.b64decode(aes_key_b64)
 
     # Download encrypted PDF from S3
     url = f"{s3_base_url.rstrip('/')}/{s3_key}"
