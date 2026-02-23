@@ -10,7 +10,6 @@
     import type { AppMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    // @ts-expect-error - Svelte components are default exports
     import AppStoreCard from './AppStoreCard.svelte';
     
     // Create event dispatcher for navigation
@@ -41,13 +40,15 @@
     /**
      * Navigate to app details page.
      * This dispatches an event to the parent Settings component to navigate to app_store/{appId}.
+     * Passes cameFrom so the back button returns to "All Apps" instead of the App Store root.
      */
     function selectApp(appId: string) {
         dispatch('openSettings', {
             settingsPath: `app_store/${appId}`,
             direction: 'forward',
             icon: appId,
-            title: apps[appId]?.name || appId
+            title: apps[appId]?.name || appId,
+            cameFrom: 'app_store/all'
         });
     }
     

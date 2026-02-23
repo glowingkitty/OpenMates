@@ -70,9 +70,8 @@ changes to the documentation (to keep the documentation up to date).
 
     // Props using Svelte 5 runes
     // Note: isLoggedIn prop is available but not currently used in this component
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let { isLoggedIn }: { isLoggedIn?: boolean } = $props();
-    // Suppress unused variable warning - prop may be used in future
-    void isLoggedIn;
     
     // State for toggles and menu visibility
     let isMenuVisible = $state(false);
@@ -228,6 +227,9 @@ changes to the documentation (to keep the documentation up to date).
 
     // Track navigation path parts for breadcrumb-style navigation
     let navigationPath: string[] = $state([]);
+    // Track the path we navigated from (e.g., 'app_store/all' when opening an app from All Apps).
+    // Used to ensure back navigation returns to the correct parent view.
+    let cameFromPath = $state<string | null>(null);
     let breadcrumbLabel = $state($text('settings.settings'));
     let fullBreadcrumbLabel = $state('');
     let navButtonElement: HTMLElement | undefined = $state();
@@ -332,6 +334,11 @@ changes to the documentation (to keep the documentation up to date).
                 // This is the base app_store route - add "App Store" translation
                 const translationKey = 'settings.app_store';
                 pathLabels.push($text(translationKey));
+                // If we navigated here from "All Apps", inject "All Apps" into the breadcrumb
+                // so the trail reads: Settings / App Store / All Apps / {App Name}
+                if (cameFromPath === 'app_store/all') {
+                    pathLabels.push($text('settings.app_store.show_all_apps'));
+                }
             } else if (pathString.startsWith('app_store/') && pathString !== 'app_store/all') {
                 const pathParts = pathString.replace('app_store/', '').split('/');
                 const appId = pathParts[0];
@@ -436,17 +443,36 @@ changes to the documentation (to keep the documentation up to date).
         activeSettingsView !== 'app_store/all'
     );
 
-    // Focus mode details pages show their own title; hide the second black header (icon + title) there
-    let isFocusModeDetailsPage = $derived(/^app_store\/[^/]+\/focus\/[^/]+$/.test(activeSettingsView));
+
     
     // Add reference for content height calculation
     let menuItemsCount = $state(0);
 
     // Function to set active settings view with transitions
-    function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string }>) {
+    function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>) {
         const detail = 'detail' in event ? event.detail : event;
-        let { settingsPath, direction: newDirection, icon } = detail;
+        let { settingsPath, direction: newDirection, icon, cameFrom } = detail;
         direction = newDirection;
+        
+        // Track the originating path so back navigation can return to it.
+        // Only set when explicitly provided (e.g., navigating from 'app_store/all').
+        // When navigating backward through an intermediate app_store page, cameFrom is passed
+        // explicitly to preserve the chain, so we accept it from both directions.
+        if (cameFrom) {
+            cameFromPath = cameFrom;
+        } else if (newDirection === 'backward') {
+            // Clear cameFromPath when arriving at the destination that was the cameFrom source,
+            // or when leaving the app_store section entirely (back to app_store root or main).
+            const isReturningToSource = settingsPath === cameFromPath;
+            const isLeavingAppStore = settingsPath === 'app_store' || !settingsPath.startsWith('app_store');
+            if (isReturningToSource || isLeavingAppStore) {
+                cameFromPath = null;
+            }
+            // Otherwise (e.g., going from skill → app details), cameFromPath is preserved
+        } else if (newDirection === 'forward' && !cameFrom) {
+            // Forward navigation without explicit cameFrom clears the previous source
+            cameFromPath = null;
+        }
 
         // Reset active account ID
         activeAccountId = null;
@@ -681,9 +707,15 @@ changes to the documentation (to keep the documentation up to date).
                     previousPath = `app_store/${appId}`;
                     previousPathSegments = ['app_store', appId];
                 } else {
-                    // Regular app details page - go back one level normally
-                    previousPath = navigationPath.slice(0, -1).join('/');
-                    previousPathSegments = navigationPath.slice(0, -1);
+                    // Regular app details page — if we arrived from "All Apps", go back there.
+                    // Otherwise, go back one level normally (to app_store root).
+                    if (cameFromPath === 'app_store/all') {
+                        previousPath = 'app_store/all';
+                        previousPathSegments = ['app_store', 'all'];
+                    } else {
+                        previousPath = navigationPath.slice(0, -1).join('/');
+                        previousPathSegments = navigationPath.slice(0, -1);
+                    }
                 }
             } else {
                 // For non-app_store routes, go back one level normally
@@ -770,14 +802,20 @@ changes to the documentation (to keep the documentation up to date).
                     icon = 'calendar';
                 } else if (previousPath === 'app_store') {
                     icon = 'app_store';
+                } else if (previousPath === 'app_store/all') {
+                    // "All Apps" view — use the app icon and the "Show all apps" translation
+                    icon = 'app';
+                    title = $text('settings.app_store.show_all_apps');
                 }
                 // For other nested paths (like account/security), icon is already set to last segment above
                 
-                // Build the translation key for the previous view's title
-                const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
-                const titleKey = `settings.${translationKeyParts.join('.')}`;
-                const translatedTitle = $text(titleKey);
-                title = translatedTitle;
+                if (!title) {
+                    // Build the translation key for the previous view's title
+                    const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
+                    const titleKey = `settings.${translationKeyParts.join('.')}`;
+                    const translatedTitle = $text(titleKey);
+                    title = translatedTitle;
+                }
             }
             
             direction = 'backward';
@@ -786,7 +824,12 @@ changes to the documentation (to keep the documentation up to date).
                     settingsPath: previousPath,
                     direction: 'backward',
                     icon: icon,
-                    title: title
+                    title: title,
+                    // Preserve cameFromPath when going backward to an intermediate app page
+                    // so the breadcrumb and next back step still reference the original source.
+                    cameFrom: (previousPath.startsWith('app_store/') && previousPath !== 'app_store/all' && cameFromPath)
+                        ? cameFromPath
+                        : undefined
                 }
             }));
         } else {
@@ -1510,7 +1553,7 @@ changes to the documentation (to keep the documentation up to date).
     onkeydown={(e) => e.stopPropagation()}
     role="presentation"
 >
-    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo} class:focus-details-page={isFocusModeDetailsPage} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
+    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
         <div class="header-content">
             {#if !hideNavButton}
                 <button
@@ -1540,15 +1583,14 @@ changes to the documentation (to keep the documentation up to date).
             </a> -->
         </div>
         
-        {#if activeSettingsView !== 'main' && showSubmenuInfo && !isFocusModeDetailsPage}
+        {#if activeSettingsView !== 'main' && showSubmenuInfo}
             <div
                 class="submenu-info"
                 class:reduced-padding={hideNavButton}
                 transition:slide={{ duration: 300, easing: cubicOut }}
             >
-                <!-- Replace this with SettingsItem component -->
                 <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
-                <!-- Hidden on focus mode details: those pages show their own title -->
+                <!-- Focus mode details pages now use the same icon+title header as skills -->
                 <SettingsItem
                     type="heading"
                     icon={activeSubMenuIcon}
@@ -1821,10 +1863,6 @@ changes to the documentation (to keep the documentation up to date).
         transition: padding-bottom 0.3s ease; /* Smooth padding transition */
     }
 
-    /* Focus mode details page has no second header, so no extra bottom padding */
-    .settings-header.submenu-active.focus-details-page {
-        padding-bottom: 0;
-    }
 
     .nav-button {
         all: unset;

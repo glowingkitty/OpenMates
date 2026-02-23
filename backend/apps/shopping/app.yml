@@ -15,54 +15,6 @@ icon_image: |
   shopping.svg
 category: lifestyle
 last_updated: "2026-02-22"
-settings_and_memories:
-  # Preferred supermarkets: stores the user prefers to shop at
-  - id: preferred_supermarkets
-    name_translation_key: shopping.preferred_supermarkets
-    description_translation_key: shopping.preferred_supermarkets.description
-    type: list
-    stage: production
-    example_translation_keys:
-      - "shopping.preferred_supermarkets.example_1"
-      - "shopping.preferred_supermarkets.example_2"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Supermarket name (e.g., REWE, Aldi, Lidl)
-          is_title: true
-      required:
-        - name
-
-  # Dietary preferences: dietary restrictions and preferences
-  - id: dietary_preferences
-    name_translation_key: shopping.dietary_preferences
-    description_translation_key: shopping.dietary_preferences.description
-    type: list
-    stage: production
-    example_translation_keys:
-      - "shopping.dietary_preferences.example_1"
-      - "shopping.dietary_preferences.example_2"
-      - "shopping.dietary_preferences.example_3"
-    schema:
-      type: object
-      properties:
-        preference:
-          type: string
-          description: Dietary preference or restriction
-          enum:
-            - organic
-            - vegan
-            - vegetarian
-            - dairy_free
-            - gluten_free
-            - halal
-            - kosher
-          is_title: true
-      required:
-        - preference
-
 skills:
   # -----------------------------------------------------------------------
   # Search Products — search REWE online shop for products with live prices

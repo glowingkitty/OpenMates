@@ -23,27 +23,27 @@ search_products:
   verified_by_human: [en, de]
 search_products.description:
   context: Description for shopping search products skill
-  en: Search for products in German supermarkets and compare prices.
-  de: Produkte in deutschen Supermärkten suchen und Preise vergleichen.
-  zh: 在德国超市搜索产品并比较价格。
-  es: Busca productos en supermercados alemanes y compara precios.
-  fr: Recherchez des produits dans les supermarchés allemands et comparez les prix.
-  pt: Pesquise produtos em supermercados alemães e compare preços.
-  ru: Ищите товары в немецких супермаркетах и сравнивайте цены.
-  ja: ドイツのスーパーマーケットで商品を検索して価格を比較。
-  ko: 독일 슈퍼마켓에서 제품을 검색하고 가격을 비교하세요.
-  it: Cerca prodotti nei supermercati tedeschi e confronta i prezzi.
-  tr: Alman süpermarketlerinde ürün arayın ve fiyatları karşılaştırın.
-  vi: Tìm kiếm sản phẩm trong các siêu thị Đức và so sánh giá.
-  id: Cari produk di supermarket Jerman dan bandingkan harga.
-  pl: Szukaj produktów w niemieckich supermarketach i porównuj ceny.
-  nl: Zoek producten in Duitse supermarkten en vergelijk prijzen.
-  ar: ابحث عن منتجات في السوبر ماركت الألماني وقارن الأسعار.
-  hi: जर्मन सुपरमार्केट में उत्पाद खोजें और कीमतें तुलना करें।
-  th: ค้นหาสินค้าในซุปเปอร์มาร์เก็ตเยอรมันและเปรียบเทียบราคา
-  cs: Hledejte produkty v německých supermarketech a porovnávejte ceny.
-  sv: Sök produkter i tyska supermarkets och jämför priser.
-  verified_by_human: [en, de]
+  en: Search for products in supermarkets and compare prices.
+  de: Produkte in Supermärkten suchen und Preise vergleichen.
+  zh: 在超市搜索产品并比较价格。
+  es: Busca productos en supermercados y compara precios.
+  fr: Recherchez des produits dans les supermarchés et comparez les prix.
+  pt: Pesquise produtos em supermercados e compare preços.
+  ru: Ищите товары в супермаркетах и сравнивайте цены.
+  ja: スーパーマーケットで商品を検索して価格を比較。
+  ko: 슈퍼마켓에서 제품을 검색하고 가격을 비교하세요.
+  it: Cerca prodotti nei supermercati e confronta i prezzi.
+  tr: Süpermarketlerde ürün arayın ve fiyatları karşılaştırın.
+  vi: Tìm kiếm sản phẩm trong các siêu thị và so sánh giá.
+  id: Cari produk di supermarket dan bandingkan harga.
+  pl: Szukaj produktów w supermarketach i porównuj ceny.
+  nl: Zoek producten in supermarkten en vergelijk prijzen.
+  ar: ابحث عن منتجات في السوبر ماركت وقارن الأسعار.
+  hi: सुपरमार्केट में उत्पाद खोजें और कीमतें तुलना करें।
+  th: ค้นหาสินค้าในซุปเปอร์มาร์เก็ตและเปรียบเทียบราคา
+  cs: Hledejte produkty v supermarketech a porovnávejte ceny.
+  sv: Sök produkter i supermarkets och jämför priser.
+  verified_by_human: []
 
 search_products.how_to_use.1:
   context: Example instruction for shopping search products skill - organic milk
