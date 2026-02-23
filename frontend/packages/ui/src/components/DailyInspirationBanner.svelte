@@ -6,45 +6,53 @@
    * new chat screen (welcome screen). Each banner shows:
    *   - A gradient background (category colour from getCategoryGradientColors)
    *   - A "Daily inspiration" label with a BookOpen icon (top-left)
-   *   - A category circle with the category icon (left side)
+   *   - The mate profile image (category-specific, with AI badge) left of the text
    *   - The inspiration phrase (main text)
-   *   - A "Click to start chat" CTA button (bottom-left)
-   *   - A VideoEmbedPreview card (right side, if video or embed_id attached)
+   *   - A "Click to start chat" CTA (text + create icon, no pill background)
+   *   - A VideoEmbedPreview card (right side, if video attached) — full height
    *   - Left/right carousel arrows when there are multiple inspirations
    *
-   * Clicking the banner or the CTA button:
-   *   - Creates a local-only chat (no LLM request yet) with the phrase as the
-   *     title and a first assistant message containing the phrase
-   *   - Navigates to the newly created chat
-   *   - Dispatches an `inspiration_viewed` message to the server via WebSocket
-   *     so the backend can track engagement
+   * Interaction model:
+   *   - Click on the video thumbnail → opens the video in fullscreen (via onEmbedFullscreen)
+   *   - Click anywhere else → creates a local-only chat from this inspiration (via onStartChat)
+   *   - Left/right arrow buttons → navigate the carousel
    *
-   * Visibility: shown when the parent passes `showWelcome && !hideWelcomeForKeyboard`.
-   * The component self-hides when the store has no inspirations.
+   * Layout:
+   *   - Banner is fixed-height: 240px on desktop, 190px on mobile (≤730px)
+   *   - Inner content is max-width 680px, centered
+   *   - Embed card is shown at full banner height on the right, not cut off
    *
    * Architecture note: The store (dailyInspirationStore) is a Svelte 4 writable.
    * This component uses Svelte 5 runes exclusively for its own state.
-   *
-   * Video display: Uses VideoEmbedPreview for consistent embed card rendering.
-   * When a video is available (inspiration.video != null), it renders the full
-   * VideoEmbedPreview. When video is null but embed_id is set, we attempt to
-   * load it from embedStore so the embed survives page reloads.
    */
 
   import { onDestroy } from 'svelte';
   import { text } from '@repo/ui';
-  import { getLucideIcon, getCategoryGradientColors, getValidIconName } from '../utils/categoryUtils';
+  import { getCategoryGradientColors } from '../utils/categoryUtils';
   import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore';
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
+
+  // ─── Lucide icons ────────────────────────────────────────────────────────────
+
+  import { getLucideIcon } from '../utils/categoryUtils';
+
+  const BookOpen = getLucideIcon('book-open');
+  const ChevronLeft = getLucideIcon('chevron-left');
+  const ChevronRight = getLucideIcon('chevron-right');
 
   // ─── Component props ────────────────────────────────────────────────────────
 
   interface Props {
-    /** Called when the user clicks a banner to start a chat from this inspiration. */
+    /** Called when the user clicks the banner to start a chat from this inspiration. */
     onStartChat: (inspiration: DailyInspiration) => void;
+    /**
+     * Called when the user clicks the video thumbnail area.
+     * Should open the video in fullscreen without creating a chat yet.
+     */
+    onEmbedFullscreen?: (inspiration: DailyInspiration) => void;
   }
 
-  let { onStartChat }: Props = $props();
+  let { onStartChat, onEmbedFullscreen }: Props = $props();
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
 
@@ -53,7 +61,6 @@
   let currentIndex = $state(0);
 
   // Track which inspiration_ids we have already sent a `viewed` WS event for
-  // so we don't spam the server on every re-render.
   let viewedIds = $state(new Set<string>());
 
   // ─── Subscribe to store ─────────────────────────────────────────────────────
@@ -78,23 +85,8 @@
     return `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`;
   });
 
-  /** Category circle gradient (same as resume-chat card, slightly darker). */
-  let circleStyle = $derived.by(() => {
-    if (!current) return '';
-    const colors = getCategoryGradientColors(current.category);
-    if (!colors) return 'background: rgba(255,255,255,0.2)';
-    return `background: linear-gradient(135deg, ${colors.start}aa, ${colors.end}aa)`;
-  });
-
   /** Whether multiple inspirations are available (show arrows). */
   let hasMultiple = $derived(inspirations.length > 1);
-
-  /** Category icon component for the current inspiration. */
-  let CategoryIcon = $derived.by(() => {
-    if (!current) return getLucideIcon('help-circle');
-    const iconName = getValidIconName([], current.category);
-    return getLucideIcon(iconName);
-  });
 
   /**
    * Whether to show a video embed for the current inspiration.
@@ -110,7 +102,6 @@
   let embedPreviewId = $derived.by(() => {
     if (!current) return '';
     if (current.embed_id) return current.embed_id;
-    // Use youtube_id as a stable fallback ID for display (non-persisted)
     return current.video?.youtube_id ? `youtube-${current.video.youtube_id}` : '';
   });
 
@@ -123,17 +114,11 @@
       : ''
   );
 
-  // ─── Icon resolution ────────────────────────────────────────────────────────
-
-  // Lucide icons used by the banner
-  const BookOpen = getLucideIcon('book-open');
-  const ChevronLeft = getLucideIcon('chevron-left');
-  const ChevronRight = getLucideIcon('chevron-right');
-
   // ─── Event handlers ─────────────────────────────────────────────────────────
 
   /**
    * Navigate to the previous inspiration in the carousel.
+   * stopPropagation prevents the banner's onclick from firing.
    */
   function handlePrevious(e: MouseEvent) {
     e.stopPropagation();
@@ -143,6 +128,7 @@
 
   /**
    * Navigate to the next inspiration in the carousel.
+   * stopPropagation prevents the banner's onclick from firing.
    */
   function handleNext(e: MouseEvent) {
     e.stopPropagation();
@@ -151,7 +137,7 @@
   }
 
   /**
-   * Handle clicking on the banner or CTA — start a chat from this inspiration.
+   * Handle clicking on the banner body — start a chat from this inspiration.
    * Also marks the inspiration as viewed via WebSocket.
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -165,6 +151,23 @@
     }
 
     onStartChat(current);
+  }
+
+  /**
+   * Handle clicking on the video embed area — open video in fullscreen.
+   * Does NOT start a chat. stopPropagation prevents handleStartChat from firing.
+   */
+  function handleEmbedClick(e: MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!current) return;
+
+    if (onEmbedFullscreen) {
+      onEmbedFullscreen(current);
+    } else {
+      // Fallback: start chat (same as clicking the banner)
+      handleStartChat(e);
+    }
   }
 
   /**
@@ -185,11 +188,14 @@
 </script>
 
 {#if inspirations.length > 0 && current}
-  <!-- Outer wrapper for fade-in animation -->
+  <!-- Outer wrapper for fade-in animation and full-width layout -->
   <div class="daily-inspiration-wrapper">
 
-    <!-- Banner card: div with role=button avoids nested-button HTML validation errors
-         (carousel arrows live inside the card). -->
+    <!--
+      Banner card: div[role=button] avoids nested-button HTML validation errors
+      since carousel arrow <button> elements live inside the card.
+      Fixed height of 240px so the embed is never cut off.
+    -->
     <div
       class="daily-inspiration-banner"
       style={gradientStyle}
@@ -199,66 +205,70 @@
       tabindex="0"
       aria-label={current.phrase}
     >
-      <!-- ── Top label ── -->
-      <div class="banner-label">
-        <BookOpen size={14} color="rgba(255,255,255,0.85)" />
-        <span>{$text('daily_inspiration.label')}</span>
-      </div>
+      <!-- ── Centered inner content wrapper (max-width 680px) ── -->
+      <div class="banner-inner">
 
-      <!-- ── Main content row ── -->
-      <div class="banner-content">
-
-        <!-- Left column: category icon + text + CTA -->
-        <div class="banner-left">
-          <!-- Category icon circle (icon resolved as $derived in script) -->
-          <div class="category-circle" style={circleStyle}>
-            <CategoryIcon size={20} color="white" />
-          </div>
-
-          <!-- Inspiration phrase -->
-          <p class="banner-phrase">{current.phrase}</p>
-
-          <!-- CTA button -->
-          <div class="banner-cta">
-            <span>{$text('daily_inspiration.click_to_start_chat')}</span>
-          </div>
+        <!-- ── Top label ── -->
+        <div class="banner-label">
+          <BookOpen size={14} color="rgba(255,255,255,0.85)" />
+          <span>{$text('daily_inspiration.label')}</span>
         </div>
 
-        <!-- Right column: VideoEmbedPreview (if video attached) -->
-        {#if hasVideo && embedPreviewId}
-          <!-- Wrapper stops click events from reaching the banner (embed has its own click handlers) -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            class="banner-embed-wrapper"
-            onclick={(e) => {
-              // Prevent the banner's handleStartChat from firing when clicking the embed area;
-              // the user intention is to view the video, not start a new chat immediately.
-              e.stopPropagation();
-              // Then actually start the chat (opening the embed belongs in the chat view)
-              handleStartChat(e);
-            }}
-          >
-            <VideoEmbedPreview
-              id={embedPreviewId}
-              url={videoUrl}
-              title={current.video?.title ?? undefined}
-              status="finished"
-              channelName={current.video?.channel_name ?? undefined}
-              thumbnail={current.video?.thumbnail_url ?? undefined}
-              durationSeconds={current.video?.duration_seconds ?? undefined}
-              viewCount={current.video?.view_count ?? undefined}
-              publishedAt={current.video?.published_at ?? undefined}
-              videoId={current.video?.youtube_id}
-              isMobile={false}
-            />
-          </div>
-        {/if}
-      </div>
+        <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
+        <div class="banner-content">
 
-      <!-- ── Carousel navigation ── -->
+          <!-- Left column: mate profile image + inspiration text + CTA -->
+          <div class="banner-left">
+            <!-- Mate profile image with AI badge (uses global mates.css classes) -->
+            <div class="mate-profile banner-mate-profile {current.category}"></div>
+
+            <!-- Inspiration phrase -->
+            <p class="banner-phrase">{current.phrase}</p>
+
+            <!-- CTA: plain text + create icon (no pill background) -->
+            <div class="banner-cta">
+              <span class="clickable-icon icon_create banner-cta-icon"></span>
+              <span class="banner-cta-text">{$text('daily_inspiration.click_to_start_chat')}</span>
+            </div>
+          </div>
+
+          <!-- Right column: VideoEmbedPreview (if video attached).
+               Click on this area opens the video fullscreen, NOT a new chat.
+               We wrap with a transparent overlay button to capture clicks cleanly
+               and prevent the banner's onclick from firing. -->
+          {#if hasVideo && embedPreviewId}
+            <div
+              class="banner-embed-wrapper"
+              onclick={handleEmbedClick}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleEmbedClick(e as unknown as MouseEvent); } }}
+              role="button"
+              tabindex="-1"
+              aria-label={$text('daily_inspiration.watch_video')}
+            >
+              <VideoEmbedPreview
+                id={embedPreviewId}
+                url={videoUrl}
+                title={current.video?.title ?? undefined}
+                status="finished"
+                channelName={current.video?.channel_name ?? undefined}
+                thumbnail={current.video?.thumbnail_url ?? undefined}
+                durationSeconds={current.video?.duration_seconds ?? undefined}
+                viewCount={current.video?.view_count ?? undefined}
+                publishedAt={current.video?.published_at ?? undefined}
+                videoId={current.video?.youtube_id}
+                isMobile={false}
+              />
+            </div>
+          {/if}
+        </div>
+      </div><!-- /.banner-inner -->
+
+      <!-- ── Carousel navigation arrows ──
+           These are real <button> elements with explicit stopPropagation.
+           They are positioned outside .banner-inner so they sit at the edges
+           of the full-width card, not constrained by the 680px inner width.
+           z-index: 20 ensures they are always on top of the embed wrapper. -->
       {#if hasMultiple}
-        <!-- Previous arrow — stopPropagation prevents the banner's onclick from firing -->
         <button
           class="carousel-arrow carousel-arrow-left"
           onclick={handlePrevious}
@@ -268,7 +278,6 @@
           <ChevronLeft size={18} color="rgba(255,255,255,0.9)" />
         </button>
 
-        <!-- Next arrow -->
         <button
           class="carousel-arrow carousel-arrow-right"
           onclick={handleNext}
@@ -278,7 +287,7 @@
           <ChevronRight size={18} color="rgba(255,255,255,0.9)" />
         </button>
       {/if}
-    </div>
+    </div><!-- /.daily-inspiration-banner -->
   </div>
 {/if}
 
@@ -286,7 +295,7 @@
   /* ── Wrapper ── */
   .daily-inspiration-wrapper {
     animation: inspirationFadeIn 300ms ease-out;
-    margin-bottom: 8px;
+    width: 100%;
   }
 
   @keyframes inspirationFadeIn {
@@ -294,25 +303,24 @@
     to   { opacity: 1; transform: translateY(0);   }
   }
 
-  /* ── Banner card (full-width button) ── */
+  /* ── Banner card ──
+     Fixed height (240px) so the embed is never cut off.
+     position:relative is required for the absolutely-positioned arrows. */
   .daily-inspiration-banner {
     position: relative;
     width: 100%;
     border: none;
     border-radius: 14px;
-    padding: 14px 16px 12px;
+    height: 240px;
     cursor: pointer;
-    text-align: left;
     overflow: hidden;
     transition: filter 0.15s ease, transform 0.1s ease;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
     /* Reset browser button defaults */
     font: inherit;
     color: white;
+    display: flex;
+    align-items: stretch;
   }
 
   .daily-inspiration-banner:hover {
@@ -321,6 +329,20 @@
 
   .daily-inspiration-banner:active {
     transform: scale(0.995);
+  }
+
+  /* ── Inner content wrapper: max-width 680px, centered ── */
+  .banner-inner {
+    width: 100%;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 14px 40px 12px;  /* 40px sides to leave room for carousel arrows */
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    /* Stretch to fill the full banner height */
+    align-self: stretch;
+    min-width: 0;
   }
 
   /* ── Top label ── */
@@ -333,14 +355,17 @@
     color: rgba(255, 255, 255, 0.85);
     letter-spacing: 0.3px;
     text-transform: uppercase;
+    flex-shrink: 0;
   }
 
   /* ── Main content row ── */
   .banner-content {
     display: flex;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 14px;
     flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
   /* ── Left column ── */
@@ -350,19 +375,39 @@
     gap: 8px;
     flex: 1;
     min-width: 0;
-  }
-
-  .category-circle {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    border: 1.5px solid rgba(255, 255, 255, 0.3);
   }
 
+  /* ── Mate profile image ──
+     Uses global .mate-profile class from mates.css which provides:
+     - 60×60px circle with category background image
+     - ::after white circle badge (24px)
+     - ::before AI sparkle icon (16px)
+     We override to a smaller size to fit the banner layout. */
+  .banner-mate-profile {
+    /* Override the default 60px size from mates.css for banner context */
+    width: 44px !important;
+    height: 44px !important;
+    margin: 0 !important;
+    flex-shrink: 0;
+  }
+
+  /* Scale down the AI badge pseudo-elements proportionally */
+  .banner-mate-profile::after {
+    bottom: -5px !important;
+    right: -5px !important;
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .banner-mate-profile::before {
+    bottom: -3px !important;
+    right: -3px !important;
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  /* ── Inspiration phrase ── */
   .banner-phrase {
     font-size: 16px;
     font-weight: 600;
@@ -377,105 +422,154 @@
     overflow: hidden;
   }
 
+  /* ── CTA: plain text + create icon, no background ── */
   .banner-cta {
     display: inline-flex;
     align-items: center;
-    padding: 5px 12px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    gap: 6px;
     font-size: 12px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.95);
+    color: rgba(255, 255, 255, 0.85);
     letter-spacing: 0.2px;
     width: fit-content;
-    transition: background 0.15s ease;
   }
 
-  .daily-inspiration-banner:hover .banner-cta {
-    background: rgba(255, 255, 255, 0.28);
+  /* create.svg icon — use the same icon class as the "New chat" button.
+     Force white color via mask on the icon background */
+  .banner-cta-icon {
+    /* The global .icon_create class sets background-image and mask.
+       We override background-color to white so it's visible on the gradient. */
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    width: 13px !important;
+    height: 13px !important;
+    flex-shrink: 0;
+    /* Disable any filter effects from the icon class */
+    filter: none !important;
+    /* Ensure no cursor override from clickable-icon */
+    cursor: default !important;
   }
 
-  /* ── Right column: embed preview card ── */
+  .banner-cta-text {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  /* ── Right column: embed preview card ──
+     Fill the full banner height so the embed is never cut off.
+     pointer-events: none on this wrapper means clicks fall through to the
+     transparent overlay button (handled by .banner-embed-wrapper below). */
   .banner-embed-wrapper {
     flex-shrink: 0;
-    /* Scale down the embed preview to fit inside the banner */
-    /* Default embed size is 300×200px; we want ~160px wide in the banner */
-    width: 160px;
-    /* Constrain height so it doesn't overflow the banner */
-    max-height: 130px;
+    width: 180px;
+    /* Fill the full banner height (240px banner - 14px top pad - 12px bottom pad) */
+    align-self: stretch;
     overflow: hidden;
     border-radius: 10px;
-    /* Slightly reduce the overall embed scale to keep it compact */
-    transform: scale(0.88);
-    transform-origin: top right;
-    /* Counteract the scale reducing effective width */
-    margin-right: -10px;
-    /* Pointer events pass through so the banner onclick fires */
-    pointer-events: auto;
+    /* Prevent the embedded preview's internal styles from bleeding out */
+    position: relative;
+    cursor: pointer;
   }
 
-  /* Override the embed preview rounded corners to match our wrapper */
+  /* Override the embed preview to fill the wrapper fully */
   .banner-embed-wrapper :global(.embed-preview-container) {
     border-radius: 10px;
     box-shadow: none;
+    width: 100%;
+    height: 100%;
   }
 
-  /* ── Carousel arrows ── */
+  /* Force the embed to fill the wrapper height */
+  .banner-embed-wrapper :global(.unified-embed-preview) {
+    height: 100%;
+  }
+
+  /* ── Carousel arrows ──
+     position:absolute relative to .daily-inspiration-banner.
+     z-index: 20 to sit above the embed wrapper (which has no z-index, so z-index:auto).
+     pointer-events must be explicitly set so they receive clicks. */
   .carousel-arrow {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(0, 0, 0, 0.35);
     border: none;
     border-radius: 50%;
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     padding: 0;
     transition: background 0.15s ease;
-    z-index: 10;
+    z-index: 20;
+    /* Ensure pointer events are captured — not blocked by embed or inner content */
+    pointer-events: auto;
+    /* Prevent click from bubbling to the banner's handleStartChat */
+    /* (stopPropagation is called in the handler, but this also helps) */
+    flex-shrink: 0;
   }
 
   .carousel-arrow:hover {
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.55);
   }
 
+  /* Position arrows at the outer edges of the full-width banner */
   .carousel-arrow-left {
-    left: 8px;
+    left: 10px;
   }
 
   .carousel-arrow-right {
-    right: 8px;
+    right: 10px;
   }
 
-  /* ── Mobile adjustments ── */
+  /* ── Mobile adjustments (≤730px) ── */
   @media (max-width: 730px) {
+    .daily-inspiration-banner {
+      height: 190px;
+    }
+
+    .banner-inner {
+      padding: 12px 38px 10px;
+    }
+
     .banner-phrase {
       font-size: 14px;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
     }
 
     .banner-embed-wrapper {
-      width: 130px;
-      max-height: 110px;
-      transform: scale(0.75);
-      transform-origin: top right;
-      margin-right: -20px;
+      width: 140px;
     }
 
-    .banner-cta {
-      font-size: 11px;
-      padding: 4px 10px;
+    .banner-mate-profile {
+      width: 36px !important;
+      height: 36px !important;
+    }
+
+    .banner-mate-profile::after {
+      width: 15px !important;
+      height: 15px !important;
+      bottom: -4px !important;
+      right: -4px !important;
+    }
+
+    .banner-mate-profile::before {
+      width: 10px !important;
+      height: 10px !important;
+      bottom: -2px !important;
+      right: -2px !important;
     }
   }
 
-  /* Hide embed panel on very narrow screens to keep banner readable */
+  /* ── Very narrow screens (≤480px): hide embed panel ── */
   @media (max-width: 480px) {
     .banner-embed-wrapper {
       display: none;
+    }
+
+    .banner-inner {
+      padding: 12px 36px 10px;
     }
   }
 </style>

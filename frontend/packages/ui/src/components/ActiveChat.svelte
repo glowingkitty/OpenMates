@@ -3994,6 +3994,70 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /**
+     * Handler for clicking the video embed area inside a Daily Inspiration banner.
+     *
+     * Opens the video directly in the VideoEmbedFullscreen viewer without first
+     * creating a chat. Uses an ephemeral embed ID (preview: prefix) so the
+     * EmbedStore lookup is skipped and the video metadata is passed inline.
+     *
+     * This allows the user to preview the video before committing to a chat.
+     */
+    async function handleInspirationEmbedFullscreen(inspiration: DailyInspiration) {
+        if (!inspiration.video?.youtube_id) {
+            console.debug('[ActiveChat] Inspiration has no video, ignoring embed fullscreen request');
+            return;
+        }
+
+        const video = inspiration.video;
+        const videoId = video.youtube_id;
+        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+        // Format duration if available
+        let durationFormatted: string | undefined;
+        if (video.duration_seconds != null) {
+            const mins = Math.floor(video.duration_seconds / 60);
+            const secs = video.duration_seconds % 60;
+            durationFormatted = `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Build decodedContent matching the VideoEmbedFullscreen expected shape.
+        // The 'preview:' prefix marks it as ephemeral — no EmbedStore lookup,
+        // no URL hash update (handled in handleEmbedFullscreen).
+        const embedId = `preview:youtube-${videoId}`;
+
+        const syntheticEvent = new CustomEvent('embedfullscreen', {
+            detail: {
+                embedId,
+                embedData: {
+                    embed_id: embedId,
+                    type: 'videos-video',
+                    status: 'finished',
+                },
+                decodedContent: {
+                    url: videoUrl,
+                    video_id: videoId,
+                    title: video.title ?? undefined,
+                    channel_name: video.channel_name ?? undefined,
+                    thumbnail: video.thumbnail_url ?? undefined,
+                    duration_seconds: video.duration_seconds ?? undefined,
+                    duration_formatted: durationFormatted,
+                    view_count: video.view_count ?? undefined,
+                    published_at: video.published_at ?? undefined,
+                },
+                embedType: 'videos-video',
+                attrs: {
+                    url: videoUrl,
+                    title: video.title ?? undefined,
+                    videoId,
+                },
+            },
+        });
+
+        console.debug('[ActiveChat] Opening inspiration video in fullscreen:', videoId);
+        await handleEmbedFullscreen(syntheticEvent as CustomEvent);
+    }
+
+    /**
      * Handler for the share button click.
      * Opens the settings menu and navigates to the share submenu.
      * This allows users to share the current chat with various options
@@ -6625,7 +6689,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side">
-                    <div class="top-buttons">
+                    <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
+                    <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
+                    <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
+                    <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen -->
+                    {#if showWelcome && !hideWelcomeForKeyboard}
+                        <div class="daily-inspiration-area">
+                            <DailyInspirationBanner
+                                onStartChat={handleStartChatFromInspiration}
+                                onEmbedFullscreen={handleInspirationEmbedFullscreen}
+                            />
+                        </div>
+                    {/if}
+
+                    <!-- Top action buttons row.
+                         On the welcome screen (showWelcome=true): rendered in normal document flow
+                         below the daily inspiration banner (top-buttons-flow class removes position:absolute).
+                         On the active chat screen (showWelcome=false): absolutely positioned at top. -->
+                    <div class="top-buttons" class:top-buttons-flow={showWelcome}>
                         <!-- Left side buttons -->
                         <div class="left-buttons">
                             {#if createButtonVisible}
@@ -6717,16 +6798,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             ></button> -->
                         </div>
                     </div>
-
-                    <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
-                    <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
-                    <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
-                    <!-- padding-top clears the absolutely-positioned .top-buttons bar (15px top + ~40px button height + gap) -->
-                    {#if showWelcome && !hideWelcomeForKeyboard}
-                        <div class="daily-inspiration-area">
-                            <DailyInspirationBanner onStartChat={handleStartChatFromInspiration} />
-                        </div>
-                    {/if}
 
                     <!-- Welcome greeting – always visible on the new chat screen -->
                     <!-- Also hide on mobile when keyboard is open to free up vertical space -->
@@ -8522,9 +8593,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         z-index: 1;
     }
 
-    /* Adjust top-buttons position on small screens */
+    /*
+     * On the welcome screen the top-buttons row is placed in normal document flow
+     * below the daily inspiration banner (rendered before it in the DOM).
+     * This removes the absolute positioning so buttons appear below the banner
+     * instead of overlapping it.
+     */
+    .top-buttons.top-buttons-flow {
+        position: static;
+        padding: 10px 15px 0;
+        /* Ensure full width to keep justify-content: space-between working */
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Adjust top-buttons position on small screens (absolute mode only) */
     @media (max-width: 730px) {
-        .top-buttons {
+        .top-buttons:not(.top-buttons-flow) {
             top: 10px;
             left: 10px;
         }
@@ -8532,13 +8617,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /*
      * Daily inspiration area wrapper.
-     * .top-buttons is position:absolute at top:15px with ~41px buttons + 8px wrapper padding = ~64px total.
-     * We add padding-top to push the banner below the overlapping buttons.
-     * On mobile (≤730px) top-buttons are at top:10px, same height → 62px, use same value.
+     * No padding-top needed: the banner is rendered before top-buttons in the DOM,
+     * so there is no overlap to compensate for.
      */
     .daily-inspiration-area {
-        padding-top: 64px;
+        padding: 15px 15px 0;
         width: 100%;
+        box-sizing: border-box;
     }
 
     /* Add styles for left and right button containers */
