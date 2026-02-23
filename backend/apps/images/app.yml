@@ -146,7 +146,7 @@ skills:
       backend.apps.images.skills.generate_skill.GenerateSkill
     providers:
       - BFL
-    full_model_reference: bfl/flux-schnell
+    full_model_reference: bfl/flux-2-klein
     tool_schema:
       type: object
       properties:

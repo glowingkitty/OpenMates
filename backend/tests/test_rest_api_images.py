@@ -131,7 +131,7 @@ def test_images_generate_draft_post_not_supported(api_client):
     Expected: 404 Not Found — no route is registered for this path at all.
 
     TODO: Once the CLI is implemented, replace this test with a full end-to-end
-    test covering the draft (FLUX-Schnell) generation path.
+    test covering the draft (FLUX.2 [klein] 9B) generation path.
     """
     payload = {"requests": [{"prompt": "a quick draft cat"}]}
     response = api_client.post(

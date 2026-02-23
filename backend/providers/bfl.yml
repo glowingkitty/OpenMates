@@ -4,16 +4,16 @@
 
 provider_id: "bfl"
 name: "Black Forest Labs"
-description: "High-performance image generation models including FLUX.1."
+description: "High-performance image generation models including FLUX.2."
 logo_svg: "icons/blackforestlabs.svg"
 
 models:
-  - id: "flux-schnell"
-    name: "FLUX.1 Schnell"
-    description: "The fastest high-quality image generation model from BFL, optimized for speed and efficiency."
+  - id: "flux-2-klein"
+    name: "FLUX.2 [klein] 9B"
+    description: "FLUX.2 [klein] 9B Base from Black Forest Labs. Enhanced realism, crisper text generation, and native editing capabilities."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "images.generate_draft" # This model is for draft image generation (fast)
-    release_date: "2024-08-01" # Model release date (FLUX.1 Schnell original release)
+    release_date: "2025-01-01" # Model release date (FLUX.2 [klein] release)
     input_types:
       - text
     output_types:

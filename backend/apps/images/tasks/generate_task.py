@@ -65,7 +65,7 @@ async def _charge_image_generation_credits(
     
     Fetches the provider pricing config via internal API and charges 1 unit
     (= 1 image). Pricing is defined in provider YAML files:
-    - generate_draft (bfl/flux-schnell): 15 credits per image
+    - generate_draft (bfl/flux-2-klein): 15 credits per image
     - generate (google/gemini-3-pro-image-preview): 200 credits per image
     
     Billing is non-blocking: failures are logged but don't break image delivery.
@@ -131,7 +131,7 @@ async def _charge_image_generation_credits(
                 "chat_id": chat_id,
                 "message_id": message_id,
                 "units_processed": 1,
-                "model_used": model_ref,  # Full model reference (e.g., "bfl/flux-schnell")
+                "model_used": model_ref,  # Full model reference (e.g., "bfl/flux-2-klein")
                 "server_provider": resolved_provider_name,  # Provider display name (e.g., "BFL", "Google")
                 "server_region": resolved_region,  # Server region (e.g., "US")
             }
@@ -306,7 +306,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         elif model_ref and ("bfl" in model_ref or "flux" in model_ref):
             # --- Raster branch: fal.ai FLUX ---
             # Map model ref to fal.ai model ID:
-            #   bfl/flux-schnell → fal-ai/flux-2/klein/9b/base
+            #   bfl/flux-2-klein → fal-ai/flux-2/klein/9b/base (FLUX.2 [klein] 9B Base)
             fal_model_id = "fal-ai/flux-2/klein/9b/base"
             if "pro" in model_ref:
                 fal_model_id = "fal-ai/flux-pro/v1.1"
@@ -316,13 +316,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 model_id=fal_model_id,
             )
             actual_model = f"fal.ai {fal_model_id}"
-            # display_model_id already set from model_ref split (e.g., "flux-schnell")
+            # display_model_id already set from model_ref split (e.g., "flux-2-klein")
 
         else:
-            # --- Fallback: FLUX.2 Klein if model ref is unknown/missing ---
+            # --- Fallback: FLUX.2 [klein] 9B if model ref is unknown/missing ---
             logger.warning(
                 f"{log_prefix} Unknown or missing model reference '{model_ref}', "
-                "falling back to FLUX.2 Klein"
+                "falling back to FLUX.2 [klein] 9B"
             )
             fal_model_id = "fal-ai/flux-2/klein/9b/base"
             image_bytes = await generate_image_fal_flux(
@@ -331,7 +331,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 model_id=fal_model_id,
             )
             actual_model = f"fal.ai {fal_model_id} (fallback)"
-            display_model_id = "flux-schnell"
+            display_model_id = "flux-2-klein"
 
         # Validate that the provider returned data
         if output_filetype == "svg" and not svg_bytes:
