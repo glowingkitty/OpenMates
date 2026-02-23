@@ -364,7 +364,7 @@ class TranscribeSkill(BaseSkill):
         try:
             # Step 1: Get Mistral API key from Vault
             mistral_api_key = await secrets_manager.get_secret(
-                secret_path="kv/data/providers/mistral",
+                secret_path="kv/data/providers/mistral_ai",
                 secret_key="api_key"
             )
             if not mistral_api_key:
