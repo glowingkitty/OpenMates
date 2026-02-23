@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 import datetime
 
-from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
+from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult, resolve_fallback_servers_from_provider_config
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
@@ -315,6 +315,11 @@ async def handle_postprocessing(
     # Use same model as preprocessing (Mistral Small) for consistency
     model_id = "mistral/mistral-small-latest"
 
+    # Resolve fallback providers from the model's provider config (e.g. openrouter)
+    # so that post-processing is resilient to Mistral API timeouts/outages,
+    # the same way the preprocessor handles fallbacks.
+    postprocess_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+
     # Call the LLM with function calling
     llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
         task_id=task_id,
@@ -323,7 +328,8 @@ async def handle_postprocessing(
         tool_definition=postprocess_tool,
         secrets_manager=secrets_manager,
         user_app_settings_and_memories_metadata=None,  # Not needed for post-processing
-        dynamic_context=None  # No dynamic context needed
+        dynamic_context=None,  # No dynamic context needed
+        fallback_models=postprocess_fallbacks
     )
 
     # CRITICAL FIX: Handle LLM errors gracefully instead of crashing the entire task
@@ -524,7 +530,12 @@ Category: {category_id}
     
     # Use same model as preprocessing for consistency
     model_id = "mistral/mistral-small-latest"
-    
+
+    # Resolve fallback providers from the model's provider config (e.g. openrouter)
+    # so that memory generation is resilient to Mistral API timeouts/outages,
+    # the same way the preprocessor handles fallbacks.
+    memory_gen_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+
     try:
         llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
             task_id=task_id,
@@ -533,7 +544,8 @@ Category: {category_id}
             tool_definition=memory_gen_tool,
             secrets_manager=secrets_manager,
             user_app_settings_and_memories_metadata=None,
-            dynamic_context=None
+            dynamic_context=None,
+            fallback_models=memory_gen_fallbacks
         )
         
         if llm_result.error_message:
