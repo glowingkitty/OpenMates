@@ -627,6 +627,19 @@ async def _process_single_doctolib_request(
 
             displayed_slots = all_slots[:MAX_SLOTS_PER_DOCTOR]
 
+            # Zip slots and slot_links into a list of {datetime, booking_url} objects.
+            # This ensures TOON flattening produces slots_0_datetime / slots_0_booking_url
+            # keys (object-list path) rather than a pipe-joined string (scalar-list path),
+            # so the frontend transformer can correctly reconstruct the slots array.
+            slots_objects = [
+                {"datetime": dt, "booking_url": slot_links[i] if i < len(slot_links) else ""}
+                for i, dt in enumerate(displayed_slots)
+            ]
+
+            # next_slot_url: booking deep-link for the very first (nearest) slot.
+            # Used as a fallback in the fullscreen component when the slots array is empty.
+            next_slot_url = slot_links[0] if slot_links else None
+
             result_item: Dict[str, Any] = {
                 "type": "appointment",
                 "hash": _result_hash(practice_id, visit_motive_id),
@@ -643,11 +656,13 @@ async def _process_single_doctolib_request(
                 "visit_motive": visit_motive.get("name", ""),
                 "insurance": ins_sector_obj.get("type", ""),
                 "allows_new_patients": visit_motive.get("allowNewPatients", True),
-                # Availability
+                # Availability — slots is a list of {datetime, booking_url} objects so that
+                # TOON flattening produces indexable keys (slots_0_datetime, etc.) rather than
+                # a pipe-joined string, enabling correct frontend reconstruction.
                 "slots_count": len(all_slots),
                 "next_slot": avail.get("next_slot") or (all_slots[0] if all_slots else None),
-                "slots": displayed_slots,
-                "slot_links": slot_links,  # parallel list to slots[]
+                "next_slot_url": next_slot_url,
+                "slots": slots_objects,
                 # Booking URLs
                 "practice_url": _practice_url(provider),
                 # Provider/platform metadata

@@ -136,17 +136,23 @@
    * We reconstruct the slots array from these flattened keys when needed.
    */
   function transformToAppointmentResult(embedId: string, content: Record<string, unknown>): AppointmentResult {
-    // Reconstruct slots array from TOON-flattened or native format
+    // Reconstruct slots array from TOON-flattened or native format.
+    //
+    // The backend emits slots as [{datetime, booking_url}] objects so that TOON
+    // flattening produces slots_0_datetime / slots_0_booking_url keys (the
+    // object-list path below).  Older cached embeds may still carry the legacy
+    // parallel-list format (slots = pipe-joined ISO string, slot_links = pipe-joined
+    // URLs), so we handle that as a third fallback.
     let slots: SlotData[] = [];
 
     if (Array.isArray(content.slots)) {
-      // Native (non-TOON-flattened) slots array
+      // Native (non-TOON-flattened) slots array of {datetime, booking_url} objects.
       slots = (content.slots as Record<string, unknown>[]).map(s => ({
         datetime: (s.datetime as string) || '',
         booking_url: (s.booking_url as string) || '',
       }));
     } else {
-      // Reconstruct from TOON-flattened: slots_0_datetime, slots_0_booking_url, etc.
+      // Try TOON-flattened object-list path: slots_0_datetime, slots_0_booking_url, …
       for (let i = 0; i < 20; i++) {
         const dt = content[`slots_${i}_datetime`];
         if (typeof dt !== 'string') break;
@@ -155,7 +161,29 @@
           booking_url: (content[`slots_${i}_booking_url`] as string) || '',
         });
       }
+
+      // Legacy fallback: backend used to emit slots as a pipe-joined ISO string
+      // and slot_links as a parallel pipe-joined URL string.
+      if (slots.length === 0 && typeof content.slots === 'string' && content.slots) {
+        const datetimes = (content.slots as string).split('|');
+        const links = typeof content.slot_links === 'string'
+          ? (content.slot_links as string).split('|')
+          : [];
+        slots = datetimes
+          .filter(dt => dt)
+          .map((dt, i) => ({ datetime: dt, booking_url: links[i] || '' }));
+      }
     }
+
+    // next_slot_url: prefer the explicit field; fall back to the first slot_links
+    // entry (legacy format) so the "Book on Doctolib" button always works.
+    const nextSlotUrl: string | undefined =
+      (content.next_slot_url as string | undefined) ||
+      (typeof content.slot_links === 'string'
+        ? (content.slot_links as string).split('|')[0] || undefined
+        : undefined) ||
+      slots[0]?.booking_url ||
+      undefined;
 
     return {
       embed_id: embedId,
@@ -165,7 +193,7 @@
       address: content.address as string | undefined,
       slots_count: (content.slots_count as number) || 0,
       next_slot: content.next_slot as string | undefined,
-      next_slot_url: content.next_slot_url as string | undefined,
+      next_slot_url: nextSlotUrl,
       slots,
       insurance: content.insurance as string | undefined,
       telehealth: (content.telehealth as boolean) || false,
