@@ -719,6 +719,14 @@
                 if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
                     panelState.toggleChats();
                 }
+                // CRITICAL: Clear the chat header state from any previously loaded demo chat
+                // (e.g. "OpenMates | For everyone" header that was visible before login).
+                // The phased sync will load the correct chat after authentication completes;
+                // until then the welcome screen should show no chat header.
+                if (isPublicChat(currentChat?.chat_id ?? '')) {
+                    resetChatHeaderState();
+                    console.debug('[ActiveChat] Cleared demo chat header on login transition');
+                }
             } else if ($isInSignupProcess) {
                 // User is in signup process - ensure login interface stays open
                 console.debug('[ActiveChat] User is in signup process - keeping login interface open');
