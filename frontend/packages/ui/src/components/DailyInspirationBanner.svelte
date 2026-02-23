@@ -50,9 +50,17 @@
      * Should open the video in fullscreen without creating a chat yet.
      */
     onEmbedFullscreen?: (inspiration: DailyInspiration) => void;
+    /**
+     * The actual pixel width of the container holding this banner.
+     * Used to hide the video embed when there isn't enough horizontal space
+     * to display both the text and the embed side-by-side.
+     * Below 520px the embed is hidden so the text never gets squeezed.
+     * Defaults to 0 (embed hidden until width is known).
+     */
+    containerWidth?: number;
   }
 
-  let { onStartChat, onEmbedFullscreen }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0 }: Props = $props();
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
 
@@ -90,9 +98,14 @@
 
   /**
    * Whether to show a video embed for the current inspiration.
-   * True when a video object is present (has a youtube_id).
+   * True when a video object is present (has a youtube_id) AND there is enough
+   * horizontal space in the container to display both the text and the embed
+   * side-by-side without squeezing either.  We require at least 520px: ~220px
+   * for the embed card, ~200px for the text, plus padding/gap overhead.
+   * When containerWidth is 0 (unknown) we default to hiding the embed to avoid
+   * a layout flash.
    */
-  let hasVideo = $derived(!!current?.video?.youtube_id);
+  let hasVideo = $derived(!!current?.video?.youtube_id && containerWidth >= 520);
 
   /**
    * The embed_id to use for VideoEmbedPreview.
@@ -608,14 +621,6 @@
     }
   }
 
-  /* ── Very narrow screens (≤480px): hide embed panel ── */
-  @media (max-width: 480px) {
-    .banner-embed-wrapper {
-      display: none;
-    }
-
-    .banner-inner {
-      padding: 12px 36px 10px;
-    }
-  }
+  /* Note: embed visibility at narrow widths is handled in JS via the containerWidth prop
+     (hasVideo derived value), so no CSS media query is needed here. */
 </style>
