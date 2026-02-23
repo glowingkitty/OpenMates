@@ -21,9 +21,8 @@
 # the Celery task structure from demo_tasks.py / daily_inspiration_tasks.py.
 
 import asyncio
-import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -115,6 +114,18 @@ async def _async_generate_content(
     video_title = record.get("video_title") or ""
     video_channel = record.get("video_channel_name") or ""
     video_url = record.get("video_url") or ""
+    video_duration_formatted = record.get("video_duration_formatted") or ""
+    video_view_count = record.get("video_view_count") or 0
+
+    # Build a human-readable view count string for the prompt
+    if video_view_count >= 1_000_000:
+        views_str = f"{video_view_count / 1_000_000:.1f}M views"
+    elif video_view_count >= 1_000:
+        views_str = f"{video_view_count // 1_000}K views"
+    elif video_view_count > 0:
+        views_str = f"{video_view_count} views"
+    else:
+        views_str = ""
 
     # Build the Gemini prompt using structured function calling
     generation_tool = {
@@ -139,16 +150,30 @@ async def _async_generate_content(
                     "phrase": {
                         "type": "string",
                         "description": (
-                            "An engaging, inviting CTA phrase for the Daily Inspiration banner. "
-                            "Maximum 10 words. Does not start with 'Watch', 'See', or 'Check'. "
-                            "Sounds inspiring and curious, not like clickbait."
+                            "A short, curiosity-sparking question or thought-provoking statement "
+                            "for the Daily Inspiration banner. Maximum 10 words. "
+                            "Ideally a genuine question that makes the user want to find out more — "
+                            "like something a curious friend would ask. "
+                            "Does not start with 'Watch', 'See', 'Check', or 'Discover'. "
+                            "Feels like the start of a real conversation, not a marketing headline. "
+                            "Examples: 'Why do we dream — and what do dreams actually mean?', "
+                            "'What really happens inside a volcano when it erupts?', "
+                            "'How did the ancient Egyptians move those enormous stones?'"
                         ),
                     },
                     "assistant_response": {
                         "type": "string",
                         "description": (
-                            "A 1-2 sentence teaser that gives viewers a sense of what they will "
-                            "learn or experience. Friendly, enthusiastic, no spoilers."
+                            "A rich, engaging first assistant message (3-5 sentences) shown when "
+                            "the user opens this inspiration chat. "
+                            "Explain what this video is about and why the topic is fascinating. "
+                            "Highlight 1-2 surprising, counterintuitive, or little-known facts or "
+                            "angles from the topic. "
+                            "End with an open-ended question or warm invitation that encourages the "
+                            "user to ask follow-up questions and explore the topic further. "
+                            "Tone: curious, warm, enthusiastic — like a knowledgeable friend who "
+                            "just watched something they found genuinely mind-blowing. "
+                            "Do NOT start with 'I'. Do NOT just describe what the video is called."
                         ),
                     },
                 },
@@ -157,13 +182,26 @@ async def _async_generate_content(
         },
     }
 
+    # Build the video context string for the prompt
+    video_context_parts = [
+        f"Title: {video_title}",
+        f"Channel: {video_channel}",
+    ]
+    if video_duration_formatted:
+        video_context_parts.append(f"Duration: {video_duration_formatted}")
+    if views_str:
+        video_context_parts.append(f"Views: {views_str}")
+    video_context_parts.append(f"URL: {video_url}")
+    video_context = "\n".join(video_context_parts)
+
     messages = [
         {
             "role": "system",
             "content": (
                 "You generate Daily Inspiration content for an AI assistant app. "
                 "The daily inspiration section shows users a curated YouTube video to inspire them. "
-                "Create a category label, a short engaging CTA phrase, and a brief teaser. "
+                "Create a category label, a short curiosity-sparking question for the banner, "
+                "and a rich first assistant message that explains the topic and invites exploration. "
                 "All output must be in English."
             ),
         },
@@ -171,10 +209,9 @@ async def _async_generate_content(
             "role": "user",
             "content": (
                 f"Generate Daily Inspiration content for this YouTube video:\n\n"
-                f"Title: {video_title}\n"
-                f"Channel: {video_channel}\n"
-                f"URL: {video_url}\n\n"
-                "Return a category, phrase, and assistant_response."
+                f"{video_context}\n\n"
+                "Return a category, phrase (curiosity question for the banner), and assistant_response "
+                "(rich first message for the chat)."
             ),
         },
     ]
@@ -435,9 +472,10 @@ async def _translate_inspiration_texts_batch(
             "role": "system",
             "content": (
                 "You are a professional translator. Translate the given texts into all requested languages. "
-                "The 'phrase' is a short CTA for a Daily Inspiration banner (max 10 words). "
-                "The 'assistant_response' is a 1-2 sentence teaser. "
-                "Preserve the tone, enthusiasm, and meaning. "
+                "The 'phrase' is a short curiosity question or statement for a Daily Inspiration banner (max 10 words). "
+                "The 'assistant_response' is a rich 3-5 sentence first message that explains the topic, "
+                "highlights what makes it fascinating, and invites the user to explore further. "
+                "Preserve the tone, enthusiasm, and meaning exactly. "
                 "When a language has formal/informal 'you', use the friendly informal register "
                 "(e.g. 'du' in German, 'tu' in French, 'tú' in Spanish)."
             ),

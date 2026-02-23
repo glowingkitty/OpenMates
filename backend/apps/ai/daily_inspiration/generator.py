@@ -99,10 +99,10 @@ def get_search_params_for_language(language: str) -> Dict[str, str]:
 
 def _build_tool_definition(language: str) -> Dict[str, Any]:
     """
-    Build the LLM tool definition with a language-specific phrase description.
+    Build the LLM tool definition with a language-specific phrase and assistant_response.
 
-    The tool schema tells the LLM what language to write the curiosity phrase in.
-    English is used when language is "en" or unrecognised.
+    The tool schema tells the LLM what language to write the curiosity phrase and
+    assistant_response in. English is used when language is "en" or unrecognised.
 
     Args:
         language: User's UI language code (e.g. "en", "de", "es")
@@ -121,13 +121,14 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
             "name": "generate_daily_inspirations",
             "description": (
                 "Generate daily inspiration items for the user. For each slot, select the most "
-                "engaging YouTube video from the provided candidates and write a short, fascinating "
-                f"phrase in {phrase_lang_instruction} (6-12 words) that sparks curiosity. "
-                "The phrase should tease what the user will learn or discover — make it sound "
-                "exciting and personal. "
+                "engaging YouTube video from the provided candidates, write a short curiosity question "
+                f"or phrase in {phrase_lang_instruction} (6-12 words) for the banner, and compose a "
+                "rich first assistant message that explains the topic and invites the user to explore. "
+                "The phrase should be a genuine question or a thought-provoking statement that sparks "
+                "curiosity — it should feel like the start of a conversation, not a marketing headline. "
                 "Example phrases (English): 'Why do cats always land on their feet?', "
-                "'The hidden mathematics behind a perfectly balanced bridge', "
-                "'How ancient Romans built roads that lasted 2,000 years'. "
+                "'What really happens inside a black hole?', "
+                "'How did ancient Romans build roads that lasted 2,000 years?'. "
                 "IMPORTANT: Each slot must use a different video (no duplicates). "
                 "Select videos that are educational, engaging, and family-friendly."
             ),
@@ -143,8 +144,22 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                                 "phrase": {
                                     "type": "string",
                                     "description": (
-                                        f"Short, fascinating phrase in {phrase_lang_instruction} "
-                                        "(6-12 words) that sparks curiosity"
+                                        f"Short, curiosity-sparking question or phrase in {phrase_lang_instruction} "
+                                        "(6-12 words) shown on the inspiration banner. "
+                                        "Should feel like the start of a conversation — ideally a genuine question."
+                                    ),
+                                },
+                                "assistant_response": {
+                                    "type": "string",
+                                    "description": (
+                                        f"Rich first assistant message in {phrase_lang_instruction} "
+                                        "(3-5 sentences) shown when the user opens this inspiration chat. "
+                                        "Explain what this video is about and why it is fascinating. "
+                                        "Highlight 1-2 surprising or intriguing aspects of the topic. "
+                                        "End with an open-ended question or invitation that encourages the user "
+                                        "to ask follow-up questions and dive deeper. "
+                                        "Tone: curious, warm, enthusiastic — like a knowledgeable friend sharing "
+                                        "something they find genuinely exciting. Do NOT start with 'I'."
                                     ),
                                 },
                                 "category": {
@@ -160,7 +175,12 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                                     ),
                                 },
                             },
-                            "required": ["phrase", "category", "selected_video_youtube_id"],
+                            "required": [
+                                "phrase",
+                                "assistant_response",
+                                "category",
+                                "selected_video_youtube_id",
+                            ],
                         },
                     },
                 },
@@ -220,8 +240,8 @@ def _build_generation_prompt(
         lang_instruction = ""
     else:
         lang_instruction = (
-            f"\n\nIMPORTANT: Write ALL phrases in the user's language (ISO code: {lang_base}). "
-            "Do NOT write in English."
+            f"\n\nIMPORTANT: Write ALL phrases and assistant_response messages in the user's language "
+            f"(ISO code: {lang_base}). Do NOT write in English."
         )
 
     user_message = (
@@ -229,7 +249,13 @@ def _build_generation_prompt(
         f"{interests_text}\n\n"
         "Available videos for each slot:\n\n"
         + "\n\n".join(slot_descriptions)
-        + "\n\nFor each slot, select the best video and write a curiosity-sparking phrase."
+        + (
+            "\n\nFor each slot, select the best video and:\n"
+            "1. Write a short curiosity-sparking question or phrase (6-12 words) for the banner.\n"
+            "2. Write a rich first assistant message (3-5 sentences) that explains the topic, "
+            "highlights what makes it fascinating, and ends with an invitation for the user "
+            "to ask questions and explore the topic further."
+        )
         + lang_instruction
     )
 
@@ -350,6 +376,7 @@ async def generate_inspirations(
 
     for raw in raw_inspirations[:count]:
         phrase = raw.get("phrase", "").strip()
+        assistant_response = raw.get("assistant_response", "").strip() or None
         category = raw.get("category", "general_knowledge")
         youtube_id = raw.get("selected_video_youtube_id", "").strip()
 
@@ -385,6 +412,7 @@ async def generate_inspirations(
         inspiration = DailyInspiration(
             inspiration_id=str(uuid.uuid4()),
             phrase=phrase,
+            assistant_response=assistant_response,
             category=category if category in AVAILABLE_CATEGORIES else "general_knowledge",
             content_type="video",
             video=video,

@@ -44,7 +44,7 @@ export interface DailyInspiration {
   content_type: string;
   video: DailyInspirationVideo | null;
   generated_at: number;
-  /** First assistant message content (phrase + embed reference). Used for persistence. */
+  /** Rich first assistant message content from the server (explains the topic, invites exploration). Used as the initial chat message when the user opens this inspiration. Falls back to phrase if not set. */
   assistant_response?: string;
   /** UUID of the embed created for the video, if any. Set after embed is stored. */
   embed_id?: string | null;
