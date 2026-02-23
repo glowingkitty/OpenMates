@@ -1898,36 +1898,38 @@ async def handle_preprocessing(
         else:
             logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
     
-    # --- Rule-based skill forcing: images-view ---
-    # The preprocessing LLM (Mistral Small) occasionally fails to select images-view
-    # even when the message history clearly contains an uploaded image embed. This causes
-    # the main LLM to receive the toon block without a tool to call, leading to hallucinated
-    # image descriptions. We fix this with a deterministic rule: if the message history
-    # contains a toon block with app_id=images and skill_id=upload, force images-view into
-    # the preselected skills. This rule runs AFTER LLM validation so it overrides any
-    # LLM omission. It only fires if the skill is actually available (i.e., the images app
-    # is healthy and discovered).
-    if "images-view" in available_skill_ids and not user_requested_skills_only:
-        # Scan message history for image upload toon blocks.
-        # The toon block format is a fenced code block:
-        #   ```toon
-        #   app_id: images
-        #   skill_id: upload
-        #   ...
-        #   ```
+    # --- Rule-based skill forcing based on embed type in message history ---
+    # The preprocessing LLM occasionally fails to select the correct skills when the
+    # message history contains file embeds (images, PDFs). Without the right skills
+    # preselected the main LLM receives the toon block but has no tool to call, causing
+    # hallucinated content. We fix this with deterministic rules that run AFTER LLM
+    # validation and override any LLM omission. Rules only fire when the skill is
+    # actually available (i.e., the app is healthy and discovered) and the user has not
+    # explicitly @mentioned specific skills.
+    #
+    # Detection relies on substrings that are always present in toon-encoded embed blocks:
+    #   images/upload:  app_id: images  +  skill_id: upload
+    #   pdf (finished): app_id: pdf     +  status: finished
+    if not user_requested_skills_only:
+        # Single pass over message history — collect embed types in one scan
         has_image_upload_embed = False
+        has_pdf_embed = False
         for msg in request_data.message_history:
             content = msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else None)
             if not isinstance(content, str):
                 continue
-            # Quick check before full parse — saves cycles on plain-text messages
-            if "app_id: images" in content and "skill_id: upload" in content:
+            # Quick substring checks — avoids YAML parsing overhead on plain-text messages
+            if not has_image_upload_embed and "app_id: images" in content and "skill_id: upload" in content:
                 has_image_upload_embed = True
-                break
+            if not has_pdf_embed and "app_id: pdf" in content and "status: finished" in content:
+                has_pdf_embed = True
+            if has_image_upload_embed and has_pdf_embed:
+                break  # No need to scan further
 
-        if has_image_upload_embed:
+        # --- images-view ---
+        if has_image_upload_embed and "images-view" in available_skill_ids:
             if "images-view" not in validated_relevant_skills:
-                # Prepend so images-view is first (highest priority tool for image questions)
+                # Prepend so images-view is first (highest priority for image questions)
                 validated_relevant_skills = ["images-view"] + validated_relevant_skills
                 logger.info(
                     f"{log_prefix} [RULE_BASED] Forced 'images-view' into preselected skills: "
@@ -1938,6 +1940,31 @@ async def handle_preprocessing(
                 logger.debug(
                     f"{log_prefix} [RULE_BASED] 'images-view' already preselected by LLM — no override needed."
                 )
+
+        # --- pdf-read, pdf-search, pdf-view ---
+        # All three PDF skills are forced when a finished PDF embed is present because
+        # the correct tool to call depends on the user's question (read for text extraction,
+        # search for keyword lookup, view for visual/layout analysis). The main LLM selects
+        # among them. Forcing all three avoids the situation where the LLM misses the PDF
+        # entirely and answers without any of its content.
+        if has_pdf_embed:
+            pdf_skills_to_force = [s for s in ("pdf-read", "pdf-search", "pdf-view") if s in available_skill_ids]
+            if pdf_skills_to_force:
+                forced = []
+                for skill in pdf_skills_to_force:
+                    if skill not in validated_relevant_skills:
+                        validated_relevant_skills.append(skill)
+                        forced.append(skill)
+                if forced:
+                    logger.info(
+                        f"{log_prefix} [RULE_BASED] Forced {forced} into preselected skills: "
+                        f"detected pdf/finished toon block in message history. "
+                        f"(Ensures LLM can read/search/view the PDF regardless of preprocessing selection.)"
+                    )
+                else:
+                    logger.debug(
+                        f"{log_prefix} [RULE_BASED] PDF skills already preselected by LLM — no override needed."
+                    )
 
     # --- Determine if hardcoded disclaimer injection is required ---
     # This is a HARDCODED safety mechanism for legal compliance.
