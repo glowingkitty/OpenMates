@@ -12,8 +12,7 @@ test.beforeEach(async () => {
 	networkActivities.length = 0;
 });
 
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo: any) => {
+test.afterEach(async ({ page }: { page: any }, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
 		console.log('\n--- DEBUG INFO ON FAILURE ---');
 		console.log('\n[RECENT CONSOLE LOGS]');
@@ -22,6 +21,15 @@ test.afterEach(async ({}, testInfo: any) => {
 		console.log('\n[RECENT NETWORK ACTIVITIES]');
 		networkActivities.slice(-30).forEach((activity) => console.log(activity));
 		console.log('\n--- END DEBUG INFO ---\n');
+	}
+
+	// Always attempt to delete the active chat after every test (including failures),
+	// so that test account chats don't accumulate between runs.
+	// deleteActiveChat is best-effort and will not throw on any cleanup error.
+	if (page) {
+		const noop = () => {};
+		const noopScreenshot = async () => {};
+		await deleteActiveChat(page, noop, noopScreenshot, 'afterEach-cleanup').catch(noop);
 	}
 });
 
