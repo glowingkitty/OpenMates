@@ -16,6 +16,22 @@ docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1
 # Inspect a specific embed
 docker exec api python /app/backend/scripts/inspect_embed.py <embed_id>
 
+# Inspect daily inspiration state for a user (cache + Directus)
+docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id>
+
+# Skip Directus (cache-only, faster)
+docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id> --no-directus
+
+# Skip Redis cache (Directus records only)
+docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id> --no-cache
+
+# List all users currently eligible for daily generation (scans Redis)
+docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py --list-active
+
+# JSON output
+docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id> --json
+docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py --list-active --json
+
 # Inspect a specific issue report (decrypts all fields, fetches S3 YAML report)
 # NOTE: The "Chat/Embed URL" field may show a /share/chat/... URL. This does NOT mean the
 # user is reporting an issue with a shared chat they opened. It means the user OWNS that chat
