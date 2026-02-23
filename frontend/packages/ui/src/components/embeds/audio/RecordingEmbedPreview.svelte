@@ -48,6 +48,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptAudio, releaseCachedAudio } from './audioEmbedCrypto';
+  import { getModelDisplayName } from '../../../utils/modelDisplayName';
 
   /** Max chars of transcript to show in the preview card before truncating */
   const MAX_TRANSCRIPT_PREVIEW = 120;
@@ -244,7 +245,7 @@
       return $text('app_skills.audio.transcribe.processing');
     }
     if (status === 'transcribing') {
-      if (model) return `${$text('app_skills.audio.transcribe.processing')} · ${model}`;
+      if (model) return `${$text('app_skills.audio.transcribe.processing')} · ${getModelDisplayName(model)}`;
       return $text('app_skills.audio.transcribe.processing');
     }
     if (status === 'error') {
@@ -252,10 +253,10 @@
     }
     if (status === 'finished') {
       if (!isAuthenticated) return $text('app_skills.audio.transcribe.signup_to_upload');
-      // Show duration (e.g. "0:42") and, if model is known, "· voxtral-mini-2602"
+      // Show duration (e.g. "0:42") and, if model is known, "· Voxtral Mini"
       const parts: string[] = [];
       if (duration) parts.push(duration);
-      if (model) parts.push(model);
+      if (model) parts.push(getModelDisplayName(model));
       if (parts.length > 0) return parts.join(' · ');
       return $text('app_skills.audio.transcribe.description');
     }

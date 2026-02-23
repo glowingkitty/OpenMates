@@ -145,6 +145,33 @@ models:
         currency: USD
         max_context: 128000
 
+  - id: "voxtral-mini-2602" # Official model ID — Mistral Voxtral Mini audio transcription model
+    name: "Voxtral Mini"
+    description: >-
+      Mistral AI's compact audio transcription model. Converts speech to text
+      with high accuracy across multiple languages. Optimised for short voice
+      notes and recordings at the lowest cost.
+    country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
+    for_app_skill: "audio.transcribe" # Used by the audio transcription skill
+    release_date: "2026-02-26" # voxtral-mini-2602 release date (Feb 2026)
+    allow_auto_select: false # Audio model — not for text auto-selection
+    input_types:
+      - audio
+    output_types:
+      - text
+    default_server: "mistral"
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "voxtral-mini-2602"
+        region: "EU"
+    pricing:
+      per_minute: 3 # 3 credits per minute of audio ($0.003/min × 3x markup)
+    costs:
+      per_minute:
+        price: 0.003
+        currency: USD
+
   - id: "devstral-2512" # Official model ID
     name: "Devstral 2"
     description: >-

@@ -797,12 +797,12 @@ export async function insertEpub(editor: Editor, file: File): Promise<void> {
 }
 
 /**
- * Transcription model used by the Mistral Voxtral skill.
- * Matches VOXTRAL_MODEL in backend/apps/audio/skills/transcribe_skill.py.
- * Stored in embed node attrs and EmbedStore TOON content so it can be displayed
- * in the subtitle ("0:42 · voxtral-mini-2602") in both editor and read-only contexts.
+ * Transcription model ID used during the 'transcribing' intermediate state,
+ * before the API response arrives with the confirmed model.
+ * This is the only place it is hardcoded — once the response returns, the
+ * model value comes from result_entry.model in the API response.
  */
-const VOXTRAL_MODEL = "voxtral-mini-2602";
+const VOXTRAL_MODEL_INTERIM = "voxtral-mini-2602";
 
 /**
  * Inserts a recording embed (audio) into the editor and triggers the upload +
@@ -1096,14 +1096,17 @@ export async function retryTranscription(
 
   // Parse transcript and update embed to 'finished'
   // Response shape: SkillResponse wrapper from apps_api.py:
-  // { success: true, data: { results: [{ id: request_id, results: [{ transcript, s3_key, ... }] }] } }
+  // { success: true, data: { results: [{ id: request_id, results: [{ transcript, model, s3_key, ... }] }] } }
   let transcriptText: string | undefined;
+  let modelFromResponse: string | undefined;
   try {
     const responseData = await transcribeResponse.json();
     const group = responseData?.data?.results?.find(
       (r: { id: string }) => r.id === embedId,
     );
     transcriptText = group?.results?.[0]?.transcript ?? undefined;
+    // Read model from API response — backend includes it in result_entry
+    modelFromResponse = group?.results?.[0]?.model ?? undefined;
   } catch (parseError) {
     console.error(
       "[EmbedHandlers] retryTranscription: failed to parse response:",
@@ -1114,7 +1117,7 @@ export async function retryTranscription(
   updateEmbedNode({
     status: "finished",
     transcript: transcriptText ?? null,
-    model: VOXTRAL_MODEL,
+    model: modelFromResponse ?? null,
     uploadError: null,
   });
 
@@ -1182,7 +1185,7 @@ async function _performRecordingUpload(
       aesKey: uploadResult.aes_key,
       aesNonce: uploadResult.aes_nonce,
       vaultWrappedAesKey: uploadResult.vault_wrapped_aes_key,
-      model: VOXTRAL_MODEL,
+      model: VOXTRAL_MODEL_INTERIM,
       uploadError: null,
     });
 
@@ -1298,14 +1301,18 @@ async function _performRecordingUpload(
     // Step 4: Parse transcript and update embed to 'finished'
     // -----------------------------------------------------------------------
     let transcriptText: string | undefined;
+    let modelFromResponse: string | undefined;
     try {
       const responseData = await transcribeResponse.json();
       // Response shape: SkillResponse wrapper from apps_api.py:
-      // { success: true, data: { results: [{ id: request_id, results: [{ transcript, s3_key, ... }] }] } }
+      // { success: true, data: { results: [{ id: request_id, results: [{ transcript, model, s3_key, ... }] }] } }
       const group = responseData?.data?.results?.find(
         (r: { id: string }) => r.id === localEmbedId,
       );
       transcriptText = group?.results?.[0]?.transcript ?? undefined;
+      // Read model from API response — backend includes the model ID in result_entry
+      // so the frontend never needs to hardcode it after the response arrives.
+      modelFromResponse = group?.results?.[0]?.model ?? undefined;
     } catch (parseError) {
       console.error(
         "[EmbedHandlers] Failed to parse transcription response:",
@@ -1320,7 +1327,7 @@ async function _performRecordingUpload(
     updateEmbedNode({
       status: "finished",
       transcript: transcriptText ?? null,
-      model: VOXTRAL_MODEL,
+      model: modelFromResponse ?? null,
       uploadError: null,
     });
 

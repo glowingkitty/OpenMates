@@ -30,6 +30,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptAudio, releaseCachedAudio } from './audioEmbedCrypto';
+  import { getModelDisplayName } from '../../../utils/modelDisplayName';
 
   /** Max chars for filename display in the info bar */
   const MAX_FILENAME_LENGTH = 40;
@@ -175,11 +176,11 @@
     return filename.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
   });
 
-  /** Info bar subtitle: duration when known, optionally with model name */
+  /** Info bar subtitle: duration when known, optionally with human-readable model name */
   let infoBarSubtitle = $derived.by(() => {
     const parts: string[] = [];
     if (duration) parts.push(duration);
-    if (model) parts.push(model);
+    if (model) parts.push(getModelDisplayName(model));
     if (parts.length > 0) return parts.join(' · ');
     return $text('app_skills.audio.transcribe.description');
   });
@@ -362,12 +363,12 @@
             aria-label={$text('app_skills.audio.transcribe.edit_transcript')}
           ></textarea>
           {#if model}
-            <p class="transcribed-via">Transcribed via {model}</p>
+            <p class="transcribed-via">Transcribed via {getModelDisplayName(model)}</p>
           {/if}
         {:else if editableTranscript}
           <p class="transcript-text">{editableTranscript}</p>
           {#if model}
-            <p class="transcribed-via">Transcribed via {model}</p>
+            <p class="transcribed-via">Transcribed via {getModelDisplayName(model)}</p>
           {/if}
         {:else}
           <p class="no-transcript">{$text('app_skills.audio.transcribe.no_transcript')}</p>

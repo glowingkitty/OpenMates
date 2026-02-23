@@ -88,6 +88,9 @@ class TranscribeResult(BaseModel):
     transcript: Optional[str] = None
     language: Optional[str] = None
     duration_seconds: Optional[float] = None
+    # Model ID included so the frontend can resolve a human-readable name via
+    # getModelDisplayName() without hardcoding the model ID in the frontend.
+    model: Optional[str] = None
     error: Optional[str] = None
 
 
@@ -411,6 +414,9 @@ class TranscribeSkill(BaseSkill):
                 "transcript": transcript_text,
                 "language": detected_language or language,
                 "duration_seconds": duration_seconds,
+                # Include model ID so frontend can resolve the human-readable name
+                # via getModelDisplayName() without hardcoding the model in JS.
+                "model": VOXTRAL_MODEL,
             }
 
             logger.debug(
