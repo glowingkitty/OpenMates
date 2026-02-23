@@ -19,7 +19,7 @@ precise:
   hi: सटीक
   th: แม่นยำ
   cs: Přesné
-  sv: 'Exakt'
+  sv: "Exakt"
   verified_by_human: []
 toggle_precise:
   context: Button text for toggling precise location
@@ -42,7 +42,7 @@ toggle_precise:
   hi: सटीकता टॉगल करें
   th: สลับความแม่นยำ
   cs: Přepnout přesnost
-  sv: 'Växla exakt'
+  sv: "Växla exakt"
   verified_by_human: []
 close:
   context: Button text for closing location selection
@@ -65,7 +65,7 @@ close:
   hi: बंद करें
   th: ปิด
   cs: Zavřít
-  sv: 'Stäng'
+  sv: "Stäng"
   verified_by_human: []
 select:
   context: Button text for selecting location
@@ -88,7 +88,7 @@ select:
   hi: चुनें
   th: เลือก
   cs: Vybrat
-  sv: 'Välj'
+  sv: "Välj"
   verified_by_human: []
 get_location:
   context: Button text for getting current location
@@ -111,7 +111,7 @@ get_location:
   hi: स्थान प्राप्त करें
   th: รับตำแหน่ง
   cs: Získat polohu
-  sv: 'Hämta plats'
+  sv: "Hämta plats"
   verified_by_human: []
 current_location:
   context: Text for current location
@@ -134,7 +134,7 @@ current_location:
   hi: वर्तमान स्थान
   th: ตำแหน่งปัจจุบัน
   cs: Aktuální poloha
-  sv: 'Nuvarande plats'
+  sv: "Nuvarande plats"
   verified_by_human: []
 selected_location:
   context: Text for selected location
@@ -157,7 +157,7 @@ selected_location:
   hi: चयनित स्थान
   th: ตำแหน่งที่เลือก
   cs: Vybraná poloha
-  sv: 'Vald plats'
+  sv: "Vald plats"
   verified_by_human: []
 current_area:
   context: Text for current area
@@ -180,7 +180,7 @@ current_area:
   hi: वर्तमान क्षेत्र
   th: พื้นที่ปัจจุบัน
   cs: Aktuální oblast
-  sv: 'Nuvarande område'
+  sv: "Nuvarande område"
   verified_by_human: []
 selected_area:
   context: Text for selected area
@@ -203,7 +203,7 @@ selected_area:
   hi: चयनित क्षेत्र
   th: พื้นที่ที่เลือก
   cs: Vybraná oblast
-  sv: 'Valt område'
+  sv: "Valt område"
   verified_by_human: []
 search_results:
   context: Text for search results
@@ -226,7 +226,7 @@ search_results:
   hi: खोज परिणाम
   th: ผลการค้นหา
   cs: Výsledky vyhledávání
-  sv: 'Sökresultat'
+  sv: "Sökresultat"
   verified_by_human: []
 close_search:
   context: Text for closing search
@@ -249,7 +249,7 @@ close_search:
   hi: खोज बंद करें
   th: ปิดการค้นหา
   cs: Zavřít vyhledávání
-  sv: 'Stäng sökning'
+  sv: "Stäng sökning"
   verified_by_human: []
 search_placeholder:
   context: Placeholder text for search input
@@ -272,7 +272,7 @@ search_placeholder:
   hi: स्थान खोजें...
   th: ค้นหาตำแหน่ง...
   cs: Hledat polohu...
-  sv: 'Sök plats...'
+  sv: "Sök plats..."
   verified_by_human: []
 search_button:
   context: Text for search button
@@ -295,5 +295,51 @@ search_button:
   hi: खोजें
   th: ค้นหา
   cs: Hledat
-  sv: 'Sök'
+  sv: "Sök"
+  verified_by_human: []
+location_permission_denied:
+  context: Error message shown when the user denies browser location permission
+  en: Location access denied. Please allow location access in your browser settings.
+  de: Standortzugriff verweigert. Bitte erlauben Sie den Standortzugriff in Ihren Browsereinstellungen.
+  zh: 位置访问被拒绝。请在浏览器设置中允许位置访问。
+  es: Acceso a ubicación denegado. Permita el acceso a la ubicación en la configuración de su navegador.
+  fr: Accès à la localisation refusé. Veuillez autoriser l'accès à la localisation dans les paramètres de votre navigateur.
+  pt: Acesso à localização negado. Permita o acesso à localização nas configurações do navegador.
+  ru: Доступ к местоположению запрещён. Разрешите доступ к местоположению в настройках браузера.
+  ja: 位置情報へのアクセスが拒否されました。ブラウザの設定で位置情報へのアクセスを許可してください。
+  ko: 위치 접근이 거부되었습니다. 브라우저 설정에서 위치 접근을 허용해 주세요.
+  it: Accesso alla posizione negato. Consenti l'accesso alla posizione nelle impostazioni del browser.
+  tr: Konum erişimi reddedildi. Tarayıcı ayarlarında konum erişimine izin verin.
+  vi: Quyền truy cập vị trí bị từ chối. Vui lòng cho phép truy cập vị trí trong cài đặt trình duyệt.
+  id: Akses lokasi ditolak. Izinkan akses lokasi di pengaturan browser Anda.
+  pl: Dostęp do lokalizacji odmówiony. Zezwól na dostęp do lokalizacji w ustawieniach przeglądarki.
+  nl: Locatietoegang geweigerd. Sta locatietoegang toe in uw browserinstellingen.
+  ar: تم رفض الوصول إلى الموقع. يرجى السماح بالوصول إلى الموقع في إعدادات المتصفح.
+  hi: स्थान पहुँच अस्वीकृत। कृपया अपनी ब्राउज़र सेटिंग में स्थान पहुँच की अनुमति दें।
+  th: การเข้าถึงตำแหน่งถูกปฏิเสธ โปรดอนุญาตการเข้าถึงตำแหน่งในการตั้งค่าเบราว์เซอร์
+  cs: Přístup k poloze byl zamítnut. Povolte přístup k poloze v nastavení prohlížeče.
+  sv: "Platsåtkomst nekad. Tillåt platsåtkomst i dina webbläsarinställningar."
+  verified_by_human: []
+location_unavailable:
+  context: Error message shown when the device cannot determine the user's location
+  en: Could not determine your location. Please try again.
+  de: Ihr Standort konnte nicht ermittelt werden. Bitte versuchen Sie es erneut.
+  zh: 无法确定您的位置。请重试。
+  es: No se pudo determinar su ubicación. Por favor, inténtelo de nuevo.
+  fr: Impossible de déterminer votre localisation. Veuillez réessayer.
+  pt: Não foi possível determinar a sua localização. Por favor, tente novamente.
+  ru: Не удалось определить ваше местоположение. Пожалуйста, попробуйте ещё раз.
+  ja: 位置を特定できませんでした。もう一度お試しください。
+  ko: 위치를 확인할 수 없습니다. 다시 시도해 주세요.
+  it: Impossibile determinare la tua posizione. Riprova.
+  tr: Konumunuz belirlenemedi. Lütfen tekrar deneyin.
+  vi: Không thể xác định vị trí của bạn. Vui lòng thử lại.
+  id: Tidak dapat menentukan lokasi Anda. Silakan coba lagi.
+  pl: Nie można określić Twojej lokalizacji. Spróbuj ponownie.
+  nl: Uw locatie kon niet worden bepaald. Probeer het opnieuw.
+  ar: تعذر تحديد موقعك. حاول مرة أخرى.
+  hi: आपका स्थान निर्धारित नहीं किया जा सका। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถระบุตำแหน่งของคุณได้ โปรดลองอีกครั้ง
+  cs: Nepodařilo se určit vaši polohu. Zkuste to znovu.
+  sv: "Det gick inte att fastställa din plats. Försök igen."
   verified_by_human: []

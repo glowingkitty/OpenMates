@@ -23,7 +23,8 @@
     let mapContainer: HTMLElement;
     let map: Map | null = null;
     let marker: Marker | null = null;
-    let L: any; // Will hold Leaflet instance
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let L: any; // Will hold Leaflet instance — dynamically imported, no static type available
     // Default to NOT precise (area mode) — matches privacy-first default.
     // Will be overridden by defaultImprecise prop from caller.
     let isPrecise = $state(false);
@@ -37,10 +38,12 @@
     // Add new variable to track map center
     let mapCenter = $state<{ lat: number; lon: number } | null>(null);
     
-    let tileLayer: any = null; // Add this variable to track tile layer
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let tileLayer: any = null; // Leaflet TileLayer — dynamically imported, no static type
 
     // Add at the top of the script
-    let customIcon: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let customIcon: any = null; // Leaflet DivIcon — dynamically imported, no static type
 
     let isTransitionComplete = false;
 
@@ -57,19 +60,23 @@
     let showPreciseToggle = $state(false);
 
     // Add new variable to track accuracy circle
-    let accuracyCircle: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let accuracyCircle: any = null; // Leaflet Circle — dynamically imported, no static type
 
     // Add new variable to track accuracy radius
     const ACCURACY_RADIUS = 500; // 500 meters radius for non-precise mode
 
     // Add new state variables
     let searchQuery = $state('');
-    let searchResults = $state<any[]>([]);
-    let isSearching = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let searchResults = $state<any[]>([]); // Nominatim API results — untyped third-party API
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let isSearching = false; // Tracks in-flight search request (set but not yet consumed in template)
     let showResults = $state(false);
 
     // Add these new functions and variables to the script section
-    let searchMarkers: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let searchMarkers: any[] = []; // Leaflet markers — dynamically imported, no static type
 
     // Add new state variables to store selected location details
     // selectedLocationText: display text from the chosen search result.
@@ -96,6 +103,11 @@
     // Set when user clicks a search result; cleared when user pans map manually.
     let selectedPlaceType = $state<string>('');
     let reverseGeocodeController: AbortController | null = null;
+
+    // ─── Geolocation error state ─────────────────────────────────────────────
+    // Shown when browser location access is denied or unavailable.
+    // Cleared when the user retries or moves the map.
+    let locationError = $state<string>('');
 
     // Set initial precision state from prop (runs once after initial render)
     $effect(() => {
@@ -126,7 +138,9 @@
 
     // Add logger for debugging
     const logger = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         debug: (...args: any[]) => console.debug('[MapsView]', ...args),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         info: (...args: any[]) => console.info('[MapsView]', ...args)
     };
 
@@ -225,6 +239,8 @@
             const mapRef = map;
             mapRef.on('movestart', () => {
                 isMapMoving = true;
+                // Clear any geolocation error when the user interacts with the map
+                locationError = '';
             });
             
             mapRef.on('moveend', () => {
@@ -349,6 +365,8 @@
             return;
         }
 
+        // Clear any previous error before attempting
+        locationError = '';
         isLoading = true;
         isGettingLocation = true;
         showPreciseToggle = true; // Show the toggle when getting location
@@ -410,6 +428,20 @@
 
         } catch (error) {
             logger.debug('Error getting location:', error);
+            // Show a visible error to the user based on the GeolocationPositionError code:
+            //   1 = PERMISSION_DENIED  — user or browser blocked location access
+            //   2 = POSITION_UNAVAILABLE — device cannot determine location
+            //   3 = TIMEOUT — request timed out
+            if (error instanceof GeolocationPositionError) {
+                if (error.code === GeolocationPositionError.PERMISSION_DENIED) {
+                    locationError = $text('enter_message.location.location_permission_denied');
+                } else {
+                    // POSITION_UNAVAILABLE or TIMEOUT
+                    locationError = $text('enter_message.location.location_unavailable');
+                }
+            } else {
+                locationError = $text('enter_message.location.location_unavailable');
+            }
         } finally {
             isLoading = false;
             isGettingLocation = false;
@@ -528,9 +560,11 @@
     }
 
     // Create a debounced search function
-    function debounce(func: Function, wait: number) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function debounce(func: (...args: any[]) => unknown, wait: number) {
         let timeout: ReturnType<typeof setTimeout>;
         
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return function executedFunction(...args: any[]) {
             const later = () => {
                 clearTimeout(timeout);
@@ -651,6 +685,7 @@
             const results = await response.json();
 
             // Format and assign a unique ID to each search result
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             searchResults = results.map((result: any) => {
                 const formattedResult = formatSearchResult(result);
                 const transitTypes = getTransitTypes(result);
@@ -730,10 +765,12 @@
     }, 300);
 
     // Update the formatSearchResult function
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function formatSearchResult(result: any) {
         const locale = getCurrentLocale();
         
         // Helper function to get localized name
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         function getLocalizedName(namedetails: any) {
             if (!namedetails) return null;
             
@@ -871,6 +908,7 @@
     }
 
     // Add helper function to determine transit types
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function getTransitTypes(result: any) {
         const tags = result.extratags || {};
         
@@ -960,6 +998,7 @@
     }
 
     // Update the getResultIconClass function
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function getResultIconClass(result: any) {
         // Check for airport first
         if (result.metadata?.osmClass === 'aeroway' && 
@@ -1024,6 +1063,7 @@
     }
 
     // Update the highlightSearchResult function to adjust opacity based on associated result ID
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function highlightSearchResult(result: any) {
         
         searchResults = searchResults.map(r => ({
@@ -1047,6 +1087,7 @@
     }
 
     // Update the handleSearchResultClick function
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function handleSearchResultClick(result: any) {
         if (map) {
             const { lat, lon } = result;
@@ -1171,6 +1212,7 @@
 >
     {#if showPreciseToggle && !showResults}
         <div class="precise-toggle" transition:slide={{ duration: 300, axis: 'y' }}>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             <span>{@html $text('enter_message.location.precise')}</span>
             <Toggle 
                 bind:checked={isPrecise}
@@ -1206,6 +1248,12 @@
             <div class="precise-center-pin" aria-hidden="true"></div>
         {/if}
     </div>
+
+    {#if locationError}
+        <div class="location-error-banner" transition:slide={{ duration: 200, axis: 'y' }}>
+            {locationError}
+        </div>
+    {/if}
 
     <div class="bottom-bar">
         <div class="controls">
@@ -1249,6 +1297,7 @@
     {#if showResults && searchResults.length > 0}
         <div class="search-results-container" transition:slide={{ duration: 300 }}>
             <div class="search-results-header">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <h3>{@html $text('enter_message.location.search_results')}</h3>
                 <button 
                     class="clickable-icon icon_close" 
@@ -1331,6 +1380,26 @@
         background: var(--color-grey-0);
         border-radius: 24px;
         z-index: 2;
+    }
+
+    .location-error-banner {
+        /* Floats just above the bottom-bar, centered, styled as a warning pill */
+        position: absolute;
+        bottom: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--color-grey-1, #f5f5f5);
+        color: var(--color-font-primary);
+        border: 1px solid var(--color-error, #e53e3e);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        text-align: center;
+        max-width: calc(100% - 40px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        z-index: 1003;
+        white-space: normal;
+        word-break: break-word;
     }
 
     .controls {
