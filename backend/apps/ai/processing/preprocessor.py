@@ -673,7 +673,86 @@ async def handle_preprocessing(
             error_message="Mate configuration is missing or empty, cannot determine categories for LLM."
         )
     
-    available_categories_list = sorted(list(set(mate.category for mate in all_mates if mate.category)))
+    # Build a deduplicated map of category -> description from mate configs.
+    # Each category corresponds to exactly one mate; we use the mate's description field
+    # as the per-category hint so the preprocessing LLM understands precisely what each
+    # category covers and can make accurate routing decisions.
+    #
+    # IMPORTANT: these descriptions are deliberately written to avoid overlap between
+    # categories — the preprocessing LLM must be able to distinguish them clearly.
+    # We also override a small number of categories with tighter, more precise hints
+    # (especially 'onboarding_support' and 'general_knowledge') to prevent mis-routing.
+    #
+    # Override map: category -> description string used in the {CATEGORIES_LIST} prompt.
+    # Any category NOT in this map falls back to the description from mates.yml.
+    CATEGORY_DESCRIPTION_OVERRIDES: Dict[str, str] = {
+        # 'onboarding_support' is the most mis-routed category. The override makes the
+        # restriction explicit so the LLM never picks it for generic user tasks.
+        "onboarding_support": (
+            "ONLY for questions about the OpenMates platform itself: its features, mates, apps, "
+            "skills, focus modes, account management, or pricing. "
+            "Do NOT use for any general user task (writing, research, coding, cooking, travel, etc.)."
+        ),
+        # 'general_knowledge' is the catch-all fallback. The override makes this explicit
+        # so the LLM always prefers a specific category when one fits, and only falls back
+        # here when nothing else matches.
+        "general_knowledge": (
+            "Fallback for topics that do not fit any other specific category. "
+            "Use for everyday personal tasks (writing emails or letters, drafting documents, "
+            "casual conversation, miscellaneous questions). "
+            "Always prefer a more specific category when one clearly fits — "
+            "only use this when no other category is a good match."
+        ),
+        # 'electrical_engineering' is scoped to professional/academic EE topics only,
+        # not hobbyist electronics (which belongs to 'maker_prototyping').
+        "electrical_engineering": (
+            "Professional electrical engineering: circuit design, power systems, signal processing, "
+            "PCB design, electrical standards, and academic/industrial EE problems. "
+            "For hobbyist DIY electronics projects, use 'maker_prototyping' instead."
+        ),
+        # 'maker_prototyping' covers the hobbyist/DIY side; explicitly excludes pure EE theory.
+        "maker_prototyping": (
+            "Hands-on DIY and maker projects: 3D printing, Arduino/Raspberry Pi, hobbyist electronics, "
+            "fabrication, and rapid prototyping. "
+            "For professional electrical engineering theory or industrial systems, use 'electrical_engineering'."
+        ),
+        # 'software_development' covers coding and engineering; 'design' covers visual/UX work —
+        # the override makes this boundary clear since UI work can straddle both.
+        "software_development": (
+            "Writing, debugging, or reviewing code; software architecture; DevOps; APIs; databases; "
+            "and software engineering practices. "
+            "For graphic design, UI/UX visual concepts, or design tools, use 'design' instead."
+        ),
+        "design": (
+            "Graphic design, UI/UX design concepts, visual aesthetics, typography, branding, "
+            "and design tools. "
+            "For implementing or coding a UI, use 'software_development' instead."
+        ),
+    }
+
+    # Build the category -> description map from mates, then apply overrides.
+    category_description_map: Dict[str, str] = {}
+    for mate in all_mates:
+        if mate.category and mate.category not in category_description_map:
+            # Use stripped first line of description as the default hint
+            raw_desc = (mate.description or "").strip()
+            # Collapse newlines so the hint stays on one line in the prompt
+            single_line = " ".join(raw_desc.split())
+            category_description_map[mate.category] = single_line
+
+    # Apply overrides — these take priority over the auto-generated descriptions above
+    for cat, override_desc in CATEGORY_DESCRIPTION_OVERRIDES.items():
+        if cat in category_description_map:
+            category_description_map[cat] = override_desc
+
+    # Build the sorted list in "category: description" format.
+    # The ": " separator is detected by llm_utils.py to switch from comma to newline
+    # formatting, giving each category its own line in the final prompt — much easier
+    # for the LLM to parse than a long comma-separated blob.
+    available_categories_list = sorted(
+        [f"{cat}: {desc}" for cat, desc in category_description_map.items()]
+    )
+
     if not available_categories_list:
         logger.critical(f"{log_prefix} CRITICAL: No categories could be derived from the loaded mates. Mates.yml might be misconfigured or all mates lack categories.")
         return PreprocessingResult(
@@ -681,16 +760,21 @@ async def handle_preprocessing(
             rejection_reason="internal_error_no_mate_categories",
             error_message="No categories found in mate configurations, cannot guide LLM for mate selection."
         )
-    
-    # Ensure 'general_knowledge' is always available as a fallback category
-    # This is critical for category validation fallback logic
-    if "general_knowledge" not in available_categories_list:
+
+    # Ensure 'general_knowledge' is always available as a fallback category.
+    # This is critical for category validation fallback logic.
+    general_knowledge_present = any(item.startswith("general_knowledge:") for item in available_categories_list)
+    if not general_knowledge_present:
         logger.warning(
             f"{log_prefix} 'general_knowledge' category not found in available categories list. "
-            f"Adding it as a fallback option. Available categories: {available_categories_list}"
+            f"Adding it as a fallback option."
         )
-        available_categories_list.append("general_knowledge")
-        available_categories_list = sorted(available_categories_list)  # Re-sort after adding
+        fallback_desc = CATEGORY_DESCRIPTION_OVERRIDES.get(
+            "general_knowledge",
+            "Fallback for topics that do not fit any other specific category."
+        )
+        available_categories_list.append(f"general_knowledge: {fallback_desc}")
+        available_categories_list = sorted(available_categories_list)
  
     # Extract and log available app skills for tool preselection
     # Note: Exclude ai.ask from available skills - it's the main processing entry point, not a tool

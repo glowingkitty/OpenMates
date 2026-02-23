@@ -40,9 +40,12 @@ fast_preprocess_request_tool:
           - **Nuance for Harm Reduction**: Distinguish between requests for information aimed at harm reduction (e.g., "safer use practices for X substance," "understanding risks of Y activity") and requests for producing illegal items/substances or performing illegal acts. Harm reduction queries, if clearly for informational/safety purposes and not promoting illegal acts, should generally receive a lower harmful_or_illegal score than direct requests for illicit production/activity.
           - **Right to Repair & Device Ownership**: Requests about modifying, jailbreaking, rooting, unlocking, or repairing devices the user owns are NOT harmful. Users have the right to control their own hardware and software. This includes: jailbreaking phones/tablets, rooting Android devices, unlocking bootloaders, installing custom firmware/ROMs, bypassing manufacturer restrictions on owned devices, repairing hardware, and similar device ownership activities. These should score 0.0-1.0 unless there's clear intent to harm others (e.g., bypassing security to access someone else's device).
       2.  **category**: Determine the primary subject matter or domain of the user's request by selecting the most appropriate category from the dynamically provided list.
-          - Choose the most fitting category from the following list of valid categories which will be dynamically provided: {CATEGORIES_LIST}.
+          - Each category below includes a description of exactly what it covers. Read each one carefully before deciding.
+          - Available categories:
+            {CATEGORIES_LIST}
+          - **Always prefer the most specific matching category.** Only use 'general_knowledge' when no other category is a clear fit — it is the fallback of last resort.
+          - **'onboarding_support' is strictly for questions about the OpenMates platform itself** (features, mates, apps, skills, account, pricing). ANY general user task — writing an email, drafting text, research, cooking, coding, travel planning, etc. — must never be classified as 'onboarding_support'.
           - **Crisis/Self-Harm Handling**: If the request clearly implies self-harm or an immediate crisis, **you MUST select 'life_coach_psychology' as the category.** This is critical for routing the user to appropriate support. Such requests are not "harmful_or_illegal" in the sense of blocking, but require specialized handling.
-          - If the category is unclear or doesn't fit any of the other provided options (and is not a crisis/self-harm situation), select 'general_knowledge'.
       3.  **misuse_risk**: Assess the likelihood that the request, even if not overtly harmful itself, could be used to facilitate scams, hacking, or other malicious activities.
           - Score from 0 (very low risk) to 10 (very high risk).
           - **Consider Intent**: A request for information about cybersecurity for defensive purposes is different from a request detailing how to exploit a vulnerability for malicious intent. Focus on the likely intent and common patterns of malicious queries. Harm reduction queries, if for safety information, should generally have a low misuse_risk.
@@ -64,7 +67,7 @@ fast_preprocess_request_tool:
           description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Consider harm reduction context. Device ownership activities (jailbreaking, rooting, right-to-repair) should score 0.0-1.0."
         category:
           type: "string"
-          description: "Most fitting category for the request, chosen from the dynamically provided {CATEGORIES_LIST}. Use 'life_coach_psychology' for crisis/self-harm, 'general_knowledge' for unclear topics."
+          description: "Most fitting category from {CATEGORIES_LIST}. Always prefer the most specific category. Use 'general_knowledge' only as a last resort when nothing else fits. Use 'life_coach_psychology' for crisis/self-harm. NEVER use 'onboarding_support' for general tasks — only for direct questions about the OpenMates platform itself."
         misuse_risk:
           type: "integer"
           description: "Risk of request being used for scams/hacking (0-10). High scores may be auto-rejected. Consider intent."
@@ -178,8 +181,10 @@ preprocess_request_tool:
       # --- Follow-up message only (when title already exists) ---
       # The fields below are added to the required list on follow-up messages only.
       # On first messages, these come from the parallel fast_preprocess_request_tool call.
-      12. **category** (follow-up only): Re-evaluate the category for the current message in an ongoing conversation.
-          - Choose the most fitting category from the dynamically provided {CATEGORIES_LIST}.
+       12. **category** (follow-up only): Re-evaluate the category for the current message in an ongoing conversation.
+          - Each category in {CATEGORIES_LIST} includes a description — read it to pick the most specific match.
+          - **Always prefer the most specific matching category.** Only fall back to 'general_knowledge' when no other category clearly fits.
+          - **'onboarding_support' is strictly for questions about the OpenMates platform itself** (features, mates, apps, skills, account, pricing). ANY general user task must never be classified as 'onboarding_support'.
           - **CRITICAL: Default to the PREVIOUS category (provided as {PREVIOUS_CATEGORY}) unless the user's new message is CLEARLY about a very different topic.**
           - Follow-up questions, clarifications, or continuations of the same topic should KEEP the previous category.
           - Only change the category if the user explicitly shifts to a fundamentally different subject area (e.g., from coding to cooking, from history to mathematics).
@@ -248,7 +253,7 @@ preprocess_request_tool:
           maxItems: 10
         category:
           type: "string"
-          description: "Most fitting category for the request, chosen from {CATEGORIES_LIST}. On follow-ups, default to the previous category ({PREVIOUS_CATEGORY}) unless the topic has CLEARLY changed to a fundamentally different area. Use 'life_coach_psychology' for crisis/self-harm, 'general_knowledge' only if no previous category and topic is unclear."
+          description: "Most fitting category from {CATEGORIES_LIST}. Always prefer the most specific category; use 'general_knowledge' only as a last resort. On follow-ups, default to {PREVIOUS_CATEGORY} unless the topic has CLEARLY changed. Use 'life_coach_psychology' for crisis/self-harm. NEVER use 'onboarding_support' for general tasks — only for direct questions about the OpenMates platform itself."
         harmful_or_illegal:
           type: "number"
           description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Device ownership activities (jailbreaking, rooting, right-to-repair) should score 0.0-1.0."
