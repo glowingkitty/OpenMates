@@ -64,6 +64,12 @@ interface ImageEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   aesNonce?: string;
   /** Original File object (ephemeral, only available in editor context during upload session) */
   originalFile?: File;
+  /**
+   * AI detection result from SightEngine (set after upload by _performUpload in embedHandlers.ts).
+   * Shape: { ai_generated: number (0–1), provider: string } | null
+   * Also stored in the EmbedStore TOON blob as the 'ai_detection' field.
+   */
+  aiDetection?: { ai_generated: number; provider: string } | null;
 }
 
 /**
@@ -150,6 +156,11 @@ export class ImageRenderer implements EmbedRenderer {
           const aesKey = parsed.aes_key as string | undefined;
           const aesNonce = parsed.aes_nonce as string | undefined;
           const filename = (parsed.filename as string) || attrs.filename;
+          // Extract AI detection from TOON blob (stored by embedHandlers.ts / sendHandlers.ts)
+          const aiDetection = parsed.ai_detection as
+            | { ai_generated: number; provider: string }
+            | null
+            | undefined;
 
           if (!s3Files || !aesKey || !s3BaseUrl) {
             console.warn(
@@ -171,6 +182,7 @@ export class ImageRenderer implements EmbedRenderer {
             aesNonce,
             filename: filename || undefined,
             status: "finished",
+            aiDetection: aiDetection ?? null,
           };
           this._renderImageComponent(content, restoredAttrs);
           console.debug(
@@ -292,6 +304,7 @@ export class ImageRenderer implements EmbedRenderer {
               isAuthenticated: fullscreenIsAuthenticated,
               fileSize: fullscreenFileSize,
               fileType: fullscreenFileType,
+              aiDetection: attrs.aiDetection ?? null,
             },
           }),
         );
@@ -337,6 +350,7 @@ export class ImageRenderer implements EmbedRenderer {
           isAuthenticated,
           fileSize,
           fileType,
+          aiDetection: attrs.aiDetection ?? null,
           onFullscreen: handleFullscreen,
           onStop: handleStop,
         },

@@ -505,6 +505,7 @@
         isAuthenticated?: boolean;
         fileSize?: number;
         fileType?: string;
+        aiDetection?: { ai_generated: number; provider: string } | null;
     }>({});
 
     // Note: isLoggingOutFromSignup state removed as it was set but never read
@@ -828,6 +829,7 @@
             isAuthenticated: event.detail.isAuthenticated,
             fileSize: event.detail.fileSize,
             fileType: event.detail.fileType,
+            aiDetection: event.detail.aiDetection ?? null,
         };
         showUploadedImageFullscreen = true;
     }
@@ -7008,6 +7010,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     isAuthenticated={uploadedImageFullscreenData.isAuthenticated}
                     fileSize={uploadedImageFullscreenData.fileSize}
                     fileType={uploadedImageFullscreenData.fileType}
+                    aiDetection={uploadedImageFullscreenData.aiDetection}
                     onClose={handleCloseUploadedImageFullscreen}
                 />
             {/if}

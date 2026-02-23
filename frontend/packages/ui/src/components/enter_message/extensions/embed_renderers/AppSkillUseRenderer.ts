@@ -1838,6 +1838,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           isAuthenticated: true,
           fileSize: uploadContent?.file_size,
           fileType: uploadContent?.file_type,
+          aiDetection: uploadContent?.ai_detection ?? null,
         },
         bubbles: true,
       });

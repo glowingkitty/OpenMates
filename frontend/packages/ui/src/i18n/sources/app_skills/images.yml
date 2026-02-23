@@ -125,6 +125,31 @@ view.viewing:
   verified_by_human:
     - en
 
+view.ai_generated:
+  context: Label shown on an uploaded image embed when the AI detection service has determined the image is AI-generated (probability > 0.7)
+  en: AI generated
+  de: KI-generiert
+  zh: AI 生成
+  es: Generado por IA
+  fr: Généré par IA
+  pt: Gerado por IA
+  ru: Создано ИИ
+  ja: AI生成
+  ko: AI 생성
+  it: Generato da IA
+  tr: Yapay Zeka Üretimi
+  vi: Do AI tạo ra
+  id: Dibuat AI
+  pl: Wygenerowane przez AI
+  nl: AI-gegenereerd
+  ar: مُنشأ بالذكاء الاصطناعي
+  hi: AI जनित
+  th: สร้างโดย AI
+  cs: Generováno AI
+  sv: AI-genererad
+  verified_by_human:
+    - en
+
 view.signup_to_upload:
   context: Status text shown on image embed card when user is not authenticated (demo mode)
   en: "Signup to upload\u2026"

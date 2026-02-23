@@ -57,6 +57,12 @@
     fileType?: string;
     /** Close handler */
     onClose: () => void;
+    /**
+     * AI detection metadata from SightEngine (set after upload by the server pipeline).
+     * Shape: { ai_generated: number (0–1), provider: string } | null
+     * The AI generated badge is only shown when ai_generated > 0.7.
+     */
+    aiDetection?: { ai_generated: number; provider: string } | null;
   }
 
   let {
@@ -70,7 +76,16 @@
     fileSize,
     fileType,
     onClose,
+    aiDetection = null,
   }: Props = $props();
+
+  /** Threshold matching the backend's "LIKELY AI-GENERATED" log in upload_route.py */
+  const AI_GENERATED_THRESHOLD = 0.7;
+
+  /** Show the AI generated badge only when SightEngine score exceeds the threshold */
+  let showAiBadge = $derived(
+    !!aiDetection && aiDetection.ai_generated > AI_GENERATED_THRESHOLD,
+  );
 
   // -------------------------------------------------------------------------
   // Image loading state
@@ -348,10 +363,11 @@
           <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" onclick={handleImageClick}>
             <img src={fullImageUrl} alt={filename} class="full-image" />
           </a>
-          {#if files}
-            <!-- AI badge: indicates this image was uploaded and is accessible to the AI -->
-            <div class="ai-badge" aria-hidden="true">
+          {#if showAiBadge}
+            <!-- AI generated badge: shown only when SightEngine confirms ai_generated > 0.7 -->
+            <div class="ai-badge" aria-label={$text('app_skills.images.view.ai_generated')}>
               <span class="ai-badge-icon"></span>
+              <span class="ai-badge-label">{$text('app_skills.images.view.ai_generated')}</span>
             </div>
           {/if}
         </div>
@@ -423,27 +439,27 @@
     max-height: 100%;
   }
 
-  /* AI badge: top-right corner indicator that the AI has access to this image */
+  /* AI generated badge: pill shown when SightEngine confirms image is AI-generated */
   .ai-badge {
     position: absolute;
     top: 12px;
     right: 12px;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 5px;
+    padding: 5px 10px 5px 8px;
+    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
     pointer-events: none;
     flex-shrink: 0;
   }
 
   .ai-badge-icon {
     display: block;
-    width: 18px;
-    height: 18px;
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
     background: #ffffff;
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');
@@ -453,6 +469,15 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
+  }
+
+  .ai-badge-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #ffffff;
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
   }
 
   .image-link {

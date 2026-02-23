@@ -88,6 +88,12 @@
      * The caller (ImageRenderer.ts) wires this to cancelUpload(id).
      */
     onStop?: () => void;
+    /**
+     * AI detection metadata from SightEngine (set after a successful upload).
+     * Shape: { ai_generated: number (0–1), provider: string } | null
+     * The AI badge is only shown when ai_generated > 0.7 (LIKELY AI-GENERATED).
+     */
+    aiDetection?: { ai_generated: number; provider: string } | null;
   }
 
   let {
@@ -106,6 +112,7 @@
     fileType,
     onFullscreen,
     onStop,
+    aiDetection = null,
   }: Props = $props();
 
   // Decrypted image blob URL (set after successful S3 fetch+decrypt)
@@ -147,12 +154,17 @@
   skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
 
   /**
-   * Show the AI badge icon in the top-right corner of the image when the image
-   * has been uploaded and processed by the AI pipeline (i.e., S3 storage is
-   * present). This signals to the user that the AI can see and access this image.
-   * Uses statusProp directly (status is derived later and not yet in scope here).
+   * Show the AI badge when the SightEngine detection service has confirmed the
+   * image is AI-generated (probability > 0.7, matching the backend threshold
+   * in upload_route.py that logs "LIKELY AI-GENERATED").
+   * The badge is only shown once the upload is complete (status = 'finished').
    */
-  let showAiBadge = $derived(!!s3Files && statusProp === 'finished');
+  const AI_GENERATED_THRESHOLD = 0.7;
+  let showAiBadge = $derived(
+    statusProp === 'finished' &&
+    !!aiDetection &&
+    aiDetection.ai_generated > AI_GENERATED_THRESHOLD,
+  );
 
   // Portrait detection: detected after the image loads naturally.
   // For portrait images (height > width) we expand the embed card height so the
@@ -468,9 +480,10 @@
             onclick={isFullscreenEnabled ? onFullscreen : undefined}
           />
           {#if showAiBadge}
-            <!-- AI badge: indicates this image was uploaded and is accessible to the AI -->
-            <div class="ai-badge" aria-hidden="true">
+            <!-- AI generated badge: shown only when SightEngine confirms ai_generated > 0.7 -->
+            <div class="ai-badge" aria-label={$text('app_skills.images.view.ai_generated')}>
               <span class="ai-badge-icon"></span>
+              <span class="ai-badge-label">{$text('app_skills.images.view.ai_generated')}</span>
             </div>
           {/if}
         </div>
@@ -548,27 +561,27 @@
     opacity: 0.92;
   }
 
-  /* AI badge: top-right corner indicator that the AI has access to this image */
+  /* AI generated badge: pill shown when SightEngine confirms image is AI-generated */
   .ai-badge {
     position: absolute;
     top: 8px;
     right: 8px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 4px;
+    padding: 4px 8px 4px 6px;
+    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
     pointer-events: none;
     flex-shrink: 0;
   }
 
   .ai-badge-icon {
     display: block;
-    width: 14px;
-    height: 14px;
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
     background: #ffffff;
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');
@@ -578,6 +591,15 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
+  }
+
+  .ai-badge-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #ffffff;
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
   }
 
   /* Loading skeleton */
