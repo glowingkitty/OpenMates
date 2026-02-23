@@ -57,6 +57,8 @@ changes to the documentation (to keep the documentation up to date).
     // Import all settings route definitions and the dynamic wrapper component
     import { baseSettingsViews, AppDetailsWrapper } from './settings/settingsRoutes';
     import { appSkillsStore } from '../stores/appSkillsStore';
+    import { modelsMetadata } from '../data/modelsMetadata';
+    import { getProviderIconUrl } from '../data/providerIcons';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
@@ -431,9 +433,18 @@ changes to the documentation (to keep the documentation up to date).
     let direction = $state('forward');
     let activeSubMenuIcon = $state('');
     let activeSubMenuTitleKey = $state(''); // Store the translation key
+    let activeSubMenuTitleRaw = $state(''); // Raw title (used when no translation key, e.g. model name)
+    // SVG path for provider icon (e.g. "icons/anthropic.svg") — set when on a model detail page
+    let activeSubMenuProviderIconSvg = $state('');
     
-    // Reactive translation of the submenu title
-    let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : '');
+    // Reactive translation of the submenu title — falls back to raw title when no key
+    let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : activeSubMenuTitleRaw);
+    
+    // True when the header should show a provider icon (model detail pages)
+    let isModelDetailPage = $derived(
+        activeSettingsView.startsWith('app_store/') &&
+        /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/.test(activeSettingsView)
+    );
     
     // Track if we're in an app store sub-page (not the main app_store or 'all' page)
     // This is used to render the app icon properly in the header
@@ -532,17 +543,27 @@ changes to the documentation (to keep the documentation up to date).
                     } else if (iconName === 'coding') {
                         // coding.svg -> code (app ID is "code", icon file is "coding.svg")
                         iconName = 'code';
+                    } else if (iconName === 'heart') {
+                        // heart.svg -> health (app ID is "health", icon file is "heart.svg")
+                        iconName = 'health';
                     }
                     activeSubMenuIcon = iconName;
                 } else {
                     activeSubMenuIcon = appId;
                 }
                 
+                // Reset provider icon state — will be re-set below if this is a model detail page
+                activeSubMenuProviderIconSvg = '';
+                activeSubMenuTitleRaw = '';
+                
                 // Check if this is a model detail route (app_store/{appId}/skill/{skillId}/model/{modelId})
                 if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
-                    // Model detail route - use the title from the event (model name)
-                    // The title is passed from AiAskSkillSettings when clicking a model
-                    activeSubMenuTitleKey = ''; // Title is set from event detail.title
+                    // Model detail route — show provider icon and model name in header
+                    const modelId = pathParts[4];
+                    const modelMeta = modelsMetadata.find(m => m.id === modelId);
+                    activeSubMenuProviderIconSvg = modelMeta?.logo_svg ?? '';
+                    activeSubMenuTitleKey = ''; // No translation key — use raw title (model name)
+                    activeSubMenuTitleRaw = detail.title ?? (modelMeta?.name ?? modelId);
                 } else if (pathParts.length === 3 && pathParts[1] === 'skill') {
                     // Skill route (app_store/{appId}/skill/{skillId})
                     const skillId = pathParts[2];
@@ -593,6 +614,8 @@ changes to the documentation (to keep the documentation up to date).
             }
         } else {
             // For other routes, use the provided icon and build translation key from path
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleRaw = '';
             activeSubMenuIcon = icon || '';
             // Store the translation key instead of the translated text
             // Special handling for security sub-routes - skip "security" segment in translation key
@@ -698,6 +721,10 @@ changes to the documentation (to keep the documentation up to date).
                     // This is the entry detail route - go back to the category page
                     previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
                     previousPathSegments = ['app_store', appId, 'settings_memories', pathParts[2]];
+                } else if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
+                    // Model detail route - go back to the skill settings page
+                    previousPath = `app_store/${appId}/skill/${pathParts[2]}`;
+                    previousPathSegments = ['app_store', appId, 'skill', pathParts[2]];
                 } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
                     // This is the create entry route - go back to the category page
                     previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
@@ -748,6 +775,9 @@ changes to the documentation (to keep the documentation up to date).
                         } else if (iconName === 'coding') {
                             // coding.svg -> code (app ID is "code", icon file is "coding.svg")
                             iconName = 'code';
+                        } else if (iconName === 'heart') {
+                            // heart.svg -> health (app ID is "health", icon file is "heart.svg")
+                            iconName = 'health';
                         }
                         icon = iconName;
                     } else {
@@ -1589,14 +1619,28 @@ changes to the documentation (to keep the documentation up to date).
                 class:reduced-padding={hideNavButton}
                 transition:slide={{ duration: 300, easing: cubicOut }}
             >
-                <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
-                <!-- Focus mode details pages now use the same icon+title header as skills -->
-                <SettingsItem
-                    type="heading"
-                    icon={activeSubMenuIcon}
-                    title={activeSubMenuTitle}
-                    iconType={isAppStoreSubPage ? 'app' : 'default'}
-                />
+                {#if isModelDetailPage && activeSubMenuProviderIconSvg}
+                    <!-- Model detail page: show provider icon + model name instead of app icon -->
+                    <div class="model-detail-header-item">
+                        <div class="model-detail-provider-icon">
+                            <img
+                                src={getProviderIconUrl(activeSubMenuProviderIconSvg)}
+                                alt=""
+                                class="model-detail-provider-img"
+                            />
+                        </div>
+                        <strong class="model-detail-title">{activeSubMenuTitle}</strong>
+                    </div>
+                {:else}
+                    <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
+                    <!-- Focus mode details pages now use the same icon+title header as skills -->
+                    <SettingsItem
+                        type="heading"
+                        icon={activeSubMenuIcon}
+                        title={activeSubMenuTitle}
+                        iconType={isAppStoreSubPage ? 'app' : 'default'}
+                    />
+                {/if}
             </div>
         {/if}
     </div>
@@ -1912,6 +1956,41 @@ changes to the documentation (to keep the documentation up to date).
         padding-top: 10px;
     }
 
+    /* Model detail header: provider icon + model name */
+    .model-detail-header-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 16px 4px 12px;
+    }
+
+    .model-detail-provider-icon {
+        flex-shrink: 0;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: var(--color-grey-10);
+        overflow: hidden;
+    }
+
+    .model-detail-provider-img {
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+    }
+
+    .model-detail-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-grey-100);
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 
     .settings-content-wrapper {
         display: flex;

@@ -396,6 +396,11 @@
         if (iconName === 'coding') {
             iconName = 'code';
         }
+        // Handle special case: heart.svg -> health (since the app ID is "health" but icon file is heart.svg)
+        // This ensures the correct CSS variable --color-app-health is used instead of --color-app-heart
+        if (iconName === 'heart') {
+            iconName = 'health';
+        }
         return iconName;
     }
     

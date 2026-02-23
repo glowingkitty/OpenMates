@@ -139,6 +139,10 @@
         if (iconName === 'coding') {
             iconName = 'code';
         }
+        // Handle special case: heart.svg -> health (since the app ID is "health" but icon file is heart.svg)
+        if (iconName === 'heart') {
+            iconName = 'health';
+        }
         return iconName;
     }
     

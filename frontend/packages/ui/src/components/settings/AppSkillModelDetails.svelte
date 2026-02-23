@@ -157,6 +157,8 @@
         if (!iconImage) return appId;
         let iconName = iconImage.replace(/\.svg$/, '');
         if (iconName === 'coding') iconName = 'code';
+        // Handle special case: heart.svg -> health (app ID is "health", icon file is heart.svg)
+        if (iconName === 'heart') iconName = 'health';
         return iconName;
     }
     
@@ -180,21 +182,6 @@
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
-        <!-- Model header: provider logo, name, provider name -->
-        <div class="model-header">
-            <div class="model-icon">
-                <img
-                    src={getProviderIconUrl(model.logo_svg)}
-                    alt={model.provider_name}
-                    class="provider-logo"
-                />
-            </div>
-            <div class="model-title-section">
-                <h1 class="model-name">{model.name}</h1>
-                <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider').replace('{provider}', model.provider_name)}</span>
-            </div>
-        </div>
-        
         <!-- Description -->
         <div class="description-section">
             <p class="model-description">{model.description}</p>
@@ -392,54 +379,9 @@
         margin: 0 auto;
     }
     
-    /* Model header */
-    .model-header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid var(--color-grey-20);
-    }
-    
-    .model-icon {
-        flex-shrink: 0;
-        width: 64px;
-        height: 64px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .provider-logo {
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
-        object-fit: contain;
-        background: var(--color-grey-10);
-        padding: 8px;
-    }
-    
-    .model-title-section {
-        flex: 1;
-        min-width: 0;
-    }
-    
-    .model-name {
-        margin: 0;
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--color-primary-start);
-        line-height: 1.2;
-    }
-    
-    .model-provider {
-        font-size: 0.9rem;
-        color: var(--color-grey-60);
-    }
-    
     /* Description */
     .description-section {
-        margin: 1.5rem 0;
+        margin: 0.5rem 0 1.5rem;
     }
     
     .model-description {
@@ -621,10 +563,6 @@
     }
     
     /* Dark mode */
-    :global(.dark) .provider-logo {
-        background: var(--color-grey-20);
-    }
-    
     :global(.dark) .provider-item:hover {
         background: var(--color-grey-15);
     }
@@ -646,14 +584,6 @@
     
     /* Responsive */
     @media (max-width: 600px) {
-        .model-header {
-            flex-wrap: wrap;
-        }
-        
-        .model-title-section {
-            flex: 1 1 calc(100% - 80px);
-        }
-        
         .info-row {
             flex-direction: column;
             align-items: flex-start;

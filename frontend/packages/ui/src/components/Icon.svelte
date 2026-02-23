@@ -104,6 +104,9 @@
     if (iconName === 'book') {
       return 'books'; // Icon name "book" maps to app ID "books"
     }
+    if (iconName === 'heart') {
+      return 'health'; // Icon name "heart" maps to app ID "health" (icon file is heart.svg)
+    }
     // For all other cases, use the icon name as-is
     return iconName;
   }
