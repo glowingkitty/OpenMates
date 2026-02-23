@@ -60,6 +60,18 @@ connection.reconnecting:
   en: Attempting to reconnect to the server.
   de: Verbindung zum Server wird hergestellt.
 
+connection.reconnected.title:
+  context: Title for the success notification shown briefly when the server connection is restored
+  en: Reconnected
+  de: Wieder verbunden
+  verified_by_human: []
+
+connection.reconnected:
+  context: Message shown in the success notification when the server connection is restored after an offline period
+  en: Connection to server restored.
+  de: Verbindung zum Server wiederhergestellt.
+  verified_by_human: []
+
 # Software update notifications
 software_update.title:
   context: Title for software update notification

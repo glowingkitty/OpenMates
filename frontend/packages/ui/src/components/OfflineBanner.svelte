@@ -85,6 +85,20 @@
     }
 
     /**
+     * Get translated reconnected notification text fields.
+     */
+    function getReconnectedText() {
+        return {
+            title: $text('notifications.connection.reconnected.title',
+                { default: 'Reconnected' }
+            ) as string,
+            message: $text('notifications.connection.reconnected',
+                { default: 'Connection to server restored.' }
+            ) as string,
+        };
+    }
+
+    /**
      * Handle the user tapping the "Tap to reconnect" button.
      * Updates the notification in-place to show reconnecting state,
      * triggers the reconnection, and sets a timeout to restore the offline
@@ -151,10 +165,12 @@
     }
 
     /**
-     * Hide the offline notification.
+     * Hide the offline notification and show a brief "Reconnected" success toast.
+     * Only fires if an offline notification was actually visible to the user,
+     * preventing spurious reconnected toasts on initial page load.
      */
     function hideOfflineNotification(): void {
-        if (offlineNotificationId === null) return; // Not showing
+        if (offlineNotificationId === null) return; // Not showing — was never offline
         console.info('[OfflineBanner] Hiding offline notification — connection restored');
 
         // Clear any pending reconnect attempt timer
@@ -165,6 +181,15 @@
 
         notificationStore.removeNotification(offlineNotificationId);
         offlineNotificationId = null;
+
+        // Show a brief success notification so the user knows the connection is back
+        const texts = getReconnectedText();
+        notificationStore.addNotificationWithOptions('success', {
+            title: texts.title,
+            message: texts.message,
+            duration: 4000, // Auto-dismiss after 4 seconds
+            dismissible: true,
+        });
     }
 
     /**
