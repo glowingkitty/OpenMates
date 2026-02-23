@@ -5,9 +5,12 @@
   Shown when the AI executes the images.view skill on a user-uploaded image.
 
   Displays:
-  - Processing state: skeleton lines + "Viewing…" subtitle
-  - Finished state: the decrypted preview image from the original upload embed
-  - The filename from the skill embed data
+  - Processing state: default "Processing..." status from BasicInfosBar (embeds.processing i18n key)
+  - Finished state: the decrypted preview image from the original upload embed (full-bleed)
+  - Error state: error message in customStatusText
+
+  Skill icon: 'visible' (eye icon) shown in BasicInfosBar
+  Skill name: "View" (app_skills.images.view i18n key) — not the filename
 
   On click: opens the ORIGINAL uploaded image's fullscreen viewer
   (fires 'imagefullscreen' CustomEvent with the upload embed's data),
@@ -31,9 +34,6 @@
     retainCachedImage,
     releaseCachedImage,
   } from './imageEmbedCrypto';
-
-  /** Max display length for filename in the card title */
-  const MAX_FILENAME_LENGTH = 30;
 
   interface Props {
     /** Unique embed ID for this skill-use embed */
@@ -129,36 +129,19 @@
   let previewS3Key = $derived(s3Files?.preview?.s3_key);
 
   /**
-   * Card title: truncated filename or generic "Image" fallback.
+   * Card title: always "View" — the skill name, not the filename.
+   * The filename is shown elsewhere (fullscreen title). Keeping the skill name
+   * consistent matches the pattern of ImageGenerateEmbedPreview ("Generate").
    */
-  let skillName = $derived.by(() => {
-    if (!filename) return $text('app_skills.images.view');
-    if (filename.length > MAX_FILENAME_LENGTH) {
-      const lastDot = filename.lastIndexOf('.');
-      if (lastDot > 0) {
-        const ext = filename.slice(lastDot);
-        const stem = filename.slice(0, lastDot);
-        const allowedStem = MAX_FILENAME_LENGTH - ext.length - 1;
-        return allowedStem > 0
-          ? stem.slice(0, allowedStem) + '\u2026' + ext
-          : filename.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
-      }
-      return filename.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
-    }
-    return filename;
-  });
+  let skillName = $derived($text('app_skills.images.view'));
 
   /**
-   * Card subtitle:
-   * - processing → "Viewing…"
-   * - finished   → empty (image fills the card)
-   * - error      → error message
+   * Card subtitle (customStatusText):
+   * - processing/finished/cancelled → undefined (let BasicInfosBar show default
+   *   "Processing..." / "Completed" / "Cancelled" from embeds.* i18n keys)
+   * - error → error message (override default "Error" with the actual error text)
    */
-  let statusText = $derived.by(() => {
-    if (status === 'processing') return $text('app_skills.images.view.viewing');
-    if (status === 'error') return error || '';
-    return '';
-  });
+  let customStatusText = $derived(status === 'error' ? (error || '') : undefined);
 
   /** Fullscreen enabled when finished and an image is available (or will load) */
   let isFullscreenEnabled = $derived(status === 'finished' && !!onFullscreen);
@@ -238,14 +221,14 @@
   {id}
   appId="images"
   skillId="view"
-  skillIconName="image"
+  skillIconName="visible"
   {status}
   {skillName}
   {isMobile}
   onFullscreen={isFullscreenEnabled ? onFullscreen : undefined}
   showStatus={true}
-  customStatusText={statusText}
-  showSkillIcon={false}
+  {customStatusText}
+  showSkillIcon={true}
   hasFullWidthImage={showFullWidthImage}
 >
   {#snippet details({ isMobile: isMobileSnippet })}

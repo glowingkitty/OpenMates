@@ -706,6 +706,40 @@
     
     const newInternalMessages = mergedForDisplay.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
+        const hasEmbedUpdate = (newMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp !== undefined;
+
+        // PERFORMANCE OPTIMIZATION: Skip G_mapToInternalMessage entirely for messages
+        // whose raw content, status, and metadata have not changed since the last render.
+        //
+        // This is the critical fix for the user-message re-render glitch: every AI streaming
+        // chunk triggers updateMessages() with the full messages array. Without this guard,
+        // G_mapToInternalMessage is called for EVERY message on EVERY chunk, including user
+        // messages with large image embeds. G_mapToInternalMessage calls parse_message →
+        // preprocessTiptapJsonForEmbeds → embed resolver, which fires network requests for
+        // every image embed on every AI response chunk.
+        //
+        // We can safely skip processing when ALL of the following hold:
+        //   1. An existing InternalMessage for this id exists (already processed before)
+        //   2. The locale has not changed (no retranslation needed)
+        //   3. No embed update timestamp is present (no forced embed re-render)
+        //   4. The message is not currently streaming (streaming needs live updates)
+        //   5. The raw content string is identical (nothing actually changed)
+        //   6. The status is identical (status changes must be reflected)
+        //   7. The appCards reference is identical (app cards unchanged)
+        if (
+            oldMessage &&
+            !localeChanged &&
+            !hasEmbedUpdate &&
+            newMessage.status !== 'streaming' &&
+            oldMessage.status === newMessage.status &&
+            oldMessage.appCards === (newMessage as MessageWithEmbedMetadata).appCards &&
+            oldMessage.original_message?.content === newMessage.content
+        ) {
+            // Raw content and status identical — reuse the existing InternalMessage entirely.
+            // This avoids all parsing, embed resolution, and network fetches.
+            return oldMessage;
+        }
+
         const newInternalMessage = G_mapToInternalMessage(newMessage, piiMappings);
 
         // CRITICAL FIX: Skip content optimization for streaming messages AND when locale changes
@@ -715,8 +749,6 @@
         // If an old message exists and its content is identical to the new one,
         // reuse the old content object reference to prevent unnecessary re-renders
         // of the ReadOnlyMessage component. BUT skip this for streaming messages, locale changes, and embed updates.
-        const hasEmbedUpdate = (newMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp !== undefined;
-        
         if (oldMessage &&
             !localeChanged &&
             !hasEmbedUpdate &&

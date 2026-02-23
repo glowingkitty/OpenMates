@@ -782,14 +782,22 @@
       // Sidebar always shows "Processing..." for both sending and processing states.
       // The detailed status steps (generating title, selecting mate, etc.) are shown
       // only in the ActiveChat centered overlay — the sidebar keeps it simple.
+      // CRITICAL: Use extractDisplayTextFromMarkdown to strip ```json embed blocks (images, code, etc.)
+      // so the sidebar shows "[Image]" instead of raw JSON like "```json\n{\"type\": \"image\"...".
       displayLabel = $text('enter_message.processing');
-      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
+      displayText = typeof lastMessage.content === 'string'
+        ? extractDisplayTextFromMarkdown(lastMessage.content)
+        : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'waiting_for_internet') {
       displayLabel = $text('enter_message.waiting_for_internet');
-      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
+      displayText = typeof lastMessage.content === 'string'
+        ? extractDisplayTextFromMarkdown(lastMessage.content)
+        : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'failed') {
-      displayLabel = 'Failed'; 
-      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
+      displayLabel = 'Failed';
+      displayText = typeof lastMessage.content === 'string'
+        ? extractDisplayTextFromMarkdown(lastMessage.content)
+        : extractTextFromTiptap(lastMessage.content);
     } else if (draftTextContent) {
       // If there's a draft, display draft information
       if (cachedMetadata?.title) {

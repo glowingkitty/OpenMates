@@ -6056,12 +6056,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
-        const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string }>) => {
+        const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string; status?: string }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
                 _aiTaskStateTrigger++;
                 
                 // ─── Progressive AI Status Indicator: Clear on task end (safety fallback) ─────
                 clearProcessingPhase();
+                
+                // ─── Finalize streaming messages on cancellation ─────
+                // When the user cancels an AI task, any assistant message with status='streaming'
+                // must be transitioned to 'synced' immediately. Without this, the message stays
+                // in 'streaming' state in memory and in IndexedDB, causing the chat history to
+                // show an endless loading indicator and the sidebar to show stale state.
+                // We do this for ALL task endings (not just cancellation) as a safety fallback
+                // in case the final-chunk handler missed transitioning the message.
+                let needsUpdate = false;
+                for (let i = 0; i < currentMessages.length; i++) {
+                    const msg = currentMessages[i];
+                    if (msg.role === 'assistant' && msg.status === 'streaming') {
+                        const finalized = { ...msg, status: 'synced' as const };
+                        currentMessages[i] = finalized;
+                        needsUpdate = true;
+                        chatDB.saveMessage(finalized).catch(err => {
+                            console.error(`[ActiveChat] aiTaskEndedHandler: Failed to save finalized message ${msg.message_id}:`, err);
+                        });
+                        console.info(`[ActiveChat] aiTaskEndedHandler: Finalized streaming message ${msg.message_id} → synced (task status: ${event.detail.status ?? 'unknown'})`);
+                    }
+                }
+                if (needsUpdate) {
+                    currentMessages = [...currentMessages];
+                }
                 
                 // FALLBACK: Mark ALL thinking entries as complete when AI task ends
                 // This ensures no thinking state is left in "streaming" mode after the task finishes
@@ -6080,8 +6104,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 });
                 
                 // Force reactivity if we made changes
-                if (hasStreamingThinking) {
-                    thinkingContentByTask = new Map(thinkingContentByTask);
+                if (hasStreamingThinking || needsUpdate) {
+                    if (hasStreamingThinking) {
+                        thinkingContentByTask = new Map(thinkingContentByTask);
+                    }
                     if (chatHistoryRef) {
                         chatHistoryRef.updateMessages(currentMessages);
                     }
