@@ -4442,38 +4442,86 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
          currentChat = freshChat || chat; // currentChat is now just metadata
 
-         // ─── Chat Header: restore title/category/icon for existing chats ────────────────
-         // When navigating to an existing chat (title_v > 0), decrypt and display the
-         // permanent header card (title + gradient icon circle) immediately. This mirrors
-         // the flow for new chats, except we decrypt from the stored chat object directly
-         // rather than waiting for a title_updated / metadata_updated WebSocket event.
-         // isNewChatGeneratingTitle stays false (no shimmer for existing chats).
+         // ─── Chat Header: restore title/category/icon for all chat types ────────────────
+         // Universal header restoration: handles public/demo, incognito, and regular chats.
+         // isNewChatGeneratingTitle stays false here — it is only set in handleSendMessage
+         // when the user just sent the first message of a brand-new chat.
+         //
+         // Data sources by chat type:
+         //   - Public/demo chats: plaintext chat.title, chat.category, chat.icon (comma-separated)
+         //   - Incognito chats:   plaintext chat.category, chat.icon (title may be absent on new ones)
+         //   - Regular chats:     decrypt encrypted_title, encrypted_category, encrypted_icon;
+         //                        also accept plaintext category/icon as fallback for older chats
          const chatForHeader = currentChat;
-         if (chatForHeader && !isPublicChat(chatForHeader.chat_id) && !chatForHeader.is_incognito &&
-             chatForHeader.title_v && chatForHeader.title_v > 0 && chatForHeader.encrypted_title) {
-             try {
-                 const { decryptWithChatKey } = await import('../services/cryptoService');
-                 const chatKey = chatDB.getOrGenerateChatKey(chatForHeader.chat_id);
-                 if (chatKey) {
-                     let t = '';
-                     let c: string | null = null;
-                     let ic: string | null = null;
-                     try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey) ?? ''; } catch { /* keep blank */ }
-                     if (chatForHeader.encrypted_category) {
-                         try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey); } catch { /* keep null */ }
-                     }
-                     if (chatForHeader.encrypted_icon) {
-                         try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey); } catch { /* keep null */ }
-                     }
-                     if (t && c) {
-                         activeChatDecryptedTitle = t;
-                         activeChatDecryptedCategory = c;
-                         activeChatDecryptedIcon = ic;
-                         console.debug('[ActiveChat] loadChat: Restored chat header for existing chat:', t, c, ic);
+         if (chatForHeader) {
+             if (isPublicChat(chatForHeader.chat_id)) {
+                 // Public chats (demo/legal/community): all metadata is cleartext
+                 const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
+                 const c = chatForHeader.category || null;
+                 // icon is stored as a comma-separated string — use the first icon name only
+                 const rawIcon = chatForHeader.icon || null;
+                 const ic = rawIcon ? (rawIcon.split(',')[0]?.trim() || null) : null;
+                 if (t && c) {
+                     activeChatDecryptedTitle = t;
+                     activeChatDecryptedCategory = c;
+                     activeChatDecryptedIcon = ic;
+                     console.debug('[ActiveChat] loadChat: Restored chat header for public chat:', t, c, ic);
+                 }
+             } else if (chatForHeader.is_incognito) {
+                 // Incognito chats: category and icon are plaintext; title may be blank on new ones
+                 const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
+                 const c = chatForHeader.category || null;
+                 const rawIcon = chatForHeader.icon || null;
+                 const ic = rawIcon ? (rawIcon.split(',')[0]?.trim() || null) : null;
+                 // Show header whenever we have at least a category (title can be empty early on)
+                 if (c) {
+                     activeChatDecryptedTitle = t;
+                     activeChatDecryptedCategory = c;
+                     activeChatDecryptedIcon = ic;
+                     console.debug('[ActiveChat] loadChat: Restored chat header for incognito chat:', t, c, ic);
+                 }
+             } else {
+                 // Regular encrypted chats: decrypt encrypted fields.
+                 // We no longer require title_v > 0 because some chats may have category/icon
+                 // set even when title_v is missing or 0 (e.g. received via older sync path).
+                 // Try to decrypt whenever any encrypted metadata (or plaintext fallback) exists.
+                 const hasEncryptedTitle = !!chatForHeader.encrypted_title;
+                 const hasEncryptedCategory = !!chatForHeader.encrypted_category;
+                 const hasPlaintextCategory = !!chatForHeader.category;
+                 if (hasEncryptedTitle || hasEncryptedCategory || hasPlaintextCategory) {
+                     try {
+                         const { decryptWithChatKey } = await import('../services/cryptoService');
+                         const chatKey = chatDB.getOrGenerateChatKey(chatForHeader.chat_id);
+                         if (chatKey) {
+                             let t = '';
+                             let c: string | null = null;
+                             let ic: string | null = null;
+                             if (chatForHeader.encrypted_title) {
+                                 try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey) ?? ''; } catch { /* keep blank */ }
+                             }
+                             if (chatForHeader.encrypted_category) {
+                                 try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey); } catch { /* keep null */ }
+                             } else if (chatForHeader.category) {
+                                 // Fallback: plaintext category (older chats or partial sync)
+                                 c = chatForHeader.category;
+                             }
+                             if (chatForHeader.encrypted_icon) {
+                                 try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey); } catch { /* keep null */ }
+                             } else if (chatForHeader.icon) {
+                                 // Fallback: plaintext icon (older chats or partial sync)
+                                 ic = chatForHeader.icon.split(',')[0]?.trim() || null;
+                             }
+                             if (t && c) {
+                                 activeChatDecryptedTitle = t;
+                                 activeChatDecryptedCategory = c;
+                                 activeChatDecryptedIcon = ic;
+                                 console.debug('[ActiveChat] loadChat: Restored chat header for existing chat:', t, c, ic);
+                             }
+                         }
+                     } catch (err) {
+                         console.error('[ActiveChat] loadChat: Failed to decrypt header for existing chat:', err);
                      }
                  }
-             } catch (err) {
-                 console.error('[ActiveChat] loadChat: Failed to decrypt header for existing chat:', err);
              }
          }
 
@@ -6598,8 +6646,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
                     <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
                     <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
+                    <!-- padding-top clears the absolutely-positioned .top-buttons bar (15px top + ~40px button height + gap) -->
                     {#if showWelcome && !hideWelcomeForKeyboard}
-                        <DailyInspirationBanner onStartChat={handleStartChatFromInspiration} />
+                        <div class="daily-inspiration-area">
+                            <DailyInspirationBanner onStartChat={handleStartChatFromInspiration} />
+                        </div>
                     {/if}
 
                     <!-- Welcome greeting – always visible on the new chat screen -->
@@ -8397,6 +8448,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             top: 10px;
             left: 10px;
         }
+    }
+
+    /*
+     * Daily inspiration area wrapper.
+     * .top-buttons is position:absolute at top:15px with ~41px buttons + 8px wrapper padding = ~64px total.
+     * We add padding-top to push the banner below the overlapping buttons.
+     * On mobile (≤730px) top-buttons are at top:10px, same height → 62px, use same value.
+     */
+    .daily-inspiration-area {
+        padding-top: 64px;
+        width: 100%;
     }
 
     /* Add styles for left and right button containers */
