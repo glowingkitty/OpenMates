@@ -344,3 +344,9 @@ ai_ask_model_details.default:
   en: Default
   de: Standard
   verified_by_human: []
+
+ai_ask_model_details.enable_model:
+  context: Toggle label to enable or disable a model in the AI Ask skill settings
+  en: Enable model
+  de: Modell aktivieren
+  verified_by_human: []
