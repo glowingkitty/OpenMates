@@ -2278,6 +2278,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
 
+    // Track viewport height for small-screen adjustments (e.g. hide suggestions on short screens).
+    // Initialised at mount and kept in sync via resize listener in onMount below.
+    let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
+
+    /** Keep viewportHeight reactive on window resize. Registered/cleaned up in onMount. */
+    function handleViewportResize() {
+        viewportHeight = window.innerHeight;
+    }
+
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
     
@@ -5999,6 +6008,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Listen for the dislike/retry prompt from ChatMessage's report-bad-answer flow
         window.addEventListener('setRetryMessage', handleSetRetryMessage);
 
+        // Keep viewportHeight in sync so small-screen logic (e.g. hiding suggestions) is reactive.
+        window.addEventListener('resize', handleViewportResize);
+
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
             handleChatUpdated(event);
@@ -6627,6 +6639,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             document.removeEventListener('focusModeDetailsRequested', focusModeDetailsHandler as EventListenerCallback);
             document.removeEventListener('focusModeContextMenu', focusModeContextMenuHandler as EventListenerCallback);
             chatSyncService.removeEventListener('focusModeActivated', focusModeActivatedHandler as EventListenerCallback);
+            // Remove viewport resize listener
+            window.removeEventListener('resize', handleViewportResize);
         };
     });
 
@@ -6981,7 +6995,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
                          <!-- Hidden while the map location selector is open (messageInputMapsOpen) —
                               restored automatically when the map is closed and the input is still empty. -->
-                         {#if showWelcome && !messageInputMapsOpen}
+                         <!-- Hide suggestions on very short screens (≤670px height) unless the
+                              message input is focused — on those devices the suggestions would
+                              overlap the input or push content out of view. -->
+                         {#if showWelcome && !messageInputMapsOpen && (viewportHeight > 670 || messageInputFocused)}
                              <NewChatSuggestions
                                  messageInputContent={liveInputText}
                                  onSuggestionClick={handleSuggestionClick}
@@ -8078,7 +8095,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .center-content {
         position: absolute;
-        top: 40%;
+        /*
+         * Center vertically in the space BELOW the daily inspiration banner.
+         * Banner height: 240px desktop (+ ~46px for top-buttons-flow row ≈ 286px total).
+         * We want the midpoint of the remaining area, i.e. (100% - 286px) / 2 + 286px,
+         * which simplifies to: top = 50% + 143px.
+         * Using calc so this adapts naturally if the container height changes.
+         */
+        top: calc(50% + 140px);
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -8094,7 +8118,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* Adjust welcome content position for narrow containers */
     .active-chat-container.narrow .center-content {
-        top: 30%;
+        top: calc(50% + 110px);
     }
 
     .team-profile {
@@ -8643,11 +8667,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /*
      * Daily inspiration area wrapper.
-     * No padding-top needed: the banner is rendered before top-buttons in the DOM,
-     * so there is no overlap to compensate for.
+     * No padding — the banner spans edge-to-edge within the chat-side container.
+     * Horizontal padding is handled inside DailyInspirationBanner.svelte's .banner-inner.
      */
     .daily-inspiration-area {
-        padding: 15px 15px 0;
         width: 100%;
         box-sizing: border-box;
     }

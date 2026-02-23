@@ -217,15 +217,18 @@
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
         <div class="banner-content">
 
-          <!-- Left column: mate profile image + inspiration text + CTA -->
+          <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
           <div class="banner-left">
-            <!-- Mate profile image with AI badge (uses global mates.css classes) -->
-            <div class="mate-profile banner-mate-profile {current.category}"></div>
+            <!-- Row: mate profile image + inspiration phrase side-by-side, vertically centered -->
+            <div class="banner-phrase-row">
+              <!-- Mate profile image with AI badge (uses global mates.css classes) -->
+              <div class="mate-profile banner-mate-profile {current.category}"></div>
 
-            <!-- Inspiration phrase -->
-            <p class="banner-phrase">{current.phrase}</p>
+              <!-- Inspiration phrase -->
+              <p class="banner-phrase">{current.phrase}</p>
+            </div>
 
-            <!-- CTA: plain text + create icon (no pill background) -->
+            <!-- CTA: plain text + create icon — pinned to bottom of banner-left -->
             <div class="banner-cta">
               <span class="clickable-icon icon_create banner-cta-icon"></span>
               <span class="banner-cta-text">{$text('daily_inspiration.click_to_start_chat')}</span>
@@ -296,6 +299,9 @@
   .daily-inspiration-wrapper {
     animation: inspirationFadeIn 300ms ease-out;
     width: 100%;
+    /* Must be above other chat-side elements so the banner is clickable */
+    position: relative;
+    z-index: 100;
   }
 
   @keyframes inspirationFadeIn {
@@ -368,14 +374,28 @@
     overflow: hidden;
   }
 
-  /* ── Left column ── */
+  /* ── Left column ──
+     position:relative so CTA can be pinned to the bottom absolutely. */
   .banner-left {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     flex: 1;
     min-width: 0;
-    justify-content: center;
+    position: relative;
+    /* Vertical padding to give CTA room at the bottom */
+    padding-bottom: 28px;
+  }
+
+  /* ── Phrase row: mate profile (left) + phrase (right), vertically centered ── */
+  .banner-phrase-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+    /* Vertically center the row within the available column space */
+    justify-content: flex-start;
   }
 
   /* ── Mate profile image ──
@@ -420,10 +440,14 @@
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    min-width: 0;
   }
 
-  /* ── CTA: plain text + create icon, no background ── */
+  /* ── CTA: plain text + create icon — pinned to bottom of banner-left ── */
   .banner-cta {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -454,12 +478,11 @@
   }
 
   /* ── Right column: embed preview card ──
-     Fill the full banner height so the embed is never cut off.
-     pointer-events: none on this wrapper means clicks fall through to the
-     transparent overlay button (handled by .banner-embed-wrapper below). */
+     flex: 1 gives it exactly the same width as banner-left (50/50 split).
+     Fill the full banner height so the embed is never cut off. */
   .banner-embed-wrapper {
-    flex-shrink: 0;
-    width: 180px;
+    flex: 1;
+    min-width: 0;
     /* Fill the full banner height (240px banner - 14px top pad - 12px bottom pad) */
     align-self: stretch;
     overflow: hidden;
@@ -484,33 +507,50 @@
 
   /* ── Carousel arrows ──
      position:absolute relative to .daily-inspiration-banner.
-     z-index: 20 to sit above the embed wrapper (which has no z-index, so z-index:auto).
-     pointer-events must be explicitly set so they receive clicks. */
+     z-index: 20 to sit above the embed wrapper.
+     ALL global button{} rules from buttons.css are overridden here with !important:
+       padding: 25px 30px  →  0
+       border-radius: 20px →  50%
+       min-width: 112px    →  unset
+       height: 41px        →  30px
+       background-color    →  dark overlay
+       filter (drop-shadow)→  none
+       margin-right: 10px  →  0
+       scale (hover/active)→  none (via :hover/:active overrides below)
+  */
   .carousel-arrow {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.35);
+    /* Reset every property set by the global button{} rule */
+    padding: 0 !important;
+    min-width: unset !important;
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 50% !important;
+    background-color: rgba(0, 0, 0, 0.35) !important;
+    filter: none !important;
+    margin: 0 !important;
     border: none;
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    padding: 0;
-    transition: background 0.15s ease;
+    transition: background-color 0.15s ease;
     z-index: 20;
-    /* Ensure pointer events are captured — not blocked by embed or inner content */
     pointer-events: auto;
-    /* Prevent click from bubbling to the banner's handleStartChat */
-    /* (stopPropagation is called in the handler, but this also helps) */
     flex-shrink: 0;
   }
 
   .carousel-arrow:hover {
-    background: rgba(0, 0, 0, 0.55);
+    background-color: rgba(0, 0, 0, 0.55) !important;
+    scale: none !important;
+  }
+
+  .carousel-arrow:active {
+    background-color: rgba(0, 0, 0, 0.7) !important;
+    scale: none !important;
+    filter: none !important;
   }
 
   /* Position arrows at the outer edges of the full-width banner */
