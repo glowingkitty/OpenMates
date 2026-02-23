@@ -1428,8 +1428,7 @@ class EmbedService:
                 # Non-dict TOON (unusual) — return as-is
                 return toon_content
 
-            # Only filter uploaded image embeds (app_id="images", skill_id="upload").
-            # Other embed types (search results, web pages, etc.) pass through unchanged.
+            # Route to type-specific filtering logic.
             #
             # IMPORTANT: We must NOT filter app_skill_use embeds that wrap an images.view
             # result (app_id="images", skill_id="view"). Those embeds are tracking
@@ -1439,10 +1438,43 @@ class EmbedService:
             # UUID), causing the skill to fail with "missing vault_wrapped_aes_key".
             app_id = decoded.get("app_id")
             skill_id = decoded.get("skill_id")
+            embed_type = decoded.get("type")
+
+            if embed_type == "audio-recording":
+                # Audio recording embeds: the LLM only needs the transcript for context
+                # and a minimal set of fields to let it target the recording in downstream
+                # skills (e.g. re-transcription, audio processing).
+                #
+                # Kept:
+                #   embed_id      — lets the LLM reference this specific recording in a skill call
+                #   type          — discriminator so the LLM knows what it's looking at
+                #   transcript    — the actual speech content (primary inference signal)
+                #   duration      — useful context ("a 2-minute recording said …")
+                #   mime_type     — needed if a skill re-processes the file
+                #   filename      — human-readable label (may be None)
+                #   status        — lifecycle state (should always be "finished" here)
+                #
+                # Stripped: s3_base_url, files (s3 keys), aes_key, aes_nonce,
+                #           vault_wrapped_aes_key — all crypto/infra, resolved server-side.
+                #           app_id, skill_id — internal routing metadata, not useful to LLM.
+                _AUDIO_KEEP = frozenset({
+                    "type", "transcript", "duration", "mime_type", "filename", "status"
+                })
+                filtered = {k: v for k, v in decoded.items() if k in _AUDIO_KEEP}
+                filtered["embed_id"] = embed_id
+                filtered_toon = encode(filtered)
+                logger.debug(
+                    f"{log_prefix} Filtered audio-recording embed TOON for LLM: "
+                    f"{len(toon_content)} → {len(filtered_toon)} chars "
+                    f"(kept: {list(filtered.keys())})"
+                )
+                return filtered_toon
+
             if app_id != "images" or skill_id != "upload":
+                # All other embed types (search results, web pages, etc.) pass through unchanged.
                 return toon_content
 
-            # Strip crypto/infra fields
+            # Strip crypto/infra fields from image upload embeds
             filtered = {
                 k: v for k, v in decoded.items()
                 if k not in self._TOON_LLM_STRIP_FIELDS
