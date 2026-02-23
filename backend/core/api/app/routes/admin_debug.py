@@ -1373,7 +1373,7 @@ async def inspect_newsletter(
         # 1. Fetch all subscriber records with meta counts
         collection_url = f"{directus_service.base_url}/items/newsletter_subscribers"
         all_params = {
-            "fields": "id,encrypted_email_address,hashed_email,confirmed_at,subscribed_at,language,darkmode,unsubscribe_token",
+            "fields": "id,encrypted_email_address,hashed_email,confirmed_at,subscribed_at,language,darkmode,unsubscribe_token,user_registration_status",
             "sort": "-subscribed_at",
             "limit": -1,
             "meta": "total_count,filter_count",
@@ -1391,14 +1391,26 @@ async def inspect_newsletter(
         confirmed_count = sum(1 for s in subscribers if s.get("confirmed_at"))
         unconfirmed_count = total_records - confirmed_count
 
-        # 2. Language and darkmode breakdown
+        # 2. Language, darkmode, and registration status breakdown
         lang_breakdown: Dict[str, int] = defaultdict(int)
         darkmode_count = 0
+        reg_status_counts: Dict[str, int] = {
+            "not_signed_up": 0,
+            "signup_incomplete": 0,
+            "signup_complete": 0,
+            "unknown": 0,
+        }
         for sub in subscribers:
             lang = sub.get("language", "unknown")
             lang_breakdown[lang] += 1
             if sub.get("darkmode"):
                 darkmode_count += 1
+            # Tally registration status
+            reg_status = sub.get("user_registration_status")
+            if reg_status in reg_status_counts:
+                reg_status_counts[reg_status] += 1
+            else:
+                reg_status_counts["unknown"] += 1
 
         # 3. Ignored emails count
         ignored_count = 0
@@ -1420,6 +1432,7 @@ async def inspect_newsletter(
             "ignored_blocked_emails": ignored_count,
             "language_breakdown": dict(sorted(lang_breakdown.items(), key=lambda x: -x[1])),
             "darkmode_subscribers": darkmode_count,
+            "registration_status": reg_status_counts,
         }
 
         # 4. Pending subscriptions from cache
@@ -1474,6 +1487,7 @@ async def inspect_newsletter(
                     "language": sub.get("language", "unknown"),
                     "darkmode": sub.get("darkmode", False),
                     "has_unsubscribe_token": bool(sub.get("unsubscribe_token")),
+                    "user_registration_status": sub.get("user_registration_status"),
                 })
             result["subscribers"] = subscriber_list
 

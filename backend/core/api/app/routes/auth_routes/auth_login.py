@@ -21,6 +21,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_compliance_service, get_encryption_service
 )
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, get_cookie_domain
+from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
 # Import backup code verification and hashing utilities
 # Use sha_hash for cache, hash_backup_code (Argon2) for storage, verify_backup_code (Argon2) for verification
 from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code
@@ -454,6 +455,23 @@ async def login(
                 except Exception as e:
                     logger.error(f"Error resetting last_opened for user {user_id[:6]}...: {e}", exc_info=True)
                     # Don't fail the login - just log the error
+
+                # Update newsletter subscriber status to "signup_complete" if applicable.
+                # hashed_email is available on user_profile — same SHA-256/base64 hash used for lookup.
+                try:
+                    hashed_email_for_newsletter = user_profile.get("hashed_email")
+                    if hashed_email_for_newsletter:
+                        await update_newsletter_registration_status(
+                            hashed_email=hashed_email_for_newsletter,
+                            status="signup_complete",
+                            directus_service=directus_service,
+                        )
+                except Exception as newsletter_err:
+                    # Non-critical — do not block login
+                    logger.error(
+                        f"Failed to update newsletter signup_complete status for user {user_id[:6]}...: {newsletter_err}",
+                        exc_info=True,
+                    )
             
             if user_id:
                 cache_primed = await cache_service.is_user_cache_primed(user_id)

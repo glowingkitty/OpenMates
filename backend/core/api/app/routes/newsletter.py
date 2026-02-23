@@ -23,13 +23,57 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 )
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
 from backend.core.api.app.tasks.celery_config import app as celery_app
-from backend.core.api.app.utils.newsletter_utils import hash_email, check_ignored_email
+from backend.core.api.app.utils.newsletter_utils import (
+    hash_email,
+    check_ignored_email,
+    update_newsletter_registration_status,
+)
 
 router = APIRouter(
     prefix="/v1",
     tags=["Newsletter"]
 )
 logger = logging.getLogger(__name__)
+
+
+async def _get_registration_status_for_hashed_email(
+    hashed_email: str,
+    directus_service: DirectusService,
+) -> "NewsletterUserStatusType":
+    """
+    Cross-reference a newsletter subscriber's hashed_email against directus_users.hashed_email
+    (same SHA-256/base64 algorithm — no decryption needed) and return the appropriate status:
+      - "not_signed_up"      — no matching user record found
+      - "signup_incomplete"  — user record exists but signup_completed=False
+      - "signup_complete"    — user record exists and signup_completed=True
+    """
+    users_url = f"{directus_service.base_url}/users"
+    resp = await directus_service._make_api_request(
+        "GET",
+        users_url,
+        params={
+            "filter[hashed_email][_eq]": hashed_email,
+            "fields": "id,signup_completed",
+            "limit": 1,
+        },
+    )
+    if resp.status_code != 200:
+        logger.warning(
+            f"_get_registration_status: user lookup failed (HTTP {resp.status_code}) "
+            f"for hash {hashed_email[:16]}... — defaulting to not_signed_up"
+        )
+        return "not_signed_up"
+
+    users = resp.json().get("data", [])
+    if not users:
+        return "not_signed_up"
+
+    signup_completed = users[0].get("signup_completed", False)
+    return "signup_complete" if signup_completed else "signup_incomplete"
+
+
+# Re-export the type alias for callers in this module
+NewsletterUserStatusType = str  # "not_signed_up" | "signup_incomplete" | "signup_complete"
 
 
 async def get_total_newsletter_subscribers_count(directus_service: DirectusService) -> int:
@@ -290,7 +334,19 @@ async def newsletter_confirm(
                 }
                 await directus_service.create_item(collection_name, create_payload)
                 logger.info(f"Created new newsletter subscriber: {hashed_email[:16]}...")
-        
+
+        # Determine and persist user_registration_status by cross-referencing directus_users.
+        # Uses hashed_email (same SHA-256/base64 algorithm) so no decryption is needed.
+        try:
+            user_status = await _get_registration_status_for_hashed_email(hashed_email, directus_service)
+            await update_newsletter_registration_status(hashed_email, user_status, directus_service)
+        except Exception as status_err:
+            # Non-critical — log but do not block confirmation
+            logger.error(
+                f"Failed to set registration status on newsletter confirm for {hashed_email[:16]}...: {status_err}",
+                exc_info=True,
+            )
+
         # Delete from cache
         await cache_service.delete(cache_key)
         

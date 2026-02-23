@@ -798,6 +798,7 @@ async def cmd_newsletter(args, api_key: str):
         return
 
     summary = result.get("summary", {})
+    confirmed = summary.get('confirmed_subscribers', 0)
 
     print()
     print("=" * 60)
@@ -806,11 +807,37 @@ async def cmd_newsletter(args, api_key: str):
     print()
     print("  SUMMARY")
     print("  " + "-" * 40)
-    print(f"  Confirmed subscribers:    {summary.get('confirmed_subscribers', 0)}")
+    print(f"  Confirmed subscribers:    {confirmed}")
     print(f"  Unconfirmed records:      {summary.get('unconfirmed_records', 0)}")
     print(f"  Total Directus records:   {summary.get('total_records_in_directus', 0)}")
     print(f"  Blocked/ignored emails:   {summary.get('ignored_blocked_emails', 0)}")
     print(f"  Darkmode preference:      {summary.get('darkmode_subscribers', 0)}")
+    print()
+
+    # Registration status breakdown
+    reg_status = summary.get("registration_status", {})
+    not_signed_up = reg_status.get("not_signed_up", 0)
+    signup_incomplete = reg_status.get("signup_incomplete", 0)
+    signup_complete = reg_status.get("signup_complete", 0)
+    unknown = reg_status.get("unknown", 0)
+    total_known = not_signed_up + signup_incomplete + signup_complete
+
+    print("  REGISTRATION STATUS")
+    print("  " + "-" * 40)
+    if total_known > 0 or unknown == 0:
+        base = confirmed if confirmed > 0 else 1
+
+        def pct(n: int) -> str:
+            return f"{n / base * 100:.0f}%"
+
+        print(f"  Not signed up:            {not_signed_up:>4}  ({pct(not_signed_up)})")
+        print(f"  Signup incomplete:        {signup_incomplete:>4}  ({pct(signup_incomplete)})")
+        print(f"  Fully signed up:          {signup_complete:>4}  ({pct(signup_complete)})")
+        if unknown > 0:
+            print(f"  Status unknown:           {unknown:>4}  (run backfill to populate)")
+    else:
+        print("  No status data yet — run the backfill script first.")
+        print("  docker exec api python /app/backend/scripts/backfill_newsletter_user_status.py --apply")
     print()
 
     lang_breakdown = summary.get("language_breakdown", {})
@@ -846,17 +873,19 @@ async def cmd_newsletter(args, api_key: str):
         if subscribers:
             for i, sub in enumerate(subscribers, 1):
                 email = sub.get("email", "[unknown]")
-                confirmed = sub.get("confirmed_at", "N/A")
+                confirmed_at = sub.get("confirmed_at", "N/A")
                 subscribed = sub.get("subscribed_at", "N/A")
                 lang = sub.get("language", "?")
                 dark = "dark" if sub.get("darkmode") else "light"
                 has_unsub = "yes" if sub.get("has_unsubscribe_token") else "NO"
+                reg_status = sub.get("user_registration_status") or "unknown"
                 print(f"    {i}. {email}")
-                print(f"       Confirmed:    {confirmed}")
+                print(f"       Confirmed:    {confirmed_at}")
                 print(f"       Subscribed:   {subscribed}")
                 print(f"       Language:     {lang}")
                 print(f"       Theme:        {dark}")
                 print(f"       Unsub token:  {has_unsub}")
+                print(f"       Reg status:   {reg_status}")
                 print()
         else:
             print("  No subscribers found.")
