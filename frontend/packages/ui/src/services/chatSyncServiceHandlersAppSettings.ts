@@ -15,6 +15,7 @@
 
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { notificationStore } from "../stores/notificationStore";
+import { activeChatStore } from "../stores/activeChatStore";
 import { chatDB } from "./db";
 import { decryptWithMasterKey } from "./cryptoService";
 import { aiTypingStore } from "../stores/aiTypingStore";
@@ -70,6 +71,38 @@ export interface PendingPermissionRequest {
 // Store for pending permission requests (keyed by request_id)
 // This allows the dialog to be shown and the user to respond later
 const pendingPermissionRequests = new Map<string, PendingPermissionRequest>();
+
+/**
+ * Notification IDs for the "inactive chat needs permission" banners.
+ * Keyed by request_id so each pending request has at most one notification.
+ */
+const permissionNotificationIds = new Map<string, string>();
+
+/**
+ * activeChatStore unsubscribe functions for each pending notification.
+ * When the user navigates to the target chat we auto-dismiss the banner.
+ * Keyed by request_id.
+ */
+const permissionNotificationUnsubs = new Map<string, () => void>();
+
+/**
+ * Dismiss the "inactive chat needs permission" notification for a given request_id
+ * and clean up the store subscription.
+ * Safe to call multiple times (idempotent).
+ */
+function dismissPermissionNotification(requestId: string): void {
+  const notifId = permissionNotificationIds.get(requestId);
+  if (notifId) {
+    notificationStore.removeNotification(notifId);
+    permissionNotificationIds.delete(requestId);
+  }
+
+  const unsub = permissionNotificationUnsubs.get(requestId);
+  if (unsub) {
+    unsub();
+    permissionNotificationUnsubs.delete(requestId);
+  }
+}
 
 /**
  * Get a pending permission request by ID
@@ -464,6 +497,38 @@ export async function handleRequestAppSettingsMemoriesImpl(
         `[ChatSyncService:AppSettings] Dispatched showAppSettingsMemoriesPermissionDialog event for request ${request_id}`,
       );
     }
+
+    // Show a persistent notification banner when the request arrives for a chat the user
+    // isn't currently viewing. Without this the event fires into the void — the dialog
+    // component only listens while that chat is open, so the user would never know.
+    const activeChatId = activeChatStore.get();
+    if (activeChatId !== chat_id) {
+      const notifId = notificationStore.addNotificationWithOptions("info", {
+        message: "A conversation is waiting for your permission to continue",
+        duration: 0, // Persistent — user must act or navigate to the target chat
+        dismissible: true,
+        actionLabel: "View",
+        onAction: () => {
+          activeChatStore.setActiveChat(chat_id);
+          // Navigation to the chat causes the dialog to appear; dismiss the banner
+          dismissPermissionNotification(request_id);
+        },
+      });
+      permissionNotificationIds.set(request_id, notifId);
+
+      // Also auto-dismiss if the user navigates to the target chat by any other means
+      // (e.g., clicking the chat directly in the sidebar).
+      const unsub = activeChatStore.subscribe((currentChatId) => {
+        if (currentChatId === chat_id) {
+          dismissPermissionNotification(request_id);
+        }
+      });
+      permissionNotificationUnsubs.set(request_id, unsub);
+
+      console.info(
+        `[ChatSyncService:AppSettings] Showing inactive-chat permission notification (request ${request_id}, target chat ${chat_id})`,
+      );
+    }
   } catch (error) {
     console.error(
       "[ChatSyncService:AppSettings] Error handling app settings/memories request:",
@@ -592,6 +657,7 @@ export async function handlePermissionDialogConfirm(
         "[ChatSyncService:AppSettings] No entries to send after decryption",
       );
       removePendingPermissionRequest(requestId);
+      dismissPermissionNotification(requestId);
       return;
     }
 
@@ -643,6 +709,7 @@ export async function handlePermissionDialogConfirm(
 
     // Clean up the pending request
     removePendingPermissionRequest(requestId);
+    dismissPermissionNotification(requestId);
 
     // Notify user
     notificationStore.addNotification(
@@ -746,6 +813,7 @@ export async function handlePermissionDialogExclude(
   }
 
   removePendingPermissionRequest(requestId);
+  dismissPermissionNotification(requestId);
 }
 
 /**
@@ -816,6 +884,7 @@ export async function handlePermissionDialogLocalDismiss(
 
   // Remove from pending requests (no WebSocket send - server handles its own cleanup)
   removePendingPermissionRequest(requestId);
+  dismissPermissionNotification(requestId);
 
   // Clear the dialog UI
   const { appSettingsMemoriesPermissionStore } =
@@ -1480,6 +1549,7 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
 
   // Remove from pending requests
   removePendingPermissionRequest(request_id);
+  dismissPermissionNotification(request_id);
 
   // Dispatch event to dismiss the Permission Dialog UI
   // The dialog component should listen for this and close itself
