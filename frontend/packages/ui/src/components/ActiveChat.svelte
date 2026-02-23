@@ -4496,7 +4496,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          //   - Incognito chats:   plaintext chat.category, chat.icon (title may be absent on new ones)
          //   - Regular chats:     decrypt encrypted_title, encrypted_category, encrypted_icon;
          //                        also accept plaintext category/icon as fallback for older chats
-         const chatForHeader = currentChat;
+         //
+         // IMPORTANT: freshChat from IndexedDB may be missing encrypted_title/encrypted_category
+         // when the chat was only partially synced (e.g. Phase 1 / load-more chats are built
+         // in-memory from the server payload and never written to IndexedDB — so chatDB.getChat
+         // returns a stale or partial record).  In that case the original `chat` argument from
+         // the sidebar still has the full encrypted metadata from the server.  We merge them so
+         // the header always has the best available data without touching currentChat (messages
+         // and version counters must still come from the DB).
+         const chatForHeader = currentChat
+             ? {
+                   ...currentChat,
+                   encrypted_title: currentChat.encrypted_title ?? chat.encrypted_title,
+                   encrypted_category: currentChat.encrypted_category ?? chat.encrypted_category,
+                   encrypted_icon: currentChat.encrypted_icon ?? chat.encrypted_icon,
+                   encrypted_chat_summary: currentChat.encrypted_chat_summary ?? chat.encrypted_chat_summary,
+                   title: currentChat.title ?? chat.title,
+                   category: currentChat.category ?? chat.category,
+                   icon: currentChat.icon ?? chat.icon,
+               }
+             : currentChat;
          if (chatForHeader) {
               if (isPublicChat(chatForHeader.chat_id)) {
                   // Public chats (demo/legal/community): all metadata is cleartext
