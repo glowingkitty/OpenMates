@@ -884,8 +884,11 @@ class ChatDatabase {
     return chatCrudOps.addChat(this, chat, transaction);
   }
 
-  async getAllChats(transaction?: IDBTransaction): Promise<Chat[]> {
-    return chatCrudOps.getAllChats(this, transaction);
+  async getAllChats(
+    transaction?: IDBTransaction,
+    options?: { limit?: number },
+  ): Promise<Chat[]> {
+    return chatCrudOps.getAllChats(this, transaction, options);
   }
 
   async getChat(

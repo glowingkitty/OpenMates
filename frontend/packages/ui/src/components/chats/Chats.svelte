@@ -1708,8 +1708,8 @@ const UPDATE_DEBOUNCE_MS = 300;
 		if (!$authStore.isAuthenticated) {
 			console.debug("[Chats] User not authenticated - clearing cache and loading shared chats only");
 			chatListCache.clear(); // Defensive: ensure no stale data from previous session
-			// Call updateChatListFromDB which handles shared chat loading for non-auth users
-			await updateChatListFromDB();
+			// Skip debounce on mount — no rapid sync events expected here
+			await updateChatListFromDB(false, /* skipDebounce */ true);
 			return;
 		}
 
