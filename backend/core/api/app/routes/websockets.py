@@ -310,6 +310,11 @@ async def listen_for_cache_events(app: FastAPI):
                         # This is triggered from Celery tasks via Redis pub/sub
                         # IMPORTANT: Forward ALL fields from the payload - client requires:
                         # - request_id, chat_id, requested_keys, yaml_content, message_id
+                        #
+                        # Send to ALL connected devices (not just the first) so the request
+                        # reaches the user regardless of which tab/device they are on.
+                        # The client-side handler is idempotent — duplicate deliveries are safe
+                        # because pendingPermissionRequests is keyed by request_id.
                         request_id = payload.get("request_id")
                         chat_id = payload.get("chat_id")
                         requested_keys = payload.get("requested_keys", [])
@@ -319,23 +324,26 @@ async def listen_for_cache_events(app: FastAPI):
                         if request_id and chat_id and requested_keys:
                             user_connections = manager.get_connections_for_user(user_id)
                             if user_connections:
-                                # Send to first available device
-                                target_device = list(user_connections.keys())[0]
-                                await manager.send_personal_message(
-                                    {
-                                        "type": "request_app_settings_memories",
-                                        "payload": {
-                                            "request_id": request_id,
-                                            "chat_id": chat_id,
-                                            "requested_keys": requested_keys,
-                                            "yaml_content": yaml_content,
-                                            "message_id": message_id
-                                        }
-                                    },
-                                    user_id,
-                                    target_device
-                                )
-                                logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket")
+                                device_ids = list(user_connections.keys())
+                                for device_id in device_ids:
+                                    try:
+                                        await manager.send_personal_message(
+                                            {
+                                                "type": "request_app_settings_memories",
+                                                "payload": {
+                                                    "request_id": request_id,
+                                                    "chat_id": chat_id,
+                                                    "requested_keys": requested_keys,
+                                                    "yaml_content": yaml_content,
+                                                    "message_id": message_id
+                                                }
+                                            },
+                                            user_id,
+                                            device_id
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Redis Listener: FAILED to send app_settings_memories request {request_id} to device {device_id[:12]}...: {e}")
+                                logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
                     elif event_type == "focus_mode_activated":

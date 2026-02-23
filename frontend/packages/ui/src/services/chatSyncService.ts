@@ -508,14 +508,28 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
 
-    // Import and register app settings/memories handlers
-    import("./chatSyncServiceHandlersAppSettings").then((module) => {
-      webSocketService.on("request_app_settings_memories", (payload) =>
+    // IMPORTANT: "request_app_settings_memories" and "dismiss_app_settings_memories_dialog"
+    // are registered synchronously (not inside a dynamic import .then()) to avoid a race
+    // condition where the server sends these events immediately after the AI task completes —
+    // before the dynamic import has resolved. If the handler is not yet registered when the
+    // message arrives, the WebSocket service silently drops it and the permission dialog
+    // never appears (user sees infinite typing indicator instead).
+    // Same pattern as "focus_mode_activated" below — see that comment for full explanation.
+    webSocketService.on("request_app_settings_memories", (payload) => {
+      import("./chatSyncServiceHandlersAppSettings").then((module) =>
         module.handleRequestAppSettingsMemoriesImpl(this, payload),
       );
-      webSocketService.on("dismiss_app_settings_memories_dialog", (payload) =>
+    });
+    webSocketService.on("dismiss_app_settings_memories_dialog", (payload) => {
+      import("./chatSyncServiceHandlersAppSettings").then((module) =>
         module.handleDismissAppSettingsMemoriesDialogImpl(this, payload),
       );
+    });
+
+    // Import and register remaining app settings/memories handlers.
+    // These events are not time-critical (they don't arrive immediately after a user message)
+    // so registering them inside a dynamic import .then() is safe here.
+    import("./chatSyncServiceHandlersAppSettings").then((module) => {
       webSocketService.on("app_settings_memories_sync_ready", (payload) =>
         module.handleAppSettingsMemoriesSyncReadyImpl(this, payload),
       );

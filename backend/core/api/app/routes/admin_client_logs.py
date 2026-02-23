@@ -107,7 +107,7 @@ class ClientLogsRequest(BaseModel):
     include_in_schema=False,
     summary="Forward client console logs to Loki (admin only)",
 )
-@limiter.limit("10/minute")
+@limiter.limit("60/minute")
 async def receive_client_logs(
     request: Request,
     body: ClientLogsRequest,
@@ -116,9 +116,10 @@ async def receive_client_logs(
     """
     Receive batched browser console logs from an admin user and push them to Loki.
 
-    This endpoint is rate-limited to 10 requests per minute per user. With the client
-    sending batches every 5 seconds (max 50 entries each), this allows up to ~500 log
-    entries per minute, which is more than sufficient for normal debugging sessions.
+    This endpoint is rate-limited to 60 requests per minute per user. The client
+    sends batches every 5 seconds (max 50 entries each), which would be 12 requests/min
+    under normal conditions. Headroom is provided for multiple open tabs and burst
+    activity during active debugging sessions.
 
     The logs are pushed to Loki with the following labels:
     - job: "client-console" (distinguishes from server-side logs)
