@@ -635,6 +635,10 @@ export interface PhasedSyncRequestPayload {
   >;
   client_chat_ids?: string[];
   client_suggestions_count?: number;
+  // Embed IDs already stored in IndexedDB on this device.
+  // The server uses this to skip re-sending embeds the client already has,
+  // preventing the "703 embeds on every reconnect" problem for active users.
+  client_embed_ids?: string[];
 }
 
 export interface PhasedSyncCompletePayload {

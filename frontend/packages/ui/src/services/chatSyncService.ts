@@ -1291,8 +1291,14 @@ export class ChatSynchronizationService extends EventTarget {
       const clientSuggestions = await chatDB.getAllNewChatSuggestions();
       const client_suggestions_count = clientSuggestions.length;
 
+      // Collect embed IDs the client already has in IndexedDB.
+      // Sent to the server so it can skip re-pushing embeds we already have,
+      // preventing the "all embeds on every reconnect" flood for active users.
+      const { embedStore } = await import("./embedStore");
+      const client_embed_ids = await embedStore.getAllEmbedIds();
+
       console.log(
-        `[ChatSyncService] 3/4: Phased sync preparing request with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions`,
+        `[ChatSyncService] 3/4: Phased sync preparing request with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions, ${client_embed_ids.length} embed(s) already on device`,
       );
 
       const payload: PhasedSyncRequestPayload = {
@@ -1300,6 +1306,7 @@ export class ChatSynchronizationService extends EventTarget {
         client_chat_versions,
         client_chat_ids,
         client_suggestions_count,
+        client_embed_ids,
       };
 
       await webSocketService.sendMessage("phased_sync_request", payload);

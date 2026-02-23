@@ -1769,6 +1769,49 @@ export class EmbedStore {
   }
 
   /**
+   * Get all embed IDs stored in IndexedDB.
+   * Used during phased sync to tell the server which embeds the client already
+   * has so the server can skip re-sending them (cross-session deduplication).
+   * Keys are stored as "embed:{uuid}" — we strip the prefix and return only the UUID part.
+   * @returns Array of embed UUID strings
+   */
+  async getAllEmbedIds(): Promise<string[]> {
+    try {
+      const transaction = await chatDB.getTransaction(
+        [EMBEDS_STORE_NAME],
+        "readonly",
+      );
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+
+      const allKeys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+        const request = store.getAllKeys();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+
+      // Keys are "embed:{uuid}" — extract just the UUID portion
+      const embedIds: string[] = [];
+      for (const key of allKeys) {
+        const keyStr = String(key);
+        if (keyStr.startsWith("embed:")) {
+          embedIds.push(keyStr.slice("embed:".length));
+        }
+      }
+
+      console.debug(
+        `[EmbedStore] getAllEmbedIds: found ${embedIds.length} embed(s) in IndexedDB`,
+      );
+      return embedIds;
+    } catch (error) {
+      console.warn(
+        "[EmbedStore] getAllEmbedIds: failed to read embed keys:",
+        error,
+      );
+      return [];
+    }
+  }
+
+  /**
    * Rekey stream content to CID format
    * Finalizes embed content, computes SHA256 hash, and updates storage
    * @param streamKey - The stream key to rekey

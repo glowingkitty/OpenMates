@@ -1,6 +1,6 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 
 from fastapi import WebSocket
@@ -136,8 +136,15 @@ async def handle_phased_sync_request(
         client_chat_versions = payload.get("client_chat_versions", {})
         client_chat_ids = payload.get("client_chat_ids", [])
         client_suggestions_count = payload.get("client_suggestions_count", 0)
+        # Client sends the embed IDs it already has stored in IndexedDB so the server
+        # can skip re-sending those embeds (cross-session deduplication).
+        client_embed_ids: List[str] = payload.get("client_embed_ids", [])
         
-        logger.info(f"Handling phased sync request for user {user_id}, phase: {sync_phase}, client has {len(client_chat_ids)} chats, {client_suggestions_count} suggestions")
+        logger.info(
+            f"Handling phased sync request for user {user_id}, phase: {sync_phase}, "
+            f"client has {len(client_chat_ids)} chats, {client_suggestions_count} suggestions, "
+            f"{len(client_embed_ids)} embed(s) already on device"
+        )
         
         # Track sent embed IDs across all phases to prevent duplicates
         # Embeds can be shared across chats in different phases
@@ -152,13 +159,13 @@ async def handle_phased_sync_request(
         if sync_phase == "phase2" or sync_phase == "all":
             await _handle_phase2_sync(
                 manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids, sent_embed_ids
+                client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
             )
         
         if sync_phase == "phase3" or sync_phase == "all":
             await _handle_phase3_sync(
                 manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids, sent_embed_ids
+                client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
             )
         
         # Send sync completion event
@@ -676,7 +683,8 @@ async def _handle_phase2_sync(
     device_fingerprint_hash: str,
     client_chat_versions: Dict[str, Dict[str, int]],
     client_chat_ids: List[str],
-    sent_embed_ids: set
+    sent_embed_ids: set,
+    client_embed_ids: Optional[List[str]] = None
 ):
     """
     Handle Phase 2: Last 20 updated chats (quick access)
@@ -805,13 +813,13 @@ async def _handle_phase2_sync(
         
         client_chat_ids_set = set(client_chat_ids)
         
-        # Filter chats to only include missing or outdated ones
-        # CRITICAL FIX: Always send metadata-only updates for chats with matching versions
-        # This ensures clients get encrypted_title, encrypted_category, encrypted_icon even if versions match
-        # The client can intelligently merge - if a field is missing locally but present on server, it should update it
+        # Filter chats to only include missing or outdated ones.
+        # Version-matched chats are fully skipped — title_v already tracks title changes,
+        # so there is no need to send a metadata-only wrapper for encrypted_title/category/icon.
+        # Sending those wrappers for every already-up-to-date chat was the root cause of the
+        # "703 embeds / 0 skipped" flood that blocked the WebSocket for active users.
         chats_to_send = []
         chats_skipped = 0
-        metadata_only_updates = []
         
         for chat_wrapper in all_recent_chats:
             chat_id = chat_wrapper["chat_details"]["id"]
@@ -832,43 +840,20 @@ async def _handle_phase2_sync(
                     server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
                     server_title_v = cached_server_versions.title_v
                     
-                    # Check if client is up-to-date
+                    # If both message and title versions are up-to-date, skip entirely.
+                    # title_v covers all metadata fields (title, category, icon) so a version
+                    # match means the client already has the correct encrypted metadata.
                     if (client_messages_v >= server_messages_v and 
                         client_title_v >= server_title_v):
-                        # CRITICAL FIX: Even if versions match, send metadata-only update
-                        # This ensures clients get encrypted_title, encrypted_category, encrypted_icon
-                        # if they're missing locally (e.g., old chats created before these fields existed)
-                        chat_details = chat_wrapper["chat_details"]
-                        has_metadata = (
-                            chat_details.get("encrypted_title") or
-                            chat_details.get("encrypted_category") or
-                            chat_details.get("encrypted_icon")
-                        )
-                        
-                        if has_metadata:
-                            # Create metadata-only update (no messages)
-                            metadata_only_wrapper = {
-                                "chat_details": chat_details,
-                                "messages": None,  # No messages for metadata-only updates
-                                "user_encrypted_draft_content": None,
-                                "user_draft_version_db": 0,
-                                "draft_updated_at": 0
-                            }
-                            metadata_only_updates.append(metadata_only_wrapper)
-                            logger.debug(f"Phase 2: Adding metadata-only update for chat {chat_id} (versions match but metadata may be missing on client)")
-                        else:
-                            logger.debug(f"Phase 2: Skipping chat {chat_id} - client already up-to-date and no metadata to sync "
-                                       f"(client: m={client_messages_v}, t={client_title_v}; "
-                                       f"server: m={server_messages_v}, t={server_title_v})")
-                            chats_skipped += 1
+                        logger.debug(f"Phase 2: Skipping chat {chat_id} - client already up-to-date "
+                                   f"(client: m={client_messages_v}, t={client_title_v}; "
+                                   f"server: m={server_messages_v}, t={server_title_v})")
+                        chats_skipped += 1
                         continue
             
             # Chat is missing or outdated - add to send list with messages
             chats_to_send.append(chat_wrapper)
             logger.debug(f"Phase 2: Will send chat {chat_id} with messages (missing: {chat_is_missing})")
-        
-        # Add metadata-only updates to the send list
-        chats_to_send.extend(metadata_only_updates)
         
         logger.info(f"Phase 2: Sending {len(chats_to_send)}/{len(all_recent_chats)} chats (skipped {chats_skipped} up-to-date)")
         
@@ -999,7 +984,9 @@ async def _handle_phase2_sync(
         
         # Collect all unique embeds across all chats (deduplicated by embed_id)
         # CROSS-PHASE DEDUPLICATION: Filter out embeds already sent in Phase 1
+        # CLIENT DEDUPLICATION: Filter out embeds the client already has in IndexedDB
         import hashlib
+        client_embed_ids_set = set(client_embed_ids) if client_embed_ids else set()
         new_embeds = {}  # embed_id -> embed data (phase-level deduplication)
         for chat_wrapper in chats_to_send:
             chat_id = chat_wrapper.get("chat_details", {}).get("id")
@@ -1016,8 +1003,13 @@ async def _handle_phase2_sync(
                         for embed in embeds:
                             embed_id = embed.get("embed_id")
                             embed_status = embed.get("status")
-                            # Skip if already sent, already added in this phase, or error/cancelled
-                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds and embed_status not in ("error", "cancelled"):
+                            # Skip if: already sent this session, already collected this phase,
+                            # error/cancelled status, OR client already has it in IndexedDB
+                            if (embed_id
+                                    and embed_id not in sent_embed_ids
+                                    and embed_id not in new_embeds
+                                    and embed_status not in ("error", "cancelled")
+                                    and embed_id not in client_embed_ids_set):
                                 new_embeds[embed_id] = embed
                         logger.debug(f"Phase 2: Found {len(embeds)} embeds for chat {chat_id}")
                 except Exception as e:
@@ -1091,7 +1083,8 @@ async def _handle_phase3_sync(
     device_fingerprint_hash: str,
     client_chat_versions: Dict[str, Dict[str, int]],
     client_chat_ids: List[str],
-    sent_embed_ids: set
+    sent_embed_ids: set,
+    client_embed_ids: Optional[List[str]] = None
 ):
     """
     Handle Phase 3: Last 100 updated chats (full sync)
@@ -1218,12 +1211,12 @@ async def _handle_phase3_sync(
         
         client_chat_ids_set = set(client_chat_ids)
         
-        # Filter chats to only include missing or outdated ones
-        # CRITICAL FIX: Always send metadata-only updates for chats with matching versions
-        # This ensures clients get encrypted_title, encrypted_category, encrypted_icon even if versions match
+        # Filter chats to only include missing or outdated ones.
+        # Version-matched chats are fully skipped — title_v already tracks title changes,
+        # so there is no need to send a metadata-only wrapper for encrypted_title/category/icon.
+        # See Phase 2 for detailed rationale.
         chats_to_send = []
         chats_skipped = 0
-        metadata_only_updates = []
         
         if all_chats_from_server:
             for chat_wrapper in all_chats_from_server:
@@ -1245,43 +1238,18 @@ async def _handle_phase3_sync(
                         server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
                         server_title_v = cached_server_versions.title_v
                         
-                        # Check if client is up-to-date
+                        # If both message and title versions are up-to-date, skip entirely.
                         if (client_messages_v >= server_messages_v and 
                             client_title_v >= server_title_v):
-                            # CRITICAL FIX: Even if versions match, send metadata-only update
-                            # This ensures clients get encrypted_title, encrypted_category, encrypted_icon
-                            # if they're missing locally (e.g., old chats created before these fields existed)
-                            chat_details = chat_wrapper["chat_details"]
-                            has_metadata = (
-                                chat_details.get("encrypted_title") or
-                                chat_details.get("encrypted_category") or
-                                chat_details.get("encrypted_icon")
-                            )
-                            
-                            if has_metadata:
-                                # Create metadata-only update (no messages)
-                                metadata_only_wrapper = {
-                                    "chat_details": chat_details,
-                                    "messages": None,  # No messages for metadata-only updates
-                                    "user_encrypted_draft_content": None,
-                                    "user_draft_version_db": 0,
-                                    "draft_updated_at": 0
-                                }
-                                metadata_only_updates.append(metadata_only_wrapper)
-                                logger.debug(f"Phase 3: Adding metadata-only update for chat {chat_id} (versions match but metadata may be missing on client)")
-                            else:
-                                logger.debug(f"Phase 3: Skipping chat {chat_id} - client already up-to-date and no metadata to sync "
-                                           f"(client: m={client_messages_v}, t={client_title_v}; "
-                                           f"server: m={server_messages_v}, t={server_title_v})")
-                                chats_skipped += 1
+                            logger.debug(f"Phase 3: Skipping chat {chat_id} - client already up-to-date "
+                                       f"(client: m={client_messages_v}, t={client_title_v}; "
+                                       f"server: m={server_messages_v}, t={server_title_v})")
+                            chats_skipped += 1
                             continue
                 
                 # Chat is missing or outdated - add to send list with messages
                 chats_to_send.append(chat_wrapper)
                 logger.debug(f"Phase 3: Will send chat {chat_id} with messages (missing: {chat_is_missing})")
-            
-            # Add metadata-only updates to the send list
-            chats_to_send.extend(metadata_only_updates)
             
             logger.info(f"Phase 3: Sending {len(chats_to_send)}/{len(all_chats_from_server)} chats (skipped {chats_skipped} up-to-date)")
             
@@ -1412,7 +1380,9 @@ async def _handle_phase3_sync(
 
         # Collect all unique embeds across all chats (deduplicated by embed_id)
         # CROSS-PHASE DEDUPLICATION: Filter out embeds already sent in Phase 1 and Phase 2
+        # CLIENT DEDUPLICATION: Filter out embeds the client already has in IndexedDB
         import hashlib
+        client_embed_ids_set = set(client_embed_ids) if client_embed_ids else set()
         new_embeds = {}  # embed_id -> embed data (phase-level deduplication)
         for chat_wrapper in chats_to_send:
             chat_id = chat_wrapper.get("chat_details", {}).get("id")
@@ -1429,8 +1399,13 @@ async def _handle_phase3_sync(
                         for embed in embeds:
                             embed_id = embed.get("embed_id")
                             embed_status = embed.get("status")
-                            # Skip if already sent, already added in this phase, or error/cancelled
-                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds and embed_status not in ("error", "cancelled"):
+                            # Skip if: already sent this session, already collected this phase,
+                            # error/cancelled status, OR client already has it in IndexedDB
+                            if (embed_id
+                                    and embed_id not in sent_embed_ids
+                                    and embed_id not in new_embeds
+                                    and embed_status not in ("error", "cancelled")
+                                    and embed_id not in client_embed_ids_set):
                                 new_embeds[embed_id] = embed
                         logger.debug(f"Phase 3: Found {len(embeds)} embeds for chat {chat_id}")
                 except Exception as e:
