@@ -1,21 +1,35 @@
 # backend/upload/routes/upload_route.py
 #
-# POST /v1/upload/file — the core upload endpoint.
+# POST /v1/upload/file   — the core upload endpoint for chat files.
+# POST /v1/upload/profile-image — profile image upload endpoint.
 #
 # Full pipeline for supported file types:
 #
-# Images pipeline:
+# Images pipeline (POST /v1/upload/file):
 #   1. Authenticate user via refresh token cookie (forwarded to core API)
 #   2. Validate file size (100 MB limit) and MIME type whitelist
 #   3. Compute SHA-256 hash → check deduplication via core API
 #   4. ClamAV malware scan (blocks until result; 422 if threat detected)
-#   5. SightEngine AI-generated detection (non-blocking; stores score as metadata)
-#   6. Generate WEBP preview via Pillow
-#   7. Generate random AES-256 key, encrypt file + preview with AES-256-GCM
-#   8. Vault-wrap the AES key via core API internal endpoint
-#   9. Upload encrypted bytes to S3 chatfiles bucket
-#   10. Store upload record via core API internal endpoint
-#   11. Return JSON with embed_id, S3 keys, AES key, vault_wrapped_aes_key
+#   5. SightEngine content safety scan (nudity/violence/gore — BLOCKING; 422 if rejected)
+#      If rejected: proxy rejection event to core API to track per-user reject count.
+#      Account is deleted if user has 4+ rejections within 24h.
+#   6. SightEngine AI-generated detection (non-blocking; stores score as metadata)
+#   7. Generate WEBP preview via Pillow
+#   8. Generate random AES-256 key, encrypt file + preview with AES-256-GCM
+#   9. Vault-wrap the AES key via core API internal endpoint
+#   10. Upload encrypted bytes to S3 chatfiles bucket
+#   11. Store upload record via core API internal endpoint
+#   12. Return JSON with embed_id, S3 keys, AES key, vault_wrapped_aes_key
+#
+# Profile image pipeline (POST /v1/upload/profile-image):
+#   1. Authenticate user via refresh token cookie
+#   2. Validate file size (300 KB limit) and MIME type (JPEG/PNG only)
+#   3. ClamAV malware scan
+#   4. SightEngine content safety scan (same thresholds as chat images)
+#      Rejection proxied to core API for per-user tracking + account deletion.
+#   5. Upload image bytes to S3 profile_images bucket (public-read, plaintext)
+#   6. Proxy new image URL to core API for encryption + Directus update
+#   7. Return JSON with url and result status
 #
 # PDF pipeline:
 #   1. Authenticate user
@@ -152,6 +166,14 @@ class UploadFileResponse(BaseModel):
     deduplicated: bool = Field(default=False, description="True if this file was already uploaded by this user")
     # PDF-specific fields (only set when content_type is application/pdf)
     page_count: Optional[int] = Field(None, description="Number of pages in the PDF (set for PDFs only)")
+
+
+class ProfileImageUploadResponse(BaseModel):
+    """Response returned after a successful profile image upload."""
+    status: str = Field(..., description="'ok' on success, 'rejected' on content safety failure, 'account_deleted' if account was deleted")
+    url: Optional[str] = Field(None, description="Public S3 URL of the uploaded profile image (only on status='ok')")
+    reject_count: Optional[int] = Field(None, description="Cumulative rejection count for this user (only on status='rejected')")
+    detail: Optional[str] = Field(None, description="Human-readable rejection reason")
 
 
 # ---------------------------------------------------------------------------
@@ -337,6 +359,62 @@ async def _store_record_via_api(
             )
     except Exception as e:
         logger.warning(f"[Upload Store] Failed to store upload record (non-fatal): {e}")
+
+
+async def _report_content_safety_rejection_via_api(
+    core_api_url: str,
+    internal_token: str,
+    user_id: str,
+    filename: str,
+    rejection_reason: str,
+    upload_type: str = "chat_image",
+) -> Dict[str, Any]:
+    """
+    Report a content safety rejection to the core API.
+
+    The core API tracks per-user rejection counts in Redis (24h TTL) and
+    deletes accounts that repeatedly upload policy-violating content.
+
+    Called after SightEngine rejects an image upload (content safety check).
+    The core API handles all user data and Directus operations — this service
+    never writes user data directly.
+
+    Args:
+        core_api_url: Core API base URL.
+        internal_token: Internal service token for authentication.
+        user_id: ID of the user who uploaded the rejected image.
+        filename: Original filename (used for logging, not stored).
+        rejection_reason: Short reason string from SightEngine (e.g. "sexual_activity=0.95").
+        upload_type: "chat_image" or "profile_image" — used for tracking separate counters.
+
+    Returns:
+        Dict with "result": "tracked" | "account_deleted" and optional "reject_count".
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{core_api_url}/internal/uploads/content-safety-reject",
+                json={
+                    "user_id": user_id,
+                    "rejection_reason": rejection_reason,
+                    "upload_type": upload_type,
+                },
+                headers={"X-Internal-Service-Token": internal_token},
+            )
+        if resp.status_code in (200, 201):
+            return resp.json()
+        logger.warning(
+            f"[Upload ContentSafety] Reject report returned HTTP {resp.status_code}: "
+            f"{resp.text[:200]}"
+        )
+        # Non-fatal for the rejection tracking, but we still reject the upload
+        return {"result": "tracking_failed"}
+    except Exception as e:
+        logger.warning(
+            f"[Upload ContentSafety] Failed to report rejection to core API "
+            f"(non-fatal for rejection): {e}"
+        )
+        return {"result": "tracking_failed"}
 
 
 async def _cache_embed_via_api(
@@ -640,12 +718,72 @@ async def upload_file(
     # IMAGE BRANCH: original pipeline continues below
     # ===========================================================================
 
-    # --- 7. [Images] SightEngine AI detection (non-blocking — never rejects upload) ---
+    # --- 7. [Images] SightEngine content safety scan (BLOCKING — rejects on violation) ---
+    # Check for nudity, sexual content, violence, and gore. Same thresholds as
+    # ImageSafetyService.check_profile_image() in the core API. If the image fails,
+    # we report the rejection to the core API (for per-user tracking + account deletion)
+    # and return 422 to the client with a user-facing error message.
+    sightengine = request.app.state.sightengine
+    if is_image and sightengine.is_enabled:
+        logger.info(
+            f"{log_prefix} [7a/13] Content safety: running SightEngine nudity/violence/gore check..."
+        )
+        safety_start = time.monotonic()
+        safety_result = await sightengine.check_content_safety(file_bytes, filename=filename)
+        safety_elapsed = (time.monotonic() - safety_start) * 1000
+
+        if not safety_result.is_safe:
+            logger.warning(
+                f"{log_prefix} [7a/13] Content safety REJECTED — "
+                f"reason: {safety_result.reason} ({safety_elapsed:.0f} ms)"
+            )
+            # Report rejection to core API (tracks reject count, handles account deletion)
+            rejection_report = await _report_content_safety_rejection_via_api(
+                core_api_url=core_api_url,
+                internal_token=internal_token,
+                user_id=user_id,
+                filename=filename,
+                rejection_reason=safety_result.reason or "content_safety_violation",
+                upload_type="chat_image",
+            )
+            rejection_result = rejection_report.get("result", "tracked")
+            reject_count = rejection_report.get("reject_count", 0)
+
+            # If the account was deleted (repeated violations), return special status
+            if rejection_result == "account_deleted":
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "account_deleted",
+                        "message": "Account deleted due to repeated policy violations",
+                    },
+                )
+
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "content_rejected",
+                    "message": "Image rejected: content violates community guidelines (nudity, violence, or gore)",
+                    "reject_count": reject_count,
+                },
+            )
+        else:
+            logger.info(
+                f"{log_prefix} [7a/13] Content safety: PASSED ✓ ({safety_elapsed:.0f} ms)"
+            )
+    elif is_image:
+        logger.info(
+            f"{log_prefix} [7a/13] Content safety: SKIPPED "
+            f"(SightEngine not configured — set SECRET__SIGHTENGINE__* to enable)"
+        )
+    else:
+        logger.info(f"{log_prefix} [7a/13] Content safety: SKIPPED (non-image file)")
+
+    # --- 7b. [Images] SightEngine AI detection (non-blocking — never rejects upload) ---
     ai_detection_result = None
     if is_image:
-        sightengine = request.app.state.sightengine
         if sightengine.is_enabled:
-            logger.info(f"{log_prefix} [7/13] AI detection: running SightEngine genai check...")
+            logger.info(f"{log_prefix} [7b/13] AI detection: running SightEngine genai check...")
             ai_start = time.monotonic()
             ai_result = await sightengine.check_image(file_bytes, filename=filename)
             ai_elapsed = (time.monotonic() - ai_start) * 1000
@@ -658,21 +796,21 @@ async def upload_file(
                     "possibly AI" if ai_result.ai_generated > 0.4 else "likely real/photo"
                 )
                 logger.info(
-                    f"{log_prefix} [7/13] AI detection: score={ai_result.ai_generated:.3f} "
+                    f"{log_prefix} [7b/13] AI detection: score={ai_result.ai_generated:.3f} "
                     f"→ {label} ({ai_elapsed:.0f} ms)"
                 )
             else:
                 logger.warning(
-                    f"{log_prefix} [7/13] AI detection: SightEngine returned None "
+                    f"{log_prefix} [7b/13] AI detection: SightEngine returned None "
                     f"(non-fatal, upload continues without score) ({ai_elapsed:.0f} ms)"
                 )
         else:
             logger.info(
-                f"{log_prefix} [7/13] AI detection: SKIPPED "
+                f"{log_prefix} [7b/13] AI detection: SKIPPED "
                 f"(SightEngine not configured — set SECRET__SIGHTENGINE__* to enable)"
             )
     else:
-        logger.info(f"{log_prefix} [7/13] AI detection: SKIPPED (PDFs are not checked)")
+        logger.info(f"{log_prefix} [7b/13] AI detection: SKIPPED (non-image file)")
 
     # --- 8. [Images] Preview generation ---
     logger.info(f"{log_prefix} [8/13] Generating WEBP previews (original + full + preview variants)...")
@@ -1311,3 +1449,264 @@ async def _handle_audio_upload(
         ai_detection=None,
         deduplicated=False,
     )
+
+
+# ---------------------------------------------------------------------------
+# Profile image upload endpoint
+# ---------------------------------------------------------------------------
+
+# Allowed MIME types for profile images (JPEG/PNG only — WebP rejected to avoid
+# browser/CDN compatibility issues with public-read images)
+PROFILE_IMAGE_ALLOWED_MIMES = {"image/jpeg", "image/jpg", "image/png"}
+
+# Max size: 300 KB (images are pre-processed to 340×340 JPEG by the browser)
+PROFILE_IMAGE_MAX_SIZE_BYTES = 300 * 1024  # 300 KB
+
+
+@router.post("/profile-image", response_model=ProfileImageUploadResponse)
+async def upload_profile_image(
+    request: Request,
+    file: UploadFile = File(...),
+    user: Dict[str, Any] = Depends(get_authenticated_user),
+) -> ProfileImageUploadResponse:
+    """
+    Upload or replace the authenticated user's profile image.
+
+    Pipeline:
+      1. Validate file size (≤ 300 KB) and MIME type (JPEG/PNG only)
+      2. ClamAV malware scan (blocking — 422 on threat)
+      3. SightEngine content safety scan (nudity/violence/gore — BLOCKING)
+         Rejected images proxy a rejection event to the core API for
+         per-user tracking and account deletion on repeated violations.
+      4. Upload image bytes to S3 profile_images bucket (public-read, plaintext)
+      5. Proxy new S3 URL to core API for encryption and Directus update
+      6. Return status + public image URL
+
+    The browser pre-processes the image to 340×340 JPEG before sending, so
+    we receive a small, square, already-cropped image file.
+
+    **Rate limit:** 10 uploads per minute per user.
+    """
+    user_id: str = user["user_id"]
+    log_prefix = f"[ProfileUpload] [user:{user_id[:8]}...]"
+    upload_start = time.monotonic()
+
+    core_api_url, internal_token = _get_core_api_credentials(request)
+    target_env = request.headers.get("X-Target-Env", "prod").lower()
+
+    # --- 1. Read file bytes ---
+    file_bytes = await file.read()
+    filename = file.filename or "profile.jpg"
+    content_type = file.content_type or "image/jpeg"
+
+    logger.info(
+        f"{log_prefix} ── Profile image upload started ───────────────────────"
+    )
+    logger.info(
+        f"{log_prefix} [1/5] File received: {filename!r} "
+        f"({len(file_bytes) / 1024:.1f} KB, declared type: {content_type})"
+    )
+
+    # --- 1a. Size validation ---
+    if len(file_bytes) > PROFILE_IMAGE_MAX_SIZE_BYTES:
+        logger.warning(
+            f"{log_prefix} [1/5] REJECTED — file too large: "
+            f"{len(file_bytes) / 1024:.1f} KB > {PROFILE_IMAGE_MAX_SIZE_BYTES // 1024} KB limit"
+        )
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Profile image too large. Maximum allowed size is "
+                f"{PROFILE_IMAGE_MAX_SIZE_BYTES // 1024} KB"
+            ),
+        )
+
+    # --- 1b. MIME type validation (whitelist + python-magic verification) ---
+    try:
+        import magic  # type: ignore[import]
+        detected_mime = magic.from_buffer(file_bytes, mime=True)
+    except ImportError:
+        logger.warning("[ProfileUpload] python-magic not available, using Content-Type header only")
+        detected_mime = content_type
+    except Exception as e:
+        logger.warning(f"[ProfileUpload] MIME detection failed: {e}, using Content-Type header")
+        detected_mime = content_type
+
+    if detected_mime not in PROFILE_IMAGE_ALLOWED_MIMES and content_type not in PROFILE_IMAGE_ALLOWED_MIMES:
+        logger.warning(
+            f"{log_prefix} [1/5] REJECTED — unsupported MIME type "
+            f"detected={detected_mime!r} declared={content_type!r}"
+        )
+        raise HTTPException(
+            status_code=415,
+            detail="Unsupported file type. Profile images must be JPEG or PNG.",
+        )
+
+    # Use detected MIME (more reliable)
+    if detected_mime in PROFILE_IMAGE_ALLOWED_MIMES:
+        content_type = detected_mime
+
+    logger.info(
+        f"{log_prefix} [1/5] Validation: OK — "
+        f"{len(file_bytes) / 1024:.1f} KB, type={content_type!r}"
+    )
+
+    # --- 2. ClamAV malware scan ---
+    logger.info(f"{log_prefix} [2/5] ClamAV malware scan ({len(file_bytes) / 1024:.1f} KB)...")
+    scan_start = time.monotonic()
+    malware_service = request.app.state.malware_scanner
+    try:
+        scan_result = await malware_service.scan(file_bytes)
+    except RuntimeError as e:
+        logger.error(f"{log_prefix} [2/5] ClamAV scan FAILED: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Malware scanning service unavailable")
+
+    scan_elapsed = (time.monotonic() - scan_start) * 1000
+    if not scan_result.is_clean:
+        logger.warning(
+            f"{log_prefix} [2/5] MALWARE DETECTED in {filename!r}: "
+            f"{scan_result.threat_name} ({scan_elapsed:.0f} ms)"
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=f"File rejected: threat detected ({scan_result.threat_name})",
+        )
+    logger.info(f"{log_prefix} [2/5] ClamAV scan: CLEAN ✓ ({scan_elapsed:.0f} ms)")
+
+    # --- 3. SightEngine content safety scan (BLOCKING) ---
+    sightengine = request.app.state.sightengine
+    if sightengine.is_enabled:
+        logger.info(
+            f"{log_prefix} [3/5] Content safety: running SightEngine nudity/violence/gore check..."
+        )
+        safety_start = time.monotonic()
+        safety_result = await sightengine.check_content_safety(file_bytes, filename=filename)
+        safety_elapsed = (time.monotonic() - safety_start) * 1000
+
+        if not safety_result.is_safe:
+            logger.warning(
+                f"{log_prefix} [3/5] Content safety REJECTED — "
+                f"reason: {safety_result.reason} ({safety_elapsed:.0f} ms)"
+            )
+            # Report rejection to core API for per-user tracking + account deletion
+            rejection_report = await _report_content_safety_rejection_via_api(
+                core_api_url=core_api_url,
+                internal_token=internal_token,
+                user_id=user_id,
+                filename=filename,
+                rejection_reason=safety_result.reason or "content_safety_violation",
+                upload_type="profile_image",
+            )
+            rejection_result = rejection_report.get("result", "tracked")
+            reject_count = rejection_report.get("reject_count", 0)
+
+            if rejection_result == "account_deleted":
+                return ProfileImageUploadResponse(
+                    status="account_deleted",
+                    detail="Account deleted due to repeated policy violations",
+                )
+
+            return ProfileImageUploadResponse(
+                status="rejected",
+                reject_count=reject_count,
+                detail="Image rejected: content violates community guidelines (nudity, violence, or gore)",
+            )
+        else:
+            logger.info(
+                f"{log_prefix} [3/5] Content safety: PASSED ✓ ({safety_elapsed:.0f} ms)"
+            )
+    else:
+        logger.info(
+            f"{log_prefix} [3/5] Content safety: SKIPPED "
+            f"(SightEngine not configured — set SECRET__SIGHTENGINE__* to enable)"
+        )
+
+    # --- 4. Upload to S3 profile_images bucket (public-read, plaintext) ---
+    # Profile images are NOT encrypted — they are publicly readable by design
+    # (shown as user avatars). The URL itself is encrypted in Directus for
+    # zero-knowledge storage — the actual image is public-read.
+    import os as _os
+    file_ext = _os.path.splitext(filename)[1].lower() or ".jpg"
+    import random as _random
+    import string as _string
+    random_suffix = "".join(_random.choices(_string.ascii_lowercase + _string.digits, k=8))
+    profile_image_filename = f"{user_id}-{int(time.time())}-{random_suffix}{file_ext}"
+
+    logger.info(
+        f"{log_prefix} [4/5] Uploading to S3 profile_images bucket "
+        f"(key={profile_image_filename})..."
+    )
+    s3_start = time.monotonic()
+    s3_service = request.app.state.s3
+    try:
+        profile_image_url = await s3_service.upload_profile_image(
+            image_key=profile_image_filename,
+            content=file_bytes,
+            content_type=content_type,
+            target_env=target_env,
+        )
+        s3_elapsed = (time.monotonic() - s3_start) * 1000
+        logger.info(
+            f"{log_prefix} [4/5] S3 upload: OK ({s3_elapsed:.0f} ms) — "
+            f"{len(file_bytes) / 1024:.1f} KB → {profile_image_url}"
+        )
+    except RuntimeError as e:
+        logger.error(f"{log_prefix} [4/5] S3 upload FAILED: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="File storage service unavailable")
+
+    # --- 5. Proxy URL to core API for encryption + Directus update ---
+    logger.info(
+        f"{log_prefix} [5/5] Proxying new profile image URL to core API "
+        f"for encryption and Directus update..."
+    )
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{core_api_url}/internal/profile-image/process",
+                json={
+                    "user_id": user_id,
+                    "image_url": profile_image_url,
+                },
+                headers={"X-Internal-Service-Token": internal_token},
+            )
+
+        if resp.status_code == 200:
+            process_result = resp.json()
+            total_elapsed = (time.monotonic() - upload_start) * 1000
+            logger.info(
+                f"{log_prefix} ── Profile image upload COMPLETE ─────────────────"
+            )
+            logger.info(
+                f"{log_prefix} url={profile_image_url} | total={total_elapsed:.0f} ms"
+            )
+            return ProfileImageUploadResponse(
+                status="ok",
+                url=profile_image_url,
+            )
+        elif resp.status_code == 422:
+            # The core API reports a content safety rejection (legacy path — should not happen
+            # since we check before uploading, but handle defensively)
+            process_data = resp.json()
+            return ProfileImageUploadResponse(
+                status="rejected",
+                reject_count=process_data.get("reject_count", 0),
+                detail=process_data.get("detail", "Image not allowed"),
+            )
+        else:
+            logger.error(
+                f"{log_prefix} [5/5] Core API process endpoint returned "
+                f"HTTP {resp.status_code}: {resp.text[:200]}"
+            )
+            raise HTTPException(status_code=503, detail="Profile image processing service unavailable")
+
+    except HTTPException:
+        raise
+    except httpx.TimeoutException:
+        logger.error(f"{log_prefix} [5/5] Core API process endpoint timed out")
+        raise HTTPException(status_code=503, detail="Profile image processing service timeout")
+    except Exception as e:
+        logger.error(
+            f"{log_prefix} [5/5] Core API process endpoint request failed: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=503, detail="Profile image processing failed")

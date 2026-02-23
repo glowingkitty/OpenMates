@@ -6,6 +6,7 @@
 
 import logging
 import os
+import time
 import yaml
 from fastapi import APIRouter, HTTPException, Request, Depends
 from typing import Dict, Any, Optional
@@ -1500,3 +1501,234 @@ async def trigger_pdf_processing(payload: PdfProcessPayload) -> Dict[str, Any]:
         "embed_id": payload.embed_id,
         "page_count": payload.page_count,
     }
+
+
+# ---------------------------------------------------------------------------
+# Content safety rejection tracking endpoint
+# Called by the upload server when SightEngine rejects a chat image or profile
+# image upload for nudity, violence, or gore.  Tracks per-user rejection counts
+# in Redis and deletes accounts that repeatedly upload policy-violating content.
+# ---------------------------------------------------------------------------
+
+class ContentSafetyRejectRequest(BaseModel):
+    """Payload sent by the upload server when SightEngine rejects an image."""
+    user_id: str = Field(..., description="ID of the user who uploaded the rejected image")
+    rejection_reason: str = Field(
+        ..., description="Short reason string from SightEngine (e.g. 'sexual_activity=0.95')"
+    )
+    upload_type: str = Field(
+        default="chat_image",
+        description="'chat_image' or 'profile_image' — separate Redis counters per type"
+    )
+
+
+@router.post("/uploads/content-safety-reject")
+async def content_safety_reject(
+    payload: ContentSafetyRejectRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Track a content safety rejection for a user and delete the account on the 4th violation.
+
+    Called by the app-uploads microservice when SightEngine (nudity-2.0, offensive, gore
+    models) rejects a user-uploaded image.  Mirrors the rejection tracking logic that was
+    previously inline in settings.py's update_profile_image endpoint.
+
+    Rejection counter logic:
+    - Redis key: "{upload_type}_rejects:{user_id}" — separate counter per upload type
+    - TTL: 24 hours (same as the original settings.py implementation)
+    - On 4th rejection (>= 4): delete the user account immediately
+    - Returns "tracked" on normal increments, "account_deleted" when the account is removed
+
+    Security:
+    - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes)
+    - Never modifies anything other than the reject counter and optional account deletion
+    """
+    log_prefix = f"[ContentSafetyReject] [user:{payload.user_id[:8]}...] [{payload.upload_type}]"
+    logger.info(
+        f"{log_prefix} Received rejection — reason: {payload.rejection_reason[:80]}"
+    )
+
+    # Redis key uses upload_type as prefix so chat_image and profile_image counters are
+    # tracked independently (the original settings.py used "profile_image_rejects:" only).
+    reject_key = f"{payload.upload_type}_rejects:{payload.user_id}"
+
+    try:
+        # Fetch current reject count from Redis
+        raw = await cache_service.get(reject_key)
+        reject_count = int(raw) if raw else 0
+
+        # Increment and persist with 24-hour TTL
+        reject_count += 1
+        await cache_service.set(reject_key, reject_count, ttl=86400)
+
+        logger.info(f"{log_prefix} Rejection count updated → {reject_count}")
+
+        if reject_count >= 4:
+            # Policy violation threshold reached — delete the account.
+            # We do NOT have the client IP / device fingerprint here (the upload server
+            # doesn't forward them to internal endpoints).  We pass None for those fields
+            # so the deletion is still logged correctly in Directus.
+            logger.warning(
+                f"{log_prefix} Threshold reached (count={reject_count}). "
+                f"Deleting user account."
+            )
+            try:
+                await directus_service.delete_user(
+                    payload.user_id,
+                    deletion_type="policy_violation",
+                    reason=f"repeated_inappropriate_{payload.upload_type}s",
+                    ip_address=None,
+                    device_fingerprint=None,
+                    details={
+                        "reject_count": reject_count,
+                        "upload_type": payload.upload_type,
+                        "timestamp": int(time.time()),
+                    },
+                )
+            except Exception as del_err:
+                logger.error(
+                    f"{log_prefix} Account deletion FAILED: {del_err}", exc_info=True
+                )
+                # Still clean up cache so subsequent requests don't keep incrementing
+                # a now-orphaned counter.  Fall through to return tracked.
+
+            # Clean up cache regardless of deletion success
+            await cache_service.delete_user_cache(payload.user_id)
+            await cache_service.delete(reject_key)
+
+            return {
+                "result": "account_deleted",
+                "reject_count": reject_count,
+            }
+
+        return {
+            "result": "tracked",
+            "reject_count": reject_count,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Unexpected error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Content safety rejection tracking failed: {str(e)}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Profile image processing endpoint
+# Called by the upload server after a profile image is stored in S3.
+# Encrypts the public image URL and updates the user's Directus profile + cache.
+# Does NOT update last_opened (user is past signup when using settings).
+# ---------------------------------------------------------------------------
+
+class ProfileImageProcessRequest(BaseModel):
+    """Payload sent by the upload server after uploading a profile image to S3."""
+    user_id: str = Field(..., description="ID of the user whose profile image was uploaded")
+    image_url: str = Field(..., description="Public S3 URL of the newly uploaded profile image")
+
+
+@router.post("/profile-image/process")
+async def process_profile_image(
+    payload: ProfileImageProcessRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Encrypt a newly uploaded profile image URL and persist it to Directus + cache.
+
+    Called by the app-uploads microservice (POST /v1/upload/profile-image) after
+    uploading the image bytes to the public-read S3 profile_images bucket.
+
+    This endpoint:
+    1. Fetches the user's vault_key_id (cache-first, then Directus)
+    2. Encrypts the public S3 URL using the user's Vault Transit key
+    3. Persists encrypted_profileimage_url to Directus (does NOT update last_opened)
+    4. Updates the Redis cache with the plaintext URL for fast UI reads
+
+    Architecture: Profile images are public-read on S3 by design (shown as avatars).
+    Only the URL is encrypted in Directus for zero-knowledge storage at rest.
+    The upload server never has direct Vault or Directus access, so this endpoint
+    acts as a secure proxy for those operations.
+
+    Security:
+    - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes)
+    - Only writes encrypted_profileimage_url — never reads or exposes user secrets
+    """
+    log_prefix = f"[ProfileImageProcess] [user:{payload.user_id[:8]}...]"
+    logger.info(f"{log_prefix} Processing profile image URL update")
+
+    try:
+        # 1. Get user's vault_key_id — try cache first for speed
+        vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
+
+        if not vault_key_id:
+            logger.debug(f"{log_prefix} vault_key_id not in cache, fetching from Directus")
+            profile_success, user_data, profile_msg = await directus_service.get_user_profile(
+                payload.user_id
+            )
+            if not profile_success or not user_data:
+                logger.error(
+                    f"{log_prefix} Could not fetch user profile: {profile_msg}"
+                )
+                raise HTTPException(status_code=404, detail="User not found")
+
+            vault_key_id = user_data.get("vault_key_id")
+            if not vault_key_id:
+                logger.error(f"{log_prefix} vault_key_id missing in Directus profile")
+                raise HTTPException(
+                    status_code=500,
+                    detail="User account incomplete: missing encryption key",
+                )
+
+            # Cache the vault_key_id so future requests are fast
+            await cache_service.update_user(payload.user_id, {"vault_key_id": vault_key_id})
+
+        # 2. Encrypt the public profile image URL using the user's Vault Transit key
+        encrypted_url, _key_version = await encryption_service.encrypt_with_user_key(
+            payload.image_url, vault_key_id
+        )
+        if not encrypted_url:
+            logger.error(f"{log_prefix} Vault Transit encryption returned empty result")
+            raise HTTPException(status_code=500, detail="Profile image URL encryption failed")
+
+        # 3. Persist to Directus — intentionally NOT updating last_opened here.
+        # The original settings.py endpoint set last_opened="/signup/credits" which is
+        # only appropriate during the signup flow.  Changing profile pic in Settings
+        # must NOT alter the user's signup progression state.
+        success = await directus_service.update_user(
+            payload.user_id,
+            {"encrypted_profileimage_url": encrypted_url},
+        )
+        if not success:
+            logger.error(f"{log_prefix} Directus update_user returned failure")
+            raise HTTPException(
+                status_code=500, detail="Failed to persist profile image to user profile"
+            )
+
+        # 4. Update Redis cache with the plaintext URL for fast UI reads
+        cache_success = await cache_service.update_user(
+            payload.user_id,
+            {"profile_image_url": payload.image_url},
+        )
+        if not cache_success:
+            # Non-fatal: Directus is the source of truth; cache will be refreshed on next login
+            logger.warning(
+                f"{log_prefix} Redis cache update failed (Directus was updated successfully)"
+            )
+
+        logger.info(f"{log_prefix} Profile image URL updated successfully")
+        return {"status": "ok", "url": payload.image_url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Unexpected error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Profile image processing failed: {str(e)}",
+        )

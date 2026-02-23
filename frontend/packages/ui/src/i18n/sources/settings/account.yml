@@ -95,6 +95,167 @@ passkeys:
   cs: Přístupové klíče
   sv: Åtkomstnycklar
   verified_by_human: []
+profile_picture:
+  context: Profile picture submenu under Account settings — menu item label and page title
+  en: Profile picture
+  de: Profilbild
+  zh: 个人头像
+  es: Foto de perfil
+  fr: Photo de profil
+  pt: Foto de perfil
+  ru: Фото профиля
+  ja: プロフィール写真
+  ko: 프로필 사진
+  it: Foto del profilo
+  tr: Profil fotoğrafı
+  vi: Ảnh đại diện
+  id: Foto profil
+  pl: Zdjęcie profilowe
+  nl: Profielfoto
+  ar: صورة الملف الشخصي
+  hi: प्रोफ़ाइल चित्र
+  th: รูปโปรไฟล์
+  cs: Profilový obrázek
+  sv: Profilbild
+  verified_by_human: []
+profile_picture.upload:
+  context: Upload button label on the profile picture settings page
+  en: Upload new picture
+  de: Neues Bild hochladen
+  zh: 上传新图片
+  es: Subir nueva foto
+  fr: Télécharger une nouvelle photo
+  pt: ""
+  ru: ""
+  ja: 新しい画像をアップロード
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+profile_picture.uploading:
+  context: Status message shown while profile picture is being uploaded
+  en: Uploading…
+  de: Wird hochgeladen…
+  zh: 上传中…
+  es: Subiendo…
+  fr: Téléchargement…
+  pt: ""
+  ru: ""
+  ja: アップロード中…
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+profile_picture.upload_success:
+  context: Success message shown after profile picture is successfully uploaded
+  en: Profile picture updated
+  de: Profilbild aktualisiert
+  zh: 头像已更新
+  es: Foto de perfil actualizada
+  fr: Photo de profil mise à jour
+  pt: ""
+  ru: ""
+  ja: プロフィール写真が更新されました
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+profile_picture.upload_error:
+  context: Generic error message shown when profile picture upload fails unexpectedly
+  en: Upload failed. Please try again.
+  de: Upload fehlgeschlagen. Bitte versuche es erneut.
+  zh: 上传失败，请重试。
+  es: Error al subir. Inténtalo de nuevo.
+  fr: Échec du téléchargement. Veuillez réessayer.
+  pt: ""
+  ru: ""
+  ja: アップロードに失敗しました。再試行してください。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+profile_picture.file_too_large:
+  context: Error message shown when selected profile picture file is too large (max 20 MB before canvas processing)
+  en: Image is too large. Please choose a smaller image.
+  de: Bild ist zu groß. Bitte wähle ein kleineres Bild.
+  zh: 图片太大，请选择较小的图片。
+  es: La imagen es demasiado grande. Por favor, elige una imagen más pequeña.
+  fr: L'image est trop grande. Veuillez choisir une image plus petite.
+  pt: ""
+  ru: ""
+  ja: 画像が大きすぎます。小さい画像を選んでください。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+profile_picture.wrong_format:
+  context: Error message shown when selected profile picture has an unsupported file type
+  en: Please choose a JPEG or PNG image.
+  de: Bitte wähle ein JPEG- oder PNG-Bild.
+  zh: 请选择 JPEG 或 PNG 格式的图片。
+  es: Por favor, elige una imagen JPEG o PNG.
+  fr: Veuillez choisir une image JPEG ou PNG.
+  pt: ""
+  ru: ""
+  ja: JPEGまたはPNG画像を選択してください。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 storage:
   context: Storage overview submenu under Account settings (header title shown when navigating into account/storage)
   en: Storage

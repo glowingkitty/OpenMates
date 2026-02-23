@@ -79,6 +79,20 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
   return wsUrl;
 }
 
+// Upload server endpoints (separate base URL — use getUploadUrl() + these paths)
+export const uploadEndpoints = {
+  // Upload a profile image (JPEG, already processed by browser canvas to 340x340).
+  // Returns { status: "ok", url: "https://..." } on success.
+  // Returns { status: "rejected", reject_count: N, detail: "..." } on content safety violation.
+  // Returns { status: "account_deleted" } when the 4th violation threshold is reached.
+  profile_image: "/v1/upload/profile-image",
+} as const;
+
+// Helper to get a full upload server endpoint URL
+export function getUploadEndpoint(path: string = ""): string {
+  return `${getUploadUrl()}${path}`;
+}
+
 // API endpoints
 export const apiEndpoints = {
   auth: {
@@ -142,7 +156,6 @@ export const apiEndpoints = {
     serverStatus: "/v1/settings/server-status", // Get server status (payment enabled, server edition, etc.)
     reminders: "/v1/settings/reminders", // Get active (pending) reminders for app settings
     user: {
-      update_profile_image: "/v1/settings/user/update_profile_image", // Update profile image of user
       consent_privacy_apps: "/v1/settings/user/consent/privacy-apps", // Record consent for privacy/apps settings
       consent_mates: "/v1/settings/user/consent/mates", // Record consent for mates settings
       language: "/v1/settings/user/language", // Update user language

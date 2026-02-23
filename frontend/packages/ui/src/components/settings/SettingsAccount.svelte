@@ -23,6 +23,19 @@ Account Settings - Main menu for account-related settings including Security, Ex
     let currentTimezone = $derived($userProfile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
     /**
+     * Navigate to Profile Picture submenu.
+     * Dispatches navigation event to parent Settings component.
+     */
+    function navigateToProfilePicture() {
+        dispatch('openSettings', {
+            settingsPath: 'account/profile-picture',
+            direction: 'forward',
+            icon: 'user',
+            title: $text('settings.account.profile_picture')
+        });
+    }
+
+    /**
      * Navigate to Timezone submenu.
      * Dispatches navigation event to parent Settings component.
      */
@@ -101,6 +114,13 @@ Account Settings - Main menu for account-related settings including Security, Ex
         });
     }
 </script>
+
+<SettingsItem
+    type="submenu"
+    icon="user"
+    title={$text('settings.account.profile_picture')}
+    onClick={navigateToProfilePicture}
+/>
 
 <SettingsItem 
     type="subsubmenu"

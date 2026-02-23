@@ -1,12 +1,10 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Security
+from fastapi import APIRouter, HTTPException, Depends, Request, Security
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 import logging
 import math
 import time
 import os
-import random
-import string
 import hashlib
 import json
 import glob
@@ -19,8 +17,6 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key, get_current_user_optional
-from backend.core.api.app.services.image_safety import ImageSafetyService
-from backend.core.api.app.services.s3 import S3UploadService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
@@ -155,154 +151,6 @@ async def get_active_reminders(
         logger.error(f"Error fetching active reminders: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch reminders")
 
-
-# --- Endpoint for updating profile image ---
-@router.post("/user/update_profile_image", response_model=dict, include_in_schema=False)  # Exclude from schema - not in whitelist
-@limiter.limit("10/minute")  # Prevent abuse of profile image uploads
-async def update_profile_image(
-    request: Request,  # Keep request parameter for IP/fingerprint
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
-):
-    # Access services from app state
-    s3_service: S3UploadService = request.app.state.s3_service
-    image_safety_service: ImageSafetyService = request.app.state.image_safety_service
-    cache_service: CacheService = request.app.state.cache_service # Explicitly get cache service
-    directus_service: DirectusService = request.app.state.directus_service # Explicitly get directus service
-    encryption_service: EncryptionService = request.app.state.encryption_service # Explicitly get encryption service
-
-    if not s3_service or not image_safety_service or not cache_service or not directus_service or not encryption_service:
-         logger.error("Required services not available in app state for settings route.")
-         raise HTTPException(status_code=503, detail="Service unavailable")
-
-    bucket_config = s3_service.get_bucket_config('profile_images')
-    
-    try:
-        # Validate content type first (cheapest check)
-        if file.content_type not in bucket_config['allowed_types']:
-            raise HTTPException(status_code=400, detail="Invalid file type")
-
-        # Check file size before reading entire content
-        if file.size and file.size > bucket_config['max_size']:
-            raise HTTPException(status_code=400, detail="File too large")
-
-        # Read image content only after validation
-        image_content = await file.read()
-        
-        # Double check actual content size
-        if len(image_content) > bucket_config['max_size']:
-            raise HTTPException(status_code=400, detail="File too large")
-
-        # Check rejected uploads count from cache (using service from backend.core.api.app.state)
-        reject_key = f"profile_image_rejects:{current_user.id}"
-        reject_count = await cache_service.get(reject_key) or 0
-
-        # Check image safety (using service from backend.core.api.app.state)
-        is_safe = await image_safety_service.check_profile_image(image_content)
-        if not is_safe:
-            # Increment and store reject count
-            reject_count += 1
-            await cache_service.set(reject_key, reject_count, ttl=86400)  # 24h TTL
-
-            if reject_count >= 4:  # Changed from 3 to 4 (delete on 4th attempt)
-                # Get device information for compliance logging
-                # Generate device hash using the current_user.id
-                device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=current_user.id)
-                client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
-
-                # Delete user account with proper reason
-                # Note: The deletion will be logged by the delete_user method (using service from backend.core.api.app.state)
-                await directus_service.delete_user(
-                    current_user.id,
-                    deletion_type="policy_violation",
-                    reason="repeated_inappropriate_profile_images",
-                    ip_address=client_ip,
-                    device_fingerprint=device_hash, # Use generated device_hash
-                    details={
-                        "reject_count": reject_count,
-                        "timestamp": int(time.time())
-                    }
-                )
-                
-                # Clean all user data from cache using the enhanced method
-                await cache_service.delete_user_cache(current_user.id)
-                
-                # Also delete the reject count key
-                await cache_service.delete(reject_key)
-                    
-                return {
-                    "status": "account_deleted",
-                    "detail": "Account deleted due to policy violations"
-                }
-            
-            return {
-                "status": "error",
-                "detail": "Image not allowed",
-                "reject_count": reject_count
-            }
-
-        # Reset reject count if upload is successful
-        await cache_service.delete(reject_key)
-
-        # Generate unique filename
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-        new_filename = f"{current_user.id}-{int(time.time())}-{random_suffix}{file_ext}"
-
-        # Get old image URL from the current user object (already fetched/cached)
-        old_url = current_user.profile_image_url
-
-        # Upload new image (using service from backend.core.api.app.state)
-        upload_result = await s3_service.upload_file(
-            bucket_key='profile_images',
-            file_key=new_filename,
-            content=image_content,
-            content_type=file.content_type
-        )
-        
-        # Profile images bucket is public read - always use regular URL, not presigned URL
-        image_url = upload_result['url']
-
-        # --- Get vault_key_id from current_user (cached or fetched by dependency) ---
-        vault_key_id = current_user.vault_key_id
-        if not vault_key_id:
-             logger.error(f"User {current_user.id} does not have a vault_key_id in current_user object")
-             raise HTTPException(status_code=500, detail="User encryption key not found")
-        # --- End get vault_key_id ---
-
-        # Encrypt URL (using service from backend.core.api.app.state)
-        encrypted_url, _ = await encryption_service.encrypt_with_user_key(image_url, vault_key_id) # Use encrypt_with_user_key
-
-        # Update Directus (using service from backend.core.api.app.state)
-        await directus_service.update_user(current_user.id, {
-            "encrypted_profileimage_url": encrypted_url,
-            "last_opened": "/signup/credits" # For now we skip settings and mate settings, will implement those later again
-        })
-
-        # Update cache with new image URL and last_opened step
-        logger.info(f"Attempting to update cache for user {current_user.id} after profile image upload.")
-        cache_update_success = await cache_service.update_user(current_user.id, {
-            "profile_image_url": image_url,
-            "last_opened": "/signup/credits" # For now we skip settings and mate settings, will implement those later again
-        })
-        if cache_update_success:
-            logger.info(f"Successfully updated cache for user {current_user.id} with new profile image URL.")
-        else:
-            # Log warning, but don't fail the request as Directus was updated
-            logger.warning(f"Failed to update cache for user {current_user.id} after profile image upload, but Directus was updated.")
-
-        # Delete old image from S3
-        if old_url:
-            old_key = old_url.split('/')[-1]
-            await s3_service.delete_file('profile_images', old_key) # Use service from backend.core.api.app.state
-
-        return {"url": image_url}
-
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error processing image: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error processing image")
 
 # --- Endpoint for Privacy & Apps Consent ---
 @router.post("/user/consent/privacy-apps", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist

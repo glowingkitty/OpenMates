@@ -37,6 +37,7 @@ import SettingsEmail from "./account/SettingsEmail.svelte";
 import SettingsDeleteAccount from "./account/SettingsDeleteAccount.svelte";
 import SettingsExportAccount from "./account/SettingsExportAccount.svelte";
 import SettingsStorage from "./account/SettingsStorage.svelte";
+import SettingsProfilePicture from "./account/SettingsProfilePicture.svelte";
 import SettingsSecurity from "./SettingsSecurity.svelte";
 import SettingsPasskeys from "./SettingsPasskeys.svelte";
 import SettingsPassword from "./security/SettingsPassword.svelte";
@@ -169,6 +170,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "account/security/recovery-key": SettingsRecoveryKey,
   "account/export": SettingsExportAccount,
   "account/storage": SettingsStorage,
+  "account/profile-picture": SettingsProfilePicture,
   "account/delete": SettingsDeleteAccount,
   // Newsletter
   newsletter: SettingsNewsletter,

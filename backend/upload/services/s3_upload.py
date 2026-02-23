@@ -44,11 +44,16 @@ class UploadsS3Service:
         self.region_name: Optional[str] = None
         self.endpoint_url: Optional[str] = None
         self.base_domain: Optional[str] = None
-        # Per-environment bucket names — the upload service is shared across
-        # dev and prod, so we initialise BOTH buckets at startup and select
+        # Per-environment bucket names for chat files — the upload service is shared
+        # across dev and prod, so we initialise BOTH buckets at startup and select
         # the correct one per-request via get_bucket_for_env().
         self.bucket_name_prod: str = "openmates-chatfiles"
         self.bucket_name_dev: str = "dev-openmates-chatfiles"
+        # Per-environment bucket names for profile images (public-read, plaintext).
+        # Profile images are NOT encrypted — they are public-read on S3 by design
+        # (shown as user avatars). Only the URL is encrypted in Directus.
+        self.profile_bucket_name_prod: str = "openmates-profile-images"
+        self.profile_bucket_name_dev: str = "dev-openmates-profile-images"
         # Legacy: kept for callers that don't pass an env (defaults to prod for safety)
         self.bucket_name: Optional[str] = None
 
@@ -136,7 +141,12 @@ class UploadsS3Service:
         #
         # We apply the ACL to BOTH the dev and prod chatfiles buckets since this service
         # handles requests for both environments (via X-Target-Env header routing).
-        for bucket_name in (self.bucket_name_dev, self.bucket_name_prod):
+        for bucket_name in (
+            self.bucket_name_dev,
+            self.bucket_name_prod,
+            self.profile_bucket_name_dev,
+            self.profile_bucket_name_prod,
+        ):
             try:
                 self.client.put_bucket_acl(Bucket=bucket_name, ACL="public-read")
                 logger.info(f"[S3Upload] Set public-read ACL on bucket '{bucket_name}'")
@@ -266,3 +276,80 @@ class UploadsS3Service:
         """
         bucket = self.get_bucket_for_env(target_env)
         return f"https://{bucket}.{self.base_domain}"
+
+    def get_profile_bucket_for_env(self, target_env: str = "prod") -> str:
+        """
+        Return the correct S3 profile-images bucket name for the given environment.
+
+        Profile images are stored in a separate public-read bucket from chat files
+        (openmates-profile-images / dev-openmates-profile-images).
+
+        Args:
+            target_env: "dev" or "prod" (from X-Target-Env header).
+
+        Returns:
+            The profile-images bucket name for the specified environment.
+        """
+        if target_env == "dev":
+            return self.profile_bucket_name_dev
+        return self.profile_bucket_name_prod
+
+    async def upload_profile_image(
+        self,
+        image_key: str,
+        content: bytes,
+        content_type: str = "image/jpeg",
+        target_env: str = "prod",
+    ) -> str:
+        """
+        Upload a profile image to the public-read profile_images S3 bucket.
+
+        Profile images are stored unencrypted (plaintext) because they must be
+        publicly accessible for use as user avatars.  Only the URL is encrypted
+        in Directus for zero-knowledge storage at rest.
+
+        Args:
+            image_key: S3 object key (e.g. "user-uuid-{timestamp}-{random}.jpg").
+            content: Raw (non-encrypted) image bytes — already processed
+                     by the browser canvas (340x340 JPEG at quality 90).
+            content_type: MIME type of the image (image/jpeg or image/png).
+            target_env: "dev" or "prod" — selects the correct S3 bucket.
+
+        Returns:
+            The full public HTTPS URL of the uploaded image.
+
+        Raises:
+            RuntimeError: If the client is not initialised or the upload fails.
+        """
+        if self.client is None:
+            raise RuntimeError("[S3Upload] S3 client not initialised — call initialize() first")
+
+        bucket = self.get_profile_bucket_for_env(target_env)
+        import asyncio
+
+        def _put() -> None:
+            self.client.put_object(
+                Bucket=bucket,
+                Key=image_key,
+                Body=content,
+                ContentType=content_type,
+                ACL="public-read",
+                # No Cache-Control header: profile images may change when the user
+                # re-uploads, so we intentionally avoid long-lived caching.
+                CacheControl="no-cache",
+            )
+
+        try:
+            await asyncio.to_thread(_put)
+            public_url = f"https://{bucket}.{self.base_domain}/{image_key}"
+            logger.info(
+                f"[S3Upload] Profile image uploaded {len(content) / 1024:.1f} KB → {public_url}"
+            )
+            return public_url
+        except ClientError as e:
+            logger.error(
+                f"[S3Upload] Profile image upload failed for key {image_key} "
+                f"(bucket={bucket}): {e}",
+                exc_info=True,
+            )
+            raise RuntimeError(f"S3 profile image upload failed: {e}") from e
