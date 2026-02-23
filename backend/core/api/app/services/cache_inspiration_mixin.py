@@ -35,6 +35,8 @@ TOPIC_SUGGESTIONS_MAX_ENTRIES = 50
 PENDING_INSPIRATIONS_TTL_SECONDS = 7 * 86400  # 7 days
 # Paid request tracking: 48h so the daily job can always check the previous day
 PAID_REQUEST_TTL_SECONDS = 48 * 3600  # 48 hours
+# Sync cache for login Phase 1 delivery: 10 minutes (matches new_chat_suggestions TTL)
+SYNC_INSPIRATIONS_TTL_SECONDS = 600  # 10 minutes
 
 
 class InspirationCacheMixin:
@@ -562,3 +564,105 @@ class InspirationCacheMixin:
                 exc_info=True,
             )
             return False
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Phase 1 sync cache (login delivery — mirrors new_chat_suggestions pattern)
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _inspiration_sync_key(self, hashed_user_id: str) -> str:
+        """Cache key for syncing daily inspirations during Phase 1 login sync.
+
+        Uses hashed_user_id (SHA256) so the key format matches new_chat_suggestions
+        and all other per-user sync cache keys.
+        Key: user:{hashed_user_id}:daily_inspirations_sync
+        """
+        return f"user:{hashed_user_id}:daily_inspirations_sync"
+
+    async def set_daily_inspirations_sync(
+        self,
+        hashed_user_id: str,
+        inspirations: List[Dict[str, Any]],
+        ttl: int = SYNC_INSPIRATIONS_TTL_SECONDS,
+    ) -> bool:
+        """
+        Cache daily inspirations for Phase 1 login sync delivery.
+
+        Called by cache warming (user_cache_tasks) when pre-warming the user's
+        cache on login.  Stored as JSON, TTL 10 minutes.  On Phase 1 sync,
+        phased_sync_handler reads this cache instead of hitting Directus directly.
+
+        Args:
+            hashed_user_id: SHA256 hash of user_id
+            inspirations:   List of inspiration dicts from Directus
+            ttl:            Time-to-live in seconds (default: 10 min)
+
+        Returns:
+            True on success, False on error (non-fatal; Phase 1 will fall back
+            to a direct Directus query on cache miss)
+        """
+        client = await self.client
+        if not client:
+            logger.error("[CACHE] Redis client not available for set_daily_inspirations_sync")
+            return False
+
+        key = self._inspiration_sync_key(hashed_user_id)
+        try:
+            await client.set(key, json.dumps(inspirations), ex=ttl)
+            logger.debug(
+                f"[CACHE] Cached {len(inspirations)} daily inspirations for sync, "
+                f"user {hashed_user_id[:8]}... (TTL {ttl}s)"
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                f"[CACHE] Failed to cache daily inspirations sync for user "
+                f"{hashed_user_id[:8]}...: {e}",
+                exc_info=True,
+            )
+            return False
+
+    async def get_daily_inspirations_sync(
+        self,
+        hashed_user_id: str,
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        Retrieve cached daily inspirations for Phase 1 login sync.
+
+        Returns the list of inspiration dicts if present in cache, else None.
+
+        Args:
+            hashed_user_id: SHA256 hash of user_id
+
+        Returns:
+            List of inspiration dicts or None on cache miss / error
+        """
+        client = await self.client
+        if not client:
+            logger.error("[CACHE] Redis client not available for get_daily_inspirations_sync")
+            return None
+
+        key = self._inspiration_sync_key(hashed_user_id)
+        try:
+            raw = await client.get(key)
+            if not raw:
+                logger.debug(
+                    f"[CACHE] Cache MISS for daily inspirations sync, user {hashed_user_id[:8]}..."
+                )
+                return None
+
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8")
+
+            inspirations = json.loads(raw)
+            logger.debug(
+                f"[CACHE] Cache HIT: {len(inspirations)} daily inspirations for sync, "
+                f"user {hashed_user_id[:8]}..."
+            )
+            return inspirations
+        except Exception as e:
+            logger.error(
+                f"[CACHE] Failed to retrieve daily inspirations sync for user "
+                f"{hashed_user_id[:8]}...: {e}",
+                exc_info=True,
+            )
+            return None

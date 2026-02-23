@@ -53,6 +53,63 @@ async def _fetch_new_chat_suggestions(
         return []
 
 
+async def _fetch_daily_inspirations(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str
+) -> List[Dict[str, Any]]:
+    """
+    Fetch daily inspirations for a user with cache-first strategy.
+
+    Mirrors _fetch_new_chat_suggestions in structure. Returns the list of
+    encrypted inspiration records for inclusion in the Phase 1 sync payload.
+
+    CACHE-FIRST: Uses the sync cache populated by cache warming (user_cache_tasks).
+    Falls back to a direct Directus query on cache miss.
+
+    Returns empty list on error to allow sync to continue.
+    """
+    try:
+        import hashlib
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+
+        # CACHE-FIRST STRATEGY: Try the sync cache populated during cache warming
+        cached_inspirations = await cache_service.get_daily_inspirations_sync(hashed_user_id)
+        if cached_inspirations is not None:
+            logger.info(
+                f"Phase 1: ✅ Using cached daily inspirations "
+                f"({len(cached_inspirations)} entries) for user {user_id[:8]}..."
+            )
+            return cached_inspirations
+
+        # Cache miss — fetch directly from Directus
+        logger.info(
+            f"Phase 1: Cache MISS for daily inspirations, "
+            f"fetching from Directus for user {user_id[:8]}..."
+        )
+        inspirations = await directus_service.user_daily_inspiration.get_user_inspirations(
+            user_id=user_id, limit=10
+        )
+
+        # Populate the sync cache for subsequent rapid reconnects
+        if inspirations:
+            await cache_service.set_daily_inspirations_sync(hashed_user_id, inspirations)
+            logger.info(
+                f"Cached {len(inspirations)} daily inspirations (sync) for user {user_id[:8]}..."
+            )
+
+        logger.info(
+            f"Fetched {len(inspirations)} daily inspirations from Directus for user {user_id[:8]}..."
+        )
+        return inspirations
+
+    except Exception as e:
+        logger.error(
+            f"Error fetching daily inspirations for user {user_id}: {e}", exc_info=True
+        )
+        return []
+
+
 async def handle_phased_sync_request(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -142,10 +199,11 @@ async def _handle_phase1_sync(
     sent_embed_ids: set
 ):
     """
-    Handle Phase 1: Last opened chat AND new chat suggestions (immediate priority)
-    ALWAYS fetches and sends BOTH:
+    Handle Phase 1: Last opened chat, new chat suggestions, AND daily inspirations (immediate priority)
+    ALWAYS fetches and sends ALL THREE:
     - Last opened chat (if there is one and not "new")
     - New chat suggestions (always, for immediate display)
+    - Daily inspirations (always, so the banner populates immediately on login)
     
     This ensures users have immediate content regardless of which view they're looking at.
     Maintains zero-knowledge architecture - all data remains encrypted.
@@ -153,9 +211,17 @@ async def _handle_phase1_sync(
     logger.info(f"Processing Phase 1 sync for user {user_id}")
     
     try:
-        # ALWAYS fetch new chat suggestions in Phase 1 (cache-first)
-        new_chat_suggestions = await _fetch_new_chat_suggestions(cache_service, directus_service, user_id)
-        logger.info(f"Phase 1: Retrieved {len(new_chat_suggestions)} new chat suggestions")
+        # ALWAYS fetch new chat suggestions AND daily inspirations in Phase 1 (both cache-first).
+        # Run both fetches concurrently to keep Phase 1 latency minimal.
+        import asyncio as _asyncio
+        new_chat_suggestions, daily_inspirations = await _asyncio.gather(
+            _fetch_new_chat_suggestions(cache_service, directus_service, user_id),
+            _fetch_daily_inspirations(cache_service, directus_service, user_id),
+        )
+        logger.info(
+            f"Phase 1: Retrieved {len(new_chat_suggestions)} new chat suggestions "
+            f"and {len(daily_inspirations)} daily inspirations"
+        )
         
         # Get last opened chat from user profile.
         # CACHE-FIRST: Try Redis cache first (kept up-to-date by set_active_chat handler),
@@ -172,7 +238,7 @@ async def _handle_phase1_sync(
             user_profile = await directus_service.get_user_profile(user_id)
             if not user_profile[1]:  # user_profile returns (success, data, error)
                 logger.warning(f"Could not fetch user profile for Phase 1 sync: {user_id}")
-                # Still send suggestions even if profile fetch fails
+                # Still send suggestions and inspirations even if profile fetch fails
                 await manager.send_personal_message(
                     {
                         "type": "phase_1_last_chat_ready",
@@ -181,6 +247,7 @@ async def _handle_phase1_sync(
                             "chat_details": None,
                             "messages": None,
                             "new_chat_suggestions": new_chat_suggestions,
+                            "daily_inspirations": daily_inspirations,
                             "phase": "phase1",
                             "already_synced": False
                         }
@@ -193,8 +260,8 @@ async def _handle_phase1_sync(
             last_opened_path = user_profile[1].get("last_opened")
             logger.debug(f"Phase 1 sync: Got last_opened='{last_opened_path}' from Directus for user {user_id}")
         if not last_opened_path:
-            logger.info(f"No last opened path for user {user_id}, sending only suggestions")
-            # Send suggestions without chat
+            logger.info(f"No last opened path for user {user_id}, sending suggestions and inspirations only")
+            # Send suggestions and inspirations without chat
             await manager.send_personal_message(
                 {
                     "type": "phase_1_last_chat_ready",
@@ -203,6 +270,7 @@ async def _handle_phase1_sync(
                         "chat_details": None,
                         "messages": None,
                         "new_chat_suggestions": new_chat_suggestions,
+                        "daily_inspirations": daily_inspirations,
                         "phase": "phase1",
                         "already_synced": False
                     }
@@ -218,7 +286,7 @@ async def _handle_phase1_sync(
         # Handle demo/legal/public chats — these are client-side-only static content, not real
         # server-side chats. Treat them as "no last opened chat" and send suggestions only.
         if chat_id.startswith("demo-") or chat_id.startswith("legal-"):
-            logger.info(f"Phase 1: Last opened was public/demo chat '{chat_id}', sending suggestions only")
+            logger.info(f"Phase 1: Last opened was public/demo chat '{chat_id}', sending suggestions and inspirations only")
             await manager.send_personal_message(
                 {
                     "type": "phase_1_last_chat_ready",
@@ -227,6 +295,7 @@ async def _handle_phase1_sync(
                         "chat_details": None,
                         "messages": None,
                         "new_chat_suggestions": new_chat_suggestions,
+                        "daily_inspirations": daily_inspirations,
                         "phase": "phase1",
                         "already_synced": False
                     }
@@ -236,9 +305,9 @@ async def _handle_phase1_sync(
             )
             return
         
-        # Handle "new" chat section - send only suggestions
+        # Handle "new" chat section - send suggestions and inspirations only
         if chat_id == "new":
-            logger.info("Phase 1: Last opened was 'new' chat section, sending suggestions only")
+            logger.info("Phase 1: Last opened was 'new' chat section, sending suggestions and inspirations only")
             await manager.send_personal_message(
                 {
                     "type": "phase_1_last_chat_ready",
@@ -247,6 +316,7 @@ async def _handle_phase1_sync(
                         "chat_details": None,
                         "messages": None,
                         "new_chat_suggestions": new_chat_suggestions,
+                        "daily_inspirations": daily_inspirations,
                         "phase": "phase1",
                         "already_synced": False
                     }
@@ -397,7 +467,7 @@ async def _handle_phase1_sync(
             if not chat_details:
                 logger.warning(f"Could not fetch chat details for Phase 1: {chat_id} (chat may have been deleted)")
                 logger.info(f"Phase 1: Falling back to 'new' chat view since last_opened chat {chat_id} is missing")
-                # Chat was deleted - fallback to "new" chat view with suggestions
+                # Chat was deleted - fallback to "new" chat view with suggestions and inspirations
                 await manager.send_personal_message(
                     {
                         "type": "phase_1_last_chat_ready",
@@ -406,6 +476,7 @@ async def _handle_phase1_sync(
                             "chat_details": None,
                             "messages": None,
                             "new_chat_suggestions": new_chat_suggestions,
+                            "daily_inspirations": daily_inspirations,
                             "phase": "phase1",
                             "already_synced": False
                         }
@@ -560,11 +631,12 @@ async def _handle_phase1_sync(
             f"[PHASE1_SEND] 📤 Sending Phase 1 data to client for chat {chat_id}, user {user_id[:8]}...: "
             f"messages={len(messages_data or [])}, embeds={len(embeds_data or [])}, "
             f"embed_keys={len(embed_keys_data or [])}, suggestions={len(new_chat_suggestions)}, "
+            f"daily_inspirations={len(daily_inspirations)}, "
             f"has_encrypted_chat_key={has_encrypted_chat_key}"
         )
         
-        # Send Phase 1 data to client WITH suggestions, embeds, AND embed_keys
-        # Include server_message_count for client-side validation of data consistency
+        # Send Phase 1 data to client WITH suggestions, inspirations, embeds, AND embed_keys.
+        # Include server_message_count for client-side validation of data consistency.
         await manager.send_personal_message(
             {
                 "type": "phase_1_last_chat_ready",
@@ -576,6 +648,7 @@ async def _handle_phase1_sync(
                     "embeds": embeds_data or [],  # Include embeds for client-side storage
                     "embed_keys": embed_keys_data or [],  # Include embed_keys for decryption
                     "new_chat_suggestions": new_chat_suggestions,  # Always include suggestions
+                    "daily_inspirations": daily_inspirations,  # Always include for banner display
                     "phase": "phase1",
                     "already_synced": False
                 }
@@ -587,7 +660,8 @@ async def _handle_phase1_sync(
         logger.info(
             f"[PHASE1_COMPLETE] ✅ Phase 1 sync complete for user {user_id[:8]}..., chat: {chat_id}, "
             f"sent: {len(messages_data or [])} messages, {len(embeds_data or [])} embeds, "
-            f"{len(embed_keys_data)} embed_keys, and {len(new_chat_suggestions)} suggestions"
+            f"{len(embed_keys_data)} embed_keys, {len(new_chat_suggestions)} suggestions, "
+            f"and {len(daily_inspirations)} daily inspirations"
         )
         
     except Exception as e:

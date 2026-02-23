@@ -572,6 +572,7 @@ export interface Phase1LastChatPayload {
   embeds?: SyncEmbed[]; // Embeds for the chat (client-encrypted)
   embed_keys?: EmbedKeyEntry[]; // Embed keys needed to decrypt embed content
   new_chat_suggestions?: NewChatSuggestion[]; // New chat suggestions for Phase 1
+  daily_inspirations?: Array<Record<string, unknown>>; // Raw encrypted daily inspiration records from Directus, synced at login
   phase: "phase1";
   already_synced?: boolean; // Version-aware: true if client already has up-to-date version
 }

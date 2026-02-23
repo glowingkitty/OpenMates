@@ -138,8 +138,8 @@ async def _warm_cache_phase_one(
 
     hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
     
-    # OPTIMIZATION: Fetch new chat suggestions AND chat details in parallel
-    # This reduces Phase 1 latency by running both Directus queries concurrently
+    # OPTIMIZATION: Fetch new chat suggestions, daily inspirations, AND chat details in parallel
+    # This reduces Phase 1 latency by running all three Directus queries concurrently
     async def fetch_suggestions():
         """Fetch and cache new chat suggestions."""
         try:
@@ -156,7 +156,30 @@ async def _warm_cache_phase_one(
         except Exception as e:
             logger.error(f"Error caching new chat suggestions in Phase 1 for user {user_id}: {e}", exc_info=True)
             return None
-    
+
+    async def fetch_and_cache_inspirations():
+        """Fetch daily inspirations from Directus and warm the Phase 1 sync cache."""
+        try:
+            # user_daily_inspiration.get_user_inspirations uses raw user_id (hashes internally)
+            inspirations = await directus_service.user_daily_inspiration.get_user_inspirations(
+                user_id=user_id, limit=10
+            )
+            if inspirations:
+                await cache_service.set_daily_inspirations_sync(hashed_user_id, inspirations)
+                logger.info(
+                    f"User {user_id}: Cached {len(inspirations)} daily inspirations "
+                    f"(sync) in Phase 1 cache warming"
+                )
+            else:
+                logger.info(f"User {user_id}: No daily inspirations found to cache in Phase 1")
+            return inspirations
+        except Exception as e:
+            logger.error(
+                f"Error caching daily inspirations in Phase 1 for user {user_id}: {e}",
+                exc_info=True,
+            )
+            return None
+
     async def fetch_chat_details():
         """Fetch chat details for the target chat."""
         if not target_immediate_chat_id:
@@ -169,9 +192,10 @@ async def _warm_cache_phase_one(
             logger.error(f"Error fetching chat details for {target_immediate_chat_id}: {e}", exc_info=True)
             return None
     
-    # Run both queries in parallel using asyncio.gather
-    suggestions_result, full_data = await asyncio.gather(
+    # Run all three queries in parallel using asyncio.gather
+    suggestions_result, _inspirations_result, full_data = await asyncio.gather(
         fetch_suggestions(),
+        fetch_and_cache_inspirations(),
         fetch_chat_details()
     )
     

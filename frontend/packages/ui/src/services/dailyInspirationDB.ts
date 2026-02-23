@@ -651,3 +651,136 @@ async function saveStoredInspirationToIndexedDB(
     req.onerror = () => reject(req.error);
   });
 }
+
+// ─── Phase 1 sync: process encrypted records delivered inline ─────────────────
+
+/**
+ * Decrypt and save an array of encrypted inspiration records delivered via
+ * the Phase 1 login-sync payload (`daily_inspirations` field).
+ *
+ * The record shape is identical to the `GET /v1/daily-inspirations` response —
+ * the Directus row with all `encrypted_*` fields.  This function:
+ *   1. Decrypts the content fields with the user's master key.
+ *   2. Saves each record to IndexedDB for offline persistence.
+ *   3. Returns a decrypted DailyInspiration[] ready for the store.
+ *
+ * Any record that fails decryption is skipped (non-fatal).
+ * Returns at most 3 inspirations (newest first).
+ */
+export async function processInspirationRecordsFromSync(
+  records: Array<Record<string, unknown>>,
+): Promise<DailyInspiration[]> {
+  if (!records || records.length === 0) return [];
+
+  try {
+    const { decryptWithMasterKey } = await import("./cryptoService");
+
+    const decrypted: DailyInspiration[] = [];
+
+    for (const record of records) {
+      try {
+        const encPhrase = record.encrypted_phrase as string;
+        const encCategory = record.encrypted_category as string;
+        const encAssistant = record.encrypted_assistant_response as string;
+        const encTitle = record.encrypted_title as string;
+
+        if (!encPhrase || !encCategory || !encAssistant || !encTitle) {
+          console.warn(
+            `${LOG_PREFIX} Skipping Phase 1 inspiration with missing encrypted fields`,
+          );
+          continue;
+        }
+
+        const encVideoMetadata =
+          (record.encrypted_video_metadata as string | null) ?? null;
+
+        // Decrypt phrase, category, and optionally video metadata in parallel
+        const decryptPromises: Promise<string | null>[] = [
+          decryptWithMasterKey(encPhrase),
+          decryptWithMasterKey(encCategory),
+        ];
+        if (encVideoMetadata) {
+          decryptPromises.push(decryptWithMasterKey(encVideoMetadata));
+        }
+
+        const [phrase, category, videoMetadataJson] =
+          await Promise.all(decryptPromises);
+
+        if (!phrase || !category) {
+          console.warn(
+            `${LOG_PREFIX} Decryption failed for Phase 1 inspiration — skipping`,
+          );
+          continue;
+        }
+
+        // Reconstruct video metadata if stored
+        let video:
+          | import("../stores/dailyInspirationStore").DailyInspirationVideo
+          | null = null;
+        if (videoMetadataJson) {
+          try {
+            video = JSON.parse(
+              videoMetadataJson,
+            ) as import("../stores/dailyInspirationStore").DailyInspirationVideo;
+          } catch {
+            // Non-fatal — video metadata is best-effort
+          }
+        }
+
+        const inspiration: DailyInspiration = {
+          inspiration_id: record.daily_inspiration_id as string,
+          phrase,
+          category,
+          content_type: (record.content_type as string) || "video",
+          video,
+          generated_at: record.generated_at as number,
+          embed_id: (record.embed_id as string | null) ?? null,
+          is_opened: (record.is_opened as boolean) ?? false,
+          opened_chat_id: (record.opened_chat_id as string | null) ?? null,
+        };
+
+        decrypted.push(inspiration);
+
+        // Persist to IndexedDB (non-blocking, non-fatal) so next page load is local
+        const idbRecord: StoredDailyInspiration = {
+          inspiration_id: inspiration.inspiration_id,
+          embed_id: inspiration.embed_id ?? null,
+          generated_at: inspiration.generated_at,
+          content_type: inspiration.content_type,
+          is_opened: inspiration.is_opened ?? false,
+          opened_chat_id: inspiration.opened_chat_id ?? null,
+          encrypted_phrase: encPhrase,
+          encrypted_assistant_response: encAssistant,
+          encrypted_title: encTitle,
+          encrypted_category: encCategory,
+          encrypted_icon: (record.encrypted_icon as string | null) ?? null,
+          encrypted_video_metadata: encVideoMetadata,
+        };
+
+        saveStoredInspirationToIndexedDB(idbRecord).catch((err) => {
+          console.warn(
+            `${LOG_PREFIX} Failed to cache Phase 1 inspiration in IndexedDB:`,
+            err,
+          );
+        });
+      } catch (err) {
+        console.error(
+          `${LOG_PREFIX} Error processing Phase 1 inspiration:`,
+          err,
+        );
+      }
+    }
+
+    decrypted.sort((a, b) => b.generated_at - a.generated_at);
+    console.debug(
+      `${LOG_PREFIX} Processed ${decrypted.length} inspirations from Phase 1 sync`,
+    );
+    return decrypted.slice(0, 3);
+  } catch (error) {
+    console.error(
+      `${LOG_PREFIX} Failed to process Phase 1 inspiration records:`,
+      error,
+    );
+    return [];
+  }
+}
