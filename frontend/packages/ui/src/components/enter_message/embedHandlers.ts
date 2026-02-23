@@ -799,6 +799,7 @@ export async function insertRecording(
   mimeType: string,
   duration: string,
   isAuthenticated: boolean = true,
+  chatId?: string,
 ): Promise<void> {
   const timestamp = Date.now();
   // Derive a sensible filename from the MIME type (e.g. audio/webm → .webm)
@@ -888,6 +889,7 @@ export async function insertRecording(
     file,
     mimeType,
     controller.signal,
+    chatId,
   ).catch((err) => {
     console.error(
       "[EmbedHandlers] Unhandled error in _performRecordingUpload:",
@@ -992,7 +994,7 @@ export async function retryTranscription(
   const transcribeBody = {
     requests: [
       {
-        request_id: embedId,
+        id: embedId,
         embed_id: attrs.uploadEmbedId,
         s3_key: s3Key,
         s3_base_url: s3BaseUrl,
@@ -1102,6 +1104,7 @@ async function _performRecordingUpload(
   file: File,
   mimeType: string,
   signal?: AbortSignal,
+  chatId?: string,
 ): Promise<void> {
   // Helper: update embed node attrs via a ProseMirror transaction.
   function updateEmbedNode(updates: Record<string, unknown>): void {
@@ -1148,7 +1151,7 @@ async function _performRecordingUpload(
     // Step 3: Call the audio.transcribe skill via the backend API
     //
     // POST /v1/apps/audio/skills/transcribe
-    // Body: { requests: [{ request_id, embed_id, s3_key, s3_base_url, aes_key, aes_nonce, vault_wrapped_aes_key, filename, mime_type }] }
+    // Body: { requests: [{ id, embed_id, s3_key, s3_base_url, aes_key, aes_nonce, vault_wrapped_aes_key, filename, mime_type }] }
     // -----------------------------------------------------------------------
     const apiUrl = getApiUrl();
     const transcribeUrl = `${apiUrl}/v1/apps/audio/skills/transcribe`;
@@ -1170,20 +1173,26 @@ async function _performRecordingUpload(
       return;
     }
 
+    // Build the transcription request item.
+    // chat_id is included when available so the usage entry can be linked to the correct
+    // chat in usage statistics. For recordings in new (not-yet-sent) chats a pre-allocated
+    // draft UUID is passed; for existing chats the real chat_id is passed.
+    const transcribeRequestItem: Record<string, unknown> = {
+      id: localEmbedId,
+      embed_id: uploadResult.embed_id,
+      s3_key: s3Key,
+      s3_base_url: uploadResult.s3_base_url,
+      aes_key: uploadResult.aes_key,
+      aes_nonce: uploadResult.aes_nonce,
+      vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+      filename: file.name,
+      mime_type: mimeType,
+    };
+    if (chatId) {
+      transcribeRequestItem.chat_id = chatId;
+    }
     const transcribeBody = {
-      requests: [
-        {
-          request_id: localEmbedId,
-          embed_id: uploadResult.embed_id,
-          s3_key: s3Key,
-          s3_base_url: uploadResult.s3_base_url,
-          aes_key: uploadResult.aes_key,
-          aes_nonce: uploadResult.aes_nonce,
-          vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
-          filename: file.name,
-          mime_type: mimeType,
-        },
-      ],
+      requests: [transcribeRequestItem],
     };
 
     let transcribeResponse: Response;
