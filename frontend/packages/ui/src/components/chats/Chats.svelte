@@ -1227,6 +1227,15 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				// No hash present, safe to clear everything including URL
 				activeChatStore.clearActiveChat();
 			}
+		} else {
+			// EARLY IDB LOAD: Start loading chats from IndexedDB immediately (non-blocking) so
+			// they appear as soon as possible, without waiting for all event listeners to be wired.
+			// This fires the async IDB read in parallel with the synchronous setup below.
+			// The call at the end of onMount() will hit the cache and return immediately.
+			// This eliminates the "chats disappear on reload" flash caused by IDB init delay.
+			initializeAndLoadDataFromDB().catch(err => {
+				console.error('[Chats] Early IDB load failed (non-fatal, will retry at end of mount):', err);
+			});
 		}
 		
 		// Initialize selectedChatId from the persistent store on mount
