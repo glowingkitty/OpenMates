@@ -1670,6 +1670,23 @@ export class EmbedStore {
   }
 
   /**
+   * Get an embed key from the in-memory cache (without IndexedDB lookup).
+   * Returns the raw unwrapped key if it was previously cached by setEmbedKeyInCache(),
+   * or null if not found. Used when we need to re-wrap an existing key with a new wrapper
+   * (e.g., adding a chat key wrapper to an inspiration embed that already has a master key).
+   * @param embedId - The embed ID (without "embed:" prefix)
+   * @param hashedChatId - Optional hashed chat ID for the cache key
+   * @returns The unwrapped embed key or null
+   */
+  getEmbedKeyFromCache(
+    embedId: string,
+    hashedChatId?: string,
+  ): Uint8Array | null {
+    const cacheKey = `${embedId}:${hashedChatId || "master"}`;
+    return embedKeyCache.get(cacheKey) ?? null;
+  }
+
+  /**
    * Clear embed key cache (e.g., on logout)
    */
   clearEmbedKeyCache(): void {

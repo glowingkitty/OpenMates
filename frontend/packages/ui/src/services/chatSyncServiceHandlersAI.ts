@@ -2778,6 +2778,40 @@ export async function handleSendEmbedDataImpl(
         const embedRef = `embed:${embedData.embed_id}`;
         const hashedChatId = await computeSHA256(embedData.chat_id || "");
 
+        // Safety net: If the server included embed_keys (from request_embed handler),
+        // store them in IndexedDB so the client can later unwrap the embed key
+        // and decrypt the content. Without this, second devices have no way to
+        // derive the embed key for inspiration embeds.
+        const serverEmbedKeys = embedData.embed_keys;
+        if (
+          serverEmbedKeys &&
+          Array.isArray(serverEmbedKeys) &&
+          serverEmbedKeys.length > 0
+        ) {
+          try {
+            // Map from Directus field names to EmbedKeyEntry interface
+            const keyEntries = serverEmbedKeys.map(
+              (k: Record<string, unknown>) => ({
+                hashed_embed_id: k.hashed_embed_id as string,
+                key_type: k.key_type as "master" | "chat",
+                hashed_chat_id: (k.hashed_chat_id as string) || null,
+                encrypted_embed_key: k.encrypted_embed_key as string,
+                hashed_user_id: k.hashed_user_id as string,
+                created_at: k.created_at as number,
+              }),
+            );
+            await embedStore.storeEmbedKeys(keyEntries);
+            console.info(
+              `[ChatSyncService:AI] Stored ${keyEntries.length} embed_keys from server for embed ${embedData.embed_id}`,
+            );
+          } catch (keyErr) {
+            console.error(
+              `[ChatSyncService:AI] Failed to store embed_keys for embed ${embedData.embed_id}:`,
+              keyErr,
+            );
+          }
+        }
+
         // The content and type are already encrypted - store as-is
         const encryptedEmbedForStorage = {
           embed_id: embedData.embed_id,

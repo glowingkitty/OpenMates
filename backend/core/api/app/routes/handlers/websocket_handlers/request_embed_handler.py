@@ -70,6 +70,14 @@ async def handle_request_embed(
                 logger.info(
                     f"{log_prefix}Directus confirms embed is 'finished' - serving client-encrypted data from Directus"
                 )
+                # Fetch embed_keys so the requesting device can decrypt the content.
+                # Without these keys, the client has no way to derive the embed key.
+                embed_keys = await directus_service.embed.get_embed_keys_by_embed_id(embed_id)
+                if embed_keys:
+                    logger.info(f"{log_prefix}Including {len(embed_keys)} embed_keys in response")
+                else:
+                    logger.warning(f"{log_prefix}No embed_keys found for embed — client may not be able to decrypt")
+
                 # Directus has the client-encrypted final embed. Send it directly
                 # using the send_embed_data event so the client stores it in IndexedDB.
                 # The content in Directus is already client-encrypted (stored by the
@@ -100,6 +108,9 @@ async def handle_request_embed(
                         # and should be stored directly without re-encryption
                         "already_encrypted": True,
                         "encryption_mode": directus_embed.get("encryption_mode", "client"),
+                        # Include embed_keys so the requesting device can decrypt
+                        # the content using its chat key or master key
+                        "embed_keys": embed_keys if embed_keys else [],
                     }
                 }
 
@@ -171,6 +182,13 @@ async def handle_request_embed(
             directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
             if directus_embed and directus_embed.get("status") == "finished":
                 logger.info(f"{log_prefix}Found finished embed in Directus (not in cache)")
+                # Fetch embed_keys so the requesting device can decrypt the content
+                embed_keys = await directus_service.embed.get_embed_keys_by_embed_id(embed_id)
+                if embed_keys:
+                    logger.info(f"{log_prefix}Including {len(embed_keys)} embed_keys in response (Directus fallback)")
+                else:
+                    logger.warning(f"{log_prefix}No embed_keys found for embed (Directus fallback) — client may not be able to decrypt")
+
                 send_payload = {
                     "event": "send_embed_data",
                     "type": "send_embed_data",
@@ -195,6 +213,9 @@ async def handle_request_embed(
                         "content_hash": directus_embed.get("content_hash"),
                         "already_encrypted": True,
                         "encryption_mode": directus_embed.get("encryption_mode", "client"),
+                        # Include embed_keys so the requesting device can decrypt
+                        # the content using its chat key or master key
+                        "embed_keys": embed_keys if embed_keys else [],
                     }
                 }
                 await manager.send_personal_message(send_payload, user_id, device_fingerprint_hash)

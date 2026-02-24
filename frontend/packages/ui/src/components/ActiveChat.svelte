@@ -3838,6 +3838,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
 
+        // ── Deduplication: if this inspiration already has an opened chat, navigate
+        //    to it instead of creating a duplicate. Verify the chat still exists in
+        //    IndexedDB first (it may have been pruned or not yet synced).
+        if (inspiration.is_opened && inspiration.opened_chat_id) {
+            const existingChatId = inspiration.opened_chat_id;
+            try {
+                const existingChat = await chatDB.getChat(existingChatId);
+                if (existingChat) {
+                    console.info(
+                        `[ActiveChat] Inspiration ${inspiration.inspiration_id} already opened — navigating to existing chat ${existingChatId}`,
+                    );
+                    phasedSyncState.markInitialChatLoaded();
+                    activeChatStore.setActiveChat(existingChatId);
+                    await loadChat(existingChat);
+                    return;
+                }
+                // Chat not found locally — fall through to create a new one.
+                // This can happen on a fresh device where the chat hasn't synced yet.
+                console.info(
+                    `[ActiveChat] Inspiration ${inspiration.inspiration_id} marked as opened but chat ${existingChatId} not found locally — creating new chat`,
+                );
+            } catch (lookupErr) {
+                console.warn(
+                    `[ActiveChat] Error looking up existing inspiration chat ${existingChatId}:`,
+                    lookupErr,
+                );
+                // Fall through to create a new chat
+            }
+        }
+
         try {
             const { generateChatKey, encryptWithChatKey } = await import('../services/cryptoService');
             const { createEmbedReferenceBlock } = await import('../components/enter_message/services/urlMetadataService');
@@ -3871,10 +3901,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // card immediately, without waiting for an API call or server round-trip.
             const firstMessageText = inspiration.assistant_response ?? phrase;
             let messageContent = firstMessageText;
+            // Track whether we reused a pre-stored inspiration embed (needed for
+            // chat key wrapper creation after the chat and message are created)
+            let reusedEmbedId: string | null = null;
             if (inspiration.video) {
                 const video = inspiration.video;
                 const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
-                const embedId = generateUUID();
+
+                // CRITICAL: Reuse the pre-stored inspiration embed if it exists.
+                // persistInspirations() already created and encrypted this embed with an
+                // embed key + master key wrapper and synced it to Directus. Creating a NEW
+                // embed here would abandon the original (with its keys) and produce an
+                // embed that has no server-side key wrappers — causing decryption failures
+                // on other devices. By reusing the existing embed_id we keep the key chain
+                // intact and can add a chat key wrapper below.
+                const existingEmbedId = inspiration.embed_id;
+                const embedId = existingEmbedId || generateUUID();
+
+                if (existingEmbedId) {
+                    reusedEmbedId = existingEmbedId;
+                    console.info(
+                        `[ActiveChat] Reusing pre-stored inspiration embed ${existingEmbedId} (not creating a new one)`,
+                    );
+                } else {
+                    console.info(
+                        `[ActiveChat] No pre-stored embed_id on inspiration — creating new embed ${embedId}`,
+                    );
+                }
 
                 // Format duration if available (e.g. 273 → "4:33")
                 let durationFormatted: string | null = null;
@@ -3921,7 +3974,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     updatedAt: nowMs,
                 };
 
-                // Store the embed in EmbedStore (same namespace as regular YouTube embeds)
+                // Store the embed in EmbedStore (same namespace as regular YouTube embeds).
+                // For reused embeds this overwrites the local copy with up-to-date metadata.
                 try {
                     await embedStore.put(`embed:${embedId}`, embedData, 'videos-video');
                     console.info(`[ActiveChat] Stored inspiration video embed in EmbedStore: ${embedId}`);
@@ -3975,6 +4029,164 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             await chatDB.saveMessage(assistantMessage);
 
             console.info(`[ActiveChat] Created inspiration chat ${chatId} with message ${messageId}`);
+
+            // ── Add chat key wrapper + update hashed_chat_id in Directus ──
+            // If we reused a pre-stored inspiration embed, associate it with the
+            // newly created chat so the phased sync pipeline (which queries
+            // embed_keys by hashed_chat_id) can deliver the key to other devices.
+            // This is the same pattern used by normal embeds in handleSendEmbedDataImpl().
+            if (reusedEmbedId) {
+                try {
+                    const { computeSHA256 } = await import('../message_parsing/utils');
+                    const {
+                        generateEmbedKey,
+                        wrapEmbedKeyWithChatKey,
+                        wrapEmbedKeyWithMasterKey,
+                        encryptWithEmbedKey,
+                    } = await import('../services/cryptoService');
+                    const {
+                        sendStoreEmbedKeysImpl,
+                        sendStoreEmbedImpl,
+                    } = await import('../services/chatSyncServiceSenders');
+
+                    const profile = await userDB.getUserProfile();
+                    const currentUserId = profile?.user_id || '';
+                    const hashedChatId = await computeSHA256(chatId);
+                    const hashedEmbedId = await computeSHA256(reusedEmbedId);
+                    const hashedMessageId = await computeSHA256(messageId);
+                    const hashedUserId = await computeSHA256(currentUserId);
+
+                    // Retrieve the existing embed key from cache (set by persistInspirations).
+                    // If not in cache (e.g., page reload), generate a new one and re-encrypt.
+                    let embedKeyForWrap = embedStore.getEmbedKeyFromCache(reusedEmbedId);
+                    let needsReEncrypt = false;
+
+                    if (!embedKeyForWrap) {
+                        // Cache miss — the user may have reloaded the page since the
+                        // inspiration was stored. Generate a fresh embed key, re-encrypt
+                        // the content, and replace the Directus record.
+                        console.info(
+                            `[ActiveChat] Embed key not in cache for ${reusedEmbedId} — generating fresh key and re-encrypting`,
+                        );
+                        embedKeyForWrap = generateEmbedKey();
+                        needsReEncrypt = true;
+                    }
+
+                    // Create a chat key wrapper (this is what was missing before)
+                    const wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKeyForWrap, chatKey);
+
+                    // Also create/refresh the master key wrapper
+                    const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKeyForWrap);
+
+                    // Cache the embed key for local decryption
+                    embedStore.setEmbedKeyInCache(reusedEmbedId, embedKeyForWrap, undefined);
+
+                    const embedKeyTimestamp = Math.floor(Date.now() / 1000);
+
+                    // Store BOTH key wrappers (master + chat) locally and on server
+                    const embedKeysForStorage: import('../services/embedStore').EmbedKeyEntry[] = [
+                        {
+                            hashed_embed_id: hashedEmbedId,
+                            key_type: 'master',
+                            hashed_chat_id: null,
+                            encrypted_embed_key: wrappedMasterKey,
+                            hashed_user_id: hashedUserId,
+                            created_at: embedKeyTimestamp,
+                        },
+                        {
+                            hashed_embed_id: hashedEmbedId,
+                            key_type: 'chat',
+                            hashed_chat_id: hashedChatId,
+                            encrypted_embed_key: wrappedChatKey,
+                            hashed_user_id: hashedUserId,
+                            created_at: embedKeyTimestamp,
+                        },
+                    ];
+                    await embedStore.storeEmbedKeys(embedKeysForStorage);
+
+                    // Send key wrappers to Directus (the dedup logic on the server will
+                    // skip the master key if it already exists and create the new chat key)
+                    const { chatSyncService: syncService } = await import('../services/chatSyncService');
+                    if (syncService) {
+                        await sendStoreEmbedKeysImpl(syncService, {
+                            keys: embedKeysForStorage,
+                        });
+                    }
+
+                    // Update the embed's hashed_chat_id and hashed_message_id in Directus
+                    // so the phased sync pipeline can discover it when syncing this chat.
+                    // If we also need to re-encrypt (cache miss), include the new encrypted content.
+                    const embedUpdatePayload: Record<string, unknown> = {
+                        embed_id: reusedEmbedId,
+                        hashed_chat_id: hashedChatId,
+                        hashed_message_id: hashedMessageId,
+                        hashed_user_id: hashedUserId,
+                        updated_at: embedKeyTimestamp,
+                    };
+
+                    if (needsReEncrypt && inspiration.video) {
+                        const video = inspiration.video;
+                        const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
+                        let durationFmt: string | null = null;
+                        if (video.duration_seconds != null) {
+                            const m = Math.floor(video.duration_seconds / 60);
+                            const s = video.duration_seconds % 60;
+                            durationFmt = `${m}:${s.toString().padStart(2, '0')}`;
+                        }
+                        const embedContentObj = {
+                            url: videoUrl,
+                            video_id: video.youtube_id,
+                            title: video.title || null,
+                            description: null,
+                            channel_name: video.channel_name || null,
+                            channel_id: null,
+                            channel_thumbnail: null,
+                            thumbnail: video.thumbnail_url || null,
+                            duration_seconds: video.duration_seconds ?? null,
+                            duration_formatted: durationFmt,
+                            view_count: video.view_count ?? null,
+                            like_count: null,
+                            published_at: video.published_at || null,
+                            fetched_at: new Date().toISOString(),
+                        };
+                        let toonStr: string;
+                        try {
+                            toonStr = (await import('@toon-format/toon')).encode(embedContentObj);
+                        } catch {
+                            toonStr = JSON.stringify(embedContentObj);
+                        }
+
+                        const encContent = await encryptWithEmbedKey(toonStr, embedKeyForWrap);
+                        const encType = await encryptWithEmbedKey('video', embedKeyForWrap);
+                        const encPreview = await encryptWithEmbedKey(
+                            video.title || 'YouTube Video', embedKeyForWrap,
+                        );
+                        if (encContent) embedUpdatePayload.encrypted_content = encContent;
+                        if (encType) embedUpdatePayload.encrypted_type = encType;
+                        if (encPreview) embedUpdatePayload.encrypted_text_preview = encPreview;
+                    }
+
+                    if (syncService) {
+                        await sendStoreEmbedImpl(
+                            syncService,
+                            embedUpdatePayload as unknown as import('../types/chat').StoreEmbedPayload,
+                        );
+                    }
+
+                    console.info(
+                        `[ActiveChat] ✅ Associated inspiration embed ${reusedEmbedId} with chat ${chatId} ` +
+                        `(added chat key wrapper + updated hashed_chat_id in Directus)` +
+                        (needsReEncrypt ? ' [re-encrypted with fresh key]' : ''),
+                    );
+                } catch (keyErr) {
+                    // Non-fatal: the embed is stored locally and works on this device.
+                    // Other devices can use the request_embed safety net to get the key.
+                    console.error(
+                        '[ActiveChat] Failed to create chat key wrapper for inspiration embed (non-fatal):',
+                        keyErr,
+                    );
+                }
+            }
 
             // Mark the inspiration as opened — the carousel stays visible but the
             // next unopened entry becomes the default. Do this before navigating
