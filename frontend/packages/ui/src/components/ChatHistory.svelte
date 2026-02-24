@@ -430,6 +430,7 @@
     chatCategory = null,
     chatIcon = null,
     chatSummary = null,
+    chatCreatedAt = null,
     isNewChatGeneratingTitle = false,
   }: {
     messageInputHeight?: number;
@@ -450,8 +451,10 @@
     chatIcon?: string | null;
     /** Decrypted chat summary — shown as 14px text below the title if available. */
     chatSummary?: string | null;
+    /** Unix timestamp in seconds of when the chat was created. Used for the "Started ..." time in the header banner. */
+    chatCreatedAt?: number | null;
     /** True while the server is still generating the title/category/icon for a new chat.
-     *  Shows the "Generating title..." shimmer placeholder instead of the full card. */
+     *  Shows the "Creating new chat ..." shimmer placeholder instead of the full card. */
     isNewChatGeneratingTitle?: boolean;
   } = $props();
 
@@ -1380,6 +1383,7 @@
                         category={chatCategory}
                         icon={chatIcon}
                         summary={chatSummary}
+                        {chatCreatedAt}
                         isLoading={isNewChatGeneratingTitle}
                     />
                 </div>
@@ -1571,12 +1575,11 @@
     max-width: 900px;
   }
 
-  /* Wrapper for the ChatHeader component at the top of new chats.
-     Full width, constrained to match message content width. */
+  /* Wrapper for the ChatHeader banner at the top of new chats.
+     Full width like DailyInspirationBanner — no padding/margin. */
   .chat-header-wrapper {
     width: 100%;
     max-width: 900px;
-    margin: 0 auto;
-    padding: 0 4px;
+    margin: 0 auto 8px;
   }
 </style>

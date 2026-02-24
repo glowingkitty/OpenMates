@@ -1,109 +1,243 @@
 <!--
   ChatHeader.svelte
 
-  Displays a permanent, display-only header card at the top of the active chat history.
-  Shown only for new chats (where we generated a title/category/icon on first message).
-  Mirrors the visual design of Chat.svelte's sidebar item (category gradient circle + title),
-  but scaled up for use inside the chat area.
+  Full-width gradient banner displayed at the top of the active chat history.
+  Shown only for new chats where the server generates title/category/icon.
+  Scrolls with the chat content (scrolls out of view as user scrolls down).
 
-  States:
-    - isLoading=true  → shows "Generating title..." placeholder with AI icon shimmer
-    - isLoading=false → shows full card with gradient circle + icon + title (+ optional summary)
+  Two visual states with smooth transitions:
+
+  State A — Processing (isLoading=true):
+    - Background: var(--color-primary) gradient
+    - Centered AI icon (38×38px, white) + "Creating new chat ..." text (20px, white)
+    - Both icon and text have a left-to-right shimmer animation
+    - No decorative side icons
+
+  State B — Loaded (isLoading=false, title+category present):
+    - Background: category gradient (from getCategoryGradientColors)
+    - AI icon/text fade out, replaced by:
+      - Category icon (38×38px, white) centered
+      - Title (20px, white, bold) centered below icon
+      - Summary (14px, white) — fades in with max-height animation when available
+      - Creation time (14px, white, 0.7 opacity) — relative formatting
+    - Large decorative icons (126×126px) at left and right edges:
+      - 0.4 opacity, entrance animation: fade up from +50px Y offset
+      - overflow: hidden clips them at the banner edges
+
+  Dimensions match DailyInspirationBanner:
+    - Desktop: 240px height, 14px border-radius
+    - Mobile (≤730px): 190px height
 
   Props:
-    title       - decrypted/plaintext chat title (empty while generating)
-    category    - category string (e.g. "technology", "science") — null while generating
-    icon        - icon name string (e.g. "cpu") — null while generating
-    summary     - decrypted chat summary (2-3 sentences) — null if not yet generated
-    isLoading   - true while title/category/icon are not yet received from the server
+    title         - decrypted/plaintext chat title
+    category      - category string (e.g. "technology", "science")
+    icon          - icon name string (e.g. "cpu")
+    summary       - decrypted chat summary (2-3 sentences)
+    isLoading     - true while title/category/icon are not yet received
+    chatCreatedAt - Unix timestamp in seconds of chat creation
 -->
 <script lang="ts">
-  import { fade } from 'svelte/transition';
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
 
-  // Props
+  // ─── Props ─────────────────────────────────────────────────────────────────
+
   let {
     title = '',
     category = null,
     icon = null,
     summary = null,
     isLoading = false,
+    chatCreatedAt = null,
   }: {
     title?: string;
     category?: string | null;
     icon?: string | null;
     summary?: string | null;
     isLoading?: boolean;
+    chatCreatedAt?: number | null;
   } = $props();
 
-  // Gradient colours derived from category
-  let gradientColors = $derived(category ? getCategoryGradientColors(category) : null);
+  // ─── Derived state ─────────────────────────────────────────────────────────
 
-  // Icon component resolved from the icon name + category fallback
+  /** Gradient background style for the banner. Uses primary gradient while loading,
+   *  category gradient once loaded. */
+  let bannerStyle = $derived.by(() => {
+    if (isLoading || !category) {
+      // Processing state: use the primary gradient from theme.css
+      return 'background: var(--color-primary)';
+    }
+    const colors = getCategoryGradientColors(category);
+    if (!colors) return 'background: var(--color-primary)';
+    return `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`;
+  });
+
+  /** Lucide icon component for the category, resolved from icon name + fallback. */
   let IconComponent = $derived.by(() => {
     if (!category) return null;
     const iconName = getValidIconName(icon || '', category);
     return getLucideIcon(iconName);
   });
+
+  /** Whether the loaded state should be shown (transition from processing → loaded). */
+  let isLoaded = $derived(!isLoading && !!title && !!category);
+
+  /** Whether to show the summary with its expand animation. */
+  let showSummary = $derived(isLoaded && !!summary);
+
+  // ─── Creation time formatting ──────────────────────────────────────────────
+
+  /**
+   * Format the chat creation time as a relative/absolute string.
+   *
+   * Rules (from spec):
+   *   - < 1 minute ago     → "Just now"
+   *   - 1–10 minutes ago   → "{count} min ago"
+   *   - Today (>10 min)    → "Started today, HH:MM"
+   *   - Yesterday           → "Started yesterday, HH:MM"
+   *   - Older               → "Started YYYY/MM/DD, HH:MM"
+   *
+   * chatCreatedAt is a Unix timestamp in **seconds** (consistent with Chat.created_at).
+   */
+  let formattedTime = $derived.by(() => {
+    if (!chatCreatedAt) return '';
+
+    const createdMs = chatCreatedAt * 1000; // Convert seconds → milliseconds
+    const now = Date.now();
+    const diffMs = now - createdMs;
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    const createdDate = new Date(createdMs);
+    const todayDate = new Date(now);
+
+    // Format HH:MM with zero-padded hours and minutes
+    const timeStr = `${String(createdDate.getHours()).padStart(2, '0')}:${String(createdDate.getMinutes()).padStart(2, '0')}`;
+
+    // Less than 1 minute ago
+    if (diffMinutes < 1) {
+      return $text('chat.header.just_now');
+    }
+
+    // 1–10 minutes ago: relative
+    if (diffMinutes <= 10) {
+      return $text('chat.header.minutes_ago', { values: { count: diffMinutes } });
+    }
+
+    // Same calendar day: "Started today, HH:MM"
+    if (
+      createdDate.getFullYear() === todayDate.getFullYear() &&
+      createdDate.getMonth() === todayDate.getMonth() &&
+      createdDate.getDate() === todayDate.getDate()
+    ) {
+      return $text('chat.header.started_today', { values: { time: timeStr } });
+    }
+
+    // Yesterday: compare with calendar date minus 1 day
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    if (
+      createdDate.getFullYear() === yesterdayDate.getFullYear() &&
+      createdDate.getMonth() === yesterdayDate.getMonth() &&
+      createdDate.getDate() === yesterdayDate.getDate()
+    ) {
+      return $text('chat.header.started_yesterday', { values: { time: timeStr } });
+    }
+
+    // Older: "Started YYYY/MM/DD, HH:MM"
+    const dateStr = `${createdDate.getFullYear()}/${String(createdDate.getMonth() + 1).padStart(2, '0')}/${String(createdDate.getDate()).padStart(2, '0')}`;
+    return $text('chat.header.started_date', { values: { date: dateStr, time: timeStr } });
+  });
+
+  /** Whether to show the creation time line. Only shown once we have a title+category. */
+  let showTime = $derived(isLoaded && !!formattedTime);
 </script>
 
-{#if isLoading}
-  <!-- Placeholder shown while the server is generating title/category/icon.
-       Uses the same AI icon shimmer as the old centered overlay but placed inline
-       at the very top of the chat, above the first user message. -->
-  <div class="chat-header-placeholder" in:fade={{ duration: 200 }} out:fade={{ duration: 150 }}>
-    <div class="placeholder-ai-icon"></div>
-    <span class="placeholder-text">{$text('enter_message.status.generating_title')}</span>
-  </div>
-{:else if title && category}
-  <!-- Full header card: category gradient circle + icon + title.
-       Matches Chat.svelte sidebar item design but scaled up. -->
-  <div class="chat-header-card" in:fade={{ duration: 300 }}>
-    <!-- Category circle (gradient background + lucide icon) -->
-    <div class="chat-header-circle-wrapper">
-      <div
-        class="chat-header-circle"
-        style={gradientColors
-          ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
-          : 'background: #cccccc'}
-      >
-        {#if IconComponent}
-          <div class="chat-header-circle-icon">
-            <IconComponent size={22} color="white" />
-          </div>
-        {/if}
-      </div>
+<!-- Banner container: always rendered when either loading or loaded.
+     Smooth background-color transition from primary → category gradient. -->
+<div
+  class="chat-header-banner"
+  class:is-loaded={isLoaded}
+  style={bannerStyle}
+>
+  <!-- ── Processing state: AI icon + "Creating new chat ..." with shimmer ── -->
+  {#if isLoading}
+    <div class="processing-content">
+      <div class="processing-ai-icon"></div>
+      <span class="processing-text">{$text('chat.creating_new_chat')}</span>
     </div>
+  {/if}
 
-    <!-- Title and optional summary -->
-    <div class="chat-header-title-wrapper">
+  <!-- ── Loaded state: category icon + title + summary + time ── -->
+  {#if isLoaded}
+    <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
+         Animate in from below: translateY(50px) → translateY(0), opacity 0 → 0.4. -->
+    {#if IconComponent}
+      <div class="deco-icon deco-icon-left">
+        <IconComponent size={126} color="white" />
+      </div>
+      <div class="deco-icon deco-icon-right">
+        <IconComponent size={126} color="white" />
+      </div>
+    {/if}
+
+    <div class="loaded-content">
+      <!-- Category icon (38×38px) -->
+      {#if IconComponent}
+        <div class="loaded-icon">
+          <IconComponent size={38} color="white" />
+        </div>
+      {/if}
+
+      <!-- Title (20px, white, bold) -->
       <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-      <span class="chat-header-title">{@html title}</span>
-      {#if summary}
-        <p class="chat-header-summary">{summary}</p>
+      <span class="loaded-title">{@html title}</span>
+
+      <!-- Summary: fades in with max-height expand when available -->
+      {#if showSummary}
+        <p class="loaded-summary">{summary}</p>
+      {/if}
+
+      <!-- Creation time -->
+      {#if showTime}
+        <span class="loaded-time">{formattedTime}</span>
       {/if}
     </div>
-  </div>
-{/if}
+  {/if}
+</div>
 
 <style>
-  /* ─── Loading placeholder ─────────────────────────────────────────────── */
+  /* ─── Banner container ──────────────────────────────────────────────────── */
 
-  .chat-header-placeholder {
+  .chat-header-banner {
+    position: relative;
+    width: 100%;
+    height: 240px;
+    border-radius: 14px;
+    overflow: hidden;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    margin-bottom: 8px;
-    /* Subtle card-like appearance matching the full card below */
-    border-radius: 14px;
-    background: var(--color-grey-10, rgba(255, 255, 255, 0.04));
-    border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    justify-content: center;
+    /* Smooth background transition when switching from primary → category gradient */
+    transition: background 0.5s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    /* No interactivity — purely decorative */
+    pointer-events: none;
+    user-select: none;
   }
 
-  /* AI icon with shimmer — mirrors the icon used in the old centered overlay */
-  .placeholder-ai-icon {
+  /* ─── Processing state ──────────────────────────────────────────────────── */
+
+  .processing-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    z-index: 2;
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  /* AI icon (38×38px, white) with left-to-right shimmer */
+  .processing-ai-icon {
     width: 38px;
     height: 38px;
     flex-shrink: 0;
@@ -115,121 +249,229 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
+    /* White base with a brighter sweep for shimmer */
     background: linear-gradient(
       90deg,
-      var(--color-grey-30, #ccc) 0%,
-      var(--color-grey-30, #ccc) 40%,
-      var(--color-grey-10, #f0f0f0) 50%,
-      var(--color-grey-30, #ccc) 60%,
-      var(--color-grey-30, #ccc) 100%
+      rgba(255, 255, 255, 1) 0%,
+      rgba(255, 255, 255, 1) 35%,
+      rgba(255, 255, 255, 0.5) 50%,
+      rgba(255, 255, 255, 1) 65%,
+      rgba(255, 255, 255, 1) 100%
     );
     background-size: 200% 100%;
-    animation: chat-header-shimmer 1.5s infinite linear;
+    animation: headerShimmer 1.8s infinite linear;
   }
 
-  .placeholder-text {
-    font-size: 15px;
-    font-style: italic;
+  /* "Creating new chat ..." text (20px, white) with shimmer */
+  .processing-text {
+    font-size: 20px;
+    font-weight: 600;
+    color: white;
+    text-align: center;
+    /* Shimmer on text via background-clip */
     background: linear-gradient(
       90deg,
-      var(--color-grey-60) 0%,
-      var(--color-grey-60) 40%,
-      var(--color-grey-40) 50%,
-      var(--color-grey-60) 60%,
-      var(--color-grey-60) 100%
+      rgba(255, 255, 255, 1) 0%,
+      rgba(255, 255, 255, 1) 35%,
+      rgba(255, 255, 255, 0.5) 50%,
+      rgba(255, 255, 255, 1) 65%,
+      rgba(255, 255, 255, 1) 100%
     );
     background-size: 200% 100%;
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
-    animation: chat-header-shimmer 1.5s infinite linear;
+    animation: headerShimmer 1.8s infinite linear;
   }
 
-  @keyframes chat-header-shimmer {
+  @keyframes headerShimmer {
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
   }
 
-  /* ─── Full chat header card ───────────────────────────────────────────── */
+  /* ─── Loaded state ──────────────────────────────────────────────────────── */
 
-  .chat-header-card {
+  .loaded-content {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 20px 16px 16px;
-    margin-top: 16px;
-    margin-bottom: 8px;
-    border-radius: 14px;
-    background: var(--color-grey-10, rgba(255, 255, 255, 0.04));
-    border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
-    /* No interactivity — purely decorative */
-    pointer-events: none;
-    user-select: none;
-  }
-
-  /* Category circle: scaled-up version of Chat.svelte .category-circle (28px → 44px) */
-  .chat-header-circle-wrapper {
-    flex-shrink: 0;
-    position: relative;
-    width: 44px;
-    height: 44px;
-  }
-
-  .chat-header-circle {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.15);
-    border: 2px solid var(--color-background, #fff);
-  }
-
-  .chat-header-circle-icon {
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Title: centered below the icon circle, slightly smaller than before */
-  .chat-header-title-wrapper {
+    gap: 4px;
+    z-index: 2;
+    padding: 16px 60px;
+    max-width: 680px;
     width: 100%;
-    min-width: 0;
-    overflow: hidden;
-    text-align: center;
+    animation: fadeIn 0.35s ease-out;
   }
 
-  .chat-header-title {
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Category icon (38×38px, centered) */
+  .loaded-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Title: 20px, white, bold, centered, truncated to 2 lines */
+  .loaded-title {
     display: block;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 20px;
+    font-weight: 700;
+    color: #ffffff;
+    text-align: center;
     line-height: 1.3;
+    max-width: 100%;
+    /* Clamp to 2 lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
-  /* Summary: shown below the title when available, 14px muted text */
-  .chat-header-summary {
-    margin: 5px 0 0;
+  /* Summary: 14px, white, centered. Animates height from 0. */
+  .loaded-summary {
+    margin: 2px 0 0;
     font-size: 14px;
     font-weight: 400;
-    color: var(--color-text-muted, var(--color-grey-60));
-    line-height: 1.5;
-    /* Allow wrapping — summary can be 2-3 sentences */
-    white-space: normal;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    /* Clamp to 3 lines max so the header doesn't grow too tall */
+    color: #ffffff;
+    line-height: 1.45;
+    text-align: center;
+    /* Clamp to 3 lines */
     display: -webkit-box;
     -webkit-line-clamp: 3;
     line-clamp: 3;
     -webkit-box-orient: vertical;
+    overflow: hidden;
+    /* Smooth expand animation using max-height */
+    animation: summaryExpand 0.5s ease-out;
+  }
+
+  @keyframes summaryExpand {
+    from {
+      opacity: 0;
+      max-height: 0;
+      margin-top: 0;
+    }
+    to {
+      opacity: 1;
+      max-height: 100px; /* enough for 3 lines */
+      margin-top: 2px;
+    }
+  }
+
+  /* Creation time: 14px, white at 0.7 opacity */
+  .loaded-time {
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    margin-top: 2px;
+    animation: fadeIn 0.4s ease-out 0.15s both;
+  }
+
+  /* ─── Large decorative icons (126×126px) at banner edges ─────────────── */
+
+  .deco-icon {
+    position: absolute;
+    width: 126px;
+    height: 126px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    pointer-events: none;
+    /* Entrance animation: fade up from +50px below to actual position */
+    animation: decoIconEnter 0.6s ease-out 0.1s both;
+  }
+
+  .deco-icon-left {
+    left: -10px;
+    bottom: -15px;
+    transform: rotate(-15deg);
+  }
+
+  .deco-icon-right {
+    right: -10px;
+    bottom: -15px;
+    transform: rotate(15deg);
+  }
+
+  @keyframes decoIconEnter {
+    from {
+      opacity: 0;
+      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
+    }
+    to {
+      opacity: 0.4;
+      transform: translateY(0) rotate(var(--deco-rotate, 0deg));
+    }
+  }
+
+  /* Apply rotation via custom properties so the animation preserves it */
+  .deco-icon-left {
+    --deco-rotate: -15deg;
+  }
+
+  .deco-icon-right {
+    --deco-rotate: 15deg;
+  }
+
+  /* ─── Mobile adjustments (≤730px) ───────────────────────────────────────── */
+
+  @media (max-width: 730px) {
+    .chat-header-banner {
+      height: 190px;
+    }
+
+    .processing-ai-icon {
+      width: 32px;
+      height: 32px;
+    }
+
+    .processing-text {
+      font-size: 17px;
+    }
+
+    .loaded-content {
+      padding: 12px 50px;
+    }
+
+    .loaded-icon {
+      width: 32px;
+      height: 32px;
+    }
+
+    .loaded-icon :global(svg) {
+      width: 32px !important;
+      height: 32px !important;
+    }
+
+    .loaded-title {
+      font-size: 17px;
+    }
+
+    .loaded-summary {
+      font-size: 13px;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+    }
+
+    /* Smaller decorative icons on mobile */
+    .deco-icon {
+      width: 90px;
+      height: 90px;
+    }
+
+    .deco-icon :global(svg) {
+      width: 90px !important;
+      height: 90px !important;
+    }
   }
 </style>

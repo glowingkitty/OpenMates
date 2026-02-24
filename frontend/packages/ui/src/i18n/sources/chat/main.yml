@@ -738,3 +738,141 @@ insufficient_credits_buy:
   cs: Koupit kredity
   sv: Köp krediter
   verified_by_human: []
+creating_new_chat:
+  context: Status text shown in the chat header banner while a new chat is being created/processed by AI
+  en: Creating new chat ...
+  de: Neuer Chat wird erstellt ...
+  zh: 正在创建新聊天 ...
+  es: Creando nuevo chat ...
+  fr: Création d'un nouveau chat ...
+  pt: Criando novo chat ...
+  ru: Создание нового чата ...
+  ja: 新しいチャットを作成中 ...
+  ko: 새 채팅 생성 중 ...
+  it: Creazione nuova chat ...
+  tr: Yeni sohbet oluşturuluyor ...
+  vi: Đang tạo cuộc trò chuyện mới ...
+  id: Membuat obrolan baru ...
+  pl: Tworzenie nowego czatu ...
+  nl: Nieuwe chat wordt aangemaakt ...
+  ar: جارٍ إنشاء محادثة جديدة ...
+  hi: नई चैट बनाई जा रही है ...
+  th: กำลังสร้างแชทใหม่ ...
+  cs: Vytváří se nový chat ...
+  sv: Skapar ny chatt ...
+  verified_by_human: []
+header.started_today:
+  context: Chat creation time shown in header banner when chat was created today. {time} is replaced with HH:MM format
+  en: "Started today, {time}"
+  de: "Gestartet heute, {time}"
+  zh: "今天开始, {time}"
+  es: "Iniciado hoy, {time}"
+  fr: "Commencé aujourd'hui, {time}"
+  pt: "Iniciado hoje, {time}"
+  ru: "Начат сегодня, {time}"
+  ja: "今日開始, {time}"
+  ko: "오늘 시작, {time}"
+  it: "Iniziato oggi, {time}"
+  tr: "Bugün başladı, {time}"
+  vi: "Bắt đầu hôm nay, {time}"
+  id: "Dimulai hari ini, {time}"
+  pl: "Rozpoczęto dzisiaj, {time}"
+  nl: "Gestart vandaag, {time}"
+  ar: "بدأت اليوم، {time}"
+  hi: "आज शुरू हुई, {time}"
+  th: "เริ่มวันนี้, {time}"
+  cs: "Zahájeno dnes, {time}"
+  sv: "Startad idag, {time}"
+  verified_by_human: []
+header.started_yesterday:
+  context: Chat creation time shown in header banner when chat was created yesterday. {time} is replaced with HH:MM format
+  en: "Started yesterday, {time}"
+  de: "Gestartet gestern, {time}"
+  zh: "昨天开始, {time}"
+  es: "Iniciado ayer, {time}"
+  fr: "Commencé hier, {time}"
+  pt: "Iniciado ontem, {time}"
+  ru: "Начат вчера, {time}"
+  ja: "昨日開始, {time}"
+  ko: "어제 시작, {time}"
+  it: "Iniziato ieri, {time}"
+  tr: "Dün başladı, {time}"
+  vi: "Bắt đầu hôm qua, {time}"
+  id: "Dimulai kemarin, {time}"
+  pl: "Rozpoczęto wczoraj, {time}"
+  nl: "Gestart gisteren, {time}"
+  ar: "بدأت أمس، {time}"
+  hi: "कल शुरू हुई, {time}"
+  th: "เริ่มเมื่อวาน, {time}"
+  cs: "Zahájeno včera, {time}"
+  sv: "Startad igår, {time}"
+  verified_by_human: []
+header.started_date:
+  context: Chat creation time shown in header banner for older chats. {date} is YYYY/MM/DD, {time} is HH:MM
+  en: "Started {date}, {time}"
+  de: "Gestartet {date}, {time}"
+  zh: "开始于 {date}, {time}"
+  es: "Iniciado {date}, {time}"
+  fr: "Commencé le {date}, {time}"
+  pt: "Iniciado {date}, {time}"
+  ru: "Начат {date}, {time}"
+  ja: "開始 {date}, {time}"
+  ko: "시작 {date}, {time}"
+  it: "Iniziato {date}, {time}"
+  tr: "Başladı {date}, {time}"
+  vi: "Bắt đầu {date}, {time}"
+  id: "Dimulai {date}, {time}"
+  pl: "Rozpoczęto {date}, {time}"
+  nl: "Gestart {date}, {time}"
+  ar: "بدأت {date}، {time}"
+  hi: "शुरू {date}, {time}"
+  th: "เริ่ม {date}, {time}"
+  cs: "Zahájeno {date}, {time}"
+  sv: "Startad {date}, {time}"
+  verified_by_human: []
+header.minutes_ago:
+  context: Relative time shown in chat header banner when chat was created within last 10 minutes. {count} is the number of minutes
+  en: "{count} min ago"
+  de: "vor {count} Min."
+  zh: "{count} 分钟前"
+  es: "hace {count} min"
+  fr: "il y a {count} min"
+  pt: "há {count} min"
+  ru: "{count} мин. назад"
+  ja: "{count} 分前"
+  ko: "{count}분 전"
+  it: "{count} min fa"
+  tr: "{count} dk önce"
+  vi: "{count} phút trước"
+  id: "{count} menit lalu"
+  pl: "{count} min temu"
+  nl: "{count} min geleden"
+  ar: "منذ {count} دقيقة"
+  hi: "{count} मिनट पहले"
+  th: "{count} นาทีที่แล้ว"
+  cs: "před {count} min"
+  sv: "{count} min sedan"
+  verified_by_human: []
+header.just_now:
+  context: Relative time shown in chat header banner when chat was created less than 1 minute ago
+  en: Just now
+  de: Gerade eben
+  zh: 刚刚
+  es: Ahora mismo
+  fr: À l'instant
+  pt: Agora mesmo
+  ru: Только что
+  ja: たった今
+  ko: 방금
+  it: Proprio ora
+  tr: Az önce
+  vi: Vừa xong
+  id: Baru saja
+  pl: Właśnie teraz
+  nl: Zojuist
+  ar: الآن
+  hi: अभी
+  th: เมื่อสักครู่
+  cs: Právě teď
+  sv: Just nu
+  verified_by_human: []
