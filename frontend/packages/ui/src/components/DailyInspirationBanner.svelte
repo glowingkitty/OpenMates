@@ -169,6 +169,11 @@
   /**
    * Handle clicking on the video embed area — open video in fullscreen.
    * Does NOT start a chat. stopPropagation prevents handleStartChat from firing.
+   *
+   * NOTE: This handler is kept for the wrapper div's onclick, but UnifiedEmbedPreview
+   * calls e.stopPropagation() before its own onFullscreen, so clicks never bubble up
+   * to this wrapper. The actual fullscreen open happens via handleVideoEmbedFullscreen
+   * passed directly as onFullscreen to VideoEmbedPreview.
    */
   function handleEmbedClick(e: MouseEvent) {
     e.stopPropagation();
@@ -180,6 +185,24 @@
     } else {
       // Fallback: start chat (same as clicking the banner)
       handleStartChat(e);
+    }
+  }
+
+  /**
+   * Passed directly as onFullscreen to VideoEmbedPreview.
+   * UnifiedEmbedPreview calls e.stopPropagation() before invoking onFullscreen,
+   * so the click never bubbles up to the banner-embed-wrapper div — this is the
+   * only reliable way to intercept the fullscreen intent from the embed.
+   * We ignore the VideoMetadata parameter; the parent (ActiveChat) will re-load
+   * the data from the embed store or from the inspiration object.
+   */
+  function handleVideoEmbedFullscreen() {
+    if (!current) return;
+    if (onEmbedFullscreen) {
+      onEmbedFullscreen(current);
+    } else {
+      // Fallback: synthesise a mouse event so handleStartChat receives a MouseEvent
+      handleStartChat(new MouseEvent('click'));
     }
   }
 
@@ -279,6 +302,7 @@
                 publishedAt={current.video?.published_at ?? undefined}
                 videoId={current.video?.youtube_id}
                 isMobile={false}
+                onFullscreen={handleVideoEmbedFullscreen}
               />
             </div>
           {/if}
