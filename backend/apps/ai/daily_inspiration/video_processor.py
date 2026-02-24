@@ -116,7 +116,7 @@ async def _enrich_with_youtube(
             response = await client.get(
                 YOUTUBE_DATA_API_URL,
                 params={
-                    "part": "statistics,contentDetails",
+                    "part": "snippet,statistics,contentDetails",
                     "id": ",".join(video_ids),
                     "key": api_key,
                 },
@@ -146,9 +146,14 @@ async def _enrich_with_youtube(
                     seconds = int(match.group(3) or 0)
                     duration_seconds = hours * 3600 + minutes * 60 + seconds
 
+            # Extract published_at from snippet (ISO 8601 format, e.g. "2024-06-15T10:30:00Z")
+            snippet = item.get("snippet", {})
+            published_at_iso: Optional[str] = snippet.get("publishedAt")
+
             enrichment[vid_id] = {
                 "view_count": int(stats.get("viewCount", 0)) if stats.get("viewCount") else None,
                 "duration_seconds": duration_seconds,
+                "published_at": published_at_iso,
             }
 
         # Apply enrichment to candidates
@@ -250,11 +255,10 @@ async def find_video_candidates(
         if isinstance(video_data, dict):
             channel_name = video_data.get("creator") or video_data.get("channel")
 
-        # Parse published_at from page_age or similar
+        # NOTE: Brave's "page_age"/"age" field contains relative human-readable strings
+        # like "2 days ago", NOT ISO 8601 dates. We skip it here and rely on the
+        # YouTube Data API enrichment (snippet.publishedAt) for a proper date.
         published_at: Optional[str] = None
-        page_age = result.get("page_age") or result.get("age")
-        if page_age and isinstance(page_age, str):
-            published_at = page_age[:10] if len(page_age) >= 10 else page_age
 
         candidates.append(
             {

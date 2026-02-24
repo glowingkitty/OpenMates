@@ -37,7 +37,8 @@ AVAILABLE_CATEGORIES = [
     "software_development",
     "business_development",
     "medical_health",
-    "openmates_official",
+    # NOTE: "openmates_official" intentionally excluded — it's a brand-only category
+    # that should never be assigned to user-generated inspirations.
     "maker_prototyping",
     "marketing_sales",
     "finance",

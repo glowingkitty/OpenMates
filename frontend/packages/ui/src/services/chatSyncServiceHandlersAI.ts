@@ -3468,14 +3468,17 @@ export function handleDailyInspirationImpl(
 
       // 3 & 4. Persist inspirations to IndexedDB + Directus API (non-blocking)
       // Run in background so UI is never blocked by encryption or network calls.
-      persistInspirations(payload.inspirations, dailyInspirationDB).catch(
-        (persistErr) => {
-          console.error(
-            "[ChatSyncService:AI] Background persistence of inspirations failed:",
-            persistErr,
-          );
-        },
-      );
+      persistInspirations(
+        payload.inspirations,
+        dailyInspirationDB,
+        _serviceInstance,
+        payload.user_id,
+      ).catch((persistErr) => {
+        console.error(
+          "[ChatSyncService:AI] Background persistence of inspirations failed:",
+          persistErr,
+        );
+      });
     })
     .catch((err) => {
       console.error(
@@ -3494,22 +3497,34 @@ export function handleDailyInspirationImpl(
 async function persistInspirations(
   inspirations: import("../stores/dailyInspirationStore").DailyInspiration[],
   dailyInspirationDB: typeof import("./dailyInspirationDB"),
+  serviceInstance: import("./chatSyncService").ChatSynchronizationService,
+  userId: string,
 ): Promise<void> {
   const storedRecords: import("./dailyInspirationDB").StoredDailyInspiration[] =
     [];
 
-  // Lazily import modules needed for embed creation
+  // Lazily import all modules needed for embed creation, encryption, and server sync
   const [
     { dailyInspirationStore },
     { embedStore },
     { encode: toonEncode },
-    { generateUUID },
+    { generateUUID, computeSHA256 },
+    cryptoService,
+    sendersModule,
   ] = await Promise.all([
     import("../stores/dailyInspirationStore"),
     import("./embedStore"),
     import("@toon-format/toon"),
     import("../message_parsing/utils"),
+    import("./cryptoService"),
+    import("./chatSyncServiceSenders"),
   ]);
+
+  const { generateEmbedKey, encryptWithEmbedKey, wrapEmbedKeyWithMasterKey } =
+    cryptoService;
+
+  // Pre-compute hashed user ID (used for all embeds in this batch)
+  const hashedUserId = await computeSHA256(userId);
 
   for (const inspiration of inspirations) {
     // ── 1. Create a video embed in EmbedStore if this inspiration has a video
@@ -3517,6 +3532,8 @@ async function persistInspirations(
     //       This ensures the embed is available for fullscreen preview before
     //       the user starts a chat (clicking the thumbnail should open the video
     //       without creating a chat first).
+    //       The embed is also encrypted and persisted to Directus via the
+    //       store_embed WebSocket event so it syncs across devices.
     let resolvedEmbedId = inspiration.embed_id ?? null;
 
     if (inspiration.video?.youtube_id && !resolvedEmbedId) {
@@ -3557,14 +3574,18 @@ async function persistInspirations(
         }
 
         const nowMs = Date.now();
+        const embedType = "video";
+        const textPreview = video.title || "YouTube Video";
+
+        // ── 1a. Store locally in IndexedDB (master-key encrypted, for immediate UI access)
         await embedStore.put(
           `embed:${embedId}`,
           {
             embed_id: embedId,
-            type: "video",
+            type: embedType,
             status: "finished",
             content: toonContent,
-            text_preview: video.title || "YouTube Video",
+            text_preview: textPreview,
             createdAt: nowMs,
             updatedAt: nowMs,
           },
@@ -3582,6 +3603,97 @@ async function persistInspirations(
           "for inspiration:",
           inspiration.inspiration_id,
         );
+
+        // ── 1b. Encrypt with embed key and persist to Directus via store_embed
+        //        This makes the embed available on other devices and survives
+        //        browser data clearing.
+        try {
+          // Generate a new embed key for this embed
+          const embedKey = generateEmbedKey();
+
+          // Encrypt content, type, and text preview with the embed key
+          const encryptedContent = await encryptWithEmbedKey(
+            toonContent,
+            embedKey,
+          );
+          if (!encryptedContent) {
+            throw new Error("Failed to encrypt embed content with embed_key");
+          }
+
+          const encryptedType = await encryptWithEmbedKey(embedType, embedKey);
+          if (!encryptedType) {
+            throw new Error("Failed to encrypt embed type with embed_key");
+          }
+
+          let encryptedTextPreview: string | undefined;
+          const encTextPrev = await encryptWithEmbedKey(textPreview, embedKey);
+          if (encTextPrev) {
+            encryptedTextPreview = encTextPrev;
+          }
+
+          // Create master key wrapper (no chat key wrapper since there's no chat yet)
+          const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+          if (!wrappedMasterKey) {
+            throw new Error("Failed to wrap embed_key with master key");
+          }
+
+          // Cache the embed key for local decryption
+          embedStore.setEmbedKeyInCache(embedId, embedKey, undefined);
+
+          // Hash the embed ID for the key wrapper
+          const hashedEmbedId = await computeSHA256(embedId);
+
+          // Use the inspiration_id as a placeholder for hashed_chat_id (no chat exists yet;
+          // the embed will be associated with a chat when the user opens the inspiration)
+          const hashedInspId = await computeSHA256(inspiration.inspiration_id);
+
+          // Store embed key wrappers locally in IndexedDB
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const embedKeysForStorage = [
+            {
+              hashed_embed_id: hashedEmbedId,
+              key_type: "master" as const,
+              hashed_chat_id: null,
+              encrypted_embed_key: wrappedMasterKey,
+              hashed_user_id: hashedUserId,
+              created_at: nowSeconds,
+            },
+          ];
+          await embedStore.storeEmbedKeys(embedKeysForStorage);
+
+          // Build the store_embed payload and send to server
+          const storePayload: import("../types/chat").StoreEmbedPayload = {
+            embed_id: embedId,
+            encrypted_type: encryptedType,
+            encrypted_content: encryptedContent,
+            encrypted_text_preview: encryptedTextPreview,
+            status: "finished",
+            hashed_chat_id: hashedInspId, // placeholder — no chat yet
+            hashed_message_id: hashedInspId, // placeholder — no message yet
+            hashed_user_id: hashedUserId,
+            is_private: false,
+            is_shared: false,
+            created_at: Math.floor(nowMs / 1000),
+            updated_at: Math.floor(nowMs / 1000),
+          };
+
+          await sendersModule.sendStoreEmbedImpl(serviceInstance, storePayload);
+
+          // Send embed key wrappers to server
+          await sendersModule.sendStoreEmbedKeysImpl(serviceInstance, {
+            keys: embedKeysForStorage,
+          });
+
+          console.info(
+            `[ChatSyncService:AI] ✅ Persisted inspiration embed ${embedId} to Directus (encrypted + key wrappers)`,
+          );
+        } catch (syncErr) {
+          // Non-fatal: embed is already stored locally; server sync can be retried
+          console.error(
+            `[ChatSyncService:AI] Failed to sync inspiration embed ${embedId} to Directus (non-fatal):`,
+            syncErr,
+          );
+        }
       } catch (embedErr) {
         console.error(
           "[ChatSyncService:AI] Failed to pre-store inspiration embed (non-fatal):",
