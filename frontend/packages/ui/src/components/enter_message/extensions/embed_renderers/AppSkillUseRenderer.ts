@@ -20,6 +20,7 @@ import {
   resolveEmbed,
   decodeToonContent,
 } from "../../../../services/embedResolver";
+import { chatSyncService } from "../../../../services/chatSyncService";
 import { mount, unmount } from "svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
 import NewsSearchEmbedPreview from "../../../embeds/news/NewsSearchEmbedPreview.svelte";
@@ -1805,6 +1806,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
    * Open the ORIGINAL uploaded image's fullscreen viewer.
    * Resolves the original image upload embed by embed_id, then fires
    * 'imagefullscreen' CustomEvent so ActiveChat mounts UploadedImageFullscreen.
+   *
+   * If the upload embed is not yet cached (sync still in flight), waits for the
+   * 'embedUpdated' event and retries — preventing silent failures when the user
+   * clicks the view embed card immediately after a fresh upload.
    */
   private async openImageUploadFullscreen(embedId: string): Promise<void> {
     if (!embedId) {
@@ -1813,15 +1818,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       );
       return;
     }
-    try {
-      const uploadEmbed = await resolveEmbed(embedId);
-      if (!uploadEmbed) {
-        console.warn(
-          "[AppSkillUseRenderer] Could not resolve original image embed:",
-          embedId,
-        );
-        return;
-      }
+
+    /**
+     * Fire the imagefullscreen event from a decoded upload embed content object.
+     * Returns true if the event was dispatched, false if content was unavailable.
+     */
+    const dispatchFullscreenEvent = async (
+      uploadEmbed: any,
+    ): Promise<boolean> => {
+      if (!uploadEmbed) return false;
       const uploadContent = uploadEmbed.content
         ? await decodeToonContent(uploadEmbed.content)
         : null;
@@ -1847,6 +1852,34 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         "[AppSkillUseRenderer] Dispatched imagefullscreen for upload embed:",
         embedId,
       );
+      return true;
+    };
+
+    try {
+      const uploadEmbed = await resolveEmbed(embedId);
+      if (await dispatchFullscreenEvent(uploadEmbed)) return;
+
+      // Embed not in cache yet — register a one-shot listener and retry when it arrives
+      console.debug(
+        "[AppSkillUseRenderer] Upload embed not cached yet for fullscreen, waiting for embedUpdated:",
+        embedId,
+      );
+      const handler = (event: Event) => {
+        const customEvent = event as CustomEvent<{ embed_id: string }>;
+        if (customEvent.detail?.embed_id !== embedId) return;
+
+        chatSyncService.removeEventListener("embedUpdated", handler);
+
+        resolveEmbed(embedId)
+          .then((fresh) => dispatchFullscreenEvent(fresh))
+          .catch((err) => {
+            console.error(
+              "[AppSkillUseRenderer] Failed to open fullscreen after embedUpdated:",
+              err,
+            );
+          });
+      };
+      chatSyncService.addEventListener("embedUpdated", handler);
     } catch (err) {
       console.error(
         "[AppSkillUseRenderer] Failed to open image upload fullscreen:",
@@ -2001,6 +2034,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   /**
    * Resolve the original image upload embed and update the ImageViewEmbedPreview
    * component with S3 data so it can show the actual image preview.
+   *
+   * If the upload embed is not yet in IndexedDB (e.g. sync is still in flight),
+   * registers a one-shot 'embedUpdated' listener and retries automatically when
+   * the embed arrives — same pattern as ImageRenderer.ts for restored draft images.
    */
   private async resolveAndUpdateImageViewProps(
     content: HTMLElement,
@@ -2008,18 +2045,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     component: ReturnType<typeof mount>,
     handleFullscreen: () => void,
   ): Promise<void> {
-    try {
-      const uploadEmbed = await resolveEmbed(originalEmbedId);
-      if (!uploadEmbed) return;
+    /**
+     * Inner helper: decode the upload embed content and remount the preview
+     * with S3 data. Returns true if the remount succeeded, false otherwise.
+     */
+    const tryUpdateWithEmbed = async (uploadEmbed: any): Promise<boolean> => {
+      if (!uploadEmbed) return false;
       const uploadContent = uploadEmbed.content
         ? await decodeToonContent(uploadEmbed.content)
         : null;
-      if (!uploadContent) return;
+      if (!uploadContent) return false;
 
-      // Re-mount with S3 data populated from the original embed
-      // We need to unmount and re-mount since mount() props can't be updated after mount
+      // Re-mount with S3 data populated from the original embed.
+      // Unmount + remount because Svelte 5 mount() props are not reactive after mount.
       const existingComponent = mountedComponents.get(content);
-      if (!existingComponent) return;
+      if (!existingComponent) return false;
 
       try {
         unmount(existingComponent);
@@ -2062,6 +2102,37 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         "[AppSkillUseRenderer] Updated ImageViewEmbedPreview with S3 data for embed:",
         originalEmbedId,
       );
+      return true;
+    };
+
+    try {
+      const uploadEmbed = await resolveEmbed(originalEmbedId);
+      if (await tryUpdateWithEmbed(uploadEmbed)) return;
+
+      // Upload embed not in IndexedDB yet (e.g. still syncing from server or the
+      // embed_data WS event hasn't arrived yet). Register a one-shot listener and
+      // retry when the embed is delivered — same approach as ImageRenderer.ts.
+      console.debug(
+        "[AppSkillUseRenderer] Original image embed not cached yet, waiting for embedUpdated:",
+        originalEmbedId,
+      );
+      const handler = (event: Event) => {
+        const customEvent = event as CustomEvent<{ embed_id: string }>;
+        if (customEvent.detail?.embed_id !== originalEmbedId) return;
+
+        // Remove listener immediately to avoid duplicate remounts
+        chatSyncService.removeEventListener("embedUpdated", handler);
+
+        resolveEmbed(originalEmbedId)
+          .then((fresh) => tryUpdateWithEmbed(fresh))
+          .catch((err) => {
+            console.error(
+              "[AppSkillUseRenderer] Failed to update ImageViewEmbedPreview after embedUpdated:",
+              err,
+            );
+          });
+      };
+      chatSyncService.addEventListener("embedUpdated", handler);
     } catch (err) {
       console.error(
         "[AppSkillUseRenderer] Error resolving original image embed for preview:",

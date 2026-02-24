@@ -357,6 +357,10 @@ async function _performUpload(
         type: "image",
         status: "finished",
         filename: file.name || null,
+        // Store the original file size and MIME type so they can be displayed
+        // in readonly/received message context where the File object is unavailable.
+        file_size: file.size || null,
+        file_type: file.type || null,
         content_hash: result.content_hash || null,
         s3_base_url: result.s3_base_url || null,
         files: result.files || null,

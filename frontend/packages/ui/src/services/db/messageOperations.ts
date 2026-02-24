@@ -754,44 +754,27 @@ export async function batchSaveMessages(
   const messagesToSkip = new Set<string>();
   const existingMessagesMap = new Map<string, Message>();
 
-  // First, get all existing messages by their IDs using individual quick transactions.
-  // This avoids the transaction auto-commit issue.
-  // We use a single shared read transaction when possible for better performance,
-  // falling back to individual transactions only if the shared one fails.
-  let sharedReadTransaction: IDBTransaction | null = null;
-  try {
-    sharedReadTransaction = await dbInstance.getTransaction(
-      MESSAGES_STORE_NAME,
-      "readonly",
-    );
-  } catch {
-    // Shared transaction failed — will fall back to per-message transactions below
-    console.debug(
-      `[ChatDatabase] batchSaveMessages: Could not create shared read transaction, will use per-message fallback`,
-    );
-  }
-
+  // Check for existing messages using per-message transactions.
+  //
+  // CRITICAL: A shared IDB transaction CANNOT be used across concurrent async operations.
+  // IDB transactions auto-commit as soon as their event queue drains — i.e. whenever the
+  // JS event loop gets control back between IDB requests. Each getMessage() call awaits
+  // decryptMessageFields() (an async crypto operation) inside its onsuccess callback,
+  // which drains the transaction's queue and triggers auto-commit. Any concurrent call
+  // using the same transaction after that point throws:
+  //   "InvalidStateError: Failed to execute 'objectStore' on 'IDBTransaction':
+  //    The transaction has finished."
+  //
+  // The only safe approach for concurrent async reads is one transaction per operation.
   const existingMessageChecks = await Promise.all(
     validMessages.map(async (message) => {
       try {
-        // Try the shared transaction first; if it's no longer active, create a fresh one
-        let txn = sharedReadTransaction;
-        try {
-          if (txn) {
-            // Test if the shared transaction is still active by accessing its objectStore
-            txn.objectStore(MESSAGES_STORE_NAME);
-          }
-        } catch {
-          txn = null; // Shared transaction expired, fall back
-        }
-
-        if (!txn) {
-          txn = await dbInstance.getTransaction(
-            MESSAGES_STORE_NAME,
-            "readonly",
-          );
-        }
-
+        // Each message gets its own fresh transaction so async decryption inside
+        // getMessage() cannot interfere with sibling calls.
+        const txn = await dbInstance.getTransaction(
+          MESSAGES_STORE_NAME,
+          "readonly",
+        );
         const existingMessage = await getMessage(
           dbInstance,
           message.message_id,

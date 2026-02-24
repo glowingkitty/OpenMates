@@ -71,6 +71,16 @@ interface ImageEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
    * Also stored in the EmbedStore TOON blob as the 'ai_detection' field.
    */
   aiDetection?: { ai_generated: number; provider: string } | null;
+  /**
+   * Original file size in bytes. Present in editor context (from File object) and in
+   * read-only context (read from TOON blob stored by embedHandlers.ts as 'file_size').
+   */
+  fileSize?: number;
+  /**
+   * Original MIME type (e.g. 'image/jpeg'). Present in editor context and in
+   * read-only context (from TOON blob 'file_type' field).
+   */
+  fileType?: string;
 }
 
 /**
@@ -155,6 +165,11 @@ export class ImageRenderer implements EmbedRenderer {
           | { ai_generated: number; provider: string }
           | null
           | undefined;
+        // Extract file size and MIME type — stored in the TOON blob by embedHandlers.ts
+        // so they can be shown in read-only/received message context where the original
+        // File object is no longer available (attrs.originalFile is always undefined there).
+        const fileSize = parsed.file_size as number | undefined;
+        const fileType = parsed.file_type as string | undefined;
 
         if (!s3Files || !aesKey || !s3BaseUrl) {
           console.warn(
@@ -175,6 +190,10 @@ export class ImageRenderer implements EmbedRenderer {
           filename: filename || undefined,
           status: "finished",
           aiDetection: aiDetection ?? null,
+          // Pass file size and MIME type so the embed card subtitle shows
+          // "JPEG · 1.2 MB" even when re-opened from stored/received messages.
+          fileSize,
+          fileType,
         };
         this._renderImageComponent(content, restoredAttrs);
         console.debug(
@@ -334,8 +353,9 @@ export class ImageRenderer implements EmbedRenderer {
         // (read-only context — ActiveChat will fetch from S3 for the fullscreen view).
         // Include auth state + file metadata so the fullscreen can show the correct subtitle.
         const fullscreenIsAuthenticated = get(authStore).isAuthenticated;
-        const fullscreenFileSize = attrs.originalFile?.size;
-        const fullscreenFileType = attrs.originalFile?.type;
+        // Same priority: live File object first, then stored TOON blob values
+        const fullscreenFileSize = attrs.originalFile?.size ?? attrs.fileSize;
+        const fullscreenFileType = attrs.originalFile?.type ?? attrs.fileType;
         content.dispatchEvent(
           new CustomEvent("imagefullscreen", {
             bubbles: true,
@@ -372,9 +392,12 @@ export class ImageRenderer implements EmbedRenderer {
       // (file type + size when authenticated, "Login to upload…" when not)
       const isAuthenticated = get(authStore).isAuthenticated;
 
-      // Derive file size and MIME type from the original File object if available
-      const fileSize = attrs.originalFile?.size;
-      const fileType = attrs.originalFile?.type;
+      // Derive file size and MIME type. Priority order:
+      //   1. attrs.originalFile (editor context — File object is live)
+      //   2. attrs.fileSize / attrs.fileType (read-only context — restored from TOON blob)
+      // This ensures the subtitle shows "JPEG · 1.2 MB" in both upload and received contexts.
+      const fileSize = attrs.originalFile?.size ?? attrs.fileSize;
+      const fileType = attrs.originalFile?.type ?? attrs.fileType;
 
       const component = mount(ImageEmbedPreview, {
         target: content,
