@@ -402,9 +402,29 @@ async def handle_postprocessing(
             f"topic suggestions generated (expected 3)"
         )
 
+    # Translate new chat suggestions into the user's system/UI language.
+    #
+    # Why: The main postprocessor call sees the full conversation history (potentially in any
+    # language). Even with explicit language instructions, the model frequently "bleeds" the
+    # conversation language into new_chat_request_suggestions. A separate isolated translation
+    # call with no conversation context is far more reliable.
+    #
+    # Follow-up suggestions are intentionally NOT translated here — they should remain in the
+    # conversation language (a French chat should show French follow-ups).
+    raw_new_chat_suggestions = llm_result.arguments.get("new_chat_request_suggestions", [])
+    if raw_new_chat_suggestions:
+        translated_new_chat_suggestions = await translate_new_chat_suggestions(
+            task_id=task_id,
+            suggestions=raw_new_chat_suggestions,
+            target_language=user_system_language,
+            secrets_manager=secrets_manager,
+        )
+    else:
+        translated_new_chat_suggestions = raw_new_chat_suggestions
+
     result = PostProcessingResult(
         follow_up_request_suggestions=llm_result.arguments.get("follow_up_request_suggestions", []),
-        new_chat_request_suggestions=llm_result.arguments.get("new_chat_request_suggestions", []),
+        new_chat_request_suggestions=translated_new_chat_suggestions,
         harmful_response=llm_result.arguments.get("harmful_response", 0.0),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
@@ -437,6 +457,179 @@ async def handle_postprocessing(
     )
 
     return result
+
+
+async def translate_new_chat_suggestions(
+    task_id: str,
+    suggestions: List[str],
+    target_language: str,
+    secrets_manager: SecretsManager,
+) -> List[str]:
+    """
+    Translate new chat suggestions into the user's system/UI language via a dedicated LLM call.
+
+    Why a separate call instead of relying on the postprocessor's language instruction:
+    The main postprocessor call sees the full conversation history (which may be in any language).
+    Even with an explicit language instruction, the model frequently "bleeds" the conversation
+    language into the new_chat_request_suggestions output. A dedicated, isolated translation call
+    has no conversation context — it receives only the raw suggestions and the target language,
+    making it far more reliable.
+
+    The call is intentionally minimal:
+    - No conversation history (avoids language bleed)
+    - Tight system prompt focused purely on translation
+    - Function calling with a simple schema: { translated_suggestions: string[] }
+    - Same cheap model as the rest of post-processing (mistral-small-latest)
+    - Token cost: ~130 input + ~50 output tokens per message — negligible
+
+    Args:
+        task_id: Task ID for logging
+        suggestions: List of raw suggestion strings (may be in any language)
+        target_language: ISO 639-1 language code to translate into (e.g. "en", "de", "fr")
+        secrets_manager: Secrets manager instance for LLM credentials
+
+    Returns:
+        List of translated suggestion strings. Falls back to original suggestions if the
+        translation call fails (non-fatal — we prefer showing suggestions in the wrong language
+        over showing no suggestions at all).
+    """
+    if not suggestions:
+        return suggestions
+
+    logger.info(
+        f"[Task ID: {task_id}] [Translate] Translating {len(suggestions)} new chat suggestions "
+        f"to '{target_language}'"
+    )
+
+    # Inline tool schema — static and simple, no need for base_instructions.yml
+    translation_tool = {
+        "type": "function",
+        "function": {
+            "name": "translate_suggestions",
+            "description": (
+                "Translate a list of chat suggestions into the specified target language. "
+                "Preserve the exact meaning, tone, and format of each suggestion. "
+                "Keep suggestions concise (max 5 words each). "
+                "Return exactly the same number of suggestions as provided."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "translated_suggestions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "The translated suggestions, in the same order as the input. "
+                            "Must contain exactly the same number of items as the input list."
+                        ),
+                    }
+                },
+                "required": ["translated_suggestions"],
+            },
+        },
+    }
+
+    # Build the language name for clarity (ISO code alone can be ambiguous to the model)
+    language_names = {
+        "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+        "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "pl": "Polish",
+        "ru": "Russian", "ja": "Japanese", "zh": "Chinese", "ko": "Korean",
+        "ar": "Arabic", "tr": "Turkish", "sv": "Swedish", "no": "Norwegian",
+        "da": "Danish", "fi": "Finnish", "cs": "Czech", "ro": "Romanian",
+        "hu": "Hungarian", "el": "Greek", "he": "Hebrew", "hi": "Hindi",
+        "uk": "Ukrainian",
+    }
+    language_name = language_names.get(target_language, target_language.upper())
+
+    system_message = (
+        f"You are a professional translation engine. "
+        f"Translate each suggestion into {language_name} ({target_language}). "
+        f"Rules:\n"
+        f"- Preserve the exact meaning and intent of each suggestion\n"
+        f"- Keep each suggestion short (max 5 words)\n"
+        f"- Return EXACTLY {len(suggestions)} translated suggestions — one per input item\n"
+        f"- Use natural, conversational phrasing in {language_name}\n"
+        f"- Do NOT add explanations, commentary, or extra items"
+    )
+
+    suggestions_list = "\n".join(f"{i + 1}. {s}" for i, s in enumerate(suggestions))
+    user_message = (
+        f"Translate these {len(suggestions)} suggestions to {language_name}:\n\n"
+        f"{suggestions_list}"
+    )
+
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": user_message},
+    ]
+
+    model_id = "mistral/mistral-small-latest"
+    translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+
+    try:
+        llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            task_id=task_id,
+            model_id=model_id,
+            message_history=messages,
+            tool_definition=translation_tool,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=None,
+            dynamic_context=None,
+            fallback_models=translation_fallbacks,
+        )
+
+        if llm_result.error_message:
+            logger.error(
+                f"[Task ID: {task_id}] [Translate] LLM call failed: {llm_result.error_message}. "
+                f"Falling back to original (untranslated) suggestions."
+            )
+            return suggestions
+
+        if llm_result.arguments is None:
+            logger.warning(
+                f"[Task ID: {task_id}] [Translate] LLM returned None arguments. "
+                f"Falling back to original suggestions."
+            )
+            return suggestions
+
+        translated = llm_result.arguments.get("translated_suggestions", [])
+
+        # Validate: must return the same count as input
+        if not translated or not isinstance(translated, list):
+            logger.warning(
+                f"[Task ID: {task_id}] [Translate] Invalid translated_suggestions format. "
+                f"Falling back to original suggestions."
+            )
+            return suggestions
+
+        if len(translated) != len(suggestions):
+            logger.warning(
+                f"[Task ID: {task_id}] [Translate] Got {len(translated)} translated suggestions "
+                f"but expected {len(suggestions)}. Falling back to original suggestions."
+            )
+            return suggestions
+
+        # Validate each item is a non-empty string
+        validated = [s.strip() for s in translated if isinstance(s, str) and s.strip()]
+        if len(validated) != len(suggestions):
+            logger.warning(
+                f"[Task ID: {task_id}] [Translate] {len(suggestions) - len(validated)} translated "
+                f"suggestions were empty/invalid. Falling back to original suggestions."
+            )
+            return suggestions
+
+        logger.info(
+            f"[Task ID: {task_id}] [Translate] Successfully translated {len(validated)} "
+            f"new chat suggestions to '{target_language}'"
+        )
+        return validated
+
+    except Exception as e:
+        logger.error(
+            f"[Task ID: {task_id}] [Translate] Unexpected error during translation: {e}",
+            exc_info=True,
+        )
+        return suggestions
 
 
 async def handle_memory_generation(
