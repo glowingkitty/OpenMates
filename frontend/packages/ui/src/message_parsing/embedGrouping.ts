@@ -38,14 +38,77 @@ export function groupConsecutiveEmbedsInDocument(doc: any): any {
   // breaking consecutive grouping but the embeds should still be grouped.
   // Example: Search1 → "Let me search more" → Search2 → Search3
   // All three searches should be grouped even though text separates them.
-  const modifiedContent = groupScatteredAppSkillEmbeds(
+  const scatteredGroupedContent = groupScatteredAppSkillEmbeds(
     consecutiveGroupedContent,
+  );
+
+  // Post-processing: Remove empty paragraphs that sit immediately after an embed-only
+  // paragraph. These come from blank lines in the markdown between the embed code fence
+  // closing ``` and the next text content. They create an unwanted visual gap in read mode.
+  const modifiedContent = removeEmptyParagraphsAfterEmbeds(
+    scatteredGroupedContent,
   );
 
   return {
     ...doc,
     content: modifiedContent,
   };
+}
+
+/**
+ * Remove empty paragraphs that immediately follow an embed-only paragraph.
+ *
+ * When a user sends "image + text", the markdown serializer produces:
+ *   ```json\n{"type":"image","embed_id":"..."}\n```\n\ndescribe the image
+ *
+ * The blank line between the closing ``` and the text causes markdown-it to emit
+ * an empty paragraph node between the embed paragraph and the text paragraph.
+ * This empty paragraph, combined with CSS margins, creates a large visual gap
+ * in ReadOnlyMessage. This function strips those empty spacer paragraphs.
+ *
+ * @param content - Array of top-level TipTap document nodes
+ * @returns Filtered content without empty paragraphs trailing embeds
+ */
+function removeEmptyParagraphsAfterEmbeds(content: any[]): any[] {
+  if (content.length <= 1) return content;
+
+  const result: any[] = [];
+
+  for (let i = 0; i < content.length; i++) {
+    const node = content[i];
+    const prevNode = result[result.length - 1];
+
+    // Check if previous node is an embed-only paragraph (single embed child)
+    const prevIsEmbed =
+      prevNode?.type === "paragraph" &&
+      Array.isArray(prevNode.content) &&
+      prevNode.content.length === 1 &&
+      prevNode.content[0]?.type === "embed";
+
+    // Check if current node is an empty paragraph (no content or only whitespace/hardBreaks)
+    const isEmptyParagraph =
+      node?.type === "paragraph" &&
+      (!node.content ||
+        node.content.length === 0 ||
+        node.content.every((child: any) => {
+          if (!child) return true;
+          if (child.type === "hardBreak") return true;
+          if (child.type === "text") return (child.text || "").trim() === "";
+          return false;
+        }));
+
+    // Skip empty paragraphs that immediately follow an embed paragraph
+    if (prevIsEmbed && isEmptyParagraph) {
+      console.debug(
+        "[removeEmptyParagraphsAfterEmbeds] Removing empty paragraph after embed",
+      );
+      continue;
+    }
+
+    result.push(node);
+  }
+
+  return result;
 }
 
 /**
@@ -148,10 +211,11 @@ function groupConsecutiveEmbedParagraphs(content: any[]): any[] {
         currentGroupType!,
       );
       newContent.push(...groupedParagraph);
-      if (pendingSpacerParagraphs.length > 0) {
-        newContent.push(...pendingSpacerParagraphs);
-        pendingSpacerParagraphs = [];
-      }
+      // CRITICAL FIX: Discard spacer paragraphs between an embed and a non-embed node.
+      // These empty paragraphs (from blank lines in markdown between the embed code fence
+      // and the following text) create a large visual gap in ReadOnlyMessage. They are only
+      // useful between distinct embed groups, not between an embed and regular text content.
+      pendingSpacerParagraphs = [];
       currentGroup = [];
       currentGroupType = null;
     }
