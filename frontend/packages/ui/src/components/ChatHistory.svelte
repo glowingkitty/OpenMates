@@ -569,6 +569,12 @@
   let lastUserMessageId = $state<string | null>(null);
   let shouldScrollToNewUserMessage = $state(false);
   let isScrolling = $state(false);
+
+  // Track whether the scroll container is at the very top.
+  // Used to conditionally suppress the top gradient fade on .chat-history-container
+  // so the banner (which sits at the top) isn't clipped by the fade when in view.
+  // Starts true since the chat opens scrolled to the top.
+  let isAtTop = $state(true);
   
   // Track whether the user has manually scrolled away during streaming.
   // When true, spacer height updates are frozen to prevent disrupting the user's scroll position.
@@ -1159,6 +1165,9 @@
     // Check if scrolled to the very top (within 50px threshold)
     const isAtTopLocal = container.scrollTop < 50;
     
+    // Update local isAtTop state so the mask-image CSS can toggle without re-rendering
+    isAtTop = isAtTopLocal;
+    
     // Dispatch immediate event for UI state changes (button visibility)
     dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal, isAtTop: isAtTopLocal });
   }
@@ -1362,32 +1371,32 @@
 <div 
     class="chat-history-container" 
     class:empty={displayMessages.length === 0}
+    class:is-at-top={isAtTop}
     bind:this={container}
     onscroll={handleScroll}
 >
+    <!-- Chat header banner: absolutely positioned at the top of the scroll container
+         so it spans the full width regardless of the .chat-history-content max-width.
+         Scrolls naturally with the content because it lives in the scroll container. -->
+    {#if showChatHeader}
+        <div class="chat-header-wrapper">
+            <ChatHeader
+                title={chatTitle}
+                category={chatCategory}
+                icon={chatIcon}
+                summary={chatSummary}
+                {chatCreatedAt}
+                isLoading={isNewChatGeneratingTitle}
+            />
+        </div>
+    {/if}
+
     {#if showMessages}
         <div class="chat-history-content" 
              class:has-messages={displayMessages.length > 0}
+             class:has-header={showChatHeader}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
-
-            <!-- Chat header card: shown at the top of new chats where the server generated
-                 a title/category/icon. Permanently visible when the chat is open.
-                 During the brief period after the first message is sent and before the
-                 server returns metadata, this shows a "Generating title..." shimmer
-                 placeholder instead (isNewChatGeneratingTitle=true). -->
-            {#if showChatHeader}
-                <div class="chat-header-wrapper">
-                    <ChatHeader
-                        title={chatTitle}
-                        category={chatCategory}
-                        icon={chatIcon}
-                        summary={chatSummary}
-                        {chatCreatedAt}
-                        isLoading={isNewChatGeneratingTitle}
-                    />
-                </div>
-            {/if}
 
             {#each displayMessages as msg, msgIndex (msg.id)}
                 <!-- Disable fade/flip animations for streaming and processing messages
@@ -1488,10 +1497,20 @@
        scroll-anchoring algorithm. This fights with our manual scroll management
        and causes unpredictable jumps. We handle scroll position ourselves. */
     overflow-anchor: none;
-    /* Add mask for top and bottom fade effect */
+    /* Fade the bottom edge — always visible to indicate more content below.
+       Top fade is suppressed when at the top (.is-at-top) so the banner is not clipped. */
     mask-image: linear-gradient(to bottom, 
         rgba(0, 0, 0, 0) 0%, 
         rgba(0, 0, 0, 1) 30px, 
+        rgba(0, 0, 0, 1) calc(100% - 30px), 
+        rgba(0, 0, 0, 0) 100%
+    );
+  }
+
+  /* When scrolled to the top, remove the top gradient so the banner edges aren't faded */
+  .chat-history-container.is-at-top {
+    mask-image: linear-gradient(to bottom, 
+        rgba(0, 0, 0, 1) 0%, 
         rgba(0, 0, 0, 1) calc(100% - 30px), 
         rgba(0, 0, 0, 0) 100%
     );
@@ -1522,6 +1541,16 @@
     padding-top: 50px;
     /* Ensure minimum height for proper scrolling when messages exist */
     min-height: 100%;
+  }
+
+  /* When the header banner is showing, push messages below the banner.
+     Banner height: 240px desktop / 190px mobile (matches ChatHeader.svelte dimensions).
+     12px gap between banner bottom and first message.
+     The banner itself is positioned in-flow (not absolute) so the content's padding-top
+     stacks on top of it — we only need the extra padding-top offset removed since
+     the banner already occupies the top space. */
+  .chat-history-content.has-messages.has-header {
+    padding-top: 12px;
   }
 
 
@@ -1576,18 +1605,16 @@
   }
 
   /* Wrapper for the ChatHeader banner at the top of new chats.
-     Breaks out of the container's 10px padding and the content's 50px padding-top
-     to render edge-to-edge and flush with the top of the scroll area. */
+     Positioned in the normal flow of .chat-history-container (outside the max-width content),
+     so it stretches edge-to-edge relative to the full scroll container width.
+     The container has 10px padding on all sides — we cancel it on left/right/top
+     with negative margins so the banner is flush with the scroll container edges. */
   .chat-header-wrapper {
     /* Cancel the container's 10px padding on left/right/top */
+    margin-top: -10px;
     margin-left: -10px;
     margin-right: -10px;
-    /* Pull the banner up to cancel the 50px padding-top from .has-messages
-       and the 10px top padding from .chat-history-container */
-    margin-top: -60px;
-    /* Small gap below the banner before messages start */
-    margin-bottom: 12px;
-    /* Full width of the container (including the cancelled padding) */
+    /* Full width including the cancelled side padding */
     width: calc(100% + 20px);
   }
 </style>
