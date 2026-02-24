@@ -1235,6 +1235,35 @@ export class ChatSynchronizationService extends EventTarget {
     await senders.sendLoadMoreChatsImpl(this, offset, limit);
   }
 
+  /**
+   * Sync a locally-created inspiration chat to the server and other devices.
+   * Called after handleStartChatFromInspiration creates the chat in IndexedDB.
+   */
+  public async sendSyncInspirationChat(
+    chatId: string,
+    messageId: string,
+    messageContent: string,
+    category: string,
+    encryptedTitle: string,
+    encryptedCategory: string,
+    encryptedContent: string,
+    encryptedChatKey: string,
+    createdAt: number,
+  ): Promise<void> {
+    await senders.sendSyncInspirationChatImpl(
+      this,
+      chatId,
+      messageId,
+      messageContent,
+      category,
+      encryptedTitle,
+      encryptedCategory,
+      encryptedContent,
+      encryptedChatKey,
+      createdAt,
+    );
+  }
+
   // --- New Phased Sync Methods ---
 
   /**

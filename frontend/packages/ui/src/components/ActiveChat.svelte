@@ -4050,6 +4050,39 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 detail: { chatId },
             }));
 
+            // ── Cross-device sync ────────────────────────────────────────────────
+            // The chat was created locally (IndexedDB only). Sync it to the server
+            // so that other devices can see it via phased sync or the broadcast.
+            // 1. Update last_opened on the server (resume card on other devices).
+            // 2. Send the encrypted chat + message for cross-device broadcast.
+            try {
+                const { encryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+
+                // Notify server of the active chat (updates last_opened in Redis + Directus)
+                chatSyncService.sendSetActiveChat(chatId);
+
+                // Sync the full chat + first message for cross-device visibility
+                if (encryptedChatKey) {
+                    chatSyncService.sendSyncInspirationChat(
+                        chatId,
+                        messageId,
+                        messageContent,
+                        inspiration.category,
+                        encryptedTitle,
+                        encryptedCategory,
+                        encryptedContent,
+                        encryptedChatKey,
+                        now,
+                    );
+                } else {
+                    console.warn('[ActiveChat] Could not encrypt chat key for inspiration chat sync — chat will sync on next phased sync');
+                }
+            } catch (syncErr) {
+                // Non-fatal — chat still works locally, will sync eventually
+                console.warn('[ActiveChat] Failed to sync inspiration chat to server:', syncErr);
+            }
+
         } catch (err) {
             console.error('[ActiveChat] Error creating chat from inspiration:', err);
         }

@@ -2645,3 +2645,67 @@ export async function sendLoadMoreChatsImpl(
     );
   }
 }
+
+// ─── Inspiration chat sync ─────────────────────────────────────────────────
+
+/**
+ * Sync an inspiration-created chat to the server and other devices.
+ *
+ * When a user clicks a daily inspiration banner, a chat is created locally
+ * with a pre-built assistant message. This function sends the encrypted chat
+ * metadata and first message to the server so that:
+ *   1. The chat appears in the phased sync for other devices.
+ *   2. The server's sync cache is populated (so "Continue where you left off"
+ *      works cross-device).
+ *   3. Other connected devices receive a broadcast to show the new chat.
+ *
+ * The server handler broadcasts a `new_chat_message` event to all other devices
+ * of the same user (same shape as normal cross-device chat sync).
+ */
+export async function sendSyncInspirationChatImpl(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+  messageId: string,
+  messageContent: string,
+  category: string,
+  encryptedTitle: string,
+  encryptedCategory: string,
+  encryptedContent: string,
+  encryptedChatKey: string,
+  createdAt: number,
+): Promise<void> {
+  if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+    console.warn(
+      "[ChatSyncService:Senders] WebSocket not connected — cannot sync inspiration chat.",
+    );
+    return;
+  }
+
+  try {
+    const payload = {
+      chat_id: chatId,
+      message_id: messageId,
+      content: messageContent,
+      role: "assistant",
+      category,
+      created_at: createdAt,
+      messages_v: 1,
+      title_v: 1,
+      encrypted_title: encryptedTitle,
+      encrypted_category: encryptedCategory,
+      encrypted_content: encryptedContent,
+      encrypted_chat_key: encryptedChatKey,
+    };
+
+    await webSocketService.sendMessage("sync_inspiration_chat", payload);
+    console.info(
+      `[ChatSyncService:Senders] Sent sync_inspiration_chat for chat ${chatId}`,
+    );
+  } catch (error) {
+    // Non-fatal — the chat will sync on next phased sync or when user sends a follow-up.
+    console.error(
+      "[ChatSyncService:Senders] Error sending sync_inspiration_chat:",
+      error,
+    );
+  }
+}

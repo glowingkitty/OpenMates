@@ -246,6 +246,79 @@ class UserDailyInspirationMethods:
             return []
 
     # ──────────────────────────────────────────────────────────────────────────
+    # Cleanup / cap enforcement
+    # ──────────────────────────────────────────────────────────────────────────
+
+    async def enforce_max_records(
+        self,
+        user_id: str,
+        max_count: int = 3,
+    ) -> int:
+        """
+        Enforce a cap of `max_count` inspiration records per user.
+
+        Fetches all records for the user sorted newest-first by generated_at,
+        then deletes any records beyond the cap (oldest first).
+
+        This prevents unbounded accumulation of inspiration records in Directus
+        and ensures cross-device sync always returns a consistent set.
+
+        Returns the number of deleted records.
+        """
+        hashed_user_id = _hash_user_id(user_id)
+
+        try:
+            # Fetch all records for this user, newest first
+            params = {
+                "fields": "id,generated_at",
+                "filter": {"hashed_user_id": {"_eq": hashed_user_id}},
+                "sort": "-generated_at",
+                "limit": 100,  # Safety limit — should never have more than ~30
+            }
+            all_records = await self.directus_service.get_items(COLLECTION, params=params)
+
+            if not all_records or len(all_records) <= max_count:
+                return 0
+
+            # Records beyond the cap are the ones to delete (oldest)
+            records_to_delete = all_records[max_count:]
+            deleted_count = 0
+
+            for record in records_to_delete:
+                record_id = record.get("id")
+                if not record_id:
+                    continue
+                try:
+                    success = await self.directus_service.delete_item(COLLECTION, str(record_id))
+                    if success:
+                        deleted_count += 1
+                except Exception as del_exc:
+                    logger.warning(
+                        "[UserDailyInspirationMethods] Failed to delete excess record %s: %s",
+                        record_id,
+                        del_exc,
+                    )
+
+            if deleted_count > 0:
+                logger.info(
+                    "[UserDailyInspirationMethods] enforce_max_records: deleted %d excess "
+                    "record(s) for user %s… (kept newest %d)",
+                    deleted_count,
+                    user_id[:8],
+                    max_count,
+                )
+            return deleted_count
+
+        except Exception as exc:
+            logger.error(
+                "[UserDailyInspirationMethods] enforce_max_records failed for user %s…: %s",
+                user_id[:8],
+                exc,
+                exc_info=True,
+            )
+            return 0
+
+    # ──────────────────────────────────────────────────────────────────────────
     # Internal helpers
     # ──────────────────────────────────────────────────────────────────────────
 

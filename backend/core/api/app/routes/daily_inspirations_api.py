@@ -136,7 +136,20 @@ async def sync_daily_inspirations(
         user_id[:8],
     )
 
-    return {"stored": stored_count, "total": len(body.inspirations)}
+    # Enforce cap of 3 records per user — delete oldest beyond the limit.
+    # This prevents unbounded accumulation and ensures cross-device sync
+    # always returns a consistent set of the 3 newest inspirations.
+    deleted = await directus_service.user_daily_inspiration.enforce_max_records(
+        user_id=user_id, max_count=3
+    )
+    if deleted > 0:
+        logger.info(
+            "[daily_inspirations_api] Cleaned up %d old inspiration(s) for user %s…",
+            deleted,
+            user_id[:8],
+        )
+
+    return {"stored": stored_count, "total": len(body.inspirations), "cleaned_up": deleted}
 
 
 @router.get("/daily-inspirations")

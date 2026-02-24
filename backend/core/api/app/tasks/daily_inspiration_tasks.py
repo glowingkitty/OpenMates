@@ -108,12 +108,37 @@ async def generate_and_deliver_inspirations_for_user(
     # Serialize inspiration objects to dicts for delivery / cache storage
     serialized = [insp.model_dump() for insp in inspirations]
 
-    # ── Online delivery ────────────────────────────────────────────────────────
-    if is_online and task_instance is not None:
+    # ── 1. Always store in pending cache (belt-and-suspenders) ──────────────────
+    # The pending cache ensures inspirations survive even if the user is offline or
+    # the WebSocket broadcast doesn't reach them. On WS connect, the
+    # _deliver_pending_inspirations() handler broadcasts from pending cache to ALL
+    # devices, and the client ACK clears the cache.
+    try:
+        await cache_service.store_pending_inspirations(
+            user_id=user_id,
+            inspirations=serialized,
+        )
+        logger.info(
+            f"[DailyInspiration][{task_id}] Stored {len(inspirations)} inspiration(s) "
+            f"in pending cache for user {user_id[:8]}..."
+        )
+    except Exception as e:
+        logger.error(
+            f"[DailyInspiration][{task_id}] Pending cache storage failed for user {user_id[:8]}...: {e}",
+            exc_info=True,
+        )
+        return False
+
+    # ── 2. Also try immediate broadcast for online users ──────────────────────
+    # If the user is currently connected via WebSocket, broadcast immediately via
+    # Redis pubsub → API's pubsub listener → broadcast_to_user_specific_event()
+    # → ALL connected devices. This is fire-and-forget; if it fails or no one is
+    # connected, the pending cache path above handles it on next reconnect.
+    if task_instance is not None:
         try:
             delivery_payload = {
                 "inspirations": serialized,
-                "user_id": user_id,  # Required by websocket relay for routing
+                "user_id": user_id,
             }
             await task_instance.publish_websocket_event(
                 user_id_hash=user_id,
@@ -121,39 +146,15 @@ async def generate_and_deliver_inspirations_for_user(
                 payload=delivery_payload,
             )
             logger.info(
-                f"[DailyInspiration][{task_id}] Delivered {len(inspirations)} inspiration(s) "
-                f"via WebSocket to online user {user_id[:8]}..."
+                f"[DailyInspiration][{task_id}] Also broadcast {len(inspirations)} inspiration(s) "
+                f"via WebSocket pubsub for user {user_id[:8]}... (if online)"
             )
         except Exception as e:
-            logger.error(
-                f"[DailyInspiration][{task_id}] WebSocket delivery failed for user {user_id[:8]}...: {e}",
-                exc_info=True,
+            # Non-fatal — pending cache already has the data
+            logger.warning(
+                f"[DailyInspiration][{task_id}] WebSocket broadcast failed for user {user_id[:8]}...: {e} "
+                f"(non-fatal, pending cache is the primary delivery path)"
             )
-            # Fall through to offline cache as a safety net
-            is_online = False
-
-    # ── Offline delivery (or fallback) ────────────────────────────────────────
-    if not is_online:
-        # Store plaintext in pending cache — the WebSocket handler at login will
-        # deliver and clear the cache. We don't encrypt here because the connection
-        # manager delivers it as plaintext over the existing authenticated WebSocket.
-        # The client-side encryption of the actual content happens in the frontend
-        # (same trust boundary as chat messages).
-        try:
-            await cache_service.store_pending_inspirations(
-                user_id=user_id,
-                inspirations=serialized,
-            )
-            logger.info(
-                f"[DailyInspiration][{task_id}] Stored {len(inspirations)} inspiration(s) "
-                f"in pending cache for offline user {user_id[:8]}..."
-            )
-        except Exception as e:
-            logger.error(
-                f"[DailyInspiration][{task_id}] Pending cache storage failed for user {user_id[:8]}...: {e}",
-                exc_info=True,
-            )
-            return False
 
     # Clear view tracking after generation (resets the counter for the next day)
     await cache_service.clear_inspiration_views(user_id)
@@ -366,8 +367,8 @@ async def _generate_daily_inspirations_async(task: BaseServiceTask) -> Dict[str,
                 cache_service=cache_service,
                 secrets_manager=secrets_manager,
                 task_id=task_id,
-                is_online=False,  # Daily job always uses pending cache for reliability
-                task_instance=None,
+                is_online=False,  # Pending cache is always populated (primary path)
+                task_instance=task,  # Pass task so pubsub broadcast also reaches online users
                 language=user_language,
             )
 

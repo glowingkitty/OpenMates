@@ -42,6 +42,7 @@ from .handlers.websocket_handlers.email_notification_settings_handler import han
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
 from .handlers.websocket_handlers.inspiration_received_handler import handle_inspiration_received  # ACK handler for pending inspiration delivery
+from .handlers.websocket_handlers.sync_inspiration_chat_handler import handle_sync_inspiration_chat  # Handler for syncing inspiration-created chats across devices
 
 logger = logging.getLogger(__name__)
 
@@ -1302,7 +1303,10 @@ async def _deliver_pending_inspirations(
             f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
         )
 
-        await manager.send_personal_message(
+        # Broadcast to ALL connected devices of this user (not just the one that
+        # triggered the connection). This ensures daily inspirations sync across
+        # phones, tablets, and desktops — not just whichever device connected first.
+        await manager.broadcast_to_user(
             message={
                 "type": "daily_inspiration",
                 "payload": {
@@ -1311,14 +1315,13 @@ async def _deliver_pending_inspirations(
                 },
             },
             user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash,
         )
 
         # Do NOT clear pending cache here — wait for client ACK
         # (daily_inspiration_received message). This ensures inspirations
         # survive if the WebSocket drops before the client processes them.
         logger.debug(
-            f"[PENDING_INSPIRATIONS] Delivered pending inspirations to user {user_id[:8]}... "
+            f"[PENDING_INSPIRATIONS] Delivered pending inspirations to ALL devices of user {user_id[:8]}... "
             f"(awaiting client ACK to clear cache)"
         )
 
@@ -2079,6 +2082,19 @@ async def websocket_endpoint(
                 await handle_inspiration_received(
                     cache_service=cache_service,
                     user_id=user_id,
+                    payload=payload,
+                )
+
+            elif message_type == "sync_inspiration_chat":
+                # Client created a chat from a Daily Inspiration click (local-only).
+                # Sync to server cache and broadcast to other devices so the chat
+                # appears everywhere with title, category, and the assistant message.
+                logger.debug(f"Handling sync_inspiration_chat from user {user_id[:8]}...")
+                await handle_sync_inspiration_chat(
+                    manager=manager,
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                 )
 
