@@ -9,10 +9,93 @@ logger = logging.getLogger(__name__)
 
 # --- Token Calculation Helpers ---
 
+# Estimated token cost per image for vision models.
+# Based on documented values from LLM providers:
+#   - Anthropic: ~1,600 tokens/image (see https://docs.anthropic.com/en/docs/build-with-claude/vision)
+#   - Google / OpenAI: similar order of magnitude
+# We use 1,600 as a conservative single estimate for all providers, since the
+# actual count from the provider's API response is always used for real billing.
+# This estimate is only used in the pre-call credit sufficiency check.
+IMAGE_TOKENS_ESTIMATE = 1600
+
+
+def _count_content_tokens(content: Any, encoding: Any) -> int:
+    """
+    Count tokens for a message's content field, handling both plain strings
+    and multimodal content lists (text + image_url blocks).
+
+    For image_url blocks, we use IMAGE_TOKENS_ESTIMATE instead of tokenizing
+    the base64 payload. Tokenizing a base64 string gives a wildly inflated
+    count (hundreds of thousands of tokens) because tiktoken sees it as raw
+    ASCII, not as the ~1,600 vision tokens the LLM provider actually charges.
+
+    Args:
+        content: The message content — either a string or a list of content blocks.
+        encoding: The tiktoken encoding to use for text tokenization.
+
+    Returns:
+        Estimated token count for this content field.
+    """
+    if not content:
+        return 0
+
+    # Plain string content — tokenize directly
+    if isinstance(content, str):
+        return len(encoding.encode(content))
+
+    # Multimodal content — list of typed blocks
+    if isinstance(content, list):
+        total = 0
+        for block in content:
+            if not isinstance(block, dict):
+                # Unexpected format; fall back to string representation
+                total += len(encoding.encode(str(block)))
+                continue
+
+            block_type = block.get("type", "")
+
+            if block_type == "image_url":
+                # Use the documented per-image token estimate instead of
+                # tokenizing the base64 data URI, which would be massively inflated.
+                total += IMAGE_TOKENS_ESTIMATE
+                logger.debug(
+                    f"Image content block detected — using {IMAGE_TOKENS_ESTIMATE} token estimate "
+                    f"(actual cost will come from provider usage response)"
+                )
+
+            elif block_type == "text":
+                text = block.get("text", "")
+                if text:
+                    total += len(encoding.encode(text))
+
+            else:
+                # tool_use, tool_result, or other block types — tokenize their
+                # text-representable fields (excluding any nested image data)
+                text_repr = block.get("text") or block.get("content") or ""
+                if text_repr and isinstance(text_repr, str):
+                    total += len(encoding.encode(text_repr))
+                elif block.get("name"):
+                    # e.g. tool_use blocks: count name + id as a proxy
+                    total += len(encoding.encode(str(block.get("name", "")) + str(block.get("id", ""))))
+
+        return total
+
+    # Fallback for unexpected types
+    return len(encoding.encode(str(content)))
+
+
 def calculate_token_breakdown(messages: List[Dict[str, Any]], model_id: str, tools: Optional[List[Dict[str, Any]]] = None) -> Dict[str, int]:
     """
     Calculate the breakdown of tokens between system prompt and user input.
     Provides estimates based on tiktoken encoding.
+
+    For multimodal messages containing images (image_url content blocks), the
+    base64 payload is NOT tokenized — instead IMAGE_TOKENS_ESTIMATE is used per
+    image. This avoids a massive over-count that would cause false "insufficient
+    credits" rejections even when the actual image cost is affordable.
+
+    Note: These are pre-call estimates used only for the credit sufficiency check.
+    Actual billing always uses the token counts from the provider's API response.
     """
     try:
         import tiktoken
@@ -29,28 +112,28 @@ def calculate_token_breakdown(messages: List[Dict[str, Any]], model_id: str, too
                     break
                 except Exception:
                     continue
-        
+
         if not encoding:
             logger.warning(f"Could not find any suitable tiktoken encoding for model {model_id}")
             return {"system_prompt_tokens": 0, "user_input_tokens": 0}
-        
+
         system_tokens = 0
         user_tokens = 0
-        
+
         for msg in messages:
             role = msg.get("role", "")
             content = msg.get("content", "")
             if not content:
                 continue
-            
-            # Simple token count for content
-            tokens = len(encoding.encode(str(content)))
+
+            # Use multimodal-aware token counting to avoid inflating image tokens
+            tokens = _count_content_tokens(content, encoding)
             if role == "system":
                 system_tokens += tokens
             else:
                 # user, assistant (history), or tool
                 user_tokens += tokens
-        
+
         # Include tool definitions in system tokens if provided
         if tools:
             try:
@@ -60,7 +143,7 @@ def calculate_token_breakdown(messages: List[Dict[str, Any]], model_id: str, too
                 logger.debug(f"Added {tool_tokens} tokens for tool definitions to system_prompt_tokens")
             except Exception as tool_err:
                 logger.warning(f"Failed to calculate tool tokens: {tool_err}")
-                
+
         logger.info(f"Token breakdown calculated for {model_id}: system={system_tokens}, user={user_tokens}")
         return {
             "system_prompt_tokens": system_tokens,
