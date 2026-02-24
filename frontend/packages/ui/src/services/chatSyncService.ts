@@ -6,6 +6,8 @@ import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
+import { get } from "svelte/store";
+import { forcedLogoutInProgress, isLoggingOut } from "../stores/signupState";
 import type {
   OfflineChange,
   Message,
@@ -1003,6 +1005,24 @@ export class ChatSynchronizationService extends EventTarget {
       return;
     }
 
+    // CRITICAL: Skip sync when a forced logout or logout is in progress.
+    // During forced logout, chatDB.init() is blocked (throws "Database initialization
+    // blocked during logout") which causes startPhasedSync() to fail with a confusing
+    // "Failed to start chat synchronization" error toast. This is not a real sync failure —
+    // it's expected behavior during logout. Skip silently to avoid misleading the user.
+    if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+      console.warn(
+        "[ChatSyncService] ❌ Skipping sync — logout in progress (forcedLogout:",
+        get(forcedLogoutInProgress),
+        ", isLoggingOut:",
+        get(isLoggingOut),
+        ")",
+      );
+      // Dispatch synthetic completion so the UI doesn't stay stuck in "Loading chats..."
+      this.dispatchSyncTimeoutComplete("logout-in-progress");
+      return;
+    }
+
     if (this.webSocketConnected && this.cachePrimed) {
       console.info(
         "[ChatSyncService] ✅ Conditions met, starting phased sync NOW!",
@@ -1308,6 +1328,15 @@ export class ChatSynchronizationService extends EventTarget {
       return;
     }
 
+    // Defense-in-depth: skip sync if logout is in progress (primary guard is in attemptInitialSync)
+    if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+      console.warn(
+        "[ChatSyncService] Cannot start phased sync - logout in progress",
+      );
+      this.dispatchSyncTimeoutComplete("logout-in-progress");
+      return;
+    }
+
     try {
       console.log("[ChatSyncService] 1/4: Starting phased sync...");
 
@@ -1432,9 +1461,11 @@ export class ChatSynchronizationService extends EventTarget {
    * Dispatch a synthetic phasedSyncComplete event when timeout is reached.
    * This ensures the UI doesn't stay stuck in "Loading chats..." state forever.
    *
-   * @param reason - The reason for the synthetic completion ('timeout' or 'error')
+   * @param reason - The reason for the synthetic completion
    */
-  private dispatchSyncTimeoutComplete(reason: "timeout" | "error"): void {
+  private dispatchSyncTimeoutComplete(
+    reason: "timeout" | "error" | "logout-in-progress",
+  ): void {
     console.info(
       `[ChatSyncService] Dispatching synthetic phasedSyncComplete event (reason: ${reason})`,
     );

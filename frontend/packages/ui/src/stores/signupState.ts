@@ -110,6 +110,12 @@ export function setForcedLogoutInProgress(): void {
       );
       forcedLogoutInProgress.set(false);
       forcedLogoutSetAt = 0;
+      // CRITICAL: Also remove the cleanup marker from localStorage to prevent
+      // chatDB.init() from re-detecting it and re-setting forcedLogoutInProgress,
+      // which would create an infinite 30s toggle loop.
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem("openmates_needs_cleanup");
+      }
     }
   }, FORCED_LOGOUT_STALENESS_MS);
 }

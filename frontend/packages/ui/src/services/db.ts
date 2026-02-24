@@ -241,6 +241,18 @@ class ChatDatabase {
         console.warn(
           "[ChatDatabase] CLEANUP MARKER FOUND - setting forcedLogoutInProgress",
         );
+        // CRITICAL: Remove the marker IMMEDIATELY to prevent a re-trigger loop.
+        // Without this, the 30s safety timeout in setForcedLogoutInProgress() resets
+        // the flag, and the next init() call finds the marker again — creating an
+        // infinite cycle where forcedLogoutInProgress toggles every 30s while periodic
+        // callers (ShareMetadataQueue, EmbedSenders) keep triggering init().
+        // The marker has served its purpose: we detected cleanup is needed.
+        // The logout flow (triggered by checkAuth() or +page.svelte) will handle
+        // the actual cleanup. If the logout flow completes, it calls deleteDatabase()
+        // which also removes the marker (harmless no-op). If the logout flow fails,
+        // the orphan detection in the else-branch below will re-detect and re-set
+        // the marker on the next full page load.
+        localStorage.removeItem("openmates_needs_cleanup");
         setForcedLogoutInProgress();
       } else {
         // Check if master key is missing - if so, we can't decrypt encrypted chats

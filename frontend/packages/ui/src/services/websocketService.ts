@@ -344,6 +344,11 @@ class WebSocketService extends EventTarget {
           `[WebSocketService] Clearing stale forcedLogoutInProgress (stuck for ${Math.round(elapsed / 1000)}s, source: ${source})`,
         );
         resetForcedLogoutInProgress();
+        // Also remove the cleanup marker to prevent chatDB.init() from
+        // re-detecting it and re-setting the flag we just cleared.
+        if (typeof localStorage !== "undefined") {
+          localStorage.removeItem("openmates_needs_cleanup");
+        }
       }
     }
 
