@@ -14,6 +14,57 @@ import type {
   MessageRole,
 } from "../types/chat";
 
+/**
+ * Pending message queue for cross-device sync.
+ *
+ * When a `new_chat_message` broadcast arrives from another device but the chat
+ * key is not yet available (e.g. brand-new chat where the server hasn't
+ * persisted `encrypted_chat_key` before broadcasting), we cannot safely call
+ * `chatDB.saveMessage()` — doing so would trigger `getOrGenerateChatKey()`,
+ * which generates a random throwaway key and encrypts the message with it.
+ * When the real key later arrives the ciphertext can no longer be decrypted,
+ * causing "[Content decryption failed]" on the receiving device.
+ *
+ * Solution: buffer the plaintext message here and flush it through
+ * `chatDB.saveMessage()` only after the correct key has been cached via
+ * `chatDB.setChatKey()`.  Call `flushPendingMessagesForChat()` from every
+ * code-path that sets the key for a synced chat.
+ */
+const _pendingMessages: Map<string, Message[]> = new Map();
+
+/**
+ * Flush all messages that were held back because the chat key was missing.
+ * Safe to call multiple times — a second call is a no-op once the queue is
+ * empty.  Must be called AFTER the correct key has been set via
+ * `chatDB.setChatKey(chatId, key)`.
+ */
+export async function flushPendingMessagesForChat(
+  chatId: string,
+): Promise<void> {
+  const pending = _pendingMessages.get(chatId);
+  if (!pending || pending.length === 0) return;
+
+  // Remove from map immediately so concurrent flushes can't double-save
+  _pendingMessages.delete(chatId);
+
+  console.info(
+    `[ChatSyncService:ChatUpdates] Flushing ${pending.length} pending message(s) for chat ${chatId} now that key is available`,
+  );
+  for (const msg of pending) {
+    try {
+      await chatDB.saveMessage(msg);
+      console.debug(
+        `[ChatSyncService:ChatUpdates] Flushed pending message ${msg.message_id} for chat ${chatId}`,
+      );
+    } catch (err) {
+      console.error(
+        `[ChatSyncService:ChatUpdates] Error flushing pending message ${msg.message_id} for chat ${chatId}:`,
+        err,
+      );
+    }
+  }
+}
+
 export async function handleChatTitleUpdatedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: ChatTitleUpdatedPayload,
@@ -364,6 +415,8 @@ export async function handleNewChatMessageImpl(
           );
           if (chatKey) {
             chatDB.setChatKey(payload.chat_id, chatKey);
+            // Flush any messages that were queued before this key was available
+            await flushPendingMessagesForChat(payload.chat_id);
             // Decrypt title for immediate display
             if (payload.encrypted_title) {
               try {
@@ -419,6 +472,8 @@ export async function handleNewChatMessageImpl(
           );
           if (chatKey) {
             chatDB.setChatKey(payload.chat_id, chatKey);
+            // Flush any messages queued before this key was set
+            await flushPendingMessagesForChat(payload.chat_id);
             console.info(
               `[ChatSyncService:ChatUpdates] Decrypted and cached chat key for new chat ${payload.chat_id}`,
             );
@@ -435,7 +490,7 @@ export async function handleNewChatMessageImpl(
         }
       } else if (!payload.encrypted_chat_key) {
         console.warn(
-          `[ChatSyncService:ChatUpdates] No encrypted_chat_key in payload for new chat ${payload.chat_id}. Will wait for ai_typing_started event.`,
+          `[ChatSyncService:ChatUpdates] No encrypted_chat_key in payload for new chat ${payload.chat_id}. Message will be queued until key arrives via ai_typing_started.`,
         );
       }
 
@@ -459,6 +514,8 @@ export async function handleNewChatMessageImpl(
           console.info(
             `[ChatSyncService:ChatUpdates] Decrypted and cached chat key for existing chat ${payload.chat_id}`,
           );
+          // Flush any messages that arrived before the key was available
+          await flushPendingMessagesForChat(payload.chat_id);
         }
       } catch (error) {
         console.error(
@@ -482,11 +539,29 @@ export async function handleNewChatMessageImpl(
       encrypted_content: "", // Will be populated by chatDB.saveMessage()
     };
 
-    // Save the message (chatDB.saveMessage will handle encryption if chat key is available)
-    await chatDB.saveMessage(newMessage);
-    console.debug(
-      `[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`,
-    );
+    // CRITICAL: Only save via chatDB.saveMessage() if the chat key is already cached.
+    // If the key is absent (brand-new chat where the server broadcast fired before the
+    // key was persisted), saveMessage() would call getOrGenerateChatKey() which silently
+    // generates a random throwaway key — encrypting the message with the wrong key.
+    // When the real key later arrives the ciphertext cannot be decrypted, causing
+    // "[Content decryption failed]" on this device.
+    //
+    // Instead, push the message into the pending queue and flush it in
+    // flushPendingMessagesForChat() once the correct key is available.
+    if (chatDB.getChatKey(payload.chat_id)) {
+      await chatDB.saveMessage(newMessage);
+      console.debug(
+        `[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`,
+      );
+    } else {
+      // Queue the message — will be flushed when key arrives (ai_typing_started or Phase 1)
+      const queue = _pendingMessages.get(payload.chat_id) ?? [];
+      queue.push(newMessage);
+      _pendingMessages.set(payload.chat_id, queue);
+      console.warn(
+        `[ChatSyncService:ChatUpdates] No chat key for ${payload.chat_id} — queued message ${payload.message_id} (queue length: ${queue.length}). Will save once key arrives.`,
+      );
+    }
 
     // Update chat metadata
     chat.messages_v = payload.messages_v || chat.messages_v + 1;

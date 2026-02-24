@@ -775,6 +775,15 @@ async def handle_preprocessing(
         )
         available_categories_list.append(f"general_knowledge: {fallback_desc}")
         available_categories_list = sorted(available_categories_list)
+
+    # Build a set of bare category IDs (e.g. {"science", "finance", ...}) for validation.
+    # The LLM is prompted with the full "id: description" strings (available_categories_list)
+    # so it understands what each category means, but it is expected to return ONLY the bare
+    # ID (e.g. "science", not "science: Science expert..."). Using bare IDs for validation
+    # prevents valid LLM responses from being incorrectly rejected and retried.
+    available_category_ids: set[str] = {
+        item.split(": ", 1)[0] for item in available_categories_list
+    }
  
     # Extract and log available app skills for tool preselection
     # Note: Exclude ai.ask from available skills - it's the main processing entry point, not a tool
@@ -1402,13 +1411,24 @@ async def handle_preprocessing(
         llm_analysis_args["llm_response_temp"] = llm_response_temp_val
     
     # --- Validate and potentially retry category selection ---
-    # The LLM should select a category from available_categories_list, but sometimes it makes up a non-existent category.
-    # We validate the category and retry preprocessing once if invalid, then fallback to 'general_knowledge' if retry also fails.
+    # The LLM should return a bare category ID (e.g. "science", "finance") — NOT the full
+    # "id: description" string from available_categories_list. We validate against
+    # available_category_ids (bare IDs only) to avoid incorrectly rejecting valid responses.
     llm_category = llm_analysis_args.get("category")
     validated_category = llm_category
 
-    # Validate category against available categories list
-    if llm_category and llm_category not in available_categories_list:
+    # Defensive strip: if the LLM returned the full "id: description" string instead of just
+    # the bare ID, extract the part before the first ": " so we don't needlessly retry.
+    if llm_category and ": " in llm_category:
+        stripped = llm_category.split(": ", 1)[0].strip()
+        if stripped in available_category_ids:
+            logger.debug(f"{log_prefix} LLM returned full category string, trimmed to bare ID: '{stripped}'")
+            llm_category = stripped
+            llm_analysis_args["category"] = stripped
+            validated_category = stripped
+
+    # Validate the returned category is a known bare ID
+    if llm_category and llm_category not in available_category_ids:
         logger.warning(
             f"{log_prefix} LLM returned invalid category '{llm_category}' which is not in available categories list: {available_categories_list}. "
             f"Attempting retry..."
@@ -1431,8 +1451,9 @@ async def handle_preprocessing(
             # Add a note in the category description emphasizing it MUST be from the list
             category_desc = retry_tool_definition.get('function', {}).get('parameters', {}).get('properties', {}).get('category', {}).get('description', '')
             retry_tool_definition['function']['parameters']['properties']['category']['description'] = (
-                f"{category_desc} **CRITICAL: You MUST select EXACTLY one category from this list: {available_categories_list}. "
-                f"DO NOT invent new categories. If unsure, use 'general_knowledge'."
+                f"{category_desc} **CRITICAL: You MUST select EXACTLY one category ID from this list: {available_categories_list}. "
+                f"Return ONLY the short category ID (the part before the colon, e.g. 'science', 'finance', 'travel'). "
+                f"DO NOT return the full description string. DO NOT invent new categories. If unsure, use 'general_knowledge'."
             )
 
             logger.info(f"{log_prefix} Retrying preprocessing LLM call with explicit category validation instructions (is_first_message={is_first_message})...")
@@ -1461,17 +1482,22 @@ async def handle_preprocessing(
                 validated_category = "general_knowledge"
             else:
                 retry_category = retry_llm_call_result.arguments.get("category")
-                if retry_category and retry_category in available_categories_list:
+                # Strip trailing description in case the LLM returned "science: Science expert..."
+                # instead of just "science" — extract only the bare ID before the first ": "
+                if retry_category and ": " in retry_category:
+                    retry_category = retry_category.split(": ", 1)[0].strip()
+                    logger.debug(f"{log_prefix} Retry category trimmed to bare ID: '{retry_category}'")
+                if retry_category and retry_category in available_category_ids:
                     logger.info(f"{log_prefix} Retry successful! LLM returned valid category '{retry_category}'.")
                     validated_category = retry_category
                     # Update llm_analysis_args with the validated category for consistency
                     llm_analysis_args["category"] = validated_category
                 else:
-                    # Retry also returned an invalid category (either None, empty, or not in available_categories_list)
+                    # Retry also returned an invalid category (either None, empty, or not in available_category_ids)
                     logger.warning(
                         f"{log_prefix} Retry preprocessing also returned invalid category '{retry_category}' "
                         f"(original invalid category was '{llm_category}'). "
-                        f"Category '{retry_category if retry_category else 'None/empty'}' is not in available categories list: {available_categories_list}. "
+                        f"Category '{retry_category if retry_category else 'None/empty'}' is not in available category IDs: {sorted(available_category_ids)}. "
                         f"Using 'general_knowledge' as fallback category."
                     )
                     validated_category = "general_knowledge"
