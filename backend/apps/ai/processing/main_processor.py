@@ -3472,6 +3472,33 @@ async def handle_main_processing(
                             ]
                             if not text_only_results:
                                 text_only_results = [{"type": "text", "text": f"[{tool_name}]"}]
+
+                            # For images.view (and similar multimodal skills that reference an
+                            # original upload embed), resolve file_path → original upload embed_id
+                            # via the file_path_index so the finished TOON content includes
+                            # embed_id. The frontend uses this to fetch S3/AES data from the
+                            # original upload embed and display the decrypted image preview.
+                            mm_request_metadata: dict[str, Any] | None = None
+                            _mm_file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
+                            _mm_file_path = skill_arguments.get("file_path", "")
+                            if _mm_file_path and _mm_file_path_index:
+                                _mm_original_embed_id = _mm_file_path_index.get(_mm_file_path)
+                                if _mm_original_embed_id:
+                                    mm_request_metadata = {
+                                        "embed_id": _mm_original_embed_id,
+                                        "file_path": _mm_file_path,
+                                    }
+                                    logger.info(
+                                        f"{log_prefix} Multimodal embed {mm_embed_id}: resolved "
+                                        f"file_path='{_mm_file_path}' → original embed_id={_mm_original_embed_id}"
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"{log_prefix} Multimodal embed {mm_embed_id}: file_path "
+                                        f"'{_mm_file_path}' not found in file_path_index "
+                                        f"(keys: {list(_mm_file_path_index.keys())})"
+                                    )
+
                             logger.info(
                                 f"{log_prefix} Updating multimodal placeholder embed {mm_embed_id} "
                                 f"to finished (text-only, {len(text_only_results)} block(s))"
@@ -3487,7 +3514,8 @@ async def handle_main_processing(
                                 user_id_hash=request_data.user_id_hash,
                                 user_vault_key_id=user_vault_key_id,
                                 task_id=task_id,
-                                log_prefix=log_prefix
+                                log_prefix=log_prefix,
+                                request_metadata=mm_request_metadata,
                             )
                     except Exception as e:
                         logger.warning(f"{log_prefix} Failed to finalize multimodal placeholder embed: {e}", exc_info=True)

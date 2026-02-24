@@ -1829,7 +1829,7 @@ class EmbedService:
                 
                 # Extract common metadata fields that should be preserved
                 # Include all common input parameters (query, url, provider, languages, etc.)
-                for key in ['query', 'provider', 'url', 'languages', 'input_data', 'count', 'country', 'search_lang', 'safesearch']:
+                for key in ['query', 'provider', 'url', 'languages', 'input_data', 'count', 'country', 'search_lang', 'safesearch', 'file_path', 'embed_id']:
                     if key in original_content:
                         original_metadata[key] = original_content[key]
                         logger.debug(f"{log_prefix} Found metadata key '{key}': {original_metadata[key]}")
