@@ -387,6 +387,11 @@
             // This helps debugging rendering issues and seeing exactly what the user saw
             const lastMessagesHtml = collectLastMessagesHtml();
 
+            // Determine the user's current UI language for confirmation email localisation
+            const currentLanguage = localStorage.getItem('preferredLanguage')
+                || navigator.language.split('-')[0]
+                || 'en';
+
             const response = await fetch(getApiEndpoint('/v1/settings/issues'), {
                 method: 'POST',
                 headers: {
@@ -399,6 +404,7 @@
                     description: sanitizedDescription,
                     chat_or_embed_url: sanitizedUrl,
                     contact_email: sanitizedEmail,
+                    language: currentLanguage,
                     device_info: currentDeviceInfo,
                     console_logs: consoleLogs,
                     indexeddb_report: indexedDbReport,

@@ -43,6 +43,7 @@ def send_issue_report_email(
     issue_description: Optional[str] = None,
     chat_or_embed_url: Optional[str] = None,
     contact_email: Optional[str] = None,
+    language: str = "en",
     timestamp: str = "",
     estimated_location: str = "",
     device_info: Optional[str] = None,
@@ -60,6 +61,7 @@ def send_issue_report_email(
         issue_description: The description of the reported issue
         chat_or_embed_url: Optional URL to a chat or embed related to the issue
         contact_email: Optional contact email address for follow-up communication
+        language: ISO 639-1 language code from the client UI (for confirmation email localisation)
         timestamp: Timestamp when the issue was reported (formatted string)
         estimated_location: Estimated geographic location based on IP address
         device_info: Optional device information for debugging (browser, screen size, touch support)
@@ -80,7 +82,7 @@ def send_issue_report_email(
         result = asyncio.run(
             _async_send_issue_report_email(
                 self, admin_email, issue_id, issue_title, issue_description,
-                chat_or_embed_url, contact_email, timestamp, estimated_location, device_info, console_logs,
+                chat_or_embed_url, contact_email, language, timestamp, estimated_location, device_info, console_logs,
                 indexeddb_report, last_messages_html
             )
         )
@@ -217,6 +219,7 @@ async def _async_send_issue_report_email(
     issue_description: Optional[str] = None,
     chat_or_embed_url: Optional[str] = None,
     contact_email: Optional[str] = None,
+    language: str = "en",
     timestamp: str = "",
     estimated_location: str = "",
     device_info: Optional[str] = None,
@@ -455,7 +458,7 @@ async def _async_send_issue_report_email(
                     template="issue_report_confirmation",
                     recipient_email=contact_email,
                     context=confirmation_context,
-                    lang="en",  # Default to English (user's language preference is not available here)
+                    lang=language,  # Use the client's UI language passed from the API route
                 )
                 
                 if confirmation_success:

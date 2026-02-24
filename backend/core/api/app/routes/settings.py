@@ -2083,6 +2083,7 @@ class IssueReportRequest(BaseModel):
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
     contact_email: Optional[str] = Field(None, max_length=255, description="Optional contact email address for follow-up communication")
+    language: str = Field("en", max_length=10, description="ISO 639-1 language code from the client UI (used for confirmation email localisation)")
     device_info: Optional[DeviceInfo] = Field(None, description="Device information for debugging purposes (browser, screen size, touch support)")
     console_logs: Optional[str] = Field(None, max_length=50000, description="Console logs from the client (last 100 lines)")
     indexeddb_report: Optional[str] = Field(None, max_length=100000, description="IndexedDB inspection report for active chat (metadata only, no plaintext content - safe for debugging)")
@@ -2211,6 +2212,12 @@ async def report_issue(
                 logger.warning(f"Invalid email format in issue report: {email_str[:50]}")
                 sanitized_email = None
         
+        # Validate and sanitise the language code from the client
+        # Only allow simple ISO 639-1 / BCP-47 codes (e.g. "en", "de", "zh"); default to "en"
+        import re as _re
+        raw_language = issue_data.language.strip().lower()[:10] if issue_data.language else "en"
+        sanitized_language = raw_language if _re.match(r'^[a-z]{2,3}(-[a-z0-9]{2,8})?$', raw_language) else "en"
+
         # Extract client IP address
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         
@@ -2378,6 +2385,7 @@ async def report_issue(
                 "issue_description": sanitized_description,
                 "chat_or_embed_url": sanitized_url,
                 "contact_email": sanitized_email,  # Use plaintext for email (not encrypted)
+                "language": sanitized_language,    # Client UI language for confirmation email localisation
                 "timestamp": current_time,
                 "estimated_location": estimated_location,
                 "device_info": device_info_str,
