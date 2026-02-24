@@ -130,10 +130,12 @@
 
   /**
    * Card title: always "View" — the skill name, not the filename.
+   * Uses a dedicated i18n key (view.skill_title = "View") separate from the
+   * upload embed's key (view = "Image") so each card shows the correct label.
    * The filename is shown elsewhere (fullscreen title). Keeping the skill name
    * consistent matches the pattern of ImageGenerateEmbedPreview ("Generate").
    */
-  let skillName = $derived($text('app_skills.images.view'));
+  let skillName = $derived($text('app_skills.images.view.skill_title'));
 
   /**
    * Card subtitle (customStatusText):

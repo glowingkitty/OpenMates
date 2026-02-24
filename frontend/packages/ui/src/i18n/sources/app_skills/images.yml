@@ -24,6 +24,31 @@ view:
     - en
     - de
 
+view.skill_title:
+  context: Skill title shown on the images/view skill-use embed card (the AI's "View" action result, not the original upload)
+  en: View
+  de: Ansicht
+  zh: 查看
+  es: Ver
+  fr: Voir
+  pt: Visualizar
+  ru: Просмотр
+  ja: 表示
+  ko: 보기
+  it: Visualizza
+  tr: Görüntüle
+  vi: Xem
+  id: Lihat
+  pl: Widok
+  nl: Bekijken
+  ar: عرض
+  hi: देखें
+  th: ดู
+  cs: Zobrazit
+  sv: Visa
+  verified_by_human:
+    - en
+
 view.description:
   context: Description shown below the skill name on uploaded image embed card
   en: Uploaded image
