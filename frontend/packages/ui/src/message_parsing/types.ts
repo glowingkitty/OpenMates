@@ -81,6 +81,12 @@ export interface EmbedNodeAttributes {
   // Used by FocusModeActivationRenderer to display the focus mode name and manage state
   focus_id?: string; // Full focus mode ID (e.g., 'web-research')
   focus_mode_name?: string; // Translated display name of the focus mode
+
+  // Temporary field set by embedHandlers.ts on PDF embed nodes when the PDF is uploaded
+  // to S3 but OCR is still in progress (status: "processing"). Stores the server-assigned
+  // embed_id so serializers.ts can emit a placeholder embed reference in the message,
+  // allowing the backend to reference the PDF even before OCR completes.
+  uploadEmbedId?: string;
 }
 
 export interface ParseMessageOptions {

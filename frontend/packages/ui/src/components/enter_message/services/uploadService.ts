@@ -94,8 +94,12 @@ export interface UploadFileResponse {
  * The upload server is a separate VM reachable at its own domain.
  * Cookies (auth_refresh_token) are sent cross-origin via credentials: 'include'.
  *
+ * Uses XMLHttpRequest (instead of fetch) so we can fire onprogress callbacks
+ * that report upload percentage to the pending-send progress UI.
+ *
  * @param file - The File object to upload.
  * @param signal - Optional AbortSignal to cancel the upload mid-flight.
+ * @param onProgress - Optional callback receiving upload progress 0–100.
  * @returns The upload response with S3 keys, AES key, and embed metadata.
  * @throws Error if the upload fails (network error, server error, or malware detection).
  *         Throws an AbortError (name === 'AbortError') if the upload is cancelled.
@@ -103,6 +107,7 @@ export interface UploadFileResponse {
 export async function uploadFileToServer(
   file: File,
   signal?: AbortSignal,
+  onProgress?: (percent: number) => void,
 ): Promise<UploadFileResponse> {
   const formData = new FormData();
   formData.append("file", file);
@@ -112,74 +117,124 @@ export async function uploadFileToServer(
   // getUploadUrl() reads VITE_UPLOAD_URL* build-time env vars (see config/api.ts).
   const uploadUrl = `${getUploadUrl()}/v1/upload/file`;
 
-  let response: Response;
-  try {
-    response = await fetch(uploadUrl, {
-      method: "POST",
-      body: formData,
-      // Credentials: 'include' ensures cookies are sent cross-origin if needed.
-      // For same-origin requests this is the default, but we set it explicitly.
-      credentials: "include",
-      signal,
+  return new Promise<UploadFileResponse>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    // --- AbortSignal integration ---
+    // When the caller aborts (e.g. user removes the embed, upload is cancelled),
+    // abort the XHR and reject with an AbortError so the caller can distinguish
+    // cancellation from a genuine upload failure.
+    const onAbort = () => {
+      xhr.abort();
+    };
+    if (signal) {
+      if (signal.aborted) {
+        // Already aborted before we even started
+        const abortErr = new DOMException("Upload aborted", "AbortError");
+        reject(abortErr);
+        return;
+      }
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+
+    // --- Upload progress ---
+    if (onProgress) {
+      xhr.upload.addEventListener("progress", (evt) => {
+        if (evt.lengthComputable && evt.total > 0) {
+          const percent = Math.round((evt.loaded / evt.total) * 100);
+          onProgress(percent);
+        }
+      });
+    }
+
+    // --- Completion ---
+    xhr.addEventListener("load", () => {
+      // Clean up the abort listener (no-op if signal already fired)
+      signal?.removeEventListener("abort", onAbort);
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        // Success — parse JSON response
+        try {
+          const data: UploadFileResponse = JSON.parse(xhr.responseText);
+          onProgress?.(100); // Ensure we report 100% on success
+          resolve(data);
+        } catch (parseError) {
+          console.error(
+            "[UploadService] Failed to parse upload response:",
+            parseError,
+          );
+          reject(
+            new Error("Upload failed: unexpected server response format."),
+          );
+        }
+        return;
+      }
+
+      // HTTP error — map to user-friendly messages
+      let errorDetail = `Upload failed with status ${xhr.status}`;
+      try {
+        const errorBody = JSON.parse(xhr.responseText);
+        errorDetail = errorBody.detail || errorDetail;
+      } catch {
+        // Response body is not JSON — use status text
+        errorDetail = `Upload failed: ${xhr.statusText || xhr.status}`;
+      }
+
+      if (xhr.status === 401) {
+        reject(
+          new Error(
+            "Upload failed: not authenticated. Please reload the page.",
+          ),
+        );
+      } else if (xhr.status === 413) {
+        reject(new Error("Upload failed: file too large (maximum 100 MB)."));
+      } else if (xhr.status === 415) {
+        reject(
+          new Error(`Upload failed: unsupported file type. ${errorDetail}`),
+        );
+      } else if (xhr.status === 422) {
+        // Malware detected
+        reject(new Error(`Upload rejected: ${errorDetail}`));
+      } else if (xhr.status === 429) {
+        reject(
+          new Error("Upload failed: too many uploads. Please wait a moment."),
+        );
+      } else if (xhr.status >= 500) {
+        console.error("[UploadService] Server error:", xhr.status, errorDetail);
+        reject(new Error("Upload failed: server error. Please try again."));
+      } else {
+        reject(new Error(errorDetail));
+      }
     });
-  } catch (networkError) {
-    // Re-throw AbortError directly so callers can distinguish cancellation
-    if (networkError instanceof Error && networkError.name === "AbortError") {
-      throw networkError;
-    }
-    console.error(
-      "[UploadService] Network error uploading file:",
-      networkError,
-    );
-    throw new Error(
-      "Upload failed: network error. Please check your connection.",
-    );
-  }
 
-  if (!response.ok) {
-    let errorDetail = `Upload failed with status ${response.status}`;
-    try {
-      const errorBody = await response.json();
-      errorDetail = errorBody.detail || errorDetail;
-    } catch {
-      // Response body is not JSON — use the status text
-      errorDetail = `Upload failed: ${response.statusText || response.status}`;
-    }
-
-    // Map specific HTTP codes to user-friendly messages
-    if (response.status === 401) {
-      throw new Error(
-        "Upload failed: not authenticated. Please reload the page.",
+    // --- Network error ---
+    xhr.addEventListener("error", () => {
+      signal?.removeEventListener("abort", onAbort);
+      console.error("[UploadService] Network error uploading file");
+      reject(
+        new Error(
+          "Upload failed: network error. Please check your connection.",
+        ),
       );
-    } else if (response.status === 413) {
-      throw new Error("Upload failed: file too large (maximum 100 MB).");
-    } else if (response.status === 415) {
-      throw new Error(`Upload failed: unsupported file type. ${errorDetail}`);
-    } else if (response.status === 422) {
-      // Malware detected
-      throw new Error(`Upload rejected: ${errorDetail}`);
-    } else if (response.status === 429) {
-      throw new Error("Upload failed: too many uploads. Please wait a moment.");
-    } else if (response.status >= 500) {
-      console.error(
-        "[UploadService] Server error:",
-        response.status,
-        errorDetail,
-      );
-      throw new Error("Upload failed: server error. Please try again.");
-    }
+    });
 
-    throw new Error(errorDetail);
-  }
+    // --- XHR abort (triggered by our onAbort listener above) ---
+    xhr.addEventListener("abort", () => {
+      signal?.removeEventListener("abort", onAbort);
+      reject(new DOMException("Upload aborted", "AbortError"));
+    });
 
-  try {
-    const data: UploadFileResponse = await response.json();
-    return data;
-  } catch (parseError) {
-    console.error(
-      "[UploadService] Failed to parse upload response:",
-      parseError,
-    );
-    throw new Error("Upload failed: unexpected server response format.");
-  }
+    // --- Timeout ---
+    xhr.addEventListener("timeout", () => {
+      signal?.removeEventListener("abort", onAbort);
+      reject(new Error("Upload failed: request timed out."));
+    });
+
+    // 10-minute timeout for large files (same limit the server enforces)
+    xhr.timeout = 10 * 60 * 1000;
+
+    xhr.withCredentials = true; // send auth cookies cross-origin
+    xhr.open("POST", uploadUrl);
+    xhr.send(formData);
+  });
 }

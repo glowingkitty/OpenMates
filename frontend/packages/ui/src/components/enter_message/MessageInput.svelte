@@ -99,6 +99,14 @@
     // Draft audio chat tracking — links usage entries to pre-allocated UUIDs for unsent recordings
     import { markChatIdAsDraftAudio, unmarkChatIdAsDraftAudio } from '../../stores/draftAudioChatStore';
     import { draftEditorUIState } from '../../services/drafts/draftState';
+    // Deferred send while uploading — tracks messages queued waiting for embed uploads to complete
+    import {
+        markEmbedFinished,
+        markEmbedError,
+        getReadyPendingSend,
+        removePendingSend,
+        findPendingSendByEmbedId,
+    } from '../../stores/pendingUploadStore';
 
     const dispatch = createEventDispatcher();
 
@@ -1956,6 +1964,9 @@
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('focusInput', handleFocusInput as EventListener);
+        // Deferred send: fires when an upload/transcription finishes so we can auto-dispatch
+        // pending sends that were queued while embeds were in-flight.
+        window.addEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
         messageInputWrapper?.addEventListener('mousedown', handleMessageWrapperMouseDown);
@@ -2042,6 +2053,7 @@
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         window.removeEventListener('focusInput', handleFocusInput as EventListener);
+        window.removeEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
         messageInputWrapper?.removeEventListener('mousedown', handleMessageWrapperMouseDown);
@@ -2698,6 +2710,73 @@
         fileInput.multiple = true;
         fileInput.click();
     }
+    /**
+     * Handle the global embedUploadFinished event dispatched by embedHandlers.ts
+     * when an upload/transcription/processing step completes or errors out.
+     *
+     * This is the trigger for the deferred-send path:
+     *   1. Find the pending send that was waiting for this embed.
+     *   2. If it belongs to the current chat AND all blocking embeds are done, re-run
+     *      handleSend() — by now the embed node attrs in the editor have been updated
+     *      with S3 keys / AES keys / contentRef by the upload handler, so the normal
+     *      serialization path will emit proper embed reference blocks.
+     *   3. Update the stub message status from "waiting_for_upload" → "sending" by
+     *      letting handleSend write a new message with the real content (the stub will
+     *      be replaced via the normal sendMessage dispatch path).
+     */
+    async function handleEmbedUploadFinished(event: CustomEvent) {
+        const { embedId, status } = event.detail as { embedId: string; status: string };
+        if (!embedId) return;
+
+        // Find which chat this embed belongs to
+        const found = findPendingSendByEmbedId(embedId);
+        if (!found) return; // Not waiting on any deferred send
+
+        const { chatId, context } = found;
+
+        if (status === 'error') {
+            markEmbedError(chatId, embedId);
+            console.warn(`[MessageInput] Embed ${embedId.slice(-6)} errored — deferred send for chat ${chatId.slice(-6)} blocked`);
+            return;
+        }
+
+        // Mark finished and check if the pending send is now ready
+        const updatedCtx = markEmbedFinished(chatId, embedId);
+        if (!updatedCtx) return;
+
+        // Only auto-dispatch if all blocking embeds are done
+        const readyCtx = getReadyPendingSend(chatId);
+        if (!readyCtx || readyCtx.pendingId !== context.pendingId) return;
+
+        // This pending send belongs to the current chat — dispatch now.
+        // handleSend() will re-run the full send path. The embed nodes still exist
+        // in the editor with updated attrs (S3 keys, contentRef) so serialization works.
+        // handleSend will detect NO blocking embeds this time and proceed normally.
+        // It will write a new message with real content — the stub message
+        // (status: "waiting_for_upload") will be superseded by the server sync.
+        console.info(
+            `[MessageInput] All uploads finished for deferred send ${readyCtx.pendingId} in chat ${chatId.slice(-6)} — dispatching send`
+        );
+
+        // Remove from store before firing to prevent double-dispatch
+        removePendingSend(chatId, readyCtx.pendingId);
+
+        // Flush heavy parsing so serialized markdown is up-to-date
+        if (editor && !editor.isDestroyed) {
+            flushHeavyParsing(editor);
+        }
+
+        // Re-run handleSend — this time no embeds are uploading so it proceeds normally.
+        // Pass the original piiExclusions that were captured when user pressed Send.
+        void handleSend(
+            editor,
+            dispatch,
+            (value) => (hasContent = value),
+            chatId,
+            readyCtx.piiExclusions
+        );
+    }
+
     function handleSendMessage() {
         // Flush any debounced heavy parsing so originalMarkdown is fully up-to-date
         if (editor && !editor.isDestroyed) {

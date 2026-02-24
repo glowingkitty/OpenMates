@@ -315,11 +315,15 @@ export async function insertImage(
   // Register an AbortController so the upload can be cancelled via cancelUpload().
   const controller = new AbortController();
   _uploadControllers.set(embedId, controller);
-  _performUpload(editor, embedId, uploadFile, controller.signal).catch(
-    (err) => {
-      console.error("[EmbedHandlers] Unhandled error in _performUpload:", err);
-    },
-  );
+  _performUpload(
+    editor,
+    embedId,
+    uploadFile,
+    controller.signal,
+    file.name,
+  ).catch((err) => {
+    console.error("[EmbedHandlers] Unhandled error in _performUpload:", err);
+  });
 }
 
 /**
@@ -330,15 +334,35 @@ export async function insertImage(
  * @param signal - AbortSignal from the registered AbortController. Aborting it
  *   cancels the fetch and causes the error branch to run with an AbortError,
  *   which we handle by leaving the embed node as-is (caller removes it).
+ * @param filename - Original filename for progress reporting in pendingUploadStore.
  */
 async function _performUpload(
   editor: Editor,
   localEmbedId: string,
   file: File,
   signal?: AbortSignal,
+  filename?: string,
 ): Promise<void> {
+  // Build an onProgress callback that updates pendingUploadStore if a pending send
+  // is waiting on this embed. We lazily import to avoid a circular dependency.
+  const onProgress = (percent: number) => {
+    import("../../stores/pendingUploadStore")
+      .then(({ updateEmbedProgress, findPendingSendByEmbedId }) => {
+        const found = findPendingSendByEmbedId(localEmbedId);
+        if (found) {
+          updateEmbedProgress(found.chatId, localEmbedId, {
+            uploadPercent: percent,
+            status: "uploading",
+          });
+        }
+      })
+      .catch(() => {
+        /* non-fatal */
+      });
+  };
+
   try {
-    const result = await uploadFileToServer(file, signal);
+    const result = await uploadFileToServer(file, signal, onProgress);
 
     // Register the embed in EmbedStore immediately after upload — do NOT wait for
     // handleSend. This ensures the draft serialiser can emit a proper embed reference
@@ -447,6 +471,17 @@ async function _performUpload(
         "[EmbedHandlers] Embed node not found after upload (may have been removed by user)",
       );
     }
+
+    // Emit a global CustomEvent so MessageInput (which has the chatId context) can
+    // pick this up, update the pendingUploadStore, and check if any pending send is
+    // now ready to dispatch.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("embedUploadFinished", {
+          detail: { embedId: localEmbedId, status: "finished" },
+        }),
+      );
+    }
   } catch (uploadError) {
     // Remove the AbortController regardless of error type
     _uploadControllers.delete(localEmbedId);
@@ -487,6 +522,15 @@ async function _performUpload(
     });
 
     dispatch(tr);
+
+    // Notify pendingUploadStore of the error
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("embedUploadFinished", {
+          detail: { embedId: localEmbedId, status: "error" },
+        }),
+      );
+    }
   }
 }
 
@@ -572,8 +616,25 @@ async function _performPdfUpload(
     if (found) dispatch(tr);
   }
 
+  // Progress callback for pendingUploadStore
+  const onProgress = (percent: number) => {
+    import("../../stores/pendingUploadStore")
+      .then(({ updateEmbedProgress, findPendingSendByEmbedId }) => {
+        const found = findPendingSendByEmbedId(localEmbedId);
+        if (found) {
+          updateEmbedProgress(found.chatId, localEmbedId, {
+            uploadPercent: percent,
+            status: "uploading",
+          });
+        }
+      })
+      .catch(() => {
+        /* non-fatal */
+      });
+  };
+
   try {
-    const result = await uploadFileToServer(file, signal);
+    const result = await uploadFileToServer(file, signal, onProgress);
 
     // Remove the AbortController — upload completed successfully
     _uploadControllers.delete(localEmbedId);
@@ -595,6 +656,19 @@ async function _performPdfUpload(
       "[EmbedHandlers] PDF upload complete — processing in background:",
       { filename: file.name, embed_id: result.embed_id },
     );
+
+    // Emit the finished event so MessageInput can check if a pending send is unblocked.
+    // For PDFs the status transitions uploading → processing → (WebSocket) finished.
+    // We notify here on the upload completion (status now "processing") so the
+    // pending send can proceed — the PDF embed reference will be included and the AI
+    // will receive the OCR data once the background task completes via WebSocket.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("embedUploadFinished", {
+          detail: { embedId: localEmbedId, status: "processing" },
+        }),
+      );
+    }
   } catch (uploadError) {
     // Remove the AbortController regardless of error type
     _uploadControllers.delete(localEmbedId);
@@ -619,6 +693,15 @@ async function _performPdfUpload(
       uploadError:
         uploadError instanceof Error ? uploadError.message : "Upload failed",
     });
+
+    // Notify of error so pending send UI can reflect it
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("embedUploadFinished", {
+          detail: { embedId: localEmbedId, status: "error" },
+        }),
+      );
+    }
   }
 }
 
@@ -1211,11 +1294,32 @@ async function _performRecordingUpload(
     if (found) dispatch(tr);
   }
 
+  // Progress callback for pendingUploadStore
+  const onUploadProgress = (percent: number) => {
+    import("../../stores/pendingUploadStore")
+      .then(({ updateEmbedProgress, findPendingSendByEmbedId }) => {
+        const found = findPendingSendByEmbedId(localEmbedId);
+        if (found) {
+          updateEmbedProgress(found.chatId, localEmbedId, {
+            uploadPercent: percent,
+            status: "uploading",
+          });
+        }
+      })
+      .catch(() => {
+        /* non-fatal */
+      });
+  };
+
   try {
     // -----------------------------------------------------------------------
     // Step 1: Upload audio blob to the upload server
     // -----------------------------------------------------------------------
-    const uploadResult = await uploadFileToServer(file, signal);
+    const uploadResult = await uploadFileToServer(
+      file,
+      signal,
+      onUploadProgress,
+    );
 
     // NOTE: Do NOT remove the AbortController here yet — we keep it registered
     // so that cancelUpload() can also abort the transcription fetch in Step 3.
@@ -1384,6 +1488,15 @@ async function _performRecordingUpload(
       `[EmbedHandlers] Recording ${localEmbedId} upload + transcription complete.`,
       { hasTranscript: !!transcriptText },
     );
+
+    // Notify pending sends that this recording embed is done
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("embedUploadFinished", {
+          detail: { embedId: localEmbedId, status: "finished" },
+        }),
+      );
+    }
   } catch (err) {
     // Remove the AbortController regardless of error type
     _uploadControllers.delete(localEmbedId);
@@ -1408,6 +1521,15 @@ async function _performRecordingUpload(
       status: "error",
       uploadError: err instanceof Error ? err.message : "Upload failed",
     });
+
+    // Notify of error so pending send UI can reflect it
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("embedUploadFinished", {
+          detail: { embedId: localEmbedId, status: "error" },
+        }),
+      );
+    }
   }
 }
 

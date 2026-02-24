@@ -289,28 +289,184 @@ export async function handleSend(
     return;
   }
 
-  // UPLOAD GUARD: Block sending while any embed is still uploading or being
-  // processed by a backend skill (e.g. transcription for audio recordings).
-  // 'uploading' — file upload to S3 in flight; S3 keys not yet returned.
-  // 'transcribing' — audio upload done but Mistral Voxtral transcription pending.
-  // Both states mean the embed content is incomplete and cannot be serialized.
-  let hasUploadingEmbeds = false;
+  // DEFERRED SEND: Detect embeds that are still in-flight.
+  // Instead of blocking with a warning toast, we:
+  //  1. Snapshot the editor state into a PendingSendContext (this function).
+  //  2. Save the message to IndexedDB with status: "waiting_for_upload".
+  //  3. Display it immediately in the chat history for instant visual feedback.
+  //  4. When all blocking embeds finish (notified via window 'embedUploadFinished'),
+  //     MessageInput.svelte re-runs the actual send path automatically.
+  //
+  // Blocking statuses:
+  //  'uploading'   — file upload to S3 in flight; S3 keys not yet returned.
+  //  'transcribing' — audio upload done but transcription pending.
+  // NOT blocking:
+  //  'processing'  — PDF OCR in flight; we send now and backend fills in OCR later via WebSocket.
+  //
+  // We collect blocking embed info (id, label) for progress tracking in the UI.
+  interface BlockingEmbedInfo {
+    id: string;
+    label: string;
+  }
+  const blockingEmbeds: BlockingEmbedInfo[] = [];
   editor.view.state.doc.descendants((node) => {
-    if (
-      node.type.name === "embed" &&
-      (node.attrs.status === "uploading" ||
-        node.attrs.status === "transcribing")
-    ) {
-      hasUploadingEmbeds = true;
-      return false; // Stop traversal
+    if (node.type.name === "embed") {
+      const st = node.attrs.status as string | undefined;
+      if (st === "uploading" || st === "transcribing") {
+        const label =
+          (node.attrs.filename as string) ||
+          (node.attrs.type === "recording" ? "Recording" : "Attachment");
+        blockingEmbeds.push({ id: node.attrs.id as string, label });
+      }
     }
     return true;
   });
-  if (hasUploadingEmbeds) {
-    notificationStore.warning(
-      "Please wait for your files to finish uploading.",
+
+  if (blockingEmbeds.length > 0) {
+    // -----------------------------------------------------------------------
+    // DEFERRED SEND PATH
+    // We cannot send right now — one or more embeds are still uploading.
+    // Save the message optimistically with status:"waiting_for_upload" and
+    // create a PendingSendContext so MessageInput can fire the actual send
+    // once all embeds report finished via the embedUploadFinished window event.
+    // -----------------------------------------------------------------------
+
+    // Determine / create the chatId exactly as the normal path would.
+    // We must replicate just enough of the chat-id resolution logic here so
+    // the message lands in the right chat.
+    let deferredChatId = currentChatId;
+    const draftStateDeferred = get(draftEditorUIState);
+    if (!deferredChatId && draftStateDeferred.currentChatId) {
+      deferredChatId = draftStateDeferred.currentChatId;
+    } else if (!deferredChatId) {
+      deferredChatId = crypto.randomUUID();
+    }
+
+    // If it's a demo/public chat, allocate a real UUID so the message stores correctly.
+    if (deferredChatId && isPublicChat(deferredChatId)) {
+      deferredChatId = crypto.randomUUID();
+    }
+
+    // Build a stub message payload with status "waiting_for_upload".
+    // Content is empty string for now — the real markdown is serialized at dispatch time.
+    const deferredMessageId = `${deferredChatId.slice(-10)}-${crypto.randomUUID()}`;
+    const deferredMessage: Message = {
+      message_id: deferredMessageId,
+      chat_id: deferredChatId,
+      role: "user",
+      content: "", // Placeholder — overwritten when deferred send fires
+      status: "waiting_for_upload",
+      created_at: Math.floor(Date.now() / 1000),
+      sender_name: "user",
+      encrypted_content: null,
+    };
+
+    // Save stub message to IndexedDB / incognito store so ChatHistory can show it.
+    try {
+      const { incognitoChatService } =
+        await import("../../../services/incognitoChatService");
+      const incognitoChat = await incognitoChatService
+        .getChat(deferredChatId)
+        .catch(() => null);
+      if (incognitoChat) {
+        await incognitoChatService.addMessage(deferredChatId, deferredMessage);
+      } else {
+        // Create chat in IndexedDB if it doesn't exist yet
+        const existingDeferred = await chatDB.getChat(deferredChatId);
+        if (!existingDeferred) {
+          const nowDeferred = Math.floor(Date.now() / 1000);
+          const isIncognito = (
+            await import("../../../stores/incognitoModeStore")
+          ).incognitoMode.get();
+          const newChatForDeferred: import("../../../types/chat").Chat = {
+            chat_id: deferredChatId,
+            encrypted_title: null,
+            messages_v: 1,
+            title_v: 0,
+            draft_v: 0,
+            encrypted_draft_md: null,
+            encrypted_draft_preview: null,
+            last_edited_overall_timestamp: deferredMessage.created_at,
+            unread_count: 0,
+            created_at: nowDeferred,
+            updated_at: nowDeferred,
+            processing_metadata: false,
+            waiting_for_metadata: !isIncognito,
+            is_incognito: isIncognito,
+            source_demo_id: null,
+          };
+          if (isIncognito) {
+            await incognitoChatService.storeChat(newChatForDeferred);
+            await incognitoChatService.addMessage(
+              deferredChatId,
+              deferredMessage,
+            );
+          } else {
+            await chatDB.addChat(newChatForDeferred);
+            await chatDB.saveMessage(deferredMessage);
+          }
+          window.dispatchEvent(
+            new CustomEvent("localChatListChanged", {
+              detail: { chat_id: deferredChatId },
+            }),
+          );
+        } else {
+          await chatDB.saveMessage(deferredMessage);
+        }
+      }
+    } catch (deferredSaveErr) {
+      console.error(
+        "[handleSend] Failed to save deferred message to IndexedDB:",
+        deferredSaveErr,
+      );
+      // Fall through — show in UI optimistically even if IDB write failed
+    }
+
+    // Build per-embed progress map for the store.
+    const { addPendingSend } =
+      await import("../../../stores/pendingUploadStore");
+    const embedProgressMap = new Map(
+      blockingEmbeds.map((e) => [
+        e.id,
+        {
+          embedId: e.id,
+          status: "uploading" as string,
+          uploadPercent: 0,
+          label: e.label,
+        },
+      ]),
     );
-    return;
+
+    // Register in pendingUploadStore — MessageInput will watch for readiness.
+    // We do NOT clear the editor here. The embed nodes must stay in the editor so
+    // that _performUpload() / _performRecordingUpload() etc. can update their attrs
+    // (adding S3 keys, AES keys, contentRef) via ProseMirror transactions on the
+    // live editor document. Once all embeds report "finished" via embedUploadFinished,
+    // MessageInput calls handleSend() again — by then the embeds are ready and the
+    // normal serialization path emits proper embed reference blocks.
+    addPendingSend({
+      pendingId: `${deferredMessageId}-pending`,
+      chatId: deferredChatId,
+      messageId: deferredMessageId,
+      editorSnapshot: editor.getJSON(),
+      blockingEmbedIds: new Set(blockingEmbeds.map((e) => e.id)),
+      embedProgress: embedProgressMap,
+      createdAt: Date.now(),
+      piiExclusions: new Set(activePIIExclusions),
+      partialMarkdown: "",
+    });
+
+    // Optimistically show the stub message in the chat UI immediately.
+    // The message stays at status "waiting_for_upload" until the deferred send fires.
+    dispatch("sendMessage", { message: deferredMessage });
+
+    // Do NOT clear the editor — embeds must remain so upload handlers can update
+    // their node attrs. MessageInput will call handleSend() again once ready.
+
+    console.info(
+      `[handleSend] Deferred send queued for chat ${deferredChatId.slice(-6)}: blocking on ${blockingEmbeds.length} embed(s)`,
+    );
+    return; // Exit — the actual send will happen when embedUploadFinished fires
   }
 
   // =========================================================================

@@ -250,6 +250,30 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       // send time as handleSend blocks on uploading embeds) or demo mode (no upload).
       return "";
 
+    case "pdf":
+      // PDF embeds: serialized as embed references when a contentRef is set.
+      // contentRef is set by insertPdf() / embedHandlers.ts once the server-side
+      // OCR pipeline completes and the backend sends a WebSocket embed_update event.
+      // The backend parses this block to inject the extracted PDF text as LLM context.
+      // When status is 'processing' (OCR in flight), we still emit a reference —
+      // the backend will provide the content once OCR finishes.
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify({ type: "pdf", embed_id }, null, 2);
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // No contentRef yet (OCR not done). Emit a placeholder reference using the
+      // uploadEmbedId so the backend can still reference the PDF in the message.
+      if (attrs.uploadEmbedId) {
+        const embedRef = JSON.stringify(
+          { type: "pdf", embed_id: attrs.uploadEmbedId },
+          null,
+          2,
+        );
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      return "";
+
     default:
       // Check if this is a group type that can be handled by a group handler
       if (attrs.type.endsWith("-group")) {

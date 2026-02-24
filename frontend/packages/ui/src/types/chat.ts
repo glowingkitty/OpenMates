@@ -14,7 +14,8 @@ export type MessageStatus =
   | "waiting_for_internet"
   | "streaming"
   | "processing"
-  | "waiting_for_user"; // Chat is paused waiting for user action (e.g., insufficient credits, app settings permission)
+  | "waiting_for_user" // Chat is paused waiting for user action (e.g., insufficient credits, app settings permission)
+  | "waiting_for_upload"; // Message is queued, waiting for one or more file uploads/transcriptions to finish before sending
 
 export type MessageRole = "user" | "assistant" | "system"; // Added system for potential future use
 

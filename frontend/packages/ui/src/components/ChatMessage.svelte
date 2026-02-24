@@ -14,8 +14,9 @@
   import type { MessageStatus, MessageRole } from '../types/chat';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
-  import { reportIssueStore } from '../stores/reportIssueStore';
-  import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
+import { reportIssueStore } from '../stores/reportIssueStore';
+import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
+import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
   import { chatDB } from '../services/db';
   import { chatSyncService } from '../services/chatSyncService';
   import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
@@ -1487,7 +1488,24 @@
   // Add reactive statement to handle status changes using $derived (Svelte 5 runes mode)
   // Note: 'processing' status is NOT shown under the message - it's shown in the typing indicator area instead
   let messageStatusText = $derived(status === 'sending' ? $text('enter_message.sending') :
-                      status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet') : '');
+                      status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet') :
+                      status === 'waiting_for_upload' ? $text('enter_message.waiting_for_upload') : '');
+
+  // Reactive embed upload progress for messages with status 'waiting_for_upload'.
+  // Reads from the global pendingUploadStore and derives the list of per-embed
+  // progress entries that belong to THIS message (matched by messageId).
+  let uploadEmbedProgressList = $derived((() => {
+    if (status !== 'waiting_for_upload' || !original_message?.message_id) return [] as EmbedProgress[];
+    const allPending = $pendingUploadStore;
+    const chatId = original_message.chat_id as string | undefined;
+    if (!chatId) return [] as EmbedProgress[];
+    const queue = allPending.get(chatId);
+    if (!queue) return [] as EmbedProgress[];
+    // Find the pending send whose messageId matches this message
+    const ctx = queue.find(c => c.messageId === original_message.message_id);
+    if (!ctx) return [] as EmbedProgress[];
+    return Array.from(ctx.embedProgress.values()) as EmbedProgress[];
+  })());
 
   // Functions for handling truncated message display
   async function handleShowFullMessage() {
@@ -1732,6 +1750,30 @@
     {#if messageStatusText}
       <div class="message-status">
         {messageStatusText}
+      </div>
+    {/if}
+    {#if status === 'waiting_for_upload' && uploadEmbedProgressList.length > 0}
+      <!-- Per-embed upload progress bars shown under queued messages -->
+      <div class="upload-progress-list">
+        {#each uploadEmbedProgressList as embedProg (embedProg.embedId)}
+          <div class="upload-progress-item">
+            <span class="upload-progress-label">{embedProg.label}</span>
+            {#if embedProg.status === 'uploading'}
+              <span class="upload-progress-text">
+                {$text('enter_message.upload_progress.uploading', { percent: embedProg.uploadPercent })}
+              </span>
+              <div class="upload-progress-bar-track">
+                <div class="upload-progress-bar-fill" style="width: {embedProg.uploadPercent}%"></div>
+              </div>
+            {:else if embedProg.status === 'transcribing'}
+              <span class="upload-progress-text">{$text('enter_message.upload_progress.transcribing')}</span>
+            {:else if embedProg.status === 'processing'}
+              <span class="upload-progress-text">{$text('enter_message.upload_progress.processing')}</span>
+            {:else if embedProg.status === 'error'}
+              <span class="upload-progress-text upload-progress-error">{$text('enter_message.upload_progress.error')}</span>
+            {/if}
+          </div>
+        {/each}
       </div>
     {/if}
     
@@ -1983,6 +2025,57 @@
     color: var(--color-font-tertiary);
     margin-top: 4px;
     text-align: right;
+  }
+
+  /* Upload progress list shown under waiting_for_upload messages */
+  .upload-progress-list {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .upload-progress-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .upload-progress-label {
+    font-size: 11px;
+    color: var(--color-font-secondary);
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .upload-progress-text {
+    font-size: 11px;
+    color: var(--color-font-tertiary);
+    flex-shrink: 0;
+  }
+
+  .upload-progress-error {
+    color: var(--color-error, #e53935);
+  }
+
+  .upload-progress-bar-track {
+    flex: 1;
+    min-width: 40px;
+    height: 3px;
+    background: var(--color-grey-20, rgba(255, 255, 255, 0.12));
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .upload-progress-bar-fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 2px;
+    transition: width 0.2s ease;
   }
 
   .message-truncation-controls {
