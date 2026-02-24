@@ -1111,6 +1111,16 @@ async def handle_main_processing(
             prompt_parts.append(image_safety_instruction)
             logger.info(f"{log_prefix} [IMAGE_SAFETY] Injected image content safety instruction (images-view is preselected)")
     
+    # === TOOL-CALLING THINKING DISCIPLINE ===
+    # Prevents reasoning models (e.g., Gemini Flash) from hallucinating about tool
+    # output in their thinking phase before the tool returns. Only injected when
+    # skills are preselected, so conversations without tool use pay zero tokens.
+    if preselected_skills:
+        thinking_discipline = base_instructions.get("base_tool_thinking_discipline_instruction", "")
+        if thinking_discipline:
+            prompt_parts.append(thinking_discipline)
+            logger.debug(f"{log_prefix} [THINKING_DISCIPLINE] Injected tool-calling thinking discipline instruction")
+    
     # Add generic proactive skill usage instruction (only when apps are available)
     # This encourages using available skills proactively for time-sensitive queries
     if discovered_apps_metadata:
