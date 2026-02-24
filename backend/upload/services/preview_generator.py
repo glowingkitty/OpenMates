@@ -10,6 +10,13 @@
 #                     * Horizontal/Square: 600×400 px (aspect-crop)
 #                     * Vertical: fixed 400px height, proportional width
 #
+# SVG files are rasterized server-side before Pillow processing:
+#   - cairosvg converts SVG bytes → PNG bytes at a target resolution (1024×1024 max)
+#   - The PNG bytes are then processed by the standard Pillow pipeline
+#   - This produces correct WEBP previews and enables AI vision (images.view skill)
+#   - Without server-side rasterization, SVG uploads fail because Pillow cannot
+#     open SVG files natively.
+#
 # Intentionally mirrors process_image_for_storage() from the core API so both
 # flows produce identical preview dimensions and quality settings. We do NOT
 # import from backend.core because app-uploads must run standalone on a separate VM.
@@ -27,6 +34,12 @@ PREVIEW_TARGET_W = 600
 PREVIEW_TARGET_H = 400
 FULL_WEBP_QUALITY = 90     # Same as generate_task.py
 PREVIEW_WEBP_QUALITY = 80  # Same as process_image_for_storage() default
+
+# SVG rasterization target — SVGs with no intrinsic dimensions are rendered at this
+# resolution so they produce a usable image for AI vision.  1024 px is a good
+# balance: large enough for Figma exports / diagrams / icons, but not so large
+# that it causes slow uploads or large preview files.
+SVG_DEFAULT_OUTPUT_SIZE = 1024
 
 
 class ImagePreviewResult:
@@ -70,6 +83,97 @@ def _get_dims(data: bytes) -> tuple[int, int]:
         return (0, 0)
 
 
+def _rasterize_svg(svg_bytes: bytes) -> bytes:
+    """
+    Rasterize SVG bytes to PNG bytes using cairosvg.
+
+    SVGs often have no intrinsic width/height (e.g. Figma exports use viewBox only).
+    We force the output size to SVG_DEFAULT_OUTPUT_SIZE on the largest axis so that
+    dimension-less SVGs produce a usable raster image.
+
+    Returns PNG bytes suitable for passing to Pillow for WEBP conversion.
+
+    Raises:
+        RuntimeError: If cairosvg is not installed or rasterization fails.
+    """
+    try:
+        import cairosvg  # type: ignore[import]
+    except ImportError as exc:
+        raise RuntimeError(
+            "cairosvg is not installed — SVG rasterization is unavailable. "
+            "Add 'cairosvg' to requirements.txt and the required system libs "
+            "(libcairo2, libpango-1.0-0, libpangocairo-1.0-0, libgdk-pixbuf2.0-0) "
+            "to the Dockerfile."
+        ) from exc
+
+    try:
+        # Parse the SVG to determine its intrinsic dimensions so we can decide
+        # whether to pass an explicit output size.  Many SVGs from design tools
+        # (Figma, Inkscape) have only a viewBox without explicit width/height
+        # attributes; cairosvg renders these at 1×1 px when no output size is given.
+        import xml.etree.ElementTree as ET
+
+        root = ET.fromstring(svg_bytes.decode("utf-8", errors="replace"))
+        svg_w_str = root.get("width", "")
+        svg_h_str = root.get("height", "")
+
+        # Strip trailing units (px, pt, em, etc.) and parse as float
+        def _parse_dim(s: str) -> float | None:
+            s = s.strip()
+            for suffix in ("px", "pt", "em", "rem", "mm", "cm", "in", "%"):
+                s = s.removesuffix(suffix)
+            try:
+                v = float(s)
+                return v if v > 0 else None
+            except ValueError:
+                return None
+
+        intrinsic_w = _parse_dim(svg_w_str)
+        intrinsic_h = _parse_dim(svg_h_str)
+        has_intrinsic = intrinsic_w is not None and intrinsic_h is not None
+
+        if has_intrinsic:
+            # SVG has explicit dimensions — let cairosvg use them but still cap at
+            # SVG_DEFAULT_OUTPUT_SIZE to avoid enormous uploads from high-res SVGs.
+            assert intrinsic_w is not None and intrinsic_h is not None  # type narrowing
+            largest = max(intrinsic_w, intrinsic_h)
+            if largest > SVG_DEFAULT_OUTPUT_SIZE:
+                scale = SVG_DEFAULT_OUTPUT_SIZE / largest
+                out_w = int(intrinsic_w * scale)
+                out_h = int(intrinsic_h * scale)
+            else:
+                out_w = int(intrinsic_w)
+                out_h = int(intrinsic_h)
+            png_bytes: bytes = cairosvg.svg2png(
+                bytestring=svg_bytes,
+                output_width=out_w,
+                output_height=out_h,
+            )
+            logger.info(
+                f"[PreviewGenerator] SVG rasterized (intrinsic {int(intrinsic_w)}×{int(intrinsic_h)} "
+                f"→ output {out_w}×{out_h})"
+            )
+        else:
+            # No intrinsic dimensions — render at default square resolution.
+            # cairosvg scales viewBox-only SVGs to fill the requested output box.
+            png_bytes = cairosvg.svg2png(
+                bytestring=svg_bytes,
+                output_width=SVG_DEFAULT_OUTPUT_SIZE,
+                output_height=SVG_DEFAULT_OUTPUT_SIZE,
+            )
+            logger.info(
+                f"[PreviewGenerator] SVG rasterized (no intrinsic dims → "
+                f"{SVG_DEFAULT_OUTPUT_SIZE}×{SVG_DEFAULT_OUTPUT_SIZE} square)"
+            )
+
+        return png_bytes
+
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"SVG rasterization failed: {exc}") from exc
+
+
 def _process_sync(file_bytes: bytes) -> ImagePreviewResult:
     """
     Synchronous image processing — called via asyncio.to_thread().
@@ -83,12 +187,36 @@ def _process_sync(file_bytes: bytes) -> ImagePreviewResult:
     """
     from PIL import Image, UnidentifiedImageError  # type: ignore[import]
 
+    # --- SVG pre-processing: rasterize to PNG before Pillow ---
+    # Pillow cannot open SVG files natively.  Detect SVG by sniffing the first
+    # bytes (XML declaration or <svg tag) rather than relying on the caller to
+    # pass MIME metadata.  cairosvg converts SVG → PNG which Pillow then processes
+    # through the standard WEBP preview pipeline.
+    is_svg = False
+    stripped = file_bytes.lstrip()
+    if stripped.startswith(b"<") and (
+        b"<svg" in stripped[:1024].lower() or
+        stripped[:5] == b"<?xml"
+    ):
+        is_svg = True
+
+    if is_svg:
+        logger.info("[PreviewGenerator] SVG detected — rasterizing with cairosvg before Pillow processing")
+        try:
+            file_bytes = _rasterize_svg(file_bytes)
+            logger.info(
+                f"[PreviewGenerator] SVG rasterized to PNG ({len(file_bytes) / 1024:.1f} KB)"
+            )
+        except RuntimeError as exc:
+            raise ValueError(f"SVG rasterization failed: {exc}") from exc
+
     try:
         img = Image.open(io.BytesIO(file_bytes))
     except UnidentifiedImageError as exc:
         raise ValueError(f"Cannot identify image format: {exc}") from exc
 
-    orig_format = img.format or "JPEG"
+    # SVGs are rasterized to PNG; treat orig_format as PNG for correct re-encoding.
+    orig_format = "PNG" if is_svg else (img.format or "JPEG")
     original_width, original_height = img.size
 
     logger.debug(

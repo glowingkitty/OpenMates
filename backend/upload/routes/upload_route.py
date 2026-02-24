@@ -100,6 +100,10 @@ ALLOWED_IMAGE_MIMES = {
     "image/heif",
     "image/bmp",
     "image/tiff",
+    # SVG — rasterized server-side by cairosvg in PreviewGeneratorService before
+    # the Pillow pipeline runs.  This produces correct WEBP previews and enables
+    # AI vision (images.view skill) for user-uploaded vector graphics.
+    "image/svg+xml",
 }
 
 ALLOWED_PDF_MIMES = {
@@ -572,7 +576,7 @@ async def upload_file(
             status_code=415,
             detail=(
                 f"Unsupported file type: {detected_mime}. "
-                "Supported: images (JPEG, PNG, WEBP, GIF, HEIC), PDFs, and audio (WebM, OGG, MP4)."
+                "Supported: images (JPEG, PNG, WEBP, GIF, HEIC, SVG), PDFs, and audio (WebM, OGG, MP4)."
             ),
         )
 
@@ -1671,7 +1675,6 @@ async def upload_profile_image(
             )
 
         if resp.status_code == 200:
-            process_result = resp.json()
             total_elapsed = (time.monotonic() - upload_start) * 1000
             logger.info(
                 f"{log_prefix} ── Profile image upload COMPLETE ─────────────────"
