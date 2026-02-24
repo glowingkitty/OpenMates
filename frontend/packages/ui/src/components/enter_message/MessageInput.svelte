@@ -2715,20 +2715,20 @@
      * when an upload/transcription/processing step completes or errors out.
      *
      * This is the trigger for the deferred-send path:
-     *   1. Find the pending send that was waiting for this embed.
-     *   2. If it belongs to the current chat AND all blocking embeds are done, re-run
-     *      handleSend() — by now the embed node attrs in the editor have been updated
-     *      with S3 keys / AES keys / contentRef by the upload handler, so the normal
-     *      serialization path will emit proper embed reference blocks.
-     *   3. Update the stub message status from "waiting_for_upload" → "sending" by
-     *      letting handleSend write a new message with the real content (the stub will
-     *      be replaced via the normal sendMessage dispatch path).
+     *   1. Find the pending send that was waiting for this embed (across ALL chats).
+     *   2. Mark the embed as finished in pendingUploadStore.
+     *   3. If all blocking embeds are done, execute the deferred send using
+     *      executeDeferredSend() — which reconstructs markdown from the snapshotted
+     *      editor JSON + EmbedStore data. No live TipTap editor is needed.
+     *
+     * IMPORTANT: This handler works globally — the user may have navigated to a
+     * different chat. The deferred send fires regardless of which chat is active.
      */
     async function handleEmbedUploadFinished(event: CustomEvent) {
         const { embedId, status } = event.detail as { embedId: string; status: string };
         if (!embedId) return;
 
-        // Find which chat this embed belongs to
+        // Find which chat this embed belongs to (searches ALL pending sends across all chats)
         const found = findPendingSendByEmbedId(embedId);
         if (!found) return; // Not waiting on any deferred send
 
@@ -2748,33 +2748,24 @@
         const readyCtx = getReadyPendingSend(chatId);
         if (!readyCtx || readyCtx.pendingId !== context.pendingId) return;
 
-        // This pending send belongs to the current chat — dispatch now.
-        // handleSend() will re-run the full send path. The embed nodes still exist
-        // in the editor with updated attrs (S3 keys, contentRef) so serialization works.
-        // handleSend will detect NO blocking embeds this time and proceed normally.
-        // It will write a new message with real content — the stub message
-        // (status: "waiting_for_upload") will be superseded by the server sync.
         console.info(
-            `[MessageInput] All uploads finished for deferred send ${readyCtx.pendingId} in chat ${chatId.slice(-6)} — dispatching send`
+            `[MessageInput] All uploads finished for deferred send ${readyCtx.pendingId} in chat ${chatId.slice(-6)} — executing deferred send`
         );
 
         // Remove from store before firing to prevent double-dispatch
         removePendingSend(chatId, readyCtx.pendingId);
 
-        // Flush heavy parsing so serialized markdown is up-to-date
-        if (editor && !editor.isDestroyed) {
-            flushHeavyParsing(editor);
+        // Execute the deferred send. This does NOT need the live editor — it
+        // reconstructs markdown from the snapshotted editor JSON + EmbedStore data.
+        try {
+            const { executeDeferredSend } = await import('./handlers/sendHandlers');
+            await executeDeferredSend(readyCtx);
+        } catch (err) {
+            console.error(
+                `[MessageInput] executeDeferredSend failed for chat ${chatId.slice(-6)}:`,
+                err
+            );
         }
-
-        // Re-run handleSend — this time no embeds are uploading so it proceeds normally.
-        // Pass the original piiExclusions that were captured when user pressed Send.
-        void handleSend(
-            editor,
-            dispatch,
-            (value) => (hasContent = value),
-            chatId,
-            readyCtx.piiExclusions
-        );
     }
 
     function handleSendMessage() {

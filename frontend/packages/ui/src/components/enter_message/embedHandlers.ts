@@ -472,6 +472,26 @@ async function _performUpload(
       );
     }
 
+    // Update the DeferredEmbedSnapshot in pendingUploadStore with the server-assigned
+    // uploadEmbedId and contentRef. This is critical for the deferred-send path: when the
+    // user pressed Send while this embed was uploading, the snapshot had uploadEmbedId=null.
+    // Now that the upload is done, we patch the snapshot so executeDeferredSend() can
+    // look up the embed in EmbedStore using the correct contentRef.
+    try {
+      const { findPendingSendByEmbedId: findPending } =
+        await import("../../stores/pendingUploadStore");
+      const pendingInfo = findPending(localEmbedId);
+      if (pendingInfo) {
+        const snap = pendingInfo.context.embedSnapshots.get(localEmbedId);
+        if (snap) {
+          snap.uploadEmbedId = result.embed_id;
+          snap.contentRef = `embed:${result.embed_id}`;
+        }
+      }
+    } catch {
+      /* non-fatal — only needed for deferred sends */
+    }
+
     // Emit a global CustomEvent so MessageInput (which has the chatId context) can
     // pick this up, update the pendingUploadStore, and check if any pending send is
     // now ready to dispatch.
@@ -1484,10 +1504,92 @@ async function _performRecordingUpload(
       uploadError: null,
     });
 
+    // Register the recording embed in EmbedStore immediately after transcription completes.
+    // Same pattern as _performUpload() does for images. This ensures the embed data is in
+    // EmbedStore when the deferred-send path reads it (the user may have already navigated
+    // away and the editor is cleared). handleSend() filters by !node.attrs.contentRef so
+    // it will skip re-registering nodes that already have contentRef — fully idempotent.
+    const uploadEmbedIdForStore = uploadResult.embed_id;
+    try {
+      const { encode: toonEncodeRec } = await import("@toon-format/toon");
+      const recEmbedContent = {
+        app_id: "audio",
+        skill_id: "transcribe",
+        type: "audio-recording",
+        status: "finished",
+        filename: file.name || null,
+        duration: null, // Duration is tracked on the TipTap node, not available here
+        mime_type: mimeType || null,
+        transcript: transcriptText ?? null,
+        model: modelFromResponse ?? null,
+        s3_base_url: uploadResult.s3_base_url || null,
+        files: uploadResult.files || null,
+        aes_key: uploadResult.aes_key || null,
+        aes_nonce: uploadResult.aes_nonce || null,
+        vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key || null,
+      };
+
+      let toonRecContent: string;
+      try {
+        toonRecContent = toonEncodeRec(recEmbedContent);
+      } catch {
+        toonRecContent = JSON.stringify(recEmbedContent);
+      }
+
+      const nowRec = Date.now();
+      await embedStore.put(
+        `embed:${uploadEmbedIdForStore}`,
+        {
+          embed_id: uploadEmbedIdForStore,
+          type: "audio-recording",
+          status: "finished",
+          content: toonRecContent,
+          text_preview: transcriptText || file.name || "Voice note",
+          createdAt: nowRec,
+          updatedAt: nowRec,
+        },
+        "audio-recording",
+      );
+      console.debug(
+        "[EmbedHandlers] Registered recording embed in EmbedStore for deferred send:",
+        uploadEmbedIdForStore,
+      );
+    } catch (recStoreError) {
+      // Non-fatal: the recording is still usable — the deferred send path may fail to
+      // find the embed in EmbedStore but the normal handleSend() path will still work.
+      console.error(
+        "[EmbedHandlers] Failed to register recording in EmbedStore:",
+        recStoreError,
+      );
+    }
+
+    // Also set contentRef on the TipTap node so the serializer can emit a proper embed
+    // reference block. This mirrors what _performUpload does for images.
+    updateEmbedNode({
+      contentRef: `embed:${uploadEmbedIdForStore}`,
+    });
+
     console.debug(
       `[EmbedHandlers] Recording ${localEmbedId} upload + transcription complete.`,
       { hasTranscript: !!transcriptText },
     );
+
+    // Update the DeferredEmbedSnapshot in pendingUploadStore with the server-assigned
+    // uploadEmbedId and contentRef (same pattern as _performUpload for images).
+    try {
+      const { findPendingSendByEmbedId: findPendingRec } =
+        await import("../../stores/pendingUploadStore");
+      const pendingInfoRec = findPendingRec(localEmbedId);
+      if (pendingInfoRec) {
+        const snapRec = pendingInfoRec.context.embedSnapshots.get(localEmbedId);
+        if (snapRec) {
+          snapRec.uploadEmbedId = uploadEmbedIdForStore;
+          snapRec.contentRef = `embed:${uploadEmbedIdForStore}`;
+        }
+      }
+    } catch {
+      /* non-fatal — only needed for deferred sends */
+    }
 
     // Notify pending sends that this recording embed is done
     if (typeof window !== "undefined") {

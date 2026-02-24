@@ -26,7 +26,6 @@
  */
 
 import { writable, get } from "svelte/store";
-import type { Editor } from "@tiptap/core";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,10 +48,48 @@ export interface EmbedProgress {
 }
 
 /**
+ * Snapshot of a single embed node's metadata at the time of deferred send.
+ * This captures everything we need to reconstruct the embed reference in
+ * the final markdown once the upload finishes — without needing the TipTap
+ * editor to still contain the node.
+ *
+ * When the upload completes, embedHandlers.ts stores the finished embed
+ * data in EmbedStore. The deferred sender reads EmbedStore to get the
+ * final contentRef and patches it into the snapshotted editor JSON before
+ * re-serializing to markdown.
+ */
+export interface DeferredEmbedSnapshot {
+  /** The embed's TipTap node attr id (= the local embed UUID used in the editor) */
+  embedId: string;
+  /** Embed type (e.g. "image", "recording", "pdf") */
+  embedType: string;
+  /** Filename or label for display / serialization */
+  filename: string;
+  /**
+   * Server-assigned upload embed ID (if already set at snapshot time).
+   * For images/recordings that finish uploading before the user presses Send,
+   * this is already set. For those still uploading, it will be null and we
+   * look it up from EmbedStore later using the embed's contentRef.
+   */
+  uploadEmbedId: string | null;
+  /**
+   * contentRef at snapshot time. May be null if the embed is still uploading.
+   * After the upload completes, we look up the final contentRef from EmbedStore.
+   */
+  contentRef: string | null;
+}
+
+/**
  * A deferred send that is waiting for one or more embeds to finish.
  *
  * Created by sendHandlers.ts when the send guard detects blocking embeds.
- * Consumed (and removed) by MessageInput.svelte once all embeds are done.
+ * Consumed (and removed) by the global embedUploadFinished listener once
+ * all embeds are done.
+ *
+ * IMPORTANT: The editor is cleared immediately after creating this context.
+ * The user is free to navigate to other chats. When all blocking embeds
+ * finish, the deferred sender reconstructs the final markdown from the
+ * editorSnapshot + EmbedStore data (no live editor required).
  */
 export interface PendingSendContext {
   /** Unique ID for this pending send (used to correlate with the displayed message) */
@@ -63,10 +100,17 @@ export interface PendingSendContext {
   messageId: string;
   /**
    * Snapshot of the TipTap editor JSON at the time the user pressed Send.
-   * The deferred sender uses this to serialize the final markdown once all
-   * uploads have completed (the node attrs will have been updated by then).
+   * Contains all nodes (text + embeds) exactly as the user composed them.
+   * When all uploads finish, the deferred sender patches embed node attrs
+   * with the final contentRef from EmbedStore and re-serializes to markdown.
    */
   editorSnapshot: unknown;
+  /**
+   * Snapshots of ALL embed nodes in the editor at deferred-send time.
+   * Keyed by embed ID for quick lookup. Used to reconstruct embed references
+   * from EmbedStore when the deferred send fires.
+   */
+  embedSnapshots: Map<string, DeferredEmbedSnapshot>;
   /**
    * Set of embed IDs (TipTap node attr `id`) that were blocking the send.
    * Entries are removed as each embed transitions to "finished".

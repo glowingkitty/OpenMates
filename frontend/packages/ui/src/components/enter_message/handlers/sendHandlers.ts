@@ -422,9 +422,31 @@ export async function handleSend(
       // Fall through — show in UI optimistically even if IDB write failed
     }
 
-    // Build per-embed progress map for the store.
+    // Snapshot ALL embed nodes in the editor (blocking and non-blocking) so we can
+    // reconstruct the final markdown later without needing the live editor.
+    // The upload callbacks in embedHandlers.ts will store finished embed data in
+    // EmbedStore (with contentRef). The deferred sender reads EmbedStore when it fires.
     const { addPendingSend } =
       await import("../../../stores/pendingUploadStore");
+    const embedSnapshots = new Map<
+      string,
+      import("../../../stores/pendingUploadStore").DeferredEmbedSnapshot
+    >();
+    editor.view.state.doc.descendants((node) => {
+      if (node.type.name === "embed") {
+        const id = node.attrs.id as string;
+        embedSnapshots.set(id, {
+          embedId: id,
+          embedType: (node.attrs.type as string) || "file",
+          filename: (node.attrs.filename as string) || "Attachment",
+          uploadEmbedId: (node.attrs.uploadEmbedId as string) || null,
+          contentRef: (node.attrs.contentRef as string) || null,
+        });
+      }
+      return true;
+    });
+
+    // Build per-embed progress map for the store.
     const embedProgressMap = new Map(
       blockingEmbeds.map((e) => [
         e.id,
@@ -437,18 +459,17 @@ export async function handleSend(
       ]),
     );
 
-    // Register in pendingUploadStore — MessageInput will watch for readiness.
-    // We do NOT clear the editor here. The embed nodes must stay in the editor so
-    // that _performUpload() / _performRecordingUpload() etc. can update their attrs
-    // (adding S3 keys, AES keys, contentRef) via ProseMirror transactions on the
-    // live editor document. Once all embeds report "finished" via embedUploadFinished,
-    // MessageInput calls handleSend() again — by then the embeds are ready and the
-    // normal serialization path emits proper embed reference blocks.
+    // Register in pendingUploadStore.
+    // The editor will be CLEARED after this — the user is free to navigate away.
+    // When all blocking embeds finish (notified via embedUploadFinished), the
+    // deferred sender reconstructs the final markdown from editorSnapshot +
+    // EmbedStore data and sends the message without needing the live editor.
     addPendingSend({
       pendingId: `${deferredMessageId}-pending`,
       chatId: deferredChatId,
       messageId: deferredMessageId,
       editorSnapshot: editor.getJSON(),
+      embedSnapshots,
       blockingEmbedIds: new Set(blockingEmbeds.map((e) => e.id)),
       embedProgress: embedProgressMap,
       createdAt: Date.now(),
@@ -460,11 +481,16 @@ export async function handleSend(
     // The message stays at status "waiting_for_upload" until the deferred send fires.
     dispatch("sendMessage", { message: deferredMessage });
 
-    // Do NOT clear the editor — embeds must remain so upload handlers can update
-    // their node attrs. MessageInput will call handleSend() again once ready.
+    // CLEAR the editor so the user can navigate to other chats, type new messages,
+    // and interact freely. Upload callbacks in embedHandlers.ts will try to update
+    // TipTap nodes but the nodes won't exist anymore — that's fine, the callbacks
+    // already store embed data in EmbedStore independently.
+    setHasContent(false);
+    editor.commands.clearContent(false);
+    editor.commands.blur();
 
     console.info(
-      `[handleSend] Deferred send queued for chat ${deferredChatId.slice(-6)}: blocking on ${blockingEmbeds.length} embed(s)`,
+      `[handleSend] Deferred send queued for chat ${deferredChatId.slice(-6)}: blocking on ${blockingEmbeds.length} embed(s), editor cleared`,
     );
     return; // Exit — the actual send will happen when embedUploadFinished fires
   }
@@ -1375,6 +1401,282 @@ export async function handleSend(
   } catch (error) {
     console.error("Failed to handle message send:", error);
     vibrateMessageField();
+  }
+}
+
+// =============================================================================
+// Deferred Send Execution
+// =============================================================================
+
+/**
+ * Execute a deferred send by reconstructing final markdown from the snapshotted
+ * editor JSON + EmbedStore data. This runs WITHOUT a live TipTap editor —
+ * the user may have navigated to a different chat.
+ *
+ * Steps:
+ *  1. Deep-clone the editorSnapshot from the PendingSendContext.
+ *  2. Walk all embed nodes in the snapshot and patch their attrs with the final
+ *     contentRef from EmbedStore (looked up via uploadEmbedId).
+ *  3. Serialize the patched snapshot to markdown via tipTapToCanonicalMarkdown().
+ *  4. Run PII anonymization using the captured piiExclusions.
+ *  5. Run URL processing via processUrlsBeforeSend().
+ *  6. Create message payload and send via chatSyncService.sendNewMessage().
+ *  7. Update the stub message in IndexedDB from "waiting_for_upload" → "sending".
+ *
+ * @param readyCtx The PendingSendContext whose blocking embeds are all finished
+ */
+export async function executeDeferredSend(
+  readyCtx: import("../../../stores/pendingUploadStore").PendingSendContext,
+): Promise<void> {
+  console.info(
+    `[executeDeferredSend] Starting for pending ${readyCtx.pendingId} in chat ${readyCtx.chatId.slice(-6)}`,
+  );
+
+  // -------------------------------------------------------------------------
+  // 1. Deep-clone the snapshot so we can mutate it safely
+  // -------------------------------------------------------------------------
+  const snapshot = JSON.parse(
+    JSON.stringify(readyCtx.editorSnapshot),
+  ) as Record<string, unknown>;
+
+  // -------------------------------------------------------------------------
+  // 2. Walk embed nodes and patch contentRef from EmbedStore
+  // -------------------------------------------------------------------------
+  // The snapshot is a TipTap JSON tree: { type: "doc", content: [...] }
+  // Embed nodes are at any depth: { type: "embed", attrs: { id, type, ... } }
+  interface TipTapNode {
+    type?: string;
+    attrs?: Record<string, unknown>;
+    content?: TipTapNode[];
+  }
+
+  function patchEmbedNodes(nodes: TipTapNode[] | undefined): void {
+    if (!nodes) return;
+    for (const node of nodes) {
+      if (node.type === "embed" && node.attrs) {
+        const embedId = node.attrs.id as string;
+        // Look up the snapshot we captured at send time
+        const snap = readyCtx.embedSnapshots.get(embedId);
+        if (snap) {
+          // The upload handler (embedHandlers.ts) stores finished embed data in
+          // EmbedStore with key `embed:${uploadEmbedId}`. The uploadEmbedId on
+          // the snapshot may have been null at capture time (still uploading), but
+          // by now the upload is done and the TipTap node attrs were updated by
+          // the upload callback. However, the TipTap editor was cleared — so we
+          // need to read uploadEmbedId from the snapshot (if set at capture time)
+          // or from the EmbedStore's embed_id field.
+          //
+          // Strategy: if snap.uploadEmbedId is set, use it directly. Otherwise,
+          // we have a problem because we don't know the server-assigned embed_id.
+          // In practice, for deferred sends the embed was always in "uploading"
+          // status, meaning uploadEmbedId was NOT yet set. But by the time the
+          // upload finishes, _performUpload / _performRecordingUpload stores the
+          // embed in EmbedStore with key `embed:${uploadEmbedId}`. We need a way
+          // to map localEmbedId → uploadEmbedId.
+          //
+          // The embedUploadFinished event only carries localEmbedId. But
+          // _performUpload() also updates the TipTap node with uploadEmbedId.
+          // Since the editor is cleared, that update is a no-op. However, the
+          // embedHandlers code ALSO stores in EmbedStore using the server's
+          // embed_id as key. We need to search EmbedStore for an entry whose
+          // embed_id was created from this localEmbedId.
+          //
+          // BETTER APPROACH: Store the mapping localEmbedId → uploadEmbedId
+          // in the DeferredEmbedSnapshot when the upload finishes. We can update
+          // the snapshot in the pendingUploadStore when markEmbedFinished is called.
+          //
+          // FOR NOW: The uploadEmbedId may already be on the snapshot if the
+          // embed was in "transcribing" (not "uploading") status when the user
+          // pressed Send. For "uploading" embeds, we need the mapping.
+          //
+          // SIMPLEST FIX: embedHandlers.ts already dispatches the
+          // embedUploadFinished event. Before dispatching, we should also update
+          // the DeferredEmbedSnapshot in pendingUploadStore with the
+          // uploadEmbedId. Let's handle this by having the upload callbacks
+          // update the snapshot. But for now, let's try using the snapshot's
+          // uploadEmbedId if available, and fall back to checking contentRef.
+          let contentRef = snap.contentRef;
+
+          if (!contentRef && snap.uploadEmbedId) {
+            contentRef = `embed:${snap.uploadEmbedId}`;
+          }
+
+          if (contentRef) {
+            node.attrs.contentRef = contentRef;
+          }
+        }
+      }
+      // Recurse into children
+      if (node.content) {
+        patchEmbedNodes(node.content);
+      }
+    }
+  }
+
+  patchEmbedNodes((snapshot as TipTapNode).content);
+
+  // -------------------------------------------------------------------------
+  // 3. Serialize to markdown
+  // -------------------------------------------------------------------------
+  let markdown = tipTapToCanonicalMarkdown(snapshot);
+  // Strip leading empty lines (same as normal send path)
+  markdown = markdown.replace(/^\n+/, "");
+
+  // -------------------------------------------------------------------------
+  // 4. Process URLs → embed references
+  // -------------------------------------------------------------------------
+  try {
+    markdown = await processUrlsBeforeSend(markdown);
+  } catch (error) {
+    console.error(
+      "[executeDeferredSend] Error processing URLs before send:",
+      error,
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 5. PII anonymization
+  // -------------------------------------------------------------------------
+  let piiMappingsForStorage: PIIMappingForStorage[] = [];
+  try {
+    const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
+    if (piiSettings.masterEnabled) {
+      const disabledCategories = new Set<string>();
+      for (const [category, enabled] of Object.entries(
+        piiSettings.categories,
+      )) {
+        if (!enabled) disabledCategories.add(category);
+      }
+
+      const enabledEntries: PersonalDataEntry[] = get(
+        personalDataStore.enabledEntries,
+      );
+      const personalDataForDetection: PersonalDataForDetection[] =
+        enabledEntries.map((entry) => {
+          const result: PersonalDataForDetection = {
+            id: entry.id,
+            textToHide: entry.textToHide,
+            replaceWith: entry.replaceWith,
+          };
+          if (entry.type === "address" && entry.addressLines) {
+            const additionalTexts: string[] = [];
+            if (entry.addressLines.street)
+              additionalTexts.push(entry.addressLines.street);
+            if (entry.addressLines.city)
+              additionalTexts.push(entry.addressLines.city);
+            result.additionalTexts = additionalTexts;
+          }
+          return result;
+        });
+
+      const detectionOptions: PIIDetectionOptions = {
+        excludedIds: readyCtx.piiExclusions,
+        disabledCategories,
+        personalDataEntries: personalDataForDetection,
+      };
+
+      const piiMatches = detectPII(markdown, detectionOptions);
+      if (piiMatches.length > 0) {
+        piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
+        markdown = replacePIIWithPlaceholders(markdown, piiMatches);
+        console.debug(
+          `[executeDeferredSend] PII anonymization: replaced ${piiMatches.length} items`,
+        );
+      }
+    }
+  } catch (error) {
+    console.error("[executeDeferredSend] PII anonymization error:", error);
+  }
+
+  // -------------------------------------------------------------------------
+  // 6. Build message payload and update IndexedDB
+  // -------------------------------------------------------------------------
+  const wsStatus = get(websocketStatus);
+  const isConnected = wsStatus.status === "connected";
+  const newStatus: Message["status"] = isConnected
+    ? "sending"
+    : "waiting_for_internet";
+
+  // Update the existing stub message in IndexedDB with real content + new status
+  try {
+    const { incognitoChatService } =
+      await import("../../../services/incognitoChatService");
+    const incognitoChat = await incognitoChatService
+      .getChat(readyCtx.chatId)
+      .catch(() => null);
+
+    const updatedMessage: Partial<Message> & {
+      message_id: string;
+      chat_id: string;
+    } = {
+      message_id: readyCtx.messageId,
+      chat_id: readyCtx.chatId,
+      content: markdown,
+      status: newStatus,
+      pii_mappings:
+        piiMappingsForStorage.length > 0 ? piiMappingsForStorage : undefined,
+    };
+
+    if (incognitoChat) {
+      // For incognito chats, we need to update the message in the incognito store
+      // incognitoChatService doesn't have an updateMessage, so we re-add
+      const existingMessages = await incognitoChatService.getMessagesForChat(
+        readyCtx.chatId,
+      );
+      const existingMsg = existingMessages.find(
+        (m) => m.message_id === readyCtx.messageId,
+      );
+      if (existingMsg) {
+        Object.assign(existingMsg, updatedMessage);
+        await incognitoChatService.addMessage(readyCtx.chatId, existingMsg);
+      }
+    } else {
+      // Regular chat: update the message in IndexedDB
+      const existingMsg = await chatDB.getMessage(readyCtx.messageId);
+      if (existingMsg) {
+        existingMsg.content = markdown;
+        existingMsg.status = newStatus;
+        existingMsg.pii_mappings =
+          piiMappingsForStorage.length > 0 ? piiMappingsForStorage : undefined;
+        await chatDB.saveMessage(existingMsg);
+      }
+    }
+  } catch (dbError) {
+    console.error(
+      "[executeDeferredSend] Failed to update stub message in DB:",
+      dbError,
+    );
+  }
+
+  // Build a full message payload for chatSyncService (it needs all fields)
+  const messagePayload: Message = {
+    message_id: readyCtx.messageId,
+    chat_id: readyCtx.chatId,
+    role: "user",
+    content: markdown,
+    status: newStatus,
+    created_at: Math.floor(readyCtx.createdAt / 1000),
+    sender_name: "user",
+    encrypted_content: null,
+    pii_mappings:
+      piiMappingsForStorage.length > 0 ? piiMappingsForStorage : undefined,
+  };
+
+  // -------------------------------------------------------------------------
+  // 7. Send to backend
+  // -------------------------------------------------------------------------
+  try {
+    // Notify backend about the active chat (it may be a different chat now)
+    await chatSyncService.sendSetActiveChat(readyCtx.chatId);
+    await chatSyncService.sendNewMessage(messagePayload);
+    console.info(
+      `[executeDeferredSend] Deferred message sent for chat ${readyCtx.chatId.slice(-6)}`,
+    );
+  } catch (sendError) {
+    console.error(
+      "[executeDeferredSend] Failed to send deferred message:",
+      sendError,
+    );
   }
 }
 
