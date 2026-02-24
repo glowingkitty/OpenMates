@@ -1064,6 +1064,135 @@ def persist_delete_message(self, user_id: str, chat_id: str, client_message_id: 
         )
 
 
+async def _async_persist_delete_draft_embed(
+    user_id: str,
+    embed_id: str,
+    chat_id: Optional[str],
+    task_id: str,
+) -> None:
+    """
+    Async logic for the persist_delete_draft_embed Celery task.
+
+    Deletes the S3 files and upload_files Directus record for a file that was
+    uploaded to a draft but removed before the message was sent.  Also decrements
+    the user's storage_used_bytes counter.
+    """
+    logger.info(
+        f"TASK_LOGIC_ENTRY: Starting _async_persist_delete_draft_embed "
+        f"for user {user_id}, embed {embed_id} (chat {chat_id}). Task ID: {task_id}"
+    )
+
+    directus_service = DirectusService()
+    await directus_service.initialize()
+
+    # Initialize S3 service for cleaning up S3 files.
+    # If initialization fails, skip S3 deletion but still remove the Directus record
+    # so the user's storage counter stays accurate.
+    s3_service = None
+    try:
+        secrets_manager = SecretsManager()
+        await secrets_manager.initialize()
+        s3_service = S3UploadService(secrets_manager=secrets_manager)
+        await s3_service.initialize()
+    except Exception as s3_init_err:
+        logger.warning(
+            f"Failed to initialize S3 service for draft embed deletion "
+            f"(embed {embed_id}): {s3_init_err}. "
+            "S3 files will not be deleted, but the Directus record will be removed."
+        )
+
+    bytes_freed = await directus_service.embed.delete_draft_upload_file(
+        embed_id=embed_id,
+        user_id=user_id,
+        s3_service=s3_service,
+    )
+
+    if bytes_freed > 0:
+        # Decrement the user's storage_used_bytes counter.
+        try:
+            user_data = await directus_service.get_items(
+                'directus_users',
+                params={'filter[id][_eq]': user_id, 'fields': 'storage_used_bytes', 'limit': 1},
+                no_cache=True,
+            )
+            current_bytes = 0
+            if user_data and isinstance(user_data, list) and len(user_data) > 0:
+                current_bytes = int(user_data[0].get('storage_used_bytes') or 0)
+            new_bytes = max(0, current_bytes - bytes_freed)
+            await directus_service.update_user(user_id, {'storage_used_bytes': new_bytes})
+            logger.info(
+                f"Storage counter updated for user {user_id} after draft embed deletion: "
+                f"{current_bytes} → {new_bytes} bytes (freed {bytes_freed:,} bytes). Task ID: {task_id}"
+            )
+        except Exception as counter_err:
+            # Non-fatal: the weekly billing reconciliation will correct any drift.
+            logger.warning(
+                f"Failed to update storage counter for user {user_id} "
+                f"after draft embed deletion (embed {embed_id}): {counter_err}"
+            )
+    else:
+        logger.debug(
+            f"No bytes freed for draft embed deletion of embed {embed_id} "
+            f"(record may not have existed). Task ID: {task_id}"
+        )
+
+    logger.info(
+        f"TASK_LOGIC_FINISH: _async_persist_delete_draft_embed completed "
+        f"for embed {embed_id}, user {user_id}. Task ID: {task_id}"
+    )
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_delete_draft_embed", bind=True)
+def persist_delete_draft_embed(
+    self,
+    user_id: str,
+    embed_id: str,
+    chat_id: Optional[str] = None,
+) -> bool:
+    """
+    Celery task (sync wrapper) to delete an uploaded file that was removed from a
+    message draft before the message was sent.
+
+    Cleans up:
+    - S3 variant files (original, full, preview) from the chatfiles bucket
+    - The upload_files Directus record
+    - Decrements storage_used_bytes on the user record
+    """
+    task_id = self.request.id or "UNKNOWN_TASK_ID"
+    loop = None
+    try:
+        logger.info(
+            f"TASK_ENTRY_SYNC_WRAPPER: Starting persist_delete_draft_embed task "
+            f"for user_id: {user_id}, embed_id: {embed_id}, task_id: {task_id}"
+        )
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_delete_draft_embed(
+            user_id=user_id,
+            embed_id=embed_id,
+            chat_id=chat_id,
+            task_id=task_id,
+        ))
+        logger.info(
+            f"TASK_SUCCESS_SYNC_WRAPPER: persist_delete_draft_embed task completed "
+            f"for user_id: {user_id}, embed_id: {embed_id}, task_id: {task_id}"
+        )
+        return True
+    except Exception as e:
+        logger.error(
+            f"TASK_FAILURE_SYNC_WRAPPER: Failed to run persist_delete_draft_embed task "
+            f"for user_id {user_id}, embed_id: {embed_id}, task_id: {task_id}: {str(e)}",
+            exc_info=True,
+        )
+        raise self.retry(exc=e, countdown=60)
+    finally:
+        if loop:
+            loop.close()
+        logger.info(
+            f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for persist_delete_draft_embed task_id: {task_id}"
+        )
+
+
 async def _async_persist_ai_response_to_directus(
     user_id: str,
     user_id_hash: str,

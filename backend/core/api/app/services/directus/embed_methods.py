@@ -720,6 +720,117 @@ class EmbedMethods:
             )
             return False, []
 
+    async def delete_draft_upload_file(
+        self,
+        embed_id: str,
+        user_id: str,
+        s3_service=None,
+    ) -> int:
+        """
+        Delete a single upload_files record (and its S3 objects) for an embed that
+        was uploaded as part of a draft but never included in a sent message.
+
+        This is the "draft embed cleanup" path — called when:
+        - The user removes an image/PDF/recording from the message input before sending
+        - The embed was already fully uploaded to S3 (cancelUpload was a no-op)
+
+        Steps:
+          1. Fetch the upload_files record for this embed_id (must belong to user_id).
+          2. Delete all S3 variant files (original, full, preview) using files_metadata.
+          3. Delete the upload_files Directus record.
+          4. Return bytes_freed so the caller can decrement storage_used_bytes.
+
+        Args:
+            embed_id:   The embed UUID (from TipTap node attrs.id / upload response).
+            user_id:    The user who owns the file — used for ownership validation.
+            s3_service: Optional S3UploadService instance. If None, S3 deletion is skipped
+                        (safe fallback — record is still removed, billing reconciliation corrects).
+
+        Returns:
+            Bytes freed (file_size_bytes from the deleted record), or 0 if nothing was deleted.
+        """
+        log_prefix = f"[DraftEmbedCleanup] [user:{user_id[:8]}...] [embed:{embed_id[:8]}...]"
+        logger.info(f"{log_prefix} Deleting draft upload file.")
+
+        try:
+            # Step 1: Fetch the upload_files record, validating user ownership.
+            params = {
+                'filter[embed_id][_eq]': embed_id,
+                'filter[user_id][_eq]': user_id,   # Ownership check — never delete other users' files
+                'fields': 'id,file_size_bytes,files_metadata',
+                'limit': 1,
+            }
+            records = await self.directus_service.get_items(
+                'upload_files', params=params, no_cache=True
+            )
+
+            if not records or not isinstance(records, list) or len(records) == 0:
+                logger.debug(
+                    f"{log_prefix} No upload_files record found (may already be deleted or not owned by user)."
+                )
+                return 0
+
+            record = records[0]
+            directus_id = record.get('id')
+            file_size_bytes = int(record.get('file_size_bytes') or 0)
+            files_metadata = record.get('files_metadata')
+
+            # Step 2: Delete S3 variant files (original, full, preview).
+            # files_metadata structure: {"original": {"s3_key": "...", ...}, "full": {...}, "preview": {...}}
+            if s3_service and files_metadata and isinstance(files_metadata, dict):
+                s3_deleted = 0
+                s3_failed = 0
+                for variant_name, variant_data in files_metadata.items():
+                    if not isinstance(variant_data, dict):
+                        continue
+                    s3_key = variant_data.get('s3_key')
+                    if not s3_key:
+                        continue
+                    try:
+                        await s3_service.delete_file(
+                            bucket_key='chatfiles',
+                            file_key=s3_key,
+                        )
+                        s3_deleted += 1
+                        logger.debug(
+                            f"{log_prefix} Deleted S3 object chatfiles/{s3_key} (variant: {variant_name})."
+                        )
+                    except Exception as s3_err:
+                        s3_failed += 1
+                        logger.warning(
+                            f"{log_prefix} Failed to delete S3 object chatfiles/{s3_key}: {s3_err}"
+                        )
+                logger.info(
+                    f"{log_prefix} S3 deletion: {s3_deleted} deleted, {s3_failed} failed."
+                )
+            elif not s3_service:
+                logger.warning(
+                    f"{log_prefix} No s3_service provided — S3 files not deleted. "
+                    "Directus record will be removed; billing reconciliation will not reclaim S3 storage."
+                )
+
+            # Step 3: Delete the upload_files Directus record.
+            if directus_id:
+                success = await self.directus_service.delete_item('upload_files', directus_id)
+                if success:
+                    logger.info(
+                        f"{log_prefix} Deleted upload_files record {directus_id} "
+                        f"({file_size_bytes:,} bytes freed)."
+                    )
+                else:
+                    logger.warning(f"{log_prefix} Failed to delete upload_files record {directus_id}.")
+                    # Still return bytes_freed so the storage counter is decremented
+                    # (even if the record lingers, the weekly billing job will reconcile)
+
+            return file_size_bytes
+
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} Error deleting draft upload file: {e}",
+                exc_info=True,
+            )
+            return 0
+
     async def delete_upload_files_for_embeds(self, embed_ids: List[str]) -> int:
         """
         Delete upload_files records whose embed_id is in the provided list.

@@ -70,6 +70,51 @@ export function cancelUpload(embedId: string): void {
 }
 
 /**
+ * Delete an uploaded file embed that was removed from the message draft before sending.
+ *
+ * This must be called when:
+ *   - The user removes an image/PDF/recording embed from the draft via Backspace AND
+ *     the upload had already completed (cancelUpload was a no-op).
+ *   - The user removes any file embed via the context menu delete action.
+ *
+ * What this does:
+ *   1. Sends a 'delete_draft_embed' WebSocket message to the server, which:
+ *      - Deletes the S3 variant files (original, full, preview)
+ *      - Deletes the upload_files Directus record
+ *      - Decrements the user's storage_used_bytes counter
+ *   2. Broadcasts 'draft_embed_deleted' to other user devices via the server so they
+ *      clean up their local IndexedDB EmbedStore entries.
+ *
+ * NOTE: This is a fire-and-forget operation — it never blocks the editor or UI.
+ * NOTE: Only call this for embeds that have been uploaded to the server
+ *       (i.e., status !== 'uploading' or cancelUpload already called unsuccessfully).
+ *       For embeds still uploading, cancelUpload() is sufficient.
+ *
+ * @param embedId - The embed UUID (TipTap node attrs.id / upload response embed_id)
+ * @param chatId  - The draft chat ID for server-side logging (optional)
+ */
+export function deleteDraftEmbed(embedId: string, chatId?: string): void {
+  // Import dynamically to avoid adding chatSyncService as a top-level dependency
+  // of embedHandlers (circular dependency risk).
+  import("../../services/chatSyncService")
+    .then(({ chatSyncService }) => {
+      chatSyncService.sendDeleteDraftEmbed(embedId, chatId).catch((err) => {
+        // Non-fatal — weekly billing reconciliation corrects storage counters.
+        console.error(
+          `[EmbedHandlers] Failed to send delete_draft_embed for embed ${embedId}:`,
+          err,
+        );
+      });
+    })
+    .catch((err) => {
+      console.error(
+        "[EmbedHandlers] Failed to import chatSyncService for draft embed deletion:",
+        err,
+      );
+    });
+}
+
+/**
  * Inserts a video embed into the editor.
  */
 export async function insertVideo(

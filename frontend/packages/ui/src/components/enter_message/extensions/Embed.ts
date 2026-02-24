@@ -5,7 +5,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import { EmbedNodeAttributes } from "../../../message_parsing/types";
 import { getEmbedRenderer, embedRenderers } from "./embed_renderers";
 import { groupHandlerRegistry } from "../../../message_parsing/groupHandlers";
-import { cancelUpload } from "../embedHandlers";
+import { cancelUpload, deleteDraftEmbed } from "../embedHandlers";
 
 /**
  * Extract the embed_id from a contentRef string.
@@ -682,7 +682,14 @@ export const Embed = Node.create<EmbedOptions>({
         wrapper.addEventListener("cancelimageupload", (e) => {
           const embedId = (e as CustomEvent<{ embedId: string }>).detail
             ?.embedId;
-          if (embedId) cancelUpload(embedId);
+          if (embedId) {
+            cancelUpload(embedId);
+            // If upload already completed (cancelUpload was a no-op), delete the
+            // server-side upload_files record + S3 variants + update storage counter.
+            // If still uploading, cancelUpload aborted the fetch — server never created
+            // the record, so deleteDraftEmbed is effectively a no-op server-side too.
+            deleteDraftEmbed(embedId);
+          }
           if (typeof getPos === "function") {
             const pos = getPos();
             const nodeSize = editor.state.doc.nodeAt(pos)?.nodeSize ?? 1;
@@ -719,7 +726,12 @@ export const Embed = Node.create<EmbedOptions>({
         wrapper.addEventListener("cancelpdfupload", (e) => {
           const embedId = (e as CustomEvent<{ embedId: string }>).detail
             ?.embedId;
-          if (embedId) cancelUpload(embedId);
+          if (embedId) {
+            cancelUpload(embedId);
+            // Delete server-side upload_files record + S3 variants for completed uploads.
+            // Safe to call even if still uploading — server handles missing record gracefully.
+            deleteDraftEmbed(embedId);
+          }
           if (typeof getPos === "function") {
             const pos = getPos();
             const nodeSize = editor.state.doc.nodeAt(pos)?.nodeSize ?? 1;
@@ -753,7 +765,12 @@ export const Embed = Node.create<EmbedOptions>({
         wrapper.addEventListener("cancelrecordingupload", (e) => {
           const embedId = (e as CustomEvent<{ embedId: string }>).detail
             ?.embedId;
-          if (embedId) cancelUpload(embedId);
+          if (embedId) {
+            cancelUpload(embedId);
+            // Delete server-side upload_files record + S3 variants for completed uploads.
+            // Safe to call even if still uploading/transcribing — server handles gracefully.
+            deleteDraftEmbed(embedId);
+          }
           if (typeof getPos === "function") {
             const pos = getPos();
             const nodeSize = editor.state.doc.nodeAt(pos)?.nodeSize ?? 1;
@@ -1302,6 +1319,11 @@ export const Embed = Node.create<EmbedOptions>({
               // The embed ID is in attrs.id (set by insertImage).
               if (attrs.id) {
                 cancelUpload(attrs.id);
+                // If upload already completed (cancelUpload was a no-op), notify the
+                // server to delete the upload_files record + S3 variants + decrement
+                // storage_used_bytes. Safe to call unconditionally — server handles
+                // missing records gracefully.
+                deleteDraftEmbed(attrs.id);
               }
               {
                 const hardBreakAfterImg = editor.state.doc.nodeAt(to);
@@ -1324,6 +1346,8 @@ export const Embed = Node.create<EmbedOptions>({
               // and remove the node (same pattern as image embeds).
               if (attrs.id) {
                 cancelUpload(attrs.id);
+                // Notify server to delete upload_files record + S3 variants + decrement storage.
+                deleteDraftEmbed(attrs.id);
               }
               {
                 const hardBreakAfterPdf = editor.state.doc.nodeAt(to);
@@ -1346,6 +1370,8 @@ export const Embed = Node.create<EmbedOptions>({
               // in-flight upload and remove the node (same pattern as image/PDF).
               if (attrs.id) {
                 cancelUpload(attrs.id);
+                // Notify server to delete upload_files record + S3 variants + decrement storage.
+                deleteDraftEmbed(attrs.id);
               }
               {
                 const hardBreakAfterRec = editor.state.doc.nodeAt(to);

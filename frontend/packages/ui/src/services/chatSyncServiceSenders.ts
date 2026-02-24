@@ -161,6 +161,45 @@ export async function sendDeleteDraftImpl(
 }
 
 /**
+ * Send a request to delete an uploaded file that was removed from a message draft
+ * before the message was sent.  This triggers server-side cleanup of:
+ *   - The S3 variant files (original, full, preview) from the chatfiles bucket
+ *   - The upload_files Directus record (deduplication tracking)
+ *   - The user's storage_used_bytes counter (decremented)
+ *
+ * Called when an image/PDF/recording embed is removed from the draft editor and
+ * the file was already fully uploaded to S3 (i.e., cancelUpload() was a no-op
+ * because the upload completed before the user deleted it).
+ *
+ * Fire-and-forget: failures are logged but not thrown so they never block the UI.
+ *
+ * @param embed_id - The embed UUID returned by POST /v1/upload/file (TipTap node attrs.id)
+ * @param chat_id  - The draft chat ID for context/logging (optional)
+ */
+export async function sendDeleteDraftEmbedImpl(
+  _serviceInstance: ChatSynchronizationService,
+  embed_id: string,
+  chat_id?: string,
+): Promise<void> {
+  try {
+    await webSocketService.sendMessage("delete_draft_embed", {
+      embed_id,
+      chat_id: chat_id ?? null,
+    });
+    console.debug(
+      `[ChatSyncService:Senders] Sent delete_draft_embed for embed ${embed_id} (chat ${chat_id ?? "n/a"})`,
+    );
+  } catch (error) {
+    // Non-fatal: the weekly billing reconciliation will correct storage counters.
+    // Orphaned upload_files records will remain in Directus but won't affect functionality.
+    console.error(
+      `[ChatSyncService:Senders] Failed to send delete_draft_embed for embed ${embed_id}:`,
+      error,
+    );
+  }
+}
+
+/**
  * Send delete chat request to server
  * NOTE: The actual deletion from IndexedDB should be done by the caller (e.g., Chat.svelte)
  * before calling this function. This function only handles server communication.

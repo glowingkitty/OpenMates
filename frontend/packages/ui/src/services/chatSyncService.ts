@@ -403,6 +403,24 @@ export class ChatSynchronizationService extends EventTarget {
           );
         });
     });
+    // Handle draft_embed_deleted broadcast from other devices:
+    // Another device deleted an uploaded file from the message draft — clean up
+    // the local IndexedDB EmbedStore entry so it doesn't accumulate indefinitely.
+    webSocketService.on("draft_embed_deleted", (payload) => {
+      const { embed_id } = payload as { embed_id: string; chat_id?: string };
+      if (!embed_id) return;
+      console.debug(
+        `[ChatSyncService] Received draft_embed_deleted for embed ${embed_id} — cleaning up IndexedDB`,
+      );
+      import("./embedStore")
+        .then(({ embedStore }) => embedStore.deleteEmbed(embed_id))
+        .catch((err) => {
+          console.warn(
+            `[ChatSyncService] Failed to delete draft embed ${embed_id} from IndexedDB on broadcast:`,
+            err,
+          );
+        });
+    });
     // Handle encrypted_chat_metadata updates (e.g., when chat is hidden/unhidden on another device)
     webSocketService.on("encrypted_chat_metadata", (payload) =>
       chatUpdateHandlers.handleEncryptedChatMetadataImpl(
@@ -1071,6 +1089,14 @@ export class ChatSynchronizationService extends EventTarget {
   }
   public async sendDeleteDraft(chat_id: string) {
     await senders.sendDeleteDraftImpl(this, chat_id);
+  }
+  /**
+   * Notify the server that an uploaded file was removed from the message draft
+   * before sending.  Triggers S3/Directus cleanup and storage counter update.
+   * Also broadcasts 'draft_embed_deleted' to other devices so they clean up IndexedDB.
+   */
+  public async sendDeleteDraftEmbed(embed_id: string, chat_id?: string) {
+    await senders.sendDeleteDraftEmbedImpl(this, embed_id, chat_id);
   }
   public async sendDeleteChat(
     chat_id: string,
