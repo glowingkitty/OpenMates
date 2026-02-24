@@ -62,21 +62,19 @@ async def _get_youtube_api_key(secrets_manager: SecretsManager) -> Optional[str]
     """
     Retrieve the YouTube Data API key from Vault or environment.
 
-    Returns None (with a debug log) if the key is not configured — the caller
-    falls back to Brave-provided metadata in that case.
+    Uses the same two-argument get_secret(path, key) signature as the shared
+    youtube_metadata.py provider.  Returns None (with a debug log) if the key
+    is not configured — the caller falls back to Brave-provided metadata.
     """
     try:
-        secret = await secrets_manager.get_secret(YOUTUBE_SECRET_PATH)
-        if secret and isinstance(secret, dict):
-            key = secret.get("data", {}).get("data", {}).get(YOUTUBE_API_KEY_NAME)
-            if key:
-                return key
-
-        # Try environment variable fallback
-        import os
-        env_key = os.getenv("SECRET__YOUTUBE__API_KEY")
-        if env_key:
-            return env_key
+        # get_secret requires both secret_path and secret_key
+        api_key = await secrets_manager.get_secret(
+            secret_path=YOUTUBE_SECRET_PATH,
+            secret_key=YOUTUBE_API_KEY_NAME,
+        )
+        if api_key:
+            logger.debug("[DailyInspiration] YouTube API key retrieved from Vault")
+            return api_key
 
         logger.debug("[DailyInspiration] YouTube API key not configured — skipping enrichment")
         return None
