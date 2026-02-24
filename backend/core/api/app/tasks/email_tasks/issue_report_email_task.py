@@ -434,6 +434,50 @@ async def _async_send_issue_report_email(
             f"Successfully sent issue report email to {admin_email} "
             f"(subject: 'Issue reported: {issue_title[:50]}...')"
         )
+        
+        # Send confirmation email to the user who reported the issue (if they provided an email)
+        # This email contains only the basics: title, description, timestamp, issue ID
+        # No logs, device info, or other technical debugging data
+        if contact_email and contact_email != "Not provided":
+            try:
+                logger.info(f"Sending issue report confirmation email to reporter: {contact_email}")
+                
+                # Prepare confirmation email context (only basic report info)
+                confirmation_context = {
+                    "darkmode": True,
+                    "issue_id": issue_id,
+                    "issue_title": sanitized_title,
+                    "issue_description": sanitized_description if sanitized_description else None,
+                    "timestamp": timestamp,
+                }
+                
+                confirmation_success = await task.email_template_service.send_email(
+                    template="issue_report_confirmation",
+                    recipient_email=contact_email,
+                    context=confirmation_context,
+                    lang="en",  # Default to English (user's language preference is not available here)
+                )
+                
+                if confirmation_success:
+                    logger.info(
+                        f"Successfully sent issue report confirmation email to {contact_email} "
+                        f"for issue '{issue_title[:50]}...'"
+                    )
+                else:
+                    logger.error(
+                        f"Failed to send issue report confirmation email to {contact_email} - "
+                        f"send_email() returned False. The admin email was sent successfully."
+                    )
+            except Exception as confirmation_error:
+                # Log the error but don't fail the overall task - the admin email was already sent
+                logger.error(
+                    f"Error sending issue report confirmation email to {contact_email}: "
+                    f"{str(confirmation_error)}. The admin email was sent successfully.",
+                    exc_info=True
+                )
+        else:
+            logger.info("No contact email provided - skipping issue report confirmation email to reporter")
+        
         return True
         
     except Exception as e:

@@ -1,0 +1,81 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.issue_report_confirmation.subject.text }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3" />
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    <!-- Include styles from separate file -->
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <!-- Header -->
+    <mj-include path="./components/header.mjml" />
+    
+    <!-- Main Content -->
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section>
+        <mj-column>
+          <mj-image width="50px" height="50px" src="icons/mail.png" align="center" alt="Mail icon" css-class="email-icon-50" />
+          <mj-text font-size="30px" padding-bottom="20px">
+            <mark>{{ t.email.issue_report_confirmation.header.text }}</mark>
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="30px">
+            {{ t.email.issue_report_confirmation.thank_you.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+
+      <!-- Report Summary -->
+      <mj-section>
+        <mj-column>
+          <mj-text font-size="20px" padding-bottom="20px">
+            <strong>{{ t.email.issue_report_confirmation.report_summary.text }}</strong>
+          </mj-text>
+          {% if issue_id %}
+          <mj-text font-size="14px" padding-bottom="15px">
+            <strong>{{ t.email.issue_report.issue_id_label.text }}:</strong><br/>
+            <code style="font-family: monospace; {% if darkmode %}background-color: #3a3a4a; color: #e6e6e6;{% else %}background-color: #f5f5f5; color: #333333;{% endif %} padding: 4px 8px; border-radius: 4px; font-size: 14px; letter-spacing: 0.3px;">{{ issue_id }}</code>
+          </mj-text>
+          {% endif %}
+          <mj-text font-size="16px" padding-bottom="15px">
+            <strong>{{ t.email.issue_report.title_label.text }}:</strong><br/>
+            {{ issue_title }}
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="15px">
+            <strong>{{ t.email.issue_report.description_label.text }}:</strong><br/>
+            {% if issue_description %}
+            {{ issue_description | safe }}
+            {% else %}
+            <em>{{ t.email.issue_report_confirmation.no_description.text }}</em>
+            {% endif %}
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="30px">
+            <strong>{{ t.email.issue_report.timestamp_label.text }}:</strong><br/>
+            {{ timestamp }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+
+      <!-- Support Note -->
+      <mj-section>
+        <mj-column>
+          {% if darkmode %}
+          <mj-text font-size="14px" color="#808080" padding-bottom="30px">
+          {% else %}
+          <mj-text font-size="14px" color="#808080" padding-bottom="30px">
+          {% endif %}
+            {{ t.email.issue_report_confirmation.support_note.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+    
+    <!-- Footer -->
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

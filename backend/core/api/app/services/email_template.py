@@ -384,6 +384,9 @@ class EmailTemplateService:
                         subject = subject_template.format(issue_title=context["issue_title"])
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "issue_report_confirmation":
+                    subject_key = "email.issue_report_confirmation.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "community_share_notification":
                     subject_key = "email.community_share_notification.subject"
                     # The translation contains {chat_title} which needs to be replaced
@@ -442,7 +445,8 @@ class EmailTemplateService:
             transactional_templates = {
                 'confirm-email', 'new-device-login', 'backup-code-was-used',
                 'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation',
-                'signup_milestone', 'issue_report', 'community_share_notification',
+                'signup_milestone', 'issue_report', 'issue_report_confirmation',
+                'community_share_notification',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
                 'storage-billing-failed-3', 'storage-files-deleted',
             }

@@ -3813,6 +3813,144 @@ issue_report.location_label:
   cs: Odhadovaná poloha
   sv: Uppskattad plats
   verified_by_human: []
+issue_report_confirmation.subject:
+  context: Email subject for issue report confirmation email sent to the user who reported the issue
+  en: "Your issue report has been received"
+  de: "Ihre Problemmeldung wurde empfangen"
+  zh: "您的问题报告已收到"
+  es: "Su reporte de problema ha sido recibido"
+  fr: "Votre signalement a bien été reçu"
+  pt: "Seu relatório de problema foi recebido"
+  ru: "Ваш отчёт о проблеме получен"
+  ja: "問題報告を受け付けました"
+  ko: "문제 보고가 접수되었습니다"
+  it: "La segnalazione del problema è stata ricevuta"
+  tr: "Sorun bildiriminiz alındı"
+  vi: "Báo cáo sự cố của bạn đã được nhận"
+  id: "Laporan masalah Anda telah diterima"
+  pl: "Twoje zgłoszenie problemu zostało odebrane"
+  nl: "Uw probleemmelding is ontvangen"
+  ar: "تم استلام تقرير المشكلة الخاص بك"
+  hi: "आपकी समस्या रिपोर्ट प्राप्त हो गई है"
+  th: "ได้รับรายงานปัญหาของคุณแล้ว"
+  cs: "Vaše hlášení problému bylo přijato"
+  sv: "Din problemrapport har mottagits"
+  verified_by_human: []
+issue_report_confirmation.header:
+  context: Header text in the issue report confirmation email body
+  en: Issue report received
+  de: Problemmeldung empfangen
+  zh: 问题报告已收到
+  es: Reporte de problema recibido
+  fr: Signalement reçu
+  pt: Relatório de problema recebido
+  ru: Отчёт о проблеме получен
+  ja: 問題報告を受け付けました
+  ko: 문제 보고 접수됨
+  it: Segnalazione ricevuta
+  tr: Sorun bildirimi alındı
+  vi: Đã nhận báo cáo sự cố
+  id: Laporan masalah diterima
+  pl: Zgłoszenie problemu odebrane
+  nl: Probleemmelding ontvangen
+  ar: تم استلام تقرير المشكلة
+  hi: समस्या रिपोर्ट प्राप्त हुई
+  th: ได้รับรายงานปัญหาแล้ว
+  cs: Hlášení problému přijato
+  sv: Problemrapport mottagen
+  verified_by_human: []
+issue_report_confirmation.thank_you:
+  context: Thank you message in confirmation email telling the user their report was received
+  en: Thank you for submitting your issue report. We have received it and will review it as soon as possible.
+  de: Vielen Dank für Ihre Problemmeldung. Wir haben sie erhalten und werden sie so schnell wie möglich prüfen.
+  zh: 感谢您提交问题报告。我们已收到，并将尽快进行审查。
+  es: Gracias por enviar su reporte de problema. Lo hemos recibido y lo revisaremos lo antes posible.
+  fr: Merci d'avoir soumis votre signalement. Nous l'avons bien reçu et l'examinerons dès que possible.
+  pt: Obrigado por enviar seu relatório de problema. Nós o recebemos e o analisaremos o mais breve possível.
+  ru: Спасибо за отправку отчёта о проблеме. Мы его получили и рассмотрим как можно скорее.
+  ja: 問題報告をお送りいただきありがとうございます。受け付けましたので、できるだけ早く確認いたします。
+  ko: 문제 보고를 제출해 주셔서 감사합니다. 접수되었으며 가능한 빨리 검토하겠습니다.
+  it: Grazie per aver inviato la segnalazione. L'abbiamo ricevuta e la esamineremo il prima possibile.
+  tr: Sorun bildiriminizi gönderdiğiniz için teşekkür ederiz. Aldık ve en kısa sürede inceleyeceğiz.
+  vi: Cảm ơn bạn đã gửi báo cáo sự cố. Chúng tôi đã nhận được và sẽ xem xét trong thời gian sớm nhất.
+  id: Terima kasih telah mengirimkan laporan masalah Anda. Kami telah menerimanya dan akan segera meninjaunya.
+  pl: Dziękujemy za przesłanie zgłoszenia problemu. Otrzymaliśmy je i przejrzymy tak szybko, jak to możliwe.
+  nl: Bedankt voor het indienen van uw probleemmelding. We hebben deze ontvangen en zullen deze zo snel mogelijk bekijken.
+  ar: شكرًا لك على إرسال تقرير المشكلة. لقد استلمناه وسنقوم بمراجعته في أقرب وقت ممكن.
+  hi: अपनी समस्या रिपोर्ट सबमिट करने के लिए धन्यवाद। हमने इसे प्राप्त कर लिया है और जल्द से जल्द इसकी समीक्षा करेंगे।
+  th: ขอบคุณที่ส่งรายงานปัญหา เราได้รับแล้วและจะตรวจสอบโดยเร็วที่สุด
+  cs: Děkujeme za odeslání hlášení problému. Obdrželi jsme ho a prověříme ho co nejdříve.
+  sv: Tack för att du skickade din problemrapport. Vi har mottagit den och kommer att granska den så snart som möjligt.
+  verified_by_human: []
+issue_report_confirmation.report_summary:
+  context: Section heading for the summary of the reported issue in the confirmation email
+  en: Report summary
+  de: Zusammenfassung der Meldung
+  zh: 报告摘要
+  es: Resumen del reporte
+  fr: Résumé du signalement
+  pt: Resumo do relatório
+  ru: Сводка отчёта
+  ja: 報告の概要
+  ko: 보고 요약
+  it: Riepilogo della segnalazione
+  tr: Bildirim özeti
+  vi: Tóm tắt báo cáo
+  id: Ringkasan laporan
+  pl: Podsumowanie zgłoszenia
+  nl: Samenvatting van de melding
+  ar: ملخص التقرير
+  hi: रिपोर्ट सारांश
+  th: สรุปรายงาน
+  cs: Shrnutí hlášení
+  sv: Rapportsammanfattning
+  verified_by_human: []
+issue_report_confirmation.support_note:
+  context: Note telling the user they can email support if they haven't heard back within a week
+  en: "If you haven't heard back within a week, feel free to reach out to us at support@openmates.org for an update."
+  de: "Sollten Sie innerhalb einer Woche keine Rückmeldung erhalten haben, können Sie sich gerne an support@openmates.org wenden."
+  zh: "如果一周内未收到回复，请随时发送邮件至 support@openmates.org 询问进展。"
+  es: "Si no ha recibido respuesta en una semana, no dude en escribirnos a support@openmates.org para obtener una actualización."
+  fr: "Si vous n'avez pas reçu de réponse sous une semaine, n'hésitez pas à nous contacter à support@openmates.org."
+  pt: "Se não receber uma resposta dentro de uma semana, sinta-se à vontade para nos contactar em support@openmates.org."
+  ru: "Если вы не получили ответ в течение недели, напишите нам на support@openmates.org."
+  ja: "1週間以内に返答がない場合は、support@openmates.org までお気軽にお問い合わせください。"
+  ko: "1주일 이내에 답변을 받지 못하셨다면 support@openmates.org로 문의해 주세요."
+  it: "Se non hai ricevuto risposta entro una settimana, non esitare a scriverci a support@openmates.org."
+  tr: "Bir hafta içinde yanıt almadıysanız, güncelleme için support@openmates.org adresine yazabilirsiniz."
+  vi: "Nếu bạn không nhận được phản hồi trong vòng một tuần, vui lòng liên hệ support@openmates.org để biết thêm thông tin."
+  id: "Jika Anda belum menerima tanggapan dalam seminggu, silakan hubungi kami di support@openmates.org."
+  pl: "Jeśli nie otrzymasz odpowiedzi w ciągu tygodnia, napisz do nas na support@openmates.org."
+  nl: "Als u binnen een week geen reactie heeft ontvangen, neem dan gerust contact met ons op via support@openmates.org."
+  ar: "إذا لم تتلقَ ردًا خلال أسبوع، لا تتردد في التواصل معنا على support@openmates.org."
+  hi: "यदि एक सप्ताह के भीतर कोई जवाब नहीं मिलता है, तो कृपया अपडेट के लिए support@openmates.org पर हमसे संपर्क करें।"
+  th: "หากไม่ได้รับการตอบกลับภายในหนึ่งสัปดาห์ สามารถติดต่อเราได้ที่ support@openmates.org"
+  cs: "Pokud do týdne neobdržíte odpověď, neváhejte nás kontaktovat na support@openmates.org."
+  sv: "Om du inte har fått svar inom en vecka, kontakta oss gärna på support@openmates.org."
+  verified_by_human: []
+issue_report_confirmation.no_description:
+  context: Placeholder shown when user did not provide a description in the issue report
+  en: No description provided
+  de: Keine Beschreibung angegeben
+  zh: 未提供描述
+  es: No se proporcionó descripción
+  fr: Aucune description fournie
+  pt: Nenhuma descrição fornecida
+  ru: Описание не предоставлено
+  ja: 説明なし
+  ko: 설명 없음
+  it: Nessuna descrizione fornita
+  tr: Açıklama sağlanmadı
+  vi: Không có mô tả
+  id: Tidak ada deskripsi
+  pl: Nie podano opisu
+  nl: Geen beschrijving opgegeven
+  ar: لم يتم تقديم وصف
+  hi: कोई विवरण नहीं दिया गया
+  th: ไม่ได้ระบุคำอธิบาย
+  cs: Nebyl poskytnut popis
+  sv: Ingen beskrivning angiven
+  verified_by_human: []
 community_share_notification.subject:
   context: Email subject for community share notification
   en: "New chat suggested for community: {chat_title}"
