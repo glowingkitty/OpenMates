@@ -1576,10 +1576,18 @@
   }
 
   /* Wrapper for the ChatHeader banner at the top of new chats.
-     Full width like DailyInspirationBanner — no padding/margin. */
+     Breaks out of the container's 10px padding and the content's 50px padding-top
+     to render edge-to-edge and flush with the top of the scroll area. */
   .chat-header-wrapper {
-    width: 100%;
-    max-width: 900px;
-    margin: 0 auto 8px;
+    /* Cancel the container's 10px padding on left/right/top */
+    margin-left: -10px;
+    margin-right: -10px;
+    /* Pull the banner up to cancel the 50px padding-top from .has-messages
+       and the 10px top padding from .chat-history-container */
+    margin-top: -60px;
+    /* Small gap below the banner before messages start */
+    margin-bottom: 12px;
+    /* Full width of the container (including the cancelled padding) */
+    width: calc(100% + 20px);
   }
 </style>

@@ -212,7 +212,9 @@
     position: relative;
     width: 100%;
     height: 240px;
-    border-radius: 14px;
+    /* Top corners are flush with the top of the scroll area — no top radius.
+       Only bottom corners are rounded to separate the banner from messages below. */
+    border-radius: 0 0 14px 14px;
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -297,8 +299,9 @@
     align-items: center;
     gap: 4px;
     z-index: 2;
-    padding: 16px 60px;
-    max-width: 680px;
+    padding: 16px 24px;
+    /* Narrow text block so it doesn't stretch the full banner width */
+    max-width: 480px;
     width: 100%;
     animation: fadeIn 0.35s ease-out;
   }
@@ -392,13 +395,15 @@
   }
 
   .deco-icon-left {
-    left: -10px;
+    /* 60px inward from the left edge, partially below the banner baseline */
+    left: 60px;
     bottom: -15px;
     transform: rotate(-15deg);
   }
 
   .deco-icon-right {
-    right: -10px;
+    /* 60px inward from the right edge, partially below the banner baseline */
+    right: 60px;
     bottom: -15px;
     transform: rotate(15deg);
   }
@@ -440,7 +445,8 @@
     }
 
     .loaded-content {
-      padding: 12px 50px;
+      padding: 12px 20px;
+      max-width: 360px;
     }
 
     .loaded-icon {
@@ -463,7 +469,7 @@
       line-clamp: 2;
     }
 
-    /* Smaller decorative icons on mobile */
+    /* Smaller decorative icons on mobile, closer to edges */
     .deco-icon {
       width: 90px;
       height: 90px;
@@ -472,6 +478,14 @@
     .deco-icon :global(svg) {
       width: 90px !important;
       height: 90px !important;
+    }
+
+    .deco-icon-left {
+      left: 30px;
+    }
+
+    .deco-icon-right {
+      right: 30px;
     }
   }
 </style>
