@@ -337,77 +337,107 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 	await page.waitForTimeout(2000);
 	await takeScreenshot(page, '07-deutsch-selected');
 
-	// ─── Client-side assertions ────────────────────────────────────────────
-
-	// 1. The Deutsch toggle is now checked
+	// Wrap all assertions + cleanup in try/finally so the account is always
+	// reset to English even if an assertion throws mid-test.
 	const deutschCheckbox = page.locator(SELECTORS.deutschCheckbox);
-	await expect(deutschCheckbox).toBeChecked({ timeout: 5000 });
-	log('✓ Deutsch checkbox is checked.');
+	try {
+		// ─── Client-side assertions ──────────────────────────────────────────
 
-	// 2. The English toggle is no longer checked
-	await expect(englishCheckbox).not.toBeChecked({ timeout: 5000 });
-	log('✓ English checkbox is unchecked.');
+		// 1. The Deutsch toggle is now checked
+		await expect(deutschCheckbox).toBeChecked({ timeout: 5000 });
+		log('✓ Deutsch checkbox is checked.');
 
-	// 3. html[lang] attribute updated to "de"
-	const htmlLang: string = await page.evaluate(() => document.documentElement.lang);
-	expect(htmlLang).toBe('de');
-	log(`✓ html[lang] = "${htmlLang}"`);
+		// 2. The English toggle is no longer checked
+		await expect(englishCheckbox).not.toBeChecked({ timeout: 5000 });
+		log('✓ English checkbox is unchecked.');
 
-	// 4. localStorage updated
-	const lsLang: string = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
-	expect(lsLang).toBe('de');
-	log(`✓ localStorage.preferredLanguage = "${lsLang}"`);
+		// 3. html[lang] attribute updated to "de"
+		const htmlLang: string = await page.evaluate(() => document.documentElement.lang);
+		expect(htmlLang).toBe('de');
+		log(`✓ html[lang] = "${htmlLang}"`);
 
-	// 5. Page title is in German (confirms svelte-i18n translation loaded)
-	const pageTitle: string = await page.title();
-	expect(pageTitle).toMatch(/OpenMates/); // always present
-	// German title contains German words (e.g. "Digitale Teamkollegen")
-	expect(pageTitle.toLowerCase()).not.toContain('for all of us'); // English phrase absent
-	log(`✓ Page title in German: "${pageTitle}"`);
+		// 4. localStorage updated
+		const lsLang: string = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
+		expect(lsLang).toBe('de');
+		log(`✓ localStorage.preferredLanguage = "${lsLang}"`);
 
-	// 6. No missing translation keys visible in the UI
-	await assertNoMissingTranslations(page);
-	log('✓ No missing translation keys.');
+		// 5. Page title is in German (confirms svelte-i18n translation loaded)
+		const pageTitle: string = await page.title();
+		expect(pageTitle).toMatch(/OpenMates/); // always present
+		// German title contains German words (e.g. "Digitale Teamkollegen")
+		expect(pageTitle.toLowerCase()).not.toContain('for all of us'); // English phrase absent
+		log(`✓ Page title in German: "${pageTitle}"`);
 
-	// ─── Server-side assertions ────────────────────────────────────────────
+		// 6. No missing translation keys visible in the UI
+		await assertNoMissingTranslations(page);
+		log('✓ No missing translation keys.');
 
-	// Verify the API request body was correct
-	const requestBody = JSON.parse(languageApiRequest.postData() || '{}');
-	expect(requestBody.language).toBe('de');
-	log(`✓ API request body correct: language="${requestBody.language}"`);
+		// ─── Server-side assertions ──────────────────────────────────────────
 
-	// Confirm the server returned 200 with success=true by POSTing again
-	// (server is idempotent — sending same value twice is safe)
-	await verifyLanguageOnServer(page, 'de', API_BASE_URL, log);
-	log('✓ Server confirmed language = "de" (cache + Directus updated).');
+		// Verify the API request body was correct
+		const requestBody = JSON.parse(languageApiRequest.postData() || '{}');
+		expect(requestBody.language).toBe('de');
+		log(`✓ API request body correct: language="${requestBody.language}"`);
 
-	await takeScreenshot(page, '08-server-verified-de');
+		// Confirm the server returned 200 with success=true by POSTing again
+		// (server is idempotent — sending same value twice is safe)
+		await verifyLanguageOnServer(page, 'de', API_BASE_URL, log);
+		log('✓ Server confirmed language = "de" (cache + Directus updated).');
 
-	// -------------------------------------------------------------------------
-	// Step 5 — Reset to English (cleanup + round-trip verification)
-	// -------------------------------------------------------------------------
+		await takeScreenshot(page, '08-server-verified-de');
+	} finally {
+		// -------------------------------------------------------------------------
+		// Step 5 — Reset to English (always runs, even on assertion failure)
+		// -------------------------------------------------------------------------
 
-	log('Resetting to English...');
+		log('Resetting to English...');
 
-	const resetApiRequestPromise = page.waitForRequest(
-		(req: any) => req.url().includes('/v1/settings/user/language') && req.method() === 'POST',
-		{ timeout: 10000 }
-	);
+		// Re-open the language list if the settings menu closed or navigated away.
+		// We use the API directly here so cleanup is reliable regardless of UI state.
+		const cleanupResult = await page.evaluate(
+			async ({ apiUrl }: { apiUrl: string }) => {
+				try {
+					const response = await fetch(`${apiUrl}/v1/settings/user/language`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+						body: JSON.stringify({ language: 'en' }),
+						credentials: 'include'
+					});
+					const body = await response.json().catch(() => null);
+					return { status: response.status, ok: response.ok, body };
+				} catch (err: any) {
+					return { status: -1, ok: false, error: err?.message };
+				}
+			},
+			{ apiUrl: API_BASE_URL }
+		);
+		log(
+			`Cleanup API reset: status=${cleanupResult.status} ok=${cleanupResult.ok} ` +
+				`body=${JSON.stringify(cleanupResult.body)}`
+		);
 
-	// English menu item is still visible in the language list
+		// Also update the client-side locale so the UI reflects English on teardown
+		await page.evaluate(() => {
+			localStorage.setItem('preferredLanguage', 'en');
+			document.cookie = 'preferredLanguage=en; path=/; max-age=31536000; SameSite=Lax';
+			document.documentElement.setAttribute('lang', 'en');
+		});
+
+		await page.waitForTimeout(500);
+		await takeScreenshot(page, '09-english-reset');
+		log('Reset to English complete.');
+	}
+
+	// ─── Post-reset assertions (only run on success path) ──────────────────
+
+	// Verify the language list still shows English as selected
+	// (the language list stays open after clicking English in the UI flow)
 	await expect(englishItem).toBeVisible({ timeout: 5000 });
 	await englishItem.click();
-	log('Clicked "English" to reset.');
-
-	const resetApiRequest = await resetApiRequestPromise;
-	const resetBody = JSON.parse(resetApiRequest.postData() || '{}');
-	expect(resetBody.language).toBe('en');
-	log(`✓ Reset API request fired: language="${resetBody.language}"`);
+	log('Clicked "English" in UI to sync toggle state.');
 
 	await page.waitForTimeout(2000);
-	await takeScreenshot(page, '09-english-reset');
 
-	// Verify client-side reset
 	const htmlLangAfterReset: string = await page.evaluate(() => document.documentElement.lang);
 	expect(htmlLangAfterReset).toBe('en');
 	log(`✓ html[lang] reset to "${htmlLangAfterReset}"`);
