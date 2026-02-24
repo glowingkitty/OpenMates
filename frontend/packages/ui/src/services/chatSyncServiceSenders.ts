@@ -273,14 +273,17 @@ export async function sendNewMessageImpl(
     );
 
     // Update message status to 'waiting_for_internet' if it's currently 'sending'
-    // This ensures the UI shows the correct status when offline
+    // This ensures the UI shows the correct status when offline.
+    // IMPORTANT: Use updateMessageStatus() NOT spread→saveMessage(). saveMessage() calls
+    // encryptMessageFields() → getOrGenerateChatKey(), which silently generates a new
+    // random key if the chat key is absent from the in-memory cache, re-encrypting the
+    // message and causing "[Content decryption failed]" on the sender's device.
     if (message.status === "sending") {
       try {
-        const updatedMessage: Message = {
-          ...message,
-          status: "waiting_for_internet",
-        };
-        await chatDB.saveMessage(updatedMessage);
+        await chatDB.updateMessageStatus(
+          message.message_id,
+          "waiting_for_internet",
+        );
 
         // Dispatch event to update UI with new status
         serviceInstance.dispatchEvent(
@@ -1298,37 +1301,35 @@ export async function sendNewMessageImpl(
       error,
     );
     try {
+      // IMPORTANT: Use updateMessageStatus() NOT getMessage()→spread→saveMessage().
+      // saveMessage() calls encryptMessageFields() → getOrGenerateChatKey(), which
+      // silently generates a new random key if the chat key is absent from the in-memory
+      // cache, re-encrypting the message and causing "[Content decryption failed]" on
+      // the sender's device. updateMessageStatus() patches only the status field in-place
+      // via a raw IndexedDB transaction with no encryption involved.
+      //
+      // The chat_id mismatch guard is preserved via a getMessage() preflight check,
+      // but the actual status write always goes through updateMessageStatus().
       const existingMessage = await chatDB.getMessage(message.message_id);
-      let messageToSave: Message;
 
-      if (existingMessage) {
-        // Ensure we are updating the correct message if found
-        if (existingMessage.chat_id !== message.chat_id) {
-          console.warn(
-            `[ChatSyncService:Senders] Message ${message.message_id} found in DB but with different chat_id (${existingMessage.chat_id}) than expected (${message.chat_id}). Using original message data.`,
-          );
-          messageToSave = { ...message, status: "failed" as const };
-        } else {
-          messageToSave = { ...existingMessage, status: "failed" as const };
-        }
-      } else {
-        // If not found in DB (e.g., was never saved or deleted), use the original message object
+      if (existingMessage && existingMessage.chat_id !== message.chat_id) {
         console.warn(
-          `[ChatSyncService:Senders] Message ${message.message_id} not found in DB during error handling. Saving original with 'failed' status.`,
+          `[ChatSyncService:Senders] Message ${message.message_id} found in DB but with different chat_id (${existingMessage.chat_id}) than expected (${message.chat_id}). Skipping status update to avoid corrupting wrong chat.`,
         );
-        messageToSave = { ...message, status: "failed" as const };
+      } else {
+        // Message found with correct chat_id, or not found yet (updateMessageStatus
+        // is a no-op when the message doesn't exist, which is safe here).
+        await chatDB.updateMessageStatus(message.message_id, "failed");
+        serviceInstance.dispatchEvent(
+          new CustomEvent("messageStatusChanged", {
+            detail: {
+              chatId: message.chat_id,
+              messageId: message.message_id,
+              status: "failed",
+            },
+          }),
+        );
       }
-
-      await chatDB.saveMessage(messageToSave);
-      serviceInstance.dispatchEvent(
-        new CustomEvent("messageStatusChanged", {
-          detail: {
-            chatId: messageToSave.chat_id,
-            messageId: messageToSave.message_id,
-            status: "failed",
-          },
-        }),
-      );
     } catch (dbError) {
       console.error(
         `[ChatSyncService:Senders] Error updating message status to 'failed' in DB for ${message.message_id}:`,

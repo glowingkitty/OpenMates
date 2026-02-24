@@ -135,6 +135,19 @@ const thinkingBufferByMessageId = new Map<string, ThinkingBufferEntry>();
 /**
  * Persist completed thinking content into IndexedDB so it syncs across devices.
  * This intentionally runs outside ActiveChat so background tabs/devices still store it.
+ *
+ * IMPORTANT: Uses updateMessageRawFields() instead of getMessage()→spread→saveMessage().
+ * saveMessage() calls encryptMessageFields() → getOrGenerateChatKey(). If the chat key
+ * is transiently absent from the in-memory cache, getOrGenerateChatKey() silently
+ * generates a new random key and re-encrypts the message with it — while
+ * encrypted_chat_key still holds the original key. This causes "[Content decryption
+ * failed]" on the sender's device. updateMessageRawFields() patches only the specified
+ * non-encrypted fields in-place with no key operations whatsoever.
+ *
+ * If the assistant message doesn't exist in IndexedDB yet (early streaming), a minimal
+ * placeholder is created via the fallback parameter. The streaming handler will later
+ * fill in encrypted_content via its own saveMessage() call on a freshly generated
+ * assistant message (where no existing encrypted content is at risk).
  */
 async function persistThinkingToDb(
   messageId: string,
@@ -142,30 +155,26 @@ async function persistThinkingToDb(
   entry: ThinkingBufferEntry,
 ): Promise<void> {
   try {
-    const existingMessage = await chatDB.getMessage(messageId);
-
-    // If the assistant message doesn't exist yet, create a minimal placeholder.
-    // The streaming handler will later update it with full content.
-    const messageToSave: Message = existingMessage
-      ? { ...existingMessage }
-      : {
-          message_id: messageId,
-          chat_id: chatId,
-          role: "assistant",
-          created_at: Math.floor(Date.now() / 1000),
-          status: "processing",
-          encrypted_content: "",
-        };
-
-    // Attach thinking metadata so the UI can render it after reload.
-    messageToSave.thinking_content = entry.content;
-    messageToSave.thinking_signature = entry.signature || undefined;
+    // Build the set of non-encrypted metadata fields to write.
+    const thinkingFields: Partial<Message> = {
+      thinking_content: entry.content,
+      thinking_signature: entry.signature || undefined,
+      has_thinking: !!entry.content,
+    };
     if (entry.totalTokens !== undefined && entry.totalTokens !== null) {
-      messageToSave.thinking_token_count = entry.totalTokens;
+      thinkingFields.thinking_token_count = entry.totalTokens;
     }
-    messageToSave.has_thinking = !!entry.content;
 
-    await chatDB.saveMessage(messageToSave);
+    // Minimal fallback used only when the assistant message placeholder doesn't exist yet.
+    const fallback: Omit<Message, "message_id"> = {
+      chat_id: chatId,
+      role: "assistant",
+      created_at: Math.floor(Date.now() / 1000),
+      status: "processing",
+      encrypted_content: "",
+    };
+
+    await chatDB.updateMessageRawFields(messageId, thinkingFields, fallback);
     console.debug(
       `[ChatSyncService:AI] ✅ Persisted thinking content for message ${messageId} (chat ${chatId})`,
     );

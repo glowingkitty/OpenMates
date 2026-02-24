@@ -1032,6 +1032,119 @@ export async function updateMessageStatus(
 }
 
 /**
+ * Update one or more non-encrypted fields on an existing message without touching
+ * any encrypted content or triggering key operations.
+ *
+ * Use this for writing metadata fields (e.g. thinking_content, thinking_signature,
+ * thinking_token_count, has_thinking) onto an existing message that was already
+ * encrypted and stored. Like updateMessageStatus(), this reads the raw IndexedDB
+ * record, merges only the provided fields, and writes it back — no encryption or
+ * key operations involved.
+ *
+ * NEVER pass encrypted fields (encrypted_content, encrypted_category,
+ * encrypted_sender_name, encrypted_model_name, encrypted_thinking_content) in
+ * `fields` — those must go through the normal saveMessage() encryption path.
+ * This function is for plaintext metadata fields only.
+ *
+ * If the message does not exist yet, a minimal placeholder is created by merging
+ * `fields` with a minimal record seeded from `fallback` (required when the message
+ * may not be in IndexedDB yet, e.g. during early streaming).
+ *
+ * @param dbInstance - Reference to the ChatDatabase instance
+ * @param message_id - The ID of the message to update
+ * @param fields - Partial Message with only the non-encrypted fields to set
+ * @param fallback - Optional minimal record used when the message doesn't exist yet
+ */
+export async function updateMessageRawFields(
+  dbInstance: ChatDatabaseInstance,
+  message_id: string,
+  fields: Partial<Message>,
+  fallback?: Omit<Message, "message_id">,
+): Promise<void> {
+  await dbInstance.init();
+
+  console.debug(
+    `[ChatDatabase] updateMessageRawFields: ${message_id} → patching fields: ${Object.keys(fields).join(", ")} (raw in-place, no re-encryption)`,
+  );
+
+  if (!dbInstance.db) {
+    throw new Error("Database not initialized");
+  }
+
+  return new Promise((resolve, reject) => {
+    const tx = (dbInstance.db as IDBDatabase).transaction(
+      MESSAGES_STORE_NAME,
+      "readwrite",
+    );
+    const store = tx.objectStore(MESSAGES_STORE_NAME);
+
+    const getRequest = store.get(message_id);
+
+    getRequest.onsuccess = () => {
+      const rawRecord = getRequest.result as Message | undefined;
+
+      let patched: Message;
+      if (rawRecord) {
+        // Message already exists — merge fields on top of the existing raw record.
+        // Encrypted fields in rawRecord are preserved untouched.
+        patched = { ...rawRecord, ...fields };
+      } else if (fallback) {
+        // Message doesn't exist yet — create a minimal placeholder from the fallback.
+        patched = { message_id, ...fallback, ...fields };
+      } else {
+        // No existing record and no fallback — nothing we can safely do.
+        console.warn(
+          `[ChatDatabase] updateMessageRawFields: message ${message_id} not found and no fallback provided, skipping`,
+        );
+        resolve();
+        return;
+      }
+
+      const putRequest = store.put(patched);
+      putRequest.onerror = () => {
+        console.error(
+          `[ChatDatabase] updateMessageRawFields: put failed for ${message_id}:`,
+          putRequest.error,
+        );
+      };
+    };
+
+    getRequest.onerror = () => {
+      console.error(
+        `[ChatDatabase] updateMessageRawFields: get failed for ${message_id}:`,
+        getRequest.error,
+      );
+    };
+
+    tx.oncomplete = () => {
+      console.debug(
+        `[ChatDatabase] updateMessageRawFields: ✅ fields updated for ${message_id}`,
+      );
+      resolve();
+    };
+
+    tx.onerror = () => {
+      console.error(
+        `[ChatDatabase] updateMessageRawFields: ❌ transaction error for ${message_id}:`,
+        tx.error,
+      );
+      reject(tx.error);
+    };
+
+    tx.onabort = () => {
+      console.error(
+        `[ChatDatabase] updateMessageRawFields: ❌ transaction aborted for ${message_id}`,
+      );
+      reject(
+        new Error(
+          `Transaction aborted for updateMessageRawFields(${message_id})`,
+        ),
+      );
+    };
+  });
+}
+
+/**
  * Delete a specific message by message_id
  * NOTE: Can be called during init() cleanup, so may need to handle uninitialized DB
  */

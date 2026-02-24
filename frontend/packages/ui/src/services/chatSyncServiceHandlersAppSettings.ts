@@ -407,16 +407,22 @@ export async function handleRequestAppSettingsMemoriesImpl(
 
     // Update user message status from 'processing' to 'waiting_for_user' since we're waiting for input
     // This shows "Waiting for you..." in the sidebar and typing indicator instead of "Processing..."
+    //
+    // IMPORTANT: Use updateMessageStatus() NOT getMessage()→spread→saveMessage().
+    // saveMessage() calls encryptMessageFields() → getOrGenerateChatKey(). If the chat key
+    // is transiently absent from the in-memory cache, getOrGenerateChatKey() silently
+    // generates a new random key and re-encrypts the message with it — while
+    // encrypted_chat_key still holds the original key. This causes "[Content decryption
+    // failed]" on the sender's device. updateMessageStatus() patches only the status field
+    // in-place via a raw IndexedDB transaction with no encryption involved.
     if (payload.message_id) {
       try {
         const userMessage = await chatDB.getMessage(payload.message_id);
         if (userMessage && userMessage.status === "processing") {
-          // Update the message status and save it back
-          const updatedMessage = {
-            ...userMessage,
-            status: "waiting_for_user" as const,
-          };
-          await chatDB.saveMessage(updatedMessage);
+          await chatDB.updateMessageStatus(
+            payload.message_id,
+            "waiting_for_user",
+          );
           console.info(
             `[ChatSyncService:AppSettings] Updated user message ${payload.message_id} status from 'processing' to 'waiting_for_user'`,
           );
@@ -1727,11 +1733,14 @@ export async function handleSystemMessageConfirmedImpl(
   }
 
   try {
-    // Update message status to synced (if it's still 'sending')
+    // Update message status to synced (if it's still 'sending').
+    // IMPORTANT: Use updateMessageStatus() NOT getMessage()→spread→saveMessage().
+    // See the comment in handleAppSettingsSkillWaitingForUserImpl for the full
+    // explanation of why saveMessage() on an existing message can silently corrupt
+    // the message via a key re-generation race.
     const message = await chatDB.getMessage(message_id);
     if (message && message.status === "sending") {
-      const syncedMessage = { ...message, status: "synced" as const };
-      await chatDB.saveMessage(syncedMessage);
+      await chatDB.updateMessageStatus(message_id, "synced");
       console.debug(
         `[ChatSyncService:AppSettings] Updated system message ${message_id} status to 'synced'`,
       );

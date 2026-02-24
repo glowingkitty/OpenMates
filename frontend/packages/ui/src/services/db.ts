@@ -1011,6 +1011,30 @@ class ChatDatabase {
     return messageOps.updateMessageStatus(this, message_id, newStatus);
   }
 
+  /**
+   * Update one or more non-encrypted fields on an existing message without
+   * re-encrypting any content or triggering key operations.
+   *
+   * Use this for metadata-only updates (e.g. thinking_content, has_thinking,
+   * thinking_signature, thinking_token_count) where the encrypted_content must
+   * remain untouched. Reads the raw IndexedDB record, merges `fields`, and
+   * writes it back — no encryption or key operations involved.
+   *
+   * See messageOperations.ts → updateMessageRawFields() for full docs.
+   */
+  async updateMessageRawFields(
+    message_id: string,
+    fields: Partial<Message>,
+    fallback?: Omit<Message, "message_id">,
+  ): Promise<void> {
+    return messageOps.updateMessageRawFields(
+      this,
+      message_id,
+      fields,
+      fallback,
+    );
+  }
+
   async deleteMessage(
     message_id: string,
     transaction?: IDBTransaction,
