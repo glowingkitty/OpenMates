@@ -183,6 +183,7 @@ def extract_key_info(entry: Dict[str, Any]) -> Dict[str, Any]:
         'model_used': None,
         'tokens_used': None,
         'message_count': None,
+        'thinking_length': 0,  # Length of thinking content from reasoning models (chars)
     }
     
     # Check which stages have data
@@ -215,6 +216,11 @@ def extract_key_info(entry: Dict[str, Any]) -> Dict[str, Any]:
                 total = usage.get('total_tokens') or usage.get('total')
                 if total:
                     info['tokens_used'] = total
+            
+            # Extract thinking content length (from reasoning models like Gemini, Anthropic)
+            thinking_len = main_out.get('thinking_length', 0)
+            if thinking_len:
+                info['thinking_length'] = thinking_len
     
     if entry.get('postprocessor_output'):
         info['stages_completed'].append('postprocessor')
@@ -295,15 +301,20 @@ def print_summary_view(entries: List[Dict[str, Any]]):
     chat_ids = [e.get('chat_id') for e in entries if e.get('chat_id')]
     unique_chats = len(set(chat_ids))
     
-    # Model usage
+    # Model usage and thinking stats
     models_used = []
     total_tokens = 0
+    entries_with_thinking = 0
+    total_thinking_chars = 0
     for e in entries:
         info = extract_key_info(e)
         if info['model_used']:
             models_used.append(info['model_used'])
         if info['tokens_used']:
             total_tokens += info['tokens_used']
+        if info['thinking_length']:
+            entries_with_thinking += 1
+            total_thinking_chars += info['thinking_length']
     
     unique_models = set(models_used)
     
@@ -318,6 +329,8 @@ def print_summary_view(entries: List[Dict[str, Any]]):
     if unique_models:
         print(f"Models Used:          {', '.join(unique_models)}")
         print(f"Total Tokens:         {total_tokens:,}")
+    if entries_with_thinking:
+        print(f"Entries w/ Thinking:  {entries_with_thinking} ({total_thinking_chars:,} chars total)")
     print("=" * 80)
     
     # Print detailed entry info
@@ -338,6 +351,8 @@ def print_summary_view(entries: List[Dict[str, Any]]):
             print(f"  Tokens:        {info['tokens_used']:,}")
         if info['message_count']:
             print(f"  Messages:      {info['message_count']}")
+        if info['thinking_length']:
+            print(f"  Thinking:      {info['thinking_length']:,} chars")
         print()
     
     print("=" * 80 + "\n")

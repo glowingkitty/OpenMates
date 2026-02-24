@@ -1157,9 +1157,10 @@ async def _async_process_ai_skill_ask_task(
     aggregated_final_response: str = ""
     revoked_in_consumer = False
     soft_limited_in_consumer = False
+    thinking_content: list = []  # Accumulated thinking chunks from the stream (for debug cache only)
 
     try:
-        aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer = await _consume_main_processing_stream(
+        aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content = await _consume_main_processing_stream(  # type: ignore[assignment]
             task_id=task_id,
             request_data=request_data,
             preprocessing_result=preprocessing_result,
@@ -1222,12 +1223,16 @@ async def _async_process_ai_skill_ask_task(
                 }
                 
                 # Prepare main processor output data with FULL response
+                thinking_text = "".join(thinking_content) if thinking_content else None
                 main_processor_output = {
                     # FULL AI response for debugging
                     "full_response": aggregated_final_response,
                     "response_length": len(aggregated_final_response) if aggregated_final_response else 0,
                     "revoked_in_consumer": revoked_in_consumer,
                     "soft_limited_in_consumer": soft_limited_in_consumer,
+                    # Thinking content from reasoning models (Gemini, Anthropic) — displayed in separate section
+                    "thinking_content": thinking_text,
+                    "thinking_length": len(thinking_text) if thinking_text else 0,
                 }
                 
                 await cache_service_instance.cache_debug_request_entry(

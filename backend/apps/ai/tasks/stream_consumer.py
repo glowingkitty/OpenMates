@@ -647,7 +647,7 @@ async def _generate_fake_stream_for_harmful_content(
     directus_service: Optional[DirectusService] = None,
     encryption_service: Optional[EncryptionService] = None,
     user_vault_key_id: Optional[str] = None
-) -> tuple[str, bool, bool]:
+) -> tuple[str, bool, bool, list]:
     """Generate fake stream for harmful content with predefined response."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_harmful_content:"
     logger.info(f"{log_prefix} Generating fake stream for harmful content.")
@@ -658,7 +658,7 @@ async def _generate_fake_stream_for_harmful_content(
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
-        return "", True, False
+        return "", True, False, []
     
     redis_channel = f"chat_stream::{request_data.chat_id}"
     
@@ -740,7 +740,7 @@ async def _generate_fake_stream_for_harmful_content(
             logger.warning(f"{log_prefix} Harmful content message was still published to client successfully via Redis stream")
     
     logger.info(f"{log_prefix} Fake stream generation completed. Response length: {len(predefined_response)}.")
-    return predefined_response, False, False
+    return predefined_response, False, False, []
 
 async def _generate_fake_stream_for_simple_message(
     task_id: str,
@@ -752,7 +752,7 @@ async def _generate_fake_stream_for_simple_message(
     encryption_service: Optional[EncryptionService] = None,
     user_vault_key_id: Optional[str] = None,
     rejection_reason: Optional[str] = None
-) -> tuple[str, bool, bool]:
+) -> tuple[str, bool, bool, list]:
     """Generate a simple fake stream for non-processing cases (e.g., insufficient credits)."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_simple_message:"
     logger.info(f"{log_prefix} Generating simple fake stream.")
@@ -763,7 +763,7 @@ async def _generate_fake_stream_for_simple_message(
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
-        return "", True, False
+        return "", True, False, []
 
     redis_channel = f"chat_stream::{request_data.chat_id}"
 
@@ -847,7 +847,7 @@ async def _generate_fake_stream_for_simple_message(
             logger.warning(f"{log_prefix} Error message was still published to client successfully via Redis stream")
 
     logger.info(f"{log_prefix} Simple fake stream generation completed. Response length: {len(message_text)}.")
-    return message_text, False, False
+    return message_text, False, False, []
 
 async def _validate_paragraph_urls(
     paragraph: str,
@@ -913,11 +913,11 @@ async def _consume_main_processing_stream(
     cache_service: Optional[CacheService],
     secrets_manager: Optional[SecretsManager] = None,
     always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
-) -> tuple[str, bool, bool]:
+) -> tuple[str, bool, bool, list]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
     and publishes chunks to Redis Pub/Sub.
-    Returns aggregated response, and boolean flags for revocation and soft limit.
+    Returns aggregated response, boolean flags for revocation and soft limit, and thinking content list.
     """
     final_response_chunks = []
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _consume_main_processing_stream:"
@@ -950,7 +950,7 @@ async def _consume_main_processing_stream(
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting main processing stream.")
         was_revoked_during_stream = True
-        return "", was_revoked_during_stream, was_soft_limited_during_stream
+        return "", was_revoked_during_stream, was_soft_limited_during_stream, []
 
     # Check if this is a harmful content case that should be handled with a predefined response
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason in ["harmful_or_illegal_detected", "misuse_detected"]:
@@ -2484,7 +2484,7 @@ async def _consume_main_processing_stream(
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for app settings/memories. No final marker will be sent.")
         # Return early - no message processing needed
         # The client will receive the permission request via WebSocket and show the dialog
-        return "", False, False
+        return "", False, False, []
     
     # Handle the case where we're awaiting focus mode confirmation (deferred activation).
     # Unlike app_settings, the focus mode case has embed content (the focus mode activation
@@ -2896,4 +2896,4 @@ async def _consume_main_processing_stream(
     # when the final marker is received. The WebSocket handler has access to
     # ConnectionManager.is_user_active() for accurate offline detection.
             
-    return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream
+    return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream, thinking_buffer
