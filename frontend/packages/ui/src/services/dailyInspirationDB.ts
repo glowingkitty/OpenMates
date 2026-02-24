@@ -232,10 +232,13 @@ export async function loadInspirationsFromIndexedDB(): Promise<
     const decrypted: DailyInspiration[] = [];
     for (const record of fresh) {
       try {
-        // Decrypt phrase, category, and video metadata in parallel
+        // Decrypt phrase, category, assistant_response, and video metadata in parallel
         const decryptPromises: Promise<string | null>[] = [
           decryptWithMasterKey(record.encrypted_phrase),
           decryptWithMasterKey(record.encrypted_category),
+          record.encrypted_assistant_response
+            ? decryptWithMasterKey(record.encrypted_assistant_response)
+            : Promise.resolve(null),
         ];
         if (record.encrypted_video_metadata) {
           decryptPromises.push(
@@ -243,7 +246,7 @@ export async function loadInspirationsFromIndexedDB(): Promise<
           );
         }
 
-        const [phrase, category, videoMetadataJson] =
+        const [phrase, category, assistantResponse, videoMetadataJson] =
           await Promise.all(decryptPromises);
 
         if (!phrase || !category) {
@@ -276,6 +279,7 @@ export async function loadInspirationsFromIndexedDB(): Promise<
         decrypted.push({
           inspiration_id: record.inspiration_id,
           phrase,
+          assistant_response: assistantResponse ?? undefined,
           category,
           content_type: record.content_type,
           video,
@@ -560,16 +564,17 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
         const encVideoMetadata =
           (record.encrypted_video_metadata as string | null) ?? null;
 
-        // Decrypt phrase, category, and optionally video metadata in parallel
+        // Decrypt phrase, category, assistant_response, and optionally video metadata in parallel
         const decryptPromises: Promise<string | null>[] = [
           decryptWithMasterKey(encPhrase),
           decryptWithMasterKey(encCategory),
+          decryptWithMasterKey(encAssistant),
         ];
         if (encVideoMetadata) {
           decryptPromises.push(decryptWithMasterKey(encVideoMetadata));
         }
 
-        const [phrase, category, videoMetadataJson] =
+        const [phrase, category, assistantResponse, videoMetadataJson] =
           await Promise.all(decryptPromises);
 
         if (!phrase || !category) {
@@ -596,6 +601,7 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
         const inspiration: DailyInspiration = {
           inspiration_id: record.daily_inspiration_id as string,
           phrase,
+          assistant_response: assistantResponse ?? undefined,
           category,
           content_type: (record.content_type as string) || "video",
           video,
@@ -711,16 +717,17 @@ export async function processInspirationRecordsFromSync(
         const encVideoMetadata =
           (record.encrypted_video_metadata as string | null) ?? null;
 
-        // Decrypt phrase, category, and optionally video metadata in parallel
+        // Decrypt phrase, category, assistant_response, and optionally video metadata in parallel
         const decryptPromises: Promise<string | null>[] = [
           decryptWithMasterKey(encPhrase),
           decryptWithMasterKey(encCategory),
+          decryptWithMasterKey(encAssistant),
         ];
         if (encVideoMetadata) {
           decryptPromises.push(decryptWithMasterKey(encVideoMetadata));
         }
 
-        const [phrase, category, videoMetadataJson] =
+        const [phrase, category, assistantResponse, videoMetadataJson] =
           await Promise.all(decryptPromises);
 
         if (!phrase || !category) {
@@ -747,6 +754,7 @@ export async function processInspirationRecordsFromSync(
         const inspiration: DailyInspiration = {
           inspiration_id: record.daily_inspiration_id as string,
           phrase,
+          assistant_response: assistantResponse ?? undefined,
           category,
           content_type: (record.content_type as string) || "video",
           video,

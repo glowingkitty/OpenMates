@@ -241,10 +241,16 @@
               <p class="banner-phrase">{current.phrase}</p>
             </div>
 
-            <!-- CTA: plain text + create icon — pinned to bottom of banner-left -->
+            <!-- CTA: plain text + create icon — pinned to bottom of banner-left.
+                 Shows "Open chat" if user already started a chat from this inspiration,
+                 otherwise "Click to start chat". -->
             <div class="banner-cta">
               <span class="clickable-icon icon_create banner-cta-icon"></span>
-              <span class="banner-cta-text">{$text('daily_inspiration.click_to_start_chat')}</span>
+              <span class="banner-cta-text">
+                {current.is_opened && current.opened_chat_id
+                  ? $text('daily_inspiration.open_chat')
+                  : $text('daily_inspiration.click_to_start_chat')}
+              </span>
             </div>
           </div>
 
@@ -291,7 +297,7 @@
           aria-label={$text('daily_inspiration.previous')}
           type="button"
         >
-          <ChevronLeft size={18} color="rgba(255,255,255,0.9)" />
+          <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
         </button>
 
         <button
@@ -300,7 +306,7 @@
           aria-label={$text('daily_inspiration.next')}
           type="button"
         >
-          <ChevronRight size={18} color="rgba(255,255,255,0.9)" />
+          <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
         </button>
       {/if}
     </div><!-- /.daily-inspiration-banner -->
@@ -525,29 +531,23 @@
   }
 
   /* ── Carousel arrows ──
-     position:absolute relative to .daily-inspiration-banner.
-     z-index: 20 to sit above the embed wrapper.
-     ALL global button{} rules from buttons.css are overridden here with !important:
-       padding: 25px 30px  →  0
-       border-radius: 20px →  50%
-       min-width: 112px    →  unset
-       height: 41px        →  30px
-       background-color    →  dark overlay
-       filter (drop-shadow)→  none
-       margin-right: 10px  →  0
-       scale (hover/active)→  none (via :hover/:active overrides below)
+     Full-height invisible touch surfaces (40px wide) at each edge of the
+     banner. No visible circle — just a subtle white translucent background
+     on hover. Rounded on the inner edge (toward center) only, flush with
+     the banner edge on the outer side. Larger icon (22px) for easy tapping.
+     ALL global button{} rules from buttons.css are overridden with !important.
   */
   .carousel-arrow {
     position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 0;
+    bottom: 0;
     /* Reset every property set by the global button{} rule */
     padding: 0 !important;
     min-width: unset !important;
-    width: 30px !important;
-    height: 30px !important;
-    border-radius: 50% !important;
-    background-color: rgba(0, 0, 0, 0.35) !important;
+    width: 40px !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
     filter: none !important;
     margin: 0 !important;
     border: none;
@@ -562,23 +562,25 @@
   }
 
   .carousel-arrow:hover {
-    background-color: rgba(0, 0, 0, 0.55) !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
     scale: none !important;
   }
 
   .carousel-arrow:active {
-    background-color: rgba(0, 0, 0, 0.7) !important;
+    background-color: rgba(255, 255, 255, 0.18) !important;
     scale: none !important;
     filter: none !important;
   }
 
-  /* Position arrows at the outer edges of the full-width banner */
+  /* Position arrows at the outer edges, rounded on the inner edge only */
   .carousel-arrow-left {
-    left: 10px;
+    left: 0;
+    border-radius: 0 10px 10px 0 !important; /* rounded on the right (inner) side */
   }
 
   .carousel-arrow-right {
-    right: 10px;
+    right: 0;
+    border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
   }
 
   /* ── Mobile adjustments (≤730px) ── */

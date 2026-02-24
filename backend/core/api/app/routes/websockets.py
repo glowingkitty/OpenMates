@@ -22,6 +22,7 @@ from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offlin
 from .handlers.websocket_handlers.initial_sync_handler import handle_initial_sync
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
+from .handlers.websocket_handlers.delete_draft_embed_handler import handle_delete_draft_embed
 from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
 from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
@@ -1281,14 +1282,13 @@ async def _deliver_pending_inspirations(
 
     The `daily_inspiration` event is handled by the frontend's chatSyncService which stores
     inspirations in the dailyInspirationStore. The client decrypts the payload, saves it to
-    IndexedDB, and then persists it to Directus via POST /v1/daily-inspirations (ACK path).
+    IndexedDB, and then persists it to Directus via POST /v1/daily-inspirations.
 
-    NOTE: The pending cache is NOT cleared here. Instead, the client sends a
-    `daily_inspiration_received` ACK message once it has successfully processed
-    and stored the inspirations. The ACK handler
-    (handle_inspiration_received) then clears the pending cache.
-    This prevents data loss when the WebSocket disconnects before the client
-    finishes processing the delivery.
+    After broadcast, the pending cache is cleared with a 10-second delay. This replaced the
+    previous client-ACK-based clearing (daily_inspiration_received) which caused a multi-device
+    race condition: the first device to ACK would clear the cache, so devices connecting later
+    would find nothing pending. The delay gives all connected devices time to receive the
+    broadcast. Devices that are offline will use the Directus REST API fallback on next login.
     """
     try:
         # Brief delay to let the client finish WebSocket setup and initial sync
@@ -1317,12 +1317,21 @@ async def _deliver_pending_inspirations(
             user_id=user_id,
         )
 
-        # Do NOT clear pending cache here — wait for client ACK
-        # (daily_inspiration_received message). This ensures inspirations
-        # survive if the WebSocket drops before the client processes them.
+        # Clear the pending cache after a brief delay to give all connected
+        # devices time to receive and process the broadcast. Previously the
+        # cache was cleared by a client ACK message, but that caused a
+        # multi-device race: the FIRST device to ACK would clear the cache,
+        # so any device connecting later would find nothing pending.
+        #
+        # The delay (10s) is generous enough for even slow mobile WS to
+        # receive the message. If a device is offline, it will pick up the
+        # inspirations from the Directus REST API fallback on next login
+        # (syncInspirationLoginFallback).
+        await asyncio.sleep(10)
+        await cache_service.clear_pending_inspirations(user_id)
         logger.debug(
             f"[PENDING_INSPIRATIONS] Delivered pending inspirations to ALL devices of user {user_id[:8]}... "
-            f"(awaiting client ACK to clear cache)"
+            f"and cleared pending cache after delivery delay"
         )
 
     except Exception as e:
@@ -1691,6 +1700,19 @@ async def websocket_endpoint(
 
             elif message_type == "delete_draft":
                 await handle_delete_draft(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+            elif message_type == "delete_draft_embed":
+                # Deletes an uploaded file (image/PDF/recording) that was removed from
+                # the message draft before being sent.  Cleans up S3 files, the
+                # upload_files Directus record, and decrements storage_used_bytes.
+                await handle_delete_draft_embed(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

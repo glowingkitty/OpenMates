@@ -37,6 +37,12 @@ watch_video:
   de: Video ansehen
   verified_by_human: []
 
+open_chat:
+  context: CTA button text shown on a Daily Inspiration banner when the user has already started a chat from this inspiration (replaces "Click to start chat")
+  en: Open chat
+  de: Chat öffnen
+  verified_by_human: []
+
 suggest_as_inspiration:
   context: Toggle label in the Share Embed dialog — only shown for video embeds. When enabled, the video is submitted to the admin for review as a Daily Inspiration.
   en: Suggest as Daily Inspiration

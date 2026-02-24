@@ -439,10 +439,75 @@ export async function checkAuth(
         const userLanguage = data.user.language || defaultProfile.language;
         const userDarkMode = data.user.darkmode ?? defaultProfile.darkmode;
 
-        if (userLanguage && userLanguage !== get(locale)) {
+        // ── Language reconciliation ──────────────────────────────────────
+        // The user's localStorage may have a different language than the
+        // server (e.g. user changed language in settings but the API call
+        // failed silently, or the language was auto-detected at signup from
+        // the browser locale and never corrected). If the user explicitly
+        // chose a language locally (stored in localStorage.preferredLanguage),
+        // push it to the server so they stay in sync.
+        const localPreferredLanguage =
+          typeof localStorage !== "undefined"
+            ? localStorage.getItem("preferredLanguage")
+            : null;
+
+        if (
+          localPreferredLanguage &&
+          localPreferredLanguage !== userLanguage &&
+          data.user.language // only reconcile if server has a stored language
+        ) {
+          console.info(
+            `[AuthSessionActions] Language mismatch: server="${userLanguage}", local="${localPreferredLanguage}" — pushing local preference to server`,
+          );
+          // Apply local preference immediately
+          locale.set(localPreferredLanguage);
+          // Push to server in background (non-blocking)
+          import("../config/api")
+            .then(({ getApiEndpoint }) => {
+              const endpoint = getApiEndpoint("settings.user.language");
+              if (endpoint) {
+                fetch(endpoint, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({
+                    language: localPreferredLanguage,
+                  }),
+                })
+                  .then((resp) => {
+                    if (resp.ok) {
+                      console.info(
+                        `[AuthSessionActions] Successfully synced local language "${localPreferredLanguage}" to server`,
+                      );
+                    } else {
+                      console.warn(
+                        `[AuthSessionActions] Failed to sync language to server: ${resp.status}`,
+                      );
+                    }
+                  })
+                  .catch((err) => {
+                    console.warn(
+                      "[AuthSessionActions] Error syncing language to server:",
+                      err,
+                    );
+                  });
+              }
+            })
+            .catch(() => {
+              /* non-fatal */
+            });
+        } else if (userLanguage && userLanguage !== get(locale)) {
           console.debug(`Applying user language from session: ${userLanguage}`);
           locale.set(userLanguage);
         }
+
+        // Use reconciled language (local takes priority if it differs)
+        const effectiveLanguage =
+          localPreferredLanguage &&
+          localPreferredLanguage !== userLanguage &&
+          data.user.language
+            ? localPreferredLanguage
+            : userLanguage;
 
         updateProfile({
           username: data.user.username,
@@ -454,7 +519,7 @@ export async function checkAuth(
           last_opened: data.user.last_opened,
           consent_privacy_and_apps_default_settings: consent_privacy,
           consent_mates_default_settings: consent_mates,
-          language: userLanguage,
+          language: effectiveLanguage,
           darkmode: userDarkMode,
           // Low balance auto top-up fields
           auto_topup_low_balance_enabled:

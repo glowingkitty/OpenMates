@@ -122,14 +122,15 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
             "name": "generate_daily_inspirations",
             "description": (
                 "Generate daily inspiration items for the user. For each slot, select the most "
-                "engaging YouTube video from the provided candidates, write a short curiosity question "
-                f"or phrase in {phrase_lang_instruction} (6-12 words) for the banner, and compose a "
+                "engaging YouTube video from the provided candidates, write a curiosity question "
+                f"or phrase in {phrase_lang_instruction} (8-18 words, exactly two sentences) for the banner, and compose a "
                 "rich first assistant message that explains the topic and invites the user to explore. "
                 "The phrase should be a genuine question or a thought-provoking statement that sparks "
                 "curiosity — it should feel like the start of a conversation, not a marketing headline. "
-                "Example phrases (English): 'Why do cats always land on their feet?', "
-                "'What really happens inside a black hole?', "
-                "'How did ancient Romans build roads that lasted 2,000 years?'. "
+                "Use two short sentences: the first hooks the reader, the second adds a twist or detail. "
+                "Example phrases (English): 'Cats always land on their feet. But how do they do it mid-air?', "
+                "'Black holes devour everything — even light. What happens once you cross the edge?', "
+                "'Roman roads lasted 2,000 years. Modern ones barely survive 20 — why?'. "
                 "IMPORTANT: Each slot must use a different video (no duplicates). "
                 "Select videos that are educational, engaging, and family-friendly."
             ),
@@ -145,8 +146,9 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                                 "phrase": {
                                     "type": "string",
                                     "description": (
-                                        f"Short, curiosity-sparking question or phrase in {phrase_lang_instruction} "
-                                        "(6-12 words) shown on the inspiration banner. "
+                                        f"Curiosity-sparking question or phrase in {phrase_lang_instruction} "
+                                        "(8-18 words, exactly two sentences) shown on the inspiration banner. "
+                                        "First sentence hooks the reader, second adds a twist or surprising detail. "
                                         "Should feel like the start of a conversation — ideally a genuine question."
                                     ),
                                 },
@@ -252,7 +254,7 @@ def _build_generation_prompt(
         + "\n\n".join(slot_descriptions)
         + (
             "\n\nFor each slot, select the best video and:\n"
-            "1. Write a short curiosity-sparking question or phrase (6-12 words) for the banner.\n"
+            "1. Write a curiosity-sparking question or phrase (8-18 words, exactly two sentences) for the banner.\n"
             "2. Write a rich first assistant message (3-5 sentences) that explains the topic, "
             "highlights what makes it fascinating, and ends with an invitation for the user "
             "to ask questions and explore the topic further."

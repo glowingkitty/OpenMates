@@ -289,6 +289,10 @@ export async function handleNewChatMessageImpl(
     messages_v?: number;
     last_edited_overall_timestamp?: number;
     encrypted_chat_key?: string;
+    /** Encrypted title — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
+    encrypted_title?: string;
+    /** Encrypted category — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
+    encrypted_category?: string;
   },
 ): Promise<void> {
   console.info(
@@ -331,9 +335,10 @@ export async function handleNewChatMessageImpl(
 
       const newChat: Chat = {
         chat_id: payload.chat_id,
-        encrypted_title: null, // Will be populated by ai_typing_started metadata event
+        encrypted_title: payload.encrypted_title || null, // Set from payload if available (e.g. inspiration chat sync)
+        encrypted_category: payload.encrypted_category || undefined, // Set from payload if available (e.g. inspiration chat sync)
         messages_v: payload.messages_v || 1,
-        title_v: 0, // Will be updated when metadata arrives
+        title_v: payload.encrypted_title ? 1 : 0, // If title is provided, mark as populated
         encrypted_draft_md: null,
         encrypted_draft_preview: null,
         draft_v: 0,
@@ -346,8 +351,66 @@ export async function handleNewChatMessageImpl(
         encrypted_chat_key: payload.encrypted_chat_key || undefined, // Critical for device sync
       };
 
-      // If encrypted_chat_key is provided, decrypt it and cache it for message encryption
-      if (payload.encrypted_chat_key) {
+      // If we have the chat key and encrypted title/category, decrypt for immediate local display
+      if (
+        payload.encrypted_chat_key &&
+        (payload.encrypted_title || payload.encrypted_category)
+      ) {
+        try {
+          const { decryptChatKeyWithMasterKey, decryptWithChatKey } =
+            await import("./cryptoService");
+          const chatKey = await decryptChatKeyWithMasterKey(
+            payload.encrypted_chat_key,
+          );
+          if (chatKey) {
+            chatDB.setChatKey(payload.chat_id, chatKey);
+            // Decrypt title for immediate display
+            if (payload.encrypted_title) {
+              try {
+                const title = await decryptWithChatKey(
+                  payload.encrypted_title,
+                  chatKey,
+                );
+                if (title) {
+                  (newChat as Chat & { title?: string }).title = title;
+                }
+              } catch {
+                console.warn(
+                  `[ChatSyncService:ChatUpdates] Failed to decrypt title for new chat ${payload.chat_id}`,
+                );
+              }
+            }
+            // Decrypt category for mate profile display
+            if (payload.encrypted_category) {
+              try {
+                const category = await decryptWithChatKey(
+                  payload.encrypted_category,
+                  chatKey,
+                );
+                if (category) {
+                  (newChat as Chat & { category?: string }).category = category;
+                }
+              } catch {
+                console.warn(
+                  `[ChatSyncService:ChatUpdates] Failed to decrypt category for new chat ${payload.chat_id}`,
+                );
+              }
+            }
+            console.info(
+              `[ChatSyncService:ChatUpdates] Decrypted title/category from payload for new chat ${payload.chat_id}`,
+            );
+          }
+        } catch (error) {
+          console.warn(
+            `[ChatSyncService:ChatUpdates] Error decrypting title/category for new chat ${payload.chat_id}:`,
+            error,
+          );
+        }
+      }
+
+      // If encrypted_chat_key is provided and we haven't already decrypted it above
+      // (the title/category block already decrypts + caches the key), decrypt it now.
+      if (payload.encrypted_chat_key && !chatDB.getChatKey(payload.chat_id)) {
         try {
           const { decryptChatKeyWithMasterKey } =
             await import("./cryptoService");
@@ -370,7 +433,7 @@ export async function handleNewChatMessageImpl(
             error,
           );
         }
-      } else {
+      } else if (!payload.encrypted_chat_key) {
         console.warn(
           `[ChatSyncService:ChatUpdates] No encrypted_chat_key in payload for new chat ${payload.chat_id}. Will wait for ai_typing_started event.`,
         );
