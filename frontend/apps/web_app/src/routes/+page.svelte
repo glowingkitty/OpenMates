@@ -42,6 +42,8 @@
 		text,
 		LANGUAGE_CODES,
 		forcedLogoutInProgress,
+		setForcedLogoutInProgress,
+		resetForcedLogoutInProgress,
 		isPublicChat,
 		loadSessionStorageDraft,
 		getAllDraftChatIdsWithDrafts,
@@ -764,7 +766,7 @@
 				console.debug(
 					'[+page.svelte] Resetting forcedLogoutInProgress to false - valid auth data found'
 				);
-				forcedLogoutInProgress.set(false);
+				resetForcedLogoutInProgress();
 			}
 
 			authStore.update((state) => ({
@@ -791,7 +793,7 @@
 				console.debug(
 					'[+page.svelte] Setting forcedLogoutInProgress=true IMMEDIATELY to prevent encrypted chat loading'
 				);
-				forcedLogoutInProgress.set(true);
+				setForcedLogoutInProgress();
 
 				// Show auto-logout notification with context-appropriate message.
 				// This must be triggered here because checkAuth() will skip its notification

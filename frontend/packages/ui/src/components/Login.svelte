@@ -970,10 +970,10 @@
                 // This handles the race condition where orphaned database cleanup was triggered on page load
                 // (setting these flags to true) but the user then successfully logs in with passkey.
                 // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
-                const { forcedLogoutInProgress, isLoggingOut } = await import('../stores/signupState');
+                const { forcedLogoutInProgress, isLoggingOut, resetForcedLogoutInProgress } = await import('../stores/signupState');
                 if (get(forcedLogoutInProgress)) {
                     console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 1)');
-                    forcedLogoutInProgress.set(false);
+                    resetForcedLogoutInProgress();
                 }
                 if (get(isLoggingOut)) {
                     console.debug('[Login] Resetting isLoggingOut to false - successful passkey login (path 1)');
@@ -1494,10 +1494,10 @@
                 // This handles the race condition where orphaned database cleanup was triggered on page load
                 // (setting these flags to true) but the user then successfully logs in with passkey.
                 // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
-                const { forcedLogoutInProgress, isLoggingOut } = await import('../stores/signupState');
+                const { forcedLogoutInProgress, isLoggingOut, resetForcedLogoutInProgress } = await import('../stores/signupState');
                 if (get(forcedLogoutInProgress)) {
                     console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 2)');
-                    forcedLogoutInProgress.set(false);
+                    resetForcedLogoutInProgress();
                 }
                 if (get(isLoggingOut)) {
                     console.debug('[Login] Resetting isLoggingOut to false - successful passkey login (path 2)');

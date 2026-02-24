@@ -27,7 +27,12 @@ import { loginInterfaceOpen } from "./uiStateStore"; // Import loginInterfaceOpe
 import { activeChatStore } from "./activeChatStore"; // Import activeChatStore to navigate to demo-for-everyone on logout
 import { clearSignupData, clearIncompleteSignupData } from "./signupStore"; // Import signup cleanup functions
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService"; // Import sessionStorage draft cleanup
-import { isLoggingOut, forcedLogoutInProgress } from "./signupState"; // Import isLoggingOut and forcedLogoutInProgress to track logout state
+import {
+  isLoggingOut,
+  forcedLogoutInProgress,
+  setForcedLogoutInProgress,
+  resetForcedLogoutInProgress,
+} from "./signupState"; // Import isLoggingOut and forcedLogoutInProgress to track logout state
 import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync state to reset on login
 import { text } from "../i18n/translations"; // Import text store for translations
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
@@ -186,7 +191,7 @@ export async function checkAuth(
         // that can no longer be decrypted (because master key is missing).
         // This flag is checked in chat loading and decryption code to skip those operations.
         if (!alreadyForcedLogout) {
-          forcedLogoutInProgress.set(true);
+          setForcedLogoutInProgress();
           console.debug(
             "[AuthSessionActions] Set forcedLogoutInProgress to true - blocking encrypted chat loading",
           );
@@ -271,7 +276,7 @@ export async function checkAuth(
             // CRITICAL: Reset flags AFTER database deletion completes (in logout()'s background IIFE)
             // This ensures forcedLogoutInProgress stays true during the entire deletion process
             isLoggingOut.set(false);
-            forcedLogoutInProgress.set(false);
+            resetForcedLogoutInProgress();
             console.debug(
               "[AuthSessionActions] Reset logout flags after server cleanup and DB deletion",
             );
@@ -280,7 +285,7 @@ export async function checkAuth(
           console.error("[AuthSessionActions] Logout failed:", err);
           // Reset logout flags even if logout fails
           isLoggingOut.set(false);
-          forcedLogoutInProgress.set(false);
+          resetForcedLogoutInProgress();
         });
 
         deleteSessionId(); // Remove session_id on forced logout
@@ -297,7 +302,7 @@ export async function checkAuth(
         console.debug(
           "[AuthSessionActions] Resetting forcedLogoutInProgress to false - auth succeeded with valid master key",
         );
-        forcedLogoutInProgress.set(false);
+        resetForcedLogoutInProgress();
       }
       if (get(isLoggingOut)) {
         console.debug(

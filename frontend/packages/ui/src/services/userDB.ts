@@ -4,7 +4,11 @@ import type { UserProfile } from "../stores/userProfile";
 
 // Import logout state to prevent database re-initialization during logout
 import { get } from "svelte/store";
-import { forcedLogoutInProgress, isLoggingOut } from "../stores/signupState";
+import {
+  forcedLogoutInProgress,
+  isLoggingOut,
+  setForcedLogoutInProgress,
+} from "../stores/signupState";
 
 class UserDatabaseService {
   public db: IDBDatabase | null = null;
@@ -50,7 +54,7 @@ class UserDatabaseService {
         console.warn(
           "[UserDatabase] CLEANUP MARKER FOUND - setting forcedLogoutInProgress",
         );
-        forcedLogoutInProgress.set(true);
+        setForcedLogoutInProgress();
       } else {
         // Check if master key is missing but database was previously initialized
         const { getKeyFromStorage } = await import("./cryptoService");
@@ -90,7 +94,7 @@ class UserDatabaseService {
                     if (typeof localStorage !== "undefined") {
                       localStorage.setItem("openmates_needs_cleanup", "true");
                     }
-                    forcedLogoutInProgress.set(true);
+                    setForcedLogoutInProgress();
                   }
                   db.close();
                 };

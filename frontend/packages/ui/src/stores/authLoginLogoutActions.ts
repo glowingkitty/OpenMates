@@ -217,13 +217,16 @@ export async function login(
         // (setting these flags to true) but the user then successfully logs in.
         // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
         const { get } = await import("svelte/store");
-        const { forcedLogoutInProgress, isLoggingOut } =
-          await import("./signupState");
+        const {
+          forcedLogoutInProgress,
+          isLoggingOut,
+          resetForcedLogoutInProgress,
+        } = await import("./signupState");
         if (get(forcedLogoutInProgress)) {
           console.debug(
             "[Login] Resetting forcedLogoutInProgress to false - successful login with valid master key",
           );
-          forcedLogoutInProgress.set(false);
+          resetForcedLogoutInProgress();
         }
         if (get(isLoggingOut)) {
           console.debug(
@@ -525,18 +528,34 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
             console.debug(
               "[AuthStore] Sending logout request to server with auth cookies...",
             );
-            const response = await fetch(logoutApiUrl, {
-              method: "POST",
-              credentials: "include", // Include cookies with request
-              headers: { "Content-Type": "application/json" },
-            });
-            if (!response.ok) {
-              console.error(
-                "Server logout request failed:",
-                response.statusText,
+            // Use AbortController with 10s timeout to prevent the fetch from hanging
+            // indefinitely during device sleep/wake when the network is still recovering.
+            // Without this, the afterServerCleanup callback (which resets forcedLogoutInProgress)
+            // may never run, leaving the app stuck in a permanent "logout in progress" state.
+            const logoutAbortController = new AbortController();
+            const logoutTimeoutId = setTimeout(() => {
+              logoutAbortController.abort();
+              console.warn(
+                "[AuthStore] Server logout request timed out after 10s — aborting",
               );
-            } else {
-              console.debug("[AuthStore] Server logout successful.");
+            }, 10_000);
+            try {
+              const response = await fetch(logoutApiUrl, {
+                method: "POST",
+                credentials: "include", // Include cookies with request
+                headers: { "Content-Type": "application/json" },
+                signal: logoutAbortController.signal,
+              });
+              if (!response.ok) {
+                console.error(
+                  "Server logout request failed:",
+                  response.statusText,
+                );
+              } else {
+                console.debug("[AuthStore] Server logout successful.");
+              }
+            } finally {
+              clearTimeout(logoutTimeoutId);
             }
           } catch (e) {
             console.error(
@@ -553,15 +572,27 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
             console.debug(
               "[AuthStore] Sending policy violation logout request to server with auth cookies...",
             );
-            const response = await fetch(policyLogoutApiUrl, {
-              method: "POST",
-              credentials: "include", // Include cookies with request
-              headers: { "Content-Type": "application/json" },
-            });
-            console.debug(
-              "[AuthStore] Policy violation logout response:",
-              response.ok,
-            );
+            const policyAbortController = new AbortController();
+            const policyTimeoutId = setTimeout(() => {
+              policyAbortController.abort();
+              console.warn(
+                "[AuthStore] Policy violation logout request timed out after 10s — aborting",
+              );
+            }, 10_000);
+            try {
+              const response = await fetch(policyLogoutApiUrl, {
+                method: "POST",
+                credentials: "include", // Include cookies with request
+                headers: { "Content-Type": "application/json" },
+                signal: policyAbortController.signal,
+              });
+              console.debug(
+                "[AuthStore] Policy violation logout response:",
+                response.ok,
+              );
+            } finally {
+              clearTimeout(policyTimeoutId);
+            }
           } catch (e) {
             console.error(
               "[AuthStore] Policy violation logout API call failed (user already logged out locally):",

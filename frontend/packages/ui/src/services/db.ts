@@ -35,7 +35,11 @@ import * as offlineOps from "./db/offlineChangesAndUpdates";
 
 // Import logout state to prevent database re-initialization during logout
 import { get } from "svelte/store";
-import { forcedLogoutInProgress, isLoggingOut } from "../stores/signupState";
+import {
+  forcedLogoutInProgress,
+  isLoggingOut,
+  setForcedLogoutInProgress,
+} from "../stores/signupState";
 
 // Minimal type helpers for migration paths where IndexedDB records can include legacy fields.
 type ChatRecordWithMessages = Chat & { messages?: Message[] };
@@ -237,7 +241,7 @@ class ChatDatabase {
         console.warn(
           "[ChatDatabase] CLEANUP MARKER FOUND - setting forcedLogoutInProgress",
         );
-        forcedLogoutInProgress.set(true);
+        setForcedLogoutInProgress();
       } else {
         // Check if master key is missing - if so, we can't decrypt encrypted chats
         // Dynamically import to avoid circular dependencies
@@ -285,7 +289,7 @@ class ChatDatabase {
                       if (typeof localStorage !== "undefined") {
                         localStorage.setItem("openmates_needs_cleanup", "true");
                       }
-                      forcedLogoutInProgress.set(true);
+                      setForcedLogoutInProgress();
                     }
                     db.close();
                   };

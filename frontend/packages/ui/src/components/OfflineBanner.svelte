@@ -17,6 +17,11 @@
      * - Instant detection when browser events fire correctly (e.g., mobile flight mode)
      * - Reliable detection via WebSocket when browser events don't fire (e.g., some desktop browsers)
      *
+     * Additionally, a "resume grace period" suppresses offline notifications for 10 seconds
+     * after device wake-up (sleep/lock, BFCache restore). This prevents alarming users
+     * during the normal reconnection process that happens after sleep. If reconnection
+     * succeeds within the grace period, no notification is shown at all.
+     *
      * Uses the i18n translation system for user-facing text so that the
      * notification is displayed in the user's selected language.
      */
@@ -51,6 +56,15 @@
     const WS_OFFLINE_DELAY_MS = 3000;
 
     /**
+     * How long to wait (ms) after a device resume (visibilitychange/pageshow) before
+     * showing the offline notification. This is longer than WS_OFFLINE_DELAY_MS because
+     * on wake-up from sleep, the device needs time to re-establish network connectivity
+     * and reconnect the WebSocket — a completely normal and expected process that
+     * shouldn't alarm the user with an "You are offline" notification.
+     */
+    const RESUME_GRACE_PERIOD_MS = 10000;
+
+    /**
      * How long to wait (ms) for a reconnection attempt before restoring the offline state.
      * If WebSocket doesn't connect within this time, the "Tap to reconnect" button reappears.
      */
@@ -60,6 +74,17 @@
      * Timer for restoring the offline notification after a failed reconnect attempt.
      */
     let reconnectAttemptTimerId: ReturnType<typeof setTimeout> | null = $state(null);
+
+    /**
+     * Whether the app is currently in a "resume" grace period after device wake-up.
+     * While true, the offline notification is suppressed even if WS is disconnected.
+     */
+    let isInResumeGracePeriod = $state(false);
+
+    /**
+     * Timer for the resume grace period. Cleared when WS reconnects or grace period expires.
+     */
+    let resumeGraceTimerId: ReturnType<typeof setTimeout> | null = $state(null);
 
     /**
      * Get translated offline notification text fields.
@@ -260,9 +285,10 @@
         }
 
         if (wsState.status === 'connected') {
-            // WebSocket connected — hide notification and reset state
+            // WebSocket connected — hide notification, reset state, and end grace period
             console.info('[OfflineBanner] WebSocket status changed to connected');
             clearWsOfflineTimer();
+            clearResumeGracePeriod();
             wsDisconnectedSince = null;
             if (browserOnline) {
                 hideOfflineNotification();
@@ -278,13 +304,18 @@
             // If browser already says offline, notification is already shown
             if (!browserOnline) return;
 
+            // During a resume grace period (device just woke up), suppress the
+            // offline notification. The grace period handler will show it if
+            // we're still disconnected after the grace period expires.
+            if (isInResumeGracePeriod) return;
+
             // Browser thinks we're online but WebSocket is down
             // Start a timer to show notification after delay (if not already started)
             if (wsOfflineTimerId === null && offlineNotificationId === null) {
                 wsOfflineTimerId = setTimeout(() => {
                     wsOfflineTimerId = null;
-                    // Double-check we're still disconnected before showing
-                    if (wsDisconnectedSince !== null) {
+                    // Double-check we're still disconnected and not in grace period before showing
+                    if (wsDisconnectedSince !== null && !isInResumeGracePeriod) {
                         console.info('[OfflineBanner] WebSocket disconnected for', WS_OFFLINE_DELAY_MS, 'ms — showing offline notification');
                         showOfflineNotification();
                     }
@@ -294,11 +325,67 @@
     });
 
     /**
+     * Clear the resume grace period state and timer.
+     */
+    function clearResumeGracePeriod(): void {
+        isInResumeGracePeriod = false;
+        if (resumeGraceTimerId !== null) {
+            clearTimeout(resumeGraceTimerId);
+            resumeGraceTimerId = null;
+        }
+    }
+
+    /**
+     * Start the resume grace period. Called when the WebSocketService emits a
+     * "resuming" event (after device sleep/wake, BFCache restore, etc.).
+     * During this period, offline notifications are suppressed to avoid alarming the
+     * user while the device naturally re-establishes network and WebSocket connections.
+     */
+    function startResumeGracePeriod(): void {
+        // Clear any existing grace period timer before starting a new one
+        clearResumeGracePeriod();
+
+        console.info(`[OfflineBanner] Resume detected — starting ${RESUME_GRACE_PERIOD_MS}ms grace period`);
+        isInResumeGracePeriod = true;
+
+        // Also cancel any pending WS offline timer — we don't want the 3s timer
+        // from before the sleep to fire during the grace period
+        clearWsOfflineTimer();
+
+        resumeGraceTimerId = setTimeout(() => {
+            resumeGraceTimerId = null;
+            isInResumeGracePeriod = false;
+            console.info('[OfflineBanner] Resume grace period expired');
+
+            // If still disconnected after grace period, show offline notification now
+            if (wsDisconnectedSince !== null && $isOnline && offlineNotificationId === null) {
+                console.info('[OfflineBanner] Still disconnected after grace period — showing offline notification');
+                showOfflineNotification();
+            }
+        }, RESUME_GRACE_PERIOD_MS);
+    }
+
+    /**
+     * Effect that listens for "resuming" events from the WebSocketService.
+     * These events are dispatched when the page resumes from sleep/BFCache
+     * (visibilitychange, pageshow, navigator.connection change).
+     */
+    $effect(() => {
+        const handler = () => startResumeGracePeriod();
+        webSocketService.addEventListener('resuming', handler);
+
+        return () => {
+            webSocketService.removeEventListener('resuming', handler);
+        };
+    });
+
+    /**
      * Cleanup timers on component destroy.
      */
     $effect(() => {
         return () => {
             clearWsOfflineTimer();
+            clearResumeGracePeriod();
             if (reconnectAttemptTimerId !== null) {
                 clearTimeout(reconnectAttemptTimerId);
                 reconnectAttemptTimerId = null;
