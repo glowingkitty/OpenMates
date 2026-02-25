@@ -223,29 +223,48 @@ mark {
   padding-bottom: 4px;
 }
 
-/* Clickable mate name — resets button appearance while keeping the gradient text */
+/* Clickable mate name — resets button appearance while keeping the gradient text.
+   Must explicitly neutralise every property set by the global `button { }` rule in
+   buttons.css: background-color, padding, min-width, height, filter, margin-right
+   and the :hover/:active scale transforms. */
 .chat-mate-name-link {
   border: none;
-  background-color: transparent;
   cursor: pointer;
   text-align: left;
   display: block;
   line-height: inherit;
-  /* Gradient text must be re-declared (inherited bg-clip doesn't work on buttons) */
+  /* Gradient text — must be re-declared (inherited bg-clip doesn't work on buttons) */
   background: var(--color-primary);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   padding: 0;
   padding-bottom: 4px;
+  /* Reset properties leaked by global button { } rule in buttons.css */
+  height: auto;
+  min-width: 0;
+  filter: none;
+  margin: 0;
 }
 
 .chat-mate-name-link:hover {
   text-decoration: underline;
   text-decoration-color: var(--color-primary-start, #5856d6);
+  /* Neutralise global button:hover { scale: 1.02 } */
+  scale: 1;
+  background-color: transparent;
 }
 
-/* Wrapper button for the mate profile image in chat — invisible button shell */
+.chat-mate-name-link:active {
+  /* Neutralise global button:active { scale: 0.98; background-color: ... } */
+  scale: 1;
+  background-color: transparent;
+}
+
+/* Wrapper button for the mate profile image in chat — invisible button shell.
+   Must explicitly neutralise every property set by the global `button { }` rule in
+   buttons.css: background-color, padding, min-width, height, filter, margin-right
+   and the :hover/:active scale transforms. */
 .mate-profile-link {
   display: inline-flex;
   background: none;
@@ -255,10 +274,23 @@ mark {
   cursor: pointer;
   border-radius: 50%;
   transition: opacity 0.15s ease;
+  /* Reset properties leaked by global button { } rule in buttons.css */
+  height: auto;
+  min-width: 0;
+  filter: none;
 }
 
 .mate-profile-link:hover {
   opacity: 0.8;
+  /* Neutralise global button:hover { scale: 1.02; background-color: ... } */
+  scale: 1;
+  background-color: transparent;
+}
+
+.mate-profile-link:active {
+  /* Neutralise global button:active { scale: 0.98; background-color: ... } */
+  scale: 1;
+  background-color: transparent;
 }
 
 .chat-message-text {

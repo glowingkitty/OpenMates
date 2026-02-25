@@ -451,6 +451,11 @@ changes to the documentation (to keep the documentation up to date).
         activeSettingsView.startsWith('app_store/') &&
         /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/.test(activeSettingsView)
     );
+
+    // True when the header should show a mate profile image (mate detail pages)
+    let isMateDetailPage = $derived(
+        activeSettingsView.startsWith('mates/') && activeSettingsView !== 'mates'
+    );
     
     // Track if we're in an app store sub-page (not the main app_store or 'all' page)
     // This is used to render the app icon properly in the header
@@ -1656,6 +1661,14 @@ changes to the documentation (to keep the documentation up to date).
                         </div>
                         <strong class="model-detail-title">{activeSubMenuTitle}</strong>
                     </div>
+                {:else if isMateDetailPage}
+                    <!-- Mate detail page: show the mate's circular profile image + name.
+                         Uses the same .mate-profile CSS class system as the chat header
+                         (mates.css sets background-image per mate id class). -->
+                    <div class="mate-detail-header-item">
+                        <div class="mate-profile {activeSubMenuIcon} mate-profile-header"></div>
+                        <strong class="model-detail-title">{activeSubMenuTitle}</strong>
+                    </div>
                 {:else}
                     <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
                     <!-- Focus mode details pages now use the same icon+title header as skills -->
@@ -1987,6 +2000,30 @@ changes to the documentation (to keep the documentation up to date).
         align-items: center;
         gap: 12px;
         padding: 4px 16px 4px 12px;
+    }
+
+    /* Mate detail header: circular profile image + mate name */
+    .mate-detail-header-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 16px 4px 12px;
+    }
+
+    /*
+     * Size the mate profile image in the settings header.
+     * The base .mate-profile class (mates.css) sets 60px — we want 38px here
+     * to match the model provider icon size and suppress the AI badge pseudo-elements.
+     */
+    :global(.mate-profile.mate-profile-header) {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+    }
+
+    :global(.mate-profile.mate-profile-header::before),
+    :global(.mate-profile.mate-profile-header::after) {
+        display: none;
     }
 
     .model-detail-provider-icon {

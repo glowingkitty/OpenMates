@@ -61,7 +61,9 @@
         flex-direction: column;
     }
 
-    /* Each mate is a full-width clickable row */
+    /* Each mate is a full-width clickable row.
+       Must reset properties leaked by the global `button { }` rule in buttons.css:
+       height, min-width, filter, margin-right, and scale hover/active transforms. */
     .mate-row {
         display: flex;
         align-items: center;
@@ -74,14 +76,24 @@
         text-align: left;
         border-radius: 8px;
         transition: background 0.15s ease;
+        /* Reset global button rule leakage */
+        height: auto;
+        min-width: 0;
+        filter: none;
+        margin: 0;
     }
 
     .mate-row:hover {
         background: var(--color-grey-15, rgba(0, 0, 0, 0.05));
+        /* Neutralise global button:hover { scale: 1.02 } */
+        scale: 1;
     }
 
     .mate-row:active {
         background: var(--color-grey-20, rgba(0, 0, 0, 0.1));
+        /* Neutralise global button:active { scale: 0.98 } */
+        scale: 1;
+        filter: none;
     }
 
     /*
