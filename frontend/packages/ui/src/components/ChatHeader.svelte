@@ -15,7 +15,7 @@
 
   State A2 — Credits Error (isLoading=false, isCreditsError=true):
     - Background: var(--color-primary) gradient (same blue, no shimmer)
-    - Static AI icon (38×38px, white, 0.5 opacity) + "Not enough credits" text (20px, white, static)
+    - Static coins icon (38×38px, white, 0.6 opacity) + "Not enough credits" text (20px, white, static)
     - Replaces the shimmer with a calm, non-animated error state
     - Stays visible until user sends another message or switches chat
 
@@ -439,7 +439,10 @@
   }
 
   .credits-error-icon {
-    /* Same mask as processing-ai-icon but static white at reduced opacity */
+    /* Override the AI sparkle mask with the coins icon for a clearer "not enough credits" visual.
+       Static white at reduced opacity, no shimmer animation. */
+    -webkit-mask-image: url('@openmates/ui/static/icons/coins.svg') !important;
+    mask-image: url('@openmates/ui/static/icons/coins.svg') !important;
     background: rgba(255, 255, 255, 0.6) !important;
     background-size: 100% 100% !important;
     animation: none !important;

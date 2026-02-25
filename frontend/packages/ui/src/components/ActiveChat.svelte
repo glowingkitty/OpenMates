@@ -2790,13 +2790,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const hasWaitingForUserMessage = waitingForUserMessages.length > 0;
 
         // Show "Waiting for you..." if chat is paused waiting for user action,
-        // BUT suppress it when ALL waiting_for_user messages are system rejections
+        // BUT suppress it when ANY waiting_for_user message is a system rejection
         // (e.g., insufficient credits). In that case, the system message bubble in the
         // chat body already informs the user — a second indicator at the bottom is redundant.
-        const allWaitingAreSystemRejections = hasWaitingForUserMessage &&
-            waitingForUserMessages.every(m => m.role === 'system');
+        // NOTE: We use .some() not .every() because credit rejections produce TWO messages
+        // with waiting_for_user status: the system rejection (role='system') AND the user
+        // message (role='user'). If we required every() to be system, the user message
+        // would break the check and the indicator would still show.
+        const hasSystemRejection = hasWaitingForUserMessage &&
+            waitingForUserMessages.some(m => m.role === 'system');
         
-        if (hasWaitingForUserMessage && !allWaitingAreSystemRejections) {
+        if (hasWaitingForUserMessage && !hasSystemRejection) {
             const result = $text('enter_message.waiting_for_user');
             console.debug('[ActiveChat] Showing waiting_for_user indicator:', result);
             return [result]; // Single line
@@ -2863,15 +2867,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void _aiTaskStateTrigger;
         
         // "Waiting for you..." is always shown at the bottom,
-        // BUT suppress it when ALL waiting_for_user messages are system rejections
+        // BUT suppress it when ANY waiting_for_user message is a system rejection
         // (e.g., insufficient credits). The system message bubble already informs the user.
+        // Uses .some() not .every() — see typingIndicatorLines comment for rationale.
         const waitingForUserMessages = currentMessages.filter(m => 
             m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
         );
         const hasWaitingForUserMessage = waitingForUserMessages.length > 0;
-        const allWaitingAreSystemRejections = hasWaitingForUserMessage &&
-            waitingForUserMessages.every(m => m.role === 'system');
-        if (hasWaitingForUserMessage && !allWaitingAreSystemRejections) return 'processing'; // Reuse 'processing' CSS class for shimmer effect
+        const hasSystemRejection = hasWaitingForUserMessage &&
+            waitingForUserMessages.some(m => m.role === 'system');
+        if (hasWaitingForUserMessage && !hasSystemRejection) return 'processing'; // Reuse 'processing' CSS class for shimmer effect
         
         // When centered indicator is active, bottom shows nothing
         if (processingPhase !== null) return null;
@@ -3216,6 +3221,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     isNewChatGeneratingTitle = false;
                     isNewChatCreditsError = true;
                     console.debug('[ActiveChat] Credits rejection on new chat — transitioning header to credits error state');
+                }
+                // Invalidate sidebar cache and notify Chat.svelte to re-fetch and show
+                // "Credits needed..." instead of "Untitled chat".
+                if (isRejection) {
+                    chatListCache.invalidateLastMessage(chunk.chat_id);
+                    // Dispatch chatUpdated on chatSyncService (NOT document) so the sidebar
+                    // Chat.svelte re-runs updateDisplayInfo. Chat.svelte listens on
+                    // chatSyncService.addEventListener('chatUpdated', ...), not document.
+                    chatSyncService.dispatchEvent(new CustomEvent('chatUpdated', {
+                        detail: { chat_id: chunk.chat_id, type: 'message_status_changed' }
+                    }));
                 }
                 const updatedFinalMessage = {
                     ...finalMessageInArray,
@@ -5292,6 +5308,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         currentMessages = newMessages;
+
+        // ─── Restore credits error header for chats that were rejected ────────────
+        // When switching back to a chat that had a credits rejection, the header state
+        // was cleared by resetChatHeaderState(). Detect this by checking if:
+        //   1) The chat has no title/category (backend never sent them due to rejection), AND
+        //   2) There's a system message (or assistant with waiting_for_user) in the messages
+        // This restores the "Not enough credits" banner with the coins icon.
+        if (!activeChatDecryptedTitle && !activeChatDecryptedCategory && currentMessages.length > 0) {
+            const hasCreditsRejection = currentMessages.some(m =>
+                m.status === 'waiting_for_user' && (m.role === 'system' || m.role === 'assistant')
+            );
+            if (hasCreditsRejection) {
+                isNewChatCreditsError = true;
+                console.debug('[ActiveChat] loadChat: Restored credits error header for chat with rejection message');
+            }
+        }
 
         // Hide welcome screen when we have messages to display
         // This ensures public chats (demo + legal, like welcome chat) show their content immediately

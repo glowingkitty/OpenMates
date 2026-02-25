@@ -134,6 +134,14 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   // Breakpoint is 500px to match the original media query
   let shouldStackMobile = $derived(containerWidth > 0 && containerWidth <= 500);
 
+  // Effective role: forces assistant messages with 'waiting_for_user' status to render
+  // as system notices. This handles messages persisted in the DB before the role fix was
+  // deployed (they have role='assistant' + status='waiting_for_user' + category set).
+  // Normal assistant messages never have 'waiting_for_user' status, so this is safe.
+  let effectiveRole = $derived(
+    role === 'assistant' && status === 'waiting_for_user' ? 'system' as const : role
+  );
+
   // Check if original_message content contains special placeholders (used in demo chats)
   // When present, we use DemoMessageContent for special placeholder handling
   // We check original_message.content because at this point `content` is already TipTap JSON
@@ -1617,10 +1625,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
 </script>
 
-{#if role === 'system'}
+{#if effectiveRole === 'system'}
   <!-- System message: rendered as a smaller centered notice (e.g., reminders, insufficient credits) -->
   <!-- NOTE: content may be TipTap JSON (converted by G_mapToInternalMessage), so we prefer
-       the original plaintext from original_message.content for display -->
+       the original plaintext from original_message.content for display.
+       Uses effectiveRole instead of role so that legacy assistant messages with
+       waiting_for_user status (persisted before role fix) also render as system notices. -->
   <div class="chat-message system">
     <div class="system-message-notice">
       <span class="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
@@ -1639,8 +1649,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     </div>
   </div>
 {:else}
-<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant' && shouldStackMobile}>
-  {#if role === 'assistant'}
+<div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:mobile-stacked={effectiveRole === 'assistant' && shouldStackMobile}>
+  {#if effectiveRole === 'assistant'}
     <!-- Mate profile image: clickable for real mates (opens mate detail in settings) -->
     {#if isMateClickable}
       <button
