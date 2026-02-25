@@ -28,6 +28,7 @@ import {
   INTRO_CHATS,
   LEGAL_CHATS,
   getAllCommunityDemoChats,
+  translateDemoChat,
 } from "../demo_chats";
 import { convertDemoChatToChat } from "../demo_chats/convertToChat";
 
@@ -170,13 +171,16 @@ export function updateNavFromCache(activeChatId: string): void {
 
       // Build the in-memory public chats list (mirrors Chats.svelte visiblePublicChats).
       // These are always available regardless of auth state.
+      // translateDemoChat() resolves i18n keys to strings — same as Chats.svelte does
+      // before calling convertDemoChatToChat(). Skipping this step would leave raw
+      // translation keys (e.g. "demo_chats.who_develops_openmates.title") in the title.
       const introChats: Chat[] = INTRO_CHATS.map((demo) => {
-        const chat = convertDemoChatToChat(demo);
+        const chat = convertDemoChatToChat(translateDemoChat(demo));
         chat.group_key = "intro";
         return chat;
       });
       const legalChats: Chat[] = LEGAL_CHATS.map((legal) => {
-        const chat = convertDemoChatToChat(legal);
+        const chat = convertDemoChatToChat(translateDemoChat(legal));
         chat.group_key = "legal";
         return chat;
       });
