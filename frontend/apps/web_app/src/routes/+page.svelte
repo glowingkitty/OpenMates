@@ -614,6 +614,7 @@
 		const publicSettings = [
 			'app_store',
 			'appstore', // Alias
+			'mates', // Mates browsing (read-only for unauthenticated users)
 			'interface',
 			'main', // Main settings page
 			'newsletter', // Newsletter settings (for email link actions)

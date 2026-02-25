@@ -143,6 +143,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // App Store
   app_store: SettingsAppStore,
   "app_store/all": SettingsAllApps,
+  // Mates — appears directly below App Store in the menu
+  mates: SettingsMates,
   // Shared
   shared: SettingsShared,
   "shared/share": SettingsShare,
@@ -162,8 +164,6 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "server/stats": SettingsStats,
   "server/gift-cards": SettingsGiftCardGenerator,
   "server/default-inspirations": SettingsDefaultInspirations,
-  // Mates
-  mates: SettingsMates,
   // Incognito
   "incognito/info": SettingsIncognitoInfo,
   // Account

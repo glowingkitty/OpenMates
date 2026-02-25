@@ -210,11 +210,13 @@ changes to the documentation (to keep the documentation up to date).
             }
             
             // For non-authenticated users, include interface settings (top-level and nested), 
-            // app store (including app details), share chat (for sharing demo chats), newsletter, support, and report issue
-            // App store is read-only for non-authenticated users (browse only, no modifications)
+            // app store (including app details), mates (browse only), share chat (for sharing demo chats),
+            // newsletter, support, and report issue.
+            // App store and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key === 'interface/language' ||
                     key === 'app_store' || key.startsWith('app_store/') ||
+                    key === 'mates' || key.startsWith('mates/') ||
                     key === 'shared/share' || key === 'newsletter' ||
                     key === 'support' || key.startsWith('support/') ||
                     key === 'report_issue' || key === 'account/delete') {
