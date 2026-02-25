@@ -1337,20 +1337,22 @@ changes to the documentation (to keep the documentation up to date).
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, support, report_issue, and account deletion
+            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, support, report_issue, account deletion, and mates
             // Share settings are allowed so users can share demo chats
             // Newsletter is allowed so anyone can subscribe
             // Support is allowed so anyone can sponsor the project
             // Report issue is allowed so anyone can report bugs/issues
             // Account deletion is allowed for uncompleted accounts via email link
+            // Mates is allowed so unauthenticated users (e.g. example/public chat) can open mate settings deep links
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) ||
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||
                                      settingsPath.startsWith('shared/share') ||
                                      settingsPath.startsWith('support/') ||
-                                     settingsPath.startsWith('account/delete/');
+                                     settingsPath.startsWith('account/delete/') ||
+                                     settingsPath.startsWith('mates/');
                 
                 if (!isAllowedPath) {
                     // Clear the deep link if path is not allowed for non-authenticated users
