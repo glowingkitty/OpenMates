@@ -37,6 +37,7 @@
     chatCreatedAt - Unix timestamp in seconds of chat creation
 -->
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
@@ -58,6 +59,63 @@
     isLoading?: boolean;
     chatCreatedAt?: number | null;
   } = $props();
+
+  // ─── Relative-time ticker ──────────────────────────────────────────────────
+  //
+  // `now` is updated every minute while the chat is within the 10-minute
+  // relative-time window ("X min ago"). Once the chat ages past 10 minutes the
+  // interval is cleared so we don't keep a timer running for old chats.
+  // The interval is also cleared on component destroy via onDestroy.
+
+  let now = $state(Date.now());
+  let _tickerInterval: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * Start the per-minute ticker if the chat is still within the relative window.
+   * Called once on mount via $effect and whenever chatCreatedAt changes.
+   */
+  function startTickerIfNeeded() {
+    if (_tickerInterval !== null) return; // already running
+    if (!chatCreatedAt) return;
+
+    const createdMs = chatCreatedAt * 1000;
+    const diffMinutes = (Date.now() - createdMs) / 60000;
+
+    // Only schedule if we're currently in the relative window (0–10 min)
+    if (diffMinutes <= 10) {
+      _tickerInterval = setInterval(() => {
+        now = Date.now();
+
+        // Stop the ticker once we exit the relative window
+        if (!chatCreatedAt) return;
+        const elapsed = (now - chatCreatedAt * 1000) / 60000;
+        if (elapsed > 10 && _tickerInterval !== null) {
+          clearInterval(_tickerInterval);
+          _tickerInterval = null;
+        }
+      }, 60_000); // tick every minute
+    }
+  }
+
+  // Start (or restart) ticker whenever chatCreatedAt changes
+  $effect(() => {
+    // Re-read chatCreatedAt so the effect re-runs when it changes
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    chatCreatedAt;
+    now = Date.now(); // immediately refresh the display
+    if (_tickerInterval !== null) {
+      clearInterval(_tickerInterval);
+      _tickerInterval = null;
+    }
+    startTickerIfNeeded();
+  });
+
+  onDestroy(() => {
+    if (_tickerInterval !== null) {
+      clearInterval(_tickerInterval);
+      _tickerInterval = null;
+    }
+  });
 
   // ─── Navigation arrows ─────────────────────────────────────────────────────
 
@@ -133,7 +191,9 @@
     if (!chatCreatedAt) return '';
 
     const createdMs = chatCreatedAt * 1000; // Convert seconds → milliseconds
-    const now = Date.now();
+    // `now` is a reactive $state that is updated every minute while the chat
+    // is within the 10-minute relative window. Reading it here ensures
+    // formattedTime re-derives automatically when the ticker fires.
     const diffMs = now - createdMs;
     const diffMinutes = Math.floor(diffMs / 60000);
 
