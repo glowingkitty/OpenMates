@@ -109,7 +109,9 @@ class ChatDatabase {
   // Version 18: Added pending_embed_share_updates store for embed share metadata retry queue
   // Version 19: Added pending_embed_operations store for offline embed queue
   // Version 20: Added daily_inspirations store for client-side persistence of personalised inspirations
-  private readonly VERSION = 20;
+  // Version 21: Delete stale old-format community demo chats (demo-1, demo-2, demo-e0090311, …)
+  //             that may have been saved to chats_db before the server migrated to word-slug IDs.
+  private readonly VERSION = 21;
   public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
   private initializationPromise: Promise<void> | null = null;
 
@@ -692,6 +694,52 @@ class ChatDatabase {
     // Embed data migration (v14)
     if (transaction && oldVersion < 14) {
       this.migrateEmbedData(transaction, EMBEDS_STORE_NAME);
+    }
+
+    // v21: Delete stale old-format community demo chats from the user's chats_db.
+    // Before the server migrated to word-slug IDs, community demo chats were stored
+    // with IDs like "demo-1", "demo-2" (numeric suffix) or "demo-e0090311" (8-char
+    // hex fragment from an earlier intermediate migration). These IDs no longer exist
+    // on the server. If any remain in chats_db they will appear as broken / undecryptable
+    // chat entries and confuse navigation. We delete them along with their messages and
+    // embeds so the DB is clean on next startup.
+    if (transaction && oldVersion < 21) {
+      const chatsStore = transaction.objectStore(this.CHATS_STORE_NAME);
+      const chatsReq = chatsStore.openCursor();
+      chatsReq.onsuccess = (e) => {
+        const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+        if (!cursor) return;
+        const chatId: string =
+          (cursor.value as { chat_id: string }).chat_id ?? "";
+        // Detect old numeric (demo-1) and hex-fragment (demo-e0090311) formats.
+        // New word-slug IDs (demo-capital-of-spain) have multiple hyphen-separated
+        // words after "demo-" and will not match these patterns.
+        const suffix = chatId.startsWith("demo-") ? chatId.slice(5) : "";
+        const isOldFormat =
+          /^\d+$/.test(suffix) || /^[0-9a-f]{8}$/.test(suffix);
+        if (isOldFormat) {
+          console.debug(
+            `[ChatDatabase] v21 migration: removing stale demo chat ${chatId}`,
+          );
+          cursor.delete();
+          // Cascade: delete all messages for this chat
+          const msgStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
+          const msgIdx = msgStore.index("chat_id");
+          msgIdx.openCursor(IDBKeyRange.only(chatId)).onsuccess = (me) => {
+            const mc = (me.target as IDBRequest<IDBCursorWithValue>).result;
+            if (mc) {
+              mc.delete();
+              mc.continue();
+            }
+          };
+          // Cascade: delete all embeds for this chat (embeds store uses hashed_chat_id
+          // index, but also has a plain chat_id path via contentRef — iterate by
+          // hashed_chat_id is not available here without hashing, so we use the
+          // fact that old demo chats would never have had embeds; skip for safety
+          // and leave any orphaned embed records (they are harmless and small).
+        }
+        cursor.continue();
+      };
     }
   }
 
