@@ -68,6 +68,32 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // Load embed from EmbedStore (even if processing, so we can mount the correct component)
       embedData = await resolveEmbed(embedId);
 
+      // If the embed is not in IndexedDB yet but the node attributes already say "finished",
+      // the send_embed_data WebSocket event hasn't been processed yet (race condition). Register
+      // a one-shot listener so we re-render the moment the embed data arrives. Without this,
+      // the embed renders with an empty decodedContent and stays stuck on the skeleton forever
+      // because renderImageViewComponent (and similar) won't call resolveAndUpdateImageViewProps
+      // when originalEmbedId is empty (fix for issue #5dc543b0 — images view never shows image).
+      if (!embedData && attrs.status === "finished") {
+        const retryHandler = (event: Event) => {
+          const customEvent = event as CustomEvent<{ embed_id: string }>;
+          if (customEvent.detail?.embed_id !== embedId) return;
+          chatSyncService.removeEventListener("embedUpdated", retryHandler);
+          // Re-invoke the full render() so all routing + component mounting runs with fresh data.
+          this.render(context).catch((err) => {
+            console.error(
+              "[AppSkillUseRenderer] Error in embedUpdated re-render for finished embed:",
+              err,
+            );
+          });
+        };
+        chatSyncService.addEventListener("embedUpdated", retryHandler);
+        console.debug(
+          "[AppSkillUseRenderer] Embed not cached yet (finished status), waiting for embedUpdated:",
+          embedId,
+        );
+      }
+
       if (embedData) {
         // CRITICAL FIX: Filter out error embeds with "superseded" message
         // These are placeholder embeds that were replaced by multiple request-specific embeds

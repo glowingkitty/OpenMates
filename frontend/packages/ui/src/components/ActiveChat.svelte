@@ -3016,8 +3016,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
             if (chunk.full_content_so_far || chunk.sequence === 1) {
-                // CRITICAL: Store AI response as markdown string, not Tiptap JSON
-                targetMessage.content = chunk.full_content_so_far || '';
+                // Guard: skip content update if the cumulative content is shorter than what we already
+                // have. This should never happen with correct cumulative streaming, but Gemini
+                // multimodal responses have been observed to produce garbled/corrupted intermediate
+                // chunks (token-ID sequences) whose accumulated length regresses. Skipping them keeps
+                // the displayed text coherent and prevents Tiptap render breakage on mobile.
+                const wouldShrink = newLength > 0 && newLength < previousLength;
+                if (wouldShrink) {
+                    console.warn(
+                        `[ActiveChat] ⚠️ Skipping content regression | seq: ${chunk.sequence} | ` +
+                        `prev_len: ${previousLength} → new_len: ${newLength} (diff: ${lengthDiff})`
+                    );
+                } else {
+                    // CRITICAL: Store AI response as markdown string, not Tiptap JSON
+                    targetMessage.content = chunk.full_content_so_far || '';
+                }
             }
             // If this is a rejection message, update role and status accordingly
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
@@ -3035,6 +3048,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     fallbackModelName: fallbackModelName,
                     finalModelName: targetMessage.model_name
                 });
+            }
+            // Patch category if the message was created before ai_typing_started arrived and the
+            // backend now sends category on every chunk (fix for race condition in issue #5dc543b0).
+            if (chunk.category && !targetMessage.category) {
+                targetMessage.category = chunk.category;
+                console.debug(`[ActiveChat] Patched category on existing message ${targetMessage.message_id}: "${targetMessage.category}"`);
             }
             currentMessages[targetMessageIndex] = targetMessage;
             currentMessages = [...currentMessages]; // New array reference for Svelte reactivity

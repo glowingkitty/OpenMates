@@ -1237,6 +1237,25 @@ async def _consume_main_processing_stream(
                 # Skip empty chunks after stripping (the entire chunk might have been a tool_call block)
                 if not chunk:
                     continue
+
+                # Guard: detect garbled / non-human-readable content before publishing.
+                # Observed with Gemini multimodal responses where the model occasionally streams
+                # what appears to be raw token-ID sequences or internal representations instead of
+                # natural language text (e.g. "-213,222,237-238,241,..."). These chunks degrade the
+                # user experience and can break frontend Tiptap rendering on some mobile browsers.
+                #
+                # Heuristic: if a chunk is longer than 200 chars and has fewer than 2% alphabetic
+                # characters, treat it as garbled and drop it with a warning.
+                if len(chunk) > 200:
+                    alpha_count = sum(1 for c in chunk if c.isalpha())
+                    alpha_ratio = alpha_count / len(chunk)
+                    if alpha_ratio < 0.02:
+                        logger.warning(
+                            f"{log_prefix} Dropping garbled chunk (seq ~{stream_chunk_count + 1}, "
+                            f"len={len(chunk)}, alpha_ratio={alpha_ratio:.3f}): "
+                            f"preview={repr(chunk[:80])}"
+                        )
+                        continue
                 
                 # Code block detection and embed creation
                 # Detect code block opening: ```language or ```language:filename
@@ -2279,8 +2298,13 @@ async def _consume_main_processing_stream(
                 # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
                 if cache_service:
                     current_full_content = "".join(final_response_chunks)
+                    # Include category on every intermediate chunk so the frontend can assign the
+                    # correct mate to the message immediately, regardless of whether ai_typing_started
+                    # has been received yet (race condition fix for Bug #5dc543b0).
                     payload = _create_redis_payload(
-                        task_id, request_data, current_full_content, stream_chunk_count, model_name=stream_model_name
+                        task_id, request_data, current_full_content, stream_chunk_count,
+                        model_name=stream_model_name,
+                        category=preprocessing_result.category or "general_knowledge",
                     )
                     
                     # CRITICAL: Always log chunk publishing for debugging (but less verbose)
