@@ -393,9 +393,17 @@ export async function handleNewChatMessageImpl(
         encrypted_draft_md: null,
         encrypted_draft_preview: null,
         draft_v: 0,
-        last_edited_overall_timestamp:
-          payload.last_edited_overall_timestamp ||
-          Math.floor(Date.now() / 1000),
+        last_edited_overall_timestamp: (() => {
+          if (!payload.last_edited_overall_timestamp) {
+            console.warn(
+              `[ChatSyncService:ChatUpdates] new_chat_message for new chat ${payload.chat_id} missing last_edited_overall_timestamp — falling back to Date.now()`,
+            );
+          }
+          return (
+            payload.last_edited_overall_timestamp ||
+            Math.floor(Date.now() / 1000)
+          );
+        })(),
         unread_count: 0,
         created_at: payload.created_at || Math.floor(Date.now() / 1000),
         updated_at: Math.floor(Date.now() / 1000),
@@ -565,6 +573,11 @@ export async function handleNewChatMessageImpl(
 
     // Update chat metadata
     chat.messages_v = payload.messages_v || chat.messages_v + 1;
+    if (!payload.last_edited_overall_timestamp) {
+      console.warn(
+        `[ChatSyncService:ChatUpdates] new_chat_message for existing chat ${payload.chat_id} missing last_edited_overall_timestamp — falling back to Date.now()`,
+      );
+    }
     chat.last_edited_overall_timestamp =
       payload.last_edited_overall_timestamp || Math.floor(Date.now() / 1000);
     chat.updated_at = Math.floor(Date.now() / 1000);

@@ -651,12 +651,15 @@ export async function handleAIBackgroundResponseCompletedImpl(
       has_thinking: !!thinkingEntry?.content,
     };
 
-    // Save message to IndexedDB or incognito service
+    // Save message to IndexedDB or incognito service.
+    // Use aiMessage.created_at as the sort timestamp so last_edited_overall_timestamp
+    // is consistent with the message's own timestamp (both set at delivery time).
+    // This avoids two separate Date.now() calls that could differ by a few ms.
+    const newLastEdited = aiMessage.created_at;
     if (isIncognitoChat) {
       // Save to incognito service (no encryption needed for incognito chats)
       await incognitoChatService.addMessage(payload.chat_id, aiMessage);
       const newMessagesV = (chat.messages_v || 0) + 1;
-      const newLastEdited = Math.floor(Date.now() / 1000);
       await incognitoChatService.updateChat(payload.chat_id, {
         messages_v: newMessagesV,
         last_edited_overall_timestamp: newLastEdited,
@@ -676,7 +679,6 @@ export async function handleAIBackgroundResponseCompletedImpl(
 
       // Update chat metadata with new messages_v
       const newMessagesV = (chat.messages_v || 0) + 1;
-      const newLastEdited = Math.floor(Date.now() / 1000);
       const updatedChat: Chat = {
         ...chat,
         messages_v: newMessagesV,

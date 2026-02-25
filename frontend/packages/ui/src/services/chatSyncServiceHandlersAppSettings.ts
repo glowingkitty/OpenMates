@@ -1084,14 +1084,42 @@ async function saveAppSettingsMemoriesResponseMessage(
       `[ChatSyncService:AppSettings] Sent system message ${messageId} to server`,
     );
 
+    // Update the chat's last_edited_overall_timestamp so the chat moves to the top of the
+    // sidebar list when a system message (app settings/memories response) is added.
+    // System messages are user-facing interactions and should trigger the same sort update
+    // as user/assistant messages.
+    let updatedChatForDispatch: import("../types/chat").Chat | null = null;
+    try {
+      const chat = await chatDB.getChat(chatId);
+      if (chat) {
+        const updatedChat: import("../types/chat").Chat = {
+          ...chat,
+          last_edited_overall_timestamp: now,
+          updated_at: now,
+        };
+        await chatDB.updateChat(updatedChat);
+        updatedChatForDispatch = updatedChat;
+        console.debug(
+          `[ChatSyncService:AppSettings] Updated chat ${chatId} last_edited_overall_timestamp for response system message`,
+        );
+      }
+    } catch (chatUpdateError) {
+      console.warn(
+        `[ChatSyncService:AppSettings] Failed to update chat timestamp for response system message:`,
+        chatUpdateError,
+      );
+    }
+
     // Dispatch chatUpdated event to trigger UI refresh
     // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
+    // Include chat object so Chats.svelte uses the in-place patch path (faster than full DB reload)
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
           chat_id: chatId,
           type: "system_message_added",
           newMessage: syncedMessage,
+          ...(updatedChatForDispatch ? { chat: updatedChatForDispatch } : {}),
         },
       }),
     );
@@ -1212,26 +1240,54 @@ async function saveAppSettingsMemoriesRequestMessage(
     await chatDB.saveMessage(syncedMessage);
 
     console.debug(
-      `[ChatSyncService:AppSettings] Sent request system message ${messageId} to server`,
+      `[ChatSyncService:AppSettings] Sent system message ${messageId} to server`,
     );
+
+    // Update the chat's last_edited_overall_timestamp so the chat moves to the top of the
+    // sidebar list when a system message (app settings/memories response) is added.
+    // System messages are user-facing interactions and should trigger the same sort update
+    // as user/assistant messages.
+    let updatedChatForDispatch: import("../types/chat").Chat | null = null;
+    try {
+      const chat = await chatDB.getChat(chatId);
+      if (chat) {
+        const updatedChat: import("../types/chat").Chat = {
+          ...chat,
+          last_edited_overall_timestamp: now,
+          updated_at: now,
+        };
+        await chatDB.updateChat(updatedChat);
+        updatedChatForDispatch = updatedChat;
+        console.debug(
+          `[ChatSyncService:AppSettings] Updated chat ${chatId} last_edited_overall_timestamp for system message`,
+        );
+      }
+    } catch (chatUpdateError) {
+      console.warn(
+        `[ChatSyncService:AppSettings] Failed to update chat timestamp for system message:`,
+        chatUpdateError,
+      );
+    }
 
     // Dispatch chatUpdated event to trigger UI refresh
     // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
+    // Include chat object so Chats.svelte uses the in-place patch path (faster than full DB reload)
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
           chat_id: chatId,
           type: "system_message_added",
           newMessage: syncedMessage,
+          ...(updatedChatForDispatch ? { chat: updatedChatForDispatch } : {}),
         },
       }),
     );
   } catch (sendError) {
     console.error(
-      `[ChatSyncService:AppSettings] Error sending request system message to server:`,
+      `[ChatSyncService:AppSettings] Error sending system message to server:`,
       sendError,
     );
-    // Message is still saved locally, will be synced later
+    // Message is saved locally, will be synced later
   }
 }
 
@@ -1703,26 +1759,34 @@ export async function handleNewSystemMessageImpl(
       `[ChatSyncService:AppSettings] Saved system message ${data.message_id} from other device`,
     );
 
-    // Update chat's messages_v version counter
-    if (versions?.messages_v !== undefined) {
-      await chatDB.updateChatComponentVersion(
-        chat_id,
-        "messages_v",
-        versions.messages_v,
-      );
-      console.debug(
-        `[ChatSyncService:AppSettings] Updated chat ${chat_id} messages_v to ${versions.messages_v}`,
-      );
-    }
+    // Update chat's messages_v version counter AND last_edited_overall_timestamp.
+    // System messages from other devices are user-facing events (e.g. app settings/memories
+    // response) that should sort the chat to the top, just as on the originating device.
+    const sysMessageTimestamp =
+      data.created_at || Math.floor(Date.now() / 1000);
+    const updatedChat: import("../types/chat").Chat = {
+      ...chat,
+      last_edited_overall_timestamp: sysMessageTimestamp,
+      updated_at: Math.floor(Date.now() / 1000),
+      ...(versions?.messages_v !== undefined
+        ? { messages_v: versions.messages_v }
+        : {}),
+    };
+    await chatDB.updateChat(updatedChat);
+    console.debug(
+      `[ChatSyncService:AppSettings] Updated chat ${chat_id} last_edited_overall_timestamp and messages_v for cross-device system message`,
+    );
 
     // Dispatch chatUpdated event to trigger UI refresh
     // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
+    // Include chat object so Chats.svelte uses the in-place patch path (faster than full DB reload)
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
           chat_id: chat_id,
           type: "system_message_synced",
           messagesUpdated: true,
+          chat: updatedChat,
         },
       }),
     );
@@ -1923,9 +1987,12 @@ export async function handlePendingAIResponseImpl(
       `[ChatSyncService:PendingAI] Saved pending AI response ${message_id} to IndexedDB for chat ${chat_id}`,
     );
 
-    // Update chat metadata with new messages_v
+    // Update chat metadata with new messages_v.
+    // Use the server-provided fired_at timestamp (when the AI actually finished), not
+    // Date.now() (reconnect time), so that the chat sorts to its correct position in
+    // history rather than always jumping to the top when the user reconnects.
     const newMessagesV = (chat.messages_v || 0) + 1;
-    const newLastEdited = Math.floor(Date.now() / 1000);
+    const newLastEdited = payload.fired_at || aiMessage.created_at;
     const updatedChat = {
       ...chat,
       messages_v: newMessagesV,
@@ -1933,7 +2000,7 @@ export async function handlePendingAIResponseImpl(
     };
     await chatDB.updateChat(updatedChat as import("../types/chat").Chat);
     console.info(
-      `[ChatSyncService:PendingAI] Updated chat ${chat_id} metadata: messages_v=${newMessagesV}`,
+      `[ChatSyncService:PendingAI] Updated chat ${chat_id} metadata: messages_v=${newMessagesV}, last_edited=${newLastEdited} (fired_at=${payload.fired_at})`,
     );
 
     // Dispatch chatUpdated event to trigger UI refresh
@@ -2136,6 +2203,35 @@ export async function handleReminderFiredImpl(
       `[ChatSyncService:Reminder] Saved reminder system message ${message_id} to IndexedDB`,
     );
 
+    // For existing_chat reminders: update the chat's last_edited_overall_timestamp so the chat
+    // moves to the top of the sidebar list when the reminder fires.
+    // (For new_chat reminders this is already handled when the chat is created above.)
+    // A reminder firing is a meaningful event the user should see, so it should sort the chat up
+    // just like any other system/user/assistant message.
+    let updatedChatForDispatch: import("../types/chat").Chat | null = null;
+    if (target_type === "existing_chat") {
+      try {
+        const existingChat = await chatDB.getChat(chat_id);
+        if (existingChat) {
+          const updatedChat: import("../types/chat").Chat = {
+            ...existingChat,
+            last_edited_overall_timestamp: now,
+            updated_at: now,
+          };
+          await chatDB.updateChat(updatedChat);
+          updatedChatForDispatch = updatedChat;
+          console.debug(
+            `[ChatSyncService:Reminder] Updated chat ${chat_id} last_edited_overall_timestamp for reminder system message`,
+          );
+        }
+      } catch (chatUpdateError) {
+        console.warn(
+          `[ChatSyncService:Reminder] Failed to update chat timestamp for reminder:`,
+          chatUpdateError,
+        );
+      }
+    }
+
     // Send encrypted content to server for persistence via existing system message flow
     const serverPayload = {
       chat_id: chat_id,
@@ -2169,6 +2265,7 @@ export async function handleReminderFiredImpl(
 
     // Dispatch chatUpdated event to trigger UI refresh
     // This makes the system message appear in the chat immediately
+    // Include chat object so Chats.svelte uses the in-place patch path (faster than full DB reload)
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
@@ -2176,6 +2273,7 @@ export async function handleReminderFiredImpl(
           type: "reminder_system_message_added",
           newMessage: systemMessage,
           messagesUpdated: true,
+          ...(updatedChatForDispatch ? { chat: updatedChatForDispatch } : {}),
         },
       }),
     );
