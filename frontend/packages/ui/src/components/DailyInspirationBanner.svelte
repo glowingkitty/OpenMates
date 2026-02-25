@@ -34,7 +34,7 @@
 
   // ─── Lucide icons ────────────────────────────────────────────────────────────
 
-  import { getLucideIcon } from '../utils/categoryUtils';
+  import { getLucideIcon, getValidIconName } from '../utils/categoryUtils';
 
   const BookOpen = getLucideIcon('book-open');
   const ChevronLeft = getLucideIcon('chevron-left');
@@ -116,6 +116,17 @@
     if (!current) return '';
     if (current.embed_id) return current.embed_id;
     return current.video?.youtube_id ? `youtube-${current.video.youtube_id}` : '';
+  });
+
+  /**
+   * Lucide icon component for the current inspiration's category.
+   * Used for the large decorative icons at the left and right edges of the banner,
+   * mirroring the same visual treatment as ChatHeader.svelte's deco-icon elements.
+   */
+  let CategoryIconComponent = $derived.by(() => {
+    if (!current) return null;
+    const iconName = getValidIconName('', current.category);
+    return getLucideIcon(iconName);
   });
 
   /**
@@ -241,6 +252,18 @@
       tabindex="0"
       aria-label={current.phrase}
     >
+      <!-- ── Large decorative category icons at left and right edges (126×126px, 0.4 opacity).
+           These sit outside .banner-inner so they are not constrained by the 680px inner width.
+           On smaller viewports they will be partially clipped by overflow:hidden — intentional. ── -->
+      {#if CategoryIconComponent}
+        <div class="deco-icon deco-icon-left">
+          <CategoryIconComponent size={126} color="white" />
+        </div>
+        <div class="deco-icon deco-icon-right">
+          <CategoryIconComponent size={126} color="white" />
+        </div>
+      {/if}
+
       <!-- ── Centered inner content wrapper (max-width 680px) ── -->
       <div class="banner-inner">
 
@@ -605,6 +628,52 @@
   .carousel-arrow-right {
     right: 0;
     border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
+  }
+
+  /* ── Large decorative icons at banner edges ──
+     Mirrors the .deco-icon treatment in ChatHeader.svelte.
+     Positioned absolutely outside .banner-inner (which has max-width 680px),
+     so they sit at the edges of the full-width card.
+     overflow:hidden on .daily-inspiration-banner clips them at the card boundary,
+     which is acceptable — they're purely decorative visual texture.
+     Entrance animation: fade up from +50px below, settles at 0.4 opacity. */
+  .deco-icon {
+    position: absolute;
+    width: 126px;
+    height: 126px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    pointer-events: none;
+    animation: decoIconEnter 0.6s ease-out 0.1s both;
+  }
+
+  .deco-icon-left {
+    /* Anchored just outside the center content block (max-width 680px, half=340px).
+       Offset inward by 20px so the icon sits close to the content edge. */
+    left: calc(50% - 340px - 106px);
+    bottom: -15px;
+    transform: rotate(-15deg);
+    --deco-rotate: -15deg;
+  }
+
+  .deco-icon-right {
+    right: calc(50% - 340px - 106px);
+    bottom: -15px;
+    transform: rotate(15deg);
+    --deco-rotate: 15deg;
+  }
+
+  @keyframes decoIconEnter {
+    from {
+      opacity: 0;
+      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
+    }
+    to {
+      opacity: 0.4;
+      transform: translateY(0) rotate(var(--deco-rotate, 0deg));
+    }
   }
 
   /* ── Mobile adjustments (≤730px) ── */
