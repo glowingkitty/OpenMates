@@ -2,6 +2,7 @@
 #
 # Requirements for the uploads microservice.
 # Includes core API deps plus uploads-specific packages.
+# cache-bust: 2026-02-25
 
 # --- Core framework (same as core API) ---
 fastapi==0.128.0
