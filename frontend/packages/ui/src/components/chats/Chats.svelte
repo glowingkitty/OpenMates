@@ -883,6 +883,14 @@ const UPDATE_DEBOUNCE_MS = 300;
 		// Update the chat list to show the synced chat in the sidebar
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
+
+		// Trigger the inspiration fallback right after Phase 1 completes.
+		// If Phase 1 already populated the store this is a no-op (the function exits
+		// immediately when inspirations.length > 0). If Phase 1 failed to set the
+		// store (decryption error, empty payload, etc.) we kick off the API fallback
+		// now instead of waiting until phasedSyncComplete (Phase 3), which avoids
+		// the user seeing the banner empty for the entire Phase 2 + Phase 3 window.
+		syncInspirationLoginFallback();
 	};
 
 	/**

@@ -505,68 +505,68 @@ export async function handlePhase1LastChatImpl(
       );
     }
 
-    // Handle daily inspirations synced in Phase 1 (mirrors new_chat_suggestions pattern)
+    // Handle daily inspirations synced in Phase 1 (mirrors new_chat_suggestions pattern).
     // Raw encrypted Directus records are decrypted and saved to IndexedDB here so inspirations
-    // are available immediately after login without waiting for the 5-second fallback fetch.
-    if (payload.daily_inspirations && payload.daily_inspirations.length > 0) {
-      console.info(
-        "[ChatSyncService:CoreSync] Processing",
-        payload.daily_inspirations.length,
-        "daily inspirations from Phase 1 sync",
-      );
-      try {
-        const { processInspirationRecordsFromSync } =
-          await import("./dailyInspirationDB");
-        const savedInspirations = await processInspirationRecordsFromSync(
-          payload.daily_inspirations,
-        );
+    // are available immediately after login without waiting for the fallback fetch.
+    // Import the store once upfront so both the success and empty branches can use it without
+    // an extra async microtask gap before calling setInspirations / markPhase1Empty.
+    try {
+      const { dailyInspirationStore } =
+        await import("../stores/dailyInspirationStore");
 
-        // Populate the store so UI updates immediately (only if not already set)
-        if (savedInspirations && savedInspirations.length > 0) {
-          const { dailyInspirationStore } =
-            await import("../stores/dailyInspirationStore");
-          const { get } = await import("svelte/store");
-          const currentState = get(dailyInspirationStore);
-          if (
-            !currentState.inspirations ||
-            currentState.inspirations.length === 0
-          ) {
-            dailyInspirationStore.setInspirations(savedInspirations);
-            console.info(
-              "[ChatSyncService:CoreSync] ✅ Daily inspiration store populated with",
-              savedInspirations.length,
-              "inspirations from Phase 1 sync",
-            );
-          } else {
-            console.info(
-              "[ChatSyncService:CoreSync] ✅ Daily inspirations already in store, skipping store update",
-            );
+      if (payload.daily_inspirations && payload.daily_inspirations.length > 0) {
+        console.info(
+          "[ChatSyncService:CoreSync] Processing",
+          payload.daily_inspirations.length,
+          "daily inspirations from Phase 1 sync",
+        );
+        try {
+          const { processInspirationRecordsFromSync } =
+            await import("./dailyInspirationDB");
+          const savedInspirations = await processInspirationRecordsFromSync(
+            payload.daily_inspirations,
+          );
+
+          // Populate the store so UI updates immediately (only if not already set).
+          // Check store state inline without an extra dynamic import of svelte/store.
+          if (savedInspirations && savedInspirations.length > 0) {
+            const { get } = await import("svelte/store");
+            const currentState = get(dailyInspirationStore);
+            if (
+              !currentState.inspirations ||
+              currentState.inspirations.length === 0
+            ) {
+              dailyInspirationStore.setInspirations(savedInspirations);
+              console.info(
+                "[ChatSyncService:CoreSync] ✅ Daily inspiration store populated with",
+                savedInspirations.length,
+                "inspirations from Phase 1 sync",
+              );
+            } else {
+              console.info(
+                "[ChatSyncService:CoreSync] ✅ Daily inspirations already in store, skipping store update",
+              );
+            }
           }
+        } catch (inspirationError) {
+          console.error(
+            "[ChatSyncService:CoreSync] Error processing daily inspirations from Phase 1 sync:",
+            inspirationError,
+          );
         }
-      } catch (inspirationError) {
-        console.error(
-          "[ChatSyncService:CoreSync] Error processing daily inspirations from Phase 1 sync:",
-          inspirationError,
+      } else {
+        // Phase 1 delivered zero inspirations — the server has none stored for this user.
+        // Signal the fallback in Chats.svelte to use a shorter wait (1 s instead of 3.5 s).
+        console.warn(
+          "[ChatSyncService:CoreSync] ⚠️ No daily inspirations received in Phase 1 — marking phase1Empty so fallback uses 1 s wait instead of 3.5 s",
         );
-      }
-    } else {
-      // Phase 1 delivered zero inspirations — the server has none stored for this user.
-      // Signal the fallback in Chats.svelte to use a shorter wait (1 s instead of 5 s):
-      // only fresh WS-delivered inspirations (Path C, asyncio.sleep(3)) can still arrive,
-      // so we just need 1 extra second of headroom past Phase 1 completion.
-      console.warn(
-        "[ChatSyncService:CoreSync] ⚠️ No daily inspirations received in Phase 1 — marking phase1Empty so fallback uses 1 s wait instead of 5 s",
-      );
-      try {
-        const { dailyInspirationStore } =
-          await import("../stores/dailyInspirationStore");
         dailyInspirationStore.markPhase1Empty();
-      } catch (markErr) {
-        console.error(
-          "[ChatSyncService:CoreSync] Failed to mark phase1Empty on inspiration store:",
-          markErr,
-        );
       }
+    } catch (storeImportErr) {
+      console.error(
+        "[ChatSyncService:CoreSync] Failed to import dailyInspirationStore in Phase 1:",
+        storeImportErr,
+      );
     }
 
     // CRITICAL: Save embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
