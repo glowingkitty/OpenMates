@@ -177,6 +177,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             is_existing_chat = chat_has_title_from_client
             logger.debug(f"Chat {chat_id} not found in DB, using client flag chat_has_title: {chat_has_title_from_client}")
 
+        # SAFETY NET: If the DB already has title_v > 0 but the client sent chat_has_title=False,
+        # the client state is stale (e.g., inspiration chats created before the title_v: 1 fix).
+        # Trust the server's title_v over the client flag to prevent overwriting existing titles.
+        # This protects against any future client-side bug causing the same mismatch.
+        if chat_metadata_from_db and chat_metadata_from_db.get("title_v", 0) > 0 and not chat_has_title_from_client:
+            logger.info(
+                f"Chat {chat_id} has title_v={chat_metadata_from_db.get('title_v')} in DB "
+                f"but client sent chat_has_title=False. Overriding to True to preserve existing title."
+            )
+            chat_has_title_from_client = True
+
         # Validate required fields
         if not message_id or not role or content_plain is None or not created_at:
             logger.error(f"Missing fields in message data from {user_id}/{device_fingerprint_hash}: message_id={message_id}, role={role}, content_exists={content_plain is not None}, timestamp_exists={created_at is not None}")

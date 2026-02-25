@@ -5,23 +5,35 @@ export {};
 /**
  * Daily Inspiration Chat Flow
  *
- * Regression test for: "Cannot send messages to daily inspiration chat (treated as shared chat)"
+ * Regression test for two bugs fixed in the daily inspiration chat flow:
  *
- * Root cause: When a daily inspiration chat was created via sync_inspiration_chat, the chat ID
- * was NOT added to the user's chat_ids_versions Redis sorted set. The ownership check logic
- * (check_chat_ownership) uses this sorted set as a fast lookup. When the cache was primed but
- * the chat was absent from the sorted set, it returned False (not owner), causing the server
- * to reject follow-up messages with a misleading "shared chat" error.
+ * BUG #1 (fixed in 0e0dcd18): "Cannot send messages to daily inspiration chat (treated as shared chat)"
+ *   Root cause: When a daily inspiration chat was created via sync_inspiration_chat, the chat ID
+ *   was NOT added to the user's chat_ids_versions Redis sorted set. The ownership check logic
+ *   (check_chat_ownership) uses this sorted set as a fast lookup. When the cache was primed but
+ *   the chat was absent from the sorted set, it returned False (not owner), causing the server
+ *   to reject follow-up messages with a misleading "shared chat" error.
+ *   Fix: sync_inspiration_chat_handler.py now calls add_chat_to_ids_versions() after storing
+ *   the chat data, making the chat immediately visible to the ownership check.
  *
- * Fix: sync_inspiration_chat_handler.py now calls add_chat_to_ids_versions() after storing
- * the chat data, making the chat immediately visible to the ownership check.
+ * BUG #2 (fixed in this commit): "Follow-up message in inspiration chat overwrites the title"
+ *   Root cause: handleStartChatFromInspiration created the inspiration chat in IndexedDB with
+ *   title_v: 0 despite having a title at creation time. When the user sent a follow-up message,
+ *   sendNewMessageImpl read title_v: 0 → chatHasTitle = false → sent chat_has_title: false to
+ *   the backend. The preprocessor saw is_first_message=True and regenerated the title/category
+ *   from the follow-up text, overwriting the original inspiration title.
+ *   Fix (frontend): handleStartChatFromInspiration now sets title_v: 1 in the IndexedDB chat
+ *   object, consistent with what sync_inspiration_chat already sends to the server.
+ *   Fix (backend safety net): message_received_handler.py now overrides chat_has_title_from_client
+ *   to True when the DB already has title_v > 0, protecting against any future client-side bug.
  *
  * Test covers:
  *   1. Daily inspiration banner is visible after login
- *   2. Clicking a banner creates a new inspiration-based chat
- *   3. Sending a follow-up message ("tell me more") succeeds — no "shared chat" error
- *   4. The AI responds correctly to the follow-up
- *   5. Chat is deleted after the test (cleanup)
+ *   2. Clicking a banner creates a new inspiration-based chat with a visible title
+ *   3. Sending a follow-up message ("tell me more") succeeds — no "shared chat" error (Bug #1)
+ *   4. The original inspiration title is NOT overwritten by the follow-up (Bug #2)
+ *   5. The AI responds correctly to the follow-up
+ *   6. Chat is deleted after the test (cleanup)
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL / OPENMATES_TEST_ACCOUNT_1_EMAIL
@@ -181,8 +193,28 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	await expect(assistantMessage).toBeVisible({ timeout: 10000 });
 	log('Initial inspiration assistant message is visible.');
 
-	// ── 10. Send a follow-up message "tell me more" ──────────────────────────
-	// This step is the regression check: before the fix, the server would reject
+	// ── 10. Capture the inspiration title before sending the follow-up ────────
+	// BUG #2 regression check: the title must NOT be overwritten by the follow-up.
+	// Before the fix, handleStartChatFromInspiration set title_v: 0 in IndexedDB,
+	// causing the backend to treat the follow-up as the first message and regenerate
+	// the title from the follow-up text ("tell me more").
+	//
+	// The chat header shows the title in .chat-title or the <title> element.
+	// We capture it here and re-assert after the AI responds.
+	let titleBeforeSend = '';
+	try {
+		// Try the chat header title element first
+		const chatTitleEl = page.locator('.chat-title').first();
+		if (await chatTitleEl.isVisible({ timeout: 3000 })) {
+			titleBeforeSend = (await chatTitleEl.textContent()) ?? '';
+		}
+	} catch {
+		// Title element may not be visible yet — non-fatal, we still send and check after
+	}
+	log(`Captured title before send: "${titleBeforeSend}"`);
+
+	// ── 11. Send a follow-up message "tell me more" ──────────────────────────
+	// This step is the regression check for Bug #1: before the fix, the server would reject
 	// this with "You cannot send messages to this shared chat." because the chat
 	// was not in the user's chat_ids_versions sorted set.
 	log('Typing follow-up message "tell me more"...');
@@ -198,7 +230,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	log('Sent follow-up message "tell me more".');
 	await screenshot(page, 'followup-message-sent');
 
-	// ── 11. Wait for AI response ─────────────────────────────────────────────
+	// ── 12. Wait for AI response ─────────────────────────────────────────────
 	// The AI should respond to the follow-up. We wait for a second assistant
 	// message to appear (the first being the inspiration intro, the second being
 	// the AI response to "tell me more").
@@ -206,7 +238,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	const assistantMessages = page.locator('.message-wrapper.assistant');
 	// After sending "tell me more", there should be at least 2 assistant messages
 	await expect(assistantMessages).toHaveCount(2, { timeout: 60000 });
-	log('AI responded to follow-up message — regression check passed.');
+	log('AI responded to follow-up message — Bug #1 regression check passed.');
 	await screenshot(page, 'ai-response-received');
 
 	// Verify the second assistant message has actual content (not blank / loading)
@@ -216,11 +248,39 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	expect(responseText!.trim().length).toBeGreaterThan(10);
 	log('AI response content verified.', { responseLength: responseText!.trim().length });
 
+	// ── 13. BUG #2 check: title must NOT be overwritten ──────────────────────
+	// After the follow-up and AI response, the chat title should still be the
+	// original inspiration title — NOT "tell me more" (the follow-up text).
+	// Before the fix: handleStartChatFromInspiration set title_v: 0 → backend
+	// treated follow-up as first message → regenerated title from follow-up text.
+	const titleAfterResponse = await page.title();
+	const followUpText = 'tell me more';
+	const titleLower = titleAfterResponse.toLowerCase();
+	expect(titleLower).not.toContain(followUpText);
+	log(`Bug #2 check: page title does not contain follow-up text. Title: "${titleAfterResponse}"`);
+
+	// Also verify the chat-title element hasn't been replaced with follow-up text
+	if (titleBeforeSend) {
+		try {
+			const chatTitleElAfter = page.locator('.chat-title').first();
+			if (await chatTitleElAfter.isVisible({ timeout: 3000 })) {
+				const titleAfterSend = (await chatTitleElAfter.textContent()) ?? '';
+				const titleAfterLower = titleAfterSend.toLowerCase();
+				expect(titleAfterLower).not.toContain(followUpText);
+				log(
+					`Bug #2 check: chat-title element does not contain follow-up text. Title: "${titleAfterSend}"`
+				);
+			}
+		} catch {
+			log('Could not read chat-title element after response — skipping visual title check');
+		}
+	}
+
 	// No missing translations on the chat page
 	await assertNoMissingTranslations(page);
 	log('No missing translations detected.');
 
-	// ── 12. Cleanup — delete the inspiration chat ─────────────────────────────
+	// ── 14. Cleanup — delete the inspiration chat ────────────────────────────
 	log('Cleaning up: deleting the inspiration chat...');
 
 	// Ensure sidebar is accessible

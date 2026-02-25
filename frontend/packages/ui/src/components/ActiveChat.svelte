@@ -4027,6 +4027,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const encryptedCategory = await encryptWithChatKey(inspiration.category, chatKey);
 
             // Build the Chat object (mirrors the shape used by reminder handler)
+            // IMPORTANT: title_v is set to 1 (not 0) because the inspiration chat already has a title
+            // at creation time. Setting title_v: 0 would cause the follow-up message handler to treat
+            // this as a brand-new chat (no title yet), triggering title regeneration that overwrites
+            // the original inspiration title. title_v: 1 matches what sync_inspiration_chat sends to
+            // the server (chatSyncServiceSenders.ts → sendSyncInspirationChatImpl: title_v: 1).
             const newChat = {
                 chat_id: chatId,
                 title: chatTitle,        // Short title for sidebar display
@@ -4034,7 +4039,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 created_at: now,
                 updated_at: now,
                 messages_v: 0,
-                title_v: 0,
+                title_v: 1,
                 last_edited_overall_timestamp: now,
                 unread_count: 0,
                 encrypted_category: encryptedCategory,
