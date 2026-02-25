@@ -511,15 +511,16 @@
   }
 
   .deco-icon-left {
-    /* 60px inward from the left edge, partially below the banner baseline */
-    left: 60px;
+    /* Anchored just outside the center content block (max-width 480px, half=240px).
+       Offset inward by 20px extra so the icon sits close to the content, not the edge. */
+    left: calc(50% - 240px - 106px);
     bottom: -15px;
     transform: rotate(-15deg);
   }
 
   .deco-icon-right {
-    /* 60px inward from the right edge, partially below the banner baseline */
-    right: 60px;
+    /* Mirror of deco-icon-left */
+    right: calc(50% - 240px - 106px);
     bottom: -15px;
     transform: rotate(15deg);
   }
@@ -647,11 +648,12 @@
     }
 
     .deco-icon-left {
-      left: 30px;
+      /* On mobile: content max-width 360px (half=180px), icon 90px */
+      left: calc(50% - 180px - 70px);
     }
 
     .deco-icon-right {
-      right: 30px;
+      right: calc(50% - 180px - 70px);
     }
   }
 </style>
