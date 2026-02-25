@@ -2,20 +2,20 @@
 #
 # Requirements for the uploads microservice.
 # Includes core API deps plus uploads-specific packages.
-# cache-bust: 2026-02-25
+# cache-bust: 2026-02-25b
 
 # --- Core framework (same as core API) ---
-fastapi==0.128.0
-uvicorn[standard]==0.40.0
-pydantic==2.11.3
+fastapi==0.133.0
+uvicorn[standard]==0.41.0
+pydantic==2.12.5
 httpx==0.28.1
-python-dotenv==1.1.0
+python-dotenv==1.2.1
 redis==5.2.1
 slowapi==0.1.9
 python-json-logger==3.3.0
-pyyaml==6.0.2
+pyyaml==6.0.3
 aiohttp==3.13.3
-boto3==1.37.18
+boto3==1.42.56
 python-multipart==0.0.22
 cryptography==46.0.5
 toon-format @ git+https://github.com/toon-format/toon-python.git
@@ -33,4 +33,4 @@ pyclamd==0.4.0
 python-magic==0.4.27
 # PDF processing: page count extraction (no rendering required at upload time)
 # Full rendering (screenshots) happens in the pdf app worker after upload
-pymupdf==1.25.5
+pymupdf==1.27.1
