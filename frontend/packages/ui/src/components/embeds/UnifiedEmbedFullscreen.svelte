@@ -34,6 +34,7 @@
   import { settingsMenuVisible } from '../Settings.svelte';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import { chatSyncService } from '../../services/chatSyncService';
+  import { searchTextHighlightStore } from '../../stores/messageHighlightStore';
   
   // Animation state: controls both open and close animations via CSS classes
   // - false: collapsed state (initial + closing)
@@ -698,6 +699,123 @@
       embedUpdateListener = null;
     }
   });
+
+  // ============================================
+  // Search Text Highlighting (in embed fullscreen)
+  // ============================================
+
+  /** Reference to the scrollable content area — TreeWalker is rooted here */
+  let contentAreaElement = $state<HTMLElement | undefined>(undefined);
+
+  /**
+   * Search text highlighting for embed fullscreen.
+   * When search is open and has a query, walks all text nodes inside the .content-area
+   * and wraps matches in <mark class="search-match"> elements (same as ChatMessage).
+   *
+   * Embed content often loads asynchronously (markdown-it, highlight.js, etc.), so we
+   * use a MutationObserver to re-apply highlights whenever child nodes change. The observer
+   * is debounced with requestAnimationFrame to avoid excessive re-runs on rapid DOM mutations.
+   */
+  $effect(() => {
+    const query = $searchTextHighlightStore;
+    const container = contentAreaElement;
+
+    function removeExistingMarks(el: HTMLElement) {
+      const marks = Array.from(el.querySelectorAll('mark.search-match'));
+      for (const mark of marks) {
+        const parent = mark.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+          parent.normalize();
+        }
+      }
+    }
+
+    function applyHighlights(el: HTMLElement, q: string) {
+      if (!el.isConnected) return;
+      removeExistingMarks(el);
+      if (!q || !q.trim()) return;
+
+      const lowerQuery = q.toLowerCase().trim();
+
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+      const textNodes: Text[] = [];
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        // Skip aria-hidden elements (e.g. doc page-break spacers, line number columns)
+        let ancestor = node.parentElement;
+        let skip = false;
+        while (ancestor && ancestor !== el) {
+          if (ancestor.getAttribute('aria-hidden') === 'true') { skip = true; break; }
+          ancestor = ancestor.parentElement;
+        }
+        if (!skip) textNodes.push(node as Text);
+      }
+
+      for (const textNode of textNodes) {
+        const textContent = textNode.textContent || '';
+        const lowerContent = textContent.toLowerCase();
+        if (lowerContent.indexOf(lowerQuery) === -1) continue;
+
+        const fragment = document.createDocumentFragment();
+        let lastIdx = 0;
+        let searchFrom = 0;
+
+        while (searchFrom < lowerContent.length) {
+          const idx = lowerContent.indexOf(lowerQuery, searchFrom);
+          if (idx === -1) break;
+          if (idx > lastIdx) {
+            fragment.appendChild(document.createTextNode(textContent.slice(lastIdx, idx)));
+          }
+          const mark = document.createElement('mark');
+          mark.className = 'search-match';
+          mark.textContent = textContent.slice(idx, idx + lowerQuery.length);
+          fragment.appendChild(mark);
+          lastIdx = idx + lowerQuery.length;
+          searchFrom = lastIdx;
+        }
+
+        if (lastIdx < textContent.length) {
+          fragment.appendChild(document.createTextNode(textContent.slice(lastIdx)));
+        }
+
+        textNode.parentNode?.replaceChild(fragment, textNode);
+      }
+    }
+
+    if (!container) return;
+
+    if (!query || !query.trim()) {
+      removeExistingMarks(container);
+      return;
+    }
+
+    // Apply highlights immediately (covers content already in DOM)
+    let rafHandle: number | null = null;
+    rafHandle = requestAnimationFrame(() => {
+      applyHighlights(container, query);
+    });
+
+    // MutationObserver: re-apply highlights when embed content loads/changes asynchronously
+    // (e.g. markdown-it, highlight.js, or async embed child loading updating the DOM).
+    // Debounce via rAF to avoid excessive re-runs on rapid DOM mutations.
+    let mutationRafHandle: number | null = null;
+    const observer = new MutationObserver(() => {
+      if (mutationRafHandle !== null) return; // already pending
+      mutationRafHandle = requestAnimationFrame(() => {
+        mutationRafHandle = null;
+        applyHighlights(container, query);
+      });
+    });
+    observer.observe(container, { childList: true, subtree: true, characterData: true });
+
+    return () => {
+      if (rafHandle !== null) cancelAnimationFrame(rafHandle);
+      if (mutationRafHandle !== null) cancelAnimationFrame(mutationRafHandle);
+      observer.disconnect();
+      if (container.isConnected) removeExistingMarks(container);
+    };
+  });
 </script>
 
 <div
@@ -844,7 +962,7 @@
     {/if}
     
     <!-- Main content area (scrollable) - with defensive guard -->
-    <div class="content-area">
+    <div class="content-area" bind:this={contentAreaElement}>
       {#if content}
         <!-- Pass child embed context to content snippet -->
         {@render content(childEmbedContext)}
@@ -1181,6 +1299,27 @@
     color: var(--color-grey-70);
     font-size: 16px;
     text-align: center;
+  }
+
+  /* ============================================
+     Search Text Highlighting inside embed fullscreen
+     ============================================ */
+
+  /* <mark class="search-match"> injected via DOM TreeWalker from the search highlight $effect.
+   * Yellow background highlight, matching in-chat search marks in ChatMessage.svelte.
+   * Must override the global `mark` rule in fonts.css which uses -webkit-text-fill-color:transparent
+   * (gradient text effect). That property takes priority over `color` in WebKit/Blink, making
+   * text invisible unless we explicitly reset -webkit-text-fill-color here. */
+  .content-area :global(mark.search-match) {
+    background: none;
+    background-color: rgba(255, 213, 0, 0.4);
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
   }
 </style>
 

@@ -622,29 +622,33 @@
     margin-right: 4px;
   }
 
-  /* <mark> inside snippets — highlight color matching Figma (primary accent).
+  /* <mark> inside snippets — yellow background highlight, matching in-chat search marks.
    * Must override the global `mark` rule in fonts.css which uses -webkit-text-fill-color:transparent
    * (gradient text effect). That property takes priority over `color` in WebKit/Blink browsers,
    * making text invisible unless we explicitly reset -webkit-text-fill-color here. */
   .message-snippet :global(mark) {
     background: none;
-    background-color: transparent;
+    background-color: rgba(255, 213, 0, 0.4);
     -webkit-background-clip: unset;
     background-clip: unset;
     -webkit-text-fill-color: unset;
-    color: var(--color-primary-start);
-    font-weight: 600;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
   }
 
   /* <mark> inside setting/app labels */
   .item-label :global(mark) {
     background: none;
-    background-color: transparent;
+    background-color: rgba(255, 213, 0, 0.4);
     -webkit-background-clip: unset;
     background-clip: unset;
     -webkit-text-fill-color: unset;
-    color: var(--color-primary-start);
-    font-weight: 700;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
   }
 
   /* No results message */

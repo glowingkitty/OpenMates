@@ -2186,11 +2186,17 @@
     margin-bottom: 2px;
   }
 
-  /* Highlight styling for search match <mark> tags within the title */
+  /* Highlight styling for search match <mark> tags within the title — yellow background */
   .chat-title :global(mark) {
-    background-color: transparent;
-    color: var(--color-primary-start);
-    font-weight: 700;
+    background: none;
+    background-color: rgba(255, 213, 0, 0.4);
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
   }
 
   .pin-indicator {

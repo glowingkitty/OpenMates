@@ -541,6 +541,14 @@
         
         // Apply PII highlighting decorations after editor is created
         applyPIIDecorations(editor);
+
+        // Signal to parent (ChatMessage) that content is now in the DOM.
+        // ChatMessage listens for this event to re-trigger search text highlighting.
+        // The IntersectionObserver lazy-init means the editor may be created AFTER
+        // ChatMessage's $effect already fired and found no text nodes to highlight.
+        if (editorElement) {
+            editorElement.dispatchEvent(new CustomEvent('contentready', { bubbles: true }));
+        }
     }
     
     /**

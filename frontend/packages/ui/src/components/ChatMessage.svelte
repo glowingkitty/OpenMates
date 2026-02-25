@@ -214,20 +214,32 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   // State for report button hover
   let isReportHovered = $state(false);
 
-  // State for message highlighting
-  let isHighlighted = $state(false);
+  /**
+   * Counter incremented each time ReadOnlyMessage signals that its TipTap editor has
+   * finished creating and text nodes are now in the DOM. This acts as an extra reactive
+   * dependency for the search-highlight $effect so that it re-runs even when the query
+   * and the container element have not changed (e.g. lazy IntersectionObserver init fires
+   * AFTER the highlight $effect already ran and found no text nodes to highlight).
+   */
+  let contentReadyCounter = $state(0);
 
-  // Handle message highlighting
+  /**
+   * Listener effect: attaches a 'contentready' event handler to messageContentElement.
+   * ReadOnlyMessage dispatches this event (bubbling) after createEditor() completes,
+   * which triggers the highlight $effect below to re-run via contentReadyCounter.
+   */
   $effect(() => {
-    if (original_message?.message_id && $messageHighlightStore === original_message.message_id) {
-      isHighlighted = true;
-      // Clear highlight after 0.8s (matches the CSS animation duration)
-      const timer = setTimeout(() => {
-        isHighlighted = false;
-        messageHighlightStore.set(null);
-      }, 800);
-      return () => clearTimeout(timer);
+    const container = messageContentElement;
+    if (!container) return;
+
+    function onContentReady() {
+      contentReadyCounter++;
     }
+
+    container.addEventListener('contentready', onContentReady);
+    return () => {
+      container.removeEventListener('contentready', onContentReady);
+    };
   });
 
   /**
@@ -241,10 +253,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
    * Without this deferral the TreeWalker finds no text nodes because child components
    * (e.g. ReadOnlyMessage / markdown renderer) have not yet rendered their content into
    * messageContentElement when the $effect first fires.
+   *
+   * contentReadyCounter is also tracked as a dependency so this effect re-runs when
+   * ReadOnlyMessage's lazy IntersectionObserver finally creates the TipTap editor and
+   * text nodes become available (which can happen AFTER the initial rAF already fired).
    */
   $effect(() => {
     const query = $searchTextHighlightStore;
     const container = messageContentElement;
+    // Track contentReadyCounter so the effect re-runs when ReadOnlyMessage content lands
+    const _contentReady = contentReadyCounter; // eslint-disable-line @typescript-eslint/no-unused-vars
     if (!container) return;
 
     // Cancel any previously queued (but not-yet-fired) highlight update.
@@ -351,6 +369,45 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         removeExistingMarks(container);
       }
     };
+  });
+
+  /**
+   * Handle search result click highlighting — pulse the matched text marks.
+   * When the user clicks a search result snippet, messageHighlightStore is set to
+   * this message's ID. Instead of blinking the whole message bubble, we add
+   * class 'search-match-active' to all <mark class="search-match"> elements in the
+   * message, which triggers a CSS opacity pulse animation.
+   * The class is cleared after the animation completes (~1.2s).
+   */
+  $effect(() => {
+    if (original_message?.message_id && $messageHighlightStore === original_message.message_id) {
+      const container = messageContentElement;
+      if (!container) return;
+
+      // Apply pulse to all match marks currently in the message.
+      // They may not yet exist if the highlight $effect hasn't run yet (lazy init).
+      // We queue the pulse in a rAF so that the highlight $effect has a chance to
+      // run first (it also uses rAF internally).
+      let rafHandle: number | null = null;
+      rafHandle = requestAnimationFrame(() => {
+        const marks = Array.from(container.querySelectorAll('mark.search-match'));
+        for (const mark of marks) {
+          mark.classList.add('search-match-active');
+        }
+        // Remove the active class after animation completes
+        const timer = setTimeout(() => {
+          const activeMarks = Array.from(container.querySelectorAll('mark.search-match-active'));
+          for (const mark of activeMarks) {
+            mark.classList.remove('search-match-active');
+          }
+          messageHighlightStore.set(null);
+        }, 1200);
+        return () => clearTimeout(timer);
+      });
+      return () => {
+        if (rafHandle !== null) cancelAnimationFrame(rafHandle);
+      };
+    }
   });
 
   /**
@@ -1572,7 +1629,6 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     <div 
       bind:this={messageContentElement}
       class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}" 
-      class:highlighted={isHighlighted}
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"
       oncontextmenu={handleMessageContextMenu}
@@ -1914,44 +1970,37 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     white-space: nowrap;
   }
 
-  .mate-message-content.highlighted {
-    /* Short pulse (0.8s) that returns to the normal background color.
-       Ending at var(--color-grey-0) instead of 'transparent' prevents the message
-       bubble from briefly losing its background before the animation-fill-mode reverts. */
-    animation: highlight-animation 0.8s ease-out;
-  }
-
-  @keyframes highlight-animation {
-    0% {
-      background-color: var(--color-primary-transparent, rgba(var(--color-primary-rgb), 0.2));
-      box-shadow: 0 0 15px var(--color-primary);
-    }
-    60% {
-      background-color: var(--color-primary-transparent, rgba(var(--color-primary-rgb), 0.2));
-      box-shadow: 0 0 10px var(--color-primary);
-    }
-    100% {
-      /* Return to the actual base background color (not 'transparent') so there is
-         no flash of transparent background at the end of the animation. */
-      background-color: var(--color-grey-0);
-      box-shadow: none;
-    }
-  }
+  /* Note: .mate-message-content.highlighted and @keyframes highlight-animation have been
+   * removed. Clicking a search result now highlights the matched text (mark.search-match-active)
+   * instead of blinking the entire message bubble. See match-pulse keyframes near search-match CSS. */
 
   /* In-chat search text highlighting — <mark class="search-match"> injected via DOM.
+   * Uses a yellow background highlight instead of color change.
    * Must override the global `mark` rule in fonts.css which uses -webkit-text-fill-color:transparent
    * (gradient text effect). That property takes priority over `color` in WebKit/Blink, making the
    * text invisible unless we explicitly reset it here. */
   :global(mark.search-match) {
     background: none;
-    background-color: transparent;
+    background-color: rgba(255, 213, 0, 0.4);
     /* Reset WebKit gradient-text trick from global mark rule in fonts.css */
     -webkit-background-clip: unset;
     background-clip: unset;
     -webkit-text-fill-color: unset;
-    color: var(--color-primary-start);
-    font-weight: 700;
+    color: inherit;
+    font-weight: inherit;
     border-radius: 2px;
+    padding: 1px 0;
+  }
+
+  /* When a search result is clicked, pulse the matched text to higher opacity and back */
+  :global(mark.search-match.search-match-active) {
+    animation: match-pulse 1.2s ease-out forwards;
+  }
+
+  @keyframes match-pulse {
+    0%   { background-color: rgba(255, 213, 0, 0.9); }
+    60%  { background-color: rgba(255, 213, 0, 0.9); }
+    100% { background-color: rgba(255, 213, 0, 0.4); }
   }
 
   .chat-app-cards-container.scrollable {
