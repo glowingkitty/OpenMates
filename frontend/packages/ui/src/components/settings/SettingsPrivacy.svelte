@@ -1,6 +1,6 @@
 <!--
 Privacy Settings - Main page for privacy-related settings
-Sections: Anonymization, Device Permissions, Auto Deletion
+Sections: Anonymization, Auto Deletion
 
 Based on Figma design: settings/privacy (node 1895:20576)
 -->
@@ -25,12 +25,6 @@ Based on Figma design: settings/privacy (node 1895:20576)
     personalDataStore.settings.subscribe((s) => { piiSettings = s; });
 
     let hidePersonalDataEnabled = $derived(piiSettings.masterEnabled);
-
-    // ─── Device Permission Toggles ───────────────────────────────────────────
-    // These represent browser permission states — toggling requests/revokes permission
-    let microphoneEnabled = $state(false);
-    let cameraEnabled = $state(false);
-    let locationEnabled = $state(false);
 
     // ─── Location / Maps Toggle ──────────────────────────────────────────────
     // Read from encrypted personalDataStore so the setting persists across sessions.
@@ -111,40 +105,6 @@ Based on Figma design: settings/privacy (node 1895:20576)
     hasToggle={true}
     checked={nearbyByDefault}
     onClick={() => personalDataStore.updateLocationSettings({ impreciseByDefault: !locationSettings.impreciseByDefault })}
-/>
-
-<!-- ─── Device Permissions Section ────────────────────────────────────────── -->
-<SettingsItem
-    type="heading"
-    icon="desktop"
-    title={$text('settings.privacy.device_permissions')}
-/>
-
-<SettingsItem
-    type="subsubmenu"
-    icon="recordaudio"
-    title={$text('settings.privacy.microphone')}
-    hasToggle={true}
-    checked={microphoneEnabled}
-    onClick={() => microphoneEnabled = !microphoneEnabled}
-/>
-
-<SettingsItem
-    type="subsubmenu"
-    icon="camera"
-    title={$text('settings.privacy.camera')}
-    hasToggle={true}
-    checked={cameraEnabled}
-    onClick={() => cameraEnabled = !cameraEnabled}
-/>
-
-<SettingsItem
-    type="subsubmenu"
-    icon="maps"
-    title={$text('settings.privacy.location')}
-    hasToggle={true}
-    checked={locationEnabled}
-    onClick={() => locationEnabled = !locationEnabled}
 />
 
 <!-- ─── Auto Deletion Section ─────────────────────────────────────────────── -->
