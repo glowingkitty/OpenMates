@@ -26,11 +26,15 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 # TTL constants
-# Topic suggestions: 24-hour rolling window (stale after 1 day)
-TOPIC_SUGGESTIONS_TTL_SECONDS = 86400  # 24 hours
+# Topic suggestions: 72-hour rolling window (3 days) — extended from 24h so that
+# users who chat across multiple days accumulate a richer, more diverse topic pool.
+# The TTL resets on each new write, so active users retain up to 3 days of history.
+TOPIC_SUGGESTIONS_TTL_SECONDS = 259200  # 72 hours (3 days)
 # Paid request timestamp: no TTL needed (we update on each paid request)
-# Max rolling entries for topic suggestions per user
-TOPIC_SUGGESTIONS_MAX_ENTRIES = 50
+# Max rolling entries for topic suggestions per user.
+# 3 days × ~3 chats/day × 3 phrases/chat = ~27 batches; cap at 100 phrases (~34 batches)
+# to comfortably hold 3 days of varied topics without unbounded growth.
+TOPIC_SUGGESTIONS_MAX_ENTRIES = 100
 # Delivery cache for offline users: 7 days
 PENDING_INSPIRATIONS_TTL_SECONDS = 7 * 86400  # 7 days
 # Paid request tracking: 48h so the daily job can always check the previous day
@@ -119,7 +123,7 @@ class InspirationCacheMixin:
             })
 
             # Enforce rolling cap: keep only the most recent N batches
-            # Each batch has up to 3 suggestions; 50 suggestions = ~17 batches
+            # Each batch has up to 3 suggestions; 100 suggestions = ~34 batches (3 days)
             max_batches = TOPIC_SUGGESTIONS_MAX_ENTRIES // 3 + 1
             if len(entries) > max_batches:
                 entries = entries[-max_batches:]

@@ -18,6 +18,7 @@
 #   slots at once via an array in the tool schema. This saves tokens and latency.
 
 import logging
+import random
 import time
 import uuid
 from typing import Any, Dict, List
@@ -239,11 +240,15 @@ def _build_generation_prompt(
             )
         slot_descriptions.append("\n".join(slot_lines))
 
-    # Build user interest context
+    # Build user interest context.
+    # Randomly sample up to 15 phrases from the full 3-day pool so the LLM sees
+    # a varied cross-section of the user's interests rather than always the most recent ones.
     if topic_suggestions:
+        unique_pool = list(dict.fromkeys(topic_suggestions))
+        context_sample = random.sample(unique_pool, min(15, len(unique_pool)))
         interests_text = (
             "The user's recent conversation topics (use these to personalize the inspirations):\n"
-            + "\n".join(f"- {s}" for s in topic_suggestions[:15])
+            + "\n".join(f"- {s}" for s in context_sample)
         )
     else:
         interests_text = "No user topic preferences available. Generate broadly interesting inspirations."
@@ -305,18 +310,16 @@ async def generate_inspirations(
         f"[DailyInspiration][{task_id}] Generating {count} inspiration(s) for user {user_id[:8]}..."
     )
 
-    # Step 1: Derive topic phrases to search for
-    # Use user's suggestions for diversity; fall back to generic topics
+    # Step 1: Derive topic phrases to search for.
+    # Deduplicate the full 3-day pool, then randomly sample to maximise variety —
+    # this prevents the same recent topics from always being picked across days.
     search_phrases: List[str] = []
     if topic_suggestions:
-        # Use distinct suggestions for each slot to avoid duplicates
-        used: set = set()
-        for suggestion in topic_suggestions:
-            if suggestion not in used:
-                search_phrases.append(suggestion)
-                used.add(suggestion)
-            if len(search_phrases) >= count:
-                break
+        # Deduplicate while preserving order (dict.fromkeys keeps first occurrence)
+        unique_pool = list(dict.fromkeys(topic_suggestions))
+        # Randomly sample up to `count` phrases from the entire 3-day pool
+        sample_size = min(count, len(unique_pool))
+        search_phrases = random.sample(unique_pool, sample_size)
 
     # Fill remaining slots with generic phrases if not enough suggestions
     generic_fallbacks = [
