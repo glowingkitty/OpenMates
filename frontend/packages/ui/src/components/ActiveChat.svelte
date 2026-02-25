@@ -2624,9 +2624,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
     
-    // Effect to reload follow-up suggestions when MessageInput is focused but suggestions are empty
-    // This handles the case where suggestions were stored in the database but weren't loaded
-    // in-memory (e.g., after post-processing completes but the event handler didn't fire)
+    // Effect to reload follow-up suggestions when MessageInput is focused but suggestions are empty.
+    // This handles several failure modes on page reload:
+    //   1. Key timing: loadChat ran before loadChatKeysFromDatabase completed, decryption failed
+    //   2. Stale currentChat: a chatUpdated event spread a partial object that cleared encrypted_follow_up_request_suggestions
+    //   3. Post-processing race: event fired but DB write hadn't committed yet at loadChat time
+    //
+    // Strategy: always do a fresh DB read as the authoritative source.
+    // - For cleartext (demo chats): parse from currentChat directly (no DB read needed)
+    // - For real chats: always read from IndexedDB to get the latest version, then decrypt
+    //   This avoids relying on potentially stale in-memory currentChat metadata.
     $effect(() => {
         if (messageInputFocused && !showWelcome && currentChat?.chat_id && followUpSuggestions.length === 0) {
             // CRITICAL: Skip suggestion reload if logout is in progress
@@ -2636,7 +2643,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 return;
             }
 
-            // Check for cleartext suggestions first (demo chats)
+            // Check for cleartext suggestions first (demo chats) — these are always on currentChat
             if (currentChat.follow_up_request_suggestions) {
                 console.debug('[ActiveChat] Loading cleartext follow-up suggestions for demo chat');
                 try {
@@ -2648,60 +2655,51 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } catch (error) {
                     console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', error);
                 }
-            } else if (currentChat.encrypted_follow_up_request_suggestions) {
-                // Try to reload encrypted suggestions for regular chats
-                console.debug('[ActiveChat] MessageInput focused but no suggestions - attempting to reload from database');
-                // Use an IIFE to handle async operations
-                (async () => {
-                    try {
-                        const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
-                        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                        const decryptedSuggestions = await decryptArrayWithChatKey(
-                            currentChat.encrypted_follow_up_request_suggestions, 
-                            chatKey
-                        );
-                        if (decryptedSuggestions && decryptedSuggestions.length > 0) {
-                            followUpSuggestions = decryptedSuggestions;
-                            console.info('[ActiveChat] Reloaded follow-up suggestions on focus:', decryptedSuggestions.length);
-                        }
-                    } catch (error) {
-                        console.error('[ActiveChat] Failed to reload follow-up suggestions on focus:', error);
-                    }
-                })();
             } else {
-                // Try to refresh chat from database in case it was updated
-                console.debug('[ActiveChat] No suggestions in currentChat - checking database');
+                // For all real chats: always do a fresh DB read.
+                // This is the robust path that handles key-timing races (where loadChat ran before
+                // the master key was available to decrypt the chat key), stale currentChat (where a
+                // chatUpdated spread cleared encrypted_follow_up_request_suggestions from memory),
+                // and post-processing races. By reading from IndexedDB at focus time, we use the
+                // most up-to-date data and the chat keys should be fully loaded by now.
+                console.debug('[ActiveChat] MessageInput focused, suggestions empty — reading from IndexedDB');
                 (async () => {
                     try {
                         const freshChat = await chatDB.getChat(currentChat.chat_id);
-                        // Check for cleartext suggestions first (demo chats)
+                        // Check for cleartext suggestions on fresh read (community demo chats)
                         if (freshChat?.follow_up_request_suggestions) {
                             try {
                                 const suggestions = JSON.parse(freshChat.follow_up_request_suggestions);
                                 if (suggestions && suggestions.length > 0) {
                                     followUpSuggestions = suggestions;
                                     currentChat = { ...currentChat, ...freshChat };
-                                    console.info('[ActiveChat] Loaded cleartext follow-up suggestions from fresh database read:', suggestions.length);
+                                    console.info('[ActiveChat] Loaded cleartext follow-up suggestions from fresh DB read:', suggestions.length);
                                 }
                             } catch (parseError) {
-                                console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', parseError);
+                                console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions from fresh DB read:', parseError);
                             }
                         } else if (freshChat?.encrypted_follow_up_request_suggestions) {
+                            // Use getOrGenerateChatKey: by the time the user has focused the input,
+                            // loadChatKeysFromDatabase should have completed and the correct key is cached.
                             const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
                             const { decryptArrayWithChatKey } = await import('../services/cryptoService');
                             const decryptedSuggestions = await decryptArrayWithChatKey(
-                                freshChat.encrypted_follow_up_request_suggestions, 
+                                freshChat.encrypted_follow_up_request_suggestions,
                                 chatKey
                             );
                             if (decryptedSuggestions && decryptedSuggestions.length > 0) {
                                 followUpSuggestions = decryptedSuggestions;
-                                // Also update currentChat to have the latest data
+                                // Sync currentChat so subsequent checks see the field
                                 currentChat = { ...currentChat, ...freshChat };
-                                console.info('[ActiveChat] Loaded follow-up suggestions from fresh database read:', decryptedSuggestions.length);
+                                console.info('[ActiveChat] Loaded follow-up suggestions from fresh DB read on focus:', decryptedSuggestions.length);
+                            } else {
+                                console.debug('[ActiveChat] Fresh DB read returned no decryptable suggestions for', currentChat.chat_id);
                             }
+                        } else {
+                            console.debug('[ActiveChat] No follow-up suggestions found in DB for', currentChat.chat_id);
                         }
                     } catch (error) {
-                        console.error('[ActiveChat] Failed to load suggestions from database on focus:', error);
+                        console.error('[ActiveChat] Failed to load suggestions from DB on focus:', error);
                     }
                 })();
             }
