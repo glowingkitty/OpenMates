@@ -685,7 +685,19 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
     );
     return decrypted.slice(0, 3);
   } catch (error) {
-    console.error(`${LOG_PREFIX} Failed to load inspirations from API:`, error);
+    // TypeError: Failed to fetch — network error (e.g. auth cookie not yet
+    // valid after WS reconnect, or the device is offline). This is transient
+    // and not actionable, so log at debug level to avoid noise.
+    if (error instanceof TypeError) {
+      console.debug(
+        `${LOG_PREFIX} loadInspirationsFromAPI: network error (auth cookie may not be ready yet) — ${error.message}`,
+      );
+    } else {
+      console.error(
+        `${LOG_PREFIX} Failed to load inspirations from API:`,
+        error,
+      );
+    }
     return [];
   }
 }

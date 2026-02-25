@@ -1273,6 +1273,7 @@ async def _deliver_pending_inspirations(
     manager: ConnectionManager,
     user_id: str,
     device_fingerprint_hash: str,
+    user_id_hash: str = "",
 ) -> None:
     """
     Deliver any pending Daily Inspiration items that were generated while the user was offline.
@@ -1289,6 +1290,12 @@ async def _deliver_pending_inspirations(
     race condition: the first device to ACK would clear the cache, so devices connecting later
     would find nothing pending. The delay gives all connected devices time to receive the
     broadcast. Devices that are offline will use the Directus REST API fallback on next login.
+
+    After clearing the pending cache we also invalidate the Phase 1 sync cache
+    (daily_inspirations_sync). This ensures that if the user reconnects before
+    the client has a chance to POST /v1/daily-inspirations (which repopulates
+    the sync cache via cache warming), Phase 1 will do a fresh Directus fetch
+    rather than serving whatever stale data was previously cached.
     """
     try:
         # Brief delay to let the client finish WebSocket setup and initial sync
@@ -1333,6 +1340,23 @@ async def _deliver_pending_inspirations(
             f"[PENDING_INSPIRATIONS] Delivered pending inspirations to ALL devices of user {user_id[:8]}... "
             f"and cleared pending cache after delivery delay"
         )
+
+        # Invalidate the Phase 1 sync cache so the next reconnect/login does a
+        # fresh Directus fetch. Without this, if the client hasn't yet called
+        # POST /v1/daily-inspirations (which repopulates the cache via warming),
+        # a rapid reconnect would get the old stale sync cache instead of the
+        # newly delivered inspirations.
+        if user_id_hash:
+            try:
+                await cache_service.clear_daily_inspirations_sync(user_id_hash)
+                logger.debug(
+                    f"[PENDING_INSPIRATIONS] Invalidated Phase 1 sync cache for user {user_id[:8]}..."
+                )
+            except Exception as cache_err:
+                # Non-fatal — the inspirations were already delivered
+                logger.warning(
+                    f"[PENDING_INSPIRATIONS] Could not invalidate sync cache for user {user_id[:8]}...: {cache_err}"
+                )
 
     except Exception as e:
         logger.error(
@@ -1508,7 +1532,7 @@ async def websocket_endpoint(
 
     # Deliver any Daily Inspiration items generated while the user was offline
     asyncio.create_task(
-        _deliver_pending_inspirations(cache_service, manager, user_id, device_fingerprint_hash)
+        _deliver_pending_inspirations(cache_service, manager, user_id, device_fingerprint_hash, user_id_hash)
     )
     
     # NOTE: Pending app settings/memories permission requests are no longer re-delivered

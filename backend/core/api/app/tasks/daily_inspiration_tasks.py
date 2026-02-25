@@ -24,6 +24,7 @@
 # - View tracking stores only UUIDs, not content.
 
 import asyncio
+import hashlib
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -128,6 +129,34 @@ async def generate_and_deliver_inspirations_for_user(
             exc_info=True,
         )
         return False
+
+    # ── 1b. Invalidate the Phase 1 sync cache so the next login gets a fresh ──
+    # Directus fetch (not a stale empty list).
+    #
+    # Inspirations are stored in Directus only AFTER the client receives them
+    # and calls POST /v1/daily-inspirations. At this point they live only in the
+    # pending cache. Deleting the sync cache key forces Phase 1 to do a cache
+    # miss → Directus fetch, which will be empty. But that is fine: the pending
+    # delivery path (_deliver_pending_inspirations on WS connect) runs shortly
+    # after Phase 1 and delivers the inspirations via WebSocket, and THEN they
+    # are persisted to Directus (and the sync cache is repopulated on the NEXT
+    # Phase 1 after that).
+    #
+    # Without this delete, the Phase 1 sync cache may hold a stale empty list
+    # for up to 10 minutes (the TTL), causing no inspirations to appear after
+    # login even though they exist in the pending cache.
+    try:
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        await cache_service.clear_daily_inspirations_sync(hashed_user_id)
+        logger.debug(
+            f"[DailyInspiration][{task_id}] Invalidated Phase 1 sync cache for user {user_id[:8]}... "
+            f"(will be repopulated on next Phase 1 after client ACKs inspirations)"
+        )
+    except Exception as e:
+        # Non-fatal — pending cache is the primary delivery path
+        logger.warning(
+            f"[DailyInspiration][{task_id}] Could not invalidate sync cache for user {user_id[:8]}...: {e}"
+        )
 
     # ── 2. Also try immediate broadcast for online users ──────────────────────
     # If the user is currently connected via WebSocket, broadcast immediately via

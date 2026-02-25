@@ -670,3 +670,38 @@ class InspirationCacheMixin:
                 exc_info=True,
             )
             return None
+
+    async def clear_daily_inspirations_sync(self, hashed_user_id: str) -> bool:
+        """
+        Delete the Phase 1 sync cache for daily inspirations.
+
+        Called after new inspirations are generated (so the next Phase 1 login
+        does a fresh Directus fetch rather than serving a stale empty list).
+        Also called after pending inspirations are delivered on WS reconnect so
+        the sync cache stays consistent with what the client will store.
+
+        Args:
+            hashed_user_id: SHA256 hash of user_id
+
+        Returns:
+            True on success (including key-not-found), False on Redis error
+        """
+        client = await self.client
+        if not client:
+            logger.error("[CACHE] Redis client not available for clear_daily_inspirations_sync")
+            return False
+
+        key = self._inspiration_sync_key(hashed_user_id)
+        try:
+            await client.delete(key)
+            logger.debug(
+                f"[CACHE] Cleared daily inspirations sync cache for user {hashed_user_id[:8]}..."
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                f"[CACHE] Failed to clear daily inspirations sync for user "
+                f"{hashed_user_id[:8]}...: {e}",
+                exc_info=True,
+            )
+            return False
