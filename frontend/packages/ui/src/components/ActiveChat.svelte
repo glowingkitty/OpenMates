@@ -100,6 +100,7 @@
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
     import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
+    import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import type { 
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -4824,6 +4825,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // For new chats, handleSendMessage will set isNewChatGeneratingTitle=true.
          // For existing chats, we decrypt title/category/icon below (after currentChat is set).
          resetChatHeaderState();
+
+         // Ensure the chatNavigationStore has up-to-date prev/next state even when
+         // Chats.svelte (the sidebar) has never been opened. On mobile the sidebar
+         // starts closed, so the store would otherwise have hasPrev=false/hasNext=false
+         // until the user opens the sidebar at least once.
+         updateNavFromCache(chat.chat_id);
         
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat
