@@ -5360,6 +5360,213 @@ report_issue.description_too_short:
   cs: Popis problému musí mít alespoň 10 znaků
   sv: Problembeskrivningen måste vara minst 10 tecken lång
   verified_by_human: []
+report_issue.user_flow_label:
+  context: Label for the "What did you do?" textarea in the report issue form
+  en: What did you do?
+  de: Was hast du getan?
+  zh: 你做了什么？
+  es: ¿Qué hiciste?
+  fr: Qu'avez-vous fait ?
+  pt: O que você fez?
+  ru: Что вы сделали?
+  ja: 何をしましたか？
+  ko: 어떻게 했나요?
+  it: Cosa hai fatto?
+  tr: Ne yaptınız?
+  vi: Bạn đã làm gì?
+  id: Apa yang Anda lakukan?
+  pl: Co zrobiłeś?
+  nl: Wat deed je?
+  ar: ماذا فعلت؟
+  hi: आपने क्या किया?
+  th: คุณทำอะไร?
+  cs: Co jste udělal?
+  sv: Vad gjorde du?
+  verified_by_human: []
+report_issue.user_flow_placeholder:
+  context: Placeholder text inside the "What did you do?" textarea — tells users what kind of steps to write
+  en: "e.g. I opened a chat, typed a message, then pressed send. The page froze after a few seconds."
+  de: "z.B. Ich habe einen Chat geöffnet, eine Nachricht getippt und dann auf Senden gedrückt. Die Seite ist nach einigen Sekunden eingefroren."
+  zh: "例如：我打开了聊天，输入了一条消息，然后按了发送。几秒钟后页面卡住了。"
+  es: "p.ej. Abrí un chat, escribí un mensaje y presioné enviar. La página se congeló después de unos segundos."
+  fr: "ex. J'ai ouvert un chat, tapé un message, puis appuyé sur Envoyer. La page s'est figée après quelques secondes."
+  pt: "ex. Abri um chat, digitei uma mensagem e cliquei em enviar. A página travou após alguns segundos."
+  ru: "напр. Я открыл чат, написал сообщение и нажал отправить. Через несколько секунд страница зависла."
+  ja: "例：チャットを開き、メッセージを入力して送信を押しました。数秒後にページがフリーズしました。"
+  ko: "예: 채팅을 열고 메시지를 입력한 후 전송을 눌렀습니다. 몇 초 후 페이지가 멈췄습니다."
+  it: "es. Ho aperto una chat, scritto un messaggio e premuto invia. La pagina si è bloccata dopo alcuni secondi."
+  tr: "örn. Bir sohbet açtım, mesaj yazdım ve gönder'e bastım. Birkaç saniye sonra sayfa dondu."
+  vi: "vd. Tôi mở một cuộc trò chuyện, gõ tin nhắn, rồi nhấn gửi. Trang bị đóng băng sau vài giây."
+  id: "mis. Saya membuka obrolan, mengetik pesan, lalu menekan kirim. Halaman membeku setelah beberapa detik."
+  pl: "np. Otworzyłem czat, wpisałem wiadomość, a następnie nacisnąłem wyślij. Strona zawiesiła się po kilku sekundach."
+  nl: "bijv. Ik opende een chat, typte een bericht en drukte op verzenden. De pagina bevroor na een paar seconden."
+  ar: "مثال: فتحت محادثة، كتبت رسالة ثم ضغطت إرسال. تجمدت الصفحة بعد بضع ثوانٍ."
+  hi: "उदा. मैंने एक चैट खोली, संदेश टाइप किया, फिर भेजें दबाया। कुछ सेकंड बाद पेज फ्रीज हो गया।"
+  th: "เช่น ฉันเปิดแชท พิมพ์ข้อความ แล้วกดส่ง หน้าจอค้างหลังจากนั้นไม่กี่วินาที"
+  cs: "např. Otevřel jsem chat, napsal zprávu a stiskl odeslat. Stránka zamrzla po několika sekundách."
+  sv: "t.ex. Jag öppnade en chatt, skrev ett meddelande och tryckte på skicka. Sidan frös efter några sekunder."
+  verified_by_human: []
+report_issue.user_flow_hint:
+  context: Hint text below the "What did you do?" textarea
+  en: Optional — describe the steps that led to the issue
+  de: Optional — beschreibe die Schritte, die zum Problem geführt haben
+  zh: 可选 — 描述导致问题的步骤
+  es: Opcional — describe los pasos que llevaron al problema
+  fr: Facultatif — décrivez les étapes qui ont conduit au problème
+  pt: Opcional — descreva os passos que levaram ao problema
+  ru: Необязательно — опишите шаги, которые привели к проблеме
+  ja: 任意 — 問題につながったステップを説明してください
+  ko: 선택 사항 — 문제로 이어진 단계를 설명하세요
+  it: Facoltativo — descrivi i passaggi che hanno portato al problema
+  tr: İsteğe bağlı — soruna yol açan adımları açıklayın
+  vi: Tùy chọn — mô tả các bước dẫn đến sự cố
+  id: Opsional — jelaskan langkah-langkah yang menyebabkan masalah
+  pl: Opcjonalne — opisz kroki, które doprowadziły do problemu
+  nl: Optioneel — beschrijf de stappen die tot het probleem leidden
+  ar: اختياري — اشرح الخطوات التي أدت إلى المشكلة
+  hi: वैकल्पिक — उन चरणों का वर्णन करें जो समस्या का कारण बने
+  th: ไม่บังคับ — อธิบายขั้นตอนที่นำไปสู่ปัญหา
+  cs: Volitelné — popište kroky, které vedly k problému
+  sv: Valfritt — beskriv stegen som ledde till problemet
+  verified_by_human: []
+report_issue.expected_behaviour_label:
+  context: Label for the "What did you expect to happen?" textarea in the report issue form
+  en: What did you expect to happen?
+  de: Was hast du erwartet?
+  zh: 你期望发生什么？
+  es: ¿Qué esperabas que pasara?
+  fr: Qu'est-ce que vous attendiez ?
+  pt: O que você esperava que acontecesse?
+  ru: Что вы ожидали?
+  ja: 何が起こると思っていましたか？
+  ko: 어떤 결과를 예상했나요?
+  it: Cosa ti aspettavi che accadesse?
+  tr: Ne olmasını bekliyordunuz?
+  vi: Bạn mong đợi điều gì xảy ra?
+  id: Apa yang Anda harapkan terjadi?
+  pl: Czego się spodziewałeś?
+  nl: Wat verwachtte je dat er zou gebeuren?
+  ar: ماذا توقعت أن يحدث؟
+  hi: आप क्या होने की उम्मीद कर रहे थे?
+  th: คุณคาดหวังว่าจะเกิดอะไรขึ้น?
+  cs: Co jste očekával, že se stane?
+  sv: Vad förväntade du dig skulle hända?
+  verified_by_human: []
+report_issue.expected_behaviour_placeholder:
+  context: Placeholder text inside the "Expected behaviour" textarea — gives an example of a good answer
+  en: "e.g. The message should have been sent and the chat should have continued normally."
+  de: "z.B. Die Nachricht hätte gesendet werden sollen und der Chat hätte normal weiterlaufen sollen."
+  zh: "例如：消息应该已发送，聊天应该正常继续。"
+  es: "p.ej. El mensaje debería haberse enviado y el chat debería haber continuado normalmente."
+  fr: "ex. Le message aurait dû être envoyé et le chat aurait dû continuer normalement."
+  pt: "ex. A mensagem deveria ter sido enviada e o chat deveria ter continuado normalmente."
+  ru: "напр. Сообщение должно было быть отправлено, и чат должен был продолжиться в обычном режиме."
+  ja: "例：メッセージが送信され、チャットが通常通り続くはずでした。"
+  ko: "예: 메시지가 전송되고 채팅이 정상적으로 계속되어야 했습니다."
+  it: "es. Il messaggio avrebbe dovuto essere inviato e la chat avrebbe dovuto continuare normalmente."
+  tr: "örn. Mesaj gönderilmeli ve sohbet normal şekilde devam etmeliydi."
+  vi: "vd. Tin nhắn nên được gửi và cuộc trò chuyện tiếp tục bình thường."
+  id: "mis. Pesan seharusnya terkirim dan obrolan seharusnya berlanjut dengan normal."
+  pl: "np. Wiadomość powinna zostać wysłana, a czat powinien działać normalnie."
+  nl: "bijv. Het bericht had verstuurd moeten worden en de chat had normaal moeten doorgaan."
+  ar: "مثال: كان يجب أن تُرسل الرسالة وأن تستمر المحادثة بشكل طبيعي."
+  hi: "उदा. संदेश भेजा जाना चाहिए था और चैट सामान्य रूप से जारी रहनी चाहिए थी।"
+  th: "เช่น ข้อความควรถูกส่ง และแชทควรดำเนินต่อไปตามปกติ"
+  cs: "např. Zpráva měla být odeslána a chat měl pokračovat normálně."
+  sv: "t.ex. Meddelandet borde ha skickats och chatten borde ha fortsatt normalt."
+  verified_by_human: []
+report_issue.expected_behaviour_hint:
+  context: Hint text below the "Expected behaviour" textarea
+  en: Optional — what should have happened instead?
+  de: Optional — was hätte stattdessen passieren sollen?
+  zh: 可选 — 应该发生什么？
+  es: Opcional — ¿qué debería haber pasado?
+  fr: Facultatif — qu'est-ce qui aurait dû se passer ?
+  pt: Opcional — o que deveria ter acontecido?
+  ru: Необязательно — что должно было произойти?
+  ja: 任意 — 代わりに何が起こるべきでしたか？
+  ko: 선택 사항 — 대신 어떤 결과가 있어야 했나요?
+  it: Facoltativo — cosa sarebbe dovuto succedere invece?
+  tr: İsteğe bağlı — bunun yerine ne olması gerekirdi?
+  vi: Tùy chọn — điều gì đáng lẽ phải xảy ra?
+  id: Opsional — apa yang seharusnya terjadi?
+  pl: Opcjonalne — co powinno się stać zamiast tego?
+  nl: Optioneel — wat had er in plaats daarvan moeten gebeuren?
+  ar: اختياري — ماذا كان ينبغي أن يحدث بدلاً من ذلك؟
+  hi: वैकल्पिक — इसके बजाय क्या होना चाहिए था?
+  th: ไม่บังคับ — ควรเกิดอะไรขึ้นแทน?
+  cs: Volitelné — co se místo toho mělo stát?
+  sv: Valfritt — vad borde ha hänt istället?
+  verified_by_human: []
+report_issue.actual_behaviour_label:
+  context: Label for the "What actually happened?" textarea in the report issue form
+  en: What actually happened?
+  de: Was ist tatsächlich passiert?
+  zh: 实际发生了什么？
+  es: ¿Qué pasó realmente?
+  fr: Qu'est-ce qui s'est passé en réalité ?
+  pt: O que realmente aconteceu?
+  ru: Что произошло на самом деле?
+  ja: 実際に何が起こりましたか？
+  ko: 실제로 어떤 일이 있었나요?
+  it: Cosa è successo in realtà?
+  tr: Gerçekte ne oldu?
+  vi: Điều gì thực sự đã xảy ra?
+  id: Apa yang sebenarnya terjadi?
+  pl: Co faktycznie się stało?
+  nl: Wat gebeurde er eigenlijk?
+  ar: ماذا حدث فعلاً؟
+  hi: वास्तव में क्या हुआ?
+  th: สิ่งที่เกิดขึ้นจริงคืออะไร?
+  cs: Co se skutečně stalo?
+  sv: Vad hände faktiskt?
+  verified_by_human: []
+report_issue.actual_behaviour_placeholder:
+  context: Placeholder text inside the "Actual behaviour" textarea — gives an example of a good answer
+  en: "e.g. The page went blank and showed a spinning loader that never stopped. No error message appeared."
+  de: "z.B. Die Seite wurde leer und zeigte einen Ladekreisel, der nie aufgehört hat. Es erschien keine Fehlermeldung."
+  zh: "例如：页面变成空白，出现一个永远不停的加载动画，没有错误消息。"
+  es: "p.ej. La página quedó en blanco y mostró un indicador de carga que nunca se detuvo. No apareció ningún mensaje de error."
+  fr: "ex. La page est devenue blanche et a affiché un chargement infini. Aucun message d'erreur n'est apparu."
+  pt: "ex. A página ficou em branco e exibiu um carregador giratório que nunca parou. Nenhuma mensagem de erro apareceu."
+  ru: "напр. Страница стала пустой и показала крутящийся индикатор загрузки, который не останавливался. Сообщение об ошибке не появилось."
+  ja: "例：ページが白くなり、回転するローダーが止まりませんでした。エラーメッセージは表示されませんでした。"
+  ko: "예: 페이지가 비어 있고 로딩 스피너가 멈추지 않았습니다. 오류 메시지가 나타나지 않았습니다."
+  it: "es. La pagina è diventata bianca e ha mostrato un caricamento infinito. Nessun messaggio di errore è apparso."
+  tr: "örn. Sayfa boşaldı ve hiç durmayan bir yükleme göstergesi gösterdi. Hata mesajı görünmedi."
+  vi: "vd. Trang trở nên trống và hiển thị vòng quay tải không dừng lại. Không có thông báo lỗi nào xuất hiện."
+  id: "mis. Halaman menjadi kosong dan menampilkan pemuatan berputar yang tidak berhenti. Tidak ada pesan kesalahan yang muncul."
+  pl: "np. Strona stała się pusta i wyświetlała kręcący się wskaźnik ładowania, który nigdy nie przestał. Nie pojawił się żaden komunikat o błędzie."
+  nl: "bijv. De pagina werd leeg en toonde een laadanimatie die nooit stopte. Er verscheen geen foutmelding."
+  ar: "مثال: أصبحت الصفحة بيضاء وظهر مؤشر تحميل دوار لم يتوقف. لم تظهر أي رسالة خطأ."
+  hi: "उदा. पेज खाली हो गया और एक घूमता हुआ लोडर दिखाई दिया जो कभी नहीं रुका। कोई त्रुटि संदेश नहीं आया।"
+  th: "เช่น หน้าจอกลายเป็นหน้าว่าง และแสดงตัวโหลดที่หมุนไม่หยุด ไม่มีข้อความแจ้งข้อผิดพลาดปรากฏขึ้น"
+  cs: "např. Stránka zčernala a zobrazila se otáčející se načítací animace, která nikdy neskončila. Nezobrazila se žádná chybová zpráva."
+  sv: "t.ex. Sidan blev tom och visade en snurrande laddningsindikator som aldrig slutade. Inget felmeddelande visades."
+  verified_by_human: []
+report_issue.actual_behaviour_hint:
+  context: Hint text below the "Actual behaviour" textarea
+  en: Optional — describe what went wrong
+  de: Optional — beschreibe, was schief gelaufen ist
+  zh: 可选 — 描述出了什么问题
+  es: Opcional — describe qué salió mal
+  fr: Facultatif — décrivez ce qui s'est mal passé
+  pt: Opcional — descreva o que deu errado
+  ru: Необязательно — опишите, что пошло не так
+  ja: 任意 — 何が問題だったかを説明してください
+  ko: 선택 사항 — 무엇이 잘못되었는지 설명하세요
+  it: Facoltativo — descrivi cosa è andato storto
+  tr: İsteğe bağlı — neyin yanlış gittiğini açıklayın
+  vi: Tùy chọn — mô tả những gì đã xảy ra sai
+  id: Opsional — jelaskan apa yang salah
+  pl: Opcjonalne — opisz co poszło nie tak
+  nl: Optioneel — beschrijf wat er fout ging
+  ar: اختياري — صف ما حدث بشكل خاطئ
+  hi: वैकल्पिक — बताएं क्या गलत हुआ
+  th: ไม่บังคับ — อธิบายสิ่งที่ผิดพลาด
+  cs: Volitelné — popište co se pokazilo
+  sv: Valfritt — beskriv vad som gick fel
+  verified_by_human: []
 report_issue.share_chat_label:
   context: Label for the toggle that enables sharing the current chat or embed with the issue report
   en: Share current chat with this report

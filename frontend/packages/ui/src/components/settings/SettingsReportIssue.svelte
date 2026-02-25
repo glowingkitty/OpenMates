@@ -24,7 +24,12 @@
     
     // Form state
     let issueTitle = $state('');
-    let issueDescription = $state('');
+    // Structured description fields — replace the old single freeform textarea.
+    // All three are optional. On submit they are composed into a formatted description
+    // string sent to the backend's existing `description` field.
+    let userFlow = $state('');
+    let expectedBehaviour = $state('');
+    let actualBehaviour = $state('');
     let shareChatEnabled = $state(true);
     let chatOrEmbedUrl = $state('');
     let contactEmail = $state('');
@@ -62,15 +67,13 @@
     
     // Input references for warnings
     let titleInput = $state<HTMLInputElement>();
-    let descriptionInput = $state<HTMLTextAreaElement>();
+    let userFlowInput = $state<HTMLTextAreaElement>();
     let emailInput = $state<HTMLInputElement>();
     
-    // Validation state
+    // Validation state (description fields are all optional, no per-field errors needed)
     let titleError = $state('');
-    let descriptionError = $state('');
     let emailError = $state('');
     let showTitleWarning = $state(false);
-    let showDescriptionWarning = $state(false);
     let showEmailWarning = $state(false);
     
     /**
@@ -90,12 +93,13 @@
     }
     
     /**
-     * Validate form fields
+     * Validate form fields.
+     * Only the title is required. All three structured description fields and email are optional.
      */
     function validateForm(): boolean {
         let isValid = true;
         
-        // Validate title
+        // Validate title (required, min 3 chars)
         if (!issueTitle || !issueTitle.trim()) {
             titleError = $text('settings.report_issue.title_required');
             showTitleWarning = true;
@@ -109,23 +113,7 @@
             showTitleWarning = false;
         }
         
-        // Validate description (optional - but if provided, must be at least 10 characters)
-        if (issueDescription && issueDescription.trim()) {
-            if (issueDescription.trim().length < 10) {
-                descriptionError = $text('settings.report_issue.description_too_short');
-                showDescriptionWarning = true;
-                isValid = false;
-            } else {
-                descriptionError = '';
-                showDescriptionWarning = false;
-            }
-        } else {
-            // Description is optional - empty is valid
-            descriptionError = '';
-            showDescriptionWarning = false;
-        }
-        
-        // Validate email if provided (optional field)
+        // Validate email if provided (optional field — guest users only)
         if (contactEmail && contactEmail.trim()) {
             if (!validateEmail(contactEmail)) {
                 emailError = $text('settings.report_issue.email_invalid');
@@ -364,8 +352,6 @@
             // Focus first invalid field
             if (titleError && titleInput) {
                 titleInput.focus();
-            } else if (descriptionError && descriptionInput) {
-                descriptionInput.focus();
             } else if (emailError && emailInput) {
                 emailInput.focus();
             }
@@ -377,9 +363,21 @@
         try {
             // SECURITY: Sanitize inputs before sending to backend
             const sanitizedTitle = sanitizeTextInput(issueTitle);
-            // Description is optional - send null if empty, otherwise sanitize
-            const sanitizedDescription = issueDescription.trim()
-                ? sanitizeTextInput(issueDescription)
+
+            // Compose the three structured fields into a single formatted description.
+            // Only include sections that have content; send null if everything is empty.
+            const descriptionParts: string[] = [];
+            if (userFlow.trim()) {
+                descriptionParts.push(`## What did you do?\n${sanitizeTextInput(userFlow)}`);
+            }
+            if (expectedBehaviour.trim()) {
+                descriptionParts.push(`## Expected behaviour\n${sanitizeTextInput(expectedBehaviour)}`);
+            }
+            if (actualBehaviour.trim()) {
+                descriptionParts.push(`## Actual behaviour\n${sanitizeTextInput(actualBehaviour)}`);
+            }
+            const sanitizedDescription = descriptionParts.length > 0
+                ? descriptionParts.join('\n\n')
                 : null;
             // Only include the share URL if the toggle is enabled and a URL was generated
             const sanitizedUrl = (shareChatEnabled && chatOrEmbedUrl.trim()) ? chatOrEmbedUrl.trim() : null;
@@ -484,17 +482,17 @@
                 
                 // Reset form
                 issueTitle = '';
-                issueDescription = '';
+                userFlow = '';
+                expectedBehaviour = '';
+                actualBehaviour = '';
                 shareChatEnabled = true;
                 chatOrEmbedUrl = '';
                 contactEmail = '';
                 // Re-enable the email toggle for authenticated users after a successful submission
                 includeEmailToggle = true;
                 titleError = '';
-                descriptionError = '';
                 emailError = '';
                 showTitleWarning = false;
-                showDescriptionWarning = false;
                 showEmailWarning = false;
             } else {
                 // Handle FastAPI validation errors (422 status)
@@ -515,13 +513,6 @@
                             hasFieldErrors = true;
                             if (titleInput) {
                                 titleInput.focus();
-                            }
-                        } else if (fieldName === 'description') {
-                            descriptionError = fieldErrorMessage;
-                            showDescriptionWarning = true;
-                            hasFieldErrors = true;
-                            if (descriptionInput) {
-                                descriptionInput.focus();
                             }
                         } else if (fieldName === 'contact_email') {
                             emailError = fieldErrorMessage;
@@ -571,48 +562,27 @@
     }
     
     /**
-     * Handle Enter key press in title input
+     * Handle Enter key press in title input — move focus to the first structured field
      */
     function handleTitleKeyPress(event: KeyboardEvent) {
         if (event.key === 'Enter' && !isSubmitting) {
             event.preventDefault();
-            if (descriptionInput) {
-                descriptionInput.focus();
+            if (userFlowInput) {
+                userFlowInput.focus();
             }
         }
     }
     
     /**
      * Check if form is valid.
-     * Description is optional but must be at least 10 characters if provided.
-     * Email is optional but must be valid if provided (guest only – authenticated users
-     * use the toggle against their pre-validated account email).
+     * Only title is required (min 3 chars). All description fields are optional (no minimum).
+     * Email is optional but must be valid if provided (guest only).
      */
     let isFormValid = $derived(
         issueTitle.trim().length >= 3 &&
-        (!issueDescription.trim() || issueDescription.trim().length >= 10) &&
         ($authStore.isAuthenticated || !contactEmail.trim() || validateEmail(contactEmail)) &&
         !isSubmitting
     );
-    
-    /**
-     * Validate description on input change
-     */
-    function handleDescriptionInput() {
-        if (issueDescription && issueDescription.trim()) {
-            if (issueDescription.trim().length < 10) {
-                descriptionError = $text('settings.report_issue.description_too_short');
-                showDescriptionWarning = true;
-            } else {
-                descriptionError = '';
-                showDescriptionWarning = false;
-            }
-        } else {
-            // Description is optional - empty is valid
-            descriptionError = '';
-            showDescriptionWarning = false;
-        }
-    }
     
     /**
      * Validate email on input change
@@ -716,7 +686,8 @@
         // Check for pre-filled data from store
         if ($reportIssueStore) {
             if ($reportIssueStore.title) issueTitle = $reportIssueStore.title;
-            if ($reportIssueStore.description) issueDescription = $reportIssueStore.description;
+            // Map legacy store description to the user flow field (most common pre-fill use-case)
+            if ($reportIssueStore.description) userFlow = $reportIssueStore.description;
             // If a URL was passed directly (e.g. from deep link), pre-fill it
             if ($reportIssueStore.url) chatOrEmbedUrl = $reportIssueStore.url;
             // If the store requests sharing the chat, enable the toggle
@@ -779,27 +750,53 @@
             </div>
         </div>
         
-        <!-- Description Input -->
+        <!-- User Flow — "What did you do?" (optional) -->
         <div class="input-group">
-            <label for="issue-description">{$text('settings.report_issue.description_label')}</label>
+            <label for="user-flow">{$text('settings.report_issue.user_flow_label')}</label>
             <div class="input-wrapper">
                 <textarea
-                    id="issue-description"
-                    bind:this={descriptionInput}
-                    placeholder={$text('settings.report_issue.description_placeholder')}
-                    bind:value={issueDescription}
-                    oninput={handleDescriptionInput}
+                    id="user-flow"
+                    bind:this={userFlowInput}
+                    placeholder={$text('settings.report_issue.user_flow_placeholder')}
+                    bind:value={userFlow}
                     disabled={isSubmitting}
-                    class:error={!!descriptionError}
-                    aria-label={$text('settings.report_issue.description_label')}
-                    rows="5"
+                    aria-label={$text('settings.report_issue.user_flow_label')}
+                    rows="3"
                 ></textarea>
-                {#if showDescriptionWarning && descriptionError}
-                    <InputWarning
-                        message={descriptionError}
-                    />
-                {/if}
             </div>
+            <p class="input-hint">{$text('settings.report_issue.user_flow_hint')}</p>
+        </div>
+
+        <!-- Expected Behaviour (optional) -->
+        <div class="input-group">
+            <label for="expected-behaviour">{$text('settings.report_issue.expected_behaviour_label')}</label>
+            <div class="input-wrapper">
+                <textarea
+                    id="expected-behaviour"
+                    placeholder={$text('settings.report_issue.expected_behaviour_placeholder')}
+                    bind:value={expectedBehaviour}
+                    disabled={isSubmitting}
+                    aria-label={$text('settings.report_issue.expected_behaviour_label')}
+                    rows="2"
+                ></textarea>
+            </div>
+            <p class="input-hint">{$text('settings.report_issue.expected_behaviour_hint')}</p>
+        </div>
+
+        <!-- Actual Behaviour (optional) -->
+        <div class="input-group">
+            <label for="actual-behaviour">{$text('settings.report_issue.actual_behaviour_label')}</label>
+            <div class="input-wrapper">
+                <textarea
+                    id="actual-behaviour"
+                    placeholder={$text('settings.report_issue.actual_behaviour_placeholder')}
+                    bind:value={actualBehaviour}
+                    disabled={isSubmitting}
+                    aria-label={$text('settings.report_issue.actual_behaviour_label')}
+                    rows="2"
+                ></textarea>
+            </div>
+            <p class="input-hint">{$text('settings.report_issue.actual_behaviour_hint')}</p>
         </div>
         
         <!-- Share Chat Toggle (only shown when there's an active chat or embed) -->
@@ -1048,8 +1045,7 @@
         border-color: var(--color-primary);
     }
     
-    .input-wrapper input.error,
-    .input-wrapper textarea.error {
+    .input-wrapper input.error {
         border-color: var(--color-error, #e74c3c);
     }
     
