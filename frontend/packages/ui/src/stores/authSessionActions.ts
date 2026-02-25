@@ -39,6 +39,7 @@ import { chatListCache } from "../services/chatListCache"; // Import chatListCac
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Import admin console log forwarder
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
+import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
 
 // Import core auth state and related flags
 import {
@@ -536,6 +537,11 @@ export async function checkAuth(
           auto_topup_low_balance_currency:
             data.user.auto_topup_low_balance_currency,
         });
+        // Apply server dark mode preference to the theme store.
+        // applyServerDarkMode is a no-op when the user already has a local
+        // manual preference in localStorage, so local choices always win.
+        applyServerDarkMode(userDarkMode);
+
         // Start admin console log forwarding on session restore if user is admin.
         // This ensures log forwarding resumes after page refresh without requiring re-login.
         // Only admin users have logs forwarded - regular users are never affected.

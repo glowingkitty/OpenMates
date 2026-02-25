@@ -14,9 +14,11 @@ changes to the documentation (to keep the documentation up to date).
     import { createEventDispatcher, onMount } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsLanguage from './interface/SettingsLanguage.svelte';
+    import SettingsDarkMode from './interface/SettingsDarkMode.svelte';
     import { locale, waitLocale } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { get } from 'svelte/store';
+    import { themeMode } from '../../stores/theme';
 
     const dispatch = createEventDispatcher();
     
@@ -43,6 +45,16 @@ changes to the documentation (to keep the documentation up to date).
     let currentLanguageObj = $derived(
         supportedLanguages.find(lang => lang.code === currentLanguage) || supportedLanguages[0]
     );
+
+    // Derive a human-readable label for the current dark mode mode.
+    // Shown as the subtitle on the Dark Mode settings row.
+    let currentDarkModeLabel = $derived((() => {
+        switch ($themeMode) {
+            case 'dark':  return $text('interface.dark_mode.dark');
+            case 'light': return $text('interface.dark_mode.light');
+            default:      return $text('interface.dark_mode.auto');
+        }
+    })());
 
     // Handle ?lang= URL parameter on mount
     // This ensures the language is set correctly when the component loads with a URL parameter
@@ -115,6 +127,31 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    // Navigate to the dark mode sub-page
+    function showDarkModeSettings(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'dark_mode';
+        childComponent = SettingsDarkMode;
+
+        dispatch('openSettings', {
+            settingsPath: 'interface/dark_mode',
+            direction: 'forward',
+            icon: 'dark_mode',
+            title: $text('interface.dark_mode'),
+            translationKey: 'interface.dark_mode'
+        });
+
+        // Scroll the settings panel back to top
+        const settingsContent = document.querySelector('.settings-content-wrapper');
+        if (settingsContent) {
+            settingsContent.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+    }
+
     // Handle language change event from SettingsLanguage component
     // Note: We don't need to manually update currentLanguage here because it's now
     // derived from the $locale store, which is automatically updated by SettingsLanguage
@@ -131,10 +168,17 @@ changes to the documentation (to keep the documentation up to date).
         dispatch('navigateBack');
     }
 
-
+    // Handle dark mode change event from SettingsDarkMode component
+    function handleDarkModeChanged(event) {
+        console.debug('[SettingsInterface] Dark mode changed:', event.detail.mode);
+        currentView = 'main';
+        childComponent = null;
+        dispatch('navigateBack');
+    }
 </script>
 
 {#if currentView === 'main'}
+    <!-- Language row — navigates to SettingsLanguage sub-page -->
     <SettingsItem 
         type="subsubmenu"
         icon="subsetting_icon language"
@@ -142,9 +186,23 @@ changes to the documentation (to keep the documentation up to date).
         title={currentLanguageObj.name}
         onClick={() => showLanguageSettings()}
     />
+
+    <!-- Dark mode row — navigates to SettingsDarkMode sub-page -->
+    <SettingsItem
+        type="subsubmenu"
+        icon="subsetting_icon dark_mode"
+        subtitle={$text('interface.dark_mode')}
+        title={currentDarkModeLabel}
+        onClick={() => showDarkModeSettings()}
+    />
 {:else if currentView === 'language' && childComponent}
     {@const Component = childComponent}
     <Component 
         on:languageChanged={handleLanguageChanged} 
+    />
+{:else if currentView === 'dark_mode' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:darkModeChanged={handleDarkModeChanged}
     />
 {/if}

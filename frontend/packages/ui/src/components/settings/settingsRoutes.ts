@@ -16,6 +16,7 @@ import type { Component } from "svelte";
 // Interface
 import SettingsInterface from "./SettingsInterface.svelte";
 import SettingsLanguage from "./interface/SettingsLanguage.svelte";
+import SettingsDarkMode from "./interface/SettingsDarkMode.svelte";
 
 // Chat
 import SettingsChat from "./SettingsChat.svelte";
@@ -153,6 +154,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // Interface
   interface: SettingsInterface,
   "interface/language": SettingsLanguage,
+  "interface/dark_mode": SettingsDarkMode,
   // Server (admin only)
   server: SettingsServer,
   "server/software-update": SettingsSoftwareUpdate,

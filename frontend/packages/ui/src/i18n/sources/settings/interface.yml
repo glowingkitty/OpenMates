@@ -44,3 +44,171 @@ language:
   cs: ""
   sv: ""
   verified_by_human: []
+
+dark_mode:
+  context: Dark mode settings menu item in interface section — shown as the row title on the sub-page entry
+  en: Dark mode
+  de: Erscheinungsbild
+  zh: 深色模式
+  es: Modo oscuro
+  fr: Mode sombre
+  pt: ""
+  ru: ""
+  ja: ダークモード
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
+dark_mode.auto:
+  context: "Dark mode option: follows the operating system preference automatically"
+  en: Auto
+  de: Automatisch
+  zh: 自动
+  es: Automático
+  fr: Automatique
+  pt: ""
+  ru: ""
+  ja: 自動
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
+dark_mode.auto.description:
+  context: Subtitle for the Auto dark mode option — explains it follows device/OS settings
+  en: Follows your device settings
+  de: Folgt den Geräteeinstellungen
+  zh: 跟随设备设置
+  es: Sigue la configuración de tu dispositivo
+  fr: Suit les paramètres de votre appareil
+  pt: ""
+  ru: ""
+  ja: デバイスの設定に従う
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
+dark_mode.light:
+  context: "Dark mode option: always use light mode"
+  en: Light
+  de: Hell
+  zh: 浅色
+  es: Claro
+  fr: Clair
+  pt: ""
+  ru: ""
+  ja: ライト
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
+dark_mode.light.description:
+  context: Subtitle for the Light mode option
+  en: Always use light mode
+  de: Immer hellen Modus verwenden
+  zh: 始终使用浅色模式
+  es: Usar siempre el modo claro
+  fr: Toujours utiliser le mode clair
+  pt: ""
+  ru: ""
+  ja: 常にライトモードを使用
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
+dark_mode.dark:
+  context: "Dark mode option: always use dark mode"
+  en: Dark
+  de: Dunkel
+  zh: 深色
+  es: Oscuro
+  fr: Sombre
+  pt: ""
+  ru: ""
+  ja: ダーク
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
+dark_mode.dark.description:
+  context: Subtitle for the Dark mode option
+  en: Always use dark mode
+  de: Immer dunklen Modus verwenden
+  zh: 始终使用深色模式
+  es: Usar siempre el modo oscuro
+  fr: Toujours utiliser le mode sombre
+  pt: ""
+  ru: ""
+  ja: 常にダークモードを使用
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []

@@ -28,6 +28,7 @@ import { webSocketService } from "../services/websocketService";
 import { chatListCache } from "../services/chatListCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
 import { clientLogForwarder } from "../services/clientLogForwarder";
+import { applyServerDarkMode } from "./theme";
 
 // Import core auth state and related flags
 import {
@@ -308,6 +309,11 @@ export async function login(
               auto_topup_low_balance_currency:
                 data.user.auto_topup_low_balance_currency,
             });
+
+            // Apply server dark mode preference to the theme store.
+            // applyServerDarkMode is a no-op when the user already has a local
+            // manual preference in localStorage, so local choices always win.
+            applyServerDarkMode(userDarkMode);
 
             // Sync browser timezone to server (non-blocking)
             // This ensures the server always has the user's current timezone

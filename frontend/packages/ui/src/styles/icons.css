@@ -145,6 +145,12 @@
 .subsetting_icon.low_balance {
   --icon-mask-image: url("@openmates/ui/static/icons/coins.svg");
 }
+.subsetting_icon.dark_mode {
+  --icon-mask-image: url("@openmates/ui/static/icons/darkmode.svg");
+}
+.subsetting_icon.light_mode {
+  --icon-mask-image: url("@openmates/ui/static/icons/visible.svg");
+}
 
 /* Modify icon for subsubmenu items */
 .clickable-icon.icon_modify {
