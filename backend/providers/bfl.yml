@@ -56,13 +56,12 @@ models:
         region: "US"
     pricing:
       per_unit:
-        credits: 27
+        credits: 15
         unit_name: "image"
     costs:
       # fal.ai charges $0.009/MP for BOTH input and output on the edit endpoint.
       # Typical call: 1MP output + 1MP input (each reference image is resized to 1MP) = $0.018/image.
-      # At 3× markup: $0.054 → 54 credits. We charge 27 credits as a user-friendly price
-      # (approximately 1.5× markup on this model, balancing affordability with cost coverage).
+      # We charge 15 credits (same as the 9B text-to-image model) for user-friendliness.
       output_per_megapixel:
         price: 0.009
         currency: USD
