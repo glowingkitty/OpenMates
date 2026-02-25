@@ -50,6 +50,13 @@ _TOOL_CALL_XML_PATTERN = re.compile(
     re.DOTALL | re.IGNORECASE
 )
 
+# Regex pattern to detect garbled number sequences in aggregated responses.
+# Gemini multimodal responses sometimes emit raw token-ID / attention-index sequences
+# that arrive in small chunks (passing the per-chunk heuristic) but form long runs
+# like "-213,222,237-238,241,243-245,247,..." once aggregated.
+# Matches 200+ consecutive characters of digits, commas, hyphens, spaces, and newlines.
+_GARBLED_NUMBER_SEQUENCE_PATTERN = re.compile(r'[\d,\-\s\n]{200,}')
+
 def _strip_tool_call_xml_from_text(text: str) -> str:
     """
     Strip <tool_call>...</tool_call> XML blocks from text content.
@@ -2420,6 +2427,44 @@ async def _consume_main_processing_stream(
             logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+
+    # Post-aggregation sweep: strip garbled number sequences from the final response.
+    # The per-chunk garbled filter (above) catches large individual chunks, but Gemini
+    # multimodal responses sometimes emit raw token-ID / attention-index sequences in
+    # small chunks (< 200 chars each) that individually pass the per-chunk heuristic.
+    # Once aggregated, these form long runs like "-213,222,237-238,241,243-245,247,..."
+    # that are clearly non-human-readable. We detect and strip them here.
+    #
+    # Pattern: 200+ consecutive characters consisting only of digits, commas, hyphens,
+    # spaces, and newlines — with at most 2% alphabetic characters in the matched span.
+    # This is conservative enough to avoid false positives on normal numbered lists or
+    # CSV data the user might have asked for (those have labels/headers mixed in).
+    if aggregated_response:
+        garbled_matches = list(_GARBLED_NUMBER_SEQUENCE_PATTERN.finditer(aggregated_response))
+        if garbled_matches:
+            # Verify each match is truly garbled (very low alpha ratio) before stripping
+            cleaned = aggregated_response
+            total_stripped = 0
+            for match in reversed(garbled_matches):  # Reverse to preserve indices
+                span = match.group()
+                alpha_count = sum(1 for c in span if c.isalpha())
+                alpha_ratio = alpha_count / len(span) if len(span) > 0 else 0
+                if alpha_ratio < 0.02:
+                    logger.warning(
+                        f"{log_prefix} Post-aggregation garbled sweep: stripping {len(span)} chars "
+                        f"at position {match.start()}-{match.end()} "
+                        f"(alpha_ratio={alpha_ratio:.4f}): preview={repr(span[:80])}"
+                    )
+                    cleaned = cleaned[:match.start()] + cleaned[match.end():]
+                    total_stripped += len(span)
+            if total_stripped > 0:
+                # Clean up any resulting double-whitespace or leading/trailing whitespace
+                aggregated_response = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+                final_response_chunks = [aggregated_response]
+                logger.info(
+                    f"{log_prefix} Post-aggregation garbled sweep: removed {total_stripped} chars total, "
+                    f"response reduced from {len(cleaned) + total_stripped} to {len(aggregated_response)} chars"
+                )
 
     # Ensure we never complete with an empty assistant message on server-side failures.
     # This avoids clients sending an "ai_response_completed" payload without encrypted_content,

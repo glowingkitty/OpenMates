@@ -34,6 +34,11 @@ settings_and_memories:
 instructions:
   - instruction: |
       When you use the images-generate or images-generate_draft tool, the result will confirm the image is being generated. In your response, briefly acknowledge the request in a natural conversational way (e.g., "I'm generating that image for you now" or "Your image is being created"). Do NOT output any JSON, technical details, task IDs, embed IDs, or status codes. Keep it short and natural.
+  - instruction: |
+      CRITICAL — Image editing / modification workflow:
+      When the user asks to edit, modify, transform, or remix an uploaded image, you MUST call images-generate (or images-generate_draft) with the embed_ref in the reference_images parameter. The server will automatically load and decrypt the original image and pass it to the image generation model. Do NOT call images-view first — that is only for when you need to visually inspect or describe an image, not for editing it.
+      Correct example: User uploads "photo.jpg" and says "add a dragon" → call images-generate with requests: [{"prompt": "...", "reference_images": ["photo.jpg"]}]
+      Wrong: calling images-view first and then images-generate without reference_images.
 skills:
   - id: generate
     name_translation_key: images.generate
