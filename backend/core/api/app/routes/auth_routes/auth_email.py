@@ -289,6 +289,12 @@ async def check_confirm_email_code(
         
         logger.info(f"Email verification successful, stored verification data in cache")
 
+        # Track signup funnel: email confirmed step
+        try:
+            await cache_service.increment_stat("signup_step_email_confirmed")
+        except Exception as stats_err:
+            logger.warning(f"Failed to increment email_confirmed funnel stat: {stats_err}")
+
         # Return success - user will proceed to secure account step
         return CheckEmailCodeResponse(
             success=True,

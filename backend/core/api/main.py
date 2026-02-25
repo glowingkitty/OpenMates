@@ -39,6 +39,7 @@ from backend.core.api.app.routes import email_block  # noqa: E402 # Import email
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
+from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
 from backend.core.api.app.services.directus import DirectusService  # noqa: E402
 from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.metrics import MetricsService  # noqa: E402
@@ -377,7 +378,15 @@ async def lifespan(app: FastAPI):
         cache_service=app.state.cache_service,
         directus_service=app.state.directus_service
     )
-    
+
+    # Initialize WebAnalyticsService — privacy-preserving first-party analytics.
+    # Stores only aggregate counters in Redis; never persists PII.
+    # See docs/analytics.md for architecture and data collected.
+    from backend.core.api.app.services.web_analytics_service import WebAnalyticsService
+    app.state.web_analytics_service = WebAnalyticsService(
+        cache_service=app.state.cache_service
+    )
+
     # Initialize EmailTemplateService (depends on SecretsManager)
     app.state.email_template_service = EmailTemplateService(secrets_manager=app.state.secrets_manager)
     
@@ -492,7 +501,29 @@ async def lifespan(app: FastAPI):
                 logger.info(f"Restored {restored_deliveries} pending delivery entries from disk backup")
         except Exception as e:
             logger.error(f"Error restoring pending deliveries from disk: {e}", exc_info=True)
-    
+
+    # --- Restore web analytics counters from disk backup ---
+    # Web analytics Redis counters are dumped to disk on graceful shutdown so no
+    # data is lost if the container is restarted mid-flush-cycle.
+    if hasattr(app.state, 'web_analytics_service'):
+        try:
+            await app.state.web_analytics_service.restore_from_disk()
+            logger.info("Web analytics counters restored from disk backup (if any)")
+        except Exception as e:
+            logger.error(f"Error restoring web analytics counters from disk: {e}", exc_info=True)
+
+    # --- Wire WebAnalyticsService into ConnectionManager (Phase 7 session duration) ---
+    # The ConnectionManager singleton is created at module load time in websockets.py.
+    # We inject the service reference here, after the service is fully initialized,
+    # so _finalize_disconnect can record session duration without circular imports.
+    if hasattr(app.state, 'web_analytics_service'):
+        try:
+            from backend.core.api.app.routes.websockets import manager as ws_manager
+            ws_manager._web_analytics_service = app.state.web_analytics_service
+            logger.info("WebAnalyticsService wired into ConnectionManager for session duration tracking")
+        except Exception as e:
+            logger.warning(f"Could not wire WebAnalyticsService into ConnectionManager: {e}")
+
     # --- Preload and cache AI processing configuration files ---
     # This ensures base_instructions and mates_configs are ready in cache before first message arrives
     # This optimization prevents disk I/O on every message processing request
@@ -1002,6 +1033,16 @@ async def lifespan(app: FastAPI):
     # Shutdown logic
     logger.info("Shutting down application...")
     
+    # --- Persist web analytics counters to disk before shutdown ---
+    # Flushes in-Redis aggregate counters to a JSON backup file so no pageview/event
+    # data is lost if the container shuts down between two Celery flush cycles.
+    if hasattr(app.state, 'web_analytics_service'):
+        try:
+            await app.state.web_analytics_service.dump_to_disk()
+            logger.info("Web analytics counters persisted to disk for recovery after restart")
+        except Exception as e:
+            logger.error(f"Error persisting web analytics counters to disk during shutdown: {e}", exc_info=True)
+
     # --- Persist pending payment orders to disk before shutdown ---
     # This ensures payment orders survive restarts and can be restored on next startup
     # Critical for preventing payment data loss when webhook arrives after cache is cleared
@@ -1332,6 +1373,7 @@ def create_app() -> FastAPI:
     app.include_router(geocode.router, include_in_schema=False)  # Geocode proxy router - proxies Nominatim requests server-side to avoid browser CORS/TLS 0-RTT issues
     app.include_router(default_inspirations.router, include_in_schema=False)  # Default inspirations public endpoint - returns published inspirations for DailyInspirationBanner
     app.include_router(daily_inspirations_api.router, include_in_schema=False)  # User daily inspirations persistence - save/load/mark-opened for authenticated users
+    app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     from backend.core.api.app.routes import usage_api
     app.include_router(usage_api.router, include_in_schema=True)  # Usage API router - supports both session and API key auth
     

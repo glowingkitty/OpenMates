@@ -40,6 +40,36 @@ class CacheStatsMixin:
         except Exception as e:
             logger.error(f"Error incrementing stat {field}: {e}")
 
+    async def increment_json_stat(self, prefix: str, sub_key: str, amount: int = 1, date_str: Optional[str] = None):
+        """
+        Increments a namespaced daily stat counter for JSON aggregation.
+
+        The field name is stored as "{prefix}:{sub_key}" in the daily hash.
+        At flush time, server_stats_tasks.py collects all fields with this prefix
+        and serializes them as a JSON object (e.g. {"ai": 500, "pdf": 50}).
+
+        Example:
+            await cache.increment_json_stat("usage_entries_by_app", "ai")
+            → HINCRBY stats:global:daily:2026-02-25 usage_entries_by_app:ai 1
+
+        Args:
+            prefix: The JSON field name (e.g. "usage_entries_by_app", "purchases_by_provider")
+            sub_key: The key within the JSON object (e.g. "ai", "stripe")
+            amount: How much to increment by (default 1)
+            date_str: Optional date string (YYYY-MM-DD), defaults to today
+        """
+        client = await self.client
+        if not client:
+            return
+
+        key = self._get_daily_stats_key(date_str)
+        field = f"{prefix}:{sub_key}"
+        try:
+            await client.hincrby(key, field, amount)
+            await client.expire(key, 172800)
+        except Exception as e:
+            logger.error(f"Error incrementing json stat {field}: {e}")
+
     async def update_liability(self, delta: int):
         """Updates the running total of user liability (credits)."""
         client = await self.client

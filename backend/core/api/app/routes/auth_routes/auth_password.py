@@ -217,6 +217,12 @@ async def setup_password(
         metrics_service.track_user_creation()
         metrics_service.update_active_users(1, 1)
 
+        # Track signup funnel: password setup completed
+        try:
+            await cache_service.increment_stat("signup_step_auth_password_setup")
+        except Exception as stats_err:
+            logger.warning(f"Failed to increment auth_password_setup funnel stat: {stats_err}")
+
         # Log compliance event
         compliance_service.log_user_creation(
             user_id=user_id,

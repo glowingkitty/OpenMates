@@ -107,6 +107,8 @@ TASK_CONFIG = [
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.daily_inspiration_tasks'},  # Daily Inspiration generation tasks (routed to persistence queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Default Inspiration generate/translate tasks (admin-curated defaults)
+    {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.web_analytics_tasks'},  # Web analytics flush tasks (privacy-preserving aggregate counters)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -881,6 +883,12 @@ _EXPLICIT_TASK_ROUTES = {
 
     # Admin notification email for inspiration suggestions
     "app.tasks.email_tasks.inspiration_suggestion_email_task.send_inspiration_suggestion_notification": "email",
+
+    # Web analytics tasks (privacy-preserving first-party analytics)
+    "web_analytics.flush_to_directus": "server_stats",
+
+    # App analytics tasks (daily aggregation of raw app_analytics events)
+    "app_analytics.aggregate_daily": "persistence",
 }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
@@ -1081,6 +1089,20 @@ app.conf.beat_schedule = {
     'generate-daily-inspirations': {
         'task': 'daily_inspiration.generate_daily',
         'schedule': crontab(hour=6, minute=0),  # Daily at 06:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Web analytics flush - writes Redis aggregate counters to Directus every 10 minutes.
+    # Privacy-preserving: only aggregate counts, no PII, no raw user data.
+    'flush-web-analytics': {
+        'task': 'web_analytics.flush_to_directus',
+        'schedule': timedelta(seconds=600),  # Every 10 minutes (same as server stats flush)
+        'options': {'queue': 'server_stats'},
+    },
+    # App analytics daily aggregation - rolls up raw app_analytics events into daily summaries.
+    # Runs at 03:00 UTC before the 06:00 inspiration generation to avoid overlap.
+    'aggregate-app-analytics-daily': {
+        'task': 'app_analytics.aggregate_daily',
+        'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC
         'options': {'queue': 'persistence'},
     },
 }

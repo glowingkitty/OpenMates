@@ -453,6 +453,15 @@ async def record_usage_route(
             )
         )
         
+        # Track aggregate usage entry counters (fire-and-forget, non-blocking)
+        # These feed into server_stats_global_daily.usage_entries_created / usage_entries_by_app
+        try:
+            await cache_service.increment_stat("usage_entries_created")
+            if payload.app_id:
+                await cache_service.increment_json_stat("usage_entries_by_app", payload.app_id)
+        except Exception as stats_err:
+            logger.warning(f"Failed to increment usage_entries stats: {stats_err}")
+
         logger.info(f"Usage recorded successfully. Entry ID: {usage_entry_id}")
         return {"status": "success", "usage_entry_id": usage_entry_id}
     except Exception as e:

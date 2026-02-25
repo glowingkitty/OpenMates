@@ -42,6 +42,31 @@ class ServerStatsService:
             except Exception as e:
                 logger.error(f"Failed to increment stat {field} in Redis: {e}")
 
+    async def increment_json_stat(self, prefix: str, sub_key: str, amount: int = 1, day: Optional[str] = None):
+        """
+        Increments a namespaced daily stat counter for JSON aggregation.
+
+        The field is stored as "{prefix}:{sub_key}" in the daily hash.
+        At flush time, server_stats_tasks.py collects all fields with this prefix
+        and serializes them as a JSON object (e.g. {"stripe": 80, "gift_card": 20}).
+
+        Example:
+            await service.increment_json_stat("purchases_by_provider", "stripe")
+            → HINCRBY stats:global:daily:2026-02-25 purchases_by_provider:stripe 1
+        """
+        if not day:
+            day = date.today().isoformat()
+
+        key = f"{STATS_DAILY_KEY_PREFIX}{day}"
+        field = f"{prefix}:{sub_key}"
+        client = await self.cache.client
+        if client:
+            try:
+                await client.hincrby(key, field, amount)
+                await client.expire(key, 172800)
+            except Exception as e:
+                logger.error(f"Failed to increment json stat {field} in Redis: {e}")
+
     async def update_liability(self, delta: int):
         """
         Updates the running total of user credit liability in Redis.

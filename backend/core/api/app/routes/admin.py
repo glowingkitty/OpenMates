@@ -625,34 +625,56 @@ async def get_server_stats(
 ) -> Dict[str, Any]:
     """
     Get server statistics for the admin dashboard.
-    Returns daily stats for the last 30 days and monthly stats for the last 12 months.
+    Returns:
+    - daily/monthly server stats (last 30 days / 12 months)
+    - web analytics daily (last 30 days)
+    - signup funnel daily (last 30 days)
+    - app analytics daily (last 30 days)
+    All collections fetched in parallel for performance.
     """
     try:
+        import asyncio
         from datetime import datetime
-        
-        # 1. Fetch last 30 daily records
-        daily_stats = await directus_service.get_items(
-            "server_stats_global_daily",
-            params={
-                "sort": "-date",
-                "limit": 30
-            }
+
+        # Fetch all collections in parallel — avoids sequential round-trips to Directus
+        (
+            daily_stats,
+            monthly_stats,
+            web_analytics_daily,
+            signup_funnel_daily,
+            app_analytics_daily,
+        ) = await asyncio.gather(
+            # 1. Last 30 daily server stats records
+            directus_service.get_items(
+                "server_stats_global_daily",
+                params={"sort": "-date", "limit": 30}
+            ),
+            # 2. Last 12 monthly server stats records
+            directus_service.get_items(
+                "server_stats_global_monthly",
+                params={"sort": "-year_month", "limit": 12}
+            ),
+            # 3. Last 30 days of web traffic analytics
+            directus_service.get_items(
+                "web_analytics_daily",
+                params={"sort": "-date", "limit": 30}
+            ),
+            # 4. Last 30 days of signup funnel data
+            directus_service.get_items(
+                "signup_funnel_daily",
+                params={"sort": "-date", "limit": 30}
+            ),
+            # 5. Last 30 days of app analytics aggregates
+            directus_service.get_items(
+                "app_analytics_daily",
+                params={"sort": "-date", "limit": 30}
+            ),
         )
 
-        # 2. Fetch last 12 monthly records
-        monthly_stats = await directus_service.get_items(
-            "server_stats_global_monthly",
-            params={
-                "sort": "-year_month",
-                "limit": 12
-            }
-        )
-
-        # 3. Get current totals (from latest daily record or live from Directus if needed)
-        # We prefer the latest daily record as it's pre-aggregated
+        # Current totals — prefer latest pre-aggregated daily record
         current_stats = daily_stats[0] if daily_stats else {}
 
-        # 4. Fetch newsletter subscriber count (confirmed subscribers only)
+        # Fetch newsletter subscriber count (confirmed subscribers only)
         newsletter_subscribers_count = 0
         try:
             from backend.core.api.app.routes.newsletter import get_total_newsletter_subscribers_count
@@ -664,6 +686,9 @@ async def get_server_stats(
             "current": current_stats,
             "daily_history": daily_stats,
             "monthly_history": monthly_stats,
+            "web_analytics_daily": web_analytics_daily,
+            "signup_funnel_daily": signup_funnel_daily,
+            "app_analytics_daily": app_analytics_daily,
             "newsletter_subscribers_count": newsletter_subscribers_count,
             "timestamp": datetime.now().isoformat()
         }

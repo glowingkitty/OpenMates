@@ -968,6 +968,11 @@ async def payment_webhook(
                     if created_gift_card:
                         logger.info(f"Successfully created gift card {gift_card_code} for user {user_id}.")
                         directus_update_success = True
+                        # Track gift card creation for analytics
+                        try:
+                            await cache_service.increment_stat("gift_cards_created")
+                        except Exception as _gc_err:
+                            logger.warning(f"Failed to increment gift_cards_created stat: {_gc_err}")
                     else:
                         logger.error(f"Failed to create gift card for user {user_id}.")
                         raise Exception("Failed to create gift card in Directus")
@@ -1057,6 +1062,23 @@ async def payment_webhook(
                             # We can check if last_opened was a signup path
                             if user_cache_data.get("last_opened", "").startswith("/signup/"):
                                 await server_stats_service.increment_stat("new_users_finished_signup")
+
+                            # 5. Financial analytics counters
+                            # purchase_count and provider breakdown
+                            await server_stats_service.increment_stat("purchase_count")
+                            await server_stats_service.increment_json_stat("purchases_by_provider", provider_name)
+
+                            # EU vs non-EU breakdown for signup funnel analysis
+                            # Country is not stored in order cache, so we use a best-effort
+                            # approach: check user's cached country_code if available
+                            _user_country = (user_cache_data or {}).get("country_code", "")
+                            if _user_country:
+                                _pmt_is_eu = is_eu_stripe_country(_user_country)
+                                if _pmt_is_eu:
+                                    await server_stats_service.increment_stat("payment_completed_eu")
+                                else:
+                                    await server_stats_service.increment_stat("payment_completed_non_eu")
+
                     except Exception as stats_err:
                         logger.error(f"Error updating server stats after payment: {stats_err}")
 
@@ -1430,6 +1452,11 @@ async def payment_webhook(
                         {"subscription_status": "canceled"}
                     )
                     logger.info(f"Updated subscription status to canceled for user {user_id}")
+                    # Track subscription cancellation for financial analytics
+                    try:
+                        await cache_service.increment_stat("subscription_cancellations")
+                    except Exception as _cancel_err:
+                        logger.warning(f"Failed to increment subscription_cancellations stat: {_cancel_err}")
         
         elif provider_name == "stripe" and event_type == "invoice.payment_failed":
             # Handle failed subscription payment
@@ -2285,7 +2312,13 @@ async def create_subscription(
                 f"Successfully created subscription {subscription_result['subscription_id']} with status '{subscription_status}' "
                 f"for user {current_user.id}"
             )
-        
+
+        # Track subscription creation for financial analytics
+        try:
+            await cache_service.increment_stat("subscription_creations")
+        except Exception as _sub_err:
+            logger.warning(f"Failed to increment subscription_creations stat: {_sub_err}")
+
         return CreateSubscriptionResponse(
             subscription_id=subscription_result['subscription_id'],
             status=subscription_result['status'],
@@ -2909,6 +2942,8 @@ async def redeem_gift_card(
             await cache_service.update_liability(int(credits_value))
             if not user_cache_data.get('signup_completed'):
                 await cache_service.increment_stat("new_users_finished_signup", 1)
+            # Track gift card redemption for financial analytics
+            await cache_service.increment_stat("gift_cards_redeemed")
         except Exception as stats_err:
             logger.error(f"Error updating global stats during gift card redemption: {stats_err}")
 

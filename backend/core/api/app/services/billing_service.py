@@ -203,6 +203,19 @@ class BillingService:
                 await self.cache_service.increment_stat("credits_used", credits_to_deduct)
                 await self.cache_service.update_liability(-credits_to_deduct)
 
+            # 4.6. Track token usage for cost analytics (Phase 6)
+            # Increment total_input_tokens and total_output_tokens from usage_details
+            if usage_details:
+                try:
+                    input_tok = usage_details.get("input_tokens")
+                    output_tok = usage_details.get("output_tokens")
+                    if input_tok and isinstance(input_tok, int) and input_tok > 0:
+                        await self.cache_service.increment_stat("total_input_tokens", input_tok)
+                    if output_tok and isinstance(output_tok, int) and output_tok > 0:
+                        await self.cache_service.increment_stat("total_output_tokens", output_tok)
+                except Exception as _tok_err:
+                    logger.warning(f"Failed to increment token counters: {_tok_err}")
+
             # 5. Broadcast the new credit balance to all user devices
             await self.websocket_manager.broadcast_to_user(
                 user_id=user_id,
