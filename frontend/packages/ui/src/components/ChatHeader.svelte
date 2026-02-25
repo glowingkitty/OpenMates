@@ -5,15 +5,21 @@
   Shown only for new chats where the server generates title/category/icon.
   Scrolls with the chat content (scrolls out of view as user scrolls down).
 
-  Two visual states with smooth transitions:
+  Three visual states with smooth transitions:
 
-  State A — Processing (isLoading=true):
+  State A — Processing (isLoading=true, isCreditsError=false):
     - Background: var(--color-primary) gradient
     - Centered AI icon (38×38px, white) + "Creating new chat ..." text (20px, white)
     - Both icon and text have a left-to-right shimmer animation
     - No decorative side icons
 
-  State B — Loaded (isLoading=false, title+category present):
+  State A2 — Credits Error (isLoading=false, isCreditsError=true):
+    - Background: var(--color-primary) gradient (same blue, no shimmer)
+    - Static AI icon (38×38px, white, 0.5 opacity) + "Not enough credits" text (20px, white, static)
+    - Replaces the shimmer with a calm, non-animated error state
+    - Stays visible until user sends another message or switches chat
+
+  State B — Loaded (isLoading=false, isCreditsError=false, title+category present):
     - Background: category gradient (from getCategoryGradientColors)
     - AI icon/text fade out, replaced by:
       - Category icon (38×38px, white) centered
@@ -29,12 +35,13 @@
     - Mobile (≤730px): 190px height
 
   Props:
-    title         - decrypted/plaintext chat title
-    category      - category string (e.g. "technology", "science")
-    icon          - icon name string (e.g. "cpu")
-    summary       - decrypted chat summary (2-3 sentences)
-    isLoading     - true while title/category/icon are not yet received
-    chatCreatedAt - Unix timestamp in seconds of chat creation
+    title          - decrypted/plaintext chat title
+    category       - category string (e.g. "technology", "science")
+    icon           - icon name string (e.g. "cpu")
+    summary        - decrypted chat summary (2-3 sentences)
+    isLoading      - true while title/category/icon are not yet received (State A)
+    isCreditsError - true when message was rejected due to insufficient credits (State A2)
+    chatCreatedAt  - Unix timestamp in seconds of chat creation
 -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
@@ -50,6 +57,7 @@
     icon = null,
     summary = null,
     isLoading = false,
+    isCreditsError = false,
     chatCreatedAt = null,
   }: {
     title?: string;
@@ -57,6 +65,9 @@
     icon?: string | null;
     summary?: string | null;
     isLoading?: boolean;
+    /** True when the first message on this new chat was rejected due to insufficient credits.
+     *  Replaces the "Creating new chat..." shimmer with a static "Not enough credits" state. */
+    isCreditsError?: boolean;
     chatCreatedAt?: number | null;
   } = $props();
 
@@ -148,11 +159,11 @@
 
   // ─── Derived state ─────────────────────────────────────────────────────────
 
-  /** Gradient background style for the banner. Uses primary gradient while loading,
-   *  category gradient once loaded. */
+  /** Gradient background style for the banner. Uses primary gradient while loading or
+   *  showing a credits error; category gradient once fully loaded. */
   let bannerStyle = $derived.by(() => {
-    if (isLoading || !category) {
-      // Processing state: use the primary gradient from theme.css
+    if (isLoading || isCreditsError || !category) {
+      // Processing state or credits error: use the primary gradient from theme.css
       return 'background: var(--color-primary)';
     }
     const colors = getCategoryGradientColors(category);
@@ -251,10 +262,21 @@
   style={bannerStyle}
 >
   <!-- ── Processing state: AI icon + "Creating new chat ..." with shimmer ── -->
-  {#if isLoading}
+  {#if isLoading && !isCreditsError}
     <div class="processing-content">
       <div class="processing-ai-icon"></div>
       <span class="processing-text">{$text('chat.creating_new_chat')}</span>
+    </div>
+  {/if}
+
+  <!-- ── Credits error state: static AI icon + "Not enough credits" text ──
+       Shown when the first message on a new chat was rejected due to 0 credits.
+       Same blue background as the loading state but no shimmer animation.
+       Stays visible until the user sends another message or switches chat. -->
+  {#if isCreditsError}
+    <div class="processing-content credits-error-content">
+      <div class="processing-ai-icon credits-error-icon"></div>
+      <span class="credits-error-text">{$text('chat.header.not_enough_credits')}</span>
     </div>
   {/if}
 
@@ -405,6 +427,29 @@
   @keyframes headerShimmer {
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+  }
+
+  /* ─── Credits error state ────────────────────────────────────────────────
+     Same layout as processing-content but with no shimmer animation.
+     The icon and text are static and dimmed (0.6 opacity) to indicate
+     an error state without being alarming. */
+
+  .credits-error-content {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .credits-error-icon {
+    /* Same mask as processing-ai-icon but static white at reduced opacity */
+    background: rgba(255, 255, 255, 0.6) !important;
+    background-size: 100% 100% !important;
+    animation: none !important;
+  }
+
+  .credits-error-text {
+    font-size: 20px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.75);
+    text-align: center;
   }
 
   /* ─── Loaded state ──────────────────────────────────────────────────────── */
@@ -608,6 +653,10 @@
     }
 
     .processing-text {
+      font-size: 17px;
+    }
+
+    .credits-error-text {
       font-size: 17px;
     }
 

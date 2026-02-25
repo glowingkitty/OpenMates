@@ -432,6 +432,7 @@
     chatSummary = null,
     chatCreatedAt = null,
     isNewChatGeneratingTitle = false,
+    isNewChatCreditsError = false,
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
@@ -456,6 +457,9 @@
     /** True while the server is still generating the title/category/icon for a new chat.
      *  Shows the "Creating new chat ..." shimmer placeholder instead of the full card. */
     isNewChatGeneratingTitle?: boolean;
+    /** True when the first message on this new chat was rejected due to insufficient credits.
+     *  Keeps the header banner visible with a "Not enough credits" state instead of dismissing it. */
+    isNewChatCreditsError?: boolean;
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -590,10 +594,11 @@
 
   // Whether to show the chat header card (or its loading placeholder) at the top of the chat.
   // Only shown for new chats — existing chats opened from the sidebar never show this.
-  // The header is visible as long as either:
-  //   a) isNewChatGeneratingTitle is true (placeholder state), or
-  //   b) the title + category have been received (full card state)
-  let showChatHeader = $derived(isNewChatGeneratingTitle || !!(chatTitle && chatCategory));
+  // The header is visible as long as any of these are true:
+  //   a) isNewChatGeneratingTitle is true (shimmer placeholder state), or
+  //   b) isNewChatCreditsError is true (credits rejection state — keeps banner mounted), or
+  //   c) the title + category have been received (full card state)
+  let showChatHeader = $derived(isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
   
   // Message ID waiting to be scrolled into view after the new-chat title arrives.
   // When a message is sent to a brand-new chat we activate the spacer immediately
@@ -1470,6 +1475,7 @@
                 summary={chatSummary}
                 {chatCreatedAt}
                 isLoading={isNewChatGeneratingTitle}
+                isCreditsError={isNewChatCreditsError}
             />
         </div>
     {/if}

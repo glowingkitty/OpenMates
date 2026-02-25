@@ -761,6 +761,29 @@ creating_new_chat:
   cs: Vytváří se nový chat ...
   sv: Skapar ny chatt ...
   verified_by_human: []
+header.not_enough_credits:
+  context: Text shown in the chat header banner when user has no credits and a new chat message was rejected. Replaces the "Creating new chat..." shimmer text.
+  en: Not enough credits
+  de: Nicht genug Credits
+  zh: 积分不足
+  es: No hay suficientes créditos
+  fr: Crédits insuffisants
+  pt: Créditos insuficientes
+  ru: Недостаточно кредитов
+  ja: クレジットが不足しています
+  ko: 크레딧이 부족합니다
+  it: Crediti insufficienti
+  tr: Yeterli kredi yok
+  vi: Không đủ tín dụng
+  id: Kredit tidak cukup
+  pl: Za mało kredytów
+  nl: Niet genoeg credits
+  ar: رصيد غير كافٍ
+  hi: पर्याप्त क्रेडिट नहीं
+  th: เครดิตไม่เพียงพอ
+  cs: Nedostatek kreditů
+  sv: Inte tillräckligt med krediter
+  verified_by_human: []
 header.started_today:
   context: Chat creation time shown in header banner when chat was created today. {time} is replaced with HH:MM format
   en: "Started today, {time}"

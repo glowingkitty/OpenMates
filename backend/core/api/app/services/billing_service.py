@@ -397,6 +397,9 @@ class BillingService:
             logger.debug(f"Decrypting email for user {user_id} auto top-up")
             email = await self._get_decrypted_email(user)
             logger.debug(f"Email decryption result for user {user_id}: {'success' if email else 'failed/empty'}")
+            if not email:
+                logger.warning(f"No email found for user {user_id} auto top-up — skipping to avoid Stripe InvalidRequestError.")
+                return
 
             # 7. Create PaymentIntent using existing payment service
             # Initialize SecretsManager with cache service

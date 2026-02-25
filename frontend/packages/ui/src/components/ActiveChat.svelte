@@ -2109,6 +2109,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Whether we are currently showing the "Generating title..." placeholder in the chat header.
     // Set to true when a new-chat message is sent; cleared when title/category/icon arrive.
     let isNewChatGeneratingTitle = $state(false);
+    // Whether the first message on this new chat was rejected due to insufficient credits.
+    // When true: isNewChatGeneratingTitle is false and the banner shows "Not enough credits".
+    // Cleared on next message send or chat switch.
+    let isNewChatCreditsError = $state(false);
     // Decrypted chat header metadata for new chats, populated once the server sends title/category/icon.
     let activeChatDecryptedTitle = $state<string>('');
     let activeChatDecryptedCategory = $state<string | null>(null);
@@ -2151,6 +2155,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     function resetChatHeaderState() {
         isNewChatGeneratingTitle = false;
+        isNewChatCreditsError = false;
         activeChatDecryptedTitle = '';
         activeChatDecryptedCategory = null;
         activeChatDecryptedIcon = null;
@@ -2779,13 +2784,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void _aiTaskStateTrigger;
         
         // Check if there's a message in waiting_for_user state (e.g., insufficient credits, app settings permission)
-        const hasWaitingForUserMessage = currentMessages.some(m => 
+        const waitingForUserMessages = currentMessages.filter(m => 
             m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
         );
+        const hasWaitingForUserMessage = waitingForUserMessages.length > 0;
+
+        // Show "Waiting for you..." if chat is paused waiting for user action,
+        // BUT suppress it when ALL waiting_for_user messages are system rejections
+        // (e.g., insufficient credits). In that case, the system message bubble in the
+        // chat body already informs the user — a second indicator at the bottom is redundant.
+        const allWaitingAreSystemRejections = hasWaitingForUserMessage &&
+            waitingForUserMessages.every(m => m.role === 'system');
         
-        // Show "Waiting for you..." if chat is paused waiting for user action
-        // This is ALWAYS shown at the bottom (not part of the centered indicator flow)
-        if (hasWaitingForUserMessage) {
+        if (hasWaitingForUserMessage && !allWaitingAreSystemRejections) {
             const result = $text('enter_message.waiting_for_user');
             console.debug('[ActiveChat] Showing waiting_for_user indicator:', result);
             return [result]; // Single line
@@ -2851,11 +2862,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
         
-        // "Waiting for you..." is always shown at the bottom
-        const hasWaitingForUserMessage = currentMessages.some(m => 
+        // "Waiting for you..." is always shown at the bottom,
+        // BUT suppress it when ALL waiting_for_user messages are system rejections
+        // (e.g., insufficient credits). The system message bubble already informs the user.
+        const waitingForUserMessages = currentMessages.filter(m => 
             m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
         );
-        if (hasWaitingForUserMessage) return 'processing'; // Reuse 'processing' CSS class for shimmer effect
+        const hasWaitingForUserMessage = waitingForUserMessages.length > 0;
+        const allWaitingAreSystemRejections = hasWaitingForUserMessage &&
+            waitingForUserMessages.every(m => m.role === 'system');
+        if (hasWaitingForUserMessage && !allWaitingAreSystemRejections) return 'processing'; // Reuse 'processing' CSS class for shimmer effect
         
         // When centered indicator is active, bottom shows nothing
         if (processingPhase !== null) return null;
@@ -3192,6 +3208,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // so the chat shows "Waiting for you..." instead of appearing as a completed response
                 const isRejection = !!chunk.rejection_reason;
                 const finalStatus = isRejection ? 'waiting_for_user' as const : 'synced' as const;
+
+                // If this was a credits rejection on a new chat, transition the header banner
+                // from "Creating new chat..." (loading shimmer) to "Not enough credits" (static).
+                // isNewChatProcessing is still true here — it's only reset on chat switch / new-chat-click.
+                if (isRejection && chunk.rejection_reason === 'insufficient_credits' && isNewChatProcessing) {
+                    isNewChatGeneratingTitle = false;
+                    isNewChatCreditsError = true;
+                    console.debug('[ActiveChat] Credits rejection on new chat — transitioning header to credits error state');
+                }
                 const updatedFinalMessage = {
                     ...finalMessageInArray,
                     status: finalStatus,
@@ -3649,8 +3674,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         // If this is a new chat, show the "Generating title..." placeholder in the chat header.
         // This is cleared once the title/category/icon arrive via a title_updated or metadata_updated event.
+        // Also resets any prior credits error state so the banner returns to loading.
         if (isNewChatProcessing) {
             isNewChatGeneratingTitle = true;
+            isNewChatCreditsError = false;
             activeChatDecryptedTitle = '';
             activeChatDecryptedCategory = null;
             activeChatDecryptedIcon = null;
@@ -7355,6 +7382,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         chatSummary={activeChatDecryptedSummary}
                         chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : null}
                         {isNewChatGeneratingTitle}
+                        {isNewChatCreditsError}
                         onSuggestionAdded={handleSettingsMemorySuggestionAdded}
                         onSuggestionRejected={handleSettingsMemorySuggestionRejected}
                         onSuggestionOpenForCustomize={handleSettingsMemorySuggestionOpenForCustomize}
