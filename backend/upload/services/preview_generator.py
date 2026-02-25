@@ -102,7 +102,7 @@ def _rasterize_svg(svg_bytes: bytes) -> bytes:
         raise RuntimeError(
             "cairosvg is not installed — SVG rasterization is unavailable. "
             "Add 'cairosvg' to requirements.txt and the required system libs "
-            "(libcairo2, libpango-1.0-0, libpangocairo-1.0-0, libgdk-pixbuf2.0-0) "
+            "(libcairo2, libpango-1.0-0, libpangocairo-1.0-0, libgdk-pixbuf-2.0-0) "
             "to the Dockerfile."
         ) from exc
 

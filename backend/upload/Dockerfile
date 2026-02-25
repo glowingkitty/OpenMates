@@ -15,7 +15,7 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # Install system dependencies required by Pillow, python-magic, and cairosvg.
-# cairosvg needs: libcairo2, libpango-1.0-0, libpangocairo-1.0-0, libgdk-pixbuf2.0-0
+# cairosvg needs: libcairo2, libpango-1.0-0, libpangocairo-1.0-0, libgdk-pixbuf-2.0-0
 # (these are the Cairo/Pango/GDK-Pixbuf rendering stack used to rasterize SVGs).
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -28,7 +28,7 @@ RUN apt-get update && \
         libcairo2 \
         libpango-1.0-0 \
         libpangocairo-1.0-0 \
-        libgdk-pixbuf2.0-0 && \
+        libgdk-pixbuf-2.0-0 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
