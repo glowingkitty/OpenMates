@@ -51,7 +51,11 @@
 		loadCommunityDemos,
 		loadDefaultInspirations
 	} from '@repo/ui';
-	import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
+	import {
+		checkAndClearMasterKeyOnLoad,
+		isProgrammaticHashUpdate,
+		isProgrammaticEmbedHashUpdate
+	} from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { locale, waitLocale } from 'svelte-i18n';
 	import { get } from 'svelte/store';
@@ -1805,6 +1809,20 @@
 				const isAuth = $authStore.isAuthenticated;
 				console.debug('[+page.svelte] onNoHash: Determining default chat to load', { isAuth });
 
+				// CRITICAL: Do NOT override a new-chat session with demo-for-everyone.
+				// When the user clicks "new chat", handleNewChatClick() in ActiveChat calls
+				// activeChatStore.clearActiveChat() which sets hash to '' and fires a hashchange.
+				// If the programmatic-guard 100ms window has expired (can happen on slow mobile
+				// or when the async import below takes time), onNoHash fires and would call
+				// loadDemoWelcomeChat, overwriting the new-chat state. Guard against this with
+				// the phasedSyncState sentinel that handleNewChatClick sets before clearing the hash.
+				if (get(phasedSyncState).currentActiveChatId === NEW_CHAT_SENTINEL) {
+					console.debug(
+						'[+page.svelte] onNoHash: user is in new-chat mode, skipping default chat load'
+					);
+					return;
+				}
+
 				if (isAuth) {
 					// For authenticated users: try to load last_opened chat, otherwise create new chat
 					await loadLastOpenedChatOrCreateNew();
@@ -1828,10 +1846,12 @@
 	 * CRITICAL: Ignores programmatic hash updates to prevent infinite loops
 	 */
 	async function handleHashChange() {
-		// Import the check function
-		const { isProgrammaticHashUpdate, isProgrammaticEmbedHashUpdate } = await import('@repo/ui');
-
-		// Ignore hash changes that we triggered programmatically (prevents infinite loops)
+		// CRITICAL: Check programmatic-update guard SYNCHRONOUSLY before any await.
+		// The previous pattern did `await import('@repo/ui')` first, which takes ~10-50ms
+		// on mobile. By the time isProgrammaticHashUpdate() was called, the 100ms guard
+		// window had already expired, causing programmatic hash clears (from clearActiveChat
+		// in handleNewChatClick) to be treated as real user navigation — triggering
+		// loadDemoWelcomeChat and overwriting the new-chat state just as the user sent a message.
 		if (isProgrammaticHashUpdate() || isProgrammaticEmbedHashUpdate()) {
 			console.debug('[+page.svelte] Ignoring programmatic hash update');
 			return;
