@@ -600,24 +600,30 @@ const UPDATE_DEBOUNCE_MS = 300;
 
 
 	// Flattened list of ALL sorted chats, used for keyboard navigation, ChatHeader arrow nav,
-	// and selection logic. For authenticated users this is identical to sortedAllChatsFiltered.
-	// For unauthenticated users, we override the timestamp-based sort order with the correct
-	// group order (intro → examples → legal), because convertDemoChatToChat assigns timestamps
-	// that can make legal chats interleave with intro chats (both use small offset from 7-days-ago),
-	// and community demo chats from the server may have newer timestamps that sort before intro chats.
-	const GROUP_NAV_ORDER: Record<string, number> = { intro: 0, examples: 1, legal: 2 };
+	// and selection logic.
+	//
+	// Problem: sortChats() orders entirely by timestamp, which mixes real user chats with
+	// intro/examples/legal chats wherever their timestamps happen to land. This means a
+	// community demo chat (server timestamp) or a legal chat (order 3-5 from 7-days-ago)
+	// can interleave with — or appear before — user chats and intro chats.
+	//
+	// Fix: always sort by section first, then by the existing timestamp sort within each section:
+	//   Unauthenticated: intro(0) → examples(1) → legal(2)
+	//   Authenticated:   user chats without group_key(0) → intro(1) → examples(2) → legal(3)
+	//
+	// Chats without a group_key are real user chats (or incognito/session chats). For
+	// authenticated users they sort first; the fallback bucket (99) is never used in practice.
+	const GROUP_NAV_ORDER_UNAUTH: Record<string, number> = { intro: 0, examples: 1, legal: 2 };
+	const GROUP_NAV_ORDER_AUTH:   Record<string, number> = { intro: 1, examples: 2, legal: 3 };
 	let flattenedNavigableChats = $derived.by(() => {
-		if ($authStore.isAuthenticated) {
-			// Authenticated: use the standard timestamp sort as-is
-			return sortedAllChatsFiltered;
-		}
-		// Unauthenticated: sort by group key first (intro → examples → legal),
-		// then by original sort order within each group (preserves metadata.order via timestamps).
+		const groupOrder = $authStore.isAuthenticated ? GROUP_NAV_ORDER_AUTH : GROUP_NAV_ORDER_UNAUTH;
 		return [...sortedAllChatsFiltered].sort((a, b) => {
-			const aGroup = GROUP_NAV_ORDER[a.group_key ?? ''] ?? 99;
-			const bGroup = GROUP_NAV_ORDER[b.group_key ?? ''] ?? 99;
+			// Chats without a group_key are user chats → bucket 0 for authenticated, or bucket 99 for unauth
+			// (unauth has no real user chats, so bucket 99 is never reached there)
+			const aGroup = a.group_key ? (groupOrder[a.group_key] ?? 99) : ($authStore.isAuthenticated ? 0 : 99);
+			const bGroup = b.group_key ? (groupOrder[b.group_key] ?? 99) : ($authStore.isAuthenticated ? 0 : 99);
 			if (aGroup !== bGroup) return aGroup - bGroup;
-			// Same group: keep existing sort order (timestamp descending = lower order first for demo chats)
+			// Same section: preserve the existing timestamp sort (most-recent first)
 			return (b.last_edited_overall_timestamp || 0) - (a.last_edited_overall_timestamp || 0);
 		});
 	});
