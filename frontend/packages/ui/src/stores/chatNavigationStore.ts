@@ -24,6 +24,12 @@ import { writable } from "svelte/store";
 import type { Chat } from "../types/chat";
 import { activeChatStore } from "./activeChatStore";
 import { chatListCache } from "../services/chatListCache";
+import {
+  INTRO_CHATS,
+  LEGAL_CHATS,
+  getAllCommunityDemoChats,
+} from "../demo_chats";
+import { convertDemoChatToChat } from "../demo_chats/convertToChat";
 
 export interface ChatNavigationState {
   /** True when there is a chat before the current one in the sorted list. */
@@ -152,14 +158,46 @@ export function updateNavFromCache(activeChatId: string): void {
   // We import chatDB lazily to avoid a circular dependency at module load time.
   // This runs asynchronously; the arrows will appear once the promise resolves
   // (typically within a few hundred milliseconds on a warm device).
+  //
+  // For unauthenticated users, openmates-chat-db is empty — their chat list is
+  // purely in-memory (INTRO_CHATS + LEGAL_CHATS + community demos). We combine
+  // both sources here to mirror what Chats.svelte builds in visiblePublicChats.
   import("../services/db")
     .then(({ chatDB }) => chatDB.getAllChats())
-    .then((chats) => {
-      if (!chats || chats.length === 0) return;
+    .then((dbChats) => {
       // Only apply if Chats.svelte still hasn't mounted and set its own list
-      if (chatList.length === 0) {
-        _applyNavigableList(chats, activeChatId);
-      }
+      if (chatList.length > 0) return;
+
+      // Build the in-memory public chats list (mirrors Chats.svelte visiblePublicChats).
+      // These are always available regardless of auth state.
+      const introChats: Chat[] = INTRO_CHATS.map((demo) => {
+        const chat = convertDemoChatToChat(demo);
+        chat.group_key = "intro";
+        return chat;
+      });
+      const legalChats: Chat[] = LEGAL_CHATS.map((legal) => {
+        const chat = convertDemoChatToChat(legal);
+        chat.group_key = "legal";
+        return chat;
+      });
+      // Community demos are already Chat objects with group_key='examples'
+      const communityChats: Chat[] = getAllCommunityDemoChats().map((chat) => ({
+        ...chat,
+        group_key: "examples",
+      }));
+
+      // Combine: real user chats first, then public in-memory chats.
+      // If the user is unauthenticated, dbChats will be empty and we still
+      // get the intro/legal/community chats for nav arrows to work.
+      const allChats = [
+        ...(dbChats || []),
+        ...introChats,
+        ...communityChats,
+        ...legalChats,
+      ];
+
+      if (allChats.length === 0) return;
+      _applyNavigableList(allChats, activeChatId);
     })
     .catch((err) => {
       console.warn(
