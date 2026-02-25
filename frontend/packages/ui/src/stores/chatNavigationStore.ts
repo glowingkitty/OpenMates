@@ -170,16 +170,43 @@ export function updateNavFromCache(activeChatId: string): void {
 }
 
 /**
- * Internal helper: filter to navigable chats, update the module-level list,
- * and push the new hasPrev/hasNext to the store.
+ * Internal helper: build the navigable list, update the module-level list,
+ * and push hasPrev/hasNext to the store.
  *
- * "Navigable" = user-owned chats without a group_key (same basic filter as
- * Chats.svelte's flattenedNavigableChats, but without demo/legal filtering
- * which would require importing demo_chats here).  In practice group_key is
- * only set on grouped/demo entries so this is equivalent for regular users.
+ * Uses the same ordering as Chats.svelte's flattenedNavigableChats:
+ *   Authenticated:   user chats (no group_key) first, then intro/examples/legal
+ *   Unauthenticated: intro → examples → legal (all have a group_key)
+ *
+ * All chats are included — filtering out demo/legal here would break navigation
+ * for unauthenticated users where every chat has a group_key.
  */
 function _applyNavigableList(allChats: Chat[], activeChatId: string): void {
-  const navigable = allChats.filter((c) => !c.group_key);
+  // Mirror the section-first sort from Chats.svelte flattenedNavigableChats.
+  // We don't have access to authStore here, but we can infer auth state from
+  // whether any chat lacks a group_key (only real user chats have none).
+  const hasUserChats = allChats.some((c) => !c.group_key);
+  const groupOrder: Record<string, number> = hasUserChats
+    ? { intro: 1, examples: 2, legal: 3 } // authenticated order
+    : { intro: 0, examples: 1, legal: 2 }; // unauthenticated order
+
+  const navigable = [...allChats].sort((a, b) => {
+    const aGroup = a.group_key
+      ? (groupOrder[a.group_key] ?? 99)
+      : hasUserChats
+        ? 0
+        : 99;
+    const bGroup = b.group_key
+      ? (groupOrder[b.group_key] ?? 99)
+      : hasUserChats
+        ? 0
+        : 99;
+    if (aGroup !== bGroup) return aGroup - bGroup;
+    return (
+      (b.last_edited_overall_timestamp || 0) -
+      (a.last_edited_overall_timestamp || 0)
+    );
+  });
+
   setChatNavigationList(navigable, activeChatId);
   const idx = navigable.findIndex((c) => c.chat_id === activeChatId);
   chatNavigationStore.set({
