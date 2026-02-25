@@ -595,6 +595,12 @@
   //   b) the title + category have been received (full card state)
   let showChatHeader = $derived(isNewChatGeneratingTitle || !!(chatTitle && chatCategory));
   
+  // Whether the next user-message scroll should use the new-chat delay.
+  // When true, the scroll waits 2 s instead of 350 ms so the user can see the
+  // "Creating new chat..." header transition into the generated title/icon before
+  // the view scrolls down to the user message.  Reset to false after each use.
+  let isNewChatScrollPending = $state(false);
+
   // Whether the streaming spacer should be active.
   // The spacer ensures the scroll position remains valid after the user-message scroll
   // positions the user message near the top of the viewport. Without it, there wouldn't
@@ -686,7 +692,9 @@
   let previousLocale = $state($locale || 'en');
 
   // Add method to update messages
-  export function updateMessages(newMessagesArray: GlobalMessage[]) {
+  // isNewChat: when true, the post-send scroll is delayed by 2 s so the user can
+  // first see the "Creating new chat..." header transition into the generated title.
+  export function updateMessages(newMessagesArray: GlobalMessage[], isNewChat = false) {
     // Check if locale has changed - if so, force re-processing of all messages
     // Use previousLocale to detect changes since currentLocale is $derived
     const newLocale = $locale || 'en';
@@ -798,6 +806,9 @@
       if (newMessage.role === 'user') {
         lastUserMessageId = newMessage.id;
         shouldScrollToNewUserMessage = true;
+        // For new chats, use the extended delay so the user sees the "Creating new
+        // chat…" header transition before the view scrolls down.
+        isNewChatScrollPending = isNewChat;
       }
     }
 
@@ -851,6 +862,13 @@
       }, 60_000);
 
       // Wait for the spacer to render, then calculate and execute the scroll.
+      // For new chats we use a longer delay (2 s) so the user can see the
+      // "Creating new chat…" header transition before the view scrolls down.
+      // For existing chats we keep the original 350 ms delay.
+      const scrollDelay = isNewChatScrollPending ? 2000 : 350;
+      // Consume the flag immediately so it doesn't affect subsequent sends.
+      isNewChatScrollPending = false;
+
       tick().then(() => {
         setTimeout(() => {
           const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
@@ -900,7 +918,7 @@
             shouldScrollToNewUserMessage = false;
             isScrolling = false;
           }
-        }, 350);
+        }, scrollDelay);
       });
     }
   });

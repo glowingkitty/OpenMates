@@ -115,7 +115,7 @@
     type HiddenChatFlag = { is_hidden?: boolean | null };
 
     type ChatHistoryRef = {
-        updateMessages: (messages: ChatMessageModel[]) => void;
+        updateMessages: (messages: ChatMessageModel[], isNewChat?: boolean) => void;
         scrollToTop: () => void;
         scrollToBottom: (smooth?: boolean) => void;
         restoreScrollPosition: (messageId: string) => void;
@@ -3609,7 +3609,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         if (chatHistoryRef) {
             console.debug("[ActiveChat] handleSendMessage: Updating ChatHistory with messages:", currentMessages);
-            chatHistoryRef.updateMessages(currentMessages);
+            // Pass isNewChatProcessing so ChatHistory can use the extended 2 s scroll
+            // delay for new chats, letting the user see the "Creating new chat…" header
+            // transition before the view scrolls down to the user message.
+            chatHistoryRef.updateMessages(currentMessages, isNewChatProcessing);
         }
         showWelcome = false;
 
