@@ -4,6 +4,40 @@ Load this document when investigating bugs, reading logs, or troubleshooting Doc
 
 ---
 
+## CRITICAL: State Your Understood User Flow Before Doing Anything
+
+**This is the very first step — before reading logs, before touching code, before asking clarifying questions.**
+
+No matter how detailed the user's message is, no matter how many logs are pasted, you MUST:
+
+1. **Write out the user flow as you understand it** — in plain language, step by step:
+   - What the user did (or tried to do)
+   - What they expected to happen
+   - What actually happened instead
+   - Which part of the system you believe was involved and why
+
+2. **Explicitly ask the user to confirm or correct your understanding** before you proceed.
+
+### Example format
+
+> **My understanding of the issue:**
+>
+> 1. User opens the chat and sends a message with a location embed attached.
+> 2. The AI response references a UUID string instead of the actual location name.
+> 3. Expected: AI receives the resolved location content (city, address, etc.).
+> 4. Actual: AI receives raw JSON `{"type": "location", "embed_id": "..."}` and treats it as literal text.
+> 5. I believe the embed resolution step is failing silently before the message reaches the LLM.
+>
+> **Is this correct, or did I misunderstand something?**
+
+### Why this is required
+
+Jumping straight into logs and code when the user flow is misunderstood wastes multiple investigation cycles. A 30-second confirmation upfront saves far more time than iterating on the wrong hypothesis. This applies **regardless of how many logs are in the message or how detailed the description is** — your interpretation of those logs may still be wrong.
+
+**Do not skip this step even if you are confident you understand the issue.**
+
+---
+
 ## CRITICAL: Verify a Regression Before Attempting to Fix It
 
 Before spending any effort debugging a suspected regression, confirm it is actually caused by recent changes.
@@ -226,6 +260,26 @@ Multiple assistants may work on the codebase simultaneously. If an API call or t
    ```
 
 4. **Only escalate if the service is still down after ~2 minutes** with no active restart activity in the logs. At that point, investigate as a real failure using the standard debugging steps below.
+
+---
+
+## Endpoint Not Receiving Requests
+
+If an endpoint receives no traffic at all (no logs, no handler execution), **check the Caddyfile first**. Caddy is the reverse proxy and may be blocking or not forwarding the route.
+
+Caddyfiles live under `deployment/` — `dev_server/Caddyfile`, `prod_server/Caddyfile`, etc. Check the one matching the affected server.
+
+```bash
+grep -n "<endpoint-path>" deployment/dev_server/Caddyfile
+```
+
+Look for: an explicit `respond 4xx` block, a missing `reverse_proxy` matcher, or a wildcard rule catching the path before the correct handler.
+
+To apply a fix, edit the Caddyfile and reload (Caddy runs as a host systemd service — no container rebuild needed):
+
+```bash
+sudo systemctl reload caddy
+```
 
 ---
 
