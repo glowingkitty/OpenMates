@@ -398,7 +398,7 @@
   .loaded-summary {
     margin: 2px 0 0;
     font-size: 14px;
-    font-weight: 400;
+    font-weight: 500;
     color: #ffffff;
     line-height: 1.45;
     text-align: center;
@@ -428,8 +428,8 @@
   /* Creation time: 14px, white at 0.7 opacity */
   .loaded-time {
     font-size: 14px;
-    font-weight: 400;
-    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
     text-align: center;
     margin-top: 2px;
     animation: fadeIn 0.4s ease-out 0.15s both;

@@ -7090,7 +7090,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         aria-label={$text('chat.share')}
                                         onclick={handleShareChat}
                                         use:tooltip
-                                        style="margin: 5px;"
                                     >
                                     </button>
                                 </div>
@@ -7101,7 +7100,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     aria-label={$text('header.report_issue')}
                                     onclick={handleReportIssue}
                                     use:tooltip
-                                    style="margin: 5px;"
                                 >
                                 </button>
                             </div>
@@ -7120,7 +7118,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             : $text('chat.pii_show')}
                                         onclick={handleTogglePIIVisibility}
                                         use:tooltip
-                                        style="margin: 5px;"
                                     >
                                     </button>
                                 </div>
@@ -7134,7 +7131,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         aria-label={$text('chat.minimize')}
                                         onclick={handleMinimizeChat}
                                         use:tooltip
-                                        style="margin: 5px;"
                                     >
                                     </button>
                                 </div>

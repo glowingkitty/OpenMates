@@ -1002,9 +1002,9 @@
   }
   
   .action-button {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
     border: none;
     border-radius: 50%;
     cursor: pointer;
@@ -1022,8 +1022,8 @@
   
   /* Icon styling inside action buttons */
   .action-button .clickable-icon {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
   }
   
   /* Navigation buttons - using back icon, forward icon is rotated 180deg */
