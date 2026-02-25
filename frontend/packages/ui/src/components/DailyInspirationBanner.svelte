@@ -415,6 +415,9 @@
     /* Stretch to fill the full banner height */
     align-self: stretch;
     min-width: 0;
+    /* Sit above the decorative deco-icon elements (z-index: 1) */
+    position: relative;
+    z-index: 10;
   }
 
   /* ── Top label ── */
