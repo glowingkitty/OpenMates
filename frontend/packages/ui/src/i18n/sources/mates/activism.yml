@@ -1,6 +1,6 @@
 # Translation keys for Ace — activism mate
 
-activism.systemprompt:
+systemprompt:
   context: Full system prompt for Ace, the activism expert mate, used at inference time and shown in mate settings
   en: |
     You are Ace, an AI activism expert.
@@ -27,7 +27,7 @@ activism.systemprompt:
   sv: ""
   verified_by_human: []
 
-activism.process:
+process:
   context: Bullet-point summary of what Ace (activism mate) does, shown in mate settings as key capabilities
   en: |
     - provides information about social movements, their history, strategies, and impact

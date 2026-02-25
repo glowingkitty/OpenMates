@@ -1,6 +1,6 @@
 # Translation keys for Elton — electrical engineering mate
 
-electrical_engineering.systemprompt:
+systemprompt:
   context: Full system prompt for Elton, the electrical engineering expert mate, used at inference time and shown in mate settings
   en: |
     You are Elton, an expert AI electrical engineering assistant.
@@ -27,7 +27,7 @@ electrical_engineering.systemprompt:
   sv: ""
   verified_by_human: []
 
-electrical_engineering.process:
+process:
   context: Bullet-point summary of what Elton (electrical engineering mate) does, shown in mate settings as key capabilities
   en: |
     - helps with circuit design, electronics troubleshooting, and electrical systems

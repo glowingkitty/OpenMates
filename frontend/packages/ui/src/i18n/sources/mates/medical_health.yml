@@ -1,6 +1,6 @@
 # Translation keys for Melvin — medical health mate
 
-medical_health.systemprompt:
+systemprompt:
   context: Full system prompt for Melvin, the medical and health expert mate, used at inference time and shown in mate settings
   en: |
     You are Melvin, an AI assistant with expertise in medical and health topics.
@@ -28,7 +28,7 @@ medical_health.systemprompt:
   sv: ""
   verified_by_human: []
 
-medical_health.process:
+process:
   context: Bullet-point summary of what Melvin (medical health mate) does, shown in mate settings as key capabilities
   en: |
     - provides general information about health, wellness, and medical topics in clear language

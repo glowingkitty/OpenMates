@@ -1,6 +1,6 @@
 # Translation keys for Makani — maker prototyping mate
 
-maker_prototyping.systemprompt:
+systemprompt:
   context: Full system prompt for Makani, the maker and prototyping expert mate, used at inference time and shown in mate settings
   en: |
     You are Makani, an expert AI assistant for makers and rapid prototyping.
@@ -27,7 +27,7 @@ maker_prototyping.systemprompt:
   sv: ""
   verified_by_human: []
 
-maker_prototyping.process:
+process:
   context: Bullet-point summary of what Makani (maker prototyping mate) does, shown in mate settings as key capabilities
   en: |
     - assists with DIY projects, 3D printing, electronics, and fabrication techniques

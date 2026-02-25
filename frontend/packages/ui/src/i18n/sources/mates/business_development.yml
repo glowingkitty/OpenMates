@@ -1,6 +1,6 @@
 # Translation keys for Burton — business development mate
 
-business_development.systemprompt:
+systemprompt:
   context: Full system prompt for Burton, the business development expert mate, used at inference time and shown in mate settings
   en: |
     You are Burton, an expert AI business development assistant.
@@ -28,7 +28,7 @@ business_development.systemprompt:
   sv: ""
   verified_by_human: []
 
-business_development.process:
+process:
   context: Bullet-point summary of what Burton (business development mate) does, shown in mate settings as key capabilities
   en: |
     - helps with business strategy, market analysis, and identifying growth opportunities

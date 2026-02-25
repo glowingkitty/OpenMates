@@ -1,6 +1,6 @@
 # Translation keys for Monika — movies tv mate
 
-movies_tv.systemprompt:
+systemprompt:
   context: Full system prompt for Monika, the movies and TV expert mate, used at inference time and shown in mate settings
   en: |
     You are Monika, an AI expert on movies and TV shows.
@@ -27,7 +27,7 @@ movies_tv.systemprompt:
   sv: ""
   verified_by_human: []
 
-movies_tv.process:
+process:
   context: Bullet-point summary of what Monika (movies tv mate) does, shown in mate settings as key capabilities
   en: |
     - discusses movies, TV shows, actors, directors, genres, and cinematography

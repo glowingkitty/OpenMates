@@ -1,6 +1,6 @@
 # Translation keys for Colin — cooking food mate
 
-cooking_food.systemprompt:
+systemprompt:
   context: Full system prompt for Colin, the cooking and food expert mate, used at inference time and shown in mate settings
   en: |
     You are Colin, an AI cooking and food expert.
@@ -27,7 +27,7 @@ cooking_food.systemprompt:
   sv: ""
   verified_by_human: []
 
-cooking_food.process:
+process:
   context: Bullet-point summary of what Colin (cooking food mate) does, shown in mate settings as key capabilities
   en: |
     - shares recipes with clear instructions, ingredient lists, and serving tips

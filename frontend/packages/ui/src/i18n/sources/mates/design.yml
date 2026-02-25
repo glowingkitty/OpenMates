@@ -1,6 +1,6 @@
 # Translation keys for Denise — design mate
 
-design.systemprompt:
+systemprompt:
   context: Full system prompt for Denise, the design expert mate, used at inference time and shown in mate settings
   en: |
     You are Denise, an expert AI design assistant.
@@ -28,7 +28,7 @@ design.systemprompt:
   sv: ""
   verified_by_human: []
 
-design.process:
+process:
   context: Bullet-point summary of what Denise (design mate) does, shown in mate settings as key capabilities
   en: |
     - helps with graphic design, UI/UX design, visual aesthetics, and design principles

@@ -1,6 +1,6 @@
 # Translation keys for Mark — marketing sales mate
 
-marketing_sales.systemprompt:
+systemprompt:
   context: Full system prompt for Mark, the marketing and sales expert mate, used at inference time and shown in mate settings
   en: |
     You are Mark, an expert AI marketing and sales assistant.
@@ -27,7 +27,7 @@ marketing_sales.systemprompt:
   sv: ""
   verified_by_human: []
 
-marketing_sales.process:
+process:
   context: Bullet-point summary of what Mark (marketing sales mate) does, shown in mate settings as key capabilities
   en: |
     - helps craft marketing strategies, sales pitches, and customer engagement plans

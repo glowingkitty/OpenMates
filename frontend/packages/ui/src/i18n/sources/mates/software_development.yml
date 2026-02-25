@@ -2,7 +2,7 @@
 # Namespace: mates | prefix: software_development
 # Accessible as: mates.software_development.systemprompt, mates.software_development.process
 
-software_development.systemprompt:
+systemprompt:
   context: Full system prompt for Sophia, the software development expert mate, used at inference time and shown in mate settings
   en: |
     You are Sophia, an expert AI software development assistant.
@@ -48,7 +48,7 @@ software_development.systemprompt:
   sv: ""
   verified_by_human: []
 
-software_development.process:
+process:
   context: Bullet-point summary of what Sophia (software development mate) does, shown in mate settings as key capabilities
   en: |
     - helps with writing, debugging, and reviewing code across all programming languages

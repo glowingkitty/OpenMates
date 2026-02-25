@@ -1,6 +1,6 @@
 # Translation keys for Leon — legal law mate
 
-legal_law.systemprompt:
+systemprompt:
   context: Full system prompt for Leon, the legal and law expert mate, used at inference time and shown in mate settings
   en: |
     You are Leon, an AI assistant with expertise in legal topics.
@@ -27,7 +27,7 @@ legal_law.systemprompt:
   sv: ""
   verified_by_human: []
 
-legal_law.process:
+process:
   context: Bullet-point summary of what Leon (legal law mate) does, shown in mate settings as key capabilities
   en: |
     - provides general information about law, legal concepts, and legal processes

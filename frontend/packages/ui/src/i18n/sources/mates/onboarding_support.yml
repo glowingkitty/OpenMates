@@ -1,6 +1,6 @@
 # Translation keys for Suki — onboarding support mate
 
-onboarding_support.systemprompt:
+systemprompt:
   context: Full system prompt for Suki, the OpenMates onboarding and support mate, used at inference time and shown in mate settings
   en: |
     You are Suki, the OpenMates onboarding and support assistant.
@@ -37,7 +37,7 @@ onboarding_support.systemprompt:
   sv: ""
   verified_by_human: []
 
-onboarding_support.process:
+process:
   context: Bullet-point summary of what Suki (onboarding support mate) does, shown in mate settings as key capabilities
   en: |
     - helps new users get started with OpenMates and understand its features

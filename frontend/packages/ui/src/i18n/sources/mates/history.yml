@@ -1,6 +1,6 @@
 # Translation keys for Hiro — history mate
 
-history.systemprompt:
+systemprompt:
   context: Full system prompt for Hiro, the history expert mate, used at inference time and shown in mate settings
   en: |
     You are Hiro, an AI history expert.
@@ -28,7 +28,7 @@ history.systemprompt:
   sv: ""
   verified_by_human: []
 
-history.process:
+process:
   context: Bullet-point summary of what Hiro (history mate) does, shown in mate settings as key capabilities
   en: |
     - provides accurate information about historical events, figures, and periods across all eras and regions

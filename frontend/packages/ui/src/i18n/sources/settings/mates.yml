@@ -1,5 +1,6 @@
 # Translation keys for the Mates settings page UI
-# Namespace: settings | prefix: mates
+# Namespace: settings | prefix: mates (from filename)
+# Final key format: settings.mates.<key>
 # Used in SettingsMates.svelte and MateDetails.svelte
 
 mates:
@@ -26,7 +27,7 @@ mates:
   sv: ""
   verified_by_human: []
 
-mates.chat_with_mate:
+chat_with_mate:
   context: Button label on mate detail page — clicking opens a new chat with that mate
   en: "Chat with {mate_name}"
   de: "Mit {mate_name} chatten"
@@ -50,7 +51,7 @@ mates.chat_with_mate:
   sv: ""
   verified_by_human: []
 
-mates.system_prompt_heading:
+system_prompt_heading:
   context: Heading for the system prompt / instructions section on the mate detail page
   en: Instructions
   de: Anweisungen
@@ -74,7 +75,7 @@ mates.system_prompt_heading:
   sv: ""
   verified_by_human: []
 
-mates.show_full_prompt:
+show_full_prompt:
   context: Button label to reveal the full system prompt text on the mate detail page
   en: Show full system prompt
   de: Vollständigen System-Prompt anzeigen
@@ -98,7 +99,7 @@ mates.show_full_prompt:
   sv: ""
   verified_by_human: []
 
-mates.hide_full_prompt:
+hide_full_prompt:
   context: Button label to collapse/hide the full system prompt text on the mate detail page
   en: Hide full system prompt
   de: Vollständigen System-Prompt ausblenden
@@ -122,7 +123,7 @@ mates.hide_full_prompt:
   sv: ""
   verified_by_human: []
 
-mates.no_description:
+no_description:
   context: Fallback text shown on a mate detail page when no description is available
   en: No description available.
   de: Keine Beschreibung verfügbar.
@@ -146,7 +147,7 @@ mates.no_description:
   sv: ""
   verified_by_human: []
 
-mates.mate_not_found:
+mate_not_found:
   context: Error message shown when a mate ID is not recognized on the mate detail page
   en: Mate not found.
   de: Mate nicht gefunden.

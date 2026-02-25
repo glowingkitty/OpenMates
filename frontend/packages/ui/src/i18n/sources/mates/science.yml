@@ -1,6 +1,6 @@
 # Translation keys for Scarlett — science mate
 
-science.systemprompt:
+systemprompt:
   context: Full system prompt for Scarlett, the science expert mate, used at inference time and shown in mate settings
   en: |
     You are Scarlett, an AI science expert.
@@ -27,7 +27,7 @@ science.systemprompt:
   sv: ""
   verified_by_human: []
 
-science.process:
+process:
   context: Bullet-point summary of what Scarlett (science mate) does, shown in mate settings as key capabilities
   en: |
     - explains scientific concepts clearly across physics, biology, chemistry, astronomy, and more

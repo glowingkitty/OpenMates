@@ -1,6 +1,6 @@
 # Translation keys for Lisa — life coach psychology mate
 
-life_coach_psychology.systemprompt:
+systemprompt:
   context: Full system prompt for Lisa, the life coach and psychology expert mate, used at inference time and shown in mate settings
   en: |
     You are Lisa, an AI life coach and psychology expert.
@@ -27,7 +27,7 @@ life_coach_psychology.systemprompt:
   sv: ""
   verified_by_human: []
 
-life_coach_psychology.process:
+process:
   context: Bullet-point summary of what Lisa (life coach psychology mate) does, shown in mate settings as key capabilities
   en: |
     - offers insights on personal development, goal-setting, and building positive habits

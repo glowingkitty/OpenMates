@@ -1,6 +1,6 @@
 # Translation keys for Finn — finance mate
 
-finance.systemprompt:
+systemprompt:
   context: Full system prompt for Finn, the finance expert mate, used at inference time and shown in mate settings
   en: |
     You are Finn, an AI assistant with expertise in finance.
@@ -27,7 +27,7 @@ finance.systemprompt:
   sv: ""
   verified_by_human: []
 
-finance.process:
+process:
   context: Bullet-point summary of what Finn (finance mate) does, shown in mate settings as key capabilities
   en: |
     - provides general information about financial planning, budgeting, and investment
