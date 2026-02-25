@@ -20,6 +20,7 @@
     import { recordingState, updateRecordingState } from './recordingStore';
     import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
+    import { getMatesById } from '../../data/matesMetadata';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
 
@@ -3269,23 +3270,56 @@
 
     // Watch for a pending mention inserted from the settings panel (e.g. "Chat with this mate").
     // When MateDetails.svelte sets pendingMentionStore, we insert the text into the editor
-    // and immediately clear the store so the effect doesn't fire again.
+    // using the same .setMate() path as the mention dropdown so it renders identically
+    // (styled gradient node showing @Sophia, not raw text "@mate:software_development").
     $effect(() => {
         const mention = $pendingMentionStore;
         if (mention && editor && !editor.isDestroyed) {
             console.debug('[MessageInput] Inserting pending mention from settings panel:', mention);
             pendingMentionStore.set(null);
             tick().then(() => {
-                if (editor && !editor.isDestroyed) {
-                    if (editor.isEmpty) {
-                        editor.commands.focus('end');
+                if (!editor || editor.isDestroyed) return;
+                editor.commands.focus('end');
+
+                // Parse "@mate:{mateId}" to extract the id
+                const mateMatch = mention.match(/^@mate:(.+)$/);
+                if (mateMatch) {
+                    const mateId = mateMatch[1];
+                    const matesById = getMatesById();
+                    const mate = matesById[mateId];
+                    if (mate) {
+                        // Use the same .setMate() path as the mention dropdown for consistent rendering
+                        // Capitalise the English name (first search_names entry) as the display name,
+                        // matching how mentionSearchService builds mentionDisplayName.
+                        const displayName = mate.search_names[0]
+                            ? mate.search_names[0].split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                            : mateId;
+                        editor
+                            .chain()
+                            .focus()
+                            .setMate({
+                                name: mateId,
+                                displayName,
+                                id: crypto.randomUUID(),
+                                colorStart: mate.color_start,
+                                colorEnd: mate.color_end,
+                            })
+                            .insertContent(' ')
+                            .run();
+                    } else {
+                        // Unknown mate id — fall back to plain text insertion
+                        console.warn('[MessageInput] Unknown mate id from pendingMentionStore:', mateId);
+                        editor.commands.insertContent(mention + ' ');
                     }
+                } else {
+                    // Not a mate mention — insert as plain text (future mention types)
                     editor.commands.insertContent(mention + ' ');
-                    hasContent = true;
-                    lastEditorUpdateText = editor.getText();
-                    updateOriginalMarkdown(editor);
-                    editor.commands.focus('end');
                 }
+
+                hasContent = true;
+                lastEditorUpdateText = editor.getText();
+                updateOriginalMarkdown(editor);
+                editor.commands.focus('end');
             });
         }
     });
