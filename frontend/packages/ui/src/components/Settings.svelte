@@ -1345,6 +1345,11 @@ changes to the documentation (to keep the documentation up to date).
             if (!isMenuVisible) {
                 isMenuVisible = true;
                 settingsMenuVisible.set(true);
+                // CRITICAL: Record the programmatic open time so handleClickOutside doesn't
+                // immediately close the panel on mobile. On mobile, the tap that triggers a
+                // deep link (e.g. badge click) bubbles to document and fires handleClickOutside
+                // within milliseconds. The 300ms grace period prevents this race condition.
+                lastProgrammaticOpenTime = Date.now();
 
                 // Deep link to a sub-page: hide the original profile immediately so it never
                 // appears on top of the sub-settings content. Main view: delay 400ms for animation.
