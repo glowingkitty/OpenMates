@@ -19,6 +19,8 @@
     import { logCollector } from '../../services/logCollector';
     import { reportIssueStore } from '../../stores/reportIssueStore';
     import { inspectChat } from '../../services/debugUtils';
+    import { authStore } from '../../stores/authStore';
+    import { getEmailDecryptedWithMasterKey } from '../../services/cryptoService';
     
     // Form state
     let issueTitle = $state('');
@@ -31,6 +33,18 @@
     let errorMessage = $state('');
     let submittedIssueId = $state('');
     let issueIdCopied = $state(false);
+
+    /**
+     * For authenticated users: the decrypted account email loaded on mount.
+     * Used as the value submitted when includeEmailToggle is true.
+     */
+    let authenticatedUserEmail = $state('');
+
+    /**
+     * For authenticated users: whether to include their account email in the report.
+     * Defaults to true (opt-in by default) so users get follow-up contact.
+     */
+    let includeEmailToggle = $state(true);
     
     /**
      * Whether the current context has an active chat or embed that can be shared.
@@ -369,8 +383,11 @@
                 : null;
             // Only include the share URL if the toggle is enabled and a URL was generated
             const sanitizedUrl = (shareChatEnabled && chatOrEmbedUrl.trim()) ? chatOrEmbedUrl.trim() : null;
-            // Email is optional - send null if empty, otherwise sanitize (email doesn't need HTML sanitization, but trim it)
-            const sanitizedEmail = contactEmail.trim() || null;
+            // For authenticated users: use their account email if the toggle is on, otherwise null.
+            // For guest users: use the manually entered email (optional input field).
+            const sanitizedEmail = $authStore.isAuthenticated
+                ? (includeEmailToggle && authenticatedUserEmail.trim() ? authenticatedUserEmail.trim() : null)
+                : (contactEmail.trim() || null);
 
             // Collect current device information for debugging purposes
             const currentDeviceInfo = collectDeviceInfo();
@@ -471,6 +488,8 @@
                 shareChatEnabled = true;
                 chatOrEmbedUrl = '';
                 contactEmail = '';
+                // Re-enable the email toggle for authenticated users after a successful submission
+                includeEmailToggle = true;
                 titleError = '';
                 descriptionError = '';
                 emailError = '';
@@ -564,14 +583,15 @@
     }
     
     /**
-     * Check if form is valid
-     * Description is optional but must be at least 10 characters if provided
-     * Email is optional but must be valid if provided
+     * Check if form is valid.
+     * Description is optional but must be at least 10 characters if provided.
+     * Email is optional but must be valid if provided (guest only – authenticated users
+     * use the toggle against their pre-validated account email).
      */
     let isFormValid = $derived(
         issueTitle.trim().length >= 3 &&
         (!issueDescription.trim() || issueDescription.trim().length >= 10) &&
-        (!contactEmail.trim() || validateEmail(contactEmail)) &&
+        ($authStore.isAuthenticated || !contactEmail.trim() || validateEmail(contactEmail)) &&
         !isSubmitting
     );
     
@@ -706,6 +726,21 @@
             reportIssueStore.set(null);
         }
 
+        // For authenticated users, load their account email so it can be pre-filled
+        // in the "include email" toggle hint.
+        if ($authStore.isAuthenticated) {
+            getEmailDecryptedWithMasterKey()
+                .then((email) => {
+                    if (email) {
+                        authenticatedUserEmail = email;
+                    }
+                })
+                .catch((error) => {
+                    // Non-fatal: user can still submit without an email
+                    console.warn('[SettingsReportIssue] Failed to load account email for toggle hint:', error);
+                });
+        }
+
         // Small delay to ensure stores are initialized
         setTimeout(() => {
             autoGenerateShareUrl();
@@ -783,29 +818,55 @@
             </div>
         {/if}
         
-        <!-- Contact Email Input (Optional) -->
-        <div class="input-group">
-            <label for="contact-email">{$text('settings.report_issue.email_label')}</label>
-            <div class="input-wrapper">
-                <input
-                    id="contact-email"
-                    bind:this={emailInput}
-                    type="email"
-                    placeholder={$text('settings.report_issue.email_placeholder')}
-                    bind:value={contactEmail}
-                    oninput={handleEmailInput}
-                    disabled={isSubmitting}
-                    class:error={!!emailError}
-                    aria-label={$text('settings.report_issue.email_label')}
-                />
-                {#if showEmailWarning && emailError}
-                    <InputWarning
-                        message={emailError}
+        <!-- Contact Email Section -->
+        <!-- Authenticated users: toggle to include their account email (on by default) -->
+        <!-- Guest users: free-text email input (optional) -->
+        {#if $authStore.isAuthenticated}
+            <div class="toggle-group">
+                <div class="toggle-row">
+                    <label for="include-email-toggle">{$text('settings.report_issue.email_toggle_label')}</label>
+                    <Toggle
+                        id="include-email-toggle"
+                        bind:checked={includeEmailToggle}
+                        disabled={isSubmitting}
+                        ariaLabel={$text('settings.report_issue.email_toggle_label')}
                     />
-                {/if}
+                </div>
+                <p class="input-hint">
+                    {#if includeEmailToggle && authenticatedUserEmail}
+                        {$text('settings.report_issue.email_toggle_hint').replace('{email}', authenticatedUserEmail)}
+                    {:else if includeEmailToggle}
+                        <!-- Email not yet loaded; show a neutral hint while loading -->
+                        {$text('settings.report_issue.email_hint')}
+                    {:else}
+                        {$text('settings.report_issue.email_toggle_off_hint')}
+                    {/if}
+                </p>
             </div>
-            <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
-        </div>
+        {:else}
+            <div class="input-group">
+                <label for="contact-email">{$text('settings.report_issue.email_label')}</label>
+                <div class="input-wrapper">
+                    <input
+                        id="contact-email"
+                        bind:this={emailInput}
+                        type="email"
+                        placeholder={$text('settings.report_issue.email_placeholder')}
+                        bind:value={contactEmail}
+                        oninput={handleEmailInput}
+                        disabled={isSubmitting}
+                        class:error={!!emailError}
+                        aria-label={$text('settings.report_issue.email_label')}
+                    />
+                    {#if showEmailWarning && emailError}
+                        <InputWarning
+                            message={emailError}
+                        />
+                    {/if}
+                </div>
+                <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
+            </div>
+        {/if}
         
         <!-- Signal Group Reminder -->
         <div class="signal-reminder">

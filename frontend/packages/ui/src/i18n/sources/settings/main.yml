@@ -5149,6 +5149,75 @@ report_issue.email_invalid:
   cs: Zadejte prosím platnou e-mailovou adresu
   sv: Ange en giltig e-postadress
   verified_by_human: []
+report_issue.email_toggle_label:
+  context: Label for the toggle that lets authenticated users include their account email in the issue report
+  en: Include my email address for follow-up
+  de: Meine E-Mail-Adresse für Rückfragen einbeziehen
+  zh: 包含我的电子邮件以便跟进
+  es: Incluir mi correo para seguimiento
+  fr: Inclure mon e-mail pour un suivi
+  pt: Incluir meu e-mail para acompanhamento
+  ru: Включить мой e-mail для обратной связи
+  ja: フォローアップのためメールアドレスを含める
+  ko: 후속 연락을 위해 내 이메일 주소 포함
+  it: Includi la mia email per il follow-up
+  tr: Takip için e-posta adresimi ekle
+  vi: Bao gồm email của tôi để theo dõi
+  id: Sertakan email saya untuk tindak lanjut
+  pl: Dołącz mój e-mail do dalszych kontaktów
+  nl: Mijn e-mailadres opnemen voor follow-up
+  ar: تضمين بريدي الإلكتروني للمتابعة
+  hi: अनुवर्ती के लिए मेरा ईमेल शामिल करें
+  th: รวมอีเมลของฉันสำหรับการติดตาม
+  cs: Zahrnout můj e-mail pro následnou komunikaci
+  sv: Inkludera min e-post för uppföljning
+  verified_by_human: []
+report_issue.email_toggle_hint:
+  context: Hint shown under the email toggle for authenticated users, explaining that their account email will be submitted. The {email} placeholder is replaced with the user's actual email address.
+  en: "Your account email ({email}) will be included in the report."
+  de: "Deine Konto-E-Mail ({email}) wird in die Meldung aufgenommen."
+  zh: "您的账户邮箱（{email}）将包含在报告中。"
+  es: "Tu correo de cuenta ({email}) se incluirá en el reporte."
+  fr: "Votre e-mail de compte ({email}) sera inclus dans le rapport."
+  pt: "Seu e-mail de conta ({email}) será incluído no relatório."
+  ru: "E-mail вашего аккаунта ({email}) будет включён в отчёт."
+  ja: "アカウントのメールアドレス（{email}）がレポートに含まれます。"
+  ko: "계정 이메일({email})이 보고서에 포함됩니다."
+  it: "L'email del tuo account ({email}) sarà inclusa nel report."
+  tr: "Hesap e-postanız ({email}) rapora dahil edilecek."
+  vi: "Email tài khoản của bạn ({email}) sẽ được đưa vào báo cáo."
+  id: "Email akun Anda ({email}) akan disertakan dalam laporan."
+  pl: "E-mail Twojego konta ({email}) zostanie dołączony do zgłoszenia."
+  nl: "Uw account-e-mail ({email}) wordt opgenomen in het rapport."
+  ar: "سيتم تضمين بريد حسابك ({email}) في التقرير."
+  hi: "आपका खाता ईमेल ({email}) रिपोर्ट में शामिल किया जाएगा।"
+  th: "อีเมลบัญชีของคุณ ({email}) จะถูกรวมไว้ในรายงาน"
+  cs: "E-mail vašeho účtu ({email}) bude zahrnut do hlášení."
+  sv: "Ditt konto-e-post ({email}) kommer att inkluderas i rapporten."
+  verified_by_human: []
+report_issue.email_toggle_off_hint:
+  context: Hint shown under the email toggle when authenticated user has toggled it off, meaning no email will be submitted
+  en: No email will be included in this report.
+  de: Es wird keine E-Mail in diese Meldung aufgenommen.
+  zh: 此报告中将不包含电子邮件。
+  es: No se incluirá correo en este reporte.
+  fr: Aucun e-mail ne sera inclus dans ce rapport.
+  pt: Nenhum e-mail será incluído neste relatório.
+  ru: В этот отчёт не будет включён e-mail.
+  ja: このレポートにはメールアドレスは含まれません。
+  ko: 이 보고서에는 이메일이 포함되지 않습니다.
+  it: Nessuna email sarà inclusa in questo report.
+  tr: Bu rapora e-posta dahil edilmeyecek.
+  vi: Không có email nào được đưa vào báo cáo này.
+  id: Tidak ada email yang akan disertakan dalam laporan ini.
+  pl: Do tego zgłoszenia nie zostanie dołączony e-mail.
+  nl: Er wordt geen e-mail opgenomen in dit rapport.
+  ar: لن يتم تضمين أي بريد إلكتروني في هذا التقرير.
+  hi: इस रिपोर्ट में कोई ईमेल शामिल नहीं किया जाएगा।
+  th: ไม่มีอีเมลถูกรวมไว้ในรายงานนี้
+  cs: Do tohoto hlášení nebude zahrnut žádný e-mail.
+  sv: Ingen e-post kommer att inkluderas i denna rapport.
+  verified_by_human: []
 report_issue.device_info.heading:
   context: Heading for the device information notice shown under the report issue submit button
   en: "Device Information for Debugging"
