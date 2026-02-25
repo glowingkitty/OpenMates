@@ -2629,6 +2629,28 @@ export async function handleSendEmbedDataImpl(
         );
       }
 
+      // Register embed_ref for processing embeds so inline links resolve even before finalization.
+      // embed_ref lives only in plaintext TOON content (zero-knowledge: never stored unencrypted).
+      // We decode here while content is still plaintext and register in the in-memory index only.
+      try {
+        const { embedStore: esForRef } = await import("./embedStore");
+        const decodedForRef = await decodeToonContentSafe(embedData.content);
+        if (decodedForRef && typeof decodedForRef === "object") {
+          const refObj = decodedForRef as Record<string, unknown>;
+          if (typeof refObj.embed_ref === "string" && refObj.embed_ref) {
+            esForRef.registerEmbedRef(refObj.embed_ref, embedData.embed_id);
+            console.debug(
+              `[ChatSyncService:AI] Registered embed_ref (processing) "${refObj.embed_ref}" → ${embedData.embed_id}`,
+            );
+          }
+        }
+      } catch (refErr) {
+        console.debug(
+          "[ChatSyncService:AI] Failed to register embed_ref for processing embed:",
+          refErr,
+        );
+      }
+
       // Generate embed-specific encryption key early (if not already exists)
       // This is CRITICAL for key inheritance: child embeds arrive while parent is still processing
       // and they need the parent's key to encrypt themselves.
@@ -3152,6 +3174,25 @@ export async function handleSendEmbedDataImpl(
             "[ChatSyncService:AI] Pre-extracted app metadata from plaintext:",
             preExtractedMetadata,
           );
+
+          // Register embed_ref → embed_id mapping for inline embed link resolution.
+          // embed_ref is a short descriptive slug (e.g. "ryanair-0600-k8D") generated
+          // by the backend and stored ONLY inside the encrypted TOON content — it never
+          // appears as an unencrypted field anywhere (zero-knowledge compliance).
+          // We extract it here during the brief window when plaintext TOON is available,
+          // before we encrypt it, and store it only in the in-memory index.
+          if (
+            typeof decodedObj.embed_ref === "string" &&
+            decodedObj.embed_ref
+          ) {
+            embedStore.registerEmbedRef(
+              decodedObj.embed_ref,
+              embedData.embed_id,
+            );
+            console.debug(
+              `[ChatSyncService:AI] Registered embed_ref "${decodedObj.embed_ref}" → ${embedData.embed_id}`,
+            );
+          }
         }
       } catch (metaErr) {
         console.debug(

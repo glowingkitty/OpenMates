@@ -9,6 +9,85 @@ import { enhanceDocumentWithEmbeds } from "./documentEnhancement";
 import { groupConsecutiveEmbedsInDocument } from "./embedGrouping";
 import { migrateEmbedNodes, needsMigration } from "./migration";
 
+// ─── Inline embed-link conversion ─────────────────────────────────────────────
+//
+// The LLM may write [display text](embed:some-ref-k8D) in its response.
+// markdown-it parses this as a regular TipTap text node with a `link` mark
+// whose href is "embed:some-ref-k8D".
+//
+// `convertEmbedLinks` walks the TipTap document tree (depth-first) and rewrites
+// any such text-with-link-mark into an `embedInline` atom node.
+//
+// Only applied in read mode — the editor (write mode) should keep them as plain
+// links so the user can still edit the raw markdown.
+
+/**
+ * Walk a TipTap node tree and replace inline link marks whose href starts with
+ * "embed:" with `embedInline` atom nodes.
+ *
+ * This is a read-mode-only transformation: in write mode the raw markdown link
+ * syntax `[text](embed:ref)` remains editable.
+ *
+ * @param node - Any TipTap node (doc, paragraph, text, …)
+ * @returns A new node (or array of nodes) with embed: links converted
+ */
+function convertEmbedLinksInNode(node: any): any | any[] {
+  // Leaf text node — check for embed: link mark
+  if (node.type === "text" && Array.isArray(node.marks)) {
+    const linkMarkIndex = node.marks.findIndex(
+      (m: any) =>
+        m.type === "link" &&
+        typeof m.attrs?.href === "string" &&
+        m.attrs.href.startsWith("embed:"),
+    );
+
+    if (linkMarkIndex !== -1) {
+      const linkMark = node.marks[linkMarkIndex];
+      const href: string = linkMark.attrs.href as string;
+      // href format: "embed:<embed_ref>"
+      const embedRef = href.slice("embed:".length);
+      const displayText = node.text || embedRef;
+
+      // Return an embedInline node — the NodeView will resolve embedRef → embedId at render time
+      return {
+        type: "embedInline",
+        attrs: {
+          embedRef,
+          embedId: null, // resolved lazily via embedStore.resolveByRef()
+          displayText,
+          appId: null, // resolved lazily via embedStore when fullscreen opens
+        },
+      };
+    }
+  }
+
+  // Recurse into children
+  if (node.content && Array.isArray(node.content)) {
+    const newContent: any[] = [];
+    for (const child of node.content) {
+      const result = convertEmbedLinksInNode(child);
+      if (Array.isArray(result)) {
+        newContent.push(...result);
+      } else {
+        newContent.push(result);
+      }
+    }
+    return { ...node, content: newContent };
+  }
+
+  return node;
+}
+
+/**
+ * Apply embed: link → embedInline conversion to a full TipTap document.
+ * Returns a new document object (does not mutate the input).
+ */
+function convertEmbedLinks(doc: any): any {
+  if (!doc || !doc.content) return doc;
+  return convertEmbedLinksInNode(doc);
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 /**
  * Unified message parser for both write and read modes
  * @param markdown - The raw markdown content to parse
@@ -23,7 +102,9 @@ export function parse_message(
 ): any {
   // If unified parsing is not enabled, fallback to existing behavior
   if (!opts.unifiedParsingEnabled) {
-    return markdownToTipTap(markdown);
+    const doc = markdownToTipTap(markdown);
+    // Still apply embed: link conversion in read mode even on the fast path
+    return mode === "read" ? convertEmbedLinks(doc) : doc;
   }
 
   console.debug("[parse_message] Parsing with unified architecture:", {
@@ -63,7 +144,12 @@ export function parse_message(
   );
 
   // Group consecutive embeds of the same type at the document level where we can see actual text between them
-  const unifiedDoc = groupConsecutiveEmbedsInDocument(docWithIndividualEmbeds);
+  let unifiedDoc = groupConsecutiveEmbedsInDocument(docWithIndividualEmbeds);
+
+  // Convert embed: link marks to embedInline atom nodes (read mode only)
+  if (mode === "read") {
+    unifiedDoc = convertEmbedLinks(unifiedDoc);
+  }
 
   // Add streaming metadata for write mode highlighting
   if (mode === "write" && streamingData.unclosedBlocks.length > 0) {

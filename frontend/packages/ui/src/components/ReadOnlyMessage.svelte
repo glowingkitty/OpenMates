@@ -7,6 +7,7 @@
     import { MateNode } from '../components/enter_message/extensions/MateNode';
     import { AIModelMentionNode } from '../components/enter_message/extensions/AIModelMentionNode';
     import { GenericMentionNode } from '../components/enter_message/extensions/GenericMentionNode';
+    import { EmbedInlineNode } from '../components/enter_message/extensions/EmbedInlineNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
@@ -503,6 +504,7 @@
             MateNode,
             AIModelMentionNode, // For @ai-model:id mentions (displays as @Claude-4.5-Opus)
             GenericMentionNode, // For @skill:, @focus:, @memory: mentions
+            EmbedInlineNode, // For inline [text](embed:ref) links produced by the LLM
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
         
