@@ -599,9 +599,28 @@ const UPDATE_DEBOUNCE_MS = 300;
 	
 
 
-	// Flattened list of ALL sorted chats (excluding those processing metadata), used for keyboard navigation and selection logic using Svelte 5 runes
-	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
-	let flattenedNavigableChats = $derived(sortedAllChatsFiltered);
+	// Flattened list of ALL sorted chats, used for keyboard navigation, ChatHeader arrow nav,
+	// and selection logic. For authenticated users this is identical to sortedAllChatsFiltered.
+	// For unauthenticated users, we override the timestamp-based sort order with the correct
+	// group order (intro → examples → legal), because convertDemoChatToChat assigns timestamps
+	// that can make legal chats interleave with intro chats (both use small offset from 7-days-ago),
+	// and community demo chats from the server may have newer timestamps that sort before intro chats.
+	const GROUP_NAV_ORDER: Record<string, number> = { intro: 0, examples: 1, legal: 2 };
+	let flattenedNavigableChats = $derived.by(() => {
+		if ($authStore.isAuthenticated) {
+			// Authenticated: use the standard timestamp sort as-is
+			return sortedAllChatsFiltered;
+		}
+		// Unauthenticated: sort by group key first (intro → examples → legal),
+		// then by original sort order within each group (preserves metadata.order via timestamps).
+		return [...sortedAllChatsFiltered].sort((a, b) => {
+			const aGroup = GROUP_NAV_ORDER[a.group_key ?? ''] ?? 99;
+			const bGroup = GROUP_NAV_ORDER[b.group_key ?? ''] ?? 99;
+			if (aGroup !== bGroup) return aGroup - bGroup;
+			// Same group: keep existing sort order (timestamp descending = lower order first for demo chats)
+			return (b.last_edited_overall_timestamp || 0) - (a.last_edited_overall_timestamp || 0);
+		});
+	});
 
 	// Keep chatNavigationStore in sync so ChatHeader can show/hide the prev/next arrows
 	// without threading props through ActiveChat and ChatHistory.
