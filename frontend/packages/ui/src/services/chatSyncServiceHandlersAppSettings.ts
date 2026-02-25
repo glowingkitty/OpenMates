@@ -292,6 +292,46 @@ export async function handleRequestAppSettingsMemoriesImpl(
   }
 
   try {
+    // Guard: if we already have a response system message for this user_message_id, the user
+    // already answered this request (confirmed or rejected). Drop the incoming request silently.
+    // This happens when the continuation task's preprocessor re-requests the same categories
+    // and the server issues a second WebSocket event for the same user_message_id.
+    if (payload.message_id) {
+      try {
+        const existingMessages = await chatDB.getMessagesForChat(chat_id);
+        const alreadyAnswered = existingMessages.some((msg) => {
+          if (
+            msg.role !== "system" ||
+            !msg.content ||
+            typeof msg.content !== "string"
+          )
+            return false;
+          try {
+            const parsed = JSON.parse(msg.content);
+            return (
+              parsed.type === "app_settings_memories_response" &&
+              parsed.user_message_id === payload.message_id
+            );
+          } catch {
+            return false;
+          }
+        });
+        if (alreadyAnswered) {
+          console.info(
+            `[ChatSyncService:AppSettings] Dropping request ${request_id}: a response already exists for ` +
+              `user_message_id=${payload.message_id} in chat ${chat_id}. Request was already answered.`,
+          );
+          return;
+        }
+      } catch (checkError) {
+        // Non-fatal: if we can't check, proceed normally — worst case the user sees the dialog again
+        console.warn(
+          "[ChatSyncService:AppSettings] Could not check for existing response, proceeding:",
+          checkError,
+        );
+      }
+    }
+
     // Get entry counts from IndexedDB to show in the dialog
     const entryCounts = await chatDB.getAppSettingsMemoriesEntryCounts();
 

@@ -854,6 +854,17 @@ async def handle_main_processing(
                 if key not in loaded_app_settings_and_memories_content
             ]
             
+            if missing_keys and getattr(request_data, "is_app_settings_memories_continuation", False):
+                # This is a continuation task (user already confirmed/rejected the original request).
+                # Do NOT issue another permission dialog — the user's decision was already recorded.
+                # Proceed without the missing data instead.
+                logger.info(
+                    f"{log_prefix} Continuation task: skipping new permission request for "
+                    f"{len(missing_keys)} missing keys {missing_keys} — user already responded to the original request. "
+                    f"Proceeding without these keys."
+                )
+                missing_keys = []
+
             if missing_keys:
                 logger.info(f"{log_prefix} Creating new app settings/memories request for {len(missing_keys)} missing keys")
                 # Create new system message request in chat history
