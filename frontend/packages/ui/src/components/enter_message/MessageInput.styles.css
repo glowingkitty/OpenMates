@@ -256,7 +256,8 @@
 
 /* Fullscreen / expand button — top-right corner of the message field.
    Does NOT override background so the mask-based icon colour (--color-primary)
-   from button.clickable-icon in icons.css is preserved and the icon is visible. */
+   from button.clickable-icon in icons.css is preserved and the icon is visible.
+   Shown when the field is focused or has content (controlled by {#if} in the template). */
 .fullscreen-button {
   position: absolute;
   top: 10px;
@@ -273,6 +274,51 @@
 
 .fullscreen-button:hover {
   opacity: 1;
+}
+
+/* =============================================================================
+   Message Input Fullscreen Expand Modes
+   ============================================================================= */
+
+/* Tall mode (narrow screens < 1024px): field grows in-place to 65dvh.
+   Styles are applied via inline `style` from messagePanelStyle (height: 65dvh).
+   This class is added for any extra visual adjustments when expanded vertically. */
+.message-field.fullscreen-expanded:not(.input-sidepanel) {
+  /* Smooth entry — max-height transition on .message-field handles animation */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+/* Side-panel mode (wide screens ≥ 1024px): field breaks out into the embed area.
+   The actual position:fixed geometry is set via inline style (messagePanelStyle).
+   This class adds card-like styling to match the embed fullscreen container. */
+.message-field.input-sidepanel {
+  /* Match the embed fullscreen container card style */
+  background-color: var(--color-grey-blue);
+  border-radius: 17px;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+  /* Override transition for side-panel mode — instant reposition on window resize */
+  transition:
+    padding-bottom 0.3s ease-in-out,
+    box-shadow 0.3s ease-in-out;
+  /* In side-panel the height is driven by position:fixed, not max-height */
+  max-height: none !important;
+}
+
+/* The scrollable content in side-panel mode should fill available height */
+.message-field.input-sidepanel .scrollable-content {
+  max-height: none;
+  flex: 1;
+}
+
+/* Backdrop shown behind the side-panel message input (in the chat column area).
+   ActiveChat renders this when isFullscreen && isWidescreenFullscreen. */
+.message-input-sidepanel-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-grey-blue) 60%, transparent);
+  border-radius: 24px;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .clickable-icon {

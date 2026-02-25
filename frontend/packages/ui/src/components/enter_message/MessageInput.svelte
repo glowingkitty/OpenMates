@@ -121,6 +121,14 @@
          *  Bindable so the parent (ActiveChat) can hide NewChatSuggestions
          *  while the map overlay is active. */
         isMapsOpen?: boolean;
+        /**
+         * Bounding rect of the parent ActiveChat container (the full-width card),
+         * passed from ActiveChat so that when MessageInput is in side-panel fullscreen
+         * mode on wide screens it can compute where to position itself with
+         * `position: fixed` to visually occupy the embed panel area.
+         * Updated by ActiveChat on every container resize.
+         */
+        containerRect?: DOMRect | null;
     }
     let { 
         currentChatId = undefined,
@@ -128,7 +136,8 @@
         hasContent = $bindable(false),
         showActionButtons = true,
         isFocused = $bindable(false),
-        isMapsOpen = $bindable(false)
+        isMapsOpen = $bindable(false),
+        containerRect = null
     }: Props = $props();
 
     // --- Refs ---
@@ -1163,6 +1172,75 @@
     // Debounce timeout for layout updates
     let layoutUpdateTimeout: NodeJS.Timeout;
  
+    // --- Fullscreen side-panel positioning ---
+    // On wide screens (containerRect provided by ActiveChat and width ≥ 1024px),
+    // entering fullscreen "breaks out" the message field into the embed panel slot
+    // using position:fixed with JS-computed coordinates.
+    // containerRect is kept up-to-date by ActiveChat via a ResizeObserver + scroll listener.
+    let wrapperResizeObserver: ResizeObserver; // kept for any future use; currently unused
+
+    /**
+     * Whether the current fullscreen is in "side-panel" mode (≥1024px container).
+     * In this mode the message field uses position:fixed to visually fill the
+     * embed panel area to the right of the 400px chat column.
+     */
+    let isWidescreenFullscreen = $derived(
+        isFullscreen && containerRect !== null && containerRect.width >= 1024
+    );
+
+    /**
+     * Inline style for the message-field div.
+     * In side-panel fullscreen: position:fixed with coordinates derived from
+     * containerRect so the field fills the embed area (right of 400px chat column).
+     * In tall (narrow) fullscreen: normal flow, height 65dvh.
+     * In maps/camera overlay: fixed height 400px.
+     * Default: auto height, max 350px.
+     *
+     * Side-panel geometry:
+     *   - Container left edge: containerRect.left
+     *   - Chat column is 400px wide + 10px gap (matches CSS .content-container.side-by-side gap:10px)
+     *   - Panel starts at: containerRect.left + 410
+     *   - Panel ends at: containerRect.right - 10px padding (17px border-radius card padding)
+     *   - Top: containerRect.top + 10 (inner padding)
+     *   - Bottom: containerRect.bottom - 10
+     */
+    let messagePanelStyle = $derived((() => {
+        if (showMaps || showCamera) {
+            return 'height: 400px; max-height: 400px;';
+        }
+        if (isWidescreenFullscreen && containerRect && typeof window !== 'undefined') {
+            const left = containerRect.left + 410;
+            const top = containerRect.top + 10;
+            const right = window.innerWidth - containerRect.right + 10;
+            const bottom = window.innerHeight - containerRect.bottom + 10;
+            return [
+                'position: fixed',
+                `left: ${left}px`,
+                `top: ${top}px`,
+                `right: ${right}px`,
+                `bottom: ${bottom}px`,
+                'width: auto',
+                'height: auto',
+                'max-height: none',
+                'z-index: 200',
+                'border-radius: 17px',
+            ].join('; ') + ';';
+        }
+        if (isFullscreen) {
+            // Tall (narrow) mode: expand in-place to 65dvh
+            return 'height: 65dvh; max-height: 65dvh;';
+        }
+        return 'height: auto; max-height: 350px;';
+    })());
+
+    let messagePanelScrollableStyle = $derived(
+        isWidescreenFullscreen
+            ? 'max-height: calc(100% - 120px);'
+            : isFullscreen
+                ? 'max-height: calc(65dvh - 120px);'
+                : 'max-height: 250px;'
+    );
+
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
     let resizeObserver: ResizeObserver;
@@ -1330,6 +1408,11 @@
 
         resizeObserver = new ResizeObserver(handleResize);
         if (scrollableContent) resizeObserver.observe(scrollableContent);
+
+        // wrapperResizeObserver is kept for potential future use
+        wrapperResizeObserver = new ResizeObserver(() => {
+            // Reserved for future width-based logic inside MessageInput
+        });
 
         // Setup embed group layout observers
         setupEmbedGroupResizeObserver();
@@ -2023,6 +2106,7 @@
     function cleanup() {
         resizeObserver?.disconnect();
         embedGroupResizeObserver?.disconnect();
+        wrapperResizeObserver?.disconnect();
         clearTimeout(layoutUpdateTimeout);
         // Clear any pending blur timeout
         if (blurTimeoutId) {
@@ -3040,14 +3124,12 @@
     // When the map overlay or camera overlay is open, grow the container to a fixed height
     // so the overlay fills edge-to-edge (same as maps). Without this the desktop camera
     // view renders at a tiny default height.
-    let containerStyle = $derived(
-        (showMaps || showCamera)
-            ? 'height: 400px; max-height: 400px;'
-            : isFullscreen
-                ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);`
-                : 'height: auto; max-height: 350px;'
-    );
-    let scrollableStyle = $derived(isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;');
+    // NOTE: containerStyle / scrollableStyle delegate to messagePanelStyle /
+    // messagePanelScrollableStyle (derived above) which handle all modes including
+    // the new side-panel fullscreen mode (containerRect-based position:fixed).
+    // These aliases exist so the template references remain unchanged.
+    let containerStyle = $derived(messagePanelStyle);
+    let scrollableStyle = $derived(messagePanelScrollableStyle);
     
     // Convert reactive statement with side effects to $effect
     $effect(() => {
@@ -3129,7 +3211,7 @@
     />
     
     <div
-        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''}"
+        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isWidescreenFullscreen ? 'input-sidepanel' : ''}"
         class:drag-over={isDragging}
         style={containerStyle}
         ondragover={handleDragOver}
@@ -3148,9 +3230,13 @@
             </div>
         {/if}
 
-        {#if hasContent || isFullscreen}
+        <!-- Fullscreen expand/collapse button: visible when focused or has content.
+             Shows icon_fullscreen to expand, icon_minimize to collapse.
+             On wide screens (≥1024px), expand breaks the field into the embed panel area.
+             On narrow screens, expand grows the field height to 65dvh. -->
+        {#if isFullscreen || hasContent || isMessageFieldFocused}
             <button
-                class="clickable-icon icon_fullscreen fullscreen-button"
+                class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
                 onclick={toggleFullscreen}
                 aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
                 use:tooltip
