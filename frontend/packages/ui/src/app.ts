@@ -1,23 +1,31 @@
-import { chatDB } from './services/db';
-import { userDB } from './services/userDB';
-import { loadUserProfileFromDB } from './stores/userProfile';
-import { authStore } from './stores/authStore';
-import { logCollector } from './services/logCollector'; 
-import { initDebugUtils } from './services/debugUtils';
-import { initPermissionDialogListener } from './stores/appSettingsMemoriesPermissionStore';
+import { chatDB } from "./services/db";
+import { userDB } from "./services/userDB";
+import { loadUserProfileFromDB } from "./stores/userProfile";
+import { authStore } from "./stores/authStore";
+import { logCollector } from "./services/logCollector";
+// Import userActionTracker to ensure passive DOM-event tracking starts at app load.
+// The singleton attaches its listeners on instantiation — no explicit init call needed.
+import { userActionTracker } from "./services/userActionTracker";
+import { initDebugUtils } from "./services/debugUtils";
+import { initPermissionDialogListener } from "./stores/appSettingsMemoriesPermissionStore";
 
 /**
  * Initialize all application services
  * @param {Object} options - Configuration options
  * @param {boolean} options.skipAuthInitialization - If true, skip auth initialization (default: false)
  */
-export async function initializeApp(options = { skipAuthInitialization: false }) {
+export async function initializeApp(
+  options = { skipAuthInitialization: false },
+) {
   console.debug("Initializing application...");
 
   try {
-    // Initialize console log collector for issue reporting (non-blocking)
-    console.debug("Console log collector initialized for issue debugging");
-    
+    // Initialize console log collector and user action tracker — both are singletons that
+    // start intercepting events immediately on import (constructor side effects).
+    // The void references prevent tree-shaking from stripping the imports as unused.
+    void logCollector;
+    void userActionTracker;
+
     // Initialize debug utilities for browser console access
     // These allow inspecting IndexedDB data via window.debugChat(), etc.
     initDebugUtils();

@@ -3421,7 +3421,9 @@
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
-                <div bind:this={editorElement} class="editor-content prose"></div>
+                <!-- data-action="message-input" enables the userActionTracker to identify
+                     focus/keypress events on this editor without reading typed content -->
+                <div bind:this={editorElement} class="editor-content prose" data-action="message-input"></div>
             </div>
         </div>
 

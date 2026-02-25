@@ -49,7 +49,8 @@ def send_issue_report_email(
     device_info: Optional[str] = None,
     console_logs: Optional[str] = None,
     indexeddb_report: Optional[str] = None,
-    last_messages_html: Optional[str] = None
+    last_messages_html: Optional[str] = None,
+    action_history: Optional[str] = None
 ) -> bool:
     """
     Celery task to send issue report email to server owner/admin.
@@ -68,6 +69,8 @@ def send_issue_report_email(
         console_logs: Optional console logs from the client (last 100 lines)
         indexeddb_report: Optional IndexedDB inspection report (metadata only, no plaintext content)
         last_messages_html: Optional rendered HTML of the last user message and assistant response
+        action_history: Optional last 20 user-action history entries (button names/navigation only,
+                        no user-typed text content)
 
     Returns:
         bool: True if email was sent successfully, False otherwise
@@ -83,7 +86,7 @@ def send_issue_report_email(
             _async_send_issue_report_email(
                 self, admin_email, issue_id, issue_title, issue_description,
                 chat_or_embed_url, contact_email, language, timestamp, estimated_location, device_info, console_logs,
-                indexeddb_report, last_messages_html
+                indexeddb_report, last_messages_html, action_history
             )
         )
         if result:
@@ -225,11 +228,30 @@ async def _async_send_issue_report_email(
     device_info: Optional[str] = None,
     console_logs: Optional[str] = None,
     indexeddb_report: Optional[str] = None,
-    last_messages_html: Optional[str] = None
+    last_messages_html: Optional[str] = None,
+    action_history: Optional[str] = None
 ) -> bool:
     """
     Async implementation for sending issue report email.
-    
+
+    Args:
+        task: The Celery base task instance
+        admin_email: Admin email address to send the report to
+        issue_id: Database ID of the issue record (for S3 upload linking)
+        issue_title: Issue title
+        issue_description: Formatted description with user flow / expected / actual behaviour
+        chat_or_embed_url: Optional share URL for active chat or embed
+        contact_email: Optional reporter email for confirmation
+        language: ISO 639-1 language code for localised confirmation email
+        timestamp: Human-readable report timestamp
+        estimated_location: Geo-location string derived from IP
+        device_info: Serialised device info (browser, viewport, touch)
+        console_logs: Last 100 client-side console log lines
+        indexeddb_report: IndexedDB inspection metadata (no plaintext content)
+        last_messages_html: Rendered HTML of last user + assistant messages
+        action_history: Last 20 user-action history entries (button names /
+                        navigation only — no user-typed text content)
+
     Note: This function ensures proper cleanup of async resources (like httpx clients)
     before the event loop closes to prevent "Event loop is closed" errors.
     """
@@ -308,7 +330,11 @@ async def _async_send_issue_report_email(
                 'indexeddb_inspection': indexeddb_report.strip() if indexeddb_report and indexeddb_report.strip() else None,
                 # Rendered HTML of the last user message and assistant response
                 # Helps debug rendering issues by showing exactly what the user saw
-                'last_messages_html': last_messages_html.strip() if last_messages_html and last_messages_html.strip() else None
+                'last_messages_html': last_messages_html.strip() if last_messages_html and last_messages_html.strip() else None,
+                # User-action history: last 20 interactions (button names / navigation only)
+                # NO user-typed text content is ever included — only developer-authored labels
+                # (data-action attrs, aria-labels, placeholder text, class names)
+                'action_history': action_history.strip() if action_history and action_history.strip() else None
             }
         }
 

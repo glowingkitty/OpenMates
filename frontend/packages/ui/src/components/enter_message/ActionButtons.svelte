@@ -129,6 +129,7 @@
             {#if isAuthenticated}
                 <button
                     class="send-button"
+                    data-action="send-message"
                     onclick={handleSendMessageClick}
                     aria-label={$text('enter_message.send')}
                     in:fly={{ x: 40, duration: 200 }}
@@ -140,6 +141,7 @@
                 <!-- Show "Sign up" button for non-authenticated users -->
                 <button
                     class="send-button"
+                    data-action="sign-up-to-send"
                     onclick={handleSignUpClick}
                     aria-label={$text('signup.sign_up')}
                     in:fly={{ x: 40, duration: 200 }}

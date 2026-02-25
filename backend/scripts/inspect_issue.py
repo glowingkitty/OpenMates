@@ -802,6 +802,18 @@ def format_detail_output(
             else:
                 lines.append(f"    {truncate_string(str(indexeddb), 300)}")
 
+        # User action history section (last 20 interactions: button names / navigation only)
+        # NO user-typed text content is ever included — only developer-authored labels.
+        # This shows the sequence of interactions that led up to the reported issue,
+        # making it easy to reproduce the user flow without reading chat messages.
+        action_history = report.get('action_history')
+        if action_history:
+            lines.append("")
+            lines.append("  USER ACTION HISTORY (button names / navigation — no typed text):")
+            lines.append("  " + "-" * 60)
+            for action_line in str(action_history).split('\n'):
+                lines.append(f"    {action_line}")
+
         # Last messages HTML section (rendered HTML of last user message + assistant response)
         last_messages_html = report.get('last_messages_html')
         if last_messages_html:

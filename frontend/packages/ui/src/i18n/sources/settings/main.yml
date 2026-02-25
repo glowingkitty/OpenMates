@@ -6349,6 +6349,75 @@ report_issue.copy_debug_info_error:
   cs: Kopírování ladicích informací se nezdařilo. Zkuste to znovu.
   sv: Det gick inte att kopiera felsökningsinfo. Försök igen.
   verified_by_human: []
+report_issue.action_history_heading:
+  context: Section heading for the recent user-action history shown in the report issue form's device info panel
+  en: Recent actions
+  de: Letzte Aktionen
+  zh: 最近操作
+  es: Acciones recientes
+  fr: Actions récentes
+  pt: Ações recentes
+  ru: Последние действия
+  ja: 最近の操作
+  ko: 최근 작업
+  it: Azioni recenti
+  tr: Son işlemler
+  vi: Hành động gần đây
+  id: Tindakan terbaru
+  pl: Ostatnie działania
+  nl: Recente acties
+  ar: الإجراءات الأخيرة
+  hi: हाल की क्रियाएं
+  th: การกระทำล่าสุด
+  cs: Poslední akce
+  sv: Senaste åtgärder
+  verified_by_human: []
+report_issue.action_history_description:
+  context: Short description below the action history heading explaining what is tracked (privacy note)
+  en: Button names and navigation only — no text content entered by you
+  de: Nur Schaltflächennamen und Navigation – kein von Ihnen eingegebener Text
+  zh: 仅记录按钮名称和导航——不记录您输入的任何文本
+  es: Solo nombres de botones y navegación, sin texto introducido por usted
+  fr: Noms de boutons et navigation uniquement — aucun texte que vous avez saisi
+  pt: Apenas nomes de botões e navegação — nenhum texto digitado por você
+  ru: Только названия кнопок и навигация — никакого введённого вами текста
+  ja: ボタン名とナビゲーションのみ — 入力したテキストは記録されません
+  ko: 버튼 이름 및 탐색만 — 입력한 텍스트는 없음
+  it: Solo nomi dei pulsanti e navigazione — nessun testo inserito da te
+  tr: Yalnızca düğme adları ve gezinme — girdiğiniz metin kaydedilmez
+  vi: Chỉ tên nút và điều hướng — không có nội dung văn bản bạn đã nhập
+  id: Hanya nama tombol dan navigasi — tidak ada teks yang Anda masukkan
+  pl: Tylko nazwy przycisków i nawigacja — bez tekstu przez Ciebie wprowadzonego
+  nl: Alleen knopnamen en navigatie — geen door u ingevoerde tekst
+  ar: أسماء الأزرار والتنقل فقط — لا يوجد نص أدخلته
+  hi: केवल बटन नाम और नेविगेशन — आपके द्वारा दर्ज कोई टेक्स्ट नहीं
+  th: เฉพาะชื่อปุ่มและการนำทาง — ไม่มีเนื้อหาข้อความที่คุณป้อน
+  cs: Pouze názvy tlačítek a navigace — žádný vámi zadaný text
+  sv: Endast knappnamn och navigering — ingen text du har skrivit
+  verified_by_human: []
+report_issue.action_history_empty:
+  context: Placeholder text shown in the action history list when no actions have been recorded yet
+  en: No actions recorded yet
+  de: Noch keine Aktionen aufgezeichnet
+  zh: 尚未记录任何操作
+  es: Aún no se han registrado acciones
+  fr: Aucune action enregistrée pour l'instant
+  pt: Nenhuma ação registada ainda
+  ru: Действия ещё не записаны
+  ja: まだアクションが記録されていません
+  ko: 아직 기록된 작업이 없습니다
+  it: Nessuna azione registrata ancora
+  tr: Henüz eylem kaydedilmedi
+  vi: Chưa có hành động nào được ghi lại
+  id: Belum ada tindakan yang dicatat
+  pl: Nie zarejestrowano jeszcze żadnych działań
+  nl: Nog geen acties opgenomen
+  ar: لم يتم تسجيل أي إجراءات بعد
+  hi: अभी तक कोई क्रिया दर्ज नहीं हुई
+  th: ยังไม่มีการบันทึกการกระทำ
+  cs: Zatím nebyly zaznamenány žádné akce
+  sv: Inga åtgärder registrerade ännu
+  verified_by_human: []
 report_issue.copy_debug_info_hint:
   context: Hint text below the copy debug info button explaining its purpose
   en: Copies device info, console logs, and IndexedDB data to clipboard for local debugging

@@ -1567,6 +1567,7 @@ changes to the documentation (to keep the documentation up to date).
     		class="profile-container"
     		class:menu-open={isMenuVisible}
     		class:hidden={hideOriginalProfile}
+    		data-action={isMenuVisible ? 'close-settings' : 'open-settings'}
     		onclick={toggleMenu}
     		onkeydown={e => e.key === 'Enter' && toggleMenu()}
     		role="button"

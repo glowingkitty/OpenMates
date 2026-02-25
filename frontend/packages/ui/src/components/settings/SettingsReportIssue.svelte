@@ -17,6 +17,7 @@
     import { onMount } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
+    import { userActionTracker } from '../../services/userActionTracker';
     import { reportIssueStore } from '../../stores/reportIssueStore';
     import { inspectChat } from '../../services/debugUtils';
     import { authStore } from '../../stores/authStore';
@@ -407,6 +408,10 @@
                 || navigator.language.split('-')[0]
                 || 'en';
 
+            // Collect user action history (last 20 interactions: button names / navigation only)
+            // NO user-typed text content is included — only developer-authored labels
+            const actionHistory = userActionTracker.getActionHistoryAsText();
+
             const response = await fetch(getApiEndpoint('/v1/settings/issues'), {
                 method: 'POST',
                 headers: {
@@ -423,7 +428,8 @@
                     device_info: currentDeviceInfo,
                     console_logs: consoleLogs,
                     indexeddb_report: indexedDbReport,
-                    last_messages_html: lastMessagesHtml
+                    last_messages_html: lastMessagesHtml,
+                    action_history: actionHistory
                 }),
                 credentials: 'include'
             });
@@ -614,11 +620,13 @@
         const currentDeviceInfo = collectDeviceInfo();
         const consoleLogs = logCollector.getLogsAsText(100);
         const indexedDbReport = await collectChatInspectionReport();
+        const actionHistory = userActionTracker.getActionHistoryAsText();
         
         return {
             device_info: currentDeviceInfo,
             console_logs: consoleLogs,
             indexeddb_report: indexedDbReport,
+            action_history: actionHistory,
             active_chat_id: $activeChatStore || null,
             active_embed_id: $activeEmbedStore || null,
             share_chat_enabled: shareChatEnabled,
@@ -940,6 +948,28 @@
                 <li><strong>{$text('settings.report_issue.device_info.screen_size_label')}:</strong> {deviceInfo.viewportWidth || 0} × {deviceInfo.viewportHeight || 0} pixels</li>
                 <li><strong>{$text('settings.report_issue.device_info.touch_support_label')}:</strong> {deviceInfo.isTouchEnabled ? 'Yes' : 'No'}</li>
             </ul>
+
+            <!-- Recent user-action history (last 20 interactions, button names / navigation only) -->
+            <div class="action-history-section">
+                <h5 class="action-history-heading">{$text('settings.report_issue.action_history_heading')}</h5>
+                <p class="action-history-description">{$text('settings.report_issue.action_history_description')}</p>
+                {#if userActionTracker.getActionHistory().length === 0}
+                    <p class="action-history-empty">{$text('settings.report_issue.action_history_empty')}</p>
+                {:else}
+                    <ul class="action-history-list">
+                        {#each userActionTracker.getActionHistory().slice(-10).reverse() as entry}
+                            <li class="action-history-entry">
+                                <span class="action-type action-type-{entry.type}">{entry.type}</span>
+                                <span class="action-label">{entry.action}</span>
+                                {#if entry.key}
+                                    <span class="action-key">[{entry.key}]</span>
+                                {/if}
+                            </li>
+                        {/each}
+                    </ul>
+                {/if}
+            </div>
+
             <p class="privacy-notice">
                 <strong>{$text('settings.report_issue.device_info.privacy_label')}:</strong>
                 {$text('settings.report_issue.device_info.privacy_body')}
@@ -1291,5 +1321,97 @@
         margin: 8px 0 0 0;
         line-height: 1.4;
         opacity: 0.8;
+    }
+
+    /* ---- User action history section ---- */
+    .action-history-section {
+        margin: 14px 0 0 0;
+        padding-top: 12px;
+        border-top: 1px solid var(--color-info, #2196f3);
+    }
+
+    .action-history-heading {
+        margin: 0 0 4px 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-info-dark, #1565c0);
+    }
+
+    .action-history-description {
+        font-size: 11px;
+        color: var(--color-info-dark, #1565c0);
+        margin: 0 0 8px 0;
+        line-height: 1.4;
+        opacity: 0.8;
+        font-style: italic;
+    }
+
+    .action-history-empty {
+        font-size: 12px;
+        color: var(--color-info-dark, #1565c0);
+        margin: 0;
+        opacity: 0.6;
+        font-style: italic;
+    }
+
+    .action-history-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .action-history-entry {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-family: monospace;
+        color: var(--color-info-dark, #1565c0);
+        line-height: 1.4;
+    }
+
+    /* Colour-coded type badges */
+    .action-type {
+        display: inline-block;
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        flex-shrink: 0;
+        min-width: 52px;
+        text-align: center;
+        background-color: rgba(0, 0, 0, 0.08);
+    }
+
+    .action-type-click {
+        background-color: rgba(33, 150, 243, 0.15);
+        color: var(--color-info-dark, #1565c0);
+    }
+
+    .action-type-focus {
+        background-color: rgba(76, 175, 80, 0.15);
+        color: var(--color-success-dark, #2e7d32);
+    }
+
+    .action-type-keypress {
+        background-color: rgba(255, 152, 0, 0.15);
+        color: #e65100;
+    }
+
+    .action-label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .action-key {
+        flex-shrink: 0;
+        opacity: 0.7;
+        font-size: 10px;
     }
 </style>

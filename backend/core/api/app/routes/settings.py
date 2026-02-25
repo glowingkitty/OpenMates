@@ -2088,6 +2088,7 @@ class IssueReportRequest(BaseModel):
     console_logs: Optional[str] = Field(None, max_length=50000, description="Console logs from the client (last 100 lines)")
     indexeddb_report: Optional[str] = Field(None, max_length=100000, description="IndexedDB inspection report for active chat (metadata only, no plaintext content - safe for debugging)")
     last_messages_html: Optional[str] = Field(None, max_length=200000, description="Rendered HTML of the last user message and assistant response for debugging rendering issues")
+    action_history: Optional[str] = Field(None, max_length=5000, description="Last 20 user-action history entries (button names, navigation — no text content entered by user)")
 
 
 class IssueReportResponse(BaseModel):
@@ -2281,6 +2282,14 @@ async def report_issue(
             last_messages_html_str = issue_data.last_messages_html.strip()
             logger.info(f"Last messages HTML provided with issue report: {len(last_messages_html_str)} characters")
 
+        # Process user action history if provided
+        # This contains the last 20 user interactions (button names, navigation)
+        # NO user-typed text content is ever included — only developer-authored labels
+        action_history_str = None
+        if issue_data.action_history and issue_data.action_history.strip():
+            action_history_str = issue_data.action_history.strip()
+            logger.info(f"Action history provided with issue report: {len(action_history_str)} characters")
+
         # Encrypt sensitive fields for database storage (server-side encryption)
         encryption_service: EncryptionService = request.app.state.encryption_service
         encrypted_contact_email = None
@@ -2391,7 +2400,8 @@ async def report_issue(
                 "device_info": device_info_str,
                 "console_logs": console_logs_str,
                 "indexeddb_report": indexeddb_report_str,
-                "last_messages_html": last_messages_html_str
+                "last_messages_html": last_messages_html_str,
+                "action_history": action_history_str
             },
             queue='email'
         )
