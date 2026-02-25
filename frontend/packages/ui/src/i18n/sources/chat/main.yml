@@ -876,3 +876,15 @@ header.just_now:
   cs: Právě teď
   sv: Just nu
   verified_by_human: []
+
+header.previous_chat:
+  context: Accessible label for the "previous chat" navigation arrow button shown in the chat header banner
+  en: Previous chat
+  de: Vorheriger Chat
+  verified_by_human: []
+
+header.next_chat:
+  context: Accessible label for the "next chat" navigation arrow button shown in the chat header banner
+  en: Next chat
+  de: Nächster Chat
+  verified_by_human: []

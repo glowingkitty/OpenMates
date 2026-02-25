@@ -39,6 +39,7 @@
 <script lang="ts">
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
+  import { chatNavigationStore } from '../stores/chatNavigationStore';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,33 @@
     isLoading?: boolean;
     chatCreatedAt?: number | null;
   } = $props();
+
+  // ─── Navigation arrows ─────────────────────────────────────────────────────
+
+  /** Navigation state from Chats.svelte via the shared store. */
+  let navState = $derived($chatNavigationStore);
+
+  /** Lucide chevron icons for prev/next arrows. */
+  const ChevronLeft = getLucideIcon('chevron-left');
+  const ChevronRight = getLucideIcon('chevron-right');
+
+  /**
+   * Navigate to the previous chat in the list.
+   * Dispatches a global window event that Chats.svelte listens for.
+   */
+  function handlePrevious(e: MouseEvent) {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('navigateChatPrevious'));
+  }
+
+  /**
+   * Navigate to the next chat in the list.
+   * Dispatches a global window event that Chats.svelte listens for.
+   */
+  function handleNext(e: MouseEvent) {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('navigateChatNext'));
+  }
 
   // ─── Derived state ─────────────────────────────────────────────────────────
 
@@ -153,7 +181,8 @@
 </script>
 
 <!-- Banner container: always rendered when either loading or loaded.
-     Smooth background-color transition from primary → category gradient. -->
+     Smooth background-color transition from primary → category gradient.
+     position:relative is required for the absolutely-positioned arrow buttons. -->
 <div
   class="chat-header-banner"
   class:is-loaded={isLoaded}
@@ -203,6 +232,31 @@
       {/if}
     </div>
   {/if}
+
+  <!-- ── Chat navigation arrows ──
+       Shown at the left and right edges when there are adjacent chats to navigate to.
+       Only rendered in the loaded state (not while the title is still generating).
+       Use pointer-events:auto to override the banner's pointer-events:none. -->
+  {#if isLoaded && navState.hasPrev}
+    <button
+      class="nav-arrow nav-arrow-left"
+      onclick={handlePrevious}
+      aria-label={$text('chat.header.previous_chat')}
+      type="button"
+    >
+      <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
+    </button>
+  {/if}
+  {#if isLoaded && navState.hasNext}
+    <button
+      class="nav-arrow nav-arrow-right"
+      onclick={handleNext}
+      aria-label={$text('chat.header.next_chat')}
+      type="button"
+    >
+      <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
+    </button>
+  {/if}
 </div>
 
 <style>
@@ -222,7 +276,7 @@
     /* Smooth background transition when switching from primary → category gradient */
     transition: background 0.5s ease;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    /* No interactivity — purely decorative */
+    /* Decorative content is non-interactive; arrows override with pointer-events:auto below. */
     pointer-events: none;
     user-select: none;
   }
@@ -426,6 +480,56 @@
 
   .deco-icon-right {
     --deco-rotate: 15deg;
+  }
+
+  /* ─── Chat navigation arrows ─────────────────────────────────────────────
+     Positioned at the left and right edges of the banner (identical layout to
+     DailyInspirationBanner's .carousel-arrow). pointer-events:auto overrides
+     the banner-level pointer-events:none so only the arrows are interactive.
+     ALL global button{} rules from buttons.css are overridden with !important. */
+  .nav-arrow {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    padding: 0 !important;
+    min-width: unset !important;
+    width: 40px !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    filter: none !important;
+    margin: 0 !important;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    z-index: 20;
+    pointer-events: auto; /* Re-enable interactivity for arrows despite banner pointer-events:none */
+    flex-shrink: 0;
+  }
+
+  .nav-arrow:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    scale: none !important;
+  }
+
+  .nav-arrow:active {
+    background-color: rgba(255, 255, 255, 0.18) !important;
+    scale: none !important;
+    filter: none !important;
+  }
+
+  /* Position arrows at the outer edges, rounded on the inner edge only */
+  .nav-arrow-left {
+    left: 0;
+    border-radius: 0 10px 10px 0 !important; /* rounded on the right (inner) side */
+  }
+
+  .nav-arrow-right {
+    right: 0;
+    border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
   }
 
   /* ─── Mobile adjustments (≤730px) ───────────────────────────────────────── */

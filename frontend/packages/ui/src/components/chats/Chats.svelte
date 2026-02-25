@@ -41,6 +41,9 @@
 	// --- Category circle imports (used by the sticky active-chat pin) ---
 	import { getCategoryGradientColors, getFallbackIconForCategory, getLucideIcon } from '../../utils/categoryUtils';
 
+	// --- Chat navigation store (prev/next arrow state for ChatHeader) ---
+	import { chatNavigationStore } from '../../stores/chatNavigationStore';
+
 	const dispatch = createEventDispatcher();
 
 // --- Debounce timer for updateChatListFromDB calls ---
@@ -599,6 +602,18 @@ const UPDATE_DEBOUNCE_MS = 300;
 	// Flattened list of ALL sorted chats (excluding those processing metadata), used for keyboard navigation and selection logic using Svelte 5 runes
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
 	let flattenedNavigableChats = $derived(sortedAllChatsFiltered);
+
+	// Keep chatNavigationStore in sync so ChatHeader can show/hide the prev/next arrows
+	// without threading props through ActiveChat and ChatHistory.
+	$effect(() => {
+		const idx = selectedChatId
+			? flattenedNavigableChats.findIndex(c => c.chat_id === selectedChatId)
+			: -1;
+		chatNavigationStore.set({
+			hasPrev: idx > 0,
+			hasNext: idx >= 0 && idx < flattenedNavigableChats.length - 1,
+		});
+	});
 	
 	// --- Event Handlers & Lifecycle ---
 
@@ -622,6 +637,8 @@ const UPDATE_DEBOUNCE_MS = 300;
 	let handleChatHidden: (event: Event) => void; // Handler for chat hidden event
 	let handleChatUnhidden: (event: Event) => void; // Handler for chat unhidden event
 	let handleOpenSearchEvent: () => void; // Handler for global 'openSearch' window event (Cmd+F)
+	let handleNavigateChatPreviousEvent: () => void; // Handler for 'navigateChatPrevious' from ChatHeader arrows
+	let handleNavigateChatNextEvent: () => void; // Handler for 'navigateChatNext' from ChatHeader arrows
 
 	// --- chatSyncService Event Handlers ---
 
@@ -1671,6 +1688,13 @@ const UPDATE_DEBOUNCE_MS = 300;
 			openSearch();
 		};
 		window.addEventListener('openSearch', handleOpenSearchEvent);
+
+		// Handle 'navigateChatPrevious' / 'navigateChatNext' events dispatched by the
+		// ChatHeader arrow buttons so the user can browse chats without opening the sidebar.
+		handleNavigateChatPreviousEvent = () => navigateToPreviousChat();
+		handleNavigateChatNextEvent = () => navigateToNextChat();
+		window.addEventListener('navigateChatPrevious', handleNavigateChatPreviousEvent);
+		window.addEventListener('navigateChatNext', handleNavigateChatNextEvent);
 		
 		// Initial load of incognito chats (only if mode is enabled)
 		// Don't use subscription to avoid reactive loops - just check on mount
@@ -1833,6 +1857,12 @@ const UPDATE_DEBOUNCE_MS = 300;
 		}
 		if (handleOpenSearchEvent) {
 			window.removeEventListener('openSearch', handleOpenSearchEvent);
+		}
+		if (handleNavigateChatPreviousEvent) {
+			window.removeEventListener('navigateChatPrevious', handleNavigateChatPreviousEvent);
+		}
+		if (handleNavigateChatNextEvent) {
+			window.removeEventListener('navigateChatNext', handleNavigateChatNextEvent);
 		}
 	});
 
