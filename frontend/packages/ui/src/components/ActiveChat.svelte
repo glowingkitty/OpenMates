@@ -7247,7 +7247,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         chatCategory={activeChatDecryptedCategory}
                         chatIcon={activeChatDecryptedIcon}
                         chatSummary={activeChatDecryptedSummary}
-                        chatCreatedAt={currentChat?.created_at ?? null}
+                        chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : null}
                         {isNewChatGeneratingTitle}
                         onSuggestionAdded={handleSettingsMemorySuggestionAdded}
                         onSuggestionRejected={handleSettingsMemorySuggestionRejected}
