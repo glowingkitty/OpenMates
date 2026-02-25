@@ -1684,3 +1684,365 @@ skills.model_detail.servers:
   cs: Servery
   sv: Servrar
   verified_by_human: []
+
+# AI Ask skill model names — used as the page title when deep-linking directly to a model detail page.
+# Model names are proper nouns and do not require translation; all locales use the same English value.
+ai.skill.ask.model.qwen3_235b_a22b_2507:
+  context: Display name for the Qwen 3 256b AI model, shown as the settings page title when navigating directly to this model
+  en: Qwen 3 256b
+  de: Qwen 3 256b
+  zh: Qwen 3 256b
+  es: Qwen 3 256b
+  fr: Qwen 3 256b
+  pt: Qwen 3 256b
+  ru: Qwen 3 256b
+  ja: Qwen 3 256b
+  ko: Qwen 3 256b
+  it: Qwen 3 256b
+  tr: Qwen 3 256b
+  vi: Qwen 3 256b
+  id: Qwen 3 256b
+  pl: Qwen 3 256b
+  nl: Qwen 3 256b
+  ar: Qwen 3 256b
+  hi: Qwen 3 256b
+  th: Qwen 3 256b
+  cs: Qwen 3 256b
+  sv: Qwen 3 256b
+  verified_by_human: []
+
+ai.skill.ask.model.claude_haiku_4_5_20251001:
+  context: Display name for the Claude Haiku 4.5 AI model, shown as the settings page title when navigating directly to this model
+  en: Claude Haiku 4.5
+  de: Claude Haiku 4.5
+  zh: Claude Haiku 4.5
+  es: Claude Haiku 4.5
+  fr: Claude Haiku 4.5
+  pt: Claude Haiku 4.5
+  ru: Claude Haiku 4.5
+  ja: Claude Haiku 4.5
+  ko: Claude Haiku 4.5
+  it: Claude Haiku 4.5
+  tr: Claude Haiku 4.5
+  vi: Claude Haiku 4.5
+  id: Claude Haiku 4.5
+  pl: Claude Haiku 4.5
+  nl: Claude Haiku 4.5
+  ar: Claude Haiku 4.5
+  hi: Claude Haiku 4.5
+  th: Claude Haiku 4.5
+  cs: Claude Haiku 4.5
+  sv: Claude Haiku 4.5
+  verified_by_human: []
+
+ai.skill.ask.model.claude_sonnet_4_6:
+  context: Display name for the Claude Sonnet 4.6 AI model, shown as the settings page title when navigating directly to this model
+  en: Claude Sonnet 4.6
+  de: Claude Sonnet 4.6
+  zh: Claude Sonnet 4.6
+  es: Claude Sonnet 4.6
+  fr: Claude Sonnet 4.6
+  pt: Claude Sonnet 4.6
+  ru: Claude Sonnet 4.6
+  ja: Claude Sonnet 4.6
+  ko: Claude Sonnet 4.6
+  it: Claude Sonnet 4.6
+  tr: Claude Sonnet 4.6
+  vi: Claude Sonnet 4.6
+  id: Claude Sonnet 4.6
+  pl: Claude Sonnet 4.6
+  nl: Claude Sonnet 4.6
+  ar: Claude Sonnet 4.6
+  hi: Claude Sonnet 4.6
+  th: Claude Sonnet 4.6
+  cs: Claude Sonnet 4.6
+  sv: Claude Sonnet 4.6
+  verified_by_human: []
+
+ai.skill.ask.model.claude_opus_4_6:
+  context: Display name for the Claude Opus 4.6 AI model, shown as the settings page title when navigating directly to this model
+  en: Claude Opus 4.6
+  de: Claude Opus 4.6
+  zh: Claude Opus 4.6
+  es: Claude Opus 4.6
+  fr: Claude Opus 4.6
+  pt: Claude Opus 4.6
+  ru: Claude Opus 4.6
+  ja: Claude Opus 4.6
+  ko: Claude Opus 4.6
+  it: Claude Opus 4.6
+  tr: Claude Opus 4.6
+  vi: Claude Opus 4.6
+  id: Claude Opus 4.6
+  pl: Claude Opus 4.6
+  nl: Claude Opus 4.6
+  ar: Claude Opus 4.6
+  hi: Claude Opus 4.6
+  th: Claude Opus 4.6
+  cs: Claude Opus 4.6
+  sv: Claude Opus 4.6
+  verified_by_human: []
+
+ai.skill.ask.model.deepseek_v3.2:
+  context: Display name for the DeepSeek V3.2 AI model, shown as the settings page title when navigating directly to this model
+  en: DeepSeek V3.2
+  de: DeepSeek V3.2
+  zh: DeepSeek V3.2
+  es: DeepSeek V3.2
+  fr: DeepSeek V3.2
+  pt: DeepSeek V3.2
+  ru: DeepSeek V3.2
+  ja: DeepSeek V3.2
+  ko: DeepSeek V3.2
+  it: DeepSeek V3.2
+  tr: DeepSeek V3.2
+  vi: DeepSeek V3.2
+  id: DeepSeek V3.2
+  pl: DeepSeek V3.2
+  nl: DeepSeek V3.2
+  ar: DeepSeek V3.2
+  hi: DeepSeek V3.2
+  th: DeepSeek V3.2
+  cs: DeepSeek V3.2
+  sv: DeepSeek V3.2
+  verified_by_human: []
+
+ai.skill.ask.model.gemini_3_flash_preview:
+  context: Display name for the Gemini 3 Flash AI model, shown as the settings page title when navigating directly to this model
+  en: Gemini 3 Flash
+  de: Gemini 3 Flash
+  zh: Gemini 3 Flash
+  es: Gemini 3 Flash
+  fr: Gemini 3 Flash
+  pt: Gemini 3 Flash
+  ru: Gemini 3 Flash
+  ja: Gemini 3 Flash
+  ko: Gemini 3 Flash
+  it: Gemini 3 Flash
+  tr: Gemini 3 Flash
+  vi: Gemini 3 Flash
+  id: Gemini 3 Flash
+  pl: Gemini 3 Flash
+  nl: Gemini 3 Flash
+  ar: Gemini 3 Flash
+  hi: Gemini 3 Flash
+  th: Gemini 3 Flash
+  cs: Gemini 3 Flash
+  sv: Gemini 3 Flash
+  verified_by_human: []
+
+ai.skill.ask.model.gemini_3.1_pro_preview:
+  context: Display name for the Gemini 3.1 Pro AI model, shown as the settings page title when navigating directly to this model
+  en: Gemini 3.1 Pro
+  de: Gemini 3.1 Pro
+  zh: Gemini 3.1 Pro
+  es: Gemini 3.1 Pro
+  fr: Gemini 3.1 Pro
+  pt: Gemini 3.1 Pro
+  ru: Gemini 3.1 Pro
+  ja: Gemini 3.1 Pro
+  ko: Gemini 3.1 Pro
+  it: Gemini 3.1 Pro
+  tr: Gemini 3.1 Pro
+  vi: Gemini 3.1 Pro
+  id: Gemini 3.1 Pro
+  pl: Gemini 3.1 Pro
+  nl: Gemini 3.1 Pro
+  ar: Gemini 3.1 Pro
+  hi: Gemini 3.1 Pro
+  th: Gemini 3.1 Pro
+  cs: Gemini 3.1 Pro
+  sv: Gemini 3.1 Pro
+  verified_by_human: []
+
+ai.skill.ask.model.mistral_small_latest:
+  context: Display name for the Mistral Small AI model, shown as the settings page title when navigating directly to this model
+  en: Mistral Small
+  de: Mistral Small
+  zh: Mistral Small
+  es: Mistral Small
+  fr: Mistral Small
+  pt: Mistral Small
+  ru: Mistral Small
+  ja: Mistral Small
+  ko: Mistral Small
+  it: Mistral Small
+  tr: Mistral Small
+  vi: Mistral Small
+  id: Mistral Small
+  pl: Mistral Small
+  nl: Mistral Small
+  ar: Mistral Small
+  hi: Mistral Small
+  th: Mistral Small
+  cs: Mistral Small
+  sv: Mistral Small
+  verified_by_human: []
+
+ai.skill.ask.model.mistral_medium_latest:
+  context: Display name for the Mistral Medium AI model, shown as the settings page title when navigating directly to this model
+  en: Mistral Medium
+  de: Mistral Medium
+  zh: Mistral Medium
+  es: Mistral Medium
+  fr: Mistral Medium
+  pt: Mistral Medium
+  ru: Mistral Medium
+  ja: Mistral Medium
+  ko: Mistral Medium
+  it: Mistral Medium
+  tr: Mistral Medium
+  vi: Mistral Medium
+  id: Mistral Medium
+  pl: Mistral Medium
+  nl: Mistral Medium
+  ar: Mistral Medium
+  hi: Mistral Medium
+  th: Mistral Medium
+  cs: Mistral Medium
+  sv: Mistral Medium
+  verified_by_human: []
+
+ai.skill.ask.model.ministral_8b_2512:
+  context: Display name for the Ministral 3 8B AI model, shown as the settings page title when navigating directly to this model
+  en: Ministral 3 8B
+  de: Ministral 3 8B
+  zh: Ministral 3 8B
+  es: Ministral 3 8B
+  fr: Ministral 3 8B
+  pt: Ministral 3 8B
+  ru: Ministral 3 8B
+  ja: Ministral 3 8B
+  ko: Ministral 3 8B
+  it: Ministral 3 8B
+  tr: Ministral 3 8B
+  vi: Ministral 3 8B
+  id: Ministral 3 8B
+  pl: Ministral 3 8B
+  nl: Ministral 3 8B
+  ar: Ministral 3 8B
+  hi: Ministral 3 8B
+  th: Ministral 3 8B
+  cs: Ministral 3 8B
+  sv: Ministral 3 8B
+  verified_by_human: []
+
+ai.skill.ask.model.devstral_2512:
+  context: Display name for the Devstral 2 AI model, shown as the settings page title when navigating directly to this model
+  en: Devstral 2
+  de: Devstral 2
+  zh: Devstral 2
+  es: Devstral 2
+  fr: Devstral 2
+  pt: Devstral 2
+  ru: Devstral 2
+  ja: Devstral 2
+  ko: Devstral 2
+  it: Devstral 2
+  tr: Devstral 2
+  vi: Devstral 2
+  id: Devstral 2
+  pl: Devstral 2
+  nl: Devstral 2
+  ar: Devstral 2
+  hi: Devstral 2
+  th: Devstral 2
+  cs: Devstral 2
+  sv: Devstral 2
+  verified_by_human: []
+
+ai.skill.ask.model.kimi_k2.5:
+  context: Display name for the Kimi K2.5 AI model, shown as the settings page title when navigating directly to this model
+  en: Kimi K2.5
+  de: Kimi K2.5
+  zh: Kimi K2.5
+  es: Kimi K2.5
+  fr: Kimi K2.5
+  pt: Kimi K2.5
+  ru: Kimi K2.5
+  ja: Kimi K2.5
+  ko: Kimi K2.5
+  it: Kimi K2.5
+  tr: Kimi K2.5
+  vi: Kimi K2.5
+  id: Kimi K2.5
+  pl: Kimi K2.5
+  nl: Kimi K2.5
+  ar: Kimi K2.5
+  hi: Kimi K2.5
+  th: Kimi K2.5
+  cs: Kimi K2.5
+  sv: Kimi K2.5
+  verified_by_human: []
+
+ai.skill.ask.model.gpt_5.2:
+  context: Display name for the GPT-5.2 AI model, shown as the settings page title when navigating directly to this model
+  en: GPT-5.2
+  de: GPT-5.2
+  zh: GPT-5.2
+  es: GPT-5.2
+  fr: GPT-5.2
+  pt: GPT-5.2
+  ru: GPT-5.2
+  ja: GPT-5.2
+  ko: GPT-5.2
+  it: GPT-5.2
+  tr: GPT-5.2
+  vi: GPT-5.2
+  id: GPT-5.2
+  pl: GPT-5.2
+  nl: GPT-5.2
+  ar: GPT-5.2
+  hi: GPT-5.2
+  th: GPT-5.2
+  cs: GPT-5.2
+  sv: GPT-5.2
+  verified_by_human: []
+
+ai.skill.ask.model.gpt_oss_120b:
+  context: Display name for the GPT-OSS-120b AI model, shown as the settings page title when navigating directly to this model
+  en: GPT-OSS-120b
+  de: GPT-OSS-120b
+  zh: GPT-OSS-120b
+  es: GPT-OSS-120b
+  fr: GPT-OSS-120b
+  pt: GPT-OSS-120b
+  ru: GPT-OSS-120b
+  ja: GPT-OSS-120b
+  ko: GPT-OSS-120b
+  it: GPT-OSS-120b
+  tr: GPT-OSS-120b
+  vi: GPT-OSS-120b
+  id: GPT-OSS-120b
+  pl: GPT-OSS-120b
+  nl: GPT-OSS-120b
+  ar: GPT-OSS-120b
+  hi: GPT-OSS-120b
+  th: GPT-OSS-120b
+  cs: GPT-OSS-120b
+  sv: GPT-OSS-120b
+  verified_by_human: []
+
+ai.skill.ask.model.zai_glm_4.7:
+  context: Display name for the GLM 4.7 AI model, shown as the settings page title when navigating directly to this model
+  en: GLM 4.7
+  de: GLM 4.7
+  zh: GLM 4.7
+  es: GLM 4.7
+  fr: GLM 4.7
+  pt: GLM 4.7
+  ru: GLM 4.7
+  ja: GLM 4.7
+  ko: GLM 4.7
+  it: GLM 4.7
+  tr: GLM 4.7
+  vi: GLM 4.7
+  id: GLM 4.7
+  pl: GLM 4.7
+  nl: GLM 4.7
+  ar: GLM 4.7
+  hi: GLM 4.7
+  th: GLM 4.7
+  cs: GLM 4.7
+  sv: GLM 4.7
+  verified_by_human: []
