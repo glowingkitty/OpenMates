@@ -1102,9 +1102,12 @@
   }
 
   /**
-   * Called by ActiveChat 2 s after the new-chat title/category/icon have been
+   * Called by ActiveChat 3 s after the new-chat title/category/icon have been
    * received and rendered.  Executes the ChatGPT-style scroll so the user
    * message sits at the top of the viewport with space below for the AI response.
+   *
+   * Uses tick() to ensure the layout is fully settled (chat header fully rendered)
+   * before measuring positions, which prevents the scroll target being miscalculated.
    *
    * If no pending message ID exists (e.g. the scroll was already cancelled) this
    * is a safe no-op.
@@ -1116,32 +1119,40 @@
 
     isScrolling = true;
 
-    const userMessageElement = container.querySelector(`[data-message-id="${msgId}"]`);
-    if (!userMessageElement) {
-      console.warn('[ChatHistory] triggerNewChatUserMessageScroll: message element not found for', msgId);
-      isScrolling = false;
-      return;
-    }
+    // Wait for Svelte to flush any pending DOM updates (e.g. the chat header card
+    // finishing its transition) before measuring scroll positions.
+    tick().then(() => {
+      if (!container) { isScrolling = false; return; }
 
-    const containerRect = container.getBoundingClientRect();
-    const messageRect = userMessageElement.getBoundingClientRect();
+      const userMessageElement = container.querySelector(`[data-message-id="${msgId}"]`);
+      if (!userMessageElement) {
+        console.warn('[ChatHistory] triggerNewChatUserMessageScroll: message element not found for', msgId);
+        isScrolling = false;
+        return;
+      }
 
-    let lineHeight = 24;
-    const paragraph = userMessageElement.querySelector('.ProseMirror p');
-    if (paragraph) {
-      const computed = window.getComputedStyle(paragraph);
-      const parsed = parseFloat(computed.lineHeight);
-      if (!isNaN(parsed) && parsed > 0) lineHeight = parsed;
-    }
+      const containerRect = container.getBoundingClientRect();
+      const messageRect = userMessageElement.getBoundingClientRect();
 
-    const visiblePortion = lineHeight + 20;
-    const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
-    const messageHeight = messageRect.height;
-    const scrollTarget = topOfMessage + messageHeight - visiblePortion;
+      let lineHeight = 24;
+      const paragraph = userMessageElement.querySelector('.ProseMirror p');
+      if (paragraph) {
+        const computed = window.getComputedStyle(paragraph);
+        const parsed = parseFloat(computed.lineHeight);
+        if (!isNaN(parsed) && parsed > 0) lineHeight = parsed;
+      }
 
-    container.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+      const visiblePortion = lineHeight + 20;
+      const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
+      const messageHeight = messageRect.height;
+      const scrollTarget = topOfMessage + messageHeight - visiblePortion;
 
-    setTimeout(() => { isScrolling = false; }, 800);
+      container.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+
+      // Allow extra time for the smooth scroll animation to complete (it can span
+      // a large distance from the top of the chat to the user message).
+      setTimeout(() => { isScrolling = false; }, 1200);
+    });
   }
 
   /**

@@ -65,7 +65,9 @@ api.dev.openmates.org {
 	@api_docs_path path /docs /docs/* /openapi.json # Swagger UI and OpenAPI schema
 	# /v1/geocode/* is public (no auth required) so any client — including unauthenticated
 	# users viewing shared map embeds — can resolve addresses. Rate limited 30/min by FastAPI.
-	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* # Public API endpoints (authentication enforced by FastAPI where applicable)
+	# /v1/analytics/* is public (no auth required) — analytics beacon accepts POSTs from any
+	# origin including unauthenticated visitors. No PII collected; aggregate-only counters.
+	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* # Public API endpoints (authentication enforced by FastAPI where applicable)
 
 	# --- PUBLIC SHARE MATCHERS ---
 	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
@@ -131,7 +133,7 @@ api.dev.openmates.org {
 	}
 
 	@public_api_options {
-		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/*
+		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/*
 		method OPTIONS
 	}
 

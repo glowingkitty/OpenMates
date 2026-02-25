@@ -4545,14 +4545,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     if (activeChatDecryptedTitle && activeChatDecryptedCategory) {
                         isNewChatGeneratingTitle = false;
                         console.info('[ActiveChat] Chat header ready:', activeChatDecryptedTitle, activeChatDecryptedCategory, activeChatDecryptedIcon);
-                        // Scroll the user message to the top of the viewport 2 s after the
+                        // Scroll the user message to the top of the viewport 3 s after the
                         // title/category/icon are visible.  This gives the user time to see
                         // the "Creating new chat…" → generated-title transition before the
                         // view scrolls down to make room for the AI response.
                         if (chatHistoryRef) {
                             setTimeout(() => {
                                 chatHistoryRef?.triggerNewChatUserMessageScroll();
-                            }, 2000);
+                            }, 3000);
                         }
                     }
                 }
