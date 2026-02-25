@@ -5377,14 +5377,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         console.debug('[ActiveChat] Set isAtBottom=false after restoring scroll position (user was scrolled up)');
                     }, 200); // Wait for scroll restoration to complete
                 } else {
-                    // No saved position - scroll to bottom (newest messages)
-                    // User should see the latest messages, so isAtBottom should be true
-                    chatHistoryRef.scrollToBottom();
-                    // After scrolling to bottom, explicitly set isAtBottom to true
-                    // handleScrollPositionUI will confirm this after scroll completes
+                    // No saved position - scroll to top so the user reads the conversation
+                    // from the beginning (most natural for first-time opening a chat).
+                    // If the user had previously scrolled to the bottom, last_visible_message_id
+                    // would have been saved pointing to the last message, so the restoreScrollPosition
+                    // branch above handles that case — this branch only fires on first open.
+                    chatHistoryRef.scrollToTop();
+                    // After scrolling to top, explicitly set isAtBottom to false
+                    // handleScrollPositionUI will update it if the actual scroll position differs
                     setTimeout(() => {
-                        isAtBottom = true;
-                        console.debug('[ActiveChat] Set isAtBottom=true after scrolling to bottom (no saved position)');
+                        isAtBottom = false;
+                        console.debug('[ActiveChat] Set isAtBottom=false after scrolling to top (no saved position - first open)');
                     }, 200); // Wait for scroll to complete
                 }
             }, 100); // Short wait for messages to render
