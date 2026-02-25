@@ -27,6 +27,7 @@ import { dailyInspirationStore } from "./dailyInspirationStore";
 import { webSocketService } from "../services/websocketService";
 import { chatListCache } from "../services/chatListCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
+import { resetChatNavigationList } from "./chatNavigationStore";
 import { clientLogForwarder } from "../services/clientLogForwarder";
 import { applyServerDarkMode } from "./theme";
 
@@ -448,6 +449,11 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // won't fire to clear the cache. Clearing here ensures stale chats never appear after logout.
     chatListCache.clear();
     chatDB.clearAllChatKeys();
+    // Reset the module-level chat list in chatNavigationStore so that stale
+    // user chats do not remain in memory when Chats.svelte is unmounted (sidebar
+    // closed on mobile). Without this, updateNavFromCache() would use the old list
+    // and show hasPrev=true on the intro chat immediately after logout.
+    resetChatNavigationList();
     console.debug(
       "[AuthStore] Cleared chatListCache and chatDB.chatKeys during logout",
     );

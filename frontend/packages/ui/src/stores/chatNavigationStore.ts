@@ -28,6 +28,7 @@ import {
   INTRO_CHATS,
   LEGAL_CHATS,
   getAllCommunityDemoChats,
+  communityDemoStore,
   translateDemoChat,
 } from "../demo_chats";
 import { convertDemoChatToChat } from "../demo_chats/convertToChat";
@@ -73,6 +74,21 @@ export function setChatNavigationList(
 ): void {
   chatList = chats;
   currentChatId = activeChatId;
+}
+
+/**
+ * Reset all navigation state to defaults.
+ *
+ * Called during logout to clear the module-level chat list so that stale
+ * user chats do not remain in memory when Chats.svelte is unmounted (e.g.
+ * sidebar closed on mobile). Without this reset, the next call to
+ * updateNavFromCache() would find the old user-chat list still in chatList
+ * (Case 1 branch) and incorrectly compute hasPrev=true for the intro chat.
+ */
+export function resetChatNavigationList(): void {
+  chatList = [];
+  currentChatId = null;
+  chatNavigationStore.set({ hasPrev: false, hasNext: false });
 }
 
 /**
@@ -202,6 +218,36 @@ export function updateNavFromCache(activeChatId: string): void {
 
       if (allChats.length === 0) return;
       _applyNavigableList(allChats, activeChatId);
+
+      // ── Case 3b: Active chat is a community demo that wasn't loaded yet ──
+      // Community demos are fetched from the server asynchronously, so
+      // getAllCommunityDemoChats() may return [] on a cold boot (the network
+      // request is still in flight). If activeChatId was not found in the
+      // list we just built, subscribe to communityDemoStore for one update
+      // so that the nav arrows appear once the demos arrive.
+      const foundIdx = allChats.findIndex((c) => c.chat_id === activeChatId);
+      if (foundIdx === -1) {
+        // Subscribe and unsubscribe after the first non-empty update
+        const unsubscribe = communityDemoStore.subscribe(() => {
+          // Skip if Chats.svelte has since mounted and taken ownership
+          if (chatList.length > 0) {
+            unsubscribe();
+            return;
+          }
+          const updatedCommunityChats: Chat[] = getAllCommunityDemoChats().map(
+            (chat) => ({ ...chat, group_key: "examples" as const }),
+          );
+          if (updatedCommunityChats.length === 0) return; // still loading
+          const rebuilt = [
+            ...(dbChats || []),
+            ...introChats,
+            ...updatedCommunityChats,
+            ...legalChats,
+          ];
+          _applyNavigableList(rebuilt, activeChatId);
+          unsubscribe(); // one-shot: stop listening after first successful update
+        });
+      }
     })
     .catch((err) => {
       console.warn(
