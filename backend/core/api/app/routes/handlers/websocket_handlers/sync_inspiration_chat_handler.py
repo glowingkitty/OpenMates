@@ -131,6 +131,25 @@ async def handle_sync_inspiration_chat(
                 user_id[:8],
             )
 
+        # CRITICAL: Add the chat to the user's chat_ids_versions sorted set so that
+        # check_chat_ownership() can find it when the user sends a follow-up message.
+        #
+        # Without this, the ownership check fails because:
+        #   1. check_chat_exists_for_user() → False (chat not in sorted set)
+        #   2. is_user_cache_primed() → True (user was already synced)
+        #   3. "primed + not found" → ownership returns False
+        #   → Server rejects the message with the misleading "shared chat" error.
+        #
+        # The sorted set is the source-of-truth for the ownership check (cache path).
+        # Adding the chat here makes follow-up messages work immediately, before
+        # Directus persistence (which happens asynchronously via Celery).
+        await cache_service.add_chat_to_ids_versions(user_id, chat_id, now_ts)
+        logger.info(
+            "[SyncInspirationChat] Added chat %s to chat_ids_versions sorted set for user %s",
+            chat_id,
+            user_id[:8],
+        )
+
         # ── 2. Broadcast to other devices ─────────────────────────────────────
         # Reuse the same event shape as `new_chat_message` so the receiving-side
         # handler (handleNewChatMessageImpl) on other devices can create the chat
