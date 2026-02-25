@@ -40,6 +40,52 @@
         label: string;
     }
 
+    interface WebAnalyticsDailyRecord {
+        id: string;
+        date: string;
+        page_loads: number;
+        unique_visits_approx: number;
+        countries?: Record<string, number>;
+        devices?: Record<string, number>;
+        browsers?: Record<string, number>;
+        os_families?: Record<string, number>;
+        referrer_domains?: Record<string, number>;
+        screen_classes?: Record<string, number>;
+        session_duration_buckets?: Record<string, number>;
+    }
+
+    interface SignupFunnelDailyRecord {
+        id: string;
+        date: string;
+        started_basics: number;
+        email_confirmed: number;
+        auth_password_setup: number;
+        auth_passkey_setup: number;
+        recovery_key_saved: number;
+        reached_payment: number;
+        payment_completed: number;
+        payment_completed_eu: number;
+        payment_completed_non_eu: number;
+        auto_topup_setup: number;
+    }
+
+    interface AppAnalyticsDailyRecord {
+        id: string;
+        date: string;
+        app_id?: string;
+        skill_id?: string;
+        model_used?: string;
+        focus_mode_id?: string;
+        settings_memory_type?: string;
+        count: number;
+    }
+
+    // Key-value pair for ranked lists (top countries, browsers, referrers, etc.)
+    interface RankedItem {
+        key: string;
+        value: number;
+    }
+
     // ============================================================================
     // STATE
     // ============================================================================
@@ -50,6 +96,19 @@
     let monthlyHistory = $state<StatsRecord[]>([]);
     let currentStats = $state<Partial<StatsRecord>>({});
     let newsletterSubscribersCount = $state(0);
+
+    // --- Analytics data ---
+    let webAnalyticsDaily = $state<WebAnalyticsDailyRecord[]>([]);
+    let signupFunnelDaily = $state<SignupFunnelDailyRecord[]>([]);
+    let appAnalyticsDaily = $state<AppAnalyticsDailyRecord[]>([]);
+
+    // --- Web traffic chart active metric ---
+    let activeTrafficMetric = $state<'page_loads' | 'unique_visits_approx'>('page_loads');
+
+    // Hover state for web traffic chart
+    let hoveredTrafficPoint = $state<ChartDataPoint | null>(null);
+    let trafficTooltipX = $state(0);
+    let trafficTooltipY = $state(0);
     
     // Active chart metric for daily view
     let activeMetric = $state<'messages' | 'credits_used' | 'users' | 'income'>('messages');
@@ -104,6 +163,22 @@
             monthlyHistory = (data.monthly_history || []).filter((record: StatsRecord) => {
                 const yearMonth = record.year_month || '';
                 const year = parseInt(yearMonth.substring(0, 4));
+                return !isNaN(year) && year >= minYear;
+            });
+
+            // Parse analytics data (may be empty arrays if collections not yet populated)
+            webAnalyticsDaily = (data.web_analytics_daily || []).filter((r: WebAnalyticsDailyRecord) => {
+                const year = parseInt((r.date || '').substring(0, 4));
+                return !isNaN(year) && year >= minYear;
+            });
+
+            signupFunnelDaily = (data.signup_funnel_daily || []).filter((r: SignupFunnelDailyRecord) => {
+                const year = parseInt((r.date || '').substring(0, 4));
+                return !isNaN(year) && year >= minYear;
+            });
+
+            appAnalyticsDaily = (data.app_analytics_daily || []).filter((r: AppAnalyticsDailyRecord) => {
+                const year = parseInt((r.date || '').substring(0, 4));
                 return !isNaN(year) && year >= minYear;
             });
 
@@ -439,11 +514,138 @@
     }
 
     // ============================================================================
+    // WEB ANALYTICS HELPERS
+    // ============================================================================
+
+    /**
+     * Get traffic chart data for the selected web analytics metric
+     */
+    function getTrafficChartData(metric: typeof activeTrafficMetric): ChartDataPoint[] {
+        const sorted = [...webAnalyticsDaily].sort((a, b) =>
+            (a.date || '').localeCompare(b.date || '')
+        );
+        return sorted.map(day => {
+            const value = metric === 'page_loads' ? (day.page_loads || 0) : (day.unique_visits_approx || 0);
+            const label = metric === 'page_loads'
+                ? `${formatNumber(value)} page loads`
+                : `~${formatNumber(value)} unique visits`;
+            return { date: day.date || '', value, label };
+        });
+    }
+
+    /**
+     * Aggregate a JSON distribution field across the last N web analytics days.
+     * Returns top-N items sorted by count descending.
+     */
+    function aggregateDistribution(field: keyof WebAnalyticsDailyRecord, topN: number = 8): RankedItem[] {
+        const totals: Record<string, number> = {};
+        for (const day of webAnalyticsDaily) {
+            const dist = day[field] as Record<string, number> | undefined;
+            if (!dist) continue;
+            for (const [key, count] of Object.entries(dist)) {
+                totals[key] = (totals[key] || 0) + count;
+            }
+        }
+        return Object.entries(totals)
+            .map(([key, value]) => ({ key, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, topN);
+    }
+
+    /**
+     * Aggregate session duration buckets in canonical order.
+     */
+    function getSessionDurationData(): RankedItem[] {
+        const ORDER = ['<30s', '30s-2m', '2m-5m', '5m-15m', '15m-30m', '30m-1h', '1h+'];
+        const totals: Record<string, number> = {};
+        for (const day of webAnalyticsDaily) {
+            const buckets = day.session_duration_buckets;
+            if (!buckets) continue;
+            for (const [key, count] of Object.entries(buckets)) {
+                totals[key] = (totals[key] || 0) + count;
+            }
+        }
+        return ORDER.map(key => ({ key, value: totals[key] || 0 })).filter(i => i.value > 0);
+    }
+
+    /**
+     * Aggregate signup funnel totals across the last N days.
+     * Returns steps in funnel order with labels.
+     */
+    function getSignupFunnelData(): Array<{ key: string; label: string; value: number }> {
+        const steps = [
+            { key: 'started_basics',       label: $text('settings.server_stats.funnel_started') },
+            { key: 'email_confirmed',       label: $text('settings.server_stats.funnel_email_confirmed') },
+            { key: 'auth_password_setup',   label: $text('settings.server_stats.funnel_password_setup') },
+            { key: 'auth_passkey_setup',    label: $text('settings.server_stats.funnel_passkey_setup') },
+            { key: 'recovery_key_saved',    label: $text('settings.server_stats.funnel_recovery_saved') },
+            { key: 'reached_payment',       label: $text('settings.server_stats.funnel_reached_payment') },
+            { key: 'payment_completed',     label: $text('settings.server_stats.funnel_payment_completed') },
+            { key: 'auto_topup_setup',      label: $text('settings.server_stats.funnel_auto_topup') },
+        ] as const;
+        const totals: Record<string, number> = {};
+        for (const day of signupFunnelDaily) {
+            for (const step of steps) {
+                const val = (day as unknown as Record<string, number>)[step.key] || 0;
+                totals[step.key] = (totals[step.key] || 0) + val;
+            }
+        }
+        return steps.map(s => ({ key: s.key, label: s.label, value: totals[s.key] || 0 }));
+    }
+
+    /**
+     * Aggregate app usage by app_id from app_analytics_daily.
+     * Returns top apps sorted by total count descending.
+     */
+    function getAppUsageData(): RankedItem[] {
+        const totals: Record<string, number> = {};
+        for (const row of appAnalyticsDaily) {
+            const key = row.app_id || 'unknown';
+            totals[key] = (totals[key] || 0) + (row.count || 0);
+        }
+        return Object.entries(totals)
+            .map(([key, value]) => ({ key, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 10);
+    }
+
+    /**
+     * Mouse move handler for the traffic chart.
+     */
+    function handleTrafficChartMouseMove(event: MouseEvent, data: ChartDataPoint[]) {
+        const target = event.currentTarget as SVGElement;
+        const rect = target.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const points = getDataPoints(data, rect.width, rect.height);
+        let closest: typeof points[0] | null = null;
+        let minDist = Infinity;
+        for (const p of points) {
+            const dist = Math.abs(p.x - mouseX);
+            if (dist < minDist) { minDist = dist; closest = p; }
+        }
+        if (closest && minDist < 30) {
+            hoveredTrafficPoint = closest.point;
+            trafficTooltipX = closest.x;
+            trafficTooltipY = closest.y;
+        } else {
+            hoveredTrafficPoint = null;
+        }
+    }
+
+    // ============================================================================
     // DERIVED VALUES
     // ============================================================================
 
     const dailyChartData = $derived(getDailyChartData(activeMetric));
     const monthlyChartData = $derived(getMonthlyChartData(activeMonthlyMetric));
+    const trafficChartData = $derived(getTrafficChartData(activeTrafficMetric));
+    const topCountries = $derived(aggregateDistribution('countries', 8));
+    const topBrowsers = $derived(aggregateDistribution('browsers', 8));
+    const topReferrers = $derived(aggregateDistribution('referrer_domains', 8));
+    const deviceData = $derived(aggregateDistribution('devices', 5));
+    const sessionDurationData = $derived(getSessionDurationData());
+    const signupFunnelData = $derived(getSignupFunnelData());
+    const appUsageData = $derived(getAppUsageData());
 
     // ============================================================================
     // LIFECYCLE
@@ -756,6 +958,246 @@
                 {/if}
             </div>
         </div>
+
+        <!-- ================================================================
+             WEB TRAFFIC OVERVIEW
+             ================================================================ -->
+        {#if webAnalyticsDaily.length > 0}
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h3>{$text('settings.server_stats.web_traffic')}</h3>
+                    <div class="metric-tabs">
+                        <button
+                            class="tab"
+                            class:active={activeTrafficMetric === 'page_loads'}
+                            onclick={() => activeTrafficMetric = 'page_loads'}
+                        >
+                            {$text('settings.server_stats.page_loads')}
+                        </button>
+                        <button
+                            class="tab"
+                            class:active={activeTrafficMetric === 'unique_visits_approx'}
+                            onclick={() => activeTrafficMetric = 'unique_visits_approx'}
+                        >
+                            {$text('settings.server_stats.unique_visits')}
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <svg
+                        class="chart"
+                        viewBox="0 0 700 220"
+                        onmousemove={(e) => handleTrafficChartMouseMove(e, trafficChartData)}
+                        onmouseleave={() => { hoveredTrafficPoint = null; }}
+                    >
+                        <g class="grid-lines">
+                            {#each [0.25, 0.5, 0.75, 1] as ratio}
+                                <line x1="40" y1={40 + 140 * (1 - ratio)} x2="660" y2={40 + 140 * (1 - ratio)}
+                                    stroke="var(--color-border)" stroke-dasharray="4 4" opacity="0.5" />
+                            {/each}
+                        </g>
+                        <path d={generateAreaPath(trafficChartData, 700, 220)} fill="url(#trafficGradient)" opacity="0.3" />
+                        <path d={generateLinePath(trafficChartData, 700, 220)} fill="none"
+                            stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        {#each getDataPoints(trafficChartData, 700, 220) as { x, y, point }}
+                            <circle cx={x} cy={y} r={hoveredTrafficPoint?.date === point.date ? 6 : 3}
+                                fill="var(--color-primary)" class="data-point" />
+                        {/each}
+                        <!-- svelte-ignore component_name_lowercase -->
+                        {#each trafficChartData as point, i}
+                            {#if i % 5 === 0 || i === trafficChartData.length - 1}
+                                <text x={40 + (i / Math.max(trafficChartData.length - 1, 1)) * 620} y="200"
+                                    text-anchor="middle" fill="var(--color-text-tertiary)" font-size="10">
+                                    {formatDateShort(point.date)}
+                                </text>
+                            {/if}
+                        {/each}
+                        <defs>
+                            <linearGradient id="trafficGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.4"/>
+                                <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    {#if hoveredTrafficPoint}
+                        <div class="chart-tooltip" style="left: {trafficTooltipX}px; top: {trafficTooltipY - 50}px;" in:fade={{ duration: 100 }}>
+                            <div class="tooltip-date">{formatDateFull(hoveredTrafficPoint.date)}</div>
+                            <div class="tooltip-value">{hoveredTrafficPoint.label}</div>
+                        </div>
+                    {/if}
+                </div>
+            </div>
+
+            <!-- Top Countries + Devices row -->
+            <div class="analytics-row">
+                <!-- Top Countries -->
+                <div class="chart-section analytics-half">
+                    <div class="chart-header">
+                        <h3>{$text('settings.server_stats.top_countries')}</h3>
+                    </div>
+                    <div class="ranked-list">
+                        {#each topCountries as item}
+                            {@const total = topCountries.reduce((s, i) => s + i.value, 0)}
+                            {@const pct = total > 0 ? Math.round((item.value / total) * 100) : 0}
+                            <div class="ranked-item">
+                                <span class="ranked-key">{item.key}</span>
+                                <div class="ranked-bar-wrap">
+                                    <div class="ranked-bar" style="width: {pct}%"></div>
+                                </div>
+                                <span class="ranked-value">{formatNumber(item.value)}</span>
+                            </div>
+                        {/each}
+                        {#if topCountries.length === 0}
+                            <p class="no-data">{$text('settings.server_stats.no_data')}</p>
+                        {/if}
+                    </div>
+                </div>
+
+                <!-- Devices -->
+                <div class="chart-section analytics-half">
+                    <div class="chart-header">
+                        <h3>{$text('settings.server_stats.devices')}</h3>
+                    </div>
+                    <div class="ranked-list">
+                        {#each deviceData as item}
+                            {@const total = deviceData.reduce((s, i) => s + i.value, 0)}
+                            {@const pct = total > 0 ? Math.round((item.value / total) * 100) : 0}
+                            <div class="ranked-item">
+                                <span class="ranked-key">{item.key}</span>
+                                <div class="ranked-bar-wrap">
+                                    <div class="ranked-bar" style="width: {pct}%"></div>
+                                </div>
+                                <span class="ranked-value">{formatNumber(item.value)}</span>
+                            </div>
+                        {/each}
+                        {#if deviceData.length === 0}
+                            <p class="no-data">{$text('settings.server_stats.no_data')}</p>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Browsers + Session Duration row -->
+            <div class="analytics-row">
+                <!-- Top Browsers -->
+                <div class="chart-section analytics-half">
+                    <div class="chart-header">
+                        <h3>{$text('settings.server_stats.top_browsers')}</h3>
+                    </div>
+                    <div class="ranked-list">
+                        {#each topBrowsers as item}
+                            {@const total = topBrowsers.reduce((s, i) => s + i.value, 0)}
+                            {@const pct = total > 0 ? Math.round((item.value / total) * 100) : 0}
+                            <div class="ranked-item">
+                                <span class="ranked-key">{item.key}</span>
+                                <div class="ranked-bar-wrap">
+                                    <div class="ranked-bar" style="width: {pct}%"></div>
+                                </div>
+                                <span class="ranked-value">{formatNumber(item.value)}</span>
+                            </div>
+                        {/each}
+                        {#if topBrowsers.length === 0}
+                            <p class="no-data">{$text('settings.server_stats.no_data')}</p>
+                        {/if}
+                    </div>
+                </div>
+
+                <!-- Session Duration -->
+                <div class="chart-section analytics-half">
+                    <div class="chart-header">
+                        <h3>{$text('settings.server_stats.session_duration')}</h3>
+                    </div>
+                    <div class="ranked-list">
+                        {#each sessionDurationData as item}
+                            {@const total = sessionDurationData.reduce((s, i) => s + i.value, 0)}
+                            {@const pct = total > 0 ? Math.round((item.value / total) * 100) : 0}
+                            <div class="ranked-item">
+                                <span class="ranked-key">{item.key}</span>
+                                <div class="ranked-bar-wrap">
+                                    <div class="ranked-bar" style="width: {pct}%"></div>
+                                </div>
+                                <span class="ranked-value">{formatNumber(item.value)}</span>
+                            </div>
+                        {/each}
+                        {#if sessionDurationData.length === 0}
+                            <p class="no-data">{$text('settings.server_stats.no_data')}</p>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Referrers -->
+            {#if topReferrers.length > 0}
+                <div class="chart-section">
+                    <div class="chart-header">
+                        <h3>{$text('settings.server_stats.top_referrers')}</h3>
+                    </div>
+                    <div class="ranked-list">
+                        {#each topReferrers as item}
+                            {@const total = topReferrers.reduce((s, i) => s + i.value, 0)}
+                            {@const pct = total > 0 ? Math.round((item.value / total) * 100) : 0}
+                            <div class="ranked-item">
+                                <span class="ranked-key">{item.key}</span>
+                                <div class="ranked-bar-wrap">
+                                    <div class="ranked-bar" style="width: {pct}%"></div>
+                                </div>
+                                <span class="ranked-value">{formatNumber(item.value)}</span>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+        {/if}
+
+        <!-- ================================================================
+             SIGNUP FUNNEL
+             ================================================================ -->
+        {#if signupFunnelDaily.length > 0}
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h3>{$text('settings.server_stats.signup_funnel')}</h3>
+                </div>
+                <div class="ranked-list">
+                    {#each signupFunnelData as step}
+                        {@const maxStep = Math.max(...signupFunnelData.map(s => s.value), 1)}
+                        {@const pct = Math.round((step.value / maxStep) * 100)}
+                        <div class="ranked-item">
+                            <span class="ranked-key">{step.label}</span>
+                            <div class="ranked-bar-wrap">
+                                <div class="ranked-bar" style="width: {pct}%"></div>
+                            </div>
+                            <span class="ranked-value">{formatNumber(step.value)}</span>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
+        <!-- ================================================================
+             APP USAGE
+             ================================================================ -->
+        {#if appAnalyticsDaily.length > 0}
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h3>{$text('settings.server_stats.app_usage')}</h3>
+                </div>
+                <div class="ranked-list">
+                    {#each appUsageData as item}
+                        {@const total = appUsageData.reduce((s, i) => s + i.value, 0)}
+                        {@const pct = total > 0 ? Math.round((item.value / total) * 100) : 0}
+                        <div class="ranked-item">
+                            <span class="ranked-key">{item.key}</span>
+                            <div class="ranked-bar-wrap">
+                                <div class="ranked-bar" style="width: {pct}%"></div>
+                            </div>
+                            <span class="ranked-value">{formatNumber(item.value)}</span>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
     {/if}
 </div>
 
@@ -1043,5 +1485,82 @@
         .tab {
             flex-shrink: 0;
         }
+
+        .analytics-row {
+            flex-direction: column;
+        }
+
+        .analytics-half {
+            width: 100%;
+        }
+    }
+
+    /* ============================================================================
+       ANALYTICS SECTIONS — RANKED LISTS
+       ============================================================================ */
+
+    /* Side-by-side halves for top countries / devices / browsers / session duration */
+    .analytics-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 0;
+    }
+
+    .analytics-half {
+        flex: 1;
+        min-width: 0;
+        /* Override the margin-bottom from .chart-section so the row controls spacing */
+        margin-bottom: 1.5rem;
+    }
+
+    /* Horizontal ranked list: key | bar | count */
+    .ranked-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .ranked-item {
+        display: grid;
+        grid-template-columns: 90px 1fr 56px;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .ranked-key {
+        font-size: 0.78rem;
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ranked-bar-wrap {
+        background: var(--color-background-tertiary);
+        border-radius: 4px;
+        height: 8px;
+        overflow: hidden;
+    }
+
+    .ranked-bar {
+        height: 100%;
+        background: var(--color-primary);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+        min-width: 2px;
+    }
+
+    .ranked-value {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        text-align: right;
+    }
+
+    .no-data {
+        font-size: 0.8rem;
+        color: var(--color-text-tertiary);
+        margin: 0;
+        padding: 0.5rem 0;
     }
 </style>

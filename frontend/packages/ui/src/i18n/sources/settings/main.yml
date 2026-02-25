@@ -2894,6 +2894,424 @@ server_stats.embeds:
   th: ฝังตัว
   cs: Vložení
   sv: Inbäddningar
+server_stats.web_traffic:
+  context: Section heading for web traffic analytics chart
+  en: Web Traffic
+  de: Web-Traffic
+  zh: 网站流量
+  es: Tráfico web
+  fr: Trafic web
+  pt: Tráfego web
+  ru: Веб-трафик
+  ja: ウェブトラフィック
+  ko: 웹 트래픽
+  it: Traffico web
+  tr: Web Trafiği
+  vi: Lưu lượng web
+  id: Lalu lintas web
+  pl: Ruch na stronie
+  nl: Webverkeer
+  ar: حركة الويب
+  hi: वेब ट्रैफ़िक
+  th: ทราฟฟิกเว็บ
+  cs: Webový provoz
+  sv: Webbtrafik
+server_stats.page_loads:
+  context: Label for total page load count metric
+  en: Page Loads
+  de: Seitenaufrufe
+  zh: 页面加载
+  es: Cargas de página
+  fr: Chargements de page
+  pt: Carregamentos de página
+  ru: Загрузки страниц
+  ja: ページ読み込み
+  ko: 페이지 로드
+  it: Caricamenti pagina
+  tr: Sayfa Yüklemeleri
+  vi: Lượt tải trang
+  id: Muat halaman
+  pl: Załadowania strony
+  nl: Paginalaadacties
+  ar: تحميلات الصفحة
+  hi: पेज लोड
+  th: การโหลดหน้า
+  cs: Načtení stránky
+  sv: Sidladdningar
+server_stats.unique_visits:
+  context: Label for approximate unique visits metric (HyperLogLog estimate)
+  en: Unique Visits (approx.)
+  de: Eindeutige Besuche (ca.)
+  zh: 独立访问（约）
+  es: Visitas únicas (aprox.)
+  fr: Visites uniques (approx.)
+  pt: Visitas únicas (aprox.)
+  ru: Уникальные посещения (прибл.)
+  ja: ユニーク訪問数（概算）
+  ko: 고유 방문 수 (대략)
+  it: Visite uniche (circa)
+  tr: Tekil Ziyaretler (yakl.)
+  vi: Lượt truy cập độc lập (xấp xỉ)
+  id: Kunjungan unik (kira-kira)
+  pl: Unikalne wizyty (ok.)
+  nl: Unieke bezoeken (ca.)
+  ar: الزيارات الفريدة (تقريباً)
+  hi: अद्वितीय विज़िट (लगभग)
+  th: การเยี่ยมชมที่ไม่ซ้ำ (ประมาณ)
+  cs: Unikátní návštěvy (přibližně)
+  sv: Unika besök (ungefär)
+server_stats.top_countries:
+  context: Section heading for top countries by page loads
+  en: Top Countries
+  de: Top-Länder
+  zh: 热门国家
+  es: Países principales
+  fr: Principaux pays
+  pt: Principais países
+  ru: Ведущие страны
+  ja: トップ国
+  ko: 상위 국가
+  it: Paesi principali
+  tr: En İyi Ülkeler
+  vi: Quốc gia hàng đầu
+  id: Negara teratas
+  pl: Kraje wiodące
+  nl: Topland
+  ar: أفضل الدول
+  hi: शीर्ष देश
+  th: ประเทศยอดนิยม
+  cs: Nejlepší země
+  sv: Toppländer
+server_stats.devices:
+  context: Section heading for device type breakdown
+  en: Devices
+  de: Geräte
+  zh: 设备
+  es: Dispositivos
+  fr: Appareils
+  pt: Dispositivos
+  ru: Устройства
+  ja: デバイス
+  ko: 기기
+  it: Dispositivi
+  tr: Cihazlar
+  vi: Thiết bị
+  id: Perangkat
+  pl: Urządzenia
+  nl: Apparaten
+  ar: الأجهزة
+  hi: डिवाइस
+  th: อุปกรณ์
+  cs: Zařízení
+  sv: Enheter
+server_stats.top_browsers:
+  context: Section heading for top browsers
+  en: Top Browsers
+  de: Top-Browser
+  zh: 热门浏览器
+  es: Navegadores principales
+  fr: Principaux navigateurs
+  pt: Principais navegadores
+  ru: Ведущие браузеры
+  ja: トップブラウザ
+  ko: 상위 브라우저
+  it: Browser principali
+  tr: En İyi Tarayıcılar
+  vi: Trình duyệt hàng đầu
+  id: Browser teratas
+  pl: Najlepsze przeglądarki
+  nl: Topbrowsers
+  ar: أفضل المتصفحات
+  hi: शीर्ष ब्राउज़र
+  th: เบราว์เซอร์ยอดนิยม
+  cs: Nejlepší prohlížeče
+  sv: Toppwebbläsare
+server_stats.session_duration:
+  context: Section heading for session duration distribution
+  en: Session Duration
+  de: Sitzungsdauer
+  zh: 会话时长
+  es: Duración de sesión
+  fr: Durée de session
+  pt: Duração da sessão
+  ru: Длительность сессии
+  ja: セッション時間
+  ko: 세션 지속 시간
+  it: Durata sessione
+  tr: Oturum Süresi
+  vi: Thời lượng phiên
+  id: Durasi sesi
+  pl: Czas trwania sesji
+  nl: Sessieduur
+  ar: مدة الجلسة
+  hi: सत्र अवधि
+  th: ระยะเวลาเซสชัน
+  cs: Délka relace
+  sv: Sessionslängd
+server_stats.top_referrers:
+  context: Section heading for top referrer domains
+  en: Top Referrers
+  de: Top-Referrer
+  zh: 热门来源
+  es: Principales referentes
+  fr: Principaux référents
+  pt: Principais referenciadores
+  ru: Ведущие источники
+  ja: トップリファラー
+  ko: 상위 참조 사이트
+  it: Principali referrer
+  tr: En İyi Yönlendiriciler
+  vi: Nguồn giới thiệu hàng đầu
+  id: Referrer teratas
+  pl: Główne źródła
+  nl: Topreferrers
+  ar: أفضل المرجعيات
+  hi: शीर्ष रेफरर
+  th: ผู้ส่งต่อยอดนิยม
+  cs: Nejlepší zdroje
+  sv: Topprefererare
+server_stats.signup_funnel:
+  context: Section heading for signup funnel analytics
+  en: Signup Funnel
+  de: Anmelde-Trichter
+  zh: 注册漏斗
+  es: Embudo de registro
+  fr: Entonnoir d'inscription
+  pt: Funil de cadastro
+  ru: Воронка регистрации
+  ja: 登録ファネル
+  ko: 가입 퍼널
+  it: Funnel di registrazione
+  tr: Kayıt Hunisi
+  vi: Phễu đăng ký
+  id: Corong pendaftaran
+  pl: Lejek rejestracji
+  nl: Aanmeldingsentrechter
+  ar: قمع التسجيل
+  hi: साइनअप फ़नल
+  th: ช่องทางการสมัคร
+  cs: Registrační trychtýř
+  sv: Registreringstunnel
+server_stats.funnel_started:
+  context: Signup funnel step — user started signup (validated invite code)
+  en: Started signup
+  de: Anmeldung gestartet
+  zh: 开始注册
+  es: Registro iniciado
+  fr: Inscription démarrée
+  pt: Cadastro iniciado
+  ru: Регистрация начата
+  ja: 登録開始
+  ko: 가입 시작
+  it: Registrazione avviata
+  tr: Kayıt başlatıldı
+  vi: Bắt đầu đăng ký
+  id: Mulai mendaftar
+  pl: Rejestracja rozpoczęta
+  nl: Aanmelding gestart
+  ar: بدأ التسجيل
+  hi: साइनअप शुरू हुई
+  th: เริ่มการสมัคร
+  cs: Registrace zahájena
+  sv: Påbörjad registrering
+server_stats.funnel_email_confirmed:
+  context: Signup funnel step — email confirmed
+  en: Email confirmed
+  de: E-Mail bestätigt
+  zh: 邮箱已确认
+  es: Correo confirmado
+  fr: Email confirmé
+  pt: E-mail confirmado
+  ru: Email подтверждён
+  ja: メール確認済み
+  ko: 이메일 확인됨
+  it: Email confermata
+  tr: E-posta onaylandı
+  vi: Email đã xác nhận
+  id: Email dikonfirmasi
+  pl: E-mail potwierdzony
+  nl: E-mail bevestigd
+  ar: تم تأكيد البريد الإلكتروني
+  hi: ईमेल की पुष्टि हुई
+  th: ยืนยันอีเมลแล้ว
+  cs: E-mail potvrzen
+  sv: E-post bekräftad
+server_stats.funnel_password_setup:
+  context: Signup funnel step — password set up
+  en: Password set up
+  de: Passwort eingerichtet
+  zh: 密码已设置
+  es: Contraseña configurada
+  fr: Mot de passe configuré
+  pt: Senha configurada
+  ru: Пароль настроен
+  ja: パスワード設定完了
+  ko: 비밀번호 설정됨
+  it: Password configurata
+  tr: Şifre ayarlandı
+  vi: Đã thiết lập mật khẩu
+  id: Kata sandi disiapkan
+  pl: Hasło skonfigurowane
+  nl: Wachtwoord ingesteld
+  ar: تم إعداد كلمة المرور
+  hi: पासवर्ड सेट हुआ
+  th: ตั้งรหัสผ่านแล้ว
+  cs: Heslo nastaveno
+  sv: Lösenord inställt
+server_stats.funnel_passkey_setup:
+  context: Signup funnel step — passkey registered
+  en: Passkey registered
+  de: Passkey registriert
+  zh: 通行密钥已注册
+  es: Clave de acceso registrada
+  fr: Clé d'accès enregistrée
+  pt: Chave de acesso registrada
+  ru: Ключ доступа зарегистрирован
+  ja: パスキー登録済み
+  ko: 패스키 등록됨
+  it: Passkey registrata
+  tr: Geçiş anahtarı kaydedildi
+  vi: Đã đăng ký passkey
+  id: Passkey terdaftar
+  pl: Passkey zarejestrowany
+  nl: Passkey geregistreerd
+  ar: تم تسجيل مفتاح المرور
+  hi: पासकी पंजीकृत हुई
+  th: ลงทะเบียน passkey แล้ว
+  cs: Passkey zaregistrováno
+  sv: Nyckel registrerad
+server_stats.funnel_recovery_saved:
+  context: Signup funnel step — recovery key acknowledged
+  en: Recovery key saved
+  de: Wiederherstellungsschlüssel gespeichert
+  zh: 恢复密钥已保存
+  es: Clave de recuperación guardada
+  fr: Clé de récupération sauvegardée
+  pt: Chave de recuperação salva
+  ru: Ключ восстановления сохранён
+  ja: 回復キー保存済み
+  ko: 복구 키 저장됨
+  it: Chiave di recupero salvata
+  tr: Kurtarma anahtarı kaydedildi
+  vi: Đã lưu khóa khôi phục
+  id: Kunci pemulihan disimpan
+  pl: Klucz odzyskiwania zapisany
+  nl: Herstelsleutel opgeslagen
+  ar: تم حفظ مفتاح الاسترداد
+  hi: रिकवरी कुंजी सहेजी गई
+  th: บันทึกคีย์กู้คืนแล้ว
+  cs: Obnovovací klíč uložen
+  sv: Återställningsnyckel sparad
+server_stats.funnel_reached_payment:
+  context: Signup funnel step — user reached payment step
+  en: Reached payment
+  de: Zahlung erreicht
+  zh: 到达支付步骤
+  es: Llegó al pago
+  fr: Atteint le paiement
+  pt: Chegou ao pagamento
+  ru: Достиг шага оплаты
+  ja: 支払いページ到達
+  ko: 결제 단계 도달
+  it: Raggiunto il pagamento
+  tr: Ödeme adımına ulaşıldı
+  vi: Đến bước thanh toán
+  id: Mencapai pembayaran
+  pl: Dotarł do płatności
+  nl: Betaling bereikt
+  ar: وصل إلى الدفع
+  hi: भुगतान तक पहुंचे
+  th: ถึงขั้นตอนการชำระเงิน
+  cs: Dosáhl platby
+  sv: Nådde betalning
+server_stats.funnel_payment_completed:
+  context: Signup funnel step — first payment or gift card completed
+  en: Payment completed
+  de: Zahlung abgeschlossen
+  zh: 支付完成
+  es: Pago completado
+  fr: Paiement effectué
+  pt: Pagamento concluído
+  ru: Оплата завершена
+  ja: 支払い完了
+  ko: 결제 완료됨
+  it: Pagamento completato
+  tr: Ödeme tamamlandı
+  vi: Thanh toán hoàn tất
+  id: Pembayaran selesai
+  pl: Płatność zakończona
+  nl: Betaling voltooid
+  ar: تم الدفع
+  hi: भुगतान पूरा हुआ
+  th: ชำระเงินเสร็จสิ้น
+  cs: Platba dokončena
+  sv: Betalning slutförd
+server_stats.funnel_auto_topup:
+  context: Signup funnel step — auto top-up (subscription) configured
+  en: Auto top-up set up
+  de: Auto-Aufladung eingerichtet
+  zh: 自动充值已设置
+  es: Recarga automática configurada
+  fr: Recharge automatique configurée
+  pt: Recarga automática configurada
+  ru: Автопополнение настроено
+  ja: 自動チャージ設定済み
+  ko: 자동 충전 설정됨
+  it: Ricarica automatica configurata
+  tr: Otomatik yükleme ayarlandı
+  vi: Đã thiết lập nạp tự động
+  id: Isi ulang otomatis disiapkan
+  pl: Automatyczne doładowanie skonfigurowane
+  nl: Automatisch opladen ingesteld
+  ar: تم إعداد الشحن التلقائي
+  hi: ऑटो टॉप-अप सेट हुआ
+  th: ตั้งค่าเติมเงินอัตโนมัติแล้ว
+  cs: Automatické dobití nastaveno
+  sv: Automatisk påfyllning inställd
+server_stats.app_usage:
+  context: Section heading for app usage analytics
+  en: App Usage
+  de: App-Nutzung
+  zh: 应用使用情况
+  es: Uso de aplicaciones
+  fr: Utilisation des applications
+  pt: Uso de aplicativos
+  ru: Использование приложений
+  ja: アプリ使用状況
+  ko: 앱 사용
+  it: Utilizzo app
+  tr: Uygulama Kullanımı
+  vi: Sử dụng ứng dụng
+  id: Penggunaan aplikasi
+  pl: Użycie aplikacji
+  nl: App-gebruik
+  ar: استخدام التطبيق
+  hi: ऐप उपयोग
+  th: การใช้งานแอป
+  cs: Využití aplikace
+  sv: Appanvändning
+server_stats.no_data:
+  context: Placeholder shown when no analytics data is available yet
+  en: No data yet
+  de: Noch keine Daten
+  zh: 暂无数据
+  es: Sin datos aún
+  fr: Pas encore de données
+  pt: Ainda sem dados
+  ru: Данных пока нет
+  ja: データなし
+  ko: 아직 데이터 없음
+  it: Nessun dato ancora
+  tr: Henüz veri yok
+  vi: Chưa có dữ liệu
+  id: Belum ada data
+  pl: Brak danych
+  nl: Nog geen gegevens
+  ar: لا توجد بيانات بعد
+  hi: अभी तक कोई डेटा नहीं
+  th: ยังไม่มีข้อมูล
+  cs: Zatím žádná data
+  sv: Inga data ännu
 software_updates:
   context: Software updates settings menu item
   en: Software updates

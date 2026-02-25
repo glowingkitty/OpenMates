@@ -18,6 +18,7 @@
 		OfflineBanner,
 		// Config
 		loadMetaTags,
+		getApiEndpoint,
 		// Stores
 		theme,
 		initializeTheme,
@@ -51,6 +52,56 @@
 
 		await waitLocale();
 		loaded = true;
+
+		// =====================================================================
+		// Privacy-preserving first-party analytics beacon
+		// =====================================================================
+		// Fires a single lightweight POST to our own API on every page load.
+		// No cookies, no third-party scripts, no PII — only aggregate counters
+		// stored server-side. See docs/analytics.md for the full design.
+		// =====================================================================
+		if (browser) {
+			// Determine screen size class from viewport width (matches backend buckets)
+			const w = window.innerWidth;
+			const sc = w < 640 ? 'sm' : w < 1024 ? 'md' : w < 1440 ? 'lg' : 'xl';
+
+			// Record connect time for session duration calculation on pagehide
+			const pageLoadTime = Date.now();
+
+			// Helper: send beacon, ignore errors silently
+			const sendBeacon = (payload: object) => {
+				try {
+					navigator.sendBeacon(
+						getApiEndpoint('/v1/analytics/beacon'),
+						new Blob([JSON.stringify(payload)], { type: 'application/json' })
+					);
+				} catch {
+					// Analytics failures must never affect the user experience
+				}
+			};
+
+			// Fire page view beacon immediately
+			sendBeacon({ t: 'pv', p: window.location.pathname, sc });
+
+			// Fire session duration beacon on page hide (tab close, navigation away)
+			window.addEventListener(
+				'pagehide',
+				() => {
+					const elapsed = (Date.now() - pageLoadTime) / 1000; // seconds
+					// Bucket client-side so the payload is a short label, not a raw number
+					let bucket: string;
+					if (elapsed < 30) bucket = '<30s';
+					else if (elapsed < 120) bucket = '30s-2m';
+					else if (elapsed < 300) bucket = '2m-5m';
+					else if (elapsed < 900) bucket = '5m-15m';
+					else if (elapsed < 1800) bucket = '15m-30m';
+					else if (elapsed < 3600) bucket = '30m-1h';
+					else bucket = '1h+';
+					sendBeacon({ t: 'sd', d: bucket });
+				},
+				{ once: true }
+			);
+		}
 
 		// Load meta tags after translations are ready
 		await loadMetaTags();
