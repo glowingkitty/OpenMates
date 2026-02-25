@@ -110,9 +110,9 @@ preprocess_request_tool:
           - Default: 0.4 for most queries.
           - Increase for creative tasks (e.g., brainstorming, writing stories).
           - Decrease for factual recall or precision tasks (e.g., coding, technical explanations).
-      2.  **complexity**: Assess the inherent complexity of the user's request and the potential negative impact of an incorrect or low-quality answer.
-          - 'simple': For straightforward questions where a concise answer from a smaller model is likely sufficient and the risk of harm from a slightly imperfect answer is low.
-          - 'complex': For nuanced questions, tasks requiring deep reasoning, creative generation, or where an incorrect/poor answer could have negative consequences. Always use 'complex' if there's any doubt or potential for harm.
+      2.  **complexity**: Assess whether the request genuinely requires deep reasoning by a premium model, or whether a smaller, faster model would handle it just as well.
+          - 'simple': Use this for the majority of requests — factual lookups, skill-delegated tasks (flight/hotel/product search, news, maps, reminders, weather, appointments, video transcripts), straightforward questions, and summaries where the skill does the heavy lifting and the LLM just presents results. A smaller model is sufficient here.
+          - 'complex': Reserve this for tasks that inherently require deep multi-step reasoning, nuanced long-form writing, debugging intricate code, mathematical proofs, or where a meaningfully worse answer could cause real harm. Do NOT default to 'complex' out of caution — only use it when complexity genuinely matters.
       3.  **task_area**: Identify the primary task area/domain to help select the optimal model:
           - 'code': Programming, coding, software development, APIs, debugging, code review
           - 'math': Mathematics, calculations, statistics, data analysis, logical problems
@@ -206,7 +206,7 @@ preprocess_request_tool:
           description: "LLM temperature for the main response (0.0-2.0, default 0.4)."
         complexity:
           type: "string"
-          description: "Complexity of the request ('simple' or 'complex'). Use 'complex' by default and 'simple' only for very simple questions."
+          description: "Complexity of the request ('simple' or 'complex'). Use 'simple' for most requests including skill-delegated tasks (search, maps, reminders, news, flights, weather) and factual Q&A. Use 'complex' only when deep reasoning, nuanced writing, or intricate problem-solving is genuinely needed."
           enum: ["simple", "complex"] # This enum is fine as it's a fixed small set
         task_area:
           type: "string"
