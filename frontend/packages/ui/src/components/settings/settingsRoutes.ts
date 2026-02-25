@@ -94,6 +94,9 @@ import SettingsStats from "./server/SettingsStats.svelte";
 import SettingsGiftCardGenerator from "./server/SettingsGiftCardGenerator.svelte";
 import SettingsDefaultInspirations from "./server/SettingsDefaultInspirations.svelte";
 
+// Mates
+import SettingsMates from "./SettingsMates.svelte";
+
 // Incognito
 import SettingsIncognitoInfo from "./incognito/SettingsIncognitoInfo.svelte";
 
@@ -157,6 +160,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "server/stats": SettingsStats,
   "server/gift-cards": SettingsGiftCardGenerator,
   "server/default-inspirations": SettingsDefaultInspirations,
+  // Mates
+  mates: SettingsMates,
   // Incognito
   "incognito/info": SettingsIncognitoInfo,
   // Account
@@ -187,3 +192,10 @@ export const baseSettingsViews: Record<string, Component<any>> = {
  * (app_store/{app_id} and nested skill/focus/memory routes).
  */
 export { AppDetailsWrapper };
+
+/**
+ * Re-export MateDetailsWrapper for use in the dynamic route builder
+ * (mates/{mate_id} routes).
+ */
+import MateDetailsWrapper from "./MateDetailsWrapper.svelte";
+export { MateDetailsWrapper };

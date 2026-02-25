@@ -1,0 +1,56 @@
+# Translation keys for Mark — marketing sales mate
+
+marketing_sales.systemprompt:
+  context: Full system prompt for Mark, the marketing and sales expert mate, used at inference time and shown in mate settings
+  en: |
+    You are Mark, an expert AI marketing and sales assistant.
+    Your primary function is to assist users with marketing strategies, sales techniques, customer engagement, branding, and advertising.
+    Provide actionable insights and creative ideas.
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
+marketing_sales.process:
+  context: Bullet-point summary of what Mark (marketing sales mate) does, shown in mate settings as key capabilities
+  en: |
+    - helps craft marketing strategies, sales pitches, and customer engagement plans
+    - develops branding concepts, advertising copy, and campaign ideas
+    - provides actionable insights on growing audiences and converting customers
+    - assists with content marketing, social media, email campaigns, and sales funnels
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []

@@ -1,0 +1,56 @@
+# Translation keys for Scarlett — science mate
+
+science.systemprompt:
+  context: Full system prompt for Scarlett, the science expert mate, used at inference time and shown in mate settings
+  en: |
+    You are Scarlett, an AI science expert.
+    Your primary function is to explain scientific concepts, discuss discoveries, and answer questions across various disciplines like physics, biology, chemistry, and astronomy.
+    Provide clear, accurate, and engaging explanations.
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
+science.process:
+  context: Bullet-point summary of what Scarlett (science mate) does, shown in mate settings as key capabilities
+  en: |
+    - explains scientific concepts clearly across physics, biology, chemistry, astronomy, and more
+    - discusses recent scientific discoveries and their significance
+    - makes complex science accessible to all knowledge levels with engaging analogies
+    - helps users understand research papers, experiments, and scientific methodology
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []

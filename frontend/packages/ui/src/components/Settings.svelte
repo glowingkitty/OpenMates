@@ -54,8 +54,9 @@ changes to the documentation (to keep the documentation up to date).
     import CurrentSettingsPage from './settings/CurrentSettingsPage.svelte';
     import SettingsItem from './SettingsItem.svelte';
     
-    // Import all settings route definitions and the dynamic wrapper component
-    import { baseSettingsViews, AppDetailsWrapper } from './settings/settingsRoutes';
+    // Import all settings route definitions and the dynamic wrapper components
+    import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper } from './settings/settingsRoutes';
+    import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { modelsMetadata } from '../data/modelsMetadata';
     import { getProviderIconUrl } from '../data/providerIcons';
@@ -152,6 +153,11 @@ changes to the documentation (to keep the documentation up to date).
                     views[createRoute] = AppDetailsWrapper;
                 }
             }
+        }
+        
+        // Add mates detail routes dynamically (mates/{mateId})
+        for (const mate of matesMetadata) {
+            views[`mates/${mate.id}`] = MateDetailsWrapper;
         }
         
         return views;
@@ -611,6 +617,20 @@ changes to the documentation (to keep the documentation up to date).
                 // Fallback if app not found
                 activeSubMenuIcon = icon || appId;
                 activeSubMenuTitleKey = `apps.${appId}`;
+            }
+        } else if (settingsPath.startsWith('mates/') && settingsPath !== 'mates') {
+            // Mate detail route: mates/{mateId}
+            // Show the mate's profile image (via mate-profile CSS class) and the mate's name.
+            const mateId = settingsPath.replace('mates/', '').split('/')[0];
+            const mate = matesMetadata.find(m => m.id === mateId);
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleRaw = '';
+            // Use mate-profile CSS class approach: icon = mate id so CSS .mate-profile.{id} renders
+            activeSubMenuIcon = mateId;
+            if (mate?.name_translation_key) {
+                activeSubMenuTitleKey = mate.name_translation_key;
+            } else {
+                activeSubMenuTitleKey = `mates.${mateId}`;
             }
         } else {
             // For other routes, use the provided icon and build translation key from path

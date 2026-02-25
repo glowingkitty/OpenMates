@@ -14,6 +14,7 @@
   import type { MessageStatus, MessageRole } from '../types/chat';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
+  import { getMatesById } from '../data/matesMetadata';
 import { reportIssueStore } from '../stores/reportIssueStore';
 import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
 import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
@@ -185,6 +186,25 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                     'Assistant');
 
   // animated prop is now included in the main $props() call above
+
+  /**
+   * Whether the current category corresponds to a real AI mate whose detail
+   * page can be opened in settings. Excludes 'openmates_official' and any
+   * category not found in matesMetadata.
+   */
+  const _matesById = getMatesById();
+  let isMateClickable = $derived(
+      !!category && category !== 'openmates_official' && !!_matesById[category]
+  );
+
+  /**
+   * Open the settings panel deep-linked to this mate's detail page.
+   */
+  function openMateSettings() {
+      if (!category || !isMateClickable) return;
+      settingsDeepLink.set(`mates/${category}`);
+      panelState.openSettings();
+  }
 
   // Add menu state using $state (Svelte 5 runes mode)
   let showMenu = $state(false);
@@ -1621,8 +1641,20 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 {:else}
 <div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant' && shouldStackMobile}>
   {#if role === 'assistant'}
-    <!-- Use openmates_official category for official messages (shows favicon, no AI badge) -->
-    <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
+    <!-- Mate profile image: clickable for real mates (opens mate detail in settings) -->
+    {#if isMateClickable}
+      <button
+        type="button"
+        class="mate-profile-link"
+        onclick={openMateSettings}
+        aria-label={displayName}
+        title={displayName}
+      >
+        <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
+      </button>
+    {:else}
+      <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
+    {/if}
   {/if}
 
   <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile} class:mobile-compact={role === 'user' && shouldStackMobile}>
@@ -1638,7 +1670,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       ontouchcancel={handleMessageTouchEnd}
     >
       {#if role === 'assistant'}
-        <div class="chat-mate-name">{displayName}</div>
+        {#if isMateClickable}
+          <button
+            type="button"
+            class="chat-mate-name chat-mate-name-link"
+            onclick={openMateSettings}
+          >{displayName}</button>
+        {:else}
+          <div class="chat-mate-name">{displayName}</div>
+        {/if}
       {/if}
 
       <div class="chat-message-text">

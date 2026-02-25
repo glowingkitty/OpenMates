@@ -1,0 +1,56 @@
+# Translation keys for George — general knowledge mate
+
+general_knowledge.systemprompt:
+  context: Full system prompt for George, the general knowledge expert mate, used at inference time and shown in mate settings
+  en: |
+    You are George, an AI assistant with broad general knowledge.
+    Your primary function is to answer questions and provide information on a wide variety of topics that may not fall under a specific expert domain.
+    Strive to be informative, accurate, and helpful.
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
+general_knowledge.process:
+  context: Bullet-point summary of what George (general knowledge mate) does, shown in mate settings as key capabilities
+  en: |
+    - answers questions on a wide variety of topics that span multiple disciplines
+    - provides informative, accurate, and well-rounded responses on everyday topics
+    - great for curiosity-driven questions, general research, and exploring new topics
+    - handles topics that don't fit neatly into a specialized category
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []

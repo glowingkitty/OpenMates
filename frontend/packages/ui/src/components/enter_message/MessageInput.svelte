@@ -19,6 +19,7 @@
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
     import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
+    import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
 
@@ -3263,6 +3264,29 @@
                     }
                 });
             }
+        }
+    });
+
+    // Watch for a pending mention inserted from the settings panel (e.g. "Chat with this mate").
+    // When MateDetails.svelte sets pendingMentionStore, we insert the text into the editor
+    // and immediately clear the store so the effect doesn't fire again.
+    $effect(() => {
+        const mention = $pendingMentionStore;
+        if (mention && editor && !editor.isDestroyed) {
+            console.debug('[MessageInput] Inserting pending mention from settings panel:', mention);
+            pendingMentionStore.set(null);
+            tick().then(() => {
+                if (editor && !editor.isDestroyed) {
+                    if (editor.isEmpty) {
+                        editor.commands.focus('end');
+                    }
+                    editor.commands.insertContent(mention + ' ');
+                    hasContent = true;
+                    lastEditorUpdateText = editor.getText();
+                    updateOriginalMarkdown(editor);
+                    editor.commands.focus('end');
+                }
+            });
         }
     });
  
