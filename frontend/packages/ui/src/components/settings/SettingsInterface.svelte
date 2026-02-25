@@ -50,9 +50,9 @@ changes to the documentation (to keep the documentation up to date).
     // Shown as the subtitle on the Dark Mode settings row.
     let currentDarkModeLabel = $derived((() => {
         switch ($themeMode) {
-            case 'dark':  return $text('interface.dark_mode.dark');
-            case 'light': return $text('interface.dark_mode.light');
-            default:      return $text('interface.dark_mode.auto');
+            case 'dark':  return $text('settings.interface.dark_mode.dark');
+            case 'light': return $text('settings.interface.dark_mode.light');
+            default:      return $text('settings.interface.dark_mode.auto');
         }
     })());
 
@@ -138,8 +138,8 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath: 'interface/dark_mode',
             direction: 'forward',
             icon: 'dark_mode',
-            title: $text('interface.dark_mode'),
-            translationKey: 'interface.dark_mode'
+            title: $text('settings.interface.dark_mode'),
+            translationKey: 'settings.interface.dark_mode'
         });
 
         // Scroll the settings panel back to top
@@ -191,7 +191,7 @@ changes to the documentation (to keep the documentation up to date).
     <SettingsItem
         type="subsubmenu"
         icon="subsetting_icon dark_mode"
-        subtitle={$text('interface.dark_mode')}
+        subtitle={$text('settings.interface.dark_mode')}
         title={currentDarkModeLabel}
         onClick={() => showDarkModeSettings()}
     />

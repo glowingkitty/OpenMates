@@ -37,20 +37,20 @@ changes to the documentation (to keep the documentation up to date).
     const modes: Array<{ value: ThemeMode; labelKey: string; descKey: string; icon: string }> = [
         {
             value: 'auto',
-            labelKey: 'interface.dark_mode.auto',
-            descKey: 'interface.dark_mode.auto.description',
+            labelKey: 'settings.interface.dark_mode.auto',
+            descKey: 'settings.interface.dark_mode.auto.description',
             icon: 'subsetting_icon settings',
         },
         {
             value: 'light',
-            labelKey: 'interface.dark_mode.light',
-            descKey: 'interface.dark_mode.light.description',
+            labelKey: 'settings.interface.dark_mode.light',
+            descKey: 'settings.interface.dark_mode.light.description',
             icon: 'subsetting_icon light_mode',
         },
         {
             value: 'dark',
-            labelKey: 'interface.dark_mode.dark',
-            descKey: 'interface.dark_mode.dark.description',
+            labelKey: 'settings.interface.dark_mode.dark',
+            descKey: 'settings.interface.dark_mode.dark.description',
             icon: 'subsetting_icon dark_mode',
         },
     ];
