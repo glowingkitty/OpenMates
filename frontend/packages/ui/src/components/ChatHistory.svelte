@@ -595,11 +595,12 @@
   //   b) the title + category have been received (full card state)
   let showChatHeader = $derived(isNewChatGeneratingTitle || !!(chatTitle && chatCategory));
   
-  // Whether the next user-message scroll should use the new-chat delay.
-  // When true, the scroll waits 2 s instead of 350 ms so the user can see the
-  // "Creating new chat..." header transition into the generated title/icon before
-  // the view scrolls down to the user message.  Reset to false after each use.
-  let isNewChatScrollPending = $state(false);
+  // Message ID waiting to be scrolled into view after the new-chat title arrives.
+  // When a message is sent to a brand-new chat we activate the spacer immediately
+  // (so there is room to scroll) but suppress the normal post-send scroll.  Instead
+  // we store the message ID here so triggerNewChatUserMessageScroll() can execute
+  // the scroll 2 s after the title/category/icon have been received.
+  let pendingNewChatScrollMessageId = $state<string | null>(null);
 
   // Whether the streaming spacer should be active.
   // The spacer ensures the scroll position remains valid after the user-message scroll
@@ -805,10 +806,27 @@
       const newMessage = newInternalMessages[newInternalMessages.length - 1];
       if (newMessage.role === 'user') {
         lastUserMessageId = newMessage.id;
-        shouldScrollToNewUserMessage = true;
-        // For new chats, use the extended delay so the user sees the "Creating new
-        // chat…" header transition before the view scrolls down.
-        isNewChatScrollPending = isNewChat;
+        if (isNewChat) {
+          // New chat: activate the spacer immediately so there is room to scroll,
+          // but suppress the post-send scroll entirely.  The scroll will fire 2 s
+          // after the title/category/icon arrive via triggerNewChatUserMessageScroll().
+          pendingNewChatScrollMessageId = newMessage.id;
+          isSpacerActive = true;
+          spacerHeight = container?.clientHeight ?? window.innerHeight;
+          if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
+          spacerSafetyTimeout = setTimeout(() => {
+            if (isSpacerActive) {
+              console.warn('[ChatHistory] Spacer safety timeout (new-chat) — force-deactivating stuck spacer');
+              isSpacerActive = false;
+              spacerHeight = 0;
+              userHasScrolledAway = false;
+              pendingNewChatScrollMessageId = null;
+            }
+            spacerSafetyTimeout = null;
+          }, 60_000);
+        } else {
+          shouldScrollToNewUserMessage = true;
+        }
       }
     }
 
@@ -862,13 +880,6 @@
       }, 60_000);
 
       // Wait for the spacer to render, then calculate and execute the scroll.
-      // For new chats we use a longer delay (2 s) so the user can see the
-      // "Creating new chat…" header transition before the view scrolls down.
-      // For existing chats we keep the original 350 ms delay.
-      const scrollDelay = isNewChatScrollPending ? 2000 : 350;
-      // Consume the flag immediately so it doesn't affect subsequent sends.
-      isNewChatScrollPending = false;
-
       tick().then(() => {
         setTimeout(() => {
           const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
@@ -918,7 +929,7 @@
             shouldScrollToNewUserMessage = false;
             isScrolling = false;
           }
-        }, scrollDelay);
+        }, 350);
       });
     }
   });
@@ -1088,6 +1099,49 @@
     } else {
       console.warn("[ChatHistory] Container not found");
     }
+  }
+
+  /**
+   * Called by ActiveChat 2 s after the new-chat title/category/icon have been
+   * received and rendered.  Executes the ChatGPT-style scroll so the user
+   * message sits at the top of the viewport with space below for the AI response.
+   *
+   * If no pending message ID exists (e.g. the scroll was already cancelled) this
+   * is a safe no-op.
+   */
+  export function triggerNewChatUserMessageScroll() {
+    const msgId = pendingNewChatScrollMessageId;
+    if (!msgId || !container) return;
+    pendingNewChatScrollMessageId = null;
+
+    isScrolling = true;
+
+    const userMessageElement = container.querySelector(`[data-message-id="${msgId}"]`);
+    if (!userMessageElement) {
+      console.warn('[ChatHistory] triggerNewChatUserMessageScroll: message element not found for', msgId);
+      isScrolling = false;
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const messageRect = userMessageElement.getBoundingClientRect();
+
+    let lineHeight = 24;
+    const paragraph = userMessageElement.querySelector('.ProseMirror p');
+    if (paragraph) {
+      const computed = window.getComputedStyle(paragraph);
+      const parsed = parseFloat(computed.lineHeight);
+      if (!isNaN(parsed) && parsed > 0) lineHeight = parsed;
+    }
+
+    const visiblePortion = lineHeight + 20;
+    const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
+    const messageHeight = messageRect.height;
+    const scrollTarget = topOfMessage + messageHeight - visiblePortion;
+
+    container.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+
+    setTimeout(() => { isScrolling = false; }, 800);
   }
 
   /**
