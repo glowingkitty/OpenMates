@@ -134,11 +134,21 @@ export async function resolveEmbed(
       }
     }
 
-    const demoEmbed = getCommunityDemoEmbed(embed_id);
+    // Normalize the embed_id: callers may pass either a bare UUID ("bec138d0-...")
+    // or a prefixed form ("embed:bec138d0-..."). Strip the prefix here so all
+    // downstream lookups use the canonical bare UUID. Without this, callers that
+    // already prefix the ID (e.g. handleInspirationEmbedFullscreen) would cause
+    // embedStore.get() to look up "embed:embed:<uuid>" — a key that never exists —
+    // resulting in a guaranteed cache miss and an unnecessary server round-trip.
+    const bareId = embed_id.startsWith("embed:")
+      ? embed_id.slice("embed:".length)
+      : embed_id;
+
+    const demoEmbed = getCommunityDemoEmbed(bareId);
     if (demoEmbed) {
       console.debug(
         "[embedResolver] Found embed in community demo store:",
-        embed_id,
+        bareId,
       );
       // Convert DemoEmbed to EmbedData format
       return {
@@ -152,9 +162,9 @@ export async function resolveEmbed(
     }
 
     // Second, try to load from EmbedStore (IndexedDB) for regular encrypted embeds
-    const cachedEmbed = await embedStore.get(`embed:${embed_id}`);
+    const cachedEmbed = await embedStore.get(`embed:${bareId}`);
     if (cachedEmbed) {
-      console.debug("[embedResolver] Found embed in EmbedStore:", embed_id);
+      console.debug("[embedResolver] Found embed in EmbedStore:", bareId);
       return cachedEmbed as EmbedData;
     }
 
@@ -162,10 +172,10 @@ export async function resolveEmbed(
     // This breaks the infinite loop: error embeds are never persisted to IndexedDB,
     // so without this check, every render cycle would re-request them from the server,
     // which would send them back with status=error, which would trigger another re-render.
-    const errorInfo = knownErrorEmbeds.get(embed_id);
+    const errorInfo = knownErrorEmbeds.get(bareId);
     if (errorInfo) {
       console.debug(
-        `[embedResolver] Embed ${embed_id} is known ${errorInfo.status} (since ${new Date(errorInfo.timestamp).toISOString()}), returning null without re-requesting`,
+        `[embedResolver] Embed ${bareId} is known ${errorInfo.status} (since ${new Date(errorInfo.timestamp).toISOString()}), returning null without re-requesting`,
       );
       return null;
     }
@@ -181,12 +191,12 @@ export async function resolveEmbed(
     if (!isAuthenticated) {
       console.debug(
         "[embedResolver] User not authenticated, skipping WebSocket request for embed:",
-        embed_id,
+        bareId,
       );
     } else {
       console.warn(
         "[embedResolver] Embed not in EmbedStore or demo store, requesting from server (async):",
-        embed_id,
+        bareId,
       );
 
       try {
@@ -197,7 +207,7 @@ export async function resolveEmbed(
         // The UI will automatically re-render when the embed is stored
         webSocketService
           .sendMessage("request_embed", {
-            embed_id: embed_id,
+            embed_id: bareId,
           })
           .catch((error) => {
             console.error(
