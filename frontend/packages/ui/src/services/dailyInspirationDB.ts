@@ -91,6 +91,10 @@ export async function saveInspirationToIndexedDB(
       ? JSON.stringify(inspiration.video)
       : null;
 
+    // Use the short title for encrypted_title (falls back to phrase for older
+    // inspirations that don't have a separate title field)
+    const chatTitle = inspiration.title || inspiration.phrase;
+
     const [
       encrypted_phrase,
       encrypted_assistant_response,
@@ -100,7 +104,7 @@ export async function saveInspirationToIndexedDB(
     ] = await Promise.all([
       encryptWithMasterKey(inspiration.phrase),
       encryptWithMasterKey(assistantResponse),
-      encryptWithMasterKey(inspiration.phrase), // title = phrase for inspirations
+      encryptWithMasterKey(chatTitle),
       encryptWithMasterKey(inspiration.category),
       videoMetadataJson
         ? encryptWithMasterKey(videoMetadataJson)
@@ -232,7 +236,7 @@ export async function loadInspirationsFromIndexedDB(): Promise<
     const decrypted: DailyInspiration[] = [];
     for (const record of fresh) {
       try {
-        // Decrypt phrase, category, assistant_response, and video metadata in parallel
+        // Decrypt phrase, category, assistant_response, title, and video metadata in parallel
         const decryptPromises: Promise<string | null>[] = [
           decryptWithMasterKey(record.encrypted_phrase),
           decryptWithMasterKey(record.encrypted_category),
@@ -245,9 +249,20 @@ export async function loadInspirationsFromIndexedDB(): Promise<
             decryptWithMasterKey(record.encrypted_video_metadata),
           );
         }
+        // Also decrypt the title (may differ from phrase for newer inspirations)
+        const titlePromise = record.encrypted_title
+          ? decryptWithMasterKey(record.encrypted_title)
+          : Promise.resolve(null);
+        decryptPromises.push(titlePromise);
 
-        const [phrase, category, assistantResponse, videoMetadataJson] =
-          await Promise.all(decryptPromises);
+        const results = await Promise.all(decryptPromises);
+        const phrase = results[0];
+        const category = results[1];
+        const assistantResponse = results[2];
+        // Video metadata is at index 3 if present, title is always last
+        const hasVideoMeta = !!record.encrypted_video_metadata;
+        const videoMetadataJson = hasVideoMeta ? results[3] : null;
+        const decryptedTitle = hasVideoMeta ? results[4] : results[3];
 
         if (!phrase || !category) {
           // This is unexpected here because we already confirmed the master key
@@ -276,9 +291,18 @@ export async function loadInspirationsFromIndexedDB(): Promise<
           }
         }
 
+        // Use decrypted title if it differs from phrase (newer inspirations
+        // have a dedicated short title); fall back to undefined so the frontend
+        // uses phrase as the chat title for older records.
+        const titleValue =
+          decryptedTitle && decryptedTitle !== phrase
+            ? decryptedTitle
+            : undefined;
+
         decrypted.push({
           inspiration_id: record.inspiration_id,
           phrase,
+          title: titleValue,
           assistant_response: assistantResponse ?? undefined,
           category,
           content_type: record.content_type,
@@ -564,18 +588,24 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
         const encVideoMetadata =
           (record.encrypted_video_metadata as string | null) ?? null;
 
-        // Decrypt phrase, category, assistant_response, and optionally video metadata in parallel
+        // Decrypt phrase, category, assistant_response, title, and optionally video metadata in parallel
         const decryptPromises: Promise<string | null>[] = [
           decryptWithMasterKey(encPhrase),
           decryptWithMasterKey(encCategory),
           decryptWithMasterKey(encAssistant),
+          decryptWithMasterKey(encTitle),
         ];
         if (encVideoMetadata) {
           decryptPromises.push(decryptWithMasterKey(encVideoMetadata));
         }
 
-        const [phrase, category, assistantResponse, videoMetadataJson] =
-          await Promise.all(decryptPromises);
+        const [
+          phrase,
+          category,
+          assistantResponse,
+          decryptedTitle,
+          videoMetadataJson,
+        ] = await Promise.all(decryptPromises);
 
         if (!phrase || !category) {
           console.warn(
@@ -598,9 +628,17 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
           }
         }
 
+        // Use decrypted title if it differs from phrase (newer inspirations
+        // have a dedicated short title); fall back to undefined for older records.
+        const titleValue =
+          decryptedTitle && decryptedTitle !== phrase
+            ? decryptedTitle
+            : undefined;
+
         const inspiration: DailyInspiration = {
           inspiration_id: record.daily_inspiration_id as string,
           phrase,
+          title: titleValue,
           assistant_response: assistantResponse ?? undefined,
           category,
           content_type: (record.content_type as string) || "video",
@@ -717,18 +755,24 @@ export async function processInspirationRecordsFromSync(
         const encVideoMetadata =
           (record.encrypted_video_metadata as string | null) ?? null;
 
-        // Decrypt phrase, category, assistant_response, and optionally video metadata in parallel
+        // Decrypt phrase, category, assistant_response, title, and optionally video metadata in parallel
         const decryptPromises: Promise<string | null>[] = [
           decryptWithMasterKey(encPhrase),
           decryptWithMasterKey(encCategory),
           decryptWithMasterKey(encAssistant),
+          decryptWithMasterKey(encTitle),
         ];
         if (encVideoMetadata) {
           decryptPromises.push(decryptWithMasterKey(encVideoMetadata));
         }
 
-        const [phrase, category, assistantResponse, videoMetadataJson] =
-          await Promise.all(decryptPromises);
+        const [
+          phrase,
+          category,
+          assistantResponse,
+          decryptedTitle,
+          videoMetadataJson,
+        ] = await Promise.all(decryptPromises);
 
         if (!phrase || !category) {
           console.warn(
@@ -751,9 +795,17 @@ export async function processInspirationRecordsFromSync(
           }
         }
 
+        // Use decrypted title if it differs from phrase (newer inspirations
+        // have a dedicated short title); fall back to undefined for older records.
+        const titleValue =
+          decryptedTitle && decryptedTitle !== phrase
+            ? decryptedTitle
+            : undefined;
+
         const inspiration: DailyInspiration = {
           inspiration_id: record.daily_inspiration_id as string,
           phrase,
+          title: titleValue,
           assistant_response: assistantResponse ?? undefined,
           category,
           content_type: (record.content_type as string) || "video",

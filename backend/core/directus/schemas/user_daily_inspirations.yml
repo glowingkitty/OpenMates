@@ -50,7 +50,7 @@ user_daily_inspirations:
 
     encrypted_title:
       type: text
-      note: "[Encrypted] The chat title (same as phrase for daily inspirations). Encrypted with user master key."
+      note: "[Encrypted] Concise chat title (3-7 words) for the sidebar. May differ from phrase for newer inspirations. Encrypted with user master key."
 
     encrypted_category:
       type: text

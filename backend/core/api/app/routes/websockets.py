@@ -2116,6 +2116,7 @@ async def websocket_endpoint(
                     manager=manager,
                     cache_service=cache_service,
                     user_id=user_id,
+                    user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                 )

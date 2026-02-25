@@ -123,7 +123,8 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
             "description": (
                 "Generate daily inspiration items for the user. For each slot, select the most "
                 "engaging YouTube video from the provided candidates, write a curiosity question "
-                f"or phrase in {phrase_lang_instruction} (8-18 words, exactly two sentences) for the banner, and compose a "
+                f"or phrase in {phrase_lang_instruction} (8-18 words, exactly two sentences) for the banner, "
+                f"a concise chat title in {phrase_lang_instruction} (3-7 words) for the sidebar, and compose a "
                 "rich first assistant message that explains the topic and invites the user to explore. "
                 "The phrase should be a genuine question or a thought-provoking statement that sparks "
                 "curiosity — it should feel like the start of a conversation, not a marketing headline. "
@@ -150,6 +151,15 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                                         "(8-18 words, exactly two sentences) shown on the inspiration banner. "
                                         "First sentence hooks the reader, second adds a twist or surprising detail. "
                                         "Should feel like the start of a conversation — ideally a genuine question."
+                                    ),
+                                },
+                                "title": {
+                                    "type": "string",
+                                    "description": (
+                                        f"Concise chat title in {phrase_lang_instruction} (3-7 words) "
+                                        "for the chat sidebar. Summarises the inspiration topic in a few words. "
+                                        "Examples: 'Home Studio Essentials', 'Black Hole Event Horizons', "
+                                        "'Roman Road Engineering', 'Cat Landing Physics'."
                                     ),
                                 },
                                 "assistant_response": {
@@ -180,6 +190,7 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                             },
                             "required": [
                                 "phrase",
+                                "title",
                                 "assistant_response",
                                 "category",
                                 "selected_video_youtube_id",
@@ -255,7 +266,8 @@ def _build_generation_prompt(
         + (
             "\n\nFor each slot, select the best video and:\n"
             "1. Write a curiosity-sparking question or phrase (8-18 words, exactly two sentences) for the banner.\n"
-            "2. Write a rich first assistant message (3-5 sentences) that explains the topic, "
+            "2. Write a concise chat title (3-7 words) for the sidebar that summarises the topic.\n"
+            "3. Write a rich first assistant message (3-5 sentences) that explains the topic, "
             "highlights what makes it fascinating, and ends with an invitation for the user "
             "to ask questions and explore the topic further."
         )
@@ -379,6 +391,7 @@ async def generate_inspirations(
 
     for raw in raw_inspirations[:count]:
         phrase = raw.get("phrase", "").strip()
+        title = raw.get("title", "").strip()
         assistant_response = raw.get("assistant_response", "").strip() or None
         category = raw.get("category", "general_knowledge")
         youtube_id = raw.get("selected_video_youtube_id", "").strip()
@@ -415,6 +428,7 @@ async def generate_inspirations(
         inspiration = DailyInspiration(
             inspiration_id=str(uuid.uuid4()),
             phrase=phrase,
+            title=title,
             assistant_response=assistant_response,
             category=category if category in AVAILABLE_CATEGORIES else "general_knowledge",
             content_type="video",

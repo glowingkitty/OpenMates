@@ -55,6 +55,10 @@ suggested_daily_inspirations:
     phrase:
       type: textfield
       note: "AI-generated CTA phrase in English (cleartext, translated separately)"
+    title:
+      type: string
+      length: 200
+      note: "AI-generated concise chat title in English (3-7 words, translated separately)"
     assistant_response:
       type: textfield
       note: "AI-generated assistant response/context in English (cleartext, translated separately)"

@@ -48,9 +48,17 @@ class DailyInspiration(BaseModel):
     phrase: str = Field(
         ...,
         description=(
-            "Short, fascinating curiosity question/phrase (6-12 words) shown on the banner. "
-            "Examples: 'Why do cats always land on their feet?', "
-            "'The mathematics behind a perfectly stacked Jenga tower'"
+            "Short, fascinating curiosity question/phrase (8-18 words, two sentences) shown on the banner. "
+            "Examples: 'Cats always land on their feet. But how do they do it mid-air?', "
+            "'Roman roads lasted 2,000 years. Modern ones barely survive 20 — why?'"
+        ),
+    )
+    title: str = Field(
+        default="",
+        description=(
+            "Concise chat title (3-7 words) for the sidebar. "
+            "Summarises the topic in a few words, similar to how regular chats are titled. "
+            "Examples: 'Home Studio Essentials', 'Black Hole Event Horizons', 'Roman Road Engineering'"
         ),
     )
     assistant_response: Optional[str] = Field(

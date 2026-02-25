@@ -39,6 +39,8 @@ export interface DailyInspirationVideo {
 export interface DailyInspiration {
   inspiration_id: string;
   phrase: string;
+  /** Concise chat title (3-7 words) for the sidebar. Falls back to phrase if not set. */
+  title?: string;
   category: string;
   /** Currently always 'video'. Future: 'article' | 'fact' | 'challenge' | 'project' | 'podcast' */
   content_type: string;
