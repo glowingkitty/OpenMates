@@ -1142,6 +1142,12 @@ async def handle_main_processing(
         logger.info(f"{log_prefix} Skipping base_proactive_skill_usage_instruction - no apps available")
     
     prompt_parts.append(base_instructions.get("base_url_sourcing_instruction", ""))
+    # Add inline embed referencing instruction (only when skill results may be in context)
+    # This teaches the LLM to use [text](embed:embed_ref) syntax to reference specific items
+    # from previous skill results. Only injected when apps/skills are available since the
+    # embed_ref field only appears in tool results from skill calls.
+    if preselected_skills:
+        prompt_parts.append(base_instructions.get("base_embed_referencing_instruction", ""))
     # Add code block formatting instruction to ensure proper language and filename syntax
     # This helps with consistent parsing and rendering of code embeds
     prompt_parts.append(base_instructions.get("base_code_block_instruction", ""))

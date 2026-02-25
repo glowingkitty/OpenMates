@@ -6,6 +6,9 @@ import logging
 import json
 import hashlib
 import uuid
+import random
+import string
+import re
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 
@@ -1496,8 +1499,30 @@ class EmbedService:
                 return filtered_toon, embed_ref
 
             if app_id != "images" or skill_id != "upload":
-                # All other embed types (search results, web pages, etc.) pass through
-                # unchanged — no embed_ref injection needed.
+                # For all other embed types (search results, web pages, travel, maps, etc.),
+                # check whether the TOON content already contains an embed_ref that was
+                # injected by create_embeds_from_skill_results().  If so, strip the raw
+                # embed_id (UUID) so the LLM never sees it and return the embed_ref as-is.
+                # If no embed_ref is present, pass through unchanged.
+                embed_ref_in_toon = decoded.get("embed_ref")
+                if embed_ref_in_toon and isinstance(embed_ref_in_toon, str):
+                    # Strip internal fields the LLM should not see, but keep content fields.
+                    filtered = {
+                        k: v for k, v in decoded.items()
+                        if k not in self._TOON_LLM_STRIP_FIELDS and k != "embed_id"
+                    }
+                    # embed_ref is already in the dict; ensure it stays.
+                    filtered["embed_ref"] = embed_ref_in_toon
+                    embed_ref = self._unique_embed_ref(embed_ref_in_toon, seen_embed_refs)
+                    filtered["embed_ref"] = embed_ref
+                    filtered_toon = encode(filtered)
+                    logger.debug(
+                        f"{log_prefix} Passed embed_ref through for embed {embed_id}: "
+                        f"embed_ref={embed_ref!r}, type={embed_type!r}, "
+                        f"app_id={app_id!r}, skill_id={skill_id!r}"
+                    )
+                    return filtered_toon, embed_ref
+                # No embed_ref in TOON — pass through as-is, no embed_ref exposed.
                 return toon_content, None
 
             # ----------------------------------------------------------------
@@ -1544,6 +1569,131 @@ class EmbedService:
                 f"Returning original TOON."
             )
             return toon_content, None
+
+    @staticmethod
+    def _generate_embed_ref_slug(
+        child_type: str,
+        result: Dict[str, Any],
+    ) -> str:
+        """
+        Generate a short, descriptive embed_ref slug for a child embed result.
+
+        The slug is derived from result content so it's human-readable and gives the
+        LLM a meaningful handle to reference specific items inline:
+          - website/news: domain from URL (e.g. "wikipedia.org")
+          - place: place name, slugified (e.g. "eiffel-tower")
+          - connection (flight/train): carrier + departure time (e.g. "ryanair-0600")
+          - stay (hotel): hotel name, slugified (e.g. "hotel-ibis-paris")
+          - event: event title, slugified (e.g. "jazz-festival-2026")
+
+        A 3-character random alphanumeric suffix is appended to guarantee global
+        uniqueness across multiple embeds of the same type in a single chat:
+          "wikipedia.org-k8D", "ryanair-0600-x4F"
+
+        Args:
+            child_type: The embed type string ("website", "place", "connection", etc.)
+            result: The raw result dict for this child embed.
+
+        Returns:
+            A short descriptive slug with 3-char random suffix, e.g. "wikipedia.org-k8D".
+        """
+        def _random_suffix() -> str:
+            chars = string.ascii_letters + string.digits
+            return "".join(random.choices(chars, k=3))
+
+        def _slugify(text: str, max_words: int = 3) -> str:
+            """Lowercase, keep alphanumeric and hyphens, limit word count."""
+            text = text.lower().strip()
+            # Replace non-word chars with hyphens
+            text = re.sub(r"[^a-z0-9]+", "-", text)
+            text = text.strip("-")
+            # Limit to max_words hyphen-separated parts
+            parts = text.split("-")[:max_words]
+            return "-".join(p for p in parts if p)
+
+        def _extract_domain(url: str) -> str:
+            """Extract bare domain from a URL (no www prefix)."""
+            # Strip scheme
+            url = re.sub(r"^https?://", "", url)
+            # Take host part only
+            url = url.split("/")[0]
+            # Remove www.
+            url = re.sub(r"^www\.", "", url)
+            # Keep only hostname (no port)
+            url = url.split(":")[0]
+            return url.lower()[:40]
+
+        suffix = _random_suffix()
+        slug = ""
+
+        try:
+            if child_type in ("website", "video"):
+                # Use domain from URL as the slug
+                url = result.get("url") or result.get("link") or ""
+                if url:
+                    slug = _extract_domain(url)
+                else:
+                    title = result.get("title") or ""
+                    slug = _slugify(title) if title else "result"
+
+            elif child_type == "place":
+                name = result.get("name") or result.get("title") or ""
+                slug = _slugify(name) if name else "place"
+
+            elif child_type == "connection":
+                # Flights/trains: carrier + departure time
+                carrier = (
+                    result.get("carrier")
+                    or result.get("airline")
+                    or result.get("operator")
+                    or ""
+                )
+                depart = (
+                    result.get("departure_time")
+                    or result.get("departs_at")
+                    or ""
+                )
+                carrier_slug = _slugify(carrier, max_words=1) if carrier else "flight"
+                # Parse "HH:MM" → "HHMM"
+                depart_str = depart.replace(":", "").replace(" ", "")[:4] if depart else ""
+                slug = f"{carrier_slug}-{depart_str}" if depart_str else carrier_slug
+
+            elif child_type == "stay":
+                name = (
+                    result.get("name")
+                    or result.get("hotel_name")
+                    or result.get("title")
+                    or ""
+                )
+                slug = _slugify(name) if name else "hotel"
+
+            elif child_type == "event":
+                name = result.get("name") or result.get("title") or ""
+                slug = _slugify(name) if name else "event"
+
+            else:
+                # Generic fallback: try title/name fields
+                title = (
+                    result.get("title")
+                    or result.get("name")
+                    or result.get("url")
+                    or ""
+                )
+                if title:
+                    if title.startswith("http"):
+                        slug = _extract_domain(title)
+                    else:
+                        slug = _slugify(str(title))
+                else:
+                    slug = child_type or "item"
+
+        except Exception:
+            # Never fail embed creation over slug generation
+            slug = child_type or "item"
+
+        # Truncate slug to 40 chars to keep refs compact
+        slug = slug[:40].rstrip("-")
+        return f"{slug}-{suffix}"
 
     @staticmethod
     def _unique_embed_ref(
@@ -2631,9 +2781,20 @@ class EmbedService:
                 for result in results:
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
-                    
-                    # Convert result to TOON format
-                    flattened_result = _flatten_for_toon_tabular(result)
+
+                    # Generate a short descriptive embed_ref for this result.
+                    # The embed_ref is injected INSIDE the encrypted TOON content so
+                    # only the client (after decryption) and the LLM (via filtered TOON
+                    # in tool results) can see it. Server admins cannot read the slug.
+                    child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+
+                    # Convert result to TOON format.
+                    # Inject embed_ref directly into the content dict before encoding
+                    # so it is part of the encrypted payload — zero-knowledge compliant.
+                    result_with_ref = dict(result)
+                    result_with_ref["embed_ref"] = child_embed_ref
+
+                    flattened_result = _flatten_for_toon_tabular(result_with_ref)
                     content_toon = encode(flattened_result)
                     
                     # Calculate text length for child embed
@@ -2697,7 +2858,15 @@ class EmbedService:
                 
                 # Create parent app_skill_use embed
                 # NOTE: parent_embed_id was already generated above (before child embeds)
-                
+
+                # Generate an embed_ref for the parent (composite skill result).
+                # Format: "{app_id}-{skill_id}-{suffix}" so the LLM can refer to the
+                # whole result set (e.g. "web-search-k8D") as well as individual items.
+                parent_embed_ref = self._generate_embed_ref_slug(
+                    f"{app_id}-{skill_id}",
+                    request_metadata or {},
+                )
+
                 # Parent embed content: metadata about the skill execution
                 # Include request metadata (query, etc.) if provided for proper frontend rendering
                 parent_content = {
@@ -2705,7 +2874,8 @@ class EmbedService:
                     "skill_id": skill_id,
                     "result_count": len(results),
                     "embed_ids": child_embed_ids,
-                    "status": "finished"
+                    "status": "finished",
+                    "embed_ref": parent_embed_ref,
                 }
                 
                 # Add request metadata (query, provider, etc.) if available
@@ -2813,7 +2983,13 @@ class EmbedService:
                 # Non-composite result - create single app_skill_use embed
                 # All skills return results as an array, so we always structure it consistently
                 embed_id = str(uuid.uuid4())
-                
+
+                # Generate embed_ref for this single embed (injected inside encrypted TOON).
+                # For single results, derive the slug from the first result.
+                single_embed_ref = self._generate_embed_ref_slug(
+                    skill_id, results[0] if results else {}
+                )
+
                 # Flatten all results for TOON encoding
                 flattened_results = [_flatten_for_toon_tabular(result) for result in results]
                 
@@ -2826,7 +3002,8 @@ class EmbedService:
                     "skill_id": skill_id,
                     "results": flattened_results,
                     "result_count": len(results),
-                    "status": "finished"
+                    "status": "finished",
+                    "embed_ref": single_embed_ref,
                 }
                 
                 # Add request metadata if available

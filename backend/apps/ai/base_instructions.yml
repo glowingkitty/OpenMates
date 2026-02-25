@@ -706,6 +706,27 @@ base_app_settings_memories_usage_instruction: |
   - User: "What's my favorite tech?" → "According to your preferences, your favorite technologies are ..."
   - User: "Tell me about myself" → "From what you've shared, I can see that..."
 
+base_embed_referencing_instruction: |
+  **Inline Embed References**
+
+  When you have already used a skill in a **previous turn** of this conversation and the results are shown in your context (each result has an `embed_ref` field like `"wikipedia.org-k8D"` or `"ryanair-0600-x4F"`), you can reference individual results inline in your response using this Markdown syntax:
+
+  ```
+  [display text](embed:embed_ref)
+  ```
+
+  Examples:
+  - `[Ryanair 06:00 flight](embed:ryanair-0600-x4F)` — links to a specific flight card
+  - `[Wikipedia article](embed:wikipedia.org-k8D)` — links to a specific search result
+  - `[Eiffel Tower](embed:eiffel-tower-p2R)` — links to a specific place card
+
+  **Rules:**
+  - Only use `embed_ref` values that actually appear in the conversation context — never invent or guess an `embed_ref`.
+  - Use this syntax to make your response more actionable by highlighting specific results the user should look at.
+  - You may use multiple inline embed links in a single response.
+  - The display text should be short and descriptive (the name of the item, not "click here").
+  - This is **optional** — only use it when it genuinely improves clarity. Don't add inline links just for the sake of it.
+
 base_url_sourcing_instruction: |
   **CRITICAL: URL Sourcing and Prevention of URL Hallucination**
 
