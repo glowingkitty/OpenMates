@@ -62,6 +62,7 @@ focuses:
     description_translation_key: videos.analyze_video.description
     process_translation_key: focus_modes.videos_analyze_video.process
     systemprompt_translation_key: focus_modes.videos_analyze_video.systemprompt
+    icon_image: videos.svg
     stage: production
     preprocessor_hint: >
       Select when the user shares a YouTube video URL and wants it analyzed, fact-checked,

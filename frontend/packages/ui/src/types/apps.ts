@@ -85,6 +85,8 @@ export interface FocusModeMetadata {
   system_prompt?: string;
   /** Translation key for system prompt when literal is not set (from app.yml systemprompt_translation_key) */
   system_prompt_translation_key?: string;
+  /** Icon filename for this focus mode (e.g. "career_insights.svg") — used in the active focus pill above the message input */
+  icon_image?: string;
 }
 
 /**

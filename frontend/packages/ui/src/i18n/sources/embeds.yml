@@ -2170,6 +2170,29 @@ focus_mode.active_banner:
   cs: Zaměření aktivní
   sv: Fokus aktivt
   verified_by_human: []
+focus_mode.focus_on:
+  context: Trailing label in the focus mode pill shown above the message input. Displayed after the focus mode name, e.g. "Career Insights focus on". Kept short.
+  en: focus on
+  de: fokus aktiv
+  zh: 专注中
+  es: enfoque activo
+  fr: focus actif
+  pt: foco ativo
+  ru: фокус активен
+  ja: フォーカス中
+  ko: 포커스 켜짐
+  it: focus attivo
+  tr: odak açık
+  vi: đang tập trung
+  id: fokus aktif
+  pl: skupienie włączone
+  nl: focus aan
+  ar: تركيز نشط
+  hi: फोकस चालू
+  th: โฟกัสเปิดอยู่
+  cs: zaměření aktivní
+  sv: fokus aktivt
+  verified_by_human: []
 focus_mode.activated:
   context: Status text shown on focus mode embed after activation completes
   en: Focus activated

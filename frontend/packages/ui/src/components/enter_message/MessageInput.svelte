@@ -32,7 +32,9 @@
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import ActionButtons from './ActionButtons.svelte';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
+    import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
+    import type { FocusModeMetadata } from '../../types/apps';
 
     // Utils
     import {
@@ -129,6 +131,18 @@
          * Updated by ActiveChat on every container resize.
          */
         containerRect?: DOMRect | null;
+        /**
+         * Focus pill props — passed from ActiveChat when a focus mode is active.
+         * The pill is rendered absolutely inside the message-field, and the field
+         * increases padding-top to prevent text collision.
+         */
+        activeFocusId?: string | null;
+        activeFocusAppId?: string | null;
+        activeFocusModeMetadata?: FocusModeMetadata | null;
+        /** Called when user clicks the non-toggle area of the pill (deep-links to focus settings). */
+        onFocusPillDeepLink?: () => void;
+        /** Called after the 1-second deactivation timer elapses (no undo). */
+        onFocusPillDeactivate?: () => void;
     }
     let { 
         currentChatId = undefined,
@@ -137,7 +151,12 @@
         showActionButtons = true,
         isFocused = $bindable(false),
         isMapsOpen = $bindable(false),
-        containerRect = null
+        containerRect = null,
+        activeFocusId = null,
+        activeFocusAppId = null,
+        activeFocusModeMetadata = null,
+        onFocusPillDeepLink = undefined,
+        onFocusPillDeactivate = undefined
     }: Props = $props();
 
     // --- Refs ---
@@ -160,6 +179,53 @@
     // Tracks whether files are being dragged over the message field.
     // When true, the drop overlay ("Drop files to upload") is shown.
     let isDragging = $state(false);
+
+    // --- Focus Pill State ---
+    // Whether the toggle has been clicked and we are waiting 1 second before deactivating.
+    // If user clicks toggle again within that second, we cancel (undo).
+    let focusPillDeactivating = $state(false);
+    let focusPillDeactivateTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Derived: pill is visible when focus is active AND we are not in the middle of fading away.
+    // Once deactivation fires (timer elapses), activeFocusId becomes null upstream, hiding the pill.
+    let showFocusPill = $derived(!!activeFocusId);
+
+    // Icon name derived from the focus mode metadata (strip ".svg" suffix).
+    let focusPillIconName = $derived(
+        activeFocusModeMetadata?.icon_image
+            ? activeFocusModeMetadata.icon_image.replace(/\.svg$/i, '')
+            : null
+    );
+
+    /**
+     * Handle toggle click: start a 1-second deactivation timer.
+     * If toggle is clicked again while timer is running, cancel it (undo).
+     */
+    function handleFocusPillToggle() {
+        if (focusPillDeactivating) {
+            // Undo: cancel the pending deactivation
+            if (focusPillDeactivateTimer !== null) {
+                clearTimeout(focusPillDeactivateTimer);
+                focusPillDeactivateTimer = null;
+            }
+            focusPillDeactivating = false;
+        } else {
+            // Start deactivation countdown
+            focusPillDeactivating = true;
+            focusPillDeactivateTimer = setTimeout(() => {
+                focusPillDeactivateTimer = null;
+                focusPillDeactivating = false;
+                onFocusPillDeactivate?.();
+            }, 1000);
+        }
+    }
+
+    /**
+     * Handle click on the pill body (non-toggle area): open focus mode settings.
+     */
+    function handleFocusPillClick() {
+        onFocusPillDeepLink?.();
+    }
 
     // Location precision setting — read from personalDataStore (persisted, encrypted).
     // When impreciseByDefault=true, MapsView opens in area mode (privacy-first default).
@@ -3213,6 +3279,7 @@
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isWidescreenFullscreen ? 'input-sidepanel' : ''}"
         class:drag-over={isDragging}
+        class:has-focus-pill={showFocusPill}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -3221,6 +3288,52 @@
         aria-multiline="true"
         tabindex="0"
     >
+        <!-- Focus mode pill: shown when a focus mode is active.
+             Absolutely positioned at the top of the message-field; the field gets extra
+             padding-top (via .has-focus-pill) so text input does not collide with the pill.
+             Left side (button) deep-links to focus settings; right side (toggle) deactivates
+             after a 1-second timer with undo if the toggle is clicked again within that second. -->
+        {#if showFocusPill}
+            <div
+                class="focus-pill"
+                style="--focus-pill-gradient: var(--color-app-{activeFocusAppId}, linear-gradient(135deg, #5856d6, #a78bfa))"
+                transition:fade={{ duration: 200 }}
+            >
+                <!-- Clickable left side: icon + label → opens focus settings -->
+                <button
+                    class="focus-pill-body"
+                    onclick={handleFocusPillClick}
+                    aria-label={$text('embeds.focus_mode.active_banner')}
+                >
+                    {#if focusPillIconName}
+                        <span
+                            class="focus-pill-icon"
+                            style="--icon-url: var(--icon-url-{focusPillIconName})"
+                            aria-hidden="true"
+                        ></span>
+                    {/if}
+                    <span class="focus-pill-label">
+                        {#if activeFocusModeMetadata}
+                            {$text(activeFocusModeMetadata.name_translation_key)}
+                        {:else}
+                            {$text('embeds.focus_mode.active_banner')}
+                        {/if}
+                    </span>
+                    <span class="focus-pill-on-text">{$text('embeds.focus_mode.focus_on')}</span>
+                </button>
+                <!-- Toggle: click to start 1s deactivation countdown (click again to undo).
+                     stopPropagation on the wrapper prevents clicks from reaching the pill-body button. -->
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="focus-pill-toggle" onclick={(e) => e.stopPropagation()}>
+                    <Toggle
+                        checked={!focusPillDeactivating}
+                        on:change={handleFocusPillToggle}
+                    />
+                </div>
+            </div>
+        {/if}
+
         <!-- Drop overlay: shown when user drags files over the message field.
              Uses the existing icon_files icon and a localised label. -->
         {#if isDragging}

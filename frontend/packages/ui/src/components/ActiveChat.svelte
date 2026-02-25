@@ -7376,32 +7376,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              />
                          {/if}
 
-                        <!-- Focus active banner: shown when a focus mode is active in the current chat.
-                             Fixed small header above the message input so users always know a focus mode is engaged.
-                             Clicking the banner deep-links to the focus mode settings page. -->
-                        {#if activeFocusId && activeFocusAppId && !showWelcome}
-                            {@const focusModeDeepLink = `app_store/${activeFocusAppId}/focus/${activeFocusModeKey}`}
-                            <button
-                                class="focus-active-banner"
-                                data-focus-id={activeFocusId}
-                                data-app-id={activeFocusAppId}
-                                transition:fade={{ duration: 200 }}
-                                aria-label={$text('embeds.focus_mode.active_banner')}
-                                onclick={() => {
-                                    settingsDeepLink.set(focusModeDeepLink);
-                                    panelState.openSettings();
-                                }}
-                            >
-                                <span class="focus-active-banner-icon"></span>
-                                <span class="focus-active-banner-text">
-                                    {$text('embeds.focus_mode.active_banner')}
-                                    {#if activeFocusModeMetadata}
-                                        &middot; {$text(activeFocusModeMetadata.name_translation_key)}
-                                    {/if}
-                                </span>
-                                <span class="focus-active-banner-arrow"></span>
-                            </button>
-                        {/if}
 
                         <!-- Banner for non-incognito chats when incognito mode is active -->
                         {#if $incognitoMode && currentChat && !currentChat.is_incognito && !showWelcome}
@@ -7448,6 +7422,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 bind:this={messageInputFieldRef}
                                 currentChatId={currentChat?.chat_id || temporaryChatId}
                                 showActionButtons={showActionButtons}
+                                activeFocusId={!showWelcome ? activeFocusId : null}
+                                activeFocusAppId={!showWelcome ? activeFocusAppId : null}
+                                activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
+                                onFocusPillDeepLink={() => {
+                                    if (activeFocusAppId && activeFocusModeKey) {
+                                        settingsDeepLink.set(`app_store/${activeFocusAppId}/focus/${activeFocusModeKey}`);
+                                        panelState.openSettings();
+                                    }
+                                }}
+                                onFocusPillDeactivate={() => {
+                                    if (activeFocusId) {
+                                        handleFocusModeDeactivation(activeFocusId);
+                                        activeFocusId = null;
+                                    }
+                                }}
                                 on:codefullscreen={handleCodeFullscreen}
                                 on:imagefullscreen={handleImageFullscreen}
                                 on:pdffullscreen={handlePdfFullscreen}
@@ -8795,80 +8784,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /* Banner for non-incognito chats when incognito mode is active */
-    /* Focus active banner: compact pill shown above message input when a focus mode is active.
-       Clicking it opens the focus mode settings page (deep link).
-       position:relative + z-index:3 ensures it sits above the scroll-to-bottom button
-       (position:absolute, z-index:2) which otherwise intercepts pointer events on the banner. */
-    .focus-active-banner {
-        position: relative;
-        z-index: 3;
-        width: 100%;
-        min-height: 36px;
-        background: linear-gradient(90deg, rgba(var(--color-primary-rgb, 88, 86, 214), 0.10), rgba(var(--color-primary-rgb, 88, 86, 214), 0.05));
-        border: 1px solid rgba(var(--color-primary-rgb, 88, 86, 214), 0.25);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 8px;
-        padding: 8px 12px;
-        margin-bottom: 8px;
-        flex-shrink: 0;
-        cursor: pointer;
-        text-align: left;
-        font-family: var(--font-family-primary);
-        transition: background 0.15s ease, border-color 0.15s ease;
-    }
-
-    .focus-active-banner:hover {
-        background: linear-gradient(90deg, rgba(var(--color-primary-rgb, 88, 86, 214), 0.15), rgba(var(--color-primary-rgb, 88, 86, 214), 0.08));
-        border-color: rgba(var(--color-primary-rgb, 88, 86, 214), 0.4);
-    }
-
-    .focus-active-banner-icon {
-        width: 16px;
-        height: 16px;
-        display: block;
-        flex-shrink: 0;
-        background-color: var(--color-primary-start, #5856d6);
-        -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg');
-        mask-image: url('@openmates/ui/static/icons/filter.svg');
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-    }
-
-    .focus-active-banner-text {
-        flex: 1;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--color-primary-start, #5856d6);
-        line-height: 1.3;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .focus-active-banner-arrow {
-        width: 14px;
-        height: 14px;
-        display: block;
-        flex-shrink: 0;
-        background-color: var(--color-primary-start, #5856d6);
-        opacity: 0.6;
-        -webkit-mask-image: url('@openmates/ui/static/icons/open.svg');
-        mask-image: url('@openmates/ui/static/icons/open.svg');
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-    }
-
     .incognito-mode-applies-banner {
         width: 100%;
         min-height: 40px;
