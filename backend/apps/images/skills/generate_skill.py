@@ -36,14 +36,17 @@ class ImageGenerationRequest(BaseModel):
     Supports multiple generation requests in a single call.
 
     Each item in 'requests' may include:
-      - prompt          (required): Text description of the image.
-      - aspect_ratio    (optional): "1:1", "16:9", etc. Defaults to "1:1".
-      - output_filetype (optional): "png", "jpg", or "svg". Defaults to "png".
-                          Use "svg" to generate scalable vector graphics via Recraft V4.
-      - quality         (optional): "default" or "max". Controls model tier:
-                          For svg:   "default" → recraftv4_vector (100 cr), "max" → recraftv4_pro_vector (300 cr)
-                          For raster with recraft model: "default" → recraftv4 (50 cr), "max" → recraftv4_pro (250 cr)
-                          For other raster models (google, flux): quality is ignored.
+      - prompt           (required): Text description of the image.
+      - aspect_ratio     (optional): "1:1", "16:9", etc. Defaults to "1:1".
+      - output_filetype  (optional): "png", "jpg", or "svg". Defaults to "png".
+                           Use "svg" to generate scalable vector graphics via Recraft V4.
+      - quality          (optional): "default" or "max". Controls model tier:
+                           For svg:   "default" → recraftv4_vector (100 cr), "max" → recraftv4_pro_vector (300 cr)
+                           For raster with recraft model: "default" → recraftv4 (50 cr), "max" → recraftv4_pro (250 cr)
+                           For other raster models (google, flux): quality is ignored.
+      - reference_images (optional): List of embed_ref filenames (e.g. ["photo.jpg"]) to use as
+                           visual references. Resolved server-side via file_path_index.
+                           Enables image-to-image editing when provided.
     """
 
     requests: List[Dict[str, Any]] = Field(
@@ -119,10 +122,11 @@ class GenerateSkill(BaseSkill):
         Args:
             requests: List of request objects, each containing at minimum a 'prompt' field.
                       Optional per-request fields:
-                        - aspect_ratio   ("1:1", "16:9", etc.)
-                        - output_filetype ("png", "jpg", "svg")
-                        - quality        ("default", "max") — SVG only
-            **kwargs: Additional context passed by the app (user_id, etc.)
+                        - aspect_ratio      ("1:1", "16:9", etc.)
+                        - output_filetype   ("png", "jpg", "svg")
+                        - quality           ("default", "max") — SVG only
+                        - reference_images  (list of embed_ref filenames for image-to-image)
+            **kwargs: Additional context passed by the app (user_id, file_path_index, etc.)
 
         Returns:
             Dict containing task_id, embed_id, and status 'processing'.
@@ -136,6 +140,13 @@ class GenerateSkill(BaseSkill):
 
         # Extract user context for the task
         user_id = kwargs.get("user_id")
+        # vault key ID needed by the Celery task to decrypt reference image embeds
+        user_vault_key_id = kwargs.get("user_vault_key_id")
+
+        # file_path_index maps original filenames (embed_refs) → internal embed_id UUIDs.
+        # It is built during message history resolution and injected by main_processor.py
+        # so the LLM's human-readable filenames can be resolved server-side to internal IDs.
+        file_path_index: Dict[str, str] = kwargs.get("file_path_index") or {}
 
         # Accept placeholder embed_ids from main_processor context.
         # When the main_processor creates placeholder embeds before skill execution,
@@ -188,6 +199,25 @@ class GenerateSkill(BaseSkill):
                 )
                 quality = "default"
 
+            # Resolve reference_images (embed_refs / filenames) → internal embed_id UUIDs.
+            # The LLM provides human-readable filenames; we look them up in file_path_index
+            # to get the internal UUIDs needed by the Celery task for Redis cache lookup.
+            # We pass embed_ids (not bytes) to keep the Celery message payload small.
+            reference_image_embed_ids: List[str] = []
+            raw_reference_images = req.get("reference_images") or []
+            for ref_filename in raw_reference_images:
+                embed_id_ref = file_path_index.get(ref_filename)
+                if embed_id_ref:
+                    reference_image_embed_ids.append(embed_id_ref)
+                    logger.info(
+                        f"Resolved reference image '{ref_filename}' → embed_id {embed_id_ref}"
+                    )
+                else:
+                    logger.warning(
+                        f"Reference image '{ref_filename}' not found in file_path_index "
+                        f"(available keys: {list(file_path_index.keys())}) — skipping"
+                    )
+
             # Prepare arguments for the Celery task.
             # We include all relevant context for the task to process independently.
             task_args = {
@@ -202,6 +232,12 @@ class GenerateSkill(BaseSkill):
                 "skill_id": self.skill_id,
                 "full_model_reference": self.full_model_reference,
                 "embed_id": embed_id,
+                # Reference image embed IDs for image-to-image generation.
+                # The Celery task fetches, decrypts, and passes these to the provider.
+                "reference_image_embed_ids": reference_image_embed_ids,
+                # Vault key ID needed by the Celery task to decrypt reference image embeds
+                # (same key used by view_skill.py for embed content decryption).
+                "user_vault_key_id": user_vault_key_id,
             }
 
             try:

@@ -42,12 +42,13 @@ skills:
       expose_get: false # Hidden from REST API docs — image generation requires WebSocket + browser crypto (zero-knowledge). Use the web app or CLI instead.
       expose_post: false # POST requires client-side encryption (WebSocket + browser crypto). Use the web app or CLI instead.
     preprocessor_hint: >
-      Generate high-quality images from text prompts and/or reference images.
+      Generate high-quality images from text prompts and/or reference images (image-to-image editing).
       Also use for: mockups, design concepts, visual mockup creation, logo mockups,
       product mockups, illustration requests, visual design, concept art, posters,
       banners, thumbnails, or any request that implies creating a visual output.
       Use output_filetype="svg" for logos, icons, illustrations, and any other
       vector graphics that need to be scalable or editable.
+      When the user provides uploaded images as references (embed_refs), pass them via reference_images.
     stage: development
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill
@@ -101,6 +102,19 @@ skills:
                   For other raster models (Google Gemini, FLUX), quality is ignored.
                 enum: ["default", "max"]
                 default: "default"
+              reference_images:
+                type: array
+                description: |
+                  Optional list of reference image filenames (embed_refs) to use as visual
+                  references for this generation. Pass the exact embed_ref values (original
+                  filenames, e.g. "my_photo.jpg") from the toon blocks in the conversation.
+                  The server resolves all cryptographic and storage details automatically.
+                  Supports up to 14 reference images. When provided, enables image-to-image
+                  editing/style-transfer mode (Google Gemini: same endpoint; FLUX: switches
+                  to the 4B edit model). Ignored for SVG/Recraft output.
+                items:
+                  type: string
+                  description: Original filename (embed_ref) of an uploaded image
             required:
               - prompt
       required:
@@ -138,9 +152,10 @@ skills:
       expose_get: false # Hidden from REST API docs — image generation requires WebSocket + browser crypto (zero-knowledge). Use the web app or CLI instead.
       expose_post: false # POST requires client-side encryption (WebSocket + browser crypto). Use the web app or CLI instead.
     preprocessor_hint: >
-      Quickly generate a draft/preview image from a text prompt.
+      Quickly generate a draft/preview image from a text prompt and/or reference images (image-to-image).
       Also use for: quick mockups, rough design concepts, draft illustrations,
       sketches, quick visual previews, or any request for a fast/rough image.
+      When the user provides uploaded images as references (embed_refs), pass them via reference_images.
     stage: development
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill
@@ -163,6 +178,18 @@ skills:
               prompt:
                 type: string
                 description: Description of the image to generate
+              reference_images:
+                type: array
+                description: |
+                  Optional list of reference image filenames (embed_refs) to use as visual
+                  references for this generation. Pass the exact embed_ref values (original
+                  filenames, e.g. "my_photo.jpg") from the toon blocks in the conversation.
+                  The server resolves all cryptographic and storage details automatically.
+                  Supports up to 4 reference images. When provided, automatically switches to
+                  the FLUX.2 [klein] 4B edit model (image-to-image, 27 credits).
+                items:
+                  type: string
+                  description: Original filename (embed_ref) of an uploaded image
             required:
               - prompt
       required:

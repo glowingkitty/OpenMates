@@ -17,7 +17,7 @@ import hashlib
 import base64
 import os
 from datetime import datetime, timezone
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, List, Tuple, Optional
 from io import BytesIO
 
 import httpx
@@ -170,6 +170,202 @@ def _hash_value(value: str) -> str:
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
 
+async def _decrypt_reference_images(
+    embed_ids: List[str],
+    user_vault_key_id: str,
+    log_prefix: str,
+) -> Tuple[List[bytes], List[str]]:
+    """
+    Fetch and decrypt reference images from the Redis embed cache for use as
+    generation inputs in image-to-image requests.
+
+    Replicates the same decryption pipeline used by view_skill.py:
+      1. Look up embed JSON from Redis at key ``embed:{embed_id}``
+      2. Decrypt ``encrypted_content`` via Vault Transit (derived key with context)
+      3. Decode TOON to get content dict (contains aes_key, aes_nonce, s3_base_url, files)
+      4. Download encrypted "preview" variant from S3
+      5. AES-256-GCM decrypt → raw image bytes
+
+    Uses the "preview" variant (webp, smaller) for efficiency when used as reference
+    inputs; full resolution is rarely needed for style/reference guidance.
+
+    Args:
+        embed_ids: List of embed UUIDs to fetch and decrypt (already resolved from
+                   embed_refs via file_path_index in the skill layer).
+        user_vault_key_id: The user's Vault Transit key ID for decryption.
+        log_prefix: Log prefix for contextual logging.
+
+    Returns:
+        Tuple of (image_bytes_list, mime_types_list). Failed embeds are silently
+        skipped with a warning so a single missing embed doesn't abort generation.
+    """
+    from urllib.parse import quote as url_quote
+    from toon_format import decode as toon_decode
+    import redis.asyncio as aioredis
+
+    image_bytes_list: List[bytes] = []
+    mime_types_list: List[str] = []
+
+    vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
+    vault_token_path = "/vault-data/api.token"
+    try:
+        with open(vault_token_path, "r") as f:
+            vault_token = f.read().strip()
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to read Vault token: {e}", exc_info=True)
+        return [], []
+
+    redis_password = os.environ.get("DRAGONFLY_PASSWORD", "")
+    redis_url = f"redis://default:{url_quote(redis_password, safe='')}@cache:6379/0"
+    redis_client = aioredis.from_url(redis_url, decode_responses=True)
+
+    try:
+        for embed_id in embed_ids:
+            embed_log = f"{log_prefix} [ref_embed:{embed_id[:8]}...]"
+            try:
+                # Step 1: Fetch embed JSON from Redis
+                embed_json = await redis_client.get(f"embed:{embed_id}")
+                if not embed_json:
+                    logger.warning(
+                        f"{embed_log} Reference embed not found in cache — "
+                        "it may have expired (24h TTL). Skipping."
+                    )
+                    continue
+
+                embed_data = json.loads(embed_json)
+                encrypted_content = embed_data.get("encrypted_content")
+                if not encrypted_content:
+                    logger.warning(f"{embed_log} Reference embed has no encrypted_content. Skipping.")
+                    continue
+
+                # Step 2: Decrypt embed content via Vault Transit
+                context = base64.b64encode(user_vault_key_id.encode()).decode("utf-8")
+                decrypt_url = f"{vault_url}/v1/transit/decrypt/{user_vault_key_id}"
+                payload = {"ciphertext": encrypted_content, "context": context}
+
+                async with httpx.AsyncClient(timeout=15) as client:
+                    resp = await client.post(
+                        decrypt_url,
+                        json=payload,
+                        headers={"X-Vault-Token": vault_token},
+                    )
+
+                if resp.status_code != 200:
+                    logger.warning(
+                        f"{embed_log} Vault decrypt failed for embed content: "
+                        f"HTTP {resp.status_code}. Skipping."
+                    )
+                    continue
+
+                plaintext_b64 = resp.json()["data"]["plaintext"]
+                plaintext_toon = base64.b64decode(plaintext_b64).decode("utf-8")
+
+                # Step 3: Decode TOON → content dict
+                content = toon_decode(plaintext_toon)
+                if not isinstance(content, dict):
+                    logger.warning(f"{embed_log} TOON decoded to unexpected type. Skipping.")
+                    continue
+
+                vault_wrapped_aes_key = content.get("vault_wrapped_aes_key")
+                s3_base_url = content.get("s3_base_url")
+                aes_nonce_b64 = content.get("aes_nonce")
+                files = content.get("files", {})
+
+                if not vault_wrapped_aes_key or not s3_base_url or not aes_nonce_b64:
+                    logger.warning(
+                        f"{embed_log} Reference embed missing required fields "
+                        f"(vault_wrapped_aes_key/s3_base_url/aes_nonce). Skipping."
+                    )
+                    continue
+
+                # Step 3b: Unwrap AES key via Vault Transit (double-decode like view_skill.py)
+                unwrap_payload = {
+                    "ciphertext": vault_wrapped_aes_key,
+                    "context": context,
+                }
+                async with httpx.AsyncClient(timeout=15) as client:
+                    unwrap_resp = await client.post(
+                        decrypt_url,
+                        json=unwrap_payload,
+                        headers={"X-Vault-Token": vault_token},
+                    )
+
+                if unwrap_resp.status_code != 200:
+                    logger.warning(
+                        f"{embed_log} Vault AES key unwrap failed: "
+                        f"HTTP {unwrap_resp.status_code}. Skipping."
+                    )
+                    continue
+
+                # Double-decode: Vault plaintext = base64(aes_key_b64), so:
+                #   base64.decode(vault_plaintext) → aes_key_b64 as bytes
+                #   .decode('utf-8') → aes_key_b64 string
+                #   base64.decode(aes_key_b64) → raw 32-byte AES key
+                aes_key_b64 = base64.b64decode(
+                    unwrap_resp.json()["data"]["plaintext"]
+                ).decode("utf-8")
+                aes_key_bytes = base64.b64decode(aes_key_b64)
+
+                # Step 4: Select "preview" variant (efficient for reference input)
+                # Fall back through full → original if preview isn't available.
+                s3_key = None
+                detected_format = "webp"
+                for variant_name in ("preview", "full", "original"):
+                    variant = files.get(variant_name)
+                    if variant and variant.get("s3_key"):
+                        s3_key = variant["s3_key"]
+                        detected_format = variant.get("format", "webp")
+                        logger.info(
+                            f"{embed_log} Using '{variant_name}' variant for reference: {s3_key}"
+                        )
+                        break
+
+                if not s3_key:
+                    logger.warning(
+                        f"{embed_log} No file variant found for reference embed. Skipping."
+                    )
+                    continue
+
+                # Step 4b: Download encrypted image from S3
+                full_url = f"{s3_base_url.rstrip('/')}/{s3_key}"
+                async with httpx.AsyncClient(timeout=60) as client:
+                    s3_resp = await client.get(full_url)
+
+                if s3_resp.status_code != 200:
+                    logger.warning(
+                        f"{embed_log} S3 download failed: HTTP {s3_resp.status_code}. Skipping."
+                    )
+                    continue
+
+                # Step 5: AES-256-GCM decrypt
+                nonce_bytes = base64.b64decode(aes_nonce_b64)
+                aesgcm = AESGCM(aes_key_bytes)
+                plaintext_bytes = aesgcm.decrypt(nonce_bytes, s3_resp.content, None)
+
+                mime_type = f"image/{detected_format}" if detected_format != "jpg" else "image/jpeg"
+                image_bytes_list.append(plaintext_bytes)
+                mime_types_list.append(mime_type)
+                logger.info(
+                    f"{embed_log} Decrypted reference image: {len(plaintext_bytes)} bytes "
+                    f"(MIME: {mime_type})"
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"{embed_log} Failed to decrypt reference image: {e}. Skipping.",
+                    exc_info=True,
+                )
+                continue
+
+    finally:
+        await redis_client.aclose()
+
+    logger.info(
+        f"{log_prefix} Decrypted {len(image_bytes_list)}/{len(embed_ids)} reference images"
+    )
+    return image_bytes_list, mime_types_list
+
+
 @app.task(
     bind=True,
     name="apps.images.tasks.skill_generate",
@@ -220,6 +416,9 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         output_filetype = str(arguments.get("output_filetype", "png")).lower()
         # quality: "default" or "max" — only used when output_filetype="svg"
         quality = str(arguments.get("quality", "default")).lower()
+        # Reference images for image-to-image generation (resolved embed IDs from skill layer)
+        reference_image_embed_ids: List[str] = arguments.get("reference_image_embed_ids") or []
+        user_vault_key_id: Optional[str] = arguments.get("user_vault_key_id")
 
         if not prompt or not user_id:
             raise ValueError(f"Missing required arguments: prompt={bool(prompt)}, user_id={bool(user_id)}")
@@ -227,6 +426,34 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 3. Get embed_id from arguments (passed by the skill) or generate new one
         embed_id = arguments.get("embed_id") or str(uuid.uuid4())
         logger.info(f"{log_prefix} Using embed_id: {embed_id}")
+
+        # 3b. Decrypt reference images (for image-to-image generation).
+        # Reference image embed IDs were resolved by the skill layer (embed_ref → embed_id).
+        # We fetch and decrypt them here in the task so that image bytes are never stored
+        # in the Celery message queue (avoids size limits on large images).
+        reference_image_bytes_list: List[bytes] = []
+        reference_image_mime_types: List[str] = []
+        if reference_image_embed_ids:
+            if not user_vault_key_id:
+                logger.warning(
+                    f"{log_prefix} reference_image_embed_ids provided but user_vault_key_id "
+                    "is missing — cannot decrypt reference images. Proceeding without them."
+                )
+            else:
+                logger.info(
+                    f"{log_prefix} Decrypting {len(reference_image_embed_ids)} reference image(s)..."
+                )
+                reference_image_bytes_list, reference_image_mime_types = (
+                    await _decrypt_reference_images(
+                        embed_ids=reference_image_embed_ids,
+                        user_vault_key_id=user_vault_key_id,
+                        log_prefix=log_prefix,
+                    )
+                )
+                logger.info(
+                    f"{log_prefix} Ready to use {len(reference_image_bytes_list)} reference image(s) "
+                    "for image-to-image generation"
+                )
 
         # 4. Call Provider API
         #
@@ -293,20 +520,27 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
 
         elif model_ref and "google" in model_ref:
             # --- Raster branch: Google Gemini image generation ---
+            # Supports both text-to-image and image-to-image via the same endpoint.
+            # Reference images are passed as inline_data Parts alongside the text prompt.
+            # Pricing stays at flat 200 credits even with reference images (input cost negligible).
             model_id = model_ref.split("/")[-1] if "/" in model_ref else model_ref
             image_bytes = await generate_image_google(
                 prompt=prompt,
                 secrets_manager=task._secrets_manager,
                 aspect_ratio=aspect_ratio,
                 model_id=model_id,
+                reference_image_bytes_list=reference_image_bytes_list or None,
+                reference_image_mime_types=reference_image_mime_types or None,
             )
             actual_model = f"Google {model_id}"
             display_model_id = model_id
 
         elif model_ref and ("bfl" in model_ref or "flux" in model_ref):
             # --- Raster branch: fal.ai FLUX ---
-            # Map model ref to fal.ai model ID:
-            #   bfl/flux-2-klein → fal-ai/flux-2/klein/9b/base (FLUX.2 [klein] 9B Base)
+            # Text-to-image: bfl/flux-2-klein → fal-ai/flux-2/klein/9b/base (15 credits)
+            # Image-to-image: auto-switches to fal-ai/flux-2/klein/4b/base/edit (27 credits)
+            #   via generate_image_fal_flux — the provider function handles the routing.
+            #   We update model_ref here for billing to use the correct pricing config.
             fal_model_id = "fal-ai/flux-2/klein/9b/base"
             if "pro" in model_ref:
                 fal_model_id = "fal-ai/flux-pro/v1.1"
@@ -314,12 +548,21 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 prompt=prompt,
                 secrets_manager=task._secrets_manager,
                 model_id=fal_model_id,
+                reference_image_bytes_list=reference_image_bytes_list or None,
+                reference_image_mime_types=reference_image_mime_types or None,
             )
-            actual_model = f"fal.ai {fal_model_id}"
-            # display_model_id already set from model_ref split (e.g., "flux-2-klein")
+            if reference_image_bytes_list:
+                # Image-to-image was used — update billing to the 4B edit model (27 credits)
+                actual_model = "fal.ai fal-ai/flux-2/klein/4b/base/edit"
+                model_ref = "bfl/flux-2-klein-edit"
+                display_model_id = "flux-2-klein-edit"
+            else:
+                actual_model = f"fal.ai {fal_model_id}"
+                # display_model_id already set from model_ref split (e.g., "flux-2-klein")
 
         else:
             # --- Fallback: FLUX.2 [klein] 9B if model ref is unknown/missing ---
+            # No reference image support in fallback path (model_ref required for routing).
             logger.warning(
                 f"{log_prefix} Unknown or missing model reference '{model_ref}', "
                 "falling back to FLUX.2 [klein] 9B"
