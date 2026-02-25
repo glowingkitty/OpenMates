@@ -14,7 +14,65 @@
  *   const blobUrl = await fetchAndDecryptAudio(s3BaseUrl, s3Key, aesKey, aesNonce, mimeType);
  *   // pass blobUrl to <audio src={blobUrl}>
  *   // call releaseAudio(s3Key) on component unmount to free memory
+ *
+ * Error types thrown by fetchAndDecryptAudio:
+ *   AudioFetchError    — S3 HTTP 4xx/5xx (url + status in message)
+ *   AudioNetworkError  — Network/CORS failure during fetch() (wraps TypeError)
+ *   AudioDecryptError  — crypto.subtle.importKey or .decrypt failed (wraps DOMException)
  */
+
+// ---------------------------------------------------------------------------
+// Typed error classes — allow callers to distinguish failure modes precisely.
+// DOMException and TypeError both serialize as '{}' in console.error, so we
+// wrap them here with descriptive messages and preserve the original cause.
+// ---------------------------------------------------------------------------
+
+/** Thrown when the S3 HTTP response is not OK (4xx / 5xx). */
+export class AudioFetchError extends Error {
+  constructor(url: string, status: number, statusText: string) {
+    super(`S3 HTTP ${status} ${statusText} — ${url}`);
+    this.name = "AudioFetchError";
+  }
+}
+
+/**
+ * Thrown when the fetch() call itself fails (network error, CORS blocked, etc.).
+ * Wraps the underlying TypeError so its message is preserved.
+ */
+export class AudioNetworkError extends Error {
+  constructor(url: string, cause: unknown) {
+    const causeMsg = cause instanceof Error ? cause.message : String(cause);
+    super(`Network error fetching S3 audio — ${url}: ${causeMsg}`);
+    this.name = "AudioNetworkError";
+    // Keep the original cause for stack trace inspection
+    if (cause instanceof Error) {
+      this.stack = `${this.stack}\nCaused by: ${cause.stack}`;
+    }
+  }
+}
+
+/**
+ * Thrown when AES-GCM key import or decryption fails.
+ * A DOMException("OperationError") means the key/nonce doesn't match the ciphertext.
+ * A DOMException("DataError") means the raw key bytes were invalid.
+ */
+export class AudioDecryptError extends Error {
+  constructor(stage: "importKey" | "decrypt", cause: unknown) {
+    const domEx =
+      cause instanceof DOMException
+        ? ` [${cause.name}: ${cause.message}]`
+        : cause instanceof Error
+          ? ` [${cause.message}]`
+          : ` [${String(cause)}]`;
+    super(`AES-GCM ${stage} failed${domEx}`);
+    this.name = "AudioDecryptError";
+    if (cause instanceof Error) {
+      this.stack = `${this.stack}\nCaused by: ${cause.stack}`;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 /** In-memory cache: maps S3 key → { blobUrl, refCount, revokeTimer } */
 const audioCache = new Map<
@@ -103,12 +161,18 @@ export async function fetchAndDecryptAudio(
   // Construct full S3 URL
   const url = `${s3BaseUrl}/${s3Key}`;
 
-  // Fetch the encrypted blob
-  const response = await fetch(url);
+  // Fetch the encrypted blob.
+  // Wrap in try/catch to distinguish a network/CORS TypeError from an HTTP error.
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (fetchErr) {
+    // fetch() throws TypeError on network failure or CORS block
+    throw new AudioNetworkError(url, fetchErr);
+  }
+
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch encrypted audio from S3: ${response.status} ${response.statusText} (${url})`,
-    );
+    throw new AudioFetchError(url, response.status, response.statusText);
   }
   const encryptedData = await response.arrayBuffer();
 
@@ -116,21 +180,32 @@ export async function fetchAndDecryptAudio(
   const aesKeyBytes = base64ToArrayBuffer(aesKeyBase64);
   const nonceBytes = base64ToArrayBuffer(nonceBase64);
 
-  // Import AES key
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    aesKeyBytes,
-    { name: "AES-GCM" },
-    false,
-    ["decrypt"],
-  );
+  // Import AES key — throws DOMException("DataError") if key bytes are invalid
+  let cryptoKey: CryptoKey;
+  try {
+    cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      aesKeyBytes,
+      { name: "AES-GCM" },
+      false,
+      ["decrypt"],
+    );
+  } catch (importErr) {
+    throw new AudioDecryptError("importKey", importErr);
+  }
 
-  // Decrypt using AES-256-GCM
-  const decryptedData = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: nonceBytes },
-    cryptoKey,
-    encryptedData,
-  );
+  // Decrypt using AES-256-GCM.
+  // Throws DOMException("OperationError") if the key/nonce doesn't match the ciphertext.
+  let decryptedData: ArrayBuffer;
+  try {
+    decryptedData = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: nonceBytes },
+      cryptoKey,
+      encryptedData,
+    );
+  } catch (decryptErr) {
+    throw new AudioDecryptError("decrypt", decryptErr);
+  }
 
   // Create blob URL and cache it
   const blob = new Blob([decryptedData], { type: mimeType });

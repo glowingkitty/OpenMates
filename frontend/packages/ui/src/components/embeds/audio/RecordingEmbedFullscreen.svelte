@@ -29,7 +29,7 @@
   import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
-  import { fetchAndDecryptAudio, releaseCachedAudio } from './audioEmbedCrypto';
+  import { fetchAndDecryptAudio, releaseCachedAudio, AudioFetchError, AudioNetworkError, AudioDecryptError } from './audioEmbedCrypto';
   import { getModelDisplayName } from '../../../utils/modelDisplayName';
 
   /** Max chars for filename display in the info bar */
@@ -210,8 +210,11 @@
     isLoadingAudio = true;
     audioLoadError = undefined;
 
-    const ext = audioS3Key.split('.').pop()?.toLowerCase() ?? 'webm';
-    const mimeType = ext === 'mp4' ? 'audio/mp4' : ext === 'ogg' ? 'audio/ogg' : 'audio/webm';
+    // Derive MIME type from the original filename (e.g. "voice_note_2026-02-20.mp4")
+    // rather than from the S3 key, which always ends in ".bin" and gives the wrong type.
+    // Falls back to "audio/webm" (the default browser recording format on non-Safari).
+    const filenameExt = (filename ?? '').split('.').pop()?.toLowerCase() ?? '';
+    const mimeType = filenameExt === 'mp4' ? 'audio/mp4' : filenameExt === 'ogg' ? 'audio/ogg' : 'audio/webm';
 
     fetchAndDecryptAudio(s3BaseUrl, audioS3Key, aesKey, aesNonce, mimeType)
       .then((url) => {
@@ -220,7 +223,15 @@
         isLoadingAudio = false;
       })
       .catch((err: unknown) => {
-        console.error('[RecordingEmbedFullscreen] Failed to fetch/decrypt audio:', err);
+        // Log with typed detail so the root cause is visible in the browser console.
+        // AudioDecryptError wraps DOMException which would otherwise serialize as '{}' in console.error.
+        if (err instanceof AudioDecryptError || err instanceof AudioFetchError || err instanceof AudioNetworkError) {
+          console.error(`[RecordingEmbedFullscreen] ${err.name}: ${err.message}`);
+        } else if (err instanceof Error) {
+          console.error('[RecordingEmbedFullscreen] Failed to fetch/decrypt audio:', err.message, err);
+        } else {
+          console.error('[RecordingEmbedFullscreen] Failed to fetch/decrypt audio:', String(err));
+        }
         audioLoadError = 'Audio unavailable';
         isLoadingAudio = false;
       });
