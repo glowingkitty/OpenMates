@@ -145,6 +145,35 @@ skills:
           description: "The original filename of the image (embed_ref, e.g. 'my_photo.jpg'). Use the exact embed_ref value from the toon block in the user's message."
       required:
         - file_path
+  - id: vectorize
+    name_translation_key: images.vectorize
+    description_translation_key: images.vectorize.description
+    api_config:
+      expose_get: false # Hidden — requires WebSocket + browser crypto (zero-knowledge)
+      expose_post: false # POST requires client-side encryption (WebSocket + browser crypto)
+    preprocessor_hint: >
+      Convert a raster image (PNG, JPG, WEBP) to a scalable SVG vector graphic.
+      Use this skill when the user asks to vectorize an image, convert a raster image
+      to SVG, make an image scalable, or convert a logo/icon/illustration to vector format.
+      The user must have uploaded an image in the conversation to use as input.
+      Pass the exact embed_ref (original filename) from the toon block.
+    stage: development
+    class_path: |
+      backend.apps.images.skills.vectorize_skill.VectorizeSkill
+    providers:
+      - Recraft
+    full_model_reference: recraft/vectorize
+    tool_schema:
+      type: object
+      properties:
+        source_image:
+          type: string
+          description: |
+            REQUIRED: The original filename (embed_ref) of the uploaded raster image
+            to convert to SVG. Use the exact embed_ref value from the toon block in
+            the user's conversation. The image must be PNG, JPG, or WEBP format.
+      required:
+        - source_image
   - id: generate_draft
     name_translation_key: images.generate_draft
     description_translation_key: images.generate_draft.description

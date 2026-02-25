@@ -185,6 +185,24 @@ Before any external processing, all privacy-sensitive EXIF metadata (GPS, etc.) 
 
 ---
 
+## Implemented: Image Utility Skills (Recraft API)
+
+### `images.vectorize` — Raster-to-vector conversion (IMPLEMENTED)
+
+Convert an existing raster image (PNG/JPG/WEBP) to a scalable SVG vector using Recraft's `/v1/images/vectorize` endpoint.
+
+- **Recraft endpoint**: `POST /v1/images/vectorize`
+- **API cost**: $0.01/request
+- **Credits charged**: 15 credits (~50% margin over $0.01 break-even)
+- **Inputs**: source image (PNG/JPG/WEBP, max 5 MB, max 16 MP, max 4096px dimension)
+- **Output**: SVG vector image (delivered as embed via WebSocket, same pipeline as generate)
+- **Use case**: convert logos, icons, or illustrations to infinitely scalable SVG
+- **Skill class**: `backend.apps.images.skills.vectorize_skill.VectorizeSkill`
+- **Celery task**: `apps.images.tasks.skill_vectorize` (queue: `app_images`)
+- **Provider config**: `recraft.yml` → model `vectorize`
+
+---
+
 ## Planned: Image Editing Skills (Recraft API)
 
 The following skills are planned as **separate images app skills** using the [Recraft API](https://www.recraft.ai/docs/api-reference/pricing). Each will be its own skill (not part of `images.generate`) to keep routing logic clean and billing transparent. None of these are implemented yet.
@@ -274,14 +292,7 @@ Remove the background from an image to produce a transparent PNG.
 - **Inputs**: source image
 - **Use case**: product photography, sticker creation, compositing
 
-### `images.vectorize` — Raster-to-vector conversion
-
-Convert an existing raster image (PNG/JPG) to a scalable SVG vector.
-
-- **Recraft endpoint**: image vectorization
-- **Cost**: $0.01/request (API cost)
-- **Inputs**: source image (PNG/JPG)
-- **Use case**: convert logos, icons, or illustrations to infinitely scalable SVG
+### ~~`images.vectorize` — Raster-to-vector conversion~~ (MOVED — see "Implemented" section above)
 
 ### `images.create_style` — Style creation
 
