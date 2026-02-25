@@ -29,12 +29,11 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	getTestAccount,
 } = require('./signup-flow-helpers');
 
-const TEST_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
-const TEST_PASSWORD = process.env.OPENMATES_TEST_ACCOUNT_PASSWORD;
-const TEST_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -42,14 +41,24 @@ const TEST_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
 
 async function loginTestAccount(page: any, log: any): Promise<void> {
 	await page.goto('/');
+
+	// Clear any rate-limit localStorage flag from a previous test run
+	await page.evaluate(() => {
+		localStorage.removeItem('emailLookupRateLimit');
+	});
+
 	const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(loginBtn).toBeVisible();
 	await loginBtn.click();
 
 	const emailInput = page.locator('input[name="username"][type="email"]');
 	await expect(emailInput).toBeVisible();
+	await page.waitForTimeout(1000);
 	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	// Wait for the continue button to be enabled (async email validation / rate-limit check)
+	const continueBtn = page.getByRole('button', { name: /continue/i });
+	await expect(continueBtn).toBeEnabled({ timeout: 30000 });
+	await continueBtn.click();
 
 	const pwInput = page.locator('input[type="password"]');
 	await expect(pwInput).toBeVisible();

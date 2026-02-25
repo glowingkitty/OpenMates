@@ -28,7 +28,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp
+	generateTotp,
+	getTestAccount,
 } = require('./signup-flow-helpers');
 
 /**
@@ -52,9 +53,7 @@ const {
  * - PLAYWRIGHT_TEST_BASE_URL
  */
 
-const TEST_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
-const TEST_PASSWORD = process.env.OPENMATES_TEST_ACCOUNT_PASSWORD;
-const TEST_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 // Unique destination name to avoid collisions with other test runs
 const TRIP_DESTINATION = `TestCity-${Date.now()}`;

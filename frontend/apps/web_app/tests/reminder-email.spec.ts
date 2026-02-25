@@ -26,12 +26,11 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	createMailosaurClient,
-	getMailosaurServerId
+	getMailosaurServerId,
+	getTestAccount,
 } = require('./signup-flow-helpers');
 
-const TEST_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
-const TEST_PASSWORD = process.env.OPENMATES_TEST_ACCOUNT_PASSWORD;
-const TEST_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY;
 const MAILOSAUR_SERVER_ID_ENV = process.env.MAILOSAUR_SERVER_ID;
 
@@ -41,14 +40,24 @@ const MAILOSAUR_SERVER_ID_ENV = process.env.MAILOSAUR_SERVER_ID;
 
 async function loginTestAccount(page: any, log: any): Promise<void> {
 	await page.goto('/');
+
+	// Clear any rate-limit localStorage flag from a previous test run
+	await page.evaluate(() => {
+		localStorage.removeItem('emailLookupRateLimit');
+	});
+
 	const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(loginBtn).toBeVisible();
 	await loginBtn.click();
 
 	const emailInput = page.locator('input[name="username"][type="email"]');
 	await expect(emailInput).toBeVisible();
+	await page.waitForTimeout(1000);
 	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	// Wait for the continue button to be enabled (async email validation / rate-limit check)
+	const continueBtn = page.getByRole('button', { name: /continue/i });
+	await expect(continueBtn).toBeEnabled({ timeout: 30000 });
+	await continueBtn.click();
 
 	const pwInput = page.locator('input[type="password"]');
 	await expect(pwInput).toBeVisible();
@@ -168,7 +177,7 @@ test('reminder — email: reminder email arrives after browser is closed', async
 	const screenshot = createStepScreenshotter(log);
 	await archiveExistingScreenshots(log);
 
-	const { waitForMailosaurMessage } = createMailosaurClient({
+	const { deleteAllMessages, waitForMailosaurMessage } = createMailosaurClient({
 		apiKey: MAILOSAUR_API_KEY,
 		serverId: mailosaurServerId
 	});
@@ -179,6 +188,12 @@ test('reminder — email: reminder email arrives after browser is closed', async
 	// Enable email notifications in settings
 	await enableEmailNotifications(page, log, screenshot);
 	await page.waitForTimeout(1000);
+
+	// Clear Mailosaur inbox before sending the reminder so no stale emails from
+	// previous runs interfere with the poll. The Mailosaur search API's
+	// receivedAfter field is unreliable for archived messages.
+	await deleteAllMessages();
+	log('Mailosaur inbox cleared.');
 
 	// Open a fresh chat
 	const newChatBtn = page.locator('.icon_create');
@@ -204,29 +219,34 @@ test('reminder — email: reminder email arrives after browser is closed', async
 	log('AI confirmed. Closing browser context now.');
 	await screenshot(page, 'before-close');
 
-	// Record timestamp for Mailosaur receivedAfter filter
+	// Record a timestamp as a belt-and-suspenders filter (Mailosaur inbox was
+	// cleared above, so any arriving email is from this run).
 	const sentAfter = new Date().toISOString();
 
 	// Close the browser context — simulates user leaving
 	await context.close();
 	log('Browser context closed.');
 
-	// Poll Mailosaur for the reminder email (3-min window)
-	log('Polling Mailosaur for reminder email (up to 3 min)...');
+	// Poll Mailosaur for the reminder email (6-min window).
+	// The AI sets the reminder ~1 min from now; Brevo → Mailosaur delivery adds
+	// ~30–60 s. Backend retry loops can create additional reminders that fire
+	// every ~1 min, so we should see emails starting at ~2 min after message sent.
+	// 6 min gives ample buffer for the first email to arrive.
+	log('Polling Mailosaur for reminder email (up to 6 min)...');
 	let email: any = null;
 	try {
 		email = await waitForMailosaurMessage({
 			sentTo: TEST_EMAIL,
 			subjectContains: 'Reminder',
 			receivedAfter: sentAfter,
-			timeoutMs: 180000,
+			timeoutMs: 360000,
 			pollIntervalMs: 10000
 		});
 		log('Reminder email received!', { subject: email?.subject });
 	} catch (err: any) {
 		throw new Error(
-			`No reminder email received within 3 minutes. ` +
-				`Checked for emails to "${TEST_EMAIL}" with subject "Reminder" ` +
+			`No reminder email received within 6 minutes. ` +
+				`Checked for emails to "${TEST_EMAIL}" with subject containing "Reminder" ` +
 				`sent after ${sentAfter}. Error: ${err?.message}`
 		);
 	}

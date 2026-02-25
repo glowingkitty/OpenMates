@@ -22,7 +22,9 @@ const MAILOSAUR_BASE_URL = 'https://mailosaur.com/api';
  * Build a structured step logger for signup tests.
  * The counter is intentionally scoped per test to keep logs readable.
  */
-function createSignupLogger(prefix: string = 'SIGNUP_FLOW'): (message: string, metadata?: Record<string, unknown>) => void {
+function createSignupLogger(
+	prefix: string = 'SIGNUP_FLOW'
+): (message: string, metadata?: Record<string, unknown>) => void {
 	let stepIndex = 1;
 	return (message: string, metadata: Record<string, unknown> = {}): void => {
 		const timestamp = new Date().toISOString();
@@ -114,7 +116,10 @@ function createStepScreenshotter(
 ): (page: any, label: string) => Promise<void> {
 	let screenshotIndex = 1;
 	return async (page: any, label: string): Promise<void> => {
-		const safeLabel = label.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '');
+		const safeLabel = label
+			.toLowerCase()
+			.replace(/[^a-z0-9-]+/g, '-')
+			.replace(/^-|-$/g, '');
 		const prefix = filenamePrefix ? `${filenamePrefix}-` : '';
 		const filename = `${prefix}${String(screenshotIndex).padStart(2, '0')}-${safeLabel || 'step'}.png`;
 		screenshotIndex += 1;
@@ -157,10 +162,14 @@ async function setToggleChecked(toggleLocator: any, shouldBeChecked: boolean): P
 async function fillStripeCardDetails(page: any, cardNumber: string): Promise<void> {
 	const paymentFrame = page.frameLocator('iframe[title="Secure payment input frame"]');
 	try {
-		const cardInput = paymentFrame.locator('input[name="cardNumber"], input[autocomplete="cc-number"]').first();
+		const cardInput = paymentFrame
+			.locator('input[name="cardNumber"], input[autocomplete="cc-number"]')
+			.first();
 		await cardInput.waitFor({ state: 'visible', timeout: 30000 });
 		await cardInput.fill(cardNumber);
-		await paymentFrame.locator('input[name="cardExpiry"], input[autocomplete="cc-exp"]').fill('12/34');
+		await paymentFrame
+			.locator('input[name="cardExpiry"], input[autocomplete="cc-exp"]')
+			.fill('12/34');
 		await paymentFrame.locator('input[name="cardCvc"], input[autocomplete="cc-csc"]').fill('123');
 		return;
 	} catch {
@@ -171,7 +180,9 @@ async function fillStripeCardDetails(page: any, cardNumber: string): Promise<voi
 	const expFrame = page.frameLocator('iframe[title*="expiration"]');
 	const cvcFrame = page.frameLocator('iframe[title*="security code"], iframe[title*="CVC"]');
 
-	await cardNumberFrame.locator('input[name="cardNumber"], input[autocomplete="cc-number"]').fill(cardNumber);
+	await cardNumberFrame
+		.locator('input[name="cardNumber"], input[autocomplete="cc-number"]')
+		.fill(cardNumber);
 	await expFrame.locator('input[name="cardExpiry"], input[autocomplete="cc-exp"]').fill('12/34');
 	await cvcFrame.locator('input[name="cardCvc"], input[autocomplete="cc-csc"]').fill('123');
 }
@@ -185,7 +196,8 @@ function getSignupTestDomain(signupTestEmailDomains?: string): string | null {
 		return null;
 	}
 
-	const domains = signupTestEmailDomains.split(',')
+	const domains = signupTestEmailDomains
+		.split(',')
 		.map((domain) => domain.trim())
 		.filter(Boolean);
 
@@ -217,7 +229,20 @@ function getMailosaurServerId(signupDomain: string, configuredServerId?: string)
  */
 function buildSignupEmail(domain: string): string {
 	const now = new Date();
-	const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+	const monthNames = [
+		'jan',
+		'feb',
+		'mar',
+		'apr',
+		'may',
+		'jun',
+		'jul',
+		'aug',
+		'sep',
+		'oct',
+		'nov',
+		'dec'
+	];
 
 	const month = monthNames[now.getMonth()];
 	const day = String(now.getDate()).padStart(2, '0');
@@ -298,9 +323,41 @@ function createMailosaurClient({
 	}
 
 	/**
+	 * Delete all messages from the Mailosaur server inbox.
+	 *
+	 * Use this before a test that relies on mail arrival to ensure no leftover
+	 * emails from previous runs interfere with the current run. The Mailosaur
+	 * DELETE /messages?server=<id> endpoint removes all messages in the server.
+	 */
+	async function deleteAllMessages(): Promise<void> {
+		const response = await fetch(`${baseUrl}/messages?server=${serverId}`, {
+			method: 'DELETE',
+			headers: {
+				Authorization: buildMailosaurAuthHeader()
+			}
+		});
+		// 204 = success, 404 = already empty — both are acceptable
+		if (!response.ok && response.status !== 404) {
+			const errorBody = await response.text();
+			throw new Error(`Mailosaur delete-all error (${response.status}): ${errorBody}`);
+		}
+	}
+
+	/**
 	 * Poll Mailosaur for a message that matches a recipient and optional subject.
 	 * We keep the polling explicit to avoid implicit SDK retries and to reduce
 	 * hidden test flakiness.
+	 *
+	 * Uses the GET /messages list endpoint (not POST /messages/search) because
+	 * the search endpoint has a search-indexing delay that can cause fresh emails
+	 * to not be found for several minutes after arrival. The list endpoint reflects
+	 * real-time inbox state.
+	 *
+	 * Client-side filtering is applied for receivedAfter and subjectContains since
+	 * the Mailosaur list API does not filter by these fields reliably.
+	 *
+	 * Best practice: call deleteAllMessages() before the test so no stale emails
+	 * from previous runs interfere.
 	 */
 	async function waitForMailosaurMessage({
 		sentTo,
@@ -316,20 +373,68 @@ function createMailosaurClient({
 		pollIntervalMs?: number;
 	}): Promise<MailosaurMessage> {
 		const deadline = Date.now() + timeoutMs;
+		const receivedAfterMs = new Date(receivedAfter).getTime();
 
 		while (Date.now() < deadline) {
-			const searchResponse = await mailosaurFetch(`/messages/search?server=${serverId}`, {
-				method: 'POST',
-				body: {
-					sentTo,
-					subject: subjectContains || undefined,
-					receivedAfter
+			let listResponse: any = null;
+			const elapsed = Math.round((Date.now() - (deadline - timeoutMs)) / 1000);
+			try {
+				// Use GET /messages for real-time inbox listing (POST /search has indexing lag)
+				listResponse = await mailosaurFetch(`/messages?server=${serverId}`);
+			} catch (err: any) {
+				// 404 = empty inbox — treat as no results
+				if (err?.message?.includes('404')) {
+					console.log(`[Mailosaur] ${elapsed}s: 404 (empty inbox)`);
+					listResponse = { items: [] };
+				} else {
+					throw err; // Re-throw genuine errors
 				}
+			}
+
+			const allItems: any[] = listResponse.items || [];
+			console.log(
+				`[Mailosaur] ${elapsed}s: GET /messages returned ${allItems.length} item(s)`,
+				allItems.map((i: any) => `${i.received} — ${i.subject}`)
+			);
+
+			// Apply client-side filters: sentTo, receivedAfter, subjectContains
+			const matching = allItems.filter((item: any) => {
+				// sentTo: check the `to` array
+				const toAddresses: any[] = item.to || [];
+				const toMatch = toAddresses.some(
+					(addr: any) => addr.email?.toLowerCase() === sentTo.toLowerCase()
+				);
+				if (!toMatch) {
+					console.log(`[Mailosaur] Skipping — sentTo mismatch: ${JSON.stringify(toAddresses)}`);
+					return false;
+				}
+
+				// receivedAfter: client-side time filter
+				if (receivedAfterMs) {
+					const receivedMs = new Date(item.received).getTime();
+					if (receivedMs < receivedAfterMs) {
+						console.log(`[Mailosaur] Skipping — too old: ${item.received} < ${receivedAfter}`);
+						return false;
+					}
+				}
+
+				// subjectContains: case-insensitive substring match
+				if (subjectContains) {
+					const subject: string = item.subject || '';
+					if (!subject.toLowerCase().includes(subjectContains.toLowerCase())) {
+						console.log(`[Mailosaur] Skipping — subject mismatch: "${subject}"`);
+						return false;
+					}
+				}
+
+				return true;
 			});
 
-			const items = searchResponse.items || [];
-			if (items.length > 0) {
-				const messageId = items[0].id || items[0]._id;
+			if (matching.length > 0) {
+				console.log(
+					`[Mailosaur] Found matching message: ${matching[0].received} — ${matching[0].subject}`
+				);
+				const messageId = matching[0].id || matching[0]._id;
 				return mailosaurFetch(`/messages/${messageId}`);
 			}
 
@@ -442,14 +547,17 @@ function createMailosaurClient({
 
 		// Fallback: some templates link to billing invoices without the explicit /refund suffix.
 		// We treat those as valid refund entry points when the refund action is handled in-app.
-		const invoiceLink = links.find((link) =>
-			/#settings\/billing\/invoices\//i.test(link) || /\/settings\/billing\/invoices\//i.test(link)
+		const invoiceLink = links.find(
+			(link) =>
+				/#settings\/billing\/invoices\//i.test(link) ||
+				/\/settings\/billing\/invoices\//i.test(link)
 		);
 		return invoiceLink || null;
 	}
 
 	return {
 		mailosaurFetch,
+		deleteAllMessages,
 		waitForMailosaurMessage,
 		extractSixDigitCode,
 		extractMessageLinks,
@@ -540,6 +648,39 @@ async function assertNoMissingTranslations(page: any): Promise<void> {
 	}
 }
 
+/**
+ * Retrieve test account credentials for a given worker slot (1-5).
+ *
+ * The runner passes PLAYWRIGHT_WORKER_SLOT=1..5 to each container so that
+ * parallel Playwright workers use separate accounts and avoid test collisions.
+ *
+ * Env var naming convention:
+ *   Slot 1: OPENMATES_TEST_ACCOUNT_1_EMAIL  (or fallback: OPENMATES_TEST_ACCOUNT_EMAIL)
+ *   Slot 2: OPENMATES_TEST_ACCOUNT_2_EMAIL
+ *   ...
+ *   Slot 5: OPENMATES_TEST_ACCOUNT_5_EMAIL
+ *
+ * When the numbered slot vars are not set (e.g. running a single test manually),
+ * we fall back to the base OPENMATES_TEST_ACCOUNT_* vars for backward compatibility.
+ */
+function getTestAccount(slot?: number): {
+	email: string | undefined;
+	password: string | undefined;
+	otpKey: string | undefined;
+} {
+	const s = slot ?? parseInt(process.env.PLAYWRIGHT_WORKER_SLOT || '1', 10);
+	return {
+		email:
+			process.env[`OPENMATES_TEST_ACCOUNT_${s}_EMAIL`] || process.env.OPENMATES_TEST_ACCOUNT_EMAIL,
+		password:
+			process.env[`OPENMATES_TEST_ACCOUNT_${s}_PASSWORD`] ||
+			process.env.OPENMATES_TEST_ACCOUNT_PASSWORD,
+		otpKey:
+			process.env[`OPENMATES_TEST_ACCOUNT_${s}_OTP_KEY`] ||
+			process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY
+	};
+}
+
 module.exports = {
 	ARTIFACTS_DIRNAME,
 	PREVIOUS_RUN_DIRNAME,
@@ -553,5 +694,6 @@ module.exports = {
 	buildSignupEmail,
 	createMailosaurClient,
 	generateTotp,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getTestAccount
 };

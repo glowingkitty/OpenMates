@@ -64,7 +64,24 @@ When creating tests (with consent), ensure they meet these criteria:
 
 ### E2E Test Planning (CRITICAL — do this BEFORE writing any code)
 
-**Before writing any Playwright spec file, you MUST:**
+**Before writing any Playwright spec file, you MUST use Firecrawl to validate all planned interactions live in a real browser first.** Only once every step works correctly in Firecrawl should you write the Playwright spec.
+
+#### Step 0: Validate with Firecrawl Browser (MANDATORY)
+
+1. **Create a Firecrawl browser session** using `firecrawl_browser_create`
+2. **Execute each planned interaction step-by-step** using `firecrawl_browser_execute` with `agent-browser` commands:
+   - Navigate to the page
+   - Take a `snapshot` to inspect the DOM (use `agent-browser snapshot -i -c` for interactive elements)
+   - Perform each click, type, fill, etc. and confirm it works
+   - Take screenshots at key steps to verify the UI state
+3. **Debug any failures immediately** — fix your understanding of selectors, element refs, or interaction order before writing Playwright code
+4. **Only proceed to write the spec once ALL steps complete successfully** in Firecrawl
+
+This prevents wasted iterations from unanticipated interaction side-effects discovered only after writing the full spec.
+
+---
+
+**Before writing any Playwright spec file, you MUST also:**
 
 1. **Write the test plan in natural language first** — describe each user action as a numbered step (e.g., "click the map icon", "type Berlin Hbf", "press send"). Do NOT write code yet.
 2. **Get user approval** on the plan before implementing.
@@ -186,6 +203,94 @@ docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
 - Docker ensures consistent, reproducible test runs across all sessions
 
 **Artifacts:** Test screenshots and other artifacts are written to `./playwright-artifacts/` on the host (mounted into the container).
+
+---
+
+## Test Runner (`scripts/run-tests.sh`)
+
+A unified test runner that orchestrates vitest, pytest, and Playwright suites,
+producing structured JSON results for LLM-readable debugging.
+
+### Quick Reference
+
+```bash
+# Run unit tests only (fast — vitest + pytest unit, no live API or Playwright)
+./scripts/run-tests.sh --suite vitest
+./scripts/run-tests.sh --suite pytest
+
+# Run all suites including Playwright (5 parallel workers)
+./scripts/run-tests.sh
+
+# Run all suites including pytest integration tests (hit live API)
+./scripts/run-tests.sh --all
+
+# Rerun only tests that failed in the last run
+./scripts/run-tests.sh --only-failed
+
+# Run Playwright with fewer workers (e.g. only 2 accounts available)
+./scripts/run-tests.sh --suite playwright --workers 2
+```
+
+### Multi-Account Parallel Playwright
+
+The runner assigns spec files round-robin to worker slots (1–5). Each slot
+uses a separate test account to avoid session collisions. Account credentials
+are loaded from numbered env vars in `.env`:
+
+```
+OPENMATES_TEST_ACCOUNT_1_EMAIL=...
+OPENMATES_TEST_ACCOUNT_1_PASSWORD=...
+OPENMATES_TEST_ACCOUNT_1_OTP_KEY=...
+OPENMATES_TEST_ACCOUNT_2_EMAIL=...
+...
+OPENMATES_TEST_ACCOUNT_5_EMAIL=...
+```
+
+Spec files call `getTestAccount()` from `signup-flow-helpers.ts`, which reads
+`PLAYWRIGHT_WORKER_SLOT` (set by the worker) to pick the right credentials.
+Falls back to the base `OPENMATES_TEST_ACCOUNT_*` vars when slots are not set.
+
+### Output Format
+
+Results are written to `test-results/run-<timestamp>.json` and
+`test-results/last-run.json`. The JSON schema:
+
+```json
+{
+  "run_id": "2026-02-25T10:30:00Z",
+  "git_sha": "abc1234",
+  "git_branch": "dev",
+  "flags": { "unit_only": true, "only_failed": false, "suite": "all" },
+  "duration_seconds": 847,
+  "summary": { "total": 52, "passed": 50, "failed": 2, "skipped": 0 },
+  "suites": {
+    "vitest": { "status": "passed", "duration_seconds": 8, "tests": [...] },
+    "pytest_unit": { "status": "passed", "duration_seconds": 22, "tests": [...] },
+    "pytest_integration": { "status": "skipped", "reason": "--unit-only" },
+    "playwright": {
+      "status": "failed", "duration_seconds": 720, "workers": 5,
+      "tests": [
+        { "file": "chat-flow.spec.ts", "slot": 2, "status": "failed",
+          "duration_seconds": 45, "error": "Expected 'Hello' but got timeout",
+          "stdout": "...(truncated to ~5000 chars)..." }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## Pre-PR Test Checklist (CRITICAL — before any dev → main PR)
+
+Before creating a PR from `dev` to `main`, you **MUST**:
+
+1. Run: `./scripts/run-tests.sh --all`
+2. Read `test-results/last-run.json`
+3. Verify ALL suites show `"status": "passed"`
+4. Verify `run_id` timestamp is within the last 30 minutes
+5. If any test failed, fix it or get explicit user approval before proceeding
+6. Do NOT create the PR if tests have not been run recently or have failures
 
 ---
 

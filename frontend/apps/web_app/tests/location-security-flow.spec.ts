@@ -47,7 +47,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	generateTotp,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getTestAccount,
 } = require('./signup-flow-helpers');
 
 const consoleLogs: string[] = [];
@@ -70,9 +71,7 @@ test.afterEach(async ({}, testInfo: any) => {
 	}
 });
 
-const TEST_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
-const TEST_PASSWORD = process.env.OPENMATES_TEST_ACCOUNT_PASSWORD;
-const TEST_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 // ---------------------------------------------------------------------------
 // Test 1: 2FA re-auth UI shown with location-change notice

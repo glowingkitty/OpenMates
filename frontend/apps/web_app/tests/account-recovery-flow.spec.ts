@@ -38,7 +38,8 @@ const {
 	getMailosaurServerId,
 	createMailosaurClient,
 	generateTotp,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getTestAccount,
 } = require('./signup-flow-helpers');
 
 /**
@@ -64,9 +65,7 @@ const {
 const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY;
 const MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID;
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
-const OPENMATES_TEST_ACCOUNT_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
-const OPENMATES_TEST_ACCOUNT_PASSWORD = process.env.OPENMATES_TEST_ACCOUNT_PASSWORD;
-const OPENMATES_TEST_ACCOUNT_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
+const { email: OPENMATES_TEST_ACCOUNT_EMAIL, password: OPENMATES_TEST_ACCOUNT_PASSWORD, otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY } = getTestAccount();
 
 test('completes full account recovery flow with same password', async ({
 	page,
