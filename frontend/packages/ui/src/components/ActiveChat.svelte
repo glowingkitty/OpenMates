@@ -4781,7 +4781,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
      // Update the loadChat function
-     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean }) {
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean }) {
          // Clear any active processing phase indicator from the previous chat
          clearProcessingPhase();
          // Reset the chat header state when switching to any chat.
@@ -5299,9 +5299,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     return;
                 }
                 
+                // When navigating via ChatHeader arrows, always scroll to top so the
+                // banner is visible (user expects to see the chat from the beginning).
+                if (options?.scrollToTop) {
+                    chatHistoryRef.scrollToTop();
+                    console.debug('[ActiveChat] ChatHeader arrow navigation - scrolled to top');
+                    setTimeout(() => {
+                        isAtBottom = false;
+                        console.debug('[ActiveChat] Set isAtBottom=false after ChatHeader arrow scrollToTop');
+                    }, 200);
                 // When coming from a background-chat notification, scroll to the top of the
                 // latest assistant message so the user can read the reply from the beginning.
-                if (options?.scrollToLatestResponse) {
+                } else if (options?.scrollToLatestResponse) {
                     chatHistoryRef.scrollToLatestAssistantMessage();
                     console.debug('[ActiveChat] Notification navigation - scrolled to top of latest assistant message');
                     setTimeout(() => {

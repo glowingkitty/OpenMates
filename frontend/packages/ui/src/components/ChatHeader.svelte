@@ -39,7 +39,7 @@
 <script lang="ts">
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
-  import { chatNavigationStore } from '../stores/chatNavigationStore';
+  import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -70,20 +70,22 @@
 
   /**
    * Navigate to the previous chat in the list.
-   * Dispatches a global window event that Chats.svelte listens for.
+   * Calls the store's navigate method directly — works even when the sidebar
+   * (Chats.svelte) is closed/unmounted because the store holds the chat list.
    */
   function handlePrevious(e: MouseEvent) {
     e.stopPropagation();
-    window.dispatchEvent(new CustomEvent('navigateChatPrevious'));
+    navigatePrev();
   }
 
   /**
    * Navigate to the next chat in the list.
-   * Dispatches a global window event that Chats.svelte listens for.
+   * Calls the store's navigate method directly — works even when the sidebar
+   * (Chats.svelte) is closed/unmounted because the store holds the chat list.
    */
   function handleNext(e: MouseEvent) {
     e.stopPropagation();
-    window.dispatchEvent(new CustomEvent('navigateChatNext'));
+    navigateNext();
   }
 
   // ─── Derived state ─────────────────────────────────────────────────────────

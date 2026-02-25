@@ -1611,6 +1611,11 @@
 		// These cards are nested deep in message content and can't use Svelte events
 		window.addEventListener('demoChatSelected', handleDemoChatSelected);
 
+		// Listen for ChatHeader arrow navigation events from chatNavigationStore.
+		// These fire when the user clicks prev/next arrows in the chat header banner.
+		// Works even when the sidebar is closed because the store holds the chat list.
+		window.addEventListener('chatHeaderNavigation', handleChatHeaderNavigation);
+
 		// Listen for pending deep link processing after successful login
 		// This handles cases where user opened a deep link while not authenticated
 		const pendingDeepLinkHandlerWrapper = (event: Event) => {
@@ -1649,6 +1654,8 @@
 		}
 		// Remove demo chat selection event listener
 		window.removeEventListener('demoChatSelected', handleDemoChatSelected);
+		// Remove ChatHeader arrow navigation event listener
+		window.removeEventListener('chatHeaderNavigation', handleChatHeaderNavigation);
 		// Note: hashchange, visibilitychange, pagehide, and beforeunload handlers are cleaned up automatically on page unload
 	});
 
@@ -1925,6 +1932,54 @@
 
 		await loadChatWithRetry();
 		console.log('[+page.svelte] === handleDemoChatSelected END ===');
+	}
+
+	/**
+	 * Handle chat navigation from ChatHeader prev/next arrows.
+	 * Dispatched by chatNavigationStore.navigatePrev()/navigateNext() as a
+	 * 'chatHeaderNavigation' window event. This works even when the sidebar
+	 * (Chats.svelte) is closed because the store persists the chat list.
+	 *
+	 * The event detail contains { chat, scrollToTop } — we pass scrollToTop
+	 * through to loadChat so the chat always starts scrolled to the top,
+	 * showing the ChatHeader banner.
+	 */
+	async function handleChatHeaderNavigation(event: Event) {
+		const customEvent = event as CustomEvent;
+		const selectedChat: Chat = customEvent.detail?.chat;
+		const scrollToTop: boolean = customEvent.detail?.scrollToTop ?? false;
+
+		if (!selectedChat?.chat_id) {
+			console.warn(
+				'[+page.svelte] chatHeaderNavigation event missing chat data:',
+				customEvent.detail
+			);
+			return;
+		}
+
+		console.debug(
+			'[+page.svelte] ChatHeader arrow navigation to:',
+			selectedChat.chat_id,
+			'scrollToTop:',
+			scrollToTop
+		);
+
+		const loadChatWithRetry = async (retries = 20): Promise<void> => {
+			if (activeChat) {
+				activeChat.loadChat(selectedChat, { scrollToTop });
+				return;
+			} else if (retries > 0) {
+				const delay = retries > 10 ? 50 : 100;
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				return loadChatWithRetry(retries - 1);
+			} else {
+				console.error(
+					'[+page.svelte] activeChat not available for ChatHeader navigation after all retries'
+				);
+			}
+		};
+
+		await loadChatWithRetry();
 	}
 
 	// Reset the active chat UI when the sidebar reports that a chat was deselected (e.g., after deletion)

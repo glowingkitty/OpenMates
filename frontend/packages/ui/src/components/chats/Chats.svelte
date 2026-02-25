@@ -42,7 +42,7 @@
 	import { getCategoryGradientColors, getFallbackIconForCategory, getLucideIcon } from '../../utils/categoryUtils';
 
 	// --- Chat navigation store (prev/next arrow state for ChatHeader) ---
-	import { chatNavigationStore } from '../../stores/chatNavigationStore';
+	import { chatNavigationStore, setChatNavigationList } from '../../stores/chatNavigationStore';
 
 	const dispatch = createEventDispatcher();
 
@@ -605,6 +605,8 @@ const UPDATE_DEBOUNCE_MS = 300;
 
 	// Keep chatNavigationStore in sync so ChatHeader can show/hide the prev/next arrows
 	// without threading props through ActiveChat and ChatHistory.
+	// Also write the full chat list + active ID to the store so navigation works
+	// even when this component is unmounted (sidebar closed).
 	$effect(() => {
 		const idx = selectedChatId
 			? flattenedNavigableChats.findIndex(c => c.chat_id === selectedChatId)
@@ -613,6 +615,9 @@ const UPDATE_DEBOUNCE_MS = 300;
 			hasPrev: idx > 0,
 			hasNext: idx >= 0 && idx < flattenedNavigableChats.length - 1,
 		});
+		// Persist the chat list and active ID in the module-level store so
+		// ChatHeader arrows can navigate even when this sidebar is closed.
+		setChatNavigationList(flattenedNavigableChats, selectedChatId);
 	});
 	
 	// --- Event Handlers & Lifecycle ---
@@ -637,8 +642,9 @@ const UPDATE_DEBOUNCE_MS = 300;
 	let handleChatHidden: (event: Event) => void; // Handler for chat hidden event
 	let handleChatUnhidden: (event: Event) => void; // Handler for chat unhidden event
 	let handleOpenSearchEvent: () => void; // Handler for global 'openSearch' window event (Cmd+F)
-	let handleNavigateChatPreviousEvent: () => void; // Handler for 'navigateChatPrevious' from ChatHeader arrows
-	let handleNavigateChatNextEvent: () => void; // Handler for 'navigateChatNext' from ChatHeader arrows
+	// NOTE: navigateChatPrevious/navigateChatNext window event listeners were removed.
+	// Navigation is now handled directly by chatNavigationStore.navigatePrev()/navigateNext()
+	// which works even when this sidebar component is unmounted.
 
 	// --- chatSyncService Event Handlers ---
 
@@ -1689,12 +1695,9 @@ const UPDATE_DEBOUNCE_MS = 300;
 		};
 		window.addEventListener('openSearch', handleOpenSearchEvent);
 
-		// Handle 'navigateChatPrevious' / 'navigateChatNext' events dispatched by the
-		// ChatHeader arrow buttons so the user can browse chats without opening the sidebar.
-		handleNavigateChatPreviousEvent = () => navigateToPreviousChat();
-		handleNavigateChatNextEvent = () => navigateToNextChat();
-		window.addEventListener('navigateChatPrevious', handleNavigateChatPreviousEvent);
-		window.addEventListener('navigateChatNext', handleNavigateChatNextEvent);
+		// NOTE: navigateChatPrevious/navigateChatNext window event listeners were removed.
+		// Navigation is now handled directly by chatNavigationStore.navigatePrev()/navigateNext()
+		// which works even when this sidebar component is unmounted.
 		
 		// Initial load of incognito chats (only if mode is enabled)
 		// Don't use subscription to avoid reactive loops - just check on mount
@@ -1858,12 +1861,8 @@ const UPDATE_DEBOUNCE_MS = 300;
 		if (handleOpenSearchEvent) {
 			window.removeEventListener('openSearch', handleOpenSearchEvent);
 		}
-		if (handleNavigateChatPreviousEvent) {
-			window.removeEventListener('navigateChatPrevious', handleNavigateChatPreviousEvent);
-		}
-		if (handleNavigateChatNextEvent) {
-			window.removeEventListener('navigateChatNext', handleNavigateChatNextEvent);
-		}
+		// NOTE: navigateChatPrevious/navigateChatNext listeners no longer exist here.
+		// Navigation is handled by chatNavigationStore module-level functions.
 	});
 
 	// --- User Interaction Handlers ---
