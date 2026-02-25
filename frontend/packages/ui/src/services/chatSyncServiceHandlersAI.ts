@@ -2004,7 +2004,11 @@ export async function handleRequestChatHistoryImpl(
 
     // Get chat metadata
     const chat = await chatDB.getChat(payload.chat_id);
-    const chatHasMessages = (chat?.messages_v ?? 0) > 1;
+    // Use title_v (same as sendNewMessageImpl) — not messages_v — to determine chat_has_title.
+    // messages_v can be 1 for inspiration chats that have a pre-existing assistant message
+    // but no AI-generated title yet. title_v: 1 means a title was already set at creation,
+    // and chat_has_title: true prevents the backend from regenerating/overwriting it.
+    const chatHasTitle = (chat?.title_v ?? 0) > 0;
 
     // Resend the message with full history
     const resendPayload = {
@@ -2015,7 +2019,7 @@ export async function handleRequestChatHistoryImpl(
         content: latestUserMessage.content,
         created_at: latestUserMessage.created_at,
         sender_name: latestUserMessage.sender_name,
-        chat_has_title: chatHasMessages,
+        chat_has_title: chatHasTitle,
         message_history: messageHistory, // Include full history
       },
     };

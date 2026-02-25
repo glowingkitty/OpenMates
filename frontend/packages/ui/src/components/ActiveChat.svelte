@@ -4027,18 +4027,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const encryptedCategory = await encryptWithChatKey(inspiration.category, chatKey);
 
             // Build the Chat object (mirrors the shape used by reminder handler)
-            // IMPORTANT: title_v is set to 1 (not 0) because the inspiration chat already has a title
-            // at creation time. Setting title_v: 0 would cause the follow-up message handler to treat
-            // this as a brand-new chat (no title yet), triggering title regeneration that overwrites
-            // the original inspiration title. title_v: 1 matches what sync_inspiration_chat sends to
-            // the server (chatSyncServiceSenders.ts → sendSyncInspirationChatImpl: title_v: 1).
+            // IMPORTANT: both title_v and messages_v are set to 1 (not 0) because:
+            // - title_v: 1  → the chat already has a title at creation time. Setting 0 would
+            //   cause follow-up handling to regenerate the title from the user's follow-up text,
+            //   overwriting the original inspiration title.
+            // - messages_v: 1 → the inspiration assistant message is saved to IndexedDB immediately
+            //   below (chatDB.saveMessage). Setting 0 here misrepresents the message count and
+            //   prevents the backend's "request_chat_history" guard from triggering when the Redis
+            //   AI cache is empty (it checks messages_v >= 1 to know history exists somewhere).
+            //   Without history, the AI sees only the follow-up message and responds out of context.
+            // Both values match what sync_inspiration_chat already sends to the server:
+            // chatSyncServiceSenders.ts → sendSyncInspirationChatImpl: messages_v: 1, title_v: 1.
             const newChat = {
                 chat_id: chatId,
                 title: chatTitle,        // Short title for sidebar display
                 encrypted_title: encryptedTitle,
                 created_at: now,
                 updated_at: now,
-                messages_v: 0,
+                messages_v: 1,
                 title_v: 1,
                 last_edited_overall_timestamp: now,
                 unread_count: 0,

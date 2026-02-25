@@ -1125,8 +1125,35 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         )
                         return  # Stop processing until client provides history
                     else:
-                        # New chat - no history exists, proceed with empty history
-                        logger.info(f"New chat {chat_id} has no cached history (expected). Proceeding with empty history.")
+                        # "New chat" per messages_v > 1 check, but DB shows messages_v >= 1 meaning
+                        # at least one message was already persisted (e.g. inspiration chats which
+                        # have an initial assistant message created client-side before any AI call).
+                        # In this case the Redis AI cache is empty because the initial message was
+                        # never processed by the AI pipeline — so it was never added to the cache.
+                        # We must request history from the client so the AI has proper context.
+                        db_messages_v = chat_metadata_from_db.get("messages_v", 0) if chat_metadata_from_db else 0
+                        if db_messages_v >= 1:
+                            logger.info(
+                                f"Chat {chat_id} has empty AI cache but DB shows messages_v={db_messages_v}. "
+                                f"Pre-existing messages (e.g. inspiration intro) exist that were never AI-cached. "
+                                f"Requesting full history from client."
+                            )
+                            await manager.send_personal_message(
+                                {
+                                    "type": "request_chat_history",
+                                    "payload": {
+                                        "chat_id": chat_id,
+                                        "reason": "cache_miss_pre_existing_messages",
+                                        "message": "Please resend your message with full chat history included"
+                                    }
+                                },
+                                user_id,
+                                device_fingerprint_hash
+                            )
+                            return  # Stop processing until client provides history with context
+                        else:
+                            # Genuinely new chat — no history exists anywhere, proceed with empty history
+                            logger.info(f"New chat {chat_id} has no cached history (expected). Proceeding with empty history.")
             
             # Ensure the current message (which triggered the AI) is the last one in the history.
             # IMPORTANT: We first resolve the current message's embeds so we can accurately detect
