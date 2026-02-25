@@ -23,6 +23,7 @@ import * as cryptoService from "../services/cryptoService";
 import { deleteSessionId } from "../utils/sessionId";
 import { phasedSyncState } from "./phasedSyncStateStore";
 import { aiTypingStore } from "./aiTypingStore";
+import { dailyInspirationStore } from "./dailyInspirationStore";
 import { webSocketService } from "../services/websocketService";
 import { chatListCache } from "../services/chatListCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
@@ -126,7 +127,7 @@ export async function login(
       `Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || "otp"}, Stay Logged In: ${stayLoggedIn})`,
     );
 
-    const requestBody: any = { hashed_email, lookup_hash };
+    const requestBody: Record<string, string> = { hashed_email, lookup_hash };
     if (tfaCode) {
       requestBody.tfa_code = tfaCode;
       requestBody.code_type = codeType || "otp";
@@ -433,6 +434,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     deviceVerificationReason.set(null);
     phasedSyncState.reset(); // Reset phased sync state on logout
     aiTypingStore.reset(); // Reset typing indicator state on logout to prevent stale "{mate} is typing" indicators
+    dailyInspirationStore.reset(); // Clear user-specific inspirations on logout so defaults are shown to logged-out users
 
     // CRITICAL: Clear in-memory chat caches IMMEDIATELY during synchronous logout
     // The chatListCache singleton persists across component mounts/unmounts, so if Chats.svelte
