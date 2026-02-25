@@ -6,33 +6,14 @@ Load this document when investigating bugs, reading logs, or troubleshooting Doc
 
 ## CRITICAL: State Your Understood User Flow Before Doing Anything
 
-**This is the very first step — before reading logs, before touching code, before asking clarifying questions.**
+**Before reading logs, touching code, or asking clarifying questions** — write out your understanding of the issue and wait for confirmation. This applies regardless of how many logs were provided or how detailed the message is.
 
-No matter how detailed the user's message is, no matter how many logs are pasted, you MUST:
+State:
 
-1. **Write out the user flow as you understand it** — in plain language, step by step:
-   - What the user did (or tried to do)
-   - What they expected to happen
-   - What actually happened instead
-   - Which part of the system you believe was involved and why
+- What the user did, what they expected, what actually happened
+- Which part of the system you believe is involved and why
 
-2. **Explicitly ask the user to confirm or correct your understanding** before you proceed.
-
-### Example format
-
-> **My understanding of the issue:**
->
-> 1. User opens the chat and sends a message with a location embed attached.
-> 2. The AI response references a UUID string instead of the actual location name.
-> 3. Expected: AI receives the resolved location content (city, address, etc.).
-> 4. Actual: AI receives raw JSON `{"type": "location", "embed_id": "..."}` and treats it as literal text.
-> 5. I believe the embed resolution step is failing silently before the message reaches the LLM.
->
-> **Is this correct, or did I misunderstand something?**
-
-### Why this is required
-
-Jumping straight into logs and code when the user flow is misunderstood wastes multiple investigation cycles. A 30-second confirmation upfront saves far more time than iterating on the wrong hypothesis. This applies **regardless of how many logs are in the message or how detailed the description is** — your interpretation of those logs may still be wrong.
+Then ask: **"Is this correct, or did I misunderstand something?"**
 
 **Do not skip this step even if you are confident you understand the issue.**
 
