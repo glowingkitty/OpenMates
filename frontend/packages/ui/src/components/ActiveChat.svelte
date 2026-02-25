@@ -3609,6 +3609,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
 
+        // RESILIENCE: Ensure activeChatStore is consistent with currentChat after message send.
+        // After handleNewChatClick clears activeChatStore to null and then a message is sent,
+        // the new-chat branch above should set activeChatStore. But if the existing-chat branch
+        // ran instead (e.g., because currentChat was already set by a prior operation), we may
+        // have activeChatStore=null while currentChat has the correct chat_id. This causes AI
+        // streaming responses to be treated as "background" messages (wrong chat routing) because
+        // chatSyncServiceHandlersAI checks activeChatStore to decide foreground vs background.
+        if (currentChat?.chat_id && activeChatStore.get() !== currentChat.chat_id) {
+            console.warn(`[ActiveChat] handleSendMessage: activeChatStore mismatch after send — ` +
+                `store=${activeChatStore.get()}, currentChat=${currentChat.chat_id}. Fixing.`);
+            activeChatStore.setActiveChat(currentChat.chat_id);
+        }
+
         // ─── Progressive AI Status Indicator: Start with 'sending' phase ─────
         // Determine if this is a new chat (no title yet) to decide which processing
         // steps to show later when ai_task_initiated arrives.

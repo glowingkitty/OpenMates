@@ -269,6 +269,15 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
 }
 
 /**
+ * Guard flag to prevent double-sends on mobile.
+ * Mobile browsers (especially Firefox iOS) can fire click/touchend events in rapid succession,
+ * causing handleSend to be entered twice before the first invocation completes its async work.
+ * This flag blocks re-entry until the first send finishes its critical section
+ * (chat creation + dispatch + WebSocket send).
+ */
+let sendInProgress = false;
+
+/**
  * Handles sending a message via the message input
  *
  * @param editor TipTap editor instance
@@ -288,6 +297,19 @@ export async function handleSend(
     vibrateMessageField();
     return;
   }
+
+  // CRITICAL: Prevent double-sends. On mobile, rapid taps or touch+click can
+  // fire this function twice before the first async call reaches setHasContent(false).
+  // A double-send during new-chat creation can cause two different chat IDs to be
+  // created, leading to messages being routed to the wrong chat (e.g., the user sees
+  // their message in the "for everyone" intro chat instead of the new chat).
+  if (sendInProgress) {
+    console.warn(
+      "[handleSend] Send already in progress, ignoring duplicate call",
+    );
+    return;
+  }
+  sendInProgress = true;
 
   // DEFERRED SEND: Detect embeds that are still in-flight.
   // Instead of blocking with a warning toast, we:
@@ -1401,6 +1423,10 @@ export async function handleSend(
   } catch (error) {
     console.error("Failed to handle message send:", error);
     vibrateMessageField();
+  } finally {
+    // CRITICAL: Always release the send guard, even on error,
+    // so the user can retry sending after a failure.
+    sendInProgress = false;
   }
 }
 
