@@ -109,8 +109,15 @@
     onShowChat
   }: Props = $props();
   
-  // Currently selected stay for fullscreen detail view (overlay)
-  let selectedStay = $state<StayResult | null>(null);
+  // Index-based selection for sibling navigation in the overlay
+  /** Index of selected stay in allStayResults (-1 = none) */
+  let selectedStayIndex = $state<number>(-1);
+  
+  /** Flat array of all loaded stay results for sibling navigation */
+  let allStayResults = $state<StayResult[]>([]);
+  
+  /** Currently selected stay (derived from index) */
+  let selectedStay = $derived(selectedStayIndex >= 0 ? allStayResults[selectedStayIndex] ?? null : null);
   
   // Local reactive state — initialised to defaults; synced from props via $effect below
   let localQuery = $state<string>('');
@@ -351,7 +358,8 @@
   // =========================================================================
   
   /**
-   * Handle stay card click - opens detail fullscreen as overlay
+   * Handle stay card click - opens detail fullscreen as overlay.
+   * Uses index-based selection so prev/next arrows navigate within siblings.
    */
   function handleStayFullscreen(stay: StayResult) {
     console.debug('[TravelStaysEmbedFullscreen] Opening stay fullscreen:', {
@@ -360,14 +368,30 @@
       rating: stay.overall_rating,
       price: stay.extracted_rate_per_night,
     });
-    selectedStay = stay;
+    const idx = allStayResults.findIndex(r => r.embed_id === stay.embed_id);
+    if (idx >= 0) {
+      selectedStayIndex = idx;
+    } else {
+      allStayResults = [stay];
+      selectedStayIndex = 0;
+    }
   }
   
   /**
-   * Handle closing the stay detail fullscreen overlay
+   * Handle closing the stay detail fullscreen overlay.
    */
   function handleStayFullscreenClose() {
-    selectedStay = null;
+    selectedStayIndex = -1;
+  }
+  
+  /** Navigate to the previous sibling stay */
+  function handleStayNavigatePrevious() {
+    if (selectedStayIndex > 0) selectedStayIndex -= 1;
+  }
+  
+  /** Navigate to the next sibling stay */
+  function handleStayNavigateNext() {
+    if (selectedStayIndex < allStayResults.length - 1) selectedStayIndex += 1;
   }
   
   /**
@@ -375,8 +399,8 @@
    * If a stay detail overlay is open, close it first; otherwise close the parent.
    */
   function handleMainClose() {
-    if (selectedStay) {
-      selectedStay = null;
+    if (selectedStayIndex >= 0) {
+      selectedStayIndex = -1;
     } else {
       onClose();
     }
@@ -425,6 +449,10 @@
   {#snippet content(ctx)}
     {@const stayResults = getStayResults(ctx)}
     {@const cheapestThreshold = getCheapestThreshold(stayResults)}
+    <!-- Sync allStayResults for sibling navigation -->
+    {#if stayResults.length > 0 && stayResults !== allStayResults}
+      {allStayResults = stayResults}
+    {/if}
     
     <!-- Header with search query and provider -->
     <div class="fullscreen-header">
@@ -480,12 +508,16 @@
   {/snippet}
 </UnifiedEmbedFullscreen>
 
-<!-- Stay detail fullscreen overlay -->
+<!-- Stay detail fullscreen overlay — sibling navigation between all stay results -->
 {#if selectedStay}
   <ChildEmbedOverlay>
     <TravelStayEmbedFullscreen
       stay={selectedStay}
       onClose={handleStayFullscreenClose}
+      hasPreviousEmbed={selectedStayIndex > 0}
+      hasNextEmbed={selectedStayIndex < allStayResults.length - 1}
+      onNavigatePrevious={handleStayNavigatePrevious}
+      onNavigateNext={handleStayNavigateNext}
     />
   </ChildEmbedOverlay>
 {/if}

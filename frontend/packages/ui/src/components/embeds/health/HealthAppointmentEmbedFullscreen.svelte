@@ -72,12 +72,24 @@
     onClose: () => void;
     /** Optional embed ID for sharing */
     embedId?: string;
+    /** Whether there is a previous sibling appointment to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next sibling appointment to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous appointment */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next appointment */
+    onNavigateNext?: () => void;
   }
 
   let {
     appointment,
     onClose,
-    embedId
+    embedId,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
   }: Props = $props();
 
   /** Format ISO datetime as readable slot label */
@@ -120,6 +132,10 @@
   skillIconName="health"
   embedHeaderTitle={appointment.name || appointment.speciality || 'Doctor'}
   currentEmbedId={embedId}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
 >
   {#snippet content()}
     <div class="appointment-fullscreen">

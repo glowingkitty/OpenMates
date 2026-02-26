@@ -425,25 +425,6 @@
         </div>
       {/if}
       
-      <!-- Title Section: Favicon + Title -->
-      <div class="title-section">
-        {#if faviconUrl}
-          <img 
-            src={faviconUrl} 
-            alt="" 
-            class="title-favicon"
-            crossorigin="anonymous"
-            onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        {/if}
-        <h1 class="website-title">{displayTitle}</h1>
-      </div>
-      
-      <!-- Date metadata - only shown when we have a specific date from backend (e.g., web search results) -->
-      {#if formattedDate()}
-        <div class="date-info">{formattedDate()}</div>
-      {/if}
-      
       <!-- Description - rendered as plain text (HTML tags stripped server-side, client fallback) -->
       {#if cleanedDescription}
         <p class="description">{cleanedDescription}</p>
@@ -510,55 +491,6 @@
     max-height: 250px;
     display: block;
     object-fit: cover;
-  }
-  
-  /* ===========================================
-     Title Section
-     =========================================== */
-  
-  .title-section {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    width: 100%;
-    max-width: 500px;
-    margin-bottom: 25px;
-  }
-  
-  .title-favicon {
-    width: 28.5px;
-    height: 28.5px;
-    border-radius: 14.25px;
-    flex-shrink: 0;
-    border: 1.5px solid white;
-    background-color: white;
-    object-fit: cover;
-    margin-top: 2px;
-  }
-  
-  .website-title {
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    margin: 0;
-    word-break: break-word;
-  }
-  
-  /* ===========================================
-     Date Info
-     =========================================== */
-  
-  .date-info {
-    font-family: 'Lexend Deca', sans-serif;
-    font-weight: 700;
-    color: #858585;
-    width: 100%;
-    max-width: 500px;
-    margin-bottom: 16px;
-    /* Align with title text (accounting for favicon width + gap) */
-    padding-left: 40.5px;
   }
   
   /* ===========================================
@@ -693,21 +625,6 @@
       border-radius: 20px;
     }
     
-    .website-title {
-      font-size: 18px;
-    }
-    
-    .date-info {
-      font-size: 12px;
-      padding-left: 36px;
-    }
-    
-    .title-favicon {
-      width: 24px;
-      height: 24px;
-      border-radius: 12px;
-    }
-    
     .cta-button {
       padding: 10px 20px;
       min-width: 160px;
@@ -732,18 +649,6 @@
     .header-image {
       min-height: 120px;
       max-height: 180px;
-    }
-    
-    .title-section {
-      gap: 8px;
-    }
-    
-    .website-title {
-      font-size: 16px;
-    }
-    
-    .date-info {
-      padding-left: 32px;
     }
     
     .snippet-card {

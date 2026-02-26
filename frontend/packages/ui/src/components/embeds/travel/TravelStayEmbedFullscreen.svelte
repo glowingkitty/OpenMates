@@ -68,11 +68,23 @@
     stay: StayData;
     /** Close handler */
     onClose: () => void;
+    /** Whether there is a previous sibling stay to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next sibling stay to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous stay */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next stay */
+    onNavigateNext?: () => void;
   }
   
   let {
     stay,
     onClose,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
   }: Props = $props();
   
   // Property name
@@ -177,6 +189,10 @@
   {onClose}
   skillIconName="search"
   embedHeaderTitle={$text('app_skills.travel.search_stays')}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
 >
   {#snippet embedHeaderCta()}
     <!-- Booking CTA - shown in header when booking URL is available -->

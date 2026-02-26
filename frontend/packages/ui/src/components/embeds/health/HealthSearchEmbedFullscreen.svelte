@@ -106,8 +106,15 @@
     onShowChat
   }: Props = $props();
 
-  // Currently selected appointment for fullscreen detail overlay
-  let selectedAppointment = $state<AppointmentResult | null>(null);
+  // Index-based selection for sibling navigation in the overlay
+  /** Index of selected appointment in allAppointmentResults (-1 = none) */
+  let selectedAppointmentIndex = $state<number>(-1);
+  
+  /** Flat array of all loaded appointment results for sibling navigation */
+  let allAppointmentResults = $state<AppointmentResult[]>([]);
+  
+  /** Currently selected appointment (derived from index) */
+  let selectedAppointment = $derived(selectedAppointmentIndex >= 0 ? allAppointmentResults[selectedAppointmentIndex] ?? null : null);
 
   // Local reactive state — initialized with defaults, synced from props via $effect below
   let localQuery = $state<string>('');
@@ -217,6 +224,7 @@
 
   /**
    * Open the per-doctor detail overlay.
+   * Uses index-based selection so prev/next arrows navigate within siblings.
    */
   function handleAppointmentFullscreen(appointment: AppointmentResult) {
     console.debug('[HealthSearchEmbedFullscreen] Opening appointment fullscreen:', {
@@ -224,14 +232,30 @@
       name: appointment.name,
       slotsCount: appointment.slots_count,
     });
-    selectedAppointment = appointment;
+    const idx = allAppointmentResults.findIndex(r => r.embed_id === appointment.embed_id);
+    if (idx >= 0) {
+      selectedAppointmentIndex = idx;
+    } else {
+      allAppointmentResults = [appointment];
+      selectedAppointmentIndex = 0;
+    }
   }
 
   /**
    * Close the per-doctor detail overlay, returning to the grid.
    */
   function handleAppointmentFullscreenClose() {
-    selectedAppointment = null;
+    selectedAppointmentIndex = -1;
+  }
+  
+  /** Navigate to the previous sibling appointment */
+  function handleAppointmentNavigatePrevious() {
+    if (selectedAppointmentIndex > 0) selectedAppointmentIndex -= 1;
+  }
+  
+  /** Navigate to the next sibling appointment */
+  function handleAppointmentNavigateNext() {
+    if (selectedAppointmentIndex < allAppointmentResults.length - 1) selectedAppointmentIndex += 1;
   }
 
   /**
@@ -260,8 +284,8 @@
    * Handle main close — if a detail overlay is open, close it first.
    */
   function handleMainClose() {
-    if (selectedAppointment) {
-      selectedAppointment = null;
+    if (selectedAppointmentIndex >= 0) {
+      selectedAppointmentIndex = -1;
     } else {
       onClose();
     }
@@ -289,6 +313,10 @@
 >
   {#snippet content(ctx)}
     {@const appointmentResults = getAppointmentResults(ctx)}
+    <!-- Sync allAppointmentResults for sibling navigation -->
+    {#if appointmentResults.length > 0 && appointmentResults !== allAppointmentResults}
+      {allAppointmentResults = appointmentResults}
+    {/if}
 
     <!-- Header: search summary + provider -->
     <div class="fullscreen-header">
@@ -343,13 +371,17 @@
   {/snippet}
 </UnifiedEmbedFullscreen>
 
-<!-- Per-doctor detail fullscreen overlay -->
+<!-- Per-doctor detail fullscreen overlay — sibling navigation between all appointment results -->
 {#if selectedAppointment}
   <ChildEmbedOverlay>
     <HealthAppointmentEmbedFullscreen
       appointment={selectedAppointment}
       onClose={handleAppointmentFullscreenClose}
       embedId={selectedAppointment.embed_id}
+      hasPreviousEmbed={selectedAppointmentIndex > 0}
+      hasNextEmbed={selectedAppointmentIndex < allAppointmentResults.length - 1}
+      onNavigatePrevious={handleAppointmentNavigatePrevious}
+      onNavigateNext={handleAppointmentNavigateNext}
     />
   </ChildEmbedOverlay>
 {/if}

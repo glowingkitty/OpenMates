@@ -132,10 +132,17 @@
   
   // ============================================
   // State: Track which website is shown in fullscreen
+  // Index-based so prev/next can navigate between siblings
   // ============================================
   
-  /** Currently selected website for fullscreen view (null = show search results) */
-  let selectedWebsite = $state<WebSearchResult | null>(null);
+  /** Index of the selected website in webResults (-1 = none, show search results) */
+  let selectedWebsiteIndex = $state<number>(-1);
+  
+  /** Flat array of all loaded web results — populated when children finish loading */
+  let allWebResults = $state<WebSearchResult[]>([]);
+  
+  /** Currently selected website for fullscreen view (derived from index) */
+  let selectedWebsite = $derived(selectedWebsiteIndex >= 0 ? allWebResults[selectedWebsiteIndex] ?? null : null);
   
   // Local reactive state for embed data — initialised to defaults; synced from props via $effect below
   let localQuery = $state<string>('');
@@ -164,11 +171,7 @@
   // Legacy results from previewData or direct results prop (used as fallback)
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
-  let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
-  
-  // Get skill name from translations (matches preview)
-  let skillName = $derived($text('embeds.search'));
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
@@ -300,8 +303,8 @@
   }
   
   /**
-   * Handle website click - shows the website in fullscreen mode
-   * Instead of opening in new tab, we display WebsiteEmbedFullscreen
+   * Handle website click - shows the website in fullscreen mode.
+   * Uses index-based selection so prev/next arrows navigate within siblings.
    */
   function handleWebsiteFullscreen(websiteData: WebSearchResult) {
     console.debug('[WebSearchEmbedFullscreen] Opening website fullscreen:', {
@@ -313,16 +316,35 @@
       hasExtraSnippets: !!websiteData.extra_snippets,
       page_age: websiteData.page_age
     });
-    selectedWebsite = websiteData;
+    const idx = allWebResults.findIndex(r => r.embed_id === websiteData.embed_id);
+    selectedWebsiteIndex = idx >= 0 ? idx : 0;
+    // Fallback: ensure the item is in allWebResults (e.g., called before onChildrenLoaded)
+    if (idx < 0) {
+      allWebResults = [websiteData];
+      selectedWebsiteIndex = 0;
+    }
   }
   
   /**
-   * Handle closing the website fullscreen - returns to search results
-   * Called when user clicks minimize button on WebsiteEmbedFullscreen
+   * Handle closing the website fullscreen - returns to search results.
    */
   function handleWebsiteFullscreenClose() {
     console.debug('[WebSearchEmbedFullscreen] Closing website fullscreen, returning to search results');
-    selectedWebsite = null;
+    selectedWebsiteIndex = -1;
+  }
+  
+  /** Navigate to the previous sibling website */
+  function handleWebsiteNavigatePrevious() {
+    if (selectedWebsiteIndex > 0) {
+      selectedWebsiteIndex -= 1;
+    }
+  }
+  
+  /** Navigate to the next sibling website */
+  function handleWebsiteNavigateNext() {
+    if (selectedWebsiteIndex < allWebResults.length - 1) {
+      selectedWebsiteIndex += 1;
+    }
   }
   
   /**
@@ -356,8 +378,8 @@
    */
   function handleMainClose() {
     // If a website is open, first close it and return to search results
-    if (selectedWebsite) {
-      selectedWebsite = null;
+    if (selectedWebsiteIndex >= 0) {
+      selectedWebsiteIndex = -1;
     } else {
       // Otherwise, close the entire fullscreen
       onClose();
@@ -409,6 +431,10 @@
 >
   {#snippet content(ctx)}
     {@const webResults = getWebResults(ctx)}
+    <!-- Sync allWebResults whenever the resolved list changes (enables index-based sibling navigation) -->
+    {#if webResults.length > 0 && webResults !== allWebResults}
+      {allWebResults = webResults}
+    {/if}
     
     <!-- Error state: show simplified error for debugging -->
     {#if status === 'error'}
@@ -458,6 +484,7 @@
 
 <!-- Website fullscreen overlay - rendered ON TOP when a website is selected -->
 <!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
+<!-- Sibling navigation: prev/next cycle through all search result websites -->
 {#if selectedWebsite}
   <ChildEmbedOverlay>
     <WebsiteEmbedFullscreen
@@ -470,6 +497,10 @@
       dataDate={selectedWebsite.page_age}
       onClose={handleWebsiteFullscreenClose}
       embedId={selectedWebsite.embed_id}
+      hasPreviousEmbed={selectedWebsiteIndex > 0}
+      hasNextEmbed={selectedWebsiteIndex < allWebResults.length - 1}
+      onNavigatePrevious={handleWebsiteNavigatePrevious}
+      onNavigateNext={handleWebsiteNavigateNext}
     />
   </ChildEmbedOverlay>
 {/if}
@@ -526,7 +557,7 @@
     width: calc(100% - 20px);
     max-width: 1000px;
     margin: 0 auto;
-    padding: 0 10px;
+    padding: 24px 10px;
     padding-bottom: 120px; /* Space for bottom bar + gradient */
     /* Responsive: auto-fit columns with minimum 280px width */
     /* This naturally becomes single column when container is narrow */

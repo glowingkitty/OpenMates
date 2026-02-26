@@ -105,10 +105,17 @@
   
   // ============================================
   // State: Track which article is shown in fullscreen
+  // Index-based so prev/next can navigate between siblings
   // ============================================
   
-  /** Currently selected article for fullscreen view (null = show search results) */
-  let selectedArticle = $state<NewsSearchResult | null>(null);
+  /** Index of selected article in allNewsResults (-1 = none) */
+  let selectedArticleIndex = $state<number>(-1);
+  
+  /** Flat array of all loaded news results for sibling navigation */
+  let allNewsResults = $state<NewsSearchResult[]>([]);
+  
+  /** Currently selected article (derived from index) */
+  let selectedArticle = $derived(selectedArticleIndex >= 0 ? allNewsResults[selectedArticleIndex] ?? null : null);
   
   // Determine if mobile layout
   let isMobile = $derived(
@@ -183,8 +190,8 @@
   // share context and properly opens the settings panel (including on mobile).
   
   /**
-   * Handle article click - shows the article in fullscreen mode
-   * Uses NewsEmbedFullscreen for full article view experience
+   * Handle article click - shows the article in fullscreen mode.
+   * Uses index-based selection so prev/next arrows navigate within siblings.
    */
   function handleArticleFullscreen(articleData: NewsSearchResult) {
     console.debug('[NewsSearchEmbedFullscreen] Opening article fullscreen:', {
@@ -192,16 +199,32 @@
       url: articleData.url,
       title: articleData.title
     });
-    selectedArticle = articleData;
+    const idx = allNewsResults.findIndex(r => r.embed_id === articleData.embed_id);
+    if (idx >= 0) {
+      selectedArticleIndex = idx;
+    } else {
+      // Fallback: item not yet in allNewsResults, add it
+      allNewsResults = [articleData];
+      selectedArticleIndex = 0;
+    }
   }
   
   /**
-   * Handle closing the article fullscreen - returns to search results
-   * Called when user clicks minimize button on NewsEmbedFullscreen
+   * Handle closing the article fullscreen - returns to search results.
    */
   function handleArticleFullscreenClose() {
     console.debug('[NewsSearchEmbedFullscreen] Closing article fullscreen, returning to search results');
-    selectedArticle = null;
+    selectedArticleIndex = -1;
+  }
+  
+  /** Navigate to the previous sibling article */
+  function handleArticleNavigatePrevious() {
+    if (selectedArticleIndex > 0) selectedArticleIndex -= 1;
+  }
+  
+  /** Navigate to the next sibling article */
+  function handleArticleNavigateNext() {
+    if (selectedArticleIndex < allNewsResults.length - 1) selectedArticleIndex += 1;
   }
   
   /**
@@ -210,8 +233,8 @@
    */
   function handleMainClose() {
     // If an article is open, first close it and return to search results
-    if (selectedArticle) {
-      selectedArticle = null;
+    if (selectedArticleIndex >= 0) {
+      selectedArticleIndex = -1;
     } else {
       // Otherwise, close the entire fullscreen
       onClose();
@@ -259,6 +282,10 @@
 >
   {#snippet content(ctx)}
     {@const newsResults = getNewsResults(ctx)}
+    <!-- Sync allNewsResults for sibling navigation -->
+    {#if newsResults.length > 0 && newsResults !== allNewsResults}
+      {allNewsResults = newsResults}
+    {/if}
     
     <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
     <div class="fullscreen-header">
@@ -297,6 +324,7 @@
 
 <!-- Article fullscreen overlay - rendered ON TOP when an article is selected -->
 <!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
+<!-- Sibling navigation: prev/next cycle through all search result articles -->
 {#if selectedArticle}
   <ChildEmbedOverlay>
     <NewsEmbedFullscreen
@@ -307,6 +335,10 @@
       thumbnail={selectedArticle.thumbnail}
       onClose={handleArticleFullscreenClose}
       embedId={selectedArticle.embed_id}
+      hasPreviousEmbed={selectedArticleIndex > 0}
+      hasNextEmbed={selectedArticleIndex < allNewsResults.length - 1}
+      onNavigatePrevious={handleArticleNavigatePrevious}
+      onNavigateNext={handleArticleNavigateNext}
     />
   </ChildEmbedOverlay>
 {/if}
