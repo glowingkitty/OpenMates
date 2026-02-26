@@ -17,6 +17,8 @@
     import { Decoration, DecorationSet } from 'prosemirror-view';
     import { getPIILabel } from '../components/enter_message/services/piiDetectionService';
     import type { PIIMapping } from '../types/chat';
+    import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
+    import { panelState } from '../stores/panelStateStore';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
@@ -346,6 +348,75 @@
     }
 
     /**
+     * Handle clicks on mention spans in read-only messages.
+     * Detects which mention type was clicked and deep-links to the corresponding
+     * settings entry (AI model, mate, skill, focus mode, or settings/memory category).
+     *
+     * Mention span data attributes:
+     * - ai-model-mention: data-model-id="<modelId>"
+     * - mate-mention: data-id="<mateCategory>"
+     * - generic-mention: data-mention-type, data-mention-syntax="@skill:appId:id" etc.
+     */
+    function handleMentionClick(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+
+        // Climb up to find the mention span (click may land on child node)
+        const mentionEl = target.closest('.ai-model-mention, .mate-mention, .generic-mention') as HTMLElement | null;
+        if (!mentionEl) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        let deepLinkPath: string | null = null;
+
+        // --- AI model mention ---
+        if (mentionEl.classList.contains('ai-model-mention')) {
+            const modelId = mentionEl.getAttribute('data-model-id');
+            if (modelId) {
+                deepLinkPath = `app_store/ai/skill/ask/model/${modelId}`;
+            }
+        }
+        // --- Mate mention ---
+        // data-name holds the mate category ID (e.g., "software_development")
+        // data-id holds a UUID (instance identifier, not the category)
+        else if (mentionEl.classList.contains('mate-mention')) {
+            const mateName = mentionEl.getAttribute('data-name');
+            if (mateName) {
+                deepLinkPath = `mates/${mateName}`;
+            }
+        }
+        // --- Generic mention (skill / focus_mode / settings_memory / settings_memory_entry) ---
+        else if (mentionEl.classList.contains('generic-mention')) {
+            const mentionType = mentionEl.getAttribute('data-mention-type');
+            const mentionSyntax = mentionEl.getAttribute('data-mention-syntax') || '';
+
+            // mentionSyntax formats:
+            //   skill:            @skill:appId:skillId
+            //   focus_mode:       @focus:appId:focusModeId
+            //   settings_memory:  @memory:appId:categoryId:type
+            //   entry:            same as settings_memory (links to category page)
+            const parts = mentionSyntax.replace(/^@/, '').split(':');
+
+            if (mentionType === 'skill' && parts.length >= 3) {
+                // parts[0]="skill", parts[1]=appId, parts[2]=skillId
+                deepLinkPath = `app_store/${parts[1]}/skill/${parts[2]}`;
+            } else if (mentionType === 'focus_mode' && parts.length >= 3) {
+                // parts[0]="focus", parts[1]=appId, parts[2]=focusModeId
+                deepLinkPath = `app_store/${parts[1]}/focus/${parts[2]}`;
+            } else if ((mentionType === 'settings_memory' || mentionType === 'settings_memory_entry') && parts.length >= 3) {
+                // parts[0]="memory", parts[1]=appId, parts[2]=categoryId
+                deepLinkPath = `app_store/${parts[1]}/settings_memories/${parts[2]}`;
+            }
+        }
+
+        if (deepLinkPath) {
+            logger.debug('[ReadOnlyMessage] Mention clicked, deep linking to:', deepLinkPath);
+            settingsDeepLink.set(deepLinkPath);
+            panelState.openSettings();
+        }
+    }
+
+    /**
      * Clear the touch timer
      */
     function clearTouchTimer() {
@@ -537,6 +608,8 @@
         editor.view.dom.addEventListener('touchmove', handleTouchMove as EventListener);
         editor.view.dom.addEventListener('touchend', handleTouchEnd as EventListener);
         editor.view.dom.addEventListener('touchcancel', handleTouchEnd as EventListener);
+        // Handle clicks on mention spans for settings deep-linking
+        editor.view.dom.addEventListener('click', handleMentionClick as EventListener);
         editorCreated = true;
         
         // Apply PII highlighting decorations after editor is created
@@ -906,6 +979,7 @@
             editor.view.dom.removeEventListener('touchmove', handleTouchMove as EventListener);
             editor.view.dom.removeEventListener('touchend', handleTouchEnd as EventListener);
             editor.view.dom.removeEventListener('touchcancel', handleTouchEnd as EventListener);
+            editor.view.dom.removeEventListener('click', handleMentionClick as EventListener);
             // Clear any pending touch timers
             clearTouchTimer();
             editor.destroy();
@@ -1152,8 +1226,12 @@
         -webkit-text-fill-color: transparent;
         background-clip: text;
         font-weight: 500;
-        cursor: default;
+        cursor: pointer;
         white-space: nowrap;
+    }
+
+    :global(.read-only-message .ai-model-mention:hover) {
+        opacity: 0.8;
     }
 
     /* Mate mention styling - uses mate's custom gradient color via CSS custom properties */
@@ -1188,8 +1266,12 @@
         -webkit-text-fill-color: transparent;
         background-clip: text;
         font-weight: 500;
-        cursor: default;
+        cursor: pointer;
         white-space: nowrap;
+    }
+
+    :global(.read-only-message .generic-mention:hover) {
+        opacity: 0.8;
     }
 
     /* Skill mentions */
