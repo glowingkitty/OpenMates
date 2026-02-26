@@ -870,6 +870,7 @@ _EXPLICIT_TASK_ROUTES = {
 
     # Auto-delete tasks
     "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
+    "app.tasks.auto_delete_tasks.auto_delete_old_issues": "persistence",
 
     # PDF processing tasks
     "apps.pdf.tasks.process_pdf": "app_pdf",
@@ -1080,6 +1081,14 @@ app.conf.beat_schedule = {
     'auto-delete-old-chats-daily': {
         'task': 'app.tasks.auto_delete_tasks.auto_delete_old_chats',
         'schedule': crontab(hour=2, minute=30),  # Daily 02:30 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily issue auto-delete — removes all issue reports older than 14 days
+    # (Directus record + S3 YAML report + S3 screenshot PNG).
+    # Runs at 03:00 UTC, 30 minutes after the chat auto-delete to avoid overlap.
+    'auto-delete-old-issues-daily': {
+        'task': 'app.tasks.auto_delete_tasks.auto_delete_old_issues',
+        'schedule': crontab(hour=3, minute=0),  # Daily 03:00 UTC
         'options': {'queue': 'persistence'},
     },
     # Daily Inspiration generation - generates personalized inspirations for active users.

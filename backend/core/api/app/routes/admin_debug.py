@@ -647,6 +647,7 @@ async def delete_issue(
     
     This performs a full delete:
     - Deletes the encrypted YAML file from S3 (if exists)
+    - Deletes the screenshot PNG from S3 (if exists)
     - Deletes the issue record from Directus
     
     Args:
@@ -658,7 +659,7 @@ async def delete_issue(
     logger.info(f"Admin {admin_user.id} deleting issue: {issue_id}")
     
     try:
-        # Fetch issue to get S3 key
+        # Fetch issue to get S3 keys
         params = {
             "filter[id][_eq]": issue_id,
             "limit": 1,
@@ -670,27 +671,40 @@ async def delete_issue(
         
         issue = issues[0]
         deleted_from_s3 = False
-        
-        # Delete from S3 if exists
+        s3_service = get_s3_service(request)
+
+        # Delete YAML report from S3 if exists
         if issue.get("encrypted_issue_report_yaml_s3_key"):
             try:
-                s3_service = get_s3_service(request)
-                
                 # Decrypt S3 key
                 s3_object_key = await encryption_service.decrypt_issue_report_data(
                     issue["encrypted_issue_report_yaml_s3_key"]
                 )
                 
                 if s3_object_key:
-                    # delete_file expects bucket_key and file_key (issue_logs → resolves to bucket name)
                     await s3_service.delete_file(
                         bucket_key='issue_logs',
                         file_key=s3_object_key
                     )
                     deleted_from_s3 = True
-                    logger.info(f"Deleted S3 file for issue {issue_id}: {s3_object_key}")
+                    logger.info(f"Deleted S3 YAML file for issue {issue_id}: {s3_object_key}")
             except Exception as e:
-                logger.warning(f"Failed to delete S3 file for issue {issue_id}: {e}")
+                logger.warning(f"Failed to delete S3 YAML file for issue {issue_id}: {e}")
+
+        # Delete screenshot PNG from S3 if exists
+        if issue.get("encrypted_screenshot_s3_key"):
+            try:
+                screenshot_s3_key = await encryption_service.decrypt_issue_report_data(
+                    issue["encrypted_screenshot_s3_key"]
+                )
+                if screenshot_s3_key:
+                    await s3_service.delete_file(
+                        bucket_key='issue_logs',
+                        file_key=screenshot_s3_key
+                    )
+                    logger.info(f"Deleted S3 screenshot for issue {issue_id}: {screenshot_s3_key}")
+            except Exception as e:
+                logger.warning(f"Failed to delete S3 screenshot for issue {issue_id}: {e}")
         
         # Delete from Directus
         success = await directus_service.delete_item("issues", issue_id, admin_required=True)

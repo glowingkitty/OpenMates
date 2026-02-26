@@ -1,7 +1,10 @@
 # backend/core/api/app/tasks/auto_delete_tasks.py
 #
-# Daily Celery Beat task that auto-deletes old chats for users who have
-# configured a retention period via Privacy → Auto Deletion → Chats.
+# Daily Celery Beat tasks for automatic deletion of stale data.
+#
+# ─── Task 1: auto_delete_old_chats ───────────────────────────────────────────
+# Deletes old chats for users who have configured a retention period via
+# Privacy → Auto Deletion → Chats.
 #
 # How it works:
 #   - Users can set auto_delete_chats_after_days via POST /v1/settings/auto-delete-chats.
@@ -22,15 +25,46 @@
 #     load across the persistence queue workers over time.
 #
 # Schedule: every day at 02:30 UTC (celery_config.py beat_schedule).
+#
+# ─── Task 2: auto_delete_old_issues ──────────────────────────────────────────
+# Deletes all issue reports older than ISSUE_RETENTION_DAYS (14 days).
+#
+# How it works:
+#   - This is a system-level policy — no per-user preference is required.
+#   - The task runs daily at 03:00 UTC (staggered from chat auto-delete).
+#   - It queries Directus for all issues whose created_at is older than the
+#     retention cutoff.
+#   - For each stale issue, it performs a full deletion:
+#       1. Decrypt and delete the YAML report from S3 (if present)
+#       2. Decrypt and delete the screenshot PNG from S3 (if present)
+#       3. Delete the Directus record
+#   - S3 failures are logged and skipped (do not abort the Directus delete).
+#   - Issues are processed in batches of MAX_ISSUES_PER_RUN to limit system
+#     load; remaining issues are handled in the next daily run.
+#
+# Architecture notes:
+#   - S3 keys stored in Directus are Vault-encrypted; they must be decrypted
+#     via EncryptionService before being passed to S3.
+#   - The same deletion logic is used by inspect_issue.py --delete and the
+#     DELETE /v1/admin/debug/issues/{id} REST endpoint.
+#   - The S3 bucket already has a 365-day lifecycle policy. This task ensures
+#     that both the Directus record AND the S3 objects are cleaned up at 14
+#     days instead of waiting for S3 auto-expiry (which leaves orphaned DB rows).
+#
+# Schedule: every day at 03:00 UTC (celery_config.py beat_schedule).
 
 import asyncio
 import hashlib
 import logging
 import time
-from typing import Any, Dict
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.s3.service import S3UploadService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +73,15 @@ logger = logging.getLogger(__name__)
 # Maximum number of chats to schedule for deletion per user per daily run.
 # If a user has more stale chats they will be handled over subsequent runs.
 MAX_CHATS_PER_USER_PER_RUN: int = 100
+
+# Maximum number of issues to delete per daily run.
+# Issue volume is much lower than chats — 200 is a safe upper bound.
+# If more stale issues exist they will be caught on subsequent runs.
+MAX_ISSUES_PER_RUN: int = 200
+
+# System-level retention period for issue reports (in days).
+# Issues older than this are unconditionally deleted (Directus + S3).
+ISSUE_RETENTION_DAYS: int = 14
 
 # ─── Core logic ──────────────────────────────────────────────────────────────
 
@@ -226,6 +269,260 @@ def auto_delete_old_chats(self) -> Dict[str, Any]:
     except Exception as e:
         logger.error(
             f"[AutoDelete] Task failed. task_id={task_id}: {e}", exc_info=True
+        )
+        raise self.retry(exc=e)
+    finally:
+        if loop:
+            loop.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Issue auto-delete
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+async def _delete_issue_s3_files(
+    issue: Dict[str, Any],
+    encryption_service: EncryptionService,
+    s3_service: S3UploadService,
+) -> int:
+    """
+    Delete all S3 files associated with an issue (YAML report + screenshot).
+
+    Failures are logged as warnings but do NOT raise — the caller should still
+    proceed with deleting the Directus record so we don't leave orphaned DB rows.
+
+    Args:
+        issue:              Raw Directus issue record.
+        encryption_service: Initialized EncryptionService (for decrypting S3 keys).
+        s3_service:         Initialized S3UploadService.
+
+    Returns:
+        Number of S3 files successfully deleted (0, 1, or 2).
+    """
+    deleted = 0
+
+    # Delete encrypted YAML report (issue-reports/…yaml.encrypted)
+    yaml_key_enc = issue.get("encrypted_issue_report_yaml_s3_key")
+    if yaml_key_enc:
+        try:
+            s3_key = await encryption_service.decrypt_issue_report_data(yaml_key_enc)
+            if s3_key:
+                await s3_service.delete_file(bucket_key="issue_logs", file_key=s3_key)
+                deleted += 1
+                logger.info(
+                    f"[IssueAutoDelete] Deleted S3 YAML for issue {issue.get('id')}: {s3_key}"
+                )
+        except Exception as exc:
+            logger.warning(
+                f"[IssueAutoDelete] Failed to delete S3 YAML for issue "
+                f"{issue.get('id')}: {exc}"
+            )
+
+    # Delete screenshot PNG (issue-screenshots/….png)
+    screenshot_key_enc = issue.get("encrypted_screenshot_s3_key")
+    if screenshot_key_enc:
+        try:
+            s3_key = await encryption_service.decrypt_issue_report_data(screenshot_key_enc)
+            if s3_key:
+                await s3_service.delete_file(bucket_key="issue_logs", file_key=s3_key)
+                deleted += 1
+                logger.info(
+                    f"[IssueAutoDelete] Deleted S3 screenshot for issue {issue.get('id')}: {s3_key}"
+                )
+        except Exception as exc:
+            logger.warning(
+                f"[IssueAutoDelete] Failed to delete S3 screenshot for issue "
+                f"{issue.get('id')}: {exc}"
+            )
+
+    return deleted
+
+
+async def _async_auto_delete_old_issues() -> Dict[str, Any]:
+    """
+    Main async logic for the daily issue auto-delete run.
+
+    1. Query Directus for all issues whose created_at is older than
+       ISSUE_RETENTION_DAYS (14 days), up to MAX_ISSUES_PER_RUN per run.
+    2. For each stale issue:
+       a. Delete the YAML report from S3 (if the encrypted key is present).
+       b. Delete the screenshot PNG from S3 (if the encrypted key is present).
+       c. Delete the Directus record.
+    3. Return a summary dict for logging/monitoring.
+
+    S3 deletion failures are treated as warnings — the Directus record is
+    deleted regardless so orphaned rows don't accumulate. Any S3 objects that
+    were not deleted will be caught by the bucket's 365-day lifecycle policy.
+    """
+    run_start = time.time()
+    logger.info("[IssueAutoDelete] Starting daily issue auto-delete run.")
+
+    summary: Dict[str, Any] = {
+        'issues_found': 0,
+        'issues_deleted': 0,
+        'issues_failed': 0,
+        's3_files_deleted': 0,
+        'duration_seconds': 0.0,
+    }
+
+    directus_service: Optional[DirectusService] = None
+    encryption_service: Optional[EncryptionService] = None
+    s3_service: Optional[S3UploadService] = None
+    secrets_manager: Optional[SecretsManager] = None
+
+    try:
+        # ── Initialize services ────────────────────────────────────────────────
+        directus_service = DirectusService()
+        await directus_service.ensure_auth_token()
+
+        encryption_service = EncryptionService()
+
+        secrets_manager = SecretsManager()
+        await secrets_manager.initialize()
+
+        s3_service = S3UploadService(secrets_manager=secrets_manager)
+        await s3_service.initialize()
+
+        # ── Compute cutoff timestamp ───────────────────────────────────────────
+        # Directus stores created_at as ISO 8601 strings. We use _lt (less than)
+        # on a UTC ISO timestamp to find issues created before the cutoff.
+        cutoff_dt = datetime.fromtimestamp(
+            time.time() - ISSUE_RETENTION_DAYS * 86400, tz=timezone.utc
+        )
+        cutoff_iso = cutoff_dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+        # ── Fetch stale issues ─────────────────────────────────────────────────
+        params: Dict[str, Any] = {
+            'filter[created_at][_lt]': cutoff_iso,
+            'fields': (
+                'id,'
+                'encrypted_issue_report_yaml_s3_key,'
+                'encrypted_screenshot_s3_key'
+            ),
+            'limit': MAX_ISSUES_PER_RUN,
+            'sort': 'created_at',  # oldest first
+        }
+        stale_issues: List[Dict[str, Any]] = await directus_service.get_items(
+            'issues', params=params, no_cache=True, admin_required=True
+        )
+
+        if not stale_issues or not isinstance(stale_issues, list):
+            logger.info("[IssueAutoDelete] No stale issues found. Nothing to do.")
+            return summary
+
+        summary['issues_found'] = len(stale_issues)
+        logger.info(
+            f"[IssueAutoDelete] Found {len(stale_issues)} issue(s) older than "
+            f"{ISSUE_RETENTION_DAYS} days (cutoff: {cutoff_iso})."
+        )
+
+        # ── Delete each stale issue ────────────────────────────────────────────
+        for issue in stale_issues:
+            issue_id: Optional[str] = issue.get('id')
+            if not issue_id:
+                continue
+
+            try:
+                # 1 & 2. Delete S3 files (YAML + screenshot). Failures are warnings.
+                s3_deleted = await _delete_issue_s3_files(
+                    issue=issue,
+                    encryption_service=encryption_service,
+                    s3_service=s3_service,
+                )
+                summary['s3_files_deleted'] += s3_deleted
+
+                # 3. Delete Directus record. This is the authoritative step.
+                success = await directus_service.delete_item(
+                    'issues', issue_id, admin_required=True
+                )
+                if not success:
+                    logger.error(
+                        f"[IssueAutoDelete] Directus delete returned False for "
+                        f"issue {issue_id}. Skipping."
+                    )
+                    summary['issues_failed'] += 1
+                    continue
+
+                summary['issues_deleted'] += 1
+                logger.debug(f"[IssueAutoDelete] Deleted issue {issue_id}.")
+
+            except Exception as issue_err:
+                logger.error(
+                    f"[IssueAutoDelete] Error deleting issue {issue_id}: {issue_err}",
+                    exc_info=True,
+                )
+                summary['issues_failed'] += 1
+
+        elapsed = time.time() - run_start
+        summary['duration_seconds'] = round(elapsed, 2)
+
+        logger.info(
+            f"[IssueAutoDelete] Daily run complete in {elapsed:.1f}s. "
+            f"Found: {summary['issues_found']}, "
+            f"Deleted: {summary['issues_deleted']}, "
+            f"S3 files deleted: {summary['s3_files_deleted']}, "
+            f"Failures: {summary['issues_failed']}."
+        )
+        return summary
+
+    except Exception as e:
+        logger.error(
+            f"[IssueAutoDelete] Fatal error in issue auto-delete run: {e}",
+            exc_info=True,
+        )
+        raise
+
+    finally:
+        # Clean up httpx / Redis clients to prevent "event loop is closed" errors
+        # on subsequent Celery task runs within the same worker process.
+        if secrets_manager is not None:
+            try:
+                await secrets_manager.aclose()
+            except Exception:
+                pass
+        if directus_service is not None and hasattr(directus_service, 'close'):
+            try:
+                await directus_service.close()
+            except Exception:
+                pass
+
+
+# ─── Celery task wrapper ──────────────────────────────────────────────────────
+
+
+@app.task(
+    name="app.tasks.auto_delete_tasks.auto_delete_old_issues",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=600,  # 10-minute retry delay on catastrophic failure
+)
+def auto_delete_old_issues(self) -> Dict[str, Any]:
+    """
+    Celery Beat task — runs every day at 03:00 UTC.
+
+    Deletes all issue reports older than ISSUE_RETENTION_DAYS (14 days).
+    Each deletion removes:
+      - The encrypted YAML report from S3 (issue-reports/…)
+      - The screenshot PNG from S3 (issue-screenshots/…)
+      - The Directus record from the issues collection
+
+    At most MAX_ISSUES_PER_RUN (200) issues are deleted per run.
+    Remaining stale issues are caught the next day.
+    """
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN'
+    logger.info(f"[IssueAutoDelete] Task started. task_id={task_id}")
+
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(_async_auto_delete_old_issues())
+        logger.info(f"[IssueAutoDelete] Task completed. Summary: {result}")
+        return result
+    except Exception as e:
+        logger.error(
+            f"[IssueAutoDelete] Task failed. task_id={task_id}: {e}", exc_info=True
         )
         raise self.retry(exc=e)
     finally:
