@@ -264,6 +264,7 @@
   appId="sheets"
   skillId="sheet"
   {skillIconName}
+  showSkillIcon={false}
 
   embedHeaderTitle={renderTitle || $text('embeds.table')}
   embedHeaderSubtitle={statusText}
@@ -441,11 +442,6 @@
   /* Bottom gradient → fade to white instead of grey */
   :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .bottom-gradient) {
     background: linear-gradient(to bottom, transparent 0%, #ffffff 100%) !important;
-  }
-  
-  /* Top-bar button wrappers → white background to match */
-  :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .button-wrapper) {
-    background-color: #f0f0f0 !important;
   }
   
   /* ── PII toggle bar ──────────────────────────────────── */
