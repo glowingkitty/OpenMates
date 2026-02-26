@@ -52,18 +52,6 @@ let updateChatListDebounceTimer: any = null;
 // On cold boot (initial mount) the skipDebounce flag bypasses this for instant display.
 const UPDATE_DEBOUNCE_MS = 300;
 
-// --- Coalescing timer for chatUpdated fast-path cache flushes ---
-// When multiple chatUpdated events arrive in rapid succession (e.g., during sync
-// or when opening the chat sidebar), each one calls chatListCache.upsertChat() and
-// then reassigns allChatsFromDB, triggering the entire $derived chain (sort → group
-// → filter → flatten). On iOS this cascade of synchronous Svelte re-renders locks
-// up the main thread.
-//
-// Fix: Batch the cache→state flush using a short RAF-based coalescing window.
-// upsertChat() still runs immediately (it's cheap, just a Map update), but the
-// expensive allChatsFromDB reassignment is deferred until the next animation frame.
-let _chatUpdatedFlushScheduled = false;
-
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
 	// Syncing indicator: true when authenticated AND sync has not completed yet
@@ -738,27 +726,23 @@ let _chatUpdatedFlushScheduled = false;
 	// If a draft was deleted and we have the updated chat object, patch directly
 	if (detail.type === 'draft_deleted' && detail.chat) {
 		const updatedChat = detail.chat;
+		const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === updatedChat.chat_id);
+		if (chatIndex !== -1) {
+			allChatsFromDB[chatIndex] = updatedChat;
+			allChatsFromDB = [...allChatsFromDB];
+		}
 		chatListCache.upsertChat(updatedChat);
-		// Draft deletion is user-initiated and rare — flush immediately for responsiveness
+		// Update local state from cache
 		const cached = chatListCache.getCache(false);
 		if (cached) {
 			allChatsFromDB = cached;
 		}
 	} else if (detail.chat) {
-		// PERF: Upsert into the cache immediately (cheap Map update), but coalesce
-		// the expensive allChatsFromDB reassignment into a single RAF callback.
-		// This prevents a burst of WS chatUpdated events (e.g., during sync or
-		// when opening the sidebar) from triggering N full $derived re-renders.
+		// If we have the updated chat payload, patch cache and list without full reload
 		chatListCache.upsertChat(detail.chat);
-		if (!_chatUpdatedFlushScheduled) {
-			_chatUpdatedFlushScheduled = true;
-			requestAnimationFrame(() => {
-				_chatUpdatedFlushScheduled = false;
-				const cached = chatListCache.getCache(false);
-				if (cached) {
-					allChatsFromDB = cached;
-				}
-			});
+		const cached = chatListCache.getCache(false);
+		if (cached) {
+			allChatsFromDB = cached;
 		}
 	} else {
 		// Fallback: mark cache dirty and refresh from DB
