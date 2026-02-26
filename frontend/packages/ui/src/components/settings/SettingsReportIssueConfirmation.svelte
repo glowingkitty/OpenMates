@@ -76,7 +76,6 @@
                 <code class="issue-id-value">{issueId}</code>
                 <button
                     type="button"
-                    class="copy-btn"
                     class:copied={issueIdCopied}
                     onclick={handleCopyIssueId}
                     aria-label={$text('settings.report_issue.copy_issue_id')}
@@ -142,7 +141,6 @@
         gap: 8px;
         width: 100%;
         max-width: 360px;
-        background: var(--color-surface-2, #f5f5f5);
         border-radius: var(--border-radius-md, 6px);
         padding: 12px 16px;
     }
@@ -168,28 +166,6 @@
         font-size: 13px;
         color: var(--color-font-primary);
         word-break: break-all;
-    }
-
-    .copy-btn {
-        padding: 4px 10px;
-        border: 1px solid var(--color-border, #ccc);
-        border-radius: var(--border-radius-sm, 4px);
-        background: var(--color-surface-1, #fff);
-        color: var(--color-font-primary);
-        font-size: 12px;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background 0.15s;
-        flex-shrink: 0;
-    }
-
-    .copy-btn:hover {
-        background: var(--color-surface-3, #e8e8e8);
-    }
-
-    .copy-btn.copied {
-        border-color: var(--color-success, #4caf50);
-        color: var(--color-success, #4caf50);
     }
 
     /* Submit another button */

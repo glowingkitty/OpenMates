@@ -6648,6 +6648,29 @@ report_issue.screenshot_preview_alt:
   cs: Náhled snímku obrazovky
   sv: Förhandsgranskning av skärmbild
   verified_by_human: []
+report_issue.confirmation:
+  context: Settings header title key auto-generated from the route path "report_issue/confirmation" — must match confirmation_title
+  en: Report Submitted
+  de: Bericht eingereicht
+  zh: 报告已提交
+  es: Informe enviado
+  fr: Signalement soumis
+  pt: Relatório enviado
+  ru: Отчёт отправлен
+  ja: レポートを送信しました
+  ko: 신고 제출됨
+  it: Segnalazione inviata
+  tr: Rapor gönderildi
+  vi: Đã gửi báo cáo
+  id: Laporan terkirim
+  pl: Zgłoszenie wysłane
+  nl: Rapport ingediend
+  ar: تم إرسال التقرير
+  hi: रिपोर्ट सबमिट की गई
+  th: ส่งรายงานแล้ว
+  cs: Zpráva odeslána
+  sv: Rapport skickad
+  verified_by_human: []
 report_issue.confirmation_title:
   context: Sub-page title shown in the settings header after an issue is successfully submitted
   en: Report Submitted
