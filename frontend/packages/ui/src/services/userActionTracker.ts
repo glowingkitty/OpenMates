@@ -70,6 +70,23 @@ export interface ActionEntry {
   action: string;
   /** Only set for `keypress` events: the key name (e.g. "Enter", "Escape"). */
   key?: string;
+  /**
+   * The element's `id` attribute, if present.
+   * Highly stable and grep-able in source code (e.g. `id="send-btn"`).
+   */
+  id?: string;
+  /**
+   * Raw value of the `data-action` attribute on the resolved element, if present.
+   * Stored separately from `action` (which is the fully-resolved label) so an LLM
+   * can search source files directly for `data-action="<value>"`.
+   */
+  dataAction?: string;
+  /**
+   * All meaningful CSS classes on the resolved element (filtered: non-Svelte hashes,
+   * length ≥ 4, not in the generic blocklist). Allows LLMs to locate the element
+   * by searching for `.class-name` in component files.
+   */
+  classes?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -239,13 +256,18 @@ class UserActionTrackerService {
    * Returns the action history as a formatted text block suitable for
    * inclusion in an issue report.
    *
-   * Format per line:
-   *   [HH:MM:SS] type     element  action  [key]
+   * Format per line (optional selector fields appended only when present):
+   *   [2024-01-15 14:32:01.456] type      element    action  [selector fields...]  [key]
+   *
+   * Selector fields (for LLM source-code lookup):
+   *   id=<value>           — element id attribute (grep: id="<value>")
+   *   data-action=<value>  — raw data-action attribute (grep: data-action="<value>")
+   *   cls=[a,b,c]          — meaningful CSS classes (grep: .class-name in .svelte files)
    *
    * Example:
-   *   [14:32:01] click    button   new-chat
-   *   [14:32:05] focus    div      message-input
-   *   [14:32:09] keypress div      message-input  [Enter]
+   *   [2024-01-15 14:32:01.123] click     button     send-message  id=send-btn  data-action=send-message  cls=[send-message-btn,primary]
+   *   [2024-01-15 14:32:05.456] focus     textarea   message-input  id=chat-input  cls=[chat-input]
+   *   [2024-01-15 14:32:09.789] keypress  textarea   message-input  id=chat-input  cls=[chat-input]  [Enter]
    */
   getActionHistoryAsText(): string {
     if (this._entries.length === 0) {
@@ -253,17 +275,33 @@ class UserActionTrackerService {
     }
     return this._entries
       .map((entry) => {
-        const time = new Date(entry.ts).toLocaleTimeString("en-GB", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: false,
-        });
+        // Full ISO timestamp with milliseconds — matches console log format and
+        // enables cross-correlation with backend logs.
+        // Format: "2024-01-15 14:32:01.456"
+        const ts = new Date(entry.ts)
+          .toISOString()
+          .replace("T", " ")
+          .slice(0, 23);
         const type = entry.type.padEnd(9);
         const element = entry.element.padEnd(10);
         const action = entry.action;
+
+        // Build optional selector suffix — only include fields that are present
+        const selectorParts: string[] = [];
+        if (entry.id) {
+          selectorParts.push(`id=${entry.id}`);
+        }
+        if (entry.dataAction) {
+          selectorParts.push(`data-action=${entry.dataAction}`);
+        }
+        if (entry.classes && entry.classes.length > 0) {
+          selectorParts.push(`cls=[${entry.classes.join(",")}]`);
+        }
+        const selector =
+          selectorParts.length > 0 ? `  ${selectorParts.join("  ")}` : "";
+
         const key = entry.key ? `  [${entry.key}]` : "";
-        return `[${time}] ${type} ${element} ${action}${key}`;
+        return `[${ts}] ${type} ${element} ${action}${selector}${key}`;
       })
       .join("\n");
   }
@@ -335,9 +373,10 @@ class UserActionTrackerService {
       // reopened and produce a new sentinel in the future.
       this._reportIssueSentinelEmitted = false;
 
-      const { element, action } = this._resolveTarget(target);
+      const { element, action, id, dataAction, classes } =
+        this._resolveTarget(target);
       if (!action) return;
-      this._record({ type: "click", element, action });
+      this._record({ type: "click", element, action, id, dataAction, classes });
     } catch {
       // Never throw from a passive listener
     }
@@ -368,9 +407,10 @@ class UserActionTrackerService {
       const tag = target.tagName.toLowerCase();
       if (!INTERACTIVE_TAGS.has(tag) && !target.getAttribute("data-action"))
         return;
-      const { element, action } = this._resolveTarget(target);
+      const { element, action, id, dataAction, classes } =
+        this._resolveTarget(target);
       if (!action) return;
-      this._record({ type: "focus", element, action });
+      this._record({ type: "focus", element, action, id, dataAction, classes });
     } catch {
       // Never throw from a passive listener
     }
@@ -394,9 +434,18 @@ class UserActionTrackerService {
 
       this._reportIssueSentinelEmitted = false;
 
-      const { element, action } = this._resolveTarget(target);
+      const { element, action, id, dataAction, classes } =
+        this._resolveTarget(target);
       if (!action) return;
-      this._record({ type: "keypress", element, action, key });
+      this._record({
+        type: "keypress",
+        element,
+        action,
+        id,
+        dataAction,
+        classes,
+        key,
+      });
     } catch {
       // Never throw from a passive listener
     }
@@ -432,12 +481,20 @@ class UserActionTrackerService {
 
   /**
    * Walks up the DOM from `target` (at most 6 levels) to find the nearest
-   * meaningful interactive ancestor, then derives a privacy-safe action label.
+   * meaningful interactive ancestor, then derives a privacy-safe action label
+   * and selector metadata (id, data-action, CSS classes) useful for locating
+   * the element in source code.
    *
    * Returns `{ element: '', action: '' }` if no meaningful target is found
    * (the caller should skip recording in that case).
    */
-  private _resolveTarget(target: Element): { element: string; action: string } {
+  private _resolveTarget(target: Element): {
+    element: string;
+    action: string;
+    id?: string;
+    dataAction?: string;
+    classes?: string[];
+  } {
     let current: Element | null = target;
     let depth = 0;
 
@@ -470,10 +527,42 @@ class UserActionTrackerService {
         continue;
       }
 
-      return { element: tag, action: label };
+      // Collect selector metadata — these allow an LLM to search source files
+      // directly for the element (e.g. `id="send-btn"`, `.send-message-btn`).
+      const elementId = current.getAttribute("id") || undefined;
+      const rawDataAction =
+        dataAction && dataAction.trim() ? dataAction.trim() : undefined;
+      const meaningfulClasses = this._getMeaningfulClasses(current);
+      const classes =
+        meaningfulClasses.length > 0 ? meaningfulClasses : undefined;
+
+      return {
+        element: tag,
+        action: label,
+        id: elementId,
+        dataAction: rawDataAction,
+        classes,
+      };
     }
 
     return { element: "", action: "" };
+  }
+
+  /**
+   * Returns all CSS classes on an element that are meaningful for source-code
+   * searching: not Svelte hashes (no digits), length ≥ 4, not in the generic
+   * blocklist. Unlike `_deriveLabelFromClasses`, this returns ALL qualifying
+   * classes (not just the first) so the full selector context is available.
+   */
+  private _getMeaningfulClasses(el: Element): string[] {
+    const result: string[] = [];
+    for (const cls of Array.from(el.classList)) {
+      if (cls.length < 4) continue;
+      if (/\d/.test(cls)) continue; // skip Svelte hashes like svelte-abc123
+      if (GENERIC_CLASS_NAMES.has(cls.toLowerCase())) continue;
+      result.push(cls);
+    }
+    return result;
   }
 
   /**
