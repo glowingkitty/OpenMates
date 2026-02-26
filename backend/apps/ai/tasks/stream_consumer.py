@@ -280,14 +280,15 @@ async def _update_chat_metadata(
     user_vault_key_id: str,
     task_id: str,
     log_prefix: str,
-    model_name: Optional[str] = None
+    model_name: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
 ) -> None:
     """Update chat metadata and save assistant response to cache.
-    
+
     CRITICAL: This function NOW updates messages_v in Directus.
     This ensures Directus reflects the actual message count and prevents version drift
     during multi-device race conditions.
-    
+
     Args:
         request_data: The AI skill request data
         category: The mate category for this response
@@ -301,6 +302,9 @@ async def _update_chat_metadata(
         task_id: The AI task ID (also the message ID for the assistant's response)
         log_prefix: Logging prefix for this task
         model_name: The AI model name used for the response
+        rejection_reason: If set, forwarded to _save_to_cache_and_publish so the
+            persisted event is broadcast with the correct role/status for system
+            rejection messages (e.g. "insufficient_credits").
     """
     # 1. Increment messages_v atomically via cache HINCRBY (same mechanism as system_message_handler)
     # This prevents race conditions where system messages and AI responses compete for version numbers.
@@ -356,7 +360,8 @@ async def _update_chat_metadata(
             new_messages_v, cache_service,  # Pass the NEW version, cache will use it explicitly
             encryption_service, user_vault_key_id,
             content_markdown, log_prefix,
-            model_name=model_name
+            model_name=model_name,
+            rejection_reason=rejection_reason,
         )
 
 
@@ -431,10 +436,11 @@ async def _save_to_cache_and_publish(
     user_vault_key_id: str,
     content_markdown: str,
     log_prefix: str,
-    model_name: Optional[str] = None
+    model_name: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
 ) -> None:
     """Save message to cache and publish persistence event.
-    
+
     Args:
         request_data: The AI skill request data
         task_id: The AI task ID (also the message ID for the assistant's response)
@@ -447,6 +453,13 @@ async def _save_to_cache_and_publish(
         content_markdown: The response content as markdown (to be encrypted for cache)
         log_prefix: Logging prefix for this task
         model_name: The AI model name used for the response
+        rejection_reason: If set, this is a system rejection message (e.g.
+            "insufficient_credits"). The persisted event is sent with
+            role="system" / status="waiting_for_user" so the client renders it
+            as a system notice rather than an assistant bubble.  Without this fix
+            the broadcast always used role="assistant" / status="synced", which
+            overwrote the correct values the stream final-chunk handler had
+            already applied to the in-memory message.
     """
     try:
         from backend.core.api.app.schemas.chat import MessageInCache
@@ -464,16 +477,27 @@ async def _save_to_cache_and_publish(
             # Don't cache if encryption fails
             return
         
+        # Determine role/status for this message.
+        # CRITICAL FIX: rejection messages (e.g. insufficient_credits) must be broadcast
+        # as role="system" / status="waiting_for_user" so the client renders them as system
+        # notices rather than assistant bubbles.  Previously this always used "assistant" /
+        # "synced", which overwrote the correct values the stream final-chunk handler had
+        # already applied to the in-memory message on the active device.
+        # NOTE: The server cache (MessageInCache) only accepts a limited set of statuses;
+        # "waiting_for_user" is a client-only status, so we store "synced" in cache but
+        # send "waiting_for_user" in the client-facing event payload.
+        cache_role = "system" if rejection_reason else "assistant"
+
         # Store encrypted markdown content in cache (server-side encrypted with encryption_key_user_server)
         ai_message_for_cache = MessageInCache(
             id=task_id,
             chat_id=request_data.chat_id,
-            role="assistant",
+            role=cache_role,
             category=category,
             sender_name=None,  # Assistant doesn't have a sender_name
             encrypted_content=encrypted_content_for_cache,  # Server-side encrypted content
             created_at=timestamp,
-            status="synced",
+            status="synced",  # Server cache only accepts "synced" — client-only statuses excluded
             model_name=model_name  # Ensure model_name is in cache object if schema supports it
         )
         
@@ -484,8 +508,27 @@ async def _save_to_cache_and_publish(
             explicit_messages_v=messages_version
         )
         
-        logger.info(f"{log_prefix} Saved assistant message to cache for chat {request_data.chat_id} with explicit version {messages_version}.")
+        logger.info(f"{log_prefix} Saved {'rejection' if rejection_reason else 'assistant'} message to cache for chat {request_data.chat_id} with explicit version {messages_version}.")
         
+        # Build the client-facing message dict.
+        # For rejection messages: role="system", status="waiting_for_user", plus rejection_reason.
+        # The frontend chat_message_added handler reads these to store the message correctly
+        # and to avoid overwriting the stream final-chunk handler's correct in-memory values.
+        client_role = "system" if rejection_reason else "assistant"
+        client_status = "waiting_for_user" if rejection_reason else "synced"
+        client_message: dict = {
+            "message_id": task_id,
+            "chat_id": request_data.chat_id,
+            "role": client_role,
+            "category": category,
+            "content": content_markdown,  # Send markdown content to client
+            "created_at": timestamp,
+            "status": client_status,
+            "model_name": model_name,  # CRITICAL: Send model_name to client for encryption/storage
+        }
+        if rejection_reason:
+            client_message["rejection_reason"] = rejection_reason
+
         # Publish persistence event
         persisted_event_payload = {
             "type": "ai_message_persisted",
@@ -493,16 +536,7 @@ async def _save_to_cache_and_publish(
             "chat_id": request_data.chat_id,
             "user_id_uuid": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
-            "message": {
-                "message_id": task_id,
-                "chat_id": request_data.chat_id,
-                "role": "assistant",
-                "category": category,
-                "content": content_markdown,  # Send markdown content to client
-                "created_at": timestamp,
-                "status": "synced",
-                "model_name": model_name  # CRITICAL: Send model_name to client for encryption/storage
-            },
+            "message": client_message,
             "versions": {"messages_v": messages_version},
             "last_edited_overall_timestamp": timestamp
         }
@@ -844,7 +878,8 @@ async def _generate_fake_stream_for_simple_message(
                 user_vault_key_id=user_vault_key_id,
                 task_id=task_id,
                 log_prefix=log_prefix,
-                model_name=None  # Model name not applicable for simple/error messages
+                model_name=None,  # Model name not applicable for simple/error messages
+                rejection_reason=rejection_reason,  # Forward so the persisted event has correct role/status
             )
             logger.info(f"{log_prefix} Simple message response saved to cache for future follow-up context.")
         except Exception as e:
