@@ -6648,6 +6648,98 @@ report_issue.screenshot_preview_alt:
   cs: Náhled snímku obrazovky
   sv: Förhandsgranskning av skärmbild
   verified_by_human: []
+report_issue.confirmation_title:
+  context: Sub-page title shown in the settings header after an issue is successfully submitted
+  en: Report Submitted
+  de: Bericht eingereicht
+  zh: 报告已提交
+  es: Informe enviado
+  fr: Signalement soumis
+  pt: Relatório enviado
+  ru: Отчёт отправлен
+  ja: レポートを送信しました
+  ko: 신고 제출됨
+  it: Segnalazione inviata
+  tr: Rapor gönderildi
+  vi: Đã gửi báo cáo
+  id: Laporan terkirim
+  pl: Zgłoszenie wysłane
+  nl: Rapport ingediend
+  ar: تم إرسال التقرير
+  hi: रिपोर्ट सबमिट की गई
+  th: ส่งรายงานแล้ว
+  cs: Zpráva odeslána
+  sv: Rapport skickad
+  verified_by_human: []
+report_issue.confirmation_heading:
+  context: Large heading on the confirmation page after a successful issue submission
+  en: Thank you for your report!
+  de: Danke für deine Meldung!
+  zh: 感谢您的反馈！
+  es: ¡Gracias por tu informe!
+  fr: Merci pour votre signalement !
+  pt: Obrigado pelo seu relatório!
+  ru: Спасибо за ваш отчёт!
+  ja: ご報告ありがとうございます！
+  ko: 신고해 주셔서 감사합니다!
+  it: Grazie per la tua segnalazione!
+  tr: Raporunuz için teşekkürler!
+  vi: Cảm ơn báo cáo của bạn!
+  id: Terima kasih atas laporan Anda!
+  pl: Dziękujemy za zgłoszenie!
+  nl: Bedankt voor uw rapport!
+  ar: شكرًا على تقريرك!
+  hi: आपकी रिपोर्ट के लिए धन्यवाद!
+  th: ขอบคุณสำหรับรายงานของคุณ!
+  cs: Děkujeme za váš report!
+  sv: Tack för din rapport!
+  verified_by_human: []
+report_issue.confirmation_body:
+  context: Body text on the confirmation page explaining what happens next
+  en: We have received your report and will look into it. You can reference your issue using the ID below.
+  de: Wir haben deine Meldung erhalten und werden sie prüfen. Du kannst dein Problem mit der folgenden ID referenzieren.
+  zh: 我们已收到您的报告并将进行调查。您可以使用以下 ID 引用您的问题。
+  es: Hemos recibido tu informe y lo investigaremos. Puedes referenciar tu problema usando el ID a continuación.
+  fr: Nous avons reçu votre signalement et allons l'examiner. Vous pouvez référencer votre problème avec l'ID ci-dessous.
+  pt: Recebemos seu relatório e vamos analisá-lo. Você pode referenciar seu problema usando o ID abaixo.
+  ru: Мы получили ваш отчёт и рассмотрим его. Вы можете ссылаться на проблему по ID ниже.
+  ja: ご報告を受け取りました。確認いたします。以下のIDで問題を参照できます。
+  ko: 신고를 받았으며 검토하겠습니다. 아래 ID로 문제를 참조할 수 있습니다.
+  it: Abbiamo ricevuto la tua segnalazione e la esamineremo. Puoi fare riferimento al tuo problema con l'ID qui sotto.
+  tr: Raporunuzu aldık ve inceleyeceğiz. Sorununuzu aşağıdaki ID ile referans alabilirsiniz.
+  vi: Chúng tôi đã nhận được báo cáo của bạn và sẽ xem xét. Bạn có thể tham chiếu vấn đề bằng ID bên dưới.
+  id: Kami telah menerima laporan Anda dan akan menindaklanjutinya. Anda dapat merujuk masalah dengan ID di bawah.
+  pl: Otrzymaliśmy Twoje zgłoszenie i zajmiemy się nim. Możesz odwoływać się do problemu używając poniższego ID.
+  nl: We hebben uw rapport ontvangen en zullen het onderzoeken. U kunt uw probleem refereren met de ID hieronder.
+  ar: لقد استلمنا تقريرك وسنتابعه. يمكنك الرجوع إلى مشكلتك باستخدام المعرف أدناه.
+  hi: हमें आपकी रिपोर्ट मिल गई है और हम इसकी जांच करेंगे। आप नीचे दी गई ID का उपयोग करके अपनी समस्या का संदर्भ दे सकते हैं।
+  th: เราได้รับรายงานของคุณแล้วและจะดำเนินการตรวจสอบ คุณสามารถอ้างอิงปัญหาด้วย ID ด้านล่าง
+  cs: Obdrželi jsme váš report a prověříme ho. Na problém se můžete odvolávat pomocí níže uvedeného ID.
+  sv: Vi har tagit emot din rapport och kommer att undersöka den. Du kan referera till ditt problem med ID:t nedan.
+  verified_by_human: []
+report_issue.confirmation_submit_another:
+  context: Button on the confirmation page to go back and submit another issue report
+  en: Submit another report
+  de: Weitere Meldung einreichen
+  zh: 提交另一份报告
+  es: Enviar otro informe
+  fr: Soumettre un autre signalement
+  pt: Enviar outro relatório
+  ru: Отправить ещё один отчёт
+  ja: 別のレポートを送信
+  ko: 다른 신고 제출
+  it: Invia un'altra segnalazione
+  tr: Başka bir rapor gönder
+  vi: Gửi báo cáo khác
+  id: Kirim laporan lain
+  pl: Prześlij kolejne zgłoszenie
+  nl: Nog een rapport indienen
+  ar: إرسال تقرير آخر
+  hi: एक और रिपोर्ट सबमिट करें
+  th: ส่งรายงานอีกครั้ง
+  cs: Odeslat další report
+  sv: Skicka in en ny rapport
+  verified_by_human: []
 report_issue.screenshot_upload_button:
   context: Button label to upload a screenshot from the device (shown on iOS or after screen capture fails)
   en: Upload Screenshot

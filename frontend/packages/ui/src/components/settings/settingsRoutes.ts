@@ -81,6 +81,7 @@ import SettingsSupportOneTime from "./support/SettingsSupportOneTime.svelte";
 import SettingsSupportMonthly from "./support/SettingsSupportMonthly.svelte";
 import SettingsNewsletter from "./SettingsNewsletter.svelte";
 import SettingsReportIssue from "./SettingsReportIssue.svelte";
+import SettingsReportIssueConfirmation from "./SettingsReportIssueConfirmation.svelte";
 
 // Developers
 import SettingsDevelopers from "./SettingsDevelopers.svelte";
@@ -187,6 +188,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "support/monthly": SettingsSupportMonthly,
   // Report Issue
   report_issue: SettingsReportIssue,
+  "report_issue/confirmation": SettingsReportIssueConfirmation,
 };
 
 /**

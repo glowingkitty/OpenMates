@@ -14,16 +14,18 @@
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
     import Toggle from '../Toggle.svelte';
-    import { onMount } from 'svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
     import { userActionTracker } from '../../services/userActionTracker';
-    import { reportIssueStore } from '../../stores/reportIssueStore';
+    import { reportIssueStore, submittedIssueIdStore } from '../../stores/reportIssueStore';
     import { inspectChat } from '../../services/debugUtils';
     import { authStore } from '../../stores/authStore';
     import { getEmailDecryptedWithMasterKey } from '../../services/cryptoService';
     import { aiTypingStore } from '../../stores/aiTypingStore';
     import { hasPendingSends } from '../../stores/pendingUploadStore';
+
+    const dispatch = createEventDispatcher();
     
     // Form state
     let issueTitle = $state('');
@@ -37,10 +39,7 @@
     let chatOrEmbedUrl = $state('');
     let contactEmail = $state('');
     let isSubmitting = $state(false);
-    let successMessage = $state('');
     let errorMessage = $state('');
-    let submittedIssueId = $state('');
-    let issueIdCopied = $state(false);
 
     /**
      * For authenticated users: the decrypted account email loaded on mount.
@@ -438,8 +437,7 @@
      * Handle form submission
      */
     async function handleSubmit() {
-        // Reset messages
-        successMessage = '';
+        // Reset error message from any previous submission attempt
         errorMessage = '';
         
         // Validate form
@@ -584,19 +582,9 @@
             }
             
             if (response.ok && data.success) {
-                // Store issue ID separately so it can be displayed as a copyable element
-                const baseSuccessMessage = $text('settings.report_issue_success');
-                successMessage = data.message || baseSuccessMessage;
-                submittedIssueId = data.issue_id || '';
-                issueIdCopied = false;
-                
-                // Show notification
-                notificationStore.success(
-                    baseSuccessMessage,
-                    5000
-                );
-                
-                // Reset form
+                const issueId = data.issue_id || '';
+
+                // Reset form fields
                 issueTitle = '';
                 userFlow = '';
                 expectedBehaviour = '';
@@ -610,6 +598,23 @@
                 emailError = '';
                 showTitleWarning = false;
                 showEmailWarning = false;
+
+                // Clear screenshot state so it doesn't persist after submission
+                screenshotDataUrl = null;
+                screenshotError = '';
+                showUploadFallback = typeof navigator !== 'undefined' &&
+                    typeof (navigator.mediaDevices as { getDisplayMedia?: unknown } | undefined)?.getDisplayMedia !== 'function';
+                if (screenshotFileInput) screenshotFileInput.value = '';
+
+                // Write the issue ID to the shared store so the confirmation sub-page
+                // can read it without prop drilling through the settings router.
+                submittedIssueIdStore.set(issueId);
+                dispatch('openSettings', {
+                    settingsPath: 'report_issue/confirmation',
+                    direction: 'forward',
+                    icon: 'report_issue',
+                    title: $text('settings.report_issue.confirmation_title')
+                });
             } else {
                 // Handle FastAPI validation errors (422 status)
                 // FastAPI returns validation errors in data.detail as an array
@@ -937,25 +942,6 @@
         }
     }
     
-    /**
-     * Copy issue ID to clipboard for easy reference
-     */
-    async function handleCopyIssueId() {
-        if (!submittedIssueId) return;
-        
-        try {
-            await navigator.clipboard.writeText(submittedIssueId);
-            issueIdCopied = true;
-            
-            // Reset copied state after 3 seconds
-            setTimeout(() => {
-                issueIdCopied = false;
-            }, 3000);
-        } catch (error) {
-            console.error('[SettingsReportIssue] Failed to copy issue ID:', error);
-        }
-    }
-    
     // Auto-generate share URL and collect initial device info when component mounts
     onMount(() => {
         // Check for pre-filled data from store
@@ -1232,33 +1218,6 @@
                 {/if}
             </button>
         </div>
-        
-        <!-- Success message -->
-        {#if successMessage}
-            <div class="message success-message" role="alert">
-                {successMessage}
-                {#if submittedIssueId}
-                    <div class="issue-id-container">
-                        <span class="issue-id-label">{$text('settings.report_issue.issue_id_label')}</span>
-                        <div class="issue-id-copy-row">
-                            <code class="issue-id-value">{submittedIssueId}</code>
-                            <button
-                                class="issue-id-copy-button"
-                                class:copied={issueIdCopied}
-                                onclick={handleCopyIssueId}
-                                aria-label={$text('settings.report_issue.copy_issue_id')}
-                            >
-                                {#if issueIdCopied}
-                                    {$text('settings.report_issue.issue_id_copied')}
-                                {:else}
-                                    {$text('settings.report_issue.copy_issue_id')}
-                                {/if}
-                            </button>
-                        </div>
-                    </div>
-                {/if}
-            </div>
-        {/if}
         
         <!-- Error message -->
         {#if errorMessage}
