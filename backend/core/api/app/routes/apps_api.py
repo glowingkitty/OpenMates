@@ -611,6 +611,15 @@ async def call_app_skill(
                 return response.json()
             elif response.status_code == 404:
                 raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found in app '{app_id}'")
+            elif response.status_code == 402:
+                # Billing rejection (e.g. insufficient credits) — propagate the original
+                # detail from the app service so the frontend can detect 402 and show the
+                # appropriate "buy credits" UI instead of a generic error message.
+                try:
+                    detail = response.json().get("detail", "Insufficient credits")
+                except Exception:
+                    detail = "Insufficient credits"
+                raise HTTPException(status_code=402, detail=detail)
             else:
                 logger.error(f"App service error: {response.status_code} - {response.text}")
                 raise HTTPException(status_code=500, detail="Internal service error")
