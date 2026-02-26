@@ -283,6 +283,10 @@ Results are written to `test-results/run-<timestamp>.json` and
 
 ## Sequential Test Debugging Workflow (`scripts/run-tests-sequential.sh`)
 
+**CRITICAL: When the user asks to "run the E2E tests", "start end-to-end testing", or "work through
+the Playwright specs", use THIS workflow — not `run-tests.sh`.** The sequential runner processes
+one spec at a time, automatically debugging failures with Firecrawl before moving on.
+
 A lightweight script for running Playwright specs **one at a time** with progress tracking.
 Designed for iterative debugging: run a test, if it passes continue, if it fails debug with
 Firecrawl browser, fix, re-run, repeat.
