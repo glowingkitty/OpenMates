@@ -4,23 +4,19 @@
   Unified base component for all embed fullscreen views (app skills, websites, etc.)
   
   Structure:
-  - Top bar with action buttons (share, close) — absolute, always on top
-  - Gradient banner header (scrolls with content, like ChatHeader)
-    - App/skill gradient background using CSS variable --color-app-{appId}
-    - Decorative large icons (left/right edges, same as ChatHeader)
-    - Center: small icon (38×38) + title + subtitle
-    - Navigation arrows at left/right edges of the banner
-  - Main content area (scrollable)
+  - EmbedTopBar — action buttons (share, copy, download, close …) in normal flow
+  - EmbedHeader — gradient banner (scrolls with content, same as ChatHeader)
+  - Scrollable content area
+  
+  The top bar is in normal document flow (not absolutely positioned) so the
+  gradient banner always starts below it, keeping the header fully visible on
+  every screen size — mirroring how ChatHeader sits above chat messages.
   
   Animations:
   - Opening: Scale up from 0.5 to 1.0 with opacity fade (originates from preview position)
   - Closing: Scale down to 0.5 with opacity fade (back to preview position)
   - CSS variables --preview-center-x and --preview-center-y set by UnifiedEmbedPreview
     determine the transform-origin for smooth origin-based animations
-  
-  Header Icon Logic:
-  - skillIconName is set AND showSkillIcon is true → skill icon (CSS mask-image SVG)
-  - Otherwise → app icon (icon_rounded CSS class)
   
   Child Embed Loading:
   - For fullscreens that display multiple child embeds (e.g., search results)
@@ -34,13 +30,14 @@
 
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
-  import { text } from '@repo/ui';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { settingsMenuVisible } from '../Settings.svelte';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import { chatSyncService } from '../../services/chatSyncService';
   import { searchTextHighlightStore } from '../../stores/messageHighlightStore';
+  import EmbedTopBar from './EmbedTopBar.svelte';
+  import EmbedHeader from './EmbedHeader.svelte';
   
   // Animation state: controls both open and close animations via CSS classes
   // - false: collapsed state (initial + closing)
@@ -842,16 +839,6 @@
     };
   });
 
-  // ============================================
-  // Header derived state
-  // ============================================
-
-  /**
-   * Whether to use the skill icon (CSS mask-image) or the app icon (icon_rounded class).
-   * skill icon = when skillIconName is set AND showSkillIcon is true
-   * app icon = when showSkillIcon is false OR skillIconName is empty
-   */
-  let useSkillIcon = $derived(showSkillIcon && !!skillIconName);
 </script>
 
 <div
@@ -860,208 +847,53 @@
   style="--preview-center-x: var(--preview-center-x, 50vw); --preview-center-y: var(--preview-center-y, 50vh);"
 >
   <div class="fullscreen-container">
-    <!-- ── Top bar with action buttons ──
-         Absolutely positioned over the header banner + content.
-         Stays fixed at top during scroll. -->
-    <div class="top-bar">
-      <!-- Left side: Chat button, Share, Copy, Download, Report Issue, PII toggle -->
-      <div class="top-bar-left">
-        <!-- Show Chat button - only shown when chat is hidden (forceOverlayMode active on ultra-wide) -->
-        {#if showChatButton && onShowChat}
-          <div class="button-wrapper">
-            <button
-              class="action-button chat-button"
-              onclick={handleShowChatClick}
-              aria-label={$text('chat.show_chat')}
-              title={$text('chat.show_chat')}
-            >
-              <span class="clickable-icon icon_chat"></span>
-            </button>
-          </div>
-        {/if}
-        <!-- Share button - shown by default, can be hidden via showShare=false -->
-        {#if showShare}
-          <div class="button-wrapper">
-            <button
-              class="action-button share-button"
-              onclick={handleShare}
-              aria-label={$text('chat.share')}
-              title={$text('chat.share')}
-            >
-              <span class="clickable-icon icon_share"></span>
-            </button>
-          </div>
-        {/if}
-        <!-- Copy button -->
-        {#if onCopy}
-          <div class="button-wrapper">
-            <button
-              class="action-button copy-button"
-              onclick={handleCopy}
-              aria-label="Copy"
-              title="Copy"
-            >
-              <span class="clickable-icon icon_copy"></span>
-            </button>
-          </div>
-        {/if}
-        <!-- Download button -->
-        {#if onDownload}
-          <div class="button-wrapper">
-            <button
-              class="action-button download-button"
-              onclick={handleDownload}
-              aria-label="Download"
-              title="Download"
-            >
-              <span class="clickable-icon icon_download"></span>
-            </button>
-          </div>
-        {/if}
-        <!-- Report Issue button - always shown -->
-        <div class="button-wrapper">
-          <button
-            class="action-button report-issue-button"
-            onclick={handleReportIssue}
-            aria-label={$text('header.report_issue')}
-            title={$text('header.report_issue')}
-          >
-            <span class="clickable-icon icon_bug"></span>
-          </button>
-        </div>
-        <!-- PII hide/show toggle - only shown when embed has sensitive data -->
-        {#if showPIIToggle && onTogglePII}
-          <div class="button-wrapper">
-            <button
-              class="action-button pii-toggle-button"
-              class:pii-toggle-active={piiRevealed}
-              onclick={onTogglePII}
-              aria-label={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
-              title={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
-            >
-              <span class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'}"></span>
-            </button>
-          </div>
-        {/if}
-      </div>
-      
-      <!-- Right side: Minimize button -->
-      <div class="top-bar-right">
-        <div class="button-wrapper">
-          <button
-            class="action-button minimize-button"
-            onclick={handleClose}
-            aria-label="Minimize"
-            title="Minimize"
-          >
-            <span class="clickable-icon icon_minimize"></span>
-          </button>
-        </div>
-      </div>
-    </div>
+
+    <!-- ── Action buttons row (in normal flow, above the scroll area) ──
+         EmbedTopBar is NOT absolutely positioned — it sits in the flex column
+         before .content-area so the gradient header banner always starts below
+         the buttons, keeping it fully visible on every screen size. -->
+    <EmbedTopBar
+      {showChatButton}
+      {showShare}
+      showCopy={!!onCopy}
+      showDownload={!!onDownload}
+      {showPIIToggle}
+      {piiRevealed}
+      onClose={handleClose}
+      onShare={handleShare}
+      onCopy={handleCopy}
+      onDownload={handleDownload}
+      onReportIssue={handleReportIssue}
+      onShowChat={handleShowChatClick}
+      {onTogglePII}
+    />
 
     <!-- ── Scrollable content area (header banner + embed content) ── -->
     <div class="content-area" bind:this={contentAreaElement}>
 
-      <!-- ── Gradient Header Banner ──
-           Scrolls with content (not fixed), identical design to ChatHeader.
-           Background: app gradient from CSS variable --color-app-{appId}.
-           Large decorative icons at edges, navigation arrows, center content. -->
-      <div
-        class="embed-header-banner"
-        class:has-cta={!!embedHeaderCta}
-        style="background: var(--color-app-{appId});"
-      >
-        <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
-             Same animation as ChatHeader: fade up from +50px below. -->
-        <div class="deco-icon deco-icon-left">
-          {#if useSkillIcon}
-            <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
-          {:else}
-            <div class="deco-app-icon icon_rounded {appId}"></div>
-          {/if}
-        </div>
-        <div class="deco-icon deco-icon-right">
-          {#if useSkillIcon}
-            <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
-          {:else}
-            <div class="deco-app-icon icon_rounded {appId}"></div>
-          {/if}
-        </div>
-
-        <!-- Center content: small icon + title + subtitle -->
-        <div class="header-center">
-          <!-- Small icon (38×38px, white) -->
-          <div class="header-icon">
-            {#if useSkillIcon}
-              <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
-            {:else}
-              <div class="header-app-icon icon_rounded {appId}"></div>
-            {/if}
-          </div>
-
-          <!-- Title (bold, white) -->
-          {#if embedHeaderTitle}
-            <div class="header-title">
-              {#if embedHeaderFaviconUrl}
-                <img
-                  src={embedHeaderFaviconUrl}
-                  alt=""
-                  class="header-favicon"
-                  class:circular={embedHeaderFaviconIsCircular}
-                  crossorigin="anonymous"
-                  onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              {/if}
-              <span class="header-title-text">{embedHeaderTitle}</span>
-            </div>
-          {/if}
-
-          <!-- Subtitle (e.g. "via Brave Search", "Data from 2025/03/27") -->
-          {#if embedHeaderSubtitle}
-            <div class="header-subtitle">{embedHeaderSubtitle}</div>
-          {/if}
-        </div>
-
-        <!-- CTA area at the bottom of the banner (e.g. "Book on X", "Open on X") -->
-        {#if embedHeaderCta}
-          <div class="header-cta-area">
-            {@render embedHeaderCta()}
-          </div>
-        {/if}
-
-        <!-- Navigation arrows at banner edges — same style as ChatHeader nav-arrows.
-             Previous embed (left) and next embed (right).
-             Using prev/next inline here rather than the top-bar since they
-             belong visually to the header carousel. -->
-        {#if hasPreviousEmbed && onNavigatePrevious}
-          <button
-            class="nav-arrow nav-arrow-left"
-            onclick={handleNavigatePrevious}
-            aria-label="Previous embed"
-            type="button"
-          >
-            <span class="nav-chevron nav-chevron-left"></span>
-          </button>
-        {/if}
-        {#if hasNextEmbed && onNavigateNext}
-          <button
-            class="nav-arrow nav-arrow-right"
-            onclick={handleNavigateNext}
-            aria-label="Next embed"
-            type="button"
-          >
-            <span class="nav-chevron nav-chevron-right"></span>
-          </button>
-        {/if}
-      </div>
+      <!-- ── Gradient Header Banner (EmbedHeader) ──
+           Scrolls with content — same fixed dimensions as ChatHeader.svelte.
+           Always fully visible because EmbedTopBar sits above this scroll area. -->
+      <EmbedHeader
+        {appId}
+        {skillIconName}
+        {showSkillIcon}
+        title={embedHeaderTitle}
+        subtitle={embedHeaderSubtitle}
+        faviconUrl={embedHeaderFaviconUrl}
+        faviconIsCircular={embedHeaderFaviconIsCircular}
+        hasCta={!!embedHeaderCta}
+        {embedHeaderCta}
+        {hasPreviousEmbed}
+        {hasNextEmbed}
+        onNavigatePrevious={handleNavigatePrevious}
+        onNavigateNext={handleNavigateNext}
+      />
 
       <!-- ── Embed-specific content ── -->
       {#if content}
-        <!-- Pass child embed context to content snippet -->
         {@render content(childEmbedContext)}
       {:else}
-        <!-- Fallback when content snippet is missing -->
         <div class="missing-content-fallback">
           <p>Content unavailable</p>
         </div>
@@ -1075,14 +907,12 @@
 
 <style>
   /* ===========================================
-     Unified Embed Fullscreen - Base Container
+     Unified Embed Fullscreen - Overlay + Container
      =========================================== */
-  
+
   .unified-embed-fullscreen-overlay {
     position: absolute;
-    /* Fill the entire parent container - no margins needed */
-    /* In overlay mode, this fills the ActiveChat container */
-    /* In side-panel mode, this fills the fullscreen-embed-container */
+    /* Fills the parent container (ActiveChat in overlay mode, side panel otherwise) */
     top: 0;
     left: 0;
     right: 0;
@@ -1093,30 +923,24 @@
     z-index: 100;
     display: flex;
     flex-direction: column;
-    /* Use CSS variables from preview click position for origin-based animations */
-    /* These are set by UnifiedEmbedPreview when opening fullscreen */
+    /* Origin-based open/close animation — coords set by UnifiedEmbedPreview */
     transform-origin: var(--preview-center-x, 50%) var(--preview-center-y, 50%);
     transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
                 opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
-    
-    /* Enable container queries so child components can detect their container width */
+    /* Container queries so child components can detect their available width */
     container-type: inline-size;
     container-name: fullscreen;
-    
-    /* Initial state: collapsed and slightly transparent */
-    /* This creates the starting point for the opening animation */
+    /* Initial (collapsed) state for the opening animation */
     transform: scale(0.5);
     opacity: 0.5;
   }
-  
-  /* Animated-in state: fully expanded and opaque */
-  /* Applied after mount via JS to trigger the opening transition */
+
   .unified-embed-fullscreen-overlay.animating-in {
     transform: scale(1);
     opacity: 1;
   }
-  
+
   .fullscreen-container {
     display: flex;
     flex-direction: column;
@@ -1124,10 +948,8 @@
     position: relative;
   }
 
-  /* Bottom scroll gradient — fades content into the background color,
-     indicating more content is available below. Sits above the content-area
-     scroll but below the top-bar (z-index 999). Pointer-events none so it
-     doesn't block clicks/scrolling. */
+  /* Bottom scroll gradient — visual cue that content continues below.
+     Sits above the scrollable area (z-index 999), pointer-events none. */
   .fullscreen-container::after {
     content: '';
     position: absolute;
@@ -1142,570 +964,50 @@
   }
 
   /* ===========================================
-     Top Bar (absolute, always on top)
-     =========================================== */
-
-  /* Top bar with action buttons - ABSOLUTE position within fullscreen overlay.
-     z-index: 1000 ensures it stays above Leaflet map panes (z-index 400+) and
-     any other high-z-index children that embed fullscreens may render. */
-  .top-bar {
-    position: absolute;
-    top: 16px;
-    left: 16px;
-    right: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    z-index: 1000;
-    pointer-events: none;
-  }
-  
-  .top-bar-left {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    pointer-events: auto;
-  }
-  
-  .top-bar-right {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    pointer-events: auto;
-  }
-  
-  /* Button wrapper - matches new-chat-button-wrapper design from ActiveChat.svelte */
-  .button-wrapper {
-    background-color: var(--color-grey-10);
-    border-radius: 40px;
-    padding: 5.5px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .action-button {
-    width: 30px;
-    height: 30px;
-    min-width: 30px;
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    transition: background-color 0.2s;
-  }
-  
-  .action-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-  }
-  
-  /* Icon styling inside action buttons */
-  .action-button .clickable-icon {
-    width: 22px;
-    height: 22px;
-  }
-
-  /* PII toggle button: subtle orange/amber tint when PII is revealed (warns sensitive data exposed) */
-  .pii-toggle-button.pii-toggle-active {
-    background-color: rgba(245, 158, 11, 0.3) !important;
-  }
-
-  .pii-toggle-button.pii-toggle-active:hover {
-    background-color: rgba(245, 158, 11, 0.45) !important;
-  }
-
-  /* ===========================================
      Scrollable Content Area
      =========================================== */
-  
-  /* Main content area: takes remaining height, scrollable */
+
+  /* Takes the remaining height after EmbedTopBar. Scrollable. */
   .content-area {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    /* No padding/margin tricks — the banner must reach the right edge of the overlay */
     scrollbar-width: thin;
     scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
     transition: scrollbar-color 0.2s ease;
   }
-  
+
   .content-area:hover {
     scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
   }
-  
+
   .content-area::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   .content-area::-webkit-scrollbar-track {
     background: transparent;
   }
-  
+
   .content-area::-webkit-scrollbar-thumb {
     background-color: rgba(128, 128, 128, 0.2);
     border-radius: 4px;
     border: 2px solid transparent;
     transition: background-color 0.2s ease;
   }
-  
+
   .content-area:hover::-webkit-scrollbar-thumb {
     background-color: rgba(128, 128, 128, 0.5);
   }
-  
+
   .content-area::-webkit-scrollbar-thumb:hover {
     background-color: rgba(128, 128, 128, 0.7);
   }
 
   /* ===========================================
-     Gradient Header Banner (scrollable — part of the content flow)
-     Matches ChatHeader design exactly.
-     =========================================== */
-
-  .embed-header-banner {
-    /* Part of the normal scroll flow — scrolls with content, not fixed/sticky. */
-    position: relative;
-    width: 100%;
-    /* Total visual height = padding-top (top-bar clearance) + content area.
-       The padding pushes the centered icon/title below the absolutely-positioned
-       top-bar (16px top + ~41px button = ~57px).  We add 54px of top padding so
-       the banner content isn't hidden behind those floating buttons, while the
-       gradient background still fills the full area above. */
-    height: calc(240px + 54px);
-    padding-top: 54px;
-    box-sizing: border-box;
-    /* Bottom corners rounded; top corners flush with overlay's top-left/top-right border-radius */
-    border-radius: 0 0 14px 14px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    /* Non-interactive background; arrows/buttons override with pointer-events:auto */
-    pointer-events: none;
-    user-select: none;
-  }
-
-  /* Extra height when a CTA button row is present at the bottom */
-  .embed-header-banner.has-cta {
-    height: calc(300px + 54px);
-  }
-
-  /* ── Decorative large icons (126×126px) at banner edges ── */
-
-  .deco-icon {
-    position: absolute;
-    width: 126px;
-    height: 126px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1;
-    pointer-events: none;
-    /* Entrance: fade up from +50px below */
-    animation: decoIconEnter 0.6s ease-out 0.1s both;
-  }
-
-  .deco-icon-left {
-    left: calc(50% - 240px - 106px);
-    bottom: -15px;
-    transform: rotate(-15deg);
-    --deco-rotate: -15deg;
-  }
-
-  .deco-icon-right {
-    right: calc(50% - 240px - 106px);
-    bottom: -15px;
-    transform: rotate(15deg);
-    --deco-rotate: 15deg;
-  }
-
-  @keyframes decoIconEnter {
-    from {
-      opacity: 0;
-      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
-    }
-    to {
-      opacity: 0.4;
-      transform: translateY(0) rotate(var(--deco-rotate, 0deg));
-    }
-  }
-
-  /* Decorative skill icon: CSS mask-image, white fill, large size */
-  .deco-skill-icon {
-    width: 126px;
-    height: 126px;
-    background-color: white;
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-  }
-
-  /* Decorative app icon: uses icon_rounded system, white, large size */
-  .deco-app-icon {
-    width: 80px;
-    height: 80px;
-    position: relative;
-    bottom: auto;
-    left: auto;
-    z-index: auto;
-  }
-
-  /* Force app icon to render white (not gradient) inside decorative container */
-  .deco-app-icon::after {
-    filter: brightness(0) invert(1) !important;
-    background-size: 60px 60px !important;
-  }
-
-  /* ── Center content ── */
-
-  .header-center {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    z-index: 2;
-    padding: 16px 24px;
-    /* Narrow block so it doesn't stretch the full banner width */
-    max-width: 480px;
-    width: 100%;
-    animation: fadeIn 0.35s ease-out;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-
-  /* Small icon container (38×38px) */
-  .header-icon {
-    width: 38px;
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  /* Small skill icon (38×38px white) */
-  .header-skill-icon {
-    width: 38px;
-    height: 38px;
-    background-color: white;
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-  }
-
-  /* Small app icon (38×38px white) */
-  .header-app-icon {
-    width: 30px;
-    height: 30px;
-    position: relative;
-    bottom: auto;
-    left: auto;
-    z-index: auto;
-  }
-
-  .header-app-icon::after {
-    filter: brightness(0) invert(1) !important;
-    background-size: 20px 20px !important;
-  }
-
-  /* Title row: optional favicon + text, clamped to 2 lines */
-  .header-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    max-width: 100%;
-    margin-top: 2px;
-  }
-
-  .header-favicon {
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    flex-shrink: 0;
-    object-fit: cover;
-  }
-
-  .header-favicon.circular {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-  }
-
-  .header-title-text {
-    font-size: 20px;
-    font-weight: 700;
-    color: #ffffff;
-    text-align: center;
-    line-height: 1.3;
-    /* Clamp to 2 lines */
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  /* Subtitle: smaller, slightly transparent */
-  .header-subtitle {
-    font-size: 14px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.85);
-    text-align: center;
-    margin-top: 2px;
-    animation: fadeIn 0.4s ease-out 0.15s both;
-    /* Clamp to 2 lines */
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  /* ── CTA area at banner bottom ──
-     Absolutely positioned at the bottom center of the banner.
-     Used for booking buttons, "Open on X" links, badges etc.
-     Children control their own pointer-events. */
-  .header-cta-area {
-    position: absolute;
-    bottom: 16px;
-    left: 0;
-    right: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 0 20px;
-    z-index: 10;
-    pointer-events: auto;
-    animation: fadeIn 0.4s ease-out 0.2s both;
-  }
-
-  /* ── Navigation arrows ──
-     Positioned at the outer edges of the banner.
-     Identical to ChatHeader nav-arrow style. */
-
-  .nav-arrow {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    padding: 0 !important;
-    min-width: unset !important;
-    width: 40px !important;
-    height: 100% !important;
-    border-radius: 0 !important;
-    background-color: transparent !important;
-    filter: none !important;
-    margin: 0 !important;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-    z-index: 20;
-    pointer-events: auto; /* Re-enable interactivity (banner has pointer-events:none) */
-    flex-shrink: 0;
-  }
-
-  .nav-arrow:hover {
-    background-color: rgba(255, 255, 255, 0.1) !important;
-    scale: none !important;
-  }
-
-  .nav-arrow:active {
-    background-color: rgba(255, 255, 255, 0.18) !important;
-    scale: none !important;
-    filter: none !important;
-  }
-
-  .nav-arrow-left {
-    left: 0;
-    border-radius: 0 10px 10px 0 !important;
-  }
-
-  .nav-arrow-right {
-    right: 0;
-    border-radius: 10px 0 0 10px !important;
-  }
-
-  /* Chevron icons for nav arrows — CSS triangles using borders */
-  .nav-chevron {
-    display: block;
-    width: 10px;
-    height: 10px;
-    border-top: 2.5px solid rgba(255, 255, 255, 0.85);
-    border-right: 2.5px solid rgba(255, 255, 255, 0.85);
-    flex-shrink: 0;
-  }
-
-  .nav-chevron-left {
-    transform: rotate(-135deg);
-    margin-left: 4px; /* optical center */
-  }
-
-  .nav-chevron-right {
-    transform: rotate(45deg);
-    margin-right: 4px;
-  }
-
-  /* ── Skill icon mask-images (same set as BasicInfosBar) ── */
-
-  /* Applied to both .deco-skill-icon and .header-skill-icon via data-skill-icon attr */
-
-  :global([data-skill-icon="search"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
-    mask-image: url('@openmates/ui/static/icons/search.svg');
-  }
-
-  :global([data-skill-icon="videos"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
-    mask-image: url('@openmates/ui/static/icons/videos.svg');
-  }
-
-  :global([data-skill-icon="video"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
-    mask-image: url('@openmates/ui/static/icons/videos.svg');
-  }
-
-  :global([data-skill-icon="book"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/book.svg');
-    mask-image: url('@openmates/ui/static/icons/book.svg');
-  }
-
-  :global([data-skill-icon="visible"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
-    mask-image: url('@openmates/ui/static/icons/visible.svg');
-  }
-
-  :global([data-skill-icon="reminder"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/reminder.svg');
-    mask-image: url('@openmates/ui/static/icons/reminder.svg');
-  }
-
-  :global([data-skill-icon="image"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/image.svg');
-    mask-image: url('@openmates/ui/static/icons/image.svg');
-  }
-
-  :global([data-skill-icon="ai"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-    mask-image: url('@openmates/ui/static/icons/ai.svg');
-  }
-
-  :global([data-skill-icon="focus"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/insight.svg');
-    mask-image: url('@openmates/ui/static/icons/insight.svg');
-  }
-
-  :global([data-skill-icon="pin"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
-    mask-image: url('@openmates/ui/static/icons/pin.svg');
-  }
-
-  :global([data-skill-icon="text"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/docs.svg');
-    mask-image: url('@openmates/ui/static/icons/docs.svg');
-  }
-
-  :global([data-skill-icon="transcript"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/docs.svg');
-    mask-image: url('@openmates/ui/static/icons/docs.svg');
-  }
-
-  :global([data-skill-icon="website"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/web.svg');
-    mask-image: url('@openmates/ui/static/icons/web.svg');
-  }
-
-  :global([data-skill-icon="coding"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/coding.svg');
-    mask-image: url('@openmates/ui/static/icons/coding.svg');
-  }
-
-  :global([data-skill-icon="travel"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
-    mask-image: url('@openmates/ui/static/icons/travel.svg');
-  }
-
-  /* "docs" is the skillIconName used by CodeGetDocsEmbedPreview/Fullscreen */
-  :global([data-skill-icon="docs"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/docs.svg');
-    mask-image: url('@openmates/ui/static/icons/docs.svg');
-  }
-
-  /* ===========================================
-     Mobile adjustments (≤730px)
-     =========================================== */
-
-  @media (max-width: 730px) {
-    .embed-header-banner {
-      height: calc(190px + 54px);
-    }
-
-    .embed-header-banner.has-cta {
-      height: calc(250px + 54px);
-    }
-
-    .header-center {
-      padding: 12px 20px;
-      max-width: 360px;
-    }
-
-    .header-icon {
-      width: 32px;
-      height: 32px;
-    }
-
-    .header-skill-icon {
-      width: 32px;
-      height: 32px;
-    }
-
-    .header-title-text {
-      font-size: 17px;
-    }
-
-    .header-subtitle {
-      font-size: 13px;
-    }
-
-    .deco-icon {
-      width: 90px;
-      height: 90px;
-    }
-
-    .deco-skill-icon {
-      width: 90px;
-      height: 90px;
-    }
-
-    .deco-icon-left {
-      left: calc(50% - 180px - 70px);
-    }
-
-    .deco-icon-right {
-      right: calc(50% - 180px - 70px);
-    }
-  }
-
-  /* ===========================================
      Fallback for Missing Content Snippet
      =========================================== */
-  
+
   .missing-content-fallback {
     display: flex;
     align-items: center;
@@ -1716,15 +1018,13 @@
     text-align: center;
   }
 
-  /* ============================================
+  /* ===========================================
      Search Text Highlighting inside embed fullscreen
-     ============================================ */
+     =========================================== */
 
-  /* <mark class="search-match"> injected via DOM TreeWalker from the search highlight $effect.
-   * Yellow background highlight, matching in-chat search marks in ChatMessage.svelte.
-   * Must override the global `mark` rule in fonts.css which uses -webkit-text-fill-color:transparent
-   * (gradient text effect). That property takes priority over `color` in WebKit/Blink, making
-   * text invisible unless we explicitly reset -webkit-text-fill-color here. */
+  /* <mark class="search-match"> injected by the search highlight $effect.
+   * Must reset -webkit-text-fill-color to override the gradient-text rule
+   * in fonts.css which would otherwise make highlighted text invisible. */
   .content-area :global(mark.search-match) {
     background: none;
     background-color: rgba(255, 213, 0, 0.4);
