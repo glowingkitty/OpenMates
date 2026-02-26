@@ -1270,7 +1270,14 @@
     /* Part of the normal scroll flow — scrolls with content, not fixed/sticky. */
     position: relative;
     width: 100%;
-    height: 240px;
+    /* Total visual height = padding-top (top-bar clearance) + content area.
+       The padding pushes the centered icon/title below the absolutely-positioned
+       top-bar (16px top + ~41px button = ~57px).  We add 54px of top padding so
+       the banner content isn't hidden behind those floating buttons, while the
+       gradient background still fills the full area above. */
+    height: calc(240px + 54px);
+    padding-top: 54px;
+    box-sizing: border-box;
     /* Bottom corners rounded; top corners flush with overlay's top-left/top-right border-radius */
     border-radius: 0 0 14px 14px;
     overflow: hidden;
@@ -1285,7 +1292,7 @@
 
   /* Extra height when a CTA button row is present at the bottom */
   .embed-header-banner.has-cta {
-    height: 300px;
+    height: calc(300px + 54px);
   }
 
   /* ── Decorative large icons (126×126px) at banner edges ── */
@@ -1646,11 +1653,11 @@
 
   @media (max-width: 730px) {
     .embed-header-banner {
-      height: 190px;
+      height: calc(190px + 54px);
     }
 
     .embed-header-banner.has-cta {
-      height: 250px;
+      height: calc(250px + 54px);
     }
 
     .header-center {
