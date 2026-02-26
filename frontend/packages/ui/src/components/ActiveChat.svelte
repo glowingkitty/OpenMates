@@ -2479,6 +2479,81 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         viewportHeight = window.innerHeight;
     }
 
+    // ─── Height-based suggestions overlap detection ──────────────────────────
+    // Reliable DOM-measurement approach: measure whether the new-chat suggestions
+    // (rendered above the message input) would visually overlap the resume-chat
+    // card / welcome greeting below them.
+    //
+    // When overlap would occur we hide suggestions by default and only reveal them
+    // when the message input is focused.  On focus we also hide the daily
+    // inspiration banner + welcome greeting so there is enough room.
+    //
+    // Element refs — bound in the template.
+    let chatSideEl = $state<HTMLElement | null>(null);
+    let welcomeContentEl = $state<HTMLElement | null>(null);
+    let messageInputContainerEl = $state<HTMLElement | null>(null);
+
+    /**
+     * True when the new-chat suggestions would overlap the welcome / resume-chat
+     * content if both were visible simultaneously.
+     *
+     * Recalculated via a ResizeObserver on chatSideEl (see onMount below).
+     * The estimate uses the measured height of the welcome content block plus a
+     * ~140px allowance for the suggestions panel itself.
+     */
+    let suggestionsWouldOverlapWelcome = $state(false);
+
+    // Estimated height the suggestions panel occupies (header + 3 items + margin).
+    // Used as the minimum clearance we require between the welcome block bottom
+    // and the message-input top before we consider the layout "tight".
+    const SUGGESTIONS_APPROX_HEIGHT = 150;
+
+    /**
+     * Re-measure whether suggestions would overlap the welcome content.
+     * Called by the ResizeObserver and whenever relevant state changes.
+     */
+    function recalculateSuggestionsOverlap() {
+        if (!chatSideEl) {
+            suggestionsWouldOverlapWelcome = false;
+            return;
+        }
+
+        const containerRect = chatSideEl.getBoundingClientRect();
+        const containerHeight = containerRect.height;
+
+        // Height of the welcome content block (greeting + resume card).
+        // Falls back to 0 when the element isn't rendered (e.g. hideWelcomeForKeyboard).
+        const welcomeHeight = welcomeContentEl ? welcomeContentEl.getBoundingClientRect().height : 0;
+
+        // Height of the message input container.
+        const inputHeight = messageInputContainerEl
+            ? messageInputContainerEl.getBoundingClientRect().height
+            : (messageInputHeight + 60);
+
+        // The welcome block is vertically centered (top: 50% + 60px transform).
+        // Approximate its bottom edge position within the container.
+        const welcomeCenter = containerHeight * 0.5 + 60;
+        const welcomeBottom = welcomeCenter + welcomeHeight / 2;
+
+        // Available gap between welcome bottom and the message input top.
+        const inputTop = containerHeight - inputHeight;
+        const availableGap = inputTop - welcomeBottom;
+
+        const wouldOverlap = availableGap < SUGGESTIONS_APPROX_HEIGHT;
+
+        if (wouldOverlap !== suggestionsWouldOverlapWelcome) {
+            suggestionsWouldOverlapWelcome = wouldOverlap;
+            console.debug('[ActiveChat] suggestionsWouldOverlapWelcome:', wouldOverlap, {
+                containerHeight,
+                welcomeHeight,
+                welcomeBottom,
+                inputTop,
+                availableGap,
+                threshold: SUGGESTIONS_APPROX_HEIGHT
+            });
+        }
+    }
+
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
     
@@ -2632,14 +2707,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
 
-    // Hide the welcome greeting and resume-chat card on mobile when the keyboard is open.
-    // This frees up vertical space so the input area isn't squeezed against the keyboard.
-    let hideWelcomeForKeyboard = $derived(messageInputFocused && isEffectivelyNarrow);
+    // Hide the welcome greeting and resume-chat card when the keyboard is open (mobile) OR
+    // when the suggestions panel would overlap the welcome content and the input is focused.
+    // In both cases the user has signalled intent to type — hiding the greeting frees up
+    // vertical space so the suggestions are visible without collision.
+    let hideWelcomeForKeyboard = $derived(
+        messageInputFocused && (isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
+    );
 
     // Effective chat width: The actual width of the chat area
     // In side-by-side mode, the chat is constrained to 400px regardless of container width
     // This is passed to ChatHistory/ChatMessage for proper responsive behavior
     let effectiveChatWidth = $derived(showSideBySideLayout ? 400 : containerWidth);
+
+    // Re-run overlap detection when layout-affecting state changes:
+    // - messageInputHeight changes (keyboard open/close, input grows/shrinks)
+    // - resumeChatData changes (resume card appears/disappears, affecting welcome block height)
+    // - showWelcome changes (welcome content added/removed)
+    // - viewportHeight changes (window resize)
+    $effect(() => {
+        // Access reactive dependencies explicitly so the effect re-runs on changes
+        void messageInputHeight;
+        void resumeChatData;
+        void showWelcome;
+        void viewportHeight;
+        // chatSideEl must be available (set after mount)
+        if (chatSideEl) {
+            recalculateSuggestionsOverlap();
+        }
+    });
 
     // Debug suggestions visibility
     $effect(() => {
@@ -6664,6 +6760,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Keep viewportHeight in sync so small-screen logic (e.g. hiding suggestions) is reactive.
         window.addEventListener('resize', handleViewportResize);
 
+        // ── ResizeObserver for overlap detection ──────────────────────────────
+        // Watches chatSideEl for size changes and recalculates whether the
+        // new-chat suggestions would overlap the welcome / resume-chat content.
+        // This is more reliable than a fixed viewport-height threshold because it
+        // responds to actual DOM layout: varying banner heights, resume card
+        // presence, font size, etc.
+        let overlapObserver: ResizeObserver | null = null;
+        if (chatSideEl) {
+            overlapObserver = new ResizeObserver(() => {
+                recalculateSuggestionsOverlap();
+            });
+            overlapObserver.observe(chatSideEl);
+            // Initial measurement
+            recalculateSuggestionsOverlap();
+        }
+
         // Keep containerRect in sync with window scroll/resize so the fixed-position
         // MessageInput side-panel always stays aligned with the container card.
         window.addEventListener('scroll', updateContainerRect, { passive: true });
@@ -7304,6 +7416,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Remove container rect update listeners
             window.removeEventListener('scroll', updateContainerRect);
             window.removeEventListener('resize', updateContainerRect);
+            // Disconnect overlap ResizeObserver
+            overlapObserver?.disconnect();
         };
     });
 
@@ -7392,7 +7506,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {/if}
                 
                 <!-- Left side container for chat history and buttons -->
-                <div class="chat-side">
+                <div class="chat-side" bind:this={chatSideEl}>
                     <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
                     <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
                     <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
@@ -7506,6 +7620,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {#if showWelcome && !hideWelcomeForKeyboard}
                         <div
                             class="center-content"
+                            bind:this={welcomeContentEl}
                             transition:fade={{ duration: 300 }}
                         >
                             <div class="team-profile">
@@ -7666,16 +7781,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         </div>
                     {/if}
 
-                    <div class="message-input-container">
+                    <div class="message-input-container" bind:this={messageInputContainerEl}>
                          <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
                          <!-- Show immediately with default suggestions, then swap to user's real suggestions once sync completes -->
                          <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
                          <!-- Hidden while the map location selector is open (messageInputMapsOpen) —
                               restored automatically when the map is closed and the input is still empty. -->
-                         <!-- Hide suggestions on very short screens (≤670px height) unless the
-                              message input is focused — on those devices the suggestions would
-                              overlap the input or push content out of view. -->
-                         {#if showWelcome && !messageInputMapsOpen && (viewportHeight > 670 || messageInputFocused)}
+                         <!-- Height-based overlap guard: when the suggestions panel would visually
+                              overlap the welcome greeting / resume-chat card below it, hide the
+                              suggestions by default.  They are revealed only when the message input
+                              is focused — at which point the welcome content is also hidden
+                              (hideWelcomeForKeyboard), giving the suggestions room to breathe.
+                              Legacy fallback: also hide on very short screens (≤670px viewport). -->
+                         {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputFocused) && (viewportHeight > 670 || messageInputFocused)}
                              <NewChatSuggestions
                                  messageInputContent={liveInputText}
                                  onSuggestionClick={handleSuggestionClick}
