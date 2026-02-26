@@ -954,24 +954,7 @@
   {onNavigateNext}
 >
   {#snippet embedHeaderCta()}
-    <!-- Trip type badge -->
-    <span class="banner-trip-type">{tripTypeLabel}</span>
-
-    <!-- CO2 emissions badge -->
-    {#if connection.co2_kg != null}
-      <span
-        class="banner-co2"
-        class:co2-good={connection.co2_difference_percent != null && connection.co2_difference_percent < 0}
-        class:co2-bad={connection.co2_difference_percent != null && connection.co2_difference_percent > 20}
-      >
-        {connection.co2_kg} kg CO2
-        {#if connection.co2_difference_percent != null}
-          {connection.co2_difference_percent > 0 ? '+' : ''}{connection.co2_difference_percent}% vs typical
-        {/if}
-      </span>
-    {/if}
-
-    <!-- Booking CTA -->
+    <!-- Booking CTA only — trip type and CO2 are shown in the info row below the map -->
     {#if bookingState === 'loaded' && resolvedBookingUrl}
       <button class="cta-button" onclick={handleOpenBookingUrl}>
         {$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
@@ -997,6 +980,23 @@
       {#if connection.carriers && connection.carriers.length > 0}
         <div class="carriers-row">{connection.carriers.join(', ')}</div>
       {/if}
+
+      <!-- Trip type + CO2 info row — shown here in the details area instead of next to the CTA -->
+      <div class="flight-info-row">
+        <span class="info-badge info-trip-type">{tripTypeLabel}</span>
+        {#if connection.co2_kg != null}
+          <span
+            class="info-badge info-co2"
+            class:co2-good={connection.co2_difference_percent != null && connection.co2_difference_percent < 0}
+            class:co2-bad={connection.co2_difference_percent != null && connection.co2_difference_percent > 20}
+          >
+            {connection.co2_kg} kg CO2
+            {#if connection.co2_difference_percent != null}
+              {connection.co2_difference_percent > 0 ? '+' : ''}{connection.co2_difference_percent}% vs typical
+            {/if}
+          </span>
+        {/if}
+      </div>
       
       <!-- Route Map (OpenStreetMap via Leaflet) -->
       {#if routeWaypoints.length >= 2}
@@ -1166,47 +1166,57 @@
   }
   
   /* ===========================================
-     Banner CTA elements (rendered inside header-cta-area)
+     Flight info row (trip type + CO2, shown in content area below carriers)
      =========================================== */
-  
-  /* Trip type badge — white pill */
-  .banner-trip-type {
-    display: inline-flex;
+
+  /* Flex row containing the trip-type badge and CO2 badge */
+  .flight-info-row {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    padding: 5px 14px;
-    border-radius: 100px;
-    background-color: rgba(255, 255, 255, 0.2);
-    font-size: 13px;
-    font-weight: 500;
-    color: white;
-    white-space: nowrap;
-    flex-shrink: 0;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 20px;
   }
-  
-  /* CO2 badge — green/neutral/red tint */
-  .banner-co2 {
+
+  /* Shared pill badge style — uses theme variables for light/dark mode support */
+  .info-badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     padding: 5px 14px;
     border-radius: 100px;
-    background-color: rgba(255, 255, 255, 0.15);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.9);
     white-space: nowrap;
     flex-shrink: 0;
   }
-  
-  .banner-co2.co2-good {
-    background-color: rgba(34, 197, 94, 0.35);
-    color: white;
+
+  /* Trip type pill — neutral secondary style */
+  .info-trip-type {
+    background-color: var(--color-grey-20);
+    color: var(--color-font-primary);
   }
-  
-  .banner-co2.co2-bad {
-    background-color: rgba(239, 68, 68, 0.35);
-    color: white;
+
+  /* CO2 pill — neutral default, green when lower than typical, red when much higher */
+  .info-co2 {
+    background-color: var(--color-grey-20);
+    color: var(--color-font-primary);
   }
+
+  .info-co2.co2-good {
+    background-color: rgba(34, 197, 94, 0.2);
+    color: var(--color-font-primary);
+  }
+
+  .info-co2.co2-bad {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: var(--color-font-primary);
+  }
+
+  /* ===========================================
+     Banner CTA elements (rendered inside header-cta-area)
+     =========================================== */
   
   /* CTA Booking Button — uses the standard primary button design.
      All three states (idle, loading, loaded) share this base so they

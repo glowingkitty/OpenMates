@@ -63,13 +63,11 @@
     {#if showChatButton && onShowChat}
       <div class="button-wrapper">
         <button
-          class="action-button"
+          class="clickable-icon icon_chat top-button"
           onclick={onShowChat}
           aria-label={$text('chat.show_chat')}
           title={$text('chat.show_chat')}
-        >
-          <span class="clickable-icon icon_chat"></span>
-        </button>
+        ></button>
       </div>
     {/if}
 
@@ -77,13 +75,11 @@
     {#if showShare}
       <div class="button-wrapper">
         <button
-          class="action-button"
+          class="clickable-icon icon_share top-button"
           onclick={onShare}
           aria-label={$text('chat.share')}
           title={$text('chat.share')}
-        >
-          <span class="clickable-icon icon_share"></span>
-        </button>
+        ></button>
       </div>
     {/if}
 
@@ -91,13 +87,11 @@
     {#if showCopy && onCopy}
       <div class="button-wrapper">
         <button
-          class="action-button"
+          class="clickable-icon icon_copy top-button"
           onclick={onCopy}
           aria-label="Copy"
           title="Copy"
-        >
-          <span class="clickable-icon icon_copy"></span>
-        </button>
+        ></button>
       </div>
     {/if}
 
@@ -105,40 +99,34 @@
     {#if showDownload && onDownload}
       <div class="button-wrapper">
         <button
-          class="action-button"
+          class="clickable-icon icon_download top-button"
           onclick={onDownload}
           aria-label="Download"
           title="Download"
-        >
-          <span class="clickable-icon icon_download"></span>
-        </button>
+        ></button>
       </div>
     {/if}
 
     <!-- Report Issue (always shown) -->
     <div class="button-wrapper">
       <button
-        class="action-button"
+        class="clickable-icon icon_bug top-button"
         onclick={onReportIssue}
         aria-label={$text('header.report_issue')}
         title={$text('header.report_issue')}
-      >
-        <span class="clickable-icon icon_bug"></span>
-      </button>
+      ></button>
     </div>
 
     <!-- PII toggle -->
     {#if showPIIToggle && onTogglePII}
       <div class="button-wrapper">
         <button
-          class="action-button pii-toggle-button"
+          class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'} top-button"
           class:pii-toggle-active={piiRevealed}
           onclick={onTogglePII}
           aria-label={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
           title={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
-        >
-          <span class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'}"></span>
-        </button>
+        ></button>
       </div>
     {/if}
   </div>
@@ -147,13 +135,11 @@
   <div class="top-bar-right">
     <div class="button-wrapper">
       <button
-        class="action-button"
+        class="clickable-icon icon_minimize top-button"
         onclick={onClose}
         aria-label="Minimize"
         title="Minimize"
-      >
-        <span class="clickable-icon icon_minimize"></span>
-      </button>
+      ></button>
     </div>
   </div>
 </div>
@@ -161,8 +147,8 @@
 <style>
   /* Top bar overlays the gradient header — position absolute so the header
      remains fully visible beneath it. No background on the row itself.
-     Buttons have a subtle semi-transparent backdrop so they remain legible
-     over any gradient colour. */
+     Buttons use the same pill-wrapper + circular-icon design as the
+     new-chat button and action buttons in ActiveChat.svelte. */
   .embed-top-bar {
     position: absolute;
     top: 0;
@@ -186,51 +172,19 @@
     pointer-events: auto;
   }
 
-  /* Pill wrapper — semi-transparent so the gradient header shows through */
+  /* Pill wrapper — matches .new-chat-button-wrapper in ActiveChat.svelte */
   .button-wrapper {
-    background-color: rgba(0, 0, 0, 0.25);
+    background-color: var(--color-grey-10);
     border-radius: 40px;
-    padding: 5.5px;
+    padding: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
   }
 
-  .action-button {
-    width: 30px;
-    height: 30px;
-    min-width: 30px;
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    transition: background-color 0.2s;
-  }
-
-  .action-button:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-  }
-
-  .action-button .clickable-icon {
-    width: 22px;
-    height: 22px;
-    /* Force icons white so they show clearly over any gradient background */
-    filter: brightness(0) invert(1);
-  }
-
-  /* PII toggle: amber tint when sensitive data is revealed */
-  .pii-toggle-button.pii-toggle-active {
+  /* PII toggle: amber tint when sensitive data is revealed — matches ActiveChat.svelte */
+  .pii-toggle-active {
     background-color: rgba(245, 158, 11, 0.3) !important;
-  }
-
-  .pii-toggle-button.pii-toggle-active:hover {
-    background-color: rgba(245, 158, 11, 0.45) !important;
   }
 </style>
