@@ -166,6 +166,11 @@
     position: relative;
     width: 100%;
     height: 240px;
+    /* flex-shrink: 0 prevents this banner from collapsing when it is a flex
+       item inside .content-area (a flex column with overflow-y: auto).
+       Without it, 'overflow: hidden' on the banner causes the browser to
+       compute height: 0px, hiding the entire header. Matches ChatHeader.svelte. */
+    flex-shrink: 0;
     /* Bottom corners rounded; top corners flush with the overlay border-radius */
     border-radius: 0 0 14px 14px;
     overflow: hidden;
