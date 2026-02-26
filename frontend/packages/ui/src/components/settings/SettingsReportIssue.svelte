@@ -721,6 +721,8 @@
     // ===================== SCREENSHOT CAPTURE =====================
     // Screenshot state — only available for authenticated users.
     // getDisplayMedia() requires browser permission; the PNG is sent as base64 in the JSON payload.
+    // On iOS (where getDisplayMedia is not supported) or after a non-permission capture failure,
+    // a file-upload fallback (<input type="file">) is shown instead.
 
     /** Base64 PNG data URL (includes "data:image/png;base64," prefix) or null if not captured */
     let screenshotDataUrl = $state<string | null>(null);
@@ -728,6 +730,16 @@
     let isCapturingScreenshot = $state(false);
     /** Human-readable capture error shown below the screenshot button */
     let screenshotError = $state('');
+    /**
+     * True after a non-permission capture failure — reveals the upload fallback button.
+     * Also true on iOS where getDisplayMedia is not available at all.
+     */
+    let showUploadFallback = $state(
+        typeof navigator !== 'undefined' &&
+        typeof (navigator.mediaDevices as { getDisplayMedia?: unknown } | undefined)?.getDisplayMedia !== 'function'
+    );
+    /** Reference to the hidden file input used for the upload fallback */
+    let screenshotFileInput = $state<HTMLInputElement | null>(null);
 
     /**
      * Capture the current screen using the native Screen Capture API (getDisplayMedia).
@@ -807,7 +819,9 @@
             if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
                 screenshotError = $text('settings.report_issue.screenshot_permission_denied');
             } else {
+                // On any other failure (NotSupportedError on iOS, etc.) reveal the upload fallback
                 screenshotError = $text('settings.report_issue.screenshot_capture_failed');
+                showUploadFallback = true;
                 console.warn('[SettingsReportIssue] Screenshot capture failed:', error);
             }
         } finally {
@@ -817,10 +831,44 @@
         }
     }
 
+    /**
+     * Handle a file chosen via the upload fallback <input type="file">.
+     * Reads the image as a base64 data URL and stores it in screenshotDataUrl.
+     * Validates the 2 MB size limit before accepting.
+     */
+    function handleScreenshotUpload(event: Event) {
+        screenshotError = '';
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            screenshotError = $text('settings.report_issue.screenshot_size_too_large');
+            input.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result as string;
+            screenshotDataUrl = result;
+            console.debug(
+                `[SettingsReportIssue] Screenshot uploaded: ~${Math.round(file.size / 1024)} KB`
+            );
+        };
+        reader.onerror = () => {
+            screenshotError = $text('settings.report_issue.screenshot_upload_failed');
+            console.warn('[SettingsReportIssue] FileReader error on screenshot upload');
+        };
+        reader.readAsDataURL(file);
+    }
+
     /** Remove the attached screenshot and clear any error. */
     function removeScreenshot() {
         screenshotDataUrl = null;
         screenshotError = '';
+        // Reset the file input so the same file can be re-selected if needed
+        if (screenshotFileInput) screenshotFileInput.value = '';
     }
 
     // State for copy debug info button
@@ -1115,7 +1163,28 @@
                             {$text('settings.report_issue.screenshot_remove')}
                         </button>
                     </div>
+                {:else if showUploadFallback}
+                    <!-- Upload fallback — shown on iOS or after a non-permission capture failure -->
+                    <!-- Hidden file input; the visible styled button triggers it -->
+                    <input
+                        bind:this={screenshotFileInput}
+                        type="file"
+                        accept="image/*"
+                        class="screenshot-file-input"
+                        onchange={handleScreenshotUpload}
+                        disabled={isSubmitting}
+                        aria-label={$text('settings.report_issue.screenshot_upload_button')}
+                    />
+                    <button
+                        type="button"
+                        class="screenshot-capture-btn"
+                        onclick={() => screenshotFileInput?.click()}
+                        disabled={isSubmitting}
+                    >
+                        {$text('settings.report_issue.screenshot_upload_button')}
+                    </button>
                 {:else}
+                    <!-- Screen capture button — desktop browsers with getDisplayMedia support -->
                     <button
                         type="button"
                         class="screenshot-capture-btn"
@@ -1744,5 +1813,10 @@
         font-size: 13px;
         color: var(--color-danger, #e53935);
         margin: 0;
+    }
+
+    /* Hide the native file input — the styled button triggers it programmatically */
+    .screenshot-file-input {
+        display: none;
     }
 </style>

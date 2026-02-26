@@ -6648,6 +6648,52 @@ report_issue.screenshot_preview_alt:
   cs: Náhled snímku obrazovky
   sv: Förhandsgranskning av skärmbild
   verified_by_human: []
+report_issue.screenshot_upload_button:
+  context: Button label to upload a screenshot from the device (shown on iOS or after screen capture fails)
+  en: Upload Screenshot
+  de: Screenshot hochladen
+  zh: 上传截图
+  es: Subir captura de pantalla
+  fr: Téléverser une capture d'écran
+  pt: Enviar captura de tela
+  ru: Загрузить снимок экрана
+  ja: スクリーンショットをアップロード
+  ko: 스크린샷 업로드
+  it: Carica screenshot
+  tr: Ekran görüntüsü yükle
+  vi: Tải lên ảnh chụp màn hình
+  id: Unggah tangkapan layar
+  pl: Prześlij zrzut ekranu
+  nl: Schermafbeelding uploaden
+  ar: رفع لقطة شاشة
+  hi: स्क्रीनशॉट अपलोड करें
+  th: อัปโหลดภาพหน้าจอ
+  cs: Nahrát snímek obrazovky
+  sv: Ladda upp skärmbild
+  verified_by_human: []
+report_issue.screenshot_upload_failed:
+  context: Error message shown when reading the uploaded screenshot file fails
+  en: Failed to read the uploaded image.
+  de: Hochgeladenes Bild konnte nicht gelesen werden.
+  zh: 无法读取上传的图片。
+  es: No se pudo leer la imagen subida.
+  fr: Impossible de lire l'image téléversée.
+  pt: Não foi possível ler a imagem enviada.
+  ru: Не удалось прочитать загруженное изображение.
+  ja: アップロードした画像を読み込めませんでした。
+  ko: 업로드한 이미지를 읽을 수 없습니다.
+  it: Impossibile leggere l'immagine caricata.
+  tr: Yüklenen resim okunamadı.
+  vi: Không thể đọc ảnh đã tải lên.
+  id: Gagal membaca gambar yang diunggah.
+  pl: Nie udało się odczytać przesłanego obrazu.
+  nl: Kan de geüploade afbeelding niet lezen.
+  ar: فشل قراءة الصورة المرفوعة.
+  hi: अपलोड की गई छवि को पढ़ने में विफल।
+  th: ไม่สามารถอ่านภาพที่อัปโหลดได้
+  cs: Nelze přečíst nahraný obrázek.
+  sv: Det gick inte att läsa den uppladdade bilden.
+  verified_by_human: []
 logout_all:
   context: Menu item to log out of all devices and sessions
   en: Log out everywhere
