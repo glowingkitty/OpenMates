@@ -363,10 +363,14 @@ export async function handlePhase1LastChatImpl(
       const userProfile = await userDB.getUserProfile();
       const currentUserId = userProfile?.user_id;
 
-      // CRITICAL FIX: Ensure chat_details has the chat_id field
-      // The backend sends chat_id at payload root, but chat_details needs it too
-      // Ensure all required Chat fields are present
+      // Build the Chat object from payload.
+      // CRITICAL: Spread chat_details FIRST so explicit field assignments below win.
+      // Previously the spread was last, which could overwrite explicit null-coalescing
+      // defaults (e.g. messages_v ?? 0) with raw undefined values from chat_details,
+      // and override user_id with whatever was (or wasn't) in the server payload.
       const chatWithId: Chat = {
+        ...payload.chat_details,
+        // Explicit fields below override the spread
         chat_id: payload.chat_id,
         encrypted_title: payload.chat_details.encrypted_title ?? null,
         messages_v: payload.chat_details.messages_v ?? 0,
@@ -386,7 +390,6 @@ export async function handlePhase1LastChatImpl(
           payload.chat_details.updated_at ?? Math.floor(Date.now() / 1000),
         // Set user_id from current user (all synced chats belong to them - server filters by hashed_user_id)
         user_id: currentUserId,
-        // Include optional fields
         encrypted_chat_key: payload.chat_details.encrypted_chat_key ?? null,
         encrypted_icon: payload.chat_details.encrypted_icon ?? null,
         encrypted_category: payload.chat_details.encrypted_category ?? null,
@@ -394,7 +397,6 @@ export async function handlePhase1LastChatImpl(
           payload.chat_details.encrypted_active_focus_id ?? null,
         is_shared: payload.chat_details.is_shared,
         is_private: payload.chat_details.is_private,
-        ...payload.chat_details,
       };
 
       // Use a single transaction for all Phase 1 writes (chat + messages) for instant availability
