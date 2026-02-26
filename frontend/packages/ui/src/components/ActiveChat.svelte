@@ -2113,6 +2113,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // When true: isNewChatGeneratingTitle is false and the banner shows "Not enough credits".
     // Cleared on next message send or chat switch.
     let isNewChatCreditsError = $state(false);
+    // Whether the user now has credits again after a credits rejection.
+    // Set to true when isNewChatCreditsError is active and userProfile.credits becomes > 0.
+    // Triggers the system message to switch from "Buy Credits" to "Resend message" mode.
+    // Cleared together with isNewChatCreditsError on resend, follow-up send, or chat switch.
+    let isCreditsRestored = $state(false);
     // Decrypted chat header metadata for new chats, populated once the server sends title/category/icon.
     let activeChatDecryptedTitle = $state<string>('');
     let activeChatDecryptedCategory = $state<string | null>(null);
@@ -2156,10 +2161,101 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function resetChatHeaderState() {
         isNewChatGeneratingTitle = false;
         isNewChatCreditsError = false;
+        isCreditsRestored = false;
         activeChatDecryptedTitle = '';
         activeChatDecryptedCategory = null;
         activeChatDecryptedIcon = null;
         activeChatDecryptedSummary = null;
+    }
+
+    // ─── Credits restoration detection ─────────────────────────────────────────
+    //
+    // When a chat is in the credits-error state (isNewChatCreditsError=true) and the
+    // user's credit balance becomes positive again (via a user_credits_updated WebSocket
+    // event → userProfile store update), we flip isCreditsRestored so the system message
+    // in ChatMessage.svelte can switch from "Buy Credits" to "Resend message" mode.
+    // The effect only ever sets isCreditsRestored to true — clearing happens explicitly
+    // in resetChatHeaderState(), handleResendAfterCreditsRestored(), and handleSendMessage().
+    $effect(() => {
+        const credits = $userProfile.credits;
+        if (isNewChatCreditsError && credits > 0) {
+            isCreditsRestored = true;
+            console.debug('[ActiveChat] Credits restored while credits-error state is active — showing resend UI');
+        }
+    });
+
+    /**
+     * Called when the user clicks "Resend message" in the credits-restored banner.
+     *
+     * Steps:
+     *   1. Remove the system rejection message from both the UI array and IndexedDB.
+     *   2. Reset the original user message status from 'waiting_for_user' → 'sending'.
+     *   3. Reset all credits-error header state so the banner returns to "Creating new chat…".
+     *   4. Start the processing phase indicator.
+     *   5. Re-send the user message via chatSyncService.sendNewMessage().
+     *
+     * After this, the normal AI response flow takes over: the backend processes the
+     * message, generates a title/category/icon, and the chat looks like any other chat.
+     */
+    async function handleResendAfterCreditsRestored() {
+        if (!currentChat) return;
+
+        console.debug('[ActiveChat] handleResendAfterCreditsRestored: starting resend flow');
+
+        // 1. Find and remove the system rejection message
+        const systemMsgIndex = currentMessages.findIndex(
+            m => m.status === 'waiting_for_user' && (m.role === 'system' || m.role === 'assistant')
+        );
+        if (systemMsgIndex !== -1) {
+            const systemMsg = currentMessages[systemMsgIndex];
+            currentMessages = currentMessages.filter((_, i) => i !== systemMsgIndex);
+            chatDB.deleteMessage(systemMsg.message_id).catch(err => {
+                console.warn('[ActiveChat] handleResendAfterCreditsRestored: failed to delete system rejection message from DB:', err);
+            });
+            console.debug('[ActiveChat] handleResendAfterCreditsRestored: removed system rejection message', systemMsg.message_id);
+        }
+
+        // 2. Find the last user message (the one that was originally rejected)
+        const userMsg = [...currentMessages].reverse().find(m => m.role === 'user');
+        if (!userMsg) {
+            console.warn('[ActiveChat] handleResendAfterCreditsRestored: no user message found to resend');
+            return;
+        }
+
+        // 3. Reset user message status to 'sending' in UI and DB
+        const userMsgIndex = currentMessages.findIndex(m => m.message_id === userMsg.message_id);
+        if (userMsgIndex !== -1) {
+            const updatedUserMsg = { ...currentMessages[userMsgIndex], status: 'sending' as const };
+            currentMessages[userMsgIndex] = updatedUserMsg;
+            currentMessages = [...currentMessages];
+            chatDB.updateMessageStatus(userMsg.message_id, 'sending').catch(err => {
+                console.warn('[ActiveChat] handleResendAfterCreditsRestored: failed to update user message status in DB:', err);
+            });
+        }
+
+        // 4. Reset credits-error header state → back to loading shimmer
+        isNewChatCreditsError = false;
+        isCreditsRestored = false;
+        isNewChatGeneratingTitle = true;
+        isNewChatProcessing = true;
+        activeChatDecryptedTitle = '';
+        activeChatDecryptedCategory = null;
+        activeChatDecryptedIcon = null;
+        activeChatDecryptedSummary = null;
+
+        // 5. Start the processing phase indicator
+        processingPhase = {
+            phase: 'sending',
+            statusLines: [$text('enter_message.sending')]
+        };
+
+        // 6. Re-send via WebSocket — identical to the automatic offline-retry path
+        try {
+            await chatSyncService.sendNewMessage(userMsg);
+            console.debug('[ActiveChat] handleResendAfterCreditsRestored: message re-sent successfully', userMsg.message_id);
+        } catch (err) {
+            console.error('[ActiveChat] handleResendAfterCreditsRestored: failed to re-send message:', err);
+        }
     }
 
     /**
@@ -3662,7 +3758,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.dispatchEvent(globalChatSelectedEvent);
             console.debug("[ActiveChat] Dispatched globalChatSelected for new chat");
         } else {
-            // This is a message for an existing, already active chat
+            // This is a message for an existing, already active chat.
+            // If there is a credits rejection system message still present (the user is
+            // sending a follow-up instead of clicking "Resend"), remove it first so the
+            // chat looks clean: original user message → new user message → AI response.
+            if (isNewChatCreditsError || isCreditsRestored) {
+                const rejectionIdx = currentMessages.findIndex(
+                    m => m.status === 'waiting_for_user' && (m.role === 'system' || m.role === 'assistant')
+                );
+                if (rejectionIdx !== -1) {
+                    const rejectionMsg = currentMessages[rejectionIdx];
+                    currentMessages = currentMessages.filter((_, i) => i !== rejectionIdx);
+                    chatDB.deleteMessage(rejectionMsg.message_id).catch(err => {
+                        console.warn('[ActiveChat] handleSendMessage: failed to delete credits rejection message from DB:', err);
+                    });
+                    console.debug('[ActiveChat] handleSendMessage: removed credits rejection message before follow-up send', rejectionMsg.message_id);
+                }
+                isNewChatCreditsError = false;
+                isCreditsRestored = false;
+            }
+
             // Ensure we don't duplicate the message if it's already in currentMessages
             if (!currentMessages.some(m => m.message_id === message.message_id)) {
                 currentMessages = [...currentMessages, message];
@@ -3694,6 +3809,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (isNewChatProcessing) {
             isNewChatGeneratingTitle = true;
             isNewChatCreditsError = false;
+            isCreditsRestored = false;
             activeChatDecryptedTitle = '';
             activeChatDecryptedCategory = null;
             activeChatDecryptedIcon = null;
@@ -7415,6 +7531,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : null}
                         {isNewChatGeneratingTitle}
                         {isNewChatCreditsError}
+                        {isCreditsRestored}
+                        onResend={handleResendAfterCreditsRestored}
                         onSuggestionAdded={handleSettingsMemorySuggestionAdded}
                         onSuggestionRejected={handleSettingsMemorySuggestionRejected}
                         onSuggestionOpenForCustomize={handleSettingsMemorySuggestionOpenForCustomize}

@@ -70,7 +70,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     messageId = undefined,
     userMessageId = undefined,
     onDeleteMessage = undefined,
-    isFirstMessage = false
+    isFirstMessage = false,
+    isCreditsRestored = false,
+    onResend = undefined
   }: {
     role?: MessageRole;
     category?: string;
@@ -98,6 +100,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     userMessageId?: string; // User message ID that triggered this response (usage records are stored with this ID)
     onDeleteMessage?: () => void; // Callback when user confirms message deletion
     isFirstMessage?: boolean; // Whether this is the first message in the chat (delete is disabled for first messages)
+    /** True when this message has status 'waiting_for_user' (credits rejection) AND
+     *  the user now has credits again. Replaces the "Buy Credits" UI with a
+     *  "Credits restored" banner and a "Resend message" button. */
+    isCreditsRestored?: boolean;
+    /** Callback to resend the original message after credits are restored.
+     *  Called when the user clicks "Resend message" in the credits-restored banner. */
+    onResend?: () => void;
   } = $props();
   
   // State for thinking section expansion
@@ -1633,18 +1642,33 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
        waiting_for_user status (persisted before role fix) also render as system notices. -->
   <div class="chat-message system">
     <div class="system-message-notice">
-      <span class="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
-      {#if status === 'waiting_for_user'}
-        <!-- Credit rejection: show a button to navigate to billing/buy-credits -->
-        <button 
-          class="system-message-action-btn"
-          onclick={() => {
-            settingsDeepLink.set('billing/buy-credits');
-            panelState.openSettings();
-          }}
+      {#if status === 'waiting_for_user' && isCreditsRestored}
+        <!-- Credits restored: show positive message + Resend button.
+             The original rejection text is replaced so the chat looks clean after recovery. -->
+        <span class="system-message-text credits-restored-text">
+          {$text('chat.credits_restored_message')}
+        </span>
+        <button
+          class="system-message-action-btn credits-restored-btn"
+          onclick={onResend}
         >
-          {$text('chat.insufficient_credits_buy')}
+          {$text('chat.credits_restored_resend')}
         </button>
+      {:else}
+        <!-- Normal system message (e.g., credit rejection notice) -->
+        <span class="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
+        {#if status === 'waiting_for_user'}
+          <!-- Credit rejection: show a button to navigate to billing/buy-credits -->
+          <button
+            class="system-message-action-btn"
+            onclick={() => {
+              settingsDeepLink.set('billing/buy-credits');
+              panelState.openSettings();
+            }}
+          >
+            {$text('chat.insufficient_credits_buy')}
+          </button>
+        {/if}
       {/if}
     </div>
   </div>
@@ -1953,10 +1977,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     color: var(--color-grey-60, #888);
   }
 
-  /* Action button inside system message notices (e.g., "Buy Credits" for insufficient credits) */
+  /* Action button inside system message notices (e.g., "Buy Credits" for insufficient credits).
+     display:block ensures it appears on its own line below the notice text. */
   .system-message-action-btn {
-    display: inline-block;
-    margin-top: 8px;
+    display: block;
+    margin: 8px auto 0;
     padding: 6px 16px;
     font-size: 13px;
     font-weight: 500;
@@ -1970,6 +1995,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .system-message-action-btn:hover {
     opacity: 0.85;
+  }
+
+  /* Credits-restored variant: positive green tone to signal good news. */
+  .credits-restored-text {
+    color: var(--color-grey-80, #ccc);
+  }
+
+  .credits-restored-btn {
+    background: var(--color-success, #28a745);
   }
 
   .chat-app-cards-container {

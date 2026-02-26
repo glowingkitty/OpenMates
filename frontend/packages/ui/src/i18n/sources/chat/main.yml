@@ -738,6 +738,52 @@ insufficient_credits_buy:
   cs: Koupit kredity
   sv: Köp krediter
   verified_by_human: []
+credits_restored_message:
+  context: Message shown in the credits-error system notice when the user has topped up credits and can now continue
+  en: You have credits again to continue using OpenMates!
+  de: Du hast wieder Credits, um OpenMates weiter zu nutzen!
+  zh: 您已重新获得积分，可以继续使用 OpenMates！
+  es: ¡Tienes créditos nuevamente para continuar usando OpenMates!
+  fr: Vous avez à nouveau des crédits pour continuer à utiliser OpenMates !
+  pt: Você tem créditos novamente para continuar usando o OpenMates!
+  ru: У вас снова есть кредиты для продолжения использования OpenMates!
+  ja: OpenMatesを引き続き使用するためのクレジットが再び付与されました！
+  ko: OpenMates를 계속 사용할 크레딧이 다시 생겼습니다!
+  it: Hai di nuovo crediti per continuare a usare OpenMates!
+  tr: OpenMates kullanmaya devam etmek için yeniden krediniz var!
+  vi: Bạn đã có tín dụng trở lại để tiếp tục sử dụng OpenMates!
+  id: Anda kembali memiliki kredit untuk melanjutkan penggunaan OpenMates!
+  pl: Masz znowu kredyty, aby kontynuować korzystanie z OpenMates!
+  nl: Je hebt weer credits om OpenMates te blijven gebruiken!
+  ar: لديك رصيد مرة أخرى لمواصلة استخدام OpenMates!
+  hi: आपके पास OpenMates का उपयोग जारी रखने के लिए फिर से क्रेडिट हैं!
+  th: คุณมีเครดิตอีกครั้งเพื่อใช้งาน OpenMates ต่อไป!
+  cs: Máte opět kredity pro pokračování v používání OpenMates!
+  sv: Du har credits igen för att fortsätta använda OpenMates!
+  verified_by_human: []
+credits_restored_resend:
+  context: Button text to resend the last rejected message after the user has topped up credits
+  en: Resend message
+  de: Nachricht erneut senden
+  zh: 重新发送消息
+  es: Reenviar mensaje
+  fr: Renvoyer le message
+  pt: Reenviar mensagem
+  ru: Повторно отправить сообщение
+  ja: メッセージを再送信
+  ko: 메시지 재전송
+  it: Reinvia messaggio
+  tr: Mesajı yeniden gönder
+  vi: Gửi lại tin nhắn
+  id: Kirim ulang pesan
+  pl: Wyślij ponownie
+  nl: Bericht opnieuw verzenden
+  ar: إعادة إرسال الرسالة
+  hi: संदेश पुनः भेजें
+  th: ส่งข้อความอีกครั้ง
+  cs: Znovu odeslat zprávu
+  sv: Skicka om meddelandet
+  verified_by_human: []
 creating_new_chat:
   context: Status text shown in the chat header banner while a new chat is being created/processed by AI
   en: Creating new chat ...

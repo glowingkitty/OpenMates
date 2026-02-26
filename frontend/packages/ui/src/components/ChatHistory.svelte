@@ -433,6 +433,8 @@
     chatCreatedAt = null,
     isNewChatGeneratingTitle = false,
     isNewChatCreditsError = false,
+    isCreditsRestored = false,
+    onResend = undefined,
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
@@ -460,6 +462,12 @@
     /** True when the first message on this new chat was rejected due to insufficient credits.
      *  Keeps the header banner visible with a "Not enough credits" state instead of dismissing it. */
     isNewChatCreditsError?: boolean;
+    /** True when the user now has credits again after a credits rejection.
+     *  Passed through to ChatMessage so the system notice can switch to "Resend message" mode. */
+    isCreditsRestored?: boolean;
+    /** Callback to resend the original message after credits are restored.
+     *  Passed through to ChatMessage; called when the user clicks "Resend message". */
+    onResend?: () => void;
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -1519,6 +1527,8 @@
                         messageId={msg.id}
                         userMessageId={msg.original_message?.user_message_id}
                         isFirstMessage={msgIndex === 0}
+                        {isCreditsRestored}
+                        {onResend}
                     />
                 </div>
             {/each}

@@ -319,9 +319,10 @@
 
   <!-- ── Chat navigation arrows ──
        Shown at the left and right edges when there are adjacent chats to navigate to.
-       Only rendered in the loaded state (not while the title is still generating).
+       Visible in all banner states (loading, credits error, loaded) — once the user has
+       sent a message they should be able to switch chats at any time without restriction.
        Use pointer-events:auto to override the banner's pointer-events:none. -->
-  {#if isLoaded && navState.hasPrev}
+  {#if navState.hasPrev}
     <button
       class="nav-arrow nav-arrow-left"
       onclick={handlePrevious}
@@ -331,7 +332,7 @@
       <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
     </button>
   {/if}
-  {#if isLoaded && navState.hasNext}
+  {#if navState.hasNext}
     <button
       class="nav-arrow nav-arrow-right"
       onclick={handleNext}
