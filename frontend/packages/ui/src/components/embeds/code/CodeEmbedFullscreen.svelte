@@ -211,7 +211,6 @@
   embedHeaderTitle={skillName}
   embedHeaderSubtitle={statusText || undefined}
   skillIconName={skillIconName}
-  showSkillIcon={false}
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
