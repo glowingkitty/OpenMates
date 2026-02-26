@@ -54,6 +54,12 @@ const STATUS_PRIORITY: Record<string, number> = {
  *
  * Rules:
  * - Always allow streaming -> streaming updates (content grows over time).
+ * - Never allow synced to overwrite waiting_for_user. 'waiting_for_user' is a
+ *   terminal client-side display state (e.g. credits-rejection, permissions request).
+ *   Phased sync delivers these messages from Directus with status='synced' (the
+ *   server-side storage status), but the client must keep 'waiting_for_user' so
+ *   the Buy Credits button, header banner, and typing indicator suppression remain
+ *   correct after a tab reload.
  * - Otherwise, allow updates only when status priority increases.
  */
 export function shouldUpdateMessage(
@@ -63,6 +69,14 @@ export function shouldUpdateMessage(
   // Streaming chunks must be able to update the same message id.
   if (existing.status === "streaming" && incoming.status === "streaming") {
     return true;
+  }
+
+  // Never overwrite a waiting_for_user message with synced from phased sync.
+  // 'waiting_for_user' is a richer client-side state that the server doesn't
+  // persist — the server stores 'synced', but the client needs 'waiting_for_user'
+  // to render the Buy Credits button and keep the credits-error header visible.
+  if (existing.status === "waiting_for_user" && incoming.status === "synced") {
+    return false;
   }
 
   const existingPriority = STATUS_PRIORITY[existing.status] ?? 0;
@@ -961,6 +975,18 @@ export async function updateMessageStatus(
         // before the message was saved locally (very rare). Nothing to do.
         console.warn(
           `[ChatDatabase] updateMessageStatus: message ${message_id} not found in IndexedDB, skipping status update`,
+        );
+        resolve();
+        return;
+      }
+
+      // Guard: never overwrite 'waiting_for_user' with 'synced'.
+      // 'waiting_for_user' is a terminal client-side display state (credits rejection,
+      // permissions request). The server stores these as 'synced', so chat_message_confirmed
+      // events would clobber the client state and hide the Buy Credits button / header banner.
+      if (rawRecord.status === "waiting_for_user" && newStatus === "synced") {
+        console.debug(
+          `[ChatDatabase] updateMessageStatus: preserving 'waiting_for_user' for message ${message_id} — skipping synced overwrite`,
         );
         resolve();
         return;

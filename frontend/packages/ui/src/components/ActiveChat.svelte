@@ -3031,7 +3031,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // PROGRESSIVE STATUS INDICATOR: The centered overlay (processingPhase) handles:
     //   - "Sending..." → "Generating chat title..." → "Selecting AI model..." → "{Mate} is typing..."
     // The bottom indicator only shows during STREAMING (when processingPhase is null but AI is still typing).
-    // Exception: "Waiting for you..." is always shown at the bottom (not part of the centered flow).
     //
     // Returns an array of lines matching the centered overlay format:
     //   Line 1 (primary):   "{mate} is typing..."
@@ -3041,29 +3040,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
-        
-        // Check if there's a message in waiting_for_user state (e.g., insufficient credits, app settings permission)
-        const waitingForUserMessages = currentMessages.filter(m => 
-            m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
-        );
-        const hasWaitingForUserMessage = waitingForUserMessages.length > 0;
-
-        // Show "Waiting for you..." if chat is paused waiting for user action,
-        // BUT suppress it when ANY waiting_for_user message is a system rejection
-        // (e.g., insufficient credits). In that case, the system message bubble in the
-        // chat body already informs the user — a second indicator at the bottom is redundant.
-        // NOTE: We use .some() not .every() because credit rejections produce TWO messages
-        // with waiting_for_user status: the system rejection (role='system') AND the user
-        // message (role='user'). If we required every() to be system, the user message
-        // would break the check and the indicator would still show.
-        const hasSystemRejection = hasWaitingForUserMessage &&
-            waitingForUserMessages.some(m => m.role === 'system');
-        
-        if (hasWaitingForUserMessage && !hasSystemRejection) {
-            const result = $text('enter_message.waiting_for_user');
-            console.debug('[ActiveChat] Showing waiting_for_user indicator:', result);
-            return [result]; // Single line
-        }
         
         // When the centered indicator is active (processingPhase is not null),
         // hide the bottom typing indicator to avoid duplicate text.
@@ -3120,22 +3096,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     })());
 
     // Track the current status type for CSS styling (shimmer animation) on the BOTTOM indicator.
-    // Returns: 'typing' | 'waiting_for_user' | null
-    // 'sending' and 'processing' are no longer shown at the bottom — they're in the centered overlay.
+    // Returns: 'typing' | null
+    // 'sending', 'processing', and 'waiting_for_user' are no longer shown at the bottom.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
         
-        // "Waiting for you..." is always shown at the bottom,
-        // BUT suppress it when ANY waiting_for_user message is a system rejection
-        // (e.g., insufficient credits). The system message bubble already informs the user.
-        // Uses .some() not .every() — see typingIndicatorLines comment for rationale.
-        const waitingForUserMessages = currentMessages.filter(m => 
-            m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
-        );
-        const hasWaitingForUserMessage = waitingForUserMessages.length > 0;
-        const hasSystemRejection = hasWaitingForUserMessage &&
-            waitingForUserMessages.some(m => m.role === 'system');
-        if (hasWaitingForUserMessage && !hasSystemRejection) return 'processing'; // Reuse 'processing' CSS class for shimmer effect
         
         // When centered indicator is active, bottom shows nothing
         if (processingPhase !== null) return null;
@@ -3516,7 +3481,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
 
                 // CRITICAL FIX: Also update the corresponding user message status from 'sending' to appropriate status
-                // For rejection messages (e.g., insufficient credits): set to 'waiting_for_user' so the sidebar shows "Waiting for you..."
+                // For rejection messages (e.g., insufficient credits): set to 'waiting_for_user' so the sidebar shows "Credits needed..."
                 // For normal responses: set to 'synced' to prevent infinite "Sending..." state
                 if (chunk.user_message_id) {
                     const userMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.user_message_id);
@@ -5598,15 +5563,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // When switching back to a chat that had a credits rejection, the header state
         // was cleared by resetChatHeaderState(). Detect this by checking if:
         //   1) The chat has no title/category (backend never sent them due to rejection), AND
-        //   2) There's a system message (or assistant with waiting_for_user) in the messages
-        // This restores the "Not enough credits" banner with the coins icon.
+        //   2) There's a system message (or assistant with waiting_for_user) in the messages.
+        // Defensive fallback: also detect from a user message with waiting_for_user alone,
+        // for cases where the system message's IDB save failed (e.g. due to an IDB transaction
+        // race) and only the user message persisted. This prevents the header from disappearing
+        // on reload even if the system rejection message is absent from IDB.
         if (!activeChatDecryptedTitle && !activeChatDecryptedCategory && currentMessages.length > 0) {
-            const hasCreditsRejection = currentMessages.some(m =>
+            const hasSystemRejection = currentMessages.some(m =>
                 m.status === 'waiting_for_user' && (m.role === 'system' || m.role === 'assistant')
             );
-            if (hasCreditsRejection) {
+            // Fallback: detect from user message alone (system message may be missing from IDB)
+            const hasUserWaitingAlone = !hasSystemRejection && currentMessages.some(m =>
+                m.status === 'waiting_for_user' && m.role === 'user'
+            );
+            if (hasSystemRejection || hasUserWaitingAlone) {
                 isNewChatCreditsError = true;
-                console.debug('[ActiveChat] loadChat: Restored credits error header for chat with rejection message');
+                console.debug('[ActiveChat] loadChat: Restored credits error header for chat with rejection message', {
+                    hasSystemRejection,
+                    hasUserWaitingAlone
+                });
             }
         }
 
