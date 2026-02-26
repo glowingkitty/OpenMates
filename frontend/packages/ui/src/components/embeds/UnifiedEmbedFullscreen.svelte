@@ -698,10 +698,16 @@
     }
     
     // Trigger opening animation after a brief delay to ensure initial styles are applied
-    // This creates a smooth scale-up animation from the preview position
+    // This creates a smooth scale-up animation from the preview position.
+    // Also reset scroll to top: on mobile, browsers can initialise a scrollable
+    // container at a non-zero offset (e.g. after keyboard events), which would
+    // hide the gradient header banner that is now part of the scrollable flow.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         isAnimatingIn = true;
+        if (contentAreaElement) {
+          contentAreaElement.scrollTop = 0;
+        }
       });
     });
   });
@@ -1256,18 +1262,13 @@
   }
 
   /* ===========================================
-     Gradient Header Banner (sticky — always visible at top of scroll)
+     Gradient Header Banner (scrollable — part of the content flow)
      Matches ChatHeader design exactly.
      =========================================== */
 
   .embed-header-banner {
-    /* Sticky so the banner always stays at the top of the scroll container.
-       Without this, the banner disappears as soon as the content is long enough
-       to enable scrolling, because the initial scroll position may place it off-screen.
-       z-index: 10 keeps it above content but below the top-bar (z-index: 1000). */
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    /* Part of the normal scroll flow — scrolls with content, not fixed/sticky. */
+    position: relative;
     width: 100%;
     height: 240px;
     /* Bottom corners rounded; top corners flush with overlay's top-left/top-right border-radius */
