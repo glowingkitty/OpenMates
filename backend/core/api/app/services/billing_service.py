@@ -340,10 +340,17 @@ class BillingService:
         self,
         user_id: str,
         user: Dict[str, Any]
-    ) -> None:
+    ) -> bool:
         """
         Triggers automatic credit purchase when balance falls below threshold.
         Runs asynchronously to not block the main credit deduction.
+
+        Returns:
+            True  — a Stripe charge was actually initiated and confirmed.
+                    The caller should wait (asyncio.sleep) for the webhook to
+                    add credits before re-checking the user's balance.
+            False — no charge was attempted (cooldown, missing config, no email,
+                    no payment method, etc.).  The caller must NOT wait.
         """
         try:
             # 1. Check cooldown period - but only if user now has sufficient credits
@@ -355,13 +362,13 @@ class BillingService:
                 # If user has credits now, respect the cooldown
                 if current_credits > 100:  # Above the auto top-up threshold
                     logger.info(f"Low balance auto top-up for user {user_id} on cooldown (last trigger: {int(time.time() - last_triggered)}s ago)")
-                    return
+                    return False
                 else:
                     # If user still has insufficient credits, previous auto top-up likely failed
                     # Allow retry but with a shorter cooldown (5 minutes) to prevent spam
                     if (time.time() - last_triggered) < 300:  # 5 minutes
                         logger.info(f"Auto top-up retry for user {user_id} on short cooldown (last trigger: {int(time.time() - last_triggered)}s ago, waiting 5min)")
-                        return
+                        return False
                     else:
                         logger.info(f"Auto top-up retry for user {user_id} allowed - previous attempt may have failed to add credits")
 
@@ -369,21 +376,21 @@ class BillingService:
             customer_id = user.get('stripe_customer_id')
             if not customer_id:
                 logger.warning(f"No Stripe customer ID found for user {user_id} auto top-up. Feature may not be configured properly.")
-                return
+                return False
 
             # 3. Decrypt payment method
             logger.debug(f"Decrypting payment method for user {user_id} auto top-up")
             payment_method_id = await self._get_decrypted_payment_method(user)
             if not payment_method_id:
                 logger.warning(f"No payment method found for user {user_id} auto top-up. Feature may not be configured properly.")
-                return
+                return False
             logger.debug(f"Successfully decrypted payment method for user {user_id}: pm_****{payment_method_id[-4:]}")
 
             # 4. Get configuration
             credits_amount = user.get('auto_topup_low_balance_amount')
             if not credits_amount or credits_amount <= 0:
                 logger.warning(f"Invalid credits amount for user {user_id} auto top-up: {credits_amount}")
-                return
+                return False
 
             currency = user.get('auto_topup_low_balance_currency', 'eur').lower()
 
@@ -391,7 +398,7 @@ class BillingService:
             price_data = await self._get_price_for_tier(credits_amount, currency)
             if not price_data:
                 logger.error(f"No pricing found for {credits_amount} credits in {currency} for user {user_id}")
-                return
+                return False
 
             # 6. Get decrypted email for receipt
             logger.debug(f"Decrypting email for user {user_id} auto top-up")
@@ -399,7 +406,7 @@ class BillingService:
             logger.debug(f"Email decryption result for user {user_id}: {'success' if email else 'failed/empty'}")
             if not email:
                 logger.warning(f"No email found for user {user_id} auto top-up — skipping to avoid Stripe InvalidRequestError.")
-                return
+                return False
 
             # 7. Create PaymentIntent using existing payment service
             # Initialize SecretsManager with cache service
@@ -429,7 +436,7 @@ class BillingService:
 
             if not order_result or not order_result.get('client_secret'):
                 logger.error(f"Failed to create payment intent for user {user_id} auto top-up")
-                return
+                return False
 
             # Cache the order for webhook processing (critical for credit addition)
             payment_intent_id = order_result['id']
@@ -444,7 +451,7 @@ class BillingService:
 
             if not cache_success:
                 logger.error(f"Failed to cache auto top-up order {payment_intent_id} for user {user_id}. Webhook processing will fail.")
-                return
+                return False
 
             # 8. Validate payment method belongs to customer and confirm payment
             import stripe
@@ -455,7 +462,7 @@ class BillingService:
                 payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
                 if payment_method.customer != customer_id:
                     logger.error(f"Payment method {payment_method_id} does not belong to customer {customer_id} for user {user_id}")
-                    return
+                    return False
 
                 # Use 'id' field from order_result (PaymentIntent ID)
                 # Include return_url for automatic payment methods that might redirect
@@ -474,16 +481,20 @@ class BillingService:
                 logger.error(f"Stripe error confirming auto top-up payment for user {user_id}: {e.user_message}", exc_info=True)
                 # Update cached order status to failed
                 await self.cache_service.update_order_status(payment_intent_id, "auto_topup_failed")
-                return
+                return False
 
             # 9. Update last triggered timestamp
             await self._update_last_topup_timestamp(user_id)
 
             logger.info(f"✅ Auto top-up successfully triggered for user {user_id}: {credits_amount} credits via {currency.upper()}")
 
+            # Charge was successfully initiated — caller should wait for webhook to add credits
+            return True
+
         except Exception as e:
             logger.error(f"❌ Auto top-up failed for user {user_id}: {e}", exc_info=True)
             # Don't raise - this is a background operation
+            return False
 
     async def _get_last_topup_timestamp(self, user: Dict[str, Any]) -> Optional[float]:
         """

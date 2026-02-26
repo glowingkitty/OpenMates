@@ -432,13 +432,19 @@ async def handle_preprocessing(
                 logger.info(f"{log_prefix} User {request_data.user_id} has auto top-up enabled and a payment method. Attempting to top up before processing...")
 
                 try:
-                    # Trigger low balance auto top-up synchronously
-                    # This will check cooldown, payment method, and process payment
+                    # Trigger low balance auto top-up synchronously.
+                    # Returns True only if a Stripe charge was actually initiated.
+                    # Returns False if the top-up was skipped (cooldown, missing config, etc.),
+                    # in which case we must NOT sleep — the credits haven't changed.
                     import asyncio
-                    await billing_service._trigger_low_balance_topup(request_data.user_id, cached_user)
+                    charge_initiated = await billing_service._trigger_low_balance_topup(request_data.user_id, cached_user)
 
-                    # Wait a moment for payment to process
-                    await asyncio.sleep(2)
+                    if charge_initiated:
+                        # Wait for the Stripe webhook to process the payment and add credits
+                        # to the user's cache entry before we re-check the balance.
+                        await asyncio.sleep(2)
+                    else:
+                        logger.info(f"{log_prefix} Auto top-up was skipped (no charge initiated) — not waiting for credits update.")
 
                     # Refresh user credits from cache after top-up
                     refreshed_user = await cache_service.get_user_by_id(request_data.user_id)
