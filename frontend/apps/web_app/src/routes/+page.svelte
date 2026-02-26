@@ -358,22 +358,34 @@
 			);
 			await loadChatFromIndexedDB();
 		} else {
-			// For authenticated users, wait for sync to complete
-			const handlePhasedSyncComplete = async () => {
+			// For authenticated users, we MUST wait for phased sync to complete before loading
+			// the chat. The phased sync (Phase 2+) is responsible for decrypting and caching
+			// chat keys in IndexedDB. If we call loadChat() before that, ActiveChat.loadChat()
+			// will call resetChatHeaderState() (clearing title/category) and then fail to
+			// decrypt the title/category because the chat key isn't cached yet — leaving the
+			// header blank and the title as '' indefinitely.
+			//
+			// IMPORTANT: Do NOT use a timeout fallback here. A premature load (even 1s after
+			// page load) may still beat Phase 2, causing the exact race condition we're fixing.
+			// Instead, check if sync has already completed (e.g., navigating from another page
+			// within the same session) and either load immediately or wait for the event.
+			const syncState = get(phasedSyncState);
+			if (syncState.initialSyncCompleted) {
+				// Sync already done in this session — load immediately
 				console.debug(
-					`[+page.svelte] Phased sync complete, attempting to load deep-linked chat: ${chatId}`
+					`[+page.svelte] Phased sync already complete, loading deep-linked chat immediately: ${chatId}`
 				);
 				await loadChatFromIndexedDB();
-				// Remove the listener after handling
-				chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
-			};
-
-			// Register listener for phased sync completion
-			chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete);
-
-			// Also try immediately in case sync already completed
-			// (e.g., page reload with URL already set)
-			setTimeout(handlePhasedSyncComplete, 1000);
+			} else {
+				// Sync not yet complete — register event listener and wait
+				// CRITICAL: No setTimeout fallback — a premature load causes missing chat header
+				const handlePhasedSyncComplete = async () => {
+					console.debug(`[+page.svelte] Phased sync complete, loading deep-linked chat: ${chatId}`);
+					await loadChatFromIndexedDB();
+					chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+				};
+				chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+			}
 		}
 	}
 

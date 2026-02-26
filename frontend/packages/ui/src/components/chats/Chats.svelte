@@ -848,10 +848,10 @@ const UPDATE_DEBOUNCE_MS = 300;
 							} catch { /* Icon decryption failed – will use fallback */ }
 						}
 					}
-				} catch (decryptError) {
-					console.warn('[Chats] Failed to decrypt Phase 1 chat fields:', decryptError);
-				}
-				
+			} catch (decryptError) {
+				console.warn('[Chats] Failed to decrypt Phase 1 chat fields:', decryptError);
+			}
+
 				// Skip draft chats (no title and no messages) — only show resume card for real chats
 				const hasTitle = !!(chat.title || decryptedTitle);
 				if (!hasTitle) {
@@ -864,15 +864,24 @@ const UPDATE_DEBOUNCE_MS = 300;
 						return;
 					}
 				}
-				
-				// Use cleartext fields for demo chats, decrypted values otherwise
-				const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
+
+				// CRITICAL: Only store resume data when we have a real title.
+				// If decryption failed (chat key not yet cached at Phase 1 time), skip storing
+				// a fallback 'Untitled Chat' in the resume state — ActiveChat's own
+				// loadResumeChatFromDB() will populate the resume card correctly once the key
+				// is available (Phase 2+). Storing wrong data here would overwrite the correct
+				// data that ActiveChat already loaded, or set a wrong initial value before it loads.
+				const displayTitle = chat.title || decryptedTitle;
 				const displayCategory = chat.category || decryptedCategory || null;
 				const displayIcon = chat.icon || decryptedIcon || null;
-				
-				// Store in resume state for the UI (ActiveChat subscribes to this store)
-				phasedSyncState.setResumeChatData(chat, displayTitle, displayCategory, displayIcon);
-				console.info(`[Chats] Phase 1 chat stored in resume state: "${displayTitle}" (${targetChatId}), category: ${displayCategory}, icon: ${displayIcon}`);
+
+				if (!displayTitle) {
+					console.info(`[Chats] Phase 1: skipping resume state update — title not yet decryptable (key not cached), ActiveChat will handle it`);
+				} else {
+					// Store in resume state for the UI (ActiveChat subscribes to this store)
+					phasedSyncState.setResumeChatData(chat, displayTitle, displayCategory, displayIcon);
+					console.info(`[Chats] Phase 1 chat stored in resume state: "${displayTitle}" (${targetChatId}), category: ${displayCategory}, icon: ${displayIcon}`);
+				}
 			} else {
 				console.warn(`[Chats] Phase 1 chat ${targetChatId} not found in IndexedDB after sync`);
 			}
