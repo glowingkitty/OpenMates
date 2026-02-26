@@ -133,10 +133,11 @@
 	async function handleChatDeepLink(
 		chatId: string,
 		messageId?: string | null,
-		scrollToLatestResponse?: boolean
+		scrollToLatestResponse?: boolean,
+		embedId?: string | null
 	) {
 		console.debug(
-			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}${scrollToLatestResponse ? ' (scroll to latest response)' : ''}`
+			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}${scrollToLatestResponse ? ' (scroll to latest response)' : ''}${embedId ? `, embed: ${embedId}` : ''}`
 		);
 
 		// If messageId is provided, set it in the highlight store
@@ -202,6 +203,14 @@
 
 					// Keep the URL hash so users can share/bookmark the chat
 					// The activeChatStore.setActiveChat() call above already updated the hash
+
+					// If a combined hash included an embed ID, open it in fullscreen after loading the chat
+					if (embedId) {
+						console.debug(
+							`[+page.svelte] Opening embed ${embedId} after loading public chat ${chatId}`
+						);
+						await handleEmbedDeepLink(embedId);
+					}
 					return;
 				} else if (retries > 0) {
 					const delay = retries > 10 ? 50 : 100;
@@ -261,6 +270,14 @@
 							`[+page.svelte] Dispatched globalChatSelected for sessionStorage draft chat:`,
 							chatId
 						);
+
+						// If a combined hash included an embed ID, open it in fullscreen
+						if (embedId) {
+							console.debug(
+								`[+page.svelte] Opening embed ${embedId} after loading sessionStorage chat ${chatId}`
+							);
+							await handleEmbedDeepLink(embedId);
+						}
 						return;
 					} else if (retries > 0) {
 						const delay = retries > 10 ? 50 : 100;
@@ -305,6 +322,14 @@
 
 						// Keep the URL hash so users can share/bookmark the chat
 						// The activeChatStore.setActiveChat() call above already updated the hash
+
+						// If a combined hash included an embed ID, open it in fullscreen after the chat loads
+						if (embedId) {
+							console.debug(
+								`[+page.svelte] Opening embed ${embedId} after loading chat ${chatId} from IndexedDB`
+							);
+							await handleEmbedDeepLink(embedId);
+						}
 						return; // Success - exit
 					} else if (retries > 0) {
 						// If activeChat isn't ready yet, wait a bit and retry
@@ -1790,7 +1815,12 @@
 	 */
 	function createDeepLinkHandlers(): DeepLinkHandlers {
 		return {
-			onChat: async (chatId: string, messageId?: string | null) => {
+			onChat: async (
+				chatId: string,
+				messageId?: string | null,
+				scrollToLatestResponse?: boolean,
+				embedId?: string | null
+			) => {
 				// Update originalHashChatId to reflect the new hash (important for sync completion handler)
 				originalHashChatId = chatId;
 
@@ -1798,7 +1828,7 @@
 				isProcessingInitialHash = true;
 				deepLinkProcessed = true; // Mark that a deep link was processed
 
-				await handleChatDeepLink(chatId, messageId);
+				await handleChatDeepLink(chatId, messageId, scrollToLatestResponse, embedId);
 
 				// Reset flag after processing
 				isProcessingInitialHash = false;

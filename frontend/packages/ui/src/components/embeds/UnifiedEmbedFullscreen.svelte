@@ -189,6 +189,15 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /**
+     * Direction of the navigation that triggered this fullscreen mount.
+     * Controls the enter animation:
+     *   'next'     → slide in from the right  (→ was pressed)
+     *   'previous' → slide in from the left   (← was pressed)
+     *   null       → default scale-up open animation
+     * Not set when opening from chat history or after a close/reopen.
+     */
+    navigateDirection?: 'next' | 'previous' | null;
     
     /* ============================================
        Embed Data Update Props (for reactive updates during streaming)
@@ -273,6 +282,7 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection = null,
     // Child embed loading callback
     onChildrenLoaded,
     // Embed data update props
@@ -694,11 +704,19 @@
       loadChildEmbeds();
     }
     
-    // Trigger opening animation after a brief delay to ensure initial styles are applied
-    // This creates a smooth scale-up animation from the preview position.
+    // Trigger opening animation.
     // Also reset scroll to top: on mobile, browsers can initialise a scrollable
     // container at a non-zero offset (e.g. after keyboard events), which would
     // hide the gradient header banner that is now part of the scrollable flow.
+    //
+    // Directional navigation (prev/next button press):
+    //   The new embed slides in from the correct edge — no scale animation needed.
+    //   We set isAnimatingIn = true synchronously (the CSS transition takes care of
+    //   the translateX 100%→0 / -100%→0 slide once the class is applied with the
+    //   double-rAF that gives the browser time to apply the initial off-screen state).
+    //
+    // Default open (from chat history, link click, etc.):
+    //   Scale-up from the preview card origin (existing behaviour, unchanged).
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         isAnimatingIn = true;
@@ -844,6 +862,8 @@
 <div
   class="unified-embed-fullscreen-overlay"
   class:animating-in={isAnimatingIn}
+  class:nav-next={navigateDirection === 'next'}
+  class:nav-previous={navigateDirection === 'previous'}
   style="--preview-center-x: var(--preview-center-x, 50vw); --preview-center-y: var(--preview-center-y, 50vh);"
 >
   <div class="fullscreen-container">
@@ -934,13 +954,42 @@
     /* Container queries so child components can detect their available width */
     container-type: inline-size;
     container-name: fullscreen;
-    /* Initial (collapsed) state for the opening animation */
+    /* Initial (collapsed) state for the default scale-up open animation */
     transform: scale(0.5);
     opacity: 0.5;
   }
 
+  /* ── Default open/close: scale-up from preview origin ── */
   .unified-embed-fullscreen-overlay.animating-in {
     transform: scale(1);
+    opacity: 1;
+  }
+
+  /* ── Directional navigation: slide in from the right (→ Next pressed) ──
+     Initial off-screen state: fully to the right, fully opaque (no fade).
+     The transition property inherited above drives it to translateX(0).
+     transform-origin is irrelevant for translateX so we override it to
+     center to avoid any residual scale origin being applied. */
+  .unified-embed-fullscreen-overlay.nav-next {
+    transform: translateX(100%);
+    opacity: 1;
+    transform-origin: center center;
+  }
+
+  .unified-embed-fullscreen-overlay.nav-next.animating-in {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  /* ── Directional navigation: slide in from the left (← Previous pressed) ── */
+  .unified-embed-fullscreen-overlay.nav-previous {
+    transform: translateX(-100%);
+    opacity: 1;
+    transform-origin: center center;
+  }
+
+  .unified-embed-fullscreen-overlay.nav-previous.animating-in {
+    transform: translateX(0);
     opacity: 1;
   }
 

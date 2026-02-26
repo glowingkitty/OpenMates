@@ -577,3 +577,92 @@ export async function createCodeEmbedFromPastedText(
 
   return createCodeEmbed(text, language);
 }
+
+/**
+ * Result of creating a document embed
+ */
+export interface DocEmbedCreationResult {
+  /** Unique identifier for the embed */
+  embed_id: string;
+  /** Embed type */
+  type: "docs-doc";
+  /** Markdown embed reference block to insert into message content */
+  embedReference: string;
+}
+
+/**
+ * Creates a proper embed entry for a document_html block pasted or typed in the editor.
+ *
+ * Used when upgrading preview:docs-doc: nodes to real EmbedStore entries so they can
+ * be deep-linked and opened in fullscreen before the message is sent.
+ *
+ * @param content The HTML/markdown document content
+ * @param title Optional document title
+ * @param filename Optional filename
+ * @returns DocEmbedCreationResult with embed_id and markdown reference
+ */
+export async function createDocEmbed(
+  content: string,
+  title?: string,
+  filename?: string,
+): Promise<DocEmbedCreationResult> {
+  const embed_id = generateUUID();
+  const wordCount = content.split(/\s+/).filter((w) => w.trim()).length;
+
+  console.debug("[codeEmbedService] Creating doc embed:", {
+    embed_id,
+    wordCount,
+    title: title || "none",
+    filename: filename || "none",
+  });
+
+  const embedContent = {
+    type: "docs-doc",
+    title: title || null,
+    filename: filename || null,
+    code: content,
+    word_count: wordCount,
+    status: "finished",
+  };
+
+  let toonContent: string;
+  try {
+    toonContent = toonEncode(embedContent);
+  } catch {
+    toonContent = JSON.stringify(embedContent);
+  }
+
+  const textPreview = title || filename || `Document (${wordCount} words)`;
+  const now = Date.now();
+  const embedData = {
+    embed_id,
+    type: "docs-doc",
+    status: "finished",
+    content: toonContent,
+    text_preview: textPreview,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  try {
+    await embedStore.put(
+      `embed:${embed_id}`,
+      embedData,
+      "docs-doc" as EmbedType,
+    );
+    console.info(
+      "[codeEmbedService] Stored doc embed in EmbedStore:",
+      embed_id,
+    );
+  } catch (error) {
+    console.error("[codeEmbedService] Failed to store doc embed:", error);
+  }
+
+  const embedReference = createEmbedReferenceBlock("docs-doc", embed_id);
+
+  return {
+    embed_id,
+    type: "docs-doc",
+    embedReference,
+  };
+}

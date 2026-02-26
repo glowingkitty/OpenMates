@@ -66,6 +66,20 @@
      * The AI generated badge is only shown when ai_generated > 0.7.
      */
     aiDetection?: { ai_generated: number; provider: string } | null;
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
+    /** Direction of the navigation that triggered this mount (for slide animation) */
+    navigateDirection?: 'next' | 'previous' | null;
+    /** Whether to show the "chat" button to restore chat visibility */
+    showChatButton?: boolean;
+    /** Callback when user clicks the "chat" button */
+    onShowChat?: () => void;
   }
 
   let {
@@ -80,6 +94,13 @@
     fileType,
     onClose,
     aiDetection = null,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
+    navigateDirection = null,
+    showChatButton = false,
+    onShowChat,
   }: Props = $props();
 
   /** Threshold matching the backend's "LIKELY AI-GENERATED" log in upload_route.py */
@@ -350,6 +371,13 @@
   showShare={!!files?.original}
   {onClose}
   onDownload={files?.original ? handleDownload : undefined}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
+  {navigateDirection}
+  {showChatButton}
+  {onShowChat}
 >
   {#snippet content()}
     <div class="image-embed-fullscreen">

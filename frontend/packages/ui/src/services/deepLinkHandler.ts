@@ -26,6 +26,7 @@ export interface DeepLinkHandlers {
     chatId: string,
     messageId?: string | null,
     scrollToLatestResponse?: boolean,
+    embedId?: string | null,
   ) => Promise<void>;
   onSettings?: (path: string, hash: string) => void;
   onSignup?: (step: string) => void;
@@ -51,8 +52,35 @@ export function parseDeepLink(
 
   // Chat deep links: #chat-id={id} or #chat-id={id} or #chatid={id}
   // Also support / prefix (e.g. /#chatid=...)
-  // Optional params: &message-id={id}  &scroll=latest-response
+  // Optional params: &message-id={id}  &scroll=latest-response  &embed-id={id}
   const normalizedHash = hash.startsWith("#/") ? "#" + hash.substring(2) : hash;
+
+  // Combined chat+embed format: #chat-id={chatId}&embed-id={embedId}
+  // Must be checked before the generic chat-only regex so the embed-id param is captured.
+  const combinedMatch = normalizedHash.match(
+    /^#chat[-_]?id=([^&]+)&embed[-_]?id=([^&]+)((?:&[^=]+=[^&]*)*)$/,
+  );
+  if (combinedMatch) {
+    const chatId = combinedMatch[1];
+    const embedId = combinedMatch[2];
+    const extraParams = combinedMatch[3] || "";
+    const messageIdMatch = extraParams.match(/&message[-_]?id=([^&]+)/);
+    const messageId = messageIdMatch ? messageIdMatch[1] : null;
+    const scrollMatch = extraParams.match(/&scroll=([^&]+)/);
+    const scrollToLatestResponse = scrollMatch
+      ? scrollMatch[1] === "latest-response"
+      : false;
+    return {
+      type: "chat",
+      data: {
+        chatId,
+        messageId,
+        scrollToLatestResponse,
+        embedId,
+      },
+    };
+  }
+
   const chatMatch = normalizedHash.match(
     /^#chat[-_]?id=([^&]+)((?:&[^=]+=.[^&]*)*)$/,
   );
@@ -73,6 +101,7 @@ export function parseDeepLink(
         chatId,
         messageId,
         scrollToLatestResponse,
+        embedId: null,
       },
     };
   }
@@ -142,6 +171,7 @@ export async function processDeepLink(
           parsed.data.chatId,
           parsed.data.messageId,
           parsed.data.scrollToLatestResponse,
+          parsed.data.embedId ?? null,
         );
         return { type: "chat", processed: true };
       }

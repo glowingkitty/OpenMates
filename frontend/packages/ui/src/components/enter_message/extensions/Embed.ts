@@ -664,6 +664,99 @@ export const Embed = Node.create<EmbedOptions>({
             mountTarget.innerHTML = `<div class="embed-error">Error loading embed: ${error.message}</div>`;
           });
         }
+
+        // Auto-upgrade preview: embeds to real EmbedStore entries for authenticated users.
+        // preview:code: and preview:docs-doc: nodes are created when the user pastes a code
+        // block or document block in write mode. They hold the content inline in attrs.code.
+        // By immediately creating a real embed entry, we give the embed a stable embed_id so
+        // it can be deep-linked and opened in fullscreen even before the message is sent.
+        if (
+          currentAttrs.contentRef?.startsWith("preview:code:") &&
+          currentAttrs.code != null &&
+          typeof getPos === "function"
+        ) {
+          // Fire-and-forget: upgrade preview code embed to real embed
+          (async () => {
+            try {
+              const { createCodeEmbed } =
+                await import("../services/codeEmbedService");
+              const result = await createCodeEmbed(
+                currentAttrs.code!,
+                currentAttrs.language || "text",
+                currentAttrs.filename || undefined,
+              );
+              // Update the node's contentRef to point to the real embed
+              if (typeof getPos === "function") {
+                const pos = getPos();
+                const { state } = editor.view;
+                const nodeAtPos = state.doc.nodeAt(pos);
+                if (
+                  nodeAtPos &&
+                  nodeAtPos.type.name === "embed" &&
+                  nodeAtPos.attrs.contentRef === currentAttrs.contentRef
+                ) {
+                  const tr = state.tr.setNodeMarkup(pos, undefined, {
+                    ...nodeAtPos.attrs,
+                    contentRef: `embed:${result.embed_id}`,
+                  });
+                  editor.view.dispatch(tr);
+                  console.debug(
+                    "[Embed] Upgraded preview code embed to real embed:",
+                    result.embed_id,
+                  );
+                }
+              }
+            } catch (error) {
+              // Non-fatal: preview embed still works inline; real embed creation failed
+              console.error(
+                "[Embed] Failed to upgrade preview code embed to real embed:",
+                error,
+              );
+            }
+          })();
+        } else if (
+          currentAttrs.contentRef?.startsWith("preview:docs-doc:") &&
+          currentAttrs.code != null &&
+          typeof getPos === "function"
+        ) {
+          // Fire-and-forget: upgrade preview docs-doc embed to real embed
+          (async () => {
+            try {
+              const { createDocEmbed } =
+                await import("../services/codeEmbedService");
+              const result = await createDocEmbed(
+                currentAttrs.code!,
+                currentAttrs.title || undefined,
+                currentAttrs.filename || undefined,
+              );
+              if (typeof getPos === "function") {
+                const pos = getPos();
+                const { state } = editor.view;
+                const nodeAtPos = state.doc.nodeAt(pos);
+                if (
+                  nodeAtPos &&
+                  nodeAtPos.type.name === "embed" &&
+                  nodeAtPos.attrs.contentRef === currentAttrs.contentRef
+                ) {
+                  const tr = state.tr.setNodeMarkup(pos, undefined, {
+                    ...nodeAtPos.attrs,
+                    contentRef: `embed:${result.embed_id}`,
+                  });
+                  editor.view.dispatch(tr);
+                  console.debug(
+                    "[Embed] Upgraded preview docs-doc embed to real embed:",
+                    result.embed_id,
+                  );
+                }
+              }
+            } catch (error) {
+              console.error(
+                "[Embed] Failed to upgrade preview docs-doc embed to real embed:",
+                error,
+              );
+            }
+          })();
+        }
       } else {
         // No renderer found - this should not happen for properly configured embed types
         console.error(

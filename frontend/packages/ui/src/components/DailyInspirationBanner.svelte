@@ -502,10 +502,10 @@
     color: white;
     margin: 0;
     line-height: 1.35;
-    /* Clamp to 3 lines to keep card compact */
+    /* Clamp to 4 lines to more reliably show the full text */
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
     min-width: 0;
@@ -691,8 +691,8 @@
 
     .banner-phrase {
       font-size: 14px;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
+      -webkit-line-clamp: 4;
+      line-clamp: 4;
     }
 
     .banner-embed-wrapper {

@@ -186,6 +186,17 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return `\`\`\`${languagePrefix}${pathSuffix}\n${codeContent}\n\`\`\``;
 
     case "docs-doc":
+      // Check if this is a proper embed with embed_id (stored in EmbedStore)
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify(
+          { type: "docs-doc", embed_id },
+          null,
+          2,
+        );
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // Legacy/preview mode: Serialize as document_html block
       let docResult = "```document_html\n";
       if (attrs.title) {
         docResult += `<!-- title: "${attrs.title}" -->\n`;

@@ -74,6 +74,20 @@
     onTranscriptChange?: (embedId: string, newTranscript: string) => void;
     /** Close handler */
     onClose: () => void;
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
+    /** Direction of the navigation that triggered this mount (for slide animation) */
+    navigateDirection?: 'next' | 'previous' | null;
+    /** Whether to show the "chat" button to restore chat visibility */
+    showChatButton?: boolean;
+    /** Callback when user clicks the "chat" button */
+    onShowChat?: () => void;
   }
 
   let {
@@ -90,6 +104,13 @@
     isEditable = false,
     onTranscriptChange,
     onClose,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
+    navigateDirection = null,
+    showChatButton = false,
+    onShowChat,
   }: Props = $props();
 
   // -------------------------------------------------------------------------
@@ -281,6 +302,13 @@
   embedHeaderSubtitle={infoBarSubtitle}
   showShare={false}
   {onClose}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
+  {navigateDirection}
+  {showChatButton}
+  {onShowChat}
 >
   {#snippet content()}
     <div class="recording-fullscreen">

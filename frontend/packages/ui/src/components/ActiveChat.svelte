@@ -949,6 +949,17 @@
     // Add state for embed fullscreen
     let showEmbedFullscreen = $state(false);
     let embedFullscreenData = $state<EmbedFullscreenState>(null);
+
+    /**
+     * Direction of the last embed navigation gesture.
+     * Used to drive the directional slide-in animation in UnifiedEmbedFullscreen:
+     *   'next'     → new embed slides in from the right
+     *   'previous' → new embed slides in from the left
+     *   null       → normal scale-up open animation (first open / close → reopen)
+     * Reset to null immediately after the navigation handler resolves so that
+     * subsequent opens from chat history use the default scale animation.
+     */
+    let embedNavigateDirection = $state<'next' | 'previous' | null>(null);
     
     // Debug: Track state changes
     $effect(() => {
@@ -1137,18 +1148,13 @@
         const detail = event.detail as EmbedFullscreenEventDetail;
         const { embedId, embedData, decodedContent, embedType, attrs } = detail;
         
-        // ALWAYS reload from EmbedStore when embedId is provided to ensure we get the latest data
-        // The embed might have been updated since the preview was rendered (e.g., processing -> finished)
-        // The event's embedData/decodedContent might be stale (captured at render time before skill results arrived)
+        // ALWAYS reload from EmbedStore when embedId is provided to ensure we get the latest data.
+        // The embed might have been updated since the preview was rendered (e.g., processing -> finished).
+        // The event's embedData/decodedContent might be stale (captured at render time before skill results arrived).
         let finalEmbedData = embedData;
         let finalDecodedContent = decodedContent;
         
-        // Skip EmbedStore lookup for preview/stream embeds — these are ephemeral and their
-        // content is passed inline via the event's decodedContent. They have no backing
-        // entry in the EmbedStore. (Legacy path — new embeds use embed: refs.)
-        const isEphemeralEmbed = embedId && (embedId.startsWith('stream:') || embedId.startsWith('preview:'));
-        
-        if (embedId && !isEphemeralEmbed) {
+        if (embedId) {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
                 const freshEmbedData = await resolveEmbed(embedId) as EmbedResolverData | null;
@@ -1435,11 +1441,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         showEmbedFullscreen = true;
         
         // Update URL hash with embed ID for sharing/bookmarking.
-        // Skip ephemeral/preview embeds (stream: or preview: prefix) — they are
-        // in-memory only and cannot be deep-linked or restored from a URL hash.
-        if (embedId && !isEphemeralEmbed) {
-            activeEmbedStore.setActiveEmbed(embedId);
-            console.debug('[ActiveChat] Updated URL hash with embed ID:', embedId);
+        // Include the current chat ID so a reload can restore both chat + embed via combined hash.
+        if (embedId) {
+            activeEmbedStore.setActiveEmbed(embedId, currentChat?.chat_id ?? null);
+            console.debug('[ActiveChat] Updated URL hash with embed ID:', embedId, 'chatId:', currentChat?.chat_id);
         }
         
         console.debug('[ActiveChat] Opening embed fullscreen:', resolvedEmbedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
@@ -1551,6 +1556,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const previousEmbedId = chatEmbedIds[currentEmbedIndex - 1];
         console.debug('[ActiveChat] Navigating to previous embed:', previousEmbedId, 'from index', currentEmbedIndex, 'to', currentEmbedIndex - 1);
         
+        // Signal slide-from-left animation for the incoming embed
+        embedNavigateDirection = 'previous';
+        
         // Create a synthetic embedfullscreen event to open the previous embed
         // This reuses the existing handleEmbedFullscreen logic
         const event = new CustomEvent('embedfullscreen', {
@@ -1564,6 +1572,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         });
         
         await handleEmbedFullscreen(event);
+        
+        // Reset so subsequent open-from-chat-history uses the default scale animation
+        embedNavigateDirection = null;
     }
     
     /**
@@ -1579,6 +1590,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const nextEmbedId = chatEmbedIds[currentEmbedIndex + 1];
         console.debug('[ActiveChat] Navigating to next embed:', nextEmbedId, 'from index', currentEmbedIndex, 'to', currentEmbedIndex + 1);
         
+        // Signal slide-from-right animation for the incoming embed
+        embedNavigateDirection = 'next';
+        
         // Create a synthetic embedfullscreen event to open the next embed
         // This reuses the existing handleEmbedFullscreen logic
         const event = new CustomEvent('embedfullscreen', {
@@ -1592,6 +1606,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         });
         
         await handleEmbedFullscreen(event);
+        
+        // Reset so subsequent open-from-chat-history uses the default scale animation
+        embedNavigateDirection = null;
     }
     
     // Reference to PiP container for moving iframe
@@ -4671,10 +4688,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Handler for clicking the video embed area inside a Daily Inspiration banner.
      *
      * Opens the video directly in the VideoEmbedFullscreen viewer without first
-     * creating a chat. Uses an ephemeral embed ID (preview: prefix) so the
-     * EmbedStore lookup is skipped and the video metadata is passed inline.
-     *
-     * This allows the user to preview the video before committing to a chat.
+     * creating a chat. Requires a real embed_id from persistInspirations — the embed
+     * is always stored when inspirations arrive, so this should always be available.
      */
     async function handleInspirationEmbedFullscreen(inspiration: DailyInspiration) {
         if (!inspiration.video?.youtube_id) {
@@ -4682,6 +4697,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
 
+        const storedEmbedId = inspiration.embed_id;
+        if (!storedEmbedId) {
+            // persistInspirations stores the embed before the banner is shown; if embed_id
+            // is still null the user clicked before storage completed — nothing to open yet.
+            console.warn('[ActiveChat] Inspiration embed not yet stored, cannot open fullscreen:', inspiration.inspiration_id);
+            return;
+        }
+
+        const embedId = `embed:${storedEmbedId}`;
         const video = inspiration.video;
         const videoId = video.youtube_id;
         const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -4694,25 +4718,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             durationFormatted = `${mins}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // If the embed was pre-stored at inspiration-load time (via persistInspirations),
-        // use the real embed_id so it opens through the normal EmbedStore path.
-        // This enables proper fullscreen with all metadata loaded from the store.
-        // Fall back to the ephemeral 'preview:' ID only when the embed isn't stored yet
-        // (e.g. the inspiration arrived from the server but persistInspirations hasn't run).
-        const storedEmbedId = inspiration.embed_id;
-        const embedId = storedEmbedId ? `embed:${storedEmbedId}` : `preview:youtube-${videoId}`;
-        const isEphemeral = !storedEmbedId;
-
         const syntheticEvent = new CustomEvent('embedfullscreen', {
             detail: {
                 embedId,
                 embedData: {
-                    embed_id: embedId,
+                    embed_id: storedEmbedId,
                     type: 'videos-video',
                     status: 'finished',
                 },
-                // Always pass decodedContent inline — handleEmbedFullscreen will re-load from
-                // EmbedStore when embedId is non-ephemeral, but this serves as a reliable fallback.
+                // Pass decodedContent inline as a fallback — handleEmbedFullscreen will
+                // re-load from EmbedStore using the real embedId for up-to-date data.
                 decodedContent: {
                     url: videoUrl,
                     video_id: videoId,
@@ -4733,7 +4748,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             },
         });
 
-        console.debug('[ActiveChat] Opening inspiration video in fullscreen:', videoId, 'embedId:', embedId, 'ephemeral:', isEphemeral);
+        console.debug('[ActiveChat] Opening inspiration video in fullscreen:', videoId, 'embedId:', embedId);
         await handleEmbedFullscreen(syntheticEvent as CustomEvent);
     }
 
@@ -7969,6 +7984,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -7986,6 +8002,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8003,6 +8020,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8020,6 +8038,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8041,6 +8060,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8059,6 +8079,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8075,6 +8096,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8092,10 +8114,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasPreviousEmbed}
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                             showChatButton={showChatButtonInFullscreen}
-                             onShowChat={handleShowChat}
-                         />
+                              onNavigateNext={handleNavigateNextEmbed}
+                              navigateDirection={embedNavigateDirection}
+                              showChatButton={showChatButtonInFullscreen}
+                              onShowChat={handleShowChat}
+                          />
                      {:else if appId === 'health' && skillId === 'search_appointments'}
                          <!-- Health Search Appointments Fullscreen -->
                          <HealthSearchEmbedFullscreen
@@ -8111,6 +8134,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              {hasNextEmbed}
                              onNavigatePrevious={handleNavigatePreviousEmbed}
                              onNavigateNext={handleNavigateNextEmbed}
+                             navigateDirection={embedNavigateDirection}
                              showChatButton={showChatButtonInFullscreen}
                              onShowChat={handleShowChat}
                          />
@@ -8128,6 +8152,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              {hasNextEmbed}
                              onNavigatePrevious={handleNavigatePreviousEmbed}
                              onNavigateNext={handleNavigateNextEmbed}
+                             navigateDirection={embedNavigateDirection}
                              showChatButton={showChatButtonInFullscreen}
                              onShowChat={handleShowChat}
                          />
@@ -8160,6 +8185,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8186,6 +8212,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8222,6 +8249,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 {hasNextEmbed}
                                 onNavigatePrevious={handleNavigatePreviousEmbed}
                                 onNavigateNext={handleNavigateNextEmbed}
+                                navigateDirection={embedNavigateDirection}
                                 showChatButton={showChatButtonInFullscreen}
                                 onShowChat={handleShowChat}
                             />
@@ -8251,6 +8279,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8275,6 +8304,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8308,6 +8338,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -8329,12 +8360,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              {hasPreviousEmbed}
                              {hasNextEmbed}
                              onNavigatePrevious={handleNavigatePreviousEmbed}
-                             onNavigateNext={handleNavigateNextEmbed}
-                             showChatButton={showChatButtonInFullscreen}
-                             onShowChat={handleShowChat}
-                             piiMappings={cumulativePIIMappingsArray}
-                             piiRevealed={piiRevealed}
-                         />
+                              onNavigateNext={handleNavigateNextEmbed}
+                              navigateDirection={embedNavigateDirection}
+                              showChatButton={showChatButtonInFullscreen}
+                              onShowChat={handleShowChat}
+                              piiMappings={cumulativePIIMappingsArray}
+                              piiRevealed={piiRevealed}
+                          />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'docs-doc'}
                     <!-- Document Fullscreen -->
@@ -8351,12 +8383,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              {hasPreviousEmbed}
                              {hasNextEmbed}
                              onNavigatePrevious={handleNavigatePreviousEmbed}
-                             onNavigateNext={handleNavigateNextEmbed}
-                             showChatButton={showChatButtonInFullscreen}
-                             onShowChat={handleShowChat}
-                             piiMappings={cumulativePIIMappingsArray}
-                             piiRevealed={piiRevealed}
-                         />
+                              onNavigateNext={handleNavigateNextEmbed}
+                              navigateDirection={embedNavigateDirection}
+                              showChatButton={showChatButtonInFullscreen}
+                              onShowChat={handleShowChat}
+                              piiMappings={cumulativePIIMappingsArray}
+                              piiRevealed={piiRevealed}
+                          />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'sheets-sheet'}
                     <!-- Sheet/Table Fullscreen -->
@@ -8378,11 +8411,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              {hasNextEmbed}
                              onNavigatePrevious={handleNavigatePreviousEmbed}
                              onNavigateNext={handleNavigateNextEmbed}
-                             showChatButton={showChatButtonInFullscreen}
-                             onShowChat={handleShowChat}
-                             piiMappings={cumulativePIIMappingsArray}
-                             piiRevealed={piiRevealed}
-                        />
+                             navigateDirection={embedNavigateDirection}
+                              showChatButton={showChatButtonInFullscreen}
+                              onShowChat={handleShowChat}
+                              piiMappings={cumulativePIIMappingsArray}
+                              piiRevealed={piiRevealed}
+                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'videos-video'}
                     <!-- Video Fullscreen -->
@@ -8427,11 +8461,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 {hasPreviousEmbed}
                                 {hasNextEmbed}
                                 onNavigatePrevious={handleNavigatePreviousEmbed}
-                                onNavigateNext={handleNavigateNextEmbed}
-                                showChatButton={showChatButtonInFullscreen}
-                                onShowChat={handleShowChat}
-                                metadata={videoMetadata}
-                            />
+                                 onNavigateNext={handleNavigateNextEmbed}
+                                 navigateDirection={embedNavigateDirection}
+                                 showChatButton={showChatButtonInFullscreen}
+                                 onShowChat={handleShowChat}
+                                 metadata={videoMetadata}
+                             />
                         {/await}
                     {/if}
                 {:else if embedFullscreenData.embedType === 'maps'}
@@ -8451,6 +8486,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {hasNextEmbed}
                         onNavigatePrevious={handleNavigatePreviousEmbed}
                         onNavigateNext={handleNavigateNextEmbed}
+                        navigateDirection={embedNavigateDirection}
                         showChatButton={showChatButtonInFullscreen}
                         onShowChat={handleShowChat}
                     />
