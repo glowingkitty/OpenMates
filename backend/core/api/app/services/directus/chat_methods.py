@@ -634,7 +634,15 @@ class ChatMethods:
                 'fields': 'id',  # Only request ID field for minimal data transfer
                 'limit': -1  # Get all messages to count them
             }
-            messages_from_db = await self.directus_service.get_items('messages', params=params)
+            # CRITICAL: Must use admin_required=True here to match the permissions used in
+            # get_messages_for_chats(). Without this, the count query may return fewer messages
+            # than the fetch query (e.g. thinking metadata fields require elevated permissions),
+            # causing the client to perpetually detect "DATA INCONSISTENCY DETECTED".
+            messages_from_db = await self.directus_service.get_items(
+                'messages',
+                params=params,
+                admin_required=True
+            )
             if messages_from_db is None:
                 return 0
             count = len(messages_from_db) if isinstance(messages_from_db, list) else 0

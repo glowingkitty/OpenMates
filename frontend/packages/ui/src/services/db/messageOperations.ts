@@ -39,11 +39,13 @@ const MESSAGES_STORE_NAME = "messages";
  */
 const STATUS_PRIORITY: Record<string, number> = {
   sending: 1,
+  waiting_for_upload: 1, // Upload in progress, same level as sending
   waiting_for_internet: 1,
   processing: 2,
   streaming: 2,
   waiting_for_user: 2.3, // Higher than streaming/processing, lower than failed - chat paused for user action
   failed: 2.5,
+  delivered: 2.8, // Server received the message, awaiting full sync confirmation
   synced: 3,
 };
 
@@ -1218,11 +1220,11 @@ export async function cleanupDuplicateMessages(
             continue; // Already processed
           }
 
-          // Check for exact message_id match or content duplicate
-          if (
-            currentMessage.message_id === otherMessage.message_id ||
-            isContentDuplicate(currentMessage, otherMessage)
-          ) {
+          // Only match on exact message_id — content-based matching was removed because it
+          // could falsely delete legitimate messages that happen to share the same encrypted_content
+          // within a time window, shrinking the local count below server count and triggering
+          // perpetual re-sync loops ("DATA INCONSISTENCY DETECTED" on every reload).
+          if (currentMessage.message_id === otherMessage.message_id) {
             duplicates.push(otherMessage);
             processedMessages.add(otherMessage.message_id);
           }
@@ -1233,16 +1235,11 @@ export async function cleanupDuplicateMessages(
             `[ChatDatabase] Found ${duplicates.length} duplicates for message ${currentMessage.message_id} in chat ${chatId}`,
           );
 
-          // Find the message with highest priority status
-          const statusPriority: Record<string, number> = {
-            sending: 1,
-            delivered: 2,
-            synced: 3,
-          };
-
+          // Use the shared STATUS_PRIORITY map (not a local copy) so priority ordering
+          // stays consistent with shouldUpdateMessage() and the rest of the sync pipeline.
           const bestMessage = duplicates.reduce((best, current) => {
-            const bestPriority = statusPriority[best.status] || 0;
-            const currentPriority = statusPriority[current.status] || 0;
+            const bestPriority = STATUS_PRIORITY[best.status] ?? 0;
+            const currentPriority = STATUS_PRIORITY[current.status] ?? 0;
             return currentPriority > bestPriority ? current : best;
           });
 
