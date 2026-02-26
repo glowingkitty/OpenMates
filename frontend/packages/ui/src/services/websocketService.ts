@@ -17,6 +17,7 @@ import {
   forcedLogoutSetAt,
   FORCED_LOGOUT_STALENESS_MS,
   resetForcedLogoutInProgress,
+  recordPageResume,
 } from "../stores/signupState"; // Import logout state + staleness helpers
 import { websocketStatus } from "../stores/websocketStatusStore"; // Import the new shared store
 import { notificationStore } from "../stores/notificationStore"; // Import notification store
@@ -271,6 +272,12 @@ class WebSocketService extends EventTarget {
       `[WebSocketService] Page became visible (${source}) — checking connection liveness`,
     );
 
+    // Record the resume timestamp so ChatDatabase.init() can suppress orphan
+    // detection for a short grace period (RESUME_ORPHAN_GRACE_MS = 3s).
+    // This prevents a race condition where the async IDB key check fires before
+    // memory-key stores have re-initialized after an iOS wake event.
+    recordPageResume();
+
     // CRITICAL: Clear stale forcedLogoutInProgress/isLoggingOut flags that may have
     // gotten stuck during device sleep. Without this, every reconnection attempt fails
     // with "Cannot connect: Logout in progress" and the user is stuck offline forever.
@@ -325,7 +332,7 @@ class WebSocketService extends EventTarget {
    * 2. The server logout fetch hung because the network was down during sleep
    * 3. The afterServerCleanup callback never ran, so the flag stays true
    *
-   * If the flag has been true for more than FORCED_LOGOUT_STALENESS_MS (30s),
+   * If the flag has been true for more than FORCED_LOGOUT_STALENESS_MS (10s),
    * we consider the logout flow dead and reset the flags. The user is already
    * effectively logged out (authStore.isAuthenticated === false) — the flag is
    * just preventing reconnection and DB operations unnecessarily.
@@ -336,7 +343,7 @@ class WebSocketService extends EventTarget {
 
     if (!isForcedLogout && !isLoggingOutNow) return;
 
-    // Check if the forcedLogoutInProgress flag is stale (set more than 30s ago)
+    // Check if the forcedLogoutInProgress flag is stale (set more than FORCED_LOGOUT_STALENESS_MS ago)
     if (isForcedLogout && forcedLogoutSetAt > 0) {
       const elapsed = Date.now() - forcedLogoutSetAt;
       if (elapsed >= FORCED_LOGOUT_STALENESS_MS) {

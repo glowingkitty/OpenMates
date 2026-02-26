@@ -39,6 +39,8 @@ import {
   forcedLogoutInProgress,
   isLoggingOut,
   setForcedLogoutInProgress,
+  lastResumeTimestamp,
+  RESUME_ORPHAN_GRACE_MS,
 } from "../stores/signupState";
 
 // Minimal type helpers for migration paths where IndexedDB records can include legacy fields.
@@ -257,69 +259,56 @@ class ChatDatabase {
         localStorage.removeItem("openmates_needs_cleanup");
         setForcedLogoutInProgress();
       } else {
-        // Check if master key is missing - if so, we can't decrypt encrypted chats
-        // Dynamically import to avoid circular dependencies
-        const { getKeyFromStorage } = await import("./cryptoService");
-        const hasMasterKey = await getKeyFromStorage();
+        // FIX 1: Skip orphan detection for memory-only-key sessions where auth is
+        // still valid. When stayLoggedIn=false, the master key lives in memory only.
+        // iOS can evict this memory during tab suspension — this is expected behaviour,
+        // NOT an orphaned database. Triggering forced logout here would disconnect the
+        // user even though their session is perfectly intact.
+        //
+        // Conditions under which we safely skip the check:
+        //   a) The user chose NOT to stay logged in (key is memory-only by design), AND
+        //   b) Auth state still reports the user as authenticated (session is valid)
+        //
+        // If either condition is false the check still runs:
+        //   - stayLoggedIn=true  → key should be in IndexedDB; absence IS suspicious
+        //   - isAuthenticated=false → normal orphan detection still warranted
+        const wasStayLoggedIn =
+          typeof localStorage !== "undefined" &&
+          localStorage.getItem("openmates_was_stay_logged_in") === "true";
 
-        if (!hasMasterKey) {
-          // Check if database exists and contains encrypted data
-          // Only trigger cleanup if there are actual encrypted chats that can't be decrypted
-          if (typeof indexedDB !== "undefined") {
-            // Check if database exists and contains encrypted data
-            // Only trigger cleanup if there are actual encrypted chats that can't be decrypted
-            try {
-              // Check localStorage marker for faster detection
-              const dbInitialized =
-                typeof localStorage !== "undefined" &&
-                localStorage.getItem("openmates_chats_db_initialized") ===
-                  "true";
+        if (!wasStayLoggedIn) {
+          // Memory-only key session: import authStore lazily to avoid circular deps
+          const { authStore } = await import("../stores/authStore");
+          const isAuthenticated = get(authStore).isAuthenticated;
+          if (isAuthenticated) {
+            console.debug(
+              "[ChatDatabase] Skipping orphan detection: memory-only key session with valid auth (stayLoggedIn=false)",
+            );
+            // Skip the async key check entirely — fall through to normal DB init
+          } else {
+            // Not authenticated + memory key — still run the check
+            await this._runOrphanKeyCheck();
+          }
+        } else {
+          // FIX 2: Skip orphan detection for a short window after a page resume event
+          // (visibilitychange / pageshow). On mobile, init() can be called almost
+          // immediately after the tab becomes visible, before the memory key store has
+          // had a chance to re-initialize from auth flows that wake up concurrently.
+          // Suppressing for RESUME_ORPHAN_GRACE_MS (3s) prevents a race-condition
+          // false-positive. A subsequent init() call (triggered by any normal operation)
+          // will catch a truly orphaned DB once the grace period expires.
+          const timeSinceResume =
+            lastResumeTimestamp > 0
+              ? Date.now() - lastResumeTimestamp
+              : Infinity;
 
-              if (dbInitialized) {
-                // Try to open database and check if it contains encrypted chats
-                // This is a more precise check than just checking if DB exists
-                const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
-
-                checkRequest.onsuccess = (event) => {
-                  const db = (event.target as IDBOpenDBRequest).result;
-                  const transaction = db.transaction(
-                    [this.CHATS_STORE_NAME],
-                    "readonly",
-                  );
-                  const store = transaction.objectStore(this.CHATS_STORE_NAME);
-                  const countRequest = store.count();
-
-                  countRequest.onsuccess = () => {
-                    const chatCount = countRequest.result;
-                    if (chatCount > 0) {
-                      console.warn(
-                        "[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but found",
-                        chatCount,
-                        "encrypted chats",
-                      );
-                      console.warn(
-                        "[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
-                      );
-                      if (typeof localStorage !== "undefined") {
-                        localStorage.setItem("openmates_needs_cleanup", "true");
-                      }
-                      setForcedLogoutInProgress();
-                    }
-                    db.close();
-                  };
-
-                  countRequest.onerror = () => {
-                    db.close();
-                  };
-                };
-
-                checkRequest.onerror = () => {
-                  // Database doesn't exist or can't be opened, no cleanup needed
-                };
-              }
-            } catch {
-              // Error checking database, assume no cleanup needed
-            }
+          if (timeSinceResume < RESUME_ORPHAN_GRACE_MS) {
+            console.debug(
+              `[ChatDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period (${Math.round(timeSinceResume)}ms since resume)`,
+            );
+            // Skip — will re-run on next init() call outside the grace window
+          } else {
+            await this._runOrphanKeyCheck();
           }
         }
       }
@@ -442,6 +431,69 @@ class ChatDatabase {
         );
       };
     });
+  }
+
+  /**
+   * Run the async "orphaned database" check: if the master key is absent but
+   * the DB contains encrypted chats, trigger a forced logout to clean up.
+   *
+   * Extracted from init() so it can be called conditionally (after Fix 1/2
+   * guard clauses decide the check is safe to run at this moment).
+   */
+  private async _runOrphanKeyCheck(): Promise<void> {
+    const { getKeyFromStorage } = await import("./cryptoService");
+    const hasMasterKey = await getKeyFromStorage();
+
+    if (!hasMasterKey && typeof indexedDB !== "undefined") {
+      try {
+        const dbInitialized =
+          typeof localStorage !== "undefined" &&
+          localStorage.getItem("openmates_chats_db_initialized") === "true";
+
+        if (dbInitialized) {
+          const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
+
+          checkRequest.onsuccess = (event) => {
+            const db = (event.target as IDBOpenDBRequest).result;
+            const transaction = db.transaction(
+              [this.CHATS_STORE_NAME],
+              "readonly",
+            );
+            const store = transaction.objectStore(this.CHATS_STORE_NAME);
+            const countRequest = store.count();
+
+            countRequest.onsuccess = () => {
+              const chatCount = countRequest.result;
+              if (chatCount > 0) {
+                console.warn(
+                  "[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but found",
+                  chatCount,
+                  "encrypted chats",
+                );
+                console.warn(
+                  "[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
+                );
+                if (typeof localStorage !== "undefined") {
+                  localStorage.setItem("openmates_needs_cleanup", "true");
+                }
+                setForcedLogoutInProgress();
+              }
+              db.close();
+            };
+
+            countRequest.onerror = () => {
+              db.close();
+            };
+          };
+
+          checkRequest.onerror = () => {
+            // Database doesn't exist or can't be opened, no cleanup needed
+          };
+        }
+      } catch {
+        // Error checking database, assume no cleanup needed
+      }
+    }
   }
 
   /**

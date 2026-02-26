@@ -71,10 +71,39 @@ export let forcedLogoutSetAt = 0;
 
 /**
  * Maximum time (ms) that forcedLogoutInProgress should stay true before being
- * considered stale. 30 seconds is generous — the logout flow should complete
- * in well under 10 seconds in normal conditions.
+ * considered stale. 10 seconds is generous — the logout flow (server request +
+ * DB deletion) should complete in 2–5 seconds in normal conditions.
+ * Reduced from 30s so that false-positive triggers (e.g., iOS memory eviction
+ * on wake) recover within 10s instead of 30s.
  */
-export const FORCED_LOGOUT_STALENESS_MS = 30_000;
+export const FORCED_LOGOUT_STALENESS_MS = 10_000;
+
+/**
+ * Timestamp (ms since epoch) of the most recent page-resume event
+ * (visibilitychange or pageshow.persisted). Set by WebSocketService.handlePageResume().
+ *
+ * Used by ChatDatabase.init() to suppress orphan detection for a short window
+ * after a wake event, preventing a race condition where the async IDB key check
+ * runs before memory-key stores have had a chance to re-initialize.
+ *
+ * 0 means no resume has occurred yet this session.
+ */
+export let lastResumeTimestamp = 0;
+
+/**
+ * Grace period (ms) after a resume event during which the orphan database check
+ * in ChatDatabase.init() is suppressed. After this window, the check runs normally.
+ * 3 seconds is enough for auth flows to complete their re-initialization.
+ */
+export const RESUME_ORPHAN_GRACE_MS = 3_000;
+
+/**
+ * Record that a page resume event just occurred.
+ * Called by WebSocketService.handlePageResume() on every visibilitychange/pageshow.
+ */
+export function recordPageResume(): void {
+  lastResumeTimestamp = Date.now();
+}
 
 /**
  * Safety timeout ID for auto-resetting forcedLogoutInProgress if the logout flow hangs.
@@ -112,7 +141,7 @@ export function setForcedLogoutInProgress(): void {
       forcedLogoutSetAt = 0;
       // CRITICAL: Also remove the cleanup marker from localStorage to prevent
       // chatDB.init() from re-detecting it and re-setting forcedLogoutInProgress,
-      // which would create an infinite 30s toggle loop.
+      // which would create an infinite toggle loop every FORCED_LOGOUT_STALENESS_MS.
       if (typeof localStorage !== "undefined") {
         localStorage.removeItem("openmates_needs_cleanup");
       }
