@@ -330,15 +330,6 @@
   // BasicInfosBar Derived Values (match VideoEmbedPreview format)
   // ===========================================
   
-  // Shortened video title for BasicInfosBar (truncate if too long)
-  let shortenedTitle = $derived.by(() => {
-    const titleToShorten = displayTitle || $text('embeds.youtube_video');
-    // Max ~30 chars for preview layout in the info bar
-    const maxLength = 30;
-    if (titleToShorten.length <= maxLength) return titleToShorten;
-    return titleToShorten.substring(0, maxLength - 1) + '…';
-  });
-  
   // Formatted upload date for BasicInfosBar
   let formattedUploadDate = $derived(formatUploadDate(publishedAt));
   
@@ -510,7 +501,6 @@
   embedHeaderFaviconUrl={channelThumbnailUrl || undefined}
   embedHeaderFaviconIsCircular={true}
   skillIconName="video"
-  showSkillIcon={false}
   onClose={handleClose}
   onCopy={handleCopy}
   currentEmbedId={embedId}
@@ -521,6 +511,20 @@
   {showChatButton}
   {onShowChat}
 >
+  {#snippet embedHeaderCta()}
+    <!-- Open on YouTube CTA - always visible in header when URL is available -->
+    {#if url}
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="open-on-youtube-button"
+      >
+        {$text('embeds.open_on_youtube')}
+      </a>
+    {/if}
+  {/snippet}
+
   {#snippet content()}
     <div class="video-container">
       <!-- Video thumbnail with play button -->
@@ -555,76 +559,56 @@
           </button>
         </div>
         <!-- Action buttons - positioned below thumbnail -->
-        {#if url}
-          <div class="button-container">
-            <!-- Tip Creator button - positioned left to the play on YouTube button -->
+        <div class="button-container">
+          <!-- Tip Creator button -->
+          <button
+            class="tip-creator-button"
+            onclick={handleTipCreator}
+            type="button"
+            aria-label={$text('embeds.tip_creator')}
+          >
+            <span class="clickable-icon icon_volunteering"></span>
+          </button>
+          <!-- Picture-in-Picture button - only shown when video is playing -->
+          {#if isVideoPlaying && videoId && embedUrl}
             <button
-              class="tip-creator-button"
-              onclick={handleTipCreator}
+              class="pip-button"
+              onclick={handleEnterPip}
               type="button"
-              aria-label={$text('embeds.tip_creator')}
+              aria-label={$text('embeds.video_pip')}
             >
-              <span class="clickable-icon icon_volunteering"></span>
+              <span class="clickable-icon icon_pip"></span>
             </button>
-            <a 
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="open-on-youtube-button"
-            >
-              {$text('embeds.open_on_youtube')}
-            </a>
-            <!-- Picture-in-Picture button - only shown when video is playing -->
-            {#if isVideoPlaying && videoId && embedUrl}
-              <button
-                class="pip-button"
-                onclick={handleEnterPip}
-                type="button"
-                aria-label={$text('embeds.video_pip')}
-              >
-                <span class="clickable-icon icon_pip"></span>
-              </button>
-            {/if}
-          </div>
-        {/if}
+          {/if}
+        </div>
       {:else if isVideoPlaying}
         <!-- Video is playing - VideoIframe shows the actual video -->
         <!-- This spacer maintains layout so buttons stay below the video -->
         <div class="video-playing-spacer"></div>
         
         <!-- Action buttons when video is playing -->
-        {#if url}
-          <div class="button-container">
-            <!-- Tip Creator button -->
+        <div class="button-container">
+          <!-- Tip Creator button -->
+          <button
+            class="tip-creator-button"
+            onclick={handleTipCreator}
+            type="button"
+            aria-label={$text('embeds.tip_creator')}
+          >
+            <span class="clickable-icon icon_volunteering"></span>
+          </button>
+          <!-- Picture-in-Picture button -->
+          {#if videoId && embedUrl}
             <button
-              class="tip-creator-button"
-              onclick={handleTipCreator}
+              class="pip-button"
+              onclick={handleEnterPip}
               type="button"
-              aria-label={$text('embeds.tip_creator')}
+              aria-label={$text('embeds.video_pip')}
             >
-              <span class="clickable-icon icon_volunteering"></span>
+              <span class="clickable-icon icon_pip"></span>
             </button>
-            <a 
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="open-on-youtube-button"
-            >
-              {$text('embeds.open_on_youtube')}
-            </a>
-            <!-- Picture-in-Picture button -->
-            {#if videoId && embedUrl}
-              <button
-                class="pip-button"
-                onclick={handleEnterPip}
-                type="button"
-                aria-label={$text('embeds.video_pip')}
-              >
-                <span class="clickable-icon icon_pip"></span>
-              </button>
-            {/if}
-          </div>
-        {/if}
+          {/if}
+        </div>
       {/if}
       
       <!-- Views and likes - displayed below the buttons with icons -->

@@ -178,6 +178,15 @@
   skillIconName="search"
   embedHeaderTitle={$text('app_skills.travel.search_stays')}
 >
+  {#snippet embedHeaderCta()}
+    <!-- Booking CTA - shown in header when booking URL is available -->
+    {#if bookingUrl}
+      <button class="cta-button" onclick={handleBooking}>
+        {$text('embeds.view_on_google_hotels')}
+      </button>
+    {/if}
+  {/snippet}
+
   {#snippet content()}
     <div class="stay-fullscreen">
       <!-- Header: Name + Stars + Rating -->
@@ -244,13 +253,6 @@
           </div>
         {/if}
       </div>
-      
-      <!-- Booking CTA -->
-      {#if bookingUrl}
-        <button class="cta-button" onclick={handleBooking}>
-          {$text('embeds.view_on_google_hotels')}
-        </button>
-      {/if}
       
       <!-- Special Badges -->
       {#if stay.free_cancellation || stay.eco_certified}
@@ -526,9 +528,6 @@
   
   .cta-button {
     display: block;
-    width: 100%;
-    max-width: 320px;
-    margin: 0 auto 24px;
     background-color: var(--color-button-primary);
     color: white;
     border: none;

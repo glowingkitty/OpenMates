@@ -392,7 +392,6 @@
   embedHeaderSubtitle={formattedDate() ?? undefined}
   embedHeaderFaviconUrl={faviconUrl}
   skillIconName="website"
-  showSkillIcon={false}
   {onClose}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
@@ -402,6 +401,13 @@
   {showChatButton}
   {onShowChat}
 >
+  {#snippet embedHeaderCta()}
+    <!-- CTA Button - "Open on [hostname]" -->
+    <button class="cta-button" onclick={handleOpenInNewTab}>
+      Open on {hostname()}
+    </button>
+  {/snippet}
+
   <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
   {#snippet content(_)}
     <div class="website-fullscreen-content">
@@ -437,11 +443,6 @@
       {#if formattedDate()}
         <div class="date-info">{formattedDate()}</div>
       {/if}
-      
-      <!-- CTA Button - "Open on [hostname]" -->
-      <button class="cta-button" onclick={handleOpenInNewTab}>
-        Open on {hostname()}
-      </button>
       
       <!-- Description - rendered as plain text (HTML tags stripped server-side, client fallback) -->
       {#if cleanedDescription}
@@ -575,7 +576,6 @@
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.15s;
-    margin-bottom: 24px;
     min-width: 200px;
   }
   

@@ -343,7 +343,7 @@
   skillIconName="image"
   embedHeaderTitle={infoBarTitle}
   embedHeaderSubtitle={infoBarSubtitle}
-  showSkillIcon={false}
+
   showShare={!!files?.original}
   {onClose}
   onDownload={files?.original ? handleDownload : undefined}
