@@ -532,6 +532,7 @@ postprocess_response_tool:
          - Example bad topics (too generic): "history", "science", "cooking", "technology"
          - **ALWAYS generate 3 topics** — even if the conversation is narrow, find adjacent or related topics the user might find interesting
          - **LANGUAGE**: Always generate topics in English (used for video/content search queries)
+         - **NO BRANDS OR PRODUCTS**: Do NOT extract brand names, product names, app names, or commercial service names as topics — unless the user expressed deep, genuine curiosity about the underlying technology, science, or history behind that product (in which case capture the underlying concept, not the brand). Examples of what to avoid: "iPhone 16 review", "Notion productivity app", "Tesla Model Y". If the user discussed a brand passingly (e.g., "I use Notion"), ignore it — only capture substantive intellectual interests. Rephrase to the concept if needed: "note-taking knowledge graphs" instead of "Obsidian app".
     parameters:
       type: "object"
       properties:
@@ -586,7 +587,7 @@ postprocess_response_tool:
           maxItems: 3
         daily_inspiration_topic_suggestions:
           type: "array"
-          description: "3 concise topic/interest phrases (2-5 words each, in English) based on what the user discussed or showed curiosity about. Used to personalize daily inspiration content. Capture specific topics, not broad categories. Always generate exactly 3."
+          description: "3 concise topic/interest phrases (2-5 words each, in English) based on what the user discussed or showed curiosity about. Used to personalize daily inspiration content. Capture specific topics, not broad categories. Always generate exactly 3. Never include brand names, product names, or app names — capture the underlying concept instead (e.g. 'knowledge graph note-taking' not 'Obsidian app')."
           items:
             type: "string"
           minItems: 3

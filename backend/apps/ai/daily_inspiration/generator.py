@@ -134,7 +134,15 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                 "'Black holes devour everything — even light. What happens once you cross the edge?', "
                 "'Roman roads lasted 2,000 years. Modern ones barely survive 20 — why?'. "
                 "IMPORTANT: Each slot must use a different video (no duplicates). "
-                "Select videos that are educational, engaging, and family-friendly."
+                "Select videos that are educational, engaging, and family-friendly. "
+                "CRITICAL — NO COMMERCIAL PROMOTION: Inspirations must NEVER promote, advertise, or "
+                "recommend specific products, brands, apps, or commercial services. Do NOT write phrases "
+                "or assistant messages that read like marketing copy, product reviews, or endorsements. "
+                "Focus on the underlying topic's educational or intellectual value, not on any brand or "
+                "product associated with it. "
+                "EXCEPTION: If a specific product or brand appears in the user's recent conversation "
+                "topics (provided below), you may reference it neutrally when it is genuinely central "
+                "to an educational or curiosity-driven angle — but still do not endorse or recommend it."
             ),
             "parameters": {
                 "type": "object",
@@ -173,7 +181,9 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                                         "End with an open-ended question or invitation that encourages the user "
                                         "to ask follow-up questions and dive deeper. "
                                         "Tone: curious, warm, enthusiastic — like a knowledgeable friend sharing "
-                                        "something they find genuinely exciting. Do NOT start with 'I'."
+                                        "something they find genuinely exciting. Do NOT start with 'I'. "
+                                        "Do NOT promote, advertise, or recommend any product, app, brand, "
+                                        "or commercial service — focus purely on the educational topic."
                                     ),
                                 },
                                 "category": {
@@ -274,7 +284,12 @@ def _build_generation_prompt(
             "2. Write a concise chat title (3-7 words) for the sidebar that summarises the topic.\n"
             "3. Write a rich first assistant message (3-5 sentences) that explains the topic, "
             "highlights what makes it fascinating, and ends with an invitation for the user "
-            "to ask questions and explore the topic further."
+            "to ask questions and explore the topic further.\n\n"
+            "IMPORTANT: Do NOT write content that promotes, advertises, or recommends specific "
+            "products, brands, apps, or commercial services. All phrases and messages must be "
+            "educational and curiosity-driven. The only exception is if a product or brand is "
+            "already present in the user's conversation topics listed above — in that case you "
+            "may reference it neutrally as part of an educational angle, but still do not endorse it."
         )
         + lang_instruction
     )
