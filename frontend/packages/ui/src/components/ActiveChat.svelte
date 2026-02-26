@@ -1238,6 +1238,29 @@
             resolvedEmbedType = inferredType;
         }
         
+        // Secondary type refinement: if the resolved type is still 'app-skill-use' but the
+        // decoded content's own 'type' field reveals a more specific embed type (e.g. 'code',
+        // 'document', 'sheet'), override resolvedEmbedType accordingly.
+        //
+        // This fixes the case where an AI-generated code (or doc/sheet) embed is stored with
+        // embed type 'app-skill-use' (because the server tagged it at the app-skill-use layer)
+        // but the TOON content itself carries 'type: "code"'. Without this override, navigating
+        // to such an embed via the header arrows correctly reaches the embed but renders the
+        // generic app-skill-use fallback (JSON dump) instead of the CodeEmbedFullscreen.
+        if (resolvedEmbedType === 'app-skill-use' && finalDecodedContent) {
+            const contentType = typeof finalDecodedContent.type === 'string' ? finalDecodedContent.type : null;
+            if (contentType) {
+                const refinedType = normalizeEmbedType(contentType);
+                if (refinedType && refinedType !== 'app-skill-use') {
+                    console.debug('[ActiveChat] Refining embed type from app-skill-use using decoded content type:', {
+                        contentType,
+                        refinedType
+                    });
+                    resolvedEmbedType = refinedType;
+                }
+            }
+        }
+        
         // If we already have this embed open, ignore duplicate events (e.g. hashchange deep-link echoes).
         if (showEmbedFullscreen && embedFullscreenData?.embedId === embedId && embedFullscreenData?.embedType === resolvedEmbedType) {
             console.debug('[ActiveChat] Ignoring duplicate embedfullscreen event for already-open embed:', {
@@ -8202,7 +8225,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {@const codeContent = coerceString(embedFullscreenData.decodedContent?.code ?? embedFullscreenData.attrs?.code, '')}
                         {@const codeLanguage = coerceString(embedFullscreenData.decodedContent?.language ?? embedFullscreenData.attrs?.language, '')}
                         {@const codeFilename = coerceString(embedFullscreenData.decodedContent?.filename ?? embedFullscreenData.attrs?.filename, '')}
-                        {@const codeLineCount = coerceNumber(embedFullscreenData.decodedContent?.lineCount ?? embedFullscreenData.attrs?.lineCount, 0)}
+                        {@const codeLineCount = coerceNumber(embedFullscreenData.decodedContent?.line_count ?? embedFullscreenData.decodedContent?.lineCount ?? embedFullscreenData.attrs?.lineCount, 0)}
                         <CodeEmbedFullscreen 
                              codeContent={codeContent}
                              language={codeLanguage}
