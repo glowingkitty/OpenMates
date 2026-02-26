@@ -168,33 +168,43 @@ async def update_monthly_stats(task: BaseServiceTask, year_month: str):
             return json.dumps(merged)
 
         latest_daily = sorted(dailies, key=lambda x: x["date"])[-1]
+
+        # Directus may return numeric fields as int or as str (e.g. if stored as a string type).
+        # Wrap every sum operand with int(...or 0) to guarantee type-safe addition regardless
+        # of what the CMS returns.
+        def _int(val) -> int:
+            try:
+                return int(val or 0)
+            except (TypeError, ValueError):
+                return 0
+
         monthly_payload = {
             "year_month": year_month,
-            "new_users_registered": sum(d.get("new_users_registered", 0) for d in dailies),
-            "new_users_finished_signup": sum(d.get("new_users_finished_signup", 0) for d in dailies),
-            "income_eur_cents": sum(int(d.get("income_eur_cents", 0)) for d in dailies),
-            "credits_sold": sum(d.get("credits_sold", 0) for d in dailies),
-            "credits_used": sum(d.get("credits_used", 0) for d in dailies),
-            "messages_sent": sum(d.get("messages_sent", 0) for d in dailies),
-            "chats_created": sum(d.get("chats_created", 0) for d in dailies),
-            "embeds_created": sum(d.get("embeds_created", 0) for d in dailies),
+            "new_users_registered": sum(_int(d.get("new_users_registered")) for d in dailies),
+            "new_users_finished_signup": sum(_int(d.get("new_users_finished_signup")) for d in dailies),
+            "income_eur_cents": sum(_int(d.get("income_eur_cents")) for d in dailies),
+            "credits_sold": sum(_int(d.get("credits_sold")) for d in dailies),
+            "credits_used": sum(_int(d.get("credits_used")) for d in dailies),
+            "messages_sent": sum(_int(d.get("messages_sent")) for d in dailies),
+            "chats_created": sum(_int(d.get("chats_created")) for d in dailies),
+            "embeds_created": sum(_int(d.get("embeds_created")) for d in dailies),
             # Phase 2: Usage entries
-            "usage_entries_created": sum(d.get("usage_entries_created", 0) for d in dailies),
+            "usage_entries_created": sum(_int(d.get("usage_entries_created")) for d in dailies),
             "usage_entries_by_app": _sum_json_field("usage_entries_by_app"),
             # Phase 3: Financial analytics
-            "purchase_count": sum(d.get("purchase_count", 0) for d in dailies),
+            "purchase_count": sum(_int(d.get("purchase_count")) for d in dailies),
             "purchases_by_provider": _sum_json_field("purchases_by_provider"),
-            "gift_cards_created": sum(d.get("gift_cards_created", 0) for d in dailies),
-            "gift_cards_redeemed": sum(d.get("gift_cards_redeemed", 0) for d in dailies),
-            "subscription_creations": sum(d.get("subscription_creations", 0) for d in dailies),
-            "subscription_cancellations": sum(d.get("subscription_cancellations", 0) for d in dailies),
+            "gift_cards_created": sum(_int(d.get("gift_cards_created")) for d in dailies),
+            "gift_cards_redeemed": sum(_int(d.get("gift_cards_redeemed")) for d in dailies),
+            "subscription_creations": sum(_int(d.get("subscription_creations")) for d in dailies),
+            "subscription_cancellations": sum(_int(d.get("subscription_cancellations")) for d in dailies),
             # Phase 6: Token/cost tracking
-            "total_input_tokens": sum(d.get("total_input_tokens", 0) for d in dailies),
-            "total_output_tokens": sum(d.get("total_output_tokens", 0) for d in dailies),
+            "total_input_tokens": sum(_int(d.get("total_input_tokens")) for d in dailies),
+            "total_output_tokens": sum(_int(d.get("total_output_tokens")) for d in dailies),
             # Snapshots: Take the latest one from the dailies
-            "liability_total": latest_daily.get("liability_total", 0),
-            "active_subscriptions": latest_daily.get("active_subscriptions", 0),
-            "total_regular_users": latest_daily.get("total_regular_users", 0),
+            "liability_total": _int(latest_daily.get("liability_total")),
+            "active_subscriptions": _int(latest_daily.get("active_subscriptions")),
+            "total_regular_users": _int(latest_daily.get("total_regular_users")),
             "updated_at": datetime.now().isoformat()
         }
         

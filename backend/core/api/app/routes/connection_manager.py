@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from typing import Dict, Tuple, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -172,8 +172,13 @@ class ConnectionManager:
                 connect_time = self.connection_times.pop(connection_key, None)
                 if connect_time is not None and self._web_analytics_service is not None:
                     duration_seconds = time.monotonic() - connect_time
+                    # Fire-and-forget: create_task so the coroutine is actually scheduled
+                    # on the event loop. Without this, calling an async method without
+                    # await/create_task silently discards the coroutine and records nothing.
                     try:
-                        self._web_analytics_service.record_session_duration(duration_seconds)
+                        asyncio.create_task(
+                            self._web_analytics_service.record_session_duration(duration_seconds)
+                        )
                     except Exception as _analytics_err:
                         logger.debug(
                             f"Analytics session duration recording failed (non-critical): {_analytics_err}"
