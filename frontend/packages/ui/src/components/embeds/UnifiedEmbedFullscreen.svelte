@@ -848,32 +848,16 @@
 >
   <div class="fullscreen-container">
 
-    <!-- ── Action buttons row (in normal flow, above the scroll area) ──
-         EmbedTopBar is NOT absolutely positioned — it sits in the flex column
-         before .content-area so the gradient header banner always starts below
-         the buttons, keeping it fully visible on every screen size. -->
-    <EmbedTopBar
-      {showChatButton}
-      {showShare}
-      showCopy={!!onCopy}
-      showDownload={!!onDownload}
-      {showPIIToggle}
-      {piiRevealed}
-      onClose={handleClose}
-      onShare={handleShare}
-      onCopy={handleCopy}
-      onDownload={handleDownload}
-      onReportIssue={handleReportIssue}
-      onShowChat={handleShowChatClick}
-      {onTogglePII}
-    />
-
-    <!-- ── Scrollable content area (header banner + embed content) ── -->
+    <!-- ── Scrollable content area (header banner + embed content) ──
+         Fills the full container height. EmbedTopBar overlays the top
+         via position: absolute so no space is reserved for it here. -->
     <div class="content-area" bind:this={contentAreaElement}>
 
       <!-- ── Gradient Header Banner (EmbedHeader) ──
-           Scrolls with content — same fixed dimensions as ChatHeader.svelte.
-           Always fully visible because EmbedTopBar sits above this scroll area. -->
+           Scrolls with content — fixed height (never grows).
+           EmbedTopBar floats above it as a transparent overlay.
+           If a CTA is present it pokes out from the banner's bottom edge
+           and the embed content must provide enough top spacing to clear it. -->
       <EmbedHeader
         {appId}
         {skillIconName}
@@ -901,6 +885,25 @@
 
     </div>
     <!-- end .content-area -->
+
+    <!-- ── Action buttons (transparent overlay, positioned over the header) ──
+         position: absolute so it does not push the content area down.
+         The gradient header is visible through the semi-transparent buttons. -->
+    <EmbedTopBar
+      {showChatButton}
+      {showShare}
+      showCopy={!!onCopy}
+      showDownload={!!onDownload}
+      {showPIIToggle}
+      {piiRevealed}
+      onClose={handleClose}
+      onShare={handleShare}
+      onCopy={handleCopy}
+      onDownload={handleDownload}
+      onReportIssue={handleReportIssue}
+      onShowChat={handleShowChatClick}
+      {onTogglePII}
+    />
 
   </div>
 </div>
@@ -941,6 +944,7 @@
     opacity: 1;
   }
 
+  /* position: relative so EmbedTopBar (position: absolute) is contained here */
   .fullscreen-container {
     display: flex;
     flex-direction: column;
@@ -967,7 +971,7 @@
      Scrollable Content Area
      =========================================== */
 
-  /* Takes the remaining height after EmbedTopBar. Scrollable. */
+  /* Fills the full container height. EmbedTopBar overlays via position: absolute. */
   .content-area {
     flex: 1;
     overflow-y: auto;

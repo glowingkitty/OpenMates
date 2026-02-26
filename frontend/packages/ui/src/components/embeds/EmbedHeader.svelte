@@ -73,85 +73,105 @@
   }
 </script>
 
+<!--
+  .embed-header: outer wrapper — fixed height, overflow: visible so the CTA
+  can poke out below. position: relative so the CTA can be absolute-positioned.
+
+  .header-inner: inner wrapper — carries the gradient background and clips
+  decorative elements with overflow: hidden. Fills 100% of .embed-header.
+
+  .header-cta-area: absolutely positioned on .embed-header, centered on the
+  bottom edge via bottom: 0 + transform: translateY(50%). Lives outside
+  .header-inner so it is not clipped.
+-->
 <div
   class="embed-header"
   class:has-cta={hasCta}
-  style="background: var(--color-app-{appId});"
 >
-  <!-- Large decorative icons at left/right edges (126×126px, 0.4 opacity) -->
-  <div class="deco-icon deco-icon-left">
-    {#if useSkillIcon}
-      <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
-    {:else}
-      <div class="deco-app-icon icon_rounded {appId}"></div>
-    {/if}
-  </div>
-  <div class="deco-icon deco-icon-right">
-    {#if useSkillIcon}
-      <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
-    {:else}
-      <div class="deco-app-icon icon_rounded {appId}"></div>
-    {/if}
-  </div>
-
-  <!-- Center content: small icon + title + subtitle -->
-  <div class="header-center">
-    <div class="header-icon">
+  <!-- Inner banner: gradient + decorative icons + center content + nav arrows.
+       overflow: hidden clips the large decorative icons at the edges. -->
+  <div
+    class="header-inner"
+    style="background: var(--color-app-{appId});"
+  >
+    <!-- Large decorative icons at left/right edges (126×126px, 0.4 opacity) -->
+    <div class="deco-icon deco-icon-left">
       {#if useSkillIcon}
-        <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
+        <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
       {:else}
-        <div class="header-app-icon icon_rounded {appId}"></div>
+        <div class="deco-app-icon icon_rounded {appId}"></div>
+      {/if}
+    </div>
+    <div class="deco-icon deco-icon-right">
+      {#if useSkillIcon}
+        <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
+      {:else}
+        <div class="deco-app-icon icon_rounded {appId}"></div>
       {/if}
     </div>
 
-    {#if title}
-      <div class="header-title">
-        {#if faviconUrl}
-          <img
-            src={faviconUrl}
-            alt=""
-            class="header-favicon"
-            class:circular={faviconIsCircular}
-            crossorigin="anonymous"
-            onerror={hideFavicon}
-          />
+    <!-- Center content: small icon + title + subtitle -->
+    <div class="header-center">
+      <div class="header-icon">
+        {#if useSkillIcon}
+          <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
+        {:else}
+          <div class="header-app-icon icon_rounded {appId}"></div>
         {/if}
-        <span class="header-title-text">{title}</span>
       </div>
-    {/if}
 
-    {#if subtitle}
-      <div class="header-subtitle">{subtitle}</div>
+      {#if title}
+        <div class="header-title">
+          {#if faviconUrl}
+            <img
+              src={faviconUrl}
+              alt=""
+              class="header-favicon"
+              class:circular={faviconIsCircular}
+              crossorigin="anonymous"
+              onerror={hideFavicon}
+            />
+          {/if}
+          <span class="header-title-text">{title}</span>
+        </div>
+      {/if}
+
+      {#if subtitle}
+        <div class="header-subtitle">{subtitle}</div>
+      {/if}
+    </div>
+
+    <!-- Navigation arrows (prev/next embed) — inside inner so they clip correctly -->
+    {#if hasPreviousEmbed && onNavigatePrevious}
+      <button
+        class="nav-arrow nav-arrow-left"
+        onclick={onNavigatePrevious}
+        aria-label="Previous embed"
+        type="button"
+      >
+        <span class="nav-chevron nav-chevron-left"></span>
+      </button>
+    {/if}
+    {#if hasNextEmbed && onNavigateNext}
+      <button
+        class="nav-arrow nav-arrow-right"
+        onclick={onNavigateNext}
+        aria-label="Next embed"
+        type="button"
+      >
+        <span class="nav-chevron nav-chevron-right"></span>
+      </button>
     {/if}
   </div>
 
-  <!-- Optional CTA row at the bottom of the banner -->
+  <!-- CTA row — lives outside header-inner so it is NOT clipped by overflow:hidden.
+       Centered on the bottom edge of the banner: translateY(50%) shifts it downward
+       so its vertical midpoint aligns with the header's bottom edge, making it
+       peek ~(height/2) px below. The content area adds padding-top to avoid overlap. -->
   {#if embedHeaderCta}
     <div class="header-cta-area">
       {@render embedHeaderCta()}
     </div>
-  {/if}
-
-  <!-- Navigation arrows (prev/next embed) -->
-  {#if hasPreviousEmbed && onNavigatePrevious}
-    <button
-      class="nav-arrow nav-arrow-left"
-      onclick={onNavigatePrevious}
-      aria-label="Previous embed"
-      type="button"
-    >
-      <span class="nav-chevron nav-chevron-left"></span>
-    </button>
-  {/if}
-  {#if hasNextEmbed && onNavigateNext}
-    <button
-      class="nav-arrow nav-arrow-right"
-      onclick={onNavigateNext}
-      aria-label="Next embed"
-      type="button"
-    >
-      <span class="nav-chevron nav-chevron-right"></span>
-    </button>
   {/if}
 </div>
 
@@ -162,31 +182,39 @@
      Part of the normal scroll flow — scrolls with content.
      ========================================================== */
 
+  /* Outer wrapper: fixed height, overflow: visible so the CTA area can
+     poke out below the banner without being clipped.
+     flex-shrink: 0 prevents collapse inside the flex content-area. */
   .embed-header {
     position: relative;
     width: 100%;
     height: 240px;
     /* flex-shrink: 0 prevents this banner from collapsing when it is a flex
        item inside .content-area (a flex column with overflow-y: auto).
-       Without it, 'overflow: hidden' on the banner causes the browser to
-       compute height: 0px, hiding the entire header. Matches ChatHeader.svelte. */
+       Without it the browser may compute height: 0px. Matches ChatHeader. */
     flex-shrink: 0;
-    /* Bottom corners rounded; top corners flush with the overlay border-radius */
+    /* overflow: visible so the CTA area can extend beyond the bottom edge */
+    overflow: visible;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Inner banner: carries gradient + clips decorative overflow icons.
+     Fills 100% of the outer wrapper. */
+  .header-inner {
+    position: absolute;
+    inset: 0;
+    /* Bottom corners rounded; top corners flush with overlay border-radius */
     border-radius: 0 0 14px 14px;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    /* Decorative elements are non-interactive; arrows re-enable with pointer-events:auto */
     pointer-events: none;
-    user-select: none;
   }
 
-  /* Taller banner when a CTA button row is present */
-  .embed-header.has-cta {
-    height: 300px;
-  }
+  /* Height is always fixed — the CTA overflows the bottom, never grows the banner. */
 
   /* ==========================================================
      Decorative large icons (126×126px) at banner edges
@@ -369,13 +397,18 @@
     overflow: hidden;
   }
 
-  /* CTA area — absolute, bottom-center of the banner */
+  /* CTA area — absolutely positioned on the outer .embed-header (overflow: visible).
+     bottom: 0 aligns its top edge with the header's bottom.
+     transform: translateY(50%) shifts it down by half its own height, so its
+     vertical center sits on the header's bottom edge, creating the "peeking out"
+     effect. The content area needs matching padding-top so content starts below. */
   .header-cta-area {
     position: absolute;
-    bottom: 16px;
+    bottom: 0;
     left: 0;
     right: 0;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 8px;
@@ -383,6 +416,8 @@
     z-index: 10;
     pointer-events: auto;
     animation: fadeIn 0.4s ease-out 0.2s both;
+    /* Center the CTA on the header's bottom edge */
+    transform: translateY(50%);
   }
 
   /* ==========================================================
@@ -522,10 +557,7 @@
   @media (max-width: 730px) {
     .embed-header {
       height: 190px;
-    }
-
-    .embed-header.has-cta {
-      height: 250px;
+      /* has-cta: height stays 190px — CTA overflows, never grows the banner */
     }
 
     .header-center {

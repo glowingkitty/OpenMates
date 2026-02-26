@@ -159,20 +159,22 @@
 </div>
 
 <style>
-  /* Top bar sits in normal document flow — flex row, no absolute positioning.
-     This ensures the content area (and gradient header banner) always starts
-     below the buttons, keeping the header fully visible on all screen sizes. */
+  /* Top bar overlays the gradient header — position absolute so the header
+     remains fully visible beneath it. No background on the row itself.
+     Buttons have a subtle semi-transparent backdrop so they remain legible
+     over any gradient colour. */
   .embed-top-bar {
-    flex-shrink: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     padding: 12px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     /* Pointer-events disabled on the row itself; re-enabled per button group */
     pointer-events: none;
-    /* z-index: keeps buttons above Leaflet map panes (z-index 400+) and any
-       other high-z-index child rendered by embed fullscreens */
-    position: relative;
+    /* Sits above EmbedHeader (z-index 2) and Leaflet panes (z-index 400+) */
     z-index: 1000;
   }
 
@@ -184,15 +186,17 @@
     pointer-events: auto;
   }
 
-  /* Pill wrapper — matches new-chat-button-wrapper in ActiveChat.svelte */
+  /* Pill wrapper — semi-transparent so the gradient header shows through */
   .button-wrapper {
-    background-color: var(--color-grey-10);
+    background-color: rgba(0, 0, 0, 0.25);
     border-radius: 40px;
     padding: 5.5px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
   }
 
   .action-button {
@@ -211,12 +215,14 @@
   }
 
   .action-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(255, 255, 255, 0.15);
   }
 
   .action-button .clickable-icon {
     width: 22px;
     height: 22px;
+    /* Force icons white so they show clearly over any gradient background */
+    filter: brightness(0) invert(1);
   }
 
   /* PII toggle: amber tint when sensitive data is revealed */
