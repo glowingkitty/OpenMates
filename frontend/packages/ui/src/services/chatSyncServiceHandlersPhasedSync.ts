@@ -1034,9 +1034,18 @@ function mergeServerChatWithLocal(
     unread_count: serverChat.unread_count ?? localChat.unread_count ?? 0,
     created_at: serverChat.created_at ?? localChat.created_at ?? nowTimestamp,
     updated_at: serverChat.updated_at ?? localChat.updated_at ?? nowTimestamp,
+    // IMPORTANT: Never fall back to nowTimestamp (current wall-clock time) unless all other
+    // options are exhausted. Falling through to nowTimestamp stamps the chat with "right now"
+    // and pushes it to the top of the sort order even when nothing meaningful changed
+    // (e.g. a key-mismatch-only sync update). Always prefer the chat's own updated_at /
+    // created_at timestamps over the current time.
     last_edited_overall_timestamp:
       serverChat.last_edited_overall_timestamp ??
       localChat.last_edited_overall_timestamp ??
+      serverChat.updated_at ??
+      localChat.updated_at ??
+      serverChat.created_at ??
+      localChat.created_at ??
       nowTimestamp,
     encrypted_draft_md:
       serverChat.encrypted_draft_md ?? localChat.encrypted_draft_md,

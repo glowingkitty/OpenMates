@@ -309,9 +309,14 @@ export async function addChat(
     draft_v: chat.draft_v ?? 0, // Default to 0 if undefined
     title_v: chat.title_v ?? 0, // Also ensure title_v has a default
     messages_v: chat.messages_v ?? 0, // And messages_v
+    // Fall back through updated_at → created_at before using Date.now().
+    // Date.now() would stamp a new chat with the current time and push it to the
+    // top of the sort order — only acceptable for genuinely brand-new chats that
+    // have no timestamps at all yet.
     last_edited_overall_timestamp:
       chat.last_edited_overall_timestamp ??
       chat.updated_at ??
+      chat.created_at ??
       Math.floor(Date.now() / 1000),
   };
 
