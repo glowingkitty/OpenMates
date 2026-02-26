@@ -15,7 +15,6 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import VideoEmbedPreview from './VideoEmbedPreview.svelte';
   import type { VideoMetadata } from './VideoEmbedPreview.svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import type { VideoTranscriptSkillPreviewData, VideoTranscriptResult } from '../../../types/appSkills';
   
@@ -420,17 +419,16 @@
 <UnifiedEmbedFullscreen
   appId="videos"
   skillId="get_transcript"
-  title=""
+  embedHeaderTitle={videoTitle}
+  embedHeaderSubtitle={transcriptSkillName}
+  skillIconName="transcript"
+  showSkillIcon={true}
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
   onShare={handleShare}
-  skillIconName="transcript"
-  status="finished"
-  skillName={transcriptSkillName}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
-  showSkillIcon={true}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

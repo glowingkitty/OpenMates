@@ -85,8 +85,8 @@
     piiRevealed = false
   }: Props = $props();
 
-  // Local PII reveal toggle — initialised from prop but user can flip it in fullscreen.
-  let localPiiRevealed = $state(piiRevealed);
+  // Local PII reveal toggle — initialised to false; synced from prop via $effect below.
+  let localPiiRevealed = $state(false);
 
   // Keep localPiiRevealed in sync when the parent prop changes.
   $effect(() => {
@@ -142,9 +142,6 @@
     // If no filename provided, use translation for "Code snippet"
     return $text('embeds.code_snippet');
   });
-  
-  // No header in fullscreen for code embeds (buttons overlay the top area)
-  const fullscreenTitle = '';
   
   // Build status text: line count + language (always use code_info.text format)
   let statusText = $derived.by(() => {
@@ -211,17 +208,14 @@
 <UnifiedEmbedFullscreen
   appId="code"
   skillId="code"
-  title={fullscreenTitle}
+  embedHeaderTitle={skillName}
+  embedHeaderSubtitle={statusText || undefined}
+  skillIconName={skillIconName}
+  showSkillIcon={false}
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
   currentEmbedId={embedId}
-  skillIconName={skillIconName}
-  status="finished"
-  {skillName}
-  showStatus={true}
-  customStatusText={statusText}
-  showSkillIcon={false}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

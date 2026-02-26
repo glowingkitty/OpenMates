@@ -137,15 +137,13 @@
   /** Currently selected website for fullscreen view (null = show search results) */
   let selectedWebsite = $state<WebSearchResult | null>(null);
   
-  // Local reactive state for embed data (allows updates via embedUpdated events)
-  let localQuery = $state<string>(previewData?.query || queryProp || '');
-  let localProvider = $state<string>(previewData?.provider || providerProp || 'Brave Search');
-  let localEmbedIds = $state<string | string[] | undefined>(embedIds);
-  let localResults = $state<unknown[]>(previewData?.results || resultsProp || []);
-  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>(
-    (previewData?.status as 'processing' | 'finished' | 'error' | 'cancelled') || statusProp || 'finished'
-  );
-  let localErrorMessage = $state<string>(errorMessageProp || '');
+  // Local reactive state for embed data — initialised to defaults; synced from props via $effect below
+  let localQuery = $state<string>('');
+  let localProvider = $state<string>('Brave Search');
+  let localEmbedIds = $state<string | string[] | undefined>(undefined);
+  let localResults = $state<unknown[]>([]);
+  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let localErrorMessage = $state<string>('');
   
   // Keep local state in sync with prop changes (e.g., navigation)
   $effect(() => {
@@ -383,21 +381,18 @@
 
 <!-- Search results view - ALWAYS rendered (base layer) -->
 <!-- 
-  Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
-  that matches the embed preview (shows "Search" + "Completed", not the query)
-  
+  Header banner: search query as title + "via {provider}" as subtitle
   Child embeds are loaded automatically via embedIds prop and passed to content snippet
   The childEmbedTransformer converts raw embed data to WebSearchResult format
 -->
 <UnifiedEmbedFullscreen
   appId="web"
   skillId="search"
-  title=""
+  embedHeaderTitle={query}
+  embedHeaderSubtitle={viaProvider}
   onClose={handleMainClose}
   skillIconName="search"
-  status={fullscreenStatus}
-  {skillName}
-  showStatus={true}
+  showSkillIcon={true}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToWebResult}
   legacyResults={legacyResults}
@@ -412,12 +407,6 @@
 >
   {#snippet content(ctx)}
     {@const webResults = getWebResults(ctx)}
-    
-    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
-    <div class="fullscreen-header">
-      <div class="search-query">{query}</div>
-      <div class="search-provider">{viaProvider}</div>
-    </div>
     
     <!-- Error state: show simplified error for debugging -->
     {#if status === 'error'}
@@ -484,55 +473,6 @@
 {/if}
 
 <style>
-  /* ===========================================
-     Fullscreen Header - Query and Provider
-     Uses container queries for responsive sizing
-     =========================================== */
-  
-  .fullscreen-header {
-    margin-top: 60px;
-    margin-bottom: 40px;
-    padding: 0 16px;
-    text-align: center;
-  }
-  
-  .search-query {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    word-break: break-word;
-    /* Limit to 3 lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .search-provider {
-    font-size: 16px;
-    color: var(--color-font-secondary);
-    margin-top: 8px;
-  }
-  
-  /* Container query: smaller text on narrow containers */
-  @container fullscreen (max-width: 500px) {
-    .fullscreen-header {
-      margin-top: 70px; /* More space for action buttons */
-      margin-bottom: 24px;
-    }
-    
-    .search-query {
-      font-size: 20px;
-    }
-    
-    .search-provider {
-      font-size: 14px;
-    }
-  }
-  
   /* ===========================================
      Loading and No Results States
      =========================================== */

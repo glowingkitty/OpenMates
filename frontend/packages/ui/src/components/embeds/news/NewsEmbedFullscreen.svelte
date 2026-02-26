@@ -375,14 +375,12 @@
 <UnifiedEmbedFullscreen
   appId="news"
   skillId="article"
-  title=""
   {onClose}
   currentEmbedId={embedId}
   skillIconName="article"
-  skillName={displayTitle}
-  faviconUrl={faviconUrl}
+  embedHeaderTitle={displayTitle}
+  embedHeaderFaviconUrl={faviconUrl}
   showSkillIcon={false}
-  showStatus={false}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

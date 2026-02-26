@@ -116,12 +116,9 @@
 <UnifiedEmbedFullscreen
   appId="health"
   skillId="appointment"
-  title=""
   {onClose}
   skillIconName="health"
-  status="finished"
-  skillName={appointment.name || appointment.speciality || 'Doctor'}
-  showStatus={false}
+  embedHeaderTitle={appointment.name || appointment.speciality || 'Doctor'}
   currentEmbedId={embedId}
 >
   {#snippet content()}

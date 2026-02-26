@@ -88,12 +88,9 @@
   appId="pdf"
   skillId="view"
   skillIconName="pdf"
-  skillName={infoBarTitle}
-  customStatusText={infoBarSubtitle}
-  showStatus={true}
-  showSkillIcon={false}
+  embedHeaderTitle={infoBarTitle}
+  embedHeaderSubtitle={infoBarSubtitle}
   showShare={false}
-  title=""
   {onClose}
 >
   {#snippet content()}

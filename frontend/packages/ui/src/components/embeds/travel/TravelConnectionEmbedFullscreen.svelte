@@ -190,9 +190,19 @@
   type BookingState = 'idle' | 'loading' | 'loaded' | 'error';
   
   // Resolved booking URL and provider (from on-demand lookup or pre-existing)
-  let resolvedBookingUrl = $state(connection.booking_url || '');
-  let resolvedBookingProvider = $state(connection.booking_provider || '');
-  let bookingState = $state<BookingState>(connection.booking_url ? 'loaded' : 'idle');
+  // Initialised to '' / 'idle' — values from props are applied in onMount below
+  let resolvedBookingUrl = $state('');
+  let resolvedBookingProvider = $state('');
+  let bookingState = $state<BookingState>('idle');
+
+  // Sync initial booking values from the connection prop (once, reactive to connection changes)
+  $effect(() => {
+    if (connection.booking_url && bookingState === 'idle') {
+      resolvedBookingUrl = connection.booking_url;
+      resolvedBookingProvider = connection.booking_provider || '';
+      bookingState = 'loaded';
+    }
+  });
   
   // Primary carrier name (for display when provider not yet known)
   let primaryCarrier = $derived(connection.carriers?.[0] || '');
@@ -539,9 +549,6 @@
       notificationStore.error($text('embeds.copy_failed'));
     }
   }
-  
-  // Skill name for bottom bar
-  let skillName = $derived($text('app_skills.travel.search_connections'));
   
   // ---------------------------------------------------------------------------
   // PDF Download (jspdf)
@@ -922,14 +929,11 @@
 <UnifiedEmbedFullscreen
   appId="travel"
   skillId="connection"
-  title=""
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
   skillIconName="search"
-  status="finished"
-  {skillName}
-  showStatus={false}
+  embedHeaderTitle={$text('app_skills.travel.search_connections')}
   currentEmbedId={embedId}
 >
   {#snippet content()}

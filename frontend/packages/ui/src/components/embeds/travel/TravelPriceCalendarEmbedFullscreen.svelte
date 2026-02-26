@@ -105,11 +105,11 @@
     onShowChat
   }: Props = $props();
   
-  // Local reactive state
-  let localQuery = $state<string>(queryProp || '');
-  let localResults = $state<unknown[]>(resultsProp || []);
-  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>(statusProp || 'finished');
-  let localErrorMessage = $state<string>(errorMessageProp || '');
+  // Local reactive state — initialised to defaults; synced from props via $effect below
+  let localQuery = $state<string>('');
+  let localResults = $state<unknown[]>([]);
+  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let localErrorMessage = $state<string>('');
   
   // Keep local state in sync with prop changes
   $effect(() => {
@@ -122,11 +122,8 @@
   // Derived state
   let query = $derived(localQuery);
   let status = $derived(localStatus);
-  let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
+
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
-  
-  // Skill name from translations
-  let skillName = $derived($text('app_skills.travel.price_calendar'));
   
   /**
    * Flatten nested results if needed (backend returns [{id, results: [...]}])
@@ -374,12 +371,9 @@
 <UnifiedEmbedFullscreen
   appId="travel"
   skillId="price_calendar"
-  title=""
   onClose={onClose}
   skillIconName="calendar"
-  status={fullscreenStatus}
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={$text('app_skills.travel.price_calendar')}
   legacyResults={localResults}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}

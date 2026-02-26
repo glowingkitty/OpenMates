@@ -159,13 +159,13 @@
   // Currently selected connection for fullscreen detail view
   let selectedConnection = $state<ConnectionResult | null>(null);
   
-  // Local reactive state
-  let localQuery = $state<string>(queryProp || '');
-  let localProvider = $state<string>(providerProp || 'Google');
-  let localEmbedIds = $state<string | string[] | undefined>(embedIds);
-  let localResults = $state<unknown[]>(resultsProp || []);
-  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>(statusProp || 'finished');
-  let localErrorMessage = $state<string>(errorMessageProp || '');
+  // Local reactive state — initialised to defaults; synced from props via $effect below
+  let localQuery = $state<string>('');
+  let localProvider = $state<string>('Google');
+  let localEmbedIds = $state<string | string[] | undefined>(undefined);
+  let localResults = $state<unknown[]>([]);
+  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let localErrorMessage = $state<string>('');
   
   // Keep local state in sync with prop changes
   $effect(() => {
@@ -183,11 +183,8 @@
   let embedIdsValue = $derived(localEmbedIds);
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
-  let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
+
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
-  
-  // Skill name from translations
-  let skillName = $derived($text('app_skills.travel.search_connections'));
   
   // "via {provider}" text
   let viaProvider = $derived(
@@ -507,12 +504,9 @@
 <UnifiedEmbedFullscreen
   appId="travel"
   skillId="search_connections"
-  title=""
   onClose={handleMainClose}
   skillIconName="search"
-  status={fullscreenStatus}
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={$text('app_skills.travel.search_connections')}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToConnectionResult}
   legacyResults={legacyResults}

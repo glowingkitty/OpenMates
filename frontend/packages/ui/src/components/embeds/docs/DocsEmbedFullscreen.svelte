@@ -116,7 +116,7 @@
   // Local PII reveal toggle — initialised from prop but user can flip it in fullscreen.
   // We use a local state so the fullscreen can show/hide independently without
   // requiring a prop change from the parent (the parent toggle already covers the chat view).
-  let localPiiRevealed = $state(piiRevealed);
+  let localPiiRevealed = $state(false);
 
   // Keep localPiiRevealed in sync when the parent prop changes (e.g. user toggles in chat).
   $effect(() => {
@@ -170,12 +170,6 @@
     if (wordCount > 0) return wordCount;
     return countDocWords(htmlContent);
   });
-  
-  // Build skill name for BasicInfosBar: show filename (e.g., "Report.docx")
-  let skillName = $derived(displayFilename);
-  
-  // No header in fullscreen for documents (buttons overlay the top area)
-  const fullscreenTitle = '';
   
   // Build status text: word count
   let statusText = $derived.by(() => {
@@ -423,17 +417,13 @@ ${downloadHtmlContent}
 <UnifiedEmbedFullscreen
   appId="docs"
   skillId="doc"
-  title={fullscreenTitle}
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
   currentEmbedId={embedId}
   skillIconName={skillIconName}
-  status="finished"
-  {skillName}
-  showStatus={true}
-  customStatusText={statusText}
-  showSkillIcon={false}
+  embedHeaderTitle={displayFilename}
+  embedHeaderSubtitle={statusText}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

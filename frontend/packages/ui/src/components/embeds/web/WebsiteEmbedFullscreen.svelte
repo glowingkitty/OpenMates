@@ -388,14 +388,13 @@
 <UnifiedEmbedFullscreen
   appId="web"
   skillId="website"
-  title=""
+  embedHeaderTitle={displayTitle}
+  embedHeaderSubtitle={formattedDate() ?? undefined}
+  embedHeaderFaviconUrl={faviconUrl}
+  skillIconName="website"
+  showSkillIcon={false}
   {onClose}
   currentEmbedId={embedId}
-  skillIconName="website"
-  skillName={displayTitle}
-  faviconUrl={faviconUrl}
-  showSkillIcon={false}
-  showStatus={false}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -483,7 +482,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 80px 40px 40px; /* Top padding for action buttons */
+    padding: 24px 40px 40px;
     max-width: 600px;
     margin: 0 auto;
     width: 100%;
@@ -687,7 +686,7 @@
   /* Smaller screens */
   @container fullscreen (max-width: 600px) {
     .website-fullscreen-content {
-      padding: 70px 20px 30px;
+      padding: 20px 20px 30px;
     }
     
     .header-image-container {
@@ -727,7 +726,7 @@
   /* Very small screens */
   @container fullscreen (max-width: 400px) {
     .website-fullscreen-content {
-      padding: 60px 16px 24px;
+      padding: 16px 16px 24px;
     }
     
     .header-image {

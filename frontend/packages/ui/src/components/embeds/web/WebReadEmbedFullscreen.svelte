@@ -22,7 +22,6 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import BasicInfosBar from '../BasicInfosBar.svelte';
   import type { BaseSkillPreviewData } from '../../../types/appSkills';
   import { text } from '@repo/ui';
   
@@ -215,9 +214,6 @@
     }
     return count;
   });
-  
-  // Skill name from translations
-  let skillName = $derived($text('embeds.web_read'));
   
   // "Open on {hostname}" button text - uses open_on_provider translation with hostname placeholder
   let openButtonText = $derived($text('embeds.open_on_provider').replace('{provider}', hostname));
@@ -437,14 +433,14 @@
 <UnifiedEmbedFullscreen
   appId="web"
   skillId="read"
-  title=""
-  {onClose}
+  embedHeaderTitle={displayTitle}
+  embedHeaderSubtitle={totalWordCount() > 0 ? `via Firecrawl: ${totalWordCount().toLocaleString()} words` : undefined}
+  embedHeaderFaviconUrl={faviconUrl()}
   skillIconName="text"
-  status="finished"
+  showSkillIcon={true}
+  {onClose}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
-  {skillName}
-  showStatus={true}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -536,19 +532,6 @@
     </div>
   {/snippet}
   
-  {#snippet bottomBar()}
-    <!-- Wrapper to match UnifiedEmbedFullscreen's .basic-infos-bar-wrapper styling (300px max-width) -->
-    <div class="basic-infos-bar-wrapper">
-      <BasicInfosBar
-        appId="web"
-        skillId="read"
-        skillIconName="text"
-        status="finished"
-        {skillName}
-        showStatus={true}
-      />
-    </div>
-  {/snippet}
 </UnifiedEmbedFullscreen>
 
 <style>
@@ -560,8 +543,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 70px; /* Space for top action buttons */
-    padding-bottom: 120px; /* Space for bottom bar */
+    padding-top: 24px;
+    padding-bottom: 40px;
   }
   
   /* ===========================================
@@ -841,7 +824,7 @@
   
   @container fullscreen (max-width: 500px) {
     .web-read-fullscreen-content {
-      padding-top: 80px;
+      padding-top: 16px;
     }
     
     .file-widget {
@@ -856,35 +839,5 @@
     .markdown-content {
       font-size: 15px;
     }
-  }
-  
-  /* ===========================================
-     BasicInfosBar Wrapper (matches UnifiedEmbedFullscreen styling)
-     =========================================== */
-  
-  /* BasicInfosBar wrapper - max-width 300px, centered */
-  .basic-infos-bar-wrapper {
-    width: 100%;
-    max-width: 300px;
-    border: none;
-    background: transparent;
-    padding: 0;
-    cursor: default;
-  }
-  
-  /* Ensure BasicInfosBar inside wrapper respects max-width */
-  .basic-infos-bar-wrapper :global(.basic-infos-bar) {
-    width: 100%;
-    max-width: 300px;
-  }
-  
-  /* ===========================================
-     Skill Icon Styling (text icon)
-     =========================================== */
-  
-  /* Web Read skill icon - "text" icon as per Figma design */
-  :global(.basic-infos-bar .skill-icon[data-skill-icon="text"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/text.svg');
-    mask-image: url('@openmates/ui/static/icons/text.svg');
   }
 </style>

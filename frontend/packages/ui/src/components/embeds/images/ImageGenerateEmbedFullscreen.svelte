@@ -104,13 +104,23 @@
   let retainedPreviewKey: string | undefined = undefined;
   let retainedFullKey: string | undefined = undefined;
   
-  // Skill display - use correct translation key based on skillId
-  let skillName = $derived(
+  const skillIconName = 'ai';
+
+  // Header title: truncated prompt (max 80 chars), fallback to skill name
+  let embedHeaderTitle = $derived.by(() => {
+    const name = skillIdProp === 'generate_draft'
+      ? $text('embeds.image_generate_draft')
+      : $text('embeds.image_generate');
+    if (!prompt) return name;
+    return prompt.length > 80 ? prompt.slice(0, 79) + '\u2026' : prompt;
+  });
+
+  // Header subtitle: skill display name (doubles as "Generated image" label)
+  let embedHeaderSubtitle = $derived(
     skillIdProp === 'generate_draft'
       ? $text('embeds.image_generate_draft')
       : $text('embeds.image_generate')
   );
-  const skillIconName = 'ai';
   
   // Look up full model metadata (name, logo) from modelsMetadata registry
   let modelMetadata = $derived(
@@ -320,10 +330,9 @@
   appId="images"
   skillId={skillIdProp}
   {skillIconName}
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={embedHeaderTitle}
+  embedHeaderSubtitle={embedHeaderSubtitle}
   showSkillIcon={true}
-  title=""
   {onClose}
   onDownload={files?.original ? handleDownload : undefined}
   currentEmbedId={embedId}

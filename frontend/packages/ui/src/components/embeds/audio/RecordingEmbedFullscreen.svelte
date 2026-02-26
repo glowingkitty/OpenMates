@@ -277,12 +277,9 @@
   appId="audio"
   skillId="transcribe"
   skillIconName="microphone"
-  skillName={infoBarTitle}
-  customStatusText={infoBarSubtitle}
-  showStatus={true}
-  showSkillIcon={false}
+  embedHeaderTitle={infoBarTitle}
+  embedHeaderSubtitle={infoBarSubtitle}
   showShare={false}
-  title=""
   {onClose}
 >
   {#snippet content()}

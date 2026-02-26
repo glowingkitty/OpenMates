@@ -23,7 +23,6 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import BasicInfosBar from '../BasicInfosBar.svelte';
   import type { CodeGetDocsSkillPreviewData, CodeGetDocsResult } from '../../../types/appSkills';
   import { text } from '@repo/ui';
   
@@ -182,9 +181,6 @@
     const words = firstResult.documentation.trim().split(/\s+/).filter(Boolean);
     return words.length;
   });
-  
-  // Skill name from translations
-  let skillName = $derived($text('embeds.get_docs'));
   
   // "Open on Context7" button text
   let openButtonText = $derived($text('embeds.open_on_provider').replace('{provider}', 'Context7'));
@@ -443,17 +439,14 @@
 <UnifiedEmbedFullscreen
   appId="code"
   skillId="get_docs"
-  title=""
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
   onShare={handleShare}
   skillIconName="docs"
-  status="finished"
+  embedHeaderTitle={$text('embeds.get_docs')}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
-  {skillName}
-  showStatus={true}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -534,19 +527,6 @@
     </div>
   {/snippet}
   
-  {#snippet bottomBar()}
-    <!-- Wrapper to match UnifiedEmbedFullscreen's .basic-infos-bar-wrapper styling (300px max-width) -->
-    <div class="basic-infos-bar-wrapper">
-      <BasicInfosBar
-        appId="code"
-        skillId="get_docs"
-        skillIconName="docs"
-        status="finished"
-        {skillName}
-        showStatus={true}
-      />
-    </div>
-  {/snippet}
 </UnifiedEmbedFullscreen>
 
 <style>
@@ -861,33 +841,4 @@
     }
   }
   
-  /* ===========================================
-     BasicInfosBar Wrapper (matches UnifiedEmbedFullscreen styling)
-     =========================================== */
-  
-  /* BasicInfosBar wrapper - max-width 300px, centered */
-  .basic-infos-bar-wrapper {
-    width: 100%;
-    max-width: 300px;
-    border: none;
-    background: transparent;
-    padding: 0;
-    cursor: default;
-  }
-  
-  /* Ensure BasicInfosBar inside wrapper respects max-width */
-  .basic-infos-bar-wrapper :global(.basic-infos-bar) {
-    width: 100%;
-    max-width: 300px;
-  }
-  
-  /* ===========================================
-     Skill Icon Styling (docs icon)
-     =========================================== */
-  
-  /* Get Docs skill icon - "docs" icon for documentation */
-  :global(.basic-infos-bar .skill-icon[data-skill-icon="docs"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/docs.svg');
-    mask-image: url('@openmates/ui/static/icons/docs.svg');
-  }
 </style>

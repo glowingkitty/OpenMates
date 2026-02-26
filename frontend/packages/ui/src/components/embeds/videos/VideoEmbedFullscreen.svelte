@@ -95,18 +95,34 @@
   
   // Use metadata from preview if available, otherwise extract from URL
   // Priority: metadata props > direct props > extracted from URL
-  let videoId = $state(metadata?.videoId || propVideoId || '');
+  // Initialised to static defaults; $effect below syncs from props to support reactive updates.
+  let videoId = $state('');
   // Raw thumbnail URL (direct YouTube CDN) - will be proxied for display
-  let rawThumbnailUrl = $state(metadata?.thumbnailUrl || '');
-  let displayTitle = $state(metadata?.title || title || 'YouTube Video');
-  let channelName = $state(metadata?.channelName || '');
-  let channelId = $state(metadata?.channelId || '');
-  let rawChannelThumbnail = $state(metadata?.channelThumbnail || '');  // Channel profile picture URL
-  let description = $state(metadata?.description || '');
-  let duration = $state(metadata?.duration);
-  let viewCount = $state(metadata?.viewCount);
-  let likeCount = $state(metadata?.likeCount);
-  let publishedAt = $state(metadata?.publishedAt);
+  let rawThumbnailUrl = $state('');
+  let displayTitle = $state('YouTube Video');
+  let channelName = $state('');
+  let channelId = $state('');
+  let rawChannelThumbnail = $state('');  // Channel profile picture URL
+  let description = $state('');
+  let duration = $state<VideoMetadata['duration'] | undefined>(undefined);
+  let viewCount = $state<VideoMetadata['viewCount'] | undefined>(undefined);
+  let likeCount = $state<VideoMetadata['likeCount'] | undefined>(undefined);
+  let publishedAt = $state<VideoMetadata['publishedAt'] | undefined>(undefined);
+
+  // Sync state from props (runs on mount and whenever metadata/propVideoId/title changes)
+  $effect(() => {
+    videoId = metadata?.videoId || propVideoId || '';
+    rawThumbnailUrl = metadata?.thumbnailUrl || '';
+    displayTitle = metadata?.title || title || 'YouTube Video';
+    channelName = metadata?.channelName || '';
+    channelId = metadata?.channelId || '';
+    rawChannelThumbnail = metadata?.channelThumbnail || '';
+    description = metadata?.description || '';
+    duration = metadata?.duration;
+    viewCount = metadata?.viewCount;
+    likeCount = metadata?.likeCount;
+    publishedAt = metadata?.publishedAt;
+  });
   
   // DEBUG: Log received metadata to verify data flow
   $effect(() => {
@@ -489,18 +505,15 @@
 <UnifiedEmbedFullscreen
   appId="videos"
   skillId="video"
-  title=""
+  embedHeaderTitle={displayTitle}
+  embedHeaderSubtitle={customStatusText ? `${channelName ? `by ${channelName}` : ''}${channelName && formattedUploadDate ? ', ' : ''}${formattedUploadDate ? `${formattedUploadDate} uploaded` : ''}` : undefined}
+  embedHeaderFaviconUrl={channelThumbnailUrl || undefined}
+  embedHeaderFaviconIsCircular={true}
+  skillIconName="video"
+  showSkillIcon={false}
   onClose={handleClose}
   onCopy={handleCopy}
   currentEmbedId={embedId}
-  skillIconName="video"
-  status="finished"
-  skillName={shortenedTitle}
-  faviconUrl={channelThumbnailUrl || undefined}
-  faviconIsCircular={true}
-  showSkillIcon={false}
-  showStatus={true}
-  {customStatusText}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -708,7 +721,7 @@
     overflow: hidden;
     background-color: var(--color-grey-15);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    margin-top: 60px;
+    margin-top: 16px;
   }
   
   .video-thumbnail {

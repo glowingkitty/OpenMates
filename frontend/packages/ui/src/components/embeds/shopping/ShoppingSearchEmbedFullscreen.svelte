@@ -119,10 +119,9 @@
   let provider = $derived(localProvider);
   let results = $derived(localResults);
   let status = $derived(localStatus);
-  let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
+
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
 
-  let skillName = $derived($text('app_skills.shopping.search_products'));
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
 
   /**
@@ -198,12 +197,9 @@
 <UnifiedEmbedFullscreen
   appId="shopping"
   skillId="search_products"
-  title=""
   onClose={onClose}
   skillIconName="search"
-  status={fullscreenStatus}
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={$text('app_skills.shopping.search_products')}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   {hasPreviousEmbed}

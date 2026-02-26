@@ -130,11 +130,8 @@
   let embedIdsValue = $derived(localEmbedIds);
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
-  let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
-  let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
 
-  // Skill name from translations
-  let skillName = $derived($text('app_skills.health.search_appointments'));
+  let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
 
   /**
    * Transform raw embed content (TOON-decoded) into AppointmentResult format.
@@ -275,12 +272,9 @@
 <UnifiedEmbedFullscreen
   appId="health"
   skillId="search_appointments"
-  title=""
   onClose={handleMainClose}
   skillIconName="health"
-  status={fullscreenStatus}
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={$text('app_skills.health.search_appointments')}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToAppointmentResult}
   legacyResults={legacyResults}

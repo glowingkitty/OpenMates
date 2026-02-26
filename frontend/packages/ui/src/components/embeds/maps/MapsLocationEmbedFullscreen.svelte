@@ -112,9 +112,6 @@
       : null
   );
 
-  // Skill name for the BasicInfosBar
-  let skillName = $derived($text('embeds.maps_location'));
-
   // OpenStreetMap URL for the copy button (links directly to the pin on osm.org)
   let osmUrl = $derived(
     lat !== undefined && lon !== undefined
@@ -243,13 +240,10 @@
 <UnifiedEmbedFullscreen
   appId="maps"
   skillId="location"
-  title=""
   {onClose}
   currentEmbedId={embedId}
   skillIconName="pin"
-  status="finished"
-  {skillName}
-  showStatus={false}
+  embedHeaderTitle={$text('embeds.maps_location')}
   {showShare}
   onCopy={osmUrl ? handleCopyOsmUrl : undefined}
   {hasPreviousEmbed}

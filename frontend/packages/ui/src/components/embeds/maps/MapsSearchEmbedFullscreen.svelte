@@ -99,10 +99,6 @@
   let customIcon: DivIcon | null = null;
   let selectedPlaceIndex = $state<number | null>(null);
   
-  // Cached place results for map initialization (plain variable, not $state).
-  // Updated via onChildrenLoaded callback from UnifiedEmbedFullscreen — never mutated during render.
-  let cachedPlaceResults: PlaceSearchResult[] = [];
-  
   // Check dark mode
   let isDarkMode = $derived(() => {
     const systemDarkMode = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -110,9 +106,6 @@
       getComputedStyle(document.documentElement).getPropertyValue('--is-dark-mode').trim() === 'true';
     return systemDarkMode || websiteDarkMode;
   });
-  
-  // Get skill name from translations (matches preview)
-  let skillName = $derived($text('embeds.search'));
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
@@ -353,7 +346,6 @@
     if (map) return; // Already initialized
     const results = children as PlaceSearchResult[];
     if (results.length === 0) return;
-    cachedPlaceResults = results;
     initializeMapWithResults(results);
   }
 </script>
@@ -368,13 +360,10 @@
 <UnifiedEmbedFullscreen
   appId="maps"
   skillId="search"
-  title=""
   {onClose}
   currentEmbedId={embedId}
   skillIconName="search"
-  status="finished"
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={$text('embeds.search')}
   {embedIds}
   childEmbedTransformer={transformToPlaceResult}
   legacyResults={resultsProp}

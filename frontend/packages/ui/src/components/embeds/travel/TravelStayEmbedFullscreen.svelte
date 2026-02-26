@@ -115,14 +115,6 @@
       : null
   );
   
-  // Main image URL (prefer original, fallback to thumbnail)
-  let mainImage = $derived.by(() => {
-    if (stay.images && stay.images.length > 0) {
-      return stay.images[0].original_image || stay.images[0].thumbnail;
-    }
-    return stay.thumbnail;
-  });
-  
   // All images for gallery
   let allImages = $derived.by(() => {
     if (!stay.images || stay.images.length === 0) {
@@ -177,19 +169,14 @@
   // Nearby places
   let nearbyPlaces = $derived(stay.nearby_places || []);
   
-  // Skill name for bottom bar
-  let skillName = $derived($text('app_skills.travel.search_stays'));
 </script>
 
 <UnifiedEmbedFullscreen
   appId="travel"
   skillId="search_stays"
-  title=""
   {onClose}
   skillIconName="search"
-  status="finished"
-  {skillName}
-  showStatus={false}
+  embedHeaderTitle={$text('app_skills.travel.search_stays')}
 >
   {#snippet content()}
     <div class="stay-fullscreen">

@@ -115,13 +115,14 @@
     typeof window !== 'undefined' && window.innerWidth <= 500
   );
   
-  // Get skill name from translations (matches preview)
-  let skillName = $derived($text('embeds.search'));
-  
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
     `${$text('embeds.via')} ${provider}`
   );
+
+  // Header props for gradient banner
+  let embedHeaderTitle = $derived($text('embeds.search'));
+  let embedHeaderSubtitle = $derived(viaProvider);
   
   /**
    * Transform raw embed content to NewsSearchResult format
@@ -241,13 +242,11 @@
 <UnifiedEmbedFullscreen
   appId="news"
   skillId="search"
-  title=""
   onClose={handleMainClose}
   currentEmbedId={embedId}
   skillIconName="search"
-  status="finished"
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={embedHeaderTitle}
+  embedHeaderSubtitle={embedHeaderSubtitle}
   {embedIds}
   childEmbedTransformer={transformToNewsResult}
   legacyResults={resultsProp}

@@ -341,12 +341,10 @@
   appId="images"
   skillId="view"
   skillIconName="image"
-  skillName={infoBarTitle}
-  customStatusText={infoBarSubtitle}
-  showStatus={true}
+  embedHeaderTitle={infoBarTitle}
+  embedHeaderSubtitle={infoBarSubtitle}
   showSkillIcon={false}
   showShare={!!files?.original}
-  title=""
   {onClose}
   onDownload={files?.original ? handleDownload : undefined}
 >

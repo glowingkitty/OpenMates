@@ -95,7 +95,7 @@
   }: Props = $props();
 
   // Local PII reveal toggle — initialised from prop but user can flip it in fullscreen.
-  let localPiiRevealed = $state(piiRevealed);
+  let localPiiRevealed = $state(false);
 
   // Keep localPiiRevealed in sync when the parent prop changes.
   $effect(() => {
@@ -205,9 +205,6 @@
   
   let filteredRowCount = $derived(displayRows.length);
   
-  // Build skill name for BasicInfosBar
-  let skillName = $derived.by(() => renderTitle || $text('embeds.table'));
-  
   // Build status text
   let statusText = $derived.by(() => {
     if (actualRowCount === 0 && actualColCount === 0) return '';
@@ -218,8 +215,6 @@
     return dims;
   });
   
-  // No header title in fullscreen
-  const fullscreenTitle = '';
   const skillIconName = 'table';
   
   /**
@@ -269,11 +264,8 @@
   appId="sheets"
   skillId="sheet"
   {skillIconName}
-  {skillName}
-  showStatus={true}
-  customStatusText={statusText}
-  showSkillIcon={false}
-  title={fullscreenTitle}
+  embedHeaderTitle={renderTitle || $text('embeds.table')}
+  embedHeaderSubtitle={statusText}
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}

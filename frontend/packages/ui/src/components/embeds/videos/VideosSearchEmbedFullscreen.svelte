@@ -422,13 +422,12 @@
 <UnifiedEmbedFullscreen
   appId="videos"
   skillId="search"
-  title=""
+  embedHeaderTitle={query}
+  embedHeaderSubtitle={viaProvider}
+  skillIconName="search"
+  showSkillIcon={true}
   onClose={handleMainClose}
   currentEmbedId={embedId}
-  skillIconName="search"
-  status="finished"
-  {skillName}
-  showStatus={true}
   {embedIds}
   childEmbedTransformer={transformToVideoResult}
   legacyResults={resultsProp}
@@ -441,12 +440,6 @@
 >
   {#snippet content(ctx)}
     {@const videoResults = getVideoResults(ctx)}
-    
-    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
-    <div class="fullscreen-header">
-      <div class="search-query">{query}</div>
-      <div class="search-provider">{viaProvider}</div>
-    </div>
     
     {#if ctx.isLoadingChildren}
       <div class="loading-state">
@@ -502,38 +495,6 @@
 {/if}
 
 <style>
-  /* ===========================================
-     Fullscreen Header - Query and Provider
-     =========================================== */
-  
-  .fullscreen-header {
-    margin-top: 60px;
-    margin-bottom: 40px;
-    padding: 0 16px;
-    text-align: center;
-  }
-  
-  .search-query {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    word-break: break-word;
-    /* Limit to 3 lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .search-provider {
-    font-size: 16px;
-    color: var(--color-font-secondary);
-    margin-top: 8px;
-  }
-  
   /* ===========================================
      Loading and No Results States
      =========================================== */
