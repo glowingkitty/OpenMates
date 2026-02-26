@@ -1423,6 +1423,7 @@ export class ChatSynchronizationService extends EventTarget {
     encryptedContent: string,
     encryptedChatKey: string,
     createdAt: number,
+    encryptedFollowUpSuggestions?: string,
   ): Promise<void> {
     await senders.sendSyncInspirationChatImpl(
       this,
@@ -1435,6 +1436,7 @@ export class ChatSynchronizationService extends EventTarget {
       encryptedContent,
       encryptedChatKey,
       createdAt,
+      encryptedFollowUpSuggestions,
     );
   }
 

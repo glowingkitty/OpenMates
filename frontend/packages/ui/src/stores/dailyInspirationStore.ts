@@ -54,6 +54,13 @@ export interface DailyInspiration {
   is_opened?: boolean;
   /** Hashed chat ID created from this inspiration (set after chat creation). */
   opened_chat_id?: string | null;
+  /**
+   * LLM-generated follow-up conversation starters, specific to this inspiration's topic.
+   * Generated at inspiration creation time (same LLM call as assistant_response).
+   * Used as the initial follow-up suggestions when the user opens this inspiration as a chat.
+   * Falls back to a generic humanised suggestion if empty (legacy inspirations or LLM failure).
+   */
+  follow_up_suggestions?: string[];
 }
 
 export interface DailyInspirationState {

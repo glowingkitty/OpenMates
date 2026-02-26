@@ -75,6 +75,9 @@ async def handle_sync_inspiration_chat(
     chat_id = payload.get("chat_id")
     message_id = payload.get("message_id")
     content = payload.get("content")
+    # LLM-generated follow-up suggestions, encrypted client-side with the chat key.
+    # Server never decrypts — stored as-is for zero-knowledge compliance.
+    encrypted_follow_up_suggestions = payload.get("encrypted_follow_up_suggestions")
 
     if not chat_id or not message_id:
         logger.warning(
@@ -191,7 +194,7 @@ async def handle_sync_inspiration_chat(
         # Pattern matches encrypted_chat_metadata_handler.py:
         #   persist_encrypted_chat_metadata → creates or updates the chat row
         #   persist_new_chat_message → creates the assistant message row
-        chat_metadata_fields = {
+        chat_metadata_fields: dict = {
             "encrypted_title": encrypted_title,
             "encrypted_category": encrypted_category,
             "encrypted_chat_key": encrypted_chat_key,
@@ -201,6 +204,17 @@ async def handle_sync_inspiration_chat(
             "last_message_timestamp": now_ts,
             "updated_at": now_ts,
         }
+
+        # Persist LLM-generated follow-up suggestions if the client included them.
+        # Stored as encrypted_follow_up_request_suggestions in the Directus chats row —
+        # the same field used by the normal post-processing flow, so phased sync and
+        # load_more_chats will deliver them to other devices automatically.
+        if encrypted_follow_up_suggestions:
+            chat_metadata_fields["encrypted_follow_up_request_suggestions"] = encrypted_follow_up_suggestions
+            logger.debug(
+                "[SyncInspirationChat] Including encrypted follow-up suggestions in metadata for chat %s",
+                chat_id,
+            )
 
         celery_app.send_task(
             "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",

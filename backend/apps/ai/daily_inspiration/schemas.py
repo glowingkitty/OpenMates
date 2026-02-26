@@ -11,7 +11,7 @@
 # - No user PII is stored in these schemas.
 # - The content is encrypted with the user's vault key before being sent to the client.
 
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -85,3 +85,11 @@ class DailyInspiration(BaseModel):
         description="Enriched video metadata. Required when content_type='video'.",
     )
     generated_at: int = Field(..., description="Unix timestamp when this inspiration was generated")
+    follow_up_suggestions: List[str] = Field(
+        default_factory=list,
+        description=(
+            "3 LLM-generated follow-up conversation starters directly relevant to this inspiration's "
+            "topic. Shown in the MessageInput when the user opens this inspiration chat. "
+            "Generated in the same language as assistant_response."
+        ),
+    )

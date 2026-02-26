@@ -2717,6 +2717,7 @@ export async function sendSyncInspirationChatImpl(
   encryptedContent: string,
   encryptedChatKey: string,
   createdAt: number,
+  encryptedFollowUpSuggestions?: string,
 ): Promise<void> {
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
     console.warn(
@@ -2726,7 +2727,7 @@ export async function sendSyncInspirationChatImpl(
   }
 
   try {
-    const payload = {
+    const payload: Record<string, unknown> = {
       chat_id: chatId,
       message_id: messageId,
       content: messageContent,
@@ -2741,9 +2742,18 @@ export async function sendSyncInspirationChatImpl(
       encrypted_chat_key: encryptedChatKey,
     };
 
+    // Include encrypted follow-up suggestions if available so the backend
+    // can persist them to Directus (zero-knowledge — server never decrypts).
+    if (encryptedFollowUpSuggestions) {
+      payload.encrypted_follow_up_suggestions = encryptedFollowUpSuggestions;
+    }
+
     await webSocketService.sendMessage("sync_inspiration_chat", payload);
     console.info(
       `[ChatSyncService:Senders] Sent sync_inspiration_chat for chat ${chatId}`,
+      encryptedFollowUpSuggestions
+        ? "(with follow-up suggestions)"
+        : "(no follow-up suggestions)",
     );
   } catch (error) {
     // Non-fatal — the chat will sync on next phased sync or when user sends a follow-up.

@@ -4441,19 +4441,45 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     const hashedUserId = await computeSHA256(currentUserId);
 
                     // Retrieve the existing embed key from cache (set by persistInspirations).
-                    // If not in cache (e.g., page reload), generate a new one and re-encrypt.
+                    // If not in cache (e.g., page reload), first try to recover it from
+                    // IndexedDB via the master key wrapper that persistInspirations stored.
+                    // Only generate a fresh key (and re-encrypt the content) when BOTH the
+                    // memory cache AND IndexedDB are empty — e.g. after clearing browser data.
+                    //
+                    // Why this matters: if we generate a new key while the existing
+                    // encrypted_content in IndexedDB/Directus was written with the old key,
+                    // we write the new key into the cache before completing re-encryption.
+                    // Any embed render that fires in the window between setEmbedKeyInCache()
+                    // and sendStoreEmbedImpl() will try to decrypt old ciphertext with the
+                    // new key → AES-GCM auth tag mismatch → embed shows "Error" status.
                     let embedKeyForWrap = embedStore.getEmbedKeyFromCache(reusedEmbedId);
                     let needsReEncrypt = false;
 
                     if (!embedKeyForWrap) {
-                        // Cache miss — the user may have reloaded the page since the
-                        // inspiration was stored. Generate a fresh embed key, re-encrypt
-                        // the content, and replace the Directus record.
+                        // Cache miss (e.g. tab reload wiped the in-memory embedKeyCache).
+                        // Try to unwrap the existing master key wrapper from IndexedDB.
+                        // getEmbedKey() checks IndexedDB and unwraps via the master key —
+                        // if this succeeds we can use the original key and skip re-encryption,
+                        // keeping the already-stored encrypted_content consistent.
                         console.info(
-                            `[ActiveChat] Embed key not in cache for ${reusedEmbedId} — generating fresh key and re-encrypting`,
+                            `[ActiveChat] Embed key not in cache for ${reusedEmbedId} — trying IndexedDB recovery`,
                         );
-                        embedKeyForWrap = generateEmbedKey();
-                        needsReEncrypt = true;
+                        const recoveredKey = await embedStore.getEmbedKey(reusedEmbedId, undefined);
+                        if (recoveredKey) {
+                            embedKeyForWrap = recoveredKey;
+                            console.info(
+                                `[ActiveChat] ✅ Recovered embed key from IndexedDB for ${reusedEmbedId} — no re-encryption needed`,
+                            );
+                        } else {
+                            // IndexedDB also empty (e.g., browser data cleared or first-time
+                            // cross-device). Generate a fresh key and re-encrypt the content
+                            // so the new key wrapper and the stored ciphertext are in sync.
+                            console.info(
+                                `[ActiveChat] IndexedDB recovery failed for ${reusedEmbedId} — generating fresh key and re-encrypting`,
+                            );
+                            embedKeyForWrap = generateEmbedKey();
+                            needsReEncrypt = true;
+                        }
                     }
 
                     // Create a chat key wrapper (this is what was missing before)
@@ -4593,37 +4619,58 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             });
 
             // ── Follow-up suggestions ──────────────────────────────────────────
-            // Pre-generate 3 follow-up suggestions for this inspiration chat so
-            // they appear in the MessageInput immediately without a server round-trip.
-            // These are simple "Continue the conversation" prompts derived from the
-            // inspiration phrase and category.
+            // Use LLM-generated follow-up suggestions stored on the inspiration object.
+            // These are generated at inspiration creation time (same LLM call as
+            // assistant_response), making them specific to the actual topic.
+            // Falls back to a humanised title if the inspiration predates this feature
+            // or if the LLM failed to generate suggestions.
+            let encryptedFollowUpSuggestions: string | null = null;
             try {
                 const { encryptWithChatKey: encryptSuggestions } = await import('../services/cryptoService');
-                const categoryLabel = inspiration.category
-                    ? inspiration.category.charAt(0).toUpperCase() + inspiration.category.slice(1)
-                    : 'this topic';
-                const rawSuggestions = [
-                    `Tell me more about ${categoryLabel.toLowerCase()}`,
-                    `What should I do next to learn about this?`,
-                    `Give me a practical exercise related to this`,
-                ];
-                const encryptedSuggestions = await encryptSuggestions(
+
+                // Use LLM suggestions if available; otherwise fall back to a humanised title.
+                const llmSuggestions = inspiration.follow_up_suggestions;
+                const hasSuggestions = Array.isArray(llmSuggestions) && llmSuggestions.length > 0;
+                const topicLabel = inspiration.title
+                    ?? (inspiration.phrase ? inspiration.phrase.split('.')[0] : null)
+                    ?? inspiration.category.replace(/_/g, ' ');
+                const rawSuggestions: string[] = hasSuggestions
+                    ? llmSuggestions!
+                    : [
+                        `Tell me more about ${topicLabel}`,
+                        `What are the practical implications of this?`,
+                        `What should I explore next about ${topicLabel}?`,
+                    ];
+
+                if (!hasSuggestions) {
+                    console.debug(
+                        '[ActiveChat] No LLM follow-up suggestions on inspiration — using fallback for:',
+                        inspiration.inspiration_id,
+                    );
+                }
+
+                const encBlob = await encryptSuggestions(
                     JSON.stringify(rawSuggestions),
                     chatKey,
                 );
-                if (encryptedSuggestions) {
+                if (encBlob) {
+                    encryptedFollowUpSuggestions = encBlob;
                     const chatWithSuggestions = {
                         ...(newChat as import('../types/chat').Chat),
-                        encrypted_follow_up_request_suggestions: encryptedSuggestions,
+                        encrypted_follow_up_request_suggestions: encBlob,
                     };
                     await chatDB.updateChat(chatWithSuggestions);
                     // Make suggestions available in the UI immediately
                     followUpSuggestions = rawSuggestions;
-                    console.debug('[ActiveChat] Pre-generated follow-up suggestions for inspiration chat');
+                    console.debug(
+                        '[ActiveChat] Stored follow-up suggestions for inspiration chat:',
+                        rawSuggestions.length,
+                        hasSuggestions ? '(LLM-generated)' : '(fallback)',
+                    );
                 }
             } catch (suggErr) {
                 // Non-fatal — suggestions are a nice-to-have
-                console.warn('[ActiveChat] Failed to pre-generate follow-up suggestions:', suggErr);
+                console.warn('[ActiveChat] Failed to store follow-up suggestions for inspiration chat:', suggErr);
             }
 
             // Navigate to the new chat (same pattern as handleResumeLastChat)
@@ -4670,6 +4717,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         encryptedContent,
                         encryptedChatKey,
                         now,
+                        encryptedFollowUpSuggestions ?? undefined,
                     );
                 } else {
                     console.warn('[ActiveChat] Could not encrypt chat key for inspiration chat sync — chat will sync on next phased sync');
