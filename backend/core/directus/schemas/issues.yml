@@ -43,6 +43,11 @@ issues:
       nullable: true
       note: "Encrypted S3 object key for issue report YAML file (encrypted with issue report encryption key for server-side use). Uses TEXT type to accommodate Vault base64-encoded ciphertext. The YAML file contains all issue data including logs and is stored encrypted in S3 issue_logs bucket."
 
+    encrypted_screenshot_s3_key:
+      type: text
+      nullable: true
+      note: "Encrypted S3 object key for issue screenshot PNG file (encrypted with issue report encryption key for server-side use). Uses TEXT type to accommodate Vault base64-encoded ciphertext. The PNG is stored unencrypted in S3 issue_logs bucket; only the key itself is encrypted."
+
     created_at:
       type: timestamp
       note: "Timestamp when the issue record was created (set by application during creation)"
