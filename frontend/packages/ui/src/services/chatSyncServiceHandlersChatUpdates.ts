@@ -13,6 +13,9 @@ import type {
   Chat,
   MessageRole,
 } from "../types/chat";
+// Imported lazily to avoid circular deps — called after each chat-key establishment
+// so that system messages queued before the key was available get saved correctly.
+import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings";
 
 /**
  * Pending message queue for cross-device sync.
@@ -423,8 +426,9 @@ export async function handleNewChatMessageImpl(
           );
           if (chatKey) {
             chatDB.setChatKey(payload.chat_id, chatKey);
-            // Flush any messages that were queued before this key was available
+            // Flush any regular messages and system messages queued before this key was available
             await flushPendingMessagesForChat(payload.chat_id);
+            await flushPendingSystemMessagesForChat(payload.chat_id);
             // Decrypt title for immediate display
             if (payload.encrypted_title) {
               try {
@@ -480,8 +484,9 @@ export async function handleNewChatMessageImpl(
           );
           if (chatKey) {
             chatDB.setChatKey(payload.chat_id, chatKey);
-            // Flush any messages queued before this key was set
+            // Flush any regular messages and system messages queued before this key was set
             await flushPendingMessagesForChat(payload.chat_id);
+            await flushPendingSystemMessagesForChat(payload.chat_id);
             console.info(
               `[ChatSyncService:ChatUpdates] Decrypted and cached chat key for new chat ${payload.chat_id}`,
             );
@@ -522,8 +527,25 @@ export async function handleNewChatMessageImpl(
           console.info(
             `[ChatSyncService:ChatUpdates] Decrypted and cached chat key for existing chat ${payload.chat_id}`,
           );
-          // Flush any messages that arrived before the key was available
+          // Flush any regular messages and system messages that arrived before the key was available
           await flushPendingMessagesForChat(payload.chat_id);
+          await flushPendingSystemMessagesForChat(payload.chat_id);
+          // Also persist encrypted_chat_key to the IDB chat record so the key survives page reload.
+          // Without this, the key is only in memory — lost on refresh for the "existing chat" path.
+          const existingChatRecord = await chatDB.getChat(payload.chat_id);
+          if (
+            existingChatRecord &&
+            !existingChatRecord.encrypted_chat_key &&
+            payload.encrypted_chat_key
+          ) {
+            await chatDB.updateChat({
+              ...existingChatRecord,
+              encrypted_chat_key: payload.encrypted_chat_key,
+            });
+            console.debug(
+              `[ChatSyncService:ChatUpdates] Persisted encrypted_chat_key to IDB for existing chat ${payload.chat_id}`,
+            );
+          }
         }
       } catch (error) {
         console.error(

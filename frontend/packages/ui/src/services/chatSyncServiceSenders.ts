@@ -1499,6 +1499,11 @@ export async function sendCompletedAIResponseImpl(
           role: "system",
           encrypted_content: encryptedFields.encrypted_content,
           created_at: aiMessage.created_at,
+          // Include user_message_id so other devices can link the rejection to its
+          // triggering user message (enables sidebar "Credits needed..." + user preview)
+          user_message_id: aiMessage.user_message_id,
+          // Preserve status so other devices store the correct state (e.g., "waiting_for_user")
+          status: aiMessage.status,
         },
       });
     } else {

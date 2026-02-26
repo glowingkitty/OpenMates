@@ -7,6 +7,7 @@ import { storeEmbed, markEmbedAsError } from "./embedResolver"; // Import storeE
 import { chatMetadataCache } from "./chatMetadataCache"; // Import for cache invalidation after post-processing
 import { chatListCache } from "./chatListCache"; // Import for cache invalidation when metadata arrives
 import { flushPendingMessagesForChat } from "./chatSyncServiceHandlersChatUpdates"; // Flush messages queued while chat key was unavailable
+import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings"; // Flush system messages queued while chat key was unavailable
 import type { EmbedType } from "../message_parsing/types";
 import type { SuggestedSettingsMemoryEntry } from "../types/apps";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -951,8 +952,9 @@ export async function handleAITypingStartedImpl( // Changed to async
       // getOrGenerateChatKey() generates a fresh key here.  Either way, flush
       // any messages that were held in the pending queue before the key was set.
       const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-      // Flush messages that were queued waiting for this key (cross-device sync fix)
+      // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
       await flushPendingMessagesForChat(payload.chat_id);
+      await flushPendingSystemMessagesForChat(payload.chat_id);
       const { encryptWithChatKey } = await import("./cryptoService");
 
       // Encrypt title if payload has one (only for new chats on first message)

@@ -20,6 +20,60 @@ import { chatDB } from "./db";
 import { decryptWithMasterKey } from "./cryptoService";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { get } from "svelte/store";
+import type { Message } from "../types/chat";
+
+/**
+ * Pending system-message queue for cross-device sync.
+ *
+ * System messages (e.g., insufficient-credits rejections) arrive via
+ * `new_system_message` broadcast from another device.  Two race conditions
+ * can prevent them from being safely saved immediately:
+ *
+ * 1. The chat doesn't exist locally yet — `handleNewSystemMessageImpl`
+ *    previously just dropped the message with a console.warn.
+ * 2. The chat exists but the chat key is not yet in the in-memory cache —
+ *    calling `chatDB.saveMessage()` would trigger `getOrGenerateChatKey()`,
+ *    which generates a random throwaway key and caches it.  All future
+ *    decryption attempts use the wrong key → "[Content decryption failed]".
+ *
+ * Solution: buffer the system message here and flush it through
+ * `chatDB.saveMessage()` only after both the chat exists AND the correct
+ * key is in the in-memory cache.  `flushPendingSystemMessagesForChat()` must
+ * be called from every code-path that establishes the chat key.
+ */
+const _pendingSystemMessages: Map<string, Message[]> = new Map();
+
+/**
+ * Flush all pending system messages for a chat now that the key is available.
+ * Safe to call multiple times — a second call is a no-op once the queue is empty.
+ * Must be called AFTER the correct key has been set via `chatDB.setChatKey()`.
+ */
+export async function flushPendingSystemMessagesForChat(
+  chatId: string,
+): Promise<void> {
+  const pending = _pendingSystemMessages.get(chatId);
+  if (!pending || pending.length === 0) return;
+
+  // Remove from map immediately so concurrent flushes can't double-save
+  _pendingSystemMessages.delete(chatId);
+
+  console.info(
+    `[ChatSyncService:AppSettings] Flushing ${pending.length} pending system message(s) for chat ${chatId} now that key is available`,
+  );
+  for (const msg of pending) {
+    try {
+      await chatDB.saveMessage(msg);
+      console.debug(
+        `[ChatSyncService:AppSettings] Flushed pending system message ${msg.message_id} for chat ${chatId}`,
+      );
+    } catch (err) {
+      console.error(
+        `[ChatSyncService:AppSettings] Error flushing pending system message ${msg.message_id} for chat ${chatId}:`,
+        err,
+      );
+    }
+  }
+}
 
 /**
  * Payload structure for request_app_settings_memories WebSocket message
@@ -1692,6 +1746,13 @@ interface NewSystemMessagePayload {
     role: "system";
     encrypted_content: string; // Encrypted with chat key (zero-knowledge)
     created_at: number;
+    /** ID of the user message that triggered this system response (e.g., credits rejection).
+     *  Used by the sidebar to fetch and display the user message content below the
+     *  "Credits needed..." label. May be absent for older system messages. */
+    user_message_id?: string;
+    /** Status of this system message — e.g. "waiting_for_user" for credits rejection.
+     *  Preserves the originating device's status so other devices show the correct UI state. */
+    status?: string;
   };
   versions: {
     messages_v: number;
@@ -1701,13 +1762,20 @@ interface NewSystemMessagePayload {
 /**
  * Handles new system messages broadcast from other devices.
  *
- * When another device creates a system message (like app settings/memories response):
+ * When another device creates a system message (like an insufficient-credits rejection
+ * or app settings/memories response):
  * 1. Server broadcasts the encrypted message to all other logged-in devices
  * 2. This handler receives the message and stores it in IndexedDB
  * 3. Dispatches event to notify UI components to refresh
  *
  * **Zero-Knowledge Architecture**: Message content is encrypted with chat key.
  * Server stores but cannot decrypt. Decryption happens client-side on-demand.
+ *
+ * **Pending queue**: If the chat doesn't exist yet OR the chat key is not in cache,
+ * the message is buffered in `_pendingSystemMessages` and flushed once both are
+ * available.  This prevents the race condition where `chatDB.saveMessage()` calls
+ * `getOrGenerateChatKey()` and generates a random throwaway key, causing all
+ * subsequent decryption to fail with "[Content decryption failed]".
  */
 export async function handleNewSystemMessageImpl(
   serviceInstance: ChatSynchronizationService,
@@ -1719,6 +1787,8 @@ export async function handleNewSystemMessageImpl(
       chat_id: payload.chat_id,
       message_id: payload.data?.message_id,
       messages_v: payload.versions?.messages_v,
+      status: payload.data?.status,
+      has_user_message_id: !!payload.data?.user_message_id,
     },
   );
 
@@ -1732,36 +1802,58 @@ export async function handleNewSystemMessageImpl(
     return;
   }
 
+  // Preserve the status from the originating device (e.g., "waiting_for_user" for
+  // credits-rejection messages).  This is critical for the sidebar to show
+  // "Credits needed..." instead of falling back to "Untitled Chat" on reload.
+  // Default to "waiting_for_user" for system messages since that's the most common
+  // cross-device case (credits rejection). Regular app-settings/memories responses
+  // can override with a different status via the payload.
+  const messageStatus =
+    (data.status as Message["status"]) || "waiting_for_user";
+
+  // Build the system message object.
+  // NOTE: Do NOT call chatDB.saveMessage() yet — it calls encryptMessageFields()
+  // which calls getOrGenerateChatKey().  If the chat key is not in cache, a random
+  // throwaway key is generated and cached, corrupting all future decryption for this
+  // chat.  Instead, we save only after confirming the key is in cache.
+  const systemMessage: Message = {
+    message_id: data.message_id,
+    chat_id: chat_id,
+    role: "system" as const,
+    encrypted_content: data.encrypted_content,
+    created_at: data.created_at,
+    status: messageStatus,
+    ...(data.user_message_id ? { user_message_id: data.user_message_id } : {}),
+  };
+
   try {
-    // Check if chat exists locally
+    // Check if chat exists locally AND key is in cache before saving.
+    // If either is missing, queue the message for later flush.
     const chat = await chatDB.getChat(chat_id);
-    if (!chat) {
+    const keyInCache = !!chatDB.getChatKey(chat_id);
+
+    if (!chat || !keyInCache) {
+      // Queue for flush once chat+key are available (via new_chat_message or phased sync)
+      const queue = _pendingSystemMessages.get(chat_id) ?? [];
+      queue.push(systemMessage);
+      _pendingSystemMessages.set(chat_id, queue);
       console.warn(
-        `[ChatSyncService:AppSettings] Chat ${chat_id} not found locally, skipping system message sync`,
+        `[ChatSyncService:AppSettings] Chat ${chat_id} not ready (chat=${!!chat}, keyInCache=${keyInCache}) — ` +
+          `queued system message ${data.message_id} (queue length: ${queue.length}). ` +
+          `Will save once chat+key are available.`,
       );
       return;
     }
 
-    // Create message object for IndexedDB
-    // Content is encrypted with chat key - will be decrypted when loaded
-    const systemMessage = {
-      message_id: data.message_id,
-      chat_id: chat_id,
-      role: "system" as const,
-      encrypted_content: data.encrypted_content,
-      created_at: data.created_at,
-      status: "synced" as const,
-    };
-
-    // Save to IndexedDB
+    // Save to IndexedDB — key is in cache so encryptMessageFields() won't generate a bad key
     await chatDB.saveMessage(systemMessage);
     console.debug(
-      `[ChatSyncService:AppSettings] Saved system message ${data.message_id} from other device`,
+      `[ChatSyncService:AppSettings] Saved system message ${data.message_id} from other device (status=${messageStatus})`,
     );
 
     // Update chat's messages_v version counter AND last_edited_overall_timestamp.
-    // System messages from other devices are user-facing events (e.g. app settings/memories
-    // response) that should sort the chat to the top, just as on the originating device.
+    // System messages from other devices are user-facing events (e.g. credits rejection,
+    // app settings/memories response) that should sort the chat to the top.
     const sysMessageTimestamp =
       data.created_at || Math.floor(Date.now() / 1000);
     const updatedChat: import("../types/chat").Chat = {

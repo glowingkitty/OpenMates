@@ -93,6 +93,7 @@ MESSAGE_ALL_FIELDS = (
     "has_thinking," # Added thinking metadata flag
     "thinking_token_count," # Added thinking token count
     "encrypted_pii_mappings," # Encrypted PII placeholder-to-original mappings (user messages only)
+    "user_message_id," # ID of the user message that triggered this system message (system messages only)
     # "sender_name," # Removed as per user feedback and to avoid permission issues
     "created_at"
 )
@@ -522,6 +523,7 @@ class ChatMethods:
                 "has_thinking": message_data.get("has_thinking"),
                 "thinking_token_count": message_data.get("thinking_token_count"),
                 "encrypted_pii_mappings": message_data.get("encrypted_pii_mappings"),
+                "user_message_id": message_data.get("user_message_id"),  # Links system message to triggering user message
                 "encrypted_content": encrypted_content,
                 "created_at": message_data.get("created_at"),
             }

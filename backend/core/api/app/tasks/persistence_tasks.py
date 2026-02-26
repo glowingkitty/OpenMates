@@ -235,7 +235,9 @@ async def _async_persist_new_chat_message_task(
     task_id: str = "UNKNOWN",
     encrypted_chat_key: Optional[str] = None, # Encrypted chat key for device sync
     user_id: Optional[str] = None, # User ID for sync cache updates (not hashed)
-    encrypted_pii_mappings: Optional[str] = None # Encrypted PII placeholder-to-original mappings
+    encrypted_pii_mappings: Optional[str] = None, # Encrypted PII placeholder-to-original mappings
+    user_message_id: Optional[str] = None, # Links system message to its triggering user message
+    message_status: Optional[str] = None, # Client-side message status (e.g., "waiting_for_user")
 ):
     """
     Async logic for:
@@ -301,6 +303,11 @@ async def _async_persist_new_chat_message_task(
                     logger.warning(f"[SYNC_CACHE_VALIDATION] ⚠️ Message {message_id} has no encrypted_content!")
                 
                 # Create the new message as a JSON string (matching Directus format)
+                # Use the provided message_status if present (e.g., "waiting_for_user" for
+                # credits-rejection system messages), otherwise default to "delivered".
+                # This ensures phased sync delivers the correct status so other devices
+                # display the right UI state (e.g., "Credits needed..." in the sidebar).
+                sync_cache_status = message_status if message_status else "delivered"
                 new_message_dict = {
                     "id": message_id,
                     "chat_id": chat_id,
@@ -309,7 +316,7 @@ async def _async_persist_new_chat_message_task(
                     "encrypted_category": encrypted_category,
                     "encrypted_content": encrypted_content,
                     "created_at": created_at,
-                    "status": "delivered"  # Default status
+                    "status": sync_cache_status,
                 }
                 # Only include encrypted_model_name for assistant messages
                 if encrypted_model_name and role == 'assistant':
@@ -317,6 +324,9 @@ async def _async_persist_new_chat_message_task(
                 # Include encrypted PII mappings if provided (user messages with PII detection)
                 if encrypted_pii_mappings:
                     new_message_dict["encrypted_pii_mappings"] = encrypted_pii_mappings
+                # Include user_message_id for system messages (links rejection to user message)
+                if user_message_id:
+                    new_message_dict["user_message_id"] = user_message_id
                 new_message_json = json.dumps(new_message_dict)
                 
                 # ATOMIC CACHE UPDATE: Use append instead of read-modify-write
@@ -448,6 +458,9 @@ async def _async_persist_new_chat_message_task(
         # Include encrypted PII mappings if provided (user messages with PII detection)
         if encrypted_pii_mappings:
             message_data_for_directus["encrypted_pii_mappings"] = encrypted_pii_mappings
+        # Include user_message_id for system messages (links rejection to triggering user message)
+        if user_message_id:
+            message_data_for_directus["user_message_id"] = user_message_id
 
         created_message_item = await directus_service.chat.create_message_in_directus(
             message_data=message_data_for_directus
@@ -506,7 +519,9 @@ def persist_new_chat_message_task(
     new_last_edited_overall_timestamp: Optional[int] = None,
     encrypted_chat_key: Optional[str] = None, # Encrypted chat key for device sync
     user_id: Optional[str] = None, # User ID for sync cache updates (not hashed)
-    encrypted_pii_mappings: Optional[str] = None # Encrypted PII placeholder-to-original mappings
+    encrypted_pii_mappings: Optional[str] = None, # Encrypted PII placeholder-to-original mappings
+    user_message_id: Optional[str] = None, # Links system message to its triggering user message
+    message_status: Optional[str] = None, # Client-side message status (e.g., "waiting_for_user")
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
@@ -524,7 +539,9 @@ def persist_new_chat_message_task(
             encrypted_content, created_at,
             new_chat_messages_version, new_last_edited_overall_timestamp,
             task_id, encrypted_chat_key, user_id, # Pass encrypted chat key and user_id for device sync
-            encrypted_pii_mappings  # Pass encrypted PII mappings for cross-device restoration
+            encrypted_pii_mappings,  # Pass encrypted PII mappings for cross-device restoration
+            user_message_id,  # Links system message to triggering user message
+            message_status,   # Preserves client status (e.g., "waiting_for_user") across devices
         ))
     except Exception as e:
         logger.error(
