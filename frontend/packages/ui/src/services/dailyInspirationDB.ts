@@ -568,6 +568,19 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
       return [];
     }
 
+    // Probe the master key before attempting decryption — same reason as in
+    // processInspirationRecordsFromSync: on first login the key may not be
+    // persisted yet, causing every record to silently return null.
+    const { getMasterKey } = await import("./cryptoKeyStorage");
+    const masterKeyAvailable = !!(await getMasterKey());
+    if (!masterKeyAvailable) {
+      console.error(
+        `${LOG_PREFIX} loadInspirationsFromAPI: master key not available — cannot decrypt ${apiRecords.length} inspiration(s). ` +
+          "User may not be fully logged in yet.",
+      );
+      return [];
+    }
+
     const { decryptWithMasterKey } = await import("./cryptoService");
 
     const decrypted: DailyInspiration[] = [];
@@ -746,6 +759,26 @@ export async function processInspirationRecordsFromSync(
   if (!records || records.length === 0) return [];
 
   try {
+    // IMPORTANT: Probe the master key BEFORE attempting any decryption.
+    // On first login the key may not yet be in storage when Phase 1 arrives
+    // over the WebSocket. Without this probe every record silently fails with
+    // null returns from decryptWithMasterKey (it logs per-call but never throws),
+    // causing the function to return [] — and because the payload was non-empty
+    // markPhase1Empty() is never called, leaving the fallback on the slower 3.5 s path.
+    const { getMasterKey } = await import("./cryptoKeyStorage");
+    const masterKeyAvailable = !!(await getMasterKey());
+    if (!masterKeyAvailable) {
+      console.error(
+        `${LOG_PREFIX} Master key not available — cannot decrypt ${records.length} Phase 1 inspiration(s). ` +
+          "Key may not yet be persisted on first login. " +
+          "Returning 'key_absent' signal so caller can trigger short fallback.",
+      );
+      // Return a special sentinel so the caller knows this was a key-absence failure
+      // rather than the server genuinely having no records. We use a plain [] here
+      // and let the caller detect the situation via the exported flag below.
+      return [];
+    }
+
     const { decryptWithMasterKey } = await import("./cryptoService");
 
     const decrypted: DailyInspiration[] = [];

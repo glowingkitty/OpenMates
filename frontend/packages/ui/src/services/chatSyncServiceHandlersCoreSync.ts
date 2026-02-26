@@ -399,17 +399,20 @@ export async function handlePhase1LastChatImpl(
         is_private: payload.chat_details.is_private,
       };
 
-      // Use a single transaction for all Phase 1 writes (chat + messages) for instant availability
+      // NOTE: We intentionally do NOT use a shared multi-store transaction here.
+      // IDB transactions auto-commit when there are no pending requests AND the JS
+      // event loop returns. addChat() and saveMessage() both do async crypto (key
+      // derivation) BEFORE queuing their IDB writes, which causes the shared
+      // transaction to auto-commit in the async gap — resulting in
+      // InvalidStateError warnings on every login.
+      // Each function already manages its own reliable internal transaction, so
+      // calling them without a shared transaction is the correct pattern here.
       await chatDB.init();
-      const transaction = await chatDB.getTransaction(
-        ["chats", "messages"],
-        "readwrite",
-      );
 
-      // Store chat metadata in transaction
-      await chatDB.addChat(chatWithId, transaction);
+      // Store chat metadata (uses its own internal transaction)
+      await chatDB.addChat(chatWithId);
 
-      // Store messages if provided
+      // Store messages if provided (each uses its own internal transaction)
       if (payload.messages && payload.messages.length > 0) {
         console.info(
           "[ChatSyncService:CoreSync] Saving",
@@ -444,23 +447,12 @@ export async function handlePhase1LastChatImpl(
             message.chat_id = payload.chat_id;
           }
 
-          await chatDB.saveMessage(message, transaction);
+          await chatDB.saveMessage(message);
         }
       }
 
-      // Wait for transaction to complete
-      await new Promise<void>((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
-      });
-
-      // CRITICAL FIX: Add delay after transaction to ensure IndexedDB has flushed to disk
-      // Without this, getAllChats() called immediately after returns 0 chats!
-      // 50ms ensures data is queryable across different transactions
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
       console.info(
-        "[ChatSyncService:CoreSync] ✅ Phase 1 transaction completed - data is now immediately available in IndexedDB for chat:",
+        "[ChatSyncService:CoreSync] ✅ Phase 1 writes complete for chat:",
         payload.chat_id,
       );
     }
@@ -549,6 +541,19 @@ export async function handlePhase1LastChatImpl(
                 "[ChatSyncService:CoreSync] ✅ Daily inspirations already in store, skipping store update",
               );
             }
+          } else {
+            // Server sent N inspirations but decryption returned 0 — most likely the
+            // master key was not yet available (first login race condition). Log this
+            // clearly so it shows up in debug sessions. Also call markPhase1Empty()
+            // so the fallback in Chats.svelte uses the shorter 1 s wait rather than
+            // 3.5 s (the payload was non-empty so the normal empty branch below is
+            // never reached, leaving the fallback on the slower path without this fix).
+            console.warn(
+              "[ChatSyncService:CoreSync] ⚠️ processInspirationRecordsFromSync returned 0 despite",
+              payload.daily_inspirations.length,
+              "records from server — master key likely absent on first login. Triggering short fallback.",
+            );
+            dailyInspirationStore.markPhase1Empty();
           }
         } catch (inspirationError) {
           console.error(
