@@ -140,7 +140,11 @@
   // Local reactive state for embed data — initialised to defaults; synced from props via $effect below
   let localQuery = $state<string>('');
   let localProvider = $state<string>('Brave Search');
-  let localEmbedIds = $state<string | string[] | undefined>(undefined);
+  // embedIdsOverride: set by handleEmbedDataUpdated during streaming to override the prop value.
+  // embedIdsValue: derived as override ?? prop so the prop value is available immediately on mount
+  // (critical: UnifiedEmbedFullscreen checks embedIds in onMount; $effect runs too late).
+  let embedIdsOverride = $state<string | string[] | undefined>(undefined);
+  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let localErrorMessage = $state<string>('');
@@ -149,7 +153,6 @@
   $effect(() => {
     localQuery = previewData?.query || queryProp || '';
     localProvider = previewData?.provider || providerProp || 'Brave Search';
-    localEmbedIds = embedIds;
     localResults = previewData?.results || resultsProp || [];
     localStatus = (previewData?.status as 'processing' | 'finished' | 'error' | 'cancelled') || statusProp || 'finished';
     localErrorMessage = errorMessageProp || '';
@@ -158,7 +161,6 @@
   // Extract values from local state (single source of truth)
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
-  let embedIdsValue = $derived(localEmbedIds);
   // Legacy results from previewData or direct results prop (used as fallback)
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
@@ -338,7 +340,7 @@
     if (typeof content.query === 'string') localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
     if (content.embed_ids) {
-      localEmbedIds = content.embed_ids as string | string[];
+      embedIdsOverride = content.embed_ids as string | string[];
     }
     if (Array.isArray(content.results)) {
       localResults = content.results as unknown[];
