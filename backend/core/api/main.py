@@ -850,13 +850,31 @@ async def lifespan(app: FastAPI):
                         demo_chats = await app.state.directus_service.get_items("demo_chats", params)
                         
                         if demo_chats:
-                            # This warms both the list and individual chat data caches
-                            # ARCHITECTURE: demo_chats from Directus have 'id' (UUID), not 'demo_id'
-                            # The display ID (demo-1, demo-2) is generated based on order
+                            # This warms both the list and individual chat data caches.
+                            # ARCHITECTURE: Use the stored slug as the canonical demo ID
+                            # (e.g. 'demo-planning-a-trip'), matching the /v1/demo/chats route.
+                            # The old positional demo-1/demo-2 format has been replaced.
+                            import re as re_module
+
+                            def _slugify(text: str) -> str:
+                                text = text.lower().strip()
+                                text = re_module.sub(r'[^a-z0-9\s-]', '', text)
+                                text = re_module.sub(r'[\s_-]+', '-', text)
+                                text = text.strip('-')
+                                return f"demo-{text}"
+
                             public_demo_chats = []
                             for idx, demo in enumerate(demo_chats):
                                 demo_uuid = demo["id"]  # UUID from Directus
-                                display_id = f"demo-{idx + 1}"  # Generated display ID
+
+                                # Use the stored slug as the stable ID (same logic as the API route).
+                                # Fall back to auto-generating from title for records without a slug.
+                                stored_slug = demo.get("slug") or ""
+                                if not stored_slug:
+                                    fallback_title = demo.get("title") or f"demo-chat-{idx + 1}"
+                                    stored_slug = _slugify(fallback_title)
+                                    logger.debug(f"Cache warm: demo {demo_uuid} has no slug — using generated fallback: {stored_slug}")
+                                display_id = stored_slug  # slug is the canonical display/chat ID
                                 
                                 # Warm translation cache using UUID
                                 translation = await app.state.directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, lang)
@@ -884,9 +902,11 @@ async def lifespan(app: FastAPI):
                                     # Get demo_chat_category (target audience: for_everyone or for_developers)
                                     demo_chat_category = demo.get("demo_chat_category", "for_everyone")
 
-                                    # Add to list with cleartext data
+                                    # Add to list with cleartext data.
+                                    # 'demo_id' equals the slug for backwards compat with frontend code.
                                     public_demo_chats.append({
                                         "demo_id": display_id,
+                                        "slug": display_id,
                                         "uuid": demo_uuid,
                                         "title": title or "Demo Chat",
                                         "summary": summary,
@@ -931,6 +951,7 @@ async def lifespan(app: FastAPI):
 
                                     full_chat_data = {
                                         "demo_id": display_id,
+                                        "slug": display_id,
                                         "title": title,
                                         "summary": summary,
                                         "category": category,
@@ -939,14 +960,14 @@ async def lifespan(app: FastAPI):
                                         "content_hash": demo.get("content_hash", ""),
                                         "follow_up_suggestions": follow_up_suggestions,
                                         "chat_data": {
-                                            "chat_id": display_id,  # Use display_id as chat_id for client
+                                            "chat_id": display_id,  # slug is the stable chat_id for the client
                                             "messages": cleartext_messages,
                                             "embeds": cleartext_embeds,
                                             "encryption_mode": "none"
                                         }
                                     }
                                     
-                                    # Store in cache using display_id as key
+                                    # Store in cache using slug as key
                                     await app.state.directus_service.cache.set_demo_chat_data(display_id, lang, full_chat_data)
 
                             # Store list in cache

@@ -171,83 +171,92 @@ export function updateNavFromCache(activeChatId: string): void {
     return;
   }
 
-  // ── Case 3: Cold boot — load from IndexedDB in the background ────────────
-  // We import chatDB lazily to avoid a circular dependency at module load time.
-  // This runs asynchronously; the arrows will appear once the promise resolves
-  // (typically within a few hundred milliseconds on a warm device).
+  // ── Case 3: Cold boot — apply public chats immediately, then refine with DB ─
   //
-  // For unauthenticated users, openmates-chat-db is empty — their chat list is
-  // purely in-memory (INTRO_CHATS + LEGAL_CHATS + community demos). We combine
-  // both sources here to mirror what Chats.svelte builds in visiblePublicChats.
+  // Public chats (intro, legal, community demos) are always in-memory and
+  // available synchronously. We apply them right away so that nav arrows appear
+  // immediately after logout on mobile where Chats.svelte is unmounted and the
+  // async DB fetch would otherwise cause a visible delay or missing arrows.
+  //
+  // After the synchronous apply, we also start an async IndexedDB fetch to pick
+  // up any authenticated user chats (e.g. cold boot with sidebar closed).
+  //
+  // translateDemoChat() resolves i18n keys to strings — same as Chats.svelte does
+  // before calling convertDemoChatToChat(). Skipping this step would leave raw
+  // translation keys (e.g. "demo_chats.who_develops_openmates.title") in the title.
+  const introChats: Chat[] = INTRO_CHATS.map((demo) => {
+    const chat = convertDemoChatToChat(translateDemoChat(demo));
+    chat.group_key = "intro";
+    return chat;
+  });
+  const legalChats: Chat[] = LEGAL_CHATS.map((legal) => {
+    const chat = convertDemoChatToChat(translateDemoChat(legal));
+    chat.group_key = "legal";
+    return chat;
+  });
+  // Community demos are already Chat objects with group_key='examples'
+  const communityChats: Chat[] = getAllCommunityDemoChats().map((chat) => ({
+    ...chat,
+    group_key: "examples" as const,
+  }));
+
+  // Apply public-only list immediately (synchronous) so arrows are visible right away.
+  // This is especially important after logout on mobile (sidebar closed = Chats.svelte
+  // unmounted) where the DB fetch below takes a few hundred ms to resolve.
+  const publicOnlyChats = [...introChats, ...communityChats, ...legalChats];
+  if (publicOnlyChats.length > 0) {
+    _applyNavigableList(publicOnlyChats, activeChatId);
+  }
+
+  // ── Case 3b: Active chat is a community demo that wasn't loaded yet ──────
+  // Community demos are fetched from the server asynchronously, so
+  // getAllCommunityDemoChats() may return [] on a cold boot (the network
+  // request is still in flight). If activeChatId was not found in the
+  // list we just built, subscribe to communityDemoStore for one update
+  // so that the nav arrows appear once the demos arrive.
+  const immediateFoundIdx = publicOnlyChats.findIndex(
+    (c) => c.chat_id === activeChatId,
+  );
+  if (immediateFoundIdx === -1) {
+    const unsubscribeCommunity = communityDemoStore.subscribe(() => {
+      // Skip if Chats.svelte has since mounted and taken ownership
+      if (chatList.length > 0) {
+        unsubscribeCommunity();
+        return;
+      }
+      const updatedCommunityChats: Chat[] = getAllCommunityDemoChats().map(
+        (chat) => ({ ...chat, group_key: "examples" as const }),
+      );
+      if (updatedCommunityChats.length === 0) return; // still loading
+      const rebuilt = [...introChats, ...updatedCommunityChats, ...legalChats];
+      _applyNavigableList(rebuilt, activeChatId);
+      unsubscribeCommunity(); // one-shot: stop listening after first successful update
+    });
+  }
+
+  // ── Case 3c: Async DB fetch to pick up authenticated user chats ───────────
+  // Lazily import chatDB to avoid circular deps. This refines the list once
+  // the DB resolves — if the user has real chats they should appear in nav.
+  // We import chatDB lazily to avoid a circular dependency at module load time.
   import("../services/db")
     .then(({ chatDB }) => chatDB.getAllChats())
     .then((dbChats) => {
-      // Only apply if Chats.svelte still hasn't mounted and set its own list
+      // Skip if Chats.svelte has since mounted and taken ownership
       if (chatList.length > 0) return;
-
-      // Build the in-memory public chats list (mirrors Chats.svelte visiblePublicChats).
-      // These are always available regardless of auth state.
-      // translateDemoChat() resolves i18n keys to strings — same as Chats.svelte does
-      // before calling convertDemoChatToChat(). Skipping this step would leave raw
-      // translation keys (e.g. "demo_chats.who_develops_openmates.title") in the title.
-      const introChats: Chat[] = INTRO_CHATS.map((demo) => {
-        const chat = convertDemoChatToChat(translateDemoChat(demo));
-        chat.group_key = "intro";
-        return chat;
-      });
-      const legalChats: Chat[] = LEGAL_CHATS.map((legal) => {
-        const chat = convertDemoChatToChat(translateDemoChat(legal));
-        chat.group_key = "legal";
-        return chat;
-      });
-      // Community demos are already Chat objects with group_key='examples'
-      const communityChats: Chat[] = getAllCommunityDemoChats().map((chat) => ({
-        ...chat,
-        group_key: "examples",
-      }));
+      // Skip if there are no user chats to add (avoids re-sorting unnecessarily)
+      if (!dbChats || dbChats.length === 0) return;
 
       // Combine: real user chats first, then public in-memory chats.
-      // If the user is unauthenticated, dbChats will be empty and we still
-      // get the intro/legal/community chats for nav arrows to work.
       const allChats = [
-        ...(dbChats || []),
+        ...dbChats,
         ...introChats,
-        ...communityChats,
+        ...getAllCommunityDemoChats().map((chat) => ({
+          ...chat,
+          group_key: "examples" as const,
+        })),
         ...legalChats,
       ];
-
-      if (allChats.length === 0) return;
       _applyNavigableList(allChats, activeChatId);
-
-      // ── Case 3b: Active chat is a community demo that wasn't loaded yet ──
-      // Community demos are fetched from the server asynchronously, so
-      // getAllCommunityDemoChats() may return [] on a cold boot (the network
-      // request is still in flight). If activeChatId was not found in the
-      // list we just built, subscribe to communityDemoStore for one update
-      // so that the nav arrows appear once the demos arrive.
-      const foundIdx = allChats.findIndex((c) => c.chat_id === activeChatId);
-      if (foundIdx === -1) {
-        // Subscribe and unsubscribe after the first non-empty update
-        const unsubscribe = communityDemoStore.subscribe(() => {
-          // Skip if Chats.svelte has since mounted and taken ownership
-          if (chatList.length > 0) {
-            unsubscribe();
-            return;
-          }
-          const updatedCommunityChats: Chat[] = getAllCommunityDemoChats().map(
-            (chat) => ({ ...chat, group_key: "examples" as const }),
-          );
-          if (updatedCommunityChats.length === 0) return; // still loading
-          const rebuilt = [
-            ...(dbChats || []),
-            ...introChats,
-            ...updatedCommunityChats,
-            ...legalChats,
-          ];
-          _applyNavigableList(rebuilt, activeChatId);
-          unsubscribe(); // one-shot: stop listening after first successful update
-        });
-      }
     })
     .catch((err) => {
       console.warn(
