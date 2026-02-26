@@ -264,6 +264,7 @@
   appId="sheets"
   skillId="sheet"
   {skillIconName}
+  showSkillIcon={false}
   embedHeaderTitle={renderTitle || $text('embeds.table')}
   embedHeaderSubtitle={statusText}
   {onClose}

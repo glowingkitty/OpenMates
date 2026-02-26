@@ -99,6 +99,14 @@
      * Otherwise receives empty context for backwards compatibility
      */
     content?: import('svelte').Snippet<[ChildEmbedContext]>;
+
+    /**
+     * Optional snippet rendered at the bottom of the gradient header banner.
+     * Use this for CTA buttons (e.g. "Book on Condor", "Open on zapier.com")
+     * and badges (CO2, trip type) that belong visually inside the banner.
+     * The snippet receives no arguments.
+     */
+    embedHeaderCta?: import('svelte').Snippet;
     
     /* ============================================
        Embed Header Props (gradient banner at top)
@@ -251,6 +259,7 @@
     onShare,
     showShare = true,
     content,
+    embedHeaderCta,
     // Embed header props
     embedHeaderTitle = '',
     embedHeaderSubtitle = '',
@@ -954,6 +963,7 @@
            Large decorative icons at edges, navigation arrows, center content. -->
       <div
         class="embed-header-banner"
+        class:has-cta={!!embedHeaderCta}
         style="background: var(--color-app-{appId});"
       >
         <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
@@ -1006,6 +1016,13 @@
             <div class="header-subtitle">{embedHeaderSubtitle}</div>
           {/if}
         </div>
+
+        <!-- CTA area at the bottom of the banner (e.g. "Book on X", "Open on X") -->
+        {#if embedHeaderCta}
+          <div class="header-cta-area">
+            {@render embedHeaderCta()}
+          </div>
+        {/if}
 
         <!-- Navigation arrows at banner edges — same style as ChatHeader nav-arrows.
              Previous embed (left) and next embed (right).
@@ -1101,6 +1118,23 @@
     position: relative;
   }
 
+  /* Bottom scroll gradient — fades content into the background color,
+     indicating more content is available below. Sits above the content-area
+     scroll but below the top-bar (z-index 999). Pointer-events none so it
+     doesn't block clicks/scrolling. */
+  .fullscreen-container::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: linear-gradient(to bottom, transparent, var(--color-grey-20));
+    z-index: 999;
+    pointer-events: none;
+    border-radius: 0 0 17px 17px;
+  }
+
   /* ===========================================
      Top Bar (absolute, always on top)
      =========================================== */
@@ -1188,8 +1222,7 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-right: 8px;
-    margin-right: -8px;
+    /* No padding/margin tricks — the banner must reach the right edge of the overlay */
     scrollbar-width: thin;
     scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
     transition: scrollbar-color 0.2s ease;
@@ -1223,12 +1256,18 @@
   }
 
   /* ===========================================
-     Gradient Header Banner (scrolls with content)
+     Gradient Header Banner (sticky — always visible at top of scroll)
      Matches ChatHeader design exactly.
      =========================================== */
 
   .embed-header-banner {
-    position: relative;
+    /* Sticky so the banner always stays at the top of the scroll container.
+       Without this, the banner disappears as soon as the content is long enough
+       to enable scrolling, because the initial scroll position may place it off-screen.
+       z-index: 10 keeps it above content but below the top-bar (z-index: 1000). */
+    position: sticky;
+    top: 0;
+    z-index: 10;
     width: 100%;
     height: 240px;
     /* Bottom corners rounded; top corners flush with overlay's top-left/top-right border-radius */
@@ -1241,8 +1280,11 @@
     /* Non-interactive background; arrows/buttons override with pointer-events:auto */
     pointer-events: none;
     user-select: none;
-    /* Ensure top-bar buttons render above the banner */
-    z-index: 1;
+  }
+
+  /* Extra height when a CTA button row is present at the bottom */
+  .embed-header-banner.has-cta {
+    height: 300px;
   }
 
   /* ── Decorative large icons (126×126px) at banner edges ── */
@@ -1425,6 +1467,25 @@
     overflow: hidden;
   }
 
+  /* ── CTA area at banner bottom ──
+     Absolutely positioned at the bottom center of the banner.
+     Used for booking buttons, "Open on X" links, badges etc.
+     Children control their own pointer-events. */
+  .header-cta-area {
+    position: absolute;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 20px;
+    z-index: 10;
+    pointer-events: auto;
+    animation: fadeIn 0.4s ease-out 0.2s both;
+  }
+
   /* ── Navigation arrows ──
      Positioned at the outer edges of the banner.
      Identical to ChatHeader nav-arrow style. */
@@ -1567,6 +1628,11 @@
     mask-image: url('@openmates/ui/static/icons/coding.svg');
   }
 
+  :global([data-skill-icon="travel"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
+    mask-image: url('@openmates/ui/static/icons/travel.svg');
+  }
+
   /* ===========================================
      Mobile adjustments (≤730px)
      =========================================== */
@@ -1574,6 +1640,10 @@
   @media (max-width: 730px) {
     .embed-header-banner {
       height: 190px;
+    }
+
+    .embed-header-banner.has-cta {
+      height: 250px;
     }
 
     .header-center {
