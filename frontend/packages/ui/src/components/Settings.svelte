@@ -1706,6 +1706,7 @@ changes to the documentation (to keep the documentation up to date).
             bind:isOfflineEnabled
             bind:menuItemsCount
             on:openSettings={handleOpenSettings}
+            on:navigateBack={() => backToMainView()}
             on:quickSettingClick={handleQuickSettingClick}
             on:logout={handleLogout}
         />

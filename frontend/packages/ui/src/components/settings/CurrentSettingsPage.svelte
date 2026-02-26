@@ -391,6 +391,7 @@
                     activeSettingsView={key}
                     accountId={accountId}
                     on:openSettings={(event: any) => dispatch('openSettings', event.detail)}
+                    on:navigateBack={() => dispatch('navigateBack')}
                 />
             </div>
         {/if}
