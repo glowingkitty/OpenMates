@@ -90,19 +90,36 @@ export async function checkAuth(
     let data: SessionCheckResult;
 
     try {
-      response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Origin: window.location.origin,
-        },
-        body: JSON.stringify({
-          deviceSignals: deviceSignals || {},
-          session_id: getSessionId(), // Include session_id for device fingerprinting
-        }),
-        credentials: "include",
-      });
+      // Use a 10-second AbortController timeout so that if the server is overloaded
+      // (accepts TCP but never responds), the fetch aborts and hits the offline-first
+      // catch block below instead of hanging indefinitely — which would leave
+      // isAuthenticated=false and prevent IndexedDB chats from loading.
+      const authAbortController = new AbortController();
+      const authTimeoutId = setTimeout(() => {
+        console.warn(
+          "[AuthSessionActions] Session check timed out after 10s — server may be overloaded, switching to offline-first mode",
+        );
+        authAbortController.abort();
+      }, 10000);
+
+      try {
+        response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Origin: window.location.origin,
+          },
+          body: JSON.stringify({
+            deviceSignals: deviceSignals || {},
+            session_id: getSessionId(), // Include session_id for device fingerprinting
+          }),
+          credentials: "include",
+          signal: authAbortController.signal,
+        });
+      } finally {
+        clearTimeout(authTimeoutId);
+      }
 
       // Check if response is OK (status 200-299)
       // If not OK, treat as network/server error and be optimistic
@@ -116,7 +133,7 @@ export async function checkAuth(
       data = await response.json();
       console.debug("Session check response:", data);
     } catch (fetchError) {
-      // Network error, timeout, or non-OK response - be optimistic
+      // Network error, timeout, AbortError, or non-OK response - be optimistic
       console.warn(
         "[AuthSessionActions] Network error or non-OK response during auth check (offline-first):",
         fetchError,

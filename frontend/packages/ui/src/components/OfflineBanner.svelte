@@ -29,7 +29,7 @@
     import { websocketStatus } from '../stores/websocketStatusStore';
     import { notificationStore } from '../stores/notificationStore';
     import { text } from '../i18n/translations';
-    import { authStore } from '../stores/authStore';
+    import { authStore, isCheckingAuth } from '../stores/authStore';
     import { webSocketService } from '../services/websocketService';
 
     /**
@@ -54,6 +54,14 @@
      * This prevents flashing the notification during brief reconnection attempts.
      */
     const WS_OFFLINE_DELAY_MS = 3000;
+
+    /**
+     * How long to wait (ms) before declaring the auth check "stuck".
+     * The fetch has a 10s AbortController timeout in authSessionActions.ts, so the
+     * offline-first path should activate around 10s. We use 12s here to give it
+     * a 2-second buffer to transition and then surface the notification.
+     */
+    const AUTH_STUCK_TIMEOUT_MS = 12000;
 
     /**
      * How long to wait (ms) after a device resume (visibilitychange/pageshow) before
@@ -85,6 +93,19 @@
      * Timer for the resume grace period. Cleared when WS reconnects or grace period expires.
      */
     let resumeGraceTimerId: ReturnType<typeof setTimeout> | null = $state(null);
+
+    /**
+     * Timer that fires when the auth check has been in-progress for too long.
+     * If the server is overloaded (accepts TCP but never responds), fetch() hangs
+     * indefinitely with no error — leaving isAuthenticated=false and causing user
+     * chats to not load from IndexedDB. This timer detects that scenario and shows
+     * the "Can't connect to server" notification after AUTH_STUCK_TIMEOUT_MS.
+     *
+     * NOTE: The 10s AbortController timeout in authSessionActions.ts should resolve
+     * the stuck fetch first, but this timer provides a safety-net UI signal in case
+     * the offline-first transition takes slightly longer than expected.
+     */
+    let authStuckTimerId: ReturnType<typeof setTimeout> | null = $state(null);
 
     /**
      * Get translated offline notification text fields.
@@ -325,6 +346,43 @@
     });
 
     /**
+     * Effect that detects when the auth check is stuck (server overloaded, fetch hanging).
+     *
+     * When isCheckingAuth transitions to true (auth check starts), we start a timer.
+     * If auth is still checking after AUTH_STUCK_TIMEOUT_MS and the browser is online,
+     * it means the server is unreachable or too slow to respond — show the offline
+     * notification so the user knows why nothing is loading.
+     *
+     * The timer is cleared as soon as isCheckingAuth returns to false (auth completed,
+     * either successfully or via the offline-first fallback path).
+     */
+    $effect(() => {
+        const checking = $isCheckingAuth;
+        const browserOnline = $isOnline;
+
+        if (checking && browserOnline) {
+            // Auth check is in progress and browser has network — start stuck timer
+            if (authStuckTimerId === null) {
+                authStuckTimerId = setTimeout(() => {
+                    authStuckTimerId = null;
+                    // Only show if still checking (AbortController timeout hasn't resolved yet)
+                    // and there's no offline notification already showing
+                    if ($isCheckingAuth && $isOnline && offlineNotificationId === null) {
+                        console.warn('[OfflineBanner] Auth check stuck after', AUTH_STUCK_TIMEOUT_MS, 'ms — server likely overloaded, showing notification');
+                        showOfflineNotification();
+                    }
+                }, AUTH_STUCK_TIMEOUT_MS);
+            }
+        } else {
+            // Auth check completed (or browser went offline) — cancel the stuck timer
+            if (authStuckTimerId !== null) {
+                clearTimeout(authStuckTimerId);
+                authStuckTimerId = null;
+            }
+        }
+    });
+
+    /**
      * Clear the resume grace period state and timer.
      */
     function clearResumeGracePeriod(): void {
@@ -389,6 +447,10 @@
             if (reconnectAttemptTimerId !== null) {
                 clearTimeout(reconnectAttemptTimerId);
                 reconnectAttemptTimerId = null;
+            }
+            if (authStuckTimerId !== null) {
+                clearTimeout(authStuckTimerId);
+                authStuckTimerId = null;
             }
         };
     });

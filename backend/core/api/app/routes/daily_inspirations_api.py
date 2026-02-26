@@ -28,6 +28,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.models.user import User
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.routes.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -218,5 +219,34 @@ async def mark_inspiration_opened(
             user_id[:8],
         )
         # Return 200 anyway — client can ignore sync failures (local state is the truth)
+
+    # Broadcast the opened state change to all OTHER connected devices so they can
+    # update the inspiration banner in real-time without waiting for the next login sync.
+    # The device that made this request has already updated its local state, so we use
+    # exclude_device_hash based on the request header if available.
+    # Since this is a REST endpoint (no device hash in context), we broadcast to ALL
+    # devices — the frontend handler guards against double-processing via the store state.
+    try:
+        await ws_manager.broadcast_to_user(
+            message={
+                "type": "inspiration_opened",
+                "payload": {
+                    "inspiration_id": daily_inspiration_id,
+                    "opened_chat_id": body.opened_chat_id,
+                }
+            },
+            user_id=str(user_id),
+        )
+        logger.debug(
+            "[daily_inspirations_api] Broadcasted inspiration_opened to all devices for user %s, inspiration %s",
+            user_id[:8],
+            daily_inspiration_id,
+        )
+    except Exception as broadcast_err:
+        # Non-critical: other devices will get the update on next login sync
+        logger.warning(
+            "[daily_inspirations_api] Failed to broadcast inspiration_opened: %s",
+            broadcast_err,
+        )
 
     return {"success": success, "daily_inspiration_id": daily_inspiration_id}

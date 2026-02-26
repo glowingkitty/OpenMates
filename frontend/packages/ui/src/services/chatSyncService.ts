@@ -528,6 +528,134 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
 
+    // Handle real-time last_opened_updated broadcast from another device.
+    // When the user opens a chat on Device A, the server broadcasts this event to all
+    // other connected devices (Device B, C...) so they can update their resume card
+    // immediately without waiting for the next login/reconnect Phase 1 sync.
+    // Payload: { chat_id: string }
+    webSocketService.on("last_opened_updated", (payload) => {
+      const { chat_id } = payload as { chat_id: string };
+      if (!chat_id) return;
+
+      console.debug(
+        `[ChatSyncService] Received last_opened_updated from another device: ${chat_id}`,
+      );
+
+      // Update IndexedDB and userProfile store (mirrors sendSetActiveChatImpl local write)
+      (async () => {
+        try {
+          const { userDB } = await import("./userDB");
+          const { updateProfile } = await import("../stores/userProfile");
+
+          await userDB.updateUserData({ last_opened: chat_id });
+          updateProfile({ last_opened: chat_id });
+
+          console.debug(
+            `[ChatSyncService] Updated last_opened in IndexedDB and profile store from cross-device broadcast: ${chat_id}`,
+          );
+
+          // If the chat is already in IndexedDB, update the phasedSyncState resume card
+          // so the welcome screen shows the up-to-date "Continue where you left off" card.
+          // This only applies when the user is on the welcome/new-chat screen.
+          const { phasedSyncState, NEW_CHAT_SENTINEL } =
+            await import("../stores/phasedSyncStateStore");
+          const { chatDB } = await import("./db");
+          const currentChatId = get(phasedSyncState).currentActiveChatId;
+          const isOnWelcomeScreen =
+            currentChatId === null || currentChatId === NEW_CHAT_SENTINEL;
+
+          if (isOnWelcomeScreen) {
+            const chat = await chatDB.getChat(chat_id);
+            if (chat) {
+              // Decrypt title, category, icon for the resume card display
+              let displayTitle = chat.title || "Untitled Chat";
+              let displayCategory = chat.category || null;
+              let displayIcon = chat.icon || null;
+
+              try {
+                const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
+                  await import("./cryptoService");
+                let chatKey = chatDB.getChatKey(chat_id);
+                if (!chatKey && chat.encrypted_chat_key) {
+                  chatKey = await decryptChatKeyWithMasterKey(
+                    chat.encrypted_chat_key,
+                  );
+                  if (chatKey) chatDB.setChatKey(chat_id, chatKey);
+                }
+                if (chatKey) {
+                  if (chat.encrypted_title) {
+                    try {
+                      displayTitle =
+                        (await decryptWithChatKey(
+                          chat.encrypted_title,
+                          chatKey,
+                        )) || displayTitle;
+                    } catch {
+                      /* fall through */
+                    }
+                  }
+                  if (chat.encrypted_category) {
+                    try {
+                      displayCategory = await decryptWithChatKey(
+                        chat.encrypted_category,
+                        chatKey,
+                      );
+                    } catch {
+                      /* fall through */
+                    }
+                  }
+                  if (chat.encrypted_icon) {
+                    try {
+                      displayIcon = await decryptWithChatKey(
+                        chat.encrypted_icon,
+                        chatKey,
+                      );
+                    } catch {
+                      /* fall through */
+                    }
+                  }
+                }
+              } catch (decryptErr) {
+                console.warn(
+                  "[ChatSyncService] Failed to decrypt fields for last_opened_updated resume card:",
+                  decryptErr,
+                );
+              }
+
+              phasedSyncState.setResumeChatData(
+                chat,
+                displayTitle,
+                displayCategory,
+                displayIcon,
+              );
+              console.debug(
+                `[ChatSyncService] Updated resume card from cross-device last_opened_updated: "${displayTitle}" (${chat_id})`,
+              );
+            }
+            // If the chat isn't in IndexedDB yet, the userProfile.last_opened update above
+            // will cause ActiveChat.svelte's $effect to retry loading it from IndexedDB.
+          }
+        } catch (error) {
+          console.error(
+            "[ChatSyncService] Error handling last_opened_updated:",
+            error,
+          );
+        }
+      })();
+    });
+
+    // Handle real-time inspiration_opened broadcast from any device (including self).
+    // When the user opens a Daily Inspiration chat, the REST endpoint broadcasts this
+    // event to ALL connected devices. The handler in chatSyncServiceHandlersAI guards
+    // against self-echo by checking whether the inspiration is already opened locally.
+    // Payload: { inspiration_id: string, opened_chat_id: string }
+    webSocketService.on("inspiration_opened", (payload) =>
+      aiHandlers.handleInspirationOpenedImpl(
+        this,
+        payload as { inspiration_id: string; opened_chat_id: string },
+      ),
+    );
+
     // IMPORTANT: "request_app_settings_memories" and "dismiss_app_settings_memories_dialog"
     // are registered synchronously (not inside a dynamic import .then()) to avoid a race
     // condition where the server sends these events immediately after the AI task completes —

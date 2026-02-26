@@ -1802,12 +1802,31 @@ async def websocket_endpoint(
                 else:
                     logger.debug(f"User {user_id}: Skipping last_opened update (no active chat)")
                 
-                # Send acknowledgement to client
+                # Send acknowledgement to the sending client
                 await manager.send_personal_message(
                     {"type": "active_chat_set_ack", "payload": {"chat_id": active_chat_id}},
                     user_id,
                     device_fingerprint_hash
                 )
+
+                # Broadcast the updated last_opened to OTHER connected devices so they
+                # can update their resume card in real-time without waiting for the next
+                # login/reconnect Phase 1 sync. Only broadcast for real chat IDs (same
+                # guard as the persistence step above).
+                if is_real_chat:
+                    try:
+                        await manager.broadcast_to_user(
+                            message={
+                                "type": "last_opened_updated",
+                                "payload": {"chat_id": active_chat_id}
+                            },
+                            user_id=user_id,
+                            exclude_device_hash=device_fingerprint_hash
+                        )
+                        logger.debug(f"User {user_id}: Broadcasted last_opened_updated to other devices for chat {active_chat_id}")
+                    except Exception as broadcast_err:
+                        # Non-critical: other devices will get the update on next login sync
+                        logger.warning(f"User {user_id}: Failed to broadcast last_opened_updated to other devices: {broadcast_err}")
             elif message_type == "cancel_ai_task":
                 await handle_cancel_ai_task(
                     websocket=websocket,

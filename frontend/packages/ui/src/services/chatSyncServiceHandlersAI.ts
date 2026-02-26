@@ -3824,3 +3824,82 @@ async function persistInspirations(
     await dailyInspirationDB.syncInspirationsToAPI(storedRecords);
   }
 }
+
+/**
+ * Handle an `inspiration_opened` broadcast from the server.
+ *
+ * When the user opens a Daily Inspiration chat on **another device**, the
+ * REST endpoint `mark_inspiration_opened` broadcasts this event to ALL of the
+ * user's connected devices (it has no device context to exclude the sender).
+ * This handler therefore guards against double-processing by checking whether
+ * the inspiration is already marked as opened in the local store before
+ * touching IndexedDB.
+ *
+ * Steps:
+ * 1. Guard: if already opened in memory, skip (self-echo from the device that
+ *    triggered the REST call).
+ * 2. Update in-memory `dailyInspirationStore` so the carousel re-renders.
+ * 3. Persist to IndexedDB so the flag survives a page reload.
+ *
+ * NOTE: We deliberately do NOT call `markInspirationOpenedOnAPI` here — that
+ * would create an infinite loop (REST → broadcast → REST → …).
+ */
+export function handleInspirationOpenedImpl(
+  _serviceInstance: import("./chatSyncService").ChatSynchronizationService,
+  payload: { inspiration_id: string; opened_chat_id: string },
+): void {
+  if (!payload?.inspiration_id) {
+    console.warn(
+      "[ChatSyncService:AI] inspiration_opened event missing inspiration_id — ignoring",
+      payload,
+    );
+    return;
+  }
+
+  const { inspiration_id, opened_chat_id } = payload;
+
+  console.debug(
+    `[ChatSyncService:AI] Received inspiration_opened broadcast: ${inspiration_id} → chat ${opened_chat_id}`,
+  );
+
+  Promise.all([
+    import("../stores/dailyInspirationStore"),
+    import("./dailyInspirationDB"),
+    import("svelte/store"),
+  ])
+    .then(async ([{ dailyInspirationStore }, dailyInspirationDB, { get }]) => {
+      // Guard against self-echo: if this device already marked this inspiration
+      // as opened (because it was the one that triggered the REST call), skip.
+      const state = get(dailyInspirationStore);
+      const existing = state.inspirations.find(
+        (i) => i.inspiration_id === inspiration_id,
+      );
+      if (existing?.is_opened) {
+        console.debug(
+          `[ChatSyncService:AI] inspiration_opened: already opened locally — skipping (self-echo guard)`,
+        );
+        return;
+      }
+
+      // Update in-memory store so the carousel immediately reflects the change
+      dailyInspirationStore.markOpened(inspiration_id, opened_chat_id);
+      console.debug(
+        `[ChatSyncService:AI] inspiration_opened: updated in-memory store for ${inspiration_id}`,
+      );
+
+      // Persist to IndexedDB (non-fatal if record not found — may be a default inspiration)
+      await dailyInspirationDB.markInspirationOpenedInIndexedDB(
+        inspiration_id,
+        opened_chat_id,
+      );
+      console.debug(
+        `[ChatSyncService:AI] inspiration_opened: persisted to IndexedDB for ${inspiration_id}`,
+      );
+    })
+    .catch((err) => {
+      console.error(
+        "[ChatSyncService:AI] Failed to handle inspiration_opened broadcast:",
+        err,
+      );
+    });
+}
