@@ -228,6 +228,10 @@
       console.warn(`[ChatHistory][parseResponse] content is not a string, got: ${typeof content}`, content);
       return null;
     }
+    // Fast-path: valid app_settings_memories_response JSON always starts with '{'.
+    // Skip JSON.parse entirely for plain-text system messages (e.g. credits rejection)
+    // to avoid noisy parse-failure warnings on every render.
+    if (!content.trimStart().startsWith('{')) return null;
     try {
       const parsed = JSON.parse(content);
       if (parsed.type === 'app_settings_memories_response') {

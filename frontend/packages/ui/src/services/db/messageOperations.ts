@@ -469,7 +469,8 @@ export async function saveMessage(
     }
   } catch (checkError) {
     // If check fails, continue anyway (will handle duplicate on put)
-    console.warn(
+    // Downgraded to debug: the retry logic handles this gracefully, no action needed
+    console.debug(
       `[ChatDatabase] Could not check for duplicates for ${message.message_id}:`,
       checkError,
     );

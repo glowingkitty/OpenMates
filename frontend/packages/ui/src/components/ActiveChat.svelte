@@ -1945,6 +1945,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let resumeChatTitle = $state<string | null>(null);
     let resumeChatCategory = $state<string | null>(null);
     let resumeChatIcon = $state<string | null>(null);
+    // When the last-opened chat was credits-rejected (no title, waiting_for_user),
+    // show the "Credits needed..." label + user message preview instead of category circle + title.
+    let resumeChatIsCreditsError = $state(false);
+    let resumeChatUserMessagePreview = $state<string | null>(null);
 
     /**
      * Load the last-opened chat from IndexedDB using $userProfile.last_opened.
@@ -2005,17 +2009,53 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Determine if this chat has a real title (plaintext for demo chats, or decrypted)
             const hasTitle = !!(chat.title || decryptedTitle);
 
+            // Always fetch the last message when no title — needed both for the draft-skip
+            // check and for detecting credits-rejection state.
+            // For titled chats we also fetch if we need to check for credits error.
+            const lastMessage = await chatDB.getLastMessageForChat(chat.chat_id);
+
             // Skip draft chats: chats with no title and no messages are drafts.
             // Only show the resume card for chats that have actual content.
-            if (!hasTitle) {
-                const lastMessage = await chatDB.getLastMessageForChat(chat.chat_id);
-                if (!lastMessage) {
-                    console.info(`[ActiveChat] Skipping draft chat (no title, no messages): ${chat.chat_id}`);
-                    return false;
-                }
+            if (!hasTitle && !lastMessage) {
+                console.info(`[ActiveChat] Skipping draft chat (no title, no messages): ${chat.chat_id}`);
+                return false;
             }
 
-            // Use cleartext fields as fallback (demo chats have these set directly)
+            // Detect credits-rejection state: the last message is 'waiting_for_user'.
+            // This happens when the user sent a message but had insufficient credits.
+            // In this case show "Credits needed..." + user message preview instead of
+            // the category circle + title (which would show a misleading "Untitled Chat").
+            const isCreditsError = lastMessage?.status === 'waiting_for_user';
+
+            if (isCreditsError) {
+                // Extract the user message preview from the last message.
+                // The last message could be the system rejection (role:'system') or the user
+                // message itself (role:'user') depending on timing — handle both.
+                let userPreview: string | null = null;
+                if (lastMessage?.role === 'user') {
+                    userPreview = typeof lastMessage.content === 'string' ? lastMessage.content : null;
+                } else if (lastMessage?.role === 'system' && lastMessage.user_message_id) {
+                    try {
+                        const userMsg = await chatDB.getMessage(lastMessage.user_message_id);
+                        if (userMsg?.content) {
+                            userPreview = typeof userMsg.content === 'string' ? userMsg.content : null;
+                        }
+                    } catch {
+                        // Ignore — preview will be null
+                    }
+                }
+
+                resumeChatData = chat;
+                resumeChatTitle = null;
+                resumeChatCategory = null;
+                resumeChatIcon = null;
+                resumeChatIsCreditsError = true;
+                resumeChatUserMessagePreview = userPreview;
+                console.info(`[ActiveChat] Resume chat is credits-error state: ${chat.chat_id}, preview: "${userPreview}"`);
+                return true;
+            }
+
+            // Normal path: use cleartext fields as fallback (demo chats have these set directly)
             const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
@@ -2024,6 +2064,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatTitle = displayTitle;
             resumeChatCategory = displayCategory;
             resumeChatIcon = displayIcon;
+            resumeChatIsCreditsError = false;
+            resumeChatUserMessagePreview = null;
             console.info(`[ActiveChat] Resume chat loaded: "${displayTitle}" (${chat.chat_id}), category: ${displayCategory}, icon: ${displayIcon}`);
             return true;
         } catch (error) {
@@ -2047,6 +2089,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatTitle = null;
             resumeChatCategory = null;
             resumeChatIcon = null;
+            resumeChatIsCreditsError = false;
+            resumeChatUserMessagePreview = null;
             return;
         }
 
@@ -3318,16 +3362,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     isNewChatCreditsError = true;
                     console.debug('[ActiveChat] Credits rejection on new chat — transitioning header to credits error state');
                 }
-                // Invalidate sidebar cache and notify Chat.svelte to re-fetch and show
-                // "Credits needed..." instead of "Untitled chat".
+                // For rejection messages: invalidate the sidebar cache so the stale
+                // last-message entry is cleared. The chatUpdated dispatch that re-triggers
+                // updateDisplayInfo in Chat.svelte is deferred until AFTER we've populated
+                // the cache with the user message (status: 'waiting_for_user') below —
+                // that way Chat.svelte always sees the correct state on its first read.
                 if (isRejection) {
                     chatListCache.invalidateLastMessage(chunk.chat_id);
-                    // Dispatch chatUpdated on chatSyncService (NOT document) so the sidebar
-                    // Chat.svelte re-runs updateDisplayInfo. Chat.svelte listens on
-                    // chatSyncService.addEventListener('chatUpdated', ...), not document.
-                    chatSyncService.dispatchEvent(new CustomEvent('chatUpdated', {
-                        detail: { chat_id: chunk.chat_id, type: 'message_status_changed' }
-                    }));
                 }
                 const updatedFinalMessage = {
                     ...finalMessageInArray,
@@ -3397,6 +3438,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             // For normal responses: invalidate so the sidebar refreshes from DB.
                             if (isRejection) {
                                 chatListCache.setLastMessage(updatedUserMessage.chat_id, updatedUserMessage);
+                                // Now that the cache has the user message with status 'waiting_for_user',
+                                // notify the sidebar so Chat.svelte re-runs updateDisplayInfo and sees
+                                // "Credits needed..." + the user message preview.
+                                // This dispatch is intentionally placed AFTER setLastMessage so Chat.svelte
+                                // always hits the populated cache (avoiding the earlier timing race where
+                                // the dispatch fired before the cache was ready).
+                                chatSyncService.dispatchEvent(new CustomEvent('chatUpdated', {
+                                    detail: { chat_id: updatedUserMessage.chat_id, type: 'message_status_changed' }
+                                }));
                             } else {
                                 chatListCache.invalidateLastMessage(updatedUserMessage.chat_id);
                             }
@@ -7460,27 +7510,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                             <!-- Resume card: shown below greeting when there's a chat to resume (authenticated users only) -->
                             {#if resumeChatData}
-                                {@const category = resumeChatCategory || 'general_knowledge'}
-                                {@const gradientColors = getCategoryGradientColors(category)}
-                                {@const iconName = getValidIconName(resumeChatIcon || '', category)}
-                                {@const IconComponent = getLucideIcon(iconName)}
                                 {@const ChevronRight = getLucideIcon('chevron-right')}
                                 <button 
                                     class="resume-chat-card"
                                     onclick={handleResumeLastChat}
                                     type="button"
                                 >
-                                    <div 
-                                        class="resume-chat-category-circle"
-                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                    >
-                                        <div class="resume-chat-category-icon">
-                                            <IconComponent size={16} color="white" />
+                                    {#if resumeChatIsCreditsError}
+                                        <!-- Credits-error layout: no category circle, show label + user message preview -->
+                                        <!-- Matches the draft-only-layout design used in Chat.svelte sidebar -->
+                                        <div class="resume-chat-content resume-chat-credits-content">
+                                            <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
+                                            {#if resumeChatUserMessagePreview}
+                                                <span class="resume-chat-credits-preview">{resumeChatUserMessagePreview.slice(0, 60)}</span>
+                                            {/if}
                                         </div>
-                                    </div>
-                                    <div class="resume-chat-content">
-                                        <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
-                                    </div>
+                                    {:else}
+                                        {@const category = resumeChatCategory || 'general_knowledge'}
+                                        {@const gradientColors = getCategoryGradientColors(category)}
+                                        {@const iconName = getValidIconName(resumeChatIcon || '', category)}
+                                        {@const IconComponent = getLucideIcon(iconName)}
+                                        <div 
+                                            class="resume-chat-category-circle"
+                                            style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                        >
+                                            <div class="resume-chat-category-icon">
+                                                <IconComponent size={16} color="white" />
+                                            </div>
+                                        </div>
+                                        <div class="resume-chat-content">
+                                            <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                        </div>
+                                    {/if}
                                     <div class="resume-chat-arrow">
                                         <ChevronRight size={16} color="var(--color-grey-50)" />
                                     </div>
@@ -8878,6 +8939,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex: 1;
         min-width: 0;
         overflow: hidden;
+    }
+
+    /* Credits-error variant of the resume card content — mirrors Chat.svelte draft-only-layout */
+    .resume-chat-credits-content {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .resume-chat-credits-label {
+        font-size: 14px;
+        color: var(--color-grey-60);
+    }
+
+    .resume-chat-credits-preview {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--color-grey-90);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        margin-top: 2px;
     }
 
     .resume-chat-title {
