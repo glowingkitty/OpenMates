@@ -36,6 +36,25 @@ import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppS
 const _pendingMessages: Map<string, Message[]> = new Map();
 
 /**
+ * In-memory set tracking chat IDs whose `encrypted_chat_key` has already been
+ * persisted to IndexedDB during this session.
+ *
+ * Problem: The "existing chat" key-persistence block in handleNewChatMessageImpl
+ * runs for EVERY `new_chat_message` WS event where `!chatDB.getChatKey(chatId)`.
+ * After the first write the key IS in memory, so getChatKey() returns truthy and
+ * the block is skipped on the next message — but the very first message for each
+ * chat triggers `getChat()` + `updateChat()` + `chatUpdated` event, which causes
+ * a full Svelte reactive re-render of the chat list. On iOS, when many chats
+ * receive their first message in a burst (e.g., after opening the sidebar while
+ * sync is running), this creates a storm of IDB writes + re-renders that locks
+ * up the main thread.
+ *
+ * Fix: Track which chats have already had their key persisted this session.
+ * Skip the extra getChat + updateChat round-trip if we've already done it.
+ */
+const _chatKeyPersistedToIDB: Set<string> = new Set();
+
+/**
  * Flush all messages that were held back because the chat key was missing.
  * Safe to call multiple times — a second call is a no-op once the queue is
  * empty.  Must be called AFTER the correct key has been set via
@@ -532,19 +551,29 @@ export async function handleNewChatMessageImpl(
           await flushPendingSystemMessagesForChat(payload.chat_id);
           // Also persist encrypted_chat_key to the IDB chat record so the key survives page reload.
           // Without this, the key is only in memory — lost on refresh for the "existing chat" path.
-          const existingChatRecord = await chatDB.getChat(payload.chat_id);
-          if (
-            existingChatRecord &&
-            !existingChatRecord.encrypted_chat_key &&
-            payload.encrypted_chat_key
-          ) {
-            await chatDB.updateChat({
-              ...existingChatRecord,
-              encrypted_chat_key: payload.encrypted_chat_key,
-            });
-            console.debug(
-              `[ChatSyncService:ChatUpdates] Persisted encrypted_chat_key to IDB for existing chat ${payload.chat_id}`,
-            );
+          // PERF: Skip if we already persisted the key for this chat during this session.
+          // This prevents a redundant getChat() + updateChat() IDB round-trip on every
+          // subsequent message for the same chat, which was causing a reactive re-render
+          // storm on iOS (each updateChat triggers chatUpdated → full $derived chain).
+          if (!_chatKeyPersistedToIDB.has(payload.chat_id)) {
+            const existingChatRecord = await chatDB.getChat(payload.chat_id);
+            if (
+              existingChatRecord &&
+              !existingChatRecord.encrypted_chat_key &&
+              payload.encrypted_chat_key
+            ) {
+              await chatDB.updateChat({
+                ...existingChatRecord,
+                encrypted_chat_key: payload.encrypted_chat_key,
+              });
+              _chatKeyPersistedToIDB.add(payload.chat_id);
+              console.debug(
+                `[ChatSyncService:ChatUpdates] Persisted encrypted_chat_key to IDB for existing chat ${payload.chat_id}`,
+              );
+            } else {
+              // Key already present in IDB or no key in payload — mark as done so we don't re-check
+              _chatKeyPersistedToIDB.add(payload.chat_id);
+            }
           }
         }
       } catch (error) {
