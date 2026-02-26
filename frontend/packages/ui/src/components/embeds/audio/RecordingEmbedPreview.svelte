@@ -103,6 +103,7 @@
 
   let {
     id,
+    filename,
     status: statusProp,
     blobUrl,
     uploadError,
