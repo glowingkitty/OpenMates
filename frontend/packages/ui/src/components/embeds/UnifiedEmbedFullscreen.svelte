@@ -1633,6 +1633,12 @@
     mask-image: url('@openmates/ui/static/icons/travel.svg');
   }
 
+  /* "docs" is the skillIconName used by CodeGetDocsEmbedPreview/Fullscreen */
+  :global([data-skill-icon="docs"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/docs.svg');
+    mask-image: url('@openmates/ui/static/icons/docs.svg');
+  }
+
   /* ===========================================
      Mobile adjustments (≤730px)
      =========================================== */

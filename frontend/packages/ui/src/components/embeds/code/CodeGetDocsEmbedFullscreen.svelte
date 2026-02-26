@@ -444,7 +444,8 @@
   onDownload={handleDownload}
   onShare={handleShare}
   skillIconName="docs"
-  embedHeaderTitle={$text('embeds.get_docs')}
+  embedHeaderTitle={libraryId || $text('embeds.get_docs')}
+  embedHeaderSubtitle={displayQuestion}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   {hasPreviousEmbed}
@@ -454,31 +455,20 @@
   {showChatButton}
   {onShowChat}
 >
+  {#snippet embedHeaderCta()}
+    {#if libraryId}
+      <button
+        class="open-on-context7-btn"
+        onclick={handleOpenContext7}
+        type="button"
+      >
+        {openButtonText}
+      </button>
+    {/if}
+  {/snippet}
+
   {#snippet content()}
     <div class="get-docs-fullscreen-content">
-      <!-- Header with library ID and question -->
-      <div class="fullscreen-header">
-        <!-- Library ID (selected library from Context7) -->
-        {#if libraryId}
-          <div class="library-id">{libraryId}</div>
-        {/if}
-        
-        <!-- Question/query that was asked -->
-        {#if displayQuestion}
-          <div class="docs-question">{displayQuestion}</div>
-        {/if}
-        
-        <!-- CTA Button: "Open on Context7" -->
-        {#if libraryId}
-          <button
-            onclick={handleOpenContext7}
-            type="button"
-          >
-            {openButtonText}
-          </button>
-        {/if}
-      </div>
-      
       <!-- "via Context7: X words" label - only show if we have content -->
       {#if wordCount > 0}
         <div class="text-preview-label">
@@ -538,60 +528,41 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 60px; /* Space for top action buttons */
+    padding-top: 24px; /* Space below the banner header */
     padding-bottom: 120px; /* Space for bottom bar */
   }
-  
+
   /* ===========================================
-     Fullscreen Header - Library ID and Question
-     Uses container queries for responsive sizing
+     CTA Button in the embed header banner
      =========================================== */
-  
-  .fullscreen-header {
-    margin-top: 60px;
-    margin-bottom: 40px;
-    padding: 0 16px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
+
+  .open-on-context7-btn {
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-  }
-  
-  /* Library ID - the selected library from Context7 (e.g., "/sveltejs/svelte") */
-  .library-id {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    word-break: break-word;
-    /* Use monospace font for library IDs */
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
-    /* Limit to 2 lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  /* Question/query that was asked */
-  .docs-question {
+    justify-content: center;
+    padding: 10px 24px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
     font-size: 16px;
-    color: var(--color-font-secondary);
-    line-height: 1.4;
-    word-break: break-word;
-    max-width: 600px;
-    /* Limit to 3 lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-weight: 700;
+    /* Orange/red gradient matching the screenshot */
+    background: linear-gradient(135deg, #e8533a 0%, #c94b2e 100%);
+    color: #ffffff;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    pointer-events: auto;
+    white-space: nowrap;
   }
-  
+
+  .open-on-context7-btn:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+
+  .open-on-context7-btn:active {
+    transform: scale(0.98);
+  }
+
   /* ===========================================
      Text Preview Label (via Context7: X words)
      =========================================== */
@@ -815,20 +786,12 @@
   /* Container query: smaller text on narrow containers */
   @container fullscreen (max-width: 500px) {
     .get-docs-fullscreen-content {
-      padding-top: 70px;
+      padding-top: 16px;
     }
     
-    .fullscreen-header {
-      margin-top: 70px; /* More space for action buttons */
-      margin-bottom: 24px;
-    }
-    
-    .library-id {
-      font-size: 18px;
-    }
-    
-    .docs-question {
+    .open-on-context7-btn {
       font-size: 14px;
+      padding: 8px 18px;
     }
     
     .content-card {
