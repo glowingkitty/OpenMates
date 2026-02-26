@@ -39,7 +39,7 @@
     import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
     import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
-    import UploadedImageFullscreen from './embeds/images/UploadedImageFullscreen.svelte';
+    import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
@@ -495,9 +495,9 @@
         isEditable?: boolean;
     }>({});
 
-    // Uploaded image fullscreen — triggered by clicking an in-editor upload embed
-    let showUploadedImageFullscreen = $state(false);
-    let uploadedImageFullscreenData = $state<{
+    // Image embed fullscreen — triggered by clicking an in-editor upload embed
+    let showImageEmbedFullscreen = $state(false);
+    let imageEmbedFullscreenData = $state<{
         src?: string;
         filename?: string;
         s3Files?: Record<string, { s3_key: string; width: number; height: number; size_bytes: number; format: string }>;
@@ -829,7 +829,7 @@
 
     function handleImageFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received imagefullscreen event:', event.detail);
-        uploadedImageFullscreenData = {
+        imageEmbedFullscreenData = {
             src: event.detail.src,
             filename: event.detail.filename,
             s3Files: event.detail.s3Files,
@@ -841,12 +841,12 @@
             fileType: event.detail.fileType,
             aiDetection: event.detail.aiDetection ?? null,
         };
-        showUploadedImageFullscreen = true;
+        showImageEmbedFullscreen = true;
     }
 
-    function handleCloseUploadedImageFullscreen() {
-        showUploadedImageFullscreen = false;
-        uploadedImageFullscreenData = {};
+    function handleCloseImageEmbedFullscreen() {
+        showImageEmbedFullscreen = false;
+        imageEmbedFullscreenData = {};
     }
 
     function handleRecordingFullscreen(event: CustomEvent) {
@@ -7873,19 +7873,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 />
             {/if}
 
-            {#if showUploadedImageFullscreen}
-                <UploadedImageFullscreen
-                    src={uploadedImageFullscreenData.src}
-                    s3BaseUrl={uploadedImageFullscreenData.s3BaseUrl}
-                    files={uploadedImageFullscreenData.s3Files as { preview?: { s3_key: string; width: number; height: number; format: string }; full?: { s3_key: string; width: number; height: number; format: string }; original?: { s3_key: string; width: number; height: number; format: string } } | undefined}
-                    aesKey={uploadedImageFullscreenData.aesKey}
-                    aesNonce={uploadedImageFullscreenData.aesNonce}
-                    filename={uploadedImageFullscreenData.filename}
-                    isAuthenticated={uploadedImageFullscreenData.isAuthenticated}
-                    fileSize={uploadedImageFullscreenData.fileSize}
-                    fileType={uploadedImageFullscreenData.fileType}
-                    aiDetection={uploadedImageFullscreenData.aiDetection}
-                    onClose={handleCloseUploadedImageFullscreen}
+            {#if showImageEmbedFullscreen}
+                <ImageEmbedFullscreen
+                    src={imageEmbedFullscreenData.src}
+                    s3BaseUrl={imageEmbedFullscreenData.s3BaseUrl}
+                    files={imageEmbedFullscreenData.s3Files as { preview?: { s3_key: string; width: number; height: number; format: string }; full?: { s3_key: string; width: number; height: number; format: string }; original?: { s3_key: string; width: number; height: number; format: string } } | undefined}
+                    aesKey={imageEmbedFullscreenData.aesKey}
+                    aesNonce={imageEmbedFullscreenData.aesNonce}
+                    filename={imageEmbedFullscreenData.filename}
+                    isAuthenticated={imageEmbedFullscreenData.isAuthenticated}
+                    fileSize={imageEmbedFullscreenData.fileSize}
+                    fileType={imageEmbedFullscreenData.fileType}
+                    aiDetection={imageEmbedFullscreenData.aiDetection}
+                    onClose={handleCloseImageEmbedFullscreen}
                 />
             {/if}
 

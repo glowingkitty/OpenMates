@@ -17,7 +17,7 @@
 //
 // Fullscreen click (Case 1 finished, Case 2):
 //   onFullscreen() → fires 'imagefullscreen' CustomEvent (bubbles) on content element
-//   → MessageInput.svelte re-dispatches to ActiveChat.svelte → UploadedImageFullscreen.
+//   → MessageInput.svelte re-dispatches to ActiveChat.svelte → ImageEmbedFullscreen.
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";

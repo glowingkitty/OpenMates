@@ -19,7 +19,7 @@
   Architecture:
   - Mounted by AppSkillUseRenderer.ts when app_id='images' and skill_id='view'.
   - onFullscreen callback resolves the original image upload embed from EmbedStore
-    and fires 'imagefullscreen' so ActiveChat mounts UploadedImageFullscreen.svelte.
+    and fires 'imagefullscreen' so ActiveChat mounts ImageEmbedFullscreen.svelte.
   - Uses the shared imageEmbedCrypto cache so if the original ImageEmbedPreview
     already decrypted the image, we get it instantly from cache.
 -->

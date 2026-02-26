@@ -1,19 +1,22 @@
 <!--
-  frontend/packages/ui/src/components/embeds/images/UploadedImageFullscreen.svelte
+  frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
 
-  Fullscreen viewer for user-uploaded image embeds in the message editor.
+  Fullscreen viewer for user-uploaded image embeds.
 
   Shows:
   - Full-resolution decrypted image from S3 (progressive: preview first, then full)
     OR a local blob URL as fallback when the user is not authenticated (no S3 upload).
   - Download button for the original file (S3 path only)
   - Close button (inherited from UnifiedEmbedFullscreen)
-  - BasicInfosBar with truncated filename + "Signup to upload…" or file type/size subtitle
+  - Embed header with truncated filename + "Signup to upload…" or file type/size subtitle
 
   Does NOT show prompt/model info — uploaded images are user photos, not AI-generated.
 
   Props mirror the files/aesKey/aesNonce structure returned by the uploads microservice,
   which matches the generate_task.py structure so the same imageEmbedCrypto utilities work.
+
+  Fullscreen: mounted by ActiveChat.svelte when 'imagefullscreen' CustomEvent is received
+  (fired by ImageRenderer.ts → ImageEmbedPreview.svelte → onFullscreen()).
 -->
 
 <script lang="ts">
@@ -22,7 +25,7 @@
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
   import { text } from '@repo/ui';
 
-  /** Max display length for the filename in the bottom bar title (chars) */
+  /** Max display length for the filename in the embed header title (chars) */
   const MAX_FILENAME_LENGTH = 30;
 
   /**
@@ -51,9 +54,9 @@
     src?: string;
     /** Whether the user is authenticated (controls subtitle text in the info bar) */
     isAuthenticated?: boolean;
-    /** File size in bytes (from the original File object) — shown in info bar subtitle */
+    /** File size in bytes (from the original File object) — shown in header subtitle */
     fileSize?: number;
-    /** File MIME type (e.g. 'image/jpeg') — shown in info bar subtitle */
+    /** File MIME type (e.g. 'image/jpeg') — shown in header subtitle */
     fileType?: string;
     /** Close handler */
     onClose: () => void;
@@ -108,14 +111,14 @@
   let retainedFullKey: string | undefined = undefined;
 
   // -------------------------------------------------------------------------
-  // Info bar: truncated filename + subtitle
+  // Header: truncated filename + subtitle
   // -------------------------------------------------------------------------
 
   /**
    * Truncate filename to MAX_FILENAME_LENGTH characters, keeping the extension
    * visible if present (mirrors the logic in ImageEmbedPreview.svelte).
    */
-  let infoBarTitle = $derived.by(() => {
+  let headerTitle = $derived.by(() => {
     if (!filename || filename === 'image') return $text('app_skills.images.view');
     if (filename.length <= MAX_FILENAME_LENGTH) return filename;
     const lastDot = filename.lastIndexOf('.');
@@ -160,11 +163,11 @@
   }
 
   /**
-   * Info bar subtitle:
+   * Header subtitle:
    * - Unauthenticated: "Signup to upload…"
    * - Authenticated: "JPEG · 1.2 MB" (or just type or just size)
    */
-  let infoBarSubtitle = $derived.by(() => {
+  let headerSubtitle = $derived.by(() => {
     if (!isAuthenticated) {
       return $text('app_skills.images.view.signup_to_upload');
     }
@@ -198,7 +201,7 @@
     // Prevent infinite retry loops — give up after MAX_FULL_IMAGE_RETRIES attempts
     if (loadRetryCount >= MAX_FULL_IMAGE_RETRIES) {
       console.warn(
-        `[UploadedImageFullscreen] Giving up after ${MAX_FULL_IMAGE_RETRIES} failed attempts`,
+        `[ImageEmbedFullscreen] Giving up after ${MAX_FULL_IMAGE_RETRIES} failed attempts`,
       );
       return;
     }
@@ -235,7 +238,7 @@
 
     try {
       console.debug(
-        `[UploadedImageFullscreen] Loading full image from S3 (attempt ${loadRetryCount}/${MAX_FULL_IMAGE_RETRIES}):`,
+        `[ImageEmbedFullscreen] Loading full image from S3 (attempt ${loadRetryCount}/${MAX_FULL_IMAGE_RETRIES}):`,
         fullFileData.s3_key,
       );
       const blob = await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce);
@@ -252,7 +255,7 @@
             ? err.message
             : String(err);
       console.error(
-        `[UploadedImageFullscreen] Failed to load full image (attempt ${loadRetryCount}/${MAX_FULL_IMAGE_RETRIES}):`,
+        `[ImageEmbedFullscreen] Failed to load full image (attempt ${loadRetryCount}/${MAX_FULL_IMAGE_RETRIES}):`,
         errMsg,
         err,
       );
@@ -279,7 +282,7 @@
         // Blob path: use local src when S3 is not available
         if (currentSrc) {
           fullImageUrl = currentSrc;
-          console.debug('[UploadedImageFullscreen] Using local blob URL (no S3 data available)');
+          console.debug('[ImageEmbedFullscreen] Using local blob URL (no S3 data available)');
         }
       } else {
         // S3 path: async load
@@ -318,7 +321,7 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('[UploadedImageFullscreen] Failed to download original:', err);
+      console.error('[ImageEmbedFullscreen] Failed to download original:', err);
     } finally {
       isDownloading = false;
     }
@@ -341,15 +344,15 @@
   appId="images"
   skillId="view"
   skillIconName="image"
-  embedHeaderTitle={infoBarTitle}
-  embedHeaderSubtitle={infoBarSubtitle}
+  embedHeaderTitle={headerTitle}
+  embedHeaderSubtitle={headerSubtitle}
 
   showShare={!!files?.original}
   {onClose}
   onDownload={files?.original ? handleDownload : undefined}
 >
   {#snippet content()}
-    <div class="uploaded-image-fullscreen">
+    <div class="image-embed-fullscreen">
       {#if imageError}
         <div class="error-container">
           <div class="error-icon">!</div>
@@ -370,19 +373,15 @@
           {/if}
         </div>
       {:else if previewImageUrl && isLoadingImage}
-        <!-- Progressive: show blurred preview while full-res loads -->
+        <!-- Progressive: show blurred preview while full-res fetches -->
         <div class="image-wrapper progressive">
           <img src={previewImageUrl} alt={filename} class="full-image preview-placeholder" />
           <div class="progressive-overlay">
             <div class="loading-spinner small"></div>
           </div>
         </div>
-      {:else if isLoadingImage}
-        <div class="image-loading">
-          <div class="loading-spinner"></div>
-        </div>
       {:else}
-        <!-- Nothing yet — loading starts via $effect above -->
+        <!-- Loading state (S3 fetch in progress, or waiting for effect to fire) -->
         <div class="image-loading">
           <div class="loading-spinner"></div>
         </div>
@@ -392,34 +391,23 @@
 </UnifiedEmbedFullscreen>
 
 <style>
-  /* ==========================================================================
-     Override the parent UnifiedEmbedFullscreen content-area so the image
-     fills the full panel without the normal 120px bottom padding.
-     We position the image container absolutely so it reaches edge-to-edge,
-     behind the absolutely-positioned bottom bar and top bar.
-     ========================================================================== */
-
-  :global(.unified-embed-fullscreen-overlay:has(.uploaded-image-fullscreen) .content-area) {
-    padding-bottom: 0;
-    overflow: hidden;
-  }
-
-  /* ==========================================================================
-     Main container: fills the entire fullscreen area (absolute, edge-to-edge).
-     The top/bottom bars from UnifiedEmbedFullscreen are positioned above us
-     via their own z-index so they remain clickable.
-     ========================================================================== */
-
-  .uploaded-image-fullscreen {
-    position: absolute;
-    inset: 0;
+  /*
+   * Main container: sits in normal document flow, below the EmbedHeader banner.
+   * Uses min-height so it fills the visible space below the header without
+   * needing position: absolute (which caused the image to overlap the header).
+   *
+   * The fullscreen panel is typically ~80vh tall.  EmbedHeader is ~160px.
+   * min-height: calc(100vh - 220px) ensures the centering context is tall enough
+   * even at small viewport heights, while still scrolling gracefully if the
+   * viewport is tiny.
+   */
+  .image-embed-fullscreen {
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Leave room for the bottom bar (approx 100px) and top bar (approx 70px) */
-    padding: 80px 24px 110px;
+    min-height: calc(100vh - 220px);
+    padding: 24px;
     box-sizing: border-box;
-    overflow: hidden;
   }
 
   /* ==========================================================================
@@ -434,7 +422,6 @@
     width: 100%;
     height: 100%;
     max-width: 100%;
-    max-height: 100%;
   }
 
   /* AI generated badge: pill shown when SightEngine confirms image is AI-generated */
@@ -483,13 +470,12 @@
     align-items: center;
     justify-content: center;
     max-width: 100%;
-    max-height: 100%;
     cursor: zoom-in;
   }
 
   .full-image {
     max-width: 100%;
-    max-height: 100%;
+    max-height: calc(100vh - 280px);
     object-fit: contain;
     border-radius: 10px;
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
@@ -560,8 +546,6 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
-    min-height: 200px;
     text-align: center;
     padding: 32px;
     gap: 12px;

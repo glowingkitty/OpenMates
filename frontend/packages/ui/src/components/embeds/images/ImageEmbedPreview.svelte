@@ -22,7 +22,7 @@
      - Shows skeleton while loading, decrypted image once ready.
 
   Fullscreen: calls onFullscreen() → ImageRenderer.ts fires 'imagefullscreen'
-  CustomEvent → ActiveChat.svelte mounts UploadedImageFullscreen.svelte.
+  CustomEvent → ActiveChat.svelte mounts ImageEmbedFullscreen.svelte.
 
   Stop button: calls onStop() → embedHandlers.cancelUpload(id) aborts the
   in-flight fetch; the caller (ImageRenderer.ts) supplies this callback.

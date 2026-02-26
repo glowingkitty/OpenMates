@@ -1831,7 +1831,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   /**
    * Open the ORIGINAL uploaded image's fullscreen viewer.
    * Resolves the original image upload embed by embed_id, then fires
-   * 'imagefullscreen' CustomEvent so ActiveChat mounts UploadedImageFullscreen.
+   * 'imagefullscreen' CustomEvent so ActiveChat mounts ImageEmbedFullscreen.
    *
    * If the upload embed is not yet cached (sync still in flight), waits for the
    * 'embedUpdated' event and retries — preventing silent failures when the user
