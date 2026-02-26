@@ -4,16 +4,23 @@
   Unified base component for all embed fullscreen views (app skills, websites, etc.)
   
   Structure:
-  - Top bar with action buttons (share, close)
-  - Header section with title and optional extra content via snippet
-  - Main content area (scrollable) with skill-specific content via snippet
-  - Bottom preview bar with app icon and title
+  - Top bar with action buttons (share, close) — absolute, always on top
+  - Gradient banner header (scrolls with content, like ChatHeader)
+    - App/skill gradient background using CSS variable --color-app-{appId}
+    - Decorative large icons (left/right edges, same as ChatHeader)
+    - Center: small icon (38×38) + title + subtitle
+    - Navigation arrows at left/right edges of the banner
+  - Main content area (scrollable)
   
   Animations:
   - Opening: Scale up from 0.5 to 1.0 with opacity fade (originates from preview position)
   - Closing: Scale down to 0.5 with opacity fade (back to preview position)
   - CSS variables --preview-center-x and --preview-center-y set by UnifiedEmbedPreview
     determine the transform-origin for smooth origin-based animations
+  
+  Header Icon Logic:
+  - skillIconName is set AND showSkillIcon is true → skill icon (CSS mask-image SVG)
+  - Otherwise → app icon (icon_rounded CSS class)
   
   Child Embed Loading:
   - For fullscreens that display multiple child embeds (e.g., search results)
@@ -28,7 +35,6 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
   import { text } from '@repo/ui';
-  import BasicInfosBar from './BasicInfosBar.svelte';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { settingsMenuVisible } from '../Settings.svelte';
@@ -70,12 +76,10 @@
    * - Children are available in content snippet via context parameter
    */
   interface Props {
-    /** App identifier (e.g., 'web', 'videos', 'code') - used for icon display */
+    /** App identifier (e.g., 'web', 'videos', 'code') - used for gradient background */
     appId: string;
     /** Skill identifier (e.g., 'search', 'get_transcript') */
     skillId?: string;
-    /** Fullscreen title */
-    title: string;
     /** Close handler */
     onClose: () => void;
     /** Optional copy handler (for copy button) - copies text version of embed */
@@ -89,16 +93,54 @@
      * Set to false to hide it for embeds that cannot be shared (e.g. non-uploaded images).
      */
     showShare?: boolean;
-    /** Snippet for header extra content (optional) */
-    headerExtra?: import('svelte').Snippet<[]>;
     /** 
      * Snippet for main content
      * When embedIds is provided, receives ChildEmbedContext with loaded children
      * Otherwise receives empty context for backwards compatibility
      */
     content?: import('svelte').Snippet<[ChildEmbedContext]>;
-    /** Snippet for bottom bar (optional, defaults to basic infos bar) */
-    bottomBar?: import('svelte').Snippet<[]>;
+    
+    /* ============================================
+       Embed Header Props (gradient banner at top)
+       ============================================ */
+    
+    /**
+     * Main title displayed in the gradient header banner.
+     * Shown bold and white, centered below the icon.
+     */
+    embedHeaderTitle?: string;
+    
+    /**
+     * Subtitle displayed below the title in the header banner.
+     * Shown smaller and at 0.85 opacity (e.g. "via Brave Search", "Data from 2025/03/27").
+     */
+    embedHeaderSubtitle?: string;
+    
+    /**
+     * Favicon/logo URL shown as a small image next to the title text.
+     * Used for website/news embeds where the source favicon is meaningful.
+     */
+    embedHeaderFaviconUrl?: string;
+    
+    /**
+     * Whether the favicon should be circular (for channel thumbnails, profile pics).
+     * Default: false (rounded square).
+     */
+    embedHeaderFaviconIsCircular?: boolean;
+    
+    /**
+     * Icon name for the skill icon shown in the header.
+     * When set, shows a CSS mask-image icon (same as BasicInfosBar).
+     * When empty/undefined, shows the app icon (icon_rounded class).
+     */
+    skillIconName?: string;
+    
+    /**
+     * Whether to show the skill icon (true) or app icon (false) in the header.
+     * When false, always uses app icon regardless of skillIconName.
+     * Default: true.
+     */
+    showSkillIcon?: boolean;
     
     /* ============================================
        Child Embed Loading Props
@@ -129,31 +171,6 @@
      * loaded children, avoiding the anti-pattern of mutating state inside the template.
      */
     onChildrenLoaded?: (children: unknown[]) => void;
-    
-    /* ============================================
-       BasicInfosBar Props (when bottomBar not provided)
-       ============================================ */
-    
-    /** Skill icon name for BasicInfosBar */
-    skillIconName?: string;
-    /** Processing status for BasicInfosBar */
-    status?: 'processing' | 'finished' | 'error';
-    /** Skill display name for BasicInfosBar */
-    skillName?: string;
-    /** Task ID for BasicInfosBar */
-    taskId?: string;
-    /** Click handler for BasicInfosBar */
-    onBasicInfosBarClick?: () => void;
-    /** Custom favicon URL for BasicInfosBar */
-    faviconUrl?: string;
-    /** Whether favicon should be circular (for channel thumbnails, profile pics) */
-    faviconIsCircular?: boolean;
-    /** Whether to show skill icon in BasicInfosBar */
-    showSkillIcon?: boolean;
-    /** Custom status text for BasicInfosBar */
-    customStatusText?: string;
-    /** Whether to show status text in BasicInfosBar */
-    showStatus?: boolean;
     
     /* ============================================
        Embed Navigation Props
@@ -228,30 +245,23 @@
   let {
     appId,
     skillId,
-    title,
     onClose,
     onCopy,
     onDownload,
     onShare,
     showShare = true,
-    headerExtra,
     content,
-    bottomBar,
+    // Embed header props
+    embedHeaderTitle = '',
+    embedHeaderSubtitle = '',
+    embedHeaderFaviconUrl,
+    embedHeaderFaviconIsCircular = false,
+    skillIconName = '',
+    showSkillIcon = true,
     // Child embed loading props
     embedIds,
     childEmbedTransformer,
     legacyResults,
-    // BasicInfosBar props
-    skillIconName = '',
-    status = 'finished',
-    skillName,
-    taskId,
-    onBasicInfosBarClick,
-    faviconUrl,
-    faviconIsCircular = false,
-    showSkillIcon = true,
-    customStatusText,
-    showStatus = true,
     // Embed navigation props
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -490,7 +500,7 @@
       console.error('[UnifiedEmbedFullscreen] MISSING content snippet! This will cause rendering issues.', {
         appId,
         skillId,
-        title
+        embedHeaderTitle
       });
     }
   });
@@ -816,6 +826,17 @@
       if (container.isConnected) removeExistingMarks(container);
     };
   });
+
+  // ============================================
+  // Header derived state
+  // ============================================
+
+  /**
+   * Whether to use the skill icon (CSS mask-image) or the app icon (icon_rounded class).
+   * skill icon = when skillIconName is set AND showSkillIcon is true
+   * app icon = when showSkillIcon is false OR skillIconName is empty
+   */
+  let useSkillIcon = $derived(showSkillIcon && !!skillIconName);
 </script>
 
 <div
@@ -824,12 +845,13 @@
   style="--preview-center-x: var(--preview-center-x, 50vw); --preview-center-y: var(--preview-center-y, 50vh);"
 >
   <div class="fullscreen-container">
-    <!-- Top bar with action buttons -->
+    <!-- ── Top bar with action buttons ──
+         Absolutely positioned over the header banner + content.
+         Stays fixed at top during scroll. -->
     <div class="top-bar">
-      <!-- Left side: Chat button (when hidden), Previous button, Share, Copy, Download, Report Issue buttons -->
+      <!-- Left side: Chat button, Share, Copy, Download, Report Issue, PII toggle -->
       <div class="top-bar-left">
         <!-- Show Chat button - only shown when chat is hidden (forceOverlayMode active on ultra-wide) -->
-        <!-- Allows user to restore the side-by-side layout -->
         {#if showChatButton && onShowChat}
           <div class="button-wrapper">
             <button
@@ -839,19 +861,6 @@
               title={$text('chat.show_chat')}
             >
               <span class="clickable-icon icon_chat"></span>
-            </button>
-          </div>
-        {/if}
-        <!-- Previous embed navigation button - only shown if there is a previous embed -->
-        {#if hasPreviousEmbed && onNavigatePrevious}
-          <div class="button-wrapper nav-button-wrapper">
-            <button
-              class="action-button nav-button nav-previous"
-              onclick={handleNavigatePrevious}
-              aria-label="Previous embed"
-              title="Previous embed"
-            >
-              <span class="clickable-icon icon_back"></span>
             </button>
           </div>
         {/if}
@@ -894,48 +903,35 @@
             </button>
           </div>
         {/if}
-          <!-- Report Issue button - always shown -->
+        <!-- Report Issue button - always shown -->
+        <div class="button-wrapper">
+          <button
+            class="action-button report-issue-button"
+            onclick={handleReportIssue}
+            aria-label={$text('header.report_issue')}
+            title={$text('header.report_issue')}
+          >
+            <span class="clickable-icon icon_bug"></span>
+          </button>
+        </div>
+        <!-- PII hide/show toggle - only shown when embed has sensitive data -->
+        {#if showPIIToggle && onTogglePII}
           <div class="button-wrapper">
             <button
-              class="action-button report-issue-button"
-              onclick={handleReportIssue}
-              aria-label={$text('header.report_issue')}
-              title={$text('header.report_issue')}
+              class="action-button pii-toggle-button"
+              class:pii-toggle-active={piiRevealed}
+              onclick={onTogglePII}
+              aria-label={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+              title={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
             >
-              <span class="clickable-icon icon_bug"></span>
-            </button>
-          </div>
-          <!-- PII hide/show toggle - only shown when embed has sensitive data -->
-          {#if showPIIToggle && onTogglePII}
-            <div class="button-wrapper">
-              <button
-                class="action-button pii-toggle-button"
-                class:pii-toggle-active={piiRevealed}
-                onclick={onTogglePII}
-                aria-label={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
-                title={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
-              >
-                <span class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'}"></span>
-              </button>
-            </div>
-          {/if}
-      </div>
-      
-      <!-- Right side: Next button and Minimize button -->
-      <div class="top-bar-right">
-        <!-- Next embed navigation button - only shown if there is a next embed -->
-        {#if hasNextEmbed && onNavigateNext}
-          <div class="button-wrapper nav-button-wrapper">
-            <button
-              class="action-button nav-button nav-next"
-              onclick={handleNavigateNext}
-              aria-label="Next embed"
-              title="Next embed"
-            >
-              <span class="clickable-icon icon_back icon_forward"></span>
+              <span class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'}"></span>
             </button>
           </div>
         {/if}
+      </div>
+      
+      <!-- Right side: Minimize button -->
+      <div class="top-bar-right">
         <div class="button-wrapper">
           <button
             class="action-button minimize-button"
@@ -948,21 +944,96 @@
         </div>
       </div>
     </div>
-    
-    <!-- Header with title and optional extra content (only show if title is provided and not empty) -->
-    {#if title?.trim() && headerExtra}
-      <div class="header">
-        <div class="title">{title}</div>
-        {@render headerExtra()}
-      </div>
-    {:else if title?.trim()}
-      <div class="header">
-        <div class="title">{title}</div>
-      </div>
-    {/if}
-    
-    <!-- Main content area (scrollable) - with defensive guard -->
+
+    <!-- ── Scrollable content area (header banner + embed content) ── -->
     <div class="content-area" bind:this={contentAreaElement}>
+
+      <!-- ── Gradient Header Banner ──
+           Scrolls with content (not fixed), identical design to ChatHeader.
+           Background: app gradient from CSS variable --color-app-{appId}.
+           Large decorative icons at edges, navigation arrows, center content. -->
+      <div
+        class="embed-header-banner"
+        style="background: var(--color-app-{appId});"
+      >
+        <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
+             Same animation as ChatHeader: fade up from +50px below. -->
+        <div class="deco-icon deco-icon-left">
+          {#if useSkillIcon}
+            <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
+          {:else}
+            <div class="deco-app-icon icon_rounded {appId}"></div>
+          {/if}
+        </div>
+        <div class="deco-icon deco-icon-right">
+          {#if useSkillIcon}
+            <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
+          {:else}
+            <div class="deco-app-icon icon_rounded {appId}"></div>
+          {/if}
+        </div>
+
+        <!-- Center content: small icon + title + subtitle -->
+        <div class="header-center">
+          <!-- Small icon (38×38px, white) -->
+          <div class="header-icon">
+            {#if useSkillIcon}
+              <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
+            {:else}
+              <div class="header-app-icon icon_rounded {appId}"></div>
+            {/if}
+          </div>
+
+          <!-- Title (bold, white) -->
+          {#if embedHeaderTitle}
+            <div class="header-title">
+              {#if embedHeaderFaviconUrl}
+                <img
+                  src={embedHeaderFaviconUrl}
+                  alt=""
+                  class="header-favicon"
+                  class:circular={embedHeaderFaviconIsCircular}
+                  crossorigin="anonymous"
+                  onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              {/if}
+              <span class="header-title-text">{embedHeaderTitle}</span>
+            </div>
+          {/if}
+
+          <!-- Subtitle (e.g. "via Brave Search", "Data from 2025/03/27") -->
+          {#if embedHeaderSubtitle}
+            <div class="header-subtitle">{embedHeaderSubtitle}</div>
+          {/if}
+        </div>
+
+        <!-- Navigation arrows at banner edges — same style as ChatHeader nav-arrows.
+             Previous embed (left) and next embed (right).
+             Using prev/next inline here rather than the top-bar since they
+             belong visually to the header carousel. -->
+        {#if hasPreviousEmbed && onNavigatePrevious}
+          <button
+            class="nav-arrow nav-arrow-left"
+            onclick={handleNavigatePrevious}
+            aria-label="Previous embed"
+            type="button"
+          >
+            <span class="nav-chevron nav-chevron-left"></span>
+          </button>
+        {/if}
+        {#if hasNextEmbed && onNavigateNext}
+          <button
+            class="nav-arrow nav-arrow-right"
+            onclick={handleNavigateNext}
+            aria-label="Next embed"
+            type="button"
+          >
+            <span class="nav-chevron nav-chevron-right"></span>
+          </button>
+        {/if}
+      </div>
+
+      <!-- ── Embed-specific content ── -->
       {#if content}
         <!-- Pass child embed context to content snippet -->
         {@render content(childEmbedContext)}
@@ -972,59 +1043,10 @@
           <p>Content unavailable</p>
         </div>
       {/if}
+
     </div>
-    
-    <!-- Bottom gradient and BasicInfosBar -->
-    <div class="bottom-gradient-wrapper">
-      <!-- Gradient fade from transparent to grey-0 -->
-      <div class="bottom-gradient"></div>
-      
-      <!-- Bottom bar (BasicInfosBar or custom) -->
-      <div class="bottom-bar-container">
-        {#if bottomBar}
-          {@render bottomBar()}
-        {:else if skillName && skillId}
-          <!-- Default BasicInfosBar with same content as embed preview -->
-          {#if onBasicInfosBarClick}
-            <button 
-              class="basic-infos-bar-wrapper clickable"
-              onclick={onBasicInfosBarClick}
-              type="button"
-            >
-              <BasicInfosBar
-                {appId}
-                {skillId}
-                skillIconName={skillIconName || skillId}
-                {status}
-                {skillName}
-                {taskId}
-                {faviconUrl}
-                {faviconIsCircular}
-                {showSkillIcon}
-                {customStatusText}
-                {showStatus}
-              />
-            </button>
-          {:else}
-            <div class="basic-infos-bar-wrapper">
-              <BasicInfosBar
-                {appId}
-                {skillId}
-                skillIconName={skillIconName || skillId}
-                {status}
-                {skillName}
-                {taskId}
-                {faviconUrl}
-                {faviconIsCircular}
-                {showSkillIcon}
-                {customStatusText}
-                {showStatus}
-              />
-            </div>
-          {/if}
-        {/if}
-      </div>
-    </div>
+    <!-- end .content-area -->
+
   </div>
 </div>
 
@@ -1078,7 +1100,11 @@
     height: 100%;
     position: relative;
   }
-  
+
+  /* ===========================================
+     Top Bar (absolute, always on top)
+     =========================================== */
+
   /* Top bar with action buttons - ABSOLUTE position within fullscreen overlay.
      z-index: 1000 ensures it stays above Leaflet map panes (z-index 400+) and
      any other high-z-index children that embed fullscreens may render. */
@@ -1143,11 +1169,6 @@
     width: 22px;
     height: 22px;
   }
-  
-  /* Navigation buttons - using back icon, forward icon is rotated 180deg */
-  .nav-button .icon_forward {
-    transform: rotate(180deg);
-  }
 
   /* PII toggle button: subtle orange/amber tint when PII is revealed (warns sensitive data exposed) */
   .pii-toggle-button.pii-toggle-active {
@@ -1157,41 +1178,18 @@
   .pii-toggle-button.pii-toggle-active:hover {
     background-color: rgba(245, 158, 11, 0.45) !important;
   }
+
+  /* ===========================================
+     Scrollable Content Area
+     =========================================== */
   
-  /* Hide navigation button wrappers on narrow screens (< 500px) to prevent UI crowding */
-  /* Uses container query since container-type: inline-size is set on the overlay */
-  /* Target the wrapper (not just the button) to hide the entire container including background */
-  @container fullscreen (max-width: 500px) {
-    .nav-button-wrapper {
-      display: none;
-    }
-  }
-  
-  /* Header section */
-  .header {
-    margin-top: 16px;
-    margin-bottom: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .title {
-    font-size: 18px;
-    font-weight: 500;
-    color: var(--color-font-primary);
-    line-height: 1.4;
-    word-break: break-word;
-  }
-  
-  /* Main content area (scrollable) - scrollable behind the fixed top and bottom bars */
+  /* Main content area: takes remaining height, scrollable */
   .content-area {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 8px;
     margin-right: -8px;
-    padding-bottom: 120px; /* Space for absolute positioned bottom bar and gradient */
     scrollbar-width: thin;
     scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
     transition: scrollbar-color 0.2s ease;
@@ -1223,70 +1221,403 @@
   .content-area::-webkit-scrollbar-thumb:hover {
     background-color: rgba(128, 128, 128, 0.7);
   }
-  
-  /* Bottom gradient and bar wrapper - ABSOLUTE positioned at bottom */
-  .bottom-gradient-wrapper {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 3;
+
+  /* ===========================================
+     Gradient Header Banner (scrolls with content)
+     Matches ChatHeader design exactly.
+     =========================================== */
+
+  .embed-header-banner {
+    position: relative;
+    width: 100%;
+    height: 240px;
+    /* Bottom corners rounded; top corners flush with overlay's top-left/top-right border-radius */
+    border-radius: 0 0 14px 14px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    /* Non-interactive background; arrows/buttons override with pointer-events:auto */
     pointer-events: none;
+    user-select: none;
+    /* Ensure top-bar buttons render above the banner */
+    z-index: 1;
   }
-  
-  /* Gradient fade from transparent (0%) to grey-20 (100% opacity) - matches fullscreen background */
-  .bottom-gradient {
+
+  /* ── Decorative large icons (126×126px) at banner edges ── */
+
+  .deco-icon {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 120px;
-    background: linear-gradient(
-      to bottom,
-      transparent 0%,
-      var(--color-grey-20) 100%
-    );
+    width: 126px;
+    height: 126px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
     pointer-events: none;
+    /* Entrance: fade up from +50px below */
+    animation: decoIconEnter 0.6s ease-out 0.1s both;
   }
-  
-  /* Bottom bar container - centered, full width with 10px padding on each side */
-  .bottom-bar-container {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+
+  .deco-icon-left {
+    left: calc(50% - 240px - 106px);
+    bottom: -15px;
+    transform: rotate(-15deg);
+    --deco-rotate: -15deg;
+  }
+
+  .deco-icon-right {
+    right: calc(50% - 240px - 106px);
+    bottom: -15px;
+    transform: rotate(15deg);
+    --deco-rotate: 15deg;
+  }
+
+  @keyframes decoIconEnter {
+    from {
+      opacity: 0;
+      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
+    }
+    to {
+      opacity: 0.4;
+      transform: translateY(0) rotate(var(--deco-rotate, 0deg));
+    }
+  }
+
+  /* Decorative skill icon: CSS mask-image, white fill, large size */
+  .deco-skill-icon {
+    width: 126px;
+    height: 126px;
+    background-color: white;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  /* Decorative app icon: uses icon_rounded system, white, large size */
+  .deco-app-icon {
+    width: 80px;
+    height: 80px;
+    position: relative;
+    bottom: auto;
+    left: auto;
+    z-index: auto;
+  }
+
+  /* Force app icon to render white (not gradient) inside decorative container */
+  .deco-app-icon::after {
+    filter: brightness(0) invert(1) !important;
+    background-size: 60px 60px !important;
+  }
+
+  /* ── Center content ── */
+
+  .header-center {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 16px 10px;
-    pointer-events: auto;
-  }
-  
-  /* BasicInfosBar wrapper - max-width 300px, centered, full viewport width - 20px */
-  .basic-infos-bar-wrapper {
-    width: calc(100% - 0px); /* Account for parent padding of 10px on each side */
-    max-width: 300px;
-    border: none;
-    background: transparent;
-    padding: 0;
-    cursor: default;
-  }
-  
-  /* Ensure BasicInfosBar inside wrapper respects max-width and has proper styling */
-  .basic-infos-bar-wrapper :global(.basic-infos-bar) {
+    gap: 4px;
+    z-index: 2;
+    padding: 16px 24px;
+    /* Narrow block so it doesn't stretch the full banner width */
+    max-width: 480px;
     width: 100%;
-    max-width: 300px;
+    animation: fadeIn 0.35s ease-out;
   }
-  
-  .basic-infos-bar-wrapper.clickable {
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Small icon container (38×38px) */
+  .header-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Small skill icon (38×38px white) */
+  .header-skill-icon {
+    width: 38px;
+    height: 38px;
+    background-color: white;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  /* Small app icon (38×38px white) */
+  .header-app-icon {
+    width: 30px;
+    height: 30px;
+    position: relative;
+    bottom: auto;
+    left: auto;
+    z-index: auto;
+  }
+
+  .header-app-icon::after {
+    filter: brightness(0) invert(1) !important;
+    background-size: 20px 20px !important;
+  }
+
+  /* Title row: optional favicon + text, clamped to 2 lines */
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    margin-top: 2px;
+  }
+
+  .header-favicon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    object-fit: cover;
+  }
+
+  .header-favicon.circular {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+  }
+
+  .header-title-text {
+    font-size: 20px;
+    font-weight: 700;
+    color: #ffffff;
+    text-align: center;
+    line-height: 1.3;
+    /* Clamp to 2 lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Subtitle: smaller, slightly transparent */
+  .header-subtitle {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+    margin-top: 2px;
+    animation: fadeIn 0.4s ease-out 0.15s both;
+    /* Clamp to 2 lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ── Navigation arrows ──
+     Positioned at the outer edges of the banner.
+     Identical to ChatHeader nav-arrow style. */
+
+  .nav-arrow {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    padding: 0 !important;
+    min-width: unset !important;
+    width: 40px !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    filter: none !important;
+    margin: 0 !important;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    transition: opacity 0.2s;
+    transition: background-color 0.15s ease;
+    z-index: 20;
+    pointer-events: auto; /* Re-enable interactivity (banner has pointer-events:none) */
+    flex-shrink: 0;
   }
-  
-  .basic-infos-bar-wrapper.clickable:hover {
-    opacity: 0.9;
+
+  .nav-arrow:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    scale: none !important;
   }
-  
+
+  .nav-arrow:active {
+    background-color: rgba(255, 255, 255, 0.18) !important;
+    scale: none !important;
+    filter: none !important;
+  }
+
+  .nav-arrow-left {
+    left: 0;
+    border-radius: 0 10px 10px 0 !important;
+  }
+
+  .nav-arrow-right {
+    right: 0;
+    border-radius: 10px 0 0 10px !important;
+  }
+
+  /* Chevron icons for nav arrows — CSS triangles using borders */
+  .nav-chevron {
+    display: block;
+    width: 10px;
+    height: 10px;
+    border-top: 2.5px solid rgba(255, 255, 255, 0.85);
+    border-right: 2.5px solid rgba(255, 255, 255, 0.85);
+    flex-shrink: 0;
+  }
+
+  .nav-chevron-left {
+    transform: rotate(-135deg);
+    margin-left: 4px; /* optical center */
+  }
+
+  .nav-chevron-right {
+    transform: rotate(45deg);
+    margin-right: 4px;
+  }
+
+  /* ── Skill icon mask-images (same set as BasicInfosBar) ── */
+
+  /* Applied to both .deco-skill-icon and .header-skill-icon via data-skill-icon attr */
+
+  :global([data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
+  }
+
+  :global([data-skill-icon="videos"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
+    mask-image: url('@openmates/ui/static/icons/videos.svg');
+  }
+
+  :global([data-skill-icon="video"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
+    mask-image: url('@openmates/ui/static/icons/videos.svg');
+  }
+
+  :global([data-skill-icon="book"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/book.svg');
+    mask-image: url('@openmates/ui/static/icons/book.svg');
+  }
+
+  :global([data-skill-icon="visible"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
+    mask-image: url('@openmates/ui/static/icons/visible.svg');
+  }
+
+  :global([data-skill-icon="reminder"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/reminder.svg');
+    mask-image: url('@openmates/ui/static/icons/reminder.svg');
+  }
+
+  :global([data-skill-icon="image"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/image.svg');
+    mask-image: url('@openmates/ui/static/icons/image.svg');
+  }
+
+  :global([data-skill-icon="ai"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+  }
+
+  :global([data-skill-icon="focus"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/insight.svg');
+    mask-image: url('@openmates/ui/static/icons/insight.svg');
+  }
+
+  :global([data-skill-icon="pin"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
+    mask-image: url('@openmates/ui/static/icons/pin.svg');
+  }
+
+  :global([data-skill-icon="text"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/docs.svg');
+    mask-image: url('@openmates/ui/static/icons/docs.svg');
+  }
+
+  :global([data-skill-icon="transcript"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/docs.svg');
+    mask-image: url('@openmates/ui/static/icons/docs.svg');
+  }
+
+  :global([data-skill-icon="website"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/web.svg');
+    mask-image: url('@openmates/ui/static/icons/web.svg');
+  }
+
+  :global([data-skill-icon="coding"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/coding.svg');
+    mask-image: url('@openmates/ui/static/icons/coding.svg');
+  }
+
+  /* ===========================================
+     Mobile adjustments (≤730px)
+     =========================================== */
+
+  @media (max-width: 730px) {
+    .embed-header-banner {
+      height: 190px;
+    }
+
+    .header-center {
+      padding: 12px 20px;
+      max-width: 360px;
+    }
+
+    .header-icon {
+      width: 32px;
+      height: 32px;
+    }
+
+    .header-skill-icon {
+      width: 32px;
+      height: 32px;
+    }
+
+    .header-title-text {
+      font-size: 17px;
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+    }
+
+    .deco-icon {
+      width: 90px;
+      height: 90px;
+    }
+
+    .deco-skill-icon {
+      width: 90px;
+      height: 90px;
+    }
+
+    .deco-icon-left {
+      left: calc(50% - 180px - 70px);
+    }
+
+    .deco-icon-right {
+      right: calc(50% - 180px - 70px);
+    }
+  }
+
   /* ===========================================
      Fallback for Missing Content Snippet
      =========================================== */
@@ -1322,5 +1653,3 @@
     padding: 1px 0;
   }
 </style>
-
-
