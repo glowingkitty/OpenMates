@@ -50,6 +50,8 @@ def send_issue_report_email(
     console_logs: Optional[str] = None,
     indexeddb_report: Optional[str] = None,
     last_messages_html: Optional[str] = None,
+    active_chat_sidebar_html: Optional[str] = None,
+    runtime_debug_state: Optional[str] = None,
     action_history: Optional[str] = None
 ) -> bool:
     """
@@ -69,6 +71,8 @@ def send_issue_report_email(
         console_logs: Optional console logs from the client (last 100 lines)
         indexeddb_report: Optional IndexedDB inspection report (metadata only, no plaintext content)
         last_messages_html: Optional rendered HTML of the last user message and assistant response
+        active_chat_sidebar_html: Optional outerHTML of the active chat sidebar entry (Chat.svelte)
+        runtime_debug_state: Optional JSON string with WS status, AI typing, pending uploads, sync state
         action_history: Optional last 20 user-action history entries (button names/navigation only,
                         no user-typed text content)
 
@@ -86,7 +90,7 @@ def send_issue_report_email(
             _async_send_issue_report_email(
                 self, admin_email, issue_id, issue_title, issue_description,
                 chat_or_embed_url, contact_email, language, timestamp, estimated_location, device_info, console_logs,
-                indexeddb_report, last_messages_html, action_history
+                indexeddb_report, last_messages_html, active_chat_sidebar_html, runtime_debug_state, action_history
             )
         )
         if result:
@@ -229,6 +233,8 @@ async def _async_send_issue_report_email(
     console_logs: Optional[str] = None,
     indexeddb_report: Optional[str] = None,
     last_messages_html: Optional[str] = None,
+    active_chat_sidebar_html: Optional[str] = None,
+    runtime_debug_state: Optional[str] = None,
     action_history: Optional[str] = None
 ) -> bool:
     """
@@ -249,6 +255,8 @@ async def _async_send_issue_report_email(
         console_logs: Last 100 client-side console log lines
         indexeddb_report: IndexedDB inspection metadata (no plaintext content)
         last_messages_html: Rendered HTML of last user + assistant messages
+        active_chat_sidebar_html: outerHTML of the active chat sidebar entry (Chat.svelte)
+        runtime_debug_state: JSON string with WS status, AI typing, pending uploads, sync state
         action_history: Last 20 user-action history entries (button names /
                         navigation only — no user-typed text content)
 
@@ -331,6 +339,13 @@ async def _async_send_issue_report_email(
                 # Rendered HTML of the last user message and assistant response
                 # Helps debug rendering issues by showing exactly what the user saw
                 'last_messages_html': last_messages_html.strip() if last_messages_html and last_messages_html.strip() else None,
+                # outerHTML of the active chat entry in the sidebar (Chat.svelte) at submit time.
+                # Shows title, status label, typing indicator text and category icon state.
+                # Useful for "wrong chat active" and "typing indicator stuck" bugs.
+                'active_chat_sidebar_html': active_chat_sidebar_html.strip() if active_chat_sidebar_html and active_chat_sidebar_html.strip() else None,
+                # Runtime state snapshot: WS status, online status, AI typing, pending uploads, sync state.
+                # JSON string — helps debug message-sending and sync issues.
+                'runtime_debug_state': runtime_debug_state.strip() if runtime_debug_state and runtime_debug_state.strip() else None,
                 # User-action history: last 20 interactions (button names / navigation only)
                 # NO user-typed text content is ever included — only developer-authored labels
                 # (data-action attrs, aria-labels, placeholder text, class names)

@@ -9,7 +9,7 @@
     - Reminder about Signal group for discussion/screenshots
 -->
 <script lang="ts">
-    import { text, notificationStore, activeChatStore, activeEmbedStore } from '@repo/ui';
+    import { text, notificationStore, activeChatStore, activeEmbedStore, websocketStatus, isOnline, phasedSyncState } from '@repo/ui';
     import { getApiEndpoint } from '../../config/api';
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
@@ -22,6 +22,8 @@
     import { inspectChat } from '../../services/debugUtils';
     import { authStore } from '../../stores/authStore';
     import { getEmailDecryptedWithMasterKey } from '../../services/cryptoService';
+    import { aiTypingStore } from '../../stores/aiTypingStore';
+    import { hasPendingSends } from '../../stores/pendingUploadStore';
     
     // Form state
     let issueTitle = $state('');
@@ -341,6 +343,98 @@
     }
 
     /**
+     * Collect the outerHTML of the currently active chat entry in the sidebar
+     * (the `.chat-item.active` element rendered by Chat.svelte inside Chats.svelte).
+     *
+     * This captures exactly what the user sees in the chat list for the active
+     * chat: title, status label (typing / draft / sending), category icon state,
+     * and any typing-indicator shimmer text. Useful for debugging "wrong chat
+     * shown as active" and "typing indicator stuck" issues.
+     *
+     * Returns the sanitised outerHTML string, or null if nothing is found.
+     */
+    function collectActiveChatSidebarHtml(): string | null {
+        try {
+            // The active chat wrapper in Chats.svelte carries both class="chat-item"
+            // and class="active" on the same element, and aria-current="page".
+            // Try the aria-current selector first (most reliable), then fall back to
+            // the compound class selector.
+            const activeEl =
+                document.querySelector('[aria-current="page"]') ??
+                document.querySelector('.chat-item.active');
+
+            if (!activeEl) {
+                console.debug('[SettingsReportIssue] No active chat sidebar element found');
+                return null;
+            }
+
+            const html = activeEl.outerHTML;
+            console.debug(`[SettingsReportIssue] Collected active chat sidebar HTML: ${html.length} chars`);
+            return html;
+        } catch (error) {
+            console.warn('[SettingsReportIssue] Failed to collect active chat sidebar HTML:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Collect a snapshot of all runtime state that is useful for debugging
+     * message-sending and sync issues.
+     *
+     * Fields returned:
+     * - websocket_status  — current WS connection state (connected/disconnected/error…)
+     * - is_online         — navigator.onLine (boolean)
+     * - ai_typing_status  — aiTypingStore snapshot (isTyping, chatId, category, model…)
+     * - has_pending_sends — whether the active chat has queued uploads blocking send
+     * - phased_sync_state — subset of phasedSyncState useful for debugging sync issues
+     */
+    function collectRuntimeDebugState(): object {
+        try {
+            const activeChatId = $activeChatStore;
+
+            // Read aiTypingStore — manual get() since it uses a legacy writable store
+            let aiTypingSnapshot: object | null = null;
+            const unsubAI = aiTypingStore.subscribe((val) => { aiTypingSnapshot = val; });
+            unsubAI(); // unsubscribe immediately — we only need a one-shot read
+
+            // Read websocketStatus
+            let wsSnapshot: object | null = null;
+            const unsubWS = websocketStatus.subscribe((val) => { wsSnapshot = val; });
+            unsubWS();
+
+            // isOnline — readable store
+            let onlineSnapshot = true;
+            const unsubOnline = isOnline.subscribe((val) => { onlineSnapshot = val; });
+            unsubOnline();
+
+            // phasedSyncState — pick the fields relevant for send/sync debugging
+            const syncState = $phasedSyncState;
+            const syncSnapshot = {
+                initialSyncCompleted: syncState.initialSyncCompleted,
+                userMadeExplicitChoice: syncState.userMadeExplicitChoice,
+                currentActiveChatId: syncState.currentActiveChatId,
+                phase1ChatId: syncState.phase1ChatId,
+                lastSyncTimestamp: syncState.lastSyncTimestamp,
+                initialChatLoaded: syncState.initialChatLoaded,
+            };
+
+            // pendingUploads — just a boolean per active chat
+            const pendingSends = activeChatId ? hasPendingSends(activeChatId) : false;
+
+            return {
+                websocket_status: wsSnapshot,
+                is_online: onlineSnapshot,
+                ai_typing_status: aiTypingSnapshot,
+                has_pending_sends: pendingSends,
+                phased_sync_state: syncSnapshot,
+            };
+        } catch (error) {
+            console.warn('[SettingsReportIssue] Failed to collect runtime debug state:', error);
+            return { error: String(error) };
+        }
+    }
+
+    /**
      * Handle form submission
      */
     async function handleSubmit() {
@@ -403,6 +497,14 @@
             // This helps debugging rendering issues and seeing exactly what the user saw
             const lastMessagesHtml = collectLastMessagesHtml();
 
+            // Collect the outerHTML of the active chat entry in the sidebar.
+            // Captures the chat's visible state (title, typing indicator, category icon, etc.)
+            // at the moment of submission — useful for "wrong chat active" and "typing stuck" bugs.
+            const activeChatSidebarHtml = collectActiveChatSidebarHtml();
+
+            // Collect runtime state: WS connection, online status, AI typing, pending uploads, sync
+            const runtimeDebugState = collectRuntimeDebugState();
+
             // Determine the user's current UI language for confirmation email localisation
             const currentLanguage = localStorage.getItem('preferredLanguage')
                 || navigator.language.split('-')[0]
@@ -429,6 +531,8 @@
                     console_logs: consoleLogs,
                     indexeddb_report: indexedDbReport,
                     last_messages_html: lastMessagesHtml,
+                    active_chat_sidebar_html: activeChatSidebarHtml,
+                    runtime_debug_state: runtimeDebugState,
                     action_history: actionHistory
                 }),
                 credentials: 'include'
@@ -621,6 +725,8 @@
         const consoleLogs = logCollector.getLogsAsText(100);
         const indexedDbReport = await collectChatInspectionReport();
         const actionHistory = userActionTracker.getActionHistoryAsText();
+        const activeChatSidebarHtml = collectActiveChatSidebarHtml();
+        const runtimeDebugState = collectRuntimeDebugState();
         
         return {
             device_info: currentDeviceInfo,
@@ -631,6 +737,8 @@
             active_embed_id: $activeEmbedStore || null,
             share_chat_enabled: shareChatEnabled,
             chat_or_embed_url: (shareChatEnabled && chatOrEmbedUrl) ? chatOrEmbedUrl : null,
+            active_chat_sidebar_html: activeChatSidebarHtml,
+            runtime_debug_state: runtimeDebugState,
             timestamp: new Date().toISOString(),
             url: window.location.href
         };
@@ -729,7 +837,7 @@
     });
 </script>
 
-<div class="report-issue-settings">
+<div class="report-issue-settings" data-section="report-issue">
     <p>{$text('settings.report_issue.description')}</p>
     
     <!-- Issue Report Form -->

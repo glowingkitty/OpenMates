@@ -79,6 +79,14 @@ export interface ActionEntry {
 /** Maximum number of entries kept in the circular buffer. */
 const MAX_ENTRIES = 20;
 
+/**
+ * Sentinel label recorded once when the user opens the Report Issue section.
+ * All subsequent interactions *within* that section are suppressed to avoid
+ * flooding the action history with form focus/toggle noise that hides the
+ * meaningful context that came before opening the panel.
+ */
+const REPORT_ISSUE_SENTINEL = "Started report issue";
+
 /** sessionStorage key used to persist the circular buffer. */
 const SESSION_STORAGE_KEY = "_om_action_history";
 
@@ -199,6 +207,17 @@ class UserActionTrackerService {
   private _entries: ActionEntry[] = [];
   /** Whether the event listeners have been attached. */
   private _listening = false;
+  /**
+   * Tracks whether we have already emitted the REPORT_ISSUE_SENTINEL entry.
+   * Once true, all further events originating from within the report-issue
+   * section (`data-section="report-issue"`) are silently dropped so that the
+   * action history shows what the user was doing *before* opening the panel,
+   * ending cleanly with "Started report issue".
+   *
+   * Reset to false whenever a non-report-issue event fires, so that if the
+   * user closes and reopens the panel another sentinel will be recorded.
+   */
+  private _reportIssueSentinelEmitted = false;
 
   constructor() {
     this._loadFromStorage();
@@ -295,6 +314,27 @@ class UserActionTrackerService {
     try {
       const target = event.target as Element | null;
       if (!target) return;
+
+      // Detect if the interaction is inside the report-issue section.
+      // The first such interaction records a single sentinel; all subsequent
+      // ones from within the same section are dropped to keep the history clean.
+      if (this._isInsideReportIssueSection(target)) {
+        if (!this._reportIssueSentinelEmitted) {
+          this._reportIssueSentinelEmitted = true;
+          this._record({
+            type: "click",
+            element: "section",
+            action: REPORT_ISSUE_SENTINEL,
+          });
+        }
+        // Suppress all further report-issue interactions
+        return;
+      }
+
+      // Any event outside the section resets the sentinel so the panel can be
+      // reopened and produce a new sentinel in the future.
+      this._reportIssueSentinelEmitted = false;
+
       const { element, action } = this._resolveTarget(target);
       if (!action) return;
       this._record({ type: "click", element, action });
@@ -307,6 +347,23 @@ class UserActionTrackerService {
     try {
       const target = event.target as Element | null;
       if (!target) return;
+
+      // Suppress focus events that originate inside the report-issue section
+      // (avoids noisy focus entries for every input field the user tabs through)
+      if (this._isInsideReportIssueSection(target)) {
+        if (!this._reportIssueSentinelEmitted) {
+          this._reportIssueSentinelEmitted = true;
+          this._record({
+            type: "focus",
+            element: "section",
+            action: REPORT_ISSUE_SENTINEL,
+          });
+        }
+        return;
+      }
+
+      this._reportIssueSentinelEmitted = false;
+
       // Only track focus on interactive elements
       const tag = target.tagName.toLowerCase();
       if (!INTERACTIVE_TAGS.has(tag) && !target.getAttribute("data-action"))
@@ -327,6 +384,16 @@ class UserActionTrackerService {
 
       const target = ke.target as Element | null;
       if (!target) return;
+
+      // Suppress keypresses inside the report-issue section
+      if (this._isInsideReportIssueSection(target)) {
+        // No sentinel here — click/focus handlers already handle that.
+        // Just suppress silently.
+        return;
+      }
+
+      this._reportIssueSentinelEmitted = false;
+
       const { element, action } = this._resolveTarget(target);
       if (!action) return;
       this._record({ type: "keypress", element, action, key });
@@ -334,6 +401,30 @@ class UserActionTrackerService {
       // Never throw from a passive listener
     }
   };
+
+  // -----------------------------------------------------------------------
+  // Private: report-issue section detection
+  // -----------------------------------------------------------------------
+
+  /**
+   * Returns true if `target` is a descendant of an element with
+   * `data-section="report-issue"`.
+   *
+   * Walks at most 30 levels up to cover deeply nested form elements while
+   * still being cheap enough to run on every captured event.
+   */
+  private _isInsideReportIssueSection(target: Element): boolean {
+    let current: Element | null = target;
+    let depth = 0;
+    while (current && depth < 30) {
+      if (current.getAttribute("data-section") === "report-issue") {
+        return true;
+      }
+      current = current.parentElement;
+      depth++;
+    }
+    return false;
+  }
 
   // -----------------------------------------------------------------------
   // Private: target resolution

@@ -2088,6 +2088,8 @@ class IssueReportRequest(BaseModel):
     console_logs: Optional[str] = Field(None, max_length=50000, description="Console logs from the client (last 100 lines)")
     indexeddb_report: Optional[str] = Field(None, max_length=100000, description="IndexedDB inspection report for active chat (metadata only, no plaintext content - safe for debugging)")
     last_messages_html: Optional[str] = Field(None, max_length=200000, description="Rendered HTML of the last user message and assistant response for debugging rendering issues")
+    active_chat_sidebar_html: Optional[str] = Field(None, max_length=100000, description="outerHTML of the active chat entry in the sidebar (Chat.svelte) at the time of report — captures title, status label, typing indicator, and category icon state")
+    runtime_debug_state: Optional[dict] = Field(None, description="Runtime state snapshot: WebSocket status, online status, AI typing status, pending uploads, phased sync state")
     action_history: Optional[str] = Field(None, max_length=5000, description="Last 20 user-action history entries (button names, navigation — no text content entered by user)")
 
 
@@ -2290,6 +2292,26 @@ async def report_issue(
             action_history_str = issue_data.action_history.strip()
             logger.info(f"Action history provided with issue report: {len(action_history_str)} characters")
 
+        # Process active chat sidebar HTML if provided
+        # This contains the outerHTML of the active chat entry in the sidebar at the time of report,
+        # showing the chat title, status label, typing indicator and category icon state.
+        active_chat_sidebar_html_str = None
+        if issue_data.active_chat_sidebar_html and issue_data.active_chat_sidebar_html.strip():
+            active_chat_sidebar_html_str = issue_data.active_chat_sidebar_html.strip()
+            logger.info(f"Active chat sidebar HTML provided with issue report: {len(active_chat_sidebar_html_str)} characters")
+
+        # Process runtime debug state if provided
+        # This is a JSON-serialisable dict containing WS status, online status, AI typing,
+        # pending uploads and phased sync state — useful for debugging send/sync issues.
+        import json as _json
+        runtime_debug_state_str = None
+        if issue_data.runtime_debug_state:
+            try:
+                runtime_debug_state_str = _json.dumps(issue_data.runtime_debug_state, indent=2)
+                logger.info(f"Runtime debug state provided with issue report: {len(runtime_debug_state_str)} characters")
+            except Exception as _e:
+                logger.warning(f"Failed to serialise runtime_debug_state: {_e}")
+
         # Encrypt sensitive fields for database storage (server-side encryption)
         encryption_service: EncryptionService = request.app.state.encryption_service
         encrypted_contact_email = None
@@ -2401,6 +2423,8 @@ async def report_issue(
                 "console_logs": console_logs_str,
                 "indexeddb_report": indexeddb_report_str,
                 "last_messages_html": last_messages_html_str,
+                "active_chat_sidebar_html": active_chat_sidebar_html_str,
+                "runtime_debug_state": runtime_debug_state_str,
                 "action_history": action_history_str
             },
             queue='email'
