@@ -105,12 +105,24 @@
     onClose: () => void;
     /** Embed ID for reference */
     embedId?: string;
+    /** Whether there is a previous connection to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next connection to navigate to */
+    hasNextEmbed?: boolean;
+    /** Navigate to previous connection */
+    onNavigatePrevious?: () => void;
+    /** Navigate to next connection */
+    onNavigateNext?: () => void;
   }
   
   let {
     connection,
     onClose,
     embedId,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
   }: Props = $props();
   
   // Format price
@@ -932,61 +944,59 @@
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
-  skillIconName="search"
-  embedHeaderTitle={$text('app_skills.travel.search_connections')}
+  skillIconName="travel"
+  embedHeaderTitle={formattedPrice}
+  embedHeaderSubtitle={routeDisplay}
   currentEmbedId={embedId}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
 >
+  {#snippet embedHeaderCta()}
+    <!-- Trip type badge -->
+    <span class="banner-trip-type">{tripTypeLabel}</span>
+
+    <!-- CO2 emissions badge -->
+    {#if connection.co2_kg != null}
+      <span
+        class="banner-co2"
+        class:co2-good={connection.co2_difference_percent != null && connection.co2_difference_percent < 0}
+        class:co2-bad={connection.co2_difference_percent != null && connection.co2_difference_percent > 20}
+      >
+        {connection.co2_kg} kg CO2
+        {#if connection.co2_difference_percent != null}
+          {connection.co2_difference_percent > 0 ? '+' : ''}{connection.co2_difference_percent}% vs typical
+        {/if}
+      </span>
+    {/if}
+
+    <!-- Booking CTA -->
+    {#if bookingState === 'loaded' && resolvedBookingUrl}
+      <button class="cta-button" onclick={handleOpenBookingUrl}>
+        {$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
+      </button>
+    {:else if bookingState === 'loading'}
+      <div class="cta-button cta-loading">
+        <span class="cta-spinner"></span>
+      </div>
+    {:else if bookingState === 'error'}
+      <button class="cta-button cta-fallback" onclick={handleOpenGoogleFlights}>
+        {$text('embeds.open_google_flights')}
+      </button>
+    {:else if connection.booking_token && bookingState === 'idle'}
+      <button class="cta-button" onclick={handleLoadBookingLink}>
+        {$text('embeds.get_booking_link')}
+      </button>
+    {/if}
+  {/snippet}
+
   {#snippet content()}
     <div class="connection-fullscreen">
-      <!-- Header: Price + Route + Trip Type -->
-      <div class="connection-header">
-        {#if formattedPrice}
-          <div class="price">{formattedPrice}</div>
-        {/if}
-        {#if routeDisplay}
-          <div class="route">{routeDisplay}</div>
-        {/if}
-        <div class="trip-type-badge">{tripTypeLabel}</div>
-        {#if connection.carriers && connection.carriers.length > 0}
-          <div class="carriers">{connection.carriers.join(', ')}</div>
-        {/if}
-        
-        <!-- CO2 emissions -->
-        {#if connection.co2_kg != null}
-          <div class="co2-info" class:co2-good={connection.co2_difference_percent != null && connection.co2_difference_percent < 0} class:co2-bad={connection.co2_difference_percent != null && connection.co2_difference_percent > 20}>
-            <span class="co2-value">{connection.co2_kg} kg CO2</span>
-            {#if connection.co2_difference_percent != null}
-              <span class="co2-diff">
-                {connection.co2_difference_percent > 0 ? '+' : ''}{connection.co2_difference_percent}% vs typical
-              </span>
-            {/if}
-          </div>
-        {/if}
-        
-        <!-- Booking CTA: three-state button (idle -> loading -> loaded) -->
-        <!-- All three states render in the same spot with identical dimensions -->
-        {#if bookingState === 'loaded' && resolvedBookingUrl}
-          <!-- State: loaded — direct booking link available -->
-          <button class="cta-button" onclick={handleOpenBookingUrl}>
-            {$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
-          </button>
-        {:else if bookingState === 'loading'}
-          <!-- State: loading — spinner replaces the button in the same spot -->
-          <div class="cta-button cta-loading">
-            <span class="cta-spinner"></span>
-          </div>
-        {:else if bookingState === 'error'}
-          <!-- State: error — fallback to Google Flights search -->
-          <button class="cta-button cta-fallback" onclick={handleOpenGoogleFlights}>
-            {$text('embeds.open_google_flights')}
-          </button>
-        {:else if connection.booking_token && bookingState === 'idle'}
-          <!-- State: idle — regular primary button to fetch the booking link -->
-          <button class="cta-button" onclick={handleLoadBookingLink}>
-            {$text('embeds.get_booking_link')}
-          </button>
-        {/if}
-      </div>
+      <!-- Carriers subtitle (moved here from header since price/route are now in banner) -->
+      {#if connection.carriers && connection.carriers.length > 0}
+        <div class="carriers-row">{connection.carriers.join(', ')}</div>
+      {/if}
       
       <!-- Route Map (OpenStreetMap via Leaflet) -->
       {#if routeWaypoints.length >= 2}
@@ -1144,80 +1154,58 @@
   }
   
   /* ===========================================
-     Header
+     Carriers row (below banner in content area)
      =========================================== */
   
-  .connection-header {
+  .carriers-row {
     text-align: center;
-    margin-bottom: 40px;
-  }
-  
-  .price {
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--color-font-primary);
-    line-height: 1.2;
-  }
-  
-  @container fullscreen (max-width: 500px) {
-    .price {
-      font-size: 28px;
-    }
-  }
-  
-  .route {
-    font-size: 18px;
-    color: var(--color-font-secondary);
-    margin-top: 8px;
-    line-height: 1.3;
-  }
-  
-  .trip-type-badge {
-    display: inline-block;
-    margin-top: 12px;
-    padding: 4px 12px;
-    border-radius: 100px;
-    background-color: var(--color-grey-20);
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--color-grey-80);
-  }
-  
-  .carriers {
     font-size: 14px;
     color: var(--color-grey-60);
-    margin-top: 8px;
+    margin-top: 20px;
+    margin-bottom: 24px;
   }
   
-  /* CO2 emissions display */
-  .co2-info {
+  /* ===========================================
+     Banner CTA elements (rendered inside header-cta-area)
+     =========================================== */
+  
+  /* Trip type badge — white pill */
+  .banner-trip-type {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    margin-top: 8px;
-    padding: 4px 12px;
+    padding: 5px 14px;
     border-radius: 100px;
-    background-color: var(--color-grey-15, rgba(0, 0, 0, 0.05));
-    font-size: 12px;
-    color: var(--color-grey-60);
-  }
-  
-  .co2-info.co2-good {
-    background-color: rgba(34, 197, 94, 0.1);
-    color: var(--color-success, #16a34a);
-  }
-  
-  .co2-info.co2-bad {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: var(--color-error, #dc2626);
-  }
-  
-  .co2-value {
+    background-color: rgba(255, 255, 255, 0.2);
+    font-size: 13px;
     font-weight: 500;
+    color: white;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   
-  .co2-diff {
-    opacity: 0.8;
+  /* CO2 badge — green/neutral/red tint */
+  .banner-co2 {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 14px;
+    border-radius: 100px;
+    background-color: rgba(255, 255, 255, 0.15);
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  
+  .banner-co2.co2-good {
+    background-color: rgba(34, 197, 94, 0.35);
+    color: white;
+  }
+  
+  .banner-co2.co2-bad {
+    background-color: rgba(239, 68, 68, 0.35);
+    color: white;
   }
   
   /* CTA Booking Button — uses the standard primary button design.

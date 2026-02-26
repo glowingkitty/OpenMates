@@ -13,11 +13,10 @@
   2. url prop - Direct URL from embed content (from processing placeholder)
   
   Layout (per Figma design):
-  - File widget at top: shows website title with app icon
-  - "Full viewing experience:" label with "Open on {hostname}" CTA button
+  - Gradient banner header: title (page title), subtitle (word count), favicon
+  - Banner CTA: "Open on {hostname}" button at the bottom of the banner
   - "Text only preview, via Firecrawl: {wordCount} words" label
   - White content card with rendered markdown
-  - Bottom bar: web icon + text icon + "Read" / "Completed"
 -->
 
 <script lang="ts">
@@ -179,18 +178,9 @@
     'Web Read'
   );
   
-  // Truncated title for file widget (max ~40 chars)
-  let truncatedTitle = $derived(() => {
-    const title = displayTitle;
-    if (title.length > 40) {
-      return title.slice(0, 37) + '...';
-    }
-    return title;
-  });
-  
   // Favicon URL for display
   // Priority: result favicon > generated from URL > undefined
-  let faviconUrl = $derived(() => {
+  let faviconUrl = $derived.by(() => {
     if (firstResult?.favicon) {
       return firstResult.favicon;
     }
@@ -204,7 +194,7 @@
   /**
    * Calculate total word count across all results
    */
-  let totalWordCount = $derived(() => {
+  let totalWordCount = $derived.by(() => {
     let count = 0;
     for (const result of results) {
       if (result.markdown) {
@@ -230,7 +220,7 @@
       effectiveUrl,
       hostname,
       displayTitle,
-      wordCount: totalWordCount(),
+      wordCount: totalWordCount,
       hasPreviewData: !!previewData,
       hasUrlProp: !!urlProp,
       hasLocalResults: localResults.length > 0
@@ -434,8 +424,8 @@
   appId="web"
   skillId="read"
   embedHeaderTitle={displayTitle}
-  embedHeaderSubtitle={totalWordCount() > 0 ? `via Firecrawl: ${totalWordCount().toLocaleString()} words` : undefined}
-  embedHeaderFaviconUrl={faviconUrl()}
+  embedHeaderSubtitle={totalWordCount > 0 ? `via Firecrawl: ${totalWordCount.toLocaleString()} words` : undefined}
+  embedHeaderFaviconUrl={faviconUrl}
   skillIconName="text"
   showSkillIcon={true}
   {onClose}
@@ -448,46 +438,26 @@
   {showChatButton}
   {onShowChat}
 >
+  {#snippet embedHeaderCta()}
+    <!-- CTA Button: "Open on {hostname}" — shown inside the banner when URL is known -->
+    {#if effectiveUrl}
+      <button
+        class="web-read-cta-button"
+        onclick={handleOpenWebsite}
+        type="button"
+      >
+        {openButtonText}
+      </button>
+    {/if}
+  {/snippet}
+
   {#snippet content()}
     <div class="web-read-fullscreen-content">
-      <!-- File widget showing website title (mini preview) -->
-      <div class="file-widget">
-        <div class="file-widget-icon">
-          <div class="icon_rounded web"></div>
-        </div>
-        {#if faviconUrl()}
-          <img 
-            src={faviconUrl()} 
-            alt="" 
-            class="file-widget-favicon"
-            crossorigin="anonymous"
-            onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          />
-        {/if}
-        <div class="file-widget-title">{truncatedTitle()}</div>
-      </div>
-      
-      <!-- Show "Full viewing experience" and open button only if we have a URL -->
-      {#if effectiveUrl}
-        <!-- "Full viewing experience:" label -->
-        <div class="full-view-label">
-          {$text('embeds.web_read_full_view')}
-        </div>
-        
-        <!-- CTA Button: "Open on {hostname}" -->
-        <button 
-          onclick={handleOpenWebsite}
-          type="button"
-        >
-          {openButtonText}
-        </button>
-      {/if}
-      
       <!-- "Text only preview, via Firecrawl: X words" label - only show if we have content -->
-      {#if totalWordCount() > 0}
+      {#if totalWordCount > 0}
         <div class="text-preview-label">
           <span>{$text('embeds.web_read_text_preview')}</span>
-          <span>via Firecrawl: {totalWordCount().toLocaleString()} words</span>
+          <span>via Firecrawl: {totalWordCount.toLocaleString()} words</span>
         </div>
       {/if}
       
@@ -548,81 +518,37 @@
   }
   
   /* ===========================================
-     File Widget (mini preview at top)
+     Banner CTA Button ("Open on {hostname}")
      =========================================== */
-  
-  .file-widget {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background-color: var(--color-grey-30);
-    border-radius: 30px;
-    height: 61px;
-    padding: 0 20px 0 0;
-    max-width: 300px;
-    width: 100%;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    margin-bottom: 24px;
-  }
-  
-  .file-widget-icon {
-    width: 61px;
-    height: 61px;
-    min-width: 61px;
-    border-radius: 50%;
-    background: var(--color-app-web);
-    display: flex;
+
+  .web-read-cta-button {
+    background-color: var(--color-button-primary);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 12px 30px;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+    min-width: 200px;
+    height: 46px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
   }
-  
-  .file-widget-icon .icon_rounded {
-    width: 26px;
-    height: 26px;
-    position: relative;
-    bottom: auto;
-    left: auto;
-    background: transparent !important;
+
+  .web-read-cta-button:hover {
+    background-color: var(--color-button-primary-hover);
+    scale: 1.02;
   }
-  
-  .file-widget-icon .icon_rounded::after {
-    filter: brightness(0) invert(1);
-  }
-  
-  .file-widget-favicon {
-    width: 19px;
-    height: 19px;
-    min-width: 19px;
-    border-radius: 9.5px;
-    border: 1px solid white;
-    background-color: white;
-    object-fit: cover;
-    flex-shrink: 0;
-  }
-  
-  .file-widget-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    min-width: 0;
-  }
-  
-  /* ===========================================
-     Full View Label and CTA Button
-     =========================================== */
-  
-  .full-view-label {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--color-grey-70);
-    text-align: center;
-    margin-bottom: 12px;
+
+  .web-read-cta-button:active {
+    background-color: var(--color-button-primary-pressed);
+    scale: 0.98;
+    filter: none;
   }
   /* ===========================================
      Text Preview Label
@@ -825,10 +751,6 @@
   @container fullscreen (max-width: 500px) {
     .web-read-fullscreen-content {
       padding-top: 16px;
-    }
-    
-    .file-widget {
-      max-width: 280px;
     }
     
     .content-card {
