@@ -281,6 +281,112 @@ Results are written to `test-results/run-<timestamp>.json` and
 
 ---
 
+## Sequential Test Debugging Workflow (`scripts/run-tests-sequential.sh`)
+
+A lightweight script for running Playwright specs **one at a time** with progress tracking.
+Designed for iterative debugging: run a test, if it passes continue, if it fails debug with
+Firecrawl browser, fix, re-run, repeat.
+
+### Quick Reference
+
+```bash
+# Check progress (how many passed/failed/remaining)
+./scripts/run-tests-sequential.sh --status
+
+# Run the next unprocessed spec
+./scripts/run-tests-sequential.sh --next
+
+# Run a specific spec (shorthand without .spec.ts works too)
+./scripts/run-tests-sequential.sh --spec chat-flow
+./scripts/run-tests-sequential.sh --spec chat-flow.spec.ts
+
+# Use a specific test account slot (default: 1)
+./scripts/run-tests-sequential.sh --next --slot 2
+
+# Manually mark a spec (passed/failed/skipped)
+./scripts/run-tests-sequential.sh --mark chat-flow passed
+./scripts/run-tests-sequential.sh --mark signup-flow skipped
+
+# Start over
+./scripts/run-tests-sequential.sh --reset
+```
+
+### Progress Tracking
+
+Results are tracked in `test-results/progress.txt` (gitignored). Format:
+
+```
+PASSED chat-flow.spec.ts
+FAILED signup-flow.spec.ts
+SKIPPED dev-preview.spec.ts
+```
+
+- **`--next`** picks the first spec (alphabetically) not yet in the progress file
+- When a spec **passes**, it is auto-recorded as `PASSED` and `--next` advances
+- When a spec **fails**, it is recorded as `FAILED` and the script stops with debug instructions
+- Re-running a spec (via `--spec` or `--mark`) **overwrites** its previous entry
+
+### Debug Workflow (When a Spec Fails)
+
+**CRITICAL: Follow this exact sequence. Do NOT just edit the spec blindly.**
+
+1. **Reproduce in Firecrawl browser** — create a browser session and manually walk through the
+   user flow that the spec tests. This reveals what the actual app state looks like:
+
+   ```
+   → firecrawl_browser_create
+   → agent-browser open https://app.dev.openmates.org
+   → agent-browser snapshot -i -c    (inspect interactive elements)
+   → Walk through each test step manually (login, navigate, click, type, etc.)
+   → agent-browser screenshot         (capture what you see)
+   ```
+
+2. **Identify the root cause** — common causes of spec failures:
+   - **Selector changed**: A CSS class, `data-testid`, or DOM structure was modified
+   - **Timing issue**: An element takes longer to appear than the test expects
+   - **Backend change**: An API response format changed or a new field is required
+   - **UI flow changed**: A new modal, redirect, or step was added to the user flow
+   - **Environment issue**: Test credentials expired, deployment not ready, etc.
+
+3. **Fix the root cause** — either:
+   - Fix the **app code** if the spec is testing correct behavior that broke
+   - Fix the **spec file** if the app behavior is correct but the test is stale
+
+4. **Verify the fix in Firecrawl first** — re-walk the flow to confirm it works before
+   running the full Playwright spec (which takes longer due to Docker overhead)
+
+5. **Re-run the spec**:
+
+   ```bash
+   ./scripts/run-tests-sequential.sh --spec <failed-spec-name>
+   ```
+
+6. **Continue to next** once it passes:
+   ```bash
+   ./scripts/run-tests-sequential.sh --next
+   ```
+
+### When to Use `--mark`
+
+- **`--mark <spec> skipped`**: Skip a spec that's known-broken for reasons outside your scope
+  (e.g., depends on a third-party service that's down). Come back to it later.
+- **`--mark <spec> passed`**: Manually mark as passed if you've verified it works outside the
+  script (e.g., ran it via `docker compose` directly).
+- **`--mark <spec> failed`**: Record a failure without re-running (e.g., you know it's broken
+  from a previous session).
+
+### Relationship to `run-tests.sh`
+
+|                 | `run-tests.sh`                      | `run-tests-sequential.sh`               |
+| --------------- | ----------------------------------- | --------------------------------------- |
+| **Purpose**     | Full suite run (CI/pre-PR gate)     | One-at-a-time debug workflow            |
+| **Parallelism** | Up to 5 workers                     | Single spec, single slot                |
+| **Output**      | `test-results/last-run.json` (JSON) | `test-results/progress.txt` (text)      |
+| **Best for**    | Final validation                    | Iterative debugging and fixing          |
+| **On failure**  | Records all results, exits          | Stops with Firecrawl debug instructions |
+
+---
+
 ## Pre-PR Test Checklist (CRITICAL — before any dev → main PR)
 
 Before creating a PR from `dev` to `main`, you **MUST**:
