@@ -128,6 +128,7 @@
         setDraftContent: (chatId: string | undefined, content: TiptapJSON | string | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
         setOriginalMarkdown?: (markdown: string) => void;
+        setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
         getTextContent: () => string;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
@@ -5873,9 +5874,84 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // The currentChat object should have been populated with encrypted_draft_md and draft_v
                 // by the time it's passed to this function or fetched by chatDB.getChat().
                 const encryptedDraftMd = currentChat?.encrypted_draft_md;
+                const encryptedDraftPreview = currentChat?.encrypted_draft_preview;
                 const draftVersion = currentChat?.draft_v;
 
-                if (encryptedDraftMd) {
+                // Check if we have draft content via preview even if markdown is empty.
+                // This happens when draft has only embeds (like images) that serialized to empty markdown
+                // but the preview was correctly saved with "[Image]" token.
+                const hasDraftPreview = !!(encryptedDraftPreview && encryptedDraftPreview.trim().length > 0);
+                const hasEmptyMarkdownDraft = encryptedDraftMd === '' || encryptedDraftMd === null || encryptedDraftMd === undefined;
+
+                if (hasEmptyMarkdownDraft && hasDraftPreview) {
+                    // Draft has content (shown as "[Image]" in preview) but markdown is empty
+                    // due to serialization returning "" for embeds without contentRef at save time.
+                    // Load embeds from EmbedStore and reconstruct the TipTap JSON.
+                    console.debug(`[ActiveChat] Draft has empty markdown but preview exists ("${encryptedDraftPreview}") - reconstructing from EmbedStore for chat ${currentChat.chat_id}`);
+                    
+                    try {
+                        // Import EmbedStore and computeSHA256
+                        const { embedStore } = await import('../services/embedStore');
+                        const { computeSHA256 } = await import('../message_parsing/utils');
+                        
+                        const hashedChatId = await computeSHA256(currentChat.chat_id);
+                        const chatEmbeds = await embedStore.getEmbedsByHashedChatId(hashedChatId);
+                        
+                        if (chatEmbeds && chatEmbeds.length > 0) {
+                            // Reconstruct TipTap JSON with embed nodes
+                            const embedNodes = [];
+                            for (const embed of chatEmbeds) {
+                                if (embed.embed_id) {
+                                    embedNodes.push({
+                                        type: 'embed',
+                                        attrs: {
+                                            type: embed.type || 'image',
+                                            contentRef: `embed:${embed.embed_id}`,
+                                        },
+                                    });
+                                }
+                            }
+                            
+                            if (embedNodes.length > 0) {
+                                const draftContentJSON = {
+                                    type: 'doc',
+                                    content: embedNodes,
+                                };
+                                
+                                console.debug(`[ActiveChat] Reconstructed ${embedNodes.length} embed nodes from EmbedStore for chat ${currentChat.chat_id}`);
+                                
+                                if (messageInputFieldRef) {
+                                    setTimeout(() => {
+                                        messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion || 1, false);
+                                    }, 50);
+                                }
+                            } else {
+                                // No embeds found in store, just set context
+                                if (messageInputFieldRef) {
+                                    setTimeout(() => {
+                                        messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
+                                    }, 50);
+                                }
+                            }
+                        } else {
+                            // No embeds in store, just set context
+                            console.debug(`[ActiveChat] No embeds found in EmbedStore for chat ${currentChat.chat_id}, setting context only`);
+                            if (messageInputFieldRef) {
+                                setTimeout(() => {
+                                    messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
+                                }, 50);
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`[ActiveChat] Error reconstructing draft from EmbedStore:`, error);
+                        // Fallback: just set context
+                        if (messageInputFieldRef) {
+                            setTimeout(() => {
+                                messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
+                            }, 50);
+                        }
+                    }
+                } else if (encryptedDraftMd) {
                     console.debug(`[ActiveChat] Loading current user's encrypted draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
                     
                     // Decrypt the draft content and convert to TipTap JSON
