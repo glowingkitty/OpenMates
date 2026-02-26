@@ -533,7 +533,13 @@
                     last_messages_html: lastMessagesHtml,
                     active_chat_sidebar_html: activeChatSidebarHtml,
                     runtime_debug_state: runtimeDebugState,
-                    action_history: actionHistory
+                    action_history: actionHistory,
+                    // Screenshot PNG captured via getDisplayMedia() — only sent for authenticated users.
+                    // The data URI prefix ("data:image/png;base64,") is stripped server-side.
+                    // Null if no screenshot was captured or user is a guest.
+                    screenshot_png_base64: ($authStore.isAuthenticated && screenshotDataUrl)
+                        ? screenshotDataUrl
+                        : null
                 }),
                 credentials: 'include'
             });
@@ -712,6 +718,111 @@
         }
     }
     
+    // ===================== SCREENSHOT CAPTURE =====================
+    // Screenshot state — only available for authenticated users.
+    // getDisplayMedia() requires browser permission; the PNG is sent as base64 in the JSON payload.
+
+    /** Base64 PNG data URL (includes "data:image/png;base64," prefix) or null if not captured */
+    let screenshotDataUrl = $state<string | null>(null);
+    /** True while the getDisplayMedia dialog is open / frame is being captured */
+    let isCapturingScreenshot = $state(false);
+    /** Human-readable capture error shown below the screenshot button */
+    let screenshotError = $state('');
+
+    /**
+     * Capture the current screen using the native Screen Capture API (getDisplayMedia).
+     *
+     * Flow:
+     *  1. Call getDisplayMedia — browser shows a screen/tab picker dialog.
+     *  2. Grab one video frame from the returned MediaStream.
+     *  3. Draw the frame onto a hidden <canvas> and export as PNG data URL.
+     *  4. Stop all tracks immediately to close the browser's capture indicator.
+     *  5. Store the PNG in screenshotDataUrl for preview and later submission.
+     */
+    async function captureScreenshot() {
+        screenshotError = '';
+        isCapturingScreenshot = true;
+
+        let stream: MediaStream | null = null;
+        try {
+            // preferCurrentTab is a Chrome 107+ hint to pre-select the current tab.
+            // Other browsers ignore it and show the standard full picker.
+            // We cast to any to avoid TS errors on the non-standard extensions.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            stream = await (navigator.mediaDevices as any).getDisplayMedia({
+                video: { displaySurface: 'browser', frameRate: 1 },
+                audio: false,
+                preferCurrentTab: true
+            });
+
+            const track = stream!.getVideoTracks()[0];
+            if (!track) throw new Error('No video track in screen capture stream');
+
+            let png: string;
+
+            // Use ImageCapture API (Chrome/Edge) if available — cleaner than a <video> element
+            if (typeof ImageCapture !== 'undefined') {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const ic = new (ImageCapture as any)(track);
+                const bitmap = await ic.grabFrame();
+                const canvas = document.createElement('canvas');
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                const ctx = canvas.getContext('2d')!;
+                ctx.drawImage(bitmap, 0, 0);
+                bitmap.close();
+                png = canvas.toDataURL('image/png');
+            } else {
+                // Fallback: attach stream to a hidden <video> element, then draw one frame
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.muted = true;
+                video.srcObject = stream;
+                await new Promise<void>((resolve, reject) => {
+                    video.onloadedmetadata = () => void video.play().then(resolve).catch(reject);
+                    video.onerror = () => reject(new Error('Video load error'));
+                    setTimeout(() => reject(new Error('Video load timeout')), 5000);
+                });
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 1280;
+                canvas.height = video.videoHeight || 720;
+                canvas.getContext('2d')!.drawImage(video, 0, 0);
+                video.srcObject = null;
+                png = canvas.toDataURL('image/png');
+            }
+
+            // Reject if the estimated decoded size exceeds 2 MB
+            const estimatedBytes = Math.round(png.length * 0.75);
+            if (estimatedBytes > 2 * 1024 * 1024) {
+                screenshotError = $text('settings.report_issue.screenshot_size_too_large');
+                screenshotDataUrl = null;
+            } else {
+                screenshotDataUrl = png;
+                console.debug(
+                    `[SettingsReportIssue] Screenshot captured: ~${Math.round(estimatedBytes / 1024)} KB PNG`
+                );
+            }
+        } catch (error: unknown) {
+            const err = error as { name?: string };
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                screenshotError = $text('settings.report_issue.screenshot_permission_denied');
+            } else {
+                screenshotError = $text('settings.report_issue.screenshot_capture_failed');
+                console.warn('[SettingsReportIssue] Screenshot capture failed:', error);
+            }
+        } finally {
+            // Always stop the stream to close the browser's screen-share indicator
+            stream?.getTracks().forEach(t => t.stop());
+            isCapturingScreenshot = false;
+        }
+    }
+
+    /** Remove the attached screenshot and clear any error. */
+    function removeScreenshot() {
+        screenshotDataUrl = null;
+        screenshotError = '';
+    }
+
     // State for copy debug info button
     let isCopyingDebugInfo = $state(false);
     let copyDebugInfoSuccess = $state(false);
@@ -980,7 +1091,49 @@
                 <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
             </div>
         {/if}
-        
+
+        <!-- Screenshot Capture — authenticated users only -->
+        {#if $authStore.isAuthenticated}
+            <div class="input-group screenshot-section">
+                <p class="input-label">{$text('settings.report_issue.screenshot_label')}</p>
+                <p class="input-hint">{$text('settings.report_issue.screenshot_hint')}</p>
+
+                {#if screenshotDataUrl}
+                    <!-- Preview + remove -->
+                    <div class="screenshot-preview-wrapper">
+                        <img
+                            src={screenshotDataUrl}
+                            alt={$text('settings.report_issue.screenshot_preview_alt')}
+                            class="screenshot-preview"
+                        />
+                        <button
+                            type="button"
+                            class="screenshot-remove-btn"
+                            onclick={removeScreenshot}
+                            disabled={isSubmitting}
+                        >
+                            {$text('settings.report_issue.screenshot_remove')}
+                        </button>
+                    </div>
+                {:else}
+                    <button
+                        type="button"
+                        class="screenshot-capture-btn"
+                        onclick={captureScreenshot}
+                        disabled={isCapturingScreenshot || isSubmitting}
+                    >
+                        {isCapturingScreenshot
+                            ? $text('settings.report_issue.screenshot_capturing')
+                            : $text('settings.report_issue.screenshot_capture_button')}
+                    </button>
+                {/if}
+
+                {#if screenshotError}
+                    <p class="screenshot-error">{screenshotError}</p>
+                {/if}
+            </div>
+        {/if}
+
         <!-- Signal Group Reminder -->
         <div class="signal-reminder">
             <p class="reminder-text">
@@ -1125,10 +1278,12 @@
         gap: 8px;
     }
     
-    .input-group label {
+    .input-group label,
+    .input-label {
         font-size: 14px;
         font-weight: 500;
         color: var(--color-font-primary);
+        margin: 0;
     }
     
     .input-hint {
@@ -1521,5 +1676,73 @@
         flex-shrink: 0;
         opacity: 0.7;
         font-size: 10px;
+    }
+
+    /* ===================== SCREENSHOT SECTION ===================== */
+
+    .screenshot-section {
+        gap: 8px;
+    }
+
+    .screenshot-capture-btn {
+        align-self: flex-start;
+        padding: 8px 16px;
+        border: 1px solid var(--color-border, #ccc);
+        border-radius: var(--border-radius-md, 6px);
+        background: var(--color-surface-2, #f5f5f5);
+        color: var(--color-text, #222);
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .screenshot-capture-btn:hover:not(:disabled) {
+        background: var(--color-surface-3, #e8e8e8);
+    }
+
+    .screenshot-capture-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .screenshot-preview-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+
+    .screenshot-preview {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: var(--border-radius-md, 6px);
+        border: 1px solid var(--color-border, #ccc);
+        object-fit: contain;
+    }
+
+    .screenshot-remove-btn {
+        padding: 6px 12px;
+        border: 1px solid var(--color-danger, #e53935);
+        border-radius: var(--border-radius-md, 6px);
+        background: transparent;
+        color: var(--color-danger, #e53935);
+        font-size: 13px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .screenshot-remove-btn:hover:not(:disabled) {
+        background: rgba(229, 57, 53, 0.08);
+    }
+
+    .screenshot-remove-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .screenshot-error {
+        font-size: 13px;
+        color: var(--color-danger, #e53935);
+        margin: 0;
     }
 </style>

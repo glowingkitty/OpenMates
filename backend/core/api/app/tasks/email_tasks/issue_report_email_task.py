@@ -52,7 +52,8 @@ def send_issue_report_email(
     last_messages_html: Optional[str] = None,
     active_chat_sidebar_html: Optional[str] = None,
     runtime_debug_state: Optional[str] = None,
-    action_history: Optional[str] = None
+    action_history: Optional[str] = None,
+    screenshot_presigned_url: Optional[str] = None
 ) -> bool:
     """
     Celery task to send issue report email to server owner/admin.
@@ -90,7 +91,8 @@ def send_issue_report_email(
             _async_send_issue_report_email(
                 self, admin_email, issue_id, issue_title, issue_description,
                 chat_or_embed_url, contact_email, language, timestamp, estimated_location, device_info, console_logs,
-                indexeddb_report, last_messages_html, active_chat_sidebar_html, runtime_debug_state, action_history
+                indexeddb_report, last_messages_html, active_chat_sidebar_html, runtime_debug_state, action_history,
+                screenshot_presigned_url
             )
         )
         if result:
@@ -235,7 +237,8 @@ async def _async_send_issue_report_email(
     last_messages_html: Optional[str] = None,
     active_chat_sidebar_html: Optional[str] = None,
     runtime_debug_state: Optional[str] = None,
-    action_history: Optional[str] = None
+    action_history: Optional[str] = None,
+    screenshot_presigned_url: Optional[str] = None
 ) -> bool:
     """
     Async implementation for sending issue report email.
@@ -349,7 +352,11 @@ async def _async_send_issue_report_email(
                 # User-action history: last 20 interactions (button names / navigation only)
                 # NO user-typed text content is ever included — only developer-authored labels
                 # (data-action attrs, aria-labels, placeholder text, class names)
-                'action_history': action_history.strip() if action_history and action_history.strip() else None
+                'action_history': action_history.strip() if action_history and action_history.strip() else None,
+                # Pre-signed URL for the screenshot PNG (valid 7 days from report time).
+                # The image is stored unencrypted in the private issue_logs S3 bucket so
+                # admins and LLMs can load it directly without any decryption step.
+                'screenshot_presigned_url': screenshot_presigned_url if screenshot_presigned_url else None
             }
         }
 
@@ -449,7 +456,10 @@ async def _async_send_issue_report_email(
             "contact_email": contact_email_formatted,
             "timestamp": timestamp,
             "estimated_location": estimated_location,
-            "device_info": device_info_formatted
+            "device_info": device_info_formatted,
+            # Pre-signed URL for the screenshot PNG — included in the email so admins
+            # and LLMs can view the screenshot directly without needing the inspect script.
+            "screenshot_presigned_url": screenshot_presigned_url if screenshot_presigned_url else None
         }
         logger.info("Prepared email context for issue report")
         

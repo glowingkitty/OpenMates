@@ -293,6 +293,57 @@ async def decrypt_issue_fields(
     return decrypted
 
 
+async def get_screenshot_presigned_url(
+    encryption_service: EncryptionService,
+    s3_service: S3UploadService,
+    issue: Dict[str, Any],
+    expiration: int = 7 * 24 * 3600,
+) -> Optional[str]:
+    """
+    Decrypt the screenshot S3 key and generate a fresh pre-signed URL.
+
+    The screenshot PNG is stored unencrypted in the issue_logs bucket so it can be
+    viewed directly — only the S3 key itself is encrypted in Directus.
+
+    Args:
+        encryption_service: EncryptionService instance
+        s3_service: S3UploadService instance (initialized)
+        issue: Raw issue dictionary from Directus
+        expiration: Pre-signed URL expiry in seconds (default: 7 days)
+
+    Returns:
+        Pre-signed URL string, or None if no screenshot or on error
+    """
+    if not issue.get('encrypted_screenshot_s3_key'):
+        return None
+
+    try:
+        # Decrypt the S3 object key
+        screenshot_s3_key = await encryption_service.decrypt_issue_report_data(
+            issue['encrypted_screenshot_s3_key']
+        )
+        if not screenshot_s3_key:
+            script_logger.warning("Failed to decrypt screenshot S3 key (returned None)")
+            return None
+
+        # Get environment-specific bucket name
+        environment = os.getenv('SERVER_ENVIRONMENT', 'development')
+        bucket_name = get_bucket_name('issue_logs', environment)
+
+        # Generate a fresh pre-signed URL (7 days by default)
+        presigned_url = s3_service.generate_presigned_url(
+            bucket_name=bucket_name,
+            file_key=screenshot_s3_key,
+            expiration=expiration
+        )
+        script_logger.debug(f"Generated pre-signed URL for screenshot: {screenshot_s3_key}")
+        return presigned_url
+
+    except Exception as e:
+        script_logger.error(f"Error generating screenshot pre-signed URL: {e}", exc_info=True)
+        return None
+
+
 async def delete_issue(
     directus_service: DirectusService,
     encryption_service: EncryptionService,
@@ -302,6 +353,9 @@ async def delete_issue(
 ) -> tuple[bool, str]:
     """
     Delete an issue from Directus and S3.
+
+    Deletes both the YAML report (encrypted) and the screenshot PNG (unencrypted)
+    from the issue_logs S3 bucket, then removes the Directus record.
 
     Args:
         directus_service: DirectusService instance (must support admin for delete_item)
@@ -318,7 +372,7 @@ async def delete_issue(
 
     deleted_from_s3 = False
 
-    # Delete from S3 if key exists
+    # Delete YAML report from S3 if key exists
     if issue.get("encrypted_issue_report_yaml_s3_key") and s3_service:
         try:
             s3_object_key = await encryption_service.decrypt_issue_report_data(
@@ -327,9 +381,21 @@ async def delete_issue(
             if s3_object_key:
                 await s3_service.delete_file(bucket_key="issue_logs", file_key=s3_object_key)
                 deleted_from_s3 = True
-                script_logger.info(f"Deleted S3 file for issue {issue_id}: {s3_object_key}")
+                script_logger.info(f"Deleted S3 YAML file for issue {issue_id}: {s3_object_key}")
         except Exception as e:
-            script_logger.warning(f"Failed to delete S3 file for issue {issue_id}: {e}")
+            script_logger.warning(f"Failed to delete S3 YAML file for issue {issue_id}: {e}")
+
+    # Delete screenshot PNG from S3 if key exists
+    if issue.get("encrypted_screenshot_s3_key") and s3_service:
+        try:
+            screenshot_s3_key = await encryption_service.decrypt_issue_report_data(
+                issue["encrypted_screenshot_s3_key"]
+            )
+            if screenshot_s3_key:
+                await s3_service.delete_file(bucket_key="issue_logs", file_key=screenshot_s3_key)
+                script_logger.info(f"Deleted S3 screenshot for issue {issue_id}: {screenshot_s3_key}")
+        except Exception as e:
+            script_logger.warning(f"Failed to delete S3 screenshot for issue {issue_id}: {e}")
 
     # Delete from Directus (admin required)
     try:
@@ -553,6 +619,10 @@ def format_list_output(
             has_s3 = "✓" if issue.get('encrypted_issue_report_yaml_s3_key') else "✗"
             lines.append(f"       S3 Report: {has_s3}")
 
+            # Show if screenshot exists
+            has_screenshot = "✓" if issue.get('encrypted_screenshot_s3_key') else "✗"
+            lines.append(f"       Screenshot: {has_screenshot}")
+
     lines.append("")
     lines.append("=" * 100)
     lines.append("")
@@ -565,7 +635,8 @@ def format_detail_output(
     issue: Optional[Dict[str, Any]],
     decrypted: Dict[str, Optional[str]],
     s3_report: Optional[Dict[str, Any]],
-    full_logs: bool = False
+    full_logs: bool = False,
+    screenshot_presigned_url: Optional[str] = None
 ) -> str:
     """
     Format the issue inspection results as human-readable text.
@@ -626,6 +697,7 @@ def format_detail_output(
             ('encrypted_estimated_location', 'Estimated Location'),
             ('encrypted_device_info', 'Device Info'),
             ('encrypted_issue_report_yaml_s3_key', 'S3 Report Key'),
+            ('encrypted_screenshot_s3_key', 'Screenshot S3 Key'),
         ]
 
         lines.append("  Encrypted Fields Present:")
@@ -671,6 +743,18 @@ def format_detail_output(
             lines.append(f"  💻 Device Info:        {truncate_string(device_info, 200)}")
         else:
             lines.append("  💻 Device Info:        N/A (not provided)")
+
+        # Screenshot — display a fresh pre-signed URL so Claude/admin can view the image directly.
+        # The URL is generated by the caller (main()) and passed in as screenshot_presigned_url.
+        # It expires in 7 days.
+        if screenshot_presigned_url:
+            lines.append("")
+            lines.append("  🖼  SCREENSHOT (pre-signed URL, valid 7 days from now):")
+            lines.append(f"      {screenshot_presigned_url}")
+        elif issue.get('encrypted_screenshot_s3_key'):
+            lines.append("  🖼  SCREENSHOT:         S3 key exists but pre-signed URL generation failed")
+        else:
+            lines.append("  🖼  SCREENSHOT:         N/A (not attached)")
 
     # ===================== FULL DESCRIPTION =====================
     # Show full description if it's longer than the truncated version above
@@ -814,6 +898,16 @@ def format_detail_output(
             for action_line in str(action_history).split('\n'):
                 lines.append(f"    {action_line}")
 
+        # Screenshot pre-signed URL from YAML report
+        # (also shown in DECRYPTED FIELDS above from a freshly generated URL)
+        screenshot_url_in_yaml = report.get('screenshot_presigned_url')
+        if screenshot_url_in_yaml:
+            lines.append("")
+            lines.append("  SCREENSHOT URL (from YAML report — may have expired):")
+            lines.append("  " + "-" * 60)
+            lines.append(f"    {screenshot_url_in_yaml}")
+            lines.append("    Note: Use the pre-signed URL in DECRYPTED FIELDS for a fresh 7-day link.")
+
         # Last messages HTML section (rendered HTML of last user message + assistant response)
         last_messages_html = report.get('last_messages_html')
         if last_messages_html:
@@ -839,7 +933,8 @@ def format_detail_json(
     issue_id: str,
     issue: Optional[Dict[str, Any]],
     decrypted: Dict[str, Optional[str]],
-    s3_report: Optional[Dict[str, Any]]
+    s3_report: Optional[Dict[str, Any]],
+    screenshot_presigned_url: Optional[str] = None
 ) -> str:
     """
     Format the issue inspection results as JSON.
@@ -873,7 +968,10 @@ def format_detail_json(
         'generated_at': datetime.now().isoformat(),
         'issue_metadata': issue,
         'decrypted_fields': censored_decrypted,
-        's3_report': censored_s3_report
+        's3_report': censored_s3_report,
+        # Fresh 7-day pre-signed URL for the screenshot PNG (if attached).
+        # Load this URL directly to view the screenshot image.
+        'screenshot_presigned_url': screenshot_presigned_url
     }
 
     return json.dumps(output, indent=2, default=str)
@@ -1029,8 +1127,8 @@ async def main():
                     else:
                         script_logger.error("Use --yes to confirm deletion (required when not running interactively).")
                         sys.exit(1)
-                # Init S3 if issue has S3 key (needed for delete_issue)
-                if issue.get("encrypted_issue_report_yaml_s3_key"):
+                # Init S3 if issue has any S3 key (YAML report or screenshot)
+                if issue.get("encrypted_issue_report_yaml_s3_key") or issue.get("encrypted_screenshot_s3_key"):
                     try:
                         await secrets_manager.initialize()
                         s3_service = S3UploadService(secrets_manager=secrets_manager)
@@ -1055,23 +1153,46 @@ async def main():
             if issue:
                 decrypted = await decrypt_issue_fields(encryption_service, issue)
 
-            # 3. Fetch S3 report (if not skipped and issue has an S3 key)
+            # 3. Fetch S3 report and generate screenshot pre-signed URL (if applicable)
             s3_report = None
-            if not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
-                script_logger.info("Fetching S3 YAML report...")
+            screenshot_presigned_url: Optional[str] = None
+            needs_s3 = (
+                (not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'))
+                or (issue and issue.get('encrypted_screenshot_s3_key'))
+            )
+            if needs_s3:
+                script_logger.info("Initializing S3 service for report/screenshot...")
                 try:
                     await secrets_manager.initialize()
                     s3_service = S3UploadService(secrets_manager=secrets_manager)
                     await s3_service.initialize()
-                    s3_report = await fetch_s3_report(encryption_service, s3_service, issue)
+
+                    # Fetch YAML report (unless --no-logs)
+                    if not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
+                        script_logger.info("Fetching S3 YAML report...")
+                        s3_report = await fetch_s3_report(encryption_service, s3_service, issue)
+
+                    # Generate fresh 7-day pre-signed URL for the screenshot PNG
+                    if issue and issue.get('encrypted_screenshot_s3_key'):
+                        script_logger.info("Generating screenshot pre-signed URL...")
+                        screenshot_presigned_url = await get_screenshot_presigned_url(
+                            encryption_service, s3_service, issue
+                        )
                 except Exception as e:
                     script_logger.warning(f"Failed to initialize S3 service: {e}")
 
             # 4. Format and output results
             if args.json:
-                print(format_detail_json(args.issue_id, issue, decrypted, s3_report))
+                print(format_detail_json(
+                    args.issue_id, issue, decrypted, s3_report,
+                    screenshot_presigned_url=screenshot_presigned_url
+                ))
             else:
-                print(format_detail_output(args.issue_id, issue, decrypted, s3_report, full_logs=args.full_logs))
+                print(format_detail_output(
+                    args.issue_id, issue, decrypted, s3_report,
+                    full_logs=args.full_logs,
+                    screenshot_presigned_url=screenshot_presigned_url
+                ))
 
     except Exception as e:
         script_logger.error(f"Error during inspection: {e}", exc_info=True)

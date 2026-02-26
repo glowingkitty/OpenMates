@@ -2091,6 +2091,15 @@ class IssueReportRequest(BaseModel):
     active_chat_sidebar_html: Optional[str] = Field(None, max_length=100000, description="outerHTML of the active chat entry in the sidebar (Chat.svelte) at the time of report — captures title, status label, typing indicator, and category icon state")
     runtime_debug_state: Optional[dict] = Field(None, description="Runtime state snapshot: WebSocket status, online status, AI typing status, pending uploads, phased sync state")
     action_history: Optional[str] = Field(None, max_length=5000, description="Last 20 user-action history entries (button names, navigation — no text content entered by user)")
+    screenshot_png_base64: Optional[str] = Field(
+        None,
+        max_length=3_000_000,  # ~2.25 MB PNG (base64 overhead ≈ 33%)
+        description=(
+            "Base64-encoded PNG screenshot of the current tab captured via getDisplayMedia(). "
+            "Stored unencrypted in the issue_logs S3 bucket so admins and LLMs can view it directly "
+            "via a pre-signed URL. Only available for authenticated users."
+        )
+    )
 
 
 class IssueReportResponse(BaseModel):
@@ -2312,8 +2321,85 @@ async def report_issue(
             except Exception as _e:
                 logger.warning(f"Failed to serialise runtime_debug_state: {_e}")
 
-        # Encrypt sensitive fields for database storage (server-side encryption)
+        # Retrieve encryption service early — needed for both screenshot key encryption
+        # and the regular field encryption block below.
         encryption_service: EncryptionService = request.app.state.encryption_service
+
+        # Process screenshot PNG if provided.
+        # The frontend sends a base64-encoded PNG captured via getDisplayMedia() (authenticated users only).
+        # We store it unencrypted in the issue_logs S3 bucket so admins and LLMs can view it via
+        # a pre-signed URL without any decryption step. The S3 key is stored encrypted in Directus.
+        screenshot_presigned_url: Optional[str] = None
+        encrypted_screenshot_s3_key: Optional[str] = None
+
+        if issue_data.screenshot_png_base64 and current_user:
+            # Only process screenshots from authenticated users (unauthenticated users cannot attach screenshots)
+            try:
+                import base64 as _base64
+                import uuid as _uuid
+                from datetime import datetime as _dt, timezone as _tz
+
+                # Decode base64 → PNG bytes
+                # Strip the data URI prefix if the browser included it (e.g. "data:image/png;base64,...")
+                raw_b64 = issue_data.screenshot_png_base64.strip()
+                if raw_b64.startswith('data:'):
+                    raw_b64 = raw_b64.split(',', 1)[1]
+                screenshot_bytes = _base64.b64decode(raw_b64)
+
+                # Basic size guard (2 MB decoded)
+                if len(screenshot_bytes) > 2 * 1024 * 1024:
+                    logger.warning(
+                        f"Screenshot too large ({len(screenshot_bytes)} bytes) — skipping upload"
+                    )
+                else:
+                    # Upload unencrypted PNG to the issue_logs S3 bucket.
+                    # The bucket is private, so only pre-signed URLs can access the file.
+                    s3_service = request.app.state.s3_service
+                    timestamp_str = _dt.now(_tz.utc).strftime('%Y%m%d_%H%M%S')
+                    unique_id = _uuid.uuid4().hex[:8]
+                    screenshot_s3_key = f"issue-screenshots/{timestamp_str}_{unique_id}.png"
+
+                    await s3_service.upload_file(
+                        bucket_key='issue_logs',
+                        file_key=screenshot_s3_key,
+                        content=screenshot_bytes,
+                        content_type='image/png'
+                    )
+                    logger.info(
+                        f"Uploaded screenshot PNG to S3: {screenshot_s3_key} "
+                        f"({len(screenshot_bytes)} bytes)"
+                    )
+
+                    # Generate a 7-day pre-signed URL for immediate use in the email / inspect script
+                    from backend.core.api.app.services.s3.config import get_bucket_name as _get_bucket_name
+                    environment = s3_service.environment
+                    screenshot_bucket_name = _get_bucket_name('issue_logs', environment)
+                    screenshot_presigned_url = s3_service.generate_presigned_url(
+                        bucket_name=screenshot_bucket_name,
+                        file_key=screenshot_s3_key,
+                        expiration=7 * 24 * 3600  # 7 days
+                    )
+                    logger.info("Generated 7-day pre-signed URL for screenshot")
+
+                    # Encrypt the S3 key for Directus storage
+                    encrypted_screenshot_s3_key = await encryption_service.encrypt_issue_report_data(
+                        screenshot_s3_key
+                    )
+                    logger.debug("Encrypted screenshot S3 key for database storage")
+
+            except Exception as _e:
+                # Screenshot upload failure must NOT block the issue report submission
+                logger.error(
+                    f"Failed to process screenshot for issue report: {str(_e)}",
+                    exc_info=True
+                )
+                screenshot_presigned_url = None
+                encrypted_screenshot_s3_key = None
+        elif issue_data.screenshot_png_base64 and not current_user:
+            logger.warning("Screenshot ignored — only authenticated users can attach screenshots")
+
+        # Encrypt sensitive fields for database storage (server-side encryption)
+        # Note: encryption_service was already retrieved above before the screenshot block.
         encrypted_contact_email = None
         encrypted_chat_or_embed_url = None
         encrypted_estimated_location = None
@@ -2364,6 +2450,8 @@ async def report_issue(
                 "encrypted_estimated_location": encrypted_estimated_location,
                 "encrypted_device_info": encrypted_device_info,
                 "encrypted_issue_report_yaml_s3_key": encrypted_issue_report_yaml_s3_key,
+                # Encrypted S3 key for the screenshot PNG (if provided by an authenticated user)
+                "encrypted_screenshot_s3_key": encrypted_screenshot_s3_key,
                 "is_from_admin": is_from_admin,
                 "reported_by_user_id": reported_by_user_id,
                 "created_at": current_timestamp.isoformat(),
@@ -2425,7 +2513,10 @@ async def report_issue(
                 "last_messages_html": last_messages_html_str,
                 "active_chat_sidebar_html": active_chat_sidebar_html_str,
                 "runtime_debug_state": runtime_debug_state_str,
-                "action_history": action_history_str
+                "action_history": action_history_str,
+                # Pre-signed URL for the screenshot PNG (7-day validity). Included in the
+                # admin email and in inspect_issue.py so LLMs can view the screenshot directly.
+                "screenshot_presigned_url": screenshot_presigned_url
             },
             queue='email'
         )

@@ -6441,6 +6441,213 @@ report_issue.copy_debug_info_hint:
   cs: Zkopíruje informace o zařízení, protokoly konzole a data IndexedDB do schránky pro lokální ladění
   sv: Kopierar enhetsinformation, konsolloggar och IndexedDB-data till urklipp för lokal felsökning
   verified_by_human: []
+report_issue.screenshot_label:
+  context: Section label for the optional screenshot attachment in the report issue form
+  en: Attach Screenshot
+  de: Screenshot anhängen
+  zh: 附加截图
+  es: Adjuntar captura de pantalla
+  fr: Joindre une capture d'écran
+  pt: Anexar captura de tela
+  ru: Прикрепить снимок экрана
+  ja: スクリーンショットを添付
+  ko: 스크린샷 첨부
+  it: Allega screenshot
+  tr: Ekran görüntüsü ekle
+  vi: Đính kèm ảnh chụp màn hình
+  id: Lampirkan tangkapan layar
+  pl: Dołącz zrzut ekranu
+  nl: Schermafbeelding bijvoegen
+  ar: إرفاق لقطة شاشة
+  hi: स्क्रीनशॉट संलग्न करें
+  th: แนบภาพหน้าจอ
+  cs: Přiložit snímek obrazovky
+  sv: Bifoga skärmbild
+  verified_by_human: []
+report_issue.screenshot_hint:
+  context: Hint text below the screenshot section label explaining its purpose
+  en: Capture your screen to help illustrate the issue
+  de: Bildschirm aufnehmen, um das Problem zu veranschaulichen
+  zh: 截取屏幕以帮助说明问题
+  es: Captura tu pantalla para ilustrar el problema
+  fr: Capturez votre écran pour illustrer le problème
+  pt: Capture sua tela para ilustrar o problema
+  ru: Сделайте снимок экрана для иллюстрации проблемы
+  ja: 問題を説明するために画面をキャプチャしてください
+  ko: 문제를 설명하기 위해 화면을 캡처하세요
+  it: Cattura lo schermo per illustrare il problema
+  tr: Sorunu açıklamak için ekranınızı yakalayın
+  vi: Chụp màn hình để minh họa vấn đề
+  id: Tangkap layar Anda untuk mengilustrasikan masalah
+  pl: Zrób zrzut ekranu, aby zilustrować problem
+  nl: Maak een schermopname om het probleem te illustreren
+  ar: التقط شاشتك للمساعدة في توضيح المشكلة
+  hi: समस्या को स्पष्ट करने के लिए अपनी स्क्रीन कैप्चर करें
+  th: จับภาพหน้าจอเพื่อช่วยอธิบายปัญหา
+  cs: Zachyťte obrazovku, aby pomohla ilustrovat problém
+  sv: Fånga din skärm för att illustrera problemet
+  verified_by_human: []
+report_issue.screenshot_capture_button:
+  context: Button label to trigger the screen capture flow
+  en: Capture Screenshot
+  de: Screenshot aufnehmen
+  zh: 截取屏幕
+  es: Capturar pantalla
+  fr: Capturer l'écran
+  pt: Capturar tela
+  ru: Сделать снимок экрана
+  ja: スクリーンショットを撮る
+  ko: 화면 캡처
+  it: Cattura schermata
+  tr: Ekran görüntüsü al
+  vi: Chụp màn hình
+  id: Tangkap layar
+  pl: Zrób zrzut ekranu
+  nl: Schermafbeelding maken
+  ar: التقط لقطة شاشة
+  hi: स्क्रीनशॉट कैप्चर करें
+  th: จับภาพหน้าจอ
+  cs: Pořídit snímek obrazovky
+  sv: Ta skärmbild
+  verified_by_human: []
+report_issue.screenshot_capturing:
+  context: Button label shown while the screen capture is in progress
+  en: Capturing...
+  de: Aufnehmen…
+  zh: 截取中…
+  es: Capturando…
+  fr: Capture en cours…
+  pt: Capturando…
+  ru: Захват…
+  ja: キャプチャ中…
+  ko: 캡처 중…
+  it: Cattura in corso…
+  tr: Yakalanıyor…
+  vi: Đang chụp…
+  id: Mengambil…
+  pl: Przechwytywanie…
+  nl: Vastleggen…
+  ar: جارٍ الالتقاط…
+  hi: कैप्चर हो रहा है…
+  th: กำลังจับภาพ…
+  cs: Zachycování…
+  sv: Fångar…
+  verified_by_human: []
+report_issue.screenshot_remove:
+  context: Button label to remove the attached screenshot preview
+  en: Remove Screenshot
+  de: Screenshot entfernen
+  zh: 移除截图
+  es: Eliminar captura
+  fr: Supprimer la capture
+  pt: Remover captura
+  ru: Удалить снимок
+  ja: スクリーンショットを削除
+  ko: 스크린샷 제거
+  it: Rimuovi screenshot
+  tr: Ekran görüntüsünü kaldır
+  vi: Xóa ảnh chụp màn hình
+  id: Hapus tangkapan layar
+  pl: Usuń zrzut ekranu
+  nl: Schermafbeelding verwijderen
+  ar: إزالة لقطة الشاشة
+  hi: स्क्रीनशॉट हटाएं
+  th: ลบภาพหน้าจอ
+  cs: Odstranit snímek obrazovky
+  sv: Ta bort skärmbild
+  verified_by_human: []
+report_issue.screenshot_permission_denied:
+  context: Error message shown when the user denies the screen capture permission
+  en: Permission denied. Please allow screen capture.
+  de: Berechtigung verweigert. Bitte erlauben Sie die Bildschirmaufnahme.
+  zh: 权限被拒绝。请允许屏幕捕获。
+  es: Permiso denegado. Por favor, permite la captura de pantalla.
+  fr: Permission refusée. Veuillez autoriser la capture d'écran.
+  pt: Permissão negada. Por favor, permita a captura de tela.
+  ru: Доступ запрещён. Пожалуйста, разрешите захват экрана.
+  ja: 権限が拒否されました。画面のキャプチャを許可してください。
+  ko: 권한이 거부되었습니다. 화면 캡처를 허용해 주세요.
+  it: Autorizzazione negata. Consenti l'acquisizione dello schermo.
+  tr: İzin reddedildi. Lütfen ekran yakalamaya izin verin.
+  vi: Quyền bị từ chối. Vui lòng cho phép chụp màn hình.
+  id: Izin ditolak. Harap izinkan pengambilan layar.
+  pl: Odmówiono uprawnień. Zezwól na przechwytywanie ekranu.
+  nl: Toestemming geweigerd. Sta schermopname toe.
+  ar: تم رفض الإذن. يرجى السماح بالتقاط الشاشة.
+  hi: अनुमति अस्वीकृत। कृपया स्क्रीन कैप्चर की अनुमति दें।
+  th: ถูกปฏิเสธสิทธิ์ โปรดอนุญาตการจับภาพหน้าจอ
+  cs: Oprávnění odmítnuto. Povolte prosím zachytávání obrazovky.
+  sv: Tillstånd nekades. Tillåt skärminspelning.
+  verified_by_human: []
+report_issue.screenshot_capture_failed:
+  context: Generic error message shown when the screenshot capture fails for an unexpected reason
+  en: Failed to capture screenshot.
+  de: Screenshot konnte nicht aufgenommen werden.
+  zh: 截图失败。
+  es: Error al capturar la pantalla.
+  fr: Échec de la capture d'écran.
+  pt: Falha ao capturar tela.
+  ru: Не удалось сделать снимок экрана.
+  ja: スクリーンショットの撮影に失敗しました。
+  ko: 스크린샷 캡처에 실패했습니다.
+  it: Acquisizione schermata non riuscita.
+  tr: Ekran görüntüsü alınamadı.
+  vi: Chụp màn hình thất bại.
+  id: Gagal mengambil tangkapan layar.
+  pl: Nie udało się zrobić zrzutu ekranu.
+  nl: Schermafbeelding mislukt.
+  ar: فشل التقاط لقطة الشاشة.
+  hi: स्क्रीनशॉट कैप्चर करने में विफल।
+  th: ไม่สามารถจับภาพหน้าจอได้
+  cs: Pořízení snímku obrazovky selhalo.
+  sv: Det gick inte att ta skärmbild.
+  verified_by_human: []
+report_issue.screenshot_size_too_large:
+  context: Error message shown when the captured screenshot exceeds the maximum allowed size
+  en: Screenshot too large. Please try a smaller window.
+  de: Screenshot zu groß. Bitte versuchen Sie ein kleineres Fenster.
+  zh: 截图太大。请尝试较小的窗口。
+  es: Captura demasiado grande. Intenta con una ventana más pequeña.
+  fr: Capture trop grande. Essayez une fenêtre plus petite.
+  pt: Captura muito grande. Tente uma janela menor.
+  ru: Снимок слишком большой. Попробуйте меньшее окно.
+  ja: スクリーンショットが大きすぎます。より小さなウィンドウで試してください。
+  ko: 스크린샷이 너무 큽니다. 더 작은 창으로 시도해 주세요.
+  it: Screenshot troppo grande. Prova una finestra più piccola.
+  tr: Ekran görüntüsü çok büyük. Lütfen daha küçük bir pencere deneyin.
+  vi: Ảnh chụp màn hình quá lớn. Vui lòng thử cửa sổ nhỏ hơn.
+  id: Tangkapan layar terlalu besar. Coba jendela yang lebih kecil.
+  pl: Zrzut ekranu zbyt duży. Spróbuj mniejszego okna.
+  nl: Schermafbeelding te groot. Probeer een kleiner venster.
+  ar: لقطة الشاشة كبيرة جدًا. يرجى تجربة نافذة أصغر.
+  hi: स्क्रीनशॉट बहुत बड़ा है। कृपया एक छोटी विंडो आज़माएं।
+  th: ภาพหน้าจอใหญ่เกินไป โปรดลองใช้หน้าต่างที่เล็กกว่า
+  cs: Snímek obrazovky je příliš velký. Zkuste menší okno.
+  sv: Skärmbild för stor. Försök med ett mindre fönster.
+  verified_by_human: []
+report_issue.screenshot_preview_alt:
+  context: Alt text for the screenshot preview image
+  en: Screenshot preview
+  de: Screenshot-Vorschau
+  zh: 截图预览
+  es: Vista previa de captura
+  fr: Aperçu de la capture
+  pt: Prévia da captura
+  ru: Предпросмотр снимка
+  ja: スクリーンショットのプレビュー
+  ko: 스크린샷 미리보기
+  it: Anteprima screenshot
+  tr: Ekran görüntüsü önizlemesi
+  vi: Xem trước ảnh chụp màn hình
+  id: Pratinjau tangkapan layar
+  pl: Podgląd zrzutu ekranu
+  nl: Voorbeeld schermafbeelding
+  ar: معاينة لقطة الشاشة
+  hi: स्क्रीनशॉट पूर्वावलोकन
+  th: ตัวอย่างภาพหน้าจอ
+  cs: Náhled snímku obrazovky
+  sv: Förhandsgranskning av skärmbild
+  verified_by_human: []
 logout_all:
   context: Menu item to log out of all devices and sessions
   en: Log out everywhere

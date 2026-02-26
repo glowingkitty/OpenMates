@@ -98,8 +98,10 @@ BUCKETS = {
     'issue_logs': {
         'name': 'openmates-issue-logs',
         'dev_name': 'dev-openmates-issue-logs',
-        'allowed_types': ['application/octet-stream'],  # Encrypted logs
-        'max_size': 10 * 1024 * 1024,  # 10MB per log file
+        # Allow encrypted YAML logs (application/octet-stream) and plain PNG screenshots.
+        # Screenshots are stored unencrypted so admins/LLMs can view them via pre-signed URL.
+        'allowed_types': ['application/octet-stream', 'image/png'],
+        'max_size': 10 * 1024 * 1024,  # 10MB per log file / screenshot
         'access': 'private',
         'lifecycle_policy': 365,  # 1 year auto-delete (in days)
     }
