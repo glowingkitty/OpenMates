@@ -52,6 +52,16 @@ let updateChatListDebounceTimer: any = null;
 // On cold boot (initial mount) the skipDebounce flag bypasses this for instant display.
 const UPDATE_DEBOUNCE_MS = 300;
 
+// --- Microtask coalescing for chatUpdated fast-path ---
+// When many chats receive their first WS message in a burst (e.g. opening the sidebar
+// during phased sync), handleChatUpdatedEvent fires N times synchronously. Each call
+// previously reassigned allChatsFromDB, triggering the full $derived sort/group/filter
+// chain N times — locking up the iOS main thread.
+// Fix: buffer upserts into chatListCache (cheap) and flush allChatsFromDB only once per
+// microtask checkpoint via Promise.resolve().then(). All events in the same JS task are
+// coalesced into a single Svelte reactive update.
+let _chatUpdatedFlushPending = false;
+
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
 	// Syncing indicator: true when authenticated AND sync has not completed yet
@@ -738,11 +748,18 @@ const UPDATE_DEBOUNCE_MS = 300;
 			allChatsFromDB = cached;
 		}
 	} else if (detail.chat) {
-		// If we have the updated chat payload, patch cache and list without full reload
+		// If we have the updated chat payload, patch cache and list without full reload.
+		// Use microtask coalescing: upsert into cache (cheap, synchronous) but defer the
+		// allChatsFromDB reassignment to the next microtask so that N burst events in the
+		// same JS task only trigger one Svelte reactive update instead of N re-renders.
 		chatListCache.upsertChat(detail.chat);
-		const cached = chatListCache.getCache(false);
-		if (cached) {
-			allChatsFromDB = cached;
+		if (!_chatUpdatedFlushPending) {
+			_chatUpdatedFlushPending = true;
+			Promise.resolve().then(() => {
+				_chatUpdatedFlushPending = false;
+				const cached = chatListCache.getCache(false);
+				if (cached) allChatsFromDB = cached;
+			});
 		}
 	} else {
 		// Fallback: mark cache dirty and refresh from DB
