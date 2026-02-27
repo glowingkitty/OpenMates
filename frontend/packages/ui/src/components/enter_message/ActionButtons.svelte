@@ -89,10 +89,6 @@
 </script>
 
 <div class="action-buttons">
-    <!-- Explainer shown to signed-in users with no credits, above the action button row -->
-    {#if isAuthenticated && hasNoCredits}
-        <p class="no-credits-explainer">{$text('enter_message.no_credits_explainer')}</p>
-    {/if}
     <div class="left-buttons">
         <button
             class="clickable-icon icon_files"
@@ -253,22 +249,5 @@
         margin-left: 0.5rem;
     }
 
-    /* "Buy credits" variant: same shape as send button but uses primary colour */
-    .buy-credits-button {
-        background: var(--color-primary);
-    }
 
-    /* Short explainer text shown above action buttons for zero-credit signed-in users */
-    .no-credits-explainer {
-        position: absolute;
-        bottom: 52px; /* sit just above the 40px button row + 12px gap */
-        left: 1rem;
-        right: 1rem;
-        margin: 0;
-        font-size: 12px;
-        color: var(--color-font-secondary, rgba(0, 0, 0, 0.55));
-        line-height: 1.4;
-        pointer-events: none;
-        user-select: none;
-    }
 </style>
