@@ -4,31 +4,25 @@
   Collapsing gradient banner used for two contexts:
 
   1. TOP-LEVEL app page (app_store/{appId}) — no subItem prop:
-  EXPANDED (scrollTop ≤ 0):
-  ┌──────────────────────────────────────────────┐  240px
-  │  [←] Settings / App Store  (clickable)       │  ← nav row (white, 0.7 op)
-  │  [icon 45×45]        App Name (20px, centered)│
+  EXPANDED (scrollTop = 0):
+  ┌──────────────────────────────────────────────┐  240px (mobile: 190px)
+  │  [←] Settings / App Store  (clickable)       │  ← nav row
+  │              [icon 50×50]                    │  ← icon centered
+  │              App Name (20px, bold)           │  ← name centered below icon
   │         Description (14px, centered)         │
-  │      3 🖥     1 🎯     1 🧠                  │  ← capability counts
-  └──────────────────────────────────────────────┘
-
-  2. SUB-ITEM page (skill / focus / memories) — subItem prop provided:
-  EXPANDED (scrollTop ≤ 0):
-  ┌──────────────────────────────────────────────┐  240px
-  │  [←] Settings / App Store / AppName          │  ← nav row (white, 0.7 op)
-  │  [icon 45×45]      Item Name (20px, centered)│
-  │               Type Label (12px, white 0.7)   │
-  │         Item description (14px, centered)    │
+  │      3 🖥     1 🎯     1 🧠                  │
   └──────────────────────────────────────────────┘
 
   COLLAPSED (scrollTop ≥ COLLAPSE_THRESHOLD):
-  ┌──────────────────────────────────────────────┐  124px
-  │  [←] Settings / App Store  (clickable)       │
-  │  [icon 45×45]        Item Name (20px, centered)│
+  ┌──────────────────────────────────────────────┐  88px
+  │  [←] Settings / App Store  (clickable)       │  ← nav row
+  │  [icon 36×36]  App Name  (left-aligned)      │  ← icon + name in a row
   └──────────────────────────────────────────────┘
 
-  The breadcrumb label is also a clickable back button — tapping anywhere on
-  the nav row navigates back, just like pressing the arrow.
+  2. SUB-ITEM page (skill / focus / memories) — subItem prop provided:
+  Same layout but the collapsible block shows item type label + description
+  instead of app description + capability counts. The identity row shows the
+  item name (not app name) in both expanded and collapsed states.
 
   Props:
     appId             - the app ID (e.g. "audio")
@@ -84,7 +78,6 @@
 
   /**
    * Scroll distance (px) after which the header is fully collapsed.
-   * The description + counts fade out; nav row + identity row stay visible.
    */
   const COLLAPSE_THRESHOLD = 80;
 
@@ -94,14 +87,45 @@
     return raw < 0.5 ? 4 * raw * raw * raw : 1 - Math.pow(-2 * raw + 2, 3) / 2;
   });
 
-  /** Height: 240px → 124px. 124px holds nav row (44px) + identity row (56px) + padding */
-  let headerHeight = $derived(Math.round(240 - 116 * collapseProgress));
+  /**
+   * Expanded height: 240px desktop / 190px mobile.
+   * We read a CSS custom property set by the media query via a reactive derivation.
+   * Collapsed height: 88px (nav row 44px + identity row 44px).
+   *
+   * The JS doesn't know screen width directly, so we use CSS to drive height and
+   * only use collapseProgress for the opacity / layout transitions below.
+   * However, height IS set via inline style so we need to know the expanded height.
+   * We use a window check — SSR-safe via the $derived lazy evaluation.
+   */
+  const COLLAPSED_HEIGHT = 88;
+  const EXPANDED_HEIGHT_DESKTOP = 240;
+  const EXPANDED_HEIGHT_MOBILE = 190;
+
+  let expandedHeight = $derived.by(() => {
+    if (typeof window === 'undefined') return EXPANDED_HEIGHT_DESKTOP;
+    return window.innerWidth <= 730 ? EXPANDED_HEIGHT_MOBILE : EXPANDED_HEIGHT_DESKTOP;
+  });
+
+  /** Height: expandedHeight → 88px */
+  let headerHeight = $derived(
+    Math.round(expandedHeight - (expandedHeight - COLLAPSED_HEIGHT) * collapseProgress)
+  );
 
   /**
-   * Opacity for description + counts: fades out in the first half of collapse
-   * so content is gone before the header reaches its minimum height.
+   * Opacity for description + counts: fades out in the first half of collapse.
    */
   let detailsOpacity = $derived(Math.max(0, 1 - collapseProgress * 2));
+
+  /**
+   * Icon size interpolated: 50px (expanded) → 36px (collapsed).
+   * Also drives the identity-row layout switch.
+   */
+  let iconSize = $derived(Math.round(50 - 14 * collapseProgress));
+
+  /**
+   * Name font size interpolated: 20px (expanded) → 17px (collapsed).
+   */
+  let nameFontSize = $derived(Math.round(20 - 3 * collapseProgress));
 
   // ─── App data ─────────────────────────────────────────────────────────────
 
@@ -117,25 +141,24 @@
 
   /**
    * Normalise icon_image filename → CSS variable name.
-   * The CSS variables use the app ID (e.g. --color-app-books, --color-app-images),
-   * but the icon files may differ (book.svg → books, image.svg → images).
-   * We also handle the special-cased renames done elsewhere in Settings.svelte.
    */
   let iconName = $derived.by(() => {
     if (!app?.icon_image) return appId;
     let n = app.icon_image.replace(/\.svg$/, '');
-    // Special-case renames: icon file name → CSS variable / app ID
     if (n === 'coding') n = 'code';
     if (n === 'heart')  n = 'health';
     if (n === 'email')  n = 'mail';
-    if (n === 'book')   n = 'books';   // book.svg → --color-app-books
-    if (n === 'image')  n = 'images';  // image.svg → --color-app-images
+    if (n === 'book')   n = 'books';
+    if (n === 'image')  n = 'images';
     return n;
   });
 
   let skillCount  = $derived(app?.skills?.length ?? 0);
   let focusCount  = $derived(app?.focus_modes?.length ?? 0);
   let memoryCount = $derived(app?.settings_and_memories?.length ?? 0);
+
+  /** Display name shown in the identity row */
+  let displayName = $derived(subItem ? subItem.name : appName);
 </script>
 
 <div
@@ -153,24 +176,45 @@
     type="button"
     title={fullBreadcrumbLabel || breadcrumbLabel}
   >
-    <div class="clickable-icon icon_back nav-back-icon"></div>
+    <div class="nav-back-icon clickable-icon icon_back"></div>
     <span class="breadcrumb-label">{breadcrumbLabel}</span>
   </button>
 
-  <!-- ── App identity: icon left-anchored, name absolutely centred ── -->
-  <div class="identity-row">
+  <!-- ── Identity block: expanded = column (icon above name, centered);
+          collapsed = row (icon + name, left-aligned) ── -->
+  <div
+    class="identity-block"
+    class:collapsed={collapseProgress > 0.5}
+    style="
+      align-items: {collapseProgress > 0.5 ? 'center' : 'center'};
+      flex-direction: {collapseProgress > 0.5 ? 'row' : 'column'};
+      justify-content: {collapseProgress > 0.5 ? 'flex-start' : 'center'};
+      padding: {collapseProgress > 0.5 ? '0 16px' : '0 16px 4px'};
+    "
+  >
     {#if app?.icon_image}
-      <div class="app-icon-slot">
+      <div
+        class="app-icon-slot"
+        style="
+          width: {iconSize}px;
+          height: {iconSize}px;
+          flex-shrink: 0;
+        "
+      >
         <Icon
           name={iconName}
           type="app"
-          size="45px"
+          size="{iconSize}px"
           borderColor="#ffffff"
+          noAnimation={true}
         />
       </div>
     {/if}
-    <!-- Absolutely centered so it doesn't shift with the icon -->
-    <span class="app-name">{subItem ? subItem.name : appName}</span>
+    <span
+      class="app-name"
+      class:app-name-row={collapseProgress > 0.5}
+      style="font-size: {nameFontSize}px;"
+    >{displayName}</span>
   </div>
 
   <!-- ── Collapsible details block — fades out on scroll ── -->
@@ -221,7 +265,7 @@
   /* ─── Container ─────────────────────────────────────────────────────────── */
 
   .app-details-header {
-    /* Height driven by inline style (240px → 124px on scroll) */
+    /* Height driven by inline style */
     width: 100%;
     overflow: hidden;
     display: flex;
@@ -247,8 +291,6 @@
     flex-shrink: 0;
     gap: 6px;
     cursor: pointer;
-    /* Subtle hover/active feedback on the entire row */
-    border-radius: 0;
     transition: background-color 0.15s ease;
   }
 
@@ -260,12 +302,12 @@
     background-color: rgba(255, 255, 255, 0.2);
   }
 
-  /* Back icon — inherits .clickable-icon mask sizing from icons.css,
-     but we force the colour to white since we're on a gradient. */
+  /* Back icon — force white.
+     icons.css sets `background: var(--color-primary)` via a shorthand.
+     We must also use the shorthand `background` (not background-color) to win. */
   .nav-back-icon {
     flex-shrink: 0;
-    /* icons.css .clickable-icon sets mask-image; we just override colour */
-    background-color: rgba(255, 255, 255, 0.85) !important;
+    background: rgba(255, 255, 255, 0.85) !important;
   }
 
   .breadcrumb-label {
@@ -278,49 +320,48 @@
     min-width: 0;
   }
 
-  /* ─── App identity row ───────────────────────────────────────────────────── */
+  /* ─── Identity block: column (expanded) ↔ row (collapsed) ───────────────── */
 
-  .identity-row {
-    /* Relative container so app-name can be absolutely centred */
-    position: relative;
+  .identity-block {
+    /* Layout direction, alignment and padding are driven by inline style above.
+       flex + gap ensure icon and name are neatly spaced in both orientations. */
     display: flex;
-    align-items: center;
-    padding: 0 16px;
+    gap: 10px;
     flex-shrink: 0;
-    /* Give enough height to hold the 45px icon comfortably */
-    min-height: 56px;
+    /* When expanded (column), this takes up the remaining height before details-block */
+    flex: 0 0 auto;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .app-icon-slot {
-    /* Left-aligned: stays in document flow */
-    flex-shrink: 0;
-    width: 45px;
-    height: 45px;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    z-index: 1; /* above the absolutely-positioned name */
+    /* Size is driven by inline style */
+    transition: width 0.15s, height 0.15s;
   }
 
   .app-name {
-    /* Absolutely centred over the full row width, regardless of icon position */
-    position: absolute;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 20px;
     font-weight: 700;
     color: #ffffff;
     line-height: 1.25;
-    padding: 0 60px; /* avoid overlapping icon on left and give matching space on right */
+    text-align: center; /* centered in expanded (column) mode */
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
-    pointer-events: none;
+    /* Font size driven by inline style */
+    transition: font-size 0.15s;
+  }
+
+  /* In row (collapsed) mode: name is left-aligned, single line */
+  .app-name-row {
+    text-align: left;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    align-self: center;
   }
 
   /* ─── Collapsible details block ──────────────────────────────────────────── */
@@ -329,11 +370,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    /* Extra vertical breathing room above and below description */
-    padding: 12px 20px 14px;
-    gap: 12px;
+    padding: 6px 20px 14px;
+    gap: 10px;
     flex: 1;
     justify-content: center;
+    transition: opacity 0.1s ease;
   }
 
   /* Type label for sub-item mode (e.g. "Skill", "Focus mode") */
@@ -424,5 +465,37 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
+  }
+
+  /* ─── Mobile adjustments (≤730px) — matches ChatHeader ─────────────────── */
+
+  @media (max-width: 730px) {
+    /* Expanded height is handled by the JS expandedHeight variable reading window.innerWidth.
+       No CSS override needed for the height itself since it is set via inline style.
+       We only need to scale down text sizes for the details block on mobile. */
+
+    .app-description {
+      font-size: 13px;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+    }
+
+    .details-block {
+      padding: 4px 16px 10px;
+      gap: 8px;
+    }
+
+    .cap-icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .cap-num {
+      font-size: 13px;
+    }
+
+    .breadcrumb-label {
+      font-size: 13px;
+    }
   }
 </style>
