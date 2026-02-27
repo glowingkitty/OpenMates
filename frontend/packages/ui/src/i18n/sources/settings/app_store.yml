@@ -2046,3 +2046,75 @@ ai.skill.ask.model.zai_glm_4.7:
   cs: GLM 4.7
   sv: GLM 4.7
   verified_by_human: []
+
+skill:
+  context: Type label shown in the gradient banner header on a skill detail sub-page (e.g. displayed as "Skill" below the skill name)
+  en: Skill
+  de: Skill
+  zh: 技能
+  es: Habilidad
+  fr: Compétence
+  pt: Habilidade
+  ru: Навык
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceri
+  vi: Kỹ năng
+  id: Keahlian
+  pl: Umiejętność
+  nl: Vaardigheid
+  ar: مهارة
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednost
+  sv: Färdighet
+  verified_by_human: []
+
+focus_mode:
+  context: Type label shown in the gradient banner header on a focus mode detail sub-page (e.g. displayed as "Focus mode" below the focus mode name)
+  en: Focus mode
+  de: Fokus-Modus
+  zh: 专注模式
+  es: Modo de enfoque
+  fr: Mode de concentration
+  pt: Modo de foco
+  ru: Режим фокуса
+  ja: フォーカスモード
+  ko: 집중 모드
+  it: Modalità di messa a fuoco
+  tr: Odak modu
+  vi: Chế độ tập trung
+  id: Mode fokus
+  pl: Tryb skupienia
+  nl: Focusmodus
+  ar: وضع التركيز
+  hi: फोकस मोड
+  th: โหมดโฟกัส
+  cs: Režim soustředění
+  sv: Fokusläge
+  verified_by_human: []
+
+settings_memories:
+  context: Type label shown in the gradient banner header on a settings & memories category sub-page (e.g. displayed as "Settings & Memories" below the category name)
+  en: Settings & Memories
+  de: Einstellungen & Erinnerungen
+  zh: 设置与记忆
+  es: Ajustes y Memorias
+  fr: Paramètres et Mémoires
+  pt: Configurações e Memórias
+  ru: Настройки и Воспоминания
+  ja: 設定とメモリ
+  ko: 설정 및 기억
+  it: Impostazioni e Memorie
+  tr: Ayarlar ve Anılar
+  vi: Cài đặt & Ký ức
+  id: Pengaturan & Memori
+  pl: Ustawienia i Wspomnienia
+  nl: Instellingen & Herinneringen
+  ar: الإعدادات والذكريات
+  hi: सेटिंग्स और यादें
+  th: การตั้งค่าและความทรงจำ
+  cs: Nastavení a vzpomínky
+  sv: Inställningar & Minnen
+  verified_by_human: []

@@ -1,10 +1,9 @@
 <!--
   AppDetailsHeader.svelte
 
-  Collapsing gradient banner for the App Details settings page.
-  Matches the 240px expanded height of ChatHeader, collapses to 124px on scroll
-  so the icon + name row stays visible at all times.
+  Collapsing gradient banner used for two contexts:
 
+  1. TOP-LEVEL app page (app_store/{appId}) — no subItem prop:
   EXPANDED (scrollTop ≤ 0):
   ┌──────────────────────────────────────────────┐  240px
   │  [←] Settings / App Store  (clickable)       │  ← nav row (white, 0.7 op)
@@ -13,10 +12,19 @@
   │      3 🖥     1 🎯     1 🧠                  │  ← capability counts
   └──────────────────────────────────────────────┘
 
+  2. SUB-ITEM page (skill / focus / memories) — subItem prop provided:
+  EXPANDED (scrollTop ≤ 0):
+  ┌──────────────────────────────────────────────┐  240px
+  │  [←] Settings / App Store / AppName          │  ← nav row (white, 0.7 op)
+  │  [icon 45×45]      Item Name (20px, centered)│
+  │               Type Label (12px, white 0.7)   │
+  │         Item description (14px, centered)    │
+  └──────────────────────────────────────────────┘
+
   COLLAPSED (scrollTop ≥ COLLAPSE_THRESHOLD):
   ┌──────────────────────────────────────────────┐  124px
   │  [←] Settings / App Store  (clickable)       │
-  │  [icon 45×45]        App Name (20px, centered)│
+  │  [icon 45×45]        Item Name (20px, centered)│
   └──────────────────────────────────────────────┘
 
   The breadcrumb label is also a clickable back button — tapping anywhere on
@@ -29,6 +37,8 @@
     fullBreadcrumbLabel - tooltip text (full path)
     scrollTop         - current scrollTop of .settings-content-wrapper
     onBack            - navigate back
+    subItem           - optional: when set, shows item name/type label instead of
+                        app description + capability counts
 -->
 <script lang="ts">
   import { text } from '@repo/ui';
@@ -37,6 +47,15 @@
 
   // ─── Props ────────────────────────────────────────────────────────────────
 
+  interface SubItem {
+    /** Display name of the skill / focus mode / memory category */
+    name: string;
+    /** Short type label shown below the name, e.g. "Skill", "Focus mode" */
+    typeLabel: string;
+    /** Optional description shown in the collapsible details block */
+    description?: string;
+  }
+
   interface Props {
     appId: string;
     app: AppMetadata | undefined;
@@ -44,6 +63,11 @@
     fullBreadcrumbLabel?: string;
     scrollTop?: number;
     onBack?: () => void;
+    /**
+     * When provided the banner shows the sub-item (skill/focus/memories) identity
+     * instead of the app description + capability counts.
+     */
+    subItem?: SubItem;
   }
 
   let {
@@ -53,6 +77,7 @@
     fullBreadcrumbLabel = '',
     scrollTop = 0,
     onBack,
+    subItem,
   }: Props = $props();
 
   // ─── Collapse animation ───────────────────────────────────────────────────
@@ -145,40 +170,49 @@
       </div>
     {/if}
     <!-- Absolutely centered so it doesn't shift with the icon -->
-    <span class="app-name">{appName}</span>
+    <span class="app-name">{subItem ? subItem.name : appName}</span>
   </div>
 
-  <!-- ── Description + capability counts — fades out on scroll ── -->
+  <!-- ── Collapsible details block — fades out on scroll ── -->
   <div
     class="details-block"
     style="opacity: {detailsOpacity}; pointer-events: {detailsOpacity < 0.05 ? 'none' : 'auto'};"
     aria-hidden={detailsOpacity < 0.05}
   >
-    {#if appDescription}
-      <p class="app-description">{appDescription}</p>
-    {/if}
+    {#if subItem}
+      <!-- Sub-item mode: show type label + item description -->
+      <span class="sub-item-type-label">{subItem.typeLabel}</span>
+      {#if subItem.description}
+        <p class="app-description">{subItem.description}</p>
+      {/if}
+    {:else}
+      <!-- Top-level app mode: show app description + capability counts -->
+      {#if appDescription}
+        <p class="app-description">{appDescription}</p>
+      {/if}
 
-    {#if skillCount > 0 || focusCount > 0 || memoryCount > 0}
-      <div class="capability-row">
-        {#if skillCount > 0}
-          <div class="cap-item">
-            <span class="cap-num">{skillCount}</span>
-            <span class="cap-icon skill-icon"></span>
-          </div>
-        {/if}
-        {#if focusCount > 0}
-          <div class="cap-item">
-            <span class="cap-num">{focusCount}</span>
-            <span class="cap-icon focus-icon"></span>
-          </div>
-        {/if}
-        {#if memoryCount > 0}
-          <div class="cap-item">
-            <span class="cap-num">{memoryCount}</span>
-            <span class="cap-icon memories-icon"></span>
-          </div>
-        {/if}
-      </div>
+      {#if skillCount > 0 || focusCount > 0 || memoryCount > 0}
+        <div class="capability-row">
+          {#if skillCount > 0}
+            <div class="cap-item">
+              <span class="cap-num">{skillCount}</span>
+              <span class="cap-icon skill-icon"></span>
+            </div>
+          {/if}
+          {#if focusCount > 0}
+            <div class="cap-item">
+              <span class="cap-num">{focusCount}</span>
+              <span class="cap-icon focus-icon"></span>
+            </div>
+          {/if}
+          {#if memoryCount > 0}
+            <div class="cap-item">
+              <span class="cap-num">{memoryCount}</span>
+              <span class="cap-icon memories-icon"></span>
+            </div>
+          {/if}
+        </div>
+      {/if}
     {/if}
   </div>
 </div>
@@ -300,6 +334,16 @@
     gap: 12px;
     flex: 1;
     justify-content: center;
+  }
+
+  /* Type label for sub-item mode (e.g. "Skill", "Focus mode") */
+  .sub-item-type-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   .app-description {

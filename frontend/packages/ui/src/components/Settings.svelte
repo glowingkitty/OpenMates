@@ -223,7 +223,7 @@ changes to the documentation (to keep the documentation up to date).
             // newsletter, support, and report issue.
             // App store and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
-                if (key === 'interface' || key === 'interface/language' ||
+                if (key === 'interface' || key.startsWith('interface/') ||
                     key === 'app_store' || key.startsWith('app_store/') ||
                     key === 'mates' || key.startsWith('mates/') ||
                     key === 'shared/share' || key === 'newsletter' ||
@@ -488,14 +488,99 @@ changes to the documentation (to keep the documentation up to date).
     );
 
     /**
-     * The app ID for the current top-level app page, e.g. "audio".
-     * Used to look up AppMetadata to pass to AppDetailsHeader.
+     * True when we're on a skill, focus, or settings/memories sub-page
+     * (but NOT model detail pages, which have their own provider-icon header treatment).
+     * When true the AppDetailsHeader banner shows the sub-item (skill/focus/memory) name
+     * instead of the top-level app description + capability counts.
      */
-    let currentAppId = $derived(
-        isAppTopLevelPage ? activeSettingsView.replace('app_store/', '') : ''
+    let isAppSubPage = $derived(
+        /^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) &&
+        !isModelDetailPage
     );
 
-    /** AppMetadata for the current top-level app page, used by AppDetailsHeader */
+    /**
+     * True when any gradient banner (top-level or sub-page) should be visible.
+     * Used to suppress the normal submenu-info header and shrink the settings-header.
+     */
+    let isAnyAppBannerPage = $derived(isAppTopLevelPage || isAppSubPage);
+
+    /**
+     * Data needed to render the AppDetailsHeader for sub-pages (skill/focus/memories).
+     * Returns the parent appId and the item-specific data (name, typeLabel, description).
+     * Returns null when not on a sub-page.
+     */
+    let subPageBannerData = $derived.by((): {
+        appId: string;
+        itemName: string;
+        itemTypeLabel: string;
+        description: string;
+    } | null => {
+        if (!isAppSubPage) return null;
+
+        // Parse the route: app_store/{appId}/{type}/{itemId}
+        const match = activeSettingsView.match(
+            /^app_store\/([^/]+)\/(skill|focus|settings_memories)\/([^/]+)/
+        );
+        if (!match) return null;
+
+        const [, appId, type, itemId] = match;
+        const apps = appSkillsStore.getState().apps;
+        const appMeta = apps[appId];
+        if (!appMeta) return null;
+
+        if (type === 'skill') {
+            const skill = appMeta.skills.find(s => s.id === itemId);
+            if (!skill) return null;
+            return {
+                appId,
+                itemName: skill.name_translation_key ? $text(skill.name_translation_key) : itemId,
+                itemTypeLabel: $text('settings.app_store.skill'),
+                description: skill.description_translation_key
+                    ? $text(skill.description_translation_key)
+                    : '',
+            };
+        }
+
+        if (type === 'focus') {
+            const focus = appMeta.focus_modes.find(f => f.id === itemId);
+            if (!focus) return null;
+            return {
+                appId,
+                itemName: focus.name_translation_key ? $text(focus.name_translation_key) : itemId,
+                itemTypeLabel: $text('settings.app_store.focus_mode'),
+                description: focus.description_translation_key
+                    ? $text(focus.description_translation_key)
+                    : '',
+            };
+        }
+
+        if (type === 'settings_memories') {
+            const cat = appMeta.settings_and_memories.find(c => c.id === itemId);
+            if (!cat) return null;
+            return {
+                appId,
+                itemName: cat.name_translation_key ? $text(cat.name_translation_key) : itemId,
+                itemTypeLabel: $text('settings.app_store.settings_memories'),
+                description: cat.description_translation_key
+                    ? $text(cat.description_translation_key)
+                    : '',
+            };
+        }
+
+        return null;
+    });
+
+    /**
+     * The app ID for the current top-level app page, e.g. "audio".
+     * Also used for sub-pages when subPageBannerData is active.
+     */
+    let currentAppId = $derived(
+        isAppTopLevelPage ? activeSettingsView.replace('app_store/', '') :
+        isAppSubPage ? (subPageBannerData?.appId ?? '') :
+        ''
+    );
+
+    /** AppMetadata for the current top-level or sub-page, used by AppDetailsHeader */
     let currentAppMetadata = $derived(
         currentAppId ? appSkillsStore.getState().apps[currentAppId] : undefined
     );
@@ -506,15 +591,15 @@ changes to the documentation (to keep the documentation up to date).
      */
     let contentScrollTop = $state(0);
 
-    /** Reset scroll tracking when navigating away from app top-level page */
+    /** Reset scroll tracking when navigating away from any banner page */
     $effect(() => {
-        if (!isAppTopLevelPage) {
+        if (!isAnyAppBannerPage) {
             contentScrollTop = 0;
         }
     });
 
     function handleContentScroll(e: Event) {
-        if (isAppTopLevelPage) {
+        if (isAnyAppBannerPage) {
             contentScrollTop = (e.target as HTMLElement).scrollTop;
         }
     }
@@ -1718,8 +1803,8 @@ changes to the documentation (to keep the documentation up to date).
 >
     <div
         class="settings-header"
-        class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo && !isAppTopLevelPage}
-        class:app-top-level={isAppTopLevelPage}
+        class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo && !isAnyAppBannerPage}
+        class:app-top-level={isAnyAppBannerPage}
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => e.stopPropagation()}
         role="presentation"
@@ -1753,7 +1838,7 @@ changes to the documentation (to keep the documentation up to date).
             </a> -->
         </div>
         
-        {#if activeSettingsView !== 'main' && showSubmenuInfo && !isAppTopLevelPage}
+        {#if activeSettingsView !== 'main' && showSubmenuInfo && !isAnyAppBannerPage}
             <div
                 class="submenu-info"
                 class:reduced-padding={hideNavButton}
@@ -1793,10 +1878,13 @@ changes to the documentation (to keep the documentation up to date).
         {/if}
     </div>
     
-    <!-- App details gradient banner — only shown on app_store/{appId} top-level pages.
+    <!-- App details gradient banner — shown on:
+         1. app_store/{appId} top-level pages (full description + capability counts)
+         2. app_store/{appId}/skill|focus|settings_memories/{itemId} sub-pages
+            (same gradient, but shows item name + type label instead of description/counts)
          Placed outside the content-wrapper so it's not clipped by the slider's overflow:hidden.
          sticky positioning works here because this element is a direct flex child of .settings-menu. -->
-    {#if isAppTopLevelPage && currentAppMetadata}
+    {#if isAnyAppBannerPage && currentAppMetadata}
         <AppDetailsHeader
             appId={currentAppId}
             app={currentAppMetadata}
@@ -1804,6 +1892,11 @@ changes to the documentation (to keep the documentation up to date).
             breadcrumbLabel={breadcrumbLabel}
             fullBreadcrumbLabel={fullBreadcrumbLabel}
             onBack={() => backToMainView()}
+            subItem={subPageBannerData ? {
+                name: subPageBannerData.itemName,
+                typeLabel: subPageBannerData.itemTypeLabel,
+                description: subPageBannerData.description,
+            } : undefined}
         />
     {/if}
 
