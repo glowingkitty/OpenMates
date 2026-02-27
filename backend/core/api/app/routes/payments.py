@@ -728,12 +728,29 @@ async def payment_webhook(
                 # For async payment failures, get PaymentIntent ID from checkout session
                 webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
         elif provider_name == "polar":
-            # Polar: checkout ID is the order identifier
-            webhook_order_id = event_payload.get("data", {}).get("id")
+            # Polar events use different ID fields depending on the event type:
+            #   - checkout.updated: data.id = checkout session ID (our order_id)
+            #   - order.paid / order.created: data.id = Order UUID, data.checkout_id = our order_id
+            #   - order.refunded: data.id = Order UUID, data.checkout_id = our order_id
+            #   - refund.updated: data.order_id = Order UUID (handled separately in refund branch)
+            polar_data = event_payload.get("data") or {}
+            if event_type and event_type.startswith("order."):
+                # Order events: use checkout_id to map back to our invoice's order_id
+                webhook_order_id = polar_data.get("checkout_id")
+            else:
+                # Checkout events: data.id is the checkout session ID
+                webhook_order_id = polar_data.get("id")
 
         if not webhook_order_id:
-            logger.warning(f"Webhook event {event_type} received without an order_id for provider {provider_name}.")
-            return {"status": "received_missing_order_id"}
+            # For Polar refund.updated events, the webhook_order_id might legitimately be None
+            # because refund events don't always reference a checkout. Let the refund handler
+            # extract its own order lookup field instead.
+            if provider_name == "polar" and event_type and event_type.startswith("refund."):
+                logger.info(f"Polar {event_type} event — will use refund-specific order lookup.")
+                webhook_order_id = f"polar_refund_{(event_payload.get('data') or {}).get('id', 'unknown')}"
+            else:
+                logger.warning(f"Webhook event {event_type} received without an order_id for provider {provider_name}.")
+                return {"status": "received_missing_order_id"}
 
         logger.info(f"Processing verified webhook event: {event_type} for Order ID: {webhook_order_id} from {provider_name}")
 
@@ -1224,22 +1241,16 @@ async def payment_webhook(
                     elif is_auto_topup:
                         logger.info(f"Auto top-up order {webhook_order_id} - will use server-side email decryption for invoice")
                     
-                    # For Polar, extract the Polar Order UUID from the checkout data.
-                    # This is different from webhook_order_id (checkout session ID) — the Polar
-                    # Order UUID is needed for the Refunds API (POST /v1/refunds).
+                    # For Polar, the Order UUID (needed for refunds via POST /v1/refunds) is NOT
+                    # available in the checkout.updated event. It arrives later via the order.paid
+                    # webhook, which updates the invoice's provider_order_id field in Directus.
+                    # We set it to None here; the order.paid handler fills it in asynchronously.
                     polar_order_uuid = None
                     if provider_name == "polar":
-                        polar_order_uuid = (event_payload.get("data") or {}).get("order_id")
-                        if polar_order_uuid:
-                            logger.info(
-                                f"Extracted Polar Order UUID {polar_order_uuid} from "
-                                f"checkout {webhook_order_id} for refund support"
-                            )
-                        else:
-                            logger.warning(
-                                f"Polar checkout {webhook_order_id} succeeded but no "
-                                f"order_id found in data. Refunds via API won't work for this order."
-                            )
+                        logger.info(
+                            f"Polar checkout {webhook_order_id} succeeded. "
+                            f"Order UUID will be set when order.paid webhook arrives."
+                        )
 
                     task_payload = {
                         "order_id": webhook_order_id,
@@ -1636,12 +1647,90 @@ async def payment_webhook(
                     exc_info=True
                 )
         
+        # ===== Polar order.paid Handler =====
+        # When Polar processes a checkout, it creates an Order object with a separate UUID.
+        # The checkout.updated webhook (handled above) only has the checkout session ID.
+        # The order.paid event arrives shortly after and contains:
+        #   data.id         = Polar Order UUID (needed for POST /v1/refunds)
+        #   data.checkout_id = checkout session ID (our invoice's order_id)
+        # We use this to update the invoice's provider_order_id field so refunds work.
+        elif provider_name == "polar" and event_type == "order.paid":
+            polar_data = event_payload.get("data") or {}
+            polar_order_uuid = polar_data.get("id")
+            polar_checkout_id = polar_data.get("checkout_id")
+
+            if not polar_order_uuid or not polar_checkout_id:
+                logger.warning(
+                    f"Polar order.paid event missing id or checkout_id. "
+                    f"order_uuid={polar_order_uuid}, checkout_id={polar_checkout_id}"
+                )
+                return {"status": "received_incomplete_order_paid"}
+
+            logger.info(
+                f"Polar order.paid: Order UUID={polar_order_uuid}, "
+                f"checkout_id={polar_checkout_id}. Updating invoice provider_order_id."
+            )
+
+            try:
+                # Look up the invoice by order_id (= checkout session ID)
+                invoices_found = await directus_service.get_items(
+                    "invoices",
+                    params={"filter": {"order_id": {"_eq": polar_checkout_id}}}
+                )
+
+                if invoices_found and len(invoices_found) > 0:
+                    invoice_record = invoices_found[0]
+                    invoice_id = invoice_record.get("id")
+                    existing_provider_order_id = invoice_record.get("provider_order_id")
+
+                    if existing_provider_order_id:
+                        logger.info(
+                            f"Polar order.paid: invoice {invoice_id} already has "
+                            f"provider_order_id={existing_provider_order_id}. Skipping update."
+                        )
+                    else:
+                        update_success = await directus_service.update_item(
+                            "invoices", invoice_id,
+                            {"provider_order_id": polar_order_uuid}
+                        )
+                        if update_success:
+                            logger.info(
+                                f"Polar order.paid: updated invoice {invoice_id} "
+                                f"provider_order_id={polar_order_uuid}. Refunds now possible."
+                            )
+                        else:
+                            logger.error(
+                                f"Polar order.paid: failed to update invoice {invoice_id} "
+                                f"with provider_order_id={polar_order_uuid}."
+                            )
+                else:
+                    # Invoice may not exist yet if the purchase_confirmation task hasn't run.
+                    # This is a timing race — the order.paid event can arrive before the
+                    # Celery task creates the Directus invoice record.
+                    # Log a warning; the provider_order_id will need to be set manually or
+                    # via a future reconciliation job if this happens frequently.
+                    logger.warning(
+                        f"Polar order.paid: no invoice found for checkout_id={polar_checkout_id}. "
+                        f"Order UUID={polar_order_uuid} cannot be stored yet. "
+                        f"Invoice task may not have completed."
+                    )
+            except Exception as order_paid_exc:
+                logger.error(
+                    f"Error processing Polar order.paid for checkout {polar_checkout_id}: "
+                    f"{order_paid_exc}",
+                    exc_info=True,
+                )
+
         # ===== Dashboard-Initiated Refund Handlers =====
         # These handle refunds issued from the Stripe Dashboard or Polar Dashboard.
         # The money has already been returned to the customer by the provider.
         # We need to: (1) deduct credits, (2) record in Invoice Ninja, (3) mark invoice as refunded.
         # No refund email is sent here because we don't have the email_encryption_key
         # (zero-knowledge: it's only available when the user is present in the browser).
+        #
+        # Polar refund events:
+        #   - refund.updated (status=succeeded): data.order_id = Polar Order UUID
+        #   - order.refunded: data.id = Polar Order UUID, data.refunded_amount = cumulative refund
 
         elif (
             (provider_name == "stripe" and event_type == "charge.refunded")
@@ -1649,6 +1738,10 @@ async def payment_webhook(
                 provider_name == "polar"
                 and event_type == "refund.updated"
                 and (event_payload.get("data") or {}).get("status") == "succeeded"
+            )
+            or (
+                provider_name == "polar"
+                and event_type == "order.refunded"
             )
         ):
             logger.info(f"Processing dashboard-initiated refund webhook: {event_type} from {provider_name}")
@@ -1676,11 +1769,25 @@ async def payment_webhook(
 
                 elif provider_name == "polar":
                     refund_data = event_payload.get("data") or {}
-                    refund_amount_from_webhook = refund_data.get("amount", 0)
                     refund_currency_from_webhook = refund_data.get("currency", "usd")
-                    polar_order_uuid = refund_data.get("order_id")
+
+                    if event_type == "order.refunded":
+                        # order.refunded: data.id = Polar Order UUID, data.refunded_amount = cumulative
+                        polar_order_uuid = refund_data.get("id")
+                        refund_amount_from_webhook = refund_data.get("refunded_amount", 0)
+                        logger.info(
+                            f"Polar order.refunded: Order UUID={polar_order_uuid}, "
+                            f"refunded_amount={refund_amount_from_webhook} {refund_currency_from_webhook}"
+                        )
+                    else:
+                        # refund.updated: data.order_id = Polar Order UUID, data.amount = refund amount
+                        polar_order_uuid = refund_data.get("order_id")
+                        refund_amount_from_webhook = refund_data.get("amount", 0)
+
                     if not polar_order_uuid:
-                        logger.warning("Polar refund.updated event missing order_id. Skipping.")
+                        logger.warning(
+                            f"Polar {event_type} event missing order UUID. Skipping."
+                        )
                         return {"status": "received_missing_order_id"}
                     # Look up invoice by provider_order_id (Polar Order UUID)
                     invoice_lookup_field = "provider_order_id"

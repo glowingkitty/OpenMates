@@ -462,20 +462,41 @@ class InvoiceTemplateService(BasePDFTemplateService):
         elements.append(Spacer(1, 24))  # Increased from 10 to 24
         
         # Add payment details with translation - fix <br> tags
-        # Special handling for the paid_with text that might contain unclosed br tags
-        paid_with_text = self.t["invoices_and_credit_notes"]["paid_with"]["text"]
-        
-        # First fix any potential HTML issues
-        if "<br{" in paid_with_text:
-            paid_with_text = paid_with_text.replace("<br{", "<br/>{") 
-        
-        # Now replace variables
-        paid_with_text = paid_with_text.replace("{card_provider}", invoice_data["card_name"])
-        paid_with_text = paid_with_text.replace("{last_four_digits}", invoice_data["card_last4"])
-        
-        # Finally sanitize the HTML
+        # Special handling for the paid_with text that might contain unclosed br tags.
+        #
+        # For Polar (payment_confirmation): card_last4 is None because Polar doesn't
+        # expose raw card details via its API. In this case we show "Paid via Polar"
+        # instead of the standard "Paid with: {card_provider} card ending in {last4}".
+        card_last4 = invoice_data.get("card_last4")
+        card_name = invoice_data.get("card_name", "")
+
+        if card_last4:
+            # Standard card-based payment (Stripe, Revolut)
+            paid_with_text = self.t["invoices_and_credit_notes"]["paid_with"]["text"]
+
+            # First fix any potential HTML issues
+            if "<br{" in paid_with_text:
+                paid_with_text = paid_with_text.replace("<br{", "<br/>{")
+
+            # Replace variables
+            paid_with_text = paid_with_text.replace("{card_provider}", card_name)
+            paid_with_text = paid_with_text.replace("{last_four_digits}", card_last4)
+        else:
+            # Polar or other provider without card details — use a simple "Paid via {provider}" line.
+            # Falls back to the polar_paid_via i18n key if available, otherwise a hardcoded string.
+            polar_paid_via = (
+                self.t.get("invoices_and_credit_notes", {})
+                .get("polar_paid_via", {})
+                .get("text")
+            )
+            if polar_paid_via:
+                paid_with_text = polar_paid_via.replace("{provider}", card_name or "Polar")
+            else:
+                paid_with_text = f"Paid via {card_name or 'Polar'}"
+
+        # Sanitize the HTML for ReportLab
         paid_with_text = sanitize_html_for_reportlab(paid_with_text)
-        
+
         try:
             # Create paragraph with error catching
             paid_with_paragraph = Paragraph(paid_with_text, self.styles['Normal'])
@@ -483,7 +504,10 @@ class InvoiceTemplateService(BasePDFTemplateService):
                                  colWidths=[self.left_indent, doc.width-self.left_indent])
         except Exception:
             # Fallback to plain text if HTML parsing fails
-            fallback_text = f"Paid with: {invoice_data['card_name']} card ending in {invoice_data['card_last4']}"
+            if card_last4:
+                fallback_text = f"Paid with: {card_name} card ending in {card_last4}"
+            else:
+                fallback_text = f"Paid via {card_name or 'Polar'}"
             payment_table = Table([[Spacer(self.left_indent, 0), 
                                   Paragraph(fallback_text, self.styles['Normal'])]], 
                                   colWidths=[self.left_indent, doc.width-self.left_indent])
