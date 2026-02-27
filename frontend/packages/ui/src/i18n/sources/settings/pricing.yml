@@ -1,27 +1,4 @@
-pricing.description:
-  context: Short explanatory text shown at the top of the Pricing settings page
-  en: Credits power every AI interaction on OpenMates. Buy a one-time package or set up auto top-up to keep your balance topped up.
-  de: Credits ermöglichen jede KI-Interaktion auf OpenMates. Kaufe ein Einmalpaket oder richte Auto-Aufladen ein.
-  zh: 积分驱动 OpenMates 上的每一次 AI 交互。购买一次性套餐或设置自动充值。
-  es: Los créditos impulsan cada interacción de IA en OpenMates. Compra un paquete único o configura la recarga automática.
-  fr: Les crédits alimentent chaque interaction IA sur OpenMates. Achetez un forfait unique ou configurez le rechargement automatique.
-  pt: ""
-  ru: ""
-  ja: クレジットはOpenMatesのすべてのAIインタラクションを動かします。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  verified_by_human: []
-pricing.packages_heading:
+packages_heading:
   context: Section heading for credit packages on the Pricing page
   en: Credit Packages
   de: Kreditpakete
@@ -44,7 +21,7 @@ pricing.packages_heading:
   cs: ""
   sv: ""
   verified_by_human: []
-pricing.recommended:
+recommended:
   context: Badge label for the recommended credit package
   en: Recommended
   de: Empfohlen
@@ -67,7 +44,7 @@ pricing.recommended:
   cs: ""
   sv: ""
   verified_by_human: []
-pricing.bonus_credits:
+bonus_credits:
   context: Label for bonus credits that come with a monthly auto top-up subscription
   en: bonus/mo with Auto Top-Up
   de: Bonus/Mo mit Auto-Aufladen
@@ -90,7 +67,7 @@ pricing.bonus_credits:
   cs: ""
   sv: ""
   verified_by_human: []
-pricing.vat_note:
+vat_note:
   context: Small footnote on the Pricing page indicating prices are excluding VAT
   en: All prices excluding VAT. Prices in EUR and USD.
   de: Alle Preise exkl. MwSt. Preise in EUR und USD.
@@ -113,7 +90,7 @@ pricing.vat_note:
   cs: ""
   sv: ""
   verified_by_human: []
-pricing.explore_heading:
+explore_heading:
   context: Section heading for the App Store exploration links on the Pricing page
   en: Explore App Skills & Costs
   de: App-Skills & Kosten erkunden
@@ -136,7 +113,7 @@ pricing.explore_heading:
   cs: ""
   sv: ""
   verified_by_human: []
-pricing.ai_ask_skill:
+ai_ask_skill:
   context: Title for the AI Ask skill link on the Pricing page
   en: AI Ask
   de: KI Fragen
@@ -159,7 +136,7 @@ pricing.ai_ask_skill:
   cs: ""
   sv: ""
   verified_by_human: []
-pricing.ai_ask_subtitle:
+ai_ask_subtitle:
   context: Subtitle for the AI Ask skill link on the Pricing page — explains it is the main cost driver
   en: Biggest cost factor — explore model pricing
   de: Größter Kostenfaktor — Modellpreise erkunden
@@ -182,7 +159,7 @@ pricing.ai_ask_subtitle:
   cs: ""
   sv: ""
   verified_by_human: []
-pricing.browse_app_store:
+browse_app_store:
   context: Title for the App Store link on the Pricing page
   en: Browse App Store
   de: App Store durchsuchen
@@ -205,7 +182,7 @@ pricing.browse_app_store:
   cs: ""
   sv: ""
   verified_by_human: []
-pricing.browse_app_store_subtitle:
+browse_app_store_subtitle:
   context: Subtitle for the App Store link on the Pricing page — tells user they can see per-skill pricing
   en: See pricing for all available skills
   de: Preise für alle verfügbaren Skills einsehen
