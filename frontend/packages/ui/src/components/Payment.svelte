@@ -136,10 +136,12 @@
                 stripe = await loadStripe(config.public_key);
                 await createOrder();
             } else if (config.provider === 'polar') {
-                // Polar: do NOT call createOrder() yet — wait until user clicks Pay button.
-                // The checkout URL is fetched on-demand when they click "Pay with Polar".
+                // Polar: auto-trigger checkout immediately on provider detection.
+                // No button click needed — the checkout iframe loads as soon as the
+                // payment panel mounts with Polar as the active provider.
                 isLoading = false;
                 isInitializing = false;
+                handlePolarCheckout();
                 return;
             } else {
                 // Handle other providers if needed
@@ -897,17 +899,18 @@
             provider={activeProvider || 'stripe'}
         />
     {:else if activeProvider === 'polar' && !supportContribution}
-        <!-- Polar embedded checkout.
-             Two states:
-             1. polarCheckoutUrl is null  → show "Buy for X EUR" button
-             2. polarCheckoutUrl is set   → show Polar checkout as an inline iframe
-                                            inside the settings panel (no full-screen overlay).
+        <!-- Polar embedded checkout (inline iframe, no full-screen overlay).
              We bypass PolarEmbedCheckout.create() entirely because it always appends a
-             fixed-position overlay to document.body. Instead we create our own iframe,
-             sized to fit the settings menu, and wire postMessage events manually. -->
-        <div class="payment-form-overlay-wrapper">
+             fixed-position overlay to document.body. Instead we render our own <iframe>
+             directly in the settings panel. The checkout is auto-triggered on mount —
+             no button click required. States:
+             1. isPolarLoading → loading spinner while create-order is in flight
+             2. polarCheckoutUrl is set → inline iframe fills the panel
+             3. errorMessage (URL null, not loading) → retry button shown -->
+        <div class="polar-checkout-wrapper">
             {#if polarCheckoutUrl}
-                <!-- Inline Polar checkout iframe — fills the settings payment panel -->
+                <!-- Inline Polar checkout iframe — full width, no border, tall enough
+                     to show all fields without internal scroll. Settings menu scrolls. -->
                 <div class="polar-inline-checkout-container">
                     <iframe
                         class="polar-inline-checkout-iframe"
@@ -916,23 +919,25 @@
                         allow="payment 'self' https://polar.sh https://sandbox.polar.sh; publickey-credentials-get 'self' https://polar.sh https://sandbox.polar.sh"
                     ></iframe>
                 </div>
+            {:else if isPolarLoading || isLoading}
+                <!-- Loading state while create-order is in flight -->
+                <div class="polar-loading-state">
+                    <div class="polar-loading-spinner"></div>
+                    <span>{$text('login.loading')}</span>
+                </div>
             {:else}
+                <!-- Error / retry state — shown if auto-trigger failed -->
                 {#if errorMessage}
                     <div class="polar-error-message" role="alert">{errorMessage}</div>
                 {/if}
 
                 <button
                     class="buy-button polar-pay-button"
-                    disabled={isPolarLoading || isLoading}
                     onclick={handlePolarCheckout}
                 >
-                    {#if isPolarLoading || isLoading}
-                        {$text('login.loading')}
-                    {:else}
-                        {$text('signup.buy_for')
-                            .replace('{currency}', currency)
-                            .replace('{amount}', (purchasePrice / 100).toString())}
-                    {/if}
+                    {$text('signup.buy_for')
+                        .replace('{currency}', currency)
+                        .replace('{amount}', (purchasePrice / 100).toString())}
                 </button>
 
                 <!-- Switch to EU / Stripe -->
@@ -940,7 +945,6 @@
                     <button
                         class="provider-switch-btn"
                         onclick={() => switchProvider('stripe')}
-                        disabled={isLoading || isPolarLoading}
                     >
                         {$text('signup.switch_to_eu_card')}
                     </button>
@@ -1100,29 +1104,53 @@
         cursor: not-allowed;
     }
 
-    /* Polar pay button — reuse the buy-button class from PaymentForm */
+    /* Polar checkout wrapper — full width, no extra padding */
+    .polar-checkout-wrapper {
+        width: 100%;
+    }
+
+    /* Polar pay button — shown only as retry fallback when auto-trigger fails */
     .polar-pay-button {
         width: 100%;
         margin-top: 20px;
     }
 
-    .polar-pay-button:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
+    /* Polar loading state — centered spinner shown while create-order is in flight */
+    .polar-loading-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 40px 0;
+        color: var(--color-grey-60);
+        font-size: 14px;
     }
 
-    /* Inline Polar checkout iframe container — fills the settings panel width,
-       tall enough for the Polar form (card fields + submit button). No overlay. */
+    .polar-loading-spinner {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid var(--color-grey-20);
+        border-top-color: var(--color-primary);
+        animation: polar-spin 0.8s linear infinite;
+    }
+
+    @keyframes polar-spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Inline Polar checkout iframe container — no border/radius, flush with panel.
+       The settings menu scrolls; the iframe itself should not scroll internally.
+       Height 900px covers all Polar form fields (email + card + address + submit). */
     .polar-inline-checkout-container {
         width: 100%;
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid var(--color-grey-20);
     }
 
     .polar-inline-checkout-iframe {
         width: 100%;
-        height: 600px;
+        /* Tall enough to show all Polar form fields without internal scrollbar.
+           The parent settings menu panel handles page-level scrolling. */
+        height: 900px;
         border: none;
         display: block;
         background: transparent;

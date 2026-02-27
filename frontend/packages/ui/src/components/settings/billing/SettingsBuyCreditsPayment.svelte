@@ -504,12 +504,13 @@ Supports both saved payment methods and new payment form
     }
 
     .payment-container {
-        width: 90%;
-        padding: 0 10px;
+        /* Full width — Polar iframe needs to fill the entire panel.
+           The Payment component handles its own internal layout. */
+        width: 100%;
+        padding: 0;
     }
 
     @media (max-width: 480px) {
-        .payment-container,
         .payment-methods-container {
             padding: 0 5px;
         }
