@@ -5479,6 +5479,12 @@
       "examples_label": {
         "text": "Exemplos:"
       },
+      "my": {
+        "text": "Minhas"
+      },
+      "settings_and_memories": {
+        "text": "Configurações e memórias"
+      },
       "my_settings_and_memories": {
         "text": "Minhas configurações e memórias"
       },

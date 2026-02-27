@@ -5500,6 +5500,12 @@
       "examples_label": {
         "text": "Exempel:"
       },
+      "my": {
+        "text": "Mina"
+      },
+      "settings_and_memories": {
+        "text": "Inställningar och minnen"
+      },
       "my_settings_and_memories": {
         "text": "Mina inställningar och minnen"
       },

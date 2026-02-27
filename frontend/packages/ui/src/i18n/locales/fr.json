@@ -6989,6 +6989,12 @@
       "examples_label": {
         "text": "Exemples :"
       },
+      "my": {
+        "text": "Mes"
+      },
+      "settings_and_memories": {
+        "text": "Paramètres et souvenirs"
+      },
       "my_settings_and_memories": {
         "text": "Mes paramètres et souvenirs"
       },

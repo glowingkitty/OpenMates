@@ -5476,6 +5476,12 @@
       "examples_label": {
         "text": "예시:"
       },
+      "my": {
+        "text": "내"
+      },
+      "settings_and_memories": {
+        "text": "설정 및 메모리"
+      },
       "my_settings_and_memories": {
         "text": "내 설정 및 메모리"
       },

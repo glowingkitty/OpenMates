@@ -2208,6 +2208,10 @@ auto_topup_payment_method_error:
   cs: Platební metodu se nepodařilo uložit. Měsíční automatické dobíjení není k dispozici. Můžete to nastavit později v nastavení.
   sv: Betalningsmetoden kunde inte sparas. Månadsvis automatisk påfyllning är inte tillgänglig. Du kan ställa in detta senare i inställningarna.
   verified_by_human: []
+buy_credits_explainer:
+  context: Short explainer text shown above credit tier options on the Buy Credits page
+  en: Credits are used when you chat with your digital team mates and use app skills.
+  verified_by_human: []
 insufficient_credits_error:
   context: Error message when user doesn't have enough credits to complete a request
   en: You don't have enough credits to complete this request. Please buy more credits or activate auto top-up with a valid payment method.

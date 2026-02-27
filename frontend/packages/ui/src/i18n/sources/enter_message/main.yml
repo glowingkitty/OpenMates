@@ -94,10 +94,6 @@ buy_credits:
   context: Button text shown instead of Send when a signed-in user has zero credits
   en: Buy credits
   verified_by_human: []
-no_credits_explainer:
-  context: Short explainer text shown above the action buttons when signed-in user has no credits
-  en: You need credits to chat with your digital team mates and use app skills.
-  verified_by_human: []
 is_typing_powered_by:
   context: Text shown when someone is typing with model and provider information
   en: "{mate} is typing...

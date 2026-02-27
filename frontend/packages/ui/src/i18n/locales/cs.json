@@ -5482,6 +5482,12 @@
       "examples_label": {
         "text": "Příklady:"
       },
+      "my": {
+        "text": "Moje"
+      },
+      "settings_and_memories": {
+        "text": "Nastavení a paměti"
+      },
       "my_settings_and_memories": {
         "text": "Moje nastavení a paměti"
       },

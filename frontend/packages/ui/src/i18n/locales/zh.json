@@ -6835,6 +6835,12 @@
       "examples_label": {
         "text": "示例："
       },
+      "my": {
+        "text": "我的"
+      },
+      "settings_and_memories": {
+        "text": "设置与记忆"
+      },
       "my_settings_and_memories": {
         "text": "我的设置与记忆"
       },

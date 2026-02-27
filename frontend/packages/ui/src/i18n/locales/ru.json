@@ -5476,6 +5476,12 @@
       "examples_label": {
         "text": "Примеры:"
       },
+      "my": {
+        "text": "Мои"
+      },
+      "settings_and_memories": {
+        "text": "Настройки и воспоминания"
+      },
       "my_settings_and_memories": {
         "text": "Мои настройки и воспоминания"
       },

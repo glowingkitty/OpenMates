@@ -36,6 +36,7 @@ Buy Credits - Credit tier selection
 
     // Navigate to payment view for a specific tier
     function selectCreditTier(tier: any) {
+
         const tierIndex = pricingTiers.indexOf(tier);
         // Store the selected tier index
         selectedTierStore.set(tierIndex);
@@ -49,6 +50,9 @@ Buy Credits - Credit tier selection
     }
 </script>
 
+<!-- Explainer: why the user needs credits -->
+<p class="credits-explainer">{$text('settings.billing.buy_credits_explainer')}</p>
+
 <!-- Credit Tier Selection as Menu Items -->
 {#each pricingTiers as tier}
     <SettingsItem
@@ -60,3 +64,12 @@ Buy Credits - Credit tier selection
     />
 {/each}
 
+<style>
+    .credits-explainer {
+        font-size: 0.85rem;
+        color: var(--color-text-muted);
+        padding: 12px 16px 4px;
+        margin: 0;
+        line-height: 1.4;
+    }
+</style>

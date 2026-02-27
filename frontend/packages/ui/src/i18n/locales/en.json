@@ -3542,9 +3542,6 @@
     "buy_credits": {
       "text": "Buy credits"
     },
-    "no_credits_explainer": {
-      "text": "You need credits to chat with your digital team mates and use app skills."
-    },
     "is_typing_powered_by": {
       "text": "{mate} is typing...\nPowered by {model_name} via {provider_name}"
     },
@@ -6411,6 +6408,12 @@
       "examples_label": {
         "text": "Examples:"
       },
+      "my": {
+        "text": "My"
+      },
+      "settings_and_memories": {
+        "text": "Settings & memories"
+      },
       "my_settings_and_memories": {
         "text": "My Settings & Memories"
       },
@@ -7095,6 +7098,9 @@
       },
       "auto_topup_payment_method_error": {
         "text": "Payment method could not be saved. Monthly auto top-up is not available. You can set this up later in settings."
+      },
+      "buy_credits_explainer": {
+        "text": "Credits are used when you chat with your digital team mates and use app skills."
       },
       "insufficient_credits_error": {
         "text": "You don't have enough credits to complete this request. Please buy more credits or activate auto top-up with a valid payment method."

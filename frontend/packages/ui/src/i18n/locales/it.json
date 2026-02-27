@@ -5540,6 +5540,12 @@
       "examples_label": {
         "text": "Esempi:"
       },
+      "my": {
+        "text": "Le mie"
+      },
+      "settings_and_memories": {
+        "text": "Impostazioni e ricordi"
+      },
       "my_settings_and_memories": {
         "text": "Le mie impostazioni e ricordi"
       },
