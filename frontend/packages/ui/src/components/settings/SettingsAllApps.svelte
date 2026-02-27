@@ -42,9 +42,10 @@
     ]);
 
     /**
-     * Filter apps by search query (name or description, case-insensitive),
+     * Filter apps by search query (name, description, or provider names, case-insensitive),
      * then sort by the selected sort option.
      * Uses i18n-translated app names/descriptions from the text store.
+     * Provider matching lets users find apps by typing e.g. "Anthropic" or "Google".
      */
     let filteredAndSorted = $derived.by((): AppMetadata[] => {
         let list = [...appsList];
@@ -59,7 +60,9 @@
                 const desc = app.description_translation_key
                     ? $text(app.description_translation_key).toLowerCase()
                     : '';
-                return name.includes(query) || desc.includes(query);
+                // Also match against provider names (e.g. "Anthropic", "Google")
+                const providers = (app.providers || []).join(' ').toLowerCase();
+                return name.includes(query) || desc.includes(query) || providers.includes(query);
             });
         }
 

@@ -386,25 +386,38 @@ function buildAppSearchCatalog(): AppCatalogEntry[] {
   const entries: AppCatalogEntry[] = [];
 
   for (const app of Object.values(appsMetadata)) {
+    // Collect app-level provider names as lowercase keywords (e.g. ["anthropic", "google"])
+    // so users can find apps by typing a provider name like "Anthropic" or "OpenAI".
+    const appProviderKeywords = (app.providers || []).map((p) =>
+      p.toLowerCase(),
+    );
+
     // App itself
     entries.push({
       path: `app_store/${app.id}`,
       nameTranslationKey: app.name_translation_key || `apps.${app.id}`,
       descriptionTranslationKey: app.description_translation_key,
       icon: null, // Apps use icon_image (SVG), not icon class
-      keywords: ["app", app.id],
+      keywords: ["app", app.id, ...appProviderKeywords],
       entryType: "app",
       appId: app.id,
     });
 
     // Skills
     for (const skill of app.skills || []) {
+      // Include skill-level providers (may differ from app-level providers).
+      // Fall back to app-level providers if the skill has none of its own.
+      const skillProviderKeywords =
+        skill.providers && skill.providers.length > 0
+          ? skill.providers.map((p) => p.toLowerCase())
+          : appProviderKeywords;
+
       entries.push({
         path: `app_store/${app.id}/skill/${skill.id}`,
         nameTranslationKey: skill.name_translation_key,
         descriptionTranslationKey: skill.description_translation_key,
         icon: null,
-        keywords: ["skill", app.id, skill.id],
+        keywords: ["skill", app.id, skill.id, ...skillProviderKeywords],
         entryType: "skill",
         appId: app.id,
       });
