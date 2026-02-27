@@ -4204,6 +4204,46 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     phasedSyncState.markInitialChatLoaded();
                     activeChatStore.setActiveChat(existingChatId);
                     await loadChat(existingChat);
+
+                    // Warm the embed key cache from IndexedDB so UnifiedEmbedPreview
+                    // can decrypt after navigating back to this chat in the same session.
+                    //
+                    // Without this, if the user navigates away and back, embedKeyCache is
+                    // empty (it's in-memory only). When phase 2/3 sync calls putEncrypted()
+                    // it replaces the cached decrypted entry with an encrypted-only entry.
+                    // The next refetchFromStore() then calls getEmbedKey() → cache miss →
+                    // falls back to IndexedDB, which works. BUT if we call setEmbedKeyInCache()
+                    // now we avoid that extra IndexedDB round-trip and guarantee the key is
+                    // available for immediate use even if IndexedDB is slow or busy.
+                    //
+                    // This mirrors the IndexedDB recovery path in the new-chat code below
+                    // (the `embedKeyForWrap` recovery block in the `if (reusedEmbedId)` branch).
+                    if (inspiration.embed_id) {
+                        try {
+                            const { embedStore } = await import('../services/embedStore');
+                            const cachedKey = embedStore.getEmbedKeyFromCache(inspiration.embed_id);
+                            if (!cachedKey) {
+                                const recoveredKey = await embedStore.getEmbedKey(inspiration.embed_id, undefined);
+                                if (recoveredKey) {
+                                    embedStore.setEmbedKeyInCache(inspiration.embed_id, recoveredKey, undefined);
+                                    console.info(
+                                        `[ActiveChat] ✅ Warmed embed key cache from IndexedDB for dedup path (embed ${inspiration.embed_id})`,
+                                    );
+                                } else {
+                                    console.warn(
+                                        `[ActiveChat] Could not recover embed key for ${inspiration.embed_id} — embed may show error on re-mount`,
+                                    );
+                                }
+                            }
+                        } catch (embedKeyErr) {
+                            // Non-fatal: embed will attempt IndexedDB lookup on its own when it renders
+                            console.warn(
+                                '[ActiveChat] Failed to warm embed key cache in dedup path (non-fatal):',
+                                embedKeyErr,
+                            );
+                        }
+                    }
+
                     return;
                 }
                 // Chat not found locally — fall through to create a new one.

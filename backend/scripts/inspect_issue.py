@@ -919,6 +919,41 @@ def format_detail_output(
             for html_line in html_text.split('\n'):
                 lines.append(f"    {html_line}")
 
+        # Picked element HTML — outerHTML of the DOM element the user tapped via the element
+        # picker overlay. Captures the exact broken UI element for layout/rendering debugging.
+        picked_element_html = report.get('picked_element_html')
+        if picked_element_html:
+            lines.append("")
+            lines.append("  PICKED ELEMENT HTML (element selected via element picker overlay):")
+            lines.append("  " + "-" * 60)
+            for html_line in str(picked_element_html).split('\n'):
+                lines.append(f"    {html_line}")
+
+        # Active chat sidebar HTML — outerHTML of the active Chat.svelte entry at submit time.
+        # Captures title, status label, typing indicator, and category icon state.
+        active_chat_sidebar_html = report.get('active_chat_sidebar_html')
+        if active_chat_sidebar_html:
+            lines.append("")
+            lines.append("  ACTIVE CHAT SIDEBAR HTML (sidebar entry state at submit time):")
+            lines.append("  " + "-" * 60)
+            for html_line in str(active_chat_sidebar_html).split('\n'):
+                lines.append(f"    {html_line}")
+
+        # Runtime debug state — WS connection, online status, AI typing, pending uploads, sync.
+        # Stored as a JSON string or dict in the YAML report depending on serialization round-trip.
+        runtime_debug_state = report.get('runtime_debug_state')
+        if runtime_debug_state:
+            lines.append("")
+            lines.append("  RUNTIME DEBUG STATE (WS, online, AI typing, pending uploads, sync):")
+            lines.append("  " + "-" * 60)
+            if isinstance(runtime_debug_state, dict):
+                import json as _json_local
+                state_text = _json_local.dumps(runtime_debug_state, indent=2, default=str)
+            else:
+                state_text = str(runtime_debug_state)
+            for state_line in state_text.split('\n'):
+                lines.append(f"    {state_line}")
+
     # Footer
     lines.append("")
     lines.append("=" * 100)
