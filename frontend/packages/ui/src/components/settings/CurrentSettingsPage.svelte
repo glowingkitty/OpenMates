@@ -24,7 +24,11 @@
         menuItemsCount = $bindable(0),
         sliderElement = null,
         isMenuVisible = false,
-        paymentEnabled = true
+        paymentEnabled = true,
+        // When true (default), renders the docked profile avatar + username + credits inline.
+        // Set to false when a SettingsMainHeader gradient banner is rendered above, so the
+        // profile section is not duplicated.
+        showProfileHeader = true,
     }: {
         activeSettingsView?: string;
         direction?: string;
@@ -39,6 +43,7 @@
         sliderElement?: HTMLDivElement | null;
         isMenuVisible?: boolean;
         paymentEnabled?: boolean;
+        showProfileHeader?: boolean;
     } = $props();
     
     // State for docked profile visibility
@@ -256,37 +261,41 @@
             class="settings-items active"
             in:slideIn={{ dir: direction }}
         >
-            <!-- Show user info for all users (authenticated shows username, non-authenticated shows "Guest") -->
-            <!-- Profile container that scrolls with content (appears instantly when menu opens) -->
-            {#if showDockedProfile}
-                <div class="profile-container-docked">
-                    {#if !isAuthenticated}
-                        <div class="profile-picture language-icon-container">
-                            <!-- Show user icon when menu is open (same behavior as original profile container) -->
-                            <div class="clickable-icon icon_user"></div>
+            <!-- Profile header: docked avatar + username + credits.
+                 Hidden when showProfileHeader=false (e.g. SettingsMainHeader gradient banner
+                 is already rendered above by Settings.svelte, so we skip it here). -->
+            {#if showProfileHeader}
+                <!-- Profile container that scrolls with content (appears after 400ms delay) -->
+                {#if showDockedProfile}
+                    <div class="profile-container-docked">
+                        {#if !isAuthenticated}
+                            <div class="profile-picture language-icon-container">
+                                <!-- Show user icon when menu is open (same behavior as original profile container) -->
+                                <div class="clickable-icon icon_user"></div>
+                            </div>
+                        {:else}
+                            <div
+                                class="profile-picture"
+                                style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}
+                            >
+                                {#if !profileImageUrl}
+                                    <div class="default-user-icon"></div>
+                                {/if}
+                            </div>
+                        {/if}
+                    </div>
+                {/if}
+                <div class="user-info-container">
+                    <div class="username" class:shifted={!paymentEnabled}>{username || 'Guest'}</div>
+                    <!-- Credits container - hidden visually when payment is disabled (self-hosted) but maintains layout space -->
+                    <div class="credits-container" class:hidden={!paymentEnabled}>
+                        <span class="credits-icon"></span>
+                        <div class="credits-text">
+                            <span class="credits-amount"><mark>{$text('settings.credits_amount').replace('{credits_amount}', credits.toString())}</mark></span>
                         </div>
-                    {:else}
-                        <div
-                            class="profile-picture"
-                            style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}
-                        >
-                            {#if !profileImageUrl}
-                                <div class="default-user-icon"></div>
-                            {/if}
-                        </div>
-                    {/if}
-                </div>
-            {/if}
-            <div class="user-info-container">
-                <div class="username" class:shifted={!paymentEnabled}>{username || 'Guest'}</div>
-                <!-- Credits container - hidden visually when payment is disabled (self-hosted) but maintains layout space -->
-                <div class="credits-container" class:hidden={!paymentEnabled}>
-                    <span class="credits-icon"></span>
-                    <div class="credits-text">
-                        <span class="credits-amount"><mark>{$text('settings.credits_amount').replace('{credits_amount}', credits.toString())}</mark></span>
                     </div>
                 </div>
-            </div>
+            {/if}
             
             <!-- Incognito mode toggle - appears above Usage like language toggles -->
             <!-- Only show for authenticated users -->

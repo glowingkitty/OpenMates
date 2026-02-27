@@ -1,3 +1,26 @@
+billing.description:
+  context: Short description shown in the billing settings page gradient banner header
+  en: Manage your credits, subscriptions and payment methods
+  de: Verwalte deine Credits, Abonnements und Zahlungsmethoden
+  zh: 管理您的积分、订阅和支付方式
+  es: Gestiona tus créditos, suscripciones y métodos de pago
+  fr: Gérez vos crédits, abonnements et moyens de paiement
+  pt: ""
+  ru: ""
+  ja: クレジット、サブスクリプション、支払い方法を管理する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 billing:
   context: Billing settings menu item
   en: Billing

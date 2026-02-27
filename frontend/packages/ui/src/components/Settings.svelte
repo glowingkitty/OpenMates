@@ -54,6 +54,7 @@ changes to the documentation (to keep the documentation up to date).
     import CurrentSettingsPage from './settings/CurrentSettingsPage.svelte';
     import SettingsItem from './SettingsItem.svelte';
     import AppDetailsHeader from './settings/AppDetailsHeader.svelte';
+    import SettingsMainHeader from './settings/SettingsMainHeader.svelte';
     
     // Import all settings route definitions and the dynamic wrapper components
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper } from './settings/settingsRoutes';
@@ -524,6 +525,54 @@ changes to the documentation (to keep the documentation up to date).
     let isAnyAppBannerPage = $derived(isAppTopLevelPage || isAppSubPage);
 
     /**
+     * True when the user is on a standard settings sub-page (Privacy, Billing, Usage, etc.)
+     * that should receive the gradient banner treatment.
+     * Excludes: main view, app store pages (handled by AppDetailsHeader in app mode),
+     * mate detail pages (have their own header treatment), model detail pages.
+     */
+    let isStandardSubPage = $derived(
+        activeSettingsView !== 'main' &&
+        !isAnyAppBannerPage &&
+        !isMateDetailPage &&
+        !isModelDetailPage
+    );
+
+    /**
+     * True when ANY gradient banner should be visible (app store OR standard sub-page).
+     * Used to suppress the normal submenu-info block and shrink the settings-header.
+     */
+    let isAnyBannerPage = $derived(isAnyAppBannerPage || isStandardSubPage);
+
+    /**
+     * Description translation keys for standard settings pages.
+     * These are displayed in the gradient banner for the corresponding route.
+     * Keys without a description are intentionally absent (banner shows title only).
+     */
+    const settingsPageDescriptionKeys: Record<string, string> = {
+        'privacy': 'settings.privacy.description',
+        'usage': 'settings.usage.description',
+        'billing': 'settings.billing.description',
+        'account': 'settings.account.description',
+        'interface': 'settings.interface.description',
+        'support': 'settings.support.description',
+        'developers': 'settings.developers_description',
+        'mates': 'settings.mates.description',
+    };
+
+    /**
+     * The description string for the currently active standard settings sub-page banner.
+     * Uses the top-level segment of the path for lookup (e.g. 'billing' for 'billing/buy-credits').
+     * Returns empty string when no description key is registered.
+     */
+    let activeSubMenuDescription = $derived.by(() => {
+        if (!isStandardSubPage) return '';
+        // Use the top-level path segment for description lookup
+        const topSegment = activeSettingsView.split('/')[0];
+        const key = settingsPageDescriptionKeys[topSegment];
+        return key ? $text(key) : '';
+    });
+
+    /**
      * Data needed to render the AppDetailsHeader for sub-pages (skill/focus/memories).
      * Returns the parent appId and the item-specific data (name, typeLabel, description).
      * Returns null when not on a sub-page.
@@ -627,15 +676,18 @@ changes to the documentation (to keep the documentation up to date).
      */
     let contentScrollTop = $state(0);
 
-    /** Reset scroll tracking when navigating away from any banner page */
+    /** Reset scroll tracking on every navigation (the banner components start expanded).
+     *  We reset whenever the active view changes (banner or not). */
     $effect(() => {
-        if (!isAnyAppBannerPage) {
-            contentScrollTop = 0;
-        }
+        // Access activeSettingsView to trigger the effect on navigation changes.
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        activeSettingsView;
+        contentScrollTop = 0;
     });
 
     function handleContentScroll(e: Event) {
-        if (isAnyAppBannerPage) {
+        // Track scroll for all banner pages: app store pages, standard sub-pages, and main
+        if (isAnyBannerPage || activeSettingsView === 'main') {
             contentScrollTop = (e.target as HTMLElement).scrollTop;
         }
     }
@@ -1849,8 +1901,8 @@ changes to the documentation (to keep the documentation up to date).
 >
     <div
         class="settings-header"
-        class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo && !isAnyAppBannerPage}
-        class:app-top-level={isAnyAppBannerPage}
+        class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo && !isAnyBannerPage}
+        class:app-top-level={isAnyBannerPage || activeSettingsView === 'main'}
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => e.stopPropagation()}
         role="presentation"
@@ -1884,7 +1936,7 @@ changes to the documentation (to keep the documentation up to date).
             </a> -->
         </div>
         
-        {#if activeSettingsView !== 'main' && showSubmenuInfo && !isAnyAppBannerPage}
+        {#if activeSettingsView !== 'main' && showSubmenuInfo && !isAnyBannerPage}
             <div
                 class="submenu-info"
                 class:reduced-padding={hideNavButton}
@@ -1924,6 +1976,21 @@ changes to the documentation (to keep the documentation up to date).
         {/if}
     </div>
     
+    <!-- Main settings page gradient banner — shown only on the root settings menu.
+         Displays the user's avatar + username and a clickable credits count.
+         Placed outside the content-wrapper so sticky positioning works correctly. -->
+    {#if activeSettingsView === 'main'}
+        <SettingsMainHeader
+            {username}
+            profileImageUrl={$userProfile.profile_image_url ?? ''}
+            isAuthenticated={$authStore.isAuthenticated}
+            credits={$userProfile.credits ?? 0}
+            {paymentEnabled}
+            scrollTop={contentScrollTop}
+            onBillingClick={() => handleOpenSettings({ detail: { settingsPath: 'billing', direction: 'forward', icon: 'billing', title: $text('settings.billing') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
+        />
+    {/if}
+
     <!-- App details gradient banner — shown on:
          1. app_store/{appId} top-level pages (full description + capability counts)
          2. app_store/{appId}/skill|focus|settings_memories/{itemId} sub-pages
@@ -1948,6 +2015,23 @@ changes to the documentation (to keep the documentation up to date).
         />
     {/if}
 
+    <!-- Standard settings sub-page gradient banner — shown on Privacy, Billing, Usage, etc.
+         Uses the openmates gradient with the page icon and title.
+         Placed outside the content-wrapper for the same sticky-positioning reason. -->
+    {#if isStandardSubPage}
+        <AppDetailsHeader
+            scrollTop={contentScrollTop}
+            breadcrumbLabel={breadcrumbLabel}
+            fullBreadcrumbLabel={fullBreadcrumbLabel}
+            onBack={() => backToMainView()}
+            settingsPage={{
+                title: activeSubMenuTitle,
+                icon: activeSubMenuIcon,
+                description: activeSubMenuDescription,
+            }}
+        />
+    {/if}
+
     <div
         class="settings-content-wrapper"
         bind:this={settingsContentElement}
@@ -1968,6 +2052,7 @@ changes to the documentation (to keep the documentation up to date).
             {settingsViews}
             {isMenuVisible}
             {paymentEnabled}
+            showProfileHeader={false}
             bind:isIncognitoEnabled
             bind:isGuestEnabled
             bind:isOfflineEnabled

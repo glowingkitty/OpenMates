@@ -1,3 +1,26 @@
+account.description:
+  context: Short description shown in the account settings page gradient banner header
+  en: Manage your profile, authentication and account settings
+  de: Verwalte dein Profil, Authentifizierung und Kontoeinstellungen
+  zh: 管理您的个人资料、身份验证和账户设置
+  es: Gestiona tu perfil, autenticación y configuración de cuenta
+  fr: Gérez votre profil, l'authentification et les paramètres du compte
+  pt: ""
+  ru: ""
+  ja: プロフィール、認証、アカウント設定を管理する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 account:
   context: Account settings menu item
   en: Account

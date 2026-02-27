@@ -48,25 +48,38 @@
   // ─── Props ────────────────────────────────────────────────────────────────
 
   interface SubItem {
-    /** Display name of the skill / focus mode / memory category */
-    name: string;
-    /** Short type label shown below the name, e.g. "Skill", "Focus mode" */
-    typeLabel: string;
-    /** Optional description shown in the collapsible details block */
-    description?: string;
-    /**
-     * Icon name (without .svg) for the item-specific icon.
-     * When provided, the identity block shows this icon instead of the app icon.
-     * E.g. "search", "reminder", "calendar", "ai", "insight", "task", etc.
-     */
-    iconName?: string;
-    /**
-     * Icon type for the item-specific icon gradient background.
-     * - 'skill'  → grey gradient (--icon-skill-background)
-     * - 'focus'  → purple gradient (--icon-focus-background)
-     * - 'memory' → pink gradient (--icon-memory-background)
-     */
+    name: string;            // Display name of skill / focus mode / memory category
+    typeLabel: string;       // Short type label, e.g. "Skill", "Focus mode"
+    description?: string;    // Optional description in collapsible block
+    iconName?: string;       // Icon name (without .svg) for item-specific icon
     iconType?: 'skill' | 'focus' | 'memory';
+                             // 'skill'  → grey gradient (--icon-skill-background)
+                             // 'focus'  → purple gradient (--icon-focus-background)
+                             // 'memory' → pink gradient (--icon-memory-background)
+  }
+
+  /**
+   * When settingsPage is provided, this banner is used for a standard settings
+   * sub-page (e.g. Privacy, Billing, Usage) instead of an app store page.
+   * The gradient defaults to --color-app-openmates and the icon is shown as
+   * a white mask icon via the icon_{icon} CSS class system.
+   * The `app` prop is not required when settingsPage is set.
+   */
+  interface SettingsPage {
+    title: string;           // Page title (already translated)
+    icon: string;            // CSS icon name (used as `icon_{icon}` class)
+    description?: string;    // Optional description text
+  }
+
+  interface Props {
+    appId?: string;
+    app?: AppMetadata | undefined;
+    breadcrumbLabel?: string;
+    fullBreadcrumbLabel?: string;
+    scrollTop?: number;
+    onBack?: () => void;
+    subItem?: SubItem;       // When provided: banner shows sub-item identity
+    settingsPage?: SettingsPage; // When provided: banner shows standard settings page
   }
 
   interface Props {
@@ -84,13 +97,14 @@
   }
 
   let {
-    appId,
+    appId = '',
     app,
     breadcrumbLabel = '',
     fullBreadcrumbLabel = '',
     scrollTop = 0,
     onBack,
     subItem,
+    settingsPage,
   }: Props = $props();
 
   // ─── Sub-item navigation (prev/next arrows) ───────────────────────────────
@@ -201,15 +215,33 @@
   let focusCount  = $derived(app?.focus_modes?.length ?? 0);
   let memoryCount = $derived(app?.settings_and_memories?.length ?? 0);
 
+  // ─── settingsPage mode helpers (declared before displayName / appColorId) ──
+
+  /** Display name for settingsPage mode */
+  let settingsPageTitle = $derived(settingsPage?.title ?? '');
+
+  /** Icon name for settingsPage mode (used as CSS class `icon_{name}`) */
+  let settingsPageIcon = $derived(settingsPage?.icon ?? '');
+
+  /** Description for settingsPage mode */
+  let settingsPageDescription = $derived(settingsPage?.description ?? '');
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
   /** Display name shown in the identity row */
-  let displayName = $derived(subItem ? subItem.name : appName);
+  let displayName = $derived(
+    settingsPage ? settingsPageTitle :
+    subItem ? subItem.name :
+    appName
+  );
 
   /**
    * App ID to use for the background gradient CSS variable (--color-app-{appColorId}).
-   * Uses appId directly since color variables are keyed by app ID, not icon name.
-   * Falls back to iconName for apps that don't have an explicit ID (e.g., sub-pages).
+   * - For settingsPage mode: always use 'openmates' (the primary brand gradient).
+   * - For app store mode: use appId directly (keyed by app ID, not icon name).
+   *   Falls back to iconName for apps that don't have an explicit ID.
    */
-  let appColorId = $derived(appId || iconName);
+  let appColorId = $derived(settingsPage ? 'openmates' : (appId || iconName));
 </script>
 
 <div
@@ -243,7 +275,22 @@
       padding: {collapseProgress > 0.5 ? '0 16px' : '0 16px 4px'};
     "
   >
-    {#if subItem?.iconName}
+    {#if settingsPage && settingsPageIcon}
+      <!-- Standard settings sub-page: show a white mask icon on the gradient -->
+      <div
+        class="app-icon-slot settings-page-icon-slot"
+        style="
+          width: {iconSize}px;
+          height: {iconSize}px;
+          flex-shrink: 0;
+        "
+      >
+        <div
+          class="settings-page-mask-icon icon_{settingsPageIcon}"
+          style="width: {Math.round(iconSize * 0.58)}px; height: {Math.round(iconSize * 0.58)}px;"
+        ></div>
+      </div>
+    {:else if subItem?.iconName}
       <!-- Sub-item page: show item-specific icon with skill/focus/memory gradient -->
       <div
         class="app-icon-slot"
@@ -307,7 +354,12 @@
     style="opacity: {detailsOpacity}; pointer-events: {detailsOpacity < 0.05 ? 'none' : 'auto'};"
     aria-hidden={detailsOpacity < 0.05}
   >
-    {#if subItem}
+    {#if settingsPage}
+      <!-- Standard settings page mode: show page description only, no capability counts -->
+      {#if settingsPageDescription}
+        <p class="app-description">{settingsPageDescription}</p>
+      {/if}
+    {:else if subItem}
       <!-- Sub-item mode: show item description only (type label is now inline below the title) -->
       {#if subItem.description}
         <p class="app-description">{subItem.description}</p>
@@ -450,6 +502,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Size is driven by inline style */
+    transition: width 0.15s, height 0.15s;
+  }
+
+  /* Settings page icon slot: semi-transparent white circle + white mask icon inside */
+  .settings-page-icon-slot {
+    border-radius: 14px;
+    background-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  /* The mask icon rendered inside the settings page icon slot.
+     icons.css sets background to --color-primary; we override it to white here. */
+  .settings-page-mask-icon {
+    background: rgba(255, 255, 255, 0.95) !important;
     /* Size is driven by inline style */
     transition: width 0.15s, height 0.15s;
   }

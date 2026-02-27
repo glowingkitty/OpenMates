@@ -596,6 +596,29 @@ apps:
   cs: ""
   sv: ""
   verified_by_human: []
+mates.description:
+  context: Short description shown in the mates settings page gradient banner header
+  en: Configure your AI mates and their personalities
+  de: Konfiguriere deine KI-Kollegen und ihre Persönlichkeiten
+  zh: 配置您的AI伙伴及其个性
+  es: Configura tus compañeros de IA y sus personalidades
+  fr: Configurez vos compagnons IA et leurs personnalités
+  pt: ""
+  ru: ""
+  ja: AIメイトとそのパーソナリティを設定する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 mates:
   context: Mates settings menu item
   en: Mates
@@ -4623,6 +4646,29 @@ newsletter_info:
   th: หลังจากสมัครสมาชิกแล้ว คุณจะได้รับอีเมลยืนยัน คลิกที่ลิงก์ในอีเมลเพื่อเสร็จสิ้นการสมัครสมาชิก
   cs: Po přihlášení obdržíte potvrzovací e-mail. Klikněte na odkaz v e-mailu a dokončete přihlášení.
   sv: Efter prenumeration får du ett bekräftelsemejl. Klicka på länken i e-postmeddelandet för att slutföra din prenumeration.
+  verified_by_human: []
+support.description:
+  context: Short description shown in the support settings page gradient banner header
+  en: Get help and contact the OpenMates team
+  de: Hilfe bekommen und das OpenMates-Team kontaktieren
+  zh: 获取帮助并联系OpenMates团队
+  es: Obtén ayuda y contacta con el equipo de OpenMates
+  fr: Obtenez de l'aide et contactez l'équipe OpenMates
+  pt: ""
+  ru: ""
+  ja: ヘルプを得てOpenMatesチームに連絡する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 support:
   context: Support settings menu item

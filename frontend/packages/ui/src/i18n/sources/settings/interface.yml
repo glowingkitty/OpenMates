@@ -1,3 +1,26 @@
+interface.description:
+  context: Short description shown in the interface settings page gradient banner header
+  en: Customize the appearance and language of OpenMates
+  de: Passe Aussehen und Sprache von OpenMates an
+  zh: 自定义OpenMates的外观和语言
+  es: Personaliza la apariencia e idioma de OpenMates
+  fr: Personnalisez l'apparence et la langue d'OpenMates
+  pt: ""
+  ru: ""
+  ja: OpenMatesの外観と言語をカスタマイズする
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 interface:
   context: Interface settings menu item
   en: Interface
