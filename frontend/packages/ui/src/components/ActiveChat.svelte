@@ -9623,6 +9623,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         align-items: center;
         justify-content: center;
+        transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        cursor: pointer;
+    }
+
+    .new-chat-button-wrapper:hover {
+        transform: scale(1.08);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .new-chat-button-wrapper:active {
+        transform: scale(0.95);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
     }
 
     /* New chat CTA: no extra wrapper background so the pill button stands out */
