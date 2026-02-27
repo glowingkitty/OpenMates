@@ -1,533 +1,213 @@
 # backend/core/api/app/tasks/default_inspiration_tasks.py
 #
-# Celery tasks for managing "Suggested Daily Inspirations" (admin-curated defaults).
+# Celery task for selecting today's default daily inspirations from the pool.
 #
-# Two tasks:
+# Runs daily at 06:30 UTC (30 min after personalized generation at 06:00).
+# For each language present in the pool, picks the top 3 entries by score
+# and writes them to the daily_inspiration_defaults table.
 #
-# 1. generate_default_inspiration_content_task
-#    Triggered by admin clicking "Generate Content" on a pending suggestion.
-#    Calls Gemini Flash to produce: category, CTA phrase (English), assistant_response (English).
-#    Updates status: generating → pending_review (or generation_failed on error).
-#    Sends `default_inspiration_updated` WebSocket event to admin.
+# Scoring formula:
+#   score = interaction_count / (age_in_hours + 1)
 #
-# 2. translate_default_inspiration_task
-#    Triggered by admin clicking "Accept" (confirm) on a pending_review suggestion.
-#    Translates phrase + assistant_response into all 20 target languages.
-#    Reports progress via `default_inspiration_progress` WebSocket events (same pattern as demo_chat_progress).
-#    On completion: status → published, Redis public cache cleared, WS event to admin.
-#    Max 3 published entries enforced; oldest is deactivated if exceeded.
+# This favors entries that are both popular (high interaction) and recent.
+# New entries with zero interactions still get a score > 0 via the "+1" term.
 #
-# Follows patterns from demo_tasks.py (translation batching, WS progress) and
-# the Celery task structure from demo_tasks.py / daily_inspiration_tasks.py.
+# If a language has fewer than 3 entries, remaining slots are filled from English.
+#
+# After writing, old defaults (date < today) are cleaned up, and the
+# public Redis cache for /v1/default-inspirations is invalidated.
 
 import asyncio
 import logging
+import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
-from backend.apps.ai.llm_providers.google_client import invoke_google_ai_studio_chat_completions
 
 logger = logging.getLogger(__name__)
 
-# Languages to translate into (same 20 as demo_tasks.py)
-TARGET_LANGUAGES = [
+# Redis cache key prefix for the public default-inspirations endpoint
+_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:"
+
+# Supported languages — same as the public API endpoint
+SUPPORTED_LANGUAGES = {
     "en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it",
     "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv",
-]
+}
 
-# Redis cache key pattern for the public default-inspirations endpoint
-_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:"
-_PUBLIC_CACHE_TTL = 3600  # 1 hour
+
+def _score_pool_entry(entry: Dict[str, Any], now_ts: float) -> float:
+    """
+    Compute the recency-weighted interaction score for a pool entry.
+
+    Formula: interaction_count / (age_in_hours + 1)
+    - Higher interaction_count → higher score
+    - More recent entries get a boost (smaller denominator)
+    - The "+1" prevents division by zero and gives new entries a non-zero score
+    """
+    interaction_count = entry.get("interaction_count", 0) or 0
+    generated_at = entry.get("generated_at", 0) or 0
+    age_seconds = max(now_ts - generated_at, 0)
+    age_hours = age_seconds / 3600.0
+    return interaction_count / (age_hours + 1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Task 1: Generate AI content for a pending suggestion
+# Celery task: select daily defaults
 # ─────────────────────────────────────────────────────────────────────────────
 
-@app.task(name="default_inspiration.generate_content", base=BaseServiceTask, bind=True)
-def generate_default_inspiration_content_task(self, inspiration_id: str, admin_user_id: str):
+@app.task(name="daily_inspiration.select_defaults", base=BaseServiceTask, bind=True)
+def select_daily_inspiration_defaults(self):
     """
-    Celery task: generate category, CTA phrase, and assistant_response for a pending suggestion.
+    Daily Celery task: select top 3 pool entries per language and write them
+    to the daily_inspiration_defaults table.
 
-    Args:
-        inspiration_id: UUID of the suggested_daily_inspirations record
-        admin_user_id: UUID of the admin triggering this action (for WS notification)
+    Scheduled by Beat at 06:30 UTC (after the 06:00 personalized generation).
+    Also callable manually via the trigger script.
     """
-    logger.info(
-        f"[DefaultInspiration][generate] Starting for inspiration_id={inspiration_id}, "
-        f"admin={admin_user_id[:8]}..."
-    )
-    loop = None
+    return asyncio.run(_select_defaults_async(self))
+
+
+async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
+    """Async implementation of select_daily_inspiration_defaults."""
+    task_id = "daily_defaults_selection"
+    logger.info(f"[DefaultsSelection][{task_id}] Daily defaults selection started")
+
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(
-            _async_generate_content(self, inspiration_id, admin_user_id)
-        )
+        await task.initialize_services()
     except Exception as e:
         logger.error(
-            f"[DefaultInspiration][generate] Task error for inspiration_id={inspiration_id}: {e}",
+            f"[DefaultsSelection][{task_id}] Failed to initialize services: {e}",
             exc_info=True,
         )
-        if loop:
-            loop.run_until_complete(
-                _update_status_and_notify(
-                    self, inspiration_id, "generation_failed", admin_user_id
-                )
-            )
-        raise
-    finally:
-        if loop:
-            loop.close()
+        return {"success": False, "error": str(e)}
 
-
-async def _async_generate_content(
-    task: BaseServiceTask, inspiration_id: str, admin_user_id: str
-) -> None:
-    """
-    Async implementation of content generation.
-
-    Calls Gemini Flash to produce:
-    - category: short topic label (e.g. "productivity", "science")
-    - phrase: an engaging English CTA phrase for the banner (≤ 10 words)
-    - assistant_response: a 1-2 sentence English context / teaser
-
-    Transitions status: generating → pending_review (or generation_failed on error).
-    """
-    await task.initialize_services()
     directus = task._directus_service
+    cache_service = task._cache_service
 
-    # Mark as generating
-    await directus.suggested_inspiration.update_status(inspiration_id, "generating")
-    await _notify_admin(task, inspiration_id, admin_user_id, "generating")
+    if not directus:
+        logger.error(f"[DefaultsSelection][{task_id}] DirectusService unavailable")
+        return {"success": False, "error": "DirectusService not initialized"}
 
-    # Fetch the suggestion record
-    record = await directus.suggested_inspiration.get_by_id(inspiration_id)
-    if not record:
-        logger.error(
-            f"[DefaultInspiration][generate] Record not found: inspiration_id={inspiration_id}"
-        )
-        await _update_status_and_notify(task, inspiration_id, "generation_failed", admin_user_id)
-        return
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    now_ts = time.time()
 
-    video_title = record.get("video_title") or ""
-    video_channel = record.get("video_channel_name") or ""
-    video_url = record.get("video_url") or ""
-    video_duration_formatted = record.get("video_duration_formatted") or ""
-    video_view_count = record.get("video_view_count") or 0
-
-    # Build a human-readable view count string for the prompt
-    if video_view_count >= 1_000_000:
-        views_str = f"{video_view_count / 1_000_000:.1f}M views"
-    elif video_view_count >= 1_000:
-        views_str = f"{video_view_count // 1_000}K views"
-    elif video_view_count > 0:
-        views_str = f"{video_view_count} views"
-    else:
-        views_str = ""
-
-    # Build the Gemini prompt using structured function calling
-    generation_tool = {
-        "type": "function",
-        "function": {
-            "name": "return_inspiration_content",
-            "description": (
-                "Return AI-generated Daily Inspiration content for a YouTube video. "
-                "All fields must be in English."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "category": {
-                        "type": "string",
-                        "description": (
-                            "A short, single-word or two-word topic label for the video "
-                            "(e.g. 'productivity', 'science', 'creativity', 'well-being'). "
-                            "Lowercase only."
-                        ),
-                    },
-                    "phrase": {
-                        "type": "string",
-                        "description": (
-                            "A short, curiosity-sparking question or thought-provoking statement "
-                            "for the Daily Inspiration banner. Maximum 10 words. "
-                            "Ideally a genuine question that makes the user want to find out more — "
-                            "like something a curious friend would ask. "
-                            "Does not start with 'Watch', 'See', 'Check', or 'Discover'. "
-                            "Feels like the start of a real conversation, not a marketing headline. "
-                            "Examples: 'Why do we dream — and what do dreams actually mean?', "
-                            "'What really happens inside a volcano when it erupts?', "
-                            "'How did the ancient Egyptians move those enormous stones?'"
-                        ),
-                    },
-                    "assistant_response": {
-                        "type": "string",
-                        "description": (
-                            "A rich, engaging first assistant message (3-5 sentences) shown when "
-                            "the user opens this inspiration chat. "
-                            "Explain what this video is about and why the topic is fascinating. "
-                            "Highlight 1-2 surprising, counterintuitive, or little-known facts or "
-                            "angles from the topic. "
-                            "End with an open-ended question or warm invitation that encourages the "
-                            "user to ask follow-up questions and explore the topic further. "
-                            "Tone: curious, warm, enthusiastic — like a knowledgeable friend who "
-                            "just watched something they found genuinely mind-blowing. "
-                            "Do NOT start with 'I'. Do NOT just describe what the video is called."
-                        ),
-                    },
-                },
-                "required": ["category", "phrase", "assistant_response"],
-            },
-        },
-    }
-
-    # Build the video context string for the prompt
-    video_context_parts = [
-        f"Title: {video_title}",
-        f"Channel: {video_channel}",
-    ]
-    if video_duration_formatted:
-        video_context_parts.append(f"Duration: {video_duration_formatted}")
-    if views_str:
-        video_context_parts.append(f"Views: {views_str}")
-    video_context_parts.append(f"URL: {video_url}")
-    video_context = "\n".join(video_context_parts)
-
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You generate Daily Inspiration content for an AI assistant app. "
-                "The daily inspiration section shows users a curated YouTube video to inspire them. "
-                "Create a category label, a short curiosity-sparking question for the banner, "
-                "and a rich first assistant message that explains the topic and invites exploration. "
-                "All output must be in English."
-            ),
-        },
-        {
-            "role": "user",
-            "content": (
-                f"Generate Daily Inspiration content for this YouTube video:\n\n"
-                f"{video_context}\n\n"
-                "Return a category, phrase (curiosity question for the banner), and assistant_response "
-                "(rich first message for the chat)."
-            ),
-        },
-    ]
-
+    # ── Discover which languages have pool entries ─────────────────────────
     try:
-        response = await invoke_google_ai_studio_chat_completions(
-            task_id=f"default_inspiration_generate_{inspiration_id[:8]}",
-            model_id="gemini-3-flash-preview",
-            messages=messages,
-            secrets_manager=task.secrets_manager,
-            tools=[generation_tool],
-            tool_choice="required",
-            temperature=0.7,
-            max_tokens=512,
-            stream=False,
-        )
-
-        if not response.success or not response.tool_calls_made:
-            err = getattr(response, "error_message", "No tool call returned")
-            logger.error(
-                f"[DefaultInspiration][generate] Gemini call failed for {inspiration_id}: {err}"
-            )
-            await _update_status_and_notify(
-                task, inspiration_id, "generation_failed", admin_user_id
-            )
-            return
-
-        # Extract generated fields
-        generated: Dict[str, str] = {}
-        for call in response.tool_calls_made:
-            if call.function_name == "return_inspiration_content":
-                generated = call.function_arguments_parsed or {}
-                break
-
-        category = generated.get("category", "")
-        phrase = generated.get("phrase", "")
-        assistant_response = generated.get("assistant_response", "")
-
-        if not phrase or not assistant_response:
-            logger.error(
-                f"[DefaultInspiration][generate] Incomplete generation for {inspiration_id}: {generated}"
-            )
-            await _update_status_and_notify(
-                task, inspiration_id, "generation_failed", admin_user_id
-            )
-            return
-
-        # Store generated content and transition to pending_review
-        await directus.suggested_inspiration.set_generated_content(
-            inspiration_id=inspiration_id,
-            category=category,
-            phrase=phrase,
-            assistant_response=assistant_response,
-        )
-
-        logger.info(
-            f"[DefaultInspiration][generate] Content generated for inspiration_id={inspiration_id}: "
-            f"category={category!r}, phrase={phrase!r}"
-        )
-
-        # Notify admin of new state
-        await _notify_admin(task, inspiration_id, admin_user_id, "pending_review")
-
+        pool_languages = await directus.inspiration_pool.get_pool_languages()
     except Exception as e:
         logger.error(
-            f"[DefaultInspiration][generate] Exception during Gemini call for {inspiration_id}: {e}",
+            f"[DefaultsSelection][{task_id}] Failed to get pool languages: {e}",
             exc_info=True,
         )
-        await _update_status_and_notify(task, inspiration_id, "generation_failed", admin_user_id)
-        raise
+        return {"success": False, "error": str(e)}
 
+    if not pool_languages:
+        logger.info(f"[DefaultsSelection][{task_id}] Pool is empty — no defaults to select")
+        return {"success": True, "languages_processed": 0, "message": "Pool empty"}
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Task 2: Translate confirmed inspiration into all target languages
-# ─────────────────────────────────────────────────────────────────────────────
-
-@app.task(name="default_inspiration.translate", base=BaseServiceTask, bind=True)
-def translate_default_inspiration_task(self, inspiration_id: str, admin_user_id: str):
-    """
-    Celery task: translate phrase + assistant_response into all 20 target languages.
-
-    Triggered after admin confirms (Accept) a pending_review suggestion.
-    Reports progress via `default_inspiration_progress` WebSocket events.
-    On completion: status → published, Redis public cache invalidated.
-
-    Args:
-        inspiration_id: UUID of the suggested_daily_inspirations record
-        admin_user_id: UUID of the admin (for WS progress notifications)
-    """
     logger.info(
-        f"[DefaultInspiration][translate] Starting for inspiration_id={inspiration_id}, "
-        f"admin={admin_user_id[:8]}..."
+        f"[DefaultsSelection][{task_id}] Pool has entries in {len(pool_languages)} language(s): "
+        f"{', '.join(sorted(pool_languages))}"
     )
-    loop = None
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(
-            _async_translate_inspiration(self, inspiration_id, admin_user_id)
-        )
-    except Exception as e:
-        logger.error(
-            f"[DefaultInspiration][translate] Task error for inspiration_id={inspiration_id}: {e}",
-            exc_info=True,
-        )
-        if loop:
-            loop.run_until_complete(
-                _update_status_and_notify(
-                    task=self,
-                    inspiration_id=inspiration_id,
-                    status="translation_failed",
-                    admin_user_id=admin_user_id,
-                )
-            )
-        raise
-    finally:
-        if loop:
-            loop.close()
 
+    # ── Fetch English pool entries (used as fallback) ─────────────────────
+    en_entries: List[Dict[str, Any]] = []
+    if "en" in pool_languages:
+        en_entries = await directus.inspiration_pool.get_pool_entries_by_language("en", limit=50)
 
-async def _async_translate_inspiration(
-    task: BaseServiceTask, inspiration_id: str, admin_user_id: str
-) -> None:
-    """
-    Async implementation of the translation task.
-
-    Translates `phrase` and `assistant_response` into all TARGET_LANGUAGES.
-    Stores results in suggested_daily_inspiration_translations.
-    Then publishes the inspiration and clears the Redis public cache.
-    """
-    await task.initialize_services()
-    directus = task._directus_service
-
-    # Fetch the record
-    record = await directus.suggested_inspiration.get_by_id(inspiration_id)
-    if not record:
-        logger.error(
-            f"[DefaultInspiration][translate] Record not found: inspiration_id={inspiration_id}"
-        )
-        await _update_status_and_notify(task, inspiration_id, "translation_failed", admin_user_id)
-        return
-
-    phrase_en = record.get("phrase") or ""
-    assistant_response_en = record.get("assistant_response") or ""
-
-    if not phrase_en:
-        logger.error(
-            f"[DefaultInspiration][translate] No phrase found for inspiration_id={inspiration_id}"
-        )
-        await _update_status_and_notify(task, inspiration_id, "translation_failed", admin_user_id)
-        return
-
-    total_languages = len(TARGET_LANGUAGES)
-    completed = 0
-
-    # ── Store English originals first ────────────────────────────────────────
-    await directus.suggested_inspiration.upsert_translation(
-        inspiration_id=inspiration_id,
-        language="en",
-        phrase=phrase_en,
-        assistant_response=assistant_response_en,
+    # Score and sort English entries
+    en_scored = sorted(
+        en_entries,
+        key=lambda e: _score_pool_entry(e, now_ts),
+        reverse=True,
     )
-    completed += 1
-    await _send_progress(task, inspiration_id, admin_user_id, completed, total_languages, "en")
 
-    # ── Translate remaining languages in batches of 5 ──────────────────────
-    non_english = [lang for lang in TARGET_LANGUAGES if lang != "en"]
-    batch_size = 5
+    languages_processed = 0
+    total_defaults_written = 0
 
-    for batch_start in range(0, len(non_english), batch_size):
-        batch_langs = non_english[batch_start : batch_start + batch_size]
+    # ── Process each language ─────────────────────────────────────────────
+    # Process all supported languages, not just those in pool_languages.
+    # Languages not in the pool will get English fallback entries.
+    all_languages = sorted(SUPPORTED_LANGUAGES)
 
+    for lang in all_languages:
         try:
-            translations = await _translate_inspiration_texts_batch(
-                task=task,
-                phrase=phrase_en,
-                assistant_response=assistant_response_en,
-                target_languages=batch_langs,
+            if lang in pool_languages:
+                entries = await directus.inspiration_pool.get_pool_entries_by_language(
+                    lang, limit=50
+                )
+            else:
+                entries = []
+
+            # Score and sort
+            scored = sorted(
+                entries,
+                key=lambda e: _score_pool_entry(e, now_ts),
+                reverse=True,
             )
+
+            # Pick top 3; fill from English if needed
+            selected = scored[:3]
+
+            if len(selected) < 3 and lang != "en":
+                # Fill remaining slots from English, avoiding duplicate youtube_ids
+                selected_yt_ids = {e.get("youtube_id") for e in selected}
+                for en_entry in en_scored:
+                    if len(selected) >= 3:
+                        break
+                    if en_entry.get("youtube_id") not in selected_yt_ids:
+                        selected.append(en_entry)
+                        selected_yt_ids.add(en_entry.get("youtube_id"))
+
+            if not selected:
+                logger.debug(
+                    f"[DefaultsSelection][{task_id}] No entries available for lang={lang} — skipping"
+                )
+                continue
+
+            # Write to defaults table
+            written = await directus.inspiration_defaults.set_defaults_for_date(
+                date_str=today_str,
+                language=lang,
+                pool_entries=selected,
+            )
+            total_defaults_written += written
+            languages_processed += 1
+
         except Exception as e:
             logger.error(
-                f"[DefaultInspiration][translate] Batch error for {batch_langs}: {e}",
+                f"[DefaultsSelection][{task_id}] Error processing lang={lang}: {e}",
                 exc_info=True,
             )
-            # Fall back to English for this batch
-            translations = {
-                lang: {"phrase": phrase_en, "assistant_response": assistant_response_en}
-                for lang in batch_langs
-            }
 
-        for lang in batch_langs:
-            lang_data = translations.get(lang, {})
-            await directus.suggested_inspiration.upsert_translation(
-                inspiration_id=inspiration_id,
-                language=lang,
-                phrase=lang_data.get("phrase") or phrase_en,
-                assistant_response=lang_data.get("assistant_response") or assistant_response_en,
+    # ── Clean up old defaults ─────────────────────────────────────────────
+    try:
+        deleted = await directus.inspiration_defaults.delete_old_defaults(today_str)
+        if deleted > 0:
+            logger.info(
+                f"[DefaultsSelection][{task_id}] Cleaned up {deleted} old default entries"
             )
-            completed += 1
-            await _send_progress(task, inspiration_id, admin_user_id, completed, total_languages, lang)
+    except Exception as e:
+        logger.warning(
+            f"[DefaultsSelection][{task_id}] Old defaults cleanup failed: {e}"
+        )
 
-    # ── Publish and enforce max ───────────────────────────────────────────────
-    await directus.suggested_inspiration.publish_inspiration(inspiration_id)
-    await directus.suggested_inspiration.enforce_max_published()
+    # ── Invalidate public Redis cache ──────────────────────────────────────
+    await _invalidate_public_cache(cache_service)
 
-    # ── Invalidate public Redis cache for all languages ───────────────────────
-    await _invalidate_public_cache(task)
-
-    logger.info(
-        f"[DefaultInspiration][translate] Completed for inspiration_id={inspiration_id}. "
-        f"Translated {completed}/{total_languages} languages."
-    )
-
-    # Notify admin: published
-    await _notify_admin(task, inspiration_id, admin_user_id, "published")
-
-
-async def _translate_inspiration_texts_batch(
-    task: BaseServiceTask,
-    phrase: str,
-    assistant_response: str,
-    target_languages: List[str],
-) -> Dict[str, Dict[str, str]]:
-    """
-    Translate phrase and assistant_response into multiple languages in one Gemini call.
-
-    Returns a dict mapping language code → {"phrase": ..., "assistant_response": ...}
-    """
-    # Build properties dynamically for the tool schema
-    properties: Dict[str, Any] = {}
-    for lang in target_languages:
-        properties[lang] = {
-            "type": "object",
-            "properties": {
-                "phrase": {"type": "string"},
-                "assistant_response": {"type": "string"},
-            },
-            "required": ["phrase", "assistant_response"],
-        }
-
-    translation_tool = {
-        "type": "function",
-        "function": {
-            "name": "return_translations",
-            "description": (
-                "Return translations of the phrase and assistant_response into all requested languages."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": properties,
-                "required": target_languages,
-            },
-        },
+    result = {
+        "success": True,
+        "date": today_str,
+        "languages_processed": languages_processed,
+        "total_defaults_written": total_defaults_written,
     }
-
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a professional translator. Translate the given texts into all requested languages. "
-                "The 'phrase' is a short curiosity question or statement for a Daily Inspiration banner (max 10 words). "
-                "The 'assistant_response' is a rich 3-5 sentence first message that explains the topic, "
-                "highlights what makes it fascinating, and invites the user to explore further. "
-                "Preserve the tone, enthusiasm, and meaning exactly. "
-                "When a language has formal/informal 'you', use the friendly informal register "
-                "(e.g. 'du' in German, 'tu' in French, 'tú' in Spanish)."
-            ),
-        },
-        {
-            "role": "user",
-            "content": (
-                f"Translate these two English strings into all target languages.\n\n"
-                f"phrase: {phrase}\n"
-                f"assistant_response: {assistant_response}"
-            ),
-        },
-    ]
-
-    response = await invoke_google_ai_studio_chat_completions(
-        task_id=f"default_inspiration_translate_{hash(phrase) % 10000}",
-        model_id="gemini-3-flash-preview",
-        messages=messages,
-        secrets_manager=task.secrets_manager,
-        tools=[translation_tool],
-        tool_choice="required",
-        temperature=0.3,
-        max_tokens=4000,
-        stream=False,
+    logger.info(
+        f"[DefaultsSelection][{task_id}] Completed: {languages_processed} languages, "
+        f"{total_defaults_written} defaults written for {today_str}"
     )
-
-    if not response.success or not response.tool_calls_made:
-        err = getattr(response, "error_message", "No tool call")
-        logger.error(f"[DefaultInspiration][translate] Gemini batch failed for {target_languages}: {err}")
-        # Return English fallbacks
-        return {
-            lang: {"phrase": phrase, "assistant_response": assistant_response}
-            for lang in target_languages
-        }
-
-    result: Dict[str, Dict[str, str]] = {}
-    for call in response.tool_calls_made:
-        if call.function_name == "return_translations":
-            parsed = call.function_arguments_parsed or {}
-            for lang in target_languages:
-                lang_data = parsed.get(lang, {})
-                result[lang] = {
-                    "phrase": lang_data.get("phrase") or phrase,
-                    "assistant_response": lang_data.get("assistant_response") or assistant_response,
-                }
-            break
-
-    # Fill any missing languages with English fallback
-    for lang in target_languages:
-        if lang not in result:
-            result[lang] = {"phrase": phrase, "assistant_response": assistant_response}
-
     return result
 
 
@@ -535,91 +215,18 @@ async def _translate_inspiration_texts_batch(
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def _notify_admin(
-    task: BaseServiceTask,
-    inspiration_id: str,
-    admin_user_id: str,
-    status: str,
-) -> None:
-    """Send a `default_inspiration_updated` WebSocket event to the admin."""
-    try:
-        await task.publish_websocket_event(
-            user_id_hash=admin_user_id,
-            event="default_inspiration_updated",
-            payload={
-                "user_id": admin_user_id,
-                "inspiration_id": inspiration_id,
-                "status": status,
-            },
-        )
-    except Exception as e:
-        logger.warning(
-            f"[DefaultInspiration] Failed to send WS update event for {inspiration_id}: {e}"
-        )
-
-
-async def _send_progress(
-    task: BaseServiceTask,
-    inspiration_id: str,
-    admin_user_id: str,
-    completed: int,
-    total: int,
-    current_language: str,
-) -> None:
-    """Send a `default_inspiration_progress` WebSocket event to the admin."""
-    try:
-        progress_pct = round((completed / total) * 100) if total else 100
-        await task.publish_websocket_event(
-            user_id_hash=admin_user_id,
-            event="default_inspiration_progress",
-            payload={
-                "user_id": admin_user_id,
-                "inspiration_id": inspiration_id,
-                "stage": "translating",
-                "progress_percentage": progress_pct,
-                "current_language": current_language,
-                "message": f"Translated {completed}/{total} languages",
-            },
-        )
-    except Exception as e:
-        logger.warning(
-            f"[DefaultInspiration] Failed to send progress event for {inspiration_id}: {e}"
-        )
-
-
-async def _update_status_and_notify(
-    task: BaseServiceTask,
-    inspiration_id: str,
-    status: str,
-    admin_user_id: str,
-) -> None:
-    """Update status and notify admin via WebSocket (used in error paths)."""
-    try:
-        await task.initialize_services()
-        await task._directus_service.suggested_inspiration.update_status(
-            inspiration_id, status
-        )
-    except Exception as e:
-        logger.error(
-            f"[DefaultInspiration] Failed to update status={status} for {inspiration_id}: {e}"
-        )
-    await _notify_admin(task, inspiration_id, admin_user_id, status)
-
-
-async def _invalidate_public_cache(task: BaseServiceTask) -> None:
+async def _invalidate_public_cache(cache_service: Any) -> None:
     """
-    Invalidate all per-language Redis cache entries for the public default-inspirations endpoint.
-    Cache keys follow the pattern: public:default_inspirations:{lang}
+    Invalidate all per-language Redis cache entries for the public
+    default-inspirations endpoint.
     """
     try:
-        cache = task._cache_service
-        if not cache:
+        if not cache_service:
             return
-        client = await cache.client
+        client = await cache_service.client
         if not client:
             return
 
-        # Scan for all cache keys matching the public inspirations pattern
         pattern = f"{_PUBLIC_CACHE_KEY_PREFIX}*"
         cursor = 0
         deleted = 0
@@ -631,11 +238,9 @@ async def _invalidate_public_cache(task: BaseServiceTask) -> None:
             if cursor == 0:
                 break
 
-        logger.info(
-            f"[DefaultInspiration] Invalidated {deleted} public cache entries "
-            f"(pattern={pattern})"
-        )
+        if deleted > 0:
+            logger.info(
+                f"[DefaultsSelection] Invalidated {deleted} public cache entries"
+            )
     except Exception as e:
-        logger.warning(
-            f"[DefaultInspiration] Failed to invalidate public cache: {e}"
-        )
+        logger.warning(f"[DefaultsSelection] Failed to invalidate public cache: {e}")

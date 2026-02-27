@@ -86,6 +86,11 @@ class MarkOpenedRequest(BaseModel):
     opened_chat_id: Optional[str] = Field(
         None, description="Hashed chat ID created from this inspiration"
     )
+    youtube_id: Optional[str] = Field(
+        None,
+        description="YouTube video ID of the inspiration's video. "
+                    "Used to increment the pool interaction counter for crowd-ranking.",
+    )
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -219,6 +224,28 @@ async def mark_inspiration_opened(
             user_id[:8],
         )
         # Return 200 anyway — client can ignore sync failures (local state is the truth)
+
+    # ── Increment pool interaction counter ──────────────────────────────────
+    # If the client sent a youtube_id, check whether the video is in the
+    # inspiration pool and bump its aggregate interaction_count.  This drives
+    # the scoring formula for default-inspiration selection.  Fire-and-forget:
+    # a failure here must not affect the user-facing response.
+    if body.youtube_id:
+        try:
+            incremented = await directus_service.inspiration_pool.increment_interaction_by_youtube_id(
+                body.youtube_id
+            )
+            if incremented:
+                logger.debug(
+                    "[daily_inspirations_api] Incremented pool interaction for youtube_id=%s",
+                    body.youtube_id,
+                )
+        except Exception as pool_err:
+            logger.warning(
+                "[daily_inspirations_api] Pool interaction increment failed for youtube_id=%s: %s",
+                body.youtube_id,
+                pool_err,
+            )
 
     # Broadcast the opened state change to all OTHER connected devices so they can
     # update the inspiration banner in real-time without waiting for the next login sync.

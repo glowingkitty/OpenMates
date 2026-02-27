@@ -488,11 +488,16 @@ export async function syncInspirationsToAPI(
 
 /**
  * POST /v1/daily-inspirations/{id}/opened — notify server that user started a chat.
+ *
+ * Also sends the youtube_id (if available) so the server can increment the
+ * pool interaction counter for crowd-ranking of default inspirations.
+ *
  * Failures are non-fatal.
  */
 export async function markInspirationOpenedOnAPI(
   inspirationId: string,
   openedChatId?: string,
+  youtubeId?: string,
 ): Promise<void> {
   try {
     const url = getApiEndpoint(
@@ -502,7 +507,10 @@ export async function markInspirationOpenedOnAPI(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ opened_chat_id: openedChatId ?? null }),
+      body: JSON.stringify({
+        opened_chat_id: openedChatId ?? null,
+        youtube_id: youtubeId ?? null,
+      }),
     });
 
     if (!response.ok) {

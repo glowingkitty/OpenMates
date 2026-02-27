@@ -4667,7 +4667,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             markInspirationOpenedInIndexedDB(inspiration.inspiration_id, openedChatId).catch((err: unknown) => {
                 console.error('[ActiveChat] Failed to mark inspiration opened in IndexedDB:', err);
             });
-            markInspirationOpenedOnAPI(inspiration.inspiration_id, openedChatId).catch((err: unknown) => {
+            markInspirationOpenedOnAPI(
+                inspiration.inspiration_id,
+                openedChatId,
+                inspiration.video?.youtube_id,
+            ).catch((err: unknown) => {
                 console.error('[ActiveChat] Failed to mark inspiration opened on API:', err);
             });
 

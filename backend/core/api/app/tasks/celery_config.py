@@ -106,7 +106,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.daily_inspiration_tasks'},  # Daily Inspiration generation tasks (routed to persistence queue)
-    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Default Inspiration generate/translate tasks (admin-curated defaults)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Daily defaults selection from pool (replaces old admin-curated pipeline)
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.web_analytics_tasks'},  # Web analytics flush tasks (privacy-preserving aggregate counters)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
     # Add new task configurations here, e.g.:
@@ -878,12 +878,8 @@ _EXPLICIT_TASK_ROUTES = {
     # Daily Inspiration tasks
     "daily_inspiration.generate_daily": "persistence",
 
-    # Default Inspiration tasks (admin-curated defaults)
-    "default_inspiration.generate_content": "persistence",
-    "default_inspiration.translate": "persistence",
-
-    # Admin notification email for inspiration suggestions
-    "app.tasks.email_tasks.inspiration_suggestion_email_task.send_inspiration_suggestion_notification": "email",
+    # Daily defaults selection from pool (replaces old admin-curated pipeline)
+    "daily_inspiration.select_defaults": "persistence",
 
     # Web analytics tasks (privacy-preserving first-party analytics)
     "web_analytics.flush_to_directus": "server_stats",
@@ -1098,6 +1094,17 @@ app.conf.beat_schedule = {
     'generate-daily-inspirations': {
         'task': 'daily_inspiration.generate_daily',
         'schedule': crontab(hour=6, minute=0),  # Daily at 06:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily Inspiration defaults selection - picks top 3 pool entries per language
+    # based on interaction score (interaction_count / (age_hours + 1)).
+    # Runs at 06:30 UTC (30 min after personalized generation at 06:00), so new
+    # pool entries from that day's generation are available for scoring.
+    # Results are written to daily_inspiration_defaults and served by the
+    # public /v1/default-inspirations endpoint.
+    'select-daily-inspiration-defaults': {
+        'task': 'daily_inspiration.select_defaults',
+        'schedule': crontab(hour=6, minute=30),  # Daily at 06:30 UTC
         'options': {'queue': 'persistence'},
     },
     # Web analytics flush - writes Redis aggregate counters to Directus every 10 minutes.

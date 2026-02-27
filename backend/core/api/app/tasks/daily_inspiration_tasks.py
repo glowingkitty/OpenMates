@@ -109,6 +109,56 @@ async def generate_and_deliver_inspirations_for_user(
     # Serialize inspiration objects to dicts for delivery / cache storage
     serialized = [insp.model_dump() for insp in inspirations]
 
+    # ── 0. Copy to inspiration pool (cleartext, no PII) ──────────────────────
+    # Each generated inspiration is added to the shared pool so it can be used
+    # as a default inspiration for users without recent paid requests.
+    # Deduplication by youtube_id prevents duplicates; pool is capped at 100.
+    try:
+        from backend.core.api.app.services.directus import DirectusService
+        directus_service: DirectusService = cache_service._directus_service if hasattr(cache_service, "_directus_service") else None  # type: ignore[assignment]
+
+        # If we don't have a directus_service from cache, try task_instance
+        if not directus_service and task_instance is not None and hasattr(task_instance, "_directus_service"):
+            directus_service = task_instance._directus_service
+
+        if directus_service:
+            for insp in inspirations:
+                video = insp.video
+                if not video or not video.youtube_id:
+                    continue
+                try:
+                    await directus_service.inspiration_pool.add_to_pool(
+                        youtube_id=video.youtube_id,
+                        language=language,
+                        phrase=insp.phrase,
+                        title=insp.title or "",
+                        assistant_response=insp.assistant_response or "",
+                        category=insp.category,
+                        content_type=insp.content_type,
+                        video_title=video.title,
+                        video_thumbnail_url=video.thumbnail_url,
+                        video_channel_name=video.channel_name,
+                        video_view_count=video.view_count,
+                        video_duration_seconds=video.duration_seconds,
+                        video_published_at=video.published_at,
+                        follow_up_suggestions=insp.follow_up_suggestions,
+                        generated_at=insp.generated_at,
+                    )
+                except Exception as pool_exc:
+                    logger.warning(
+                        f"[DailyInspiration][{task_id}] Failed to add inspiration to pool "
+                        f"(yt={video.youtube_id}): {pool_exc}"
+                    )
+        else:
+            logger.debug(
+                f"[DailyInspiration][{task_id}] No DirectusService available — skipping pool copy"
+            )
+    except Exception as pool_err:
+        # Non-fatal — pool copy is a best-effort optimization
+        logger.warning(
+            f"[DailyInspiration][{task_id}] Pool copy failed (non-fatal): {pool_err}"
+        )
+
     # ── 1. Always store in pending cache (belt-and-suspenders) ──────────────────
     # The pending cache ensures inspirations survive even if the user is offline or
     # the WebSocket broadcast doesn't reach them. On WS connect, the

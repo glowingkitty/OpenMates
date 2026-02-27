@@ -94,7 +94,6 @@ import SettingsSoftwareUpdate from "./server/SettingsSoftwareUpdate.svelte";
 import SettingsCommunitySuggestions from "./server/SettingsCommunitySuggestions.svelte";
 import SettingsStats from "./server/SettingsStats.svelte";
 import SettingsGiftCardGenerator from "./server/SettingsGiftCardGenerator.svelte";
-import SettingsDefaultInspirations from "./server/SettingsDefaultInspirations.svelte";
 
 // Mates
 import SettingsMates from "./SettingsMates.svelte";
@@ -164,7 +163,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "server/community-suggestions": SettingsCommunitySuggestions,
   "server/stats": SettingsStats,
   "server/gift-cards": SettingsGiftCardGenerator,
-  "server/default-inspirations": SettingsDefaultInspirations,
+
   // Incognito
   "incognito/info": SettingsIncognitoInfo,
   // Account
