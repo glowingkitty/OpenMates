@@ -5154,27 +5154,27 @@ report_issue:
   sv: Rapportera problem
   verified_by_human: []
 report_issue.description:
-  context: Description text for the report issue form
-  en: Found a bug or have a suggestion? Let us know! Fill out the form below to report an issue.
-  de: Einen Fehler gefunden oder einen Vorschlag? Lass es uns wissen! Fülle das untenstehende Formular aus, um ein Problem zu melden.
-  zh: 发现了错误或有建议？告诉我们！请填写下面的表单来报告问题。
-  es: ¿Encontraste un error o tienes una sugerencia? ¡Haznos saber! Completa el formulario a continuación para reportar un problema.
-  fr: Vous avez trouvé un bug ou avez une suggestion ? Faites-le nous savoir ! Remplissez le formulaire ci-dessous pour signaler un problème.
-  pt: Encontrou um bug ou tem uma sugestão? Avise-nos! Preencha o formulário abaixo para reportar um problema.
-  ru: Нашли ошибку или есть предложение? Дайте нам знать! Заполните форму ниже, чтобы сообщить о проблеме.
-  ja: バグを見つけたり、提案がありますか？お知らせください！以下のフォームに記入して問題を報告してください。
-  ko: 버그를 발견했거나 제안이 있으신가요? 알려주세요! 아래 양식을 작성하여 문제를 신고하세요.
-  it: Hai trovato un bug o hai un suggerimento? Faccelo sapere! Compila il modulo qui sotto per segnalare un problema.
-  tr: Bir hata buldunuz mu veya bir öneriniz mi var? Bize bildirin! Bir sorun bildirmek için aşağıdaki formu doldurun.
-  vi: Tìm thấy lỗi hoặc có đề xuất? Hãy cho chúng tôi biết! Điền vào biểu mẫu bên dưới để báo cáo sự cố.
-  id: Menemukan bug atau punya saran? Beri tahu kami! Isi formulir di bawah ini untuk melaporkan masalah.
-  pl: Znalazłeś błąd lub masz sugestię? Daj nam znać! Wypełnij poniższy formularz, aby zgłosić problem.
-  nl: Een bug gevonden of een suggestie? Laat het ons weten! Vul het onderstaande formulier in om een probleem te melden.
-  ar: وجدت خطأ أو لديك اقتراح؟ أخبرنا! املأ النموذج أدناه للإبلاغ عن مشكلة.
-  hi: बग मिला या सुझाव है? हमें बताएं! समस्या रिपोर्ट करने के लिए नीचे दिया गया फॉर्म भरें।
-  th: พบข้อผิดพลาดหรือมีข้อเสนอแนะ? แจ้งให้เราทราบ! กรอกแบบฟอร์มด้านล่างเพื่อรายงานปัญหา
-  cs: Našli jste chybu nebo máte návrh? Dejte nám vědět! Vyplňte níže uvedený formulář pro nahlášení problému.
-  sv: Hittat en bugg eller har ett förslag? Låt oss veta! Fyll i formuläret nedan för att rapportera ett problem.
+  context: Description text for the report issue form — encourages users to add details and a screenshot for faster resolution
+  en: "Found a bug or have a suggestion? Let us know! The more details you include — and ideally a screenshot — the quicker we can identify and fix the issue."
+  de: "Einen Fehler gefunden oder einen Vorschlag? Lass es uns wissen! Je mehr Details du angibst — und idealerweise ein Screenshot — desto schneller können wir das Problem identifizieren und beheben."
+  zh: "发现了错误或有建议？告诉我们！您提供的细节越多——最好附上截图——我们就能越快地找到并修复问题。"
+  es: "¿Encontraste un error o tienes una sugerencia? ¡Haznos saber! Cuantos más detalles incluyas — idealmente con una captura de pantalla — más rápido podremos identificar y solucionar el problema."
+  fr: "Vous avez trouvé un bug ou avez une suggestion ? Faites-le nous savoir ! Plus vous fournissez de détails — et idéalement une capture d'écran — plus vite nous pourrons identifier et corriger le problème."
+  pt: "Encontrou um bug ou tem uma sugestão? Avise-nos! Quanto mais detalhes você incluir — de preferência com uma captura de tela — mais rápido conseguiremos identificar e corrigir o problema."
+  ru: "Нашли ошибку или есть предложение? Дайте нам знать! Чем больше деталей вы предоставите — и в идеале скриншот — тем быстрее мы сможем найти и исправить проблему."
+  ja: "バグを見つけたり、提案がありますか？お知らせください！詳細を多く含めるほど — そしてできればスクリーンショットも — 問題をより早く特定して修正できます。"
+  ko: "버그를 발견했거나 제안이 있으신가요? 알려주세요! 더 많은 세부 사항을 포함할수록 — 이상적으로는 스크린샷도 함께 — 더 빨리 문제를 파악하고 수정할 수 있습니다."
+  it: "Hai trovato un bug o hai un suggerimento? Faccelo sapere! Più dettagli includi — idealmente con uno screenshot — più velocemente potremo identificare e risolvere il problema."
+  tr: "Bir hata buldunuz mu veya bir öneriniz mi var? Bize bildirin! Ne kadar çok ayrıntı eklerseniz — ideal olarak bir ekran görüntüsüyle birlikte — sorunu o kadar hızlı tespit edip düzeltebiliriz."
+  vi: "Tìm thấy lỗi hoặc có đề xuất? Hãy cho chúng tôi biết! Bạn cung cấp càng nhiều chi tiết — và lý tưởng nhất là có ảnh chụp màn hình — chúng tôi càng có thể xác định và khắc phục sự cố nhanh hơn."
+  id: "Menemukan bug atau punya saran? Beri tahu kami! Semakin banyak detail yang Anda sertakan — idealnya dengan tangkapan layar — semakin cepat kami dapat mengidentifikasi dan memperbaiki masalah."
+  pl: "Znalazłeś błąd lub masz sugestię? Daj nam znać! Im więcej szczegółów podasz — najlepiej ze zrzutem ekranu — tym szybciej będziemy mogli zidentyfikować i naprawić problem."
+  nl: "Een bug gevonden of een suggestie? Laat het ons weten! Hoe meer details je toevoegt — bij voorkeur met een screenshot — hoe sneller we het probleem kunnen identificeren en oplossen."
+  ar: "وجدت خطأ أو لديك اقتراح؟ أخبرنا! كلما أضفت تفاصيل أكثر — ومثالياً مع لقطة شاشة — كلما تمكنا من تحديد المشكلة وإصلاحها بشكل أسرع."
+  hi: "बग मिला या सुझाव है? हमें बताएं! आप जितने अधिक विवरण शामिल करेंगे — आदर्श रूप से एक स्क्रीनशॉट के साथ — हम उतनी ही जल्दी समस्या की पहचान और समाधान कर सकेंगे।"
+  th: "พบข้อผิดพลาดหรือมีข้อเสนอแนะ? แจ้งให้เราทราบ! ยิ่งคุณใส่รายละเอียดมาก — และโดยเฉพาะอย่างยิ่งภาพหน้าจอ — เราก็ยิ่งสามารถระบุและแก้ไขปัญหาได้เร็วขึ้น"
+  cs: "Našli jste chybu nebo máte návrh? Dejte nám vědět! Čím více podrobností uvedete — ideálně se snímkem obrazovky — tím rychleji budeme moci problém identifikovat a vyřešit."
+  sv: "Hittat en bugg eller har ett förslag? Låt oss veta! Ju mer detaljer du inkluderar — och helst en skärmbild — desto snabbare kan vi identifiera och åtgärda problemet."
   verified_by_human: []
 report_issue.title_label:
   context: Label for issue title input field
@@ -6005,30 +6005,30 @@ report_issue.device_info.privacy_body:
   sv: "Dessa tekniska data används endast för felsökningsändamål för att hjälpa till att lösa ditt problem. De skickas via Brevo till vår serveradministratör och lagras inte permanent på OpenMates-servrar. Data hjälper oss att förstå teknisk kontext (webbläsarkompatibilitet, skärmlayoutproblem, touch- vs skrivbordsanvändning) för att ge bättre support."
   verified_by_human: []
 report_issue.signal_reminder:
-  context: Reminder text about Signal group for discussions or screenshots
-  en: "Tip: For discussions or to share screenshots, consider joining our"
-  de: "Tipp: Für Diskussionen oder zum Teilen von Screenshots, erwäge, unserer"
-  zh: "提示：要进行讨论或分享截图，请考虑加入我们的"
-  es: "Consejo: Para discusiones o para compartir capturas de pantalla, considera unirte a nuestro"
-  fr: "Astuce : Pour les discussions ou pour partager des captures d'écran, envisagez de rejoindre notre"
-  pt: "Dica: Para discussões ou para compartilhar capturas de tela, considere ingressar em nosso"
-  ru: "Совет: Для обсуждений или обмена скриншотами рассмотрите возможность присоединения к нашей"
-  ja: "ヒント: ディスカッションやスクリーンショットの共有には、"
-  ko: "팁: 토론이나 스크린샷 공유를 위해"
-  it: "Suggerimento: Per discussioni o per condividere screenshot, considera di unirti al nostro"
-  tr: "İpucu: Tartışmalar veya ekran görüntüleri paylaşmak için"
-  vi: "Mẹo: Để thảo luận hoặc chia sẻ ảnh chụp màn hình, hãy cân nhắc tham gia nhóm Signal của chúng tôi. Bạn có thể tìm thấy liên kết trong phần Hỗ trợ."
-  id: "Tip: Untuk diskusi atau berbagi tangkapan layar, pertimbangkan untuk bergabung dengan grup Signal kami. Anda dapat menemukan tautan di bagian Dukungan."
-  pl: "Wskazówka: Aby prowadzić dyskusje lub udostępniać zrzuty ekranu, rozważ dołączenie do naszej grupy Signal. Link znajdziesz w sekcji Wsparcie."
-  nl: "Tip: Voor discussies of om screenshots te delen, overweeg om lid te worden van onze Signal-groep. Je kunt de link vinden in de sectie Ondersteuning."
-  ar: "نصيحة: للمناقشات أو لمشاركة لقطات الشاشة، فكر في الانضمام إلى مجموعة Signal الخاصة بنا. يمكنك العثور على الرابط في قسم الدعم."
-  hi: "सुझाव: चर्चा या स्क्रीनशॉट साझा करने के लिए, हमारे Signal समूह में शामिल होने पर विचार करें। आप समर्थन अनुभाग में लिंक पा सकते हैं।"
-  th: "เคล็ดลับ: สำหรับการสนทนาหรือแชร์ภาพหน้าจอ พิจารณาเข้าร่วมกลุ่ม Signal ของเรา คุณสามารถค้นหาลิงก์ได้ในส่วนการสนับสนุน"
-  cs: "Tip: Pro diskuse nebo sdílení snímků obrazovky zvažte připojení k naší skupině Signal. Odkaz najdete v sekci Podpora."
-  sv: "Tips: För diskussioner eller att dela skärmdumpar, överväg att gå med i vår Signal-grupp. Du hittar länken i avsnittet Stöd."
+  context: Reminder text about Signal group — for discussions and questions only (screenshots are now submitted directly in the form)
+  en: "Have questions or want to discuss? You're welcome to join our"
+  de: "Haben Sie Fragen oder möchten Sie diskutieren? Sie sind herzlich eingeladen, unserer"
+  zh: "有问题或想讨论吗？欢迎加入我们的"
+  es: "¿Tienes preguntas o quieres discutir algo? Te invitamos a unirte a nuestro"
+  fr: "Vous avez des questions ou souhaitez discuter ? Vous êtes les bienvenus pour rejoindre notre"
+  pt: "Tem dúvidas ou quer discutir algo? Você é bem-vindo para se juntar ao nosso"
+  ru: "Есть вопросы или хотите обсудить? Вы можете присоединиться к нашей"
+  ja: "ご質問や議論をご希望ですか？ぜひ私たちの"
+  ko: "질문이 있거나 토론하고 싶으신가요? 저희"
+  it: "Hai domande o vuoi discutere? Sei il benvenuto a unirti al nostro"
+  tr: "Sorularınız mı var ya da tartışmak mı istiyorsunuz? Signal grubumuzla"
+  vi: "Có câu hỏi hoặc muốn thảo luận? Bạn được chào đón tham gia nhóm Signal của chúng tôi. Bạn có thể tìm thấy liên kết trong phần Hỗ trợ."
+  id: "Punya pertanyaan atau ingin berdiskusi? Anda dipersilakan bergabung dengan grup Signal kami. Anda dapat menemukan tautan di bagian Dukungan."
+  pl: "Masz pytania lub chcesz porozmawiać? Możesz dołączyć do naszej grupy Signal. Link znajdziesz w sekcji Wsparcie."
+  nl: "Vragen of wil je iets bespreken? Je bent van harte welkom om lid te worden van onze Signal-groep. Je kunt de link vinden in de sectie Ondersteuning."
+  ar: "هل لديك أسئلة أو تريد المناقشة؟ يسعدنا انضمامك إلى مجموعة Signal الخاصة بنا. يمكنك العثور على الرابط في قسم الدعم."
+  hi: "प्रश्न हैं या चर्चा करना चाहते हैं? आप हमारे Signal समूह में शामिल होने के लिए स्वागत हैं। आप समर्थन अनुभाग में लिंक पा सकते हैं।"
+  th: "มีคำถามหรืออยากพูดคุย? ยินดีต้อนรับคุณเข้าร่วมกลุ่ม Signal ของเรา คุณสามารถค้นหาลิงก์ได้ในส่วนการสนับสนุน"
+  cs: "Máte otázky nebo chcete diskutovat? Jste vítáni připojit se k naší skupině Signal. Odkaz najdete v sekci Podpora."
+  sv: "Har du frågor eller vill diskutera? Du är välkommen att gå med i vår Signal-grupp. Du hittar länken i avsnittet Stöd."
   verified_by_human: []
 report_issue.signal_link:
-  context: Link text for Signal group
+  context: Link text for Signal group (shown after the signal_reminder text as an inline hyperlink)
   en: Signal group
   de: Signal-Gruppe
   zh: Signal 群组
@@ -6036,10 +6036,10 @@ report_issue.signal_link:
   fr: groupe Signal
   pt: grupo do Signal
   ru: группе Signal
-  ja: Signalグループ
-  ko: Signal 그룹
+  ja: Signalグループに参加してください
+  ko: Signal 그룹에 참여하세요
   it: gruppo Signal
-  tr: Signal grubumuza
+  tr: buluşabilirsiniz
   vi: nhóm Signal của chúng tôi
   id: grup Signal kami
   pl: grupy Signal

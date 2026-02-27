@@ -1402,6 +1402,21 @@
     
     <!-- Issue Report Form -->
     <div class="report-issue-form">
+        <!-- Submit Button -->
+        <div class="button-container">
+            <button
+                onclick={handleSubmit}
+                disabled={!isFormValid || isSubmitting}
+                aria-label={$text('settings.report_issue.submit_button')}
+            >
+                {#if isSubmitting}
+                    {$text('settings.report_issue.submitting')}
+                {:else}
+                    {$text('settings.report_issue.submit_button')}
+                {/if}
+            </button>
+        </div>
+
         <!-- Title Input -->
         <div class="input-group">
             <label for="issue-title">{$text('settings.report_issue.title_label')}</label>
@@ -1658,21 +1673,6 @@
                     {$text('settings.report_issue.signal_link')}
                 </a>
             </p>
-        </div>
-        
-        <!-- Submit Button -->
-        <div class="button-container">
-            <button
-                onclick={handleSubmit}
-                disabled={!isFormValid || isSubmitting}
-                aria-label={$text('settings.report_issue.submit_button')}
-            >
-                {#if isSubmitting}
-                    {$text('settings.report_issue.submitting')}
-                {:else}
-                    {$text('settings.report_issue.submit_button')}
-                {/if}
-            </button>
         </div>
         
         <!-- Error message -->
