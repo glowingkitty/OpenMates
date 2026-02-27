@@ -11,8 +11,8 @@ where USD is the universal default. Polar handles local currency display
 and tax addition automatically for each buyer's jurisdiction.
 
 Naming convention:
-  One-time products: "{credits} OpenMates Credits"
-  e.g. "1,000 OpenMates Credits", "21,000 OpenMates Credits"
+  One-time products: "{credits} Credits"
+  e.g. "1,000 Credits", "21,000 Credits"
 """
 
 import logging
@@ -67,14 +67,14 @@ class PolarProductSync:
             logger.error("PolarProductSync: failed to fetch existing Polar products, skipping sync")
             return {}
 
-        # Build lookup: credits_amount -> existing product ID (from product metadata)
-        existing_map: Dict[int, str] = {}
+        # Build lookup: credits_amount -> (product_id, current_name) tuple
+        existing_map: Dict[int, tuple] = {}
         for product in existing_products:
             metadata = product.get("metadata") or {}
             credits_in_meta = metadata.get("credits_amount")
             if credits_in_meta is not None:
                 try:
-                    existing_map[int(credits_in_meta)] = product["id"]
+                    existing_map[int(credits_in_meta)] = (product["id"], product.get("name", ""))
                     logger.debug(
                         f"PolarProductSync: found existing product for "
                         f"{credits_in_meta} credits: {product['id']}"
@@ -85,6 +85,7 @@ class PolarProductSync:
         product_id_map: Dict[int, str] = {}
         created = 0
         reused = 0
+        renamed = 0
         errors = 0
 
         for tier in pricing_tiers:
@@ -97,11 +98,27 @@ class PolarProductSync:
                 logger.warning(f"PolarProductSync: no USD price for {credits} credits tier, skipping")
                 continue
 
-            # Reuse existing product if found
+            # Reuse existing product if found; rename it if the name is stale
             if credits in existing_map:
-                product_id_map[credits] = existing_map[credits]
+                product_id, current_name = existing_map[credits]
+                product_id_map[credits] = product_id
                 reused += 1
-                logger.debug(f"PolarProductSync: reusing existing product for {credits} credits")
+                expected_name = f"{credits:,} Credits"
+                if current_name != expected_name:
+                    ok = await self._rename_product(product_id, expected_name)
+                    if ok:
+                        renamed += 1
+                        logger.info(
+                            f"PolarProductSync: renamed product {product_id} "
+                            f"'{current_name}' → '{expected_name}'"
+                        )
+                    else:
+                        logger.warning(
+                            f"PolarProductSync: failed to rename product {product_id} "
+                            f"('{current_name}' → '{expected_name}')"
+                        )
+                else:
+                    logger.debug(f"PolarProductSync: reusing existing product for {credits} credits")
                 continue
 
             # Create new product
@@ -115,8 +132,8 @@ class PolarProductSync:
                 logger.error(f"PolarProductSync: failed to create product for {credits} credits")
 
         logger.info(
-            f"Polar product sync complete: {created} created, {reused} reused, {errors} errors. "
-            f"Product map has {len(product_id_map)} entries."
+            f"Polar product sync complete: {created} created, {reused} reused, "
+            f"{renamed} renamed, {errors} errors. Product map has {len(product_id_map)} entries."
         )
         return product_id_map
 
@@ -202,14 +219,14 @@ class PolarProductSync:
         """
         # Format credits with thousands separator for display (e.g. "21,000")
         formatted_credits = f"{credits:,}"
-        product_name = f"{formatted_credits} OpenMates Credits"
+        product_name = f"{formatted_credits} Credits"
 
         # Price in cents (Polar uses smallest currency unit for USD)
         price_cents = int(round(usd_price * 100))
 
         payload = {
             "name": product_name,
-            "description": f"Purchase {formatted_credits} OpenMates AI credits.",
+            "description": f"Purchase {formatted_credits} OpenMates credits.",
             "prices": [
                 {
                     "amount_type": "fixed",
@@ -260,3 +277,44 @@ class PolarProductSync:
                 exc_info=True,
             )
             return None
+
+    async def _rename_product(self, product_id: str, new_name: str) -> bool:
+        """
+        Rename an existing Polar product via PATCH /products/{id}.
+
+        Args:
+            product_id: Polar product ID to update
+            new_name: The corrected product name
+
+        Returns:
+            True on success, False on error
+        """
+        try:
+            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT, follow_redirects=True) as client:
+                response = await client.patch(
+                    f"{self.polar_service._api_base}/products/{product_id}",
+                    headers=self.polar_service._get_headers(),
+                    json={"name": new_name},
+                )
+
+            if response.is_success:
+                return True
+
+            logger.error(
+                f"PolarProductSync: rename product {product_id} failed. "
+                f"Status: {response.status_code}, Body: {response.text[:300]}"
+            )
+            return False
+
+        except httpx.RequestError as exc:
+            logger.error(
+                f"PolarProductSync: HTTP error renaming product {product_id}: {exc}",
+                exc_info=True,
+            )
+            return False
+        except Exception as exc:
+            logger.error(
+                f"PolarProductSync: unexpected error renaming product {product_id}: {exc}",
+                exc_info=True,
+            )
+            return False
