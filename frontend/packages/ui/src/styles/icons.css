@@ -1018,27 +1018,18 @@ div.clickable-icon {
   background: var(--color-primary);
 
   &::before {
-    /* Base user icon */
+    /* Mate icon */
     content: "";
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: url("@openmates/ui/static/icons/user.svg");
-    background-size: 50%;
+    background-image: url("@openmates/ui/static/icons/mate.svg");
+    background-size: 65%;
     background-position: center;
     background-repeat: no-repeat;
     filter: brightness(0) invert(1);
-    /* Create a mask using the AI icon - reduced size from 35% to 25% */
-    -webkit-mask:
-      url("@openmates/ui/static/icons/user.svg") center 50% no-repeat,
-      url("@openmates/ui/static/icons/ai.svg") center 67%/20% no-repeat;
-    -webkit-mask-composite: source-out;
-    mask:
-      url("@openmates/ui/static/icons/user.svg") center 50% no-repeat,
-      url("@openmates/ui/static/icons/ai.svg") center 67%/20% no-repeat;
-    mask-composite: subtract;
   }
 }
 

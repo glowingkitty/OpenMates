@@ -20,7 +20,7 @@
     noAnimation = false
   }: {
     name?: string;
-    type?: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' | 'placeholder';
+    type?: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'memory' | 'clickable' | 'subsetting' | 'placeholder';
     inline?: boolean;
     poweredByAI?: boolean;
     size?: string | undefined;
@@ -111,9 +111,6 @@
     return iconName;
   }
 
-  // Special handling for mates icon only using $derived (Svelte 5 runes mode)
-  let isSpecialIcon = $derived(lowerCaseName === 'mates');
-
   // Compute the final class name using $derived (Svelte 5 runes mode)
   let computedClassName = $derived([
     // Base icon class
@@ -136,6 +133,7 @@
       (type === 'default' ? lowerCaseName : (type === 'clickable') ? lowerCaseName : type === 'subsetting' ? '' : type === 'placeholder' ? '' : `${type}-${lowerCaseName}`),
     type === 'skill' ? 'skill-icon' : '',
     type === 'focus' ? 'focus-icon' : '',
+    type === 'memory' ? 'memory-icon' : '',
     poweredByAI ? 'powered_by_ai' : '',
     type === 'clickable' ? `icon_${lowerCaseName}` : '',
     className // Add any custom classes
@@ -237,17 +235,12 @@
       type === 'clickable' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
       type === 'app' ? `--icon-background: var(--color-app-${getAppIdForCssVariable(lowerCaseName)});` : '',
       type === 'focus' ? `--icon-background: var(--icon-focus-background);` : '',
+      type === 'skill' ? `--icon-background: var(--icon-skill-background);` : '',
+      type === 'memory' ? `--icon-background: var(--icon-memory-background);` : '',
     ].filter(Boolean).join(' ') : '',
   ].filter(Boolean).join(' '));
 
-  // Handle keyboard events for accessibility (keeping for potential future use)
-  function handleKeyDown(event: KeyboardEvent) {
-    // Trigger click on Enter or Space key
-    if (onClick && (event.key === 'Enter' || event.key === ' ')) {
-      event.preventDefault();
-      onClick();
-    }
-  }
+
 </script>
 
 {#if actualElement === 'div'}
@@ -375,7 +368,7 @@
     --icon-url-offline: url('@openmates/ui/static/icons/offline.svg');
     --icon-url-open: url('@openmates/ui/static/icons/open.svg');
     --icon-url-openai: url('@openmates/ui/static/icons/openai.svg');
-    --icon-url-openmates: url('@openmates/ui/static/icons/openmates.svg');
+    --icon-url-openmates: url('@openmates/ui/static/icons/mate.svg');
     --icon-url-opencollective: url('@openmates/ui/static/icons/opencollective.svg');
     --icon-url-opensource: url('@openmates/ui/static/icons/opensource.svg');
     --icon-url-otp-auth: url('@openmates/ui/static/icons/otp-auth.svg');
@@ -424,6 +417,7 @@
     --icon-url-text: url('@openmates/ui/static/icons/text.svg');
     --icon-url-tfas: url('@openmates/ui/static/icons/tfas.svg');
     --icon-url-time: url('@openmates/ui/static/icons/time.svg');
+    --icon-url-transcript: url('@openmates/ui/static/icons/transcript.svg');
     --icon-url-travel: url('@openmates/ui/static/icons/travel.svg');
     --icon-url-tv: url('@openmates/ui/static/icons/tv.svg');
     --icon-url-up: url('@openmates/ui/static/icons/up.svg');
@@ -584,6 +578,15 @@
   .icon.focus-icon {
     /* Use custom border color if provided, otherwise use the focus border color */
     border-color: var(--icon-border-color, var(--color-focus-border));
+  }
+
+  /* Memory / settings icons — pink gradient background, white icon tint */
+  .icon.memory-icon {
+    border-color: var(--icon-border-color, transparent);
+    /* Tint the icon white so it's visible on the pink background */
+    &::before {
+      filter: brightness(0) invert(1);
+    }
   }
 
   /* Powered by AI indicator */
