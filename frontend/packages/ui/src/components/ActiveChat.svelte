@@ -2543,10 +2543,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Falls back to 0 when the element isn't rendered (e.g. hideWelcomeForKeyboard).
         const welcomeHeight = welcomeContentEl ? welcomeContentEl.getBoundingClientRect().height : 0;
 
-        // Height of the message input container.
-        const inputHeight = messageInputContainerEl
-            ? messageInputContainerEl.getBoundingClientRect().height
-            : (messageInputHeight + 60);
+        // Height of just the message input itself (NOT the container, which also holds
+        // NewChatSuggestions). Using messageInputContainerEl here would create a feedback
+        // loop: suggestions visible → container taller → gap smaller → hide suggestions →
+        // container shorter → gap larger → show suggestions → repeat → effect_update_depth_exceeded.
+        // Instead we use messageInputHeight (dispatched by MessageInput) which measures only
+        // the editor/toolbar area, plus a ~60px allowance for padding and action bar.
+        const inputHeight = messageInputHeight + 60;
 
         // The welcome block is vertically centered (top: 50% + 60px transform).
         // Approximate its bottom edge position within the container.
@@ -2561,14 +2564,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         if (wouldOverlap !== suggestionsWouldOverlapWelcome) {
             suggestionsWouldOverlapWelcome = wouldOverlap;
-            console.debug('[ActiveChat] suggestionsWouldOverlapWelcome:', wouldOverlap, {
-                containerHeight,
-                welcomeHeight,
-                welcomeBottom,
-                inputTop,
-                availableGap,
-                threshold: SUGGESTIONS_APPROX_HEIGHT
-            });
         }
     }
 
@@ -2753,20 +2748,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (chatSideEl) {
             recalculateSuggestionsOverlap();
         }
-    });
-
-    // Debug suggestions visibility
-    $effect(() => {
-        console.debug('[ActiveChat] Suggestions visibility check:', {
-            showWelcome,
-            showActionButtons,
-            isAtBottom,
-            messageInputFocused,
-            messageInputHasContent,
-            followUpSuggestionsCount: followUpSuggestions.length,
-            shouldShowFollowUp: showFollowUpSuggestions,
-            shouldShowNewChat: showWelcome && showActionButtons
-        });
     });
 
     // Reactive variable to determine when to show the create chat button using Svelte 5 $derived.

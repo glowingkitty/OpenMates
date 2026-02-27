@@ -153,7 +153,6 @@
   const loadSuggestions = async () => {
       // For non-authenticated users, use default suggestions instead of IndexedDB
       if (!$authStore.isAuthenticated) {
-          console.debug('[NewChatSuggestions] Non-authenticated user - using default suggestions');
           applyDefaultSuggestions();
           loading = false;
           return;
@@ -164,7 +163,6 @@
       if (loading && fullSuggestions.length === 0) {
           applyDefaultSuggestions();
           loading = false; // Show defaults immediately - no loading spinner
-          console.debug('[NewChatSuggestions] Showing default suggestions while loading user data');
       }
 
       // Load real suggestions from IndexedDB in the background
@@ -196,20 +194,15 @@
 
           // If authenticated user has real suggestions, transition to them
           if (realSuggestions.length > 0) {
-              console.debug('[NewChatSuggestions] Loaded user suggestions, transitioning:', realSuggestions.length);
               transitionToSuggestions(realSuggestions);
-          } else {
-              // No real suggestions yet - keep showing defaults (already displayed)
-              console.debug('[NewChatSuggestions] No user suggestions found, keeping defaults');
           }
+          // else: No real suggestions yet - keep showing defaults (already displayed)
       } catch (error) {
           // Handle database errors gracefully (e.g., database being deleted during logout)
           if (!$authStore.isAuthenticated) {
-              console.debug('[NewChatSuggestions] Database unavailable for non-authenticated user - keeping default suggestions');
+              // Non-auth: DB unavailable is expected (being deleted during logout)
           } else {
               console.error('[NewChatSuggestions] Error loading suggestions:', error);
-              // Keep defaults visible - already showing them
-              console.debug('[NewChatSuggestions] Keeping default suggestions after error');
           }
       }
   };
@@ -221,7 +214,6 @@
     const isAuthenticated = $authStore.isAuthenticated;
     // Only reload if auth state actually changed (not just a reactive update)
     if (previousAuthState !== isAuthenticated) {
-      console.debug('[NewChatSuggestions] Auth state changed, reloading suggestions. Previous:', previousAuthState, 'Current:', isAuthenticated);
       previousAuthState = isAuthenticated;
       loadSuggestions();
     }
@@ -233,7 +225,6 @@
 
     // Refresh suggestions when Phase 3 completes (server sends latest suggestions)
     const handleFullSyncReady = () => {
-      console.debug('[NewChatSuggestions] fullSyncReady received, refreshing suggestions');
       // Re-load suggestions from DB (they were saved by chatSyncService on phase 3)
       loadSuggestions();
     };
@@ -245,7 +236,6 @@
       currentLocale = $locale;
       
       if (!$authStore.isAuthenticated) {
-          console.debug('[NewChatSuggestions] Language changed, reloading default suggestions');
           loadSuggestions();
       }
     };
@@ -263,7 +253,6 @@
     if (searchTerm !== previousSearchTerm) {
       previousSearchTerm = searchTerm;
       currentSlide = 0; // Reset to first page when search changes
-      console.debug('[NewChatSuggestions] Search term changed, resetting to first page');
     }
   });
 
@@ -271,10 +260,6 @@
   // This can happen when filtering reduces the number of complete pages
   $effect(() => {
     if (currentSlide >= totalCompletePages && totalCompletePages > 0) {
-      console.debug('[NewChatSuggestions] Current slide beyond complete pages, resetting to 0:', {
-        currentSlide,
-        totalCompletePages
-      });
       currentSlide = 0;
     }
   });
@@ -308,12 +293,6 @@
     const searchTerm = messageInputContent.trim();
     const searchTermLower = searchTerm.toLowerCase();
 
-    console.debug('[NewChatSuggestions] Filtering with search term:', {
-      searchTerm,
-      searchTermLower,
-      fullPoolSize: fullSuggestionsWithEncrypted.length
-    });
-
     // Exact substring match (case-insensitive) across FULL pool with encrypted values
     // Remove duplicates by text, keeping the first occurrence
     const seen = new Set<string>();
@@ -344,8 +323,6 @@
     // This provides variety when multiple suggestions match the search term
     const shuffledFiltered = shuffleArray(filtered);
 
-    console.debug('[NewChatSuggestions] Filtered results:', shuffledFiltered.length, 'unique matches');
-
     return shuffledFiltered;
   });
 
@@ -365,8 +342,6 @@
    * Handle suggestion click - track it for deletion and pass to parent
    */
   function handleSuggestionClickWithTracking(suggestionText: string, suggestionId?: string, encryptedSuggestion?: string) {
-    console.debug('[NewChatSuggestions] Suggestion clicked:', suggestionText);
-
     // For authenticated users, track the suggestion for deletion after sending
     if ($authStore.isAuthenticated) {
       // Use ID or encrypted value from parameter if provided, otherwise try to find it
@@ -382,12 +357,9 @@
         // Track this suggestion (with encrypted text) so it can be deleted after the message is sent
         // Note: We still use encrypted for backward compatibility with the tracking system
         setClickedSuggestion(suggestionText, encrypted);
-        console.debug('[NewChatSuggestions] Tracked suggestion for deletion');
       } else {
         console.warn('[NewChatSuggestions] Could not find encrypted version of clicked suggestion - skipping tracking');
       }
-    } else {
-      console.debug('[NewChatSuggestions] Non-authenticated user - not tracking suggestion for deletion');
     }
 
     // Pass to parent handler (which will set it in the message input)
@@ -455,11 +427,6 @@
       suggestionText,
       suggestionId: id
     };
-
-    console.debug('[NewChatSuggestions] Context menu shown for suggestion:', {
-      suggestionText,
-      suggestionId: id
-    });
   }
 
   /**
@@ -554,21 +521,13 @@
     }
 
     try {
-      console.debug('[NewChatSuggestions] Deleting suggestion from IndexedDB and server:', {
-        suggestionText: contextMenu.suggestionText,
-        suggestionId: contextMenu.suggestionId
-      });
-
       // Delete from IndexedDB using ID (much more reliable than encrypted text matching)
       const deleteResult = await chatDB.deleteNewChatSuggestionById(contextMenu.suggestionId);
 
       if (deleteResult) {
-        console.debug('[NewChatSuggestions] Successfully deleted suggestion from IndexedDB');
-
         // Delete from server using ID
         try {
           await chatSyncService.sendDeleteNewChatSuggestionById(contextMenu.suggestionId);
-          console.debug('[NewChatSuggestions] Successfully deleted suggestion from server');
         } catch (serverError) {
           console.warn('[NewChatSuggestions] Failed to delete suggestion from server:', serverError);
           // Continue anyway - local deletion succeeded
@@ -620,7 +579,6 @@
     } else {
       // Loop back to first page when reaching the end
       currentSlide = 0;
-      console.debug('[NewChatSuggestions] Reached last complete page, looping back to first page');
     }
   }
 
@@ -642,37 +600,14 @@
     if (currentSlide === 0) {
       // First page: Show if we have at least 1 suggestion
       if (paginated.length > 0) {
-        console.debug('[NewChatSuggestions] Visible suggestions (first page, may be incomplete):', {
-          currentSlide,
-          startIdx,
-          endIdx,
-          totalSuggestions: filteredSuggestions.length,
-          visibleCount: paginated.length
-        });
         return paginated;
       }
     } else {
       // Subsequent pages: Only show if we have exactly 3 (complete page)
       if (paginated.length !== suggestionsPerSlide) {
-        console.debug('[NewChatSuggestions] Incomplete page detected (not first page), returning empty array:', {
-          currentSlide,
-          startIdx,
-          endIdx,
-          totalSuggestions: filteredSuggestions.length,
-          visibleCount: paginated.length,
-          expectedCount: suggestionsPerSlide
-        });
         return [];
       }
     }
-    
-    console.debug('[NewChatSuggestions] Visible suggestions (complete page):', {
-      currentSlide,
-      startIdx,
-      endIdx,
-      totalSuggestions: filteredSuggestions.length,
-      visibleCount: paginated.length
-    });
     
     return paginated;
   });
