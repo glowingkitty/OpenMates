@@ -379,8 +379,11 @@ class PolarService:
                 secret=self._webhook_secret,
             )
             # Convert the typed Pydantic model to a plain dict so downstream code
-            # can use standard .get() access patterns (e.g. event["type"], event["data"]["id"])
-            event_dict = event.model_dump()
+            # can use standard .get() access patterns (e.g. event["type"], event["data"]["id"]).
+            # MUST use by_alias=True: the "type" field is named TYPE in Python (to avoid
+            # shadowing the builtin) but the alias is "type" — without by_alias the key
+            # comes out as "TYPE" and event_type reads as None downstream.
+            event_dict = event.model_dump(by_alias=True)
             logger.info(
                 f"PolarService: verified webhook event type='{event_dict.get('type', 'unknown')}'"
             )

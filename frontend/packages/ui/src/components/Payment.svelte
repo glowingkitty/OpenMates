@@ -1141,17 +1141,17 @@
 
     /* Inline Polar checkout iframe container — no border/radius, flush with panel.
        The settings menu scrolls; the iframe itself should not scroll internally.
-       Height 1500px is confirmed to fit all Polar form fields without internal scroll. */
+        Height 1800px to fit all Polar form fields without internal scroll. */
     .polar-inline-checkout-container {
         width: 100%;
     }
 
     .polar-inline-checkout-iframe {
         width: 100%;
-        /* 1500px confirmed to cover all Polar form fields (email, card type, card
+        /* 1800px to cover all Polar form fields (email, card type, card
            number, expiry, CVC, cardholder name, billing address, submit button)
            without internal scrollbar. Settings menu panel handles page scrolling. */
-        height: 1500px;
+        height: 1800px;
         border: none;
         display: block;
         background: transparent;
