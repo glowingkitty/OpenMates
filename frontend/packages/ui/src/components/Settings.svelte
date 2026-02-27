@@ -101,14 +101,12 @@ changes to the documentation (to keep the documentation up to date).
     let profileContainerWrapper: HTMLElement | undefined = $state(); // Add reference for the wrapper
 
     /**
-     * Scroll position memory for back-navigation.
-     * Stores the scroll offset for up to 2 parent pages so that when the user
-     * presses back, they land at the exact position they were at before drilling in.
-     * Key = settings path (e.g. "app_store/all"), value = scrollTop in px.
-     * Capped at MAX_SCROLL_HISTORY entries (oldest entry evicted when full).
+     * Scroll position memory for the "All Apps" page only.
+     * When the user opens an app from the All Apps list and then presses back,
+     * we restore the scroll offset so they don't have to scroll down again.
+     * All other settings navigation always scrolls to top.
      */
-    const MAX_SCROLL_HISTORY = 2;
-    let scrollPositionHistory = $state<Map<string, number>>(new Map());
+    let allAppsScrollPosition = $state<number>(0);
 
     // Get help link from routes
     // Note: Help button is currently commented out in template (line ~1452)
@@ -488,20 +486,11 @@ changes to the documentation (to keep the documentation up to date).
         let { settingsPath, direction: newDirection, icon, cameFrom } = detail;
         direction = newDirection;
 
-        // --- Scroll position memory ---
-        // On forward navigation: snapshot the current scroll offset so we can
-        // restore it if the user presses back from the new page.
-        // On backward navigation: do NOT save — we are leaving, not entering a parent.
-        if (newDirection === 'forward' && activeSettingsView && settingsContentElement) {
-            const currentScrollTop = settingsContentElement.scrollTop;
-            // Evict the oldest entry if we already have MAX_SCROLL_HISTORY saved positions
-            if (scrollPositionHistory.size >= MAX_SCROLL_HISTORY) {
-                const oldestKey = scrollPositionHistory.keys().next().value;
-                scrollPositionHistory.delete(oldestKey);
-            }
-            scrollPositionHistory.set(activeSettingsView, currentScrollTop);
-            // Trigger Svelte reactivity by reassigning
-            scrollPositionHistory = new Map(scrollPositionHistory);
+        // --- Scroll position memory (All Apps only) ---
+        // Save the scroll offset when leaving "All Apps" going forward, so pressing
+        // back restores the position. All other pages always scroll to top on navigation.
+        if (newDirection === 'forward' && activeSettingsView === 'app_store/all' && settingsContentElement) {
+            allAppsScrollPosition = settingsContentElement.scrollTop;
         }
         
         // Track the originating path so back navigation can return to it.
@@ -724,18 +713,16 @@ changes to the documentation (to keep the documentation up to date).
         // Wait for the DOM to update with the new page content before scrolling.
         await tick();
         if (settingsContentElement) {
-            if (newDirection === 'backward' && scrollPositionHistory.has(settingsPath)) {
-                // Restore the scroll position the user was at before drilling into the sub-page.
-                // Use instant scroll (no animation) so it feels like returning, not jumping.
+            if (newDirection === 'backward' && settingsPath === 'app_store/all' && allAppsScrollPosition > 0) {
+                // Restore the All Apps scroll position so the user lands back where they were.
+                // Instant scroll (no animation) feels like returning, not jumping.
                 settingsContentElement.scrollTo({
-                    top: scrollPositionHistory.get(settingsPath),
+                    top: allAppsScrollPosition,
                     behavior: 'instant'
                 });
-                // Consume the saved position — it's no longer needed once restored
-                scrollPositionHistory.delete(settingsPath);
-                scrollPositionHistory = new Map(scrollPositionHistory);
+                allAppsScrollPosition = 0;
             } else {
-                // Forward navigation (or backward to a page with no saved position): scroll to top
+                // All other navigation (forward or backward) always scrolls to top.
                 settingsContentElement.scrollTo({
                     top: 0,
                     behavior: 'smooth'
@@ -770,17 +757,10 @@ changes to the documentation (to keep the documentation up to date).
                     profileContainer.classList.remove('submenu-active');
                 }
                 
-                // Wait for DOM to update, then restore saved scroll or go to top
+                // Wait for DOM to update, then scroll to top
                 await tick();
                 if (settingsContentElement) {
-                    const targetPath = 'main';
-                    if (scrollPositionHistory.has(targetPath)) {
-                        settingsContentElement.scrollTo({ top: scrollPositionHistory.get(targetPath), behavior: 'instant' });
-                        scrollPositionHistory.delete(targetPath);
-                        scrollPositionHistory = new Map(scrollPositionHistory);
-                    } else {
-                        settingsContentElement.scrollTop = 0;
-                    }
+                    settingsContentElement.scrollTop = 0;
                 }
                 return;
             }
@@ -954,16 +934,7 @@ changes to the documentation (to keep the documentation up to date).
             // Wait for the DOM to update with the main view content before scrolling.
             await tick();
             if (settingsContentElement) {
-                // Restore the saved main-view scroll position if available, otherwise go to top.
-                // The main view ('main') could have been scrolled to a certain position before the
-                // user drilled into a sub-page; we save it on forward navigation and restore here.
-                if (scrollPositionHistory.has('main')) {
-                    settingsContentElement.scrollTo({ top: scrollPositionHistory.get('main'), behavior: 'instant' });
-                    scrollPositionHistory.delete('main');
-                    scrollPositionHistory = new Map(scrollPositionHistory);
-                } else {
-                    settingsContentElement.scrollTo({ top: 0, behavior: 'smooth' });
-                }
+                settingsContentElement.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
     }
@@ -1043,9 +1014,9 @@ changes to the documentation (to keep the documentation up to date).
         		profileContainer.classList.remove('submenu-active');
         	}
 
-        	// Reset scroll position and clear scroll history so stale positions
-        	// don't persist into the next time the menu is opened.
-        	scrollPositionHistory = new Map();
+        	// Reset scroll position and clear the All Apps scroll memory so a
+        	// stale position doesn't persist into the next time the menu is opened.
+        	allAppsScrollPosition = 0;
         	setTimeout(() => {
         		settingsContentElement.scrollTop = 0;
         	}, 300);
