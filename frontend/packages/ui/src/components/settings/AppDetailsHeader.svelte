@@ -38,6 +38,12 @@
   import { text } from '@repo/ui';
   import Icon from '../Icon.svelte';
   import type { AppMetadata } from '../../types/apps';
+  import {
+    appStoreNavigationStore,
+    appStoreNavigatePrev,
+    appStoreNavigateNext,
+  } from '../../stores/appStoreNavigationStore';
+  import { getLucideIcon } from '../../utils/categoryUtils';
 
   // ─── Props ────────────────────────────────────────────────────────────────
 
@@ -73,6 +79,29 @@
     onBack,
     subItem,
   }: Props = $props();
+
+  // ─── Sub-item navigation (prev/next arrows) ───────────────────────────────
+
+  /**
+   * Navigation state from the sub-item pages (SkillDetails, FocusModeDetails,
+   * AppSettingsMemoriesCategory) via the shared appStoreNavigationStore.
+   * Only shown when subItem is provided (i.e., we are on a skill/focus/memories page).
+   */
+  let navState = $derived($appStoreNavigationStore);
+
+  /** Lucide chevron icons for the prev/next arrow buttons. */
+  const ChevronLeft = getLucideIcon('chevron-left');
+  const ChevronRight = getLucideIcon('chevron-right');
+
+  function handlePrev(e: MouseEvent) {
+    e.stopPropagation();
+    appStoreNavigatePrev();
+  }
+
+  function handleNext(e: MouseEvent) {
+    e.stopPropagation();
+    appStoreNavigateNext();
+  }
 
   // ─── Collapse animation ───────────────────────────────────────────────────
 
@@ -268,6 +297,32 @@
       {/if}
     {/if}
   </div>
+
+  <!-- ── Sub-item navigation arrows ──
+       Shown at the left and right edges when there are adjacent sibling items
+       (skills, focus modes, or settings/memories categories) to navigate to.
+       Only rendered when subItem is set (i.e. we are on a sub-item detail page).
+       Uses pointer-events:auto to override the banner-level pointer-events:none. -->
+  {#if subItem && navState.hasPrev}
+    <button
+      class="nav-arrow nav-arrow-left"
+      onclick={handlePrev}
+      aria-label={$text('settings.app_store.nav.previous_item', { values: { name: navState.prevName } })}
+      type="button"
+    >
+      <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
+    </button>
+  {/if}
+  {#if subItem && navState.hasNext}
+    <button
+      class="nav-arrow nav-arrow-right"
+      onclick={handleNext}
+      aria-label={$text('settings.app_store.nav.next_item', { values: { name: navState.nextName } })}
+      type="button"
+    >
+      <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
+    </button>
+  {/if}
 </div>
 
 <style>
@@ -275,6 +330,7 @@
 
   .app-details-header {
     /* Height driven by inline style */
+    position: relative; /* Required for absolute-positioned nav arrows */
     width: 100%;
     overflow: hidden;
     display: flex;
@@ -283,6 +339,8 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
     flex-shrink: 0;
     user-select: none;
+    /* Decorative content is non-interactive; nav arrows override with pointer-events:auto */
+    pointer-events: none;
     /* Smooth height animation as user scrolls */
     transition: height 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -301,6 +359,7 @@
     gap: 6px;
     cursor: pointer;
     transition: background-color 0.15s ease;
+    pointer-events: auto; /* Re-enable clicks despite parent pointer-events:none */
   }
 
   .nav-row:hover {
@@ -506,5 +565,56 @@
     .breadcrumb-label {
       font-size: 13px;
     }
+  }
+
+  /* ─── Sub-item navigation arrows ────────────────────────────────────────────
+     Positioned at the left and right edges of the header banner (identical layout
+     to ChatHeader's .nav-arrow). Only shown on skill/focus/memories detail pages.
+     pointer-events:auto overrides .app-details-header pointer-events:none so
+     only the arrows are interactive. ALL global button{} rules are overridden
+     with !important. */
+
+  .nav-arrow {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    padding: 0 !important;
+    min-width: unset !important;
+    width: 40px !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    filter: none !important;
+    margin: 0 !important;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    z-index: 20;
+    pointer-events: auto; /* Re-enable interactivity despite banner pointer-events:none */
+    flex-shrink: 0;
+  }
+
+  .nav-arrow:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    scale: none !important;
+  }
+
+  .nav-arrow:active {
+    background-color: rgba(255, 255, 255, 0.18) !important;
+    scale: none !important;
+    filter: none !important;
+  }
+
+  .nav-arrow-left {
+    left: 0;
+    border-radius: 0 10px 10px 0 !important;
+  }
+
+  .nav-arrow-right {
+    right: 0;
+    border-radius: 10px 0 0 10px !important;
   }
 </style>

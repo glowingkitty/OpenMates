@@ -22,6 +22,8 @@
     import type { AppMetadata, FocusModeMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
+    import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
+    import { onDestroy } from 'svelte';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -121,6 +123,39 @@
         return iconName;
     }
     
+    /**
+     * Register sibling focus modes for prev/next navigation in AppDetailsHeader.
+     * Re-runs whenever app or focusModeId changes (deep link changes the current focus mode).
+     * Clears the navigation state when this component is destroyed.
+     */
+    $effect(() => {
+        const focusModes = app?.focus_modes ?? [];
+        if (focusModes.length > 1) {
+            setAppStoreNavList(
+                focusModes.map(f => ({
+                    id: f.id,
+                    name: f.name_translation_key ? $text(f.name_translation_key) : f.id,
+                })),
+                focusModeId,
+                (targetFocusModeId) => {
+                    dispatch('openSettings', {
+                        settingsPath: `app_store/${appId}/focus/${targetFocusModeId}`,
+                        direction: 'forward',
+                        icon: getIconName(app?.icon_image),
+                        title: app?.name_translation_key ? $text(app.name_translation_key) : appId,
+                    });
+                },
+            );
+        } else {
+            // Single focus mode — no siblings to navigate to
+            clearAppStoreNav();
+        }
+    });
+
+    onDestroy(() => {
+        clearAppStoreNav();
+    });
+
     function goBack() {
         dispatch('openSettings', {
             settingsPath: `app_store/${appId}`,

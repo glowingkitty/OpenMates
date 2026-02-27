@@ -14,7 +14,7 @@
 -->
 
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onDestroy } from 'svelte';
     import { text } from '@repo/ui';
     import { authStore } from '../../stores/authStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
@@ -24,12 +24,53 @@
     import Toggle from '../Toggle.svelte';
     import Icon from '../Icon.svelte';
     import SearchSortBar from './SearchSortBar.svelte';
+    import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
+    import { appSkillsStore } from '../../stores/appSkillsStore';
     
     const dispatch = createEventDispatcher();
     
     // --- Auth state ---
     let isAuthenticated = $derived($authStore.isAuthenticated);
-    
+
+    // ─── Sibling skill navigation ─────────────────────────────────────────────
+    //
+    // Register the AI app's full skill list so AppDetailsHeader can show prev/next
+    // arrows when the user opens the AI Ask skill page (app_store/ai/skill/ask).
+    // The navigate callback uses the special 'ai/ask' route for this skill and the
+    // standard skill route for all other AI skills.
+    $effect(() => {
+        const aiApp = appSkillsStore.getState().apps['ai'];
+        const skills = aiApp?.skills ?? [];
+        if (skills.length > 1) {
+            setAppStoreNavList(
+                skills.map(s => ({
+                    id: s.id,
+                    name: s.name_translation_key ? $text(s.name_translation_key) : s.id,
+                })),
+                'ask',
+                (targetSkillId) => {
+                    // The AI Ask skill has its own special route; all other AI skills use the generic route
+                    const path =
+                        targetSkillId === 'ask'
+                            ? 'app_store/ai/skill/ask'
+                            : `app_store/ai/skill/${targetSkillId}`;
+                    dispatch('openSettings', {
+                        settingsPath: path,
+                        direction: 'forward',
+                        icon: 'ai',
+                        title: aiApp?.name_translation_key ? $text(aiApp.name_translation_key) : 'ai',
+                    });
+                },
+            );
+        } else {
+            clearAppStoreNav();
+        }
+    });
+
+    onDestroy(() => {
+        clearAppStoreNav();
+    });
+
     // --- State ---
     let searchQuery = $state('');
     let sortBy = $state<'price' | 'performance' | 'new'>('performance');

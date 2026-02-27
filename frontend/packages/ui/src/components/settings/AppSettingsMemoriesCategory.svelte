@@ -22,7 +22,7 @@
 -->
 
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import SettingsItem from '../SettingsItem.svelte';
@@ -31,6 +31,7 @@
     import { text } from '@repo/ui';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
     import type { Readable } from 'svelte/store';
+    import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
 
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -176,6 +177,39 @@
         return iconName;
     }
     
+    /**
+     * Register sibling settings/memories categories for prev/next navigation in AppDetailsHeader.
+     * Re-runs whenever app or categoryId changes (deep link changes the current category).
+     * Clears the navigation state when this component is destroyed.
+     */
+    $effect(() => {
+        const categories = app?.settings_and_memories ?? [];
+        if (categories.length > 1) {
+            setAppStoreNavList(
+                categories.map(c => ({
+                    id: c.id,
+                    name: c.name_translation_key ? $text(c.name_translation_key) : c.id,
+                })),
+                categoryId,
+                (targetCategoryId) => {
+                    dispatch('openSettings', {
+                        settingsPath: `app_store/${appId}/settings_memories/${targetCategoryId}`,
+                        direction: 'forward',
+                        icon: getIconName(app?.icon_image),
+                        title: app?.name_translation_key ? $text(app.name_translation_key) : appId,
+                    });
+                },
+            );
+        } else {
+            // Single category — no siblings to navigate to
+            clearAppStoreNav();
+        }
+    });
+
+    onDestroy(() => {
+        clearAppStoreNav();
+    });
+
     /**
      * Navigate back to app details.
      */

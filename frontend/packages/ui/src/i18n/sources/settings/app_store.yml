@@ -2233,3 +2233,51 @@ settings_memories:
   cs: Nastavení a vzpomínky
   sv: Inställningar & Minnen
   verified_by_human: []
+
+settings.app_store.nav.previous_item:
+  context: Aria-label for the left arrow button in the app store sub-item header (skill/focus mode/settings category). {name} is the display name of the previous sibling item.
+  en: "Previous: {name}"
+  de: "Vorherige: {name}"
+  zh: "上一个：{name}"
+  es: "Anterior: {name}"
+  fr: "Précédent : {name}"
+  pt: "Anterior: {name}"
+  ru: "Предыдущее: {name}"
+  ja: "前へ: {name}"
+  ko: "이전: {name}"
+  it: "Precedente: {name}"
+  tr: "Önceki: {name}"
+  vi: "Trước: {name}"
+  id: "Sebelumnya: {name}"
+  pl: "Poprzedni: {name}"
+  nl: "Vorige: {name}"
+  ar: "السابق: {name}"
+  hi: "पिछला: {name}"
+  th: "ก่อนหน้า: {name}"
+  cs: "Předchozí: {name}"
+  sv: "Föregående: {name}"
+  verified_by_human: []
+
+settings.app_store.nav.next_item:
+  context: Aria-label for the right arrow button in the app store sub-item header (skill/focus mode/settings category). {name} is the display name of the next sibling item.
+  en: "Next: {name}"
+  de: "Nächste: {name}"
+  zh: "下一个：{name}"
+  es: "Siguiente: {name}"
+  fr: "Suivant : {name}"
+  pt: "Próximo: {name}"
+  ru: "Следующее: {name}"
+  ja: "次へ: {name}"
+  ko: "다음: {name}"
+  it: "Successivo: {name}"
+  tr: "Sonraki: {name}"
+  vi: "Tiếp: {name}"
+  id: "Berikutnya: {name}"
+  pl: "Następny: {name}"
+  nl: "Volgende: {name}"
+  ar: "التالي: {name}"
+  hi: "अगला: {name}"
+  th: "ถัดไป: {name}"
+  cs: "Další: {name}"
+  sv: "Nästa: {name}"
+  verified_by_human: []

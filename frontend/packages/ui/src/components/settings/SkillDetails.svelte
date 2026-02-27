@@ -27,6 +27,8 @@
     import type { AppMetadata, SkillMetadata, SkillPricing } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
+    import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
+    import { onDestroy } from 'svelte';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -166,6 +168,43 @@
         return iconName;
     }
     
+    /**
+     * Register sibling skills for prev/next navigation in AppDetailsHeader.
+     * Re-runs whenever app or skillId changes (deep link changes the current skill).
+     * Clears the navigation state when this component is destroyed.
+     *
+     * The navigate callback dispatches the same openSettings event as clicking a
+     * SkillCard — allowing AppDetailsHeader arrows to advance through all of the
+     * app's skills in order.
+     */
+    $effect(() => {
+        const skills = app?.skills ?? [];
+        if (skills.length > 1) {
+            setAppStoreNavList(
+                skills.map(s => ({
+                    id: s.id,
+                    name: s.name_translation_key ? $text(s.name_translation_key) : s.id,
+                })),
+                skillId,
+                (targetSkillId) => {
+                    dispatch('openSettings', {
+                        settingsPath: `app_store/${appId}/skill/${targetSkillId}`,
+                        direction: 'forward',
+                        icon: getIconName(app?.icon_image),
+                        title: app?.name_translation_key ? $text(app.name_translation_key) : appId,
+                    });
+                },
+            );
+        } else {
+            // Single skill app — no siblings to navigate to
+            clearAppStoreNav();
+        }
+    });
+
+    onDestroy(() => {
+        clearAppStoreNav();
+    });
+
     /**
      * Navigate back to app details.
      */
