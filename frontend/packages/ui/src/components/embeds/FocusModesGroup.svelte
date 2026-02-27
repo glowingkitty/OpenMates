@@ -98,7 +98,8 @@
             id: app.id,
             name_translation_key: focusMode.name_translation_key,
             description_translation_key: focusMode.description_translation_key,
-            icon_image: app.icon_image,
+            // Use focus mode-specific icon if available, fall back to parent app icon
+            icon_image: focusMode.icon_image || app.icon_image,
             icon_colorgradient: app.icon_colorgradient,
             providers: [],
             skills: [],
@@ -191,7 +192,8 @@
       {#each displayFocusModes as { focusMode, appId, cardApp } (`${appId}-${focusMode.id}`)}
         <div class="focus-mode-card-scaled">
           <AppStoreCard 
-            app={cardApp} 
+            app={cardApp}
+            cardIconType="focus"
             onSelect={() => handleFocusModeSelect(appId, focusMode.id)} 
           />
         </div>
