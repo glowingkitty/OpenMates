@@ -1,24 +1,26 @@
 <!--
   AppDetailsHeader.svelte
 
-  Expanding/collapsing gradient banner for the App Details settings page.
-  Replaces the normal settings-header when viewing app_store/{appId}.
+  Collapsing gradient banner for the App Details settings page.
+  Matches the 240px expanded height of ChatHeader, collapses to 124px on scroll
+  so the icon + name row stays visible at all times.
 
   EXPANDED (scrollTop ≤ 0):
-  ┌──────────────────────────────────────────────┐  ~200px
-  │  [←] Settings / App Store          [✕]      │  ← breadcrumb row (white, 0.7 op)
-  │                                              │
-  │  [icon 45×45]   App Name (20px bold)         │
-  │                                              │
+  ┌──────────────────────────────────────────────┐  240px
+  │  [←] Settings / App Store  (clickable)       │  ← nav row (white, 0.7 op)
+  │  [icon 45×45]        App Name (20px, centered)│
   │         Description (14px, centered)         │
-  │                                              │
   │      3 🖥     1 🎯     1 🧠                  │  ← capability counts
   └──────────────────────────────────────────────┘
 
   COLLAPSED (scrollTop ≥ COLLAPSE_THRESHOLD):
-  ┌──────────────────────────────────────────────┐  ~52px (= normal header height)
-  │  [←] Settings / App Store          [✕]      │
+  ┌──────────────────────────────────────────────┐  124px
+  │  [←] Settings / App Store  (clickable)       │
+  │  [icon 45×45]        App Name (20px, centered)│
   └──────────────────────────────────────────────┘
+
+  The breadcrumb label is also a clickable back button — tapping anywhere on
+  the nav row navigates back, just like pressing the arrow.
 
   Props:
     appId             - the app ID (e.g. "audio")
@@ -27,7 +29,6 @@
     fullBreadcrumbLabel - tooltip text (full path)
     scrollTop         - current scrollTop of .settings-content-wrapper
     onBack            - navigate back
-    onClose           - close settings
 -->
 <script lang="ts">
   import { text } from '@repo/ui';
@@ -43,7 +44,6 @@
     fullBreadcrumbLabel?: string;
     scrollTop?: number;
     onBack?: () => void;
-    onClose?: () => void;
   }
 
   let {
@@ -53,36 +53,30 @@
     fullBreadcrumbLabel = '',
     scrollTop = 0,
     onBack,
-    onClose,
   }: Props = $props();
 
   // ─── Collapse animation ───────────────────────────────────────────────────
 
-  /** How many px to scroll before fully collapsed */
-  const COLLAPSE_THRESHOLD = 90;
-
   /**
-   * Ease-in-out cubic: smooth collapse progress [0 = expanded, 1 = collapsed]
+   * Scroll distance (px) after which the header is fully collapsed.
+   * The description + counts fade out; nav row + identity row stay visible.
    */
+  const COLLAPSE_THRESHOLD = 80;
+
+  /** Smooth ease-in-out cubic progress: 0 = expanded, 1 = collapsed */
   let collapseProgress = $derived.by(() => {
     const raw = Math.min(1, Math.max(0, scrollTop / COLLAPSE_THRESHOLD));
     return raw < 0.5 ? 4 * raw * raw * raw : 1 - Math.pow(-2 * raw + 2, 3) / 2;
   });
 
-  /** Total header height: 200px → 52px */
-  let headerHeight = $derived(Math.round(200 - 148 * collapseProgress));
+  /** Height: 240px → 124px. 124px holds nav row (44px) + identity row (56px) + padding */
+  let headerHeight = $derived(Math.round(240 - 116 * collapseProgress));
 
   /**
-   * Opacity for description + counts: fades out in the first 55% of collapse
-   * so they're gone well before the header reaches compact height.
+   * Opacity for description + counts: fades out in the first half of collapse
+   * so content is gone before the header reaches its minimum height.
    */
-  let detailsOpacity = $derived(Math.max(0, 1 - collapseProgress / 0.55));
-
-  /**
-   * Bottom border-radius: 14px → 0 as we collapse
-   * (so the rounded edges only appear in the expanded state)
-   */
-  let bottomRadius = $derived(Math.round(14 * (1 - collapseProgress)));
+  let detailsOpacity = $derived(Math.max(0, 1 - collapseProgress * 2));
 
   // ─── App data ─────────────────────────────────────────────────────────────
 
@@ -96,18 +90,26 @@
       : (app?.description || '')
   );
 
-  /** Icon name normalised to match CSS variable and icon file conventions */
+  /**
+   * Normalise icon_image filename → CSS variable name.
+   * The CSS variables use the app ID (e.g. --color-app-books, --color-app-images),
+   * but the icon files may differ (book.svg → books, image.svg → images).
+   * We also handle the special-cased renames done elsewhere in Settings.svelte.
+   */
   let iconName = $derived.by(() => {
     if (!app?.icon_image) return appId;
     let n = app.icon_image.replace(/\.svg$/, '');
+    // Special-case renames: icon file name → CSS variable / app ID
     if (n === 'coding') n = 'code';
-    if (n === 'heart') n = 'health';
-    if (n === 'email') n = 'mail';
+    if (n === 'heart')  n = 'health';
+    if (n === 'email')  n = 'mail';
+    if (n === 'book')   n = 'books';   // book.svg → --color-app-books
+    if (n === 'image')  n = 'images';  // image.svg → --color-app-images
     return n;
   });
 
-  let skillCount = $derived(app?.skills?.length ?? 0);
-  let focusCount = $derived(app?.focus_modes?.length ?? 0);
+  let skillCount  = $derived(app?.skills?.length ?? 0);
+  let focusCount  = $derived(app?.focus_modes?.length ?? 0);
   let memoryCount = $derived(app?.settings_and_memories?.length ?? 0);
 </script>
 
@@ -116,40 +118,21 @@
   style="
     height: {headerHeight}px;
     background: var(--color-app-{iconName}, var(--color-primary));
-    border-radius: 0 0 {bottomRadius}px {bottomRadius}px;
   "
 >
-  <!-- ── Nav row: back arrow + breadcrumb + close ── always visible ── -->
-  <div class="nav-row">
-    {#if onBack}
-      <button
-        class="nav-btn"
-        onclick={onBack}
-        aria-label={$text('settings.back')}
-        type="button"
-      >
-        <span class="icon_back nav-icon"></span>
-      </button>
-    {/if}
+  <!-- ── Nav row: back arrow + breadcrumb (entire row is clickable) ── -->
+  <button
+    class="nav-row"
+    onclick={onBack}
+    aria-label={$text('settings.back')}
+    type="button"
+    title={fullBreadcrumbLabel || breadcrumbLabel}
+  >
+    <div class="clickable-icon icon_back nav-back-icon"></div>
+    <span class="breadcrumb-label">{breadcrumbLabel}</span>
+  </button>
 
-    <span
-      class="breadcrumb-label"
-      title={fullBreadcrumbLabel || breadcrumbLabel}
-    >{breadcrumbLabel}</span>
-
-    {#if onClose}
-      <button
-        class="nav-btn close"
-        onclick={onClose}
-        aria-label={$text('activity.close')}
-        type="button"
-      >
-        <span class="icon_close nav-icon"></span>
-      </button>
-    {/if}
-  </div>
-
-  <!-- ── App identity row: icon (45×45) left + name right ── -->
+  <!-- ── App identity: icon left-anchored, name absolutely centred ── -->
   <div class="identity-row">
     {#if app?.icon_image}
       <div class="app-icon-slot">
@@ -161,13 +144,14 @@
         />
       </div>
     {/if}
+    <!-- Absolutely centered so it doesn't shift with the icon -->
     <span class="app-name">{appName}</span>
   </div>
 
   <!-- ── Description + capability counts — fades out on scroll ── -->
   <div
     class="details-block"
-    style="opacity: {detailsOpacity};"
+    style="opacity: {detailsOpacity}; pointer-events: {detailsOpacity < 0.05 ? 'none' : 'auto'};"
     aria-hidden={detailsOpacity < 0.05}
   >
     {#if appDescription}
@@ -203,69 +187,51 @@
   /* ─── Container ─────────────────────────────────────────────────────────── */
 
   .app-details-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    /* Height driven by inline style (240px → 124px on scroll) */
     width: 100%;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    /* Height + border-radius driven by inline style — transition for smoothness */
-    transition:
-      height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-      border-radius 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 0 0 14px 14px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
     flex-shrink: 0;
     user-select: none;
+    /* Smooth height animation as user scrolls */
+    transition: height 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* ─── Nav row ────────────────────────────────────────────────────────────── */
+  /* ─── Nav row (entire row is the back button) ────────────────────────────── */
 
   .nav-row {
+    /* Reset button defaults */
+    all: unset;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     height: 44px;
     padding: 0 10px;
     flex-shrink: 0;
-    gap: 4px;
-    position: relative;
-    z-index: 2;
-  }
-
-  .nav-btn {
-    all: unset;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    gap: 6px;
     cursor: pointer;
-    flex-shrink: 0;
+    /* Subtle hover/active feedback on the entire row */
+    border-radius: 0;
     transition: background-color 0.15s ease;
   }
 
-  .nav-btn:hover {
-    background-color: rgba(255, 255, 255, 0.18) !important;
+  .nav-row:hover {
+    background-color: rgba(255, 255, 255, 0.1);
   }
 
-  .nav-btn:active {
-    background-color: rgba(255, 255, 255, 0.28) !important;
+  .nav-row:active {
+    background-color: rgba(255, 255, 255, 0.2);
   }
 
-  .nav-btn.close {
-    margin-left: auto;
-  }
-
-  /* Nav icons: reuse the same icon_back / icon_close mask approach */
-  .nav-icon {
-    display: block;
-    width: 20px;
-    height: 20px;
-    /* The .icon_back / .icon_close classes in icons.css set -webkit-mask-image.
-       We override background-color here to make them white. */
-    background-color: rgba(255, 255, 255, 0.85) !important;
+  /* Back icon — inherits .clickable-icon mask sizing from icons.css,
+     but we force the colour to white since we're on a gradient. */
+  .nav-back-icon {
     flex-shrink: 0;
+    /* icons.css .clickable-icon sets mask-image; we just override colour */
+    background-color: rgba(255, 255, 255, 0.85) !important;
   }
 
   .breadcrumb-label {
@@ -275,43 +241,52 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 1;
     min-width: 0;
   }
 
   /* ─── App identity row ───────────────────────────────────────────────────── */
 
   .identity-row {
+    /* Relative container so app-name can be absolutely centred */
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 0 16px 4px;
+    padding: 0 16px;
     flex-shrink: 0;
-    position: relative;
-    z-index: 2;
+    /* Give enough height to hold the 45px icon comfortably */
+    min-height: 56px;
   }
 
   .app-icon-slot {
+    /* Left-aligned: stays in document flow */
     flex-shrink: 0;
-    /* Ensure the Icon renders at exactly 45×45 */
     width: 45px;
     height: 45px;
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
+    z-index: 1; /* above the absolutely-positioned name */
   }
 
   .app-name {
+    /* Absolutely centred over the full row width, regardless of icon position */
+    position: absolute;
+    left: 0;
+    right: 0;
+    text-align: center;
     font-size: 20px;
     font-weight: 700;
     color: #ffffff;
     line-height: 1.25;
+    padding: 0 60px; /* avoid overlapping icon on left and give matching space on right */
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
+    pointer-events: none;
   }
 
   /* ─── Collapsible details block ──────────────────────────────────────────── */
@@ -320,13 +295,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 4px 20px 14px;
-    gap: 10px;
-    position: relative;
-    z-index: 2;
-    /* Opacity driven by inline style; also transition for smoothness */
-    transition: opacity 0.12s ease;
-    pointer-events: auto;
+    /* Extra vertical breathing room above and below description */
+    padding: 12px 20px 14px;
+    gap: 12px;
+    flex: 1;
+    justify-content: center;
   }
 
   .app-description {
@@ -374,7 +347,6 @@
     flex-shrink: 0;
   }
 
-  /* Each icon type uses its own mask image from icons.css variables */
   .skill-icon {
     -webkit-mask-image: url('@openmates/ui/static/icons/skill.svg');
     mask-image: url('@openmates/ui/static/icons/skill.svg');
@@ -398,7 +370,7 @@
     mask-position: center;
   }
 
-  /* Settings & memories use the settings icon */
+  /* Settings & memories */
   .memories-icon {
     -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
     mask-image: url('@openmates/ui/static/icons/settings.svg');

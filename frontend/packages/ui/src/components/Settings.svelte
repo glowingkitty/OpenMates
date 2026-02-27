@@ -1804,13 +1804,6 @@ changes to the documentation (to keep the documentation up to date).
             breadcrumbLabel={breadcrumbLabel}
             fullBreadcrumbLabel={fullBreadcrumbLabel}
             onBack={() => backToMainView()}
-            onClose={() => {
-                isMenuVisible = false;
-                settingsMenuVisible.set(false);
-                panelState.closeSettings();
-                hideOriginalProfile = false;
-                if (hideProfileTimeout) { clearTimeout(hideProfileTimeout); hideProfileTimeout = null; }
-            }}
         />
     {/if}
 
