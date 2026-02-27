@@ -2158,6 +2158,7 @@ async def websocket_endpoint(
                 await handle_sync_inspiration_chat(
                     manager=manager,
                     cache_service=cache_service,
+                    encryption_service=encryption_service,
                     user_id=user_id,
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,

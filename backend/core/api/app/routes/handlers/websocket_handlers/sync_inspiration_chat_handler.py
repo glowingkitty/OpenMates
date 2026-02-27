@@ -11,6 +11,12 @@
 #   3. Persists the chat metadata and assistant message to Directus via Celery
 #      tasks so the chat survives cache expiry and is available cross-device
 #      after reload / logout / login.
+#   4. Adds the assistant message to the AI inference cache (vault-encrypted)
+#      so that when the user sends a follow-up message, the LLM has the
+#      original inspiration as context.  Without this step, the AI cache is
+#      empty until the first follow-up triggers a cache-miss → request_chat_history
+#      round-trip, which can fail under race conditions (Celery not yet done
+#      persisting messages_v to Directus).
 #
 # No AI processing, no billing, no title generation.  The chat is already
 # complete (title, category, assistant message) and just needs to be propagated
@@ -39,6 +45,7 @@ import logging
 from typing import Any
 
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.schemas.chat import MessageInCache
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +53,7 @@ logger = logging.getLogger(__name__)
 async def handle_sync_inspiration_chat(
     manager: Any,
     cache_service: Any,
+    encryption_service: Any,
     user_id: str,
     user_id_hash: str,
     device_fingerprint_hash: str,
@@ -67,6 +75,8 @@ async def handle_sync_inspiration_chat(
     Args:
         manager: ConnectionManager instance
         cache_service: CacheService instance
+        encryption_service: EncryptionService instance (for vault-encrypting the
+            assistant message content before adding it to the AI inference cache)
         user_id: User UUID (plaintext, for broadcast / cache lookups)
         user_id_hash: SHA-256 hex digest of user_id (for Directus hashed_user_id)
         device_fingerprint_hash: Sending device hash (excluded from broadcast)
@@ -152,6 +162,87 @@ async def handle_sync_inspiration_chat(
             chat_id,
             user_id[:8],
         )
+
+        # ── 1b. Add the assistant message to the AI inference cache ───────────
+        # The AI inference cache (vault-encrypted, 72h TTL) is what the LLM uses
+        # for conversation context.  Without this step, the cache is empty when
+        # the user sends a follow-up message, causing the LLM to lose the
+        # original inspiration context.
+        #
+        # We vault-encrypt the plaintext `content` (which the client sent for
+        # broadcast purposes) using the user's server-side vault key, then store
+        # it as a MessageInCache entry in the AI cache.  This mirrors what
+        # save_chat_message_and_update_versions() does in the normal message
+        # pipeline (cache_chat_mixin.py:1203).
+        if content:
+            try:
+                # Get the user's vault key for server-side encryption
+                user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+                if not user_vault_key_id:
+                    # Fallback: look up from Directus via cache user profile
+                    user_data = await cache_service.get_user(user_id)
+                    if user_data:
+                        user_vault_key_id = user_data.get("vault_key_id")
+
+                if user_vault_key_id:
+                    # Vault-encrypt the plaintext content
+                    encrypted_content_for_ai, _ = await encryption_service.encrypt_with_user_key(
+                        content,
+                        user_vault_key_id,
+                    )
+
+                    # Build a MessageInCache and add to AI cache
+                    ai_cache_msg = MessageInCache(
+                        id=message_id,
+                        chat_id=chat_id,
+                        role="assistant",
+                        category=payload.get("category"),
+                        sender_name=None,
+                        encrypted_content=encrypted_content_for_ai,
+                        created_at=created_at,
+                        status="delivered",
+                    )
+                    ai_cache_success = await cache_service.add_ai_message_to_history(
+                        user_id,
+                        chat_id,
+                        ai_cache_msg.model_dump_json(),
+                    )
+                    if ai_cache_success:
+                        logger.info(
+                            "[SyncInspirationChat] Added inspiration assistant message to AI cache "
+                            "for chat %s (user %s…). Follow-up messages will have context.",
+                            chat_id,
+                            user_id[:8],
+                        )
+                    else:
+                        logger.warning(
+                            "[SyncInspirationChat] Failed to add inspiration assistant message to AI cache "
+                            "for chat %s. Follow-up messages may lack context (server will request history from client).",
+                            chat_id,
+                        )
+                else:
+                    logger.warning(
+                        "[SyncInspirationChat] No vault_key_id found for user %s…. "
+                        "Cannot add inspiration assistant message to AI cache for chat %s. "
+                        "Follow-up messages may lack context.",
+                        user_id[:8],
+                        chat_id,
+                    )
+            except Exception as e_ai_cache:
+                # Non-fatal: if AI cache population fails, the server's existing
+                # request_chat_history fallback will still work (just slower).
+                logger.warning(
+                    "[SyncInspirationChat] Error adding inspiration assistant message to AI cache "
+                    "for chat %s: %s. Follow-up messages may lack context.",
+                    chat_id,
+                    e_ai_cache,
+                )
+        else:
+            logger.debug(
+                "[SyncInspirationChat] No plaintext content in payload for chat %s — "
+                "skipping AI cache population (no context to store).",
+                chat_id,
+            )
 
         # ── 2. Broadcast to other devices ─────────────────────────────────────
         # Reuse the same event shape as `new_chat_message` so the receiving-side
