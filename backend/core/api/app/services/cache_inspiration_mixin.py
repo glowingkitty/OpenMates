@@ -11,6 +11,15 @@
 # - Pending delivery cache: stores generated inspirations for offline users (server-side
 #   encrypted with vault key, 7-day TTL). Delivered on next WebSocket connection.
 #
+# Disk persistence (restart resilience):
+# - On graceful shutdown, dump_inspiration_cache_to_disk() writes topic suggestions and
+#   paid-request tracking entries to /shared/cache/inspiration_cache_backup.json.
+# - On startup, restore_inspiration_cache_from_disk() reads the backup file, re-populates
+#   Redis with the surviving entries (skipping any that have aged past their original TTL),
+#   then deletes the backup file.
+# - This ensures users who chatted before a restart are still eligible for daily inspiration
+#   generation and their personalisation data is not lost.
+#
 # Privacy notes:
 # - Topic suggestions are stored encrypted (per-user, not cross-user)
 # - Pending inspirations are encrypted with the user's vault key (server can decrypt
@@ -20,8 +29,13 @@
 
 import json
 import logging
+import os
 import time
 from typing import Any, Dict, List, Optional
+
+# Disk backup path for inspiration cache — written on shutdown, read on startup.
+# Stored under /shared/cache/ (same volume as all other cache backups).
+INSPIRATION_CACHE_BACKUP_PATH = "/shared/cache/inspiration_cache_backup.json"
 
 logger = logging.getLogger(__name__)
 
@@ -705,3 +719,188 @@ class InspirationCacheMixin:
                 exc_info=True,
             )
             return False
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Disk persistence (restart resilience)
+    # ──────────────────────────────────────────────────────────────────────────
+
+    async def dump_inspiration_cache_to_disk(self) -> int:
+        """
+        Dump topic suggestions and paid-request tracking entries to disk.
+
+        Called during graceful shutdown so that personalisation data and
+        eligibility state survive a server restart.  Mirrors the pattern used by
+        dump_pending_orders_to_disk() and dump_reminders_to_disk().
+
+        Backed-up data:
+        - daily_inspiration_topics:{user_id}   — topic suggestion batches (72 h TTL)
+        - daily_inspiration_last_paid_request:{user_id} — paid-request tracker (48 h TTL)
+
+        Both keys are per-user and contain no plaintext PII — topic suggestions
+        are phrase-level strings (not chat content), and the paid-request entry
+        is a timestamp + language code only.
+
+        Returns:
+            Total number of Redis keys written to the backup file (0 on error).
+        """
+        try:
+            client = await self.client
+            if not client:
+                logger.warning("[CACHE] Cannot dump inspiration cache to disk: Redis not connected")
+                return 0
+
+            # Collect all topic-suggestion and paid-request keys.
+            # Patterns use the literal key prefixes (user_id placeholder is the wildcard).
+            topics_keys = await self.get_keys_by_pattern("daily_inspiration_topics:*")
+            paid_keys = await self.get_keys_by_pattern("daily_inspiration_last_paid_request:*")
+            all_keys = list(set(topics_keys + paid_keys))
+
+            if not all_keys:
+                logger.info("[CACHE] No inspiration cache entries to dump to disk")
+                # Remove stale backup if it exists
+                if os.path.exists(INSPIRATION_CACHE_BACKUP_PATH):
+                    os.remove(INSPIRATION_CACHE_BACKUP_PATH)
+                return 0
+
+            # Read each key and its remaining TTL so we can restore correctly
+            entries: List[Dict[str, Any]] = []
+            now_ts = int(time.time())
+            for key in all_keys:
+                try:
+                    raw = await client.get(key)
+                    if raw is None:
+                        continue
+                    if isinstance(raw, bytes):
+                        raw = raw.decode("utf-8")
+                    # Get remaining TTL (seconds); -1 = no expiry, -2 = gone
+                    ttl_remaining = await client.ttl(key)
+                    if ttl_remaining == -2:
+                        # Key expired between our scan and the read — skip it
+                        continue
+                    entries.append({
+                        "key": key,
+                        "value": raw,
+                        "written_at": now_ts,
+                        # Clamp negative / no-expiry TTL to the original max for the key type
+                        "ttl_remaining": ttl_remaining if ttl_remaining > 0 else TOPIC_SUGGESTIONS_TTL_SECONDS,
+                    })
+                except Exception as key_err:
+                    logger.warning(f"[CACHE] Skipping key {key} during inspiration backup: {key_err}")
+
+            if not entries:
+                logger.info("[CACHE] No inspiration cache entries readable — nothing to dump")
+                return 0
+
+            backup_dir = os.path.dirname(INSPIRATION_CACHE_BACKUP_PATH)
+            os.makedirs(backup_dir, exist_ok=True)
+
+            backup_data = {
+                "timestamp": now_ts,
+                "entries": entries,
+            }
+            with open(INSPIRATION_CACHE_BACKUP_PATH, "w") as fh:
+                json.dump(backup_data, fh)
+
+            logger.info(
+                f"[CACHE] Dumped {len(entries)} inspiration cache entries to disk at "
+                f"{INSPIRATION_CACHE_BACKUP_PATH}"
+            )
+            return len(entries)
+
+        except Exception as e:
+            logger.error(f"[CACHE] Error dumping inspiration cache to disk: {e}", exc_info=True)
+            return 0
+
+    async def restore_inspiration_cache_from_disk(self) -> int:
+        """
+        Restore topic suggestions and paid-request tracking entries from disk backup.
+
+        Called during startup to recover inspiration personalisation and eligibility
+        state after a server restart.  Mirrors restore_orders_from_disk() / 
+        restore_reminders_from_disk().
+
+        Entries whose effective remaining TTL has already elapsed are skipped
+        (they would have expired in Redis anyway — no point restoring stale data).
+        The backup file is deleted after a successful restore attempt.
+
+        Returns:
+            Number of Redis keys successfully restored (0 if nothing to restore).
+        """
+        try:
+            if not os.path.exists(INSPIRATION_CACHE_BACKUP_PATH):
+                logger.info("[CACHE] No inspiration cache backup file found — nothing to restore")
+                return 0
+
+            with open(INSPIRATION_CACHE_BACKUP_PATH, "r") as fh:
+                backup_data = json.load(fh)
+
+            entries: List[Dict[str, Any]] = backup_data.get("entries", [])
+            backup_written_at: int = backup_data.get("timestamp", 0)
+
+            if not entries:
+                logger.info("[CACHE] Inspiration cache backup is empty — nothing to restore")
+                os.remove(INSPIRATION_CACHE_BACKUP_PATH)
+                return 0
+
+            now_ts = int(time.time())
+            elapsed_since_dump = now_ts - backup_written_at
+            backup_age_hours = elapsed_since_dump / 3600
+            logger.info(
+                f"[CACHE] Restoring {len(entries)} inspiration cache entries from backup "
+                f"(backup age: {backup_age_hours:.1f}h)"
+            )
+
+            client = await self.client
+            if not client:
+                logger.error("[CACHE] Redis not connected — cannot restore inspiration cache from disk")
+                return 0
+
+            restored = 0
+            for entry in entries:
+                key: str = entry.get("key", "")
+                raw_value: str = entry.get("value", "")
+                ttl_remaining: int = entry.get("ttl_remaining", 0)
+
+                if not key or not raw_value:
+                    logger.warning("[CACHE] Skipping malformed entry in inspiration backup")
+                    continue
+
+                # Deduct time that passed while the server was down
+                effective_ttl = ttl_remaining - elapsed_since_dump
+                if effective_ttl <= 0:
+                    # Would have expired already — skip it
+                    logger.debug(f"[CACHE] Skipping expired inspiration backup entry: {key}")
+                    continue
+
+                # Don't overwrite a key that was already re-populated (e.g. user logged in
+                # during startup before restore ran)
+                existing = await client.get(key)
+                if existing:
+                    logger.debug(f"[CACHE] Inspiration key already exists in Redis — skipping restore: {key}")
+                    restored += 1  # Count as restored since data is present
+                    continue
+
+                try:
+                    await client.set(key, raw_value, ex=int(effective_ttl))
+                    restored += 1
+                    logger.debug(
+                        f"[CACHE] Restored inspiration key {key} (TTL {int(effective_ttl)}s)"
+                    )
+                except Exception as set_err:
+                    logger.error(f"[CACHE] Failed to restore inspiration key {key}: {set_err}")
+
+            # Clean up the backup file regardless of partial failures
+            os.remove(INSPIRATION_CACHE_BACKUP_PATH)
+            logger.info(
+                f"[CACHE] Restored {restored}/{len(entries)} inspiration cache entries from disk backup"
+            )
+            return restored
+
+        except json.JSONDecodeError as e:
+            logger.error(f"[CACHE] Invalid JSON in inspiration cache backup: {e}")
+            if os.path.exists(INSPIRATION_CACHE_BACKUP_PATH):
+                os.remove(INSPIRATION_CACHE_BACKUP_PATH)
+            return 0
+        except Exception as e:
+            logger.error(f"[CACHE] Error restoring inspiration cache from disk: {e}", exc_info=True)
+            return 0

@@ -502,6 +502,18 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error restoring pending deliveries from disk: {e}", exc_info=True)
 
+    # --- Restore daily inspiration cache from disk backup ---
+    # Recovers topic suggestions and paid-request tracking entries that were persisted
+    # during the last graceful shutdown, so personalisation and eligibility state are
+    # immediately available without waiting for users to chat again.
+    if hasattr(app.state, 'cache_service'):
+        try:
+            restored_inspiration = await app.state.cache_service.restore_inspiration_cache_from_disk()
+            if restored_inspiration > 0:
+                logger.info(f"Restored {restored_inspiration} inspiration cache entries from disk backup")
+        except Exception as e:
+            logger.error(f"Error restoring inspiration cache from disk: {e}", exc_info=True)
+
     # --- Restore web analytics counters from disk backup ---
     # Web analytics Redis counters are dumped to disk on graceful shutdown so no
     # data is lost if the container is restarted mid-flush-cycle.
@@ -1095,6 +1107,18 @@ async def lifespan(app: FastAPI):
                 logger.info(f"Persisted {dumped_deliveries} pending delivery entries to disk for recovery after restart")
         except Exception as e:
             logger.error(f"Error persisting pending deliveries to disk during shutdown: {e}", exc_info=True)
+
+    # --- Persist daily inspiration cache to disk before shutdown ---
+    # Saves topic suggestions and paid-request tracking so personalisation data and
+    # eligibility state survive a server restart (keys are normally Redis-only with
+    # 48–72h TTL and would be lost on restart without this backup).
+    if hasattr(app.state, 'cache_service'):
+        try:
+            dumped_inspiration = await app.state.cache_service.dump_inspiration_cache_to_disk()
+            if dumped_inspiration > 0:
+                logger.info(f"Persisted {dumped_inspiration} inspiration cache entries to disk for recovery after restart")
+        except Exception as e:
+            logger.error(f"Error persisting inspiration cache to disk during shutdown: {e}", exc_info=True)
     
     # Clean up background tasks
     if hasattr(app.state, 'metrics_task'):
