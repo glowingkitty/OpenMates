@@ -1148,6 +1148,25 @@
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
         const { embedId, embedData, decodedContent, embedType, attrs } = detail;
+
+        // CRITICAL: Set the URL hash guard BEFORE any async work.
+        //
+        // activeEmbedStore.setActiveEmbed() does two things:
+        //   1. Records a timestamp used by isProgrammaticEmbedHashUpdate() as a 100ms guard window
+        //   2. Writes window.location.hash → fires a hashchange event
+        //
+        // If we call setActiveEmbed() only AFTER the async resolve/decrypt/child-embed work
+        // (which can take 200–600ms for web search with 10 child embeds), the guard window has
+        // already expired by the time the hashchange fires.  handleHashChange() then falls through
+        // to processDeepLink → loadChat() (closes the fullscreen) → handleEmbedDeepLink()
+        // (reopens it), producing the visible open → close → open flickering.
+        //
+        // Moving the call here, synchronously, ensures the guard is live before the hash write,
+        // so the resulting hashchange is blocked immediately.
+        if (embedId) {
+            activeEmbedStore.setActiveEmbed(embedId, currentChat?.chat_id ?? null);
+            console.debug('[ActiveChat] Early URL hash guard set for embed:', embedId, 'chatId:', currentChat?.chat_id);
+        }
         
         // ALWAYS reload from EmbedStore when embedId is provided to ensure we get the latest data.
         // The embed might have been updated since the preview was rendered (e.g., processing -> finished).
@@ -1439,12 +1458,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         showEmbedFullscreen = true;
         
-        // Update URL hash with embed ID for sharing/bookmarking.
-        // Include the current chat ID so a reload can restore both chat + embed via combined hash.
-        if (embedId) {
-            activeEmbedStore.setActiveEmbed(embedId, currentChat?.chat_id ?? null);
-            console.debug('[ActiveChat] Updated URL hash with embed ID:', embedId, 'chatId:', currentChat?.chat_id);
-        }
+        // URL hash was already set at the top of this function (before async work) to ensure
+        // the programmatic-update guard was live before the hashchange fired.  No second call needed.
         
         console.debug('[ActiveChat] Opening embed fullscreen:', resolvedEmbedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
     }
