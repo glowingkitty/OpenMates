@@ -90,6 +90,121 @@ all:
   cs: Všechny aplikace
   sv: Alla appar
   verified_by_human: []
+all_apps.search_placeholder:
+  context: Placeholder text for the search input on the All Apps page
+  en: Search apps...
+  de: Apps suchen...
+  zh: 搜索应用...
+  es: Buscar aplicaciones...
+  fr: Rechercher des applications...
+  pt: Buscar aplicativos...
+  ru: Поиск приложений...
+  ja: アプリを検索...
+  ko: 앱 검색...
+  it: Cerca app...
+  tr: Uygulamaları ara...
+  vi: Tìm kiếm ứng dụng...
+  id: Cari aplikasi...
+  pl: Szukaj aplikacji...
+  nl: Apps zoeken...
+  ar: ابحث عن التطبيقات...
+  hi: ऐप्स खोजें...
+  th: ค้นหาแอป...
+  cs: Hledat aplikace...
+  sv: Sök appar...
+  verified_by_human: []
+all_apps.sort_by_name_asc:
+  context: Sort option — alphabetical A to Z on the All Apps page
+  en: Name (A–Z)
+  de: Name (A–Z)
+  zh: 名称（A–Z）
+  es: Nombre (A–Z)
+  fr: Nom (A–Z)
+  pt: Nome (A–Z)
+  ru: Название (A–Я)
+  ja: 名前（A–Z）
+  ko: 이름 (A–Z)
+  it: Nome (A–Z)
+  tr: Ad (A–Z)
+  vi: Tên (A–Z)
+  id: Nama (A–Z)
+  pl: Nazwa (A–Z)
+  nl: Naam (A–Z)
+  ar: الاسم (أ–ي)
+  hi: नाम (A–Z)
+  th: ชื่อ (A–Z)
+  cs: Název (A–Z)
+  sv: Namn (A–Z)
+  verified_by_human: []
+all_apps.sort_by_name_desc:
+  context: Sort option — reverse alphabetical Z to A on the All Apps page
+  en: Name (Z–A)
+  de: Name (Z–A)
+  zh: 名称（Z–A）
+  es: Nombre (Z–A)
+  fr: Nom (Z–A)
+  pt: Nome (Z–A)
+  ru: Название (Я–А)
+  ja: 名前（Z–A）
+  ko: 이름 (Z–A)
+  it: Nome (Z–A)
+  tr: Ad (Z–A)
+  vi: Tên (Z–A)
+  id: Nama (Z–A)
+  pl: Nazwa (Z–A)
+  nl: Naam (Z–A)
+  ar: الاسم (ي–أ)
+  hi: नाम (Z–A)
+  th: ชื่อ (Z–A)
+  cs: Název (Z–A)
+  sv: Namn (Z–A)
+  verified_by_human: []
+all_apps.sort_by_newest:
+  context: Sort option — most recently updated apps first on the All Apps page
+  en: Newest
+  de: Neueste
+  zh: 最新
+  es: Más reciente
+  fr: Plus récent
+  pt: Mais recente
+  ru: Новейшие
+  ja: 最新
+  ko: 최신순
+  it: Più recente
+  tr: En yeni
+  vi: Mới nhất
+  id: Terbaru
+  pl: Najnowsze
+  nl: Nieuwste
+  ar: الأحدث
+  hi: नवीनतम
+  th: ใหม่ล่าสุด
+  cs: Nejnovější
+  sv: Nyaste
+  verified_by_human: []
+all_apps.no_apps_found:
+  context: Message shown when the search query returns no matching apps on the All Apps page
+  en: No apps found matching your search.
+  de: Keine Apps gefunden, die Ihrer Suche entsprechen.
+  zh: 未找到与您搜索相符的应用。
+  es: No se encontraron aplicaciones que coincidan con tu búsqueda.
+  fr: Aucune application trouvée correspondant à votre recherche.
+  pt: Nenhum aplicativo encontrado para sua pesquisa.
+  ru: Приложений по вашему запросу не найдено.
+  ja: 検索に一致するアプリが見つかりませんでした。
+  ko: 검색과 일치하는 앱을 찾을 수 없습니다.
+  it: Nessuna app trovata per la tua ricerca.
+  tr: Aramanızla eşleşen uygulama bulunamadı.
+  vi: Không tìm thấy ứng dụng nào phù hợp với tìm kiếm của bạn.
+  id: Tidak ada aplikasi yang cocok dengan pencarian Anda.
+  pl: Nie znaleziono aplikacji pasujących do wyszukiwania.
+  nl: Geen apps gevonden die overeenkomen met uw zoekopdracht.
+  ar: لم يتم العثور على تطبيقات تطابق بحثك.
+  hi: आपकी खोज से मेल खाने वाले कोई ऐप नहीं मिले।
+  th: ไม่พบแอปที่ตรงกับการค้นหาของคุณ
+  cs: Nebyly nalezeny žádné aplikace odpovídající vašemu hledání.
+  sv: Inga appar hittades som matchar din sökning.
+  verified_by_human: []
 categories.top_picks:
   en: Top picks for you
   de: Top Empfehlungen für dich

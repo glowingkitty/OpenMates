@@ -479,11 +479,14 @@ changes to the documentation (to keep the documentation up to date).
     /**
      * True when we're on the TOP-LEVEL app details page (app_store/{appId} only,
      * NOT deeper sub-pages like skill/focus/settings_memories).
+     * Explicitly excludes 'app_store/all' which is the "Show all apps" list view —
+     * that page uses the normal submenu-info header, NOT the gradient AppDetailsHeader banner.
      * When true the AppDetailsHeader banner takes over the header area, so:
      *   - The normal settings-header becomes transparent with white text
      *   - The submenu-info block is hidden (the banner shows it instead)
      */
     let isAppTopLevelPage = $derived(
+        activeSettingsView !== 'app_store/all' &&
         /^app_store\/[^/]+$/.test(activeSettingsView)
     );
 

@@ -23,6 +23,7 @@
     import SettingsItem from '../SettingsItem.svelte';
     import Toggle from '../Toggle.svelte';
     import Icon from '../Icon.svelte';
+    import SearchSortBar from './SearchSortBar.svelte';
     
     const dispatch = createEventDispatcher();
     
@@ -32,7 +33,6 @@
     // --- State ---
     let searchQuery = $state('');
     let sortBy = $state<'price' | 'performance' | 'new'>('performance');
-    let showSortDropdown = $state(false);
     
     // Get AI Ask models only
     let aiAskModels = $derived(
@@ -141,25 +141,12 @@
         });
     }
     
-    function handleSortChange(newSort: 'price' | 'performance' | 'new') {
-        sortBy = newSort;
-        showSortDropdown = false;
-    }
-    
-    function toggleSortDropdown() {
-        showSortDropdown = !showSortDropdown;
-    }
-    
-    function closeSortDropdown() {
-        showSortDropdown = false;
-    }
-    
-    // Get sort label for current sort
-    let sortLabel = $derived({
-        price: $text('settings.ai_ask.ai_ask_settings.sort_by_price'),
-        performance: $text('settings.ai_ask.ai_ask_settings.sort_by_performance'),
-        new: $text('settings.ai_ask.ai_ask_settings.sort_by_new')
-    }[sortBy]);
+    // --- Derived sort options (reactive to language changes) ---
+    let sortOptions = $derived([
+        { value: 'performance', label: $text('settings.ai_ask.ai_ask_settings.sort_by_performance') },
+        { value: 'price',       label: $text('settings.ai_ask.ai_ask_settings.sort_by_price') },
+        { value: 'new',         label: $text('settings.ai_ask.ai_ask_settings.sort_by_new') },
+    ]);
 </script>
 
 <div class="ai-ask-settings">
@@ -239,61 +226,14 @@
         />
         <p class="models-description">{$text('settings.ai_ask.ai_ask_settings.models_description')}</p>
         
-        <!-- Search and sort controls -->
+        <!-- Search and sort controls — shared SearchSortBar component -->
         <div class="models-controls">
-            <div class="search-container">
-                <span class="icon icon_search search-icon"></span>
-                <input 
-                    type="text" 
-                    class="search-input"
-                    placeholder={$text('settings.ai_ask.ai_ask_settings.search_placeholder')}
-                    bind:value={searchQuery}
-                />
-            </div>
-            <div class="sort-container">
-                <button 
-                    class="sort-button"
-                    onclick={toggleSortDropdown}
-                    aria-expanded={showSortDropdown}
-                >
-                    <span class="icon icon_sort sort-icon"></span>
-                    <span class="sort-label">{sortLabel}</span>
-                </button>
-                {#if showSortDropdown}
-                    <div class="sort-dropdown" role="menu">
-                        <button 
-                            class="sort-option" 
-                            class:active={sortBy === 'price'}
-                            onclick={() => handleSortChange('price')}
-                            role="menuitem"
-                        >
-                            {$text('settings.ai_ask.ai_ask_settings.sort_by_price')}
-                        </button>
-                        <button 
-                            class="sort-option"
-                            class:active={sortBy === 'performance'}
-                            onclick={() => handleSortChange('performance')}
-                            role="menuitem"
-                        >
-                            {$text('settings.ai_ask.ai_ask_settings.sort_by_performance')}
-                        </button>
-                        <button 
-                            class="sort-option"
-                            class:active={sortBy === 'new'}
-                            onclick={() => handleSortChange('new')}
-                            role="menuitem"
-                        >
-                            {$text('settings.ai_ask.ai_ask_settings.sort_by_new')}
-                        </button>
-                    </div>
-                    <!-- Backdrop to close dropdown when clicking outside -->
-                    <button 
-                        class="sort-backdrop" 
-                        onclick={closeSortDropdown}
-                        aria-label="Close sort menu"
-                    ></button>
-                {/if}
-            </div>
+            <SearchSortBar
+                bind:searchQuery
+                bind:sortBy
+                searchPlaceholder={$text('settings.ai_ask.ai_ask_settings.search_placeholder')}
+                {sortOptions}
+            />
         </div>
         
         <!-- Models list -->
@@ -477,122 +417,11 @@
         font-size: 0.875rem;
     }
     
+    /* SearchSortBar is a self-contained component — its styles live in SearchSortBar.svelte */
     .models-controls {
-        display: flex;
-        gap: 1rem;
         margin: 0 0 1rem 10px;
     }
-    
-    .search-container {
-        flex: 1;
-        position: relative;
-        display: flex;
-        align-items: center;
-    }
-    
-    .search-icon {
-        position: absolute;
-        left: 12px;
-        width: 18px;
-        height: 18px;
-        color: var(--color-grey-50);
-        pointer-events: none;
-    }
-    
-    .search-input {
-        width: 100%;
-        padding: 0.625rem 0.75rem 0.625rem 40px;
-        font-size: 0.875rem;
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        background: var(--color-grey-10);
-        color: var(--color-grey-100);
-        transition: border-color 0.2s, background 0.2s;
-    }
-    
-    .search-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        background: var(--color-background);
-    }
-    
-    .search-input::placeholder {
-        color: var(--color-grey-50);
-    }
-    
-    .sort-container {
-        position: relative;
-    }
-    
-    .sort-button {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.625rem 1rem;
-        font-size: 0.875rem;
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        background: var(--color-grey-10);
-        color: var(--color-grey-80);
-        cursor: pointer;
-        transition: border-color 0.2s, background 0.2s;
-    }
-    
-    .sort-button:hover {
-        border-color: var(--color-grey-40);
-        background: var(--color-grey-15);
-    }
-    
-    .sort-icon {
-        width: 16px;
-        height: 16px;
-    }
-    
-    .sort-dropdown {
-        position: absolute;
-        top: 100%;
-        right: 0;
-        margin-top: 4px;
-        min-width: 150px;
-        background: var(--color-grey-blue);
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 100;
-        overflow: hidden;
-    }
-    
-    .sort-option {
-        display: block;
-        width: 100%;
-        padding: 0.75rem 1rem;
-        font-size: 0.875rem;
-        text-align: left;
-        background: transparent;
-        border: none;
-        color: var(--color-grey-80);
-        cursor: pointer;
-        transition: background 0.15s;
-    }
-    
-    .sort-option:hover {
-        background: var(--color-grey-15);
-    }
-    
-    .sort-option.active {
-        color: var(--color-primary);
-        font-weight: 500;
-    }
-    
-    .sort-backdrop {
-        position: fixed;
-        inset: 0;
-        background: transparent;
-        border: none;
-        cursor: default;
-        z-index: 99;
-    }
-    
+
     /* Models list */
     .models-list {
         display: flex;
@@ -677,43 +506,12 @@
         font-size: 0.875rem;
     }
     
-    /* Dark mode */
-    :global(.dark) .search-input {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-30);
-    }
-    
-    :global(.dark) .search-input:focus {
-        background: var(--color-grey-10);
-    }
-    
-    :global(.dark) .sort-button {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-30);
-    }
-    
-    :global(.dark) .sort-dropdown {
-        background: var(--color-grey-10);
-        border-color: var(--color-grey-30);
-    }
-    
+    /* Dark mode overrides for model list items */
     :global(.dark) .model-item:hover {
         background: var(--color-grey-15);
     }
     
     :global(.dark) .provider-logo {
         background: var(--color-grey-20);
-    }
-    
-    /* Responsive */
-    @media (max-width: 600px) {
-        .models-controls {
-            flex-direction: column;
-        }
-        
-        .sort-dropdown {
-            right: auto;
-            left: 0;
-        }
     }
 </style>
