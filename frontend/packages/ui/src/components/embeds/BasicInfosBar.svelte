@@ -312,6 +312,13 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
     mask-image: url('@openmates/ui/static/icons/pin.svg');
   }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="table"],
+  .basic-infos-bar .skill-icon[data-skill-icon="sheet"],
+  .basic-infos-bar .skill-icon[data-skill-icon="sheets"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/sheets.svg');
+    mask-image: url('@openmates/ui/static/icons/sheets.svg');
+  }
   
   /* Status text container */
   .basic-infos-bar.desktop .status-text {

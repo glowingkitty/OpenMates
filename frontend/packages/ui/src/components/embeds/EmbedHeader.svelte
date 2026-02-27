@@ -65,8 +65,16 @@
     onNavigateNext,
   }: Props = $props();
 
-  /** Use skill icon when skillIconName is set and showSkillIcon is true. */
+  /** Use skill icon in center header when skillIconName is set and showSkillIcon is true. */
   let useSkillIcon = $derived(showSkillIcon && !!skillIconName);
+
+  /**
+   * Use skill icon for decorative side icons when skillIconName is provided.
+   * Decorative icons always use the plain skill icon (no gradient) when available,
+   * regardless of showSkillIcon — which only controls the small center icon.
+   * This prevents the full app icon (with gradient background) from appearing in the banner.
+   */
+  let useDecoSkillIcon = $derived(!!skillIconName);
 
   function hideFavicon(e: Event) {
     (e.target as HTMLImageElement).style.display = 'none';
@@ -95,15 +103,17 @@
     style="background: var(--color-app-{appId});"
   >
     <!-- Large decorative icons at left/right edges (126×126px, 0.4 opacity) -->
+    <!-- Always use skill icon when skillIconName is provided — avoids the full gradient
+         app icon appearing in the banner. showSkillIcon only governs the center icon. -->
     <div class="deco-icon deco-icon-left">
-      {#if useSkillIcon}
+      {#if useDecoSkillIcon}
         <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
       {:else}
         <div class="deco-app-icon icon_rounded {appId}"></div>
       {/if}
     </div>
     <div class="deco-icon deco-icon-right">
-      {#if useSkillIcon}
+      {#if useDecoSkillIcon}
         <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
       {:else}
         <div class="deco-app-icon icon_rounded {appId}"></div>
@@ -548,6 +558,12 @@
   :global([data-skill-icon="travel"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
     mask-image: url('@openmates/ui/static/icons/travel.svg');
+  }
+  :global([data-skill-icon="table"]),
+  :global([data-skill-icon="sheet"]),
+  :global([data-skill-icon="sheets"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/sheets.svg');
+    mask-image: url('@openmates/ui/static/icons/sheets.svg');
   }
 
   /* ==========================================================
