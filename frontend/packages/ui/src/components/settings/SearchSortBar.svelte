@@ -53,9 +53,11 @@
     let showSortDropdown = $state(false);
 
     // --- Derived label for the current sort selection ---
+    // Falls back to the first option's label if nothing matches (edge case: sortBy not in options yet)
     let currentSortLabel = $derived(
         sortOptions.find(opt => opt.value === sortBy)?.label ??
-        (sortOptions[0]?.label ?? $text('common.sort'))
+        sortOptions[0]?.label ??
+        ''
     );
 
     // --- Handlers ---
