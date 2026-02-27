@@ -184,6 +184,18 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
   let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
 
+  /**
+   * Whether the fork action is disabled for this message.
+   * Fork is disabled for incognito chats and when no messageId is available.
+   * We check original_message.is_incognito (if available) as a fast path.
+   * The authoritative check is done in the service layer.
+   */
+  let isForkDisabled = $derived(
+    !messageId ||
+    !original_message?.chat_id ||
+    !!original_message?.is_incognito
+  );
+
   // If appCards is provided, add it to messageParts using $effect (Svelte 5 runes mode)
   $effect(() => {
     if (appCards && (!messageParts || messageParts.length === 0)) {
@@ -581,6 +593,55 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     } catch (err) {
       console.error('[ChatMessage] Error deleting message:', err);
     }
+  }
+
+  /**
+   * Open the Fork Conversation settings panel for this message.
+   * Sets window.__forkContext with the necessary data, then navigates to the
+   * fork settings panel via settingsDeepLink + panelState.openSettings().
+   *
+   * The fork includes all messages up to and including this one (inclusive).
+   * Disabled for incognito chats.
+   */
+  async function handleFork() {
+    if (!messageId || !currentChatId) return;
+
+    const chatId = currentChatId;
+
+    // Load chat title and message count for the fork context
+    let defaultTitle = '';
+    let messageCount = 0;
+    try {
+      const { decryptWithChatKey } = await import('../services/cryptoService');
+      const chat = await chatDB.getChat(chatId);
+      if (chat?.encrypted_title) {
+        const key = chatDB.getChatKey(chatId);
+        if (key) {
+          defaultTitle = await decryptWithChatKey(chat.encrypted_title, key) ?? '';
+        }
+      }
+      // Count messages up to and including this one
+      const allMsgs = await chatDB.getMessagesForChat(chatId);
+      allMsgs.sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
+      const idx = allMsgs.findIndex(m => m.message_id === messageId);
+      messageCount = idx >= 0 ? idx + 1 : allMsgs.length;
+    } catch (err) {
+      console.warn('[ChatMessage] handleFork: could not load chat metadata:', err);
+    }
+
+    // Pass context via window global (same pattern as __embedShareContext)
+    (window as Window & { __forkContext?: unknown }).__forkContext = {
+      sourceChatId: chatId,
+      upToMessageId: messageId,
+      defaultTitle,
+      messageCount,
+    };
+
+    settingsDeepLink.set('fork');
+    panelState.openSettings();
+    showMessageMenu = false;
+
+    console.debug('[ChatMessage] Fork context set, opening fork settings:', { chatId, messageId, messageCount });
   }
 
   /**
@@ -1831,21 +1892,23 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         />
       {/if}
 
-      {#if showMessageMenu}
-        <MessageContextMenu
-          x={messageMenuX}
-          y={messageMenuY}
-          show={showMessageMenu}
-          onClose={() => showMessageMenu = false}
-          onCopy={handleCopyMessage}
-          onSelect={handleSelectMessage}
-          onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
-          disableDelete={isFirstMessage}
-          {messageId}
-          {userMessageId}
-          {role}
-        />
-      {/if}
+       {#if showMessageMenu}
+         <MessageContextMenu
+           x={messageMenuX}
+           y={messageMenuY}
+           show={showMessageMenu}
+           onClose={() => showMessageMenu = false}
+           onCopy={handleCopyMessage}
+           onSelect={handleSelectMessage}
+           onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
+           disableDelete={isFirstMessage}
+           onFork={handleFork}
+           disableFork={isForkDisabled}
+           {messageId}
+           {userMessageId}
+           {role}
+         />
+       {/if}
     </div>
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">

@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "取消隐藏"
+      },
+      "fork": {
+        "text": "派生对话"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "当前对话"
+    },
+    "fork": {
+      "title": {
+        "text": "派生对话"
+      },
+      "name_label": {
+        "text": "派生名称"
+      },
+      "name_placeholder": {
+        "text": "输入派生名称..."
+      },
+      "fork_button": {
+        "text": "派生"
+      },
+      "forking_progress": {
+        "text": "派生中… {progress}%"
+      },
+      "forking_banner": {
+        "text": "正在派生聊天…"
+      },
+      "complete_notification": {
+        "text": "对话派生完成 — 点击打开"
+      },
+      "error_notification": {
+        "text": "派生失败，请重试。"
+      },
+      "disabled_incognito": {
+        "text": "隐身模式下无法使用派生"
+      },
+      "messages_label": {
+        "text": "要派生的消息"
+      }
     }
   },
   "common": {},
@@ -3809,6 +3844,15 @@
     "polar_mor_note": {
       "text": "您的官方税务发票由 Polar（polar.sh）作为销售方（Merchant of Record）开具。"
     },
+    "polar_paid_via": {
+      "text": "通过 {provider} 支付"
+    },
+    "polar_refunded_via": {
+      "text": "通过 {provider} 退款"
+    },
+    "polar_mor_note_refund": {
+      "text": "您的官方贷项通知单由 Polar（polar.sh）作为销售方（Merchant of Record）开具。"
+    },
     "invoice_number": {
       "text": "发票号码"
     },
@@ -5045,6 +5089,11 @@
   },
   "settings": {
     "account": {
+      "account": {
+        "description": {
+          "text": "管理您的个人资料、身份验证和账户设置"
+        }
+      },
       "text": "账户",
       "security": {
         "text": "安全"
@@ -5648,6 +5697,11 @@
       }
     },
     "billing": {
+      "billing": {
+        "description": {
+          "text": "管理您的积分、订阅和支付方式"
+        }
+      },
       "text": "账单",
       "title": {
         "text": "账单和积分"
@@ -6015,6 +6069,11 @@
       }
     },
     "interface": {
+      "interface": {
+        "description": {
+          "text": "自定义OpenMates的外观和语言"
+        }
+      },
       "text": "界面",
       "language": {
         "text": "语言"
@@ -6285,6 +6344,9 @@
       "text": "应用"
     },
     "mates": {
+      "description": {
+        "text": "配置您的AI伙伴及其个性"
+      },
       "text": "伙伴",
       "chat_with_mate": {
         "text": "与 {mate_name} 聊天"
@@ -6948,6 +7010,9 @@
       "text": "订阅后，您将收到一封确认电子邮件。点击电子邮件中的链接以完成订阅。"
     },
     "support": {
+      "description": {
+        "text": "获取帮助并联系OpenMates团队"
+      },
       "text": "支持",
       "one_time": {
         "text": "一次性支持"

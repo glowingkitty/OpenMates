@@ -14,7 +14,9 @@
         onCopy?: () => void;
         onSelect?: () => void;
         onDelete?: () => void;
+        onFork?: () => void;        // Callback to open the fork conversation settings panel
         disableDelete?: boolean; // When true, shows delete button greyed out (e.g., first message in chat)
+        disableFork?: boolean;   // When true, fork is disabled (e.g., incognito chat)
         messageId?: string;
         userMessageId?: string; // The user message ID that triggered this assistant response (used for cost lookup)
         role?: MessageRole;
@@ -27,7 +29,9 @@
         onCopy,
         onSelect,
         onDelete,
+        onFork,
         disableDelete = false,
+        disableFork = false,
         messageId = undefined,
         userMessageId = undefined,
         role = undefined
@@ -167,7 +171,7 @@
     }
 
     // Unified handler for menu actions
-    function handleAction(action: 'copy' | 'select' | 'delete', event: Event) {
+    function handleAction(action: 'copy' | 'select' | 'delete' | 'fork', event: Event) {
         event.stopPropagation();
         event.preventDefault();
         
@@ -175,6 +179,9 @@
         
         if (action === 'copy') onCopy?.();
         if (action === 'select') onSelect?.();
+        if (action === 'fork') {
+            if (!disableFork) onFork?.();
+        }
         if (action === 'delete') {
             if (!confirmingDelete) {
                 // First click: show confirmation
@@ -254,6 +261,19 @@
             <div class="clickable-icon icon_select"></div>
             {$text('chats.context_menu.select')}
         </button>
+
+        <!-- Fork conversation — only shown when an onFork handler is provided -->
+        {#if onFork !== undefined}
+            <button
+                class="menu-item fork"
+                class:disabled={disableFork}
+                disabled={disableFork}
+                onclick={(event) => handleAction('fork', event)}
+            >
+                <div class="clickable-icon icon_fork"></div>
+                {$text('chats.context_menu.fork')}
+            </button>
+        {/if}
 
         {#if onDelete || disableDelete || !$authStore.isAuthenticated}
             <div class="menu-separator"></div>
@@ -407,6 +427,20 @@
     }
 
     .menu-item.delete.disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .menu-item.fork {
+        color: white;
+    }
+
+    .menu-item.fork .clickable-icon {
+        background-color: white;
+    }
+
+    .menu-item.fork.disabled {
         opacity: 0.35;
         cursor: not-allowed;
         pointer-events: none;

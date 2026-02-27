@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Mostra"
+      },
+      "fork": {
+        "text": "Biforca conversazione"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Chat attiva"
+    },
+    "fork": {
+      "title": {
+        "text": "Biforca conversazione"
+      },
+      "name_label": {
+        "text": "Nome del fork"
+      },
+      "name_placeholder": {
+        "text": "Inserisci un nome per il fork..."
+      },
+      "fork_button": {
+        "text": "Biforca"
+      },
+      "forking_progress": {
+        "text": "Biforcazione… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Biforcazione chat in corso…"
+      },
+      "complete_notification": {
+        "text": "Fork completato — tocca per aprire"
+      },
+      "error_notification": {
+        "text": "Fork non riuscito. Riprova."
+      },
+      "disabled_incognito": {
+        "text": "Fork non disponibile in modalità incognito"
+      },
+      "messages_label": {
+        "text": "Messaggi da bifurcare"
+      }
     }
   },
   "common": {},

@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Zichtbaar maken"
+      },
+      "fork": {
+        "text": "Gesprek vertakken"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Actieve chat"
+    },
+    "fork": {
+      "title": {
+        "text": "Gesprek vertakken"
+      },
+      "name_label": {
+        "text": "Naam van vertakking"
+      },
+      "name_placeholder": {
+        "text": "Voer een naam in voor de vertakking..."
+      },
+      "fork_button": {
+        "text": "Vertakken"
+      },
+      "forking_progress": {
+        "text": "Vertakken… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Chat vertakken…"
+      },
+      "complete_notification": {
+        "text": "Vertakking voltooid — tik om te openen"
+      },
+      "error_notification": {
+        "text": "Vertakking mislukt. Probeer opnieuw."
+      },
+      "disabled_incognito": {
+        "text": "Vertakken is niet beschikbaar in incognitomodus"
+      },
+      "messages_label": {
+        "text": "Berichten om te vertakken"
+      }
     }
   },
   "common": {},

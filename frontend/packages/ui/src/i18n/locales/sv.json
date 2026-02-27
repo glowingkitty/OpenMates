@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Visa igen"
+      },
+      "fork": {
+        "text": "Förgrena konversation"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Aktiv chatt"
+    },
+    "fork": {
+      "title": {
+        "text": "Förgrena konversation"
+      },
+      "name_label": {
+        "text": "Förgreningsnamn"
+      },
+      "name_placeholder": {
+        "text": "Ange ett namn för förgreningen..."
+      },
+      "fork_button": {
+        "text": "Förgrena"
+      },
+      "forking_progress": {
+        "text": "Förgrenar… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Förgrenar chatt…"
+      },
+      "complete_notification": {
+        "text": "Förgrening klar — tryck för att öppna"
+      },
+      "error_notification": {
+        "text": "Förgrening misslyckades. Försök igen."
+      },
+      "disabled_incognito": {
+        "text": "Förgrening är inte tillgänglig i inkognitoläge"
+      },
+      "messages_label": {
+        "text": "Meddelanden att förgrena"
+      }
     }
   },
   "common": {},

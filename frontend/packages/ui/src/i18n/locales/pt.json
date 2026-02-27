@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Reexibir"
+      },
+      "fork": {
+        "text": "Bifurcar conversa"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Chat ativo"
+    },
+    "fork": {
+      "title": {
+        "text": "Bifurcar conversa"
+      },
+      "name_label": {
+        "text": "Nome do fork"
+      },
+      "name_placeholder": {
+        "text": "Insira um nome para o fork..."
+      },
+      "fork_button": {
+        "text": "Bifurcar"
+      },
+      "forking_progress": {
+        "text": "Bifurcando… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Bifurcando chat…"
+      },
+      "complete_notification": {
+        "text": "Fork concluído — toque para abrir"
+      },
+      "error_notification": {
+        "text": "Fork falhou. Tente novamente."
+      },
+      "disabled_incognito": {
+        "text": "Fork não disponível no modo incógnito"
+      },
+      "messages_label": {
+        "text": "Mensagens a bifurcar"
+      }
     }
   },
   "common": {},

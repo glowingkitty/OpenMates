@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "ยกเลิกการซ่อน"
+      },
+      "fork": {
+        "text": "แยกการสนทนา"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "แชทที่ใช้งานอยู่"
+    },
+    "fork": {
+      "title": {
+        "text": "แยกการสนทนา"
+      },
+      "name_label": {
+        "text": "ชื่อสาขา"
+      },
+      "name_placeholder": {
+        "text": "ป้อนชื่อสาขา..."
+      },
+      "fork_button": {
+        "text": "แยก"
+      },
+      "forking_progress": {
+        "text": "กำลังแยก… {progress}%"
+      },
+      "forking_banner": {
+        "text": "กำลังแยกแชท…"
+      },
+      "complete_notification": {
+        "text": "แยกสำเร็จ — แตะเพื่อเปิด"
+      },
+      "error_notification": {
+        "text": "การแยกล้มเหลว กรุณาลองใหม่"
+      },
+      "disabled_incognito": {
+        "text": "ไม่สามารถแยกในโหมดไม่ระบุตัวตน"
+      },
+      "messages_label": {
+        "text": "ข้อความที่จะแยก"
+      }
     }
   },
   "common": {},

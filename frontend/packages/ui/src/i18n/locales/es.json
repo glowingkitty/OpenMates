@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Mostrar"
+      },
+      "fork": {
+        "text": "Bifurcar conversación"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Chat activo"
+    },
+    "fork": {
+      "title": {
+        "text": "Bifurcar conversación"
+      },
+      "name_label": {
+        "text": "Nombre del fork"
+      },
+      "name_placeholder": {
+        "text": "Ingresa un nombre para el fork..."
+      },
+      "fork_button": {
+        "text": "Bifurcar"
+      },
+      "forking_progress": {
+        "text": "Bifurcando… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Bifurcando chat…"
+      },
+      "complete_notification": {
+        "text": "Fork completado — toca para abrir"
+      },
+      "error_notification": {
+        "text": "El fork falló. Inténtalo de nuevo."
+      },
+      "disabled_incognito": {
+        "text": "El fork no está disponible en modo incógnito"
+      },
+      "messages_label": {
+        "text": "Mensajes a bifurcar"
+      }
     }
   },
   "common": {},
@@ -3907,6 +3942,15 @@
     "polar_mor_note": {
       "text": "Tu factura fiscal oficial fue emitida por Polar (polar.sh) como Merchant of Record."
     },
+    "polar_paid_via": {
+      "text": "Pagado a través de {provider}"
+    },
+    "polar_refunded_via": {
+      "text": "Reembolsado a través de {provider}"
+    },
+    "polar_mor_note_refund": {
+      "text": "Tu nota de crédito oficial fue emitida por Polar (polar.sh) como Merchant of Record."
+    },
     "invoice_number": {
       "text": "Número de factura"
     },
@@ -5239,6 +5283,11 @@
   },
   "settings": {
     "account": {
+      "account": {
+        "description": {
+          "text": "Gestiona tu perfil, autenticación y configuración de cuenta"
+        }
+      },
       "text": "Cuenta",
       "security": {
         "text": "Seguridad"
@@ -5845,6 +5894,11 @@
       }
     },
     "billing": {
+      "billing": {
+        "description": {
+          "text": "Gestiona tus créditos, suscripciones y métodos de pago"
+        }
+      },
       "text": "Facturación",
       "title": {
         "text": "Facturación y Créditos"
@@ -6212,6 +6266,11 @@
       }
     },
     "interface": {
+      "interface": {
+        "description": {
+          "text": "Personaliza la apariencia e idioma de OpenMates"
+        }
+      },
       "text": "Interfaz",
       "language": {
         "text": "Idioma"
@@ -6482,6 +6541,9 @@
       "text": "Aplicaciones"
     },
     "mates": {
+      "description": {
+        "text": "Configura tus compañeros de IA y sus personalidades"
+      },
       "text": "Compañeros",
       "chat_with_mate": {
         "text": "Chatear con {mate_name}"
@@ -7157,6 +7219,9 @@
       "text": "Después de suscribirse, recibirá un correo electrónico de confirmación. Haga clic en el enlace del correo electrónico para completar su suscripción."
     },
     "support": {
+      "description": {
+        "text": "Obtén ayuda y contacta con el equipo de OpenMates"
+      },
       "text": "Soporte",
       "one_time": {
         "text": "Apoyo único"

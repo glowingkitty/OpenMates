@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Gizlemeyi kaldır"
+      },
+      "fork": {
+        "text": "Konuşmayı çatalla"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Aktif sohbet"
+    },
+    "fork": {
+      "title": {
+        "text": "Konuşmayı çatalla"
+      },
+      "name_label": {
+        "text": "Çatal adı"
+      },
+      "name_placeholder": {
+        "text": "Çatal için bir ad girin..."
+      },
+      "fork_button": {
+        "text": "Çatalla"
+      },
+      "forking_progress": {
+        "text": "Çatallanıyor… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Sohbet çatallanıyor…"
+      },
+      "complete_notification": {
+        "text": "Çatal tamamlandı — açmak için dokun"
+      },
+      "error_notification": {
+        "text": "Çatal başarısız. Lütfen tekrar deneyin."
+      },
+      "disabled_incognito": {
+        "text": "Çatal gizli modda kullanılamaz"
+      },
+      "messages_label": {
+        "text": "Çatallanacak mesajlar"
+      }
     }
   },
   "common": {},

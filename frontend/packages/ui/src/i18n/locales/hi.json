@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "दिखाएं"
+      },
+      "fork": {
+        "text": "बातचीत को फोर्क करें"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "सक्रिय चैट"
+    },
+    "fork": {
+      "title": {
+        "text": "बातचीत को फोर्क करें"
+      },
+      "name_label": {
+        "text": "फोर्क का नाम"
+      },
+      "name_placeholder": {
+        "text": "फोर्क के लिए नाम दर्ज करें..."
+      },
+      "fork_button": {
+        "text": "फोर्क"
+      },
+      "forking_progress": {
+        "text": "फोर्क हो रहा है… {progress}%"
+      },
+      "forking_banner": {
+        "text": "चैट फोर्क हो रही है…"
+      },
+      "complete_notification": {
+        "text": "फोर्क पूर्ण — खोलने के लिए टैप करें"
+      },
+      "error_notification": {
+        "text": "फोर्क विफल हो गया। कृपया पुनः प्रयास करें।"
+      },
+      "disabled_incognito": {
+        "text": "इनकॉग्निटो मोड में फोर्क उपलब्ध नहीं है"
+      },
+      "messages_label": {
+        "text": "फोर्क के लिए संदेश"
+      }
     }
   },
   "common": {},

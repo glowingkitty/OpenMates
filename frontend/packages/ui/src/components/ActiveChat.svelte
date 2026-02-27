@@ -98,6 +98,8 @@
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
+    import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
+    import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
     import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
@@ -8019,6 +8021,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Only shown when: push is supported, permission not decided, user sent first message -->
                         {#if $shouldShowPushBanner && userSentFirstMessage && currentChat}
                             <PushNotificationBanner />
+                        {/if}
+
+                        <!-- Fork progress banner - shown while this chat is being used as a fork source -->
+                        {#if currentChat?.chat_id && $forkProgressStore.status === 'running' && $forkProgressStore.sourceChatId === currentChat.chat_id}
+                            <ForkProgressBanner />
                         {/if}
 
                         <!-- Follow-up suggestions when input is focused -->

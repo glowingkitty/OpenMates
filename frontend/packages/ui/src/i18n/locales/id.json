@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Tampilkan"
+      },
+      "fork": {
+        "text": "Cabangkan percakapan"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Obrolan aktif"
+    },
+    "fork": {
+      "title": {
+        "text": "Cabangkan percakapan"
+      },
+      "name_label": {
+        "text": "Nama cabang"
+      },
+      "name_placeholder": {
+        "text": "Masukkan nama untuk cabang..."
+      },
+      "fork_button": {
+        "text": "Cabangkan"
+      },
+      "forking_progress": {
+        "text": "Mencabangkan… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Mencabangkan chat…"
+      },
+      "complete_notification": {
+        "text": "Fork selesai — ketuk untuk membuka"
+      },
+      "error_notification": {
+        "text": "Fork gagal. Silakan coba lagi."
+      },
+      "disabled_incognito": {
+        "text": "Fork tidak tersedia dalam mode penyamaran"
+      },
+      "messages_label": {
+        "text": "Pesan untuk dicabangkan"
+      }
     }
   },
   "common": {},

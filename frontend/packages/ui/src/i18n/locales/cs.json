@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Zobrazit"
+      },
+      "fork": {
+        "text": "Rozvětvit konverzaci"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Aktivní chat"
+    },
+    "fork": {
+      "title": {
+        "text": "Rozvětvit konverzaci"
+      },
+      "name_label": {
+        "text": "Název větve"
+      },
+      "name_placeholder": {
+        "text": "Zadejte název větve..."
+      },
+      "fork_button": {
+        "text": "Rozvětvit"
+      },
+      "forking_progress": {
+        "text": "Rozvětvování… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Rozvětvování chatu…"
+      },
+      "complete_notification": {
+        "text": "Rozvětvení dokončeno — klepněte pro otevření"
+      },
+      "error_notification": {
+        "text": "Rozvětvení se nezdařilo. Zkuste to znovu."
+      },
+      "disabled_incognito": {
+        "text": "V anonymním režimu není rozvětvení dostupné"
+      },
+      "messages_label": {
+        "text": "Zprávy k rozvětvení"
+      }
     }
   },
   "common": {},

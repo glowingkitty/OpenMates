@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "숨기기 해제"
+      },
+      "fork": {
+        "text": "대화 포크"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "활성 채팅"
+    },
+    "fork": {
+      "title": {
+        "text": "대화 포크"
+      },
+      "name_label": {
+        "text": "포크 이름"
+      },
+      "name_placeholder": {
+        "text": "포크 이름 입력..."
+      },
+      "fork_button": {
+        "text": "포크"
+      },
+      "forking_progress": {
+        "text": "포크 중… {progress}%"
+      },
+      "forking_banner": {
+        "text": "채팅 포크 중…"
+      },
+      "complete_notification": {
+        "text": "포크 완료 — 탭하여 열기"
+      },
+      "error_notification": {
+        "text": "포크에 실패했습니다. 다시 시도하세요."
+      },
+      "disabled_incognito": {
+        "text": "시크릿 모드에서는 포크를 사용할 수 없습니다"
+      },
+      "messages_label": {
+        "text": "포크할 메시지"
+      }
     }
   },
   "common": {},

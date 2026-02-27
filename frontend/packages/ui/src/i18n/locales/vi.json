@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Bỏ ẩn"
+      },
+      "fork": {
+        "text": "Phân nhánh cuộc trò chuyện"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Cuộc trò chuyện đang hoạt động"
+    },
+    "fork": {
+      "title": {
+        "text": "Phân nhánh cuộc trò chuyện"
+      },
+      "name_label": {
+        "text": "Tên nhánh"
+      },
+      "name_placeholder": {
+        "text": "Nhập tên cho nhánh..."
+      },
+      "fork_button": {
+        "text": "Phân nhánh"
+      },
+      "forking_progress": {
+        "text": "Đang phân nhánh… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Đang phân nhánh chat…"
+      },
+      "complete_notification": {
+        "text": "Phân nhánh hoàn tất — nhấn để mở"
+      },
+      "error_notification": {
+        "text": "Phân nhánh thất bại. Vui lòng thử lại."
+      },
+      "disabled_incognito": {
+        "text": "Fork không khả dụng ở chế độ ẩn danh"
+      },
+      "messages_label": {
+        "text": "Tin nhắn để phân nhánh"
+      }
     }
   },
   "common": {},

@@ -2009,6 +2009,9 @@
       },
       "unhide": {
         "text": "Unhide"
+      },
+      "fork": {
+        "text": "Fork Conversation"
       }
     },
     "hidden_chats": {
@@ -2194,6 +2197,38 @@
     },
     "active_chat": {
       "text": "Active chat"
+    },
+    "fork": {
+      "title": {
+        "text": "Fork Conversation"
+      },
+      "name_label": {
+        "text": "Fork name"
+      },
+      "name_placeholder": {
+        "text": "Enter a name for the fork..."
+      },
+      "fork_button": {
+        "text": "Fork"
+      },
+      "forking_progress": {
+        "text": "Forking… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Forking chat…"
+      },
+      "complete_notification": {
+        "text": "Chat fork complete — tap to open"
+      },
+      "error_notification": {
+        "text": "Fork failed. Please try again."
+      },
+      "disabled_incognito": {
+        "text": "Fork is not available in incognito mode"
+      },
+      "messages_label": {
+        "text": "Messages to fork"
+      }
     }
   },
   "common": {
@@ -2254,12 +2289,6 @@
     },
     "open_chat": {
       "text": "Open chat"
-    },
-    "suggest_as_inspiration": {
-      "text": "Suggest as Daily Inspiration"
-    },
-    "suggest_as_inspiration_description": {
-      "text": "Submit this video to be reviewed and potentially shown to all users as a daily inspiration"
     }
   },
   "demo_chats": {
@@ -4268,6 +4297,15 @@
     "polar_mor_note": {
       "text": "Your official tax invoice was issued by Polar (polar.sh) as Merchant of Record."
     },
+    "polar_paid_via": {
+      "text": "Paid via {provider}"
+    },
+    "polar_refunded_via": {
+      "text": "Refunded via {provider}"
+    },
+    "polar_mor_note_refund": {
+      "text": "Your official credit note was issued by Polar (polar.sh) as Merchant of Record."
+    },
     "invoice_number": {
       "text": "Invoice number"
     },
@@ -5975,6 +6013,11 @@
   },
   "settings": {
     "account": {
+      "account": {
+        "description": {
+          "text": "Manage your profile, authentication and account settings"
+        }
+      },
       "text": "Account",
       "email": {
         "text": "E-mail",
@@ -6809,6 +6852,11 @@
       }
     },
     "billing": {
+      "billing": {
+        "description": {
+          "text": "Manage your credits, subscriptions and payment methods"
+        }
+      },
       "text": "Billing",
       "title": {
         "text": "Billing & Credits"
@@ -7272,6 +7320,11 @@
       }
     },
     "interface": {
+      "interface": {
+        "description": {
+          "text": "Customize the appearance and language of OpenMates"
+        }
+      },
       "text": "Interface",
       "language": {
         "text": "Language"
@@ -7551,6 +7604,9 @@
       "text": "Apps"
     },
     "mates": {
+      "description": {
+        "text": "Configure your AI mates and their personalities"
+      },
       "text": "Mates",
       "chat_with_mate": {
         "text": "Chat with {mate_name}"
@@ -8477,6 +8533,9 @@
       "text": "After subscribing, you will receive a confirmation email. Click the link in the email to complete your subscription."
     },
     "support": {
+      "description": {
+        "text": "Get help and contact the OpenMates team"
+      },
       "text": "Support",
       "one_time": {
         "text": "One-time support"

@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Показать"
+      },
+      "fork": {
+        "text": "Разветвить беседу"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Активный чат"
+    },
+    "fork": {
+      "title": {
+        "text": "Разветвить беседу"
+      },
+      "name_label": {
+        "text": "Название ответвления"
+      },
+      "name_placeholder": {
+        "text": "Введите название ответвления..."
+      },
+      "fork_button": {
+        "text": "Разветвить"
+      },
+      "forking_progress": {
+        "text": "Разветвление… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Разветвление чата…"
+      },
+      "complete_notification": {
+        "text": "Разветвление завершено — нажмите, чтобы открыть"
+      },
+      "error_notification": {
+        "text": "Разветвление не удалось. Попробуйте ещё раз."
+      },
+      "disabled_incognito": {
+        "text": "Разветвление недоступно в режиме инкогнито"
+      },
+      "messages_label": {
+        "text": "Сообщения для разветвления"
+      }
     }
   },
   "common": {},

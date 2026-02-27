@@ -1839,3 +1839,267 @@ search.results_label:
   cs: Výsledky hledání
   sv: Sökresultat
   verified_by_human: []
+
+context_menu.fork:
+  context: Message context menu option to fork the conversation from this message onwards (creates a copy of the chat up to and including this message)
+  en: Fork Conversation
+  de: Konversation verzweigen
+  zh: 派生对话
+  es: Bifurcar conversación
+  fr: Bifurquer la conversation
+  pt: Bifurcar conversa
+  ru: Разветвить беседу
+  ja: 会話を分岐
+  ko: 대화 포크
+  it: Biforca conversazione
+  tr: Konuşmayı çatalla
+  vi: Phân nhánh cuộc trò chuyện
+  id: Cabangkan percakapan
+  pl: Rozwidl rozmowę
+  nl: Gesprek vertakken
+  ar: تفريع المحادثة
+  hi: बातचीत को फोर्क करें
+  th: แยกการสนทนา
+  cs: Rozvětvit konverzaci
+  sv: Förgrena konversation
+  verified_by_human: []
+
+fork.title:
+  context: Title of the fork conversation settings panel
+  en: Fork Conversation
+  de: Konversation verzweigen
+  zh: 派生对话
+  es: Bifurcar conversación
+  fr: Bifurquer la conversation
+  pt: Bifurcar conversa
+  ru: Разветвить беседу
+  ja: 会話を分岐
+  ko: 대화 포크
+  it: Biforca conversazione
+  tr: Konuşmayı çatalla
+  vi: Phân nhánh cuộc trò chuyện
+  id: Cabangkan percakapan
+  pl: Rozwidl rozmowę
+  nl: Gesprek vertakken
+  ar: تفريع المحادثة
+  hi: बातचीत को फोर्क करें
+  th: แยกการสนทนา
+  cs: Rozvětvit konverzaci
+  sv: Förgrena konversation
+  verified_by_human: []
+
+fork.name_label:
+  context: Label for the input field where the user types the name for the forked conversation
+  en: Fork name
+  de: Name der Verzweigung
+  zh: 派生名称
+  es: Nombre del fork
+  fr: Nom du fork
+  pt: Nome do fork
+  ru: Название ответвления
+  ja: 分岐名
+  ko: 포크 이름
+  it: Nome del fork
+  tr: Çatal adı
+  vi: Tên nhánh
+  id: Nama cabang
+  pl: Nazwa rozwidlenia
+  nl: Naam van vertakking
+  ar: اسم التفريع
+  hi: फोर्क का नाम
+  th: ชื่อสาขา
+  cs: Název větve
+  sv: Förgreningsnamn
+  verified_by_human: []
+
+fork.name_placeholder:
+  context: Placeholder text shown inside the fork name input field before the user types
+  en: Enter a name for the fork...
+  de: Namen für die Verzweigung eingeben...
+  zh: 输入派生名称...
+  es: Ingresa un nombre para el fork...
+  fr: Entrez un nom pour le fork...
+  pt: Insira um nome para o fork...
+  ru: Введите название ответвления...
+  ja: 分岐の名前を入力...
+  ko: 포크 이름 입력...
+  it: Inserisci un nome per il fork...
+  tr: Çatal için bir ad girin...
+  vi: Nhập tên cho nhánh...
+  id: Masukkan nama untuk cabang...
+  pl: Wprowadź nazwę rozwidlenia...
+  nl: Voer een naam in voor de vertakking...
+  ar: أدخل اسمًا للتفريع...
+  hi: फोर्क के लिए नाम दर्ज करें...
+  th: ป้อนชื่อสาขา...
+  cs: Zadejte název větve...
+  sv: Ange ett namn för förgreningen...
+  verified_by_human: []
+
+fork.fork_button:
+  context: Button label to start the fork operation
+  en: Fork
+  de: Verzweigen
+  zh: 派生
+  es: Bifurcar
+  fr: Bifurquer
+  pt: Bifurcar
+  ru: Разветвить
+  ja: 分岐する
+  ko: 포크
+  it: Biforca
+  tr: Çatalla
+  vi: Phân nhánh
+  id: Cabangkan
+  pl: Rozwidl
+  nl: Vertakken
+  ar: تفريع
+  hi: फोर्क
+  th: แยก
+  cs: Rozvětvit
+  sv: Förgrena
+  verified_by_human: []
+
+fork.forking_progress:
+  context: Status text shown while the fork operation is in progress, with the percentage completed
+  en: Forking… {progress}%
+  de: Verzweige… {progress}%
+  zh: 派生中… {progress}%
+  es: Bifurcando… {progress}%
+  fr: Bifurcation… {progress}%
+  pt: Bifurcando… {progress}%
+  ru: Разветвление… {progress}%
+  ja: 分岐中… {progress}%
+  ko: 포크 중… {progress}%
+  it: Biforcazione… {progress}%
+  tr: Çatallanıyor… {progress}%
+  vi: Đang phân nhánh… {progress}%
+  id: Mencabangkan… {progress}%
+  pl: Rozwidlanie… {progress}%
+  nl: Vertakken… {progress}%
+  ar: جارٍ التفريع… {progress}%
+  hi: फोर्क हो रहा है… {progress}%
+  th: กำลังแยก… {progress}%
+  cs: Rozvětvování… {progress}%
+  sv: Förgrenar… {progress}%
+  verified_by_human: []
+
+fork.forking_banner:
+  context: Short text shown in the progress banner at the top of the chat window while a fork is being created in the background
+  en: Forking chat…
+  de: Chat wird verzweigt…
+  zh: 正在派生聊天…
+  es: Bifurcando chat…
+  fr: Chat en cours de bifurcation…
+  pt: Bifurcando chat…
+  ru: Разветвление чата…
+  ja: チャットを分岐中…
+  ko: 채팅 포크 중…
+  it: Biforcazione chat in corso…
+  tr: Sohbet çatallanıyor…
+  vi: Đang phân nhánh chat…
+  id: Mencabangkan chat…
+  pl: Rozwidlanie czatu…
+  nl: Chat vertakken…
+  ar: جارٍ تفريع الدردشة…
+  hi: चैट फोर्क हो रही है…
+  th: กำลังแยกแชท…
+  cs: Rozvětvování chatu…
+  sv: Förgrenar chatt…
+  verified_by_human: []
+
+fork.complete_notification:
+  context: Notification message shown when a fork operation completes successfully. The user can click the notification to open the forked chat.
+  en: Chat fork complete — tap to open
+  de: Chat-Verzweigung abgeschlossen — tippen zum Öffnen
+  zh: 对话派生完成 — 点击打开
+  es: Fork completado — toca para abrir
+  fr: Fork terminé — appuyez pour ouvrir
+  pt: Fork concluído — toque para abrir
+  ru: Разветвление завершено — нажмите, чтобы открыть
+  ja: 会話の分岐が完了しました — タップして開く
+  ko: 포크 완료 — 탭하여 열기
+  it: Fork completato — tocca per aprire
+  tr: Çatal tamamlandı — açmak için dokun
+  vi: Phân nhánh hoàn tất — nhấn để mở
+  id: Fork selesai — ketuk untuk membuka
+  pl: Rozwidlenie zakończone — dotknij, aby otworzyć
+  nl: Vertakking voltooid — tik om te openen
+  ar: اكتمل التفريع — اضغط للفتح
+  hi: फोर्क पूर्ण — खोलने के लिए टैप करें
+  th: แยกสำเร็จ — แตะเพื่อเปิด
+  cs: Rozvětvení dokončeno — klepněte pro otevření
+  sv: Förgrening klar — tryck för att öppna
+  verified_by_human: []
+
+fork.error_notification:
+  context: Notification message shown when a fork operation fails
+  en: Fork failed. Please try again.
+  de: Verzweigung fehlgeschlagen. Bitte erneut versuchen.
+  zh: 派生失败，请重试。
+  es: El fork falló. Inténtalo de nuevo.
+  fr: La bifurcation a échoué. Veuillez réessayer.
+  pt: Fork falhou. Tente novamente.
+  ru: Разветвление не удалось. Попробуйте ещё раз.
+  ja: 分岐に失敗しました。もう一度お試しください。
+  ko: 포크에 실패했습니다. 다시 시도하세요.
+  it: Fork non riuscito. Riprova.
+  tr: Çatal başarısız. Lütfen tekrar deneyin.
+  vi: Phân nhánh thất bại. Vui lòng thử lại.
+  id: Fork gagal. Silakan coba lagi.
+  pl: Rozwidlenie nie powiodło się. Spróbuj ponownie.
+  nl: Vertakking mislukt. Probeer opnieuw.
+  ar: فشل التفريع. يرجى المحاولة مرة أخرى.
+  hi: फोर्क विफल हो गया। कृपया पुनः प्रयास करें।
+  th: การแยกล้มเหลว กรุณาลองใหม่
+  cs: Rozvětvení se nezdařilo. Zkuste to znovu.
+  sv: Förgrening misslyckades. Försök igen.
+  verified_by_human: []
+
+fork.disabled_incognito:
+  context: Tooltip or message shown when the fork option is disabled because the chat is in incognito mode
+  en: Fork is not available in incognito mode
+  de: Verzweigung ist im Inkognito-Modus nicht verfügbar
+  zh: 隐身模式下无法使用派生
+  es: El fork no está disponible en modo incógnito
+  fr: La bifurcation n'est pas disponible en mode incognito
+  pt: Fork não disponível no modo incógnito
+  ru: Разветвление недоступно в режиме инкогнито
+  ja: インコグニートモードでは分岐を使用できません
+  ko: 시크릿 모드에서는 포크를 사용할 수 없습니다
+  it: Fork non disponibile in modalità incognito
+  tr: Çatal gizli modda kullanılamaz
+  vi: Fork không khả dụng ở chế độ ẩn danh
+  id: Fork tidak tersedia dalam mode penyamaran
+  pl: Rozwidlenie jest niedostępne w trybie incognito
+  nl: Vertakken is niet beschikbaar in incognitomodus
+  ar: التفريع غير متاح في وضع التصفح الخاص
+  hi: इनकॉग्निटो मोड में फोर्क उपलब्ध नहीं है
+  th: ไม่สามารถแยกในโหมดไม่ระบุตัวตน
+  cs: V anonymním režimu není rozvětvení dostupné
+  sv: Förgrening är inte tillgänglig i inkognitoläge
+  verified_by_human: []
+
+fork.messages_label:
+  context: Label shown in the fork settings panel indicating how many messages will be included in the fork
+  en: Messages to fork
+  de: Nachrichten zum Verzweigen
+  zh: 要派生的消息
+  es: Mensajes a bifurcar
+  fr: Messages à bifurquer
+  pt: Mensagens a bifurcar
+  ru: Сообщения для разветвления
+  ja: 分岐するメッセージ
+  ko: 포크할 메시지
+  it: Messaggi da bifurcare
+  tr: Çatallanacak mesajlar
+  vi: Tin nhắn để phân nhánh
+  id: Pesan untuk dicabangkan
+  pl: Wiadomości do rozwidlenia
+  nl: Berichten om te vertakken
+  ar: الرسائل المراد تفريعها
+  hi: फोर्क के लिए संदेश
+  th: ข้อความที่จะแยก
+  cs: Zprávy k rozvětvení
+  sv: Meddelanden att förgrena
+  verified_by_human: []

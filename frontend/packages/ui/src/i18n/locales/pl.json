@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "Odkryj"
+      },
+      "fork": {
+        "text": "Rozwidl rozmowę"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "Aktywny czat"
+    },
+    "fork": {
+      "title": {
+        "text": "Rozwidl rozmowę"
+      },
+      "name_label": {
+        "text": "Nazwa rozwidlenia"
+      },
+      "name_placeholder": {
+        "text": "Wprowadź nazwę rozwidlenia..."
+      },
+      "fork_button": {
+        "text": "Rozwidl"
+      },
+      "forking_progress": {
+        "text": "Rozwidlanie… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Rozwidlanie czatu…"
+      },
+      "complete_notification": {
+        "text": "Rozwidlenie zakończone — dotknij, aby otworzyć"
+      },
+      "error_notification": {
+        "text": "Rozwidlenie nie powiodło się. Spróbuj ponownie."
+      },
+      "disabled_incognito": {
+        "text": "Rozwidlenie jest niedostępne w trybie incognito"
+      },
+      "messages_label": {
+        "text": "Wiadomości do rozwidlenia"
+      }
     }
   },
   "common": {},

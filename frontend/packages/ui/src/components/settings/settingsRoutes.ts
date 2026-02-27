@@ -75,6 +75,9 @@ import SettingsShared from "./SettingsShared.svelte";
 import SettingsShare from "./share/SettingsShare.svelte";
 import SettingsTip from "./tip/SettingsTip.svelte";
 
+// Fork Conversation
+import SettingsFork from "./fork/SettingsFork.svelte";
+
 // Support & Community
 import SettingsSupport from "./SettingsSupport.svelte";
 import SettingsSupportOneTime from "./support/SettingsSupportOneTime.svelte";
@@ -149,6 +152,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   shared: SettingsShared,
   "shared/share": SettingsShare,
   "shared/tip": SettingsTip,
+  // Fork Conversation — opened from message context menu via settingsDeepLink.set('fork')
+  fork: SettingsFork,
   // Developers
   developers: SettingsDevelopers,
   "developers/api-keys": SettingsApiKeys,

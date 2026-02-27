@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "再表示"
+      },
+      "fork": {
+        "text": "会話を分岐"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "アクティブなチャット"
+    },
+    "fork": {
+      "title": {
+        "text": "会話を分岐"
+      },
+      "name_label": {
+        "text": "分岐名"
+      },
+      "name_placeholder": {
+        "text": "分岐の名前を入力..."
+      },
+      "fork_button": {
+        "text": "分岐する"
+      },
+      "forking_progress": {
+        "text": "分岐中… {progress}%"
+      },
+      "forking_banner": {
+        "text": "チャットを分岐中…"
+      },
+      "complete_notification": {
+        "text": "会話の分岐が完了しました — タップして開く"
+      },
+      "error_notification": {
+        "text": "分岐に失敗しました。もう一度お試しください。"
+      },
+      "disabled_incognito": {
+        "text": "インコグニートモードでは分岐を使用できません"
+      },
+      "messages_label": {
+        "text": "分岐するメッセージ"
+      }
     }
   },
   "common": {},
@@ -3809,6 +3844,15 @@
     "polar_mor_note": {
       "text": "公式の税務請求書は、Merchant of Recordとして Polar（polar.sh）により発行されました。"
     },
+    "polar_paid_via": {
+      "text": "{provider}で支払い"
+    },
+    "polar_refunded_via": {
+      "text": "{provider}で払い戻し"
+    },
+    "polar_mor_note_refund": {
+      "text": "公式のクレジットノートは、Merchant of Recordとして Polar（polar.sh）により発行されました。"
+    },
     "invoice_number": {
       "text": "請求書番号"
     },
@@ -5042,6 +5086,11 @@
   },
   "settings": {
     "account": {
+      "account": {
+        "description": {
+          "text": "プロフィール、認証、アカウント設定を管理する"
+        }
+      },
       "text": "アカウント",
       "security": {
         "text": "セキュリティ"
@@ -5645,6 +5694,11 @@
       }
     },
     "billing": {
+      "billing": {
+        "description": {
+          "text": "クレジット、サブスクリプション、支払い方法を管理する"
+        }
+      },
       "text": "請求",
       "title": {
         "text": "請求とクレジット"
@@ -6012,6 +6066,11 @@
       }
     },
     "interface": {
+      "interface": {
+        "description": {
+          "text": "OpenMatesの外観と言語をカスタマイズする"
+        }
+      },
       "text": "インターフェース",
       "language": {
         "text": "言語"
@@ -6282,6 +6341,9 @@
       "text": "アプリ"
     },
     "mates": {
+      "description": {
+        "text": "AIメイトとそのパーソナリティを設定する"
+      },
       "text": "メイト",
       "chat_with_mate": {
         "text": "{mate_name} とチャット"
@@ -6936,6 +6998,9 @@
       "text": "購読後、確認メールが届きます。メール内のリンクをクリックして購読を完了してください。"
     },
     "support": {
+      "description": {
+        "text": "ヘルプを得てOpenMatesチームに連絡する"
+      },
       "text": "サポート",
       "one_time": {
         "text": "単発サポート"

@@ -2003,6 +2003,9 @@
       },
       "unhide": {
         "text": "Einblenden"
+      },
+      "fork": {
+        "text": "Konversation verzweigen"
       }
     },
     "hidden_chats": {
@@ -2188,6 +2191,38 @@
     },
     "active_chat": {
       "text": "Aktiver Chat"
+    },
+    "fork": {
+      "title": {
+        "text": "Konversation verzweigen"
+      },
+      "name_label": {
+        "text": "Name der Verzweigung"
+      },
+      "name_placeholder": {
+        "text": "Namen für die Verzweigung eingeben..."
+      },
+      "fork_button": {
+        "text": "Verzweigen"
+      },
+      "forking_progress": {
+        "text": "Verzweige… {progress}%"
+      },
+      "forking_banner": {
+        "text": "Chat wird verzweigt…"
+      },
+      "complete_notification": {
+        "text": "Chat-Verzweigung abgeschlossen — tippen zum Öffnen"
+      },
+      "error_notification": {
+        "text": "Verzweigung fehlgeschlagen. Bitte erneut versuchen."
+      },
+      "disabled_incognito": {
+        "text": "Verzweigung ist im Inkognito-Modus nicht verfügbar"
+      },
+      "messages_label": {
+        "text": "Nachrichten zum Verzweigen"
+      }
     }
   },
   "common": {
@@ -2248,12 +2283,6 @@
     },
     "open_chat": {
       "text": "Chat öffnen"
-    },
-    "suggest_as_inspiration": {
-      "text": "Als tägliche Inspiration vorschlagen"
-    },
-    "suggest_as_inspiration_description": {
-      "text": "Dieses Video zur Überprüfung einreichen, um es potenziell als tägliche Inspiration für alle Nutzer anzuzeigen"
     }
   },
   "demo_chats": {
@@ -4073,6 +4102,15 @@
     "polar_mor_note": {
       "text": "Deine offizielle Steuerrechnung wurde von Polar (polar.sh) als Merchant of Record ausgestellt."
     },
+    "polar_paid_via": {
+      "text": "Bezahlt über {provider}"
+    },
+    "polar_refunded_via": {
+      "text": "Erstattet über {provider}"
+    },
+    "polar_mor_note_refund": {
+      "text": "Deine offizielle Gutschrift wurde von Polar (polar.sh) als Merchant of Record ausgestellt."
+    },
     "invoice_number": {
       "text": "Rechnungsnummer"
     },
@@ -5528,6 +5566,11 @@
   },
   "settings": {
     "account": {
+      "account": {
+        "description": {
+          "text": "Verwalte dein Profil, Authentifizierung und Kontoeinstellungen"
+        }
+      },
       "text": "Konto",
       "email": {
         "text": "E-Mail",
@@ -6362,6 +6405,11 @@
       }
     },
     "billing": {
+      "billing": {
+        "description": {
+          "text": "Verwalte deine Credits, Abonnements und Zahlungsmethoden"
+        }
+      },
       "text": "Abrechnung",
       "title": {
         "text": "Abrechnung & Guthaben"
@@ -6822,6 +6870,11 @@
       }
     },
     "interface": {
+      "interface": {
+        "description": {
+          "text": "Passe Aussehen und Sprache von OpenMates an"
+        }
+      },
       "text": "Oberfläche",
       "language": {
         "text": "Sprache"
@@ -7092,6 +7145,9 @@
       "text": "Apps"
     },
     "mates": {
+      "description": {
+        "text": "Konfiguriere deine KI-Kollegen und ihre Persönlichkeiten"
+      },
       "text": "Mates",
       "chat_with_mate": {
         "text": "Mit {mate_name} chatten"
@@ -7991,6 +8047,9 @@
       "text": "Nach der Anmeldung erhalten Sie eine Bestätigungs-E-Mail. Klicken Sie auf den Link in der E-Mail, um Ihr Abonnement abzuschließen."
     },
     "support": {
+      "description": {
+        "text": "Hilfe bekommen und das OpenMates-Team kontaktieren"
+      },
       "text": "Unterstützung",
       "one_time": {
         "text": "Einmalige Unterstützung"

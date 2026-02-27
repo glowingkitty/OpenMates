@@ -1955,6 +1955,9 @@
       },
       "unhide": {
         "text": "إظهار"
+      },
+      "fork": {
+        "text": "تفريع المحادثة"
       }
     },
     "hidden_chats": {
@@ -2140,6 +2143,38 @@
     },
     "active_chat": {
       "text": "المحادثة النشطة"
+    },
+    "fork": {
+      "title": {
+        "text": "تفريع المحادثة"
+      },
+      "name_label": {
+        "text": "اسم التفريع"
+      },
+      "name_placeholder": {
+        "text": "أدخل اسمًا للتفريع..."
+      },
+      "fork_button": {
+        "text": "تفريع"
+      },
+      "forking_progress": {
+        "text": "جارٍ التفريع… {progress}%"
+      },
+      "forking_banner": {
+        "text": "جارٍ تفريع الدردشة…"
+      },
+      "complete_notification": {
+        "text": "اكتمل التفريع — اضغط للفتح"
+      },
+      "error_notification": {
+        "text": "فشل التفريع. يرجى المحاولة مرة أخرى."
+      },
+      "disabled_incognito": {
+        "text": "التفريع غير متاح في وضع التصفح الخاص"
+      },
+      "messages_label": {
+        "text": "الرسائل المراد تفريعها"
+      }
     }
   },
   "common": {},
