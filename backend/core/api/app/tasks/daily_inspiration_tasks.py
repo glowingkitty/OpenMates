@@ -114,14 +114,29 @@ async def generate_and_deliver_inspirations_for_user(
     # as a default inspiration for users without recent paid requests.
     # Deduplication by youtube_id prevents duplicates; pool is capped at 100.
     try:
-        from backend.core.api.app.services.directus import DirectusService
-        directus_service: DirectusService = cache_service._directus_service if hasattr(cache_service, "_directus_service") else None  # type: ignore[assignment]
+        from backend.core.api.app.services.directus.directus import DirectusService
+        from backend.core.api.app.utils.encryption import EncryptionService
 
-        # If we don't have a directus_service from cache, try task_instance
-        if not directus_service and task_instance is not None and hasattr(task_instance, "_directus_service"):
+        directus_service: Optional[DirectusService] = None
+
+        # Prefer a service already attached to the task instance (real Celery context)
+        if task_instance is not None and hasattr(task_instance, "_directus_service"):
             directus_service = task_instance._directus_service
+        # Fallback: check if cache_service has one (older call paths)
+        elif hasattr(cache_service, "_directus_service"):
+            directus_service = cache_service._directus_service  # type: ignore[assignment]
 
-        if directus_service:
+        # Last resort: create a short-lived DirectusService for the pool copy.
+        # This handles script and test contexts where no service is pre-attached.
+        _own_directus = False
+        if not directus_service:
+            directus_service = DirectusService(
+                cache_service=cache_service,
+                encryption_service=EncryptionService(),
+            )
+            _own_directus = True
+
+        try:
             for insp in inspirations:
                 video = insp.video
                 if not video or not video.youtube_id:
@@ -149,10 +164,13 @@ async def generate_and_deliver_inspirations_for_user(
                         f"[DailyInspiration][{task_id}] Failed to add inspiration to pool "
                         f"(yt={video.youtube_id}): {pool_exc}"
                     )
-        else:
-            logger.debug(
-                f"[DailyInspiration][{task_id}] No DirectusService available — skipping pool copy"
-            )
+        finally:
+            # Close the short-lived client we created (don't close shared instances)
+            if _own_directus:
+                try:
+                    await directus_service.close()
+                except Exception:
+                    pass
     except Exception as pool_err:
         # Non-fatal — pool copy is a best-effort optimization
         logger.warning(
