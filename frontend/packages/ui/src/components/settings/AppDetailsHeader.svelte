@@ -82,20 +82,6 @@
     settingsPage?: SettingsPage; // When provided: banner shows standard settings page
   }
 
-  interface Props {
-    appId: string;
-    app: AppMetadata | undefined;
-    breadcrumbLabel?: string;
-    fullBreadcrumbLabel?: string;
-    scrollTop?: number;
-    onBack?: () => void;
-    /**
-     * When provided the banner shows the sub-item (skill/focus/memories) identity
-     * instead of the app description + capability counts.
-     */
-    subItem?: SubItem;
-  }
-
   let {
     appId = '',
     app,
