@@ -15,6 +15,22 @@
     var(--icon-focus-background-start) 9.04%,
     var(--icon-focus-background-end) 90.06%
   );
+  /* Skill icons: neutral grey gradient (distinct from the default icon background) */
+  --icon-skill-background-start: #fefefe;
+  --icon-skill-background-end: #eaeaea;
+  --icon-skill-background: linear-gradient(
+    135deg,
+    var(--icon-skill-background-start) 9.04%,
+    var(--icon-skill-background-end) 90.06%
+  );
+  /* Settings & memories icons: pink gradient */
+  --icon-memory-background-start: #dd03b5;
+  --icon-memory-background-end: #cb00a5;
+  --icon-memory-background: linear-gradient(
+    135deg,
+    var(--icon-memory-background-start) 9.04%,
+    var(--icon-memory-background-end) 90.06%
+  );
 
   /* Primary Color */
   --color-primary-start: #4867cd;

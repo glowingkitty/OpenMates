@@ -22,6 +22,7 @@ skills:
   - id: search_products
     name_translation_key: app_skills.shopping.search_products
     description_translation_key: app_skills.shopping.search_products.description
+    icon_image: shopping.svg
     preprocessor_hint: >
       Search the REWE online supermarket for products with real-time prices.
       Returns products with current prices, dietary tags, and purchase links.

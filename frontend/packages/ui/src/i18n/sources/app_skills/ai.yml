@@ -48,7 +48,7 @@ ask.description:
 
 ask.how_to_use.1:
   context: Example instruction for AI ask skill - general knowledge question
-  en: What are the pros and cons of remote work?
+  en: What are the **pros and cons** of remote work?
   de: Was sind die Vor- und Nachteile von Remote-Arbeit?
   zh: 远程工作的优缺点是什么？
   es: ¿Cuáles son los pros y contras del trabajo remoto?
@@ -72,7 +72,7 @@ ask.how_to_use.1:
 
 ask.how_to_use.2:
   context: Example instruction for AI ask skill - explain a concept
-  en: Explain quantum computing in simple terms
+  en: "**Explain** quantum computing in simple terms"
   de: Erkläre Quantencomputing in einfachen Worten
   zh: 用简单的语言解释量子计算
   es: Explica la computación cuántica en términos simples
@@ -96,7 +96,7 @@ ask.how_to_use.2:
 
 ask.how_to_use.3:
   context: Example instruction for AI ask skill - writing help
-  en: Help me write a professional email to my boss about a raise
+  en: "Help me **write** a professional email to my boss about a raise"
   de: Hilf mir, eine professionelle E-Mail an meinen Chef wegen einer Gehaltserhöhung zu schreiben
   zh: 帮我写一封向老板要求加薪的专业邮件
   es: Ayúdame a escribir un email profesional a mi jefe sobre un aumento

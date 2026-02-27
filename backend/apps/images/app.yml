@@ -13,6 +13,7 @@ settings_and_memories:
   - id: preferred_styles
     name_translation_key: images.preferred_styles
     description_translation_key: images.preferred_styles.description
+    icon_image: image.svg
     type: list
     stage: production
     example_translation_keys:

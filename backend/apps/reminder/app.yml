@@ -24,6 +24,7 @@ skills:
   - id: set-reminder
     name_translation_key: reminder.set_reminder
     description_translation_key: reminder.set_reminder.description
+    icon_image: reminder.svg
     preprocessor_hint: >
       Schedule, create, or set up reminders for the user. Handles one-time and recurring reminders (e.g., "every morning", "daily at 9am", "weekly", "monthly"). Use when user wants to be reminded, notified, or alerted about something at a specific time or on a recurring schedule. Also use for automating tasks like "get news every day" or "summarize updates weekly".
     stage: production
@@ -131,6 +132,7 @@ skills:
   - id: list-reminders
     name_translation_key: reminder.list_reminders
     description_translation_key: reminder.list_reminders.description
+    icon_image: task.svg
     preprocessor_hint: >
       Show the user's existing scheduled reminders.
     stage: production
@@ -151,6 +153,7 @@ skills:
   - id: cancel-reminder
     name_translation_key: reminder.cancel_reminder
     description_translation_key: reminder.cancel_reminder.description
+    icon_image: delete.svg
     preprocessor_hint: >
       Cancel or delete an existing reminder.
     stage: production

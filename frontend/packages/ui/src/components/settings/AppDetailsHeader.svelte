@@ -54,6 +54,19 @@
     typeLabel: string;
     /** Optional description shown in the collapsible details block */
     description?: string;
+    /**
+     * Icon name (without .svg) for the item-specific icon.
+     * When provided, the identity block shows this icon instead of the app icon.
+     * E.g. "search", "reminder", "calendar", "ai", "insight", "task", etc.
+     */
+    iconName?: string;
+    /**
+     * Icon type for the item-specific icon gradient background.
+     * - 'skill'  → grey gradient (--icon-skill-background)
+     * - 'focus'  → purple gradient (--icon-focus-background)
+     * - 'memory' → pink gradient (--icon-memory-background)
+     */
+    iconType?: 'skill' | 'focus' | 'memory';
   }
 
   interface Props {
@@ -230,7 +243,26 @@
       padding: {collapseProgress > 0.5 ? '0 16px' : '0 16px 4px'};
     "
   >
-    {#if app?.icon_image}
+    {#if subItem?.iconName}
+      <!-- Sub-item page: show item-specific icon with skill/focus/memory gradient -->
+      <div
+        class="app-icon-slot"
+        style="
+          width: {iconSize}px;
+          height: {iconSize}px;
+          flex-shrink: 0;
+        "
+      >
+        <Icon
+          name={subItem.iconName}
+          type={subItem.iconType ?? 'skill'}
+          size="{iconSize}px"
+          borderColor="#ffffff"
+          noAnimation={true}
+        />
+      </div>
+    {:else if app?.icon_image}
+      <!-- Top-level app page: show app icon with app gradient -->
       <div
         class="app-icon-slot"
         style="

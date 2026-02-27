@@ -51,7 +51,7 @@ search.description:
 
 search.how_to_use.1:
   context: Example instruction for maps search skill - restaurants
-  en: Find Italian restaurants near Alexanderplatz, Berlin
+  en: "**Find** Italian restaurants near Alexanderplatz, Berlin"
   de: Finde italienische Restaurants am Alexanderplatz, Berlin
   zh: 查找Berlin Alexanderplatz附近的意大利餐厅
   es: Encuentra restaurantes italianos cerca de Alexanderplatz, Berlin
@@ -75,7 +75,7 @@ search.how_to_use.1:
 
 search.how_to_use.2:
   context: Example instruction for maps search skill - workspaces
-  en: Search for coworking spaces in downtown Munich
+  en: "**Search** for coworking spaces in downtown Munich"
   de: Suche Coworking-Spaces in der Münchner Innenstadt
   zh: 搜索Munich市中心的共享办公空间
   es: Busca espacios de coworking en el centro de Munich
@@ -99,7 +99,7 @@ search.how_to_use.2:
 
 search.how_to_use.3:
   context: Example instruction for maps search skill - nearby services
-  en: Find pharmacies open now near me
+  en: "**Find** pharmacies open now near me"
   de: Finde Apotheken in meiner Nähe, die jetzt geöffnet sind
   zh: 查找我附近现在营业的药店
   es: Encuentra farmacias abiertas ahora cerca de mí

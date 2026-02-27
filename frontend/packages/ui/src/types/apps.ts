@@ -46,6 +46,8 @@ export interface SkillMetadata {
   description_translation_key: string; // Translation key for skill description
   pricing?: SkillPricing;
   providers?: string[]; // List of provider names used by this skill
+  /** Icon filename for this skill (e.g. "search.svg") — used in App Store skill cards */
+  icon_image?: string;
 }
 
 /**
@@ -126,6 +128,8 @@ export interface MemoryFieldMetadata {
   name_translation_key: string; // Translation key for memory field name
   description_translation_key: string; // Translation key for memory field description
   type: string;
+  /** Icon filename for this settings/memory category (e.g. "calendar.svg") — used in App Store cards */
+  icon_image?: string;
   schema_definition?: {
     type?: string;
     properties?: Record<string, SchemaPropertyDefinition>;

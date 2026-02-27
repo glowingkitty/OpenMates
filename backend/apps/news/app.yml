@@ -10,6 +10,7 @@ skills:
   - id: search
     name_translation_key: news.search
     description_translation_key: news.search.description
+    icon_image: search.svg
     preprocessor_hint: >
       Search for news articles, current events, headlines, announcements.
     stage: production

@@ -8,6 +8,7 @@ settings_and_memories:
   - id: appointments
     name_translation_key: health.appointments
     description_translation_key: health.appointments.description
+    icon_image: calendar.svg
     type: list
     stage: production
     example_translation_keys:
@@ -49,6 +50,7 @@ settings_and_memories:
   - id: medical_history
     name_translation_key: health.medical_history
     description_translation_key: health.medical_history.description
+    icon_image: heart.svg
     type: list
     stage: production
     example_translation_keys:
@@ -162,6 +164,7 @@ skills:
   - id: search_appointments
     name_translation_key: app_skills.health.search_appointments
     description_translation_key: app_skills.health.search_appointments.description
+    icon_image: calendar.svg
     preprocessor_hint: >
       Search for available doctor/specialist appointments by speciality and city.
        Returns real-time availability with direct booking links. Costs 10 credits per search.

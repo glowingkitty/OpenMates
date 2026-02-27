@@ -8,6 +8,7 @@ settings_and_memories:
   - id: learning_goals
     name_translation_key: study.learning_goals
     description_translation_key: study.learning_goals.description
+    icon_image: task.svg
     type: list
     stage: production
     example_translation_keys:

@@ -51,7 +51,7 @@ search_connections.description:
 
 search_connections.how_to_use.1:
   context: Example instruction for travel search connections skill - flights
-  en: Find flights from Berlin to Barcelona next Friday
+  en: "**Find flights** from Berlin to Barcelona next Friday"
   de: Finde Flüge von Berlin nach Barcelona nächsten Freitag
   zh: 查找下周五从 Berlin 到 Barcelona 的航班
   es: Busca vuelos de Berlin a Barcelona el próximo viernes
@@ -75,7 +75,7 @@ search_connections.how_to_use.1:
 
 search_connections.how_to_use.2:
   context: Example instruction for travel search connections skill - trains
-  en: Search for trains from Munich to Vienna on March 15
+  en: "**Search** for trains from Munich to Vienna on March 15"
   de: Suche Züge von München nach Wien am 15. März
   zh: 搜索3月15日从 Munich 到 Vienna 的火车
   es: Busca trenes de Munich a Vienna el 15 de marzo
@@ -99,7 +99,7 @@ search_connections.how_to_use.2:
 
 search_connections.how_to_use.3:
   context: Example instruction for travel search connections skill - cheapest
-  en: What are the cheapest flights to Tokyo in April?
+  en: What are the **cheapest flights** to Tokyo in April?
   de: Was sind die günstigsten Flüge nach Tokio im April?
   zh: 4月去 Tokyo 最便宜的航班有哪些？
   es: ¿Cuáles son los vuelos más baratos a Tokyo en abril?
@@ -152,7 +152,7 @@ search_stays.description:
 
 search_stays.how_to_use.1:
   context: Example instruction for travel search stays skill - hotels
-  en: Find hotels near the Eiffel Tower for 2 nights
+  en: "**Find hotels** near the Eiffel Tower for 2 nights"
   de: Finde Hotels in der Nähe des Eiffelturms für 2 Nächte
   zh: 在 Eiffel Tower 附近找住2晚的酒店
   es: Busca hoteles cerca de la Eiffel Tower para 2 noches
@@ -176,7 +176,7 @@ search_stays.how_to_use.1:
 
 search_stays.how_to_use.2:
   context: Example instruction for travel search stays skill - budget
-  en: Search for hostels in Barcelona under 50 euros per night
+  en: "**Search** for hostels in Barcelona under 50 euros per night"
   de: Suche Hostels in Barcelona unter 50 Euro pro Nacht
   zh: 在 Barcelona 搜索每晚50欧元以下的青年旅舍
   es: Busca hostales en Barcelona por menos de 50 euros por noche
@@ -200,7 +200,7 @@ search_stays.how_to_use.2:
 
 search_stays.how_to_use.3:
   context: Example instruction for travel search stays skill - family
-  en: Find family-friendly accommodations in Rome for Easter week
+  en: "**Find** family-friendly accommodations in Rome for Easter week"
   de: Finde familienfreundliche Unterkünfte in Rom für die Osterwoche
   zh: 在 Rome 找 Easter 周适合家庭的住宿
   es: Busca alojamientos familiares en Rome para la semana de Easter

@@ -47,7 +47,7 @@ search_products.description:
 
 search_products.how_to_use.1:
   context: Example instruction for shopping search products skill - organic milk
-  en: Find organic whole milk at REWE
+  en: "**Find** organic whole milk at REWE"
   de: Bio-Vollmilch bei REWE finden
   zh: 在REWE查找有机全脂牛奶
   es: Buscar leche entera ecológica en REWE
@@ -71,7 +71,7 @@ search_products.how_to_use.1:
 
 search_products.how_to_use.2:
   context: Example instruction for shopping search products skill - pasta comparison
-  en: Compare prices for spaghetti at different supermarkets
+  en: "**Compare prices** for spaghetti at different supermarkets"
   de: Spaghetti-Preise in verschiedenen Supermärkten vergleichen
   zh: 比较不同超市的意大利面价格
   es: Comparar precios de espaguetis en diferentes supermercados
@@ -95,7 +95,7 @@ search_products.how_to_use.2:
 
 search_products.how_to_use.3:
   context: Example instruction for shopping search products skill - vegan products
-  en: What vegan cheese options are available at REWE?
+  en: What **vegan cheese** options are available at REWE?
   de: Welche veganen Käse-Alternativen gibt es bei REWE?
   zh: REWE有哪些纯素奶酪选择？
   es: ¿Qué opciones de queso vegano hay en REWE?

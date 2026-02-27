@@ -145,6 +145,26 @@
         }
         return examples;
     });
+
+    /**
+     * Parse **word** markdown syntax into HTML with highlighted spans.
+     * Words wrapped in double asterisks (**word**) are rendered as
+     * <span class="highlight-word"> elements styled with the app's gradient color.
+     * The text is escaped first to prevent XSS.
+     *
+     * @param text - Raw how-to-use text possibly containing **word** syntax
+     * @returns HTML string safe to use with {@html}
+     */
+    function parseHighlightedText(rawText: string): string {
+        // Escape HTML to prevent XSS before inserting spans
+        const escaped = rawText
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        // Replace **word** with highlighted span; use the scoped CSS class
+        return escaped.replace(/\*\*(.+?)\*\*/g, '<span class="highlight-word">$1</span>');
+    }
     
     /**
      * Get icon name from icon_image filename.
@@ -256,11 +276,23 @@
                 <div class="how-to-use-scroll-container">
                     <div class="how-to-use-scroll">
                         {#each howToUseExamples as example}
-                            <div class="how-to-use-card">
-                                <svg class="quote-icon" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <div
+                                class="how-to-use-card"
+                                style="--highlight-color: var(--color-app-{appId}-start, var(--color-primary-start))"
+                            >
+                                <!-- Opening quote — top-right corner -->
+                                <svg class="quote-icon quote-open" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                     <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
                                 </svg>
-                                <p class="how-to-use-text">{example}</p>
+
+                                <!-- How-to-use text with **word** highlight support -->
+                                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                                <p class="how-to-use-text">{@html parseHighlightedText(example)}</p>
+
+                                <!-- Closing quote — bottom-left corner (flipped 180°) -->
+                                <svg class="quote-icon quote-close" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                                </svg>
                             </div>
                         {/each}
                     </div>
@@ -460,23 +492,51 @@
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-20);
         border-radius: 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
+        /* Use CSS grid so the closing quote anchors to the bottom-left */
+        display: grid;
+        grid-template-areas:
+            "text open"
+            "close .";
+        grid-template-columns: 1fr auto;
+        grid-template-rows: 1fr auto;
+        gap: 0.4rem;
     }
-    
-    .quote-icon {
+
+    /* Opening quote — top-right */
+    .quote-open {
+        grid-area: open;
+        align-self: start;
+        justify-self: end;
+        color: var(--color-grey-40);
+        opacity: 0.5;
         flex-shrink: 0;
-        color: var(--color-grey-50);
-        opacity: 0.6;
     }
-    
+
+    /* Closing quote — bottom-left, rotated 180° to face the other direction */
+    .quote-close {
+        grid-area: close;
+        align-self: end;
+        justify-self: start;
+        color: var(--color-grey-40);
+        opacity: 0.5;
+        flex-shrink: 0;
+        transform: rotate(180deg);
+    }
+
     .how-to-use-text {
+        grid-area: text;
         margin: 0;
         font-size: 0.9rem;
         line-height: 1.5;
         color: var(--color-grey-100);
         word-break: break-word;
+        align-self: center;
+    }
+
+    /* Highlighted trigger words (from **word** syntax in i18n) */
+    .how-to-use-text :global(.highlight-word) {
+        color: var(--highlight-color, var(--color-primary-start));
+        font-weight: 600;
     }
 
     /* Models list (multi-model skill) — matches AiAskSkillSettings.svelte style */

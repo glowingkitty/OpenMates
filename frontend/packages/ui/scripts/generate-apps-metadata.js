@@ -450,6 +450,10 @@ function parseAppYaml(appId, filePath) {
             (skill.description_translation_key || "").trim(),
             "app_skills.",
           ),
+          // Include icon_image if present (used for type-specific icons in App Store cards)
+          icon_image: skill.icon_image
+            ? (skill.icon_image || "").trim()
+            : undefined,
         };
 
         // Extract providers from skill
@@ -608,6 +612,15 @@ function parseAppYaml(appId, filePath) {
             focus.systemprompt_translation_key.trim();
         }
 
+        // Include icon_image if present (used for type-specific icons in App Store cards)
+        if (
+          focus.icon_image &&
+          typeof focus.icon_image === "string" &&
+          focus.icon_image.trim()
+        ) {
+          focusMetadata.icon_image = focus.icon_image.trim();
+        }
+
         // Include bullet-point process summary translation key (for display on settings page).
         // The resolved text contains lines starting with "- " that are rendered as bullet points.
         if (
@@ -661,6 +674,10 @@ function parseAppYaml(appId, filePath) {
             "app_settings_memories.",
           ),
           type: (item.type || "single").trim(),
+          // Include icon_image if present (used for type-specific icons in App Store cards)
+          icon_image: item.icon_image
+            ? (item.icon_image || "").trim()
+            : undefined,
           // Include schema_definition if present (for dynamic form generation)
           schema_definition: item.schema || item.schema_definition || undefined,
           // Include example translation keys if present (shown to non-authenticated users to illustrate the category)
@@ -880,6 +897,11 @@ function generateTypeScript(appsMetadata) {
         lines.push(
           `                description_translation_key: ${JSON.stringify(skill.description_translation_key)},`,
         );
+        if (skill.icon_image) {
+          lines.push(
+            `                icon_image: ${JSON.stringify(skill.icon_image)},`,
+          );
+        }
         if (skill.pricing) {
           lines.push(
             `                pricing: ${JSON.stringify(skill.pricing)},`,
@@ -903,12 +925,22 @@ function generateTypeScript(appsMetadata) {
           `                name_translation_key: ${JSON.stringify(focus.name_translation_key)},`,
         );
         const hasOptionalFocusFields =
+          focus.icon_image !== undefined ||
           focus.process_translation_key !== undefined ||
           focus.system_prompt !== undefined ||
           focus.system_prompt_translation_key !== undefined;
         lines.push(
           `                description_translation_key: ${JSON.stringify(focus.description_translation_key)}${hasOptionalFocusFields ? "," : ""}`,
         );
+        if (focus.icon_image !== undefined) {
+          const hasMoreAfterIcon =
+            focus.process_translation_key !== undefined ||
+            focus.system_prompt !== undefined ||
+            focus.system_prompt_translation_key !== undefined;
+          lines.push(
+            `                icon_image: ${JSON.stringify(focus.icon_image)}${hasMoreAfterIcon ? "," : ""}`,
+          );
+        }
         if (focus.process_translation_key !== undefined) {
           const hasMoreAfterProcess =
             focus.system_prompt !== undefined ||
@@ -946,6 +978,11 @@ function generateTypeScript(appsMetadata) {
           lines.push(
             `                description_translation_key: ${JSON.stringify(memory.description_translation_key)},`,
           );
+          if (memory.icon_image) {
+            lines.push(
+              `                icon_image: ${JSON.stringify(memory.icon_image)},`,
+            );
+          }
           // Include schema_definition if present (for dynamic form generation)
           if (memory.schema_definition) {
             lines.push(`                type: ${JSON.stringify(memory.type)},`);

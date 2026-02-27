@@ -21,6 +21,7 @@ skills:
   - id: share-usecase
     name_translation_key: openmates_app.share_usecase
     description_translation_key: openmates_app.share_usecase.description
+    icon_image: share.svg
     preprocessor_hint: >
       Use when the user has explicitly agreed to anonymously share a summary of their
       intended use cases with the OpenMates team to help improve the product.

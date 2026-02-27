@@ -22,6 +22,7 @@ settings_and_memories:
   - id: communication_style
     name_translation_key: ai.communication_style
     description_translation_key: ai.communication_style.description
+    icon_image: chat.svg
     type: single
     stage: production
     example_translation_keys:
@@ -59,6 +60,7 @@ settings_and_memories:
   - id: learning_preferences
     name_translation_key: ai.learning_preferences
     description_translation_key: ai.learning_preferences.description
+    icon_image: library.svg
     type: list
     stage: production
     example_translation_keys:
@@ -141,6 +143,7 @@ skills:
   - id: ask
     name_translation_key: ai.ask
     description_translation_key: ai.ask.description
+    icon_image: ai.svg
     stage: production
     class_path: |
       ai.skills.ask_skill.AskSkill

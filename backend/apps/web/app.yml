@@ -9,6 +9,7 @@ settings_and_memories:
   - id: bookmarks
     name_translation_key: web.bookmarks
     description_translation_key: web.bookmarks.description
+    icon_image: web.svg
     type: list
     stage: production
     example_translation_keys:
@@ -45,6 +46,7 @@ settings_and_memories:
   - id: read_later
     name_translation_key: web.read_later
     description_translation_key: web.read_later.description
+    icon_image: task.svg
     type: list
     stage: production
     example_translation_keys:
@@ -82,6 +84,7 @@ skills:
   - id: search
     name_translation_key: web.search
     description_translation_key: web.search.description
+    icon_image: search.svg
     preprocessor_hint: >
       General web search for current information, prices, weather, facts, stocks, sports scores, etc.
       Use as a fallback when no specialized skill applies.
@@ -226,6 +229,7 @@ skills:
   - id: read
     name_translation_key: web.read
     description_translation_key: web.read.description
+    icon_image: web.svg
     preprocessor_hint: >
       Read and extract content from a specific URL or webpage the user provided.
     stage: production

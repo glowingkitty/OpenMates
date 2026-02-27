@@ -8,6 +8,7 @@ settings_and_memories:
   - id: watched_movies
     name_translation_key: tv.watched_movies
     description_translation_key: tv.watched_movies.description
+    icon_image: movies.svg
     type: list
     stage: production
     example_translation_keys:
@@ -48,6 +49,7 @@ settings_and_memories:
   - id: watched_tv_shows
     name_translation_key: tv.watched_tv_shows
     description_translation_key: tv.watched_tv_shows.description
+    icon_image: tv.svg
     type: list
     stage: production
     example_translation_keys:
@@ -97,6 +99,7 @@ settings_and_memories:
   - id: to_watch_list
     name_translation_key: tv.to_watch_list
     description_translation_key: tv.to_watch_list.description
+    icon_image: task.svg
     type: list
     stage: production
     example_translation_keys:

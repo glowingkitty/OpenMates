@@ -51,7 +51,7 @@ search.description:
 
 search.how_to_use.1:
   context: Example instruction for news search skill - specific topic
-  en: "What's the latest news about the Mars mission?"
+  en: "What's the **latest news** about the Mars mission?"
   de: Was sind die neuesten Nachrichten zur Mars-Mission?
   zh: 关于火星任务的最新消息是什么？
   es: ¿Cuáles son las últimas noticias sobre la misión a Marte?
@@ -75,7 +75,7 @@ search.how_to_use.1:
 
 search.how_to_use.2:
   context: Example instruction for news search skill - industry news
-  en: Search for news about renewable energy breakthroughs
+  en: "**Search** for news about renewable energy breakthroughs"
   de: Suche Nachrichten über Durchbrüche bei erneuerbaren Energien
   zh: 搜索关于可再生能源突破的新闻
   es: Busca noticias sobre avances en energías renovables
@@ -99,7 +99,7 @@ search.how_to_use.2:
 
 search.how_to_use.3:
   context: Example instruction for news search skill - daily update
-  en: What happened today in the tech industry?
+  en: What happened **today** in the tech industry?
   de: Was ist heute in der Tech-Branche passiert?
   zh: 今天科技行业发生了什么？
   es: ¿Qué pasó hoy en la industria tecnológica?

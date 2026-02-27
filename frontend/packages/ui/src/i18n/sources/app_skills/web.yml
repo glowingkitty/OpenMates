@@ -51,7 +51,7 @@ search.description:
 
 search.how_to_use.1:
   context: Example instruction for web search skill - product search
-  en: Search for the best noise-cancelling headphones 2026
+  en: "**Search** for the best noise-cancelling headphones 2026"
   de: Suche die besten Noise-Cancelling-Kopfhörer 2026
   zh: 搜索2026年最好的降噪耳机
   es: Busca los mejores auriculares con cancelación de ruido 2026
@@ -75,7 +75,7 @@ search.how_to_use.1:
 
 search.how_to_use.2:
   context: Example instruction for web search skill - reviews
-  en: Find reviews of the new iPhone
+  en: "**Find** reviews of the new iPhone"
   de: Finde Bewertungen zum neuen iPhone
   zh: 查找新iPhone的评测
   es: Encuentra reseñas del nuevo iPhone
@@ -99,7 +99,7 @@ search.how_to_use.2:
 
 search.how_to_use.3:
   context: Example instruction for web search skill - lifestyle
-  en: Search for healthy meal prep ideas for beginners
+  en: "**Search** for healthy meal prep ideas for beginners"
   de: Suche nach gesunden Meal-Prep-Ideen für Anfänger
   zh: 搜索适合初学者的健康备餐创意
   es: Busca ideas de preparación de comidas saludables para principiantes
@@ -174,7 +174,7 @@ read.description:
 
 read.how_to_use.1:
   context: Example instruction for web read skill - summarize article
-  en: "Read this article and summarize it: https://example.com/article"
+  en: "**Read** this article and summarize it: https://example.com/article"
   de: "Lies diesen Artikel und fasse ihn zusammen: https://example.com/article"
   zh: "阅读这篇文章并总结: https://example.com/article"
   es: "Lee este artículo y resúmelo: https://example.com/article"
@@ -198,7 +198,7 @@ read.how_to_use.1:
 
 read.how_to_use.2:
   context: Example instruction for web read skill - extract specific info from URL
-  en: "What does Amazon say about their return policy? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  en: "What does **Amazon** say about their return policy? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
   de: "Was sagt Amazon über ihre Rückgabebedingungen? https://www.amazon.de/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
   zh: "亚马逊的退货政策是什么？ https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
   es: "¿Qué dice Amazon sobre su política de devoluciones? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
@@ -222,7 +222,7 @@ read.how_to_use.2:
 
 read.how_to_use.3:
   context: Example instruction for web read skill - research from Wikipedia
-  en: Read the Wikipedia page about the Roman Empire and give me key facts
+  en: "**Read** the Wikipedia page about the Roman Empire and give me key facts"
   de: Lies den Wikipedia-Artikel über das Römische Reich und nenne mir die wichtigsten Fakten
   zh: 阅读维基百科关于罗马帝国的页面并告诉我关键事实
   es: Lee la página de Wikipedia sobre el Imperio Romano y dame los datos clave

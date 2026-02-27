@@ -48,16 +48,19 @@
     /**
      * Convert a skill to an app-like metadata object for AppStoreCard.
      * This allows us to reuse AppStoreCard to display skills.
-     * 
+     *
      * Note: We use the appId (not skill.id) for the id field so that AppStoreCard
-     * uses the correct gradient color from the app.
+     * uses the correct app gradient for the card background.
+     * When the skill has its own icon_image, that is used instead of the app icon,
+     * so AppStoreCard renders the skill-specific icon with the grey skill gradient.
      */
     function skillToAppMetadata(skill: SkillMetadata, appId: string, app: AppMetadata): AppMetadata {
         return {
-            id: appId, // Use appId so gradient matches the app
+            id: appId, // Use appId so card background gradient matches the app
             name_translation_key: skill.name_translation_key,
             description_translation_key: skill.description_translation_key,
-            icon_image: app.icon_image,
+            // Use skill's own icon_image if available; fall back to app icon
+            icon_image: skill.icon_image || app.icon_image,
             icon_colorgradient: app.icon_colorgradient,
             providers: skill.providers || [],
             skills: [],
@@ -160,14 +163,19 @@
                                 id: appId,
                                 name_translation_key: category.name_translation_key,
                                 description_translation_key: category.description_translation_key,
-                                icon_image: app.icon_image,
+                                // Use category's own icon_image if available; fall back to app icon
+                                icon_image: category.icon_image || app.icon_image,
                                 icon_colorgradient: app.icon_colorgradient,
                                 providers: [],
                                 skills: [],
                                 focus_modes: [],
                                 settings_and_memories: []
                             }}
-                            <AppStoreCard app={categoryApp} onSelect={() => handleSettingsMemoriesCategorySelect(category.id)} />
+                            <AppStoreCard
+                                app={categoryApp}
+                                cardIconType="memory"
+                                onSelect={() => handleSettingsMemoriesCategorySelect(category.id)}
+                            />
                         {/each}
                     </div>
                 </div>
@@ -186,10 +194,11 @@
                     <div class="items-scroll">
                         {#each skills as skill (skill.id)}
                             {@const skillApp = skillToAppMetadata(skill, appId, app)}
-                            <AppStoreCard 
-                                app={skillApp} 
+                            <AppStoreCard
+                                app={skillApp}
+                                cardIconType="skill"
                                 skillProviders={skill.providers}
-                                onSelect={() => handleSkillSelect(skill.id)} 
+                                onSelect={() => handleSkillSelect(skill.id)}
                             />
                         {/each}
                     </div>
@@ -212,14 +221,19 @@
                                 id: appId,
                                 name_translation_key: focusMode.name_translation_key,
                                 description_translation_key: focusMode.description_translation_key,
-                                icon_image: app.icon_image,
+                                // Use focus mode's own icon_image if available; fall back to app icon
+                                icon_image: focusMode.icon_image || app.icon_image,
                                 icon_colorgradient: app.icon_colorgradient,
                                 providers: [],
                                 skills: [],
                                 focus_modes: [],
                                 settings_and_memories: []
                             }}
-                            <AppStoreCard app={focusModeApp} onSelect={() => handleFocusModeSelect(focusMode.id)} />
+                            <AppStoreCard
+                                app={focusModeApp}
+                                cardIconType="focus"
+                                onSelect={() => handleFocusModeSelect(focusMode.id)}
+                            />
                         {/each}
                     </div>
                 </div>

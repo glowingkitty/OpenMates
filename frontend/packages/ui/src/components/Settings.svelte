@@ -517,6 +517,10 @@ changes to the documentation (to keep the documentation up to date).
         itemName: string;
         itemTypeLabel: string;
         description: string;
+        /** Icon name (without .svg) for the item-specific icon shown in AppDetailsHeader */
+        iconName?: string;
+        /** Icon gradient type for the item-specific icon */
+        iconType?: 'skill' | 'focus' | 'memory';
     } | null => {
         if (!isAppSubPage) return null;
 
@@ -534,6 +538,9 @@ changes to the documentation (to keep the documentation up to date).
         if (type === 'skill') {
             const skill = appMeta.skills.find(s => s.id === itemId);
             if (!skill) return null;
+            // Derive icon name from skill's icon_image (strip .svg); fall back to app icon
+            const rawIcon = skill.icon_image || appMeta.icon_image;
+            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
             return {
                 appId,
                 itemName: skill.name_translation_key ? $text(skill.name_translation_key) : itemId,
@@ -541,12 +548,16 @@ changes to the documentation (to keep the documentation up to date).
                 description: skill.description_translation_key
                     ? $text(skill.description_translation_key)
                     : '',
+                iconName,
+                iconType: 'skill',
             };
         }
 
         if (type === 'focus') {
             const focus = appMeta.focus_modes.find(f => f.id === itemId);
             if (!focus) return null;
+            const rawIcon = focus.icon_image || appMeta.icon_image;
+            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
             return {
                 appId,
                 itemName: focus.name_translation_key ? $text(focus.name_translation_key) : itemId,
@@ -554,12 +565,16 @@ changes to the documentation (to keep the documentation up to date).
                 description: focus.description_translation_key
                     ? $text(focus.description_translation_key)
                     : '',
+                iconName,
+                iconType: 'focus',
             };
         }
 
         if (type === 'settings_memories') {
             const cat = appMeta.settings_and_memories.find(c => c.id === itemId);
             if (!cat) return null;
+            const rawIcon = cat.icon_image || appMeta.icon_image;
+            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
             return {
                 appId,
                 itemName: cat.name_translation_key ? $text(cat.name_translation_key) : itemId,
@@ -567,6 +582,8 @@ changes to the documentation (to keep the documentation up to date).
                 description: cat.description_translation_key
                     ? $text(cat.description_translation_key)
                     : '',
+                iconName,
+                iconType: 'memory',
             };
         }
 
@@ -1899,6 +1916,8 @@ changes to the documentation (to keep the documentation up to date).
                 name: subPageBannerData.itemName,
                 typeLabel: subPageBannerData.itemTypeLabel,
                 description: subPageBannerData.description,
+                iconName: subPageBannerData.iconName,
+                iconType: subPageBannerData.iconType,
             } : undefined}
         />
     {/if}

@@ -51,7 +51,7 @@ get_transcript.description:
 
 get_transcript.how_to_use.1:
   context: Example instruction for get transcript skill - get transcript from URL
-  en: "Get the transcript of this YouTube video: https://youtube.com/watch?v=..."
+  en: "**Get the transcript** of this YouTube video: https://youtube.com/watch?v=..."
   de: "Hole das Transkript dieses YouTube-Videos: https://youtube.com/watch?v=..."
   zh: "获取这个YouTube视频的文字记录：https://youtube.com/watch?v=..."
   es: "Obtén la transcripción de este video de YouTube: https://youtube.com/watch?v=..."
@@ -75,7 +75,7 @@ get_transcript.how_to_use.1:
 
 get_transcript.how_to_use.2:
   context: Example instruction for get transcript skill - transcribe and analyze
-  en: Transcribe this lecture and highlight the key points
+  en: "**Transcribe** this lecture and highlight the key points"
   de: Transkribiere diese Vorlesung und hebe die wichtigsten Punkte hervor
   zh: 转录这个讲座并突出重点内容
   es: Transcribe esta conferencia y resalta los puntos clave
@@ -99,7 +99,7 @@ get_transcript.how_to_use.2:
 
 get_transcript.how_to_use.3:
   context: Example instruction for get transcript skill - summarize from transcript
-  en: Get the transcript and summarize what they said about climate change
+  en: Get the transcript and **summarize** what they said about climate change
   de: Hole das Transkript und fasse zusammen, was über den Klimawandel gesagt wurde
   zh: 获取文字记录并总结他们关于气候变化的内容
   es: Obtén la transcripción y resume lo que dijeron sobre el cambio climático
@@ -174,7 +174,7 @@ search.description:
 
 search.how_to_use.1:
   context: Example instruction for video search skill - learning
-  en: Find videos about learning to play guitar for beginners
+  en: "**Find videos** about learning to play guitar for beginners"
   de: Finde Videos zum Gitarrespielen lernen für Anfänger
   zh: 查找适合初学者学习吉他的视频
   es: Encuentra videos sobre aprender a tocar guitarra para principiantes
@@ -198,7 +198,7 @@ search.how_to_use.1:
 
 search.how_to_use.2:
   context: Example instruction for video search skill - talks
-  en: Search for TED talks about artificial intelligence
+  en: "**Search** for TED talks about artificial intelligence"
   de: Suche TED-Talks über künstliche Intelligenz
   zh: 搜索关于人工智能的TED演讲
   es: Busca charlas TED sobre inteligencia artificial
@@ -222,7 +222,7 @@ search.how_to_use.2:
 
 search.how_to_use.3:
   context: Example instruction for video search skill - cooking
-  en: Find cooking videos for homemade pasta
+  en: "**Find** cooking videos for homemade pasta"
   de: Finde Kochvideos für selbstgemachte Pasta
   zh: 查找自制意大利面的烹饪视频
   es: Encuentra videos de cocina para pasta casera

@@ -30,9 +30,20 @@
          * Used when displaying skills in the app details page.
          */
         skillProviders?: string[];
+        /**
+         * Optional: Icon type for this card.
+         * - 'app' (default): show the app icon with the app's gradient background
+         * - 'skill': show the skill-specific icon with grey gradient background
+         * - 'focus': show the focus-specific icon with purple gradient background
+         * - 'memory': show the memory-specific icon with pink gradient background
+         *
+         * When set to 'skill', 'focus', or 'memory', app.icon_image is expected
+         * to hold the item-specific icon filename (not the app icon).
+         */
+        cardIconType?: 'app' | 'skill' | 'focus' | 'memory';
     }
     
-    let { app, onSelect, skillProviders }: Props = $props();
+    let { app, onSelect, skillProviders, cardIconType = 'app' }: Props = $props();
     
     // Reference to the app icon container for checking icon existence
     let appIconContainer: HTMLDivElement | null = $state(null);
@@ -315,11 +326,14 @@
             {/if}
             
             <!-- Main app icon with white border (on top) -->
+            <!-- When cardIconType is 'skill', 'focus', or 'memory', use the item-specific
+                 gradient background instead of the app gradient. app.icon_image holds the
+                 item-specific icon filename set by AppDetails. -->
             {#if app.icon_image}
                 <div class="app-icon-wrapper">
                     <Icon 
                         name={getIconName(app.icon_image)}
-                        type="app"
+                        type={cardIconType === 'app' ? 'app' : cardIconType}
                         size="38px"
                         className="app-icon-main no-fade"
                         borderColor="#ffffff"

@@ -41,6 +41,7 @@ settings_and_memories:
   - id: writing_style
     name_translation_key: docs.writing_style
     description_translation_key: docs.writing_style.description
+    icon_image: text.svg
     type: list
     stage: production
     example_translation_keys:

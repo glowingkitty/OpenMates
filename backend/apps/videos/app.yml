@@ -8,6 +8,7 @@ settings_and_memories:
   - id: to_watch_list
     name_translation_key: videos.to_watch_list
     description_translation_key: videos.to_watch_list.description
+    icon_image: task.svg
     type: list
     stage: production
     example_translation_keys:
@@ -103,6 +104,7 @@ skills:
   - id: get_transcript
     name_translation_key: videos.get_transcript
     description_translation_key: videos.get_transcript.description
+    icon_image: transcript.svg
     preprocessor_hint: >
       Get the transcript/content of a specific YouTube video URL.
     stage: production
@@ -147,6 +149,7 @@ skills:
   - id: search
     name_translation_key: videos.search
     description_translation_key: videos.search.description
+    icon_image: search.svg
     preprocessor_hint: >
       Search for videos, documentaries, tutorials, clips on the web.
     stage: production

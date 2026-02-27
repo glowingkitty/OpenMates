@@ -51,7 +51,7 @@ search_appointments.description:
 
 search_appointments.how_to_use.1:
   context: Example instruction for health search appointments skill - dermatologist
-  en: Find a dermatologist near me with availability this week
+  en: "**Find** a dermatologist near me with availability this week"
   de: Finde einen Hautarzt in der Nähe mit Terminen diese Woche
   zh: 查找附近本周有空的皮肤科医生
   es: Busca un dermatólogo cerca con disponibilidad esta semana
@@ -75,7 +75,7 @@ search_appointments.how_to_use.1:
 
 search_appointments.how_to_use.2:
   context: Example instruction for health search appointments skill - dentist
-  en: Search for available dentist appointments in Munich next Monday
+  en: "**Search** for available dentist appointments in Munich next Monday"
   de: Suche verfügbare Zahnarzttermine in München nächsten Montag
   zh: 搜索下周一在 Munich 可用的牙医预约
   es: Busca citas de dentista disponibles en Munich el próximo lunes
@@ -99,7 +99,7 @@ search_appointments.how_to_use.2:
 
 search_appointments.how_to_use.3:
   context: Example instruction for health search appointments skill - general practitioner
-  en: Are there any general practitioners with open slots tomorrow?
+  en: Are there any general practitioners with **open slots** tomorrow?
   de: Gibt es Hausärzte mit freien Terminen morgen?
   zh: 明天有空的全科医生吗？
   es: ¿Hay médicos de cabecera con citas disponibles mañana?

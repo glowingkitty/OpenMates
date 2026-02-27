@@ -51,7 +51,7 @@ get_docs.description:
 
 get_docs.how_to_use.1:
   context: Example instruction for get docs skill - explore API capabilities
-  en: Based on the docs, what can I do with the Miro API?
+  en: Based on the docs, what can I do with the **Miro API**?
   de: Was kann ich laut der Dokumentation mit der Miro API machen?
   zh: 根据文档，我可以用Miro API做什么？
   es: Según la documentación, ¿qué puedo hacer con la API de Miro?
@@ -75,7 +75,7 @@ get_docs.how_to_use.1:
 
 get_docs.how_to_use.2:
   context: Example instruction for get docs skill - setup guide from docs
-  en: Using the Stripe docs, how do I set up subscriptions?
+  en: Using the **Stripe docs**, how do I set up subscriptions?
   de: Wie richte ich laut Stripe-Dokumentation Abonnements ein?
   zh: 根据Stripe文档，如何设置订阅？
   es: Según la documentación de Stripe, ¿cómo configuro las suscripciones?
@@ -99,7 +99,7 @@ get_docs.how_to_use.2:
 
 get_docs.how_to_use.3:
   context: Example instruction for get docs skill - best practices
-  en: What are the best practices for error handling in FastAPI?
+  en: What are the **best practices** for error handling in FastAPI?
   de: Was sind die Best Practices für Fehlerbehandlung in FastAPI?
   zh: FastAPI中错误处理的最佳实践是什么？
   es: ¿Cuáles son las mejores prácticas para el manejo de errores en FastAPI?
