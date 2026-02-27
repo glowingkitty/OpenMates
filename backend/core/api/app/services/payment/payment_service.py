@@ -275,17 +275,17 @@ class PaymentService:
     async def verify_polar_webhook(
         self,
         payload: bytes,
-        sig_header: str,
+        headers: Dict[str, str],
     ) -> Optional[Dict[str, Any]]:
         """
-        Verify and parse a Polar-specific webhook event.
+        Verify and parse a Polar webhook using the Standard Webhooks spec.
 
-        Called directly from payments.py when an X-Polar-Signature header
-        is detected, bypassing the generic verify_and_parse_webhook routing.
+        Called directly from payments.py when a 'webhook-signature' header
+        is detected (Polar uses Standard Webhooks, not X-Polar-Signature).
 
         Args:
             payload: Raw request body bytes
-            sig_header: Value of the X-Polar-Signature header
+            headers: All request headers dict (keys may be mixed-case)
 
         Returns:
             Parsed event dict if signature valid, None otherwise
@@ -293,7 +293,7 @@ class PaymentService:
         if not self._polar_provider:
             logger.error("PaymentService: received Polar webhook but Polar provider not initialized")
             return None
-        return await self._polar_provider.verify_and_parse_webhook(payload, sig_header)
+        return await self._polar_provider.verify_and_parse_webhook(payload, headers)
 
     async def refund_payment(
         self,

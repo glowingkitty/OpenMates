@@ -43,7 +43,7 @@
             <button type="button" class="text-button" onclick={handleSecurePaymentInfoClick}>
                 <span class="clickable-icon icon_lock inline-lock-icon"></span>
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                {@html $text('signup.secured_and_powered_by').replace('{provider}', 'Revolut')}
+                {@html $text('signup.secured_and_powered_by').replace('{provider}', provider === 'polar' ? 'Polar' : 'Stripe')}
             </button>
         </div>
     </div>

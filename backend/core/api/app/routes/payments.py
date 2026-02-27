@@ -667,18 +667,16 @@ async def payment_webhook(
     # Differentiate webhooks by headers
     provider_name = None
     sig_header = None
-    request_timestamp_header = None # For Revolut
 
-    if "Revolut-Signature" in request.headers:
-        provider_name = "revolut"
-        sig_header = request.headers.get("Revolut-Signature")
-        request_timestamp_header = request.headers.get("Revolut-Request-Timestamp")
-    elif "Stripe-Signature" in request.headers:
+    if "Stripe-Signature" in request.headers:
         provider_name = "stripe"
         sig_header = request.headers.get("Stripe-Signature")
-    elif "X-Polar-Signature" in request.headers:
+    elif "webhook-signature" in request.headers:
+        # Polar uses Standard Webhooks (standardwebhooks.com) — headers are:
+        #   webhook-id, webhook-timestamp, webhook-signature
+        # All three are passed to PolarService.verify_polar_webhook as a dict.
         provider_name = "polar"
-        sig_header = request.headers.get("X-Polar-Signature")
+        sig_header = request.headers.get("webhook-signature")
     else:
         logger.warning("Webhook received without a recognizable signature header.")
         raise HTTPException(status_code=400, detail="Missing or unsupported signature header")
@@ -691,17 +689,15 @@ async def payment_webhook(
 
     try:
         # Verify and parse the webhook payload using the correct provider
-        if provider_name == "revolut":
-            event_payload = await payment_service.verify_and_parse_webhook(
-                payload_bytes, sig_header, request_timestamp_header
-            )
-        elif provider_name == "stripe":
+        if provider_name == "stripe":
             event_payload = await payment_service.verify_and_parse_webhook(
                 payload_bytes, sig_header
             )
         elif provider_name == "polar":
+            # Polar uses Standard Webhooks — pass the full headers dict so
+            # PolarService can extract webhook-id, webhook-timestamp, webhook-signature.
             event_payload = await payment_service.verify_polar_webhook(
-                payload_bytes, sig_header
+                payload_bytes, dict(request.headers)
             )
         else:
             event_payload = None
