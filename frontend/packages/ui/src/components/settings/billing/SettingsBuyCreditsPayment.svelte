@@ -448,7 +448,7 @@ Supports both saved payment methods and new payment form
             purchasePrice={selectedPrice()}
             currency={selectedCurrency}
             credits_amount={selectedCreditsAmount}
-            requireConsent={true}
+            requireConsent={false}
             compact={false}
             disableWebSocketHandlers={true}
             initialProviderOverride={savedMethodProviderOverride}

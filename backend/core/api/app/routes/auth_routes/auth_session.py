@@ -175,7 +175,8 @@ async def get_session(
                     auto_topup_low_balance_enabled=bool(user_data.get("auto_topup_low_balance_enabled", False)),
                     auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
                     auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
-                    auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency")
+                    auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
+                    has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp"))
                 )
                 return SessionResponse(
                     success=False, # Indicate session is not fully valid *yet*
@@ -216,7 +217,8 @@ async def get_session(
                     auto_topup_low_balance_enabled=bool(user_data.get("auto_topup_low_balance_enabled", False)),
                     auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
                     auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
-                    auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency")
+                    auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
+                    has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp"))
                 )
                 return SessionResponse(
                     success=False, # Indicate session is not fully valid *yet*
@@ -383,10 +385,11 @@ async def get_session(
                 invoice_counter=user_data.get("invoice_counter", 0),
                 # Low balance auto top-up fields
                 # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
-                auto_topup_low_balance_enabled=bool(user_data.get("auto_topup_low_balance_enabled", False)),
-                auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
-                auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
-                auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency")
+                    auto_topup_low_balance_enabled=bool(user_data.get("auto_topup_low_balance_enabled", False)),
+                    auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
+                    auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
+                    auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
+                    has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp"))
             ),
             token_refresh_needed=False,
             require_invite_code=require_invite_code,

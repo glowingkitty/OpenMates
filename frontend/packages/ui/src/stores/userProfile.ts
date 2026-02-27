@@ -49,6 +49,9 @@ export interface UserProfile {
   // Disabled servers per model - all servers are enabled by default as fallbacks
   // Only explicitly disabled servers are excluded from processing
   disabled_ai_servers?: Record<string, string[]>; // model_id -> array of disabled server IDs
+  // Refund policy consent — true if user has consented to the limited refund / withdrawal waiver
+  // (set at signup, updated on each purchase). Used to skip redundant consent screens in settings.
+  has_accepted_refund_policy?: boolean;
   // Chat auto-deletion period (null = never delete, positive int = delete after N days)
   // Managed via Privacy → Auto Deletion → Chats. Persisted to server via POST /v1/settings/auto-delete-chats.
   auto_delete_chats_after_days?: number | null;

@@ -553,6 +553,9 @@ export async function checkAuth(
             data.user.auto_topup_low_balance_amount,
           auto_topup_low_balance_currency:
             data.user.auto_topup_low_balance_currency,
+          // Refund policy consent — used to skip redundant consent screens in settings
+          has_accepted_refund_policy:
+            data.user.has_accepted_refund_policy ?? false,
         });
         // Apply server dark mode preference to the theme store.
         // applyServerDarkMode is a no-op when the user already has a local

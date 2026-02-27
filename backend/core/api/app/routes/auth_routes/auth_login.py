@@ -525,7 +525,8 @@ async def login(
                     auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
                     auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                     auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
-                    auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency")
+                    auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
+                    has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp"))
                 ),
                 ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
             )
@@ -747,7 +748,8 @@ async def login(
                         auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
                         auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                         auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
-                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency")
+                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp"))
                     ),
                     ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
@@ -1060,7 +1062,8 @@ async def login(
                         auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
                         auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                         auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
-                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency")
+                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp"))
                     ),
                     ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )

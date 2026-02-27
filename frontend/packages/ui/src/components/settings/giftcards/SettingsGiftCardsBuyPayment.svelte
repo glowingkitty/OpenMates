@@ -28,6 +28,7 @@ Supports both saved payment methods and new payment form
     import PaymentAuth from '../billing/PaymentAuth.svelte';
     import { webSocketService } from '../../../services/websocketService';
     import { notificationStore } from '../../../stores/notificationStore';
+    import { userProfile, updateProfile } from '../../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
     
@@ -71,6 +72,13 @@ Supports both saved payment methods and new payment form
     let authMethods: { has_passkey: boolean; has_2fa: boolean } | null = $state(null);
     let stripe: any = $state(null);
     let isProcessingPayment = $state(false);
+
+    // Skip the gift card refund consent screen if user already accepted it (at signup or a previous purchase).
+    // Derived from the user profile field set by the backend after successful payment webhook.
+    let hasAcceptedRefundPolicy = $state(false);
+    userProfile.subscribe(profile => {
+        hasAcceptedRefundPolicy = !!profile.has_accepted_refund_policy;
+    });
 
     let giftCardCode: string | null = $state(null);
     let creditsValue: number = $state(0);
@@ -427,11 +435,18 @@ Supports both saved payment methods and new payment form
             purchasePrice={selectedPrice()}
             currency={selectedCurrency}
             credits_amount={selectedCreditsAmount}
-            requireConsent={true}
+            requireConsent={!hasAcceptedRefundPolicy}
             compact={false}
             isGiftCard={true}
             disableWebSocketHandlers={true}
             on:paymentStateChange={handlePaymentComplete}
+            on:consentGiven={() => {
+                // User accepted the refund consent for gift cards — update local profile
+                // so the consent screen is not shown again during this session.
+                // The backend also records this via webhook after payment completes.
+                hasAcceptedRefundPolicy = true;
+                updateProfile({ has_accepted_refund_policy: true });
+            }}
         />
     </div>
 {/if}

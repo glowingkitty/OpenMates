@@ -224,27 +224,27 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	log('Selected first pricing tier.');
 	await screenshot(page, 'tier-selected');
 
-	// ─── Payment consent ─────────────────────────────────────────────────────────
+	// ─── Payment form ───────────────────────────────────────────────────────────
 	// Two possible states after tier selection:
 	//
 	// A) Saved Stripe payment methods exist (returning user):
 	//    → Saved methods list is shown with a "Add payment method" button.
-	//    → Click "Add payment method" to reveal the fresh Payment component
-	//      (which includes the consent toggle and Stripe iframe for a new card).
+	//    → Click "Add payment method" to reveal the fresh Payment component.
 	//
 	// B) No saved payment methods (fresh account):
-	//    → Stripe payment form is shown immediately with a consent toggle on top.
+	//    → Stripe payment form is shown immediately (no consent screen — user
+	//      already consented during signup).
 	//
-	// Detect which case by racing the consent toggle vs the "Add payment method" button.
+	// Note: The refund consent screen was removed from the credits purchase flow
+	// because users already accept the refund policy during signup.
 
-	const consentToggle = page.locator('#limited-refund-consent-toggle');
 	const addPaymentMethodBtn = page.getByRole('button', { name: /add payment method/i });
 
-	// Wait for whichever of the two elements appears first within 20s.
-	await page.waitForSelector(
-		'#limited-refund-consent-toggle, button:has-text("Add payment method")',
-		{ state: 'visible', timeout: 20000 }
-	);
+	// Wait for either the Stripe iframe or the "Add payment method" button.
+	await page.waitForSelector('iframe, button:has-text("Add payment method")', {
+		state: 'visible',
+		timeout: 20000
+	});
 
 	const addMethodVisible = await addPaymentMethodBtn.isVisible();
 	if (addMethodVisible) {
@@ -253,20 +253,6 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 		log('Saved payment methods detected — clicked "Add payment method" to show fresh form.');
 		await screenshot(page, 'add-payment-method-clicked');
 	}
-
-	// Now wait for the consent toggle to appear (fresh form always shows it)
-	await expect(consentToggle).toBeVisible({ timeout: 20000 });
-	await consentToggle.scrollIntoViewIfNeeded();
-	try {
-		await consentToggle.check({ force: true });
-	} catch {
-		await consentToggle.evaluate((el: HTMLInputElement) => {
-			el.checked = true;
-			el.dispatchEvent(new Event('change', { bubbles: true }));
-		});
-	}
-	await screenshot(page, 'payment-consent-accepted');
-	log('Payment consent accepted.');
 
 	await assertNoMissingTranslations(page);
 
