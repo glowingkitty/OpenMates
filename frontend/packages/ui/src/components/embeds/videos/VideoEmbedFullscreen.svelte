@@ -272,7 +272,7 @@
   function formatViewCount(count: number | undefined): string {
     if (!count) return '';
     const formattedCount = formatCompactNumber(count);
-    return $text('embeds.video_views', { count: formattedCount });
+    return $text('embeds.video_views', { values: { count: formattedCount } });
   }
   
   /**
@@ -282,7 +282,7 @@
   function formatLikeCount(count: number | undefined): string {
     if (!count) return '';
     const formattedCount = formatCompactNumber(count);
-    return $text('embeds.video_likes', { count: formattedCount });
+    return $text('embeds.video_likes', { values: { count: formattedCount } });
   }
   
   /**
@@ -300,10 +300,10 @@
       
       if (diffDays < 1) return $text('embeds.date_today');
       if (diffDays === 1) return $text('embeds.date_yesterday');
-      if (diffDays < 7) return $text('embeds.date_days_ago', { count: diffDays });
-      if (diffDays < 30) return $text('embeds.date_weeks_ago', { count: Math.floor(diffDays / 7) });
-      if (diffDays < 365) return $text('embeds.date_months_ago', { count: Math.floor(diffDays / 30) });
-      return $text('embeds.date_years_ago', { count: Math.floor(diffDays / 365) });
+      if (diffDays < 7) return $text('embeds.date_days_ago', { values: { count: diffDays } });
+      if (diffDays < 30) return $text('embeds.date_weeks_ago', { values: { count: Math.floor(diffDays / 7) } });
+      if (diffDays < 365) return $text('embeds.date_months_ago', { values: { count: Math.floor(diffDays / 30) } });
+      return $text('embeds.date_years_ago', { values: { count: Math.floor(diffDays / 365) } });
     } catch {
       return '';
     }
@@ -377,7 +377,8 @@
     });
   }
   
-  // Handle tip creator - opens tip settings menu
+  // Handle tip creator - opens tip settings menu (commented out for now)
+  /*
   async function handleTipCreator() {
     if (!url || !videoId) {
       console.warn('[VideoEmbedFullscreen] Cannot tip: missing URL or video ID');
@@ -409,6 +410,7 @@
       notificationStore.error('Failed to open tip menu. Please try again.');
     }
   }
+  */
   
   // Handle copy - copies video URL to clipboard with notification
   async function handleCopy() {
@@ -564,15 +566,15 @@
         </div>
         <!-- Action buttons - positioned below thumbnail -->
         <div class="button-container">
-          <!-- Tip Creator button -->
-          <button
+          <!-- Tip Creator button (commented out for now) -->
+          <!-- <button
             class="tip-creator-button"
             onclick={handleTipCreator}
             type="button"
             aria-label={$text('embeds.tip_creator')}
           >
             <span class="clickable-icon icon_volunteering"></span>
-          </button>
+          </button> -->
           <!-- Picture-in-Picture button - only shown when video is playing -->
           {#if isVideoPlaying && videoId && embedUrl}
             <button
@@ -592,15 +594,15 @@
         
         <!-- Action buttons when video is playing -->
         <div class="button-container">
-          <!-- Tip Creator button -->
-          <button
+          <!-- Tip Creator button (commented out for now) -->
+          <!-- <button
             class="tip-creator-button"
             onclick={handleTipCreator}
             type="button"
             aria-label={$text('embeds.tip_creator')}
           >
             <span class="clickable-icon icon_volunteering"></span>
-          </button>
+          </button> -->
           <!-- Picture-in-Picture button -->
           {#if videoId && embedUrl}
             <button
@@ -620,7 +622,7 @@
         <div class="video-stats-row">
           {#if viewCount}
             <span class="stat-item">
-              <span class="stat-icon icon_visibility"></span>
+              <span class="stat-icon icon_visible"></span>
               {formatViewCount(viewCount)}
             </span>
           {/if}
@@ -959,7 +961,8 @@
     filter: none;
   }
   
-  /* Tip creator button - rounded button with icon only */
+  /* Tip creator button - rounded button with icon only (commented out for now) */
+  /*
   .tip-creator-button {
     background-color: var(--color-button-secondary, var(--color-grey-20));
     padding: 0;
@@ -985,6 +988,7 @@
     scale: 0.98;
     filter: none;
   }
+  */
   
   /* Picture-in-Picture button - rounded button with icon only */
   .pip-button {
@@ -1014,7 +1018,6 @@
   }
   
   /* Icon sizing within buttons */
-  .tip-creator-button .clickable-icon,
   .pip-button .clickable-icon {
     width: 20px;
     height: 20px;
