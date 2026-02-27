@@ -48,6 +48,12 @@ docker exec api python /app/backend/scripts/inspect_issue.py --list --search "lo
 # Inspect issue without fetching S3 logs (faster)
 docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --no-logs
 
+# Default output is a summary: long fields (description, device info, IndexedDB) are truncated
+# and logs are filtered to errors/warnings only. Use --full-logs to see everything untruncated.
+# Output can be very long — pipe to a file or use grep to filter.
+docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --full-logs
+docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --full-logs 2>&1 | grep -i "error\|warning\|keyword"
+
 # Delete issue (after confirmed fixed; removes from Directus and S3). Use --yes to skip confirmation.
 docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --delete --yes
 

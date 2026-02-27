@@ -23,7 +23,10 @@ Usage:
 
 Options:
     --no-logs           Skip fetching the full YAML report from S3
-    --full-logs         Show all log lines (by default only warnings/errors with context are shown)
+    --full-logs         Show all data untruncated: all log lines AND full text fields (description,
+                        device info, IndexedDB, etc.). Output can be very long — pipe to a file or
+                        use grep to filter. By default only warnings/errors are shown in logs and
+                        long fields are truncated to a readable summary.
     --json              Output as JSON instead of formatted text
     --list              List recent issues (most recent first)
     --list-limit N      Number of issues to list (default: 20)
@@ -642,15 +645,20 @@ def format_detail_output(
     Format the issue inspection results as human-readable text.
 
     By default, log sections (console logs and docker compose logs) are filtered to show
-    only WARNING/ERROR/CRITICAL lines with 3 lines of surrounding context. Use full_logs=True
-    to show all log lines unfiltered.
+    only WARNING/ERROR/CRITICAL lines with 3 lines of surrounding context, and long text
+    fields (description, device info, IndexedDB) are truncated for readability.
+
+    Use full_logs=True (--full-logs flag) to:
+    - Show all log lines unfiltered
+    - Show all text fields untruncated
+    Output can be very long — pipe to a file or use grep to filter.
 
     Args:
         issue_id: The issue ID
         issue: Raw issue metadata from Directus
         decrypted: Dictionary of decrypted field values
         s3_report: Parsed YAML report from S3 (or None)
-        full_logs: If True, show all log lines; if False, filter to errors/warnings only
+        full_logs: If True, show all data untruncated; if False, show summary with truncation
 
     Returns:
         Formatted string for display
@@ -666,6 +674,23 @@ def format_detail_output(
     lines.append(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("=" * 100)
 
+    # Mode banner
+    if full_logs:
+        lines.append("")
+        lines.append(
+            "  ⚠  --full-logs enabled: full untruncated output follows "
+            "(may be very long — pipe to a file or use grep to filter)"
+        )
+    else:
+        lines.append("")
+        lines.append(
+            "  ℹ  Summary mode: some fields are truncated and logs are filtered to errors/warnings only."
+        )
+        lines.append(
+            "     Use --full-logs for complete untruncated output "
+            "(warning: can be very long — consider piping to a file or using grep)."
+        )
+
     # ===================== ISSUE METADATA =====================
     lines.append("")
     lines.append("-" * 100)
@@ -677,7 +702,11 @@ def format_detail_output(
     else:
         # Core metadata (cleartext fields)
         lines.append(f"  Title:             {issue.get('title', 'N/A')}")
-        lines.append(f"  Description:       {truncate_string(issue.get('description', 'N/A'), 200)}")
+        desc_raw = issue.get('description', 'N/A') or 'N/A'
+        if full_logs:
+            lines.append(f"  Description:       {desc_raw}")
+        else:
+            lines.append(f"  Description:       {truncate_string(desc_raw, 200)}")
         lines.append("")
         lines.append(f"  Timestamp:         {format_timestamp(issue.get('timestamp'))}")
         lines.append(f"  Created At:        {format_timestamp(issue.get('created_at'))}")
@@ -740,7 +769,10 @@ def format_detail_output(
         # Device info
         device_info = decrypted.get('device_info')
         if device_info:
-            lines.append(f"  💻 Device Info:        {truncate_string(device_info, 200)}")
+            if full_logs:
+                lines.append(f"  💻 Device Info:        {device_info}")
+            else:
+                lines.append(f"  💻 Device Info:        {truncate_string(device_info, 200)}")
         else:
             lines.append("  💻 Device Info:        N/A (not provided)")
 
@@ -757,8 +789,9 @@ def format_detail_output(
             lines.append("  🖼  SCREENSHOT:         N/A (not attached)")
 
     # ===================== FULL DESCRIPTION =====================
-    # Show full description if it's longer than the truncated version above
-    if issue and issue.get('description') and len(issue.get('description', '')) > 200:
+    # In summary mode: show full description in its own section if it was truncated above.
+    # In full-logs mode: already shown in full inline above, skip this section.
+    if not full_logs and issue and issue.get('description') and len(issue.get('description', '')) > 200:
         lines.append("")
         lines.append("-" * 100)
         lines.append("FULL DESCRIPTION")
@@ -806,7 +839,11 @@ def format_detail_output(
             if tech_details.get('chat_or_embed_url'):
                 lines.append(f"    URL:              {tech_details.get('chat_or_embed_url')}")
             if tech_details.get('device_info'):
-                lines.append(f"    Device Info:      {truncate_string(str(tech_details.get('device_info')), 200)}")
+                device_info_str = str(tech_details.get('device_info'))
+                if full_logs:
+                    lines.append(f"    Device Info:      {device_info_str}")
+                else:
+                    lines.append(f"    Device Info:      {truncate_string(device_info_str, 200)}")
 
         # Console logs section
         logs = report.get('logs', {})
@@ -882,9 +919,17 @@ def format_detail_output(
             lines.append("  " + "-" * 60)
             if isinstance(indexeddb, dict):
                 for key, value in indexeddb.items():
-                    lines.append(f"    {key}: {truncate_string(str(value), 150)}")
+                    value_str = str(value)
+                    if full_logs:
+                        lines.append(f"    {key}: {value_str}")
+                    else:
+                        lines.append(f"    {key}: {truncate_string(value_str, 150)}")
             else:
-                lines.append(f"    {truncate_string(str(indexeddb), 300)}")
+                indexeddb_str = str(indexeddb)
+                if full_logs:
+                    lines.append(f"    {indexeddb_str}")
+                else:
+                    lines.append(f"    {truncate_string(indexeddb_str, 300)}")
 
         # User action history section (last 20 interactions: button names / navigation only)
         # NO user-typed text content is ever included — only developer-authored labels.
@@ -1059,7 +1104,11 @@ async def main():
     parser.add_argument(
         '--full-logs',
         action='store_true',
-        help='Show all log lines unfiltered (by default only warnings/errors with context are shown)'
+        help=(
+            'Show all data untruncated: full log lines (not just errors/warnings) AND full text '
+            'fields (description, device info, IndexedDB, etc.). '
+            'Output can be very long — consider piping to a file or using grep to filter.'
+        )
     )
     parser.add_argument(
         '--delete',
