@@ -1899,10 +1899,35 @@
 			return;
 		}
 
-		console.debug('[+page.svelte] Hash changed:', window.location.hash);
+		// CRITICAL: Ignore hash changes that are purely the embed opening on an already-active chat.
+		// When the user clicks an embed, handleEmbedFullscreen() calls
+		// activeEmbedStore.setActiveEmbed(embedId, chatId), which writes
+		// #chat-id=X&embed-id=Y.  The isProgrammaticEmbedHashUpdate() guard above relies on a
+		// 100ms timestamp window; if the async resolveEmbed / decodeToonContent work in
+		// handleEmbedFullscreen takes longer than that, the guard expires BEFORE setActiveEmbed
+		// is called, so the window is already open when the hashchange fires.
+		// In that case we fall through to processDeepLink → onChat → handleChatDeepLink, which
+		// calls loadChat() (closing the embed) and then handleEmbedDeepLink() (reopening it) —
+		// the visible open→close→open glitch.
+		// Fix: if the new hash encodes a chat that is already active AND includes an embed-id,
+		// this is purely the embed opening — not a real navigation.  Skip it entirely.
+		const newHash = window.location.hash;
+		const combinedEmbedMatch = newHash.match(/^#chat-id=([^&]+)&embed-id=(.+)$/);
+		if (combinedEmbedMatch) {
+			const hashChatId = combinedEmbedMatch[1];
+			if ($activeChatStore === hashChatId) {
+				console.debug(
+					'[+page.svelte] Ignoring embed-open hash change for already-active chat:',
+					hashChatId
+				);
+				return;
+			}
+		}
+
+		console.debug('[+page.svelte] Hash changed:', newHash);
 
 		const handlers = createDeepLinkHandlers();
-		await processDeepLink(window.location.hash, handlers);
+		await processDeepLink(newHash, handlers);
 	}
 
 	// Add handler for chatSelected event
