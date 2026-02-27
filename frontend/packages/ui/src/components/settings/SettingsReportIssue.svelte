@@ -927,6 +927,13 @@
         // We pass returnTo so Settings.svelte can restore the correct sub-page after
         // toggleMenu() resets activeSettingsView to 'main' on close.
         if (reopenSettings) {
+            // Update the form draft with the freshly picked element HTML before the
+            // component is destroyed by the settings panel re-opening.
+            // _saveFormDraft() was called earlier (when the picker *started*) with
+            // pickedElementHtml still null — we must update it now so the restored
+            // form shows the captured element preview.
+            _saveFormDraft();
+
             window.dispatchEvent(new CustomEvent('openSettingsMenu', {
                 detail: { returnTo: 'report_issue' }
             }));
