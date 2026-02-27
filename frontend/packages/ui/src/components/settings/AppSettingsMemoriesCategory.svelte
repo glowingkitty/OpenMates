@@ -373,12 +373,12 @@
         </div>
     {:else}
         {#if isAuthenticated}
-            <!-- "My Settings & Memories" section heading -->
+            <!-- "My / Settings & memories" section heading — 2-line style matching skill/provider headings -->
             <SettingsItem
                 type="heading"
-                icon={getIconName(app?.icon_image)}
-                iconType="app"
-                title={$text('settings.app_settings_memories.my_settings_and_memories')}
+                icon="user"
+                subtitleTop={$text('settings.app_settings_memories.my')}
+                title={$text('settings.app_settings_memories.settings_and_memories')}
             />
 
             <!-- List of owned entries -->
@@ -423,11 +423,10 @@
         <!-- Examples section — shown to all users -->
         {#if exampleTranslationKeys.length > 0}
             <div class="examples-section">
-                <!-- "Examples" section heading -->
+                <!-- "Examples" section heading — uses task/checklist icon, matching skill heading style -->
                 <SettingsItem
                     type="heading"
-                    icon={getIconName(app?.icon_image)}
-                    iconType="app"
+                    icon="task"
                     title={$text('settings.app_settings_memories.examples')}
                 />
                 <div class="examples-list">

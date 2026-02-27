@@ -3796,6 +3796,52 @@ app_settings_memories.examples_label:
   verified_by_human:
     - en
     - de
+app_settings_memories.my:
+  context: First line of the "My Settings & memories" section heading (shown above the section title)
+  en: "My"
+  de: "Meine"
+  zh: "我的"
+  es: "Mi"
+  fr: "Mes"
+  pt: "Minhas"
+  ru: "Мои"
+  ja: "私の"
+  ko: "내"
+  it: "Le mie"
+  tr: "Benim"
+  vi: "Của tôi"
+  id: "Saya"
+  pl: "Moje"
+  nl: "Mijn"
+  ar: "تبتي"
+  hi: "मेरी"
+  th: "ของฉัน"
+  cs: "Moje"
+  sv: "Mina"
+  verified_by_human: []
+app_settings_memories.settings_and_memories:
+  context: Second line of the "My Settings & memories" section heading (the bold title)
+  en: Settings & memories
+  de: Einstellungen & Erinnerungen
+  zh: 设置与记忆
+  es: Configuración y recuerdos
+  fr: Paramètres et souvenirs
+  pt: Configurações e memórias
+  ru: Настройки и воспоминания
+  ja: 設定とメモリ
+  ko: 설정 및 메모리
+  it: Impostazioni e ricordi
+  tr: Ayarlar ve anılar
+  vi: Cài đặt và ký ức
+  id: Pengaturan dan memori
+  pl: Ustawienia i wspomnienia
+  nl: Instellingen en herinneringen
+  ar: الإعدادات والذكريات
+  hi: सेटिंग्स और यादें
+  th: การตั้งค่าและความทรงจำ
+  cs: Nastavení a paměti
+  sv: Inställningar och minnen
+  verified_by_human: []
 app_settings_memories.my_settings_and_memories:
   context: Section heading for the user's own settings and memories entries
   en: My Settings & Memories
