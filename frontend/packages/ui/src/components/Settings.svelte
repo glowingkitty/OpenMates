@@ -53,6 +53,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsFooter from './settings/SettingsFooter.svelte';
     import CurrentSettingsPage from './settings/CurrentSettingsPage.svelte';
     import SettingsItem from './SettingsItem.svelte';
+    import AppDetailsHeader from './settings/AppDetailsHeader.svelte';
     
     // Import all settings route definitions and the dynamic wrapper components
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper } from './settings/settingsRoutes';
@@ -475,8 +476,49 @@ changes to the documentation (to keep the documentation up to date).
         activeSettingsView !== 'app_store/all'
     );
 
+    /**
+     * True when we're on the TOP-LEVEL app details page (app_store/{appId} only,
+     * NOT deeper sub-pages like skill/focus/settings_memories).
+     * When true the AppDetailsHeader banner takes over the header area, so:
+     *   - The normal settings-header becomes transparent with white text
+     *   - The submenu-info block is hidden (the banner shows it instead)
+     */
+    let isAppTopLevelPage = $derived(
+        /^app_store\/[^/]+$/.test(activeSettingsView)
+    );
 
-    
+    /**
+     * The app ID for the current top-level app page, e.g. "audio".
+     * Used to look up AppMetadata to pass to AppDetailsHeader.
+     */
+    let currentAppId = $derived(
+        isAppTopLevelPage ? activeSettingsView.replace('app_store/', '') : ''
+    );
+
+    /** AppMetadata for the current top-level app page, used by AppDetailsHeader */
+    let currentAppMetadata = $derived(
+        currentAppId ? appSkillsStore.getState().apps[currentAppId] : undefined
+    );
+
+    /**
+     * Current scroll position of .settings-content-wrapper.
+     * Updated on scroll events and passed to AppDetailsHeader for the collapse animation.
+     */
+    let contentScrollTop = $state(0);
+
+    /** Reset scroll tracking when navigating away from app top-level page */
+    $effect(() => {
+        if (!isAppTopLevelPage) {
+            contentScrollTop = 0;
+        }
+    });
+
+    function handleContentScroll(e: Event) {
+        if (isAppTopLevelPage) {
+            contentScrollTop = (e.target as HTMLElement).scrollTop;
+        }
+    }
+
     // Add reference for content height calculation
     let menuItemsCount = $state(0);
 
@@ -1674,7 +1716,14 @@ changes to the documentation (to keep the documentation up to date).
     onkeydown={(e) => e.stopPropagation()}
     role="presentation"
 >
-    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
+    <div
+        class="settings-header"
+        class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo && !isAppTopLevelPage}
+        class:app-top-level={isAppTopLevelPage}
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+        role="presentation"
+    >
         <div class="header-content">
             {#if !hideNavButton}
                 <button
@@ -1704,7 +1753,7 @@ changes to the documentation (to keep the documentation up to date).
             </a> -->
         </div>
         
-        {#if activeSettingsView !== 'main' && showSubmenuInfo}
+        {#if activeSettingsView !== 'main' && showSubmenuInfo && !isAppTopLevelPage}
             <div
                 class="submenu-info"
                 class:reduced-padding={hideNavButton}
@@ -1744,7 +1793,35 @@ changes to the documentation (to keep the documentation up to date).
         {/if}
     </div>
     
-    <div class="settings-content-wrapper" bind:this={settingsContentElement} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
+    <!-- App details gradient banner — only shown on app_store/{appId} top-level pages.
+         Placed outside the content-wrapper so it's not clipped by the slider's overflow:hidden.
+         sticky positioning works here because this element is a direct flex child of .settings-menu. -->
+    {#if isAppTopLevelPage && currentAppMetadata}
+        <AppDetailsHeader
+            appId={currentAppId}
+            app={currentAppMetadata}
+            scrollTop={contentScrollTop}
+            breadcrumbLabel={breadcrumbLabel}
+            fullBreadcrumbLabel={fullBreadcrumbLabel}
+            onBack={() => backToMainView()}
+            onClose={() => {
+                isMenuVisible = false;
+                settingsMenuVisible.set(false);
+                panelState.closeSettings();
+                hideOriginalProfile = false;
+                if (hideProfileTimeout) { clearTimeout(hideProfileTimeout); hideProfileTimeout = null; }
+            }}
+        />
+    {/if}
+
+    <div
+        class="settings-content-wrapper"
+        bind:this={settingsContentElement}
+        onscroll={handleContentScroll}
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+        role="presentation"
+    >
         <!-- Show settings menu for both authenticated and non-authenticated users -->
         <!-- For non-authenticated users, only language settings are available -->
         <CurrentSettingsPage
@@ -1971,13 +2048,15 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .settings-header,
-    .settings-content-wrapper {
+    .settings-content-wrapper,
+    :global(.app-details-header) {
         opacity: 0;
         transition: opacity 0.3s ease 0s;
     }
 
     .settings-menu.visible .settings-header,
-    .settings-menu.visible .settings-content-wrapper {
+    .settings-menu.visible .settings-content-wrapper,
+    .settings-menu.visible :global(.app-details-header) {
         opacity: 1;
         transition: opacity 0.3s ease 0.15s;
     }
@@ -2005,6 +2084,26 @@ changes to the documentation (to keep the documentation up to date).
     .settings-header.submenu-active {
         padding-bottom: 20px; /* Space for submenu info */
         transition: padding-bottom 0.3s ease; /* Smooth padding transition */
+    }
+
+    /*
+     * When the app top-level page is active, the AppDetailsHeader inside the
+     * content wrapper takes full ownership of the header area — it contains its
+     * own back arrow, breadcrumb, and close button on the gradient.
+     *
+     * We completely hide the normal .settings-header (collapse to 0 height) so
+     * there's no double-header and the gradient banner appears right at the top.
+     * We use height + overflow rather than display:none so the opacity transition
+     * still works cleanly when switching pages.
+     */
+    .settings-header.app-top-level {
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        border-bottom: none !important;
+        box-shadow: none !important;
+        overflow: hidden;
+        transition: height 0.2s ease, padding 0.2s ease;
     }
 
 

@@ -16,7 +16,7 @@
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
     import SettingsItem from '../SettingsItem.svelte';
-    import type { AppMetadata, SkillMetadata, FocusModeMetadata, MemoryFieldMetadata } from '../../types/apps';
+    import type { AppMetadata, SkillMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     
@@ -44,26 +44,6 @@
     let skills = $derived(app?.skills || []);
     let focusModes = $derived(app?.focus_modes || []);
     let memoryFields = $derived(app?.settings_and_memories || []);
-    
-    /**
-     * Get the translated app name.
-     * Uses name_translation_key if available, otherwise falls back to name.
-     */
-    let appName = $derived(
-        app?.name_translation_key 
-            ? $text(app.name_translation_key)
-            : (app?.name || appId)
-    );
-    
-    /**
-     * Get the translated app description.
-     * Uses description_translation_key if available, otherwise falls back to description.
-     */
-    let appDescription = $derived(
-        app?.description_translation_key 
-            ? $text(app.description_translation_key)
-            : (app?.description || '')
-    );
     
     /**
      * Convert a skill to an app-like metadata object for AppStoreCard.
@@ -165,11 +145,6 @@
             <button class="back-button" onclick={goBack}>← Back to App Store</button>
         </div>
     {:else}
-        <!-- App description -->
-        <div class="app-header">
-            <p class="app-description">{appDescription}</p>
-        </div>
-        
         <!-- Settings & Memories section - always show cards for each category -->
         {#if memoryFields.length > 0}
             <div class="section">
@@ -284,19 +259,6 @@
         padding: 14px;
         max-width: 1400px;
         margin: 0 auto;
-    }
-    
-    .app-header {
-        margin-bottom: 2rem;
-        padding-left: 0;
-    }
-    
-    .app-description {
-        margin: 0;
-        color: var(--color-grey-100);
-        font-size: 1rem;
-        line-height: 1.6;
-        text-align: left;
     }
     
     .section {
