@@ -3327,7 +3327,7 @@
 </script>
  
 <!-- Template -->
-<div bind:this={messageInputWrapper} class="message-input-wrapper" role="none" onmousedown={handleMessageWrapperMouseDown}>
+<div bind:this={messageInputWrapper} class="message-input-wrapper" role="none" onmousedown={handleMessageWrapperMouseDown} data-action="message-input">
     <!-- PII Warning Banner - shown when sensitive data is detected in the input -->
     <PIIWarningBanner 
         matches={detectedPII}
@@ -3421,9 +3421,7 @@
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
-                <!-- data-action="message-input" enables the userActionTracker to identify
-                     focus/keypress events on this editor without reading typed content -->
-                <div bind:this={editorElement} class="editor-content prose" data-action="message-input"></div>
+                <div bind:this={editorElement} class="editor-content prose"></div>
             </div>
         </div>
 
