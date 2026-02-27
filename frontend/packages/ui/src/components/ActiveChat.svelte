@@ -9637,11 +9637,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
     }
 
-    /* New chat CTA: no extra wrapper background so the pill button stands out */
+    /* New chat CTA: no extra wrapper background so the pill button stands out.
+       Also cancel the wrapper's hover/active scale — the button handles its own scaling. */
     .new-chat-cta-wrapper {
         background-color: transparent;
         box-shadow: none;
         padding: 0;
+    }
+
+    .new-chat-cta-wrapper:hover {
+        transform: scale(1);
+        box-shadow: none;
+    }
+
+    .new-chat-cta-wrapper:active {
+        transform: scale(1);
+        box-shadow: none;
     }
 
     /* New chat button - same CTA color as Send, fully rounded (pill), white icon and text.
