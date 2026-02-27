@@ -18,7 +18,7 @@
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
     import { userActionTracker } from '../../services/userActionTracker';
-    import { reportIssueStore, submittedIssueIdStore } from '../../stores/reportIssueStore';
+    import { reportIssueStore, submittedIssueIdStore, reportIssueFormDraftStore } from '../../stores/reportIssueStore';
     import { inspectChat } from '../../services/debugUtils';
     import { authStore } from '../../stores/authStore';
     import { getEmailDecryptedWithMasterKey } from '../../services/cryptoService';
@@ -602,6 +602,9 @@
                 showTitleWarning = false;
                 showEmailWarning = false;
 
+                // Clear the form draft store so it doesn't restore stale data on the next report
+                reportIssueFormDraftStore.set(null);
+
                 // Clear picked element and screenshot state so they don't persist after submission
                 pickedElementHtml = null;
                 screenshotDataUrl = null;
@@ -931,10 +934,33 @@
     }
 
     /**
+     * Persist the current form state to reportIssueFormDraftStore before the
+     * settings panel is closed.  This allows the form to be restored exactly as
+     * the user left it after the component is unmounted and re-mounted when the
+     * settings panel re-opens (CurrentSettingsPage.svelte recreates the component
+     * on every view switch).
+     */
+    function _saveFormDraft() {
+        reportIssueFormDraftStore.set({
+            issueTitle,
+            userFlow,
+            expectedBehaviour,
+            actualBehaviour,
+            shareChatEnabled,
+            chatOrEmbedUrl,
+            contactEmail,
+            includeEmailToggle,
+            pickedElementHtml,
+            screenshotDataUrl
+        });
+    }
+
+    /**
      * Start the element picker:
-     *  1. Close the settings panel (via window event).
-     *  2. Inject the picker overlay.
-     *  3. Register event listeners.
+     *  1. Save form draft to store so state survives the component remount.
+     *  2. Close the settings panel (via window event).
+     *  3. Inject the picker overlay.
+     *  4. Register event listeners.
      */
     function startElementPicker() {
         if (isPickerActive) return;
@@ -942,6 +968,9 @@
         isPickerActive = true;
         _pickerSelectedEl = null;
         _pickerHighlightedEl = null;
+
+        // Persist form state before the component is destroyed by the settings panel closing.
+        _saveFormDraft();
 
         // Close the settings panel so the full page is accessible.
         // Settings.svelte listens for 'closeSettingsMenu' and calls toggleMenu() safely.
@@ -1294,7 +1323,16 @@
     
     // Auto-generate share URL and collect initial device info when component mounts
     onMount(() => {
-        // Check for pre-filled data from store
+        // ── Priority order for pre-filling the form ──────────────────────────────
+        // 1. reportIssueStore  — set by deep links / ChatMessage "Report" button.
+        //    Applied first as the baseline.
+        // 2. reportIssueFormDraftStore — set just before the picker overlay opens
+        //    (when the settings panel closes and this component is destroyed).
+        //    Applied second and takes precedence because it represents the user's
+        //    most recent in-progress edits and must survive the unmount/remount cycle.
+        //    If both stores are set simultaneously, the draft values win.
+
+        // Check for pre-filled data from store (deep link / ChatMessage trigger)
         if ($reportIssueStore) {
             if ($reportIssueStore.title) issueTitle = $reportIssueStore.title;
             // Map legacy store description to the user flow field (most common pre-fill use-case)
@@ -1306,6 +1344,26 @@
             
             // Clear store after consuming
             reportIssueStore.set(null);
+        }
+
+        // Restore in-progress form draft (survives settings panel close/reopen during picker)
+        // This must run AFTER reportIssueStore so draft values take precedence over deep-link
+        // pre-fills (the user may have already edited the pre-filled values before picking).
+        const draft = $reportIssueFormDraftStore;
+        if (draft) {
+            issueTitle = draft.issueTitle;
+            userFlow = draft.userFlow;
+            expectedBehaviour = draft.expectedBehaviour;
+            actualBehaviour = draft.actualBehaviour;
+            shareChatEnabled = draft.shareChatEnabled;
+            chatOrEmbedUrl = draft.chatOrEmbedUrl;
+            contactEmail = draft.contactEmail;
+            includeEmailToggle = draft.includeEmailToggle;
+            pickedElementHtml = draft.pickedElementHtml;
+            screenshotDataUrl = draft.screenshotDataUrl;
+            // Clear the draft now that it has been consumed
+            reportIssueFormDraftStore.set(null);
+            console.debug('[SettingsReportIssue] Restored form draft from store after remount');
         }
 
         // For authenticated users, load their account email so it can be pre-filled
