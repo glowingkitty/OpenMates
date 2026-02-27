@@ -67,6 +67,29 @@ polar_mor_note:
   cs: ""
   sv: ""
   verified_by_human: []
+polar_paid_via:
+  context: "Payment method line in PDF for Polar orders where card details are not available. {provider} is replaced with the provider name (e.g. 'Polar')."
+  en: "Paid via {provider}"
+  de: "Bezahlt über {provider}"
+  zh: "通过 {provider} 支付"
+  es: "Pagado a través de {provider}"
+  fr: "Payé via {provider}"
+  pt: ""
+  ru: ""
+  ja: "{provider}で支払い"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 invoice_number:
   context: Invoice number label
   en: Invoice number

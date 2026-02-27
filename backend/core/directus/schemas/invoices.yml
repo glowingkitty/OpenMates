@@ -100,3 +100,9 @@ invoices:
       length: 255
       nullable: true
       note: "Provider-specific order ID needed for refunds. For Polar: the Polar Order UUID (different from checkout session ID stored in order_id). For Stripe: null (order_id is the PaymentIntent ID). For Revolut: null (order_id is the Revolut order ID)."
+
+    encrypted_currency:
+      type: string
+      length: 512
+      nullable: true
+      note: "Encrypted ISO currency code (e.g. 'usd', 'eur'). Null for legacy invoices created before this field was added. Used by frontend to display amounts in the correct currency."

@@ -188,11 +188,18 @@ class InvoiceTemplateService(BasePDFTemplateService):
         translated_sender_country = self._get_translated_country_name(sender_country_val)
         sender_email_val = invoice_data.get('sender_email', self.sender_email)
         sender_vat_val = invoice_data.get('sender_vat', self.sender_vat)
+        # Build sender details string.
+        # For Polar (payment_confirmation): omit our VAT number because Polar as MoR is the
+        # seller — our VAT number is irrelevant and would be misleading on this document.
+        # For Stripe/Revolut (invoice): include VAT number as we are the direct seller.
         sender_details_str = (
             f"{sender_addressline1}<br/>{sender_addressline2}<br/>{sender_addressline3}"
             f"<br/>{translated_sender_country}<br/>{sender_email_val}"
-            f"<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {sender_vat_val}"
         )
+        if document_type != "payment_confirmation":
+            sender_details_str += (
+                f"<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {sender_vat_val}"
+            )
         
         # Create three-column layout without extra padding
         sender_title = Paragraph("<b>OpenMates</b>", self.styles['Bold'])
@@ -416,15 +423,49 @@ class InvoiceTemplateService(BasePDFTemplateService):
         total_start_position = doc.width * 0.45
         left_space = total_start_position - self.left_indent
         
-        # Create data for totals table - remove bold from first two rows
-        totals_data = [
-            [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']),
-             Paragraph(fmt_price(invoice_data['total_price']), self.styles['Normal'])],
-            [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']),
-             Paragraph(fmt_price(0), self.styles['Normal'])],
-            [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_paid']['text']}</b>", self.styles['Bold']),
-             Paragraph(f"<b>{fmt_price(invoice_data['total_price'])}</b>", self.styles['Bold'])]
-        ]
+        # Create data for totals table.
+        # For Polar (payment_confirmation): show actual tax amount from Polar as MoR.
+        #   - If tax > 0: derive tax rate, show "Tax ({rate}%)" with actual tax amount.
+        #   - If tax == 0: show "Tax (0%)" without asterisk (no §19 UStG applies).
+        # For Stripe/Revolut (invoice): keep "VAT (0%) *" with asterisk referencing §19 UStG.
+        actual_tax_amount = invoice_data.get('actual_tax_amount')
+        actual_net_amount = invoice_data.get('actual_net_amount')
+
+        if document_type == "payment_confirmation" and actual_tax_amount is not None:
+            # Polar: use actual tax data from Polar as MoR
+            tax_display_amount = actual_tax_amount
+            total_paid_amount = invoice_data['total_price']  # total_price is already total incl. tax
+
+            # Use net amount for the subtotal (excl. tax) if available
+            subtotal_amount = actual_net_amount if actual_net_amount is not None else (total_paid_amount - tax_display_amount)
+
+            # Derive tax rate percentage: (tax / net) * 100
+            if subtotal_amount > 0 and tax_display_amount > 0:
+                tax_rate_pct = (tax_display_amount / subtotal_amount) * 100
+                # Round to nearest integer for display (e.g. 19%, 20%, 7%)
+                tax_rate_str = f"{tax_rate_pct:.0f}"
+            else:
+                tax_rate_str = "0"
+
+            tax_label = f"Tax ({tax_rate_str}%)"
+            totals_data = [
+                [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']),
+                 Paragraph(fmt_price(subtotal_amount), self.styles['Normal'])],
+                [Paragraph(tax_label, self.styles['Normal']),
+                 Paragraph(fmt_price(tax_display_amount), self.styles['Normal'])],
+                [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_paid']['text']}</b>", self.styles['Bold']),
+                 Paragraph(f"<b>{fmt_price(total_paid_amount)}</b>", self.styles['Bold'])]
+            ]
+        else:
+            # Stripe/Revolut: §19 UStG Kleinunternehmer — 0% VAT with asterisk
+            totals_data = [
+                [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']),
+                 Paragraph(fmt_price(invoice_data['total_price']), self.styles['Normal'])],
+                [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']),
+                 Paragraph(fmt_price(0), self.styles['Normal'])],
+                [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_paid']['text']}</b>", self.styles['Bold']),
+                 Paragraph(f"<b>{fmt_price(invoice_data['total_price'])}</b>", self.styles['Bold'])]
+            ]
         
         # Calculate column widths for the totals table
         totals_width = doc.width - total_start_position
@@ -535,17 +576,21 @@ class InvoiceTemplateService(BasePDFTemplateService):
         ]))
         elements.append(footer_table)
         
-        # Add VAT disclaimer
-        elements.append(Spacer(1, 10))
-        vat_disclaimer = sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['vat_disclaimer']['text'])
-        vat_disclaimer_table = Table([[Spacer(self.left_indent, 0),
-                                     Paragraph("* " + vat_disclaimer, self.styles['Normal'])]], # Changed from 'FooterText' to 'Normal'
-                                     colWidths=[self.left_indent, doc.width-self.left_indent])
-        vat_disclaimer_table.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        elements.append(vat_disclaimer_table)
+        # Add VAT disclaimer — only for Stripe/Revolut invoices where OpenMates is the
+        # direct seller and the §19 UStG Kleinunternehmer rule applies.
+        # For Polar (payment_confirmation): Polar is the MoR and handles tax, so the
+        # §19 UStG disclaimer does not apply and would be legally incorrect.
+        if document_type != "payment_confirmation":
+            elements.append(Spacer(1, 10))
+            vat_disclaimer = sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['vat_disclaimer']['text'])
+            vat_disclaimer_table = Table([[Spacer(self.left_indent, 0),
+                                          Paragraph("* " + vat_disclaimer, self.styles['Normal'])]],
+                                          colWidths=[self.left_indent, doc.width-self.left_indent])
+            vat_disclaimer_table.setStyle(TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            elements.append(vat_disclaimer_table)
 
         # For Polar: add Merchant of Record note explaining that Polar issued the official tax invoice.
         # This is legally required because Polar (not OpenMates) issued the buyer's VAT/tax invoice.
