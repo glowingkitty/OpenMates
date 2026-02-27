@@ -225,9 +225,36 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	await screenshot(page, 'tier-selected');
 
 	// ─── Payment consent ─────────────────────────────────────────────────────────
-	// SettingsBuyCreditsPayment renders a consent toggle before the payment form.
+	// Two possible states after tier selection:
+	//
+	// A) Saved Stripe payment methods exist (returning user):
+	//    → Saved methods list is shown with a "Add payment method" button.
+	//    → Click "Add payment method" to reveal the fresh Payment component
+	//      (which includes the consent toggle and Stripe iframe for a new card).
+	//
+	// B) No saved payment methods (fresh account):
+	//    → Stripe payment form is shown immediately with a consent toggle on top.
+	//
+	// Detect which case by racing the consent toggle vs the "Add payment method" button.
 
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
+	const addPaymentMethodBtn = page.getByRole('button', { name: /add payment method/i });
+
+	// Wait for whichever of the two elements appears first within 20s.
+	await page.waitForSelector(
+		'#limited-refund-consent-toggle, button:has-text("Add payment method")',
+		{ state: 'visible', timeout: 20000 }
+	);
+
+	const addMethodVisible = await addPaymentMethodBtn.isVisible();
+	if (addMethodVisible) {
+		// Flow A: click "Add payment method" to get the fresh Stripe form
+		await addPaymentMethodBtn.click();
+		log('Saved payment methods detected — clicked "Add payment method" to show fresh form.');
+		await screenshot(page, 'add-payment-method-clicked');
+	}
+
+	// Now wait for the consent toggle to appear (fresh form always shows it)
 	await expect(consentToggle).toBeVisible({ timeout: 20000 });
 	await consentToggle.scrollIntoViewIfNeeded();
 	try {
@@ -265,10 +292,11 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 
 	// ─── Submit Stripe payment ────────────────────────────────────────────────────
 	// The Pay button is outside the Stripe iframe in our Payment.svelte component.
-	// It's labeled "Pay" / "Pay €X" or similar.
+	// Button text comes from i18n key signup.buy_for → "Buy for {amount} {currency}"
+	// e.g. "Buy for 2 EUR". Match broadly to handle any amount/currency combination.
 
 	const paymentSubmittedAt = new Date().toISOString();
-	const stripePayButton = page.getByRole('button', { name: /^pay(\s|$)/i });
+	const stripePayButton = page.getByRole('button', { name: /buy for|pay/i });
 	await expect(stripePayButton).toBeVisible({ timeout: 15000 });
 	await stripePayButton.click();
 	log('Clicked Stripe Pay button — waiting for success confirmation.');

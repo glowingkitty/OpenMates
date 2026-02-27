@@ -261,31 +261,52 @@ test('settings buy credits: completes full Polar (non-EU card) purchase flow', a
 	log('Selected first pricing tier.');
 	await screenshot(page, 'tier-selected');
 
-	// ─── Payment consent ─────────────────────────────────────────────────────────
-	// SettingsBuyCreditsPayment renders a consent toggle before the payment form.
+	// ─── Payment consent + switch to Polar ───────────────────────────────────────
+	// Two possible states after tier selection:
+	//
+	// A) Saved Stripe payment methods exist (returning user):
+	//    → Saved methods list is shown with a "Pay with a non-EU card" button.
+	//    → No consent toggle — click the button directly to switch to Polar.
+	//
+	// B) No saved payment methods (fresh account / new card flow):
+	//    → Stripe payment form is shown with a consent overlay on top.
+	//    → Must accept consent toggle first, then click "Pay with a non-EU card".
+	//
+	// Detect which case by racing the consent toggle vs the non-EU card button.
 
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	await expect(consentToggle).toBeVisible({ timeout: 20000 });
-	await consentToggle.scrollIntoViewIfNeeded();
-	try {
-		await consentToggle.check({ force: true });
-	} catch {
-		await consentToggle.evaluate((el: HTMLInputElement) => {
-			el.checked = true;
-			el.dispatchEvent(new Event('change', { bubbles: true }));
-		});
+	const switchToPolarButton = page.getByRole('button', { name: /pay with a non-eu card/i });
+
+	// Wait for whichever of the two elements appears first within 20s.
+	// We use waitForSelector with a combined CSS/text selector rather than Promise.race
+	// because Playwright's expect().toBeVisible() throws on timeout — meaning both
+	// branches would throw if the other one wins the race.
+	await page.waitForSelector(
+		'#limited-refund-consent-toggle, button:has-text("Pay with a non-EU card")',
+		{ state: 'visible', timeout: 20000 }
+	);
+
+	const consentVisible = await consentToggle.isVisible();
+	if (consentVisible) {
+		// Flow B: accept consent then click switch button
+		await consentToggle.scrollIntoViewIfNeeded();
+		try {
+			await consentToggle.check({ force: true });
+		} catch {
+			await consentToggle.evaluate((el: HTMLInputElement) => {
+				el.checked = true;
+				el.dispatchEvent(new Event('change', { bubbles: true }));
+			});
+		}
+		await screenshot(page, 'payment-consent-accepted');
+		log('Payment consent accepted (fresh payment form flow).');
+	} else {
+		log('Saved payment methods detected — skipping consent toggle (already accepted).');
 	}
-	await screenshot(page, 'payment-consent-accepted');
-	log('Payment consent accepted.');
 
 	await assertNoMissingTranslations(page);
 
-	// ─── Switch to Polar ─────────────────────────────────────────────────────────
-	// After consent, the Stripe payment form is shown by default. The "Pay with a
-	// non-EU card" button switches the provider to Polar.
-
-	const switchToPolarButton = page.getByRole('button', { name: /pay with a non-eu card/i });
-	await expect(switchToPolarButton).toBeVisible({ timeout: 20000 });
+	await expect(switchToPolarButton).toBeVisible({ timeout: 10000 });
 	await switchToPolarButton.click();
 	await screenshot(page, 'switch-to-polar-clicked');
 	log('Clicked "Pay with a non-EU card" button — Polar provider activated.');

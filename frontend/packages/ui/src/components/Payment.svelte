@@ -79,11 +79,15 @@
     let activeProvider: 'stripe' | 'polar' | null = $state(null);
     // providerOverride is set when the user explicitly switches providers via the switch button
     let providerOverride: 'stripe' | 'polar' | null = $state(null);
-    // polarEmbedInstance tracks the active Polar embed so we can clean it up
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let polarEmbedInstance: any = $state(null);
-    // isPolarLoading is true while Polar create-order is in flight before opening overlay
+    // isPolarLoading is true while Polar create-order is in flight before showing inline iframe
     let isPolarLoading = $state(false);
+    // polarCheckoutUrl: when set, renders the Polar checkout as an inline iframe inside the
+    // payment panel instead of a full-screen overlay. The SDK's PolarEmbedCheckout.create()
+    // always appends a fixed-position overlay to document.body — we bypass it entirely and
+    // manage our own iframe + postMessage listener so the checkout fits inside the settings menu.
+    let polarCheckoutUrl: string | null = $state(null);
+    // polarMessageListener: reference kept so we can remove it on cleanup
+    let polarMessageListener: ((e: MessageEvent) => void) | null = $state(null);
     
     let darkmode = $state(false);
     let userProfileUnsubscribe = userProfile.subscribe(profile => {
@@ -159,11 +163,8 @@
             paymentElement.destroy();
             paymentElement = null;
         }
-        // Clean up any existing Polar embed overlay
-        if (polarEmbedInstance) {
-            polarEmbedInstance.close();
-            polarEmbedInstance = null;
-        }
+        // Clean up any active Polar inline checkout
+        teardownPolarInlineCheckout();
         // Reset provider-specific state
         stripe = null;
         elements = null;
@@ -184,6 +185,18 @@
      * Create a Polar checkout session and open the embedded checkout overlay.
      * Called when the user clicks the "Pay with Polar" button.
      */
+    /**
+     * Remove the Polar postMessage listener and reset inline iframe state.
+     * Called when checkout is dismissed or completed.
+     */
+    function teardownPolarInlineCheckout() {
+        if (polarMessageListener) {
+            window.removeEventListener('message', polarMessageListener);
+            polarMessageListener = null;
+        }
+        polarCheckoutUrl = null;
+    }
+
     async function handlePolarCheckout() {
         if (supportContribution) {
             // Supporter contributions always use Stripe
@@ -236,48 +249,63 @@
                 throw new Error('No checkout URL returned from Polar order.');
             }
 
-            // Import PolarEmbedCheckout lazily to avoid SSR issues
-            const { PolarEmbedCheckout } = await import('@polar-sh/checkout/embed');
-            isPolarLoading = false;
-
+            // Build the inline iframe URL: append embed=true + theme so Polar renders
+            // in embed mode (no redirect, postMessage events enabled).
+            // We do NOT use PolarEmbedCheckout.create() because it always appends a
+            // fixed-position full-screen overlay to document.body — which is wrong for
+            // the settings panel context. Instead we render our own <iframe> in the
+            // template and wire up the postMessage protocol manually.
             const theme = darkmode ? 'dark' : 'light';
-            const embedInstance = await PolarEmbedCheckout.create(order.checkout_url, { theme });
-            polarEmbedInstance = embedInstance;
+            const iframeUrl = new URL(order.checkout_url);
+            iframeUrl.searchParams.set('embed', 'true');
+            iframeUrl.searchParams.set('theme', theme);
 
-            // Listen for successful checkout completion
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            embedInstance.addEventListener('success', (_event: unknown) => {
-                polarEmbedInstance = null;
-                // Transition to processing — WebSocket will confirm and call handlePaymentCompleted
-                paymentState = 'processing';
-                isWaitingForConfirmation = true;
-                dispatch('paymentStateChange', { state: paymentState });
+            // Register postMessage listener BEFORE setting polarCheckoutUrl (before iframe mounts)
+            const POLAR_ORIGINS = ['https://polar.sh', 'https://sandbox.polar.sh'];
+            const listener = (ev: MessageEvent) => {
+                if (!POLAR_ORIGINS.includes(ev.origin)) return;
+                const data = ev.data;
+                if (!data || data.type !== 'POLAR_CHECKOUT') return;
 
-                // Start 30-second timeout in case WebSocket confirmation doesn't arrive
-                paymentConfirmationTimeoutId = setTimeout(() => {
-                    if (isWaitingForConfirmation) {
-                        console.log('[Payment][Polar] Confirmation timeout after 30s — showing delayed message');
-                        showDelayedMessage = true;
-                        setTimeout(() => {
-                            if (isWaitingForConfirmation) {
-                                paymentState = 'success';
-                                isWaitingForConfirmation = false;
-                                dispatch('paymentStateChange', {
-                                    state: paymentState,
-                                    payment_intent_id: lastOrderId,
-                                    isDelayed: true
-                                });
-                            }
-                        }, 2000);
-                    }
-                }, 30000);
-            });
+                const event = data.event as string;
+                console.log('[Payment][Polar] postMessage event:', event);
 
-            // Listen for close without completing (user dismissed)
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            embedInstance.addEventListener('close', (_event: unknown) => {
-                polarEmbedInstance = null;
-            });
+                if (event === 'success') {
+                    teardownPolarInlineCheckout();
+                    // Transition to processing state — WebSocket will confirm completion
+                    paymentState = 'processing';
+                    isWaitingForConfirmation = true;
+                    dispatch('paymentStateChange', { state: paymentState });
+
+                    // 30-second fallback timeout in case WebSocket confirmation is delayed
+                    paymentConfirmationTimeoutId = setTimeout(() => {
+                        if (isWaitingForConfirmation) {
+                            console.log('[Payment][Polar] Confirmation timeout after 30s — showing delayed message');
+                            showDelayedMessage = true;
+                            setTimeout(() => {
+                                if (isWaitingForConfirmation) {
+                                    paymentState = 'success';
+                                    isWaitingForConfirmation = false;
+                                    dispatch('paymentStateChange', {
+                                        state: paymentState,
+                                        payment_intent_id: lastOrderId,
+                                        isDelayed: true
+                                    });
+                                }
+                            }, 2000);
+                        }
+                    }, 30000);
+                } else if (event === 'close') {
+                    // User closed the checkout without completing — go back to button
+                    teardownPolarInlineCheckout();
+                }
+            };
+            polarMessageListener = listener;
+            window.addEventListener('message', listener);
+
+            // Setting polarCheckoutUrl causes the template to replace the button with the iframe
+            polarCheckoutUrl = iframeUrl.toString();
+            console.log('[Payment][Polar] Inline iframe URL set:', polarCheckoutUrl);
 
         } catch (error) {
             errorMessage = `Failed to start Polar checkout. ${error instanceof Error ? error.message : String(error)}`;
@@ -840,11 +868,8 @@
             }
             // Clean up Stripe elements on component destroy
             if (paymentElement) paymentElement.destroy();
-            // Clean up Polar embed overlay if open
-            if (polarEmbedInstance) {
-                polarEmbedInstance.close();
-                polarEmbedInstance = null;
-            }
+            // Clean up Polar inline iframe postMessage listener if active
+            teardownPolarInlineCheckout();
             // Clean up timeout
             if (paymentConfirmationTimeoutId) {
                 clearTimeout(paymentConfirmationTimeoutId);
@@ -872,36 +897,55 @@
             provider={activeProvider || 'stripe'}
         />
     {:else if activeProvider === 'polar' && !supportContribution}
-        <!-- Polar embedded checkout: user clicks button to open the overlay -->
+        <!-- Polar embedded checkout.
+             Two states:
+             1. polarCheckoutUrl is null  → show "Buy for X EUR" button
+             2. polarCheckoutUrl is set   → show Polar checkout as an inline iframe
+                                            inside the settings panel (no full-screen overlay).
+             We bypass PolarEmbedCheckout.create() entirely because it always appends a
+             fixed-position overlay to document.body. Instead we create our own iframe,
+             sized to fit the settings menu, and wire postMessage events manually. -->
         <div class="payment-form-overlay-wrapper">
-            {#if errorMessage}
-                <div class="polar-error-message" role="alert">{errorMessage}</div>
-            {/if}
-
-            <button
-                class="buy-button polar-pay-button"
-                disabled={isPolarLoading || isLoading}
-                onclick={handlePolarCheckout}
-            >
-                {#if isPolarLoading || isLoading}
-                    {$text('login.loading')}
-                {:else}
-                    {$text('signup.buy_for')
-                        .replace('{currency}', currency)
-                        .replace('{amount}', (purchasePrice / 100).toString())}
+            {#if polarCheckoutUrl}
+                <!-- Inline Polar checkout iframe — fills the settings payment panel -->
+                <div class="polar-inline-checkout-container">
+                    <iframe
+                        class="polar-inline-checkout-iframe"
+                        src={polarCheckoutUrl}
+                        title="Polar Checkout"
+                        allow="payment 'self' https://polar.sh https://sandbox.polar.sh; publickey-credentials-get 'self' https://polar.sh https://sandbox.polar.sh"
+                    ></iframe>
+                </div>
+            {:else}
+                {#if errorMessage}
+                    <div class="polar-error-message" role="alert">{errorMessage}</div>
                 {/if}
-            </button>
 
-            <!-- Switch to EU / Stripe -->
-            <div class="provider-switch-container">
                 <button
-                    class="provider-switch-btn"
-                    onclick={() => switchProvider('stripe')}
-                    disabled={isLoading || isPolarLoading}
+                    class="buy-button polar-pay-button"
+                    disabled={isPolarLoading || isLoading}
+                    onclick={handlePolarCheckout}
                 >
-                    {$text('signup.switch_to_eu_card')}
+                    {#if isPolarLoading || isLoading}
+                        {$text('login.loading')}
+                    {:else}
+                        {$text('signup.buy_for')
+                            .replace('{currency}', currency)
+                            .replace('{amount}', (purchasePrice / 100).toString())}
+                    {/if}
                 </button>
-            </div>
+
+                <!-- Switch to EU / Stripe -->
+                <div class="provider-switch-container">
+                    <button
+                        class="provider-switch-btn"
+                        onclick={() => switchProvider('stripe')}
+                        disabled={isLoading || isPolarLoading}
+                    >
+                        {$text('signup.switch_to_eu_card')}
+                    </button>
+                </div>
+            {/if}
         </div>
     {:else}
         {#if hostedInvoiceUrl}
@@ -1065,6 +1109,23 @@
     .polar-pay-button:disabled {
         opacity: 0.7;
         cursor: not-allowed;
+    }
+
+    /* Inline Polar checkout iframe container — fills the settings panel width,
+       tall enough for the Polar form (card fields + submit button). No overlay. */
+    .polar-inline-checkout-container {
+        width: 100%;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--color-grey-20);
+    }
+
+    .polar-inline-checkout-iframe {
+        width: 100%;
+        height: 600px;
+        border: none;
+        display: block;
+        background: transparent;
     }
 
     /* Error message for Polar checkout failures */
