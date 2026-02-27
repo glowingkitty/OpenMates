@@ -234,7 +234,7 @@ changes to the documentation (to keep the documentation up to date).
             
             // For non-authenticated users, include interface settings (top-level and nested), 
             // app store (including app details), mates (browse only), share chat (for sharing demo chats),
-            // newsletter, support, and report issue.
+            // newsletter, support, report issue, and the pricing overview page.
             // App store and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key.startsWith('interface/') ||
@@ -242,14 +242,15 @@ changes to the documentation (to keep the documentation up to date).
                     key === 'mates' || key.startsWith('mates/') ||
                     key === 'shared/share' || key === 'newsletter' ||
                     key === 'support' || key.startsWith('support/') ||
-                    key === 'report_issue' || key === 'account/delete') {
+                    key === 'report_issue' || key === 'account/delete' ||
+                    key === 'pricing') {
                     filtered[key] = component;
                 }
             } else {
-                // For authenticated users, include all non-server settings, or include server settings if user is admin
-                // Shared settings (including nested share chat) are available for authenticated users
+                // For authenticated users, include all non-server settings, or include server settings if user is admin.
+                // Exclude 'pricing' — authenticated users have the full 'billing' section instead.
                 // Admin status is read from userProfile.is_admin (synced during login, no separate API call needed)
-                if (!key.startsWith('server') || $userProfile.is_admin) {
+                if (key !== 'pricing' && (!key.startsWith('server') || $userProfile.is_admin)) {
                     filtered[key] = component;
                 }
             }

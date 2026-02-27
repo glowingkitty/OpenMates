@@ -5,7 +5,7 @@ Buy Credits - Credit tier selection
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import { pricingTiers } from '../../../config/pricing';
+    import { pricingTiers, type PricingTier } from '../../../config/pricing';
     import SettingsItem from '../../SettingsItem.svelte';
     import { selectedTierStore } from './SettingsBuyCreditsPayment.svelte';
 
@@ -29,13 +29,13 @@ Buy Credits - Credit tier selection
     }
 
     // Helper to get price for a tier in selected currency
-    function getTierPrice(tier: any): number {
+    function getTierPrice(tier: PricingTier): number {
         const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
         return tier.price[currencyKey];
     }
 
     // Navigate to payment view for a specific tier
-    function selectCreditTier(tier: any) {
+    function selectCreditTier(tier: PricingTier) {
 
         const tierIndex = pricingTiers.indexOf(tier);
         // Store the selected tier index
@@ -58,7 +58,7 @@ Buy Credits - Credit tier selection
     <SettingsItem
         type="submenu"
         icon="subsetting_icon coins"
-        title={formatCredits(tier.credits)}
+        title="{formatCredits(tier.credits)} {$text('settings.billing.credits')}"
         subtitle={formatCurrency(getTierPrice(tier), selectedCurrency)}
         onClick={() => selectCreditTier(tier)}
     />

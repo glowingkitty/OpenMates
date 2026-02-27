@@ -45,6 +45,9 @@ import SettingsPassword from "./security/SettingsPassword.svelte";
 import SettingsTwoFactorAuth from "./security/SettingsTwoFactorAuth.svelte";
 import SettingsRecoveryKey from "./security/SettingsRecoveryKey.svelte";
 
+// Pricing (unauthenticated users only)
+import SettingsPricing from "./SettingsPricing.svelte";
+
 // Billing
 import SettingsUsage from "./SettingsUsage.svelte";
 import SettingsBilling from "./SettingsBilling.svelte";
@@ -126,6 +129,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // Chat
   chat: SettingsChat,
   "chat/notifications": SettingsChatNotifications,
+  // Pricing — visible only to non-authenticated users (see Settings.svelte auth filter)
+  pricing: SettingsPricing,
   // Billing
   billing: SettingsBilling,
   "billing/buy-credits": SettingsBuyCredits,

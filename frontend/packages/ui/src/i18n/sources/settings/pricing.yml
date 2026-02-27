@@ -1,0 +1,230 @@
+pricing.description:
+  context: Short explanatory text shown at the top of the Pricing settings page
+  en: Credits power every AI interaction on OpenMates. Buy a one-time package or set up auto top-up to keep your balance topped up.
+  de: Credits ermöglichen jede KI-Interaktion auf OpenMates. Kaufe ein Einmalpaket oder richte Auto-Aufladen ein.
+  zh: 积分驱动 OpenMates 上的每一次 AI 交互。购买一次性套餐或设置自动充值。
+  es: Los créditos impulsan cada interacción de IA en OpenMates. Compra un paquete único o configura la recarga automática.
+  fr: Les crédits alimentent chaque interaction IA sur OpenMates. Achetez un forfait unique ou configurez le rechargement automatique.
+  pt: ""
+  ru: ""
+  ja: クレジットはOpenMatesのすべてのAIインタラクションを動かします。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+pricing.packages_heading:
+  context: Section heading for credit packages on the Pricing page
+  en: Credit Packages
+  de: Kreditpakete
+  zh: 积分套餐
+  es: Paquetes de Créditos
+  fr: Forfaits de Crédits
+  pt: ""
+  ru: ""
+  ja: クレジットパッケージ
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+pricing.recommended:
+  context: Badge label for the recommended credit package
+  en: Recommended
+  de: Empfohlen
+  zh: 推荐
+  es: Recomendado
+  fr: Recommandé
+  pt: ""
+  ru: ""
+  ja: おすすめ
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+pricing.bonus_credits:
+  context: Label for bonus credits that come with a monthly auto top-up subscription
+  en: bonus/mo with Auto Top-Up
+  de: Bonus/Mo mit Auto-Aufladen
+  zh: 自动充值附赠积分/月
+  es: bonus/mes con Recarga Automática
+  fr: bonus/mois avec Rechargement Auto
+  pt: ""
+  ru: ""
+  ja: 自動チャージ付きボーナス/月
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+pricing.vat_note:
+  context: Small footnote on the Pricing page indicating prices are excluding VAT
+  en: All prices excluding VAT. Prices in EUR and USD.
+  de: Alle Preise exkl. MwSt. Preise in EUR und USD.
+  zh: 所有价格不含增值税。价格以欧元和美元计。
+  es: Todos los precios sin IVA. Precios en EUR y USD.
+  fr: Tous les prix hors TVA. Prix en EUR et USD.
+  pt: ""
+  ru: ""
+  ja: すべての価格は税抜きです。EUR・USD表示。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+pricing.explore_heading:
+  context: Section heading for the App Store exploration links on the Pricing page
+  en: Explore App Skills & Costs
+  de: App-Skills & Kosten erkunden
+  zh: 探索应用技能与费用
+  es: Explorar habilidades de apps y costos
+  fr: Explorer les compétences d'apps et les coûts
+  pt: ""
+  ru: ""
+  ja: アプリスキルとコストを探る
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+pricing.ai_ask_skill:
+  context: Title for the AI Ask skill link on the Pricing page
+  en: AI Ask
+  de: KI Fragen
+  zh: AI 问答
+  es: AI Ask
+  fr: IA Demander
+  pt: ""
+  ru: ""
+  ja: AI Ask
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+pricing.ai_ask_subtitle:
+  context: Subtitle for the AI Ask skill link on the Pricing page — explains it is the main cost driver
+  en: Biggest cost factor — explore model pricing
+  de: Größter Kostenfaktor — Modellpreise erkunden
+  zh: 最大费用因素 — 探索模型定价
+  es: Mayor factor de costo — explorar precios de modelos
+  fr: Plus grand facteur de coût — explorer la tarification des modèles
+  pt: ""
+  ru: ""
+  ja: 最大コスト要因 — モデル料金を確認
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+pricing.browse_app_store:
+  context: Title for the App Store link on the Pricing page
+  en: Browse App Store
+  de: App Store durchsuchen
+  zh: 浏览应用商店
+  es: Explorar App Store
+  fr: Parcourir l'App Store
+  pt: ""
+  ru: ""
+  ja: アプリストアを閲覧
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+pricing.browse_app_store_subtitle:
+  context: Subtitle for the App Store link on the Pricing page — tells user they can see per-skill pricing
+  en: See pricing for all available skills
+  de: Preise für alle verfügbaren Skills einsehen
+  zh: 查看所有可用技能的定价
+  es: Ver precios de todas las habilidades disponibles
+  fr: Voir les prix de toutes les compétences disponibles
+  pt: ""
+  ru: ""
+  ja: 利用可能なすべてのスキルの料金を確認
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []

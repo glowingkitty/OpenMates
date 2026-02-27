@@ -642,6 +642,52 @@ mates:
   cs: ""
   sv: ""
   verified_by_human: []
+pricing.description:
+  context: Short description shown in the pricing settings page gradient banner header (for unauthenticated users)
+  en: Explore credit packages and skill costs
+  de: Kreditpakete und Skill-Kosten erkunden
+  zh: 探索积分包和技能费用
+  es: Explora paquetes de créditos y costos de habilidades
+  fr: Explorez les forfaits de crédits et les coûts des compétences
+  pt: ""
+  ru: ""
+  ja: クレジットパッケージとスキルコストを確認
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+pricing:
+  context: Pricing settings menu item (shown to unauthenticated users only)
+  en: Pricing
+  de: Preise
+  zh: 定价
+  es: Precios
+  fr: Tarifs
+  pt: ""
+  ru: ""
+  ja: 料金
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 shared.description:
   context: Short description shown in the shared settings page gradient banner header
   en: Manage your shared chats and tips
@@ -710,6 +756,29 @@ share:
   th: แชร์
   cs: Sdílet
   sv: Dela
+  verified_by_human: []
+fork:
+  context: Fork conversation settings panel breadcrumb/title (opened from message context menu)
+  en: Fork Conversation
+  de: Konversation verzweigen
+  zh: 派生对话
+  es: Bifurcar conversación
+  fr: Bifurquer la conversation
+  pt: Bifurcar conversa
+  ru: Разветвить беседу
+  ja: 会話を分岐
+  ko: 대화 포크
+  it: Biforca conversazione
+  tr: Konuşmayı çatalla
+  vi: Phân nhánh cuộc trò chuyện
+  id: Cabangkan percakapan
+  pl: Rozwidl rozmowę
+  nl: Gesprek vertakken
+  ar: تفريع المحادثة
+  hi: बातचीत को फोर्क करें
+  th: แยกการสนทนา
+  cs: Rozvětvit konverzaci
+  sv: Förgrena konversation
   verified_by_human: []
 messengers:
   context: Messengers settings menu item
