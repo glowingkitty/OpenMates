@@ -69,9 +69,8 @@ changes to the documentation (to keep the documentation up to date).
                 // This will automatically update currentLanguage via $derived
                 locale.set(langParam);
                 waitLocale().then(() => {
-                    // Store preference in localStorage and cookies
+                    // Store preference in localStorage (sole source of truth for language preference)
                     localStorage.setItem('preferredLanguage', langParam);
-                    document.cookie = `preferredLanguage=${langParam}; path=/; max-age=31536000; SameSite=Lax`;
                     
                     // Update HTML lang attribute
                     document.documentElement.setAttribute('lang', langParam);

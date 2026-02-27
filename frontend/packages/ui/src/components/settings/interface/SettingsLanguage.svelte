@@ -12,12 +12,12 @@ changes to the documentation (to keep the documentation up to date).
 <script lang="ts">
     import { text, SUPPORTED_LANGUAGES } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
-    import { locale, locales } from 'svelte-i18n';
+    import { locale } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
     import { loadMetaTags, getMetaTags } from '../../../config/meta';
     import { createEventDispatcher, onMount } from 'svelte';
-    import { settingsNavigationStore, updateBreadcrumbsWithLanguage } from '../../../stores/settingsNavigationStore';
+    import { updateBreadcrumbsWithLanguage } from '../../../stores/settingsNavigationStore';
     import { getApiUrl, apiEndpoints } from '../../../config/api'; // Import API config
     import { contentCache } from '../../../utils/contentCache'; // Import content cache to clear on language change
     import { authStore } from '../../../stores/authStore'; // Import auth store to check authentication status
@@ -88,11 +88,8 @@ changes to the documentation (to keep the documentation up to date).
             // Update current language after locale is set
             currentLanguage = newLocale;
 
-            // Store preference in localStorage
+            // Store preference in localStorage (sole source of truth for language preference)
             localStorage.setItem('preferredLanguage', newLocale);
-            
-            // Store preference in cookies for SSR (expires in 1 year)
-            document.cookie = `preferredLanguage=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
             
             // Wait for translations to load
             await waitLocale();

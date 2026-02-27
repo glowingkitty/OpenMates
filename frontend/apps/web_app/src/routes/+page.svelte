@@ -999,9 +999,8 @@
 				locale.set(langParam);
 				await waitLocale();
 
-				// Save to localStorage and cookies
+				// Save to localStorage (sole source of truth for language preference)
 				localStorage.setItem('preferredLanguage', langParam);
-				document.cookie = `preferredLanguage=${langParam}; path=/; max-age=31536000; SameSite=Lax`;
 
 				// Update HTML lang attribute
 				document.documentElement.setAttribute('lang', langParam);
