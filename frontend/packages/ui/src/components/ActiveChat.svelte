@@ -5621,33 +5621,65 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.warn(`[ActiveChat] loadChat: Sanitized ${sanitizedCount} stale message(s) to synced status`);
         }
 
-        currentMessages = newMessages;
-
-        // ─── Restore credits error header for chats that were rejected ────────────
+        // ─── Restore credits error header and status for chats that were rejected ──
         // When switching back to a chat that had a credits rejection, the header state
         // was cleared by resetChatHeaderState(). Detect this by checking if:
         //   1) The chat has no title/category (backend never sent them due to rejection), AND
-        //   2) There's a system message (or assistant with waiting_for_user) in the messages.
+        //   2) There's a system/assistant message with waiting_for_user OR a role='system'
+        //      message whose status was corrupted to 'delivered'/'synced' by phased sync.
+        //
+        // WHY STATUS CORRUPTION HAPPENS: Directus has no status column, so phased sync
+        // messages arrive with no status and prepareMessagesForStorage() assigns 'delivered'
+        // as the default. Previously this overwrote 'waiting_for_user' in IndexedDB (now
+        // fixed in shouldUpdateMessage), but messages already stored with the wrong status
+        // must be repaired here on load.
+        //
         // Defensive fallback: also detect from a user message with waiting_for_user alone,
-        // for cases where the system message's IDB save failed (e.g. due to an IDB transaction
-        // race) and only the user message persisted. This prevents the header from disappearing
-        // on reload even if the system rejection message is absent from IDB.
-        if (!activeChatDecryptedTitle && !activeChatDecryptedCategory && currentMessages.length > 0) {
-            const hasSystemRejection = currentMessages.some(m =>
+        // for cases where the system message's IDB save failed.
+        if (!activeChatDecryptedTitle && !activeChatDecryptedCategory && newMessages.length > 0) {
+            const hasSystemRejection = newMessages.some(m =>
                 m.status === 'waiting_for_user' && (m.role === 'system' || m.role === 'assistant')
             );
+            // Detect system messages whose status was corrupted by phased sync:
+            // In a credits-rejected chat (no title/category), a role='system' message must
+            // have been a rejection notice — restore its status to 'waiting_for_user'.
+            const corruptedSystemMessages = !hasSystemRejection
+                ? newMessages.filter(m =>
+                    m.role === 'system' && (m.status === 'delivered' || m.status === 'synced')
+                )
+                : [];
             // Fallback: detect from user message alone (system message may be missing from IDB)
-            const hasUserWaitingAlone = !hasSystemRejection && currentMessages.some(m =>
+            const hasUserWaitingAlone = !hasSystemRejection && corruptedSystemMessages.length === 0 && newMessages.some(m =>
                 m.status === 'waiting_for_user' && m.role === 'user'
             );
-            if (hasSystemRejection || hasUserWaitingAlone) {
+            if (hasSystemRejection || corruptedSystemMessages.length > 0 || hasUserWaitingAlone) {
                 isNewChatCreditsError = true;
+                // Repair corrupted system message statuses in memory (before assigning to currentMessages)
+                // and persist the fix to IndexedDB so future reloads are also correct.
+                if (corruptedSystemMessages.length > 0) {
+                    for (const msg of corruptedSystemMessages) {
+                        const idx = newMessages.findIndex(m => m.message_id === msg.message_id);
+                        if (idx !== -1) {
+                            newMessages[idx] = { ...newMessages[idx], status: 'waiting_for_user' };
+                            chatDB.saveMessage(newMessages[idx]).catch(error => {
+                                console.error(`[ActiveChat] loadChat: Failed to repair corrupted system message status for ${msg.message_id}:`, error);
+                            });
+                        }
+                    }
+                    console.debug('[ActiveChat] loadChat: Repaired corrupted system message status(es) to waiting_for_user', {
+                        count: corruptedSystemMessages.length,
+                        ids: corruptedSystemMessages.map(m => m.message_id)
+                    });
+                }
                 console.debug('[ActiveChat] loadChat: Restored credits error header for chat with rejection message', {
                     hasSystemRejection,
+                    corruptedSystemMessagesRepaired: corruptedSystemMessages.length,
                     hasUserWaitingAlone
                 });
             }
         }
+
+        currentMessages = newMessages;
 
         // Hide welcome screen when we have messages to display
         // This ensures public chats (demo + legal, like welcome chat) show their content immediately
