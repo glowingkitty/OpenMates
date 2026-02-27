@@ -24,6 +24,8 @@ import {
   getDemoMessages,
   isDemoChat,
   isLegalChat,
+  isCommunityDemo,
+  getCommunityDemoEmbed,
   INTRO_CHATS,
   LEGAL_CHATS,
 } from "../demo_chats";
@@ -366,15 +368,39 @@ async function resolveEmbedText(
   _referenceData?: Record<string, unknown>,
 ): Promise<{ text: string; sourceLabel: string; embedType: string } | null> {
   try {
+    // Normalize the embed type for consistent label lookup.
+    // Server uses underscores ("app_skill_use"), frontend uses hyphens ("app-skill-use").
+    const normalizedType = embedType.replace(/_/g, "-");
+
+    // --- Community demo embed path (unauthenticated users) ---
+    // Community demo embeds live in communityDemoStore (cleartext, separate from embedStore).
+    // They are not encrypted, so we parse the JSON content directly without TOON decoding.
+    const demoEmbed = getCommunityDemoEmbed(embedId);
+    if (demoEmbed) {
+      try {
+        const decoded = JSON.parse(demoEmbed.content) as Record<
+          string,
+          unknown
+        >;
+        const text = extractTextFromEmbed(normalizedType, decoded);
+        if (!text) return null;
+        const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
+        return { text, sourceLabel, embedType: normalizedType };
+      } catch (parseError) {
+        console.debug(
+          `[SearchService] Could not parse demo embed ${embedId} content:`,
+          parseError instanceof Error ? parseError.message : String(parseError),
+        );
+        return null;
+      }
+    }
+
+    // --- Authenticated user embed path ---
     // Lazy-load the heavy embedStore and TOON decoder only when needed.
     // Both are imported here (inside the function) to avoid a circular dependency,
     // since embedResolver imports searchService indirectly via the store chain.
     const { embedStore } = await import("./embedStore");
     const { decodeToonContent } = await import("./embedResolver");
-
-    // Normalize the embed type for consistent label lookup.
-    // Server uses underscores ("app_skill_use"), frontend uses hyphens ("app-skill-use").
-    const normalizedType = embedType.replace(/_/g, "-");
 
     // Load from IndexedDB / memory cache — does NOT trigger a WebSocket request.
     // If the embed isn't available locally, we simply skip it (it won't be in the index).
@@ -560,9 +586,13 @@ async function indexChatMessages(chatId: string): Promise<void> {
       }
 
       // 2. Extract embed references from the raw markdown and index their content.
-      //    Only authenticated chats have real embeds — demo chats have inline text content
-      //    already present in the message body.
-      if (!isDemoChat(chatId) && !isLegalChat(chatId)) {
+      //    Community demo chats have real embeds (cleartext, stored in communityDemoStore).
+      //    Static intro chats and legal chats only have inline text, no embed references.
+      //    Authenticated user chats have encrypted embeds resolved via embedStore.
+      const hasChatEmbeds =
+        isCommunityDemo(chatId) ||
+        (!isDemoChat(chatId) && !isLegalChat(chatId));
+      if (hasChatEmbeds) {
         const embedRefs = extractEmbedReferences(rawContent);
         for (const ref of embedRefs) {
           // Pass the full ref object as _referenceData so resolveEmbedText can
