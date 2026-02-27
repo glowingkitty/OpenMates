@@ -8,9 +8,10 @@ US Sales Tax) automatically, removing the need for manual tax registration.
 Polar API:   https://api.polar.sh/v1  (sandbox: https://sandbox-api.polar.sh/v1)
 Webhook:     Polar uses the Standard Webhooks specification (standardwebhooks.com).
              Headers sent: webhook-id, webhook-timestamp, webhook-signature.
-             The secret is base64-encoded (may be prefixed with "whsec_").
-             Signature = base64(HMAC-SHA256(key, "{id}.{timestamp}.{body}"))
-             where key = base64_decode(secret).
+             The signing secret uses the "polar_whs_" prefix format (NOT "whsec_").
+             Verification is handled by the official polar-sdk package
+             (polar_sdk.webhooks.validate_event), which manages the signature
+             algorithm and key decoding internally.
 
 Key differences from Stripe:
   - Checkout is redirect/embed-based: backend creates a session, frontend
@@ -22,16 +23,11 @@ Key differences from Stripe:
   - No saved payment methods / subscriptions in Phase 1 (one-time only).
 """
 
-import base64
-import hashlib
-import hmac
-import json
 import logging
-from datetime import datetime, timedelta, timezone
-from math import floor
 from typing import Any, Dict, Optional
 
 import httpx
+from polar_sdk.webhooks import WebhookVerificationError, validate_event
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -352,17 +348,20 @@ class PolarService:
         headers: Dict[str, str],
     ) -> Optional[Dict[str, Any]]:
         """
-        Verify a Polar webhook using the Standard Webhooks specification.
+        Verify a Polar webhook using the official polar-sdk.
 
-        Polar uses the Standard Webhooks spec (https://standardwebhooks.com).
-        The webhook signature is in the 'webhook-signature' header (space-separated
-        list of versioned signatures: "v1,<base64_sig>").
-        The signing key is the webhook secret, base64-decoded (strip "whsec_" prefix
-        if present). The signed data is: "{webhook-id}.{webhook-timestamp}.{body}".
+        Uses polar_sdk.webhooks.validate_event which handles the Standard Webhooks
+        spec correctly for Polar's "polar_whs_" prefixed signing secrets.
+        The SDK validates the HMAC-SHA256 signature, timestamp tolerance, and
+        decodes the key format internally — no manual base64/HMAC logic needed.
+
+        The verified event is returned as a plain dict (via model_dump) so existing
+        downstream code in payments.py can read event["type"] and event["data"]["id"]
+        without changes.
 
         Args:
             payload: Raw request body bytes
-            headers: All request headers (lowercase keys are handled internally)
+            headers: All request headers (lowercase keys handled by SDK)
 
         Returns:
             Parsed webhook event dict if signature is valid, None otherwise
@@ -371,82 +370,24 @@ class PolarService:
             logger.error("PolarService: webhook secret not initialized, cannot verify signature")
             return None
 
-        # Normalize headers to lowercase for consistent lookup
-        lower_headers = {k.lower(): v for k, v in headers.items()}
-
-        msg_id = lower_headers.get("webhook-id", "")
-        msg_timestamp = lower_headers.get("webhook-timestamp", "")
-        msg_signature = lower_headers.get("webhook-signature", "")
-
-        if not (msg_id and msg_timestamp and msg_signature):
-            logger.warning(
-                "PolarService: missing Standard Webhooks headers "
-                f"(webhook-id={bool(msg_id)}, webhook-timestamp={bool(msg_timestamp)}, "
-                f"webhook-signature={bool(msg_signature)})"
-            )
-            return None
-
         try:
-            # Validate timestamp to prevent replay attacks (±5 minute tolerance)
-            now = datetime.now(tz=timezone.utc)
-            try:
-                ts = datetime.fromtimestamp(float(msg_timestamp), tz=timezone.utc)
-            except (ValueError, OSError):
-                logger.warning("PolarService: invalid webhook-timestamp value")
-                return None
-            tolerance = timedelta(minutes=5)
-            if ts < (now - tolerance) or ts > (now + tolerance):
-                logger.warning(
-                    f"PolarService: webhook timestamp out of tolerance "
-                    f"(ts={ts.isoformat()}, now={now.isoformat()})"
-                )
-                return None
-
-            # Decode the signing key: strip "whsec_" prefix, then base64-decode
-            secret = self._webhook_secret
-            if secret.startswith("whsec_"):
-                secret = secret[len("whsec_"):]
-            # Add padding in case the base64 string is unpadded
-            signing_key = base64.b64decode(secret + "==")
-
-            # Build the signed payload: "{msg_id}.{timestamp}.{body}"
-            body_str = payload.decode("utf-8")
-            timestamp_str = str(floor(ts.timestamp()))
-            to_sign = f"{msg_id}.{timestamp_str}.{body_str}".encode("utf-8")
-
-            # Compute expected HMAC-SHA256, base64-encode the result
-            expected_sig_bytes = hmac.new(signing_key, to_sign, hashlib.sha256).digest()
-            expected_sig_b64 = base64.b64encode(expected_sig_bytes).decode("utf-8")
-
-            # msg_signature is space-separated list of "v1,<base64_sig>" tokens
-            matched = False
-            for versioned_sig in msg_signature.split(" "):
-                parts = versioned_sig.split(",", 1)
-                if len(parts) != 2 or parts[0] != "v1":
-                    continue
-                try:
-                    received_sig_bytes = base64.b64decode(parts[1])
-                    expected_sig_bytes_cmp = base64.b64decode(expected_sig_b64)
-                    if hmac.compare_digest(expected_sig_bytes_cmp, received_sig_bytes):
-                        matched = True
-                        break
-                except Exception:
-                    continue
-
-            if not matched:
-                logger.warning(
-                    "PolarService: webhook signature mismatch — possible tampered request"
-                )
-                return None
-
-            event = json.loads(body_str)
-            logger.info(
-                f"PolarService: verified webhook event type='{event.get('type', 'unknown')}'"
+            # validate_event raises WebhookVerificationError on any failure
+            # (bad signature, expired timestamp, missing headers, etc.)
+            event = validate_event(
+                body=payload,
+                headers=headers,
+                secret=self._webhook_secret,
             )
-            return event
+            # Convert the typed Pydantic model to a plain dict so downstream code
+            # can use standard .get() access patterns (e.g. event["type"], event["data"]["id"])
+            event_dict = event.model_dump()
+            logger.info(
+                f"PolarService: verified webhook event type='{event_dict.get('type', 'unknown')}'"
+            )
+            return event_dict
 
-        except json.JSONDecodeError as exc:
-            logger.error(f"PolarService: failed to parse webhook JSON: {exc}")
+        except WebhookVerificationError as exc:
+            logger.warning(f"PolarService: webhook signature verification failed: {exc}")
             return None
         except Exception as exc:
             logger.error(f"PolarService: error verifying webhook: {exc}", exc_info=True)
