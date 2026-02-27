@@ -3,6 +3,29 @@
 # Namespace: settings, key prefix: chat (from filename)
 # Keys should NOT include "chat." prefix - the build script adds it automatically
 # All keys must be at root level with flat dot-notation, only language codes (en, de, etc.) are nested
+description:
+  context: Short description shown in the chat settings page gradient banner header
+  en: Customize notifications and chat behaviour
+  de: Benachrichtigungen und Chat-Verhalten anpassen
+  zh: 自定义通知和聊天行为
+  es: Personaliza las notificaciones y el comportamiento del chat
+  fr: Personnalisez les notifications et le comportement du chat
+  pt: ""
+  ru: ""
+  ja: 通知とチャットの動作をカスタマイズする
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 
 # Settings > Chat menu item (becomes settings.chat.text)
 chat:

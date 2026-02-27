@@ -1,3 +1,26 @@
+gift_cards.description:
+  context: Short description shown in the gift cards settings page gradient banner header
+  en: Redeem or purchase gift cards for OpenMates credits
+  de: Geschenkkarten für OpenMates-Credits einlösen oder kaufen
+  zh: 兑换或购买 OpenMates 积分礼品卡
+  es: Canjea o compra tarjetas de regalo para créditos de OpenMates
+  fr: Échangez ou achetez des cartes cadeaux pour des crédits OpenMates
+  pt: ""
+  ru: ""
+  ja: OpenMates クレジットのギフトカードを引き換えるか購入する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 gift_cards:
   context: Gift cards settings menu item
   en: Gift Cards

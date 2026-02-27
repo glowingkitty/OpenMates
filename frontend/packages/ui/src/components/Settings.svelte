@@ -557,6 +557,13 @@ changes to the documentation (to keep the documentation up to date).
         'support': 'settings.support.description',
         'developers': 'settings.developers_description',
         'mates': 'settings.mates.description',
+        'chat': 'settings.chat.description',
+        'security': 'settings.security.description',
+        'newsletter': 'settings.newsletter.description',
+        'server': 'settings.server.description',
+        'report_issue': 'settings.report_issue.description',
+        'shared': 'settings.shared.description',
+        'gift_cards': 'settings.gift_cards.description',
     };
 
     /**

@@ -1380,7 +1380,6 @@ Usage Settings - View usage statistics and export usage data
             {$text('settings.usage.export')}
         </button>
     </div>
-    <p class="header-description">{$text('settings.usage.description')}</p>
 </div>
 
 <!-- Category tabs - simple clickable icons -->

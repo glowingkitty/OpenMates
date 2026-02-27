@@ -7164,6 +7164,9 @@
       }
     },
     "chat": {
+      "description": {
+        "text": "Customize notifications and chat behaviour"
+      },
       "text": "Chat",
       "notifications": {
         "text": "Notifications",
@@ -7257,6 +7260,11 @@
       }
     },
     "gift_cards": {
+      "gift_cards": {
+        "description": {
+          "text": "Redeem or purchase gift cards for OpenMates credits"
+        }
+      },
       "text": "Gift Cards",
       "redeem": {
         "text": "Redeem"
@@ -7628,6 +7636,9 @@
       }
     },
     "shared": {
+      "description": {
+        "text": "Manage your shared chats and tips"
+      },
       "text": "Shared"
     },
     "share": {
@@ -8226,6 +8237,9 @@
       "text": "Back"
     },
     "server": {
+      "description": {
+        "text": "Manage server configuration and administration"
+      },
       "text": "Server",
       "community_suggestions": {
         "text": "Community Suggestions"
@@ -8479,6 +8493,9 @@
       }
     },
     "newsletter": {
+      "description": {
+        "text": "Subscribe to stay updated with the latest OpenMates news"
+      },
       "text": "Newsletter"
     },
     "newsletter_title": {
@@ -8945,6 +8962,11 @@
       }
     },
     "security": {
+      "security": {
+        "description": {
+          "text": "Manage your passwords, passkeys and two-factor authentication"
+        }
+      },
       "text": "Security",
       "auth_title": {
         "text": "Verify Your Identity"

@@ -1,6 +1,30 @@
 # Security Settings Translations
 # Used in SecurityAuth.svelte and SettingsPassword.svelte
 
+security.description:
+  context: Short description shown in the account security settings page gradient banner header
+  en: Manage your passwords, passkeys and two-factor authentication
+  de: Verwalte deine Passwörter, Passkeys und Zwei-Faktor-Authentifizierung
+  zh: 管理您的密码、通行密钥和双因素认证
+  es: Gestiona tus contraseñas, llaves de acceso y autenticación de dos factores
+  fr: Gérez vos mots de passe, clés d'accès et authentification à deux facteurs
+  pt: ""
+  ru: ""
+  ja: パスワード、パスキー、二要素認証を管理する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+
 security:
   context: Security settings section title
   en: Security

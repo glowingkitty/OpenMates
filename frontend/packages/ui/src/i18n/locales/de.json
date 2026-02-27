@@ -6714,6 +6714,9 @@
       }
     },
     "chat": {
+      "description": {
+        "text": "Benachrichtigungen und Chat-Verhalten anpassen"
+      },
       "text": "Chat",
       "notifications": {
         "text": "Benachrichtigungen",
@@ -6807,6 +6810,11 @@
       }
     },
     "gift_cards": {
+      "gift_cards": {
+        "description": {
+          "text": "Geschenkkarten für OpenMates-Credits einlösen oder kaufen"
+        }
+      },
       "text": "Geschenkkarten",
       "redeem": {
         "text": "Einlösen"
@@ -7169,6 +7177,9 @@
       }
     },
     "shared": {
+      "description": {
+        "text": "Geteilte Chats und Trinkgelder verwalten"
+      },
       "text": "Geteilt"
     },
     "share": {
@@ -7740,6 +7751,9 @@
       "text": "Speichern"
     },
     "server": {
+      "description": {
+        "text": "Serverkonfiguration und Administration verwalten"
+      },
       "text": "Server",
       "community_suggestions": {
         "text": "Community-Vorschläge"
@@ -7993,6 +8007,9 @@
       }
     },
     "newsletter": {
+      "description": {
+        "text": "Abonniere, um über die neuesten OpenMates-Neuigkeiten informiert zu bleiben"
+      },
       "text": "Newsletter"
     },
     "newsletter_title": {
@@ -8459,6 +8476,11 @@
       }
     },
     "security": {
+      "security": {
+        "description": {
+          "text": "Verwalte deine Passwörter, Passkeys und Zwei-Faktor-Authentifizierung"
+        }
+      },
       "text": "Sicherheit",
       "auth_title": {
         "text": "Identität bestätigen"

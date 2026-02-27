@@ -1947,3 +1947,186 @@ div.clickable-icon {
     border-radius: 10px;
   }
 }
+
+/* ─── Settings page banner mask icons ────────────────────────────────────────
+   Used by AppDetailsHeader.svelte in settingsPage mode.
+   The .settings-page-mask-icon element sets background: white and these classes
+   set the mask-image so the icon appears white on the gradient background.
+   Icon names map to the route key (e.g., route 'billing' → class icon_billing).
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.icon_privacy {
+  -webkit-mask-image: url("@openmates/ui/static/icons/lock.svg");
+  mask-image: url("@openmates/ui/static/icons/lock.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_billing {
+  -webkit-mask-image: url("@openmates/ui/static/icons/billing.svg");
+  mask-image: url("@openmates/ui/static/icons/billing.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_gift_cards {
+  -webkit-mask-image: url("@openmates/ui/static/icons/gift.svg");
+  mask-image: url("@openmates/ui/static/icons/gift.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_account {
+  -webkit-mask-image: url("@openmates/ui/static/icons/user.svg");
+  mask-image: url("@openmates/ui/static/icons/user.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_security {
+  -webkit-mask-image: url("@openmates/ui/static/icons/lock.svg");
+  mask-image: url("@openmates/ui/static/icons/lock.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_usage {
+  -webkit-mask-image: url("@openmates/ui/static/icons/usage.svg");
+  mask-image: url("@openmates/ui/static/icons/usage.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_interface {
+  -webkit-mask-image: url("@openmates/ui/static/icons/language.svg");
+  mask-image: url("@openmates/ui/static/icons/language.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_developers {
+  -webkit-mask-image: url("@openmates/ui/static/icons/coding.svg");
+  mask-image: url("@openmates/ui/static/icons/coding.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_support {
+  -webkit-mask-image: url("@openmates/ui/static/icons/support.svg");
+  mask-image: url("@openmates/ui/static/icons/support.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_mates {
+  -webkit-mask-image: url("@openmates/ui/static/icons/mate.svg");
+  mask-image: url("@openmates/ui/static/icons/mate.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_chat {
+  -webkit-mask-image: url("@openmates/ui/static/icons/chat.svg");
+  mask-image: url("@openmates/ui/static/icons/chat.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_server {
+  -webkit-mask-image: url("@openmates/ui/static/icons/server.svg");
+  mask-image: url("@openmates/ui/static/icons/server.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_newsletter {
+  -webkit-mask-image: url("@openmates/ui/static/icons/mail.svg");
+  mask-image: url("@openmates/ui/static/icons/mail.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_shared {
+  -webkit-mask-image: url("@openmates/ui/static/icons/share.svg");
+  mask-image: url("@openmates/ui/static/icons/share.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_report_issue {
+  -webkit-mask-image: url("@openmates/ui/static/icons/bug.svg");
+  mask-image: url("@openmates/ui/static/icons/bug.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_openmates {
+  -webkit-mask-image: url("@openmates/ui/static/icons/openmates.svg");
+  mask-image: url("@openmates/ui/static/icons/openmates.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}

@@ -642,6 +642,29 @@ mates:
   cs: ""
   sv: ""
   verified_by_human: []
+shared.description:
+  context: Short description shown in the shared settings page gradient banner header
+  en: Manage your shared chats and tips
+  de: Geteilte Chats und Trinkgelder verwalten
+  zh: 管理您的共享聊天和小费
+  es: Gestiona tus chats compartidos y propinas
+  fr: Gérez vos chats partagés et vos pourboires
+  pt: ""
+  ru: ""
+  ja: 共有チャットとチップを管理する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 shared:
   context: Shared chats settings menu item
   en: Shared
@@ -1853,6 +1876,29 @@ back:
   pt: ""
   ru: ""
   ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
+server.description:
+  context: Short description shown in the server settings page gradient banner header (admin only)
+  en: Manage server configuration and administration
+  de: Serverkonfiguration und Administration verwalten
+  zh: 管理服务器配置和管理
+  es: Gestiona la configuración y administración del servidor
+  fr: Gérez la configuration et l'administration du serveur
+  pt: ""
+  ru: ""
+  ja: サーバー設定と管理を管理する
   ko: ""
   it: ""
   tr: ""
@@ -4232,6 +4278,29 @@ app_settings_memories.save:
   th: บันทึก
   cs: Uložit
   sv: Spara
+  verified_by_human: []
+newsletter.description:
+  context: Short description shown in the newsletter settings page gradient banner header
+  en: Subscribe to stay updated with the latest OpenMates news
+  de: Abonniere, um über die neuesten OpenMates-Neuigkeiten informiert zu bleiben
+  zh: 订阅以获取最新的 OpenMates 新闻
+  es: Suscríbete para estar al día con las últimas noticias de OpenMates
+  fr: Abonnez-vous pour rester informé des dernières nouvelles d'OpenMates
+  pt: ""
+  ru: ""
+  ja: 最新の OpenMates ニュースを受け取るために購読する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 newsletter:
   context: Newsletter settings menu item

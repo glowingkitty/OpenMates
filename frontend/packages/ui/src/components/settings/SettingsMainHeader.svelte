@@ -63,10 +63,10 @@
         return raw < 0.5 ? 4 * raw * raw * raw : 1 - Math.pow(-2 * raw + 2, 3) / 2;
     });
 
-    /** Expanded height: 200px desktop / 170px mobile. Collapsed: 72px. */
+    /** Expanded height: 240px desktop / 190px mobile (matches AppDetailsHeader). Collapsed: 72px. */
     const COLLAPSED_HEIGHT = 72;
-    const EXPANDED_HEIGHT_DESKTOP = 200;
-    const EXPANDED_HEIGHT_MOBILE = 170;
+    const EXPANDED_HEIGHT_DESKTOP = 240;
+    const EXPANDED_HEIGHT_MOBILE = 190;
 
     let expandedHeight = $derived.by(() => {
         if (typeof window === 'undefined') return EXPANDED_HEIGHT_DESKTOP;
@@ -148,8 +148,8 @@
                 style="font-size: {nameFontSize}px;"
             >{username || 'Guest'}</span>
 
-            <!-- Credits: only shown when payment is enabled, fades out on collapse -->
-            {#if paymentEnabled}
+            <!-- Credits: only shown when authenticated AND payment is enabled, fades out on collapse -->
+            {#if isAuthenticated && paymentEnabled}
                 <div
                     class="credits-row"
                     style="opacity: {creditsOpacity}; pointer-events: {creditsOpacity < 0.05 ? 'none' : 'auto'};"
@@ -162,7 +162,7 @@
                         aria-label={$text('settings.billing')}
                     >
                         <span class="credits-coin-icon"></span>
-                        <mark class="credits-amount">{$text('settings.credits_amount').replace('{credits_amount}', formattedCredits)}</mark>
+                        <span class="credits-amount">{$text('settings.credits_amount').replace('{credits_amount}', formattedCredits)}</span>
                     </button>
                 </div>
             {/if}
@@ -337,14 +337,12 @@
     }
 
     .credits-amount {
-        /* Override <mark> default yellow background */
-        background: none;
-        color: rgba(255, 255, 255, 0.9);
+        color: #ffffff;
         font-size: 15px;
         font-weight: 600;
         line-height: 1.2;
         text-decoration: underline;
-        text-decoration-color: rgba(255, 255, 255, 0.4);
+        text-decoration-color: rgba(255, 255, 255, 0.5);
         text-underline-offset: 2px;
     }
 

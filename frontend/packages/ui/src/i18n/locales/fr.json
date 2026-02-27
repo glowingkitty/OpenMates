@@ -6159,7 +6159,17 @@
         "text": "Erreur lors du chargement des factures"
       }
     },
+    "chat": {
+      "description": {
+        "text": "Personnalisez les notifications et le comportement du chat"
+      }
+    },
     "gift_cards": {
+      "gift_cards": {
+        "description": {
+          "text": "Échangez ou achetez des cartes cadeaux pour des crédits OpenMates"
+        }
+      },
       "text": "Cartes Cadeaux",
       "redeem": {
         "text": "Échanger"
@@ -6522,6 +6532,9 @@
       }
     },
     "shared": {
+      "description": {
+        "text": "Gérez vos chats partagés et vos pourboires"
+      },
       "text": "Partagé"
     },
     "share": {
@@ -6801,6 +6814,9 @@
       "text": "Enregistrer"
     },
     "server": {
+      "description": {
+        "text": "Gérez la configuration et l'administration du serveur"
+      },
       "text": "Serveur",
       "stats": {
         "text": "Statistiques"
@@ -7110,6 +7126,9 @@
       }
     },
     "newsletter": {
+      "description": {
+        "text": "Abonnez-vous pour rester informé des dernières nouvelles d'OpenMates"
+      },
       "text": "Newsletter"
     },
     "newsletter_title": {
@@ -7552,6 +7571,11 @@
       }
     },
     "security": {
+      "security": {
+        "description": {
+          "text": "Gérez vos mots de passe, clés d'accès et authentification à deux facteurs"
+        }
+      },
       "auth_title": {
         "text": "Vérifiez votre identité"
       },

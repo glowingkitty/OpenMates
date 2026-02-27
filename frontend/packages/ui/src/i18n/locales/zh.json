@@ -6005,7 +6005,17 @@
         "text": "加载发票时出错"
       }
     },
+    "chat": {
+      "description": {
+        "text": "自定义通知和聊天行为"
+      }
+    },
     "gift_cards": {
+      "gift_cards": {
+        "description": {
+          "text": "兑换或购买 OpenMates 积分礼品卡"
+        }
+      },
       "text": "礼品卡",
       "redeem": {
         "text": "兑换"
@@ -6368,6 +6378,9 @@
       }
     },
     "shared": {
+      "description": {
+        "text": "管理您的共享聊天和小费"
+      },
       "text": "共享"
     },
     "share": {
@@ -6647,6 +6660,9 @@
       "text": "保存"
     },
     "server": {
+      "description": {
+        "text": "管理服务器配置和管理"
+      },
       "text": "服务器",
       "stats": {
         "text": "统计"
@@ -6956,6 +6972,9 @@
       }
     },
     "newsletter": {
+      "description": {
+        "text": "订阅以获取最新的 OpenMates 新闻"
+      },
       "text": "新闻通讯"
     },
     "newsletter_title": {
@@ -7398,6 +7417,11 @@
       }
     },
     "security": {
+      "security": {
+        "description": {
+          "text": "管理您的密码、通行密钥和双因素认证"
+        }
+      },
       "auth_title": {
         "text": "验证您的身份"
       },

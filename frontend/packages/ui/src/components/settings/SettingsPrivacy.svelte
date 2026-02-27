@@ -63,11 +63,8 @@ Based on Figma design: settings/privacy (node 1895:20576)
     }
 </script>
 
-<!-- Privacy Policy Info -->
+<!-- Privacy Policy Link (description text is shown in the gradient banner header above) -->
 <div class="settings-description">
-    <p class="settings-description-text">
-        {$text('settings.privacy.description')}
-    </p>
     <a
         href="https://openmates.org/privacy"
         target="_blank"
