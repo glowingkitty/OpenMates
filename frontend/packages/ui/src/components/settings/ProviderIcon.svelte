@@ -54,6 +54,8 @@
     .provider-icon-wrapper {
         border-radius: 6px;
         flex-shrink: 0;
+        /* Subtle appearance — entire element at 0.5 opacity */
+        opacity: 0.5;
         /* White background */
         background-color: #ffffff;
         /* Use CSS variable for background image */
