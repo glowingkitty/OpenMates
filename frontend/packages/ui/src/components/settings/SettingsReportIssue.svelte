@@ -1108,6 +1108,30 @@
         pickedElementHtml = null;
     }
 
+    /** True while copying the picked element HTML to clipboard (prevents double-click) */
+    let isCopyingElementHtml = $state(false);
+    /** Briefly true after a successful copy — triggers the "Copied!" label */
+    let copyElementHtmlSuccess = $state(false);
+
+    /**
+     * Copy the captured element outerHTML to the system clipboard.
+     * Shows a brief "Copied!" confirmation that resets after 2 seconds.
+     */
+    async function copyPickedElementHtml() {
+        if (!pickedElementHtml || isCopyingElementHtml) return;
+        isCopyingElementHtml = true;
+        try {
+            await navigator.clipboard.writeText(pickedElementHtml);
+            copyElementHtmlSuccess = true;
+            setTimeout(() => { copyElementHtmlSuccess = false; }, 2000);
+        } catch (error) {
+            console.error('[SettingsReportIssue] Failed to copy element HTML to clipboard:', error);
+            notificationStore.error($text('settings.report_issue.copy_debug_info_error'), 4000);
+        } finally {
+            isCopyingElementHtml = false;
+        }
+    }
+
     // ===================== SCREENSHOT CAPTURE =====================
     // Screenshot state — only available for authenticated users.
     // getDisplayMedia() requires browser permission; the PNG is sent as base64 in the JSON payload.
@@ -1564,7 +1588,7 @@
             <p class="input-hint">{$text('settings.report_issue.element_picker_hint')}</p>
 
             {#if pickedElementHtml}
-                <!-- Preview of the captured element HTML + remove button -->
+                <!-- Preview of the captured element HTML + action buttons -->
                 <div class="picked-element-preview">
                     <details class="picked-element-details">
                         <summary class="picked-element-summary">
@@ -1572,14 +1596,27 @@
                         </summary>
                         <pre class="picked-element-html">{pickedElementHtml}</pre>
                     </details>
-                    <button
-                        type="button"
-                        class="element-picker-remove-btn"
-                        onclick={removePickedElement}
-                        disabled={isSubmitting}
-                    >
-                        {$text('settings.report_issue.element_picker_remove')}
-                    </button>
+                    <div class="picked-element-actions">
+                        <button
+                            type="button"
+                            class="element-picker-copy-btn"
+                            class:success={copyElementHtmlSuccess}
+                            onclick={copyPickedElementHtml}
+                            disabled={isSubmitting || isCopyingElementHtml}
+                        >
+                            {copyElementHtmlSuccess
+                                ? $text('settings.report_issue.element_picker_copied')
+                                : $text('settings.report_issue.element_picker_copy')}
+                        </button>
+                        <button
+                            type="button"
+                            class="element-picker-remove-btn"
+                            onclick={removePickedElement}
+                            disabled={isSubmitting}
+                        >
+                            {$text('settings.report_issue.element_picker_remove')}
+                        </button>
+                    </div>
                 </div>
             {:else}
                 <!-- Start picker button -->
@@ -2325,6 +2362,41 @@
         background: var(--color-grey-10, #fafafa);
         color: var(--color-font-primary, #222);
         border-top: 1px solid var(--color-border, #ccc);
+    }
+
+    /* Row holding Copy HTML + Remove buttons */
+    .picked-element-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    /* Copy HTML button */
+    .element-picker-copy-btn {
+        padding: 6px 12px;
+        border: 1px solid var(--color-border, #ccc);
+        border-radius: var(--border-radius-md, 6px);
+        background: var(--color-surface-2, #f5f5f5);
+        color: var(--color-font-primary, #222);
+        font-size: 13px;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .element-picker-copy-btn:hover:not(:disabled) {
+        background: var(--color-surface-3, #e8e8e8);
+    }
+
+    .element-picker-copy-btn.success {
+        border-color: var(--color-success, #4caf50);
+        color: var(--color-success-dark, #2e7d32);
+        background: var(--color-success-light, #e8f5e9);
+    }
+
+    .element-picker-copy-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
     /* Remove button — matches screenshot-remove-btn style */

@@ -6993,6 +6993,52 @@ report_issue.element_picker_preview_label:
   cs: HTML zachyceného prvku (kliknutím rozbalte)
   sv: Infångat elements HTML (klicka för att expandera)
   verified_by_human: []
+report_issue.element_picker_copy:
+  context: Button label to copy the captured DOM element's outerHTML to clipboard
+  en: Copy HTML
+  de: HTML kopieren
+  zh: 复制HTML
+  es: Copiar HTML
+  fr: Copier le HTML
+  pt: Copiar HTML
+  ru: Копировать HTML
+  ja: HTMLをコピー
+  ko: HTML 복사
+  it: Copia HTML
+  tr: HTML'yi kopyala
+  vi: Sao chép HTML
+  id: Salin HTML
+  pl: Kopiuj HTML
+  nl: HTML kopiëren
+  ar: نسخ HTML
+  hi: HTML कॉपी करें
+  th: คัดลอก HTML
+  cs: Kopírovat HTML
+  sv: Kopiera HTML
+  verified_by_human: []
+report_issue.element_picker_copied:
+  context: Button label shown briefly after copying the element HTML to clipboard (success state)
+  en: Copied!
+  de: Kopiert!
+  zh: 已复制！
+  es: ¡Copiado!
+  fr: Copié !
+  pt: Copiado!
+  ru: Скопировано!
+  ja: コピーしました！
+  ko: 복사됨!
+  it: Copiato!
+  tr: Kopyalandı!
+  vi: Đã sao chép!
+  id: Disalin!
+  pl: Skopiowano!
+  nl: Gekopieerd!
+  ar: تم النسخ!
+  hi: कॉपी हो गया!
+  th: คัดลอกแล้ว!
+  cs: Zkopírováno!
+  sv: Kopierad!
+  verified_by_human: []
 report_issue.screenshot_upload_failed:
   context: Error message shown when reading the uploaded screenshot file fails
   en: Failed to read the uploaded image.
