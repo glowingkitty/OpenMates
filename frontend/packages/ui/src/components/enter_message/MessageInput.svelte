@@ -2921,6 +2921,16 @@
     }
 
     function handleSendMessage() {
+        // Guard: if there's no content, do nothing (handles edge cases where button
+        // is visible but editor is actually empty).
+        if (!hasContent) return;
+
+        // Hide the send button immediately on first press — this is the primary
+        // mechanism preventing double-sends. The button disappears before any async
+        // work begins, so subsequent taps have no button to press. The editor is
+        // cleared by handleSend shortly after, keeping this consistent.
+        hasContent = false;
+
         // Flush any debounced heavy parsing so originalMarkdown is fully up-to-date
         if (editor && !editor.isDestroyed) {
             flushHeavyParsing(editor);
