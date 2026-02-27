@@ -149,7 +149,9 @@
     if (n === 'heart')  n = 'health';
     if (n === 'email')  n = 'mail';
     if (n === 'book')   n = 'books';
-    if (n === 'image')  n = 'images';
+    // Note: "image" is intentionally NOT mapped to "images" here.
+    // Icon.svelte's getAppIdForCssVariable() already maps "image" → "images" for the
+    // gradient background, and --icon-url-image is the correct CSS variable for the SVG.
     return n;
   });
 
@@ -159,13 +161,20 @@
 
   /** Display name shown in the identity row */
   let displayName = $derived(subItem ? subItem.name : appName);
+
+  /**
+   * App ID to use for the background gradient CSS variable (--color-app-{appColorId}).
+   * Uses appId directly since color variables are keyed by app ID, not icon name.
+   * Falls back to iconName for apps that don't have an explicit ID (e.g., sub-pages).
+   */
+  let appColorId = $derived(appId || iconName);
 </script>
 
 <div
   class="app-details-header"
   style="
     height: {headerHeight}px;
-    background: var(--color-app-{iconName}, var(--color-primary));
+    background: var(--color-app-{appColorId}, var(--color-primary));
   "
 >
   <!-- ── Nav row: back arrow + breadcrumb (entire row is clickable) ── -->
