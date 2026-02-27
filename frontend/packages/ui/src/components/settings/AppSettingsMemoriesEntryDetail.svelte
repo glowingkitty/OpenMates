@@ -38,9 +38,15 @@
         appId: string;
         categoryId: string;
         entryId: string;
+        readOnly?: boolean;
     }
 
-    let { appId, categoryId, entryId }: Props = $props();
+    let { appId, categoryId, entryId, readOnly = false }: Props = $props();
+
+    // Detect example entries: entryId starts with "example_" (e.g. "example_0")
+    // Example entries are shown read-only with translated text content from the category metadata.
+    let isExample = $derived(entryId.startsWith('example_'));
+    let exampleIndex = $derived(isExample ? parseInt(entryId.replace('example_', ''), 10) : -1);
 
     // Get store state reactively (Svelte 5)
     let storeState = $state(appSkillsStore.getState());
@@ -72,6 +78,14 @@
             }
         }
         return undefined;
+    });
+
+    // For example entries: resolve translated text from category metadata
+    let exampleText = $derived.by(() => {
+        if (!isExample || exampleIndex < 0) return '';
+        const keys = category?.example_translation_keys ?? [];
+        const key = keys[exampleIndex];
+        return key ? $text(key) : '';
     });
 
     // Get schema from category metadata
@@ -430,6 +444,16 @@
             <p>Error: {!app ? 'App not found' : 'Category not found'}</p>
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
+    {:else if isExample}
+        <!-- Example Entry View — read-only, no auth or entry lookup needed -->
+        <div class="view-container">
+            <div class="details-section">
+                <div class="detail-row">
+                    <span class="detail-value example-text">{exampleText}</span>
+                </div>
+            </div>
+            <!-- No action buttons for examples -->
+        </div>
     {:else if !isAuthenticated}
         <div class="error">
             <p>{$text('settings.app_settings_memories.authentication_required')}</p>
@@ -488,18 +512,20 @@
                 </div>
             </div>
             
-            <!-- Action buttons -->
-            <div class="action-buttons">
-                <button class="edit-btn" onclick={startEdit} disabled={isDeleting}>
-                    {$text('settings.app_settings_memories.edit')}
-                </button>
-                <button class="delete-btn" onclick={handleDelete} disabled={isDeleting}>
-                    {isDeleting 
-                        ? $text('settings.app_settings_memories.deleting')
-                        : $text('settings.app_settings_memories.delete')
-                    }
-                </button>
-            </div>
+            <!-- Action buttons — only for own (non-read-only) entries -->
+            {#if !readOnly}
+                <div class="action-buttons">
+                    <button class="edit-btn" onclick={startEdit} disabled={isDeleting}>
+                        {$text('settings.app_settings_memories.edit')}
+                    </button>
+                    <button class="delete-btn" onclick={handleDelete} disabled={isDeleting}>
+                        {isDeleting 
+                            ? $text('settings.app_settings_memories.deleting')
+                            : $text('settings.app_settings_memories.delete')
+                        }
+                    </button>
+                </div>
+            {/if}
         </div>
     {:else}
         <!-- Edit Mode -->
@@ -683,6 +709,13 @@
         font-size: 1rem;
         color: var(--text-primary);
         word-break: break-word;
+    }
+
+    .example-text {
+        font-size: 1rem;
+        color: var(--text-primary);
+        line-height: 1.5;
+        white-space: pre-wrap;
     }
     
     .detail-value-code {

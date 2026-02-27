@@ -3796,6 +3796,75 @@ app_settings_memories.examples_label:
   verified_by_human:
     - en
     - de
+app_settings_memories.my_settings_and_memories:
+  context: Section heading for the user's own settings and memories entries
+  en: My Settings & Memories
+  de: Meine Einstellungen & Erinnerungen
+  zh: 我的设置与记忆
+  es: Mi configuración y recuerdos
+  fr: Mes paramètres et souvenirs
+  pt: Minhas configurações e memórias
+  ru: Мои настройки и воспоминания
+  ja: 私の設定とメモリ
+  ko: 내 설정 및 메모리
+  it: Le mie impostazioni e ricordi
+  tr: Ayarlarım ve anılarım
+  vi: Cài đặt và ký ức của tôi
+  id: Pengaturan dan memori saya
+  pl: Moje ustawienia i wspomnienia
+  nl: Mijn instellingen en herinneringen
+  ar: إعداداتي وذكرياتي
+  hi: मेरी सेटिंग्स और यादें
+  th: การตั้งค่าและความทรงจำของฉัน
+  cs: Moje nastavení a paměti
+  sv: Mina inställningar och minnen
+  verified_by_human: []
+app_settings_memories.no_entries_yet:
+  context: Message shown when the user has no entries yet in this settings/memories category
+  en: No entries yet.
+  de: Noch keine Einträge.
+  zh: 还没有条目。
+  es: Aún no hay entradas.
+  fr: Aucune entrée pour l'instant.
+  pt: Ainda sem entradas.
+  ru: Записей пока нет.
+  ja: まだエントリがありません。
+  ko: 아직 항목이 없습니다.
+  it: Ancora nessuna voce.
+  tr: Henüz kayıt yok.
+  vi: Chưa có mục nào.
+  id: Belum ada entri.
+  pl: Brak wpisów.
+  nl: Nog geen items.
+  ar: لا توجد إدخالات حتى الآن.
+  hi: अभी तक कोई प्रविष्टि नहीं।
+  th: ยังไม่มีรายการ
+  cs: Zatím žádné záznamy.
+  sv: Inga poster ännu.
+  verified_by_human: []
+app_settings_memories.examples:
+  context: Section heading for example entries shown to all users
+  en: Examples
+  de: Beispiele
+  zh: 示例
+  es: Ejemplos
+  fr: Exemples
+  pt: Exemplos
+  ru: Примеры
+  ja: 例
+  ko: 예시
+  it: Esempi
+  tr: Örnekler
+  vi: Ví dụ
+  id: Contoh
+  pl: Przykłady
+  nl: Voorbeelden
+  ar: أمثلة
+  hi: उदाहरण
+  th: ตัวอย่าง
+  cs: Příklady
+  sv: Exempel
+  verified_by_human: []
 app_settings_memories.no_settings:
   context: Message when no settings and memories have been synced for an app
   en: No settings or memories synced yet. They will appear here once available.

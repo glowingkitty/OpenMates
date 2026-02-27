@@ -45,15 +45,6 @@
     );
     
     /**
-     * Get the translated focus mode description.
-     */
-    let focusModeDescription = $derived(
-        focusMode?.description_translation_key 
-            ? $text(focusMode.description_translation_key)
-            : ''
-    );
-    
-    /**
      * System prompt text shown when this focus mode is activated.
      * Either the literal system_prompt or the resolved system_prompt_translation_key.
      */
@@ -173,13 +164,6 @@
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
-        <!-- Description section - plain text, no heading, matching skill details layout -->
-        {#if focusModeDescription}
-            <div class="description-section">
-                <p class="focus-mode-description">{focusModeDescription}</p>
-            </div>
-        {/if}
-        
         <!-- Instructions section: bullet-point summary of what the focus mode does,
              plus a collapsible "Show full system prompt" button.
              Uses process_translation_key bullets when available; falls back to showing
@@ -236,20 +220,6 @@
         margin: 0 auto;
     }
 
-    /* Description section — matches .description-section in SkillDetails.svelte */
-    .description-section {
-        margin-bottom: 2rem;
-        padding-left: 0;
-    }
-
-    .focus-mode-description {
-        margin: 0;
-        color: var(--color-grey-100);
-        font-size: 1rem;
-        line-height: 1.6;
-        text-align: left;
-    }
-    
     .section {
         margin-top: 2rem;
     }

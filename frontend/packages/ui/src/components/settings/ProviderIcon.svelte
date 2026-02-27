@@ -6,9 +6,6 @@
 -->
 
 <script lang="ts">
-    // Import Icon component to ensure its CSS variables are loaded
-    import Icon from '../../components/Icon.svelte';
-    
     /**
      * Props for ProviderIcon component.
      */
@@ -65,8 +62,6 @@
         background-size: 60%;
         background-position: center;
         background-repeat: no-repeat;
-        /* 0.5 opacity for entire element */
-        opacity: 0.5;
         /* No filters - show original colors */
         filter: none !important;
         /* Ensure original colors are preserved */

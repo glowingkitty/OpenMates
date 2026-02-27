@@ -63,25 +63,23 @@
     let hasModels = $derived(skillModels.length > 0);
     
     /**
-     * Get the translated skill description.
-     */
-    let skillDescription = $derived(
-        skill?.description_translation_key 
-            ? $text(skill.description_translation_key)
-            : ''
-    );
-    
-    /**
      * Format pricing information for display.
      * Returns an array of strings for token pricing (to display on separate lines),
      * or a single string for other pricing types.
+     *
+     * Valid pricing types:
+     *   - fixed → "{N} credits / request" (default)
+     *   - per_minute → "{N} credits / minute"
+     *   - tokens.input → "{N} tokens / credit (input)"
+     *   - tokens.output → "{N} tokens / credit (output)"
+     *
      * Only used when hasModels is false.
      */
     function formatPricing(pricing: SkillPricing | undefined): string | string[] {
-        // Never show "Free" - if no pricing provided, default to 1 credit minimum
+        // Never show "Free" - if no pricing provided, default to 1 credit per request
         // This should not happen in practice since metadata generation always sets pricing
         if (!pricing) {
-            return `1 ${$text('settings.app_store.skills.pricing.credits')} per request`;
+            return `1 ${$text('settings.app_store.skills.pricing.credits')} / request`;
         }
         
         // Token-based pricing - return array for separate lines
@@ -89,10 +87,10 @@
         if (pricing.tokens) {
             const tokenParts: string[] = [];
             if (pricing.tokens.input) {
-                tokenParts.push(`${pricing.tokens.input.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} per ${$text('settings.app_store.skills.pricing.credits')} (${$text('settings.app_store.skills.pricing.input')})`);
+                tokenParts.push(`${pricing.tokens.input.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} / ${$text('settings.app_store.skills.pricing.credits')} (${$text('settings.app_store.skills.pricing.input')})`);
             }
             if (pricing.tokens.output) {
-                tokenParts.push(`${pricing.tokens.output.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} per ${$text('settings.app_store.skills.pricing.credits')} (${$text('settings.app_store.skills.pricing.output')})`);
+                tokenParts.push(`${pricing.tokens.output.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} / ${$text('settings.app_store.skills.pricing.credits')} (${$text('settings.app_store.skills.pricing.output')})`);
             }
             if (tokenParts.length > 0) {
                 return tokenParts;
@@ -102,23 +100,24 @@
         // Other pricing types - return single string
         const parts: string[] = [];
         
-        // Fixed pricing - default to "per request" if no unit specified
+        // Fixed pricing → "N credits / request"
         if (pricing.fixed !== undefined) {
-            parts.push(`${pricing.fixed} ${$text('settings.app_store.skills.pricing.credits')} per request`);
+            parts.push(`${pricing.fixed} ${$text('settings.app_store.skills.pricing.credits')} / request`);
         }
         
-        // Per unit pricing
+        // Per-unit pricing: use the unit_name provided (e.g., "image", "page") as the denominator.
+        // Falls back to "request" when unit_name is absent to avoid the non-descriptive "/ unit" label.
         if (pricing.per_unit) {
-            const unitName = pricing.per_unit.unit_name || $text('settings.app_store.skills.pricing.unit');
+            const unitName = pricing.per_unit.unit_name || 'request';
             parts.push(`${pricing.per_unit.credits} ${$text('settings.app_store.skills.pricing.credits')} / ${unitName}`);
         }
         
-        // Per minute pricing
+        // Per minute pricing → "N credits / minute"
         if (pricing.per_minute !== undefined) {
             parts.push(`${pricing.per_minute} ${$text('settings.app_store.skills.pricing.credits')} / ${$text('settings.app_store.skills.pricing.minute')}`);
         }
         
-        return parts.length > 0 ? parts.join(', ') : $text('settings.app_store.skills.pricing.free');
+        return parts.length > 0 ? parts.join(', ') : `1 ${$text('settings.app_store.skills.pricing.credits')} / request`;
     }
     
     /**
@@ -277,13 +276,6 @@
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
-        <!-- Description section - no header, just show description directly -->
-        {#if skillDescription}
-            <div class="description-section">
-                <p class="skill-description">{skillDescription}</p>
-            </div>
-        {/if}
-        
         <!-- How to use section - horizontal scrollable example instructions -->
         {#if howToUseExamples.length > 0}
             <div class="section how-to-use-section">
@@ -435,20 +427,6 @@
         padding: 14px;
         max-width: 1400px;
         margin: 0 auto;
-    }
-    
-    /* Description section - no header, just description text */
-    .description-section {
-        margin-bottom: 2rem;
-        padding-left: 0;
-    }
-    
-    .skill-description {
-        margin: 0;
-        color: var(--color-grey-100);
-        font-size: 1rem;
-        line-height: 1.6;
-        text-align: left;
     }
     
     .section {

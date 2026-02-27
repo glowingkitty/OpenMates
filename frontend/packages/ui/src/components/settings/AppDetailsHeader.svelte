@@ -280,11 +280,25 @@
         />
       </div>
     {/if}
-    <span
-      class="app-name"
-      class:app-name-row={collapseProgress > 0.5}
-      style="font-size: {nameFontSize}px;"
-    >{displayName}</span>
+    <!-- Name + category label stacked vertically when expanded -->
+    <div
+      class="name-category-block"
+      class:name-category-block-row={collapseProgress > 0.5}
+    >
+      <span
+        class="app-name"
+        class:app-name-row={collapseProgress > 0.5}
+        style="font-size: {nameFontSize}px;"
+      >{displayName}</span>
+      <!-- Category label: only shown in expanded mode and only for sub-item pages.
+           Displayed at the same font size as the name but at 0.7 opacity, directly below the title. -->
+      {#if subItem?.typeLabel && collapseProgress < 0.5}
+        <span
+          class="sub-item-category-label"
+          style="font-size: {nameFontSize}px;"
+        >{subItem.typeLabel}</span>
+      {/if}
+    </div>
   </div>
 
   <!-- ── Collapsible details block — fades out on scroll ── -->
@@ -294,8 +308,7 @@
     aria-hidden={detailsOpacity < 0.05}
   >
     {#if subItem}
-      <!-- Sub-item mode: show type label + item description -->
-      <span class="sub-item-type-label">{subItem.typeLabel}</span>
+      <!-- Sub-item mode: show item description only (type label is now inline below the title) -->
       {#if subItem.description}
         <p class="app-description">{subItem.description}</p>
       {/if}
@@ -441,6 +454,20 @@
     transition: width 0.15s, height 0.15s;
   }
 
+  /* Wrapper that stacks name + category label vertically */
+  .name-category-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* In row (collapsed) mode, name-category-block aligns left */
+  .name-category-block-row {
+    align-items: flex-start;
+    justify-content: center;
+  }
+
   .app-name {
     font-weight: 700;
     color: #ffffff;
@@ -464,6 +491,17 @@
     align-self: center;
   }
 
+  /* Category label shown directly below the title at the same font size, opacity 0.7.
+     E.g. "Skill", "Focus mode", "Settings & memories" */
+  .sub-item-category-label {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    line-height: 1.25;
+    /* Font size driven by inline style (matches nameFontSize) */
+    transition: font-size 0.15s;
+  }
+
   /* ─── Collapsible details block ──────────────────────────────────────────── */
 
   .details-block {
@@ -475,16 +513,6 @@
     flex: 1;
     justify-content: center;
     transition: opacity 0.1s ease;
-  }
-
-  /* Type label for sub-item mode (e.g. "Skill", "Focus mode") */
-  .sub-item-type-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.7);
-    text-align: center;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
   }
 
   .app-description {
