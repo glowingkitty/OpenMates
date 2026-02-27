@@ -1425,8 +1425,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             skillId: finalDecodedContent?.skill_id
         });
         
-        // CRITICAL: Set embedFullscreenData first, then showEmbedFullscreen
-        // This ensures both state variables are set before the template evaluates
+        // Set both state variables synchronously in one block so Svelte batches them
+        // into a single reactive update. An intermediate microtask (await Promise.resolve)
+        // between the two assignments previously caused the {#key} block to re-key while
+        // showEmbedFullscreen was still true from a prior embed, triggering spurious
+        // destroy/create cycles (visible as the overlay opening and closing 2–5 times).
         embedFullscreenData = {
             embedId,
             embedData: finalEmbedData,
@@ -1434,11 +1437,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             embedType: resolvedEmbedType,
             attrs
         };
-        
-        // Use a microtask to ensure state is fully updated before setting showEmbedFullscreen
-        // This helps with Svelte 5 reactivity
-        await Promise.resolve();
-        
         showEmbedFullscreen = true;
         
         // Update URL hash with embed ID for sharing/bookmarking.
