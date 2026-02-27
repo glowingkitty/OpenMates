@@ -136,6 +136,15 @@ async def setup_vault():
                  sys.exit(1)
              else:
                  logger.info("API service token created/saved.")
+                 # Write a sentinel file so wait-for-vault.sh knows this boot's token is ready.
+                 # The sentinel contains the current Unix timestamp so the API can verify it
+                 # is newer than the script's own start time — preventing it from using a
+                 # sentinel (and token) left over from a previous container run.
+                 import time as _time
+                 sentinel_path = os.path.join(os.path.dirname(initializer.api_token_file), "token.ready")
+                 with open(sentinel_path, "w") as _f:
+                     _f.write(str(int(_time.time())))
+                 logger.info(f"Wrote token-ready sentinel to {sentinel_path}")
         else:
              # If we got this far without a root token, we might be using an API token
              # that doesn't have permissions to create new tokens
