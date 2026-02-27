@@ -216,7 +216,14 @@ class EncryptionService:
         return False
     
     async def _vault_request(self, method: str, path: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Make a request to the Vault API with enhanced error handling and retry logic"""
+        """Make a request to the Vault API with enhanced error handling and retry logic.
+        
+        On 401/403 errors (token expired or revoked), automatically attempts to refresh
+        the token from the file on disk (which vault-setup may have regenerated) and
+        retries the request once. This handles the scenario where vault-setup creates
+        a new token after the old one expires, but the API is still using the old one
+        in memory.
+        """
         url = f"{self.vault_url}/v1/{path}"
         
         # Only do full validation if we don't have a cached result
@@ -229,41 +236,79 @@ class EncryptionService:
         
         active_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
         logger.debug(f"_vault_request: Making {method.upper()} request to {path} using token {active_token_display}")
-        headers = {"X-Vault-Token": self.vault_token}
         
-        try:
-            # Make the request using a context manager
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                if method.lower() == "get":
-                    response = await client.get(url, headers=headers)
-                else:  # POST
-                    response = await client.post(url, headers=headers, json=data)
+        # Attempt the request, with one automatic retry on auth failure (token expired/revoked)
+        for attempt in range(2):
+            headers = {"X-Vault-Token": self.vault_token}
+            response = None  # Initialize so except block can safely check it
             
-            # Check for common error statuses
-            if response.status_code == 403:
-                logger.error(f"Vault permission denied for {method.upper()} on {path}. Response: {response.text}")
-                # Reset token validation cache on permission error
-                self._token_valid_until = 0
-                raise Exception(f"Permission denied in Vault for {method.upper()} on {path}")
-            elif response.status_code == 404:
-                # Not necessarily an error if checking if something exists
-                logger.debug(f"Vault resource not found: {path}")
-                return {"data": {}}
-            elif response.status_code == 401:
-                logger.warning("Vault token expired or invalid")
-                # Reset token validation cache
-                self._token_valid_until = 0
-                raise Exception("Vault token is expired or invalid")
-            elif response.status_code != 200:
-                logger.error(
-                    f"Vault request failed: {response.status_code} for {method.upper()} {path}. Response: {response.text}"
-                )
-                raise Exception(f"Vault request failed with status {response.status_code}")
-            
-            return response.json()
-        except Exception as e:
-            logger.error(f"Error in Vault request: {str(e)}")
-            raise
+            try:
+                # Make the request using a context manager
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    if method.lower() == "get":
+                        response = await client.get(url, headers=headers)
+                    else:  # POST
+                        response = await client.post(url, headers=headers, json=data)
+                
+                # Check for common error statuses
+                if response.status_code in (401, 403):
+                    # Token expired or revoked — try to refresh from file and retry once
+                    if attempt == 0:
+                        logger.warning(
+                            f"Vault {response.status_code} for {method.upper()} on {path} "
+                            f"(token {active_token_display}). Attempting token refresh from file..."
+                        )
+                        # Reset validation cache and clear cached file token to force re-read from disk
+                        self._token_valid_until = 0
+                        self._clear_token_cache()
+                        
+                        # Re-validate will re-read the token file from disk
+                        if await self._validate_token():
+                            new_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
+                            logger.info(
+                                f"Token refreshed from file ({active_token_display} -> {new_token_display}). "
+                                f"Retrying {method.upper()} on {path}..."
+                            )
+                            active_token_display = new_token_display
+                            continue  # Retry with the new token
+                        else:
+                            logger.error(
+                                "Token refresh failed — file token is also invalid. "
+                                "Vault-setup may need to regenerate the API token."
+                            )
+                    
+                    # Second attempt also failed, or token refresh itself failed
+                    if response.status_code == 403:
+                        logger.error(f"Vault permission denied for {method.upper()} on {path}. Response: {response.text}")
+                        raise Exception(f"Permission denied in Vault for {method.upper()} on {path}")
+                    else:
+                        logger.error(f"Vault token expired or invalid for {method.upper()} on {path}")
+                        raise Exception("Vault token is expired or invalid")
+                    
+                elif response.status_code == 404:
+                    # Not necessarily an error if checking if something exists
+                    logger.debug(f"Vault resource not found: {path}")
+                    return {"data": {}}
+                elif response.status_code != 200:
+                    logger.error(
+                        f"Vault request failed: {response.status_code} for {method.upper()} {path}. Response: {response.text}"
+                    )
+                    raise Exception(f"Vault request failed with status {response.status_code}")
+                
+                return response.json()
+            except Exception as e:
+                # Only re-raise if this is the last attempt or not an auth error
+                if attempt == 1 or "Permission denied" in str(e) or "expired" in str(e):
+                    logger.error(f"Error in Vault request ({method.upper()} {path}): {str(e)}")
+                    raise
+                # For non-auth errors on first attempt, also raise immediately.
+                # If response was never assigned (e.g., connection error), raise immediately
+                # since there's no auth status to retry on.
+                if response is None or response.status_code not in (401, 403):
+                    raise
+        
+        # Should not reach here, but just in case
+        raise Exception(f"Vault request failed after retries for {method.upper()} on {path}")
     
     # Initialize token specifically at startup
     async def initialize(self):

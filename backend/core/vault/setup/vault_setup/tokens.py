@@ -113,18 +113,37 @@ class TokenManager:
 
                     if lookup_result and lookup_result.get("data"):
                         token_data = lookup_result["data"]
-                        if token_data.get("ttl", 0) > 0: # Check if token is not expired
-                            existing_policies = set(token_data.get("policies", []))
-                            required_policies_set = set(policies)
-                            
-                            # Remove 'default' policy from consideration if present, as it's often implicitly there
-                            existing_policies.discard("default")
-                            
-                            if required_policies_set.issubset(existing_policies):
-                                logger.info(f"Existing API token has all required policies ({policies}). Using existing token.")
-                                return existing_token_value
+                        remaining_ttl = token_data.get("ttl", 0)
+                        if remaining_ttl > 0:
+                            # CRITICAL: Check that the token has enough remaining TTL to be useful.
+                            # A token with only a few hours left will expire mid-operation and silently
+                            # break logins (the Vault HMAC call fails, login returns a disguised error,
+                            # and no new auth cookie is set — causing "stay logged in" to not work).
+                            # Require at least 24 hours (86400 seconds) of remaining TTL.
+                            min_ttl_seconds = 86400  # 24 hours
+                            if remaining_ttl < min_ttl_seconds:
+                                remaining_hours = remaining_ttl / 3600
+                                logger.warning(
+                                    f"Existing API token has only {remaining_hours:.1f}h remaining TTL "
+                                    f"(minimum required: {min_ttl_seconds / 3600:.0f}h). "
+                                    f"Creating a new token to prevent mid-operation expiry."
+                                )
                             else:
-                                logger.info(f"Existing API token is valid but lacks some required policies. Has: {list(existing_policies)}, Requires: {policies}. Creating a new one.")
+                                existing_policies = set(token_data.get("policies", []))
+                                required_policies_set = set(policies)
+                                
+                                # Remove 'default' policy from consideration if present, as it's often implicitly there
+                                existing_policies.discard("default")
+                                
+                                if required_policies_set.issubset(existing_policies):
+                                    remaining_days = remaining_ttl / 86400
+                                    logger.info(
+                                        f"Existing API token has all required policies ({policies}) "
+                                        f"and {remaining_days:.1f} days remaining TTL. Using existing token."
+                                    )
+                                    return existing_token_value
+                                else:
+                                    logger.info(f"Existing API token is valid but lacks some required policies. Has: {list(existing_policies)}, Requires: {policies}. Creating a new one.")
                         else:
                             logger.info("Existing API token is expired. Creating a new one.")
                     else:
