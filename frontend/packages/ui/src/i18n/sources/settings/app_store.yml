@@ -2234,7 +2234,7 @@ settings_memories:
   sv: Inställningar & Minnen
   verified_by_human: []
 
-settings.app_store.nav.previous_item:
+nav.previous_item:
   context: Aria-label for the left arrow button in the app store sub-item header (skill/focus mode/settings category). {name} is the display name of the previous sibling item.
   en: "Previous: {name}"
   de: "Vorherige: {name}"
@@ -2258,7 +2258,7 @@ settings.app_store.nav.previous_item:
   sv: "Föregående: {name}"
   verified_by_human: []
 
-settings.app_store.nav.next_item:
+nav.next_item:
   context: Aria-label for the right arrow button in the app store sub-item header (skill/focus mode/settings category). {name} is the display name of the next sibling item.
   en: "Next: {name}"
   de: "Nächste: {name}"
