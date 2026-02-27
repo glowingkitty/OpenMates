@@ -1124,9 +1124,26 @@ changes to the documentation (to keep the documentation up to date).
 
         // Listen for requests to re-open the settings panel — dispatched by SettingsReportIssue
         // after the DOM element picker captures or cancels. Symmetric to closeSettingsMenu.
-        const handleOpenSettingsMenu = () => {
+        // If the event carries a returnTo path (e.g. 'report_issue'), navigate there after
+        // opening because toggleMenu() resets activeSettingsView to 'main' when closing.
+        const handleOpenSettingsMenu = (e: Event) => {
+            const returnTo = (e as CustomEvent<{ returnTo?: string }>).detail?.returnTo;
             if (!isMenuVisible) {
                 toggleMenu();
+            }
+            // Navigate to the requested sub-page after the panel opens.
+            // Use a short delay to let the panel visibility change settle before navigating.
+            if (returnTo && returnTo !== 'main') {
+                setTimeout(() => {
+                    handleOpenSettings(new CustomEvent('openSettings', {
+                        detail: {
+                            settingsPath: returnTo,
+                            direction: 'forward',
+                            icon: returnTo,
+                            title: ''
+                        }
+                    }));
+                }, 50);
             }
         };
         window.addEventListener('openSettingsMenu', handleOpenSettingsMenu);

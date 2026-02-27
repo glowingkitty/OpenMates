@@ -920,11 +920,13 @@
 
         isPickerActive = false;
 
-        // Re-open the settings panel — dispatch window event (same mechanism as closeSettingsMenu).
-        // We always re-open because we always close on entry; the reopenSettings param is kept
-        // for API symmetry in case future callers need conditional re-open.
+        // Re-open the settings panel and navigate back to the report_issue page.
+        // We pass returnTo so Settings.svelte can restore the correct sub-page after
+        // toggleMenu() resets activeSettingsView to 'main' on close.
         if (reopenSettings) {
-            window.dispatchEvent(new CustomEvent('openSettingsMenu'));
+            window.dispatchEvent(new CustomEvent('openSettingsMenu', {
+                detail: { returnTo: 'report_issue' }
+            }));
         }
     }
 
