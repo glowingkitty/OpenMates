@@ -456,6 +456,29 @@ let _chatUpdatedFlushPending = false;
 		});
 	});
 
+	// --- Offline-first guarantee: reload from IDB when sync restarts ---
+	// When the server disconnects (e.g., server restart), phasedSyncState.reset() sets
+	// initialSyncCompleted = false, which flips `syncing` from false → true. During this
+	// window, if `allChatsFromDB` is empty (e.g., component just remounted, or auth briefly
+	// cycled), nothing would repopulate it until the server comes back and sync completes.
+	// This $effect watches for that transition and proactively reloads from IndexedDB,
+	// ensuring chats are always visible even when the server is down.
+	let _prevSyncingForReload = false;
+	$effect(() => {
+		const currentSyncing = syncing;
+		if (currentSyncing && !_prevSyncingForReload && $authStore.isAuthenticated) {
+			// Sync restarted (server disconnect/reconnect) — reload from IndexedDB if chats are missing
+			if (allChatsFromDB.length === 0) {
+				console.info('[Chats] Sync restarted with empty chat list — reloading from IndexedDB (offline-first guarantee)');
+				chatListCache.markDirty();
+				updateChatListFromDB(true, /* skipDebounce */ true).catch(err =>
+					console.error('[Chats] Error reloading from IDB after sync restart:', err)
+				);
+			}
+		}
+		_prevSyncingForReload = currentSyncing;
+	});
+
 	// Sort all chats (demo + real) using the utility function
 	let sortedAllChats = $derived(sortChats(allChats, currentServerSortOrder));
 
@@ -1494,9 +1517,19 @@ let _chatUpdatedFlushPending = false;
 				console.debug('[Chats] Skipping post-auth-change chat selection - handled by unified deep link system');
 			} else if (authState.isAuthenticated && allChatsFromDB.length === 0) {
 				// OFFLINE-FIRST FIX: When auth becomes true (e.g., optimistic auth restored),
-				// load chats from IndexedDB if we haven't loaded them yet
-				console.debug('[Chats] Auth state changed to authenticated - loading user chats from IndexedDB (offline-first mode)');
-				await initializeAndLoadDataFromDB();
+				// load chats from IndexedDB if we haven't loaded them yet.
+				// GUARD: Skip if a DB read is already in progress (e.g., the early IDB load
+				// fired at the top of onMount). Svelte's subscribe() fires the callback
+				// immediately with the current value, which races with the early load
+				// when allChatsFromDB is still [] (async IDB read hasn't completed yet).
+				// Without this guard, the second call returns early from isUpdateInProgress
+				// leaving allChatsFromDB empty until the first call finishes.
+				if (!chatListCache.isUpdateInProgress()) {
+					console.debug('[Chats] Auth state changed to authenticated - loading user chats from IndexedDB (offline-first mode)');
+					await initializeAndLoadDataFromDB();
+				} else {
+					console.debug('[Chats] Auth state changed to authenticated but DB read already in progress - skipping duplicate load');
+				}
 			}
 		});
 
@@ -2274,9 +2307,17 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 	const cacheStats = chatListCache.getStats();
 	console.debug("[Chats] Updating chat list from DB...", { force, limit, cacheStats, inProgress: chatListCache.isUpdateInProgress() });
 
-	// Prevent concurrent DB reads
+	// Prevent concurrent DB reads — but don't leave the caller with an empty allChatsFromDB.
+	// Wait for the in-progress update to complete, then serve its result from cache.
 	if (chatListCache.isUpdateInProgress()) {
-		console.debug("[Chats] DB read already in progress, skipping duplicate call");
+		console.debug("[Chats] DB read already in progress, waiting for completion...");
+		await chatListCache.waitForUpdate();
+		// The concurrent read finished — serve its result from cache
+		const cached = chatListCache.getCache(false);
+		if (cached && allChatsFromDB.length === 0) {
+			console.debug("[Chats] Concurrent read completed — populating from cache:", cached.length, "chats");
+			allChatsFromDB = cached;
+		}
 		return;
 	}
 

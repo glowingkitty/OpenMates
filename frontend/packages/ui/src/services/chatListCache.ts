@@ -2,7 +2,7 @@
 // Global cache for chat list to persist across component remounts
 // This prevents unnecessary database reads when the sidebar is closed and reopened
 
-import type { Chat, Message } from '../types/chat';
+import type { Chat, Message } from "../types/chat";
 
 /**
  * Global cache for the full chat list and last messages.
@@ -10,178 +10,240 @@ import type { Chat, Message } from '../types/chat';
  * is destroyed and recreated (when sidebar closes/opens), the cache remains.
  */
 class ChatListCache {
-	private cachedChats: Chat[] = [];
-	private cachedChatsTimestamp = 0;
-	private cacheReady = false;
-	private cacheDirty = false;
-	private updateInProgress = false;
-	private readonly CACHE_STALE_MS = 5 * 60 * 1000; // 5 minutes
-	
-	// Cache for last messages per chat to avoid repeated decryption
-	private lastMessageCache = new Map<string, { message: Message | null; timestamp: number }>();
-	private readonly LAST_MESSAGE_CACHE_STALE_MS = 5 * 60 * 1000; // 5 minutes
+  private cachedChats: Chat[] = [];
+  private cachedChatsTimestamp = 0;
+  private cacheReady = false;
+  private cacheDirty = false;
+  private updateInProgress = false;
+  private readonly CACHE_STALE_MS = 5 * 60 * 1000; // 5 minutes
 
-	/**
-	 * Set the cached chat list
-	 */
-	setCache(chats: Chat[]): void {
-		this.cachedChats = [...chats];
-		this.cachedChatsTimestamp = Date.now();
-		this.cacheReady = true;
-		this.cacheDirty = false;
-		console.debug(`[ChatListCache] Cache updated: ${chats.length} chats, timestamp: ${this.cachedChatsTimestamp}`);
-	}
+  // Promise that resolves when the current in-progress update completes.
+  // Allows callers blocked by isUpdateInProgress to wait for completion
+  // instead of silently returning with empty data.
+  private updateCompletionResolve: (() => void) | null = null;
+  private updateCompletionPromise: Promise<void> | null = null;
 
-	/**
-	 * Get cached chats if available and fresh
-	 * @param force - If true, ignore cache and return null
-	 * @returns Cached chats array or null if cache miss
-	 */
-	getCache(force = false): Chat[] | null {
-		if (!this.cacheReady) {
-			console.debug('[ChatListCache] Cache not ready');
-			return null;
-		}
-		if (!force && !this.cacheDirty && Date.now() - this.cachedChatsTimestamp < this.CACHE_STALE_MS) {
-			console.debug(`[ChatListCache] Cache hit: ${this.cachedChats.length} chats (age: ${Date.now() - this.cachedChatsTimestamp}ms)`);
-			return [...this.cachedChats];
-		}
-		console.debug(`[ChatListCache] Cache miss: force=${force}, dirty=${this.cacheDirty}, age=${Date.now() - this.cachedChatsTimestamp}ms`);
-		return null;
-	}
+  // Cache for last messages per chat to avoid repeated decryption
+  private lastMessageCache = new Map<
+    string,
+    { message: Message | null; timestamp: number }
+  >();
+  private readonly LAST_MESSAGE_CACHE_STALE_MS = 5 * 60 * 1000; // 5 minutes
 
-	/**
-	 * Update or insert a chat in the cache
-	 */
-	upsertChat(chat: Chat): void {
-		if (!this.cacheReady) {
-			console.debug('[ChatListCache] Cache not ready, skipping upsert');
-			return;
-		}
-		const idx = this.cachedChats.findIndex(c => c.chat_id === chat.chat_id);
-		if (idx === -1) {
-			this.cachedChats = [...this.cachedChats, chat];
-			console.debug(`[ChatListCache] Added chat to cache: ${chat.chat_id}`);
-		} else {
-			const updated = [...this.cachedChats];
-			updated[idx] = chat;
-			this.cachedChats = updated;
-			console.debug(`[ChatListCache] Updated chat in cache: ${chat.chat_id}`);
-		}
-		this.cacheDirty = false;
-		this.cachedChatsTimestamp = Date.now();
-	}
+  /**
+   * Set the cached chat list
+   */
+  setCache(chats: Chat[]): void {
+    this.cachedChats = [...chats];
+    this.cachedChatsTimestamp = Date.now();
+    this.cacheReady = true;
+    this.cacheDirty = false;
+    console.debug(
+      `[ChatListCache] Cache updated: ${chats.length} chats, timestamp: ${this.cachedChatsTimestamp}`,
+    );
+  }
 
-	/**
-	 * Remove a chat from the cache
-	 */
-	removeChat(chatId: string): void {
-		if (!this.cacheReady) return;
-		this.cachedChats = this.cachedChats.filter(c => c.chat_id !== chatId);
-		this.cacheDirty = false;
-		this.cachedChatsTimestamp = Date.now();
-		console.debug(`[ChatListCache] Removed chat from cache: ${chatId}`);
-	}
+  /**
+   * Get cached chats if available and fresh
+   * @param force - If true, ignore cache and return null
+   * @returns Cached chats array or null if cache miss
+   */
+  getCache(force = false): Chat[] | null {
+    if (!this.cacheReady) {
+      console.debug("[ChatListCache] Cache not ready");
+      return null;
+    }
+    if (
+      !force &&
+      !this.cacheDirty &&
+      Date.now() - this.cachedChatsTimestamp < this.CACHE_STALE_MS
+    ) {
+      console.debug(
+        `[ChatListCache] Cache hit: ${this.cachedChats.length} chats (age: ${Date.now() - this.cachedChatsTimestamp}ms)`,
+      );
+      return [...this.cachedChats];
+    }
+    console.debug(
+      `[ChatListCache] Cache miss: force=${force}, dirty=${this.cacheDirty}, age=${Date.now() - this.cachedChatsTimestamp}ms`,
+    );
+    return null;
+  }
 
-	/**
-	 * Mark cache as dirty (needs refresh)
-	 */
-	markDirty(): void {
-		this.cacheDirty = true;
-		console.debug('[ChatListCache] Cache marked as dirty');
-	}
+  /**
+   * Update or insert a chat in the cache
+   */
+  upsertChat(chat: Chat): void {
+    if (!this.cacheReady) {
+      console.debug("[ChatListCache] Cache not ready, skipping upsert");
+      return;
+    }
+    const idx = this.cachedChats.findIndex((c) => c.chat_id === chat.chat_id);
+    if (idx === -1) {
+      this.cachedChats = [...this.cachedChats, chat];
+      console.debug(`[ChatListCache] Added chat to cache: ${chat.chat_id}`);
+    } else {
+      const updated = [...this.cachedChats];
+      updated[idx] = chat;
+      this.cachedChats = updated;
+      console.debug(`[ChatListCache] Updated chat in cache: ${chat.chat_id}`);
+    }
+    this.cacheDirty = false;
+    this.cachedChatsTimestamp = Date.now();
+  }
 
-	/**
-	 * Check if an update is in progress (prevents concurrent DB reads)
-	 */
-	isUpdateInProgress(): boolean {
-		return this.updateInProgress;
-	}
+  /**
+   * Remove a chat from the cache
+   */
+  removeChat(chatId: string): void {
+    if (!this.cacheReady) return;
+    this.cachedChats = this.cachedChats.filter((c) => c.chat_id !== chatId);
+    this.cacheDirty = false;
+    this.cachedChatsTimestamp = Date.now();
+    console.debug(`[ChatListCache] Removed chat from cache: ${chatId}`);
+  }
 
-	/**
-	 * Set update in progress flag
-	 */
-	setUpdateInProgress(inProgress: boolean): void {
-		this.updateInProgress = inProgress;
-		if (inProgress) {
-			console.debug('[ChatListCache] Update started');
-		} else {
-			console.debug('[ChatListCache] Update completed');
-		}
-	}
+  /**
+   * Mark cache as dirty (needs refresh)
+   */
+  markDirty(): void {
+    this.cacheDirty = true;
+    console.debug("[ChatListCache] Cache marked as dirty");
+  }
 
-	/**
-	 * Get cache statistics for debugging
-	 */
-	getStats(): { ready: boolean; count: number; age: number; dirty: boolean } {
-		return {
-			ready: this.cacheReady,
-			count: this.cachedChats.length,
-			age: Date.now() - this.cachedChatsTimestamp,
-			dirty: this.cacheDirty
-		};
-	}
+  /**
+   * Check if an update is in progress (prevents concurrent DB reads)
+   */
+  isUpdateInProgress(): boolean {
+    return this.updateInProgress;
+  }
 
-	/**
-	 * Get cached last message for a chat
-	 * @param chatId The chat ID
-	 * @returns Cached last message or null if not cached or stale
-	 */
-	getLastMessage(chatId: string): Message | null | undefined {
-		const cached = this.lastMessageCache.get(chatId);
-		if (!cached) {
-			return undefined; // Not cached
-		}
-		const age = Date.now() - cached.timestamp;
-		if (age > this.LAST_MESSAGE_CACHE_STALE_MS) {
-			this.lastMessageCache.delete(chatId);
-			return undefined; // Stale, removed from cache
-		}
-		console.debug(`[ChatListCache] Last message cache hit for chat ${chatId} (age: ${age}ms)`);
-		return cached.message;
-	}
+  /**
+   * Set update in progress flag.
+   * When set to true, creates a Promise that callers can await via waitForUpdate().
+   * When set to false, resolves the Promise so waiting callers proceed.
+   */
+  setUpdateInProgress(inProgress: boolean): void {
+    this.updateInProgress = inProgress;
+    if (inProgress) {
+      // Create a new completion promise for callers to await
+      if (!this.updateCompletionPromise) {
+        this.updateCompletionPromise = new Promise<void>((resolve) => {
+          this.updateCompletionResolve = resolve;
+        });
+      }
+      console.debug("[ChatListCache] Update started");
+    } else {
+      // Resolve the promise so waiting callers can proceed
+      if (this.updateCompletionResolve) {
+        this.updateCompletionResolve();
+        this.updateCompletionResolve = null;
+        this.updateCompletionPromise = null;
+      }
+      console.debug("[ChatListCache] Update completed");
+    }
+  }
 
-	/**
-	 * Cache the last message for a chat
-	 * @param chatId The chat ID
-	 * @param message The last message (or null if no messages)
-	 */
-	setLastMessage(chatId: string, message: Message | null): void {
-		this.lastMessageCache.set(chatId, {
-			message,
-			timestamp: Date.now()
-		});
-		console.debug(`[ChatListCache] Cached last message for chat ${chatId}`);
-	}
+  /**
+   * Wait for an in-progress update to complete.
+   * Returns immediately if no update is in progress.
+   * Used by callers that would otherwise be silently skipped by the
+   * isUpdateInProgress guard, ensuring they can serve data from cache
+   * once the concurrent read finishes.
+   */
+  async waitForUpdate(): Promise<void> {
+    if (this.updateCompletionPromise) {
+      await this.updateCompletionPromise;
+    }
+  }
 
-	/**
-	 * Invalidate last message cache for a chat (e.g., when a new message is added)
-	 * @param chatId The chat ID
-	 */
-	invalidateLastMessage(chatId: string): void {
-		this.lastMessageCache.delete(chatId);
-		console.debug(`[ChatListCache] Invalidated last message cache for chat ${chatId}`);
-	}
+  /**
+   * Get cache statistics for debugging
+   */
+  getStats(): { ready: boolean; count: number; age: number; dirty: boolean } {
+    return {
+      ready: this.cacheReady,
+      count: this.cachedChats.length,
+      age: Date.now() - this.cachedChatsTimestamp,
+      dirty: this.cacheDirty,
+    };
+  }
 
-	/**
-	 * Clear all last message caches
-	 */
-	clearLastMessages(): void {
-		this.lastMessageCache.clear();
-		console.debug('[ChatListCache] Cleared all last message caches');
-	}
+  /**
+   * Get cached last message for a chat
+   * @param chatId The chat ID
+   * @returns Cached last message or null if not cached or stale
+   */
+  getLastMessage(chatId: string): Message | null | undefined {
+    const cached = this.lastMessageCache.get(chatId);
+    if (!cached) {
+      return undefined; // Not cached
+    }
+    const age = Date.now() - cached.timestamp;
+    if (age > this.LAST_MESSAGE_CACHE_STALE_MS) {
+      this.lastMessageCache.delete(chatId);
+      return undefined; // Stale, removed from cache
+    }
+    console.debug(
+      `[ChatListCache] Last message cache hit for chat ${chatId} (age: ${age}ms)`,
+    );
+    return cached.message;
+  }
 
-	/**
-	 * Clear the entire cache (e.g., on logout)
-	 */
-	clear(): void {
-		this.cachedChats = [];
-		this.cacheReady = false;
-		this.cacheDirty = false;
-		this.cachedChatsTimestamp = 0;
-		this.lastMessageCache.clear();
-		console.debug('[ChatListCache] Cache cleared');
-	}
+  /**
+   * Cache the last message for a chat
+   * @param chatId The chat ID
+   * @param message The last message (or null if no messages)
+   */
+  setLastMessage(chatId: string, message: Message | null): void {
+    this.lastMessageCache.set(chatId, {
+      message,
+      timestamp: Date.now(),
+    });
+    console.debug(`[ChatListCache] Cached last message for chat ${chatId}`);
+  }
+
+  /**
+   * Invalidate last message cache for a chat (e.g., when a new message is added)
+   * @param chatId The chat ID
+   */
+  invalidateLastMessage(chatId: string): void {
+    this.lastMessageCache.delete(chatId);
+    console.debug(
+      `[ChatListCache] Invalidated last message cache for chat ${chatId}`,
+    );
+  }
+
+  /**
+   * Clear all last message caches
+   */
+  clearLastMessages(): void {
+    this.lastMessageCache.clear();
+    console.debug("[ChatListCache] Cleared all last message caches");
+  }
+
+  /**
+   * Clear the entire cache (e.g., on logout)
+   * CRITICAL: Also resets updateInProgress to prevent a stuck flag from permanently
+   * blocking all future DB reads. This can happen if clear() is called while an
+   * async DB read is in-flight (e.g., auth state changes during a sync event).
+   */
+  clear(): void {
+    this.cachedChats = [];
+    this.cacheReady = false;
+    this.cacheDirty = false;
+    this.cachedChatsTimestamp = 0;
+    this.updateInProgress = false;
+    // Resolve any waiting callers so they don't hang indefinitely
+    if (this.updateCompletionResolve) {
+      this.updateCompletionResolve();
+      this.updateCompletionResolve = null;
+      this.updateCompletionPromise = null;
+    }
+    this.lastMessageCache.clear();
+    console.debug(
+      "[ChatListCache] Cache cleared (including updateInProgress reset)",
+    );
+  }
 }
 
 // Export singleton instance
