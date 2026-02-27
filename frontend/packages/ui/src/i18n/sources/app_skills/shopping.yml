@@ -23,26 +23,26 @@ search_products:
   verified_by_human: [en, de]
 search_products.description:
   context: Description for shopping search products skill
-  en: Find and compare products across supermarkets.
-  de: Produkte in Supermärkten finden und vergleichen.
-  zh: 在超市中查找和比较产品。
-  es: Encuentra y compara productos en supermercados.
-  fr: Trouvez et comparez des produits dans les supermarchés.
-  pt: Encontre e compare produtos em supermercados.
-  ru: Найдите и сравните товары в супермаркетах.
-  ja: スーパーマーケットで商品を探して比較する。
-  ko: 슈퍼마켓에서 제품을 찾아 비교하세요.
-  it: Trova e confronta prodotti nei supermercati.
-  tr: Süpermarketlerde ürün bulun ve karşılaştırın.
-  vi: Tìm và so sánh sản phẩm trong các siêu thị.
-  id: Temukan dan bandingkan produk di supermarket.
-  pl: Znajdź i porównaj produkty w supermarketach.
-  nl: Vind en vergelijk producten in supermarkten.
-  ar: ابحث عن منتجات وقارنها في السوبر ماركت.
+  en: Search and compare products across supermarkets.
+  de: Produkte in Supermärkten suchen und vergleichen.
+  zh: 在超市中搜索和比较产品。
+  es: Busca y compara productos en supermercados.
+  fr: Cherchez et comparez des produits dans les supermarchés.
+  pt: Pesquise e compare produtos em supermercados.
+  ru: Ищите и сравнивайте товары в супермаркетах.
+  ja: スーパーの商品を検索して比較する。
+  ko: 슈퍼마켓 상품을 검색하고 비교하세요.
+  it: Cerca e confronta prodotti nei supermercati.
+  tr: Süpermarketlerde ürün arayın ve karşılaştırın.
+  vi: Tìm kiếm và so sánh sản phẩm tại siêu thị.
+  id: Cari dan bandingkan produk di supermarket.
+  pl: Szukaj i porównuj produkty w supermarketach.
+  nl: Zoek en vergelijk producten in supermarkten.
+  ar: ابحث عن منتجات وقارنها في السوبرماركت.
   hi: सुपरमार्केट में उत्पाद खोजें और तुलना करें।
   th: ค้นหาและเปรียบเทียบสินค้าในซุปเปอร์มาร์เก็ต
-  cs: Najděte a porovnejte produkty v supermarketech.
-  sv: Hitta och jämför produkter i supermarkets.
+  cs: Hledejte a porovnávejte produkty v supermarketech.
+  sv: Sök och jämför produkter i supermarkets.
   verified_by_human: []
 
 search_products.how_to_use.1:

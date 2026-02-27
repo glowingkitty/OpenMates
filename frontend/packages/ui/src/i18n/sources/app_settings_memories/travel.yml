@@ -100,29 +100,27 @@ preferred_airlines.description:
     - de
 preferred_transport_methods:
   context: Settings/memory name for preferred transport methods
-  en: Preferred Transport Methods
-  de: Bevorzugte Transportmittel
+  en: Preferred Transport
+  de: Bevorzugtes Transportmittel
   zh: 首选交通方式
-  es: Métodos de transporte preferidos
-  fr: Moyens de transport préférés
-  pt: Métodos de transporte preferidos
-  ru: Предпочтительные способы транспорта
+  es: Transporte preferido
+  fr: Transport préféré
+  pt: Transporte preferido
+  ru: Предпочтительный транспорт
   ja: 優先交通手段
-  ko: 선호 교통 수단
-  it: Metodi di trasporto preferiti
-  tr: Tercih edilen ulaşım yöntemleri
-  vi: Phương tiện giao thông ưa thích
-  id: Metode transportasi pilihan
-  pl: Preferowane środki transportu
-  nl: Voorkeursvervoermethoden
-  ar: طرق النقل المفضلة
-  hi: पसंदीदा परिवहन विधियां
-  th: วิธีการขนส่งที่ต้องการ
-  cs: Preferované způsoby dopravy
-  sv: Föredragna transportmetoder
-  verified_by_human:
-    - en
-    - de
+  ko: 선호 교통수단
+  it: Trasporto preferito
+  tr: Tercih edilen ulaşım
+  vi: Phương tiện ưa thích
+  id: Transportasi pilihan
+  pl: Preferowany transport
+  nl: Voorkeursvervoer
+  ar: النقل المفضل
+  hi: पसंदीदा परिवहन
+  th: การขนส่งที่ต้องการ
+  cs: Preferovaná doprava
+  sv: Föredraget transport
+  verified_by_human: []
 preferred_transport_methods.description:
   context: Description for preferred transport methods settings/memory
   en: Your preferred ways to travel.

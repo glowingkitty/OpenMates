@@ -484,13 +484,12 @@
     }
     
     .app-card-name {
-        margin: 0;
+        margin: 2px 0 0;
         font-size: 16px;
         font-weight: 600;
         color: #ffffff;
         line-height: 1.2;
         flex: 1;
-        margin-top: 10px;
     }
     
     .app-card-description {

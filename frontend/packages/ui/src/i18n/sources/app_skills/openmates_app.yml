@@ -24,24 +24,24 @@ share_usecase:
 
 share_usecase.description:
   context: Description for the share use case skill — anonymously shares how the user wants to use OpenMates
-  en: Anonymously share how you want to use OpenMates.
-  de: Teile anonym, wie du OpenMates nutzen möchtest.
-  zh: 匿名分享您希望如何使用 OpenMates。
-  es: Comparte de forma anónima cómo usarás OpenMates.
-  fr: Partagez anonymement votre utilisation d'OpenMates.
-  pt: Compartilhe anonimamente como usará o OpenMates.
-  ru: Анонимно поделитесь тем, как вы используете OpenMates.
-  ja: OpenMates の使い方を匿名で共有してください。
-  ko: OpenMates 사용 방식을 익명으로 공유하세요.
-  it: Condividi anonimamente come usi OpenMates.
-  tr: OpenMates'i nasıl kullanmak istediğini anonim paylaş.
-  vi: Chia sẻ ẩn danh cách bạn muốn dùng OpenMates.
-  id: Bagikan secara anonim cara kamu ingin pakai OpenMates.
-  pl: Anonimowo podziel się, jak chcesz używać OpenMates.
-  nl: Deel anoniem hoe je OpenMates wilt gebruiken.
-  ar: شارك بشكل مجهول كيف تريد استخدام OpenMates.
-  hi: बताएं OpenMates कैसे उपयोग करना चाहते हैं (गुमनाम)।
-  th: แชร์แบบไม่ระบุตัวตนว่าจะใช้ OpenMates อย่างไร
-  cs: Anonymně sdílejte, jak chcete používat OpenMates.
-  sv: Dela anonymt hur du vill använda OpenMates.
-  verified_by_human: [en]
+  en: Share your OpenMates use case anonymously.
+  de: Teile deinen Anwendungsfall anonym.
+  zh: 匿名分享你的 OpenMates 用例。
+  es: Comparte tu caso de uso de forma anónima.
+  fr: Partagez votre cas d'usage anonymement.
+  pt: Compartilhe seu caso de uso anonimamente.
+  ru: Поделитесь своим сценарием использования анонимно.
+  ja: 使い方を匿名で共有してください。
+  ko: 사용 사례를 익명으로 공유하세요.
+  it: Condividi il tuo caso d'uso in modo anonimo.
+  tr: Kullanım durumunu anonim olarak paylaş.
+  vi: Chia sẻ trường hợp dùng của bạn ẩn danh.
+  id: Bagikan kasus penggunaan kamu secara anonim.
+  pl: Podziel się swoim przypadkiem użycia anonimowo.
+  nl: Deel je gebruiksgeval anoniem.
+  ar: شارك حالة استخدامك بشكل مجهول.
+  hi: अपना उपयोग का मामला गुमनाम रूप से साझा करें।
+  th: แชร์กรณีใช้งานของคุณแบบไม่ระบุตัวตน
+  cs: Sdílejte svůj případ použití anonymně.
+  sv: Dela ditt användningsfall anonymt.
+  verified_by_human: []

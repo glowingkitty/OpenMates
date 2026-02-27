@@ -475,29 +475,27 @@ vectorize:
 
 vectorize.description:
   context: Description for the raster-to-SVG vectorization skill
-  en: Convert a raster image (PNG, JPG, WEBP) into a scalable SVG vector file.
-  de: Ein Rasterbild (PNG, JPG, WEBP) in eine skalierbare SVG-Vektordatei umwandeln.
-  zh: 将光栅图像（PNG、JPG、WEBP）转换为可缩放的 SVG 矢量文件。
-  es: Convierte una imagen rasterizada (PNG, JPG, WEBP) en un archivo vectorial SVG escalable.
-  fr: Convertissez une image raster (PNG, JPG, WEBP) en fichier vectoriel SVG redimensionnable.
-  pt: Converta uma imagem raster (PNG, JPG, WEBP) em um arquivo vetorial SVG escalável.
-  ru: Конвертируйте растровое изображение (PNG, JPG, WEBP) в масштабируемый SVG-файл.
-  ja: ラスター画像（PNG、JPG、WEBP）をスケーラブルなSVGベクターファイルに変換します。
-  ko: 래스터 이미지(PNG, JPG, WEBP)를 확장 가능한 SVG 벡터 파일로 변환합니다.
-  it: Converti un'immagine raster (PNG, JPG, WEBP) in un file vettoriale SVG scalabile.
-  tr: Raster bir görüntüyü (PNG, JPG, WEBP) ölçeklenebilir SVG vektör dosyasına dönüştürün.
-  vi: Chuyển đổi hình ảnh raster (PNG, JPG, WEBP) thành tệp vector SVG có thể mở rộng.
-  id: Konversikan gambar raster (PNG, JPG, WEBP) menjadi file vektor SVG yang dapat diskalakan.
-  pl: Przekształć obraz rastrowy (PNG, JPG, WEBP) w skalowalny plik wektorowy SVG.
-  nl: Converteer een rasterafbeelding (PNG, JPG, WEBP) naar een schaalbaar SVG-vectorbestand.
-  ar: حوّل صورة نقطية (PNG، JPG، WEBP) إلى ملف متجه SVG قابل للتوسع.
-  hi: एक रास्टर छवि (PNG, JPG, WEBP) को स्केलेबल SVG वेक्टर फ़ाइल में बदलें।
-  th: แปลงภาพแบบ raster (PNG, JPG, WEBP) ให้เป็นไฟล์เวกเตอร์ SVG ที่ขยายได้
-  cs: Převeďte rastrový obrázek (PNG, JPG, WEBP) na škálovatelný SVG vektorový soubor.
-  sv: Konvertera en rasterbild (PNG, JPG, WEBP) till en skalbar SVG-vektorfil.
-  verified_by_human:
-    - en
-    - de
+  en: Convert raster images into scalable SVG vector files.
+  de: Rasterbilder in skalierbare SVG-Vektordateien umwandeln.
+  zh: 将光栅图像转换为可缩放的 SVG 矢量文件。
+  es: Convierte imágenes raster en archivos vectoriales SVG escalables.
+  fr: Convertissez des images raster en fichiers vectoriels SVG scalables.
+  pt: Converta imagens raster em arquivos vetoriais SVG escaláveis.
+  ru: Конвертируйте растровые изображения в масштабируемые SVG-файлы.
+  ja: ラスター画像をスケーラブルなSVGベクターファイルに変換します。
+  ko: 래스터 이미지를 확장 가능한 SVG 벡터 파일로 변환합니다.
+  it: Converti immagini raster in file vettoriali SVG scalabili.
+  tr: Raster görüntüleri ölçeklenebilir SVG vektör dosyalarına dönüştürün.
+  vi: Chuyển đổi hình ảnh raster thành tệp vector SVG có thể mở rộng.
+  id: Konversi gambar raster menjadi file vektor SVG yang dapat diskalakan.
+  pl: Przekształć obrazy rastrowe w skalowalne pliki wektorowe SVG.
+  nl: Converteer rasterafbeeldingen naar schaalbare SVG-vectorbestanden.
+  ar: حوّل الصور النقطية إلى ملفات متجهة SVG قابلة للتوسع.
+  hi: रास्टर छवियों को स्केलेबल SVG वेक्टर फ़ाइलों में बदलें।
+  th: แปลงภาพ raster ให้เป็นไฟล์เวกเตอร์ SVG ที่ขยายได้
+  cs: Převeďte rastrové obrázky na škálovatelné SVG vektorové soubory.
+  sv: Konvertera rasterbilder till skalbara SVG-vektorfiler.
+  verified_by_human: []
 
 vectorize.how_to_use.1:
   context: Example instruction for vectorize skill - logo
