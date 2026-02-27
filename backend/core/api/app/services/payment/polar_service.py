@@ -180,7 +180,7 @@ class PolarService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT, follow_redirects=True) as client:
                 response = await client.post(
                     f"{self._api_base}/checkouts",
                     headers=self._get_headers(),
@@ -262,7 +262,7 @@ class PolarService:
             return None
 
         try:
-            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT, follow_redirects=True) as client:
                 response = await client.get(
                     f"{self._api_base}/checkouts/{order_id}",
                     headers=self._get_headers(),
@@ -442,7 +442,7 @@ class PolarService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT, follow_redirects=True) as client:
                 response = await client.post(
                     f"{self._api_base}/refunds",
                     headers=self._get_headers(),

@@ -150,7 +150,7 @@ class PolarProductSync:
         limit = 100
 
         try:
-            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT, follow_redirects=True) as client:
                 while True:
                     response = await client.get(
                         f"{self.polar_service._api_base}/products",
@@ -212,7 +212,7 @@ class PolarProductSync:
             "description": f"Purchase {formatted_credits} OpenMates AI credits.",
             "prices": [
                 {
-                    "type": "one_time",
+                    "amount_type": "fixed",
                     "price_currency": "usd",
                     "price_amount": price_cents,
                 }
@@ -224,7 +224,7 @@ class PolarProductSync:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT, follow_redirects=True) as client:
                 response = await client.post(
                     f"{self.polar_service._api_base}/products",
                     headers=self.polar_service._get_headers(),
