@@ -653,6 +653,14 @@ async def lifespan(app: FastAPI):
         logger.info("Ensuring encryption keys exist...")
         await app.state.encryption_service.ensure_keys_exist()
         logger.info("Encryption service initialized successfully.")
+
+        # Start background Vault token auto-renewal loop.
+        # Renews the token every 7 days so it never expires while the API is running.
+        # The 1-year token TTL means 52 renewals before expiry — each renewal resets the clock.
+        app.state.vault_token_renewal_task = asyncio.create_task(
+            app.state.encryption_service.token_renewal_loop(renewal_interval_days=7.0)
+        )
+        logger.info("Started Vault token auto-renewal background task (interval: 7 days)")
         
         # Validate hosting domain against security policies (prevents self-hosting on restricted domains)
         logger.info("Validating hosting domain against security policies...")

@@ -327,7 +327,61 @@ class EncryptionService:
         else:
             logger.warning("Failed to initialize encryption service with valid token")
             return False
-    
+
+    async def renew_token(self) -> bool:
+        """Renew the current Vault token using auth/token/renew-self.
+
+        Vault tokens created with `renewable: true` can be renewed before they expire.
+        This extends the token TTL by the original TTL (up to the max TTL configured in Vault).
+        Requires the api-service policy to grant 'update' on 'auth/token/renew-self'.
+
+        Returns:
+            True if renewal succeeded, False otherwise.
+        """
+        try:
+            masked = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
+            logger.info(f"Attempting to renew Vault token {masked}...")
+            result = await self._vault_request("post", "auth/token/renew-self", {})
+            new_ttl = result.get("auth", {}).get("lease_duration", 0)
+            new_days = new_ttl / 86400
+            logger.info(f"Vault token renewed successfully. New TTL: {new_days:.1f} days")
+            # Clear the validation cache so the next validation picks up the refreshed TTL
+            self._token_valid_until = 0
+            return True
+        except Exception as e:
+            logger.error(f"Vault token renewal failed: {e}. Token will expire at its original TTL.")
+            return False
+
+    async def token_renewal_loop(self, renewal_interval_days: float = 7.0):
+        """Background loop that proactively renews the Vault token every N days.
+
+        This prevents the 1-year token from silently expiring while the API is running.
+        If renewal fails (e.g., Vault is temporarily unreachable), it logs an error and
+        retries on the next interval — it does NOT crash the service.
+
+        The loop runs forever and is designed to be launched as an asyncio background task
+        at API startup via: asyncio.create_task(encryption_service.token_renewal_loop())
+
+        Args:
+            renewal_interval_days: How often to renew. Default 7 days — well within the
+                                   1-year token TTL, so there is no risk of expiry between renewals.
+        """
+        import asyncio as _asyncio
+        renewal_interval_seconds = renewal_interval_days * 86400
+        logger.info(
+            f"Starting Vault token auto-renewal loop. "
+            f"Will renew every {renewal_interval_days:.0f} days."
+        )
+        while True:
+            await _asyncio.sleep(renewal_interval_seconds)
+            success = await self.renew_token()
+            if not success:
+                logger.warning(
+                    "Vault token renewal failed. Will retry in "
+                    f"{renewal_interval_days:.0f} days. "
+                    "If this keeps failing, logins will break when the token expires."
+                )
+
     async def ensure_keys_exist(self):
         """Ensure encryption engine is enabled in Vault with improved error handling"""
         # Check if the transit engine is enabled
