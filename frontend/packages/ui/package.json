@@ -28,12 +28,13 @@
     "test:coverage": "vitest run --coverage",
     "generate-apps-metadata": "node scripts/generate-apps-metadata.js",
     "generate-models-metadata": "node scripts/generate-models-metadata.js",
+    "generate-providers-metadata": "node scripts/generate-providers-metadata.js",
     "build:translations": "node scripts/build-translations.js",
     "validate:locales": "node scripts/validate-locales.js",
     "update:translations": "node scripts/update-yaml-files.js",
-    "prepare": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata",
-    "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata",
-    "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata"
+    "prepare": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata && npm run generate-providers-metadata",
+    "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata && npm run generate-providers-metadata",
+    "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-models-metadata && npm run generate-providers-metadata"
   },
   "dependencies": {
     "@fontsource-variable/lexend-deca": "^5.2.9",

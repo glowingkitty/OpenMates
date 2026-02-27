@@ -60,6 +60,7 @@ changes to the documentation (to keep the documentation up to date).
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { modelsMetadata } from '../data/modelsMetadata';
+    import { providersMetadata, findProviderByName } from '../data/providersMetadata';
     import { getProviderIconUrl } from '../data/providerIcons';
     
     // Import the normal store instead of the derived one that was causing the error
@@ -135,11 +136,23 @@ changes to the documentation (to keep the documentation up to date).
             const appRoute = `app_store/${appId}`;
             views[appRoute] = AppDetailsWrapper;
             
-            // Add skill detail routes
+            // Add skill detail routes and their provider sub-routes
             if (app.skills && app.skills.length > 0) {
                 for (const skill of app.skills) {
                     const skillRoute = `app_store/${appId}/skill/${skill.id}`;
                     views[skillRoute] = AppDetailsWrapper;
+
+                    // Register provider sub-routes for each provider listed on this skill
+                    // skill.providers is an array of display name strings (e.g. ["Anthropic", "Google"])
+                    if (skill.providers && skill.providers.length > 0) {
+                        for (const providerName of skill.providers) {
+                            const providerMeta = findProviderByName(providerName);
+                            if (providerMeta) {
+                                const providerRoute = `app_store/${appId}/skill/${skill.id}/provider/${providerMeta.id}`;
+                                views[providerRoute] = AppDetailsWrapper;
+                            }
+                        }
+                    }
                 }
             }
             
@@ -457,10 +470,13 @@ changes to the documentation (to keep the documentation up to date).
     // Reactive translation of the submenu title — falls back to raw title when no key
     let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : activeSubMenuTitleRaw);
     
-    // True when the header should show a provider icon (model detail pages)
+    // True when the header should show a provider icon (model or provider detail pages)
     let isModelDetailPage = $derived(
         activeSettingsView.startsWith('app_store/') &&
-        /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/.test(activeSettingsView)
+        (
+            /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/.test(activeSettingsView) ||
+            /^app_store\/[^/]+\/skill\/[^/]+\/provider\/[^/]+$/.test(activeSettingsView)
+        )
     );
 
     // True when the header should show a mate profile image (mate detail pages)
@@ -732,7 +748,14 @@ changes to the documentation (to keep the documentation up to date).
                 activeSubMenuTitleRaw = '';
                 
                 // Check if this is a model detail route (app_store/{appId}/skill/{skillId}/model/{modelId})
-                if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
+                if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'provider') {
+                    // Provider detail route — show provider icon and provider name in header
+                    const providerId = pathParts[4];
+                    const providerMeta = providersMetadata[providerId];
+                    activeSubMenuProviderIconSvg = providerMeta?.logo_svg ?? '';
+                    activeSubMenuTitleKey = ''; // No translation key — use raw title (provider name)
+                    activeSubMenuTitleRaw = detail.title ?? (providerMeta?.name ?? providerId);
+                } else if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
                     // Model detail route — show provider icon and model name in header
                     const modelId = pathParts[4];
                     const modelMeta = modelsMetadata.find(m => m.id === modelId);

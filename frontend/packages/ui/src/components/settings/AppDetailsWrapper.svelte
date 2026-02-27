@@ -6,6 +6,7 @@
      - app_store/{app_id}/skill/{skill_id} -> SkillDetails (or AiAskSkillSettings for ai/ask)
      - app_store/ai/skill/ask/model/{model_id} -> AiAskModelDetails (AI Ask skill only)
      - app_store/{app_id}/skill/{skill_id}/model/{model_id} -> AppSkillModelDetails (all other skills)
+     - app_store/{app_id}/skill/{skill_id}/provider/{provider_id} -> ProviderDetails
      - app_store/{app_id}/focus/{focus_mode_id} -> FocusModeDetails
      - app_store/{app_id}/settings_memories/{category_id} -> AppSettingsMemoriesCategory
      - app_store/{app_id}/settings_memories/{category_id}/create -> AppSettingsMemoriesCreateEntry
@@ -24,6 +25,7 @@
     import AiAskSkillSettings from './AiAskSkillSettings.svelte';
     import AiAskModelDetails from './AiAskModelDetails.svelte';
     import AppSkillModelDetails from './AppSkillModelDetails.svelte';
+    import ProviderDetails from './ProviderDetails.svelte';
     import { createEventDispatcher } from 'svelte';
     
     interface Props {
@@ -38,6 +40,7 @@
         | { type: 'ai_ask_skill_settings'; appId: string; skillId: string }
         | { type: 'ai_ask_model_details'; appId: string; skillId: string; modelId: string }
         | { type: 'app_skill_model_details'; appId: string; skillId: string; modelId: string }
+        | { type: 'provider_details'; appId: string; skillId: string; providerId: string }
         | { type: 'focus_details'; appId: string; focusModeId: string }
         | { type: 'settings_memories_category'; appId: string; categoryId: string }
         | { type: 'settings_memories_create'; appId: string; categoryId: string }
@@ -57,6 +60,9 @@
         if (parts.length === 1) {
             // app_store/{app_id}
             return { type: 'app_details', appId: parts[0] };
+        } else if (parts.length === 5 && parts[1] === 'skill' && parts[3] === 'provider') {
+            // app_store/{app_id}/skill/{skill_id}/provider/{provider_id}
+            return { type: 'provider_details', appId: parts[0], skillId: parts[2], providerId: parts[4] };
         } else if (parts.length === 5 && parts[1] === 'skill' && parts[3] === 'model') {
             // app_store/{app_id}/skill/{skill_id}/model/{model_id}
             if (parts[0] === 'ai' && parts[2] === 'ask') {
@@ -136,6 +142,16 @@
         }
         return null;
     });
+
+    // Extract provider details route info for type safety
+    // Used for app_store/{appId}/skill/{skillId}/provider/{providerId} routes
+    let providerRouteInfo = $derived.by((): { appId: string; skillId: string; providerId: string } | null => {
+        if (routeInfo.type === 'provider_details') {
+            console.log('[AppDetailsWrapper] Provider details route detected:', routeInfo);
+            return { appId: routeInfo.appId, skillId: routeInfo.skillId, providerId: routeInfo.providerId };
+        }
+        return null;
+    });
     
     // Debug logging for route parsing
     $effect(() => {
@@ -156,6 +172,10 @@
     {@const route = appSkillModelRouteInfo}
     <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
     <AppSkillModelDetails appId={route.appId} skillId={route.skillId} modelId={route.modelId} on:openSettings={handleOpenSettings} />
+{:else if providerRouteInfo}
+    {@const route = providerRouteInfo}
+    <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
+    <ProviderDetails appId={route.appId} skillId={route.skillId} providerId={route.providerId} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'skill_details'}
     <SkillDetails appId={routeInfo.appId} skillId={routeInfo.skillId} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'focus_details'}

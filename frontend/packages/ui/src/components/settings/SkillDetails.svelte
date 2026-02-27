@@ -22,6 +22,7 @@
 <script lang="ts">
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
+    import { findProviderByName } from '../../data/providersMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
     import SettingsItem from '../SettingsItem.svelte';
     import type { AppMetadata, SkillMetadata, SkillPricing } from '../../types/apps';
@@ -249,6 +250,24 @@
             title: model.name
         });
     }
+
+    /**
+     * Navigate to a provider's detail page.
+     * Looks up the provider by display name to get its id for the route.
+     * Used for providers in the single-pricing (no models) section.
+     *
+     * @param providerName - Display name string from skill.providers (e.g. "Brave Search")
+     */
+    function handleProviderClick(providerName: string) {
+        const providerMeta = findProviderByName(providerName);
+        if (!providerMeta) return; // Provider not in metadata — not navigable
+        dispatch('openSettings', {
+            settingsPath: `app_store/${appId}/skill/${skillId}/provider/${providerMeta.id}`,
+            direction: 'forward',
+            icon: getIconName(app?.icon_image),
+            title: providerMeta.name,
+        });
+    }
 </script>
 
 <div class="skill-details">
@@ -351,12 +370,39 @@
                         icon="provider"
                         title={$text('settings.app_store.skills.providers')}
                     />
-                    <div class="content">
-                        <ul class="providers-list">
-                            {#each skill.providers as provider}
-                                <li>{provider}</li>
-                            {/each}
-                        </ul>
+                    <div class="providers-list">
+                        {#each skill.providers as providerName}
+                            {@const providerMeta = findProviderByName(providerName)}
+                            {#if providerMeta}
+                                <!-- Provider is in metadata — render as clickable row -->
+                                <div
+                                    class="provider-item provider-item--clickable"
+                                    role="button"
+                                    tabindex="0"
+                                    onclick={() => handleProviderClick(providerName)}
+                                    onkeydown={(e) => e.key === 'Enter' && handleProviderClick(providerName)}
+                                >
+                                    <div class="provider-icon">
+                                        <img
+                                            src={getProviderIconUrl(providerMeta.logo_svg)}
+                                            alt={providerMeta.name}
+                                            class="provider-logo"
+                                        />
+                                    </div>
+                                    <div class="provider-info">
+                                        <span class="provider-name">{providerMeta.name}</span>
+                                    </div>
+                                    <span class="provider-chevron">›</span>
+                                </div>
+                            {:else}
+                                <!-- Provider not in metadata — render as plain non-clickable row -->
+                                <div class="provider-item">
+                                    <div class="provider-info">
+                                        <span class="provider-name">{providerName}</span>
+                                    </div>
+                                </div>
+                            {/if}
+                        {/each}
                     </div>
                 </div>
             {/if}
@@ -416,19 +462,69 @@
         line-height: 1.6;
     }
     
+    /* Providers list — clickable rows matching the model-item style */
     .providers-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        margin-left: 10px;
     }
-    
-    .providers-list li {
-        padding: 0.5rem 0;
-        border-bottom: 1px solid var(--color-grey-20);
+
+    .provider-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
     }
-    
-    .providers-list li:last-child {
-        border-bottom: none;
+
+    .provider-item--clickable {
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .provider-item--clickable:hover {
+        background: var(--color-grey-10);
+    }
+
+    .provider-icon {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .provider-logo {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        object-fit: contain;
+        background: var(--color-grey-10);
+        padding: 4px;
+    }
+
+    .provider-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .provider-name {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--color-primary-start);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+    }
+
+    .provider-chevron {
+        flex-shrink: 0;
+        font-size: 1.25rem;
+        color: var(--color-grey-40);
+        line-height: 1;
     }
     
     .pricing {
@@ -635,6 +731,10 @@
     
     /* Dark mode */
     :global(.dark) .model-item:hover {
+        background: var(--color-grey-15);
+    }
+
+    :global(.dark) .provider-item--clickable:hover {
         background: var(--color-grey-15);
     }
     

@@ -2281,3 +2281,95 @@ nav.next_item:
   cs: "Další: {name}"
   sv: "Nästa: {name}"
   verified_by_human: []
+provider_detail.connected_skills:
+  context: Section heading on provider detail page listing all app skills that use this provider
+  en: Connected Skills
+  de: Verbundene Fähigkeiten
+  zh: 已连接的技能
+  es: Habilidades conectadas
+  fr: Compétences connectées
+  pt: Habilidades conectadas
+  ru: Связанные навыки
+  ja: 接続されたスキル
+  ko: 연결된 스킬
+  it: Abilità collegate
+  tr: Bağlı beceriler
+  vi: Kỹ năng được kết nối
+  id: Keterampilan terhubung
+  pl: Połączone umiejętności
+  nl: Verbonden vaardigheden
+  ar: المهارات المتصلة
+  hi: जुड़े हुए कौशल
+  th: ทักษะที่เชื่อมต่อ
+  cs: Propojené dovednosti
+  sv: Anslutna färdigheter
+  verified_by_human: []
+provider_detail.about:
+  context: Section heading on provider detail page showing provider information (description + location)
+  en: About
+  de: Über
+  zh: 关于
+  es: Acerca de
+  fr: À propos
+  pt: Sobre
+  ru: О провайдере
+  ja: 概要
+  ko: 소개
+  it: Informazioni
+  tr: Hakkında
+  vi: Giới thiệu
+  id: Tentang
+  pl: O dostawcy
+  nl: Over
+  ar: حول
+  hi: के बारे में
+  th: เกี่ยวกับ
+  cs: O poskytovateli
+  sv: Om
+  verified_by_human: []
+provider_detail.location:
+  context: Label for the provider's country/location on the provider detail page
+  en: Location
+  de: Standort
+  zh: 位置
+  es: Ubicación
+  fr: Localisation
+  pt: Localização
+  ru: Местоположение
+  ja: 所在地
+  ko: 위치
+  it: Posizione
+  tr: Konum
+  vi: Địa điểm
+  id: Lokasi
+  pl: Lokalizacja
+  nl: Locatie
+  ar: الموقع
+  hi: स्थान
+  th: ที่ตั้ง
+  cs: Umístění
+  sv: Plats
+  verified_by_human: []
+provider_not_found:
+  context: Error message when provider is not found on provider detail page
+  en: Provider not found.
+  de: Anbieter nicht gefunden.
+  zh: 未找到提供商。
+  es: Proveedor no encontrado.
+  fr: Fournisseur introuvable.
+  pt: Provedor não encontrado.
+  ru: Провайдер не найден.
+  ja: プロバイダーが見つかりません。
+  ko: 제공업체를 찾을 수 없습니다.
+  it: Fornitore non trovato.
+  tr: Sağlayıcı bulunamadı.
+  vi: Không tìm thấy nhà cung cấp.
+  id: Penyedia tidak ditemukan.
+  pl: Nie znaleziono dostawcy.
+  nl: Provider niet gevonden.
+  ar: لم يتم العثور على المزود.
+  hi: प्रदाता नहीं मिला।
+  th: ไม่พบผู้ให้บริการ
+  cs: Poskytovatel nenalezen.
+  sv: Leverantör hittades inte.
+  verified_by_human: []
