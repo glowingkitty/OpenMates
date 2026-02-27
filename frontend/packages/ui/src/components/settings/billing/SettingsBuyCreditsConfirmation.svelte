@@ -1,20 +1,27 @@
 <!--
-Buy Credits Confirmation - Success screen after purchase
+Buy Credits Confirmation - Success screen after purchase.
+Shows both the purchased credits amount (+X) and the new total balance.
 -->
 
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { userProfile } from '../../../stores/userProfile';
-    import SettingsItem from '../../SettingsItem.svelte';
+    import { purchasedCreditsStore } from './SettingsBuyCreditsPayment.svelte';
 
     const dispatch = createEventDispatcher();
 
     let currentCredits = $state(0);
+    let purchasedCredits = $state(0);
 
-    // Load user profile data
+    // Load user profile data (reactive — updates when WebSocket pushes new balance)
     userProfile.subscribe(profile => {
         currentCredits = profile.credits || 0;
+    });
+
+    // Read the purchased credits amount set by the payment component
+    purchasedCreditsStore.subscribe(value => {
+        purchasedCredits = value;
     });
 
     // Format credits with dots as thousand separators
@@ -24,6 +31,8 @@ Buy Credits Confirmation - Success screen after purchase
 
     // Navigate back to main billing view
     function goBackToBilling() {
+        // Reset purchased credits store so it doesn't persist on next visit
+        purchasedCreditsStore.set(0);
         dispatch('openSettings', {
             settingsPath: 'billing',
             direction: 'backward',
@@ -42,12 +51,22 @@ Buy Credits Confirmation - Success screen after purchase
     <p class="success-subtitle">{$text('settings.billing.credits_added')}</p>
 </div>
 
+<!-- Purchased Credits Highlight (only shown when we know the amount) -->
+{#if purchasedCredits > 0}
+    <div class="purchased-credits-section">
+        <div class="purchased-credits-badge">
+            <span class="purchased-amount">+{formatCredits(purchasedCredits)}</span>
+            <span class="purchased-label">{$text('settings.billing.credits')}</span>
+        </div>
+    </div>
+{/if}
+
 <!-- Updated Balance Display -->
 <div class="balance-info">
     <div class="balance-display">
         <span class="coin-icon"></span>
         <span class="balance-amount">{formatCredits(currentCredits)}</span>
-        <span class="balance-label">{$text('settings.billing.credits')}</span>
+        <span class="balance-label">{$text('settings.billing.credits_total')}</span>
     </div>
 </div>
 
@@ -102,6 +121,35 @@ Buy Credits Confirmation - Success screen after purchase
         font-size: 14px;
         color: var(--color-grey-60);
         margin: 0;
+    }
+
+    /* Purchased Credits Badge — green highlight showing +amount */
+    .purchased-credits-section {
+        display: flex;
+        justify-content: center;
+        padding: 0 10px 8px;
+    }
+
+    .purchased-credits-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        border-radius: 20px;
+    }
+
+    .purchased-amount {
+        color: #10b981;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .purchased-label {
+        color: #10b981;
+        font-size: 13px;
+        font-weight: 500;
     }
 
     /* Balance Info Section */
@@ -192,6 +240,10 @@ Buy Credits Confirmation - Success screen after purchase
 
         .success-title {
             font-size: 18px;
+        }
+
+        .purchased-amount {
+            font-size: 16px;
         }
     }
 

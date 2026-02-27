@@ -1,7 +1,6 @@
 <script lang="ts">
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
-    import { getWebsiteUrl, routes } from '../../config/links';
 
     
     // Props using Svelte 5 runes
@@ -12,39 +11,40 @@
         showDelayedMessage = false,
         // provider: 'stripe' | 'polar' — controls post-purchase confirmation text.
         // Polar uses "Payment Confirmation" (MoR model), Stripe uses "Invoice".
-        provider = 'stripe'
+        provider = 'stripe',
+        // compact: when true, uses a smaller layout for embedded contexts (e.g., settings panel)
+        compact = false
     }: {
         state?: 'processing' | 'success';
         isGift?: boolean;
         isGiftCard?: boolean;
         showDelayedMessage?: boolean;
         provider?: string;
+        compact?: boolean;
     } = $props();
-    
-    function handleSecurePaymentInfoClick() {
-        window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
-    }
 </script>
 
 {#if state === 'processing'}
-    <div class="payment-processing" in:fade={{ duration: 300 }}>
+    <div class="payment-processing" class:compact in:fade={{ duration: 300 }}>
         <div class="center-container">
             <span class="clickable-icon icon_billing large-icon"></span>
             {#if showDelayedMessage}
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <p class="processing-text color-grey-60">{@html $text('signup.payment_processing_delayed')}</p>
+                <p class="processing-text color-grey-60">{@html $text('signup.processing_payment')}</p>
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                <p class="processing-subtext color-grey-40">{@html $text('signup.payment_processing_delayed')}</p>
             {:else}
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <p class="processing-text color-grey-60">{@html $text('signup.processing_payment')}</p>
             {/if}
-        </div>
-        
-        <div class="bottom-container">
-            <button type="button" class="text-button" onclick={handleSecurePaymentInfoClick}>
-                <span class="clickable-icon icon_lock inline-lock-icon"></span>
-                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                {@html $text('signup.secured_and_powered_by').replace('{provider}', provider === 'polar' ? 'Polar' : 'Stripe')}
-            </button>
+            <!-- Animated shimmer bar indicating progress -->
+            <div class="shimmer-bar">
+                <div class="shimmer-fill"></div>
+            </div>
+            <!-- "Powered by" subtitle below shimmer — replaces old bottom-container button -->
+            <p class="powered-by-text color-grey-40">
+                Powered by {provider === 'polar' ? 'Polar' : 'Stripe'}
+            </p>
         </div>
     </div>
 {:else}
@@ -82,22 +82,21 @@
     .payment-success {
         width: 100%;
         height: calc(100% - 15px);
-        position: relative;
         display: flex;
         flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
     
-    /* Center container for icons and main text */
+    /* Center container for icons and main text — uses flexbox centering (no absolute positioning) */
     .center-container {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
         width: 100%;
+        max-width: 320px;
+        padding: 0 20px;
     }
     
     
@@ -108,6 +107,13 @@
         position: static !important;
         transform: none !important;
         margin-bottom: 20px;
+    }
+
+    /* Compact mode: smaller icon and tighter spacing for settings panel */
+    .compact .large-icon {
+        width: 56px !important;
+        height: 56px !important;
+        margin-bottom: 14px;
     }
     
     /* Success check icon */
@@ -124,7 +130,13 @@
     
     /* Text spacing */
     .processing-text {
+        margin-bottom: 6px;
+        font-size: 15px;
+    }
+
+    .processing-subtext {
         margin-bottom: 10px;
+        font-size: 13px;
     }
     
     .success-text {
@@ -137,6 +149,41 @@
     
     .loading-text {
         text-align: center;
+    }
+
+    /* Gradient shimmer bar — left-to-right animated progress indicator */
+    .shimmer-bar {
+        width: 100%;
+        height: 4px;
+        background: var(--color-grey-15, #e5e5e5);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 16px;
+        margin-bottom: 12px;
+    }
+
+    .compact .shimmer-bar {
+        margin-top: 12px;
+        margin-bottom: 10px;
+    }
+
+    .shimmer-fill {
+        width: 40%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, var(--color-primary, #6366f1), transparent);
+        border-radius: 2px;
+        animation: shimmer-slide 1.5s ease-in-out infinite;
+    }
+
+    @keyframes shimmer-slide {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(350%); }
+    }
+
+    /* "Powered by" text — replaces the old clickable button in bottom-container */
+    .powered-by-text {
+        font-size: 12px;
+        margin: 0;
     }
     
     /* Ensure icons in processing state are not clickable */
@@ -158,11 +205,4 @@
         z-index: 1;
     }
     
-    .inline-lock-icon {
-        position: unset;
-        transform: none;
-        display: inline-block;
-        vertical-align: middle;
-        margin-right: 5px;
-    }
 </style>

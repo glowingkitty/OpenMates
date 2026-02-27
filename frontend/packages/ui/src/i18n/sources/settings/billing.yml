@@ -1286,6 +1286,29 @@ gift_card.placeholder:
   cs: Zadejte kód vaší dárkové karty
   sv: Ange din presentkortskod
   verified_by_human: []
+credits_total:
+  context: Label for total credit balance on purchase confirmation screen (e.g. "1,500 credits total")
+  en: credits total
+  de: Credits insgesamt
+  zh: 总积分
+  es: créditos en total
+  fr: crédits au total
+  pt: créditos no total
+  ru: кредитов всего
+  ja: クレジット合計
+  ko: 크레딧 합계
+  it: crediti totali
+  tr: toplam kredi
+  vi: tổng tín dụng
+  id: total kredit
+  pl: kredytów łącznie
+  nl: credits totaal
+  ar: إجمالي الاعتمادات
+  hi: कुल क्रेडिट
+  th: เครดิตทั้งหมด
+  cs: kreditů celkem
+  sv: krediter totalt
+  verified_by_human: []
 done:
   context: Button to close confirmation and return to billing
   en: Done

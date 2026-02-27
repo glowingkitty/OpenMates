@@ -6532,6 +6532,9 @@
           "text": "Geben Sie Ihren Gutscheincode ein"
         }
       },
+      "credits_total": {
+        "text": "Credits insgesamt"
+      },
       "done": {
         "text": "Fertig"
       },

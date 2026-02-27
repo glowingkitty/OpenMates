@@ -4676,6 +4676,9 @@
           "text": "Nhập mã thẻ quà tặng của bạn"
         }
       },
+      "credits_total": {
+        "text": "tổng tín dụng"
+      },
       "done": {
         "text": "Hoàn tất"
       },

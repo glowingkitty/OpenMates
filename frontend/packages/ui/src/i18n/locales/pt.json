@@ -4679,6 +4679,9 @@
           "text": "Digite o código do seu cartão presente"
         }
       },
+      "credits_total": {
+        "text": "créditos no total"
+      },
       "done": {
         "text": "Concluído"
       },

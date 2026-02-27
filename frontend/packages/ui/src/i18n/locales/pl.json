@@ -4676,6 +4676,9 @@
           "text": "Wprowadź kod swojej karty podarunkowej"
         }
       },
+      "credits_total": {
+        "text": "kredytów łącznie"
+      },
       "done": {
         "text": "Gotowe"
       },

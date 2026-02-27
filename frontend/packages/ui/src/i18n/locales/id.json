@@ -4676,6 +4676,9 @@
           "text": "Masukkan kode kartu hadiah Anda"
         }
       },
+      "credits_total": {
+        "text": "total kredit"
+      },
       "done": {
         "text": "Selesai"
       },

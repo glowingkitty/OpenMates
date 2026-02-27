@@ -4682,6 +4682,9 @@
           "text": "Zadejte kód vaší dárkové karty"
         }
       },
+      "credits_total": {
+        "text": "kreditů celkem"
+      },
       "done": {
         "text": "Hotovo"
       },

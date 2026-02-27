@@ -6015,6 +6015,9 @@
           "text": "Ingresa tu código de tarjeta de regalo"
         }
       },
+      "credits_total": {
+        "text": "créditos en total"
+      },
       "done": {
         "text": "Hecho"
       },

@@ -4676,6 +4676,9 @@
           "text": "Voer uw cadeaukaartcode in"
         }
       },
+      "credits_total": {
+        "text": "credits totaal"
+      },
       "done": {
         "text": "Klaar"
       },

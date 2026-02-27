@@ -1374,15 +1374,18 @@ changes to the documentation (to keep the documentation up to date).
             console.debug('[Settings] Received payment_completed notification via WebSocket:', payload);
             
             // CRITICAL: Suppress notifications during signup - Payment.svelte already handles them
-            // Only show notification if user is not in signup process
-            if (!$isInSignupProcess) {
+            // Also suppress when user is on the buy-credits payment/confirmation flow,
+            // because SettingsBuyCreditsPayment.svelte handles the WebSocket event directly
+            // and navigates to the confirmation screen (showing duplicate toasts is confusing).
+            const isOnBuyCreditsPath = activeSettingsView.startsWith('billing/buy-credits');
+            if (!$isInSignupProcess && !isOnBuyCreditsPath) {
                 // Show success notification popup (using Notification.svelte component)
                 notificationStore.success(
                     `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
                     5000
                 );
             } else {
-                console.debug('[Settings] Suppressing payment_completed notification during signup');
+                console.debug('[Settings] Suppressing payment_completed notification (signup=%s, buyCreditsPath=%s)', $isInSignupProcess, isOnBuyCreditsPath);
             }
             
             // Always update credits in user profile if available (even during signup)

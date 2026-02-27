@@ -6979,6 +6979,9 @@
           "text": "Enter your gift card code"
         }
       },
+      "credits_total": {
+        "text": "credits total"
+      },
       "done": {
         "text": "Done"
       },

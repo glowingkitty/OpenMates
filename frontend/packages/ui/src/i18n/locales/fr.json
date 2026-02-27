@@ -5972,6 +5972,9 @@
           "text": "Entrez votre code de carte cadeau"
         }
       },
+      "credits_total": {
+        "text": "crédits au total"
+      },
       "done": {
         "text": "Terminé"
       },

@@ -4740,6 +4740,9 @@
           "text": "Inserisci il tuo codice buono regalo"
         }
       },
+      "credits_total": {
+        "text": "crediti totali"
+      },
       "done": {
         "text": "Fatto"
       },

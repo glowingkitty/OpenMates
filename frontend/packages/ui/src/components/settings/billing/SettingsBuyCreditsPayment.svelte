@@ -14,10 +14,18 @@ Supports both saved payment methods and new payment form
         set: () => {},
         update: () => {}
     } as Writable<number>;
+
+    // Store to pass purchased credits amount to the confirmation screen.
+    // Set by WebSocket handler when payment_completed arrives, read by SettingsBuyCreditsConfirmation.
+    export const purchasedCreditsStore: Writable<number> = browser ? writable(0) : {
+        subscribe: () => () => {},
+        set: () => {},
+        update: () => {}
+    } as Writable<number>;
 </script>
 
 <script lang="ts">
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { text } from '@repo/ui';
     import { pricingTiers } from '../../../config/pricing';
     import Payment from '../../Payment.svelte';
@@ -26,6 +34,7 @@ Supports both saved payment methods and new payment form
     import * as cryptoService from '../../../services/cryptoService';
     import { loadStripe } from '@stripe/stripe-js';
     import PaymentAuth from './PaymentAuth.svelte';
+    import { webSocketService } from '../../../services/websocketService';
 
     const dispatch = createEventDispatcher();
     
@@ -98,9 +107,41 @@ Supports both saved payment methods and new payment form
         return `${expMonth.toString().padStart(2, '0')}/${expYear.toString().slice(-2)}`;
     }
 
-    // Load payment methods on mount — also detect active provider
+    // Track whether we already navigated to confirmation (prevents double-navigation)
+    let hasNavigatedToConfirmation = $state(false);
+
+    /**
+     * WebSocket handler: fires when the backend confirms payment_completed.
+     * Immediately navigates to the confirmation screen with the purchased credits amount,
+     * bypassing the 30-second timeout fallback in Payment.svelte.
+     */
+    function handlePaymentCompleted(payload: { order_id: string; credits_purchased: number; current_credits: number }) {
+        console.debug('[SettingsBuyCreditsPayment] Received payment_completed via WebSocket:', payload);
+        if (hasNavigatedToConfirmation) return; // Prevent duplicate navigation
+        hasNavigatedToConfirmation = true;
+
+        // Store the purchased credits so the confirmation screen can display them
+        purchasedCreditsStore.set(payload.credits_purchased);
+
+        dispatch('openSettings', {
+            settingsPath: 'billing/buy-credits/confirmation',
+            direction: 'forward',
+            icon: 'check',
+            title: $text('settings.billing.purchase_successful')
+        });
+    }
+
+    // Load payment methods on mount — also detect active provider and register WebSocket listener
     onMount(async () => {
+        // Listen for payment_completed WebSocket events so we can navigate instantly
+        // instead of waiting for the 30-second timeout in Payment.svelte
+        webSocketService.on('payment_completed', handlePaymentCompleted);
         await detectProviderAndLoadMethods();
+    });
+
+    // Cleanup WebSocket listener when component is destroyed
+    onDestroy(() => {
+        webSocketService.off('payment_completed', handlePaymentCompleted);
     });
 
     /**
@@ -288,7 +329,10 @@ Supports both saved payment methods and new payment form
             }
 
             if (paymentIntent && paymentIntent.status === 'succeeded') {
-                // Payment successful
+                // Payment successful — store purchased credits for confirmation screen
+                if (hasNavigatedToConfirmation) return; // WebSocket may have already handled this
+                hasNavigatedToConfirmation = true;
+                purchasedCreditsStore.set(selectedCreditsAmount);
                 dispatch('openSettings', {
                     settingsPath: 'billing/buy-credits/confirmation',
                     direction: 'forward',
@@ -306,14 +350,23 @@ Supports both saved payment methods and new payment form
         }
     }
 
-    // Handle payment completion from Payment component (for new payment form)
+    // Handle payment completion from Payment component (for new payment form).
+    // This fires when Payment.svelte's timeout fallback eventually triggers paymentStateChange.
+    // If WebSocket already navigated us, hasNavigatedToConfirmation prevents double-navigation.
     async function handlePaymentComplete(event: CustomEvent<{ state: string, payment_intent_id?: string, isDelayed?: boolean }>) {
         const paymentState = event.detail?.state;
         
         if (paymentState === 'success') {
+            if (hasNavigatedToConfirmation) return; // WebSocket already handled this
+            hasNavigatedToConfirmation = true;
+
             // Refresh payment methods after successful payment
             // The payment method should now be saved and available for future purchases
             await checkPaymentMethods();
+
+            // Store the selected credits amount for the confirmation screen
+            // (WebSocket handler sets this from payload; here we use the locally selected tier)
+            purchasedCreditsStore.set(selectedCreditsAmount);
             
             dispatch('openSettings', {
                 settingsPath: 'billing/buy-credits/confirmation',

@@ -4676,6 +4676,9 @@
           "text": "Hediye kartı kodunuzu girin"
         }
       },
+      "credits_total": {
+        "text": "toplam kredi"
+      },
       "done": {
         "text": "Tamamlandı"
       },

@@ -4700,6 +4700,9 @@
           "text": "Ange din presentkortskod"
         }
       },
+      "credits_total": {
+        "text": "krediter totalt"
+      },
       "done": {
         "text": "Klar"
       },
