@@ -53,6 +53,7 @@ def send_issue_report_email(
     active_chat_sidebar_html: Optional[str] = None,
     runtime_debug_state: Optional[str] = None,
     action_history: Optional[str] = None,
+    picked_element_html: Optional[str] = None,
     screenshot_presigned_url: Optional[str] = None
 ) -> bool:
     """
@@ -76,6 +77,8 @@ def send_issue_report_email(
         runtime_debug_state: Optional JSON string with WS status, AI typing, pending uploads, sync state
         action_history: Optional last 20 user-action history entries (button names/navigation only,
                         no user-typed text content)
+        picked_element_html: Optional outerHTML of the DOM element the user tapped/clicked via the
+                             element picker overlay — captures the broken UI element's HTML structure
 
     Returns:
         bool: True if email was sent successfully, False otherwise
@@ -92,7 +95,7 @@ def send_issue_report_email(
                 self, admin_email, issue_id, issue_title, issue_description,
                 chat_or_embed_url, contact_email, language, timestamp, estimated_location, device_info, console_logs,
                 indexeddb_report, last_messages_html, active_chat_sidebar_html, runtime_debug_state, action_history,
-                screenshot_presigned_url
+                picked_element_html, screenshot_presigned_url
             )
         )
         if result:
@@ -238,6 +241,7 @@ async def _async_send_issue_report_email(
     active_chat_sidebar_html: Optional[str] = None,
     runtime_debug_state: Optional[str] = None,
     action_history: Optional[str] = None,
+    picked_element_html: Optional[str] = None,
     screenshot_presigned_url: Optional[str] = None
 ) -> bool:
     """
@@ -353,6 +357,10 @@ async def _async_send_issue_report_email(
                 # NO user-typed text content is ever included — only developer-authored labels
                 # (data-action attrs, aria-labels, placeholder text, class names)
                 'action_history': action_history.strip() if action_history and action_history.strip() else None,
+                # outerHTML of the DOM element the user tapped/clicked via the element picker overlay.
+                # Captures the exact HTML structure of a broken UI element for debugging layout,
+                # rendering, or content issues.
+                'picked_element_html': picked_element_html.strip() if picked_element_html and picked_element_html.strip() else None,
                 # Pre-signed URL for the screenshot PNG (valid 7 days from report time).
                 # The image is stored unencrypted in the private issue_logs S3 bucket so
                 # admins and LLMs can load it directly without any decryption step.

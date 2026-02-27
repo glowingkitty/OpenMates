@@ -1121,6 +1121,15 @@ changes to the documentation (to keep the documentation up to date).
             }
         };
         window.addEventListener('closeSettingsMenu', handleCloseSettingsMenu);
+
+        // Listen for requests to re-open the settings panel — dispatched by SettingsReportIssue
+        // after the DOM element picker captures or cancels. Symmetric to closeSettingsMenu.
+        const handleOpenSettingsMenu = () => {
+            if (!isMenuVisible) {
+                toggleMenu();
+            }
+        };
+        window.addEventListener('openSettingsMenu', handleOpenSettingsMenu);
         
         // Add listener for language changes
         languageChangeHandler = () => {
@@ -1199,6 +1208,7 @@ changes to the documentation (to keep the documentation up to date).
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
             window.removeEventListener('closeSettingsMenu', handleCloseSettingsMenu);
+            window.removeEventListener('openSettingsMenu', handleOpenSettingsMenu);
             window.removeEventListener('language-changed', languageChangeHandler);
             webSocketService.off('user_credits_updated', handleCreditUpdate);
             webSocketService.off('user_admin_status_updated', handleAdminStatusUpdate);

@@ -6786,6 +6786,213 @@ report_issue.screenshot_upload_button:
   cs: Nahrát snímek obrazovky
   sv: Ladda upp skärmbild
   verified_by_human: []
+report_issue.element_picker_label:
+  context: Label for the DOM element picker section in the report issue form — lets the user tap/click a broken part of the UI to include its HTML in the report
+  en: Pick Broken Element
+  de: Defektes Element auswählen
+  zh: 选择问题元素
+  es: Seleccionar elemento defectuoso
+  fr: Sélectionner un élément défectueux
+  pt: Selecionar elemento com problema
+  ru: Выбрать сломанный элемент
+  ja: 壊れた要素を選択
+  ko: 문제 요소 선택
+  it: Seleziona elemento difettoso
+  tr: Hatalı öğeyi seç
+  vi: Chọn phần tử bị lỗi
+  id: Pilih elemen bermasalah
+  pl: Wybierz uszkodzony element
+  nl: Selecteer defect element
+  ar: اختر العنصر المعطل
+  hi: टूटे हुए तत्व का चयन करें
+  th: เลือกองค์ประกอบที่ผิดพลาด
+  cs: Vybrat poškozený prvek
+  sv: Välj felaktigt element
+  verified_by_human: []
+report_issue.element_picker_hint:
+  context: Hint text below the element picker label explaining what the feature does
+  en: Tap any element on the page to capture its HTML structure for debugging
+  de: Tippe auf ein beliebiges Element auf der Seite, um dessen HTML-Struktur für die Fehlersuche zu erfassen
+  zh: 点击页面上的任意元素以捕获其HTML结构用于调试
+  es: Toca cualquier elemento de la página para capturar su estructura HTML para depuración
+  fr: Appuyez sur n'importe quel élément de la page pour capturer sa structure HTML à des fins de débogage
+  pt: Toque em qualquer elemento da página para capturar sua estrutura HTML para depuração
+  ru: Нажмите на любой элемент страницы, чтобы захватить его HTML-структуру для отладки
+  ja: ページ上の任意の要素をタップして、デバッグ用にHTML構造をキャプチャします
+  ko: 페이지의 아무 요소나 탭하여 디버깅을 위해 HTML 구조를 캡처합니다
+  it: Tocca qualsiasi elemento della pagina per catturarne la struttura HTML per il debug
+  tr: Hata ayıklama için HTML yapısını yakalamak üzere sayfadaki herhangi bir öğeye dokunun
+  vi: Chạm vào bất kỳ phần tử nào trên trang để chụp cấu trúc HTML của nó để gỡ lỗi
+  id: Ketuk elemen mana saja di halaman untuk menangkap struktur HTML-nya untuk debugging
+  pl: Dotknij dowolnego elementu na stronie, aby przechwycić jego strukturę HTML do debugowania
+  nl: Tik op een element op de pagina om de HTML-structuur voor foutopsporing vast te leggen
+  ar: انقر على أي عنصر في الصفحة لالتقاط بنية HTML الخاصة به لأغراض التصحيح
+  hi: डीबगिंग के लिए HTML संरचना कैप्चर करने के लिए पृष्ठ पर किसी भी तत्व पर टैप करें
+  th: แตะองค์ประกอบใดก็ได้บนหน้าเพื่อจับโครงสร้าง HTML สำหรับการแก้ไขข้อผิดพลาด
+  cs: Klepněte na libovolný prvek na stránce a zachyťte jeho HTML strukturu pro ladění
+  sv: Tryck på vilket element som helst på sidan för att fånga dess HTML-struktur för felsökning
+  verified_by_human: []
+report_issue.element_picker_button:
+  context: Button label to start the DOM element picker mode (clicking/tapping a broken UI element)
+  en: Pick Element
+  de: Element auswählen
+  zh: 选择元素
+  es: Seleccionar elemento
+  fr: Sélectionner un élément
+  pt: Selecionar elemento
+  ru: Выбрать элемент
+  ja: 要素を選択
+  ko: 요소 선택
+  it: Seleziona elemento
+  tr: Öğeyi seç
+  vi: Chọn phần tử
+  id: Pilih elemen
+  pl: Wybierz element
+  nl: Selecteer element
+  ar: اختر عنصرًا
+  hi: तत्व चुनें
+  th: เลือกองค์ประกอบ
+  cs: Vybrat prvek
+  sv: Välj element
+  verified_by_human: []
+report_issue.element_picker_active:
+  context: Label shown on the pick-element button while the picker mode is active (user is selecting an element)
+  en: Picking...
+  de: Auswählen...
+  zh: 选择中...
+  es: Seleccionando...
+  fr: Sélection en cours...
+  pt: Selecionando...
+  ru: Выбор...
+  ja: 選択中...
+  ko: 선택 중...
+  it: Selezione in corso...
+  tr: Seçiliyor...
+  vi: Đang chọn...
+  id: Memilih...
+  pl: Wybieranie...
+  nl: Selecteren...
+  ar: جارٍ الاختيار...
+  hi: चुन रहे हैं...
+  th: กำลังเลือก...
+  cs: Výběr...
+  sv: Väljer...
+  verified_by_human: []
+report_issue.element_picker_instruction:
+  context: Floating instruction bar shown during element picker mode, explaining to the user how to select and confirm an element
+  en: Tap an element to select it, then confirm
+  de: Element antippen zum Auswählen, dann bestätigen
+  zh: 点击元素以选择，然后确认
+  es: Toca un elemento para seleccionarlo, luego confirma
+  fr: Appuyez sur un élément pour le sélectionner, puis confirmez
+  pt: Toque em um elemento para selecioná-lo, depois confirme
+  ru: Нажмите на элемент для выбора, затем подтвердите
+  ja: 要素をタップして選択し、確認してください
+  ko: 요소를 탭하여 선택한 다음 확인하세요
+  it: Tocca un elemento per selezionarlo, poi conferma
+  tr: Seçmek için bir öğeye dokunun, ardından onaylayın
+  vi: Chạm vào một phần tử để chọn, sau đó xác nhận
+  id: Ketuk elemen untuk memilihnya, lalu konfirmasi
+  pl: Dotknij elementu, aby go wybrać, a następnie potwierdź
+  nl: Tik op een element om het te selecteren, bevestig dan
+  ar: انقر على عنصر لتحديده، ثم أكّد
+  hi: तत्व का चयन करने के लिए टैप करें, फिर पुष्टि करें
+  th: แตะองค์ประกอบเพื่อเลือก จากนั้นยืนยัน
+  cs: Klepněte na prvek pro výběr, poté potvrďte
+  sv: Tryck på ett element för att välja det, bekräfta sedan
+  verified_by_human: []
+report_issue.element_picker_confirm:
+  context: Button label to confirm the selected element during DOM element picker mode
+  en: Confirm
+  de: Bestätigen
+  zh: 确认
+  es: Confirmar
+  fr: Confirmer
+  pt: Confirmar
+  ru: Подтвердить
+  ja: 確認
+  ko: 확인
+  it: Conferma
+  tr: Onayla
+  vi: Xác nhận
+  id: Konfirmasi
+  pl: Potwierdź
+  nl: Bevestigen
+  ar: تأكيد
+  hi: पुष्टि करें
+  th: ยืนยัน
+  cs: Potvrdit
+  sv: Bekräfta
+  verified_by_human: []
+report_issue.element_picker_cancel:
+  context: Button label to cancel the DOM element picker mode without selecting anything
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []
+report_issue.element_picker_remove:
+  context: Button label to remove/clear a previously selected DOM element from the report
+  en: Remove Element
+  de: Element entfernen
+  zh: 删除元素
+  es: Eliminar elemento
+  fr: Supprimer l'élément
+  pt: Remover elemento
+  ru: Удалить элемент
+  ja: 要素を削除
+  ko: 요소 제거
+  it: Rimuovi elemento
+  tr: Öğeyi kaldır
+  vi: Xóa phần tử
+  id: Hapus elemen
+  pl: Usuń element
+  nl: Element verwijderen
+  ar: إزالة العنصر
+  hi: तत्व हटाएं
+  th: ลบองค์ประกอบ
+  cs: Odstranit prvek
+  sv: Ta bort element
+  verified_by_human: []
+report_issue.element_picker_preview_label:
+  context: Clickable summary label for the captured element HTML preview (inside a <details> element)
+  en: Captured element HTML (click to expand)
+  de: Erfasstes Element-HTML (zum Erweitern klicken)
+  zh: 已捕获元素HTML（点击展开）
+  es: HTML del elemento capturado (clic para expandir)
+  fr: HTML de l'élément capturé (cliquer pour développer)
+  pt: HTML do elemento capturado (clique para expandir)
+  ru: HTML захваченного элемента (нажмите для раскрытия)
+  ja: キャプチャした要素のHTML（クリックで展開）
+  ko: 캡처된 요소 HTML (클릭하여 확장)
+  it: HTML elemento catturato (clic per espandere)
+  tr: Yakalanan element HTML'si (genişletmek için tıklayın)
+  vi: HTML phần tử đã chụp (nhấp để mở rộng)
+  id: HTML elemen yang ditangkap (klik untuk memperluas)
+  pl: HTML przechwyconego elementu (kliknij, aby rozwinąć)
+  nl: Vastgelegde element-HTML (klik om uit te vouwen)
+  ar: HTML العنصر الملتقط (انقر للتوسيع)
+  hi: कैप्चर किया गया तत्व HTML (विस्तार करने के लिए क्लिक करें)
+  th: HTML ขององค์ประกอบที่จับได้ (คลิกเพื่อขยาย)
+  cs: HTML zachyceného prvku (kliknutím rozbalte)
+  sv: Infångat elements HTML (klicka för att expandera)
+  verified_by_human: []
 report_issue.screenshot_upload_failed:
   context: Error message shown when reading the uploaded screenshot file fails
   en: Failed to read the uploaded image.

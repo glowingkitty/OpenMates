@@ -537,7 +537,10 @@
                     // Null if no screenshot was captured or user is a guest.
                     screenshot_png_base64: ($authStore.isAuthenticated && screenshotDataUrl)
                         ? screenshotDataUrl
-                        : null
+                        : null,
+                    // outerHTML of the DOM element the user picked via the element picker overlay.
+                    // Null if the user did not pick an element.
+                    picked_element_html: pickedElementHtml ?? null
                 }),
                 credentials: 'include'
             });
@@ -599,7 +602,8 @@
                 showTitleWarning = false;
                 showEmailWarning = false;
 
-                // Clear screenshot state so it doesn't persist after submission
+                // Clear picked element and screenshot state so they don't persist after submission
+                pickedElementHtml = null;
                 screenshotDataUrl = null;
                 screenshotError = '';
                 showUploadFallback = typeof navigator !== 'undefined' &&
@@ -723,6 +727,349 @@
         }
     }
     
+    // ===================== DOM ELEMENT PICKER =====================
+    // Lets the user tap/click any element on the page to capture its outerHTML for debugging.
+    // Works on both desktop (hover + click) and touch (first tap selects, confirm bar finalizes).
+    //
+    // Flow:
+    //  1. User clicks "Pick Element" → settings panel slides out via 'closeSettingsMenu' event.
+    //  2. A full-screen overlay is injected, with a floating instruction bar at the top.
+    //  3. pointermove (desktop) highlights the element under cursor with a red outline.
+    //  4. First tap/click: locks the element as "selected" (first-tap state).
+    //  5. A "Confirm / Cancel" button group appears in the instruction bar.
+    //  6. Tapping the same element again OR pressing "Confirm" captures its outerHTML.
+    //  7. Pressing "Cancel" or Escape aborts without capturing.
+    //  8. After capture/cancel, settings re-opens via 'openSettingsFromPicker' event.
+    //     (Settings.svelte registers a 'openSettingsMenu' listener symmetrically to closeSettingsMenu.)
+    //
+    // Element exclusions:
+    //  - The picker overlay and instruction bar itself
+    //  - Elements with bounding rect < 20×20 px (tiny icons, text spans)
+
+    /** outerHTML captured by the element picker, or null if not yet captured */
+    let pickedElementHtml = $state<string | null>(null);
+    /** True while the picker overlay is active (user is selecting an element) */
+    let isPickerActive = $state(false);
+
+    /**
+     * Internal references for the picker overlay elements and event handlers.
+     * These are created and destroyed dynamically — not rendered in the Svelte template.
+     */
+    let _pickerOverlay: HTMLElement | null = null;
+    let _pickerHighlightedEl: Element | null = null;
+    let _pickerSelectedEl: Element | null = null;
+    let _pickerInstructionBar: HTMLElement | null = null;
+
+    /**
+     * Apply a highlight outline to an element during picker mode.
+     * Stores/restores the element's original outline style.
+     */
+    function _pickerHighlight(el: Element | null) {
+        if (_pickerHighlightedEl && _pickerHighlightedEl !== el) {
+            // Remove highlight from previous element (unless it's also the selected one)
+            if (_pickerHighlightedEl !== _pickerSelectedEl) {
+                (_pickerHighlightedEl as HTMLElement).style.outline = '';
+                (_pickerHighlightedEl as HTMLElement).style.outlineOffset = '';
+            }
+        }
+        if (el && el !== _pickerSelectedEl) {
+            (el as HTMLElement).style.outline = '2px solid #e53935';
+            (el as HTMLElement).style.outlineOffset = '2px';
+        }
+        _pickerHighlightedEl = el;
+    }
+
+    /**
+     * Apply a "selected" (first-tap) highlight to an element.
+     * Uses a distinct colour to differentiate selected from hovered.
+     */
+    function _pickerSelect(el: Element) {
+        // Clear previous selection outline
+        if (_pickerSelectedEl && _pickerSelectedEl !== el) {
+            (_pickerSelectedEl as HTMLElement).style.outline = '';
+            (_pickerSelectedEl as HTMLElement).style.outlineOffset = '';
+        }
+        (el as HTMLElement).style.outline = '3px solid #f57f17';
+        (el as HTMLElement).style.outlineOffset = '2px';
+        _pickerSelectedEl = el;
+
+        // Show the confirm/cancel row in the instruction bar
+        if (_pickerInstructionBar) {
+            const confirmRow = _pickerInstructionBar.querySelector('.picker-confirm-row') as HTMLElement | null;
+            if (confirmRow) confirmRow.style.display = 'flex';
+        }
+    }
+
+    /**
+     * Remove all picker outlines from highlighted and selected elements.
+     */
+    function _pickerClearStyles() {
+        if (_pickerHighlightedEl) {
+            (_pickerHighlightedEl as HTMLElement).style.outline = '';
+            (_pickerHighlightedEl as HTMLElement).style.outlineOffset = '';
+            _pickerHighlightedEl = null;
+        }
+        if (_pickerSelectedEl) {
+            (_pickerSelectedEl as HTMLElement).style.outline = '';
+            (_pickerSelectedEl as HTMLElement).style.outlineOffset = '';
+            _pickerSelectedEl = null;
+        }
+    }
+
+    /**
+     * Check whether an element is part of the picker overlay itself or is too small to be useful.
+     * Elements < 20×20 px are excluded to avoid selecting tiny icons or inline text spans.
+     */
+    function _isPickerExcluded(el: Element): boolean {
+        if (!el) return true;
+        if (_pickerOverlay && _pickerOverlay.contains(el)) return true;
+        try {
+            const rect = el.getBoundingClientRect();
+            if (rect.width < 20 || rect.height < 20) return true;
+        } catch {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Pointer-move handler: highlight the element under the pointer.
+     */
+    function _pickerPointerMove(e: PointerEvent) {
+        // Temporarily hide overlay to hit-test elements underneath
+        if (_pickerOverlay) _pickerOverlay.style.pointerEvents = 'none';
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        if (_pickerOverlay) _pickerOverlay.style.pointerEvents = 'all';
+
+        if (!el || _isPickerExcluded(el)) return;
+        if (el !== _pickerHighlightedEl) {
+            _pickerHighlight(el);
+        }
+    }
+
+    /**
+     * Pointer-down handler: first tap selects, second tap on the same element confirms.
+     */
+    function _pickerPointerDown(e: PointerEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Temporarily lift overlay pointer events to find the real target
+        if (_pickerOverlay) _pickerOverlay.style.pointerEvents = 'none';
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        if (_pickerOverlay) _pickerOverlay.style.pointerEvents = 'all';
+
+        if (!el || _isPickerExcluded(el)) return;
+
+        if (!_pickerSelectedEl) {
+            // First tap: select this element
+            _pickerSelect(el);
+        } else if (el === _pickerSelectedEl) {
+            // Second tap on same element: confirm
+            _confirmPick();
+        } else {
+            // Tap on a different element: move selection
+            _pickerSelect(el);
+        }
+    }
+
+    /**
+     * Keyboard handler: Escape cancels the picker.
+     */
+    function _pickerKeyDown(e: KeyboardEvent) {
+        if (e.key === 'Escape') {
+            cancelElementPicker();
+        }
+    }
+
+    /**
+     * Confirm the currently selected element: capture its outerHTML and clean up.
+     */
+    function _confirmPick() {
+        if (!_pickerSelectedEl) return;
+        try {
+            pickedElementHtml = _pickerSelectedEl.outerHTML;
+            console.debug(
+                `[SettingsReportIssue] Picked element HTML captured: ${pickedElementHtml.length} chars`
+            );
+        } catch (error) {
+            console.warn('[SettingsReportIssue] Failed to capture element outerHTML:', error);
+        }
+        _pickerCleanup(true);
+    }
+
+    /**
+     * Remove the picker overlay, event listeners, and element outlines.
+     * @param reopenSettings - Whether to dispatch the window event to re-open the settings panel.
+     */
+    function _pickerCleanup(reopenSettings: boolean) {
+        // Remove event listeners
+        document.removeEventListener('pointermove', _pickerPointerMove);
+        document.removeEventListener('pointerdown', _pickerPointerDown, true);
+        document.removeEventListener('keydown', _pickerKeyDown);
+
+        // Clear element outlines
+        _pickerClearStyles();
+
+        // Remove overlay from DOM
+        if (_pickerOverlay && _pickerOverlay.parentNode) {
+            _pickerOverlay.parentNode.removeChild(_pickerOverlay);
+        }
+        _pickerOverlay = null;
+        _pickerInstructionBar = null;
+
+        isPickerActive = false;
+
+        // Re-open the settings panel — dispatch window event (same mechanism as closeSettingsMenu).
+        // We always re-open because we always close on entry; the reopenSettings param is kept
+        // for API symmetry in case future callers need conditional re-open.
+        if (reopenSettings) {
+            window.dispatchEvent(new CustomEvent('openSettingsMenu'));
+        }
+    }
+
+    /**
+     * Start the element picker:
+     *  1. Close the settings panel (via window event).
+     *  2. Inject the picker overlay.
+     *  3. Register event listeners.
+     */
+    function startElementPicker() {
+        if (isPickerActive) return;
+
+        isPickerActive = true;
+        _pickerSelectedEl = null;
+        _pickerHighlightedEl = null;
+
+        // Close the settings panel so the full page is accessible.
+        // Settings.svelte listens for 'closeSettingsMenu' and calls toggleMenu() safely.
+        window.dispatchEvent(new CustomEvent('closeSettingsMenu'));
+
+        // Small delay to let the settings panel animate out before injecting the overlay
+        setTimeout(() => {
+            _injectPickerOverlay();
+        }, 350);
+    }
+
+    /**
+     * Inject the full-screen picker overlay and register all interaction handlers.
+     */
+    function _injectPickerOverlay() {
+        // Create the main transparent overlay (captures pointer events to prevent clicks on the page)
+        const overlay = document.createElement('div');
+        overlay.className = 'picker-overlay-root';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-label', 'Element picker');
+        Object.assign(overlay.style, {
+            position: 'fixed',
+            inset: '0',
+            zIndex: '2147483646', // just below browser chrome
+            pointerEvents: 'all',
+            cursor: 'crosshair',
+            background: 'transparent'
+        });
+
+        // Instruction bar at the top of the overlay
+        const bar = document.createElement('div');
+        bar.className = 'picker-instruction-bar';
+        Object.assign(bar.style, {
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            right: '0',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 16px',
+            background: 'rgba(25, 25, 30, 0.92)',
+            backdropFilter: 'blur(8px)',
+            color: '#fff',
+            fontSize: '14px',
+            fontFamily: 'system-ui, sans-serif',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+            zIndex: '2147483647',
+            pointerEvents: 'all'
+        });
+
+        // Instruction text row
+        const instructionText = document.createElement('div');
+        instructionText.style.cssText = 'display:flex;align-items:center;gap:12px;width:100%;justify-content:center;';
+        instructionText.innerHTML = `
+            <span style="color:#f9a825;font-weight:600;">⊹</span>
+            <span>${$text('settings.report_issue.element_picker_instruction')}</span>
+        `;
+        bar.appendChild(instructionText);
+
+        // Confirm + Cancel row (hidden until an element is selected)
+        const confirmRow = document.createElement('div');
+        confirmRow.className = 'picker-confirm-row';
+        Object.assign(confirmRow.style, {
+            display: 'none',
+            gap: '10px',
+            alignItems: 'center'
+        });
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.textContent = $text('settings.report_issue.element_picker_confirm');
+        Object.assign(confirmBtn.style, {
+            padding: '8px 20px',
+            background: '#f57f17',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            fontWeight: '600',
+            fontSize: '13px',
+            cursor: 'pointer',
+            fontFamily: 'system-ui, sans-serif'
+        });
+        confirmBtn.addEventListener('click', (e) => { e.stopPropagation(); _confirmPick(); });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = $text('settings.report_issue.element_picker_cancel');
+        Object.assign(cancelBtn.style, {
+            padding: '8px 16px',
+            background: 'rgba(255,255,255,0.15)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: '6px',
+            fontSize: '13px',
+            cursor: 'pointer',
+            fontFamily: 'system-ui, sans-serif'
+        });
+        cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); cancelElementPicker(); });
+
+        confirmRow.appendChild(confirmBtn);
+        confirmRow.appendChild(cancelBtn);
+        bar.appendChild(confirmRow);
+
+        overlay.appendChild(bar);
+        document.body.appendChild(overlay);
+
+        _pickerOverlay = overlay;
+        _pickerInstructionBar = bar;
+        // confirmBtn and cancelBtn are referenced via closures only — no need to store them
+
+        // Register interaction handlers
+        document.addEventListener('pointermove', _pickerPointerMove, { passive: true });
+        document.addEventListener('pointerdown', _pickerPointerDown, { capture: true });
+        document.addEventListener('keydown', _pickerKeyDown);
+    }
+
+    /**
+     * Cancel the element picker without capturing anything.
+     */
+    function cancelElementPicker() {
+        _pickerCleanup(true);
+    }
+
+    /**
+     * Remove a previously captured element from the report.
+     */
+    function removePickedElement() {
+        pickedElementHtml = null;
+    }
+
     // ===================== SCREENSHOT CAPTURE =====================
     // Screenshot state — only available for authenticated users.
     // getDisplayMedia() requires browser permission; the PNG is sent as base64 in the JSON payload.
@@ -903,6 +1250,7 @@
             chat_or_embed_url: (shareChatEnabled && chatOrEmbedUrl) ? chatOrEmbedUrl : null,
             active_chat_sidebar_html: activeChatSidebarHtml,
             runtime_debug_state: runtimeDebugState,
+            picked_element_html: pickedElementHtml ?? null,
             timestamp: new Date().toISOString(),
             url: window.location.href
         };
@@ -1125,6 +1473,47 @@
                 <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
             </div>
         {/if}
+
+        <!-- DOM Element Picker — all users (guest and authenticated) -->
+        <!-- Lets the user tap/click any broken UI element to capture its HTML for debugging. -->
+        <!-- The settings panel temporarily closes while the picker overlay is active. -->
+        <div class="input-group element-picker-section">
+            <p class="input-label">{$text('settings.report_issue.element_picker_label')}</p>
+            <p class="input-hint">{$text('settings.report_issue.element_picker_hint')}</p>
+
+            {#if pickedElementHtml}
+                <!-- Preview of the captured element HTML + remove button -->
+                <div class="picked-element-preview">
+                    <details class="picked-element-details">
+                        <summary class="picked-element-summary">
+                            {$text('settings.report_issue.element_picker_preview_label')}
+                        </summary>
+                        <pre class="picked-element-html">{pickedElementHtml}</pre>
+                    </details>
+                    <button
+                        type="button"
+                        class="element-picker-remove-btn"
+                        onclick={removePickedElement}
+                        disabled={isSubmitting}
+                    >
+                        {$text('settings.report_issue.element_picker_remove')}
+                    </button>
+                </div>
+            {:else}
+                <!-- Start picker button -->
+                <button
+                    type="button"
+                    class="element-picker-btn"
+                    class:active={isPickerActive}
+                    onclick={startElementPicker}
+                    disabled={isSubmitting || isPickerActive}
+                >
+                    {isPickerActive
+                        ? $text('settings.report_issue.element_picker_active')
+                        : $text('settings.report_issue.element_picker_button')}
+                </button>
+            {/if}
+        </div>
 
         <!-- Screenshot Capture — authenticated users only -->
         {#if $authStore.isAuthenticated}
@@ -1777,5 +2166,118 @@
     /* Hide the native file input — the styled button triggers it programmatically */
     .screenshot-file-input {
         display: none;
+    }
+
+    /* ===================== ELEMENT PICKER SECTION ===================== */
+
+    .element-picker-section {
+        gap: 8px;
+    }
+
+    /* "Pick Element" button — matches screenshot-capture-btn style */
+    .element-picker-btn {
+        align-self: flex-start;
+        padding: 8px 16px;
+        border: 1px solid var(--color-border, #ccc);
+        border-radius: var(--border-radius-md, 6px);
+        background: var(--color-surface-2, #f5f5f5);
+        color: var(--color-text, #222);
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+    }
+
+    .element-picker-btn:hover:not(:disabled) {
+        background: var(--color-surface-3, #e8e8e8);
+    }
+
+    .element-picker-btn.active {
+        border-color: var(--color-primary, #1976d2);
+        color: var(--color-primary, #1976d2);
+    }
+
+    .element-picker-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Preview box shown after an element is captured */
+    .picked-element-preview {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .picked-element-details {
+        width: 100%;
+        border: 1px solid var(--color-border, #ccc);
+        border-radius: var(--border-radius-md, 6px);
+        overflow: hidden;
+    }
+
+    .picked-element-summary {
+        padding: 8px 12px;
+        font-size: 13px;
+        color: var(--color-font-secondary, #555);
+        cursor: pointer;
+        user-select: none;
+        background: var(--color-grey-20, #f5f5f5);
+        list-style: none;
+    }
+
+    .picked-element-summary::marker,
+    .picked-element-summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .picked-element-summary::before {
+        content: '▶ ';
+        font-size: 10px;
+        opacity: 0.6;
+        margin-right: 4px;
+        transition: transform 0.15s;
+    }
+
+    .picked-element-details[open] .picked-element-summary::before {
+        content: '▼ ';
+    }
+
+    /* Scrollable pre block showing the captured outerHTML */
+    .picked-element-html {
+        margin: 0;
+        padding: 10px 12px;
+        font-size: 11px;
+        font-family: monospace;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 180px;
+        overflow-y: auto;
+        background: var(--color-grey-10, #fafafa);
+        color: var(--color-font-primary, #222);
+        border-top: 1px solid var(--color-border, #ccc);
+    }
+
+    /* Remove button — matches screenshot-remove-btn style */
+    .element-picker-remove-btn {
+        padding: 6px 12px;
+        border: 1px solid var(--color-danger, #e53935);
+        border-radius: var(--border-radius-md, 6px);
+        background: transparent;
+        color: var(--color-danger, #e53935);
+        font-size: 13px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .element-picker-remove-btn:hover:not(:disabled) {
+        background: rgba(229, 57, 53, 0.08);
+    }
+
+    .element-picker-remove-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 </style>

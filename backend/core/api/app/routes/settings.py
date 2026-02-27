@@ -2100,6 +2100,15 @@ class IssueReportRequest(BaseModel):
             "via a pre-signed URL. Only available for authenticated users."
         )
     )
+    picked_element_html: Optional[str] = Field(
+        None,
+        max_length=200000,
+        description=(
+            "outerHTML of the DOM element that the user tapped/clicked using the element picker. "
+            "Captures the exact HTML structure of a broken UI element for debugging layout, "
+            "rendering, or content issues. Collected client-side via the element picker overlay."
+        )
+    )
 
 
 class IssueReportResponse(BaseModel):
@@ -2309,6 +2318,15 @@ async def report_issue(
             active_chat_sidebar_html_str = issue_data.active_chat_sidebar_html.strip()
             logger.info(f"Active chat sidebar HTML provided with issue report: {len(active_chat_sidebar_html_str)} characters")
 
+        # Process user-picked element HTML if provided
+        # This contains the outerHTML of a DOM element the user tapped/clicked via the
+        # element picker overlay. Helps debug layout, rendering, or content issues by
+        # showing the exact HTML structure of the broken UI element at report time.
+        picked_element_html_str = None
+        if issue_data.picked_element_html and issue_data.picked_element_html.strip():
+            picked_element_html_str = issue_data.picked_element_html.strip()
+            logger.info(f"Picked element HTML provided with issue report: {len(picked_element_html_str)} characters")
+
         # Process runtime debug state if provided
         # This is a JSON-serialisable dict containing WS status, online status, AI typing,
         # pending uploads and phased sync state — useful for debugging send/sync issues.
@@ -2514,6 +2532,9 @@ async def report_issue(
                 "active_chat_sidebar_html": active_chat_sidebar_html_str,
                 "runtime_debug_state": runtime_debug_state_str,
                 "action_history": action_history_str,
+                # outerHTML of the DOM element the user picked via the element picker overlay.
+                # Captures the exact HTML of a broken UI element for debugging layout/rendering issues.
+                "picked_element_html": picked_element_html_str,
                 # Pre-signed URL for the screenshot PNG (7-day validity). Included in the
                 # admin email and in inspect_issue.py so LLMs can view the screenshot directly.
                 "screenshot_presigned_url": screenshot_presigned_url
