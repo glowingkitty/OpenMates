@@ -328,7 +328,7 @@
             <div class="section">
                 <SettingsItem 
                     type="heading"
-                    icon="icon_search"
+                    icon="skill"
                     title={$text('settings.app_store.skills.models')}
                 />
                 <div class="models-list">
@@ -411,7 +411,7 @@
             <div class="section">
                 <SettingsItem 
                     type="heading"
-                    icon="credits"
+                    icon="coins"
                     title={$text('settings.app_store.skills.pricing')}
                 />
                 <div class="content">

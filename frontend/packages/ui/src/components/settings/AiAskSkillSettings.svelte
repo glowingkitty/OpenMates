@@ -200,21 +200,21 @@
     <div class="section">
         <SettingsItem 
             type="heading"
-            icon="credits"
+            icon="coins"
             title={$text('settings.ai_ask.ai_ask_settings.pricing')}
         />
         <div class="pricing-content">
             <p class="pricing-label">{$text('settings.ai_ask.ai_ask_settings.pricing_starting_at')}</p>
             <div class="pricing-details">
                 <div class="pricing-row">
-                    <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                    <Icon name="download" type="subsetting" size="24px" noAnimation={true} />
                     <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.input_text')}</span>
                     <span class="pricing-value">
                         1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {cheapestPricing.input} {$text('settings.ai_ask.ai_ask_settings.tokens')}
                     </span>
                 </div>
                 <div class="pricing-row">
-                    <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                    <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                     <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.output_text')}</span>
                     <span class="pricing-value">
                         1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {cheapestPricing.output} {$text('settings.ai_ask.ai_ask_settings.tokens')}
@@ -262,7 +262,7 @@
     <div class="section">
         <SettingsItem 
             type="heading"
-            icon="icon_search"
+            icon="skill"
             title={$text('settings.ai_ask.ai_ask_settings.available_models')}
         />
         <p class="models-description">{$text('settings.ai_ask.ai_ask_settings.models_description')}</p>

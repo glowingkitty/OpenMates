@@ -151,6 +151,12 @@
 .subsetting_icon.light_mode {
   --icon-mask-image: url("@openmates/ui/static/icons/visible.svg");
 }
+.subsetting_icon.search {
+  --icon-mask-image: url("@openmates/ui/static/icons/search.svg");
+}
+.subsetting_icon.sort {
+  --icon-mask-image: url("@openmates/ui/static/icons/sort.svg");
+}
 
 /* Modify icon for subsubmenu items */
 .clickable-icon.icon_modify {

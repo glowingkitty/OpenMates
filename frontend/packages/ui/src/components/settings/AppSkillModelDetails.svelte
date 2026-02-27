@@ -23,7 +23,6 @@
     import { text } from '@repo/ui';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
-    import { getProviderIconUrl } from '../../data/providerIcons';
     import SettingsItem from '../SettingsItem.svelte';
     import Icon from '../Icon.svelte';
     
@@ -191,7 +190,7 @@
         <div class="section">
             <SettingsItem
                 type="heading"
-                icon="icon_info"
+                icon="question"
                 title={$text('settings.app_store.skills.model_detail.model_info')}
             />
             <div class="info-content">
@@ -249,13 +248,13 @@
             <div class="section">
                 <SettingsItem
                     type="heading"
-                    icon="credits"
+                    icon="coins"
                     title={$text('settings.app_store.skills.model_detail.pricing')}
                 />
                 <div class="pricing-content">
                     {#if model.pricing?.input_tokens_per_credit}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="download" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_input')}</span>
                             <span class="pricing-value">
                                 1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
@@ -264,7 +263,7 @@
                     {/if}
                     {#if model.pricing?.output_tokens_per_credit}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_output')}</span>
                             <span class="pricing-value">
                                 1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
@@ -278,13 +277,13 @@
             <div class="section">
                 <SettingsItem
                     type="heading"
-                    icon="credits"
+                    icon="coins"
                     title={$text('settings.app_store.skills.model_detail.pricing')}
                 />
                 <div class="pricing-content">
                     {#if model.pricing?.per_unit}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-value">
                                 {model.pricing.per_unit.credits} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
                                 {model.pricing.per_unit.unit_name === 'image'
@@ -296,7 +295,7 @@
                         </div>
                     {:else if model.pricing?.per_minute !== undefined}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-value">
                                 {model.pricing.per_minute} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
                                 {$text('settings.app_store.skills.model_detail.per_minute')}
@@ -310,13 +309,13 @@
             <div class="section">
                 <SettingsItem
                     type="heading"
-                    icon="credits"
+                    icon="coins"
                     title={$text('settings.app_store.skills.model_detail.pricing')}
                 />
                 <div class="pricing-content">
                     {#if skill.pricing.per_unit}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-value">
                                 {skill.pricing.per_unit.credits} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
                                 {skill.pricing.per_unit.unit_name === 'image'
@@ -328,7 +327,7 @@
                         </div>
                     {:else if skill.pricing.per_minute !== undefined}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-value">
                                 {skill.pricing.per_minute} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
                                 {$text('settings.app_store.skills.model_detail.per_minute')}
@@ -336,7 +335,7 @@
                         </div>
                     {:else if skill.pricing.fixed !== undefined}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-value">
                                 {skill.pricing.fixed} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.app_store.skills.pricing.credits')}
                             </span>

@@ -24,6 +24,7 @@
 
 <script lang="ts">
     import { text } from '@repo/ui';
+    import Icon from '../Icon.svelte';
 
     // --- Props ---
     interface SortOption {
@@ -78,7 +79,9 @@
 <div class="search-sort-bar">
     <!-- Search input -->
     <div class="search-container">
-        <span class="icon icon_search search-icon"></span>
+        <span class="search-icon-wrapper">
+            <Icon name="search" type="subsetting" size="18px" noAnimation={true} noMargin={true} />
+        </span>
         <input
             type="text"
             class="search-input"
@@ -97,7 +100,9 @@
                 aria-expanded={showSortDropdown}
                 aria-haspopup="menu"
             >
-                <span class="icon icon_sort sort-icon"></span>
+                <span class="sort-icon-wrapper">
+                    <Icon name="sort" type="subsetting" size="16px" noAnimation={true} noMargin={true} />
+                </span>
                 <span class="sort-label">{currentSortLabel}</span>
             </button>
 
@@ -140,13 +145,15 @@
         align-items: center;
     }
 
-    .search-icon {
+    .search-icon-wrapper {
         position: absolute;
         left: 12px;
         width: 18px;
         height: 18px;
-        color: var(--color-grey-50);
         pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .search-input {
@@ -196,10 +203,13 @@
         background: var(--color-grey-15);
     }
 
-    .sort-icon {
+    .sort-icon-wrapper {
         width: 16px;
         height: 16px;
         flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .sort-dropdown {
