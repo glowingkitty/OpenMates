@@ -1223,14 +1223,16 @@ div.clickable-icon {
   }
 }
 
-.icon.coins {
+/* App-icon (large) style: blue background. Excluded when subsetting_icon is also present
+   to avoid overriding the grey subsetting background that makes the masked icon visible. */
+.icon.coins:not(.subsetting_icon) {
   background: var(--color-primary);
   &::before {
     background-image: url("@openmates/ui/static/icons/coins.svg");
   }
 }
 
-.icon.reload {
+.icon.reload:not(.subsetting_icon) {
   background: var(--color-primary);
   &::before {
     background-image: url("@openmates/ui/static/icons/reload.svg");

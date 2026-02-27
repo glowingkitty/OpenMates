@@ -23,6 +23,9 @@
     import { getMatesById } from '../../data/matesMetadata';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
+    import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
+    import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
+    import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -282,6 +285,11 @@
     let originalMarkdown = '';
     let isUpdatingFromMarkdown = false;
     let isConvertingEmbeds = false;
+
+    // --- Credits State ---
+    // True when the user is authenticated but has zero credits.
+    // Checked client-side against the synced userProfile store — no server request needed.
+    let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits === 0);
 
     // --- AI Task State ---
     let activeAITaskId = $state<string | null>(null);
@@ -2979,6 +2987,16 @@
      * Saves the current draft message to sessionStorage so it can be restored after signup
      * Clears the editor content after saving to prevent search in new chat suggestions
      */
+    /**
+     * Open the billing / buy-credits settings panel when a zero-credit authenticated
+     * user clicks the "Buy credits" button in the action bar.
+     */
+    function handleBuyCreditsClick() {
+        console.info('[MessageInput] User clicked Buy credits — opening billing/buy-credits settings');
+        settingsDeepLink.set('billing/buy-credits');
+        panelState.openSettings();
+    }
+
     async function handleSignUpClick() {
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
@@ -3448,6 +3466,7 @@
                 <ActionButtons
                     showSendButton={hasContent}
                     isAuthenticated={$authStore.isAuthenticated}
+                    {hasNoCredits}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
@@ -3456,6 +3475,7 @@
                     on:cameraClick={handleCameraClick}
                     on:sendMessage={handleSendMessage}
                     on:signUpClick={handleSignUpClick}
+                    on:buyCreditsClick={handleBuyCreditsClick}
                     on:recordMouseDown={onRecordMouseDown}
                     on:recordMouseUp={onRecordMouseUp}
                     on:recordMouseLeave={onRecordMouseLeave}
