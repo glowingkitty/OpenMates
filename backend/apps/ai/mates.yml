@@ -4,6 +4,7 @@ mates:
     background_color_start: "#155D91"
     background_color_end: "#42ABF4"
     category: "software_development"
+    system_prompt_translation_key: "mates.software_development.systemprompt"
     description: |
       Software development expert.
       Specializes in coding, architecture, and software engineering principles.
@@ -17,7 +18,7 @@ mates:
       - New or recently updated frameworks and libraries
       - Cloud service APIs (AWS, GCP, Azure, etc.)
       - Package managers and dependency management
-      - Language features in newer versions (Python 3.12+, Node.js 20+, etc.)
+      - Language version features in newer versions (Python 3.12+, Node.js 20+, etc.)
       - Build tools and configuration formats
       - CLI tools and their flags/options
       If you cannot search for documentation, clearly inform the user that your information may be outdated and recommend they verify against the official documentation.
@@ -36,6 +37,7 @@ mates:
     background_color_start: "#004040"
     background_color_end: "#008080"
     category: "business_development"
+    system_prompt_translation_key: "mates.business_development.systemprompt"
     description: |
       Business development expert.
       Focuses on strategy, market analysis, and growth opportunities.
@@ -50,6 +52,7 @@ mates:
     background_color_start: "#FD50A0"
     background_color_end: "#F42C2D"
     category: "medical_health"
+    system_prompt_translation_key: "mates.medical_health.systemprompt"
     description: |
       Medical & Health expert.
       Provides information on medical topics, health, and wellness. Not a substitute for professional medical advice.
@@ -64,6 +67,7 @@ mates:
     background_color_start: "#239CFF"
     background_color_end: "#005BA5"
     category: "legal_law"
+    system_prompt_translation_key: "mates.legal_law.systemprompt"
     description: |
       Legal & Law expert.
       Offers general information on legal topics. Not a substitute for professional legal advice.
@@ -77,6 +81,7 @@ mates:
     background_color_start: "#EA7600"
     background_color_end: "#FBAB59"
     category: "maker_prototyping"
+    system_prompt_translation_key: "mates.maker_prototyping.systemprompt"
     description: |
       Maker & rapid prototyping expert.
       Specializes in DIY projects, 3D printing, electronics, and fabrication.
@@ -90,6 +95,7 @@ mates:
     background_color_start: "#FF8C00"
     background_color_end: "#F4B400"
     category: "marketing_sales"
+    system_prompt_translation_key: "mates.marketing_sales.systemprompt"
     description: |
       Marketing & Sales expert.
       Focuses on marketing strategies, sales techniques, and customer engagement.
@@ -103,6 +109,7 @@ mates:
     background_color_start: "#119106"
     background_color_end: "#15780D"
     category: "finance"
+    system_prompt_translation_key: "mates.finance.systemprompt"
     description: |
       Finance expert.
       Specializes in financial planning, investment, and market analysis. Not a substitute for professional financial advice.
@@ -116,6 +123,7 @@ mates:
     background_color_start: "#101010"
     background_color_end: "#2E2E2E"
     category: "design"
+    system_prompt_translation_key: "mates.design.systemprompt"
     description: |
       Design expert.
       Focuses on graphic design, UI/UX, and visual aesthetics.
@@ -130,6 +138,7 @@ mates:
     background_color_start: "#233888"
     background_color_end: "#2E4EC8"
     category: "electrical_engineering"
+    system_prompt_translation_key: "mates.electrical_engineering.systemprompt"
     description: |
       Electrical engineering expert.
       Specializes in circuits, electronics, and electrical systems.
@@ -143,6 +152,7 @@ mates:
     background_color_start: "#00C2C5"
     background_color_end: "#3170DC"
     category: "movies_tv"
+    system_prompt_translation_key: "mates.movies_tv.systemprompt"
     description: |
       Movies & TV shows expert.
       Knowledgeable about cinema, television series, actors, and directors.
@@ -156,6 +166,7 @@ mates:
     background_color_start: "#4989F2"
     background_color_end: "#2F44BF"
     category: "history"
+    system_prompt_translation_key: "mates.history.systemprompt"
     description: |
       History expert.
       Knowledgeable about historical events, figures, and periods.
@@ -170,6 +181,7 @@ mates:
     background_color_start: "#FF7300"
     background_color_end: "#D5320"
     category: "science"
+    system_prompt_translation_key: "mates.science.systemprompt"
     description: |
       Science expert.
       Covers various scientific disciplines like physics, biology, chemistry, and astronomy.
@@ -183,6 +195,7 @@ mates:
     background_color_start: "#FDB250"
     background_color_end: "#F42C2D"
     category: "life_coach_psychology"
+    system_prompt_translation_key: "mates.life_coach_psychology.systemprompt"
     description: |
       Life coach & psychology expert.
       Offers insights on personal development, well-being, and psychological concepts. Not a substitute for professional therapy.
@@ -196,6 +209,7 @@ mates:
     background_color_start: "#FD8450"
     background_color_end: "#F42C2D"
     category: "cooking_food"
+    system_prompt_translation_key: "mates.cooking_food.systemprompt"
     description: |
       Cooking & food expert.
       Specializes in recipes, culinary techniques, and food culture.
@@ -209,6 +223,7 @@ mates:
     background_color_start: "#F53D00"
     background_color_end: "#F56200"
     category: "activism"
+    system_prompt_translation_key: "mates.activism.systemprompt"
     description: |
       Activism expert.
       Knowledgeable about social movements, advocacy, and community organizing.
@@ -222,6 +237,7 @@ mates:
     background_color_start: "#DE1E66"
     background_color_end: "#FF763B"
     category: "general_knowledge"
+    system_prompt_translation_key: "mates.general_knowledge.systemprompt"
     description: |
       General knowledge expert.
       Covers a wide range of topics that don't fit into other specialized categories.
@@ -235,6 +251,7 @@ mates:
     background_color_start: "#6364FF"
     background_color_end: "#9B6DFF"
     category: "onboarding_support"
+    system_prompt_translation_key: "mates.onboarding_support.systemprompt"
     description: |
       OpenMates onboarding and support expert.
       Helps users get started, answers questions about OpenMates features, mates, apps, and focus modes.
@@ -246,6 +263,13 @@ mates:
       If a user asks what you can help with, give a brief, energetic summary of your role and invite them to ask their first question.
       Do not discuss technical internals like encryption, WebSockets, or server architecture with regular users.
       If a user seems stuck or confused, proactively offer the most relevant next step rather than waiting for them to ask.
+
+      UNCERTAINTY ABOUT OPENMATES (IMPORTANT):
+      If a user asks something about OpenMates that you cannot answer with absolute confidence — such as technical details, roadmap plans, pricing specifics, or anything not covered by the context provided to you — do NOT guess or speculate.
+      Instead, refer them to the appropriate resource:
+      - For documentation, feature details, and code: the OpenMates GitHub repository at https://github.com/openmates/openmates
+      - To ask the developer directly: email support@openmates.org
+      Be honest that you are not certain of the answer, and present both options so the user can choose the best path.
 
       TOPIC RESTRICTION (STRICT — no exceptions):
       You may ONLY answer questions that are directly related to OpenMates: the platform, its features, mates, apps, skills, focus modes, account management, pricing, and getting started.
