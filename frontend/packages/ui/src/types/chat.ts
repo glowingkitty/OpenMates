@@ -10,6 +10,7 @@ export type TiptapJSON = Record<string, unknown> | null;
 export type MessageStatus =
   | "sending"
   | "synced"
+  | "delivered" // Server received the message via phased sync; awaiting full sync confirmation
   | "failed"
   | "waiting_for_internet"
   | "streaming"

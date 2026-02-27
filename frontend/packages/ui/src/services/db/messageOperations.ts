@@ -71,11 +71,18 @@ export function shouldUpdateMessage(
     return true;
   }
 
-  // Never overwrite a waiting_for_user message with synced from phased sync.
-  // 'waiting_for_user' is a richer client-side state that the server doesn't
-  // persist — the server stores 'synced', but the client needs 'waiting_for_user'
-  // to render the Buy Credits button and keep the credits-error header visible.
-  if (existing.status === "waiting_for_user" && incoming.status === "synced") {
+  // Never overwrite a waiting_for_user message with synced or delivered from phased sync.
+  // 'waiting_for_user' is a terminal client-side display state that the server doesn't
+  // persist — Directus has no status column, so phased sync messages arrive with no status
+  // and prepareMessagesForStorage() assigns 'delivered' as the default. Since 'delivered'
+  // has higher priority (2.8) than 'waiting_for_user' (2.3), the priority check below would
+  // allow the overwrite. This would clobber the client state and hide the Buy Credits button
+  // and the credits-error header after a page reload.
+  // Guard both 'synced' (from chat_message_confirmed events) and 'delivered' (from phased sync).
+  if (
+    existing.status === "waiting_for_user" &&
+    (incoming.status === "synced" || incoming.status === "delivered")
+  ) {
     return false;
   }
 
@@ -980,13 +987,18 @@ export async function updateMessageStatus(
         return;
       }
 
-      // Guard: never overwrite 'waiting_for_user' with 'synced'.
+      // Guard: never overwrite 'waiting_for_user' with 'synced' or 'delivered'.
       // 'waiting_for_user' is a terminal client-side display state (credits rejection,
-      // permissions request). The server stores these as 'synced', so chat_message_confirmed
-      // events would clobber the client state and hide the Buy Credits button / header banner.
-      if (rawRecord.status === "waiting_for_user" && newStatus === "synced") {
+      // permissions request). The server doesn't persist this state — Directus has no status
+      // column, so phased sync messages arrive with 'delivered' as default, and
+      // chat_message_confirmed events use 'synced'. Either would clobber the client state
+      // and hide the Buy Credits button / header banner.
+      if (
+        rawRecord.status === "waiting_for_user" &&
+        (newStatus === "synced" || newStatus === "delivered")
+      ) {
         console.debug(
-          `[ChatDatabase] updateMessageStatus: preserving 'waiting_for_user' for message ${message_id} — skipping synced overwrite`,
+          `[ChatDatabase] updateMessageStatus: preserving 'waiting_for_user' for message ${message_id} — skipping ${newStatus} overwrite`,
         );
         resolve();
         return;

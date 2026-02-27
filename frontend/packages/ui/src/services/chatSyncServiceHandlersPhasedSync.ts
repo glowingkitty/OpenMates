@@ -12,7 +12,6 @@ import type {
   SyncEmbed,
   Chat,
   Message,
-  MessageStatus,
 } from "../types/chat";
 import type { EmbedKeyEntry } from "./embedStore";
 import type { EmbedType } from "../message_parsing/types";
@@ -790,7 +789,7 @@ function prepareMessagesForStorage(
 
     // Set default status if missing
     if (!message.status) {
-      message.status = "delivered" as MessageStatus;
+      message.status = "delivered";
     }
 
     preparedMessages.push(message);
