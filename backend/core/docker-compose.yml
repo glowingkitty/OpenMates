@@ -47,7 +47,7 @@ services:
       cache:
         condition: service_healthy
       vault-setup:
-        condition: service_started
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
     healthcheck:
@@ -231,8 +231,8 @@ services:
     depends_on:
       cache:
         condition: service_healthy
-      task-worker:
-        condition: service_started # Corrected: Added condition
+      vault-setup:
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
 
