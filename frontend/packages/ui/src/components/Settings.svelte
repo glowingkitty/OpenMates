@@ -31,7 +31,7 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 <script lang="ts">
-    import { onMount, createEventDispatcher } from 'svelte';
+    import { onMount, createEventDispatcher, tick } from 'svelte';
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { authStore, isCheckingAuth, logout } from '../stores/authStore'; // Import logout action
@@ -473,7 +473,7 @@ changes to the documentation (to keep the documentation up to date).
     let menuItemsCount = $state(0);
 
     // Function to set active settings view with transitions
-    function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>) {
+    async function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>) {
         const detail = 'detail' in event ? event.detail : event;
         let { settingsPath, direction: newDirection, icon, cameFrom } = detail;
         direction = newDirection;
@@ -695,7 +695,9 @@ changes to the documentation (to keep the documentation up to date).
             profileContainer.classList.add('submenu-active');
         }
         
-        // Scroll to the top of the settings content
+        // Wait for the DOM to update with the new page content before scrolling,
+        // so the scroll-to-top always targets the correct (new) page and not the old one.
+        await tick();
         if (settingsContentElement) {
             settingsContentElement.scrollTo({
                 top: 0,
@@ -705,7 +707,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Enhanced back navigation - handle both main and nested views
-    function backToMainView(event?: MouseEvent) {
+    async function backToMainView(event?: MouseEvent) {
         // Prevent event bubbling to avoid closing the menu
         if (event) {
             event.stopPropagation();
@@ -730,6 +732,8 @@ changes to the documentation (to keep the documentation up to date).
                     profileContainer.classList.remove('submenu-active');
                 }
                 
+                // Wait for DOM to update before scrolling to top
+                await tick();
                 if (settingsContentElement) {
                     settingsContentElement.scrollTop = 0;
                 }
@@ -902,7 +906,8 @@ changes to the documentation (to keep the documentation up to date).
                 profileContainer.classList.remove('submenu-active');
             }
             
-            // Scroll to top when going back to main view
+            // Wait for the DOM to update with the main view content before scrolling.
+            await tick();
             if (settingsContentElement) {
                 settingsContentElement.scrollTo({
                     top: 0,
