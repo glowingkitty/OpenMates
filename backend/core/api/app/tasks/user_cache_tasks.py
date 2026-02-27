@@ -1120,11 +1120,33 @@ async def _async_delete_user_account(
                         if invoice_provider == "polar":
                             refund_order_id = provider_order_id
                             if not refund_order_id:
-                                logger.error(
-                                    f"[DELETE_ACCOUNT] Polar invoice {invoice_id} missing provider_order_id, cannot refund"
+                                # Fallback: look up the Order UUID via Polar API
+                                # (handles the race where order.paid arrived before invoice was created)
+                                logger.warning(
+                                    f"[DELETE_ACCOUNT] Polar invoice {invoice_id} missing provider_order_id, "
+                                    f"attempting Polar API lookup by checkout_id={order_id}"
                                 )
-                                refund_fail_count += 1
-                                continue
+                                try:
+                                    resolved_uuid = await payment_service.get_polar_order_uuid_by_checkout_id(order_id)
+                                    if resolved_uuid:
+                                        refund_order_id = resolved_uuid
+                                        logger.info(
+                                            f"[DELETE_ACCOUNT] Resolved Polar order UUID {resolved_uuid} "
+                                            f"for invoice {invoice_id}"
+                                        )
+                                    else:
+                                        logger.error(
+                                            f"[DELETE_ACCOUNT] Polar invoice {invoice_id} missing provider_order_id "
+                                            f"and API lookup failed, cannot refund"
+                                        )
+                                        refund_fail_count += 1
+                                        continue
+                                except Exception as lookup_exc:
+                                    logger.error(
+                                        f"[DELETE_ACCOUNT] Polar API lookup failed for invoice {invoice_id}: {lookup_exc}"
+                                    )
+                                    refund_fail_count += 1
+                                    continue
                         else:
                             refund_order_id = order_id
 

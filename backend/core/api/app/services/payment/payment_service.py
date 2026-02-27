@@ -359,6 +359,31 @@ class PaymentService:
             return await self._stripe_provider.get_customer_portal_url(customer_id, return_url)
         return None
 
+    async def get_polar_order_uuid_by_checkout_id(
+        self, checkout_id: str
+    ) -> Optional[str]:
+        """
+        Look up the Polar Order UUID for a checkout session ID.
+
+        Delegates to PolarService.get_order_uuid_by_checkout_id().
+        Used as a fallback when the order.paid webhook arrived before the
+        Directus invoice was created, leaving provider_order_id unset.
+
+        Args:
+            checkout_id: Polar checkout session ID (our invoice's order_id).
+
+        Returns:
+            Polar Order UUID string, or None if Polar is not configured
+            or the lookup fails.
+        """
+        if not self._polar_provider:
+            logger.warning(
+                "PaymentService: cannot look up Polar order UUID — "
+                "Polar provider not initialized"
+            )
+            return None
+        return await self._polar_provider.get_order_uuid_by_checkout_id(checkout_id)
+
     async def close(self) -> None:
         """Clean up provider connections."""
         if self._revolut_provider:

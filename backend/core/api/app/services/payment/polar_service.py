@@ -290,6 +290,11 @@ class PolarService:
             amount = data.get("total_amount") or data.get("net_amount") or data.get("amount", 0)
             currency = data.get("currency", "usd").lower()
 
+            # Extract tax_amount from the checkout response (nullable — only populated
+            # for succeeded checkouts where Polar as MoR has calculated the tax).
+            # This is in smallest currency unit (cents) just like amount.
+            tax_amount = data.get("tax_amount")  # int or None
+
             # Polar doesn't expose raw card details via the checkout API in the same
             # way Stripe does. We show a generic "Polar" payment method on the receipt.
             normalized = {
@@ -297,6 +302,7 @@ class PolarService:
                 "status": data.get("status", ""),
                 "amount": amount,
                 "currency": currency,
+                "tax_amount": tax_amount,
                 "metadata": data.get("metadata", {}),
                 "payments": [
                     {
@@ -318,6 +324,73 @@ class PolarService:
             return None
         except Exception as exc:
             logger.error(f"PolarService: unexpected error retrieving order {order_id}: {exc}", exc_info=True)
+            return None
+
+    async def get_order_uuid_by_checkout_id(self, checkout_id: str) -> Optional[str]:
+        """
+        Look up the Polar Order UUID for a given checkout session ID.
+
+        This is used as a fallback when the order.paid webhook arrived before the
+        invoice was created in Directus, leaving provider_order_id unset.
+
+        Calls GET /v1/orders?checkout_id={checkout_id} to retrieve the order.
+
+        Args:
+            checkout_id: The Polar checkout session ID (stored as order_id in
+                         our invoices table).
+
+        Returns:
+            The Polar Order UUID (str) if found, or None on error / not found.
+        """
+        if not self._access_token:
+            logger.error("PolarService: access token not initialized")
+            return None
+
+        try:
+            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT, follow_redirects=True) as client:
+                response = await client.get(
+                    f"{self._api_base}/orders",
+                    headers=self._get_headers(),
+                    params={"checkout_id": checkout_id, "limit": 1},
+                )
+
+            if not response.is_success:
+                logger.error(
+                    f"PolarService: get_order_uuid_by_checkout_id failed for "
+                    f"checkout {checkout_id}. "
+                    f"Status: {response.status_code}, Body: {response.text[:300]}"
+                )
+                return None
+
+            data = response.json()
+            items = data.get("items", [])
+            if not items:
+                logger.warning(
+                    f"PolarService: no order found for checkout_id={checkout_id}"
+                )
+                return None
+
+            order_uuid = items[0].get("id")
+            if order_uuid:
+                logger.info(
+                    f"PolarService: resolved checkout {checkout_id} → "
+                    f"order UUID {order_uuid}"
+                )
+            return order_uuid
+
+        except httpx.RequestError as exc:
+            logger.error(
+                f"PolarService: HTTP error looking up order for "
+                f"checkout {checkout_id}: {exc}",
+                exc_info=True,
+            )
+            return None
+        except Exception as exc:
+            logger.error(
+                f"PolarService: unexpected error looking up order for "
+                f"checkout {checkout_id}: {exc}",
+                exc_info=True,
+            )
             return None
 
     def _extract_billing_address(self, checkout_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -394,6 +467,75 @@ class PolarService:
             return None
         except Exception as exc:
             logger.error(f"PolarService: error verifying webhook: {exc}", exc_info=True)
+            return None
+
+    async def get_order_by_id(self, order_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch a Polar Order by its UUID from GET /v1/orders/{id}.
+
+        Unlike get_order() which fetches a Checkout session, this retrieves the
+        full Order object which contains the complete financial breakdown:
+          - tax_amount (int, cents): actual sales tax charged by Polar as MoR
+          - net_amount (int, cents): amount after discounts, before tax
+          - subtotal_amount (int, cents): amount before discounts and tax
+          - total_amount (int, cents): final amount charged to customer
+          - currency (str): ISO currency code (e.g. "usd")
+          - billing_address (dict): customer billing address with country
+
+        This is used by the invoice task to get real tax data for the PDF.
+
+        Args:
+            order_id: Polar Order UUID (NOT checkout session ID).
+                      This is the value stored in provider_order_id.
+
+        Returns:
+            Raw Polar Order dict on success, None on error.
+        """
+        if not self._access_token:
+            logger.error("PolarService: access token not initialized")
+            return None
+
+        if not order_id:
+            logger.warning("PolarService.get_order_by_id called with empty order_id")
+            return None
+
+        try:
+            async with httpx.AsyncClient(timeout=POLAR_HTTP_TIMEOUT, follow_redirects=True) as client:
+                response = await client.get(
+                    f"{self._api_base}/orders/{order_id}",
+                    headers=self._get_headers(),
+                )
+
+            if response.status_code == 404:
+                logger.warning(f"PolarService: order {order_id} not found")
+                return None
+
+            if not response.is_success:
+                logger.error(
+                    f"PolarService: get_order_by_id failed for {order_id}. "
+                    f"Status: {response.status_code}, Body: {response.text[:300]}"
+                )
+                return None
+
+            data = response.json()
+            logger.info(
+                f"PolarService: fetched order {order_id} — "
+                f"total={data.get('total_amount')}, tax={data.get('tax_amount')}, "
+                f"net={data.get('net_amount')}, currency={data.get('currency')}"
+            )
+            return data
+
+        except httpx.RequestError as exc:
+            logger.error(
+                f"PolarService: HTTP error fetching order {order_id}: {exc}",
+                exc_info=True,
+            )
+            return None
+        except Exception as exc:
+            logger.error(
+                f"PolarService: unexpected error fetching order {order_id}: {exc}",
+                exc_info=True,
+            )
             return None
 
     async def refund_payment(

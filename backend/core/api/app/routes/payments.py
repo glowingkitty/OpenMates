@@ -139,6 +139,7 @@ class InvoiceResponse(BaseModel):
     is_gift_card: bool = False  # Whether this invoice is for a gift card purchase
     refunded_at: Optional[str] = None  # ISO timestamp when refund was processed (null if not refunded)
     refund_status: Optional[str] = None  # Status of refund: 'none', 'pending', 'completed', 'failed'
+    currency: Optional[str] = None  # ISO currency code lowercase (e.g. "usd", "eur"). Null for legacy invoices.
 
 class InvoicesListResponse(BaseModel):
     invoices: List[InvoiceResponse]
@@ -1707,13 +1708,31 @@ async def payment_webhook(
                     # Invoice may not exist yet if the purchase_confirmation task hasn't run.
                     # This is a timing race — the order.paid event can arrive before the
                     # Celery task creates the Directus invoice record.
-                    # Log a warning; the provider_order_id will need to be set manually or
-                    # via a future reconciliation job if this happens frequently.
+                    # Cache the checkout_id → order_uuid mapping in Redis so the invoice
+                    # task can pick it up when it creates the invoice record.
                     logger.warning(
                         f"Polar order.paid: no invoice found for checkout_id={polar_checkout_id}. "
                         f"Order UUID={polar_order_uuid} cannot be stored yet. "
-                        f"Invoice task may not have completed."
+                        f"Caching mapping for later reconciliation."
                     )
+                    try:
+                        cache_key = f"polar_order_pending:{polar_checkout_id}"
+                        await cache_service.set(
+                            cache_key,
+                            {"order_uuid": polar_order_uuid, "checkout_id": polar_checkout_id},
+                            ttl=3600,  # 1 hour — plenty of time for the invoice task to run
+                        )
+                        logger.info(
+                            f"Polar order.paid: cached pending order UUID "
+                            f"{polar_order_uuid} for checkout {polar_checkout_id} "
+                            f"(key={cache_key}, ttl=3600s)."
+                        )
+                    except Exception as cache_exc:
+                        logger.error(
+                            f"Polar order.paid: failed to cache pending order UUID "
+                            f"for checkout {polar_checkout_id}: {cache_exc}",
+                            exc_info=True,
+                        )
             except Exception as order_paid_exc:
                 logger.error(
                     f"Error processing Polar order.paid for checkout {polar_checkout_id}: "
@@ -3519,6 +3538,21 @@ async def get_invoices(
                 refunded_at = invoice.get("refunded_at")
                 refund_status = invoice.get("refund_status", "none")
                 
+                # Decrypt currency if available (added for correct frontend display).
+                # Null for legacy invoices created before this field was added.
+                currency_code = None
+                if invoice.get("encrypted_currency"):
+                    try:
+                        currency_code = await encryption_service.decrypt_with_user_key(
+                            invoice["encrypted_currency"],
+                            vault_key_id
+                        )
+                    except Exception as currency_err:
+                        logger.warning(
+                            f"Failed to decrypt currency for invoice {invoice.get('id', 'unknown')}: {currency_err}"
+                        )
+                        # Non-blocking — frontend will fall back to default currency
+
                 processed_invoices.append(InvoiceResponse(
                     id=invoice["id"],
                     date=formatted_date,
@@ -3527,7 +3561,8 @@ async def get_invoices(
                     filename=filename,
                     is_gift_card=is_gift_card,
                     refunded_at=refunded_at,
-                    refund_status=refund_status
+                    refund_status=refund_status,
+                    currency=currency_code,
                 ))
 
             except Exception as e:
@@ -4243,25 +4278,53 @@ async def request_refund(
         if invoice_provider == "polar" and invoice_provider_order_id:
             refund_order_id = invoice_provider_order_id
         elif invoice_provider == "polar" and not invoice_provider_order_id:
-            logger.error(
-                f"Polar invoice {invoice_id} is missing provider_order_id "
-                f"(Polar Order UUID). Cannot issue refund via Polar API."
+            # Fallback: the order.paid webhook may have arrived before the invoice was
+            # created (race condition). Try to resolve the Order UUID via the Polar API
+            # using the checkout session ID (our order_id).
+            logger.warning(
+                f"Polar invoice {invoice_id} is missing provider_order_id. "
+                f"Attempting Polar API lookup by checkout_id={order_id}."
             )
-            ComplianceService.log_refund_request(
-                user_id=user_id,
-                ip_address=client_ip,
-                invoice_id=invoice_id,
-                order_id=order_id,
-                refund_amount=refund_amount_cents,
-                currency=currency,
-                status="failed",
-                reason="Missing Polar Order UUID for refund"
-            )
-            raise HTTPException(
-                status_code=500,
-                detail="Cannot process Polar refund: missing provider order ID. "
-                       "Please contact support."
-            )
+            resolved_order_uuid = await payment_service.get_polar_order_uuid_by_checkout_id(order_id)
+            if resolved_order_uuid:
+                # Save it to the invoice so future refund attempts won't need the lookup
+                try:
+                    await directus_service.update_item(
+                        "invoices", invoice_id,
+                        {"provider_order_id": resolved_order_uuid}
+                    )
+                    logger.info(
+                        f"Resolved and stored Polar order UUID {resolved_order_uuid} "
+                        f"for invoice {invoice_id} (was missing due to webhook race)."
+                    )
+                except Exception as update_exc:
+                    # Non-blocking — we have the UUID, proceed with refund anyway
+                    logger.warning(
+                        f"Failed to persist resolved Polar order UUID "
+                        f"for invoice {invoice_id}: {update_exc}"
+                    )
+                refund_order_id = resolved_order_uuid
+            else:
+                logger.error(
+                    f"Polar invoice {invoice_id} is missing provider_order_id "
+                    f"and Polar API lookup by checkout_id={order_id} returned nothing. "
+                    f"Cannot issue refund."
+                )
+                ComplianceService.log_refund_request(
+                    user_id=user_id,
+                    ip_address=client_ip,
+                    invoice_id=invoice_id,
+                    order_id=order_id,
+                    refund_amount=refund_amount_cents,
+                    currency=currency,
+                    status="failed",
+                    reason="Missing Polar Order UUID for refund (API lookup also failed)"
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail="Cannot process Polar refund: missing provider order ID. "
+                           "Please contact support."
+                )
 
         refund_result = await payment_service.refund_payment(
             refund_order_id, refund_amount_cents, provider=invoice_provider

@@ -309,18 +309,43 @@ async def _async_process_invoice_and_send_email(
         # Polar may charge in CAD, AUD, KRW, etc. — currencies not in our pricing.yml.
         # For Stripe/Revolut orders this is not set; the PDF looks up the price from pricing.yml.
         actual_amount_paid: Optional[float] = None
+        # Tax amount from Polar (in display units) — used for the PDF tax line.
+        # None for Stripe/Revolut (they use the §19 UStG Kleinunternehmer 0% rule).
+        actual_tax_amount: Optional[float] = None
+        # Net amount (before tax, in display units) — subtotal for the PDF.
+        actual_net_amount: Optional[float] = None
+
         if effective_provider == "polar" and amount_paid is not None and currency_paid is not None:
             # Convert from smallest unit to display unit.
             # Zero-decimal currencies (e.g. JPY, KRW) use the amount as-is; all others divide by 100.
             # We use a known list of zero-decimal currencies to handle this correctly.
             ZERO_DECIMAL_CURRENCIES = {"jpy", "krw", "vnd", "clp", "gnf", "mga", "pyg", "rwf", "ugx", "xaf", "xof"}
-            if currency_paid.lower() in ZERO_DECIMAL_CURRENCIES:
+            is_zero_decimal = currency_paid.lower() in ZERO_DECIMAL_CURRENCIES
+
+            if is_zero_decimal:
                 actual_amount_paid = float(amount_paid)
             else:
                 actual_amount_paid = float(amount_paid) / 100.0
+
+            # Extract tax_amount from Polar checkout response (nullable int, in cents).
+            # When Polar as MoR charges sales tax, this is the actual tax amount.
+            raw_tax_amount = payment_order_details.get("tax_amount")
+            if raw_tax_amount is not None:
+                if is_zero_decimal:
+                    actual_tax_amount = float(raw_tax_amount)
+                else:
+                    actual_tax_amount = float(raw_tax_amount) / 100.0
+                # Derive net amount: total - tax
+                actual_net_amount = actual_amount_paid - actual_tax_amount
+            else:
+                # No tax data available — treat as 0% tax (net = total)
+                actual_tax_amount = 0.0
+                actual_net_amount = actual_amount_paid
+
             logger.info(
-                f"Polar order {order_id}: actual_amount_paid={actual_amount_paid} {currency_paid.upper()} "
-                f"(from Polar amount={amount_paid})"
+                f"Polar order {order_id}: actual_amount_paid={actual_amount_paid} "
+                f"actual_tax_amount={actual_tax_amount} actual_net_amount={actual_net_amount} "
+                f"{currency_paid.upper()} (from Polar amount={amount_paid}, tax_amount={raw_tax_amount})"
             )
 
         invoice_data = {
@@ -344,6 +369,12 @@ async def _async_process_invoice_and_send_email(
             # For Polar: the exact amount the buyer was charged (display units, any currency).
             # When set, overrides the pricing.yml lookup in the PDF generator.
             "actual_amount_paid": actual_amount_paid,
+            # For Polar: actual tax amount (display units) charged by Polar as MoR.
+            # When set, the PDF shows the real tax instead of "VAT (0%) *".
+            "actual_tax_amount": actual_tax_amount,
+            # For Polar: net amount before tax (display units).
+            # When set, the PDF uses this as the subtotal line.
+            "actual_net_amount": actual_net_amount,
             # Note: refund_link will be added after invoice is created and we have the UUID
         }
 
@@ -490,6 +521,22 @@ async def _async_process_invoice_and_send_email(
             "provider": provider,  # Payment provider for routing refunds correctly
             "provider_order_id": provider_order_id,  # Polar Order UUID for refund API (None for Stripe/Revolut)
         }
+
+        # Encrypt and store the currency code so the frontend can display amounts
+        # in the correct currency (instead of hardcoding "EUR").
+        if currency_paid:
+            try:
+                encrypted_currency, _ = await task.encryption_service.encrypt_with_user_key(
+                    currency_paid.lower(), vault_key_id
+                )
+                if encrypted_currency:
+                    directus_invoice_payload["encrypted_currency"] = encrypted_currency
+                    logger.info(f"Encrypted currency '{currency_paid.lower()}' for invoice {invoice_number}")
+                else:
+                    logger.warning(f"Failed to encrypt currency for invoice {invoice_number} — field will be null")
+            except Exception as currency_enc_err:
+                logger.warning(f"Error encrypting currency for invoice {invoice_number}: {currency_enc_err}")
+                # Non-blocking — frontend will fall back to "EUR" for this invoice
         logger.info("Prepared Directus payload for invoice")
 
         # 10. Create Invoice Record in Directus (using service from BaseTask)
@@ -512,6 +559,46 @@ async def _async_process_invoice_and_send_email(
             logger.warning(f"Could not extract invoice UUID from created_item for invoice {invoice_number}. Deep link will not be generated.")
         else:
             logger.info(f"Extracted invoice UUID: {invoice_uuid} for invoice {invoice_number}")
+
+        # 10a. Reconcile Polar order UUID if the order.paid webhook arrived before
+        # this invoice was created. The order.paid handler caches the checkout_id →
+        # order_uuid mapping under "polar_order_pending:{checkout_id}" in Redis.
+        if provider == "polar" and not provider_order_id and invoice_uuid:
+            try:
+                pending_key = f"polar_order_pending:{order_id}"
+                pending_data = await cache_service.get(pending_key)
+                if pending_data and isinstance(pending_data, dict):
+                    cached_order_uuid = pending_data.get("order_uuid")
+                    if cached_order_uuid:
+                        update_ok = await task.directus_service.update_item(
+                            "invoices", invoice_uuid,
+                            {"provider_order_id": cached_order_uuid}
+                        )
+                        if update_ok:
+                            logger.info(
+                                f"Reconciled Polar order UUID: updated invoice "
+                                f"{invoice_uuid} provider_order_id={cached_order_uuid} "
+                                f"from cached order.paid event."
+                            )
+                            # Clean up the pending cache key
+                            await cache_service.delete(pending_key)
+                        else:
+                            logger.error(
+                                f"Failed to update invoice {invoice_uuid} with "
+                                f"cached Polar order UUID {cached_order_uuid}."
+                            )
+                else:
+                    logger.debug(
+                        f"No cached Polar order UUID found for "
+                        f"checkout {order_id} (key={pending_key}). "
+                        f"The order.paid webhook may not have arrived yet."
+                    )
+            except Exception as reconcile_exc:
+                # Non-blocking — the refund endpoint has its own Polar API fallback
+                logger.warning(
+                    f"Error reconciling Polar order UUID for invoice "
+                    f"{invoice_uuid}: {reconcile_exc}"
+                )
 
         # 10b. Update the invoice counter in Directus and Cache
         try:
