@@ -4194,10 +4194,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleStartChatFromInspiration(inspiration: DailyInspiration) {
         console.info('[ActiveChat] Starting chat from daily inspiration:', inspiration.inspiration_id);
 
-        // Unauthenticated users: open the login interface instead of creating a chat.
-        // The same pattern used by the message-input signup button (handleOpenLoginInterface).
+        // Unauthenticated users: open the signup screen (alpha disclaimer step) so they
+        // can register and then start using inspirations.
+        // Same pattern as handleOpenSignupInterface (message-input signup button).
         if (!$authStore.isAuthenticated) {
-            console.debug('[ActiveChat] Guest clicked inspiration banner – opening login interface');
+            console.debug('[ActiveChat] Guest clicked inspiration banner – opening signup interface');
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            isInSignupProcess.set(true);
             loginInterfaceOpen.set(true);
             if ($panelState.isActivityHistoryOpen) {
                 panelState.toggleChats();
@@ -4795,8 +4798,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Handler for clicking the video embed area inside a Daily Inspiration banner.
      *
      * Opens the video directly in the VideoEmbedFullscreen viewer without first
-     * creating a chat. Requires a real embed_id from persistInspirations — the embed
-     * is always stored when inspirations arrive, so this should always be available.
+     * creating a chat. Works for both authenticated users (embed_id from persistInspirations)
+     * and unauthenticated users (synthetic tmp- embed key, falls back to inline decodedContent).
      */
     async function handleInspirationEmbedFullscreen(inspiration: DailyInspiration) {
         if (!inspiration.video?.youtube_id) {
@@ -4805,14 +4808,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         const storedEmbedId = inspiration.embed_id;
-        if (!storedEmbedId) {
-            // persistInspirations stores the embed before the banner is shown; if embed_id
-            // is still null the user clicked before storage completed — nothing to open yet.
-            console.warn('[ActiveChat] Inspiration embed not yet stored, cannot open fullscreen:', inspiration.inspiration_id);
-            return;
-        }
 
-        const embedId = `embed:${storedEmbedId}`;
+        // For unauthenticated users (or before persistInspirations has run), embed_id is null.
+        // In that case we use a synthetic temporary key based on the youtube_id so
+        // handleEmbedFullscreen can still open the video — it will fall back to the
+        // inline decodedContent we provide below (resolveEmbed returns null for tmp- keys,
+        // which is the intended fallback path).
+        const embedId = storedEmbedId
+            ? `embed:${storedEmbedId}`
+            : `embed:tmp-${inspiration.video.youtube_id}`;
         const video = inspiration.video;
         const videoId = video.youtube_id;
         const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
