@@ -4216,16 +4216,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // now we avoid that extra IndexedDB round-trip and guarantee the key is
                     // available for immediate use even if IndexedDB is slow or busy.
                     //
+                    // IMPORTANT: We must pass hashedChatId (not undefined) to getEmbedKey().
+                    // Some inspiration embeds only have a 'chat' key in IDB (no 'master' key).
+                    // getEmbedKey(id, undefined) only tries the master slot first and skips
+                    // chat-type keys when no hashedChatId is provided — so it returns null
+                    // for chat-key-only embeds. Passing the real hashedChatId lets it fall
+                    // through to the matching chat-key entry.
+                    //
                     // This mirrors the IndexedDB recovery path in the new-chat code below
                     // (the `embedKeyForWrap` recovery block in the `if (reusedEmbedId)` branch).
                     if (inspiration.embed_id) {
                         try {
                             const { embedStore } = await import('../services/embedStore');
+                            const { computeSHA256 } = await import('../message_parsing/utils');
                             const cachedKey = embedStore.getEmbedKeyFromCache(inspiration.embed_id);
                             if (!cachedKey) {
-                                const recoveredKey = await embedStore.getEmbedKey(inspiration.embed_id, undefined);
+                                // Compute the hashed chat ID so getEmbedKey() can match
+                                // chat-type key entries in addition to master-type entries.
+                                const hashedExistingChatId = await computeSHA256(existingChatId);
+                                const recoveredKey = await embedStore.getEmbedKey(
+                                    inspiration.embed_id,
+                                    hashedExistingChatId,
+                                );
                                 if (recoveredKey) {
-                                    embedStore.setEmbedKeyInCache(inspiration.embed_id, recoveredKey, undefined);
+                                    embedStore.setEmbedKeyInCache(
+                                        inspiration.embed_id,
+                                        recoveredKey,
+                                        hashedExistingChatId,
+                                    );
                                     console.info(
                                         `[ActiveChat] ✅ Warmed embed key cache from IndexedDB for dedup path (embed ${inspiration.embed_id})`,
                                     );

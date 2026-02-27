@@ -170,10 +170,15 @@
 
 			// Convert parsed messages to Message format
 			const messages: Message[] = parsedMessages.map((messageObj: any) => {
-				// Backend uses 'id' as the Directus primary key, but 'client_message_id' is the actual message_id
-				// For shared chats, we use 'id' as message_id since that's what we get from the server
+				// Prefer client_message_id as the IDB key so that batchSaveMessages() can
+				// find the already-stored entry when the owner opens their own share link.
+				// The owner's IDB keyed the message by client_message_id at creation time;
+				// if we use the Directus `id` here the duplicate-check lookup misses and a
+				// second copy is inserted under a different key → duplicate message in the chat.
+				// Fall back to `message_id` then `id` for non-owner viewers who have no prior
+				// local copy (so any stable ID is fine for them).
 				return {
-					message_id: messageObj.id || messageObj.message_id || messageObj.client_message_id,
+					message_id: messageObj.client_message_id || messageObj.message_id || messageObj.id,
 					chat_id: data.chat_id,
 					role: messageObj.role || 'user',
 					created_at: messageObj.created_at || Math.floor(Date.now() / 1000),
