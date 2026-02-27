@@ -99,6 +99,10 @@ Do not keep iterating with minor variations of the same approach (e.g. adding mo
 
 **Problems Identified:** <root cause, error messages, symptoms — or "N/A" for feature work>
 
+**User Flow:**
+- Bug fix: 1. User does X → Y happens (expected: Z) / 2. Request reaches <service/endpoint> / 3. Fails at <file:line> because <root cause> / 4. Fix: <what was changed so the flow now works correctly>
+- Feature: 1. User does X / 2. <service/component> handles it by doing Y / 3. User sees/gets Z
+
 **Changes:** <what changed and why, with file:line references>
 
 **Architecture Decisions:** <decision → reasoning → alternatives rejected and why — or "N/A">
@@ -106,9 +110,18 @@ Do not keep iterating with minor variations of the same approach (e.g. adding mo
 **Testing:** <what was tested, how, results>
 
 **Risks:** <what could break, untested edge cases, things to monitor — or "Low risk">
+
+**Impact on Costs:** <only include when changes involve external API calls or services with usage-based pricing or request limits>
+- API(s) affected: <name of API/service>
+- Pricing model: <free tier with limits / pay-per-request / flat rate / etc.>
+- Request limits: <e.g., "500 requests/day free tier" or "10,000/month" — or "unlimited/flat rate">
+- Estimated usage: <how many requests per user action, background job frequency, etc.>
+- Cost risk: <e.g., "Low — well within free tier" / "Medium — could exceed free tier under heavy use" / "High — each request costs $X">
+- Mitigation: <caching strategy, rate limiting, fallback behavior if limit is hit — or "None needed">
+- If no external API calls or usage-limited services are involved: "N/A — no cost-impacting changes"
 ```
 
-Rules: be honest about risks, be specific with file references, and always explain _why_ alternatives were rejected (not just list them).
+Rules: be honest about risks, be specific with file references, and always explain _why_ alternatives were rejected (not just list them). For bug fixes, the User Flow section must trace the full path from user action to failure point to fix — make it concrete enough that another developer can verify the fix is correct without reading the code. For the Impact on Costs section, always research the actual pricing/limits of any API you integrate — never guess from training data.
 
 ### Auto-Commit After Every Task (CRITICAL)
 
@@ -151,7 +164,29 @@ Rules: be honest about risks, be specific with file references, and always expla
 - **NEVER create pull requests** unless the user explicitly asks for one. No exceptions.
 - **NEVER merge branches** unless the user explicitly asks for it.
 - **NEVER create or publish GitHub releases** unless the user explicitly asks for one — exception: when the user asks to create a PR, also preparing a draft release as part of that workflow is permitted.
+- **NEVER use `git stash`** under any circumstances. Stashes are invisible to the user, easily forgotten, and accumulate silently across sessions. If you have uncommitted changes that would block a git operation, commit them to a WIP branch instead, or ask the user how to proceed.
 - These actions affect production and other developers — they require clear, unambiguous user intent.
+
+### PR to Main — Test Gate (CRITICAL)
+
+Before creating any PR from `dev` to `main`, you **MUST** check whether all tests have passed recently:
+
+1. Read `test-results/last-run.json` (if it exists)
+2. Check the `run_id` timestamp — it must be **within the last 30 minutes**
+3. Check `summary.failed` — it must be **0**
+4. Check `summary.total` — must be **> 0** (a run with zero tests is not valid)
+
+**If any condition is not met, DO NOT create the PR.** Instead, stop and ask the user:
+
+> "The last test run was [X minutes ago / not found / had N failures]. Before creating the PR, should I:
+>
+> 1. Run all tests now (`./scripts/run-tests.sh --all`) and wait for results?
+> 2. Proceed anyway (skipping the test gate)?
+> 3. Something else?"
+
+Wait for an explicit answer before proceeding. Never silently skip this check.
+
+See `docs/claude/testing.md` → "Pre-PR Test Checklist" for the full procedure.
 
 ### Dependency Version Verification (CRITICAL)
 
@@ -299,6 +334,8 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - You need to read Docker logs or troubleshoot a service
 - The task involves investigating why something doesn't work
 - **You need to debug a production issue** (CRITICAL: use Admin Debug CLI, not local docker compose)
+
+> **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless the user explicitly states otherwise.
 
 #### `docs/claude/inspection-scripts.md`
 
