@@ -1076,6 +1076,13 @@ async def check_upload_duplicate(
     Security: Only returns upload dedup metadata (S3 keys, embed_id, etc.).
     Does not expose user secrets or Vault data beyond what was originally
     returned to the uploading client.
+
+    Validation: For PDF uploads (where page_count is set), we also verify that the
+    corresponding embed record exists in Directus with status='finished'. If the embed
+    is missing or not finished (e.g. a previous upload failed mid-way after storing the
+    upload_files record but before OCR completed), we discard the stale record and return
+    duplicate=False so the uploads service falls through to a fresh upload + OCR run.
+    This prevents the UI from hanging forever on 'Processing…' with no WS event arriving.
     """
     log_prefix = f"[UploadDedup] [user:{payload.user_id[:8]}...]"
     logger.debug(f"{log_prefix} Checking duplicate for hash {payload.content_hash[:16]}...")
@@ -1088,12 +1095,53 @@ async def check_upload_duplicate(
         }
         items = await directus_service.get_items("upload_files", params)
 
-        if items and len(items) > 0:
-            logger.info(f"{log_prefix} Duplicate found: embed_id={items[0].get('embed_id')}")
-            return UploadCheckDuplicateResponse(duplicate=True, record=items[0])
+        if not items or len(items) == 0:
+            logger.debug(f"{log_prefix} No duplicate found")
+            return UploadCheckDuplicateResponse(duplicate=False, record=None)
 
-        logger.debug(f"{log_prefix} No duplicate found")
-        return UploadCheckDuplicateResponse(duplicate=False, record=None)
+        record = items[0]
+        embed_id = record.get("embed_id")
+        page_count = record.get("page_count")
+
+        # For PDFs (page_count is set on upload_files records), validate that the
+        # embed actually exists in Directus with status='finished'. A stale record
+        # with no corresponding finished embed means a previous upload failed after
+        # storing the upload_files row but before OCR completed — returning it as a
+        # dedup hit would leave the frontend stuck on 'Processing…' indefinitely.
+        if page_count is not None and embed_id:
+            try:
+                embed_params = {
+                    "filter[embed_id][_eq]": embed_id,
+                    "fields": "embed_id,status",
+                    "limit": 1,
+                }
+                embed_items = await directus_service.get_items("embeds", embed_params)
+                embed_status = embed_items[0].get("status") if embed_items else None
+
+                if embed_status != "finished":
+                    logger.warning(
+                        f"{log_prefix} Stale dedup record detected: upload_files has embed_id={embed_id} "
+                        f"but embed status is {embed_status!r} (expected 'finished'). "
+                        f"Discarding stale record — fresh upload will be performed."
+                    )
+                    # Clean up the stale upload_files record so it won't block future uploads.
+                    try:
+                        await directus_service.delete_item("upload_files", record["id"])
+                        logger.info(f"{log_prefix} Deleted stale upload_files record id={record['id']}")
+                    except Exception as del_err:
+                        logger.warning(f"{log_prefix} Could not delete stale record: {del_err}")
+                    return UploadCheckDuplicateResponse(duplicate=False, record=None)
+
+            except Exception as embed_check_err:
+                # Non-fatal: if embed status check fails, be conservative and treat as stale.
+                logger.warning(
+                    f"{log_prefix} Embed status check failed for {embed_id}: {embed_check_err}. "
+                    f"Treating as stale — fresh upload will be performed."
+                )
+                return UploadCheckDuplicateResponse(duplicate=False, record=None)
+
+        logger.info(f"{log_prefix} Duplicate found: embed_id={embed_id}")
+        return UploadCheckDuplicateResponse(duplicate=True, record=record)
 
     except Exception as e:
         logger.error(f"{log_prefix} Dedup check failed: {e}", exc_info=True)
