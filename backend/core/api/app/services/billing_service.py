@@ -295,6 +295,148 @@ class BillingService:
             logger.error(f"An unexpected error occurred while charging credits for user {user_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="An internal error occurred during credit deduction.")
 
+    async def refund_user_credits(
+        self,
+        user_id: str,
+        credits_to_refund: int,
+        user_id_hash: str,
+        app_id: str,
+        skill_id: str,
+        reason: str = "",
+    ) -> None:
+        """
+        Refund (add back) credits to a user after a failed task.
+
+        Mirrors charge_user_credits but in the reverse direction:
+        - Adds credits to the cached user balance.
+        - Updates Directus with the new encrypted balance.
+        - Broadcasts the new balance to all user devices.
+
+        No usage entry is created — a refund is not a skill execution.
+
+        Args:
+            user_id:          Actual user ID for cache lookup.
+            credits_to_refund: Number of credits to restore (must be > 0).
+            user_id_hash:     Hashed user ID for logging.
+            app_id:           App that originally charged the credits.
+            skill_id:         Skill that originally charged the credits.
+            reason:           Human-readable description of why the refund was issued.
+        """
+        if not isinstance(credits_to_refund, int) or credits_to_refund <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Credits to refund must be a positive integer.",
+            )
+
+        from backend.core.api.app.utils.server_mode import is_payment_enabled
+        payment_enabled = is_payment_enabled()
+
+        try:
+            # 1. Get user from cache (fall back to Directus on miss)
+            user = await self.cache_service.get_user_by_id(user_id)
+            if not user:
+                logger.info(f"[Refund] User {user_id} not in cache — fetching from Directus")
+                profile_success, user_profile, profile_message = (
+                    await self.directus_service.get_user_profile(user_id)
+                )
+                if not profile_success or not user_profile:
+                    logger.error(
+                        f"[Refund] User profile not found in Directus for user {user_id}: {profile_message}"
+                    )
+                    raise HTTPException(status_code=404, detail=f"User {user_id} not found.")
+                if "user_id" not in user_profile:
+                    user_profile["user_id"] = user_id
+                if "id" not in user_profile:
+                    user_profile["id"] = user_id
+                await self.cache_service.set_user(user_profile, user_id=user_id)
+                user = user_profile
+
+            current_credits = user.get("credits", 0)
+            if not isinstance(current_credits, int):
+                current_credits = 0
+
+            if payment_enabled:
+                new_credits = current_credits + credits_to_refund
+            else:
+                # Self-hosted mode: credit balance is not tracked, skip actual update.
+                logger.info(
+                    f"[Refund] Payment disabled (self-hosted mode). Skipping refund for user {user_id}."
+                )
+                return
+
+            user["credits"] = new_credits
+
+            # 2. Update server stats (reverse of charge)
+            if self.server_stats_service:
+                await self.server_stats_service.increment_stat("credits_used", -credits_to_refund)
+                await self.server_stats_service.update_liability(credits_to_refund)
+
+            # 3. Update cache
+            await self.cache_service.set_user(user, user_id=user_id)
+
+            # 4. Persist to Directus with retry
+            encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
+                plaintext=str(new_credits),
+                key_id=user["vault_key_id"],
+            )
+            encrypted_new_credits = encrypted_new_credits_tuple[0]
+
+            max_retries = 3
+            retry_delay = 5
+            for attempt in range(max_retries):
+                update_successful = await self.directus_service.update_user(
+                    user_id, {"encrypted_credit_balance": encrypted_new_credits}
+                )
+                if update_successful:
+                    logger.info(
+                        f"[Refund] Updated credits in Directus on attempt {attempt + 1}."
+                    )
+                    break
+                logger.warning(
+                    f"[Refund] Attempt {attempt + 1} to update Directus failed. "
+                    f"Retrying in {retry_delay}s…"
+                )
+                if attempt < max_retries - 1:
+                    import asyncio
+                    await asyncio.sleep(retry_delay)
+            else:
+                logger.critical(
+                    f"[Refund] CRITICAL: Failed to persist refund for user {user_id} "
+                    f"after {max_retries} attempts. Cache updated but DB is stale."
+                )
+                # Do not raise — the user's in-memory balance is correct; the DB
+                # will self-heal on next login when the cache is rebuilt from Directus.
+
+            # 5. Update global stats cache
+            await self.cache_service.increment_stat("credits_used", -credits_to_refund)
+            await self.cache_service.update_liability(credits_to_refund)
+
+            # 6. Broadcast new balance to all devices
+            await self.websocket_manager.broadcast_to_user(
+                user_id=user_id,
+                message={
+                    "type": "user_credits_updated",
+                    "payload": {"credits": new_credits},
+                },
+            )
+
+            logger.info(
+                f"[Refund] Refunded {credits_to_refund} credits to user {user_id[:8]}… "
+                f"({app_id}/{skill_id}). New balance: {new_credits}. Reason: {reason[:200]}"
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                f"[Refund] Unexpected error refunding credits for user {user_id}: {e}",
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="An internal error occurred during credit refund.",
+            )
+
     async def _check_and_trigger_low_balance_topup(
         self,
         user_id: str,

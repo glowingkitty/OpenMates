@@ -1319,6 +1319,9 @@
 
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
+    // Handles embedUpdated events from chatSyncService for in-editor (draft) embeds
+    // whose background processing fails (e.g. PDF OCR error) before the message is sent.
+    let embedUpdatedFromServerHandler: ((event: Event) => void) | null = null;
     let resizeObserver: ResizeObserver;
     let embedGroupResizeObserver: ResizeObserver;
     // ProseMirror decorations plumbing
@@ -2177,6 +2180,50 @@
         // language-changed-complete is dispatched after a short delay to ensure all components have updated
         window.addEventListener('language-changed', languageChangeHandler);
         window.addEventListener('language-changed-complete', languageChangeHandler);
+
+        // Listen for embedUpdated events from chatSyncService to catch in-editor embed
+        // status changes (e.g. PDF OCR failure). When a background task fails, the server
+        // sends send_embed_data with status='error' and chat_id=null (embed not yet sent).
+        // ActiveChat.svelte only handles embeds that belong to an already-sent message,
+        // so we must handle the draft/compose-area case here.
+        // We match by uploadEmbedId (server-assigned UUID) stored on the TipTap embed node.
+        embedUpdatedFromServerHandler = (event: Event) => {
+            const detail = (event as CustomEvent).detail as {
+                embed_id: string;
+                chat_id: string | null;
+                status: string;
+            };
+            const { embed_id, chat_id, status } = detail;
+
+            // Only handle embeds that are still in the compose area (chat_id is null/undefined).
+            // Embeds that are part of a sent message are handled by ActiveChat.svelte.
+            if (chat_id || !editor || editor.isDestroyed) return;
+
+            // Walk the TipTap document looking for an embed node whose uploadEmbedId
+            // matches the server-assigned embed_id we just received.
+            let targetPos: number | null = null;
+            editor.state.doc.forEach((node, pos) => {
+                if (targetPos !== null) return;
+                if (node.type.name === 'embed' && node.attrs.uploadEmbedId === embed_id) {
+                    targetPos = pos;
+                }
+            });
+
+            if (targetPos === null) return; // No matching draft embed — nothing to do.
+
+            if (status === 'error') {
+                // Update the TipTap node attrs so PDFEmbedPreview shows the error state.
+                const tr = editor.state.tr.setNodeMarkup(targetPos, undefined, {
+                    ...editor.state.doc.nodeAt(targetPos)?.attrs,
+                    status: 'error',
+                });
+                editor.view.dispatch(tr);
+                console.info(
+                    `[MessageInput] PDF embed ${embed_id} OCR failed — updated in-editor node to error state`
+                );
+            }
+        };
+        chatSyncService.addEventListener('embedUpdated', embedUpdatedFromServerHandler);
     }
 
     function cleanup() {
@@ -2222,6 +2269,10 @@
         chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
         chatSyncService.removeEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
         chatSyncService.removeEventListener('messageQueued', handleMessageQueued as EventListener);
+        if (embedUpdatedFromServerHandler) {
+            chatSyncService.removeEventListener('embedUpdated', embedUpdatedFromServerHandler);
+            embedUpdatedFromServerHandler = null;
+        }
         cleanupDraftService();
         if (editor && !editor.isDestroyed) editor.destroy();
         handleStopRecordingCleanup();

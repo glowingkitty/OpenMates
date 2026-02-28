@@ -45,7 +45,7 @@ import logging
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -470,16 +470,23 @@ async def _wrap_key_via_vault(
     """
     Wrap an AES key (base64) using Vault Transit encryption.
 
+    The user's Transit key is derived (created with derived=true), so every
+    encrypt/decrypt call MUST include ``context = base64(vault_key_id)``.
+    Without context, Vault returns HTTP 400 "missing 'context' for key derivation".
+
     Returns Vault-wrapped ciphertext string.
     """
     vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
     with open("/vault-data/api.token") as f:
         vault_token = f.read().strip()
 
+    # Derived keys require context = base64(key_id) — same pattern as _download_decrypt_pdf().
+    context = base64.b64encode(vault_key_id.encode()).decode("utf-8")
+
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
             f"{vault_url}/v1/transit/encrypt/{vault_key_id}",
-            json={"plaintext": aes_key_b64},
+            json={"plaintext": aes_key_b64, "context": context},
             headers={"X-Vault-Token": vault_token},
         )
     if resp.status_code != 200:

@@ -548,6 +548,64 @@ async def charge_credits_route(
         raise HTTPException(status_code=500, detail=f"Internal server error charging credits: {str(e)}")
 
 
+class CreditRefundPayload(BaseModel):
+    """Request model for refunding credits to a user after a failed background task."""
+    user_id: str
+    user_id_hash: str
+    credits: int
+    skill_id: str
+    app_id: str
+    reason: Optional[str] = None
+
+
+@router.post("/billing/refund")
+async def refund_credits_route(
+    payload: CreditRefundPayload,
+    billing_service: BillingService = Depends(get_billing_service)
+) -> Dict[str, Any]:
+    """
+    Refund credits to a user after a failed background task (e.g. PDF OCR failure).
+
+    Called by app workers (e.g. app-pdf-worker) after exhausting all retries.
+    This endpoint is the reverse of /billing/charge:
+    - Adds credits back to the user's cached and persisted balance.
+    - Broadcasts the updated balance to all connected devices.
+
+    Only called for background task failures where credits were already charged
+    before the task began (e.g. PDF OCR charged at upload time).
+    """
+    logger.info(
+        f"Internal API: Refunding {payload.credits} credits for user '{payload.user_id}', "
+        f"app '{payload.app_id}', skill '{payload.skill_id}'. "
+        f"Reason: {(payload.reason or '')[:200]}"
+    )
+
+    if payload.credits <= 0:
+        logger.warning(
+            f"Attempted to refund non-positive credits ({payload.credits}) for user {payload.user_id}. Skipping."
+        )
+        return {"status": "skipped", "reason": "Non-positive credits"}
+
+    try:
+        await billing_service.refund_user_credits(
+            user_id=payload.user_id,
+            credits_to_refund=payload.credits,
+            user_id_hash=payload.user_id_hash,
+            app_id=payload.app_id,
+            skill_id=payload.skill_id,
+            reason=payload.reason or "",
+        )
+        return {
+            "status": "success",
+            "refunded_credits": payload.credits,
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error refunding credits for user {payload.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error refunding credits: {str(e)}")
+
+
 @router.post("/reprocess-invoice")
 async def reprocess_invoice(
     user_id: str,
