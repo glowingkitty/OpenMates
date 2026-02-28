@@ -78,8 +78,8 @@
         event.stopPropagation();
         
         if (!disabled) {
-            // Don't mutate the checked prop directly - let the parent control it
-            // Just trigger the onClick callback which will update the parent's state
+            // Let the parent's onClick update state (e.g. currentLanguage),
+            // which flows back down as the checked prop.
             if (isClickable && onClick) {
                 onClick();
             }
@@ -231,6 +231,7 @@
             <!-- Toggle if present -->
             {#if hasToggle}
                 <div 
+                    onmousedown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                     onclick={handleToggleClick}
                     onkeydown={(e) => handleKeydown(e, () => handleToggleClick(e))}
                     role="button" 
