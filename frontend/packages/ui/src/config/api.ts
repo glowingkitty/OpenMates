@@ -161,6 +161,7 @@ export const apiEndpoints = {
       language: "/v1/settings/user/language", // Update user language
       darkmode: "/v1/settings/user/darkmode", // Update user dark mode preference
       timezone: "/v1/settings/user/timezone", // Update user timezone (auto-detected or manual)
+      username: "/v1/settings/user/username", // Update username (validated + encrypted server-side)
     },
     autoTopUp: {
       lowBalance: "/v1/settings/auto-topup/low-balance", // Update low balance auto top-up settings (requires 2FA)

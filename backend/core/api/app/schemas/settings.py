@@ -1,6 +1,18 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 
+class UsernameUpdateRequest(BaseModel):
+    """Request model for updating the user's username."""
+    username: str  # New plain-text username (3–20 chars, letters/numbers/dots/underscores)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "username": "jane.doe"
+            }
+        }
+
+
 class LanguageUpdateRequest(BaseModel):
     language: str
 

@@ -17,10 +17,11 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key, get_current_user_optional
+from backend.core.api.app.routes.auth_routes.auth_utils import validate_username
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, StorageOverviewResponse, StorageCategoryBreakdown  # Import request/response models
+from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, StorageOverviewResponse, StorageCategoryBreakdown  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
@@ -348,6 +349,70 @@ async def update_user_timezone(
     except Exception as e:
         logger.error(f"Error updating timezone for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred while updating timezone setting")
+
+
+# --- Endpoint for updating username ---
+@router.post("/user/username", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("10/minute")  # Rate-limit to prevent abuse
+async def update_username(
+    request: Request,
+    request_data: UsernameUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """
+    Update the user's username.
+
+    The new username is validated for format (3–20 chars, letters/numbers/dots/underscores,
+    at least one letter), encrypted with the user's vault key, and stored as
+    ``encrypted_username`` in Directus. The Redis cache is also updated so that
+    subsequent session lookups immediately reflect the new username without a DB round-trip.
+    """
+    user_id = current_user.id
+    new_username = request_data.username.strip()
+    vault_key_id = current_user.vault_key_id
+
+    logger.info(f"Updating username for user {user_id}")
+
+    # Validate format using the shared validator (same rules enforced at signup)
+    is_valid, error_msg = validate_username(new_username)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_msg)
+
+    try:
+        # Encrypt the new username with the user's vault key
+        encrypted_username, _ = await encryption_service.encrypt_with_user_key(
+            plaintext=new_username,
+            key_id=vault_key_id,
+        )
+
+        # Persist to Directus (source of truth)
+        success_directus = await directus_service.update_user(
+            user_id, {"encrypted_username": encrypted_username}
+        )
+        if not success_directus:
+            logger.error(f"Failed to update encrypted_username in Directus for user {user_id}")
+            raise HTTPException(status_code=500, detail="Failed to save username")
+
+        # Update Redis cache so the new username is reflected immediately
+        cache_update_success = await cache_service.update_user(user_id, {"username": new_username})
+        if not cache_update_success:
+            logger.warning(
+                f"Failed to update username cache for user {user_id} after Directus update — "
+                "cache will be stale until next session refresh"
+            )
+        else:
+            logger.info(f"Username updated successfully for user {user_id}")
+
+        return SimpleSuccessResponse(success=True, message="Username updated successfully")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating username for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while updating username")
 
 
 # --- Endpoint for disabling 2FA ---

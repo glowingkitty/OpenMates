@@ -22,6 +22,22 @@ Account Settings - Main menu for account-related settings including Security, Ex
     // Current timezone from user profile
     let currentTimezone = $derived($userProfile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
+    // Current username from user profile (displayed as subtitle in the menu item)
+    let currentUsername = $derived($userProfile.username || '');
+
+    /**
+     * Navigate to Username submenu.
+     * Dispatches navigation event to parent Settings component.
+     */
+    function navigateToUsername() {
+        dispatch('openSettings', {
+            settingsPath: 'account/username',
+            direction: 'forward',
+            icon: 'user',
+            title: $text('settings.account.username')
+        });
+    }
+
     /**
      * Navigate to Profile Picture submenu.
      * Dispatches navigation event to parent Settings component.
@@ -114,6 +130,14 @@ Account Settings - Main menu for account-related settings including Security, Ex
         });
     }
 </script>
+
+<SettingsItem
+    type="subsubmenu"
+    icon="user"
+    subtitle={$text('settings.account.username')}
+    title={currentUsername}
+    onClick={navigateToUsername}
+/>
 
 <SettingsItem
     type="submenu"

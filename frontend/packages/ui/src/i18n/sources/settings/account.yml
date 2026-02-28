@@ -1,3 +1,279 @@
+username:
+  context: Username submenu item label in Account settings — also used as the page title
+  en: Username
+  de: Benutzername
+  zh: 用户名
+  es: Nombre de usuario
+  fr: Nom d'utilisateur
+  pt: Nome de usuário
+  ru: Имя пользователя
+  ja: ユーザー名
+  ko: 사용자 이름
+  it: Nome utente
+  tr: Kullanıcı adı
+  vi: Tên người dùng
+  id: Nama pengguna
+  pl: Nazwa użytkownika
+  nl: Gebruikersnaam
+  ar: اسم المستخدم
+  hi: उपयोगकर्ता नाम
+  th: ชื่อผู้ใช้
+  cs: Uživatelské jméno
+  sv: Användarnamn
+  verified_by_human: []
+username.current:
+  context: Label shown above the current username in the username settings page
+  en: Current Username
+  de: Aktueller Benutzername
+  zh: 当前用户名
+  es: Nombre de usuario actual
+  fr: Nom d'utilisateur actuel
+  pt: Nome de usuário atual
+  ru: Текущее имя пользователя
+  ja: 現在のユーザー名
+  ko: 현재 사용자 이름
+  it: Nome utente attuale
+  tr: Mevcut kullanıcı adı
+  vi: Tên người dùng hiện tại
+  id: Nama pengguna saat ini
+  pl: Aktualna nazwa użytkownika
+  nl: Huidige gebruikersnaam
+  ar: اسم المستخدم الحالي
+  hi: वर्तमान उपयोगकर्ता नाम
+  th: ชื่อผู้ใช้ปัจจุบัน
+  cs: Aktuální uživatelské jméno
+  sv: Nuvarande användarnamn
+  verified_by_human: []
+username.new:
+  context: Label for the new username input field
+  en: New Username
+  de: Neuer Benutzername
+  zh: 新用户名
+  es: Nuevo nombre de usuario
+  fr: Nouveau nom d'utilisateur
+  pt: Novo nome de usuário
+  ru: Новое имя пользователя
+  ja: 新しいユーザー名
+  ko: 새 사용자 이름
+  it: Nuovo nome utente
+  tr: Yeni kullanıcı adı
+  vi: Tên người dùng mới
+  id: Nama pengguna baru
+  pl: Nowa nazwa użytkownika
+  nl: Nieuwe gebruikersnaam
+  ar: اسم المستخدم الجديد
+  hi: नया उपयोगकर्ता नाम
+  th: ชื่อผู้ใช้ใหม่
+  cs: Nové uživatelské jméno
+  sv: Nytt användarnamn
+  verified_by_human: []
+username.placeholder:
+  context: Placeholder text for the username input field
+  en: e.g. jane.doe
+  de: z. B. jane.doe
+  zh: 例如 jane.doe
+  es: p. ej. jane.doe
+  fr: ex. jane.doe
+  pt: ex. jane.doe
+  ru: например, jane.doe
+  ja: 例：jane.doe
+  ko: "예: jane.doe"
+  it: es. jane.doe
+  tr: ör. jane.doe
+  vi: vd. jane.doe
+  id: mis. jane.doe
+  pl: np. jane.doe
+  nl: bijv. jane.doe
+  ar: "مثال: jane.doe"
+  hi: जैसे jane.doe
+  th: เช่น jane.doe
+  cs: např. jane.doe
+  sv: t.ex. jane.doe
+  verified_by_human: []
+username.save:
+  context: Save button label on the username settings page
+  en: Save Username
+  de: Benutzername speichern
+  zh: 保存用户名
+  es: Guardar nombre de usuario
+  fr: Enregistrer le nom d'utilisateur
+  pt: Salvar nome de usuário
+  ru: Сохранить имя пользователя
+  ja: ユーザー名を保存
+  ko: 사용자 이름 저장
+  it: Salva nome utente
+  tr: Kullanıcı adını kaydet
+  vi: Lưu tên người dùng
+  id: Simpan nama pengguna
+  pl: Zapisz nazwę użytkownika
+  nl: Gebruikersnaam opslaan
+  ar: حفظ اسم المستخدم
+  hi: उपयोगकर्ता नाम सहेजें
+  th: บันทึกชื่อผู้ใช้
+  cs: Uložit uživatelské jméno
+  sv: Spara användarnamn
+  verified_by_human: []
+username.saving:
+  context: Button label while the username save request is in progress
+  en: Saving…
+  de: Wird gespeichert…
+  zh: 保存中…
+  es: Guardando…
+  fr: Enregistrement…
+  pt: Salvando…
+  ru: Сохранение…
+  ja: 保存中…
+  ko: 저장 중…
+  it: Salvataggio…
+  tr: Kaydediliyor…
+  vi: Đang lưu…
+  id: Menyimpan…
+  pl: Zapisywanie…
+  nl: Opslaan…
+  ar: جاري الحفظ…
+  hi: सहेजा जा रहा है…
+  th: กำลังบันทึก…
+  cs: Ukládání…
+  sv: Sparar…
+  verified_by_human: []
+username.success:
+  context: Success message shown after username is successfully updated
+  en: Username updated
+  de: Benutzername aktualisiert
+  zh: 用户名已更新
+  es: Nombre de usuario actualizado
+  fr: Nom d'utilisateur mis à jour
+  pt: Nome de usuário atualizado
+  ru: Имя пользователя обновлено
+  ja: ユーザー名が更新されました
+  ko: 사용자 이름이 업데이트되었습니다
+  it: Nome utente aggiornato
+  tr: Kullanıcı adı güncellendi
+  vi: Tên người dùng đã được cập nhật
+  id: Nama pengguna diperbarui
+  pl: Nazwa użytkownika zaktualizowana
+  nl: Gebruikersnaam bijgewerkt
+  ar: تم تحديث اسم المستخدم
+  hi: उपयोगकर्ता नाम अपडेट किया गया
+  th: อัปเดตชื่อผู้ใช้แล้ว
+  cs: Uživatelské jméno aktualizováno
+  sv: Användarnamn uppdaterat
+  verified_by_human: []
+username.error_length:
+  context: Validation error when username is too short or too long (3–20 chars)
+  en: Username must be between 3 and 20 characters
+  de: Benutzername muss zwischen 3 und 20 Zeichen lang sein
+  zh: 用户名必须在 3 到 20 个字符之间
+  es: El nombre de usuario debe tener entre 3 y 20 caracteres
+  fr: Le nom d'utilisateur doit contenir entre 3 et 20 caractères
+  pt: O nome de usuário deve ter entre 3 e 20 caracteres
+  ru: Имя пользователя должно содержать от 3 до 20 символов
+  ja: ユーザー名は3〜20文字である必要があります
+  ko: 사용자 이름은 3자에서 20자 사이여야 합니다
+  it: Il nome utente deve essere compreso tra 3 e 20 caratteri
+  tr: Kullanıcı adı 3 ile 20 karakter arasında olmalıdır
+  vi: Tên người dùng phải từ 3 đến 20 ký tự
+  id: Nama pengguna harus antara 3 dan 20 karakter
+  pl: Nazwa użytkownika musi mieć od 3 do 20 znaków
+  nl: Gebruikersnaam moet tussen 3 en 20 tekens lang zijn
+  ar: يجب أن يتراوح اسم المستخدم بين 3 و 20 حرفًا
+  hi: उपयोगकर्ता नाम 3 से 20 अक्षरों के बीच होना चाहिए
+  th: ชื่อผู้ใช้ต้องมีความยาวระหว่าง 3 ถึง 20 ตัวอักษร
+  cs: Uživatelské jméno musí mít délku 3 až 20 znaků
+  sv: Användarnamnet måste vara mellan 3 och 20 tecken
+  verified_by_human: []
+username.error_no_letter:
+  context: Validation error when username contains no letters
+  en: Username must contain at least one letter
+  de: Benutzername muss mindestens einen Buchstaben enthalten
+  zh: 用户名必须包含至少一个字母
+  es: El nombre de usuario debe contener al menos una letra
+  fr: Le nom d'utilisateur doit contenir au moins une lettre
+  pt: O nome de usuário deve conter pelo menos uma letra
+  ru: Имя пользователя должно содержать хотя бы одну букву
+  ja: ユーザー名には少なくとも1文字含める必要があります
+  ko: 사용자 이름에는 최소 한 개의 문자가 포함되어야 합니다
+  it: Il nome utente deve contenere almeno una lettera
+  tr: Kullanıcı adı en az bir harf içermelidir
+  vi: Tên người dùng phải chứa ít nhất một chữ cái
+  id: Nama pengguna harus mengandung setidaknya satu huruf
+  pl: Nazwa użytkownika musi zawierać co najmniej jedną literę
+  nl: Gebruikersnaam moet minimaal één letter bevatten
+  ar: يجب أن يحتوي اسم المستخدم على حرف واحد على الأقل
+  hi: उपयोगकर्ता नाम में कम से कम एक अक्षर होना चाहिए
+  th: ชื่อผู้ใช้ต้องมีตัวอักษรอย่างน้อยหนึ่งตัว
+  cs: Uživatelské jméno musí obsahovat alespoň jedno písmeno
+  sv: Användarnamnet måste innehålla minst en bokstav
+  verified_by_human: []
+username.error_invalid_chars:
+  context: Validation error when username contains characters that are not allowed
+  en: Username can only contain letters, numbers, dots and underscores
+  de: Benutzername darf nur Buchstaben, Zahlen, Punkte und Unterstriche enthalten
+  zh: 用户名只能包含字母、数字、点和下划线
+  es: El nombre de usuario solo puede contener letras, números, puntos y guiones bajos
+  fr: Le nom d'utilisateur ne peut contenir que des lettres, des chiffres, des points et des traits de soulignement
+  pt: O nome de usuário só pode conter letras, números, pontos e sublinhados
+  ru: Имя пользователя может содержать только буквы, цифры, точки и символы подчёркивания
+  ja: ユーザー名には文字、数字、ドット、アンダースコアのみ使用できます
+  ko: 사용자 이름은 문자, 숫자, 점 및 밑줄만 포함할 수 있습니다
+  it: Il nome utente può contenere solo lettere, numeri, punti e trattini bassi
+  tr: Kullanıcı adı yalnızca harf, rakam, nokta ve alt çizgi içerebilir
+  vi: Tên người dùng chỉ có thể chứa chữ cái, số, dấu chấm và dấu gạch dưới
+  id: Nama pengguna hanya boleh mengandung huruf, angka, titik, dan garis bawah
+  pl: Nazwa użytkownika może zawierać tylko litery, cyfry, kropki i podkreślenia
+  nl: Gebruikersnaam mag alleen letters, cijfers, punten en underscores bevatten
+  ar: يمكن أن يحتوي اسم المستخدم فقط على حروف وأرقام ونقاط وشرطات سفلية
+  hi: उपयोगकर्ता नाम में केवल अक्षर, संख्याएं, डॉट्स और अंडरस्कोर हो सकते हैं
+  th: ชื่อผู้ใช้สามารถประกอบด้วยตัวอักษร ตัวเลข จุด และขีดล่างเท่านั้น
+  cs: Uživatelské jméno může obsahovat pouze písmena, číslice, tečky a podtržítka
+  sv: Användarnamnet får endast innehålla bokstäver, siffror, punkter och understreck
+  verified_by_human: []
+username.error_failed:
+  context: Generic error when username update fails on the server
+  en: Failed to update username. Please try again.
+  de: Benutzername konnte nicht aktualisiert werden. Bitte versuche es erneut.
+  zh: 更新用户名失败，请重试。
+  es: No se pudo actualizar el nombre de usuario. Inténtalo de nuevo.
+  fr: Impossible de mettre à jour le nom d'utilisateur. Veuillez réessayer.
+  pt: Falha ao atualizar o nome de usuário. Por favor, tente novamente.
+  ru: Не удалось обновить имя пользователя. Пожалуйста, попробуйте снова.
+  ja: ユーザー名の更新に失敗しました。再試行してください。
+  ko: 사용자 이름을 업데이트하지 못했습니다. 다시 시도해 주세요.
+  it: Impossibile aggiornare il nome utente. Per favore, riprova.
+  tr: Kullanıcı adı güncellenemedi. Lütfen tekrar deneyin.
+  vi: Không thể cập nhật tên người dùng. Vui lòng thử lại.
+  id: Gagal memperbarui nama pengguna. Silakan coba lagi.
+  pl: Nie udało się zaktualizować nazwy użytkownika. Spróbuj ponownie.
+  nl: Gebruikersnaam bijwerken mislukt. Probeer het opnieuw.
+  ar: فشل تحديث اسم المستخدم. يرجى المحاولة مرة أخرى.
+  hi: उपयोगकर्ता नाम अपडेट करने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถอัปเดตชื่อผู้ใช้ได้ กรุณาลองอีกครั้ง
+  cs: Aktualizace uživatelského jména selhala. Zkuste to prosím znovu.
+  sv: Det gick inte att uppdatera användarnamnet. Försök igen.
+  verified_by_human: []
+username.info:
+  context: Informational note at the bottom of the username settings page explaining what the username is used for
+  en: Your username is your display name across OpenMates. It must be 3–20 characters and can contain letters, numbers, dots and underscores.
+  de: Dein Benutzername ist dein Anzeigename in OpenMates. Er muss 3–20 Zeichen lang sein und kann Buchstaben, Zahlen, Punkte und Unterstriche enthalten.
+  zh: 您的用户名是您在 OpenMates 中的显示名称。它必须是 3–20 个字符，可以包含字母、数字、点和下划线。
+  es: Tu nombre de usuario es tu nombre para mostrar en OpenMates. Debe tener entre 3 y 20 caracteres y puede contener letras, números, puntos y guiones bajos.
+  fr: Votre nom d'utilisateur est votre nom d'affichage sur OpenMates. Il doit comporter entre 3 et 20 caractères et peut contenir des lettres, des chiffres, des points et des traits de soulignement.
+  pt: Seu nome de usuário é seu nome de exibição no OpenMates. Deve ter entre 3 e 20 caracteres e pode conter letras, números, pontos e sublinhados.
+  ru: Ваше имя пользователя — это ваше отображаемое имя в OpenMates. Оно должно содержать от 3 до 20 символов и может включать буквы, цифры, точки и символы подчёркивания.
+  ja: ユーザー名はOpenMatesでの表示名です。3〜20文字で、文字、数字、ドット、アンダースコアを使用できます。
+  ko: 사용자 이름은 OpenMates에서의 표시 이름입니다. 3~20자여야 하며 문자, 숫자, 점 및 밑줄을 포함할 수 있습니다.
+  it: Il tuo nome utente è il nome visualizzato su OpenMates. Deve contenere 3–20 caratteri e può includere lettere, numeri, punti e trattini bassi.
+  tr: Kullanıcı adınız OpenMates'teki görünen adınızdır. 3–20 karakter olmalı ve harfler, rakamlar, noktalar ve alt çizgiler içerebilir.
+  vi: Tên người dùng của bạn là tên hiển thị trên OpenMates. Phải có từ 3–20 ký tự và có thể chứa chữ cái, số, dấu chấm và dấu gạch dưới.
+  id: Nama pengguna Anda adalah nama tampilan Anda di OpenMates. Harus terdiri dari 3–20 karakter dan dapat berisi huruf, angka, titik, dan garis bawah.
+  pl: Twoja nazwa użytkownika to Twoja nazwa wyświetlana w OpenMates. Musi mieć od 3 do 20 znaków i może zawierać litery, cyfry, kropki i podkreślenia.
+  nl: Uw gebruikersnaam is uw weergavenaam in OpenMates. Deze moet 3–20 tekens lang zijn en kan letters, cijfers, punten en underscores bevatten.
+  ar: اسم المستخدم الخاص بك هو اسمك المعروض على OpenMates. يجب أن يتراوح بين 3 و 20 حرفًا ويمكن أن يحتوي على حروف وأرقام ونقاط وشرطات سفلية.
+  hi: आपका उपयोगकर्ता नाम OpenMates में आपका प्रदर्शन नाम है। यह 3–20 अक्षरों का होना चाहिए और इसमें अक्षर, संख्याएं, डॉट्स और अंडरस्कोर हो सकते हैं।
+  th: ชื่อผู้ใช้ของคุณคือชื่อที่แสดงใน OpenMates ต้องมีความยาว 3–20 ตัวอักษร และสามารถประกอบด้วยตัวอักษร ตัวเลข จุด และขีดล่าง
+  cs: Vaše uživatelské jméno je vaše zobrazovací jméno v OpenMates. Musí mít délku 3–20 znaků a může obsahovat písmena, číslice, tečky a podtržítka.
+  sv: Ditt användarnamn är ditt visningsnamn på OpenMates. Det måste vara 3–20 tecken och kan innehålla bokstäver, siffror, punkter och understreck.
+  verified_by_human: []
 account.description:
   context: Short description shown in the account settings page gradient banner header
   en: Manage your profile, authentication and account settings
