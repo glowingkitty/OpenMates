@@ -14,7 +14,7 @@ Load this document when working on translations, finding missing keys, or using 
 | "How complete is language X?"                    | `python3 scripts/manage_translations.py overview --lang X`                       |
 | "What's the overall translation status?"         | `python3 scripts/manage_translations.py overview`                                |
 | "Which file contains key Y?"                     | `python3 scripts/manage_translations.py find-key "Y"`                            |
-| "Translate the missing keys for language X"      | `python3 scripts/manage_translations.py show-next-missing --lang X --count 20`   |
+| "Translate the missing keys for language X"      | `python3 scripts/auto_translate.py --lang X --count 20`                          |
 | "Are there structural issues in the YAML files?" | `python3 scripts/manage_translations.py validate`                                |
 | "Export missing translations for X"              | `python3 scripts/manage_translations.py export-missing --lang X`                 |
 | Any translation task involving a specific file   | `python3 scripts/manage_translations.py show-next-missing --file "filename.yml"` |
@@ -146,13 +146,7 @@ toggle_menu: # line 1
   sv: "" # ← translate here
 ```
 
-**Typical LLM workflow using this command:**
-
-1. Run `export-missing --lang sv --format json` to get a structured list
-2. Feed it to a translation model (or `backend/scripts/translate_text.py`)
-3. Fill in the translated values in the YAML source files
-4. Run `validate` to confirm no structural issues
-5. Run `npm run build:translations` in `frontend/packages/ui/` to compile
+**Note:** Do NOT use `export-missing` as the primary translation workflow. The correct approach is to run `auto_translate.py` (see the "Translating a specific language" section below), which handles finding missing keys, calling the Gemini API, and writing results back automatically.
 
 ---
 
@@ -184,24 +178,67 @@ Use `find-key` before adding a new translation key to check if it already exists
 
 ## Typical Workflows
 
-### Translating a specific language (e.g. adding Swedish)
+### Translating a specific language (e.g. adding Swedish) — MANDATORY PROCEDURE (CRITICAL)
+
+**Always use `auto_translate.py` to perform the actual translation — never translate YAML strings manually yourself.** The script calls the Gemini API, writes results directly into the YAML source files, and runs validation automatically.
+
+**The correct loop (repeat until no missing keys remain):**
+
+**Step 1 — Check current state**
 
 ```bash
-# 1. Check current state
 python3 scripts/manage_translations.py overview --lang sv
+```
 
-# 2. Find the first batch of missing keys
-python3 scripts/manage_translations.py show-next-missing --lang sv --count 20
+Note the total number of missing keys. This is your progress baseline.
 
-# 3. Export all missing as JSON for AI translation
-python3 scripts/manage_translations.py export-missing --lang sv --format json --output /tmp/sv_missing.json
+**Step 2 — Run auto_translate.py for the target scope**
 
-# 4. After editing source YAML files, validate
-python3 scripts/manage_translations.py validate
+Pick a focused scope (a file pattern or a reasonable `--count`) rather than translating everything at once. This keeps each step fast, validates early, and lets the user see progress.
 
-# 5. Rebuild compiled locales
+```bash
+# Translate missing keys in a specific file or directory
+python3 scripts/auto_translate.py --lang sv --file "settings/*.yml"
+
+# Translate the next N missing keys across all files
+python3 scripts/auto_translate.py --lang sv --count 20
+
+# Translate all missing keys in a single file
+python3 scripts/auto_translate.py --lang sv --file "common.yml"
+```
+
+The script will:
+
+1. Find all missing keys for the given scope
+2. Batch and send them to the Gemini API
+3. Write the translated values directly into the YAML source files
+4. Run `validate` and show any issues
+
+**Step 3 — Review the diff**
+
+```bash
+git diff frontend/packages/ui/src/i18n/sources/
+```
+
+Spot-check a few translations for accuracy. If any look wrong, use the Edit tool to correct them directly in the YAML file, then re-run validate.
+
+**Step 4 — Loop back to Step 2**
+
+Run `auto_translate.py` again with the same or next scope until `overview --lang sv` shows 0 missing keys.
+
+**Step 5 — Rebuild compiled locales (once all missing keys are done)**
+
+```bash
 cd frontend/packages/ui && npm run build:translations
 ```
+
+---
+
+**Why scoped runs and not all at once?**
+
+- Early validation: catching a structural error after one file is far cheaper than after all 186
+- Progress visibility: the user can verify each batch before continuing
+- API reliability: very large batches risk timeout or truncated responses from Gemini
 
 ### Adding a new translation key
 
@@ -235,6 +272,8 @@ python3 scripts/manage_translations.py validate 2>&1 | grep -A3 "✗"
 
 ## Important Rules
 
+- **Always use `auto_translate.py` for translation** — never produce translations yourself and never write them manually into YAML files. Run `python3 scripts/auto_translate.py --lang <code> [--file <pattern>] [--count N]` and let the script handle the API calls and file writes. Use `--dry-run` first if you want to preview what will be translated.
+- **Translate in scoped runs, not all at once** — use `--file` to restrict to a directory or single file, or use `--count` to limit the number of keys per run. Never attempt to translate all missing keys for all files in a single command.
 - **Never edit the compiled JSON files** in `frontend/packages/ui/src/i18n/locales/` — they are generated build artifacts and are gitignored. Edit only the YAML source files.
 - **Use flat keys only** — see `docs/claude/i18n.md`. Nested YAML breaks the build silently. `validate` will catch it.
 - **English (`en`) must never be empty** — it is the source of truth for all other translations.
