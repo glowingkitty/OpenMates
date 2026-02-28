@@ -35,7 +35,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         user_data = response.json().get("data", {})
         
         vault_key_id = user_data.get("vault_key_id")
-        logger.info(f"Found vault_key_id")
+        logger.info("Found vault_key_id")
         
         if not vault_key_id:
             logger.error("No vault_key_id found in user data")
@@ -104,6 +104,10 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             
             # Keep encrypted timestamp encrypted
             "encrypted_auto_topup_last_triggered": user_data.get("encrypted_auto_topup_last_triggered"),
+
+            # Keep encrypted email for auto top-up encrypted (server-side vault encryption,
+            # decrypted at point of use in billing_service._get_decrypted_email())
+            "encrypted_email_auto_topup": user_data.get("encrypted_email_auto_topup"),
         }
 
         # Decrypt fields that are safe to cache and commonly needed (DO NOT decrypt tfa_secret here)
