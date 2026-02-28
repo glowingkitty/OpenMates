@@ -5411,10 +5411,8 @@
           "text": "Tu nombre de usuario es tu nombre para mostrar en OpenMates. Debe tener entre 3 y 20 caracteres y puede contener letras, números, puntos y guiones bajos."
         }
       },
-      "account": {
-        "description": {
-          "text": "Gestiona tu perfil, autenticación y configuración de cuenta"
-        }
+      "description": {
+        "text": "Gestiona tu perfil, autenticación y configuración de cuenta"
       },
       "text": "Cuenta",
       "security": {
@@ -5677,6 +5675,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Navega y gestiona aplicaciones y habilidades para tu asistente de IA"
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "No hay aplicaciones disponibles."
@@ -6022,10 +6023,8 @@
       }
     },
     "billing": {
-      "billing": {
-        "description": {
-          "text": "Gestiona tus créditos, suscripciones y métodos de pago"
-        }
+      "description": {
+        "text": "Gestiona tus créditos, suscripciones y métodos de pago"
       },
       "text": "Facturación",
       "title": {
@@ -6336,10 +6335,8 @@
       }
     },
     "gift_cards": {
-      "gift_cards": {
-        "description": {
-          "text": "Canjea o compra tarjetas de regalo para créditos de OpenMates"
-        }
+      "description": {
+        "text": "Canjea o compra tarjetas de regalo para créditos de OpenMates"
       },
       "text": "Tarjetas de Regalo",
       "redeem": {

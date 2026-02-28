@@ -5278,10 +5278,8 @@
           "text": "您的用户名是您在 OpenMates 中的显示名称。它必须是 3–20 个字符，可以包含字母、数字、点和下划线。"
         }
       },
-      "account": {
-        "description": {
-          "text": "管理您的个人资料、身份验证和账户设置"
-        }
+      "description": {
+        "text": "管理您的个人资料、身份验证和账户设置"
       },
       "text": "账户",
       "security": {
@@ -5544,6 +5542,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "浏览和管理您的 AI 助手的应用和技能"
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "没有可用的应用。"
@@ -5886,10 +5887,8 @@
       }
     },
     "billing": {
-      "billing": {
-        "description": {
-          "text": "管理您的积分、订阅和支付方式"
-        }
+      "description": {
+        "text": "管理您的积分、订阅和支付方式"
       },
       "text": "账单",
       "title": {
@@ -6200,10 +6199,8 @@
       }
     },
     "gift_cards": {
-      "gift_cards": {
-        "description": {
-          "text": "兑换或购买 OpenMates 积分礼品卡"
-        }
+      "description": {
+        "text": "兑换或购买 OpenMates 积分礼品卡"
       },
       "text": "礼品卡",
       "redeem": {

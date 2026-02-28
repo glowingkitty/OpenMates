@@ -6063,10 +6063,8 @@
           "text": "Your username is your display name across OpenMates. It must be 3–20 characters and can contain letters, numbers, dots and underscores."
         }
       },
-      "account": {
-        "description": {
-          "text": "Manage your profile, authentication and account settings"
-        }
+      "description": {
+        "text": "Manage your profile, authentication and account settings"
       },
       "text": "Account",
       "email": {
@@ -6557,6 +6555,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Browse and manage apps and skills for your AI assistant"
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "No apps available."
@@ -6902,10 +6903,8 @@
       }
     },
     "billing": {
-      "billing": {
-        "description": {
-          "text": "Manage your credits, subscriptions and payment methods"
-        }
+      "description": {
+        "text": "Manage your credits, subscriptions and payment methods"
       },
       "text": "Billing",
       "title": {
@@ -7310,10 +7309,8 @@
       }
     },
     "gift_cards": {
-      "gift_cards": {
-        "description": {
-          "text": "Redeem or purchase gift cards for OpenMates credits"
-        }
+      "description": {
+        "text": "Redeem or purchase gift cards for OpenMates credits"
       },
       "text": "Gift Cards",
       "redeem": {

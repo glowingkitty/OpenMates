@@ -5278,10 +5278,8 @@
           "text": "ユーザー名はOpenMatesでの表示名です。3〜20文字で、文字、数字、ドット、アンダースコアを使用できます。"
         }
       },
-      "account": {
-        "description": {
-          "text": "プロフィール、認証、アカウント設定を管理する"
-        }
+      "description": {
+        "text": "プロフィール、認証、アカウント設定を管理する"
       },
       "text": "アカウント",
       "security": {
@@ -5544,6 +5542,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "AIアシスタントのアプリとスキルを閲覧・管理する"
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "利用可能なアプリはありません。"
@@ -5886,10 +5887,8 @@
       }
     },
     "billing": {
-      "billing": {
-        "description": {
-          "text": "クレジット、サブスクリプション、支払い方法を管理する"
-        }
+      "description": {
+        "text": "クレジット、サブスクリプション、支払い方法を管理する"
       },
       "text": "請求",
       "title": {
@@ -6200,10 +6199,8 @@
       }
     },
     "gift_cards": {
-      "gift_cards": {
-        "description": {
-          "text": "OpenMates クレジットのギフトカードを引き換えるか購入する"
-        }
+      "description": {
+        "text": "OpenMates クレジットのギフトカードを引き換えるか購入する"
       },
       "text": "ギフトカード",
       "redeem": {

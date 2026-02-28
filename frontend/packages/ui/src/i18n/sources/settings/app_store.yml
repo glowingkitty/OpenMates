@@ -1,3 +1,26 @@
+description:
+  context: Short description shown in the App Store settings page gradient banner header
+  en: Browse and manage apps and skills for your AI assistant
+  de: Apps und Skills für Ihren KI-Assistenten durchsuchen und verwalten
+  zh: 浏览和管理您的 AI 助手的应用和技能
+  es: Navega y gestiona aplicaciones y habilidades para tu asistente de IA
+  fr: Parcourez et gérez les applications et compétences de votre assistant IA
+  pt: ""
+  ru: ""
+  ja: AIアシスタントのアプリとスキルを閲覧・管理する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تصفح وإدارة التطبيقات والمهارات لمساعدك الذكي
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 app_store:
   context: App Store settings menu item
   en: App Store

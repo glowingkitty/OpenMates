@@ -274,7 +274,7 @@ username.info:
   cs: Vaše uživatelské jméno je vaše zobrazovací jméno v OpenMates. Musí mít délku 3–20 znaků a může obsahovat písmena, číslice, tečky a podtržítka.
   sv: Ditt användarnamn är ditt visningsnamn på OpenMates. Det måste vara 3–20 tecken och kan innehålla bokstäver, siffror, punkter och understreck.
   verified_by_human: []
-account.description:
+description:
   context: Short description shown in the account settings page gradient banner header
   en: Manage your profile, authentication and account settings
   de: Verwalte dein Profil, Authentifizierung und Kontoeinstellungen

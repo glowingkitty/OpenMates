@@ -566,6 +566,7 @@ changes to the documentation (to keep the documentation up to date).
         'report_issue': 'settings.report_issue.description',
         'shared': 'settings.shared.description',
         'gift_cards': 'settings.gift_cards.description',
+        'app_store': 'settings.app_store.description',
     };
 
     /**

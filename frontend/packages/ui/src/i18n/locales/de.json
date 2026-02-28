@@ -5694,10 +5694,8 @@
           "text": "Dein Benutzername ist dein Anzeigename in OpenMates. Er muss 3–20 Zeichen lang sein und kann Buchstaben, Zahlen, Punkte und Unterstriche enthalten."
         }
       },
-      "account": {
-        "description": {
-          "text": "Verwalte dein Profil, Authentifizierung und Kontoeinstellungen"
-        }
+      "description": {
+        "text": "Verwalte dein Profil, Authentifizierung und Kontoeinstellungen"
       },
       "text": "Konto",
       "email": {
@@ -6188,6 +6186,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Apps und Skills für Ihren KI-Assistenten durchsuchen und verwalten"
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "Keine Apps verfügbar."
@@ -6533,10 +6534,8 @@
       }
     },
     "billing": {
-      "billing": {
-        "description": {
-          "text": "Verwalte deine Credits, Abonnements und Zahlungsmethoden"
-        }
+      "description": {
+        "text": "Verwalte deine Credits, Abonnements und Zahlungsmethoden"
       },
       "text": "Abrechnung",
       "title": {
@@ -6938,10 +6937,8 @@
       }
     },
     "gift_cards": {
-      "gift_cards": {
-        "description": {
-          "text": "Geschenkkarten für OpenMates-Credits einlösen oder kaufen"
-        }
+      "description": {
+        "text": "Geschenkkarten für OpenMates-Credits einlösen oder kaufen"
       },
       "text": "Geschenkkarten",
       "redeem": {
