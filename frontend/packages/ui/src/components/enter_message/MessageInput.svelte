@@ -2201,11 +2201,14 @@
 
             // Walk the TipTap document looking for an embed node whose uploadEmbedId
             // matches the server-assigned embed_id we just received.
+            // Use descendants() instead of forEach() — forEach only walks top-level nodes,
+            // but embed nodes can be nested inside paragraphs or other container nodes.
             let targetPos: number | null = null;
-            editor.state.doc.forEach((node, pos) => {
-                if (targetPos !== null) return;
+            editor.state.doc.descendants((node, pos) => {
+                if (targetPos !== null) return false; // stop traversal once found
                 if (node.type.name === 'embed' && node.attrs.uploadEmbedId === embed_id) {
                     targetPos = pos;
+                    return false; // stop traversal
                 }
             });
 
