@@ -1275,16 +1275,28 @@
         // but the TOON content itself carries 'type: "code"'. Without this override, navigating
         // to such an embed via the header arrows correctly reaches the embed but renders the
         // generic app-skill-use fallback (JSON dump) instead of the CodeEmbedFullscreen.
+        //
+        // IMPORTANT: Only refine to known top-level embed types that have their own fullscreen
+        // component. Content sub-types like 'image' (used inside images/generate TOON content to
+        // denote the output format) are NOT valid top-level embed types and must NOT override
+        // 'app-skill-use' — doing so causes the fullscreen branch to be skipped entirely because
+        // no template case handles embedType === 'image'.
+        const validTopLevelEmbedTypes = new Set(['website', 'code-code', 'docs-doc', 'videos-video', 'sheets-sheet', 'maps']);
         if (resolvedEmbedType === 'app-skill-use' && finalDecodedContent) {
             const contentType = typeof finalDecodedContent.type === 'string' ? finalDecodedContent.type : null;
             if (contentType) {
                 const refinedType = normalizeEmbedType(contentType);
-                if (refinedType && refinedType !== 'app-skill-use') {
+                if (refinedType && refinedType !== 'app-skill-use' && validTopLevelEmbedTypes.has(refinedType)) {
                     console.debug('[ActiveChat] Refining embed type from app-skill-use using decoded content type:', {
                         contentType,
                         refinedType
                     });
                     resolvedEmbedType = refinedType;
+                } else if (refinedType && refinedType !== 'app-skill-use' && !validTopLevelEmbedTypes.has(refinedType)) {
+                    console.debug('[ActiveChat] Skipping embed type refinement: content type is a sub-type, not a top-level embed type:', {
+                        contentType,
+                        refinedType
+                    });
                 }
             }
         }
