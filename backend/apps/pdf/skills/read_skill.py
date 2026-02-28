@@ -3,11 +3,16 @@
 # pdf.read skill — loads specific pages from an OCR'd PDF as raw markdown.
 #
 # Architecture:
-#   The LLM invokes this skill when it wants to read the text content of
-#   specific PDF pages. The skill:
-#     1. Unwraps the AES key via Vault Transit.
-#     2. Downloads and decrypts the OCR JSON blob from S3.
-#     3. Returns the requested pages' markdown, self-limiting to 50K tokens.
+#   The LLM invokes this skill with file_path (the original filename, e.g. "report.pdf").
+#   The skill then:
+#     1. Resolves file_path → embed_id via the file_path_index injected by main_processor.py
+#     2. Looks up the embed's encrypted content from the Redis cache (embed:{embed_id})
+#     3. Decrypts the embed content using the user's Vault Transit key
+#     4. Extracts vault_wrapped_aes_key, ocr_data_s3_key, aes_nonce from the
+#        decrypted embed content (these fields are NEVER exposed to the LLM)
+#     5. Unwraps the AES key via Vault Transit
+#     6. Downloads and decrypts the OCR JSON blob from S3
+#     7. Returns the requested pages' markdown, self-limiting to 50K tokens.
 #        If the requested pages exceed the budget, it returns what fits and
 #        instructs the LLM to call again for the remaining pages.
 #
@@ -21,10 +26,13 @@ import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote as url_quote
 
 import httpx
+import redis.asyncio as aioredis
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, Field
+from toon_format import decode as toon_decode
 
 from backend.apps.base_skill import BaseSkill
 
@@ -37,19 +45,19 @@ CHARS_PER_TOKEN = 4  # rough approximation
 
 
 class ReadRequest(BaseModel):
-    """Request model for the pdf.read skill."""
+    """
+    Request model for the pdf.read skill.
+    The LLM provides only the original filename (file_path / embed_ref) — all cryptographic
+    and storage details are resolved server-side from the embed cache via the file_path_index.
+    """
 
-    embed_id: str = Field(..., description="The embed_id of the uploaded PDF.")
-    vault_wrapped_aes_key: str = Field(
+    file_path: str = Field(
         ...,
-        description="Vault Transit-wrapped AES key from the embed metadata.",
+        description=(
+            "The original filename of the PDF to read (e.g. 'report.pdf'). "
+            "Use the exact embed_ref value from the toon block."
+        ),
     )
-    ocr_data_s3_key: str = Field(
-        ...,
-        description="S3 key for the encrypted OCR JSON blob produced during background processing.",
-    )
-    s3_base_url: str = Field(..., description="S3 base URL for the file storage bucket.")
-    aes_nonce: str = Field(..., description="Base64 AES-GCM nonce.")
     pages: Optional[List[int]] = Field(
         None,
         description=(
@@ -57,17 +65,13 @@ class ReadRequest(BaseModel):
             "If omitted, reads from page 1 onwards up to the token budget."
         ),
     )
-    vault_key_id: Optional[str] = Field(
-        None,
-        description="The user's Vault Transit key ID (resolved from context if omitted).",
-    )
 
 
 class ReadResponse(BaseModel):
     """Response model for the pdf.read skill."""
 
     success: bool = Field(default=False)
-    embed_id: Optional[str] = Field(None)
+    file_path: Optional[str] = Field(None)
     pages_returned: List[int] = Field(default_factory=list)
     pages_skipped: List[int] = Field(
         default_factory=list,
@@ -92,6 +96,11 @@ class ReadSkill(BaseSkill):
     """
     Skill for reading markdown text content from specific PDF pages.
 
+    The LLM calls this with file_path (the original filename / embed_ref, e.g. "report.pdf").
+    The skill resolves file_path → embed_id UUID via the file_path_index injected by
+    main_processor.py, then resolves all crypto and storage details server-side by looking
+    up the embed from the Redis cache and decrypting its content via Vault Transit.
+
     Downloads and decrypts the per-page OCR data from S3, then returns the
     requested pages' markdown capped at MAX_OUTPUT_TOKENS to avoid overwhelming
     the LLM's context window.
@@ -105,6 +114,88 @@ class ReadSkill(BaseSkill):
         if not token:
             raise RuntimeError("Vault token file is empty")
         return token
+
+    async def _lookup_embed_content(
+        self, embed_id: str, user_vault_key_id: str
+    ) -> Dict[str, Any]:
+        """
+        Look up an embed's decrypted content from the Redis cache.
+
+        The embed is stored in Redis at key ``embed:{embed_id}`` as a JSON dict
+        with an ``encrypted_content`` field that holds a Vault Transit-encrypted
+        TOON string. This method decrypts the content using the user's Vault key
+        and decodes the TOON to return the raw content dict.
+
+        Args:
+            embed_id: The embed ID to look up.
+            user_vault_key_id: The user's Vault Transit key ID for decryption.
+
+        Returns:
+            Decoded embed content dict (contains vault_wrapped_aes_key,
+            ocr_data_s3_key, aes_nonce, etc.).
+
+        Raises:
+            RuntimeError: If the embed is not found in cache, has no encrypted
+                content, or decryption/decoding fails.
+        """
+        log_prefix = f"[pdf.read] [embed:{embed_id[:8]}...]"
+
+        redis_password = os.environ.get("DRAGONFLY_PASSWORD", "")
+        redis_url = f"redis://default:{url_quote(redis_password, safe='')}@cache:6379/0"
+        redis_client = aioredis.from_url(redis_url, decode_responses=True)
+
+        try:
+            embed_json = await redis_client.get(f"embed:{embed_id}")
+            if not embed_json:
+                raise RuntimeError(
+                    f"PDF embed {embed_id} not found in cache (72h TTL). "
+                    "Please ask the user to re-upload the PDF."
+                )
+
+            embed_data = json.loads(embed_json)
+            encrypted_content = embed_data.get("encrypted_content")
+            if not encrypted_content:
+                raise RuntimeError(
+                    f"PDF embed {embed_id} has no encrypted_content in cache"
+                )
+
+            # Decrypt the embed content using Vault Transit.
+            # User keys are derived — must pass context = base64(key_id) to match encryption.
+            vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
+            token = self._load_vault_token()
+            context = base64.b64encode(user_vault_key_id.encode()).decode("utf-8")
+
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.post(
+                    f"{vault_url}/v1/transit/decrypt/{user_vault_key_id}",
+                    json={"ciphertext": encrypted_content, "context": context},
+                    headers={"X-Vault-Token": token},
+                )
+
+            if resp.status_code != 200:
+                raise RuntimeError(
+                    f"Vault decrypt failed for embed content: "
+                    f"HTTP {resp.status_code} — {resp.text[:200]}"
+                )
+
+            plaintext_b64 = resp.json()["data"]["plaintext"]
+            plaintext_toon = base64.b64decode(plaintext_b64).decode("utf-8")
+
+            decoded = toon_decode(plaintext_toon)
+            if not isinstance(decoded, dict):
+                raise RuntimeError(
+                    f"PDF embed {embed_id} TOON decoded to "
+                    f"{type(decoded).__name__}, expected dict"
+                )
+
+            logger.info(
+                f"{log_prefix} Successfully looked up embed from cache "
+                f"(keys: {list(decoded.keys())})"
+            )
+            return decoded
+
+        finally:
+            await redis_client.aclose()
 
     async def _unwrap_aes_key(
         self, vault_wrapped_aes_key: str, vault_key_id: str
@@ -162,56 +253,81 @@ class ReadSkill(BaseSkill):
 
         return resp.content
 
-    async def _download_decrypt(
-        self, s3_base_url: str, s3_key: str, aes_key: bytes, aes_nonce: str
-    ) -> bytes:
-        """Download and decrypt an S3 object via the internal API."""
-        encrypted = await self._download_from_s3(s3_key)
-        nonce = base64.b64decode(aes_nonce)
-        aesgcm = AESGCM(aes_key)
-        return aesgcm.decrypt(nonce, encrypted, None)
-
     async def execute(
         self,
-        embed_id: str,
-        vault_wrapped_aes_key: str,
-        ocr_data_s3_key: str,
-        s3_base_url: str,
-        aes_nonce: str,
+        file_path: str,
         pages: Optional[List[int]] = None,
-        vault_key_id: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Read OCR'd markdown for the requested PDF pages.
 
-        Steps:
-        1. Resolve vault_key_id.
-        2. Unwrap AES key via Vault.
-        3. Download + decrypt OCR JSON blob from S3.
-        4. Return requested pages, self-limiting to MAX_OUTPUT_TOKENS.
-        """
-        log_prefix = f"[pdf.read] [embed:{embed_id[:8]}...]"
+        The LLM provides file_path (the original filename / embed_ref, e.g. "report.pdf").
+        All cryptographic and storage details are resolved server-side from the Redis cache.
 
-        resolved_vault_key_id = vault_key_id or kwargs.get("user_vault_key_id")
-        if not resolved_vault_key_id:
-            logger.error(f"{log_prefix} vault_key_id not available")
+        Steps:
+        1. Resolve file_path → embed_id via file_path_index (injected by main_processor).
+        2. Look up all crypto fields from the Redis embed cache.
+        3. Unwrap AES key via Vault.
+        4. Download + decrypt OCR JSON blob from S3.
+        5. Return requested pages, self-limiting to MAX_OUTPUT_TOKENS.
+        """
+        log_prefix = f"[pdf.read] [file_path:{file_path!r}]"
+
+        # --- Step 1: Resolve file_path → embed_id via file_path_index ---
+        file_path_index: Dict[str, str] = kwargs.get("file_path_index") or {}
+        embed_id = file_path_index.get(file_path)
+        if not embed_id:
+            logger.error(
+                f"{log_prefix} No embed found for file_path. "
+                f"Available keys: {list(file_path_index.keys())}"
+            )
             return ReadResponse(
                 success=False,
-                embed_id=embed_id,
-                error="Cannot decrypt OCR data: vault key ID not available",
+                file_path=file_path,
+                error=(
+                    f"No PDF embed found for '{file_path}'. "
+                    f"Available: {list(file_path_index.keys())}"
+                ),
+            ).dict()
+
+        log_prefix = f"[pdf.read] [embed:{embed_id[:8]}...]"
+
+        resolved_vault_key_id = kwargs.get("user_vault_key_id")
+        if not resolved_vault_key_id:
+            logger.error(f"{log_prefix} user_vault_key_id not available")
+            return ReadResponse(
+                success=False,
+                file_path=file_path,
+                error="Cannot decrypt PDF data: vault key ID not available",
             ).dict()
 
         try:
-            # Step 1: Unwrap AES key
+            # --- Step 2: Look up all crypto fields from Redis embed cache ---
+            logger.info(f"{log_prefix} Looking up embed content from cache")
+            embed_content = await self._lookup_embed_content(embed_id, resolved_vault_key_id)
+
+            vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
+            ocr_data_s3_key = embed_content.get("ocr_data_s3_key")
+            aes_nonce = embed_content.get("aes_nonce")
+
+            if not vault_wrapped_aes_key:
+                raise RuntimeError("PDF embed cache missing vault_wrapped_aes_key")
+            if not ocr_data_s3_key:
+                raise RuntimeError("PDF embed cache missing ocr_data_s3_key")
+            if not aes_nonce:
+                raise RuntimeError("PDF embed cache missing aes_nonce")
+
+            # --- Step 3: Unwrap AES key ---
             logger.info(f"{log_prefix} Unwrapping AES key")
             aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, resolved_vault_key_id)
 
-            # Step 2: Download + decrypt OCR blob
+            # --- Step 4: Download + decrypt OCR blob ---
             logger.info(f"{log_prefix} Downloading OCR blob: {ocr_data_s3_key}")
-            plaintext = await self._download_decrypt(
-                s3_base_url, ocr_data_s3_key, aes_key_bytes, aes_nonce
-            )
+            encrypted = await self._download_from_s3(ocr_data_s3_key)
+            nonce = base64.b64decode(aes_nonce)
+            aesgcm = AESGCM(aes_key_bytes)
+            plaintext = aesgcm.decrypt(nonce, encrypted, None)
             ocr_data = json.loads(plaintext.decode("utf-8"))
 
             # OCR data format: { "pages": { "1": {...}, "2": {...}, ... } }
@@ -251,7 +367,7 @@ class ReadSkill(BaseSkill):
                     pages_returned.append(page_num)
                     total_chars += page_chars
 
-            # Pages after first skipped page are also skipped
+            # Pages after the first skipped page are also skipped
             if pages_skipped:
                 first_skip = pages_skipped[0]
                 for pn in requested:
@@ -274,7 +390,7 @@ class ReadSkill(BaseSkill):
 
             return ReadResponse(
                 success=True,
-                embed_id=embed_id,
+                file_path=file_path,
                 pages_returned=pages_returned,
                 pages_skipped=sorted(pages_skipped),
                 content=content,
@@ -286,6 +402,6 @@ class ReadSkill(BaseSkill):
             logger.error(f"{log_prefix} pdf.read failed: {e}", exc_info=True)
             return ReadResponse(
                 success=False,
-                embed_id=embed_id,
+                file_path=file_path,
                 error=f"Failed to read PDF pages: {e}",
             ).dict()

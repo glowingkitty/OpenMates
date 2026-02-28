@@ -313,10 +313,18 @@ async def _decrypt_source_image(
             logger.warning(f"{embed_log} No file variant found for source embed.")
             return None, None
 
-        # Step 4b: Download encrypted image from S3
-        full_url = f"{s3_base_url.rstrip('/')}/{s3_key}"
+        # Step 4b: Download encrypted image from S3 via internal API.
+        # The chatfiles bucket is private — direct HTTP GET returns 403.
+        # Must use the internal S3 download endpoint with the shared service token.
+        internal_api_base = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
+        shared_token = os.getenv("INTERNAL_API_SHARED_TOKEN", "")
+        download_url = f"{internal_api_base}/internal/s3/download"
         async with httpx.AsyncClient(timeout=60) as client:
-            s3_resp = await client.get(full_url)
+            s3_resp = await client.get(
+                download_url,
+                params={"bucket_key": "chatfiles", "s3_key": s3_key},
+                headers={"X-Internal-Service-Token": shared_token},
+            )
 
         if s3_resp.status_code != 200:
             logger.warning(

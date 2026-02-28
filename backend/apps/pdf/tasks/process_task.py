@@ -185,13 +185,24 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         # -----------------------------------------------------------------------
         # Step 5: Detect TOC and legend (parallel calls to Groq)
         # -----------------------------------------------------------------------
+        # Legend detection is skipped for PDFs with fewer than 10 pages because
+        # short documents almost never contain a dedicated legend section, and the
+        # extra Groq call wastes credits on last-page analysis.
         logger.info(f"{log_prefix} Step 5: Detecting TOC and legend")
         from backend.apps.pdf.services.toc_detector import detect_toc, detect_legend
 
-        toc_result, legend_result = await asyncio.gather(
-            detect_toc(ocr_pages, task._secrets_manager, log_prefix),
-            detect_legend(ocr_pages, task._secrets_manager, log_prefix),
-        )
+        if page_count >= 10:
+            toc_result, legend_result = await asyncio.gather(
+                detect_toc(ocr_pages, task._secrets_manager, log_prefix),
+                detect_legend(ocr_pages, task._secrets_manager, log_prefix),
+            )
+        else:
+            logger.info(
+                f"{log_prefix} Skipping legend detection (page_count={page_count} < 10)"
+            )
+            toc_result = await detect_toc(ocr_pages, task._secrets_manager, log_prefix)
+            legend_result = {"detected": False, "source_pages": [], "content": "", "chapters": []}
+
         logger.info(
             f"{log_prefix} TOC detected={toc_result['detected']}, "
             f"legend detected={legend_result['detected']}"
@@ -353,6 +364,56 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
             directus_service=task._directus_service,
             encryption_service=task._encryption_service,
         )
+
+        # -----------------------------------------------------------------------
+        # Cache the PDF embed in Redis so the pdf.read / pdf.view / pdf.search
+        # skills can resolve file_path → embed_id → crypto fields server-side,
+        # without the LLM ever seeing vault_wrapped_aes_key, ocr_data_s3_key, etc.
+        #
+        # This mirrors the pattern from the images upload server which calls
+        # `/internal/uploads/cache-embed` after processing. For PDFs processed by
+        # the Celery worker, we call _cache_embed() directly here.
+        #
+        # The embed content is Vault-encrypted before storage so that any Redis
+        # dump is opaque to attackers (same security model as images embeds).
+        # -----------------------------------------------------------------------
+        try:
+            encrypted_toon, _ = await task._encryption_service.encrypt_with_user_key(
+                content_toon, vault_key_id
+            )
+            if encrypted_toon:
+                cache_embed_data = {
+                    "embed_id": embed_id,
+                    "type": "app_skill_use",
+                    "status": "finished",
+                    "encrypted_content": encrypted_toon,
+                    "vault_key_id": vault_key_id,
+                    "user_id": user_id,
+                }
+                await embed_service._cache_embed(
+                    embed_id=embed_id,
+                    embed_data=cache_embed_data,
+                    chat_id=arguments.get("chat_id") or "",
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=vault_key_id,
+                    user_id=user_id,
+                )
+                logger.info(
+                    f"{log_prefix} PDF embed cached in Redis for skill lookup "
+                    f"(embed:{embed_id[:8]}...)"
+                )
+            else:
+                logger.error(
+                    f"{log_prefix} Failed to Vault-encrypt embed content for Redis cache "
+                    f"— pdf.read/pdf.view/pdf.search will not be able to look up this embed"
+                )
+        except Exception as cache_err:
+            # Non-fatal: PDF was processed successfully; skills may degrade gracefully.
+            # Log as error because it prevents pdf.read/pdf.view/pdf.search from working.
+            logger.error(
+                f"{log_prefix} Redis cache of PDF embed failed: {cache_err}",
+                exc_info=True,
+            )
 
         await embed_service.send_embed_data_to_client(
             embed_id=embed_id,

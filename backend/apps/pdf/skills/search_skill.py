@@ -3,11 +3,17 @@
 # pdf.search skill — text search across all OCR'd PDF page markdowns.
 #
 # Architecture:
-#   Pure text search (no LLM required). The skill:
-#     1. Unwraps the AES key via Vault Transit.
-#     2. Downloads and decrypts the OCR JSON blob from S3.
-#     3. Performs case-insensitive substring search across all pages.
-#     4. Returns matching text blocks with surrounding context and page numbers.
+#   The LLM calls this skill with file_path (the original filename, e.g. "report.pdf").
+#   The skill then:
+#     1. Resolves file_path → embed_id via the file_path_index injected by main_processor.py
+#     2. Looks up the embed's encrypted content from the Redis cache (embed:{embed_id})
+#     3. Decrypts the embed content using the user's Vault Transit key
+#     4. Extracts vault_wrapped_aes_key, ocr_data_s3_key, aes_nonce from the
+#        decrypted embed content (these fields are NEVER exposed to the LLM)
+#     5. Unwraps the AES key via Vault Transit
+#     6. Downloads and decrypts the OCR JSON blob from S3
+#     7. Performs case-insensitive substring search across all pages
+#     8. Returns matching text blocks with surrounding context and page numbers
 #
 #   This is intentionally dumb but fast — the LLM can then call pdf.read
 #   on the relevant pages for deeper analysis.
@@ -17,10 +23,13 @@ import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote as url_quote
 
 import httpx
+import redis.asyncio as aioredis
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, Field
+from toon_format import decode as toon_decode
 
 from backend.apps.base_skill import BaseSkill
 
@@ -31,24 +40,23 @@ MAX_MATCHES = 50              # cap on number of matches returned
 
 
 class SearchRequest(BaseModel):
-    """Request model for the pdf.search skill."""
+    """
+    Request model for the pdf.search skill.
+    The LLM provides only the original filename (file_path / embed_ref) — all cryptographic
+    and storage details are resolved server-side from the embed cache via the file_path_index.
+    """
 
-    embed_id: str = Field(..., description="The embed_id of the uploaded PDF.")
-    vault_wrapped_aes_key: str = Field(
-        ..., description="Vault Transit-wrapped AES key from the embed metadata."
+    file_path: str = Field(
+        ...,
+        description=(
+            "The original filename of the PDF to search (e.g. 'report.pdf'). "
+            "Use the exact embed_ref value from the toon block."
+        ),
     )
-    ocr_data_s3_key: str = Field(
-        ..., description="S3 key for the encrypted OCR JSON blob."
-    )
-    s3_base_url: str = Field(..., description="S3 base URL for the file storage bucket.")
-    aes_nonce: str = Field(..., description="Base64 AES-GCM nonce.")
     query: str = Field(..., description="The search query string (case-insensitive).")
     context_chars: Optional[int] = Field(
         DEFAULT_CONTEXT_CHARS,
         description="Number of surrounding characters to include per match (default: 200).",
-    )
-    vault_key_id: Optional[str] = Field(
-        None, description="The user's Vault Transit key ID (resolved from context if omitted)."
     )
 
 
@@ -65,7 +73,7 @@ class SearchResponse(BaseModel):
     """Response model for the pdf.search skill."""
 
     success: bool = Field(default=False)
-    embed_id: Optional[str] = Field(None)
+    file_path: Optional[str] = Field(None)
     query: Optional[str] = Field(None)
     total_matches: int = Field(default=0)
     matches: List[SearchMatch] = Field(default_factory=list)
@@ -79,6 +87,11 @@ class SearchResponse(BaseModel):
 class SearchSkill(BaseSkill):
     """
     Skill for text searching across all OCR'd markdown in a PDF.
+
+    The LLM calls this with file_path (the original filename / embed_ref, e.g. "report.pdf").
+    The skill resolves file_path → embed_id UUID via the file_path_index injected by
+    main_processor.py, then resolves all crypto and storage details server-side by looking
+    up the embed from the Redis cache and decrypting its content via Vault Transit.
 
     No LLM call is made — this is a pure substring search, which is fast and
     predictable. The LLM can use the page numbers from results to call pdf.read
@@ -94,7 +107,90 @@ class SearchSkill(BaseSkill):
             raise RuntimeError("Vault token file is empty")
         return token
 
+    async def _lookup_embed_content(
+        self, embed_id: str, user_vault_key_id: str
+    ) -> Dict[str, Any]:
+        """
+        Look up an embed's decrypted content from the Redis cache.
+
+        The embed is stored in Redis at key ``embed:{embed_id}`` as a JSON dict
+        with an ``encrypted_content`` field that holds a Vault Transit-encrypted
+        TOON string. This method decrypts the content using the user's Vault key
+        and decodes the TOON to return the raw content dict.
+
+        Args:
+            embed_id: The embed ID to look up.
+            user_vault_key_id: The user's Vault Transit key ID for decryption.
+
+        Returns:
+            Decoded embed content dict (contains vault_wrapped_aes_key,
+            ocr_data_s3_key, aes_nonce, etc.).
+
+        Raises:
+            RuntimeError: If the embed is not found in cache, has no encrypted
+                content, or decryption/decoding fails.
+        """
+        log_prefix = f"[pdf.search] [embed:{embed_id[:8]}...]"
+
+        redis_password = os.environ.get("DRAGONFLY_PASSWORD", "")
+        redis_url = f"redis://default:{url_quote(redis_password, safe='')}@cache:6379/0"
+        redis_client = aioredis.from_url(redis_url, decode_responses=True)
+
+        try:
+            embed_json = await redis_client.get(f"embed:{embed_id}")
+            if not embed_json:
+                raise RuntimeError(
+                    f"PDF embed {embed_id} not found in cache (72h TTL). "
+                    "Please ask the user to re-upload the PDF."
+                )
+
+            embed_data = json.loads(embed_json)
+            encrypted_content = embed_data.get("encrypted_content")
+            if not encrypted_content:
+                raise RuntimeError(
+                    f"PDF embed {embed_id} has no encrypted_content in cache"
+                )
+
+            # Decrypt the embed content using Vault Transit.
+            # User keys are derived — must pass context = base64(key_id) to match encryption.
+            vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
+            token = self._load_vault_token()
+            context = base64.b64encode(user_vault_key_id.encode()).decode("utf-8")
+
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.post(
+                    f"{vault_url}/v1/transit/decrypt/{user_vault_key_id}",
+                    json={"ciphertext": encrypted_content, "context": context},
+                    headers={"X-Vault-Token": token},
+                )
+
+            if resp.status_code != 200:
+                raise RuntimeError(
+                    f"Vault decrypt failed for embed content: "
+                    f"HTTP {resp.status_code} — {resp.text[:200]}"
+                )
+
+            plaintext_b64 = resp.json()["data"]["plaintext"]
+            plaintext_toon = base64.b64decode(plaintext_b64).decode("utf-8")
+
+            decoded = toon_decode(plaintext_toon)
+            if not isinstance(decoded, dict):
+                raise RuntimeError(
+                    f"PDF embed {embed_id} TOON decoded to "
+                    f"{type(decoded).__name__}, expected dict"
+                )
+
+            logger.info(
+                f"{log_prefix} Successfully looked up embed from cache "
+                f"(keys: {list(decoded.keys())})"
+            )
+            return decoded
+
+        finally:
+            await redis_client.aclose()
+
     async def _unwrap_aes_key(self, vault_wrapped_aes_key: str, vault_key_id: str) -> bytes:
+        """Unwrap AES key via Vault Transit."""
         vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
         token = self._load_vault_token()
         # User keys are derived — must pass context = base64(key_id) to match encryption.
@@ -147,15 +243,6 @@ class SearchSkill(BaseSkill):
 
         return resp.content
 
-    async def _download_decrypt(
-        self, s3_base_url: str, s3_key: str, aes_key: bytes, aes_nonce: str
-    ) -> bytes:
-        """Download and decrypt an S3 object via the internal API."""
-        encrypted = await self._download_from_s3(s3_key)
-        nonce = base64.b64decode(aes_nonce)
-        aesgcm = AESGCM(aes_key)
-        return aesgcm.decrypt(nonce, encrypted, None)
-
     def _search_page(
         self, page_num: int, text: str, query_lower: str, context_chars: int
     ) -> List[SearchMatch]:
@@ -200,55 +287,92 @@ class SearchSkill(BaseSkill):
 
     async def execute(
         self,
-        embed_id: str,
-        vault_wrapped_aes_key: str,
-        ocr_data_s3_key: str,
-        s3_base_url: str,
-        aes_nonce: str,
+        file_path: str,
         query: str,
         context_chars: Optional[int] = DEFAULT_CONTEXT_CHARS,
-        vault_key_id: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Search all OCR'd pages for the given query string.
 
-        Steps:
-        1. Resolve vault_key_id.
-        2. Unwrap AES key via Vault.
-        3. Download + decrypt OCR JSON blob from S3.
-        4. Search all pages case-insensitively for query.
-        5. Return matches with context.
-        """
-        log_prefix = f"[pdf.search] [embed:{embed_id[:8]}...]"
+        The LLM provides file_path (the original filename / embed_ref, e.g. "report.pdf").
+        All cryptographic and storage details are resolved server-side from the Redis cache.
 
-        resolved_vault_key_id = vault_key_id or kwargs.get("user_vault_key_id")
-        if not resolved_vault_key_id:
-            logger.error(f"{log_prefix} vault_key_id not available")
+        Steps:
+        1. Resolve file_path → embed_id via file_path_index (injected by main_processor).
+        2. Look up all crypto fields from the Redis embed cache.
+        3. Unwrap AES key via Vault.
+        4. Download + decrypt OCR JSON blob from S3.
+        5. Search all pages case-insensitively for query.
+        6. Return matches with context.
+        """
+        log_prefix = f"[pdf.search] [file_path:{file_path!r}]"
+
+        # --- Step 1: Resolve file_path → embed_id via file_path_index ---
+        file_path_index: Dict[str, str] = kwargs.get("file_path_index") or {}
+        embed_id = file_path_index.get(file_path)
+        if not embed_id:
+            logger.error(
+                f"{log_prefix} No embed found for file_path. "
+                f"Available keys: {list(file_path_index.keys())}"
+            )
             return SearchResponse(
                 success=False,
-                embed_id=embed_id,
-                error="Cannot decrypt OCR data: vault key ID not available",
+                file_path=file_path,
+                query=query,
+                error=(
+                    f"No PDF embed found for '{file_path}'. "
+                    f"Available: {list(file_path_index.keys())}"
+                ),
+            ).dict()
+
+        log_prefix = f"[pdf.search] [embed:{embed_id[:8]}...]"
+
+        resolved_vault_key_id = kwargs.get("user_vault_key_id")
+        if not resolved_vault_key_id:
+            logger.error(f"{log_prefix} user_vault_key_id not available")
+            return SearchResponse(
+                success=False,
+                file_path=file_path,
+                query=query,
+                error="Cannot decrypt PDF data: vault key ID not available",
             ).dict()
 
         if not query or not query.strip():
             return SearchResponse(
                 success=False,
-                embed_id=embed_id,
+                file_path=file_path,
+                query=query,
                 error="Search query cannot be empty",
             ).dict()
 
         ctx_chars = context_chars if context_chars and context_chars > 0 else DEFAULT_CONTEXT_CHARS
 
         try:
-            # Step 1: Unwrap AES key
+            # --- Step 2: Look up all crypto fields from Redis embed cache ---
+            logger.info(f"{log_prefix} Looking up embed content from cache")
+            embed_content = await self._lookup_embed_content(embed_id, resolved_vault_key_id)
+
+            vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
+            ocr_data_s3_key = embed_content.get("ocr_data_s3_key")
+            aes_nonce = embed_content.get("aes_nonce")
+
+            if not vault_wrapped_aes_key:
+                raise RuntimeError("PDF embed cache missing vault_wrapped_aes_key")
+            if not ocr_data_s3_key:
+                raise RuntimeError("PDF embed cache missing ocr_data_s3_key")
+            if not aes_nonce:
+                raise RuntimeError("PDF embed cache missing aes_nonce")
+
+            # --- Step 3: Unwrap AES key ---
             aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, resolved_vault_key_id)
 
-            # Step 2: Download + decrypt OCR blob
+            # --- Step 4: Download + decrypt OCR blob ---
             logger.info(f"{log_prefix} Downloading OCR blob for search: '{query}'")
-            plaintext = await self._download_decrypt(
-                s3_base_url, ocr_data_s3_key, aes_key_bytes, aes_nonce
-            )
+            encrypted = await self._download_from_s3(ocr_data_s3_key)
+            nonce = base64.b64decode(aes_nonce)
+            aesgcm = AESGCM(aes_key_bytes)
+            plaintext = aesgcm.decrypt(nonce, encrypted, None)
             ocr_data = json.loads(plaintext.decode("utf-8"))
             all_pages_data: Dict[str, Any] = ocr_data.get("pages", {})
 
@@ -256,7 +380,7 @@ class SearchSkill(BaseSkill):
             all_matches: List[SearchMatch] = []
             truncated = False
 
-            # Search pages in order
+            # --- Step 5: Search pages in order ---
             for page_key in sorted(all_pages_data.keys(), key=lambda k: int(k)):
                 page_num = int(page_key)
                 markdown = all_pages_data[page_key].get("markdown", "")
@@ -277,7 +401,7 @@ class SearchSkill(BaseSkill):
 
             return SearchResponse(
                 success=True,
-                embed_id=embed_id,
+                file_path=file_path,
                 query=query,
                 total_matches=total,
                 matches=returned,
@@ -288,7 +412,7 @@ class SearchSkill(BaseSkill):
             logger.error(f"{log_prefix} pdf.search failed: {e}", exc_info=True)
             return SearchResponse(
                 success=False,
-                embed_id=embed_id,
+                file_path=file_path,
                 query=query,
                 error=f"Search failed: {e}",
             ).dict()

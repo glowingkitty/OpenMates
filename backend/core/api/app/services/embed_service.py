@@ -1498,6 +1498,55 @@ class EmbedService:
                 )
                 return filtered_toon, embed_ref
 
+            if embed_type == "pdf":
+                # PDF upload embeds processed by app-pdf-worker.
+                #
+                # The LLM needs document metadata (filename, page count, TOC, per-page token
+                # estimates) to plan which skills to call. It does NOT need any cryptographic
+                # or storage fields — the pdf.read/pdf.view/pdf.search skills resolve all
+                # of those server-side via file_path → embed_id → Redis → Vault.
+                #
+                # Kept:
+                #   embed_ref              — original filename; used as the skill file_path arg
+                #   type, status           — discriminator and lifecycle state
+                #   filename               — human-readable label (same value as embed_ref)
+                #   page_count             — total pages (LLM uses to plan pagination)
+                #   total_tokens_estimated — total OCR tokens (LLM uses for context planning)
+                #   per_page_tokens        — per-page token estimates (LLM uses for page selection)
+                #   toc                    — table of contents (LLM uses for navigation)
+                #   legend                 — legend section info (LLM uses for interpretation)
+                #   app_id                 — "pdf" (skill routing discriminator)
+                #
+                # Stripped (all crypto/storage — resolved server-side):
+                #   aes_key, aes_nonce, vault_wrapped_aes_key — AES encryption fields
+                #   ocr_data_s3_key, screenshot_s3_keys, extracted_image_s3_keys — S3 object keys
+                #   s3_base_url — S3 bucket URL
+                #   embed_id (UUID) — never shown to LLM; use embed_ref (filename) instead
+                _PDF_STRIP_FIELDS = frozenset({
+                    "aes_key",
+                    "aes_nonce",
+                    "vault_wrapped_aes_key",
+                    "ocr_data_s3_key",
+                    "screenshot_s3_keys",
+                    "extracted_image_s3_keys",
+                    "s3_base_url",
+                })
+                filtered = {
+                    k: v for k, v in decoded.items()
+                    if k not in _PDF_STRIP_FIELDS and k != "embed_id"
+                }
+                # Use the original filename as embed_ref so the LLM passes it to pdf.* skills.
+                raw_ref = decoded.get("filename") or embed_id[:8]
+                embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
+                filtered["embed_ref"] = embed_ref
+                filtered_toon = encode(filtered)
+                logger.debug(
+                    f"{log_prefix} Filtered PDF embed TOON for LLM: "
+                    f"{len(toon_content)} → {len(filtered_toon)} chars "
+                    f"(kept: {list(filtered.keys())}, embed_ref={embed_ref!r})"
+                )
+                return filtered_toon, embed_ref
+
             if app_id != "images" or skill_id != "upload":
                 # For all other embed types (search results, web pages, travel, maps, etc.),
                 # check whether the TOON content already contains an embed_ref that was
