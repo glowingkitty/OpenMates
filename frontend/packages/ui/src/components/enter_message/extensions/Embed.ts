@@ -1340,6 +1340,15 @@ export const Embed = Node.create<EmbedOptions>({
 
                   // Clean up all embeds in the group since the entire group is deleted
                   cleanupRemovedGroupEmbeds(attrs);
+                  // Force draft update — getText() may stay '' when the editor only had
+                  // this group, causing handleEditorUpdate's textActuallyChanged guard to
+                  // skip triggerSaveDraft.
+                  editor.view.dom.dispatchEvent(
+                    new CustomEvent("embed-upload-cancelled", {
+                      bubbles: true,
+                      detail: { embedId: attrs.id },
+                    }),
+                  );
                   return true;
                 }
               }
@@ -1358,6 +1367,13 @@ export const Embed = Node.create<EmbedOptions>({
 
             // Clean up all embeds in the group on fallback deletion too
             cleanupRemovedGroupEmbeds(attrs);
+            // Force draft update — same reason as delete-group above.
+            editor.view.dom.dispatchEvent(
+              new CustomEvent("embed-upload-cancelled", {
+                bubbles: true,
+                detail: { embedId: attrs.id },
+              }),
+            );
             return true;
           }
 
@@ -1473,6 +1489,16 @@ export const Embed = Node.create<EmbedOptions>({
                 "[Embed] Deleted image embed and cancelled upload:",
                 attrs.id,
               );
+              // Notify MessageInput to rebuild originalMarkdown and force a draft save.
+              // The textActuallyChanged guard in handleEditorUpdate skips triggerSaveDraft
+              // when getText() stays '' (image-only editor), so we dispatch the same event
+              // the Stop button uses to bypass the guard.
+              editor.view.dom.dispatchEvent(
+                new CustomEvent("embed-upload-cancelled", {
+                  bubbles: true,
+                  detail: { embedId: attrs.id },
+                }),
+              );
               return true;
 
             case "pdf":
@@ -1496,6 +1522,13 @@ export const Embed = Node.create<EmbedOptions>({
               console.debug(
                 "[Embed] Deleted PDF embed and cancelled upload:",
                 attrs.id,
+              );
+              // Force draft update — same reason as image case above.
+              editor.view.dom.dispatchEvent(
+                new CustomEvent("embed-upload-cancelled", {
+                  bubbles: true,
+                  detail: { embedId: attrs.id },
+                }),
               );
               return true;
 
@@ -1521,6 +1554,13 @@ export const Embed = Node.create<EmbedOptions>({
                 "[Embed] Deleted recording embed and cancelled upload:",
                 attrs.id,
               );
+              // Force draft update — same reason as image case above.
+              editor.view.dom.dispatchEvent(
+                new CustomEvent("embed-upload-cancelled", {
+                  bubbles: true,
+                  detail: { embedId: attrs.id },
+                }),
+              );
               return true;
 
             case "maps":
@@ -1539,6 +1579,13 @@ export const Embed = Node.create<EmbedOptions>({
               // Clean up the embed from EmbedStore (contentRef: "embed:{id}")
               cleanupRemovedEmbed(attrs.contentRef);
               console.debug("[Embed] Deleted maps embed:", attrs.id);
+              // Force draft update — same reason as image case above.
+              editor.view.dom.dispatchEvent(
+                new CustomEvent("embed-upload-cancelled", {
+                  bubbles: true,
+                  detail: { embedId: attrs.id },
+                }),
+              );
               return true;
 
             default:

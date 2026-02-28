@@ -2919,7 +2919,16 @@
         await handleMenuActionTrigger(action, selectedNode, editor, dispatch, selectedEmbedId);
         showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null;
         if (action === 'delete') {
-            await tick(); hasContent = !isContentEmptyExceptMention(editor);
+            await tick();
+            hasContent = !isContentEmptyExceptMention(editor);
+            // Rebuild originalMarkdown from the updated editor state and force a draft save.
+            // The textActuallyChanged guard in handleEditorUpdate skips triggerSaveDraft when
+            // getText() doesn't change (e.g. editor had only an embed with no text). Without
+            // this, the draft preview in the sidebar still shows "[Image]" / "[PDF]" after
+            // the embed is removed via the context menu.
+            updateOriginalMarkdown(editor);
+            lastEditorUpdateText = editor.getText();
+            triggerSaveDraft(currentChatId);
         }
     }
     function handleFileSelect() {

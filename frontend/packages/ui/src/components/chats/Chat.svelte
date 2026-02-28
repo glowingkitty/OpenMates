@@ -1027,8 +1027,18 @@
     wasActive = isActive;
   });
   
-  // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
-  let isDraftOnly = $derived(chat && draftTextContent && !cachedMetadata?.title && (!lastMessage || lastMessage === null));
+  // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes.
+  // CRITICAL: Also check the raw chat object for draft indicators (encrypted_draft_preview / encrypted_draft_md)
+  // so isDraftOnly is true immediately on first render, before the async updateDisplayInfo() call resolves
+  // and populates draftTextContent. Without this, there is a brief window where draftTextContent is still ''
+  // (initial $state value), isDraftOnly is false, and the component falls through to the "Untitled chat"
+  // fallback — which is the intermittent "shows Untitled chat instead of Draft:" bug.
+  let hasDraftIndicator = $derived(
+    !!draftTextContent ||
+    !!chat?.encrypted_draft_preview ||
+    !!chat?.encrypted_draft_md
+  );
+  let isDraftOnly = $derived(chat && hasDraftIndicator && !cachedMetadata?.title && !chat.title && (!lastMessage || lastMessage === null));
   
   // Detect if this is a chat waiting for metadata (new chat that just sent first message)
   // These chats should show message content with status indicator, similar to draft-only but with message
