@@ -7,11 +7,16 @@
 # use the commented-out preview service in the main docker-compose.yml instead.
 #
 # Usage:
+#   # IMPORTANT: always pass --env-file pointing to the project root .env so that
+#   # GIT_WORK_DIR and DOCKER_GID are available for compose variable interpolation.
+#   # (env_file inside a service only injects vars into the container, not into the
+#   # compose file's own ${VAR} interpolation — that requires --env-file or shell env.)
+#
 #   # Development (with hot reload)
-#   docker compose -f docker-compose.preview.yml up
+#   docker compose --env-file ../../.env -f docker-compose.preview.yml up
 #
 #   # Production
-#   docker compose -f docker-compose.preview.yml up -d
+#   docker compose --env-file ../../.env -f docker-compose.preview.yml up -d
 #
 # Environment variables can be set in .env file or passed directly.
 #
