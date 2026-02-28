@@ -34,8 +34,6 @@ URLS_CONFIG = load_urls_config()
 
 # Buckets that need CORS settings
 CORS_ENABLED_BUCKETS = [
-    'openmates-profile-images', 
-    'dev-openmates-profile-images',
     # Private profile images — AES-256-GCM encrypted, served via API proxy
     'openmates-profile-images-private',
     'dev-openmates-profile-images-private',
@@ -47,19 +45,9 @@ CORS_ENABLED_BUCKETS = [
 
 # S3 bucket configurations
 BUCKETS = {
-    'profile_images': {
-        'name': 'openmates-profile-images',
-        'dev_name': 'dev-openmates-profile-images',
-        'allowed_types': ['image/jpeg', 'image/png', 'image/webp'],
-        'max_size': 300 * 1024,  # 300KB
-        'access': 'public-read',
-        'lifecycle_policy': None,  # No auto-delete (legacy public bucket kept for existing users)
-    },
     # Private encrypted profile images bucket.
-    # New uploads go here: bytes are AES-256-GCM encrypted before storage.
+    # All profile image uploads go here: bytes are AES-256-GCM encrypted before storage.
     # Served via GET /v1/users/{user_id}/profile-image (authenticated API proxy).
-    # The old public-read 'profile_images' bucket is kept for backward compatibility
-    # (existing users still have public-URL profile images until they re-upload).
     'profile_images_private': {
         'name': 'openmates-profile-images-private',
         'dev_name': 'dev-openmates-profile-images-private',

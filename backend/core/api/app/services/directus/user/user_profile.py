@@ -116,12 +116,10 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         # (It is not sensitive — it's just an S3 key, not an AES key.)
         profile["profile_image_s3_key"] = user_data.get("profile_image_s3_key")
 
-        # Backward-compatible profile image URL resolution:
-        #   - NEW users (profile_image_s3_key set): return the authenticated proxy URL.
-        #     The frontend fetches this via GET /v1/users/{id}/profile-image with credentials.
-        #   - LEGACY users (profile_image_s3_key null, encrypted_profileimage_url set):
-        #     fall through to the decryption loop below, which sets profile_image_url
-        #     to the old plaintext public S3 URL.
+        # Profile image URL resolution:
+        #   All profile images are stored as AES-256-GCM encrypted blobs in the private
+        #   S3 bucket. Users with a profile_image_s3_key get the authenticated proxy URL.
+        #   Users without a profile image get no profile_image_url (frontend shows placeholder).
         _new_s3_key = user_data.get("profile_image_s3_key")
         if _new_s3_key:
             profile["profile_image_url"] = f"/v1/users/{user_id}/profile-image"
@@ -138,9 +136,6 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             fields_to_decrypt = [
                 ("username", "encrypted_username"),
                 ("credits", "encrypted_credit_balance"),
-                # profile_image_url: only decrypt legacy encrypted URL if no new S3 key exists.
-                # New users already have profile_image_url set above (proxy URL).
-                *([("profile_image_url", "encrypted_profileimage_url")] if not _new_s3_key else []),
                 ("tfa_app_name", "encrypted_tfa_app_name"),
                 ("gifted_credits_for_signup", "encrypted_gifted_credits_for_signup"),
                 ("invoice_counter", "encrypted_invoice_counter")

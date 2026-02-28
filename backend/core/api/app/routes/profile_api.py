@@ -3,20 +3,15 @@
 # Public API endpoint for serving user profile images.
 #
 # Architecture:
-#   - New profile images are stored as AES-256-GCM encrypted blobs in a
+#   - Profile images are stored as AES-256-GCM encrypted blobs in the
 #     private S3 bucket ('profile_images_private').
 #   - This endpoint decrypts the image server-side and streams the plaintext
 #     bytes to the authenticated caller.
-#   - Legacy profile images (uploaded before this feature) are stored as
-#     plaintext in the old public-read S3 bucket.  For those users,
-#     get_user_profile() still returns a direct public URL — this endpoint
-#     is not reached for them (the frontend uses the URL directly).
 #
 # Security model:
 #   - Authentication required (cookie session or Bearer API key).
 #   - Access control: any authenticated user can view any profile image
-#     (same behaviour as the old public-read images, but now gated by auth).
-#     This will be tightened when group chats are built.
+#     (gated by auth; will be tightened when group chats are built).
 #   - The endpoint does NOT expose the AES key — it only decrypts in-memory
 #     and streams the plaintext image bytes.
 #   - HTTP response is Cache-Control: private, max-age=300 (5 min).
@@ -101,8 +96,7 @@ async def get_profile_image(
     - Authentication required (session cookie or Bearer API key).
     - Access: any authenticated user may view any profile image.
     - Response is Cache-Control: private, max-age=300 (5 min browser cache).
-    - If profile_image_s3_key is null (legacy user), returns 404 — the frontend
-      should fall back to the legacy public URL stored in the user profile.
+    - If profile_image_s3_key is null (user has no profile image), returns 404.
 
     Rate limit: 120 requests/minute per IP.
     """
@@ -137,12 +131,11 @@ async def get_profile_image(
         vault_key_id: str | None = user_data.get("vault_key_id")
 
         if not s3_key:
-            # Legacy user — no encrypted profile image exists yet.
-            # The frontend should use the legacy public URL.
-            logger.info(f"{log_prefix} No profile_image_s3_key — legacy user, returning 404")
+            # No profile image uploaded yet.
+            logger.info(f"{log_prefix} No profile_image_s3_key — user has no profile image, returning 404")
             raise HTTPException(
                 status_code=404,
-                detail="No encrypted profile image found for this user",
+                detail="No profile image found for this user",
             )
 
         if not wrapped_aes_key or not nonce_b64:

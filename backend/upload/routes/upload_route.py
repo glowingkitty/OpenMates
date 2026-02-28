@@ -1459,8 +1459,7 @@ async def _handle_audio_upload(
 # Profile image upload endpoint
 # ---------------------------------------------------------------------------
 
-# Allowed MIME types for profile images (JPEG/PNG only — WebP rejected to avoid
-# browser/CDN compatibility issues with public-read images)
+# Allowed MIME types for profile images (JPEG/PNG only — browser pre-processes to JPEG anyway)
 PROFILE_IMAGE_ALLOWED_MIMES = {"image/jpeg", "image/jpg", "image/png"}
 
 # Max size: 300 KB (images are pre-processed to 340×340 JPEG by the browser)
@@ -1482,9 +1481,9 @@ async def upload_profile_image(
       3. SightEngine content safety scan (nudity/violence/gore — BLOCKING)
          Rejected images proxy a rejection event to the core API for
          per-user tracking and account deletion on repeated violations.
-      4. Upload image bytes to S3 profile_images bucket (public-read, plaintext)
-      5. Proxy new S3 URL to core API for encryption and Directus update
-      6. Return status + public image URL
+      4. AES-256-GCM encrypt image bytes and upload to private S3 bucket
+      5. Proxy s3_key + AES metadata to core API for Vault key-wrapping + Directus update
+      6. Return status + proxy URL (/v1/users/{user_id}/profile-image)
 
     The browser pre-processes the image to 340×340 JPEG before sending, so
     we receive a small, square, already-cropped image file.
