@@ -1077,11 +1077,11 @@ async def check_upload_duplicate(
     Does not expose user secrets or Vault data beyond what was originally
     returned to the uploading client.
 
-    Validation: For PDF uploads (where page_count is set), we also verify that the
-    corresponding embed record exists in Directus with status='finished'. If the embed
-    is missing or not finished (e.g. a previous upload failed mid-way after storing the
-    upload_files record but before OCR completed), we discard the stale record and return
-    duplicate=False so the uploads service falls through to a fresh upload + OCR run.
+    Validation: For any upload that has an embed_id, we verify that the corresponding
+    embed record exists in Directus with status='finished'. If the embed is missing or
+    not finished (e.g. a previous upload failed mid-way after storing the upload_files
+    record but before OCR/processing completed), we discard the stale record and return
+    duplicate=False so the uploads service falls through to a fresh upload + processing run.
     This prevents the UI from hanging forever on 'Processing…' with no WS event arriving.
     """
     log_prefix = f"[UploadDedup] [user:{payload.user_id[:8]}...]"
@@ -1101,14 +1101,15 @@ async def check_upload_duplicate(
 
         record = items[0]
         embed_id = record.get("embed_id")
-        page_count = record.get("page_count")
+        # Note: page_count is not stored on upload_files records; stale detection
+        # applies to all uploads with an embed_id regardless of file type.
 
-        # For PDFs (page_count is set on upload_files records), validate that the
-        # embed actually exists in Directus with status='finished'. A stale record
-        # with no corresponding finished embed means a previous upload failed after
-        # storing the upload_files row but before OCR completed — returning it as a
-        # dedup hit would leave the frontend stuck on 'Processing…' indefinitely.
-        if page_count is not None and embed_id:
+        # For any upload with an embed_id, validate that the embed actually exists
+        # in Directus with status='finished'. A stale record with no corresponding
+        # finished embed means a previous upload failed after storing the upload_files
+        # row but before processing completed — returning it as a dedup hit would
+        # leave the frontend stuck on 'Processing…' indefinitely.
+        if embed_id:
             try:
                 embed_params = {
                     "filter[embed_id][_eq]": embed_id,
