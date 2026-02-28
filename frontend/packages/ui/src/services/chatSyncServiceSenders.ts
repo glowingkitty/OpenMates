@@ -2741,6 +2741,30 @@ export async function sendLoadMoreChatsImpl(
  * The server handler broadcasts a `new_chat_message` event to all other devices
  * of the same user (same shape as normal cross-device chat sync).
  */
+/**
+ * Embed data to include in the sync_inspiration_chat payload so other devices
+ * can store and decrypt the inspiration video embed immediately without waiting
+ * for a Directus round-trip via request_embed.
+ */
+export interface InspirationEmbedData {
+  embed_id: string;
+  /** Client-encrypted embed content (TOON-encoded video metadata) */
+  encrypted_content: string;
+  /** Client-encrypted embed type (e.g. "video") */
+  encrypted_type: string;
+  /** Client-encrypted text preview (e.g. video title) */
+  encrypted_text_preview: string;
+  /** Embed key wrappers (master + chat) for decryption on other devices */
+  embed_keys: Array<{
+    hashed_embed_id: string;
+    key_type: "master" | "chat";
+    hashed_chat_id: string | null;
+    encrypted_embed_key: string;
+    hashed_user_id: string;
+    created_at: number;
+  }>;
+}
+
 export async function sendSyncInspirationChatImpl(
   serviceInstance: ChatSynchronizationService,
   chatId: string,
@@ -2753,6 +2777,7 @@ export async function sendSyncInspirationChatImpl(
   encryptedChatKey: string,
   createdAt: number,
   encryptedFollowUpSuggestions?: string,
+  inspirationEmbed?: InspirationEmbedData,
 ): Promise<void> {
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
     console.warn(
@@ -2783,12 +2808,31 @@ export async function sendSyncInspirationChatImpl(
       payload.encrypted_follow_up_suggestions = encryptedFollowUpSuggestions;
     }
 
+    // Include the inspiration video embed data (encrypted content + key wrappers)
+    // so other devices can store and decrypt the embed immediately when they
+    // receive the new_chat_message broadcast. Without this, the second device
+    // must wait for the store_embed and store_embed_keys WS calls to reach
+    // Directus before request_embed can return the data — a race that often
+    // fails when the user switches devices quickly after opening an inspiration.
+    if (inspirationEmbed) {
+      payload.inspiration_embed = {
+        embed_id: inspirationEmbed.embed_id,
+        encrypted_content: inspirationEmbed.encrypted_content,
+        encrypted_type: inspirationEmbed.encrypted_type,
+        encrypted_text_preview: inspirationEmbed.encrypted_text_preview,
+        embed_keys: inspirationEmbed.embed_keys,
+      };
+    }
+
     await webSocketService.sendMessage("sync_inspiration_chat", payload);
     console.info(
       `[ChatSyncService:Senders] Sent sync_inspiration_chat for chat ${chatId}`,
       encryptedFollowUpSuggestions
         ? "(with follow-up suggestions)"
         : "(no follow-up suggestions)",
+      inspirationEmbed
+        ? `(with embed ${inspirationEmbed.embed_id})`
+        : "(no embed)",
     );
   } catch (error) {
     // Non-fatal — the chat will sync on next phased sync or when user sends a follow-up.

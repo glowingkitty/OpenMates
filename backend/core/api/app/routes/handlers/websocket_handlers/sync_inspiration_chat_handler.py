@@ -248,21 +248,38 @@ async def handle_sync_inspiration_chat(
         # Reuse the same event shape as `new_chat_message` so the receiving-side
         # handler (handleNewChatMessageImpl) on other devices can create the chat
         # shell + message without any changes to the frontend handler.
+        broadcast_inner: dict = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "content": content or "",
+            "role": payload.get("role", "assistant"),
+            "created_at": created_at,
+            "messages_v": messages_v,
+            "last_edited_overall_timestamp": now_ts,
+            "encrypted_chat_key": encrypted_chat_key,
+            # Include encrypted title so receiving device can show it immediately
+            "encrypted_title": encrypted_title,
+            "encrypted_category": encrypted_category,
+        }
+
+        # Forward the inspiration embed data (encrypted content + key wrappers)
+        # so the receiving device can store and decrypt the video embed immediately
+        # without waiting for a Directus round-trip via request_embed.
+        # The client sends this as `inspiration_embed` in the payload; we pass it
+        # through as-is (zero-knowledge — all fields are client-encrypted).
+        inspiration_embed = payload.get("inspiration_embed")
+        if inspiration_embed and isinstance(inspiration_embed, dict):
+            broadcast_inner["inspiration_embed"] = inspiration_embed
+            logger.info(
+                "[SyncInspirationChat] Including inspiration_embed (embed_id=%s, %d keys) in broadcast for chat %s",
+                inspiration_embed.get("embed_id", "?"),
+                len(inspiration_embed.get("embed_keys", [])),
+                chat_id,
+            )
+
         broadcast_payload = {
             "type": "new_chat_message",
-            "payload": {
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "content": content or "",
-                "role": payload.get("role", "assistant"),
-                "created_at": created_at,
-                "messages_v": messages_v,
-                "last_edited_overall_timestamp": now_ts,
-                "encrypted_chat_key": encrypted_chat_key,
-                # Include encrypted title so receiving device can show it immediately
-                "encrypted_title": encrypted_title,
-                "encrypted_category": encrypted_category,
-            },
+            "payload": broadcast_inner,
         }
 
         await manager.broadcast_to_user(

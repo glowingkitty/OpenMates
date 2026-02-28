@@ -13,6 +13,7 @@ import type {
   Chat,
   MessageRole,
 } from "../types/chat";
+import type { EmbedType } from "../message_parsing/types";
 // Imported lazily to avoid circular deps — called after each chat-key establishment
 // so that system messages queued before the key was available get saved correctly.
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings";
@@ -366,6 +367,23 @@ export async function handleNewChatMessageImpl(
     encrypted_title?: string;
     /** Encrypted category — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
     encrypted_category?: string;
+    /** Inspiration video embed data — sent by sync_inspiration_chat_handler so
+     *  other devices can store the embed + keys immediately without a Directus
+     *  round-trip. Contains client-encrypted content and key wrappers. */
+    inspiration_embed?: {
+      embed_id: string;
+      encrypted_content: string;
+      encrypted_type: string;
+      encrypted_text_preview?: string;
+      embed_keys?: Array<{
+        hashed_embed_id: string;
+        key_type: "master" | "chat";
+        hashed_chat_id: string | null;
+        encrypted_embed_key: string;
+        hashed_user_id: string;
+        created_at: number;
+      }>;
+    };
   },
 ): Promise<void> {
   console.info(
@@ -631,6 +649,89 @@ export async function handleNewChatMessageImpl(
     chat.updated_at = Math.floor(Date.now() / 1000);
 
     await chatDB.updateChat(chat);
+
+    // ── Store inspiration embed data if included in the broadcast ─────────
+    // When a daily inspiration chat is synced, the sending device includes
+    // the encrypted video embed content + key wrappers so we can store them
+    // locally. This prevents the decryption failure that occurs when this
+    // device tries to render the embed before store_embed has reached Directus.
+    if (
+      payload.inspiration_embed?.embed_id &&
+      payload.inspiration_embed?.encrypted_content
+    ) {
+      try {
+        const { embedStore } = await import("./embedStore");
+        const { computeSHA256 } = await import("../message_parsing/utils");
+        const embed = payload.inspiration_embed;
+        const hashedChatId = await computeSHA256(payload.chat_id);
+
+        // Store the encrypted embed content in IndexedDB (same shape as
+        // handleSendEmbedDataImpl for already_encrypted embeds)
+        const embedRef = `embed:${embed.embed_id}`;
+        const encryptedEmbedForStorage = {
+          embed_id: embed.embed_id,
+          encrypted_type: embed.encrypted_type,
+          encrypted_content: embed.encrypted_content,
+          encrypted_text_preview: embed.encrypted_text_preview || null,
+          status: "finished",
+          hashed_chat_id: hashedChatId,
+          is_private: false,
+          is_shared: false,
+          createdAt: payload.created_at || Math.floor(Date.now() / 1000),
+          updatedAt: payload.created_at || Math.floor(Date.now() / 1000),
+        };
+
+        // Type param is used for metadata extraction (app-skill-use embeds).
+        // Inspiration embeds are always videos so "videos-video" is correct.
+        // We also skip metadata extraction since there's no app/skill metadata.
+        await embedStore.putEncrypted(
+          embedRef,
+          encryptedEmbedForStorage,
+          "videos-video" as EmbedType,
+          undefined, // plaintextContent
+          undefined, // preExtractedMetadata
+          { skipMetadataExtraction: true },
+        );
+        console.info(
+          `[ChatSyncService:ChatUpdates] Stored inspiration embed ${embed.embed_id} from broadcast`,
+        );
+
+        // Store embed key wrappers so this device can decrypt the embed content
+        if (
+          embed.embed_keys &&
+          Array.isArray(embed.embed_keys) &&
+          embed.embed_keys.length > 0
+        ) {
+          const keyEntries = embed.embed_keys.map(
+            (k: {
+              hashed_embed_id: string;
+              key_type: "master" | "chat";
+              hashed_chat_id: string | null;
+              encrypted_embed_key: string;
+              hashed_user_id: string;
+              created_at: number;
+            }) => ({
+              hashed_embed_id: k.hashed_embed_id,
+              key_type: k.key_type,
+              hashed_chat_id: k.hashed_chat_id || null,
+              encrypted_embed_key: k.encrypted_embed_key,
+              hashed_user_id: k.hashed_user_id,
+              created_at: k.created_at,
+            }),
+          );
+          await embedStore.storeEmbedKeys(keyEntries);
+          console.info(
+            `[ChatSyncService:ChatUpdates] Stored ${keyEntries.length} embed key(s) for inspiration embed ${embed.embed_id}`,
+          );
+        }
+      } catch (embedErr) {
+        // Non-fatal: the embed will fall back to request_embed on render
+        console.warn(
+          `[ChatSyncService:ChatUpdates] Failed to store inspiration embed from broadcast (non-fatal):`,
+          embedErr,
+        );
+      }
+    }
 
     // Invalidate metadata cache so chat list reloads updated data
     chatMetadataCache.invalidateChat(payload.chat_id);

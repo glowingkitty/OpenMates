@@ -4347,6 +4347,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Track whether we reused a pre-stored inspiration embed (needed for
             // chat key wrapper creation after the chat and message are created)
             let reusedEmbedId: string | null = null;
+            // Captured embed data for cross-device sync — populated in the
+            // reusedEmbedId block below, consumed by sendSyncInspirationChat
+            // so other devices receive the embed + keys inline with the broadcast
+            // instead of racing against a Directus round-trip.
+            let inspirationEmbedForSync: import('../services/chatSyncServiceSenders').InspirationEmbedData | undefined;
             if (inspiration.video) {
                 const video = inspiration.video;
                 const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
@@ -4658,6 +4663,83 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         `(added chat key wrapper + updated hashed_chat_id in Directus)` +
                         (needsReEncrypt ? ' [re-encrypted with fresh key]' : ''),
                     );
+
+                    // ── Capture embed data for cross-device sync ─────────────────
+                    // Build the encrypted embed payload so sendSyncInspirationChat
+                    // can include it in the broadcast. This lets the receiving
+                    // device store the embed + keys immediately — no Directus
+                    // round-trip required. Without this, a quick device switch
+                    // after opening an inspiration often fails because store_embed
+                    // hasn't reached Directus yet when the second device calls
+                    // request_embed.
+                    try {
+                        // Get or create the encrypted embed fields for the sync payload.
+                        // If needsReEncrypt was true, embedUpdatePayload already has them.
+                        // Otherwise, encrypt the content with the embed key now.
+                        let encEmbedContent = embedUpdatePayload.encrypted_content as string | undefined;
+                        let encEmbedType = embedUpdatePayload.encrypted_type as string | undefined;
+                        let encEmbedPreview = embedUpdatePayload.encrypted_text_preview as string | undefined;
+
+                        if (!encEmbedContent && inspiration.video) {
+                            // Normal path (no re-encrypt needed): encrypt the embed content
+                            // using the original embed key so the receiving device can decrypt.
+                            const video = inspiration.video;
+                            const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
+                            let dFmt: string | null = null;
+                            if (video.duration_seconds != null) {
+                                const mn = Math.floor(video.duration_seconds / 60);
+                                const sc = video.duration_seconds % 60;
+                                dFmt = `${mn}:${sc.toString().padStart(2, '0')}`;
+                            }
+                            const embedObj = {
+                                url: videoUrl,
+                                video_id: video.youtube_id,
+                                title: video.title || null,
+                                description: null,
+                                channel_name: video.channel_name || null,
+                                channel_id: null,
+                                channel_thumbnail: null,
+                                thumbnail: video.thumbnail_url || null,
+                                duration_seconds: video.duration_seconds ?? null,
+                                duration_formatted: dFmt,
+                                view_count: video.view_count ?? null,
+                                like_count: null,
+                                published_at: video.published_at || null,
+                                fetched_at: new Date().toISOString(),
+                            };
+                            let tStr: string;
+                            try {
+                                tStr = (await import('@toon-format/toon')).encode(embedObj);
+                            } catch {
+                                tStr = JSON.stringify(embedObj);
+                            }
+
+                            encEmbedContent = await encryptWithEmbedKey(tStr, embedKeyForWrap) ?? undefined;
+                            encEmbedType = await encryptWithEmbedKey('video', embedKeyForWrap) ?? undefined;
+                            encEmbedPreview = await encryptWithEmbedKey(
+                                video.title || 'YouTube Video', embedKeyForWrap,
+                            ) ?? undefined;
+                        }
+
+                        if (encEmbedContent && encEmbedType) {
+                            inspirationEmbedForSync = {
+                                embed_id: reusedEmbedId,
+                                encrypted_content: encEmbedContent,
+                                encrypted_type: encEmbedType,
+                                encrypted_text_preview: encEmbedPreview || '',
+                                embed_keys: embedKeysForStorage,
+                            };
+                            console.info(
+                                `[ActiveChat] Prepared inspiration embed ${reusedEmbedId} for cross-device sync`,
+                            );
+                        }
+                    } catch (embedSyncErr) {
+                        // Non-fatal: second device falls back to request_embed
+                        console.warn(
+                            '[ActiveChat] Failed to prepare embed for cross-device sync (non-fatal):',
+                            embedSyncErr,
+                        );
+                    }
                 } catch (keyErr) {
                     // Non-fatal: the embed is stored locally and works on this device.
                     // Other devices can use the request_embed safety net to get the key.
@@ -4779,7 +4861,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Notify server of the active chat (updates last_opened in Redis + Directus)
                 chatSyncService.sendSetActiveChat(chatId);
 
-                // Sync the full chat + first message for cross-device visibility
+                // Sync the full chat + first message for cross-device visibility.
+                // Include the inspiration embed data + keys so other devices can
+                // store and decrypt the embed immediately without a Directus round-trip.
                 if (encryptedChatKey) {
                     chatSyncService.sendSyncInspirationChat(
                         chatId,
@@ -4792,6 +4876,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         encryptedChatKey,
                         now,
                         encryptedFollowUpSuggestions ?? undefined,
+                        inspirationEmbedForSync,
                     );
                 } else {
                     console.warn('[ActiveChat] Could not encrypt chat key for inspiration chat sync — chat will sync on next phased sync');
