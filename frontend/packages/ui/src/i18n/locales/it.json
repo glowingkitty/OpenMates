@@ -3418,6 +3418,35 @@
   "highlight": {},
   "invoices_and_credit_notes": {},
   "legal": {
+    "imprint": {
+      "title": {
+        "text": "Avviso legale (Imprint)"
+      },
+      "information_tmg": {
+        "text": "Informazioni ai sensi del § 5 TMG"
+      },
+      "contact": {
+        "text": "Contatto"
+      },
+      "email": {
+        "text": "E-mail"
+      },
+      "follow_up_1": {
+        "text": "Perché la legge tedesca richiede un Imprint?"
+      },
+      "follow_up_2": {
+        "text": "Come posso contattare il vostro team legale?"
+      },
+      "follow_up_3": {
+        "text": "Quali licenze open source utilizzate?"
+      },
+      "follow_up_4": {
+        "text": "Dove è registrata la vostra azienda?"
+      },
+      "follow_up_5": {
+        "text": "Chi è il rappresentante legale?"
+      }
+    },
     "privacy": {
       "title": {
         "text": "Informativa sulla Privacy"
@@ -3647,6 +3676,9 @@
         "content": {
           "text": "Contenuto: Messaggi di chat, prompt, allegati e immagini/video caricati necessari per fornire il servizio (soggetti a moderazione ove applicabile)."
         },
+        "payments": {
+          "text": "Pagamenti: Token del metodo di pagamento, ID di transazione, indirizzo di fatturazione e informazioni IVA necessarie per la fatturazione (elaborati principalmente da Stripe). Non memorizziamo numeri di carta completi."
+        },
         "newsletter": {
           "text": "Newsletter: Se scegli di iscriverti alla nostra newsletter, memorizziamo il tuo indirizzo email in forma crittografata. L'iscrizione alla newsletter è facoltativa e separata dalla creazione dell'account. La creazione di un account non ti iscrive automaticamente alla newsletter."
         }
@@ -3674,11 +3706,117 @@
       "legal_basis": {
         "heading": {
           "text": "7. Base Legale per l'Elaborazione (GDPR)"
+        },
+        "contract": {
+          "text": "Contratto: Elaborazione necessaria per eseguire il nostro contratto con te o per adottare misure su tua richiesta prima di concludere un contratto (ad es., creazione account, fornitura delle funzionalità dell'app web)."
+        },
+        "consent": {
+          "text": "Consenso: Elaborazione basata sul tuo consenso, ove applicabile (ad es., comunicazioni facoltative, determinati analytics o marketing). Puoi revocare il consenso in qualsiasi momento."
+        },
+        "legitimate_interests": {
+          "text": "Interessi legittimi: Elaborazione necessaria per i nostri interessi legittimi, come la sicurezza del servizio, la prevenzione delle frodi, il rilevamento degli abusi e il miglioramento del servizio, a condizione che tali interessi non siano prevalenti rispetto ai tuoi diritti e interessi."
+        },
+        "legal_obligation": {
+          "text": "Obbligo legale: Elaborazione necessaria per adempiere agli obblighi legali (ad es., requisiti fiscali e contabili per fatture e registrazioni delle transazioni)."
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. I Tuoi Diritti sulla Privacy"
+        },
+        "intro": {
+          "text": "A seconda della tua giurisdizione, potresti avere determinati diritti sui tuoi dati personali. Di seguito sono riassunti i diritti principali ai sensi del GDPR e del CCPA/CPRA e come esercitarli:"
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "GDPR (UE/SEE)"
+          },
+          "access": {
+            "text": "Diritto di accesso"
+          },
+          "rectification": {
+            "text": "Diritto di rettifica"
+          },
+          "erasure": {
+            "text": "Diritto alla cancellazione («diritto all'oblio»)"
+          },
+          "restriction": {
+            "text": "Diritto di limitazione del trattamento"
+          },
+          "portability": {
+            "text": "Diritto alla portabilità dei dati"
+          },
+          "objection": {
+            "text": "Diritto di opposizione"
+          },
+          "withdraw_consent": {
+            "text": "Diritto di revocare il consenso"
+          },
+          "exercise": {
+            "text": "Per esercitare i tuoi diritti GDPR, contattaci all'indirizzo contact@openmates.org o tramite la pagina Imprint. Potremmo dover verificare la tua identità prima di soddisfare la tua richiesta."
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA (California)"
+          },
+          "right_to_know": {
+            "text": "Diritto di sapere/accedere"
+          },
+          "right_to_delete": {
+            "text": "Diritto alla cancellazione"
+          },
+          "right_to_correct": {
+            "text": "Diritto di correzione"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "Diritto di opposizione alla vendita o condivisione"
+          },
+          "right_to_non_discrimination": {
+            "text": "Diritto alla non discriminazione"
+          },
+          "exercise": {
+            "text": "I residenti in California possono esercitare i diritti CCPA/CPRA contattandoci all'indirizzo contact@openmates.org. Non vendiamo informazioni personali."
+          }
+        }
+      },
+      "discord_integration": {
+        "heading": {
+          "text": "9. Integrazione Discord"
+        },
+        "description": {
+          "text": "Se scegli di unirti alla nostra comunità Discord tramite i link forniti su questo sito web, tieni presente che Discord raccoglierà ed elaborerà i tuoi dati in base alla sua informativa sulla privacy. Ciò include informazioni sull'account, dati di utilizzo, contenuti delle comunicazioni e altre informazioni descritte nell'informativa sulla privacy di Discord."
+        },
+        "admin_access": {
+          "text": "In qualità di amministratori del server Discord, abbiamo accesso a tutte le comunicazioni pubbliche, agli elenchi dei membri e ad altre informazioni condivise all'interno della nostra comunità Discord. Tuttavia, queste informazioni sono ospitate ed elaborate principalmente da Discord. Non estraiamo, archiviamo o elaboriamo questi dati al di fuori della piattaforma Discord. Per ulteriori informazioni su come Discord gestisce i tuoi dati, consulta l'Informativa sulla privacy di Discord."
+        },
+        "privacy_policy_link": {
+          "text": "Informativa sulla privacy di Discord"
+        }
+      },
+      "contact": {
+        "heading": {
+          "text": "4. Informazioni di contatto"
+        },
+        "questions": {
+          "text": "Per domande sulla protezione dei dati:"
+        },
+        "email": {
+          "text": "E-mail"
+        },
+        "postal": {
+          "text": "Indirizzo postale: Vedere l'Avviso Legale (Imprint) per l'indirizzo registrato attuale."
+        },
+        "controller": {
+          "text": "Titolare del trattamento: OpenMates (vedere l'Imprint per i dettagli del rappresentante legale)."
         }
       },
       "aggregate_analytics": {
         "heading": {
           "text": "11. Analisi aggregate anonime"
+        },
+        "overview": {
+          "text": "Raccogliamo statistiche anonime e aggregate sull'utilizzo del nostro sito web e dell'applicazione web. Questi dati sono genuinamente anonimi — non possono essere collegati a nessun utente individuale e non vengono impostati cookie o identificatori di tracciamento. Non è richiesto nessun banner di consenso perché non vengono raccolti dati personali."
         }
       }
     },
@@ -5297,6 +5435,9 @@
       "share_transcript": {
         "text": "Condividi trascrizione"
       }
+    },
+    "fork": {
+      "text": "Biforca conversazione"
     },
     "developers_api_keys": {
       "text": "Chiavi API"

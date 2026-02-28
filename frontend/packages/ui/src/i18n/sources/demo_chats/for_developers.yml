@@ -2,16 +2,48 @@ title:
   context: Title of for_developers demo chat - introduction for developers
   en: OpenMates | For developers
   de: OpenMates | Für Entwickler
+  zh: OpenMates | 面向开发者
   es: OpenMates | Para desarrolladores
   fr: OpenMates | Pour les développeurs
+  pt: OpenMates | Para programadores
+  ru: OpenMates | Для разработчиков
+  ja: OpenMates | 開発者向け
+  ko: OpenMates | 개발자를 위한
   it: OpenMates | Per sviluppatori
+  tr: OpenMates | Geliştiriciler için
+  vi: OpenMates | Dành cho nhà phát triển
+  id: OpenMates | Untuk pengembang
+  pl: OpenMates | Dla programistów
+  nl: OpenMates | Voor ontwikkelaars
+  ar: OpenMates | للمطورين
+  hi: OpenMates | डेवलपर्स के लिए
+  th: OpenMates | สำหรับนักพัฒนา
+  cs: OpenMates | Pro vývojáře
+  sv: OpenMates | För utvecklare
+  verified_by_human: []
 description:
   context: Description of for_developers demo chat for SEO
   en: AI-powered development tools with REST API, CLI, privacy, and no MCP setup needed
   de: KI-gestützte Entwicklertools mit REST API, CLI, Datenschutz und ohne MCP-Setup
+  zh: 由AI驱动的开发工具，含REST API、CLI、隐私保护，无需MCP配置
   es: Herramientas de desarrollo con IA, REST API, CLI, privacidad y sin configuración MCP
   fr: Outils de développement IA avec REST API, CLI, confidentialité et sans configuration MCP
+  pt: Ferramentas de desenvolvimento com IA, REST API, CLI, privacidade e sem configuração MCP
+  ru: Инструменты разработки на базе ИИ с REST API, CLI, конфиденциальностью без настройки MCP
+  ja: REST API、CLI、プライバシー保護付きのAI開発ツール、MCP設定不要
+  ko: REST API, CLI, 개인정보 보호 기능을 갖춘 AI 개발 도구, MCP 설정 불필요
   it: Strumenti di sviluppo IA con REST API, CLI, privacy e senza configurazione MCP
+  tr: REST API, CLI, gizlilik ve MCP kurulumu gerektirmeyen AI destekli geliştirici araçları
+  vi: Công cụ phát triển AI với REST API, CLI, quyền riêng tư và không cần thiết lập MCP
+  id: Alat pengembangan bertenaga AI dengan REST API, CLI, privasi, dan tanpa pengaturan MCP
+  pl: Narzędzia programistyczne oparte na AI z REST API, CLI, prywatnością i bez konfiguracji MCP
+  nl: AI-aangedreven ontwikkelaarstools met REST API, CLI, privacy en zonder MCP-configuratie
+  ar: أدوات تطوير مدعومة بالذكاء الاصطناعي مع REST API وCLI والخصوصية دون الحاجة لإعداد MCP
+  hi: REST API, CLI, गोपनीयता के साथ AI-संचालित विकास उपकरण, MCP सेटअप की आवश्यकता नहीं
+  th: เครื่องมือพัฒนาที่ขับเคลื่อนด้วย AI พร้อม REST API, CLI, ความเป็นส่วนตัว และไม่ต้องตั้งค่า MCP
+  cs: Nástroje pro vývoj poháněné AI s REST API, CLI, soukromím a bez nastavení MCP
+  sv: AI-drivna utvecklingsverktyg med REST API, CLI, integritet och ingen MCP-konfiguration behövs
+  verified_by_human: []
 message:
   context: Main for_developers message content explaining OpenMates features for developers
   en: "# 👨‍💻 Digital team mates for developers
@@ -484,24 +516,1241 @@ message:
     📚 Hai già letto l'introduzione per tutti? Se no, allora [clicca qui](#chat-id=demo-for-everyone) per imparare tutte le basi di OpenMates.
 
     "
+  zh: "# 👨‍💻 面向开发者的数字团队伙伴
+
+
+    OpenMates也是开发者的绝佳工具。无论是快速提问、规划大型项目、基于最新文档生成代码等，无需复杂的MCP服务器设置，同时保护您的隐私，让您访问所有最佳AI模型。包含所有应用技能的REST API，还计划推出强大的CLI及pip和npm包，让您从任何地方与聊天交互。
+
+    点击这些示例聊天，看看OpenMates能为开发者做什么：
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 快速开始
+
+
+    点击右上角的注册按钮注册，购买使用额度并开始使用OpenMates。
+
+
+    ## 📱 面向开发者的应用
+
+
+    在OpenMates上使用应用，无需在JSON配置文件中用明文API密钥进行复杂、耗时且不安全的MCP设置。
+
+    OpenMates会自动使用适合您请求的AI模型、应用技能、专注模式、设置和记忆（同时允许通过@覆盖自动选择）。
+
+    一些应用使OpenMates更有用的例子：
+
+    - 📖 [代码 | 获取文档](#settings/appstore/code/skills/get-docs)：在生成代码文件前检查API、框架或语言的最新文档。
+
+    - 🔍 [网络 | 搜索](#settings/appstore/web/skills/search)：搜索网络以提高响应准确性。
+
+    - ✅ 自动代码检查（即将推出）。
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ 开发者技能
+
+
+    专为开发者应用设计的技能，让您的伙伴与外部开发者服务交互。
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 开发者专注模式
+
+
+    针对开发者任务的专注模式，如规划项目、编写测试、提升安全性等。
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 开发者设置和记忆
+
+
+    开发者应用的设置和记忆，无需每次都提及项目细节、首选技术栈或框架。
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API让您以类似其他LLM API的方式使用OpenMates，并与OpenMates的所有应用技能交互。
+
+
+    ## 💻 CLI、pip和npm包
+
+
+    即将发布的CLI和pip及npm包将让您从任何地方完全访问OpenMates账户，同时确保零知识加密。
+
+
+    ## 🔒 隐私和加密
+
+
+    OpenMates从不用您的数据训练模型。所有聊天、项目详情和应用设置在您的设备上进行零知识加密和解密。
+
+
+    ## 🛡️ 开源作为防腐保障
+
+
+    用户利益优先，是OpenMates的核心理念。[OpenMates完全开源，采用AGPL 3协议](https://github.com/glowingkitty/openmates)。
+
+
+    ---
+
+
+    📚 您已经阅读了面向所有人的介绍吗？如果没有，[点击这里](#chat-id=demo-for-everyone)了解OpenMates的所有核心基础。
+
+    "
+  pt: "# 👨‍💻 Companheiros de equipa digitais para programadores
+
+
+    OpenMates é também uma ferramenta incrível para programadores. Para tudo, desde perguntas rápidas, planeamento de grandes projetos, geração de código baseado na documentação mais atualizada e muito mais. Tudo sem configurações complicadas de servidores MCP e protegendo a sua privacidade. Uma REST API para todas as competências de apps incluída, e um poderoso CLI e pacotes pip e npm também estão planeados.
+
+    Clique nestes chats de exemplo para ver o que o OpenMates pode fazer para programadores:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 Início rápido
+
+
+    Pressione o botão Registar no canto superior direito para se registar, compre créditos de utilização e comece a usar o OpenMates.
+
+
+    ## 📱 Apps para programadores
+
+
+    Com Apps no OpenMates, não é necessária uma configuração MCP complicada, demorada e insegura com chaves API em texto simples em ficheiros de configuração JSON.
+
+    O OpenMates usará automaticamente o modelo de IA certo, a competência da app, o modo de foco, as configurações e memórias otimizadas para o seu pedido.
+
+    Alguns exemplos de como as Apps tornam o OpenMates mais útil:
+
+    - 📖 [Código | Obter docs](#settings/appstore/code/skills/get-docs): Verifica a documentação mais recente antes de gerar ficheiros de código.
+
+    - 🔍 [Web | Pesquisa](#settings/appstore/web/skills/search): Pesquisa a web para melhorar a precisão das respostas.
+
+    - ✅ Verificações automáticas de linter para código gerado (em breve).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ Competências de programador
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Modos de foco de programador
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Configurações e memórias de programador
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    A REST API do OpenMates permite-lhe usar o OpenMates de forma semelhante a outras APIs LLM e interagir com todas as competências de Apps.
+
+
+    ## 💻 CLI, pip e npm
+
+
+    Em breve: CLI e pacotes pip e npm para acesso total à sua conta OpenMates a partir de qualquer lugar.
+
+
+    ## 🔒 Privacidade e encriptação
+
+
+    O OpenMates nunca treina modelos com os seus dados. Todos os seus chats e configurações de apps são encriptados com zero-knowledge no seu dispositivo.
+
+
+    ## 🛡️ Open source como proteção
+
+
+    [OpenMates é completamente open source sob AGPL 3](https://github.com/glowingkitty/openmates).
+
+
+    ---
+
+
+    📚 Já leu a introdução para todos? Se não, [clique aqui](#chat-id=demo-for-everyone) para aprender todas as bases do OpenMates.
+
+    "
+  ru: "# 👨‍💻 Цифровые напарники для разработчиков
+
+
+    OpenMates — отличный инструмент и для разработчиков. Для всего: от быстрых вопросов и планирования крупных проектов до генерации кода на основе актуальной документации. Без сложных настроек MCP-сервера, с защитой конфиденциальности и доступом к лучшим моделям ИИ. REST API для всех навыков приложений включён, CLI и пакеты pip/npm планируются.
+
+    Нажмите на примеры чатов, чтобы увидеть, что OpenMates может для разработчиков:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 Быстрый старт
+
+
+    Нажмите «Зарегистрироваться» в правом верхнем углу, купите кредиты и начните использовать OpenMates.
+
+
+    ## 📱 Приложения для разработчиков
+
+
+    С OpenMates Apps не нужно делать сложные, небезопасные MCP-настройки с API-ключами в JSON-файлах. OpenMates автоматически использует нужную модель ИИ, навык приложения, режим фокуса, настройки и воспоминания.
+
+    Примеры:
+
+    - 📖 [Код | Получить документацию](#settings/appstore/code/skills/get-docs): Проверяет актуальную документацию перед генерацией кода.
+
+    - 🔍 [Веб | Поиск](#settings/appstore/web/skills/search): Ищет в вебе для улучшения точности ответов.
+
+    - ✅ Автоматические проверки линтера (скоро).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ Навыки разработчика
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Режимы фокуса разработчика
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Настройки разработчика
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API позволяет использовать OpenMates как другие LLM API и взаимодействовать со всеми навыками приложений.
+
+
+    ## 💻 CLI и пакеты
+
+
+    Скоро: CLI и пакеты pip/npm для полного доступа к вашему аккаунту OpenMates из любого места.
+
+
+    ## 🔒 Конфиденциальность и шифрование
+
+
+    OpenMates никогда не обучает модели на ваших данных. Все чаты и настройки зашифрованы с нулевым знанием на вашем устройстве.
+
+
+    ## 🛡️ Open Source
+
+
+    [OpenMates полностью открытый под лицензией AGPL 3](https://github.com/glowingkitty/openmates).
+
+
+    ---
+
+
+    📚 Вы уже читали введение для всех? Если нет — [нажмите здесь](#chat-id=demo-for-everyone).
+
+    "
+  ja: "# 👨‍💻 開発者のためのデジタルチームメイト
+
+
+    OpenMatesは開発者にとっても素晴らしいツールです。簡単な質問から大規模プロジェクトの計画、最新ドキュメントに基づくコード生成など、複雑なMCPサーバー設定なしで、プライバシーを守りながら最高のAIモデルにアクセスできます。
+
+    これらのサンプルチャットをクリックして、OpenMatesが開発者に何をできるか見てみましょう：
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 クイックスタート
+
+
+    右上の「サインアップ」ボタンをクリックして登録し、利用クレジットを購入してOpenMatesを使い始めましょう。
+
+
+    ## 📱 開発者向けアプリ
+
+
+    OpenMatesのAppsでは、JSONファイルに平文APIキーを持つ複雑なMCPセットアップは不要です。OpenMatesが自動的に適切なAIモデル、スキル、フォーカスモードを使用します。
+
+    例：
+
+    - 📖 [コード | ドキュメント取得](#settings/appstore/code/skills/get-docs)：コード生成前に最新ドキュメントを確認。
+
+    - 🔍 [ウェブ | 検索](#settings/appstore/web/skills/search)：正確性向上のためのウェブ検索。
+
+    - ✅ 生成コードの自動リンターチェック（近日公開）。
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ 開発者スキル
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 開発者フォーカスモード
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 開発者設定とメモリ
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST APIは他のLLM APIと同様に使用でき、すべてのアプリスキルと連携できます。
+
+
+    ## 💻 CLI、pip/npmパッケージ
+
+
+    近日公開予定のCLIとpip/npmパッケージで、どこからでもOpenMatesアカウントにフルアクセスできます。
+
+
+    ## 🔒 プライバシーと暗号化
+
+
+    OpenMatesはユーザーデータでモデルを訓練しません。すべてのチャットとアプリ設定はデバイスでゼロ知識暗号化されます。
+
+
+    ## 🛡️ オープンソース
+
+
+    [OpenMatesはAGPL 3の下で完全にオープンソース](https://github.com/glowingkitty/openmates)です。
+
+
+    ---
+
+
+    📚 すでに全員向けの紹介を読みましたか？もし読んでいなければ、[こちらをクリック](#chat-id=demo-for-everyone)してください。
+
+    "
+  ko: "# 👨‍💻 개발자를 위한 디지털 팀메이트
+
+
+    OpenMates는 개발자에게도 훌륭한 도구입니다. 빠른 질문부터 대규모 프로젝트 계획, 최신 문서 기반 코드 생성 등 복잡한 MCP 서버 설정 없이 개인정보를 보호하며 최고의 AI 모델에 액세스할 수 있습니다.
+
+    이 예시 채팅을 클릭하여 개발자를 위한 OpenMates를 확인하세요:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 빠른 시작
+
+
+    오른쪽 상단의 회원가입 버튼을 눌러 가입하고 사용 크레딧을 구매하세요.
+
+
+    ## 📱 개발자용 앱
+
+
+    OpenMates의 앱으로 JSON 파일에 평문 API 키가 있는 복잡한 MCP 설정이 필요 없습니다. OpenMates가 자동으로 적합한 AI 모델과 기술, 포커스 모드를 사용합니다.
+
+    예시:
+
+    - 📖 [코드 | 문서 가져오기](#settings/appstore/code/skills/get-docs): 코드 생성 전 최신 문서 확인.
+
+    - 🔍 [웹 | 검색](#settings/appstore/web/skills/search): 응답 정확성 향상을 위한 웹 검색.
+
+    - ✅ 생성된 코드 자동 린터 검사(곧 출시).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ 개발자 기술
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 개발자 포커스 모드
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 개발자 설정 및 기억
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API를 통해 다른 LLM API와 유사하게 사용하고 모든 앱 기술과 상호작용할 수 있습니다.
+
+
+    ## 💻 CLI 및 패키지
+
+
+    곧 출시될 CLI와 pip/npm 패키지로 어디서든 OpenMates 계정에 완전히 액세스할 수 있습니다.
+
+
+    ## 🔒 개인정보 및 암호화
+
+
+    OpenMates는 사용자 데이터로 모델을 훈련하지 않습니다. 모든 채팅과 앱 설정은 기기에서 제로-지식 암호화됩니다.
+
+
+    ## 🛡️ 오픈 소스
+
+
+    [OpenMates는 AGPL 3 라이선스 하에 완전히 오픈 소스](https://github.com/glowingkitty/openmates)입니다.
+
+
+    ---
+
+
+    📚 모두를 위한 소개를 이미 읽으셨나요? 읽지 않으셨다면 [여기를 클릭](#chat-id=demo-for-everyone)하세요.
+
+    "
+  tr: "# 👨‍💻 Geliştiriciler için dijital takım arkadaşları
+
+
+    OpenMates, geliştiriciler için de harika bir araçtır. Hızlı sorulardan büyük projelerin planlanmasına, en güncel dokümanlara dayalı kod üretimine kadar, karmaşık MCP sunucu kurulumları olmadan, gizliliğinizi koruyarak tüm en iyi AI modellerine erişebilirsiniz.
+
+    Geliştiriciler için OpenMates'in neler yapabileceğini görmek için bu örnek sohbetlere tıklayın:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 Hızlı başlangıç
+
+
+    Sağ üstteki Kaydol düğmesine basarak kaydolun ve kullanım kredisi satın alın.
+
+
+    ## 📱 Geliştiriciler için uygulamalar
+
+
+    OpenMates Apps ile JSON yapılandırma dosyalarında düz metin API anahtarları içeren karmaşık MCP kurulumlarına gerek yoktur. OpenMates, isteğiniz için otomatik olarak doğru AI modelini, uygulama becerisini ve odak modunu kullanır.
+
+    Örnekler:
+
+    - 📖 [Kod | Doküman al](#settings/appstore/code/skills/get-docs): Kod üretmeden önce en güncel dokümanı kontrol eder.
+
+    - 🔍 [Web | Arama](#settings/appstore/web/skills/search): Doğruluk için web araması yapar.
+
+    - ✅ Üretilen kod için otomatik linter kontrolleri (yakında).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ Geliştirici becerileri
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Geliştirici odak modları
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Geliştirici ayarları ve anılar
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API, diğer LLM API'leri gibi OpenMates'i kullanmanızı ve tüm App becerilerini kullanmanızı sağlar.
+
+
+    ## 💻 CLI ve paketler
+
+
+    Yakında çıkacak CLI ve pip/npm paketleri ile her yerden OpenMates hesabınıza tam erişim sağlayabilirsiniz.
+
+
+    ## 🔒 Gizlilik ve şifreleme
+
+
+    OpenMates hiçbir zaman verilerinizle model eğitmez. Tüm sohbetleriniz ve uygulama ayarlarınız cihazınızda sıfır bilgi şifrelemesiyle şifrelenir.
+
+
+    ## 🛡️ Açık kaynak
+
+
+    [OpenMates, AGPL 3 altında tamamen açık kaynaktır](https://github.com/glowingkitty/openmates).
+
+
+    ---
+
+
+    📚 Herkes için girişi okudunuz mu? Okumadıysanız [buraya tıklayın](#chat-id=demo-for-everyone).
+
+    "
+  vi: "# 👨‍💻 Đồng đội kỹ thuật số cho nhà phát triển
+
+
+    OpenMates cũng là công cụ tuyệt vời cho nhà phát triển. Từ câu hỏi nhanh, lập kế hoạch dự án lớn đến tạo code dựa trên tài liệu mới nhất, tất cả mà không cần cài đặt MCP phức tạp, đồng thời bảo vệ quyền riêng tư của bạn.
+
+    Nhấp vào các cuộc trò chuyện mẫu để xem OpenMates có thể làm gì cho nhà phát triển:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 Bắt đầu nhanh
+
+
+    Nhấn nút Đăng ký ở góc trên bên phải, mua tín dụng sử dụng và bắt đầu sử dụng OpenMates.
+
+
+    ## 📱 Ứng dụng cho nhà phát triển
+
+
+    Với Apps trên OpenMates, không cần thiết lập MCP phức tạp với khóa API văn bản thuần trong file cấu hình JSON. OpenMates tự động sử dụng mô hình AI phù hợp, kỹ năng ứng dụng và chế độ tập trung.
+
+    Ví dụ:
+
+    - 📖 [Code | Lấy tài liệu](#settings/appstore/code/skills/get-docs): Kiểm tra tài liệu mới nhất trước khi tạo file code.
+
+    - 🔍 [Web | Tìm kiếm](#settings/appstore/web/skills/search): Tìm kiếm web để cải thiện độ chính xác.
+
+    - ✅ Kiểm tra linter tự động (sắp ra mắt).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ Kỹ năng dành cho nhà phát triển
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Chế độ tập trung dành cho nhà phát triển
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Cài đặt và ký ức dành cho nhà phát triển
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API cho phép bạn sử dụng OpenMates tương tự các LLM API khác và tương tác với tất cả kỹ năng App.
+
+
+    ## 💻 CLI và gói phần mềm
+
+
+    Sắp ra mắt: CLI và gói pip/npm để truy cập đầy đủ tài khoản OpenMates từ mọi nơi.
+
+
+    ## 🔒 Quyền riêng tư và mã hóa
+
+
+    OpenMates không bao giờ huấn luyện mô hình từ dữ liệu của bạn. Tất cả chat và cài đặt app được mã hóa zero-knowledge trên thiết bị.
+
+
+    ## 🛡️ Mã nguồn mở
+
+
+    [OpenMates hoàn toàn mã nguồn mở theo AGPL 3](https://github.com/glowingkitty/openmates).
+
+
+    ---
+
+
+    📚 Bạn đã đọc phần giới thiệu cho mọi người chưa? Nếu chưa, [nhấp vào đây](#chat-id=demo-for-everyone).
+
+    "
+  id: "# 👨‍💻 Rekan tim digital untuk pengembang
+
+
+    OpenMates juga merupakan alat luar biasa untuk pengembang. Dari pertanyaan cepat, perencanaan proyek besar, hingga pembuatan kode berdasarkan dokumentasi terbaru, semua tanpa pengaturan MCP server yang rumit sambil melindungi privasi Anda.
+
+    Klik obrolan contoh ini untuk melihat apa yang bisa dilakukan OpenMates untuk pengembang:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 Mulai cepat
+
+
+    Tekan tombol Daftar di kanan atas, beli kredit penggunaan dan mulai menggunakan OpenMates.
+
+
+    ## 📱 Aplikasi untuk pengembang
+
+
+    Dengan Apps di OpenMates, tidak perlu pengaturan MCP yang rumit dengan kunci API teks biasa dalam file konfigurasi JSON. OpenMates secara otomatis menggunakan model AI, keterampilan app, dan mode fokus yang tepat.
+
+    Contoh:
+
+    - 📖 [Kode | Dapatkan dok](#settings/appstore/code/skills/get-docs): Memeriksa dokumentasi terbaru sebelum membuat file kode.
+
+    - 🔍 [Web | Cari](#settings/appstore/web/skills/search): Mencari web untuk meningkatkan akurasi respons.
+
+    - ✅ Pemeriksaan linter otomatis untuk kode yang dibuat (segera hadir).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ Keterampilan pengembang
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Mode fokus pengembang
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Pengaturan & memori pengembang
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API memungkinkan Anda menggunakan OpenMates seperti API LLM lainnya dan berinteraksi dengan semua keterampilan App.
+
+
+    ## 💻 CLI dan paket
+
+
+    Segera hadir: CLI dan paket pip/npm untuk akses penuh ke akun OpenMates dari mana saja.
+
+
+    ## 🔒 Privasi & enkripsi
+
+
+    OpenMates tidak pernah melatih model dengan data Anda. Semua obrolan dan pengaturan app dienkripsi zero-knowledge di perangkat Anda.
+
+
+    ## 🛡️ Open source
+
+
+    [OpenMates sepenuhnya open source di bawah AGPL 3](https://github.com/glowingkitty/openmates).
+
+
+    ---
+
+
+    📚 Sudahkah Anda membaca pengantar untuk semua orang? Jika belum, [klik di sini](#chat-id=demo-for-everyone).
+
+    "
+  pl: "# 👨‍💻 Cyfrowi współpracownicy dla programistów
+
+
+    OpenMates to też świetne narzędzie dla programistów. Do wszystkiego: od szybkich pytań, planowania dużych projektów, generowania kodu na podstawie aktualnej dokumentacji i wiele więcej. Wszystko bez skomplikowanych konfiguracji MCP, chroniąc Twoją prywatność.
+
+    Kliknij te przykładowe czaty, aby zobaczyć, co OpenMates może zrobić dla programistów:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 Szybki start
+
+
+    Naciśnij przycisk Zarejestruj się w prawym górnym rogu, kup kredyty i zacznij używać OpenMates.
+
+
+    ## 📱 Aplikacje dla programistów
+
+
+    Dzięki Apps w OpenMates nie ma potrzeby skomplikowanych konfiguracji MCP z kluczami API w postaci tekstu jawnego w plikach konfiguracyjnych JSON. OpenMates automatycznie używa właściwego modelu AI, umiejętności i trybu skupienia.
+
+    Przykłady:
+
+    - 📖 [Kod | Pobierz dokumentację](#settings/appstore/code/skills/get-docs): Sprawdza najnowszą dokumentację przed generowaniem kodu.
+
+    - 🔍 [Web | Wyszukaj](#settings/appstore/web/skills/search): Wyszukuje w sieci dla poprawy dokładności.
+
+    - ✅ Automatyczne sprawdzanie linterem dla wygenerowanego kodu (wkrótce).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ Umiejętności programisty
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Tryby skupienia programisty
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Ustawienia i wspomnienia programisty
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API pozwala korzystać z OpenMates podobnie jak innych API LLM i interagować ze wszystkimi umiejętnościami App.
+
+
+    ## 💻 CLI i pakiety
+
+
+    Wkrótce: CLI i pakiety pip/npm zapewniające pełny dostęp do konta OpenMates z dowolnego miejsca.
+
+
+    ## 🔒 Prywatność i szyfrowanie
+
+
+    OpenMates nigdy nie trenuje modeli na Twoich danych. Wszystkie czaty i ustawienia są szyfrowane zero-knowledge na Twoim urządzeniu.
+
+
+    ## 🛡️ Open source
+
+
+    [OpenMates jest w pełni open source na licencji AGPL 3](https://github.com/glowingkitty/openmates).
+
+
+    ---
+
+
+    📚 Czy czytałeś już wprowadzenie dla wszystkich? Jeśli nie, [kliknij tutaj](#chat-id=demo-for-everyone).
+
+    "
+  nl: "# 👨‍💻 Digitale teamgenoten voor ontwikkelaars
+
+
+    OpenMates is ook een geweldig hulpmiddel voor ontwikkelaars. Voor alles van snelle vragen, het plannen van grote projecten, het genereren van code op basis van de meest actuele documentatie en nog veel meer. Alles zonder ingewikkelde MCP-serverinstellingen en met bescherming van uw privacy.
+
+    Klik op deze voorbeeldchats om te zien wat OpenMates voor ontwikkelaars kan doen:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 Snel aan de slag
+
+
+    Druk op de knop Registreren rechts bovenaan, koop gebruikstegoed en begin OpenMates te gebruiken.
+
+
+    ## 📱 Apps voor ontwikkelaars
+
+
+    Met OpenMates Apps is er geen behoefte aan ingewikkelde, tijdrovende en onveilige MCP-instellingen met API-sleutels in platte tekst in JSON-configuratiebestanden. OpenMates gebruikt automatisch het juiste AI-model, de vaardigheid en de focusmodus.
+
+    Voorbeelden:
+
+    - 📖 [Code | Documentatie ophalen](#settings/appstore/code/skills/get-docs): Controleert de nieuwste documentatie voor het genereren van codebestanden.
+
+    - 🔍 [Web | Zoeken](#settings/appstore/web/skills/search): Zoekt op het web voor betere nauwkeurigheid.
+
+    - ✅ Automatische lintercontroles voor gegenereerde code (binnenkort).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ Vaardigheden voor ontwikkelaars
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Focusmodi voor ontwikkelaars
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Instellingen en herinneringen voor ontwikkelaars
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    De OpenMates REST API stelt u in staat OpenMates te gebruiken zoals andere LLM-API's en te communiceren met alle App-vaardigheden.
+
+
+    ## 💻 CLI en pakketten
+
+
+    Binnenkort: CLI en pip/npm-pakketten voor volledige toegang tot uw OpenMates-account van overal.
+
+
+    ## 🔒 Privacy en versleuteling
+
+
+    OpenMates traint nooit modellen op uw gegevens. Alle chats en app-instellingen worden zero-knowledge versleuteld op uw apparaat.
+
+
+    ## 🛡️ Open source
+
+
+    [OpenMates is volledig open source onder AGPL 3](https://github.com/glowingkitty/openmates).
+
+
+    ---
+
+
+    📚 Hebt u de introductie voor iedereen al gelezen? Zo niet, [klik dan hier](#chat-id=demo-for-everyone).
+
+    "
+  ar: "# 👨‍💻 رفاق الفريق الرقمي للمطورين
+
+
+    OpenMates هو أيضاً أداة رائعة للمطورين. لكل شيء من الأسئلة السريعة وتخطيط المشاريع الكبيرة وتوليد الكود استناداً إلى أحدث التوثيق وأكثر من ذلك. كل هذا دون إعدادات MCP معقدة مع حماية خصوصيتك.
+
+    انقر على محادثات المثال هذه لترى ما يمكن لـ OpenMates فعله للمطورين:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 البدء السريع
+
+
+    اضغط على زر التسجيل في أعلى اليمين، اشترِ رصيد الاستخدام وابدأ في استخدام OpenMates.
+
+
+    ## 📱 تطبيقات للمطورين
+
+
+    مع تطبيقات OpenMates، لا حاجة لإعدادات MCP معقدة وغير آمنة مع مفاتيح API بنص عادي في ملفات JSON. يستخدم OpenMates تلقائياً نموذج الذكاء الاصطناعي الصحيح ومهاراته وأوضاعه.
+
+    أمثلة:
+
+    - 📖 [الكود | احصل على الوثائق](#settings/appstore/code/skills/get-docs): يتحقق من أحدث الوثائق قبل توليد ملفات الكود.
+
+    - 🔍 [الويب | البحث](#settings/appstore/web/skills/search): يبحث في الويب لتحسين دقة الاستجابة.
+
+    - ✅ فحوصات لينتر تلقائية للكود المولَّد (قريباً).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ مهارات المطورين
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 أوضاع تركيز المطورين
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 إعدادات وذكريات المطورين
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    تتيح لك REST API لـ OpenMates استخدامه مثل واجهات LLM الأخرى والتفاعل مع جميع مهارات التطبيقات.
+
+
+    ## 💻 CLI والحزم
+
+
+    قريباً: CLI وحزم pip/npm للوصول الكامل إلى حسابك في OpenMates من أي مكان.
+
+
+    ## 🔒 الخصوصية والتشفير
+
+
+    لا يقوم OpenMates أبداً بتدريب نماذج على بياناتك. جميع محادثاتك وإعدادات التطبيقات مشفرة بالمعرفة الصفرية على جهازك.
+
+
+    ## 🛡️ مفتوح المصدر
+
+
+    [OpenMates مفتوح المصدر بالكامل تحت رخصة AGPL 3](https://github.com/glowingkitty/openmates).
+
+
+    ---
+
+
+    📚 هل قرأت المقدمة للجميع؟ إن لم تفعل، [انقر هنا](#chat-id=demo-for-everyone).
+
+    "
+  hi: "# 👨‍💻 डेवलपर्स के लिए डिजिटल टीम साथी
+
+
+    OpenMates डेवलपर्स के लिए भी एक शानदार टूल है। त्वरित प्रश्नों से लेकर बड़े प्रोजेक्ट की योजना बनाने, नवीनतम दस्तावेज़ों के आधार पर कोड जेनरेट करने तक, जटिल MCP सर्वर सेटअप के बिना, आपकी गोपनीयता की रक्षा करते हुए।
+
+    इन उदाहरण चैट पर क्लिक करें और देखें OpenMates डेवलपर्स के लिए क्या कर सकता है:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 त्वरित शुरुआत
+
+
+    ऊपरी दाएं कोने में साइन अप बटन दबाएं, क्रेडिट खरीदें और OpenMates का उपयोग शुरू करें।
+
+
+    ## 📱 डेवलपर्स के लिए ऐप्स
+
+
+    OpenMates Apps के साथ JSON कॉन्फिग फाइलों में प्लेनटेक्स्ट API कीज के साथ जटिल MCP सेटअप की जरूरत नहीं। OpenMates स्वचालित रूप से सही AI मॉडल, ऐप स्किल और फोकस मोड का उपयोग करता है।
+
+    उदाहरण:
+
+    - 📖 [कोड | दस्तावेज़ लें](#settings/appstore/code/skills/get-docs): कोड फाइल जेनरेट करने से पहले नवीनतम दस्तावेज़ जांचता है।
+
+    - 🔍 [वेब | खोज](#settings/appstore/web/skills/search): सटीकता बेहतर बनाने के लिए वेब खोज करता है।
+
+    - ✅ जेनरेट किए गए कोड के लिए स्वचालित लिंटर जांच (जल्द आ रहा है)।
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ डेवलपर स्किल्स
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 डेवलपर फोकस मोड
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 डेवलपर सेटिंग्स और मेमोरी
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API आपको अन्य LLM API की तरह OpenMates का उपयोग करने और सभी App स्किल्स के साथ इंटरैक्ट करने देता है।
+
+
+    ## 💻 CLI और पैकेज
+
+
+    जल्द आ रहा है: CLI और pip/npm पैकेज जो आपको कहीं से भी OpenMates खाते तक पूर्ण पहुंच देंगे।
+
+
+    ## 🔒 गोपनीयता और एन्क्रिप्शन
+
+
+    OpenMates कभी भी आपके डेटा पर मॉडल प्रशिक्षित नहीं करता। सभी चैट और ऐप सेटिंग्स आपके डिवाइस पर zero-knowledge एन्क्रिप्शन के साथ सुरक्षित हैं।
+
+
+    ## 🛡️ ओपन सोर्स
+
+
+    [OpenMates AGPL 3 के तहत पूरी तरह ओपन सोर्स है](https://github.com/glowingkitty/openmates)।
+
+
+    ---
+
+
+    📚 क्या आपने सभी के लिए परिचय पढ़ा है? अगर नहीं, तो [यहाँ क्लिक करें](#chat-id=demo-for-everyone)।
+
+    "
+  th: "# 👨‍💻 เพื่อนร่วมทีมดิจิทัลสำหรับนักพัฒนา
+
+
+    OpenMates เป็นเครื่องมือที่ยอดเยี่ยมสำหรับนักพัฒนาด้วย ตั้งแต่คำถามด่วน การวางแผนโครงการขนาดใหญ่ การสร้างโค้ดจากเอกสารล่าสุด ทั้งหมดโดยไม่ต้องตั้งค่า MCP ที่ซับซ้อน พร้อมปกป้องความเป็นส่วนตัวของคุณ
+
+    คลิกที่แชทตัวอย่างเหล่านี้เพื่อดูสิ่งที่ OpenMates ทำได้สำหรับนักพัฒนา:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 เริ่มต้นอย่างรวดเร็ว
+
+
+    กดปุ่มสมัครสมาชิกที่มุมขวาบน ซื้อเครดิตการใช้งาน และเริ่มใช้ OpenMates
+
+
+    ## 📱 แอปสำหรับนักพัฒนา
+
+
+    ด้วย Apps บน OpenMates ไม่จำเป็นต้องตั้งค่า MCP ที่ซับซ้อนและไม่ปลอดภัยพร้อม API key แบบข้อความธรรมดาในไฟล์ JSON OpenMates ใช้โมเดล AI ที่เหมาะสม ทักษะแอป และโหมดโฟกัสโดยอัตโนมัติ
+
+    ตัวอย่าง:
+
+    - 📖 [Code | รับเอกสาร](#settings/appstore/code/skills/get-docs): ตรวจสอบเอกสารล่าสุดก่อนสร้างไฟล์โค้ด
+
+    - 🔍 [เว็บ | ค้นหา](#settings/appstore/web/skills/search): ค้นหาเว็บเพื่อเพิ่มความแม่นยำ
+
+    - ✅ การตรวจสอบ linter อัตโนมัติสำหรับโค้ดที่สร้าง (เร็วๆ นี้)
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ ทักษะสำหรับนักพัฒนา
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 โหมดโฟกัสสำหรับนักพัฒนา
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 การตั้งค่าและความทรงจำสำหรับนักพัฒนา
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API ช่วยให้คุณใช้ OpenMates คล้ายกับ LLM API อื่นๆ และโต้ตอบกับทักษะ App ทั้งหมด
+
+
+    ## 💻 CLI และแพ็กเกจ
+
+
+    เร็วๆ นี้: CLI และแพ็กเกจ pip/npm สำหรับเข้าถึงบัญชี OpenMates ของคุณจากทุกที่
+
+
+    ## 🔒 ความเป็นส่วนตัวและการเข้ารหัส
+
+
+    OpenMates ไม่เคยฝึกโมเดลด้วยข้อมูลของคุณ แชทและการตั้งค่าแอปทั้งหมดถูกเข้ารหัส zero-knowledge บนอุปกรณ์ของคุณ
+
+
+    ## 🛡️ โอเพนซอร์ส
+
+
+    [OpenMates เป็นโอเพนซอร์สอย่างสมบูรณ์ภายใต้ AGPL 3](https://github.com/glowingkitty/openmates)
+
+
+    ---
+
+
+    📚 คุณอ่านบทนำสำหรับทุกคนแล้วหรือยัง? ถ้ายัง [คลิกที่นี่](#chat-id=demo-for-everyone)
+
+    "
+  cs: "# 👨‍💻 Digitální spoluhráči pro vývojáře
+
+
+    OpenMates je také skvělý nástroj pro vývojáře. Pro vše od rychlých dotazů, plánování velkých projektů, generování kódu na základě nejnovější dokumentace a dalšího. Vše bez složitých nastavení MCP serverů a s ochranou vašeho soukromí.
+
+    Klikněte na tyto ukázkové chaty a podívejte se, co OpenMates umí pro vývojáře:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 Rychlý start
+
+
+    Stiskněte tlačítko Registrovat v pravém horním rohu, kupte kreditů a začněte OpenMates používat.
+
+
+    ## 📱 Aplikace pro vývojáře
+
+
+    S Apps na OpenMates není potřeba složitých, časově náročných a nezabezpečených nastavení MCP s API klíči v prostém textu v konfiguračních souborech JSON. OpenMates automaticky použije správný AI model, dovednost aplikace a režim zaměření.
+
+    Příklady:
+
+    - 📖 [Kód | Získat dokumentaci](#settings/appstore/code/skills/get-docs): Zkontroluje nejnovější dokumentaci před generováním kódu.
+
+    - 🔍 [Web | Vyhledat](#settings/appstore/web/skills/search): Prohledá web pro lepší přesnost odpovědí.
+
+    - ✅ Automatické kontroly linteru pro generovaný kód (brzy).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ Dovednosti pro vývojáře
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Režimy zaměření pro vývojáře
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Nastavení a vzpomínky pro vývojáře
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API vám umožňuje používat OpenMates podobně jako jiné LLM API a interagovat se všemi dovednostmi App.
+
+
+    ## 💻 CLI a balíčky
+
+
+    Brzy: CLI a balíčky pip/npm pro plný přístup k vašemu účtu OpenMates odkudkoli.
+
+
+    ## 🔒 Soukromí a šifrování
+
+
+    OpenMates nikdy netrénuje modely na vašich datech. Všechny chaty a nastavení aplikací jsou šifrována metodou zero-knowledge na vašem zařízení.
+
+
+    ## 🛡️ Open source
+
+
+    [OpenMates je plně open source pod licencí AGPL 3](https://github.com/glowingkitty/openmates).
+
+
+    ---
+
+
+    📚 Četli jste již úvod pro všechny? Pokud ne, [klikněte zde](#chat-id=demo-for-everyone).
+
+    "
+  sv: "# 👨‍💻 Digitala lagkamrater för utvecklare
+
+
+    OpenMates är också ett fantastiskt verktyg för utvecklare. För allt från snabba frågor, planering av stora projekt, kodgenerering baserad på den senaste dokumentationen och mycket mer. Allt utan komplicerade MCP-serverinställningar och med skydd av din integritet.
+
+    Klicka på dessa exempelchatter för att se vad OpenMates kan göra för utvecklare:
+
+    [[dev_example_chats_group]]
+
+
+    ## 🚀 Snabbstart
+
+
+    Tryck på knappen Registrera dig uppe till höger, köp användningskrediter och börja använda OpenMates.
+
+
+    ## 📱 Appar för utvecklare
+
+
+    Med OpenMates Apps behövs inga komplicerade, tidskrävande och osäkra MCP-inställningar med API-nycklar i klartext i JSON-konfigurationsfiler. OpenMates använder automatiskt rätt AI-modell, app-färdighet och fokusmod.
+
+    Exempel:
+
+    - 📖 [Kod | Hämta dokumentation](#settings/appstore/code/skills/get-docs): Kontrollerar den senaste dokumentationen innan kodfiler genereras.
+
+    - 🔍 [Webb | Sök](#settings/appstore/web/skills/search): Söker på webben för bättre svarsnoggrannhet.
+
+    - ✅ Automatiska linterkontroller för genererad kod (snart).
+
+    [[dev_app_store_group]]
+
+
+    ### 🛠️ Utvecklarfärdigheter
+
+    [[dev_skills_group]]
+
+
+    ### 🎯 Fokusmoder för utvecklare
+
+    [[dev_focus_modes_group]]
+
+
+    ### 💾 Inställningar och minnen för utvecklare
+
+    [[dev_settings_memories_group]]
+
+
+    ## 🔌 REST API
+
+
+    OpenMates REST API gör att du kan använda OpenMates som andra LLM-API:er och interagera med alla App-färdigheter.
+
+
+    ## 💻 CLI och paket
+
+
+    Snart: CLI och pip/npm-paket för full åtkomst till ditt OpenMates-konto var som helst.
+
+
+    ## 🔒 Integritet och kryptering
+
+
+    OpenMates tränar aldrig modeller på dina data. Alla chattar och appinställningar krypteras zero-knowledge på din enhet.
+
+
+    ## 🛡️ Open source
+
+
+    [OpenMates är helt open source under AGPL 3](https://github.com/glowingkitty/openmates).
+
+
+    ---
+
+
+    📚 Har du redan läst introduktionen för alla? Om inte, [klicka här](#chat-id=demo-for-everyone).
+
+    "
+  verified_by_human: []
 follow_up_1:
   context: Follow-up suggestion 1 - REST API details
   en: How does the REST API work?
   de: Wie funktioniert die REST API?
+  zh: REST API是如何工作的？
   es: ¿Cómo funciona la REST API?
   fr: Comment fonctionne la REST API ?
+  pt: Como funciona a REST API?
+  ru: Как работает REST API?
+  ja: REST APIはどのように機能しますか？
+  ko: REST API는 어떻게 작동하나요?
   it: Come funziona la REST API?
+  tr: REST API nasıl çalışır?
+  vi: REST API hoạt động như thế nào?
+  id: Bagaimana cara kerja REST API?
+  pl: Jak działa REST API?
+  nl: Hoe werkt de REST API?
+  ar: كيف تعمل REST API؟
+  hi: REST API कैसे काम करता है?
+  th: REST API ทำงานอย่างไร?
+  cs: Jak funguje REST API?
+  sv: Hur fungerar REST API?
+  verified_by_human: []
 follow_up_2:
   context: Follow-up suggestion 2 - privacy for devs
   en: Is my code kept private?
   de: Bleibt mein Code privat?
+  zh: 我的代码会保持私密吗？
   es: ¿Se mantiene privado mi código?
   fr: Mon code reste-t-il privé ?
+  pt: O meu código é mantido privado?
+  ru: Мой код остаётся приватным?
+  ja: コードはプライベートに保たれますか？
+  ko: 내 코드는 비공개로 유지되나요?
   it: Il mio codice resta privato?
+  tr: Kodum gizli mi kalır?
+  vi: Code của tôi có được giữ bí mật không?
+  id: Apakah kode saya tetap privat?
+  pl: Czy mój kod pozostaje prywatny?
+  nl: Blijft mijn code privé?
+  ar: هل يُحفظ كودي بشكل خاص؟
+  hi: क्या मेरा कोड निजी रखा जाता है?
+  th: โค้ดของฉันถูกเก็บเป็นความลับหรือไม่?
+  cs: Zůstane můj kód soukromý?
+  sv: Är min kod privat?
+  verified_by_human: []
 follow_up_3:
   context: Follow-up suggestion 3 - self hosting
   en: How can I self-host OpenMates?
   de: Wie kann ich OpenMates selbst hosten?
+  zh: 如何自托管OpenMates？
   es: ¿Cómo puedo alojar OpenMates yo mismo?
   fr: Comment puis-je auto-héberger OpenMates ?
+  pt: Como posso alojar o OpenMates eu mesmo?
+  ru: Как я могу самостоятельно хостить OpenMates?
+  ja: OpenMatesをセルフホストするにはどうすればいいですか？
+  ko: OpenMates를 어떻게 자체 호스팅할 수 있나요?
   it: Come posso ospitare OpenMates autonomamente?
+  tr: OpenMates'i kendi sunucumda nasıl barındırabilirim?
+  vi: Làm thế nào để tự host OpenMates?
+  id: Bagaimana cara self-host OpenMates?
+  pl: Jak mogę samodzielnie hostować OpenMates?
+  nl: Hoe kan ik OpenMates zelf hosten?
+  ar: كيف يمكنني استضافة OpenMates بنفسي؟
+  hi: मैं OpenMates को स्वयं-होस्ट कैसे कर सकता हूं?
+  th: ฉันจะ self-host OpenMates ได้อย่างไร?
+  cs: Jak mohu OpenMates provozovat sám?
+  sv: Hur kan jag självhosta OpenMates?
+  verified_by_human: []

@@ -4610,6 +4610,78 @@
       "legal_basis": {
         "heading": {
           "text": "7. Base légale du traitement (RGPD)"
+        },
+        "contract": {
+          "text": "Contrat : Traitement nécessaire à l'exécution de notre contrat avec vous ou pour prendre des mesures à votre demande avant la conclusion d'un contrat (p. ex., création de compte, fourniture des fonctionnalités de l'application web)."
+        },
+        "consent": {
+          "text": "Consentement : Traitement basé sur votre consentement, le cas échéant (p. ex., communications optionnelles, certaines analyses ou marketing). Vous pouvez retirer votre consentement à tout moment."
+        },
+        "legitimate_interests": {
+          "text": "Intérêts légitimes : Traitement nécessaire à nos intérêts légitimes, tels que la sécurité du service, la prévention de la fraude, la détection des abus et l'amélioration du service, à condition que ces intérêts ne l'emportent pas sur vos droits et intérêts."
+        },
+        "legal_obligation": {
+          "text": "Obligation légale : Traitement nécessaire au respect des obligations légales (p. ex., exigences fiscales et comptables pour les factures et les enregistrements de transactions)."
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. Vos droits en matière de confidentialité"
+        },
+        "intro": {
+          "text": "Selon votre juridiction, vous pouvez disposer de certains droits sur vos données personnelles. Ce qui suit résume les droits clés au titre du RGPD et du CCPA/CPRA et la manière de les exercer :"
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "RGPD (UE/EEE)"
+          },
+          "access": {
+            "text": "Droit d'accès"
+          },
+          "rectification": {
+            "text": "Droit à la rectification"
+          },
+          "erasure": {
+            "text": "Droit à l'effacement (« droit à l'oubli »)"
+          },
+          "restriction": {
+            "text": "Droit à la limitation du traitement"
+          },
+          "portability": {
+            "text": "Droit à la portabilité des données"
+          },
+          "objection": {
+            "text": "Droit d'opposition"
+          },
+          "withdraw_consent": {
+            "text": "Droit de retirer son consentement"
+          },
+          "exercise": {
+            "text": "Pour exercer vos droits RGPD, contactez-nous à contact@openmates.org ou via la page Mentions légales. Nous pourrions avoir besoin de vérifier votre identité avant de répondre à votre demande."
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA (Californie)"
+          },
+          "right_to_know": {
+            "text": "Droit de savoir/accéder"
+          },
+          "right_to_delete": {
+            "text": "Droit à la suppression"
+          },
+          "right_to_correct": {
+            "text": "Droit à la correction"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "Droit de refus de vente ou partage"
+          },
+          "right_to_non_discrimination": {
+            "text": "Droit à la non-discrimination"
+          },
+          "exercise": {
+            "text": "Les résidents de Californie peuvent exercer leurs droits CCPA/CPRA en nous contactant à contact@openmates.org. Nous ne vendons pas d'informations personnelles."
+          }
         }
       },
       "discord_integration": {
@@ -4635,6 +4707,12 @@
         },
         "email": {
           "text": "E-mail"
+        },
+        "postal": {
+          "text": "Adresse postale : Voir les mentions légales (Imprint) pour l'adresse enregistrée actuelle."
+        },
+        "controller": {
+          "text": "Responsable du traitement : OpenMates (voir les mentions légales pour les détails du représentant légal)."
         }
       },
       "aggregate_analytics": {
@@ -6531,6 +6609,39 @@
         "text": "Compagnon introuvable."
       }
     },
+    "pricing": {
+      "description": {
+        "text": "Explorez les forfaits de crédits et les coûts des compétences"
+      },
+      "text": "Tarifs",
+      "packages_heading": {
+        "text": "Forfaits de Crédits"
+      },
+      "recommended": {
+        "text": "Recommandé"
+      },
+      "bonus_credits": {
+        "text": "bonus/mois avec Rechargement Auto"
+      },
+      "vat_note": {
+        "text": "Tous les prix hors TVA. Prix en EUR et USD."
+      },
+      "explore_heading": {
+        "text": "Explorer les compétences d'apps et les coûts"
+      },
+      "ai_ask_skill": {
+        "text": "IA Demander"
+      },
+      "ai_ask_subtitle": {
+        "text": "Plus grand facteur de coût — explorer la tarification des modèles"
+      },
+      "browse_app_store": {
+        "text": "Parcourir l'App Store"
+      },
+      "browse_app_store_subtitle": {
+        "text": "Voir les prix de toutes les compétences disponibles"
+      }
+    },
     "shared": {
       "description": {
         "text": "Gérez vos chats partagés et vos pourboires"
@@ -6686,6 +6797,9 @@
       "share_transcript": {
         "text": "Partager la transcription"
       }
+    },
+    "fork": {
+      "text": "Bifurquer la conversation"
     },
     "messengers": {
       "text": "Messageries"

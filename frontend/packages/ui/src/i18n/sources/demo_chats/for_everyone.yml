@@ -2,16 +2,48 @@ title:
   context: Title of for_everyone demo chat - main introductory chat explaining OpenMates
   en: OpenMates | For everyone
   de: OpenMates | Für alle
+  zh: OpenMates | 面向所有人
   es: OpenMates | Para todos
   fr: OpenMates | Pour tous
+  pt: OpenMates | Para todos
+  ru: OpenMates | Для всех
+  ja: OpenMates | すべての人へ
+  ko: OpenMates | 모두를 위한
   it: OpenMates | Per tutti
+  tr: OpenMates | Herkes için
+  vi: OpenMates | Dành cho tất cả mọi người
+  id: OpenMates | Untuk semua orang
+  pl: OpenMates | Dla wszystkich
+  nl: OpenMates | Voor iedereen
+  ar: OpenMates | للجميع
+  hi: OpenMates | सभी के लिए
+  th: OpenMates | สำหรับทุกคน
+  cs: OpenMates | Pro všechny
+  sv: OpenMates | För alla
+  verified_by_human: []
 description:
   context: Description of for_everyone demo chat for SEO
   en: AI chatbots made accessible with apps, privacy, and no subscription required
   de: KI-Chatbots zugänglich gemacht mit Apps, Datenschutz und kein Abonnement erforderlich
+  zh: 借助应用、隐私保护，无需订阅即可使用的AI聊天机器人
   es: Chatbots de IA accesibles con apps, privacidad y sin suscripción requerida
   fr: Chatbots IA accessibles avec des apps, confidentialité et sans abonnement requis
+  pt: Chatbots de IA acessíveis com apps, privacidade e sem assinatura necessária
+  ru: Доступные ИИ-чатботы с приложениями, конфиденциальностью и без подписки
+  ja: アプリ・プライバシー保護付きで、サブスクリプション不要のAIチャットボット
+  ko: 앱, 개인정보 보호와 구독 없이 접근 가능한 AI 챗봇
   it: Chatbot IA accessibili con app, privacy e senza abbonamento richiesto
+  tr: Uygulamalar ve gizlilikle erişilebilir yapay zeka sohbet robotları, abonelik gerekmez
+  vi: Chatbot AI dễ tiếp cận với ứng dụng, quyền riêng tư và không cần đăng ký
+  id: Chatbot AI yang mudah diakses dengan aplikasi, privasi, dan tanpa langganan
+  pl: Chatboty AI dostępne z aplikacjami, prywatnością i bez subskrypcji
+  nl: AI-chatbots toegankelijk met apps, privacy en zonder abonnement
+  ar: روبوتات دردشة بالذكاء الاصطناعي متاحة مع التطبيقات والخصوصية دون اشتراك
+  hi: ऐप्स, गोपनीयता के साथ सुलभ AI चैटबॉट, कोई सदस्यता नहीं
+  th: แชทบอท AI เข้าถึงได้ด้วยแอป ความเป็นส่วนตัว โดยไม่ต้องสมัครสมาชิก
+  cs: AI chatboti zpřístupněni s aplikacemi, ochranou soukromí a bez předplatného
+  sv: AI-chatbotar tillgängliga med appar, integritet och utan prenumeration
+  verified_by_human: []
 message:
   context: Main for_everyone message content explaining OpenMates core features
   en: "# ✨ Digital team mates for everyone
@@ -564,24 +596,1695 @@ message:
     [[for_developers_embed]]
 
     "
+  zh: '# ✨ 面向所有人的数字团队伙伴
+
+
+    通过OpenMates，您拥有一支专业化AI聊天机器人团队，它们不仅能够激励您并传授新知识，还能利用应用程序完成各种任务。让AI的实用功能触手可及，同时保护您的隐私，让您访问所有最佳AI模型。
+
+    点击这些示例聊天，看看OpenMates能做什么：
+
+    [[example_chats_group]]
+
+
+    ## 🚀 快速开始
+
+
+    点击右上角的注册按钮注册，购买使用额度并开始使用OpenMates。或继续阅读了解更多关于OpenMates的信息，并查看左上角聊天菜单中的示例聊天，探索OpenMates的功能。
+
+
+    ## 📱 应用
+
+
+    仅搜索网络不足以完成日常任务，OpenMates支持各种其他应用程序。
+
+    [[app_store_group]]
+
+    在[应用商店](#settings/appstore)中，您可以概览您的数字团队伙伴可用的各种应用程序及其技能、专注模式和设置与记忆。
+
+
+    ### 🛠️ 技能
+
+
+    允许您的伙伴与外部服务交互。搜索网络、阅读视频文字稿和网站、搜索地点及其营业时间、搜索视频等更多功能。
+
+    [[skills_group]]
+
+
+    ### 🎯 专注模式
+
+
+    临时更改聊天的专注点以达到特定目标。让您的聊天机器人提供更好的回复与帮助，效果显著。无需成为设计复杂聊天机器人请求的专家。
+
+    [[focus_modes_group]]
+
+
+    ### 💾 设置与记忆
+
+
+    让OpenMates根据您的兴趣、旅行、想读的书、项目等提供更个性化的回答。但是：
+
+    - ✅ 仅在需要时使用
+
+    - ✅ 仅用于需要的特定聊天
+
+    - ✅ 仅使用您明确同意共享的数据
+
+    - ✅ 敏感数据永不存储在服务器磁盘上
+
+    所有设置和记忆都在您的设备上加密和解密，就像您的聊天记录一样。这意味着服务器永远无法自行解密它们，只有您的设备才能，使用您的登录方法。
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 为易用性而设计
+
+
+    默认情况下，OpenMates自动使用最适合的AI模型、伙伴、应用技能、应用专注模式和设置与记忆（经您同意）处理您的请求，同时允许您随时在设置菜单中或通过在消息中输入@来覆盖自动选择。
+
+
+    ### 🤖 AI模型
+
+
+    OpenMates自动为您的每个请求选择最佳AI模型，让您无需跟上不断变化的新AI模型格局。但如果您想要完全控制，只需在消息中输入**@**即可自行选择特定模型。
+
+    [[ai_models_group]]
+
+
+    ## 🎓 学习与灵感
+
+
+    如果使用得当，AI聊天机器人可以成为有史以来最神奇的个性化学习工具。OpenMates实现了各种功能，不仅帮助您完成任务，还帮助您每天持续学习。通过基于您聊天的后续建议和新聊天建议，以及即将推出的"每日灵感"功能。
+
+
+    ## 🔒 隐私与加密
+
+
+    只有您的设备才能解密您的聊天记录和敏感的应用设置与记忆。
+
+    您完全掌控哪些数据被发送到OpenMates。
+
+    只发送处理您请求所需的最少数据到服务器，且从不存储在磁盘上。
+
+    只有由您的登录方法保护的加密数据才会存储在服务器上用于同步，确保即使攻击者也无法读取您过去的聊天记录。
+
+    我们使用的AI提供商永远不会看到究竟是谁发送了请求。我们还在努力采取更多措施，进一步加强您的隐私保护。
+
+
+    ## 💰 价格
+
+
+    无需订阅、无广告、不共享您的用户数据、无风险资本（确保OpenMates始终将用户利益放在首位）。
+
+    相反：一个简单公平的按需付费系统。您购买使用额度，然后根据应用商店中每个应用技能的价格按请求收费。当然，额度永不过期。
+
+
+    ---
+
+
+    👨‍💻 您是软件开发者吗？那么请查看开发者介绍，了解OpenMates如何在构建新软件方面发挥强大作用。
+
+    [[for_developers_embed]]
+
+    '
+  pt: "# ✨ Companheiros de equipa digitais para todos
+
+
+    Com o OpenMates tem uma equipa de chatbots de IA especializados que não só podem inspirá-lo e ensinar novos conhecimentos, mas também cumprir várias tarefas usando apps. Tornando os aspetos úteis da IA acessíveis a todos, protegendo a sua privacidade e dando-lhe acesso aos melhores modelos de IA.
+
+    Clique nestes chats de exemplo para ver o que o OpenMates pode fazer:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 Início rápido
+
+
+    Pressione o botão Registar no canto superior direito para se registar, compre créditos de utilização e comece a usar o OpenMates. Ou continue a ler para saber mais sobre o OpenMates e consulte os chats de exemplo no menu de chats no canto superior esquerdo para explorar o que o OpenMates pode fazer.
+
+
+    ## 📱 Apps
+
+
+    Como apenas pesquisar na web não é suficiente para cumprir tarefas quotidianas, o OpenMates suporta várias outras apps.
+
+    [[app_store_group]]
+
+    Na [App Store](#settings/appstore) tem uma visão geral de todas as apps que os seus companheiros de equipa digitais podem usar para cumprir os seus pedidos. E as suas competências, modos de foco e configurações e memórias.
+
+
+    ### 🛠️ Competências
+
+
+    Permitem aos seus companheiros interagir com serviços externos. Para pesquisar na web, ler transcrições de vídeos e sites, pesquisar locais e os seus horários de funcionamento, pesquisar vídeos e muito mais.
+
+    [[skills_group]]
+
+
+    ### 🎯 Modos de foco
+
+
+    Altere temporariamente o foco de um chat para atingir um objetivo específico. Faz uma enorme diferença para obter respostas muito melhores dos seus chatbots. Sem que precise de ser especialista em criar pedidos complexos para chatbots.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 Configurações e memórias
+
+
+    Permite ao OpenMates dar-lhe respostas mais personalizadas com base nos seus interesses, viagens, livros que queria ler, projetos e mais. Mas:
+
+    - ✅ apenas quando é necessário
+
+    - ✅ apenas para o chat específico onde é necessário
+
+    - ✅ apenas com os dados que consente claramente em partilhar
+
+    - ✅ nenhum dado sensível é alguma vez armazenado no servidor em disco
+
+    Todas as configurações e memórias são encriptadas e desencriptadas nos seus dispositivos. Tal como os seus chats. Isto significa que o servidor nunca pode desencriptá-las por si só. Apenas os seus dispositivos podem, usando o seu método de início de sessão.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 Concebido para facilidade de utilização
+
+
+    Por defeito, o OpenMates processa automaticamente o seu pedido com o modelo de IA mais adequado, companheiro, competências de apps, modos de foco de apps e configurações e memórias (após o seu consentimento). Permitindo-lhe substituir a seleção automática a qualquer momento no menu de configurações ou digitando @ na sua mensagem.
+
+
+    ### 🤖 Modelos de IA
+
+
+    O OpenMates seleciona automaticamente o melhor modelo de IA para cada um dos seus pedidos — para que não precise de acompanhar o panorama em constante mudança dos novos modelos de IA. Mas se quiser controlo total, basta digitar **@** na sua mensagem para escolher um modelo específico.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 Aprendizagem e inspiração
+
+
+    Se usado corretamente, os chatbots de IA podem ser a ferramenta de aprendizagem personalizada mais incrível alguma vez desenvolvida. O OpenMates implementa várias funcionalidades para o ajudar não só com tarefas, mas para continuar a aprender todos os dias. Com sugestões de seguimento e sugestões de novos chats baseadas nos seus chats, e a funcionalidade 'Inspiração Diária' que será adicionada em breve.
+
+
+    ## 🔒 Privacidade e encriptação
+
+
+    Apenas o seu dispositivo pode desencriptar os seus chats e as suas configurações e memórias sensíveis de apps.
+
+    Mantém o controlo total sobre que dados são enviados ao OpenMates.
+
+    Apenas a quantidade mínima de dados necessária é enviada ao servidor para processar o seu pedido - e nunca armazenada em disco.
+
+    Apenas os dados encriptados protegidos pelo seu método de início de sessão são armazenados para sincronização no servidor. Garantindo que mesmo atacantes não possam ler os seus chats passados.
+
+    Os fornecedores de IA que usamos nunca verão quem enviou exatamente um pedido. E trabalhamos em ainda mais medidas para fortalecer ainda mais a sua privacidade.
+
+
+    ## 💰 Preços
+
+
+    Sem subscrição necessária, sem anúncios, sem partilha dos seus dados de utilizador, sem capital de risco (para garantir que o OpenMates mantém os interesses dos utilizadores em primeiro lugar).
+
+    Em vez disso: um sistema simples e justo de pagamento por uso. Compra créditos de utilização, depois - dependendo dos preços que pode encontrar para cada competência de App na App Store - é cobrado por pedido. E claro: os créditos não expiram.
+
+
+    ---
+
+
+    👨‍💻 É um programador de software? Então consulte a introdução para programadores para saber mais sobre como o OpenMates pode ser muito poderoso para construir novos softwares.
+
+    [[for_developers_embed]]
+
+    "
+  ru: "# ✨ Цифровые напарники для всех
+
+
+    С OpenMates у вас есть команда специализированных ИИ-чатботов, которые не только могут вдохновлять вас и передавать новые знания, но и выполнять различные задачи с помощью приложений. Это делает полезные возможности ИИ доступными для всех, защищая вашу конфиденциальность и давая доступ ко всем лучшим моделям ИИ.
+
+    Нажмите на примеры чатов, чтобы увидеть, что умеет OpenMates:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 Быстрый старт
+
+
+    Нажмите кнопку «Зарегистрироваться» в правом верхнем углу, купите кредиты и начните использовать OpenMates. Или читайте дальше, чтобы узнать больше, и посмотрите примеры чатов в меню чатов в левом верхнем углу.
+
+
+    ## 📱 Приложения
+
+
+    Так как только веб-поиска недостаточно для выполнения повседневных задач, OpenMates поддерживает различные другие приложения.
+
+    [[app_store_group]]
+
+    В [App Store](#settings/appstore) вы найдёте обзор всех приложений, которые ваши цифровые напарники могут использовать. А также их навыки, режимы фокуса и настройки с воспоминаниями.
+
+
+    ### 🛠️ Навыки
+
+
+    Позволяют вашим напарникам взаимодействовать с внешними сервисами: искать в вебе, читать транскрипты видео и сайты, искать места с расписанием, искать видео и многое другое.
+
+    [[skills_group]]
+
+
+    ### 🎯 Режимы фокуса
+
+
+    Временно меняйте фокус чата для достижения конкретной цели. Это кардинально улучшает ответы чатботов без необходимости быть экспертом в составлении сложных запросов.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 Настройки и воспоминания
+
+
+    Позволяет OpenMates давать более персонализированные ответы на основе ваших интересов, путешествий, книг, проектов и многого другого. Но:
+
+    - ✅ только когда это нужно
+
+    - ✅ только для конкретного чата, где это нужно
+
+    - ✅ только с данными, которые вы явно согласились передать
+
+    - ✅ никакие чувствительные данные никогда не сохраняются на сервере
+
+    Все настройки и воспоминания шифруются и расшифровываются на ваших устройствах. Как и ваши чаты. Это означает, что сервер никогда не может их расшифровать самостоятельно. Только ваши устройства — с вашим методом входа.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 Разработано для удобства использования
+
+
+    По умолчанию OpenMates автоматически обрабатывает ваш запрос с наиболее подходящей моделью ИИ, напарником, навыками приложений, режимами фокуса и настройками с воспоминаниями (после вашего согласия). При этом вы можете переопределить автовыбор в любое время в меню настроек или набрав @ в сообщении.
+
+
+    ### 🤖 Модели ИИ
+
+
+    OpenMates автоматически выбирает лучшую модель ИИ для каждого запроса — чтобы вам не нужно было следить за постоянно меняющимся миром новых ИИ-моделей. Но если хотите полный контроль, просто введите **@** в сообщении, чтобы выбрать конкретную модель.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 Обучение и вдохновение
+
+
+    При правильном использовании ИИ-чатботы могут стать самым невероятным персонализированным инструментом обучения. OpenMates реализует различные функции, помогающие не только с задачами, но и учиться каждый день. С предложениями продолжения и новыми чатами на основе ваших чатов, и скоро появится функция «Ежедневное вдохновение».
+
+
+    ## 🔒 Конфиденциальность и шифрование
+
+
+    Только ваше устройство может расшифровать ваши чаты и чувствительные настройки приложений.
+
+    Вы сохраняете полный контроль над тем, какие данные отправляются в OpenMates.
+
+    На сервер отправляется только минимально необходимый объём данных — и никогда не хранится на диске.
+
+    Только зашифрованные данные, защищённые вашим методом входа, хранятся на сервере для синхронизации, обеспечивая защиту даже от злоумышленников.
+
+    Поставщики ИИ никогда не видят, кто именно отправил запрос. Мы работаем над дополнительными мерами для усиления вашей конфиденциальности.
+
+
+    ## 💰 Цены
+
+
+    Без подписки, без рекламы, без передачи данных третьим лицам, без венчурного капитала (чтобы OpenMates всегда ставил интересы пользователей на первое место).
+
+    Вместо этого: простая и честная система оплаты по использованию. Покупаете кредиты, затем — по ценам, указанным для каждого навыка в App Store — платите за запрос. И конечно: кредиты не истекают.
+
+
+    ---
+
+
+    👨‍💻 Вы разработчик? Тогда ознакомьтесь с введением для разработчиков, чтобы узнать, как OpenMates может быть невероятно мощным инструментом для создания нового ПО.
+
+    [[for_developers_embed]]
+
+    "
+  ja: "# ✨ すべての人のためのデジタルチームメイト
+
+
+    OpenMatesでは、専門化されたAIチャットボットのチームが、新しい知識を教えたり、アプリを使ってさまざまなタスクを実行したりしてくれます。AIの便利な側面を誰でも使えるようにしながら、プライバシーを守り、最高のAIモデルへのアクセスを提供します。
+
+    これらのサンプルチャットをクリックして、OpenMatesが何をできるか見てみましょう：
+
+    [[example_chats_group]]
+
+
+    ## 🚀 クイックスタート
+
+
+    右上の「サインアップ」ボタンをクリックして登録し、利用クレジットを購入してOpenMatesを使い始めましょう。または読み続けてOpenMatesについて詳しく学んだり、左上のチャットメニューのサンプルチャットを確認してみてください。
+
+
+    ## 📱 アプリ
+
+
+    ウェブ検索だけでは日常的なタスクを完了するのに不十分なため、OpenMatesはさまざまな他のアプリをサポートしています。
+
+    [[app_store_group]]
+
+    [App Store](#settings/appstore)では、デジタルチームメイトが使用できるすべてのアプリの概要、そのスキル、フォーカスモード、設定とメモリを確認できます。
+
+
+    ### 🛠️ スキル
+
+
+    チームメイトが外部サービスと連携できるようにします。ウェブ検索、動画の文字起こしとウェブサイトの閲覧、場所や営業時間の検索、動画の検索など、多くの機能があります。
+
+    [[skills_group]]
+
+
+    ### 🎯 フォーカスモード
+
+
+    特定の目標を達成するためにチャットのフォーカスを一時的に変更します。チャットボットからより良い回答を得るのに大きな違いをもたらします。複雑なリクエストを設計する専門知識は必要ありません。
+
+    [[focus_modes_group]]
+
+
+    ### 💾 設定とメモリ
+
+
+    あなたの興味、旅行、読みたかった本、プロジェクトなどに基づいて、OpenMatesがよりパーソナライズされた回答を提供できるようにします。ただし：
+
+    - ✅ 必要なときのみ
+
+    - ✅ 必要な特定のチャットのみ
+
+    - ✅ 明確に同意したデータのみ
+
+    - ✅ 機密データはサーバーのディスクに保存されません
+
+    すべての設定とメモリは、チャットと同様にデバイス上で暗号化・復号化されます。サーバーが単独で復号化することは決してできません。あなたのデバイスだけが、ログイン方法を使って復号化できます。
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 使いやすさのために設計
+
+
+    デフォルトでは、OpenMatesは最適なAIモデル、チームメイト、アプリスキル、フォーカスモード、設定とメモリを自動的に選択して（同意後）リクエストを処理します。設定メニューで、またはメッセージに@を入力することで、いつでも自動選択を上書きできます。
+
+
+    ### 🤖 AIモデル
+
+
+    OpenMatesは各リクエストに最適なAIモデルを自動的に選択します。常に変化するAIモデルの動向を追う必要はありません。ただし、完全なコントロールを望む場合は、メッセージに**@**を入力して特定のモデルを選択できます。
+
+    [[ai_models_group]]
+
+
+    ## 🎓 学習とインスピレーション
+
+
+    正しく使われると、AIチャットボットはこれまでに開発された中で最も素晴らしいパーソナライズされた学習ツールになります。OpenMatesはタスクのサポートだけでなく、毎日学び続けるための様々な機能を実装しています。フォローアップ提案、チャットに基づく新しいチャット提案、そして間もなく追加される「毎日のインスピレーション」機能があります。
+
+
+    ## 🔒 プライバシーと暗号化
+
+
+    あなたのデバイスだけがチャットと機密アプリ設定・メモリを復号化できます。
+
+    OpenMatesに送るデータを完全にコントロールできます。
+
+    リクエスト処理に必要な最小限のデータのみがサーバーに送られ、ディスクには保存されません。
+
+    ログイン方法で保護された暗号化データのみがサーバーに同期用として保存されます。
+
+    当社が使用するAIプロバイダーは、誰がリクエストを送ったかを把握できません。プライバシーをさらに強化するための措置も取り組んでいます。
+
+
+    ## 💰 料金
+
+
+    サブスクリプション不要、広告なし、ユーザーデータの共有なし、ベンチャーキャピタルなし（OpenMatesがユーザーの利益を最優先にし続けるために）。
+
+    代わりに：シンプルで公平な従量課金制。利用クレジットを購入し、App Storeの各アプリスキルの価格に応じてリクエストごとに課金されます。もちろん、クレジットに有効期限はありません。
+
+
+    ---
+
+
+    👨‍💻 ソフトウェア開発者ですか？開発者向けの紹介をご覧ください。OpenMatesが新しいソフトウェア開発にどれほど強力なツールになるかをご確認いただけます。
+
+    [[for_developers_embed]]
+
+    "
+  ko: "# ✨ 모두를 위한 디지털 팀메이트
+
+
+    OpenMates와 함께 전문화된 AI 챗봇 팀을 갖게 됩니다. 이 팀은 영감을 주고 새로운 지식을 가르쳐줄 뿐만 아니라 앱을 사용하여 다양한 작업을 수행합니다. AI의 유용한 측면을 모든 사람이 접근할 수 있게 만들면서 개인정보를 보호하고 최고의 AI 모델에 대한 액세스를 제공합니다.
+
+    이 예시 채팅을 클릭하여 OpenMates가 무엇을 할 수 있는지 확인하세요:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 빠른 시작
+
+
+    오른쪽 상단의 회원가입 버튼을 눌러 가입하고, 사용 크레딧을 구매하여 OpenMates를 사용하세요. 또는 계속 읽어서 OpenMates에 대해 더 알아보거나 왼쪽 상단 채팅 메뉴에서 예시 채팅을 확인해 보세요.
+
+
+    ## 📱 앱
+
+
+    웹 검색만으로는 일상 작업을 수행하기에 충분하지 않으므로 OpenMates는 다양한 다른 앱을 지원합니다.
+
+    [[app_store_group]]
+
+    [앱 스토어](#settings/appstore)에서 디지털 팀메이트가 요청을 수행하는 데 사용할 수 있는 모든 앱의 개요와 기술, 포커스 모드, 설정 및 기억을 확인할 수 있습니다.
+
+
+    ### 🛠️ 기술
+
+
+    팀메이트가 외부 서비스와 상호작용할 수 있게 합니다. 웹 검색, 동영상 자막 및 웹사이트 읽기, 장소 및 영업시간 검색, 동영상 검색 등 더 많은 기능이 있습니다.
+
+    [[skills_group]]
+
+
+    ### 🎯 포커스 모드
+
+
+    특정 목표를 달성하기 위해 채팅의 포커스를 일시적으로 변경합니다. 챗봇에게 훨씬 더 나은 응답과 도움을 받는 데 큰 차이를 만들며, 복잡한 챗봇 요청을 설계하는 전문가가 될 필요가 없습니다.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 설정 및 기억
+
+
+    OpenMates가 관심사, 여행, 읽고 싶었던 책, 프로젝트 등을 바탕으로 더 개인화된 답변을 제공할 수 있게 합니다. 단:
+
+    - ✅ 필요할 때만
+
+    - ✅ 필요한 특정 채팅에만
+
+    - ✅ 명확히 동의한 데이터만
+
+    - ✅ 민감한 데이터는 서버 디스크에 저장되지 않음
+
+    모든 설정과 기억은 채팅과 마찬가지로 기기에서 암호화·복호화됩니다. 서버는 혼자서 복호화할 수 없으며, 기기만이 로그인 방법을 사용하여 복호화할 수 있습니다.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 사용 편의성을 위한 설계
+
+
+    기본적으로 OpenMates는 동의 후 가장 적합한 AI 모델, 팀메이트, 앱 기술, 앱 포커스 모드, 설정 및 기억으로 자동으로 요청을 처리합니다. 설정 메뉴에서 또는 메시지에 @를 입력하여 언제든지 자동 선택을 재정의할 수 있습니다.
+
+
+    ### 🤖 AI 모델
+
+
+    OpenMates는 각 요청에 가장 적합한 AI 모델을 자동으로 선택합니다. 새로운 AI 모델의 변화하는 환경을 따라갈 필요가 없습니다. 완전한 제어를 원하면 메시지에 **@**를 입력하여 특정 모델을 직접 선택할 수 있습니다.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 학습과 영감
+
+
+    올바르게 사용하면 AI 챗봇은 지금까지 개발된 가장 놀라운 개인화된 학습 도구가 될 수 있습니다. OpenMates는 작업 지원뿐만 아니라 매일 계속 배울 수 있도록 다양한 기능을 구현합니다. 채팅을 기반으로 한 후속 제안과 새 채팅 제안, 그리고 곧 추가될 '일일 영감' 기능이 있습니다.
+
+
+    ## 🔒 개인정보 및 암호화
+
+
+    기기만이 채팅과 민감한 앱 설정 및 기억을 복호화할 수 있습니다.
+
+    OpenMates에 전송되는 데이터를 완전히 제어할 수 있습니다.
+
+    요청 처리에 필요한 최소한의 데이터만 서버로 전송되며, 디스크에는 저장되지 않습니다.
+
+    로그인 방법으로 보호된 암호화된 데이터만 서버에 동기화용으로 저장됩니다.
+
+    사용하는 AI 제공업체는 누가 정확히 요청을 보냈는지 볼 수 없습니다. 개인정보 보호를 더욱 강화하기 위한 추가 조치를 마련하고 있습니다.
+
+
+    ## 💰 가격
+
+
+    구독 불필요, 광고 없음, 사용자 데이터 공유 없음, 벤처 캐피털 없음(OpenMates가 항상 사용자 이익을 최우선으로 유지하기 위해).
+
+    대신: 간단하고 공정한 사용량 기반 결제 시스템. 사용 크레딧을 구매하고 앱 스토어의 각 앱 기술 가격에 따라 요청당 청구됩니다. 물론 크레딧은 만료되지 않습니다.
+
+
+    ---
+
+
+    👨‍💻 소프트웨어 개발자이신가요? 그렇다면 개발자 소개를 확인하여 OpenMates가 새로운 소프트웨어 개발에 얼마나 강력한지 알아보세요.
+
+    [[for_developers_embed]]
+
+    "
+  tr: "# ✨ Herkes için dijital takım arkadaşları
+
+
+    OpenMates ile sizi ilham verebilen, yeni bilgiler öğretebilen ve uygulamaları kullanarak çeşitli görevleri yerine getirebilen özel AI sohbet botlarından oluşan bir ekibiniz var. AI'nin faydalı yönlerini gizliliğinizi koruyarak ve en iyi AI modellerine erişim sağlayarak herkese erişilebilir kılıyoruz.
+
+    OpenMates'in neler yapabileceğini görmek için bu örnek sohbetlere tıklayın:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 Hızlı başlangıç
+
+
+    Kaydolmak için sağ üstteki Kaydol düğmesine basın, kullanım kredisi satın alın ve OpenMates'i kullanmaya başlayın. Ya da okumaya devam ederek OpenMates hakkında daha fazla bilgi edinin ve sol üstteki sohbet menüsündeki örnek sohbetleri inceleyin.
+
+
+    ## 📱 Uygulamalar
+
+
+    Yalnızca web araması günlük görevleri yerine getirmek için yeterli olmadığından, OpenMates çeşitli diğer uygulamaları da destekler.
+
+    [[app_store_group]]
+
+    [Uygulama Mağazası'nda](#settings/appstore) dijital takım arkadaşlarınızın isteklerinizi yerine getirmek için kullanabileceği tüm uygulamalara, bunların becerilerine, odak modlarına ve ayarlar ile anılara genel bir bakış görebilirsiniz.
+
+
+    ### 🛠️ Beceriler
+
+
+    Takım arkadaşlarınızın harici servislerle etkileşime girmesini sağlar. Web araması yapmak, video dökümlerini ve web sitelerini okumak, konumları ve açılış saatlerini aramak, video aramak ve çok daha fazlası.
+
+    [[skills_group]]
+
+
+    ### 🎯 Odak modları
+
+
+    Belirli bir hedefe ulaşmak için bir sohbetin odağını geçici olarak değiştirin. Sohbet botlarınızdan çok daha iyi yanıtlar ve yardım almanızda büyük fark yaratır. Sohbet botları için karmaşık istekler tasarlama konusunda uzman olmanıza gerek yoktur.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 Ayarlar ve anılar
+
+
+    OpenMates'in ilgi alanlarınıza, seyahatlerinize, okumak istediğiniz kitaplara, projelerinize ve daha fazlasına göre daha kişiselleştirilmiş yanıtlar vermesini sağlar. Ancak:
+
+    - ✅ yalnızca gerektiğinde
+
+    - ✅ yalnızca gerekli olan belirli sohbet için
+
+    - ✅ yalnızca açıkça onay verdiğiniz verilerle
+
+    - ✅ hassas veriler sunucu diskinde hiçbir zaman saklanmaz
+
+    Tüm ayarlar ve anılar, sohbetleriniz gibi cihazlarınızda şifrelenir ve çözülür. Bu, sunucunun bunları asla tek başına çözemeyeceği anlamına gelir. Yalnızca cihazlarınız, giriş yönteminizi kullanarak yapabilir.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 Kullanım kolaylığı için tasarlandı
+
+
+    Varsayılan olarak, OpenMates isteğinizi en uygun AI modeli, takım arkadaşı, uygulama becerileri, odak modları ve ayarlar ile anılar ile otomatik olarak işler (onayınızdan sonra). Otomatik seçimi istediğiniz zaman ayarlar menüsünde veya mesajınıza @ yazarak geçersiz kılabilirsiniz.
+
+
+    ### 🤖 AI modelleri
+
+
+    OpenMates her isteğiniz için en iyi AI modelini otomatik olarak seçer; yeni AI modellerinin sürekli değişen dünyasını takip etmenize gerek yoktur. Ama tam kontrol istiyorsanız, belirli bir modeli kendiniz seçmek için mesajınıza **@** yazmanız yeterlidir.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 Öğrenme ve ilham
+
+
+    Doğru kullanıldığında, AI sohbet botları şimdiye kadar geliştirilen en inanılmaz kişiselleştirilmiş öğrenme aracı olabilir. OpenMates, yalnızca görevlerde değil, her gün öğrenmeye devam etmenize yardımcı olacak çeşitli işlevler uygular. Sohbetlerinize dayalı takip önerileri ve yeni sohbet önerileriyle, ve yakında eklenecek 'Günlük İlham' özelliğiyle.
+
+
+    ## 🔒 Gizlilik ve şifreleme
+
+
+    Yalnızca cihazınız sohbetlerinizi ve hassas uygulama ayarları ile anılarınızı çözebilir.
+
+    Hangi verilerin OpenMates'e gönderileceği konusunda tam kontrole sahipsiniz.
+
+    İsteğinizi işlemek için gereken minimum veri miktarı sunucuya gönderilir ve diske kaydedilmez.
+
+    Yalnızca giriş yönteminizle korunan şifreli veriler senkronizasyon için sunucuda saklanır. Böylece saldırganlar bile geçmiş sohbetlerinizi okuyamaz.
+
+    Kullandığımız AI sağlayıcıları tam olarak kimin istek gönderdiğini asla görmez. Gizliliğinizi daha da güçlendirmek için ek önlemler üzerinde çalışıyoruz.
+
+
+    ## 💰 Fiyatlandırma
+
+
+    Abonelik gerekmez, reklam yok, kullanıcı verisi paylaşımı yok, risk sermayesi yok (OpenMates'in kullanıcı çıkarlarını önce tutmasını sağlamak için).
+
+    Bunun yerine: basit ve adil bir kullandıkça öde sistemi. Kullanım kredisi satın alırsınız, ardından Uygulama Mağazası'nda her Uygulama becerisi için bulabileceğiniz fiyatlara göre istek başına ücretlendirilirsiniz. Ve tabii ki: krediler sona ermez.
+
+
+    ---
+
+
+    👨‍💻 Yazılım geliştiricisi misiniz? O zaman OpenMates'in yeni yazılım geliştirmede nasıl süper güçlü olabileceğini öğrenmek için geliştiriciler için giriş bölümüne göz atın.
+
+    [[for_developers_embed]]
+
+    "
+  vi: "# ✨ Đồng đội kỹ thuật số cho mọi người
+
+
+    Với OpenMates, bạn có một đội ngũ chatbot AI chuyên biệt không chỉ có thể truyền cảm hứng và dạy kiến thức mới mà còn thực hiện các nhiệm vụ khác nhau bằng ứng dụng. Giúp các khía cạnh hữu ích của AI trở nên dễ tiếp cận với mọi người, trong khi bảo vệ quyền riêng tư của bạn và cho bạn quyền truy cập vào các mô hình AI tốt nhất.
+
+    Nhấp vào các cuộc trò chuyện mẫu này để xem OpenMates có thể làm gì:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 Bắt đầu nhanh
+
+
+    Nhấn nút Đăng ký ở góc trên bên phải để đăng ký, mua tín dụng sử dụng và bắt đầu sử dụng OpenMates. Hoặc tiếp tục đọc để tìm hiểu thêm về OpenMates và xem các cuộc trò chuyện mẫu trong menu trò chuyện ở góc trên bên trái.
+
+
+    ## 📱 Ứng dụng
+
+
+    Vì chỉ tìm kiếm web không đủ để hoàn thành các nhiệm vụ hàng ngày, OpenMates hỗ trợ nhiều ứng dụng khác.
+
+    [[app_store_group]]
+
+    Trong [Cửa hàng ứng dụng](#settings/appstore), bạn có tổng quan về tất cả các ứng dụng mà đồng đội kỹ thuật số của bạn có thể sử dụng, cùng kỹ năng, chế độ tập trung và cài đặt và ký ức của chúng.
+
+
+    ### 🛠️ Kỹ năng
+
+
+    Cho phép đồng đội của bạn tương tác với các dịch vụ bên ngoài: tìm kiếm web, đọc bản ghi video và trang web, tìm kiếm địa điểm và giờ mở cửa, tìm kiếm video và nhiều hơn nữa.
+
+    [[skills_group]]
+
+
+    ### 🎯 Chế độ tập trung
+
+
+    Tạm thời thay đổi trọng tâm của cuộc trò chuyện để đạt được mục tiêu cụ thể. Tạo sự khác biệt lớn trong việc nhận được phản hồi và sự giúp đỡ tốt hơn nhiều từ chatbot của bạn mà không cần phải là chuyên gia trong việc thiết kế yêu cầu phức tạp.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 Cài đặt và ký ức
+
+
+    Cho phép OpenMates cung cấp câu trả lời cá nhân hóa hơn dựa trên sở thích, chuyến đi, sách bạn muốn đọc, dự án và nhiều hơn nữa. Nhưng:
+
+    - ✅ chỉ khi cần thiết
+
+    - ✅ chỉ cho cuộc trò chuyện cụ thể cần đến
+
+    - ✅ chỉ với dữ liệu bạn rõ ràng đồng ý chia sẻ
+
+    - ✅ dữ liệu nhạy cảm không bao giờ được lưu trữ trên máy chủ
+
+    Tất cả cài đặt và ký ức được mã hóa và giải mã trên thiết bị của bạn, giống như các cuộc trò chuyện. Điều này có nghĩa là máy chủ không bao giờ có thể tự giải mã chúng. Chỉ thiết bị của bạn mới có thể, sử dụng phương thức đăng nhập của bạn.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 Được thiết kế để dễ sử dụng
+
+
+    Theo mặc định, OpenMates tự động xử lý yêu cầu của bạn với mô hình AI phù hợp nhất, đồng đội, kỹ năng ứng dụng, chế độ tập trung và cài đặt và ký ức (sau khi bạn đồng ý). Trong khi cho phép bạn ghi đè lựa chọn tự động bất kỳ lúc nào trong menu cài đặt hoặc bằng cách gõ @ vào tin nhắn.
+
+
+    ### 🤖 Mô hình AI
+
+
+    OpenMates tự động chọn mô hình AI tốt nhất cho mỗi yêu cầu của bạn — vì vậy bạn không phải theo kịp bối cảnh luôn thay đổi của các mô hình AI mới. Nhưng nếu muốn kiểm soát hoàn toàn, chỉ cần gõ **@** vào tin nhắn để tự chọn mô hình cụ thể.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 Học tập và cảm hứng
+
+
+    Khi được sử dụng đúng cách, chatbot AI có thể là công cụ học tập cá nhân hóa tuyệt vời nhất từng được phát triển. OpenMates triển khai nhiều chức năng để giúp bạn không chỉ với các nhiệm vụ mà còn tiếp tục học mỗi ngày, với đề xuất theo dõi và đề xuất cuộc trò chuyện mới dựa trên các cuộc trò chuyện của bạn.
+
+
+    ## 🔒 Quyền riêng tư và mã hóa
+
+
+    Chỉ thiết bị của bạn mới có thể giải mã các cuộc trò chuyện và cài đặt ứng dụng nhạy cảm.
+
+    Bạn giữ toàn quyền kiểm soát dữ liệu nào được gửi đến OpenMates.
+
+    Chỉ lượng dữ liệu tối thiểu cần thiết được gửi đến máy chủ để xử lý yêu cầu — và không bao giờ được lưu trữ trên đĩa.
+
+    Chỉ dữ liệu được mã hóa và bảo vệ bằng phương thức đăng nhập của bạn mới được lưu trữ trên máy chủ để đồng bộ hóa.
+
+    Các nhà cung cấp AI chúng tôi sử dụng không bao giờ thấy chính xác ai đã gửi yêu cầu.
+
+
+    ## 💰 Giá cả
+
+
+    Không cần đăng ký, không quảng cáo, không chia sẻ dữ liệu người dùng, không vốn đầu tư mạo hiểm.
+
+    Thay vào đó: hệ thống trả theo sử dụng đơn giản và công bằng. Bạn mua tín dụng sử dụng, sau đó được tính phí mỗi yêu cầu theo giá của từng kỹ năng App trong Cửa hàng ứng dụng. Và tất nhiên: tín dụng không hết hạn.
+
+
+    ---
+
+
+    👨‍💻 Bạn là nhà phát triển phần mềm? Hãy xem phần giới thiệu dành cho nhà phát triển để tìm hiểu thêm về cách OpenMates có thể rất mạnh mẽ để xây dựng phần mềm mới.
+
+    [[for_developers_embed]]
+
+    "
+  id: "# ✨ Rekan tim digital untuk semua orang
+
+
+    Dengan OpenMates, Anda memiliki tim chatbot AI khusus yang tidak hanya dapat menginspirasi dan mengajarkan pengetahuan baru, tetapi juga menyelesaikan berbagai tugas menggunakan aplikasi. Membuat aspek AI yang berguna dapat diakses oleh semua orang, sambil melindungi privasi Anda dan memberi Anda akses ke semua model AI terbaik.
+
+    Klik obrolan contoh ini untuk melihat apa yang bisa dilakukan OpenMates:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 Mulai cepat
+
+
+    Tekan tombol Daftar di kanan atas untuk mendaftar, beli kredit penggunaan dan mulai menggunakan OpenMates. Atau terus membaca untuk mempelajari lebih lanjut tentang OpenMates, dan periksa obrolan contoh di menu obrolan di kiri atas.
+
+
+    ## 📱 Aplikasi
+
+
+    Karena hanya mencari di web tidak cukup untuk menyelesaikan tugas sehari-hari, OpenMates mendukung berbagai aplikasi lainnya.
+
+    [[app_store_group]]
+
+    Di [App Store](#settings/appstore) Anda memiliki ikhtisar semua aplikasi yang dapat digunakan rekan tim digital Anda, beserta keterampilan, mode fokus, dan pengaturan & memori mereka.
+
+
+    ### 🛠️ Keterampilan
+
+
+    Memungkinkan rekan tim Anda berinteraksi dengan layanan eksternal: mencari web, membaca transkrip video & situs web, mencari lokasi dan jam buka, mencari video, dan banyak lagi.
+
+    [[skills_group]]
+
+
+    ### 🎯 Mode fokus
+
+
+    Ubah fokus obrolan sementara untuk mencapai tujuan tertentu. Membuat perbedaan besar dalam mendapatkan respons dan bantuan yang jauh lebih baik dari chatbot Anda.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 Pengaturan & memori
+
+
+    Memungkinkan OpenMates memberi Anda jawaban yang lebih personal berdasarkan minat, perjalanan, buku yang ingin dibaca, proyek, dan lainnya. Namun:
+
+    - ✅ hanya ketika diperlukan
+
+    - ✅ hanya untuk obrolan tertentu yang membutuhkannya
+
+    - ✅ hanya dengan data yang Anda setujui untuk dibagikan
+
+    - ✅ tidak ada data sensitif yang pernah disimpan di server
+
+    Semua pengaturan & memori dienkripsi & didekripsi di perangkat Anda, seperti obrolan Anda. Server tidak pernah dapat mendekripsinya sendiri. Hanya perangkat Anda yang bisa, menggunakan metode login Anda.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 Dirancang untuk kemudahan penggunaan
+
+
+    Secara default, OpenMates secara otomatis memproses permintaan Anda dengan model AI, rekan tim, keterampilan aplikasi, mode fokus, dan pengaturan & memori yang paling sesuai (setelah persetujuan Anda).
+
+
+    ### 🤖 Model AI
+
+
+    OpenMates secara otomatis memilih model AI terbaik untuk setiap permintaan Anda — sehingga Anda tidak perlu mengikuti lanskap model AI baru yang terus berubah. Tapi jika ingin kontrol penuh, cukup ketik **@** di pesan Anda untuk memilih model tertentu sendiri.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 Belajar & inspirasi
+
+
+    Jika digunakan dengan benar, chatbot AI dapat menjadi alat pembelajaran yang luar biasa. OpenMates mengimplementasikan berbagai fitur untuk membantu Anda tidak hanya dengan tugas, tetapi untuk terus belajar setiap hari.
+
+
+    ## 🔒 Privasi & enkripsi
+
+
+    Hanya perangkat Anda yang dapat mendekripsi obrolan dan pengaturan aplikasi sensitif Anda.
+
+    Anda memiliki kendali penuh atas data mana yang dikirim ke OpenMates.
+
+    Hanya jumlah data minimum yang diperlukan yang dikirim ke server — dan tidak pernah disimpan di disk.
+
+    Hanya data terenkripsi yang diamankan oleh metode login Anda yang disimpan untuk sinkronisasi di server.
+
+
+    ## 💰 Harga
+
+
+    Tidak perlu langganan, tidak ada iklan, tidak ada berbagi data pengguna, tidak ada modal ventura.
+
+    Sebagai gantinya: sistem bayar per penggunaan yang sederhana dan adil. Anda membeli kredit penggunaan, lalu dikenakan biaya per permintaan sesuai harga setiap keterampilan App di App Store. Dan tentu saja: kredit tidak kedaluwarsa.
+
+
+    ---
+
+
+    👨‍💻 Apakah Anda pengembang perangkat lunak? Lihat pengantar untuk pengembang untuk mempelajari lebih lanjut tentang bagaimana OpenMates bisa sangat powerful untuk membangun perangkat lunak baru.
+
+    [[for_developers_embed]]
+
+    "
+  pl: "# ✨ Cyfrowi współpracownicy dla wszystkich
+
+
+    Dzięki OpenMates masz zespół wyspecjalizowanych chatbotów AI, które nie tylko mogą Cię inspirować i przekazywać nową wiedzę, ale także wykonywać różne zadania za pomocą aplikacji. Udostępniając użyteczne aspekty AI dla wszystkich, chroniąc Twoją prywatność i dając dostęp do najlepszych modeli AI.
+
+    Kliknij te przykładowe czaty, aby zobaczyć, co OpenMates potrafi:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 Szybki start
+
+
+    Naciśnij przycisk Zarejestruj się w prawym górnym rogu, aby się zarejestrować, kup kredyty użytkowania i zacznij używać OpenMates.
+
+
+    ## 📱 Aplikacje
+
+
+    Ponieważ samo wyszukiwanie w sieci nie wystarczy do wykonywania codziennych zadań, OpenMates obsługuje różne inne aplikacje.
+
+    [[app_store_group]]
+
+    W [App Store](#settings/appstore) masz przegląd wszystkich aplikacji, z których mogą korzystać Twoi cyfrowi współpracownicy, wraz z ich umiejętnościami, trybami skupienia oraz ustawieniami i wspomnieniami.
+
+
+    ### 🛠️ Umiejętności
+
+
+    Pozwalają Twoim współpracownikom interagować z zewnętrznymi usługami: wyszukiwać w sieci, czytać transkrypcje wideo i strony internetowe, szukać miejsc i ich godzin otwarcia, szukać filmów i wiele więcej.
+
+    [[skills_group]]
+
+
+    ### 🎯 Tryby skupienia
+
+
+    Tymczasowo zmień skupienie czatu, aby osiągnąć określony cel. Robi ogromną różnicę w uzyskiwaniu lepszych odpowiedzi od chatbotów bez konieczności bycia ekspertem.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 Ustawienia i wspomnienia
+
+
+    Pozwala OpenMates udzielać bardziej spersonalizowanych odpowiedzi na podstawie Twoich zainteresowań, podróży, książek, projektów i innych. Ale:
+
+    - ✅ tylko gdy jest to potrzebne
+
+    - ✅ tylko dla konkretnego czatu gdzie jest potrzebne
+
+    - ✅ tylko z danymi, na które wyraźnie wyrazisz zgodę
+
+    - ✅ żadne wrażliwe dane nie są przechowywane na serwerze
+
+    Wszystkie ustawienia i wspomnienia są szyfrowane i deszyfrowane na Twoich urządzeniach, tak jak Twoje czaty. Serwer nigdy nie może ich samodzielnie odszyfrować.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 Zaprojektowany dla łatwości użytkowania
+
+
+    Domyślnie OpenMates automatycznie przetwarza Twoje żądanie z najbardziej odpowiednim modelem AI, współpracownikiem, umiejętnościami aplikacji, trybami skupienia i ustawieniami.
+
+
+    ### 🤖 Modele AI
+
+
+    OpenMates automatycznie wybiera najlepszy model AI dla każdego żądania. Jeśli chcesz pełnej kontroli, wpisz **@** w wiadomości, aby samodzielnie wybrać konkretny model.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 Nauka i inspiracja
+
+
+    Przy właściwym użyciu chatboty AI mogą być najlepszym spersonalizowanym narzędziem edukacyjnym. OpenMates implementuje różne funkcje, aby pomóc Ci nie tylko w zadaniach, ale i w ciągłym uczeniu się każdego dnia.
+
+
+    ## 🔒 Prywatność i szyfrowanie
+
+
+    Tylko Twoje urządzenie może odszyfrować Twoje czaty i wrażliwe ustawienia aplikacji.
+
+    Masz pełną kontrolę nad tym, jakie dane są wysyłane do OpenMates.
+
+    Tylko minimalna ilość danych jest wysyłana do serwera i nigdy nie jest przechowywana na dysku.
+
+    Tylko zaszyfrowane dane chronione Twoją metodą logowania są przechowywane na serwerze do synchronizacji.
+
+
+    ## 💰 Cennik
+
+
+    Bez subskrypcji, bez reklam, bez udostępniania danych, bez kapitału ryzyka.
+
+    Zamiast tego: prosty i uczciwy system płatności za użytkowanie. Kupujesz kredyty, a następnie płacisz za żądanie zgodnie z cenami każdej umiejętności App w App Store. Kredyty nie wygasają.
+
+
+    ---
+
+
+    👨‍💻 Jesteś programistą? Sprawdź wprowadzenie dla programistów, aby dowiedzieć się więcej o tym, jak OpenMates może być super wydajne przy budowaniu nowego oprogramowania.
+
+    [[for_developers_embed]]
+
+    "
+  nl: "# ✨ Digitale teamgenoten voor iedereen
+
+
+    Met OpenMates heeft u een team van gespecialiseerde AI-chatbots die u niet alleen kunnen inspireren en nieuwe kennis bijbrengen, maar ook allerlei taken uitvoeren met behulp van apps. Zodat de nuttige aspecten van AI voor iedereen toegankelijk zijn, terwijl uw privacy wordt beschermd en u toegang heeft tot alle beste AI-modellen.
+
+    Klik op deze voorbeeldchats om te zien wat OpenMates kan doen:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 Snel aan de slag
+
+
+    Druk op de knop Registreren rechts bovenaan om u te registreren, koop gebruikstegoed en begin OpenMates te gebruiken.
+
+
+    ## 📱 Apps
+
+
+    Omdat alleen het doorzoeken van het web niet genoeg is voor dagelijkse taken, ondersteunt OpenMates ook diverse andere apps.
+
+    [[app_store_group]]
+
+    In de [App Store](#settings/appstore) heeft u een overzicht van alle apps die uw digitale teamgenoten kunnen gebruiken, met hun vaardigheden, focusmodi en instellingen & herinneringen.
+
+
+    ### 🛠️ Vaardigheden
+
+
+    Laten uw teamgenoten communiceren met externe diensten: het web doorzoeken, videotranscripties en websites lezen, locaties en openingstijden zoeken, video's zoeken en nog veel meer.
+
+    [[skills_group]]
+
+
+    ### 🎯 Focusmodi
+
+
+    Wijzig tijdelijk de focus van een chat om een specifiek doel te bereiken. Maakt een groot verschil voor betere antwoorden van uw chatbots.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 Instellingen & herinneringen
+
+
+    Hiermee kan OpenMates persoonlijkere antwoorden geven op basis van uw interesses, reizen, boeken, projecten en meer. Maar:
+
+    - ✅ alleen wanneer dat nodig is
+
+    - ✅ alleen voor de specifieke chat waar het nodig is
+
+    - ✅ alleen met gegevens waarvoor u duidelijk toestemming geeft
+
+    - ✅ gevoelige gegevens worden nooit opgeslagen op de server
+
+    Alle instellingen & herinneringen worden versleuteld en ontsleuteld op uw apparaten. Net als uw chats. De server kan ze nooit zelf ontsleutelen.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 Ontworpen voor gebruiksgemak
+
+
+    Standaard verwerkt OpenMates uw verzoek automatisch met het meest geschikte AI-model, teamgenoot, app-vaardigheden, focusmodi en instellingen & herinneringen (na uw toestemming).
+
+
+    ### 🤖 AI-modellen
+
+
+    OpenMates selecteert automatisch het beste AI-model voor elk verzoek. Als u volledige controle wilt, typt u **@** in uw bericht om een specifiek model te kiezen.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 Leren & inspiratie
+
+
+    AI-chatbots kunnen het meest verbazingwekkende gepersonaliseerde leermiddel zijn dat ooit is ontwikkeld. OpenMates biedt functies om u dagelijks te helpen leren, met vervolgsugesties en nieuwe chatsuggesties.
+
+
+    ## 🔒 Privacy & versleuteling
+
+
+    Alleen uw apparaat kan uw chats en gevoelige app-instellingen ontsleutelen.
+
+    U behoudt volledige controle over welke gegevens naar OpenMates worden gestuurd.
+
+    Alleen de minimaal benodigde gegevens worden naar de server gestuurd en nooit op schijf opgeslagen.
+
+
+    ## 💰 Prijzen
+
+
+    Geen abonnement vereist, geen advertenties, geen delen van gebruikersgegevens, geen durfkapitaal.
+
+    In plaats daarvan: een eenvoudig betaal-per-gebruik systeem. U koopt gebruikstegoed en betaalt per verzoek volgens de prijzen in de App Store. Tegoed verloopt niet.
+
+
+    ---
+
+
+    👨‍💻 Bent u softwareontwikkelaar? Bekijk dan de introductie voor ontwikkelaars om meer te leren over hoe OpenMates zeer krachtig kan zijn voor het bouwen van nieuwe software.
+
+    [[for_developers_embed]]
+
+    "
+  ar: "# ✨ رفاق الفريق الرقمي للجميع
+
+
+    مع OpenMates لديك فريق من روبوتات الدردشة المتخصصة بالذكاء الاصطناعي التي يمكنها إلهامك وتعليمك معرفة جديدة وإنجاز مهام متنوعة باستخدام التطبيقات. مما يجعل الجوانب المفيدة للذكاء الاصطناعي في متناول الجميع مع حماية خصوصيتك وإتاحة الوصول إلى أفضل نماذج الذكاء الاصطناعي.
+
+    انقر على محادثات المثال هذه لترى ما يمكن لـ OpenMates فعله:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 البدء السريع
+
+
+    اضغط على زر التسجيل في أعلى اليمين للتسجيل، اشترِ رصيد الاستخدام وابدأ في استخدام OpenMates.
+
+
+    ## 📱 التطبيقات
+
+
+    نظراً لأن البحث على الويب وحده لا يكفي لإنجاز المهام اليومية، يدعم OpenMates تطبيقات أخرى متنوعة.
+
+    [[app_store_group]]
+
+    في [متجر التطبيقات](#settings/appstore) يمكنك الاطلاع على جميع التطبيقات التي يمكن لرفاق فريقك الرقميين استخدامها، ومهاراتهم وأوضاع التركيز والإعدادات والذكريات.
+
+
+    ### 🛠️ المهارات
+
+
+    تتيح لرفاقك التفاعل مع الخدمات الخارجية: البحث على الويب، قراءة نصوص الفيديو والمواقع، البحث عن المواقع وساعات العمل، البحث عن مقاطع الفيديو والمزيد.
+
+    [[skills_group]]
+
+
+    ### 🎯 أوضاع التركيز
+
+
+    غيّر تركيز المحادثة مؤقتاً للوصول إلى هدف محدد. يُحدث فرقاً كبيراً في الحصول على ردود أفضل من روبوتات الدردشة.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 الإعدادات والذكريات
+
+
+    يتيح لـ OpenMates تقديم إجابات أكثر تخصيصاً بناءً على اهتماماتك وسفرك وكتبك ومشاريعك وأكثر. لكن:
+
+    - ✅ فقط عند الحاجة
+
+    - ✅ فقط للمحادثة المحددة التي تحتاج إليه
+
+    - ✅ فقط مع البيانات التي توافق صراحةً على مشاركتها
+
+    - ✅ لا تُخزَّن البيانات الحساسة أبداً على الخادم
+
+    يتم تشفير وفك تشفير جميع الإعدادات والذكريات على أجهزتك، تماماً مثل محادثاتك. لا يمكن للخادم فك تشفيرها بمفرده.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 مصمم للسهولة في الاستخدام
+
+
+    افتراضياً، يعالج OpenMates طلبك تلقائياً بأنسب نموذج ذكاء اصطناعي ورفيق ومهارات تطبيق وأوضاع تركيز وإعدادات وذكريات (بعد موافقتك).
+
+
+    ### 🤖 نماذج الذكاء الاصطناعي
+
+
+    يختار OpenMates تلقائياً أفضل نموذج ذكاء اصطناعي لكل طلب. إذا أردت التحكم الكامل، اكتب **@** في رسالتك لاختيار نموذج محدد.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 التعلم والإلهام
+
+
+    عند الاستخدام الصحيح، يمكن لروبوتات الدردشة بالذكاء الاصطناعي أن تكون أداة التعلم الشخصي الأكثر روعة. ينفذ OpenMates وظائف متنوعة لمساعدتك في المهام والاستمرار في التعلم يومياً.
+
+
+    ## 🔒 الخصوصية والتشفير
+
+
+    فقط جهازك يمكنه فك تشفير محادثاتك وإعدادات التطبيق الحساسة.
+
+    أنت تتحكم بالكامل في البيانات التي تُرسل إلى OpenMates.
+
+    يُرسل الحد الأدنى من البيانات اللازمة فقط إلى الخادم ولا يُخزَّن على القرص أبداً.
+
+
+    ## 💰 التسعير
+
+
+    لا حاجة لاشتراك، لا إعلانات، لا مشاركة بيانات المستخدم، لا رأس مال مجازف.
+
+    بدلاً من ذلك: نظام بسيط وعادل للدفع حسب الاستخدام. تشتري رصيداً ثم تُحسب رسوم كل طلب حسب أسعار مهارات التطبيق في المتجر. والرصيد لا ينتهي.
+
+
+    ---
+
+
+    👨‍💻 هل أنت مطور برمجيات؟ اطلع على المقدمة للمطورين لمعرفة كيف يمكن لـ OpenMates أن يكون قوياً لبناء برمجيات جديدة.
+
+    [[for_developers_embed]]
+
+    "
+  hi: "# ✨ सभी के लिए डिजिटल टीम साथी
+
+
+    OpenMates के साथ आपके पास विशेष AI चैटबॉट्स की एक टीम है जो न केवल आपको प्रेरित कर सकती है और नई जानकारी सिखा सकती है, बल्कि ऐप्स का उपयोग करके विभिन्न कार्य भी कर सकती है। आपकी गोपनीयता की रक्षा करते हुए और आपको सभी बेहतरीन AI मॉडल तक पहुंच देते हुए AI के उपयोगी पहलुओं को सभी के लिए सुलभ बनाता है।
+
+    इन उदाहरण चैट पर क्लिक करें और देखें OpenMates क्या कर सकता है:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 त्वरित शुरुआत
+
+
+    साइन अप करने के लिए ऊपरी दाएं कोने में साइन अप बटन दबाएं, उपयोग क्रेडिट खरीदें और OpenMates का उपयोग शुरू करें।
+
+
+    ## 📱 ऐप्स
+
+
+    चूंकि केवल वेब खोज रोज़मर्रा के कार्यों को पूरा करने के लिए पर्याप्त नहीं है, OpenMates विभिन्न अन्य ऐप्स का समर्थन करता है।
+
+    [[app_store_group]]
+
+    [App Store](#settings/appstore) में आपको सभी ऐप्स का अवलोकन मिलता है जिनका उपयोग आपके डिजिटल टीम साथी आपके अनुरोधों को पूरा करने के लिए कर सकते हैं।
+
+
+    ### 🛠️ कौशल
+
+
+    आपके साथियों को बाहरी सेवाओं के साथ बातचीत करने की अनुमति देता है: वेब खोज, वीडियो ट्रांसक्रिप्ट और वेबसाइट पढ़ना, स्थान और उनके खुलने का समय खोजना, वीडियो खोजना और बहुत कुछ।
+
+    [[skills_group]]
+
+
+    ### 🎯 फोकस मोड
+
+
+    किसी विशिष्ट लक्ष्य तक पहुंचने के लिए चैट का फोकस अस्थायी रूप से बदलें। आपके चैटबॉट से बेहतर प्रतिक्रियाएं पाने में बड़ा अंतर लाता है।
+
+    [[focus_modes_group]]
+
+
+    ### 💾 सेटिंग्स और मेमोरी
+
+
+    OpenMates को आपकी रुचियों, यात्राओं, पुस्तकों, परियोजनाओं आदि के आधार पर अधिक व्यक्तिगत उत्तर देने देता है। लेकिन:
+
+    - ✅ केवल जब जरूरी हो
+
+    - ✅ केवल उस विशिष्ट चैट के लिए जहां जरूरी हो
+
+    - ✅ केवल उस डेटा के साथ जिसे साझा करने की आप स्पष्ट रूप से सहमति देते हैं
+
+    - ✅ सर्वर डिस्क पर कभी भी संवेदनशील डेटा संग्रहीत नहीं किया जाता
+
+    सभी सेटिंग्स और मेमोरी आपके डिवाइस पर एन्क्रिप्ट और डिक्रिप्ट होती हैं, जैसे आपकी चैट। सर्वर स्वयं उन्हें कभी डिक्रिप्ट नहीं कर सकता।
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 उपयोग में आसानी के लिए डिज़ाइन किया गया
+
+
+    डिफ़ॉल्ट रूप से, OpenMates सबसे उपयुक्त AI मॉडल, साथी, ऐप कौशल, फोकस मोड और सेटिंग्स के साथ आपके अनुरोध को स्वचालित रूप से संसाधित करता है।
+
+
+    ### 🤖 AI मॉडल
+
+
+    OpenMates प्रत्येक अनुरोध के लिए स्वचालित रूप से सर्वश्रेष्ठ AI मॉडल का चयन करता है। पूर्ण नियंत्रण के लिए अपने संदेश में **@** टाइप करें।
+
+    [[ai_models_group]]
+
+
+    ## 🎓 सीखना और प्रेरणा
+
+
+    सही उपयोग के साथ, AI चैटबॉट अब तक का सबसे अद्भुत व्यक्तिगत शिक्षण उपकरण बन सकते हैं। OpenMates आपको प्रतिदिन सीखने में मदद करने के लिए विभिन्न कार्यक्षमताएं लागू करता है।
+
+
+    ## 🔒 गोपनीयता और एन्क्रिप्शन
+
+
+    केवल आपका डिवाइस आपकी चैट और संवेदनशील ऐप सेटिंग्स को डिक्रिप्ट कर सकता है।
+
+    आप पूरी तरह से नियंत्रित करते हैं कि OpenMates को कौन सा डेटा भेजा जाए।
+
+    अनुरोध संसाधित करने के लिए केवल न्यूनतम डेटा सर्वर को भेजा जाता है।
+
+
+    ## 💰 मूल्य निर्धारण
+
+
+    कोई सदस्यता नहीं, कोई विज्ञापन नहीं, उपयोगकर्ता डेटा साझा नहीं।
+
+    इसके बजाय: एक सरल और उचित उपयोग-अनुसार-भुगतान प्रणाली। आप उपयोग क्रेडिट खरीदते हैं, फिर App Store में प्रत्येक ऐप कौशल की कीमतों के अनुसार प्रति अनुरोध शुल्क लिया जाता है। और निश्चित रूप से: क्रेडिट समाप्त नहीं होते।
+
+
+    ---
+
+
+    👨‍💻 क्या आप सॉफ्टवेयर डेवलपर हैं? तो डेवलपर्स के लिए परिचय देखें।
+
+    [[for_developers_embed]]
+
+    "
+  th: "# ✨ เพื่อนร่วมทีมดิจิทัลสำหรับทุกคน
+
+
+    ด้วย OpenMates คุณมีทีมแชทบอท AI เฉพาะทางที่สามารถสร้างแรงบันดาลใจ สอนความรู้ใหม่ และทำงานต่างๆ โดยใช้แอปได้ ทำให้แง่มุมที่มีประโยชน์ของ AI เข้าถึงได้สำหรับทุกคน พร้อมปกป้องความเป็นส่วนตัวของคุณ
+
+    คลิกที่แชทตัวอย่างเหล่านี้เพื่อดูว่า OpenMates ทำอะไรได้บ้าง:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 เริ่มต้นอย่างรวดเร็ว
+
+
+    กดปุ่มสมัครสมาชิกที่มุมขวาบนเพื่อลงทะเบียน ซื้อเครดิตการใช้งาน และเริ่มใช้ OpenMates
+
+
+    ## 📱 แอป
+
+
+    เนื่องจากการค้นหาเว็บอย่างเดียวไม่เพียงพอสำหรับงานประจำวัน OpenMates จึงรองรับแอปอื่นๆ หลายรายการ
+
+    [[app_store_group]]
+
+    ใน [App Store](#settings/appstore) คุณสามารถดูภาพรวมของแอปทั้งหมดที่เพื่อนร่วมทีมดิจิทัลของคุณสามารถใช้ได้
+
+
+    ### 🛠️ ทักษะ
+
+
+    ช่วยให้เพื่อนของคุณโต้ตอบกับบริการภายนอก: ค้นหาเว็บ อ่านคำบรรยายวิดีโอและเว็บไซต์ ค้นหาสถานที่และเวลาเปิดทำการ และอีกมากมาย
+
+    [[skills_group]]
+
+
+    ### 🎯 โหมดโฟกัส
+
+
+    เปลี่ยนโฟกัสของการสนทนาชั่วคราวเพื่อบรรลุเป้าหมายเฉพาะ สร้างความแตกต่างอย่างมากในการได้รับการตอบสนองที่ดีขึ้น
+
+    [[focus_modes_group]]
+
+
+    ### 💾 การตั้งค่าและความทรงจำ
+
+
+    ช่วยให้ OpenMates ให้คำตอบที่เป็นส่วนตัวมากขึ้นตามความสนใจ การเดินทาง หนังสือ โครงการ และอื่นๆ ของคุณ แต่:
+
+    - ✅ เฉพาะเมื่อจำเป็น
+
+    - ✅ เฉพาะสำหรับการสนทนาเฉพาะที่ต้องการ
+
+    - ✅ เฉพาะกับข้อมูลที่คุณยินยอมอย่างชัดเจน
+
+    - ✅ ข้อมูลที่ละเอียดอ่อนไม่เคยถูกจัดเก็บบนเซิร์ฟเวอร์
+
+    การตั้งค่าและความทรงจำทั้งหมดถูกเข้ารหัสและถอดรหัสบนอุปกรณ์ของคุณ เซิร์ฟเวอร์ไม่สามารถถอดรหัสได้เอง
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 ออกแบบเพื่อความง่ายในการใช้งาน
+
+
+    โดยค่าเริ่มต้น OpenMates ประมวลผลคำขอของคุณโดยอัตโนมัติด้วยโมเดล AI ที่เหมาะสมที่สุด
+
+
+    ### 🤖 โมเดล AI
+
+
+    OpenMates เลือกโมเดล AI ที่ดีที่สุดสำหรับแต่ละคำขอของคุณโดยอัตโนมัติ หากต้องการควบคุมอย่างสมบูรณ์ให้พิมพ์ **@** ในข้อความของคุณ
+
+    [[ai_models_group]]
+
+
+    ## 🎓 การเรียนรู้และแรงบันดาลใจ
+
+
+    เมื่อใช้อย่างเหมาะสม แชทบอท AI สามารถเป็นเครื่องมือการเรียนรู้ส่วนตัวที่น่าทึ่งที่สุด OpenMates มีฟังก์ชันต่างๆ เพื่อช่วยให้คุณเรียนรู้ทุกวัน
+
+
+    ## 🔒 ความเป็นส่วนตัวและการเข้ารหัส
+
+
+    เฉพาะอุปกรณ์ของคุณเท่านั้นที่สามารถถอดรหัสการสนทนาและการตั้งค่าแอปที่ละเอียดอ่อนได้
+
+    คุณควบคุมอย่างสมบูรณ์ว่าข้อมูลใดถูกส่งไปยัง OpenMates
+
+    ส่งเฉพาะข้อมูลขั้นต่ำที่จำเป็นไปยังเซิร์ฟเวอร์เท่านั้น
+
+
+    ## 💰 ราคา
+
+
+    ไม่ต้องสมัครสมาชิก ไม่มีโฆษณา ไม่แชร์ข้อมูลผู้ใช้
+
+    แทนที่: ระบบจ่ายตามการใช้งานที่เรียบง่ายและยุติธรรม คุณซื้อเครดิตการใช้งาน แล้วถูกคิดค่าใช้จ่ายต่อคำขอตามราคาของทักษะ App แต่ละรายการ และแน่นอน: เครดิตไม่หมดอายุ
+
+
+    ---
+
+
+    👨‍💻 คุณเป็นนักพัฒนาซอฟต์แวร์หรือไม่? ดูบทนำสำหรับนักพัฒนาเพื่อเรียนรู้เพิ่มเติม
+
+    [[for_developers_embed]]
+
+    "
+  cs: "# ✨ Digitální spoluhráči pro všechny
+
+
+    S OpenMates máte tým specializovaných AI chatbotů, kteří vás mohou inspirovat, učit nové znalosti a pomocí aplikací plnit různé úkoly. Díky tomu jsou užitečné aspekty AI dostupné pro všechny, přičemž je chráněno vaše soukromí a máte přístup k nejlepším AI modelům.
+
+    Klikněte na tyto ukázkové chaty a podívejte se, co OpenMates umí:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 Rychlý start
+
+
+    Stiskněte tlačítko Registrovat v pravém horním rohu, kupte kreditů a začněte OpenMates používat.
+
+
+    ## 📱 Aplikace
+
+
+    Protože pouhé vyhledávání na webu nestačí pro každodenní úkoly, OpenMates podporuje různé další aplikace.
+
+    [[app_store_group]]
+
+    V [App Store](#settings/appstore) najdete přehled všech aplikací, které mohou vaši digitální spoluhráči používat, spolu s jejich dovednostmi, režimy zaměření a nastaveními a vzpomínkami.
+
+
+    ### 🛠️ Dovednosti
+
+
+    Umožňují vašim spoluhráčům komunikovat s externími službami: prohledávat web, číst přepisy videí a weby, hledat místa a jejich otevírací doby, hledat videa a mnohem více.
+
+    [[skills_group]]
+
+
+    ### 🎯 Režimy zaměření
+
+
+    Dočasně změňte zaměření chatu k dosažení konkrétního cíle. Přináší velký rozdíl v získávání lepších odpovědí od chatbotů.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 Nastavení a vzpomínky
+
+
+    Umožní OpenMates poskytovat osobnější odpovědi na základě vašich zájmů, cest, knih, projektů a dalšího. Ale:
+
+    - ✅ pouze když je to potřeba
+
+    - ✅ pouze pro konkrétní chat, kde je to potřeba
+
+    - ✅ pouze s daty, ke sdílení kterých jasně souhlasíte
+
+    - ✅ citlivá data nejsou nikdy uložena na serveru
+
+    Všechna nastavení a vzpomínky jsou šifrovány a dešifrovány na vašich zařízeních, stejně jako vaše chaty. Server je nikdy nemůže sám dešifrovat.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 Navrženo pro snadné použití
+
+
+    Standardně OpenMates automaticky zpracovává váš požadavek s nejvhodnějším AI modelem, spoluhráčem, dovednostmi aplikací, režimy zaměření a nastaveními (po vašem souhlasu).
+
+
+    ### 🤖 AI modely
+
+
+    OpenMates automaticky vybírá nejlepší AI model pro každý váš požadavek. Pro plnou kontrolu napište **@** ve zprávě pro výběr konkrétního modelu.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 Učení a inspirace
+
+
+    Při správném použití mohou být AI chatboti nejúžasnějším personalizovaným nástrojem pro učení. OpenMates implementuje různé funkce, které vám pomáhají se každý den učit.
+
+
+    ## 🔒 Soukromí a šifrování
+
+
+    Pouze vaše zařízení může dešifrovat vaše chaty a citlivá nastavení aplikací.
+
+    Máte plnou kontrolu nad tím, jaká data jsou odesílána do OpenMates.
+
+    Na server je odesíláno pouze minimální množství dat a nikdy není uloženo na disku.
+
+
+    ## 💰 Ceny
+
+
+    Bez předplatného, bez reklam, bez sdílení dat, bez rizikového kapitálu.
+
+    Místo toho: jednoduchý a spravedlivý systém platby za použití. Kupíte kredity a pak platíte za požadavek podle cen každé App dovednosti v App Store. A samozřejmě: kredity nevyprší.
+
+
+    ---
+
+
+    👨‍💻 Jste vývojář softwaru? Prohlédněte si úvod pro vývojáře a dozvíte se více o tom, jak může být OpenMates velmi výkonný pro vývoj nového softwaru.
+
+    [[for_developers_embed]]
+
+    "
+  sv: "# ✨ Digitala lagkamrater för alla
+
+
+    Med OpenMates har du ett team av specialiserade AI-chatbottar som inte bara kan inspirera dig och lära ut ny kunskap, utan också utföra olika uppgifter med hjälp av appar. Detta gör AI:s användbara aspekter tillgängliga för alla, medan din integritet skyddas och du får tillgång till de bästa AI-modellerna.
+
+    Klicka på dessa exempelchatter för att se vad OpenMates kan göra:
+
+    [[example_chats_group]]
+
+
+    ## 🚀 Snabbstart
+
+
+    Tryck på knappen Registrera dig uppe till höger för att registrera dig, köp användningskrediter och börja använda OpenMates.
+
+
+    ## 📱 Appar
+
+
+    Eftersom enbart webbsökning inte räcker för att klara vardagliga uppgifter stöder OpenMates också en rad andra appar.
+
+    [[app_store_group]]
+
+    I [App Store](#settings/appstore) har du en översikt över alla appar som dina digitala lagkamrater kan använda, med deras färdigheter, fokusmoder och inställningar och minnen.
+
+
+    ### 🛠️ Färdigheter
+
+
+    Låter dina lagkamrater interagera med externa tjänster: söka på webben, läsa videotranskript och webbplatser, söka efter platser och öppettider, söka efter videor och mycket mer.
+
+    [[skills_group]]
+
+
+    ### 🎯 Fokusmoder
+
+
+    Ändra fokus på en chatt tillfälligt för att nå ett specifikt mål. Gör stor skillnad i att få mycket bättre svar från dina chatbottar.
+
+    [[focus_modes_group]]
+
+
+    ### 💾 Inställningar och minnen
+
+
+    Låter OpenMates ge dig mer personanpassade svar baserade på dina intressen, resor, böcker, projekt och mer. Men:
+
+    - ✅ bara när det behövs
+
+    - ✅ bara för den specifika chatten där det behövs
+
+    - ✅ bara med data du uttryckligen samtycker till att dela
+
+    - ✅ känslig data lagras aldrig på servern
+
+    Alla inställningar och minnen krypteras och dekrypteras på dina enheter, precis som dina chattar. Servern kan aldrig dekryptera dem på egen hand.
+
+    [[settings_memories_group]]
+
+
+    ## 🎨 Designad för enkel användning
+
+
+    Som standard behandlar OpenMates automatiskt din förfrågan med den mest passande AI-modellen, lagkamraten, app-färdigheterna, fokusmoderna och inställningarna (efter ditt samtycke).
+
+
+    ### 🤖 AI-modeller
+
+
+    OpenMates väljer automatiskt den bästa AI-modellen för varje förfrågan. Om du vill ha full kontroll skriver du **@** i ditt meddelande för att välja en specifik modell.
+
+    [[ai_models_group]]
+
+
+    ## 🎓 Lärande och inspiration
+
+
+    När de används på rätt sätt kan AI-chatbottar vara det mest fantastiska personanpassade läroverktyget. OpenMates erbjuder funktioner för att hjälpa dig att lära dig varje dag.
+
+
+    ## 🔒 Integritet och kryptering
+
+
+    Bara din enhet kan dekryptera dina chattar och känsliga appinställningar.
+
+    Du behåller full kontroll över vilken data som skickas till OpenMates.
+
+    Bara den minimala mängden data som behövs skickas till servern och lagras aldrig på disk.
+
+
+    ## 💰 Priser
+
+
+    Ingen prenumeration krävs, inga annonser, ingen delning av användardata, inget riskkapital.
+
+    Istället: ett enkelt och rättvist betala-per-användning-system. Du köper användningskrediter och debiteras per förfrågan enligt priserna för varje App-färdighet i App Store. Och självklart: krediter går inte ut.
+
+
+    ---
+
+
+    👨‍💻 Är du mjukvaruutvecklare? Kolla då in introduktionen för utvecklare för att lära dig mer om hur OpenMates kan vara kraftfullt för att bygga ny mjukvara.
+
+    [[for_developers_embed]]
+
+    "
+  verified_by_human: []
 follow_up_1:
   context: Follow-up suggestion 1 - link to pricing section
   en: How much does it cost?
   de: Wie viel kostet es?
+  zh: 费用是多少？
   es: ¿Cuánto cuesta?
   fr: Combien ça coûte ?
+  pt: Quanto custa?
+  ru: Сколько это стоит?
+  ja: いくらかかりますか？
+  ko: 비용이 얼마인가요?
   it: Quanto costa?
+  tr: Ne kadar tutar?
+  vi: Chi phí là bao nhiêu?
+  id: Berapa biayanya?
+  pl: Ile to kosztuje?
+  nl: Hoeveel kost het?
+  ar: كم تكلفة ذلك؟
+  hi: इसकी लागत कितनी है?
+  th: ราคาเท่าไหร่?
+  cs: Kolik to stojí?
+  sv: Hur mycket kostar det?
+  verified_by_human: []
 follow_up_2:
   context: Follow-up suggestion 2 - explore apps
   en: What apps are available?
   de: Welche Apps sind verfügbar?
+  zh: 有哪些可用的应用？
   es: ¿Qué apps están disponibles?
   fr: Quelles apps sont disponibles ?
+  pt: Quais apps estão disponíveis?
+  ru: Какие приложения доступны?
+  ja: どんなアプリが利用できますか？
+  ko: 어떤 앱을 사용할 수 있나요?
   it: Quali app sono disponibili?
+  tr: Hangi uygulamalar mevcut?
+  vi: Những ứng dụng nào có sẵn?
+  id: Aplikasi apa yang tersedia?
+  pl: Jakie aplikacje są dostępne?
+  nl: Welke apps zijn beschikbaar?
+  ar: ما التطبيقات المتاحة؟
+  hi: कौन से ऐप्स उपलब्ध हैं?
+  th: มีแอปอะไรบ้าง?
+  cs: Jaké aplikace jsou k dispozici?
+  sv: Vilka appar finns tillgängliga?
+  verified_by_human: []
 follow_up_3:
   context: Follow-up suggestion 3 - privacy details
   en: Tell me more about privacy
   de: Erzähl mir mehr über Datenschutz
+  zh: 告诉我更多关于隐私的信息
   es: Cuéntame más sobre la privacidad
   fr: Dis-moi en plus sur la confidentialité
+  pt: Fale-me mais sobre privacidade
+  ru: Расскажи мне больше о конфиденциальности
+  ja: プライバシーについてもっと教えてください
+  ko: 개인정보 보호에 대해 더 알려주세요
   it: Dimmi di più sulla privacy
+  tr: Gizlilik hakkında daha fazla bilgi ver
+  vi: Cho tôi biết thêm về quyền riêng tư
+  id: Ceritakan lebih banyak tentang privasi
+  pl: Powiedz mi więcej o prywatności
+  nl: Vertel me meer over privacy
+  ar: أخبرني المزيد عن الخصوصية
+  hi: गोपनीयता के बारे में अधिक बताएं
+  th: บอกฉันเพิ่มเติมเกี่ยวกับความเป็นส่วนตัว
+  cs: Řekni mi více o soukromí
+  sv: Berätta mer om integritet
+  verified_by_human: []

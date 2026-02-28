@@ -1455,6 +1455,20 @@ data_categories.payments:
   es: "Pagos: Tokens de método de pago, ID de transacciones, dirección de facturación e información de IVA según se requiera para la facturación (procesados principalmente por Stripe). No almacenamos números de tarjeta completos."
   fr: "Paiements : Jetons de méthode de paiement, ID de transaction, adresse de facturation et informations TVA selon les besoins pour la facturation (traités principalement par Stripe). Nous ne stockons pas les numéros de carte complets."
   pt: "Pagamentos: Tokens de método de pagamento, IDs de transação, endereço de cobrança e informações de IVA conforme necessário para faturamento (processados principalmente pelo Stripe). Não armazenamos números de cartão completos."
+  ru: "Платежи: Токены платёжных методов, идентификаторы транзакций, платёжный адрес и информация о НДС, необходимые для выставления счетов (обрабатываются преимущественно через Stripe). Мы не храним полные номера карт."
+  ja: "支払い：請求書発行に必要な支払い方法トークン、取引ID、請求先住所、VAT情報（主にStripeで処理）。完全なカード番号は保存しません。"
+  ko: "결제: 청구서 발행에 필요한 결제 수단 토큰, 거래 ID, 청구 주소 및 VAT 정보(주로 Stripe에서 처리). 전체 카드 번호는 저장하지 않습니다."
+  it: "Pagamenti: Token del metodo di pagamento, ID di transazione, indirizzo di fatturazione e informazioni IVA necessarie per la fatturazione (elaborati principalmente da Stripe). Non memorizziamo numeri di carta completi."
+  tr: "Ödemeler: Faturalama için gerektiği şekilde ödeme yöntemi tokenları, işlem kimlikleri, fatura adresi ve KDV bilgileri (esas olarak Stripe tarafından işlenir). Tam kart numaralarını saklamıyoruz."
+  vi: "Thanh toán: Mã thông báo phương thức thanh toán, ID giao dịch, địa chỉ thanh toán và thông tin VAT theo yêu cầu để lập hóa đơn (được xử lý chủ yếu bởi Stripe). Chúng tôi không lưu trữ số thẻ đầy đủ."
+  id: "Pembayaran: Token metode pembayaran, ID transaksi, alamat penagihan dan informasi PPN sebagaimana diperlukan untuk faktur (diproses terutama oleh Stripe). Kami tidak menyimpan nomor kartu lengkap."
+  pl: "Płatności: Tokeny metod płatności, identyfikatory transakcji, adres rozliczeniowy i informacje VAT wymagane do fakturowania (przetwarzane głównie przez Stripe). Nie przechowujemy pełnych numerów kart."
+  nl: "Betalingen: Betaalmethode-tokens, transactie-ID's, factuuradres en btw-informatie zoals vereist voor facturering (verwerkt voornamelijk door Stripe). We slaan geen volledige kaartnummers op."
+  ar: "المدفوعات: رموز طرق الدفع ومعرّفات المعاملات وعنوان الفوترة ومعلومات ضريبة القيمة المضافة حسب الحاجة للفوترة (تُعالَج أساسًا بواسطة Stripe). لا نحتفظ بأرقام البطاقات كاملةً."
+  hi: "भुगतान: चालान के लिए आवश्यक भुगतान विधि टोकन, लेनदेन आईडी, बिलिंग पता और वैट जानकारी (मुख्य रूप से Stripe द्वारा संसाधित)। हम पूर्ण कार्ड नंबर संग्रहीत नहीं करते।"
+  th: "การชำระเงิน: โทเค็นวิธีชำระเงิน รหัสธุรกรรม ที่อยู่สำหรับการเรียกเก็บเงิน และข้อมูล VAT ตามที่จำเป็นสำหรับการออกใบแจ้งหนี้ (ประมวลผลโดย Stripe เป็นหลัก) เราไม่จัดเก็บหมายเลขบัตรเต็ม"
+  cs: "Platby: Tokeny platebních metod, identifikátory transakcí, fakturační adresa a informace o DPH podle potřeby pro fakturaci (zpracovávány převážně přes Stripe). Neukládáme úplná čísla karet."
+  sv: "Betalningar: Betalningstokens, transaktions-ID, faktureringsadress och momsinformation som krävs för fakturering (behandlas huvudsakligen av Stripe). Vi lagrar inte fullständiga kortnummer."
 data_categories.newsletter:
   context: Newsletter subscription data category
   en: "Newsletter: If you choose to subscribe to our newsletter, we store your email address in encrypted form. Newsletter subscription is optional and separate from account creation. Creating an account does not automatically subscribe you to the newsletter."
@@ -1642,508 +1656,508 @@ legal_basis.heading:
 legal_basis.contract:
   context: Contract legal basis
   en: "Contract: Processing necessary to perform our contract with you or to take steps at your request prior to entering into a contract (e.g., account creation, delivering web app features)."
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: "Vertrag: Verarbeitung, die zur Erfüllung unseres Vertrags mit Ihnen oder zur Durchführung vorvertraglicher Maßnahmen auf Ihre Anfrage hin erforderlich ist (z. B. Kontoerstellung, Bereitstellung von Web-App-Funktionen)."
+  zh: "合同：为履行我们与您的合同或在签订合同前根据您的要求采取步骤所必需的处理（例如，账户创建、提供网络应用功能）。"
+  es: "Contrato: Procesamiento necesario para ejecutar nuestro contrato con usted o para tomar medidas a su solicitud antes de celebrar un contrato (por ejemplo, creación de cuenta, entrega de funciones de la aplicación web)."
+  fr: "Contrat : Traitement nécessaire à l'exécution de notre contrat avec vous ou pour prendre des mesures à votre demande avant la conclusion d'un contrat (p. ex., création de compte, fourniture des fonctionnalités de l'application web)."
+  pt: "Contrato: Processamento necessário para cumprir nosso contrato com você ou para tomar medidas a seu pedido antes de celebrar um contrato (por exemplo, criação de conta, entrega de recursos do aplicativo web)."
+  ru: "Договор: Обработка, необходимая для исполнения нашего договора с вами или для принятия мер по вашему запросу до заключения договора (например, создание учётной записи, предоставление функций веб-приложения)."
+  ja: "契約：お客様との契約を履行するため、またはお客様のご要望に応じて契約締結前に必要な手続きを行うための処理（例：アカウント作成、ウェブアプリ機能の提供）。"
+  ko: "계약: 귀하와의 계약 이행 또는 계약 체결 전 귀하의 요청에 따른 조치를 취하기 위해 필요한 처리 (예: 계정 생성, 웹 앱 기능 제공)."
+  it: "Contratto: Elaborazione necessaria per eseguire il nostro contratto con te o per adottare misure su tua richiesta prima di concludere un contratto (ad es., creazione account, fornitura delle funzionalità dell'app web)."
+  tr: "Sözleşme: Sizinle aramızdaki sözleşmeyi yerine getirmek veya bir sözleşme imzalanmadan önce talebiniz üzerine adım atmak için gerekli işlem (ör. hesap oluşturma, web uygulaması özelliklerinin sunulması)."
+  vi: "Hợp đồng: Xử lý cần thiết để thực hiện hợp đồng của chúng tôi với bạn hoặc để thực hiện các bước theo yêu cầu của bạn trước khi ký hợp đồng (ví dụ: tạo tài khoản, cung cấp các tính năng ứng dụng web)."
+  id: "Kontrak: Pemrosesan yang diperlukan untuk melaksanakan kontrak kami dengan Anda atau untuk mengambil langkah-langkah atas permintaan Anda sebelum membuat kontrak (misalnya, pembuatan akun, pengiriman fitur aplikasi web)."
+  pl: "Umowa: Przetwarzanie niezbędne do wykonania naszej umowy z Tobą lub do podjęcia kroków na Twoje żądanie przed zawarciem umowy (np. tworzenie konta, dostarczanie funkcji aplikacji internetowej)."
+  nl: "Contract: Verwerking die noodzakelijk is voor de uitvoering van onze overeenkomst met u of om op uw verzoek stappen te ondernemen vóór het sluiten van een overeenkomst (bijv. het aanmaken van een account, het leveren van web-app-functies)."
+  ar: "العقد: المعالجة اللازمة لتنفيذ عقدنا معك أو لاتخاذ خطوات بناءً على طلبك قبل إبرام عقد (مثل إنشاء حساب، وتقديم ميزات تطبيق الويب)."
+  hi: "अनुबंध: आपके साथ हमारे अनुबंध को पूरा करने या अनुबंध में प्रवेश से पहले आपके अनुरोध पर कदम उठाने के लिए आवश्यक प्रसंस्करण (उदाहरण के लिए, खाता निर्माण, वेब ऐप सुविधाएं प्रदान करना)।"
+  th: "สัญญา: การประมวลผลที่จำเป็นเพื่อปฏิบัติตามสัญญาของเรากับคุณหรือเพื่อดำเนินการตามคำขอของคุณก่อนทำสัญญา (เช่น การสร้างบัญชี การส่งมอบฟีเจอร์เว็บแอป)"
+  cs: "Smlouva: Zpracování nezbytné ke splnění naší smlouvy s vámi nebo k přijetí kroků na váš požadavek před uzavřením smlouvy (např. vytvoření účtu, poskytování funkcí webové aplikace)."
+  sv: "Avtal: Behandling som är nödvändig för att fullgöra vårt avtal med dig eller för att vidta åtgärder på din begäran innan ett avtal ingås (t.ex. kontoskapande, leverans av webbappfunktioner)."
   verified_by_human: []
 legal_basis.consent:
   context: Consent legal basis
   en: "Consent: Processing based on your consent, where applicable (e.g., optional communications, certain analytics or marketing where used). You can withdraw consent at any time."
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: "Einwilligung: Verarbeitung auf der Grundlage Ihrer Einwilligung, soweit zutreffend (z. B. optionale Kommunikation, bestimmte Analysen oder Marketing). Sie können Ihre Einwilligung jederzeit widerrufen."
+  zh: "同意：在适用情况下基于您同意的处理（例如，可选通讯、某些分析或营销）。您可以随时撤回同意。"
+  es: "Consentimiento: Procesamiento basado en su consentimiento, cuando corresponda (por ejemplo, comunicaciones opcionales, ciertas analíticas o marketing donde se utilicen). Puede retirar el consentimiento en cualquier momento."
+  fr: "Consentement : Traitement basé sur votre consentement, le cas échéant (p. ex., communications optionnelles, certaines analyses ou marketing). Vous pouvez retirer votre consentement à tout moment."
+  pt: "Consentimento: Processamento baseado no seu consentimento, quando aplicável (por exemplo, comunicações opcionais, certas análises ou marketing onde utilizados). Você pode retirar o consentimento a qualquer momento."
+  ru: "Согласие: Обработка на основании вашего согласия, где применимо (например, необязательные сообщения, определённая аналитика или маркетинг). Вы можете отозвать согласие в любое время."
+  ja: "同意：該当する場合、お客様の同意に基づく処理（例：任意のコミュニケーション、特定の分析やマーケティング）。同意はいつでも撤回できます。"
+  ko: "동의: 해당되는 경우 귀하의 동의를 기반으로 한 처리 (예: 선택적 커뮤니케이션, 특정 분석 또는 마케팅). 동의는 언제든지 철회할 수 있습니다."
+  it: "Consenso: Elaborazione basata sul tuo consenso, ove applicabile (ad es., comunicazioni facoltative, determinati analytics o marketing). Puoi revocare il consenso in qualsiasi momento."
+  tr: "Onay: Geçerli olduğu durumlarda onayınıza dayalı işlem (örn. isteğe bağlı iletişimler, kullanıldığı yerlerde belirli analizler veya pazarlama). Onayı istediğiniz zaman geri çekebilirsiniz."
+  vi: "Sự đồng ý: Xử lý dựa trên sự đồng ý của bạn, khi có thể áp dụng (ví dụ: truyền thông tùy chọn, một số phân tích hoặc tiếp thị khi sử dụng). Bạn có thể rút lại sự đồng ý bất cứ lúc nào."
+  id: "Persetujuan: Pemrosesan berdasarkan persetujuan Anda, jika berlaku (misalnya, komunikasi opsional, analitik atau pemasaran tertentu jika digunakan). Anda dapat menarik persetujuan kapan saja."
+  pl: "Zgoda: Przetwarzanie na podstawie Twojej zgody, gdzie ma to zastosowanie (np. opcjonalna komunikacja, określone analizy lub marketing tam, gdzie są stosowane). Możesz wycofać zgodę w dowolnym momencie."
+  nl: "Toestemming: Verwerking op basis van uw toestemming, waar van toepassing (bijv. optionele communicatie, bepaalde analyses of marketing waar gebruikt). U kunt toestemming op elk moment intrekken."
+  ar: "الموافقة: المعالجة بناءً على موافقتك، حيثما كان ذلك مناسبًا (مثل الاتصالات الاختيارية، وبعض التحليلات أو التسويق حيثما تُستخدم). يمكنك سحب موافقتك في أي وقت."
+  hi: "सहमति: जहां लागू हो, आपकी सहमति के आधार पर प्रसंस्करण (उदाहरण के लिए, वैकल्पिक संचार, जहां उपयोग किया जाए वहां कुछ विश्लेषण या मार्केटिंग)। आप किसी भी समय सहमति वापस ले सकते हैं।"
+  th: "ความยินยอม: การประมวลผลตามความยินยอมของคุณเมื่อนำไปใช้ได้ (เช่น การสื่อสารแบบเลือกได้ การวิเคราะห์หรือการตลาดบางอย่างเมื่อมีการใช้) คุณสามารถถอนความยินยอมได้ตลอดเวลา"
+  cs: "Souhlas: Zpracování na základě vašeho souhlasu, pokud je to relevantní (např. volitelná komunikace, určitá analytika nebo marketing). Souhlas můžete kdykoli odvolat."
+  sv: "Samtycke: Behandling baserad på ditt samtycke, där tillämpligt (t.ex. valfri kommunikation, viss analys eller marknadsföring där det används). Du kan återkalla samtycket när som helst."
   verified_by_human: []
 legal_basis.legitimate_interests:
   context: Legitimate interests legal basis
   en: "Legitimate interests: Processing necessary for our legitimate interests, such as service security, fraud prevention, abuse detection, and improving the service, provided these interests are not overridden by your rights and interests."
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: "Berechtigte Interessen: Verarbeitung, die für unsere berechtigten Interessen erforderlich ist, wie Dienstsicherheit, Betrugsprävention, Missbrauchserkennung und Serviceverbesserung, sofern diese Interessen nicht Ihre Rechte und Interessen überwiegen."
+  zh: "合法利益：为我们的合法利益（如服务安全、欺诈预防、滥用检测和改善服务）所必需的处理，前提是这些利益不被您的权利和利益所凌驾。"
+  es: "Intereses legítimos: Procesamiento necesario para nuestros intereses legítimos, como la seguridad del servicio, la prevención del fraude, la detección de abusos y la mejora del servicio, siempre que estos intereses no sean anulados por sus derechos e intereses."
+  fr: "Intérêts légitimes : Traitement nécessaire à nos intérêts légitimes, tels que la sécurité du service, la prévention de la fraude, la détection des abus et l'amélioration du service, à condition que ces intérêts ne l'emportent pas sur vos droits et intérêts."
+  pt: "Interesses legítimos: Processamento necessário para nossos interesses legítimos, como segurança do serviço, prevenção de fraudes, detecção de abusos e melhoria do serviço, desde que esses interesses não sejam sobrepujados pelos seus direitos e interesses."
+  ru: "Законные интересы: Обработка, необходимая для наших законных интересов, таких как безопасность сервиса, предотвращение мошенничества, обнаружение злоупотреблений и улучшение сервиса, при условии что эти интересы не преобладают над вашими правами и интересами."
+  ja: "正当な利益：サービスのセキュリティ、詐欺防止、不正使用の検出、サービスの改善など、当社の正当な利益のために必要な処理。ただし、これらの利益がお客様の権利および利益に優先しない場合に限ります。"
+  ko: "정당한 이익: 서비스 보안, 사기 방지, 악용 탐지, 서비스 개선 등 당사의 정당한 이익을 위해 필요한 처리. 단, 이러한 이익이 귀하의 권리와 이익에 의해 무효화되지 않는 경우에 한합니다."
+  it: "Interessi legittimi: Elaborazione necessaria per i nostri interessi legittimi, come la sicurezza del servizio, la prevenzione delle frodi, il rilevamento degli abusi e il miglioramento del servizio, a condizione che tali interessi non siano prevalenti rispetto ai tuoi diritti e interessi."
+  tr: "Meşru menfaatler: Hizmet güvenliği, dolandırıcılığı önleme, kötüye kullanımı tespit etme ve hizmeti geliştirme gibi meşru menfaatlerimiz için gerekli işlemler. Bu menfaatler, haklarınız ve çıkarlarınız tarafından geçersiz kılınmadığı sürece geçerlidir."
+  vi: "Lợi ích hợp pháp: Xử lý cần thiết cho các lợi ích hợp pháp của chúng tôi, chẳng hạn như bảo mật dịch vụ, ngăn chặn gian lận, phát hiện lạm dụng và cải thiện dịch vụ, miễn là các lợi ích này không bị ghi đè bởi quyền và lợi ích của bạn."
+  id: "Kepentingan sah: Pemrosesan yang diperlukan untuk kepentingan sah kami, seperti keamanan layanan, pencegahan penipuan, deteksi penyalahgunaan, dan peningkatan layanan, asalkan kepentingan ini tidak dikalahkan oleh hak dan kepentingan Anda."
+  pl: "Uzasadnione interesy: Przetwarzanie niezbędne dla naszych uzasadnionych interesów, takich jak bezpieczeństwo usługi, zapobieganie oszustwom, wykrywanie nadużyć i ulepszanie usługi, pod warunkiem że interesy te nie są nadrzędne wobec Twoich praw i interesów."
+  nl: "Gerechtvaardigde belangen: Verwerking die noodzakelijk is voor onze gerechtvaardigde belangen, zoals de veiligheid van de dienst, fraudepreventie, misbruikdetectie en verbetering van de dienst, mits deze belangen niet worden overschreden door uw rechten en belangen."
+  ar: "المصالح المشروعة: المعالجة اللازمة لمصالحنا المشروعة، كأمن الخدمة، ومنع الاحتيال، واكتشاف الإساءة، وتحسين الخدمة، شريطة ألا تطغى هذه المصالح على حقوقك ومصالحك."
+  hi: "वैध हित: हमारे वैध हितों के लिए आवश्यक प्रसंस्करण, जैसे सेवा सुरक्षा, धोखाधड़ी की रोकथाम, दुरुपयोग का पता लगाना और सेवा में सुधार, बशर्ते ये हित आपके अधिकारों और हितों से अधिरोहित न हों।"
+  th: "ผลประโยชน์ที่ชอบด้วยกฎหมาย: การประมวลผลที่จำเป็นสำหรับผลประโยชน์ที่ชอบด้วยกฎหมายของเรา เช่น ความปลอดภัยของบริการ การป้องกันการฉ้อโกง การตรวจจับการละเมิด และการปรับปรุงบริการ โดยมีเงื่อนไขว่าผลประโยชน์เหล่านี้ไม่ได้ถูกเอาชนะโดยสิทธิ์และผลประโยชน์ของคุณ"
+  cs: "Oprávněné zájmy: Zpracování nezbytné pro naše oprávněné zájmy, jako je bezpečnost služby, prevence podvodů, detekce zneužití a zlepšování služby, za předpokladu, že tyto zájmy nepřevažují nad vašimi právy a zájmy."
+  sv: "Berättigade intressen: Behandling som är nödvändig för våra berättigade intressen, såsom tjänstesäkerhet, bedrägeriförebyggande, missbruks­detektion och förbättring av tjänsten, förutsatt att dessa intressen inte åsidosätts av dina rättigheter och intressen."
   verified_by_human: []
 legal_basis.legal_obligation:
   context: Legal obligation basis
   en: "Legal obligation: Processing necessary to comply with legal obligations (e.g., tax and accounting requirements for invoices and transaction records)."
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: "Rechtliche Verpflichtung: Verarbeitung, die zur Erfüllung gesetzlicher Pflichten erforderlich ist (z. B. steuerliche und buchhalterische Anforderungen für Rechnungen und Transaktionsaufzeichnungen)."
+  zh: "法律义务：为遵守法律义务而必需的处理（例如，发票和交易记录的税务和会计要求）。"
+  es: "Obligación legal: Procesamiento necesario para cumplir con obligaciones legales (por ejemplo, requisitos fiscales y contables para facturas y registros de transacciones)."
+  fr: "Obligation légale : Traitement nécessaire au respect des obligations légales (p. ex., exigences fiscales et comptables pour les factures et les enregistrements de transactions)."
+  pt: "Obrigação legal: Processamento necessário para cumprir obrigações legais (por exemplo, requisitos fiscais e contábeis para faturas e registros de transações)."
+  ru: "Юридическое обязательство: Обработка, необходимая для соблюдения правовых обязательств (например, налоговые и бухгалтерские требования для счетов и записей о транзакциях)."
+  ja: "法的義務：法的義務の遵守に必要な処理（例：請求書および取引記録に関する税務・会計要件）。"
+  ko: "법적 의무: 법적 의무를 준수하기 위해 필요한 처리 (예: 청구서 및 거래 기록에 대한 세금 및 회계 요건)."
+  it: "Obbligo legale: Elaborazione necessaria per adempiere agli obblighi legali (ad es., requisiti fiscali e contabili per fatture e registrazioni delle transazioni)."
+  tr: "Yasal yükümlülük: Yasal yükümlülüklere uymak için gerekli işlem (örn. faturalar ve işlem kayıtları için vergi ve muhasebe gereksinimleri)."
+  vi: "Nghĩa vụ pháp lý: Xử lý cần thiết để tuân thủ các nghĩa vụ pháp lý (ví dụ: yêu cầu thuế và kế toán đối với hóa đơn và hồ sơ giao dịch)."
+  id: "Kewajiban hukum: Pemrosesan yang diperlukan untuk mematuhi kewajiban hukum (misalnya, persyaratan pajak dan akuntansi untuk faktur dan catatan transaksi)."
+  pl: "Obowiązek prawny: Przetwarzanie niezbędne do wypełnienia zobowiązań prawnych (np. wymogi podatkowe i księgowe dotyczące faktur i rejestrów transakcji)."
+  nl: "Wettelijke verplichting: Verwerking die noodzakelijk is om te voldoen aan wettelijke verplichtingen (bijv. fiscale en boekhoudkundige vereisten voor facturen en transactiegegevens)."
+  ar: "الالتزام القانوني: المعالجة اللازمة للامتثال للالتزامات القانونية (مثل متطلبات الضرائب والمحاسبة للفواتير وسجلات المعاملات)."
+  hi: "कानूनी दायित्व: कानूनी दायित्वों का पालन करने के लिए आवश्यक प्रसंस्करण (उदाहरण के लिए, चालान और लेनदेन रिकॉर्ड के लिए कर और लेखांकन आवश्यकताएं)।"
+  th: "ภาระผูกพันทางกฎหมาย: การประมวลผลที่จำเป็นเพื่อปฏิบัติตามภาระผูกพันทางกฎหมาย (เช่น ข้อกำหนดด้านภาษีและการบัญชีสำหรับใบแจ้งหนี้และบันทึกธุรกรรม)"
+  cs: "Právní povinnost: Zpracování nezbytné ke splnění zákonných povinností (např. daňové a účetní požadavky pro faktury a záznamy o transakcích)."
+  sv: "Rättslig förpliktelse: Behandling som är nödvändig för att uppfylla rättsliga förpliktelser (t.ex. skatte- och redovisningskrav för fakturor och transaktionsregister)."
   verified_by_human: []
 legal_rights.heading:
   context: Heading for rights section
   en: 8. Your Privacy Rights
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: 8. Ihre Datenschutzrechte
+  zh: 8. 您的隐私权
+  es: 8. Sus Derechos de Privacidad
+  fr: 8. Vos droits en matière de confidentialité
+  pt: 8. Seus Direitos de Privacidade
+  ru: 8. Ваши права на конфиденциальность
+  ja: 8. プライバシーに関するあなたの権利
+  ko: 8. 귀하의 개인정보 보호 권리
+  it: 8. I Tuoi Diritti sulla Privacy
+  tr: 8. Gizlilik Haklarınız
+  vi: 8. Quyền Riêng tư của Bạn
+  id: 8. Hak Privasi Anda
+  pl: 8. Twoje Prawa do Prywatności
+  nl: 8. Uw Privacyrechten
+  ar: 8. حقوق الخصوصية الخاصة بك
+  hi: 8. आपके गोपनीयता अधिकार
+  th: 8. สิทธิ์ความเป็นส่วนตัวของคุณ
+  cs: 8. Vaše práva na ochranu soukromí
+  sv: 8. Dina integritetsrättigheter
   verified_by_human: []
 legal_rights.intro:
   context: Intro for rights section
   en: "Depending on your jurisdiction, you may have certain rights over your personal data. The following summarizes key rights under GDPR and CCPA/CPRA and how to exercise them:"
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: "Je nach Ihrem Wohnsitzland haben Sie möglicherweise bestimmte Rechte bezüglich Ihrer personenbezogenen Daten. Im Folgenden sind die wichtigsten Rechte gemäß DSGVO und CCPA/CPRA sowie deren Ausübung zusammengefasst:"
+  zh: "根据您所在的司法管辖区，您可能对您的个人数据拥有某些权利。以下总结了GDPR和CCPA/CPRA下的主要权利及其行使方式："
+  es: "Dependiendo de su jurisdicción, puede tener ciertos derechos sobre sus datos personales. A continuación se resumen los derechos clave bajo el GDPR y CCPA/CPRA y cómo ejercerlos:"
+  fr: "Selon votre juridiction, vous pouvez disposer de certains droits sur vos données personnelles. Ce qui suit résume les droits clés au titre du RGPD et du CCPA/CPRA et la manière de les exercer :"
+  pt: "Dependendo da sua jurisdição, você pode ter certos direitos sobre seus dados pessoais. A seguir, um resumo dos principais direitos sob o GDPR e CCPA/CPRA e como exercê-los:"
+  ru: "В зависимости от вашей юрисдикции у вас могут быть определённые права в отношении ваших персональных данных. Ниже приводится краткое изложение ключевых прав в соответствии с GDPR и CCPA/CPRA и порядок их реализации:"
+  ja: "お住まいの地域の法律によっては、個人データに関して一定の権利を有する場合があります。以下に、GDPRおよびCCPA/CPRAに基づく主な権利とその行使方法を要約します："
+  ko: "귀하의 관할 구역에 따라 개인 데이터에 관한 특정 권리를 가질 수 있습니다. 다음은 GDPR 및 CCPA/CPRA에 따른 주요 권리와 이를 행사하는 방법을 요약한 것입니다:"
+  it: "A seconda della tua giurisdizione, potresti avere determinati diritti sui tuoi dati personali. Di seguito sono riassunti i diritti principali ai sensi del GDPR e del CCPA/CPRA e come esercitarli:"
+  tr: "Yargı bölgenize bağlı olarak kişisel verileriniz üzerinde belirli haklara sahip olabilirsiniz. Aşağıda GDPR ve CCPA/CPRA kapsamındaki temel haklar ve bunların nasıl kullanılacağı özetlenmektedir:"
+  vi: "Tùy thuộc vào thẩm quyền pháp lý của bạn, bạn có thể có một số quyền nhất định đối với dữ liệu cá nhân của mình. Dưới đây tóm tắt các quyền chính theo GDPR và CCPA/CPRA và cách thực hiện chúng:"
+  id: "Bergantung pada yurisdiksi Anda, Anda mungkin memiliki hak-hak tertentu atas data pribadi Anda. Berikut ini merangkum hak-hak utama di bawah GDPR dan CCPA/CPRA dan cara menggunakannya:"
+  pl: "W zależności od jurysdykcji możesz mieć pewne prawa w odniesieniu do swoich danych osobowych. Poniżej podsumowano kluczowe prawa wynikające z RODO i CCPA/CPRA oraz sposoby ich realizacji:"
+  nl: "Afhankelijk van uw jurisdictie kunt u bepaalde rechten hebben met betrekking tot uw persoonsgegevens. Het volgende geeft een overzicht van de belangrijkste rechten onder de AVG en CCPA/CPRA en hoe u deze kunt uitoefenen:"
+  ar: "بناءً على سلطتك القضائية، قد يكون لديك حقوق معينة تتعلق ببياناتك الشخصية. فيما يلي ملخص للحقوق الرئيسية بموجب GDPR وCCPA/CPRA وكيفية ممارستها:"
+  hi: "आपके न्यायक्षेत्र के आधार पर, आपके पास अपने व्यक्तिगत डेटा पर कुछ अधिकार हो सकते हैं। नीचे GDPR और CCPA/CPRA के तहत प्रमुख अधिकारों और उन्हें कैसे प्रयोग करें, इसका सारांश दिया गया है:"
+  th: "ขึ้นอยู่กับเขตอำนาจศาลของคุณ คุณอาจมีสิทธิ์บางอย่างเกี่ยวกับข้อมูลส่วนตัวของคุณ ต่อไปนี้สรุปสิทธิ์หลักภายใต้ GDPR และ CCPA/CPRA และวิธีใช้สิทธิ์เหล่านั้น:"
+  cs: "V závislosti na vaší jurisdikci můžete mít určitá práva ohledně svých osobních údajů. Níže jsou shrnuty klíčová práva podle GDPR a CCPA/CPRA a způsob jejich uplatnění:"
+  sv: "Beroende på din jurisdiktion kan du ha vissa rättigheter beträffande dina personuppgifter. Följande sammanfattar viktiga rättigheter enligt GDPR och CCPA/CPRA och hur du utövar dem:"
   verified_by_human: []
 legal_rights.gdpr.subheading:
   context: Subheading for GDPR rights
   en: GDPR (EU/EEA)
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: DSGVO (EU/EWR)
+  zh: GDPR（欧盟/欧经区）
+  es: RGPD (UE/EEE)
+  fr: RGPD (UE/EEE)
+  pt: RGPD (UE/EEE)
+  ru: GDPR (ЕС/ЕЭЗ)
+  ja: GDPR（EU/EEA）
+  ko: GDPR(EU/EEA)
+  it: GDPR (UE/SEE)
+  tr: GDPR (AB/AEA)
+  vi: GDPR (EU/EEA)
+  id: GDPR (EU/EEA)
+  pl: RODO (UE/EOG)
+  nl: AVG (EU/EER)
+  ar: اللائحة العامة لحماية البيانات (الاتحاد الأوروبي/المنطقة الاقتصادية الأوروبية)
+  hi: जीडीपीआर (ईयू/ईईए)
+  th: GDPR (สหภาพยุโรป/EEA)
+  cs: GDPR (EU/EHP)
+  sv: GDPR (EU/EES)
   verified_by_human: []
 legal_rights.gdpr.access:
   context: GDPR right of access
   en: Right of access
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Auskunftsrecht
+  zh: 访问权
+  es: Derecho de acceso
+  fr: Droit d'accès
+  pt: Direito de acesso
+  ru: Право на доступ
+  ja: アクセス権
+  ko: 접근권
+  it: Diritto di accesso
+  tr: Erişim hakkı
+  vi: Quyền truy cập
+  id: Hak akses
+  pl: Prawo dostępu
+  nl: Recht op inzage
+  ar: حق الوصول
+  hi: पहुंच का अधिकार
+  th: สิทธิ์การเข้าถึง
+  cs: Právo na přístup
+  sv: Rätt till tillgång
   verified_by_human: []
 legal_rights.gdpr.rectification:
   context: GDPR right to rectification
   en: Right to rectification
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Recht auf Berichtigung
+  zh: 更正权
+  es: Derecho de rectificación
+  fr: Droit à la rectification
+  pt: Direito de retificação
+  ru: Право на исправление
+  ja: 訂正権
+  ko: 정정권
+  it: Diritto di rettifica
+  tr: Düzeltme hakkı
+  vi: Quyền chỉnh sửa
+  id: Hak rektifikasi
+  pl: Prawo do sprostowania
+  nl: Recht op rectificatie
+  ar: حق التصحيح
+  hi: सुधार का अधिकार
+  th: สิทธิ์การแก้ไข
+  cs: Právo na opravu
+  sv: Rätt till rättelse
   verified_by_human: []
 legal_rights.gdpr.erasure:
   context: GDPR right to erasure
   en: Right to erasure ('right to be forgotten')
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Recht auf Löschung („Recht auf Vergessenwerden")
+  zh: 删除权（"被遗忘权"）
+  es: Derecho de supresión («derecho al olvido»)
+  fr: Droit à l'effacement (« droit à l'oubli »)
+  pt: Direito ao apagamento ("direito ao esquecimento")
+  ru: Право на удаление («право быть забытым»)
+  ja: 削除権（「忘れられる権利」）
+  ko: 삭제권('잊힐 권리')
+  it: Diritto alla cancellazione («diritto all'oblio»)
+  tr: Silme hakkı ("unutulma hakkı")
+  vi: Quyền xóa ('quyền được lãng quên')
+  id: Hak penghapusan ('hak untuk dilupakan')
+  pl: Prawo do usunięcia danych („prawo do bycia zapomnianym")
+  nl: Recht op verwijdering ('recht op vergetelheid')
+  ar: حق المحو ('حق النسيان')
+  hi: मिटाने का अधिकार ('भूले जाने का अधिकार')
+  th: สิทธิ์การลบ ('สิทธิ์ที่จะถูกลืม')
+  cs: Právo na výmaz („právo být zapomenut")
+  sv: Rätt till radering ('rätten att bli glömd')
   verified_by_human: []
 legal_rights.gdpr.restriction:
   context: GDPR right to restriction
   en: Right to restriction of processing
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Recht auf Einschränkung der Verarbeitung
+  zh: 限制处理权
+  es: Derecho a la limitación del tratamiento
+  fr: Droit à la limitation du traitement
+  pt: Direito à limitação do tratamento
+  ru: Право на ограничение обработки
+  ja: 処理制限権
+  ko: 처리 제한권
+  it: Diritto di limitazione del trattamento
+  tr: İşleme kısıtlama hakkı
+  vi: Quyền hạn chế xử lý
+  id: Hak pembatasan pemrosesan
+  pl: Prawo do ograniczenia przetwarzania
+  nl: Recht op beperking van verwerking
+  ar: حق تقييد المعالجة
+  hi: प्रसंस्करण प्रतिबंध का अधिकार
+  th: สิทธิ์การจำกัดการประมวลผล
+  cs: Právo na omezení zpracování
+  sv: Rätt till begränsning av behandling
   verified_by_human: []
 legal_rights.gdpr.portability:
   context: GDPR right to portability
   en: Right to data portability
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Recht auf Datenübertragbarkeit
+  zh: 数据可携带权
+  es: Derecho a la portabilidad de datos
+  fr: Droit à la portabilité des données
+  pt: Direito à portabilidade dos dados
+  ru: Право на переносимость данных
+  ja: データポータビリティ権
+  ko: 데이터 이동권
+  it: Diritto alla portabilità dei dati
+  tr: Veri taşınabilirliği hakkı
+  vi: Quyền chuyển dữ liệu
+  id: Hak portabilitas data
+  pl: Prawo do przenoszenia danych
+  nl: Recht op gegevensoverdraagbaarheid
+  ar: حق نقل البيانات
+  hi: डेटा पोर्टेबिलिटी का अधिकार
+  th: สิทธิ์การโอนย้ายข้อมูล
+  cs: Právo na přenositelnost údajů
+  sv: Rätt till dataportabilitet
   verified_by_human: []
 legal_rights.gdpr.objection:
   context: GDPR right to object
   en: Right to object
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Widerspruchsrecht
+  zh: 反对权
+  es: Derecho de oposición
+  fr: Droit d'opposition
+  pt: Direito de oposição
+  ru: Право на возражение
+  ja: 異議申立権
+  ko: 이의제기권
+  it: Diritto di opposizione
+  tr: İtiraz hakkı
+  vi: Quyền phản đối
+  id: Hak keberatan
+  pl: Prawo do sprzeciwu
+  nl: Recht van bezwaar
+  ar: حق الاعتراض
+  hi: आपत्ति का अधिकार
+  th: สิทธิ์การคัดค้าน
+  cs: Právo vznést námitku
+  sv: Rätt att invända
   verified_by_human: []
 legal_rights.gdpr.withdraw_consent:
   context: GDPR right to withdraw consent
   en: Right to withdraw consent
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Recht auf Widerruf der Einwilligung
+  zh: 撤回同意权
+  es: Derecho a retirar el consentimiento
+  fr: Droit de retirer son consentement
+  pt: Direito de retirar o consentimento
+  ru: Право на отзыв согласия
+  ja: 同意撤回権
+  ko: 동의 철회권
+  it: Diritto di revocare il consenso
+  tr: Rızayı geri çekme hakkı
+  vi: Quyền rút lại sự đồng ý
+  id: Hak menarik persetujuan
+  pl: Prawo do cofnięcia zgody
+  nl: Recht om toestemming in te trekken
+  ar: حق سحب الموافقة
+  hi: सहमति वापस लेने का अधिकार
+  th: สิทธิ์ถอนความยินยอม
+  cs: Právo odvolat souhlas
+  sv: Rätt att återkalla samtycke
   verified_by_human: []
 legal_rights.gdpr.exercise:
   context: How to exercise GDPR rights
   en: To exercise your GDPR rights, contact us at contact@openmates.org or via the Imprint. We may need to verify your identity before fulfilling your request.
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Um Ihre DSGVO-Rechte auszuüben, kontaktieren Sie uns unter contact@openmates.org oder über das Impressum. Wir müssen möglicherweise Ihre Identität vor der Erfüllung Ihrer Anfrage überprüfen.
+  zh: 如需行使您的GDPR权利，请通过contact@openmates.org或通过版权信息联系我们。在履行您的请求之前，我们可能需要验证您的身份。
+  es: Para ejercer sus derechos en virtud del RGPD, contáctenos en contact@openmates.org o a través del Aviso Legal. Es posible que necesitemos verificar su identidad antes de atender su solicitud.
+  fr: Pour exercer vos droits RGPD, contactez-nous à contact@openmates.org ou via la page Mentions légales. Nous pourrions avoir besoin de vérifier votre identité avant de répondre à votre demande.
+  pt: Para exercer os seus direitos ao abrigo do RGPD, contacte-nos em contact@openmates.org ou através do Aviso Legal. Poderemos precisar verificar a sua identidade antes de atender o seu pedido.
+  ru: Чтобы воспользоваться правами по GDPR, свяжитесь с нами по адресу contact@openmates.org или через Импринт. Перед выполнением запроса нам может потребоваться подтвердить вашу личность.
+  ja: GDPRの権利を行使するには、contact@openmates.orgまたはインプリントを通じてお問い合わせください。リクエストを処理する前に、お客様の身元を確認させていただく場合があります。
+  ko: GDPR 권리를 행사하려면 contact@openmates.org 또는 임프린트를 통해 문의하세요. 요청 처리 전에 신원 확인이 필요할 수 있습니다.
+  it: Per esercitare i tuoi diritti GDPR, contattaci all'indirizzo contact@openmates.org o tramite la pagina Imprint. Potremmo dover verificare la tua identità prima di soddisfare la tua richiesta.
+  tr: GDPR haklarınızı kullanmak için contact@openmates.org adresinden veya Künye aracılığıyla bizimle iletişime geçin. Talebinizi yerine getirmeden önce kimliğinizi doğrulamamız gerekebilir.
+  vi: Để thực hiện quyền GDPR của bạn, hãy liên hệ với chúng tôi tại contact@openmates.org hoặc qua trang Imprint. Chúng tôi có thể cần xác minh danh tính của bạn trước khi thực hiện yêu cầu.
+  id: Untuk menggunakan hak GDPR Anda, hubungi kami di contact@openmates.org atau melalui Imprint. Kami mungkin perlu memverifikasi identitas Anda sebelum memenuhi permintaan Anda.
+  pl: Aby skorzystać z praw RODO, skontaktuj się z nami pod adresem contact@openmates.org lub przez stronę Impressum. Przed realizacją wniosku możemy potrzebować zweryfikować Twoją tożsamość.
+  nl: Om uw AVG-rechten uit te oefenen, neem contact met ons op via contact@openmates.org of via de Imprint. We moeten mogelijk uw identiteit verifiëren voordat we uw verzoek uitvoeren.
+  ar: لممارسة حقوقك بموجب اللائحة العامة لحماية البيانات، تواصل معنا على contact@openmates.org أو عبر صفحة الإقرار. قد نحتاج إلى التحقق من هويتك قبل تلبية طلبك.
+  hi: अपने GDPR अधिकारों का प्रयोग करने के लिए, contact@openmates.org पर या इम्प्रिंट के माध्यम से हमसे संपर्क करें। आपके अनुरोध को पूरा करने से पहले हमें आपकी पहचान सत्यापित करने की आवश्यकता हो सकती है।
+  th: เพื่อใช้สิทธิ์ GDPR ของคุณ โปรดติดต่อเราที่ contact@openmates.org หรือผ่านหน้า Imprint เราอาจต้องยืนยันตัวตนของคุณก่อนดำเนินการตามคำขอ
+  cs: Chcete-li uplatnit svá práva podle GDPR, kontaktujte nás na contact@openmates.org nebo prostřednictvím stránky Impressum. Před splněním vašeho požadavku možná budeme muset ověřit vaši totožnost.
+  sv: För att utöva dina GDPR-rättigheter, kontakta oss på contact@openmates.org eller via Impressum. Vi kan behöva verifiera din identitet innan vi uppfyller din begäran.
   verified_by_human: []
 legal_rights.ccpa_cpra.subheading:
   context: Subheading for CCPA/CPRA rights
   en: CCPA/CPRA (California)
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: CCPA/CPRA (Kalifornien)
+  zh: CCPA/CPRA（加利福尼亚州）
+  es: CCPA/CPRA (California)
+  fr: CCPA/CPRA (Californie)
+  pt: CCPA/CPRA (Califórnia)
+  ru: CCPA/CPRA (Калифорния)
+  ja: CCPA/CPRA（カリフォルニア州）
+  ko: CCPA/CPRA(캘리포니아)
+  it: CCPA/CPRA (California)
+  tr: CCPA/CPRA (Kaliforniya)
+  vi: CCPA/CPRA (California)
+  id: CCPA/CPRA (California)
+  pl: CCPA/CPRA (Kalifornia)
+  nl: CCPA/CPRA (Californië)
+  ar: CCPA/CPRA (كاليفورنيا)
+  hi: CCPA/CPRA (कैलिफ़ोर्निया)
+  th: CCPA/CPRA (แคลิฟอร์เนีย)
+  cs: CCPA/CPRA (Kalifornie)
+  sv: CCPA/CPRA (Kalifornien)
   verified_by_human: []
 legal_rights.ccpa_cpra.right_to_know:
   context: CCPA right to know
   en: Right to know/access
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Auskunfts-/Zugriffsrecht
+  zh: 知情/访问权
+  es: Derecho a conocer/acceder
+  fr: Droit de savoir/accéder
+  pt: Direito de saber/aceder
+  ru: Право на получение информации/доступ
+  ja: 知る権利/アクセス権
+  ko: 알 권리/접근권
+  it: Diritto di sapere/accedere
+  tr: Bilme/erişim hakkı
+  vi: Quyền biết/truy cập
+  id: Hak untuk mengetahui/mengakses
+  pl: Prawo do wiedzy/dostępu
+  nl: Recht om te weten/in te zien
+  ar: حق المعرفة/الوصول
+  hi: जानने/पहुंचने का अधिकार
+  th: สิทธิ์รู้/เข้าถึง
+  cs: Právo vědět/přistupovat
+  sv: Rätt att veta/få tillgång
   verified_by_human: []
 legal_rights.ccpa_cpra.right_to_delete:
   context: CCPA right to delete
   en: Right to delete
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Recht auf Löschung
+  zh: 删除权
+  es: Derecho de supresión
+  fr: Droit à la suppression
+  pt: Direito de eliminação
+  ru: Право на удаление
+  ja: 削除権
+  ko: 삭제권
+  it: Diritto alla cancellazione
+  tr: Silme hakkı
+  vi: Quyền xóa
+  id: Hak penghapusan
+  pl: Prawo do usunięcia
+  nl: Recht op verwijdering
+  ar: حق الحذف
+  hi: हटाने का अधिकार
+  th: สิทธิ์การลบ
+  cs: Právo na výmaz
+  sv: Rätt att radera
   verified_by_human: []
 legal_rights.ccpa_cpra.right_to_correct:
   context: CCPA right to correct
   en: Right to correct
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Recht auf Berichtigung
+  zh: 更正权
+  es: Derecho de rectificación
+  fr: Droit à la correction
+  pt: Direito de correção
+  ru: Право на исправление
+  ja: 訂正権
+  ko: 정정권
+  it: Diritto di correzione
+  tr: Düzeltme hakkı
+  vi: Quyền sửa chữa
+  id: Hak koreksi
+  pl: Prawo do sprostowania
+  nl: Recht op correctie
+  ar: حق التصحيح
+  hi: सुधार का अधिकार
+  th: สิทธิ์การแก้ไข
+  cs: Právo na opravu
+  sv: Rätt till korrigering
   verified_by_human: []
 legal_rights.ccpa_cpra.right_to_opt_out_of_sale_or_sharing:
   context: CCPA right to opt-out
   en: Right to opt-out of sale or sharing
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Recht auf Widerspruch gegen Verkauf oder Weitergabe
+  zh: 选择退出销售或共享的权利
+  es: Derecho a oponerse a la venta o cesión de datos
+  fr: Droit de refus de vente ou partage
+  pt: Direito de recusar venda ou partilha
+  ru: Право на отказ от продажи или передачи данных
+  ja: 販売または共有のオプトアウト権
+  ko: 판매 또는 공유 거부권
+  it: Diritto di opposizione alla vendita o condivisione
+  tr: Satış veya paylaşımdan çıkma hakkı
+  vi: Quyền từ chối bán hoặc chia sẻ
+  id: Hak untuk menolak penjualan atau berbagi
+  pl: Prawo do rezygnacji ze sprzedaży lub udostępniania
+  nl: Recht om te weigeren verkoop of deling
+  ar: حق الانسحاب من البيع أو المشاركة
+  hi: बिक्री या साझाकरण से बाहर निकलने का अधिकार
+  th: สิทธิ์ปฏิเสธการขายหรือแชร์
+  cs: Právo odhlásit se z prodeje nebo sdílení
+  sv: Rätt att avsäga sig försäljning eller delning
   verified_by_human: []
 legal_rights.ccpa_cpra.right_to_non_discrimination:
   context: CCPA right to non-discrimination
   en: Right to non-discrimination
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Recht auf Nichtdiskriminierung
+  zh: 非歧视权
+  es: Derecho a la no discriminación
+  fr: Droit à la non-discrimination
+  pt: Direito à não discriminação
+  ru: Право на недискриминацию
+  ja: 非差別権
+  ko: 비차별권
+  it: Diritto alla non discriminazione
+  tr: Ayrımcılık yaşamamama hakkı
+  vi: Quyền không bị phân biệt đối xử
+  id: Hak non-diskriminasi
+  pl: Prawo do niedyskryminacji
+  nl: Recht op non-discriminatie
+  ar: حق عدم التمييز
+  hi: गैर-भेदभाव का अधिकार
+  th: สิทธิ์ไม่ถูกเลือกปฏิบัติ
+  cs: Právo na nediskriminaci
+  sv: Rätt till icke-diskriminering
   verified_by_human: []
 legal_rights.ccpa_cpra.exercise:
   context: How to exercise CCPA rights
   en: California residents can exercise CCPA/CPRA rights by contacting us at contact@openmates.org. We do not sell personal information.
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Einwohner Kaliforniens können ihre CCPA/CPRA-Rechte ausüben, indem sie uns unter contact@openmates.org kontaktieren. Wir verkaufen keine personenbezogenen Daten.
+  zh: 加利福尼亚州居民可以通过联系contact@openmates.org行使CCPA/CPRA权利。我们不出售个人信息。
+  es: Los residentes de California pueden ejercer sus derechos CCPA/CPRA contactándonos en contact@openmates.org. No vendemos información personal.
+  fr: Les résidents de Californie peuvent exercer leurs droits CCPA/CPRA en nous contactant à contact@openmates.org. Nous ne vendons pas d'informations personnelles.
+  pt: Os residentes da Califórnia podem exercer os direitos CCPA/CPRA contactando-nos em contact@openmates.org. Não vendemos informações pessoais.
+  ru: Жители Калифорнии могут воспользоваться правами по CCPA/CPRA, связавшись с нами по адресу contact@openmates.org. Мы не продаём персональные данные.
+  ja: カリフォルニア州の居住者は、contact@openmates.orgにお問い合わせいただくことでCCPA/CPRAの権利を行使できます。個人情報の販売は行いません。
+  ko: 캘리포니아 거주자는 contact@openmates.org로 문의하여 CCPA/CPRA 권리를 행사할 수 있습니다. 당사는 개인정보를 판매하지 않습니다.
+  it: I residenti in California possono esercitare i diritti CCPA/CPRA contattandoci all'indirizzo contact@openmates.org. Non vendiamo informazioni personali.
+  tr: Kaliforniya sakinleri, contact@openmates.org adresinden bizimle iletişime geçerek CCPA/CPRA haklarını kullanabilir. Kişisel bilgileri satmıyoruz.
+  vi: Cư dân California có thể thực hiện quyền CCPA/CPRA bằng cách liên hệ với chúng tôi tại contact@openmates.org. Chúng tôi không bán thông tin cá nhân.
+  id: Warga California dapat menggunakan hak CCPA/CPRA dengan menghubungi kami di contact@openmates.org. Kami tidak menjual informasi pribadi.
+  pl: Mieszkańcy Kalifornii mogą korzystać z praw CCPA/CPRA, kontaktując się z nami pod adresem contact@openmates.org. Nie sprzedajemy danych osobowych.
+  nl: Inwoners van Californië kunnen CCPA/CPRA-rechten uitoefenen door contact met ons op te nemen via contact@openmates.org. Wij verkopen geen persoonsgegevens.
+  ar: يمكن لسكان كاليفورنيا ممارسة حقوق CCPA/CPRA عن طريق التواصل معنا على contact@openmates.org. نحن لا نبيع المعلومات الشخصية.
+  hi: कैलिफ़ोर्निया निवासी contact@openmates.org पर संपर्क करके CCPA/CPRA अधिकारों का प्रयोग कर सकते हैं। हम व्यक्तिगत जानकारी नहीं बेचते।
+  th: ผู้อยู่อาศัยในแคลิฟอร์เนียสามารถใช้สิทธิ์ CCPA/CPRA ได้โดยติดต่อเราที่ contact@openmates.org เราไม่ขายข้อมูลส่วนบุคคล
+  cs: Obyvatelé Kalifornie mohou uplatnit práva CCPA/CPRA kontaktováním na contact@openmates.org. Neprodáváme osobní údaje.
+  sv: Invånare i Kalifornien kan utöva CCPA/CPRA-rättigheter genom att kontakta oss på contact@openmates.org. Vi säljer inte personuppgifter.
   verified_by_human: []
 discord_integration.heading:
   context: Section heading for Discord integration
@@ -2152,21 +2166,21 @@ discord_integration.heading:
   zh: 3. Discord 集成
   es: 3. Integración con Discord
   fr: 3. Intégration Discord
-  pt: ""
-  ru: ""
+  pt: 9. Integração com Discord
+  ru: 9. Интеграция с Discord
   ja: 3. Discord連携
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 9. Discord 통합
+  it: 9. Integrazione Discord
+  tr: 9. Discord Entegrasyonu
+  vi: 9. Tích hợp Discord
+  id: 9. Integrasi Discord
+  pl: 9. Integracja z Discord
+  nl: 9. Discord-integratie
+  ar: 9. تكامل Discord
+  hi: 9. Discord एकीकरण
+  th: 9. การผสานรวม Discord
+  cs: 9. Integrace Discord
+  sv: 9. Discord-integration
   verified_by_human: []
 discord_integration.description:
   context: Description of Discord data collection
@@ -2175,21 +2189,21 @@ discord_integration.description:
   zh: 如果您选择通过本网站提供的链接加入我们的 Discord 社区，请注意，Discord 将根据其隐私政策收集和处理您的数据。 这包括：
   es: "Si elige unirse a nuestra comunidad de Discord a través de los enlaces proporcionados en este sitio web, tenga en cuenta que Discord recopilará y procesará sus datos de acuerdo con su política de privacidad. Esto incluye:"
   fr: "Si vous choisissez de rejoindre notre communauté Discord via les liens fournis sur ce site web, veuillez noter que Discord collectera et traitera vos données conformément à sa politique de confidentialité.  Cela inclut :"
-  pt: ""
-  ru: ""
+  pt: Se optar por entrar na nossa comunidade Discord através de links neste site, note que o Discord coletará e processará os seus dados de acordo com a sua política de privacidade. Isso inclui informações de conta, dados de uso, conteúdo de comunicação e outras informações descritas na política de privacidade do Discord.
+  ru: Если вы решите присоединиться к нашему сообществу Discord по ссылкам на этом сайте, обратите внимание, что Discord будет собирать и обрабатывать ваши данные в соответствии со своей политикой конфиденциальности. Это включает информацию об аккаунте, данные об использовании, содержимое коммуникаций и другую информацию, описанную в политике конфиденциальности Discord.
   ja: 当ウェブサイトで提供されているリンクを通じてDiscordコミュニティに参加する場合、Discordはそのプライバシーポリシーに従ってデータを収集・処理することにご注意ください。これには以下が含まれます：
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 이 웹사이트의 링크를 통해 Discord 커뮤니티에 참여하면 Discord가 자체 개인정보처리방침에 따라 귀하의 데이터를 수집하고 처리합니다. 여기에는 계정 정보, 사용 데이터, 통신 내용 및 Discord 개인정보처리방침에 명시된 기타 정보가 포함됩니다.
+  it: Se scegli di unirti alla nostra comunità Discord tramite i link forniti su questo sito web, tieni presente che Discord raccoglierà ed elaborerà i tuoi dati in base alla sua informativa sulla privacy. Ciò include informazioni sull'account, dati di utilizzo, contenuti delle comunicazioni e altre informazioni descritte nell'informativa sulla privacy di Discord.
+  tr: Bu web sitesinde sağlanan bağlantılar aracılığıyla Discord topluluğumuza katılmayı seçerseniz, Discord'un gizlilik politikalarına göre verilerinizi toplayıp işleyeceğini lütfen unutmayın. Bu; hesap bilgileri, kullanım verileri, iletişim içeriği ve Discord'un gizlilik politikasında belirtilen diğer bilgileri kapsar.
+  vi: Nếu bạn chọn tham gia cộng đồng Discord của chúng tôi qua các liên kết trên trang web này, hãy lưu ý rằng Discord sẽ thu thập và xử lý dữ liệu của bạn theo chính sách quyền riêng tư của họ. Điều này bao gồm thông tin tài khoản, dữ liệu sử dụng, nội dung liên lạc và các thông tin khác được nêu trong chính sách quyền riêng tư của Discord.
+  id: Jika Anda memilih bergabung dengan komunitas Discord kami melalui tautan di situs web ini, harap diketahui bahwa Discord akan mengumpulkan dan memproses data Anda sesuai kebijakan privasi mereka. Ini mencakup informasi akun, data penggunaan, konten komunikasi, dan informasi lainnya sebagaimana diuraikan dalam kebijakan privasi Discord.
+  pl: Jeśli zdecydujesz się dołączyć do naszej społeczności Discord poprzez linki na tej stronie, pamiętaj, że Discord będzie zbierać i przetwarzać Twoje dane zgodnie z własną polityką prywatności. Obejmuje to informacje o koncie, dane dotyczące użytkowania, treści komunikacji i inne informacje opisane w polityce prywatności Discord.
+  nl: Als u ervoor kiest om via links op deze website deel te nemen aan onze Discord-community, wees er dan van bewust dat Discord uw gegevens zal verzamelen en verwerken volgens hun privacybeleid. Dit omvat accountinformatie, gebruiksgegevens, communicatie-inhoud en andere informatie zoals beschreven in het privacybeleid van Discord.
+  ar: إذا اخترت الانضمام إلى مجتمع Discord الخاص بنا من خلال الروابط المقدمة على هذا الموقع، يُرجى العلم بأن Discord سيجمع بياناتك ويعالجها وفقاً لسياسة الخصوصية الخاصة به. يشمل ذلك معلومات الحساب وبيانات الاستخدام ومحتوى الاتصالات وغيرها من المعلومات المنصوص عليها في سياسة خصوصية Discord.
+  hi: यदि आप इस वेबसाइट पर प्रदान किए गए लिंक के माध्यम से हमारे Discord समुदाय में शामिल होना चुनते हैं, तो कृपया ध्यान दें कि Discord अपनी गोपनीयता नीति के अनुसार आपके डेटा को एकत्र और संसाधित करेगा। इसमें खाता जानकारी, उपयोग डेटा, संचार सामग्री और Discord की गोपनीयता नीति में उल्लिखित अन्य जानकारी शामिल है।
+  th: หากคุณเลือกที่จะเข้าร่วมชุมชน Discord ของเราผ่านลิงก์ที่ให้ไว้บนเว็บไซต์นี้ โปรดทราบว่า Discord จะรวบรวมและประมวลผลข้อมูลของคุณตามนโยบายความเป็นส่วนตัวของพวกเขา ซึ่งรวมถึงข้อมูลบัญชี ข้อมูลการใช้งาน เนื้อหาการสื่อสาร และข้อมูลอื่นๆ ตามที่ระบุในนโยบายความเป็นส่วนตัวของ Discord
+  cs: Pokud se rozhodnete připojit k naší komunitě Discord prostřednictvím odkazů na tomto webu, vezměte prosím na vědomí, že Discord bude shromažďovat a zpracovávat vaše údaje v souladu se svými zásadami ochrany osobních údajů. To zahrnuje informace o účtu, data o používání, obsah komunikace a další informace uvedené v zásadách ochrany osobních údajů Discord.
+  sv: Om du väljer att gå med i vår Discord-community via länkar på den här webbplatsen, observera att Discord kommer att samla in och bearbeta dina uppgifter enligt sin sekretesspolicy. Detta inkluderar kontoinformation, användningsdata, kommunikationsinnehåll och annan information som beskrivs i Discords sekretesspolicy.
   verified_by_human: []
 discord_integration.admin_access:
   context: Description of admin access to Discord data
@@ -2198,21 +2212,21 @@ discord_integration.admin_access:
   zh: 作为 Discord 服务器管理员，我们可以访问我们 Discord 社区内共享的所有公共通信、成员列表和其他信息。 但是，此信息由 Discord 托管和主要处理。 我们不会在 Discord 平台之外提取、存储或处理此数据。 有关 Discord 如何处理您的数据的更多信息，请查看 Discord 的隐私政策。
   es: Como administradores del servidor de Discord, tenemos acceso a todas las comunicaciones públicas, listas de miembros y otra información compartida dentro de nuestra comunidad de Discord. Sin embargo, esta información está alojada y procesada principalmente por Discord. No extraemos, almacenamos ni procesamos estos datos fuera de la plataforma de Discord. Para obtener más información sobre cómo Discord maneja sus datos, consulte la Política de privacidad de Discord.
   fr: En tant qu'administrateurs du serveur Discord, nous avons accès à toutes les communications publiques, aux listes de membres et aux autres informations partagées au sein de notre communauté Discord.  Cependant, ces informations sont hébergées et principalement traitées par Discord.  Nous n'extrayons, ne stockons ni ne traitons ces données en dehors de la plateforme Discord.  Pour plus d'informations sur la manière dont Discord traite vos données, veuillez consulter la politique de confidentialité de Discord.
-  pt: ""
-  ru: ""
+  pt: Como administradores do servidor Discord, temos acesso a todas as comunicações públicas, listas de membros e outras informações partilhadas na nossa comunidade Discord. No entanto, estas informações são alojadas e principalmente processadas pelo Discord. Não extraímos, armazenamos ou processamos estes dados fora da plataforma Discord. Para mais informações sobre como o Discord trata os seus dados, consulte a Política de Privacidade do Discord.
+  ru: Как администраторы сервера Discord, мы имеем доступ ко всем публичным коммуникациям, спискам участников и другой информации, размещённой в нашем сообществе Discord. Однако эта информация хранится и обрабатывается преимущественно Discord. Мы не извлекаем, не храним и не обрабатываем эти данные за пределами платформы Discord. Для получения дополнительной информации о том, как Discord обрабатывает ваши данные, ознакомьтесь с Политикой конфиденциальности Discord.
   ja: Discordサーバーの管理者として、私たちはDiscordコミュニティ内のすべての公開コミュニケーション、メンバーリスト、その他の共有情報にアクセスできます。ただし、これらの情報はDiscordでホストされ、主にDiscordによって処理されます。私たちはDiscordプラットフォーム外でこれらのデータを抽出、保存、処理することはありません。Discordのデータ取り扱いについての詳細は、Discordのプライバシーポリシーをご確認ください。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: Discord 서버 관리자로서 우리는 Discord 커뮤니티 내에서 공유되는 모든 공개 통신, 회원 목록 및 기타 정보에 접근할 수 있습니다. 그러나 이 정보는 Discord에 의해 호스팅되고 주로 처리됩니다. 우리는 Discord 플랫폼 외부에서 이 데이터를 추출, 저장 또는 처리하지 않습니다. Discord가 데이터를 처리하는 방법에 대한 자세한 내용은 Discord 개인정보처리방침을 검토하십시오.
+  it: In qualità di amministratori del server Discord, abbiamo accesso a tutte le comunicazioni pubbliche, agli elenchi dei membri e ad altre informazioni condivise all'interno della nostra comunità Discord. Tuttavia, queste informazioni sono ospitate ed elaborate principalmente da Discord. Non estraiamo, archiviamo o elaboriamo questi dati al di fuori della piattaforma Discord. Per ulteriori informazioni su come Discord gestisce i tuoi dati, consulta l'Informativa sulla privacy di Discord.
+  tr: Discord sunucu yöneticileri olarak, Discord topluluğumuz içinde paylaşılan tüm genel iletişimlere, üye listelerine ve diğer bilgilere erişimimiz vardır. Ancak bu bilgiler Discord tarafından barındırılmakta ve öncelikli olarak Discord tarafından işlenmektedir. Bu verileri Discord platformu dışında çıkarmıyor, depolamıyor veya işlemiyoruz. Discord'un verilerinizi nasıl işlediği hakkında daha fazla bilgi için Discord'un Gizlilik Politikasını inceleyin.
+  vi: Là quản trị viên máy chủ Discord, chúng tôi có quyền truy cập vào tất cả các thông tin liên lạc công khai, danh sách thành viên và các thông tin khác được chia sẻ trong cộng đồng Discord của chúng tôi. Tuy nhiên, thông tin này được lưu trữ và xử lý chủ yếu bởi Discord. Chúng tôi không trích xuất, lưu trữ hoặc xử lý dữ liệu này ngoài nền tảng Discord. Để biết thêm thông tin về cách Discord xử lý dữ liệu của bạn, vui lòng xem Chính sách quyền riêng tư của Discord.
+  id: Sebagai administrator server Discord, kami memiliki akses ke semua komunikasi publik, daftar anggota, dan informasi lain yang dibagikan dalam komunitas Discord kami. Namun, informasi ini di-hosting dan terutama diproses oleh Discord. Kami tidak mengekstrak, menyimpan, atau memproses data ini di luar platform Discord. Untuk informasi lebih lanjut tentang cara Discord menangani data Anda, tinjau Kebijakan Privasi Discord.
+  pl: Jako administratorzy serwera Discord mamy dostęp do wszystkich publicznych komunikatów, list członków i innych informacji udostępnianych w naszej społeczności Discord. Informacje te są jednak hostowane i przetwarzane głównie przez Discord. Nie wyodrębniamy, nie przechowujemy ani nie przetwarzamy tych danych poza platformą Discord. Aby uzyskać więcej informacji o tym, jak Discord przetwarza Twoje dane, zapoznaj się z Polityką prywatności Discord.
+  nl: Als Discord-serverbeheerders hebben we toegang tot alle openbare communicatie, ledenlijsten en andere informatie die wordt gedeeld in onze Discord-community. Deze informatie wordt echter gehost en hoofdzakelijk verwerkt door Discord. We extraheren, slaan op of verwerken deze gegevens niet buiten het Discord-platform. Voor meer informatie over hoe Discord uw gegevens verwerkt, raadpleegt u het privacybeleid van Discord.
+  ar: بوصفنا مسؤولي خادم Discord، لدينا إمكانية الوصول إلى جميع الاتصالات العامة وقوائم الأعضاء والمعلومات الأخرى المشتركة داخل مجتمع Discord الخاص بنا. غير أن هذه المعلومات مستضافة ومعالجة بشكل رئيسي من قِبل Discord. نحن لا نستخرج هذه البيانات أو نخزنها أو نعالجها خارج منصة Discord. لمزيد من المعلومات حول كيفية تعامل Discord مع بياناتك، يرجى مراجعة سياسة خصوصية Discord.
+  hi: Discord सर्वर प्रशासकों के रूप में, हमारे पास हमारे Discord समुदाय के भीतर साझा की गई सभी सार्वजनिक संचार, सदस्य सूचियों और अन्य जानकारी तक पहुंच है। हालांकि, यह जानकारी Discord द्वारा होस्ट और मुख्य रूप से संसाधित की जाती है। हम इस डेटा को Discord के प्लेटफ़ॉर्म के बाहर निकालते, संग्रहीत या संसाधित नहीं करते। Discord आपके डेटा को कैसे संभालता है, इसके बारे में अधिक जानकारी के लिए Discord की गोपनीयता नीति देखें।
+  th: ในฐานะผู้ดูแลระบบเซิร์ฟเวอร์ Discord เราสามารถเข้าถึงการสื่อสารสาธารณะทั้งหมด รายชื่อสมาชิก และข้อมูลอื่นๆ ที่แชร์ภายในชุมชน Discord ของเรา อย่างไรก็ตาม ข้อมูลนี้ถูกโฮสต์และประมวลผลหลักโดย Discord เราไม่ดึง จัดเก็บ หรือประมวลผลข้อมูลนี้นอกแพลตฟอร์ม Discord สำหรับข้อมูลเพิ่มเติมเกี่ยวกับวิธีที่ Discord จัดการข้อมูลของคุณ โปรดตรวจสอบนโยบายความเป็นส่วนตัวของ Discord
+  cs: Jako administrátoři Discord serveru máme přístup ke všem veřejným komunikacím, seznamům členů a dalším informacím sdíleným v naší komunitě Discord. Tyto informace jsou však hostovány a primárně zpracovávány společností Discord. Tato data nevytěžujeme, neukládáme ani nezpracováváme mimo platformu Discord. Další informace o tom, jak Discord nakládá s vašimi daty, naleznete v Zásadách ochrany osobních údajů Discord.
+  sv: Som Discord-serveradministratörer har vi tillgång till all offentlig kommunikation, medlemslistor och annan information som delas inom vår Discord-community. Denna information är dock hostad och behandlas huvudsakligen av Discord. Vi extraherar, lagrar eller behandlar inte dessa uppgifter utanför Discords plattform. För mer information om hur Discord hanterar dina uppgifter, läs igenom Discords sekretesspolicy.
   verified_by_human: []
 discord_integration.privacy_policy_link:
   context: Link text for Discord's privacy policy
@@ -2221,21 +2235,21 @@ discord_integration.privacy_policy_link:
   zh: Discord 隐私政策
   es: Política de privacidad de Discord
   fr: Politique de confidentialité de Discord
-  pt: ""
-  ru: ""
+  pt: Política de Privacidade do Discord
+  ru: Политика конфиденциальности Discord
   ja: Discordプライバシーポリシー
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: Discord 개인정보 처리방침
+  it: Informativa sulla privacy di Discord
+  tr: Discord Gizlilik Politikası
+  vi: Chính sách quyền riêng tư của Discord
+  id: Kebijakan Privasi Discord
+  pl: Polityka prywatności Discord
+  nl: Privacybeleid van Discord
+  ar: سياسة خصوصية Discord
+  hi: Discord गोपनीयता नीति
+  th: นโยบายความเป็นส่วนตัวของ Discord
+  cs: Zásady ochrany osobních údajů Discord
+  sv: Discords sekretesspolicy
   verified_by_human: []
 contact.heading:
   context: Section heading for contact information
@@ -2244,21 +2258,21 @@ contact.heading:
   zh: 4. 联系信息
   es: 4. Información de contacto
   fr: 4. Informations de contact
-  pt: ""
-  ru: ""
+  pt: 4. Informações de contato
+  ru: 4. Контактная информация
   ja: 4. お問い合わせ情報
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 4. 연락처 정보
+  it: 4. Informazioni di contatto
+  tr: 4. İletişim Bilgileri
+  vi: 4. Thông tin liên hệ
+  id: 4. Informasi Kontak
+  pl: 4. Informacje kontaktowe
+  nl: 4. Contactinformatie
+  ar: 4. معلومات الاتصال
+  hi: 4. संपर्क जानकारी
+  th: 4. ข้อมูลการติดต่อ
+  cs: 4. Kontaktní informace
+  sv: 4. Kontaktinformation
   verified_by_human: []
 contact.questions:
   context: Prompt for data protection questions
@@ -2267,21 +2281,21 @@ contact.questions:
   zh: 有关数据保护的问题：
   es: "Para preguntas sobre protección de datos:"
   fr: "Pour toute question concernant la protection des données :"
-  pt: ""
-  ru: ""
+  pt: "Para perguntas sobre proteção de dados:"
+  ru: "По вопросам защиты данных:"
   ja: データ保護に関するお問い合わせ：
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "데이터 보호에 관한 질문:"
+  it: "Per domande sulla protezione dei dati:"
+  tr: "Veri koruma hakkında sorular için:"
+  vi: "Đối với các câu hỏi về bảo vệ dữ liệu:"
+  id: "Untuk pertanyaan tentang perlindungan data:"
+  pl: "W sprawach dotyczących ochrony danych:"
+  nl: "Voor vragen over gegevensbescherming:"
+  ar: "لأسئلة حول حماية البيانات:"
+  hi: "डेटा सुरक्षा के बारे में प्रश्नों के लिए:"
+  th: "สำหรับคำถามเกี่ยวกับการคุ้มครองข้อมูล:"
+  cs: "Pro dotazy týkající se ochrany osobních údajů:"
+  sv: "För frågor om dataskydd:"
   verified_by_human: []
 contact.email:
   context: Email contact label
@@ -2290,67 +2304,67 @@ contact.email:
   zh: 电子邮件
   es: Correo electrónico
   fr: E-mail
-  pt: ""
-  ru: ""
+  pt: E-mail
+  ru: Электронная почта
   ja: メール
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 이메일
+  it: E-mail
+  tr: E-posta
+  vi: Email
+  id: Email
+  pl: E-mail
+  nl: E-mail
+  ar: البريد الإلكتروني
+  hi: ईमेल
+  th: อีเมล
+  cs: E-mail
+  sv: E-post
   verified_by_human: []
 contact.postal:
   context: Postal contact information
   en: "Postal address: See Legal Notice (Imprint) for the current registered address."
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: "Postanschrift: Aktuelle Adresse siehe Impressum."
+  zh: "邮政地址：当前注册地址见法律声明（版权页）。"
+  es: "Dirección postal: Consulte el Aviso Legal (Aviso) para la dirección registrada actual."
+  fr: "Adresse postale : Voir les mentions légales (Imprint) pour l'adresse enregistrée actuelle."
+  pt: "Endereço postal: Consulte o Aviso Legal (Imprint) para o endereço registrado atual."
+  ru: "Почтовый адрес: Смотрите Правовое уведомление (Imprint) для текущего зарегистрированного адреса."
+  ja: "郵便住所：現在の登録住所は法的通知（インプリント）をご覧ください。"
+  ko: "우편 주소: 현재 등록 주소는 법적 고지(Imprint)를 참조하세요."
+  it: "Indirizzo postale: Vedere l'Avviso Legale (Imprint) per l'indirizzo registrato attuale."
+  tr: "Posta adresi: Güncel kayıtlı adres için Yasal Bildirim (Impressum) bölümüne bakın."
+  vi: "Địa chỉ bưu điện: Xem Thông báo Pháp lý (Imprint) để biết địa chỉ đăng ký hiện tại."
+  id: "Alamat pos: Lihat Pemberitahuan Hukum (Imprint) untuk alamat terdaftar saat ini."
+  pl: "Adres pocztowy: Aktualny adres rejestrowy znajduje się w Stopce Redakcyjnej (Impressum)."
+  nl: "Postadres: Zie de Juridische Mededeling (Impressum) voor het huidige geregistreerde adres."
+  ar: "العنوان البريدي: انظر الإشعار القانوني (Imprint) للعنوان المسجل الحالي."
+  hi: "डाक पता: वर्तमान पंजीकृत पते के लिए कानूनी नोटिस (Imprint) देखें।"
+  th: "ที่อยู่ทางไปรษณีย์: ดูประกาศทางกฎหมาย (Imprint) สำหรับที่อยู่ที่ลงทะเบียนปัจจุบัน"
+  cs: "Poštovní adresa: Viz Právní upozornění (Impressum) pro aktuální registrovanou adresu."
+  sv: "Postadress: Se Juridisk meddelande (Impressum) för den aktuella registrerade adressen."
   verified_by_human: []
 contact.controller:
   context: Controller information
   en: "Controller: OpenMates (see Imprint for legal representative details)."
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: "Verantwortlicher: OpenMates (Details zum gesetzlichen Vertreter siehe Impressum)."
+  zh: "数据控制者：OpenMates（法定代表人详情见版权页）。"
+  es: "Responsable del tratamiento: OpenMates (ver Aviso Legal para detalles del representante legal)."
+  fr: "Responsable du traitement : OpenMates (voir les mentions légales pour les détails du représentant légal)."
+  pt: "Controlador: OpenMates (veja o Imprint para detalhes do representante legal)."
+  ru: "Контролёр: OpenMates (подробности о законном представителе смотрите в Imprint)."
+  ja: "管理者：OpenMates（法的代理人の詳細はインプリントをご覧ください）。"
+  ko: "컨트롤러: OpenMates (법적 대리인 세부 정보는 Imprint 참조)."
+  it: "Titolare del trattamento: OpenMates (vedere l'Imprint per i dettagli del rappresentante legale)."
+  tr: "Veri sorumlusu: OpenMates (yasal temsilci ayrıntıları için Impressum'a bakın)."
+  vi: "Bên kiểm soát: OpenMates (xem Imprint để biết thông tin người đại diện pháp lý)."
+  id: "Pengontrol: OpenMates (lihat Imprint untuk detail perwakilan hukum)."
+  pl: "Administrator: OpenMates (szczegóły dotyczące przedstawiciela prawnego w Impressum)."
+  nl: "Verwerkingsverantwoordelijke: OpenMates (zie Impressum voor gegevens van de wettelijke vertegenwoordiger)."
+  ar: "المتحكم في البيانات: OpenMates (انظر Imprint للاطلاع على تفاصيل الممثل القانوني)."
+  hi: "नियंत्रक: OpenMates (कानूनी प्रतिनिधि विवरण के लिए Imprint देखें)।"
+  th: "ผู้ควบคุมข้อมูล: OpenMates (ดูรายละเอียดตัวแทนทางกฎหมายใน Imprint)"
+  cs: "Správce: OpenMates (viz Impressum pro podrobnosti o zákonném zástupci)."
+  sv: "Personuppgiftsansvarig: OpenMates (se Impressum för uppgifter om rättslig företrädare)."
   verified_by_human: []
 aggregate_analytics.heading:
   context: Section heading for the anonymous aggregate analytics section
@@ -2382,21 +2396,21 @@ aggregate_analytics.overview:
   zh: 我们收集关于网站和Web应用使用情况的匿名聚合统计数据。这些数据是真正匿名的——无法与任何个人用户关联，也不设置Cookie或跟踪标识符。
   es: "Recopilamos estadísticas anónimas y agregadas sobre el uso de nuestro sitio web y aplicación web. Estos datos son genuinamente anónimos: no se pueden vincular a ningún usuario individual y no se establecen cookies ni identificadores de seguimiento."
   fr: Nous collectons des statistiques anonymes et agrégées sur l'utilisation de notre site web et application web. Ces données sont réellement anonymes — elles ne peuvent être liées à aucun utilisateur individuel, et aucun cookie ni identifiant de suivi n'est installé.
-  pt: ""
-  ru: ""
+  pt: Coletamos estatísticas anônimas e agregadas sobre como nosso site e aplicativo web são usados. Esses dados são genuinamente anônimos — não podem ser vinculados a nenhum usuário individual e nenhum cookie ou identificador de rastreamento é definido. Nenhum banner de consentimento é necessário porque nenhum dado pessoal é coletado.
+  ru: Мы собираем анонимную агрегированную статистику об использовании нашего веб-сайта и веб-приложения. Эти данные действительно анонимны — они не могут быть привязаны к какому-либо конкретному пользователю, и никакие файлы cookie или идентификаторы отслеживания не устанавливаются. Баннер согласия не требуется, так как никакие персональные данные не собираются.
   ja: 当ウェブサイトおよびウェブアプリの利用状況について、匿名の集計統計を収集します。このデータは真に匿名であり、特定の個人に結びつけることはできません。Cookieやトラッキング識別子は一切設定しません。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 당사 웹사이트 및 웹 애플리케이션 사용 방식에 대한 익명 집계 통계를 수집합니다. 이 데이터는 진정으로 익명이며 개별 사용자와 연결될 수 없고 쿠키나 추적 식별자가 설정되지 않습니다. 개인 데이터가 수집되지 않으므로 동의 배너가 필요하지 않습니다.
+  it: Raccogliamo statistiche anonime e aggregate sull'utilizzo del nostro sito web e dell'applicazione web. Questi dati sono genuinamente anonimi — non possono essere collegati a nessun utente individuale e non vengono impostati cookie o identificatori di tracciamento. Non è richiesto nessun banner di consenso perché non vengono raccolti dati personali.
+  tr: Web sitemizin ve web uygulamamızın nasıl kullanıldığına ilişkin anonim, toplu istatistikler topluyoruz. Bu veriler gerçek anlamda anonimdir — herhangi bir bireysel kullanıcıyla ilişkilendirilemez ve çerez veya izleme tanımlayıcısı kullanılmaz. Hiçbir kişisel veri toplanmadığından onay afişi gerekmez.
+  vi: Chúng tôi thu thập thống kê ẩn danh và tổng hợp về cách trang web và ứng dụng web của chúng tôi được sử dụng. Dữ liệu này thực sự ẩn danh — không thể liên kết với bất kỳ người dùng cá nhân nào và không có cookie hoặc mã nhận dạng theo dõi nào được đặt. Không cần banner đồng ý vì không có dữ liệu cá nhân nào được thu thập.
+  id: Kami mengumpulkan statistik anonim dan agregat tentang cara situs web dan aplikasi web kami digunakan. Data ini benar-benar anonim — tidak dapat dikaitkan dengan pengguna individu mana pun, dan tidak ada cookie atau pengidentifikasi pelacakan yang ditetapkan. Tidak diperlukan banner persetujuan karena tidak ada data pribadi yang dikumpulkan.
+  pl: Zbieramy anonimowe statystyki zbiorcze dotyczące korzystania z naszej strony internetowej i aplikacji webowej. Dane te są autentycznie anonimowe — nie można ich powiązać z żadnym indywidualnym użytkownikiem, a żadne pliki cookie ani identyfikatory śledzenia nie są ustawiane. Baner zgody nie jest wymagany, ponieważ żadne dane osobowe nie są gromadzone.
+  nl: We verzamelen anonieme, geaggregeerde statistieken over hoe onze website en webapplicatie worden gebruikt. Deze gegevens zijn echt anoniem — ze kunnen niet worden gekoppeld aan een individuele gebruiker en er worden geen cookies of tracking-ID's ingesteld. Een toestemmingsbanner is niet vereist omdat er geen persoonsgegevens worden verzameld.
+  ar: نجمع إحصاءات مجهولة ومجمعة حول كيفية استخدام موقعنا الإلكتروني وتطبيقنا على الويب. هذه البيانات مجهولة الهوية حقاً — لا يمكن ربطها بأي مستخدم فردي، ولا يتم تعيين ملفات تعريف الارتباط أو معرفات التتبع. لا يلزم وجود لافتة موافقة لأنه لا يتم جمع أي بيانات شخصية.
+  hi: हम अपनी वेबसाइट और वेब एप्लिकेशन के उपयोग के बारे में अनाम, समग्र आंकड़े एकत्र करते हैं। यह डेटा वास्तव में अनाम है — इसे किसी भी व्यक्तिगत उपयोगकर्ता से नहीं जोड़ा जा सकता, और कोई कुकी या ट्रैकिंग पहचानकर्ता सेट नहीं किया जाता। कोई सहमति बैनर आवश्यक नहीं है क्योंकि कोई व्यक्तिगत डेटा एकत्र नहीं किया जाता।
+  th: เราเก็บรวบรวมสถิติที่ไม่ระบุตัวตนและรวมกลุ่มเกี่ยวกับวิธีการใช้เว็บไซต์และแอปพลิเคชันเว็บของเรา ข้อมูลนี้เป็นข้อมูลนิรนามอย่างแท้จริง — ไม่สามารถเชื่อมโยงกับผู้ใช้รายบุคคลใดได้ และไม่มีการตั้งค่าคุกกี้หรือตัวระบุการติดตาม ไม่จำเป็นต้องมีแบนเนอร์ขอความยินยอมเนื่องจากไม่มีการเก็บข้อมูลส่วนบุคคล
+  cs: Shromažďujeme anonymní agregovanou statistiku o tom, jak jsou využívány naše webové stránky a webová aplikace. Tato data jsou skutečně anonymní — nelze je spojit s žádným konkrétním uživatelem a nejsou nastaveny žádné cookies ani sledovací identifikátory. Souhlas není vyžadován, protože nejsou shromažďována žádná osobní data.
+  sv: Vi samlar in anonym, aggregerad statistik om hur vår webbplats och webbapplikation används. Dessa uppgifter är genuint anonyma — de kan inte kopplas till någon enskild användare och inga cookies eller spårningsidentifierare ställs in. Inget samtyckesmeddelande krävs eftersom inga personuppgifter samlas in.
   verified_by_human: []
 aggregate_analytics.what_we_collect:
   context: Bullet list header for what is collected

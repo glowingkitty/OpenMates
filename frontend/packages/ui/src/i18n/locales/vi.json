@@ -2196,7 +2196,68 @@
     }
   },
   "daily_inspiration": {},
-  "demo_chats": {},
+  "demo_chats": {
+    "for_developers": {
+      "title": {
+        "text": "OpenMates | Dành cho nhà phát triển"
+      },
+      "description": {
+        "text": "Công cụ phát triển AI với REST API, CLI, quyền riêng tư và không cần thiết lập MCP"
+      },
+      "message": {
+        "text": "# 👨‍💻 Đồng đội kỹ thuật số cho nhà phát triển\n\nOpenMates cũng là công cụ tuyệt vời cho nhà phát triển. Từ câu hỏi nhanh, lập kế hoạch dự án lớn đến tạo code dựa trên tài liệu mới nhất, tất cả mà không cần cài đặt MCP phức tạp, đồng thời bảo vệ quyền riêng tư của bạn.\nNhấp vào các cuộc trò chuyện mẫu để xem OpenMates có thể làm gì cho nhà phát triển:\n[[dev_example_chats_group]]\n\n## 🚀 Bắt đầu nhanh\n\nNhấn nút Đăng ký ở góc trên bên phải, mua tín dụng sử dụng và bắt đầu sử dụng OpenMates.\n\n## 📱 Ứng dụng cho nhà phát triển\n\nVới Apps trên OpenMates, không cần thiết lập MCP phức tạp với khóa API văn bản thuần trong file cấu hình JSON. OpenMates tự động sử dụng mô hình AI phù hợp, kỹ năng ứng dụng và chế độ tập trung.\nVí dụ:\n- 📖 [Code | Lấy tài liệu](#settings/appstore/code/skills/get-docs): Kiểm tra tài liệu mới nhất trước khi tạo file code.\n- 🔍 [Web | Tìm kiếm](#settings/appstore/web/skills/search): Tìm kiếm web để cải thiện độ chính xác.\n- ✅ Kiểm tra linter tự động (sắp ra mắt).\n[[dev_app_store_group]]\n\n### 🛠️ Kỹ năng dành cho nhà phát triển\n[[dev_skills_group]]\n\n### 🎯 Chế độ tập trung dành cho nhà phát triển\n[[dev_focus_modes_group]]\n\n### 💾 Cài đặt và ký ức dành cho nhà phát triển\n[[dev_settings_memories_group]]\n\n## 🔌 REST API\n\nOpenMates REST API cho phép bạn sử dụng OpenMates tương tự các LLM API khác và tương tác với tất cả kỹ năng App.\n\n## 💻 CLI và gói phần mềm\n\nSắp ra mắt: CLI và gói pip/npm để truy cập đầy đủ tài khoản OpenMates từ mọi nơi.\n\n## 🔒 Quyền riêng tư và mã hóa\n\nOpenMates không bao giờ huấn luyện mô hình từ dữ liệu của bạn. Tất cả chat và cài đặt app được mã hóa zero-knowledge trên thiết bị.\n\n## 🛡️ Mã nguồn mở\n\n[OpenMates hoàn toàn mã nguồn mở theo AGPL 3](https://github.com/glowingkitty/openmates).\n\n---\n\n📚 Bạn đã đọc phần giới thiệu cho mọi người chưa? Nếu chưa, [nhấp vào đây](#chat-id=demo-for-everyone)."
+      },
+      "follow_up_1": {
+        "text": "REST API hoạt động như thế nào?"
+      },
+      "follow_up_2": {
+        "text": "Code của tôi có được giữ bí mật không?"
+      },
+      "follow_up_3": {
+        "text": "Làm thế nào để tự host OpenMates?"
+      }
+    },
+    "for_everyone": {
+      "title": {
+        "text": "OpenMates | Dành cho tất cả mọi người"
+      },
+      "description": {
+        "text": "Chatbot AI dễ tiếp cận với ứng dụng, quyền riêng tư và không cần đăng ký"
+      },
+      "message": {
+        "text": "# ✨ Đồng đội kỹ thuật số cho mọi người\n\nVới OpenMates, bạn có một đội ngũ chatbot AI chuyên biệt không chỉ có thể truyền cảm hứng và dạy kiến thức mới mà còn thực hiện các nhiệm vụ khác nhau bằng ứng dụng. Giúp các khía cạnh hữu ích của AI trở nên dễ tiếp cận với mọi người, trong khi bảo vệ quyền riêng tư của bạn và cho bạn quyền truy cập vào các mô hình AI tốt nhất.\nNhấp vào các cuộc trò chuyện mẫu này để xem OpenMates có thể làm gì:\n[[example_chats_group]]\n\n## 🚀 Bắt đầu nhanh\n\nNhấn nút Đăng ký ở góc trên bên phải để đăng ký, mua tín dụng sử dụng và bắt đầu sử dụng OpenMates. Hoặc tiếp tục đọc để tìm hiểu thêm về OpenMates và xem các cuộc trò chuyện mẫu trong menu trò chuyện ở góc trên bên trái.\n\n## 📱 Ứng dụng\n\nVì chỉ tìm kiếm web không đủ để hoàn thành các nhiệm vụ hàng ngày, OpenMates hỗ trợ nhiều ứng dụng khác.\n[[app_store_group]]\nTrong [Cửa hàng ứng dụng](#settings/appstore), bạn có tổng quan về tất cả các ứng dụng mà đồng đội kỹ thuật số của bạn có thể sử dụng, cùng kỹ năng, chế độ tập trung và cài đặt và ký ức của chúng.\n\n### 🛠️ Kỹ năng\n\nCho phép đồng đội của bạn tương tác với các dịch vụ bên ngoài: tìm kiếm web, đọc bản ghi video và trang web, tìm kiếm địa điểm và giờ mở cửa, tìm kiếm video và nhiều hơn nữa.\n[[skills_group]]\n\n### 🎯 Chế độ tập trung\n\nTạm thời thay đổi trọng tâm của cuộc trò chuyện để đạt được mục tiêu cụ thể. Tạo sự khác biệt lớn trong việc nhận được phản hồi và sự giúp đỡ tốt hơn nhiều từ chatbot của bạn mà không cần phải là chuyên gia trong việc thiết kế yêu cầu phức tạp.\n[[focus_modes_group]]\n\n### 💾 Cài đặt và ký ức\n\nCho phép OpenMates cung cấp câu trả lời cá nhân hóa hơn dựa trên sở thích, chuyến đi, sách bạn muốn đọc, dự án và nhiều hơn nữa. Nhưng:\n- ✅ chỉ khi cần thiết\n- ✅ chỉ cho cuộc trò chuyện cụ thể cần đến\n- ✅ chỉ với dữ liệu bạn rõ ràng đồng ý chia sẻ\n- ✅ dữ liệu nhạy cảm không bao giờ được lưu trữ trên máy chủ\nTất cả cài đặt và ký ức được mã hóa và giải mã trên thiết bị của bạn, giống như các cuộc trò chuyện. Điều này có nghĩa là máy chủ không bao giờ có thể tự giải mã chúng. Chỉ thiết bị của bạn mới có thể, sử dụng phương thức đăng nhập của bạn.\n[[settings_memories_group]]\n\n## 🎨 Được thiết kế để dễ sử dụng\n\nTheo mặc định, OpenMates tự động xử lý yêu cầu của bạn với mô hình AI phù hợp nhất, đồng đội, kỹ năng ứng dụng, chế độ tập trung và cài đặt và ký ức (sau khi bạn đồng ý). Trong khi cho phép bạn ghi đè lựa chọn tự động bất kỳ lúc nào trong menu cài đặt hoặc bằng cách gõ @ vào tin nhắn.\n\n### 🤖 Mô hình AI\n\nOpenMates tự động chọn mô hình AI tốt nhất cho mỗi yêu cầu của bạn — vì vậy bạn không phải theo kịp bối cảnh luôn thay đổi của các mô hình AI mới. Nhưng nếu muốn kiểm soát hoàn toàn, chỉ cần gõ **@** vào tin nhắn để tự chọn mô hình cụ thể.\n[[ai_models_group]]\n\n## 🎓 Học tập và cảm hứng\n\nKhi được sử dụng đúng cách, chatbot AI có thể là công cụ học tập cá nhân hóa tuyệt vời nhất từng được phát triển. OpenMates triển khai nhiều chức năng để giúp bạn không chỉ với các nhiệm vụ mà còn tiếp tục học mỗi ngày, với đề xuất theo dõi và đề xuất cuộc trò chuyện mới dựa trên các cuộc trò chuyện của bạn.\n\n## 🔒 Quyền riêng tư và mã hóa\n\nChỉ thiết bị của bạn mới có thể giải mã các cuộc trò chuyện và cài đặt ứng dụng nhạy cảm.\nBạn giữ toàn quyền kiểm soát dữ liệu nào được gửi đến OpenMates.\nChỉ lượng dữ liệu tối thiểu cần thiết được gửi đến máy chủ để xử lý yêu cầu — và không bao giờ được lưu trữ trên đĩa.\nChỉ dữ liệu được mã hóa và bảo vệ bằng phương thức đăng nhập của bạn mới được lưu trữ trên máy chủ để đồng bộ hóa.\nCác nhà cung cấp AI chúng tôi sử dụng không bao giờ thấy chính xác ai đã gửi yêu cầu.\n\n## 💰 Giá cả\n\nKhông cần đăng ký, không quảng cáo, không chia sẻ dữ liệu người dùng, không vốn đầu tư mạo hiểm.\nThay vào đó: hệ thống trả theo sử dụng đơn giản và công bằng. Bạn mua tín dụng sử dụng, sau đó được tính phí mỗi yêu cầu theo giá của từng kỹ năng App trong Cửa hàng ứng dụng. Và tất nhiên: tín dụng không hết hạn.\n\n---\n\n👨‍💻 Bạn là nhà phát triển phần mềm? Hãy xem phần giới thiệu dành cho nhà phát triển để tìm hiểu thêm về cách OpenMates có thể rất mạnh mẽ để xây dựng phần mềm mới.\n[[for_developers_embed]]"
+      },
+      "follow_up_1": {
+        "text": "Chi phí là bao nhiêu?"
+      },
+      "follow_up_2": {
+        "text": "Những ứng dụng nào có sẵn?"
+      },
+      "follow_up_3": {
+        "text": "Cho tôi biết thêm về quyền riêng tư"
+      }
+    },
+    "who_develops_openmates": {
+      "title": {
+        "text": "Ai phát triển OpenMates?"
+      },
+      "description": {
+        "text": "Gặp gỡ người tạo ra OpenMates và tìm hiểu triết lý đằng sau dự án"
+      },
+      "message": {
+        "text": "# 👋 Ai phát triển OpenMates?\n\nXin chào!\nTôi là Marco (còn được biết đến là [glowingkitty](https://github.com/glowingkitty)). Nhà thiết kế, kiến trúc sư phần mềm, người sáng tạo. Và là người tạo ra OpenMates.\n\nTất cả chúng ta đều có những trải nghiệm thất vọng với các công ty công nghệ lớn. Dù là do thiết kế trải nghiệm người dùng kém, các gói đăng ký bắt buộc với giá ngày càng tăng, quảng cáo, dữ liệu người dùng bị đánh cắp do bảo mật không đủ, bán dữ liệu người dùng, xây dựng sản phẩm vừa gây nghiện vừa hữu ích — và danh sách cứ tiếp tục dài mãi.\n\nNhưng phần mềm không nhất thiết phải gây thất vọng như vậy, và nhiều nhà phát triển (đặc biệt trong cộng đồng mã nguồn mở) chứng minh điều này mỗi ngày với các dự án tuyệt vời. Tôi vừa hào hứng với tiềm năng cho mọi người tiếp cận các trợ lý cá nhân có thể làm mọi thứ — từ giúp học các chủ đề mới, tìm kiếm trên web, lên kế hoạch chuyến đi, tư vấn nghề nghiệp, xây dựng phần mềm và nhiều hơn nữa — nhưng cũng lo ngại về việc để các công ty công nghệ lớn định nghĩa và kiểm soát tương lai này. Bởi vì những công ty đó đã nhiều lần chứng tỏ họ không thể tin tưởng để ưu tiên lợi ích người dùng hơn lợi ích nhà đầu tư.\n\nVì vậy, vào cuối năm 2024 tôi bắt đầu làm việc trên một dự án cá nhân. Một giải pháp thay thế tốt hơn cho các chatbot / AI agent hiện có. Với lợi ích người dùng là ưu tiên hàng đầu, thiết kế trải nghiệm người dùng tốt hơn, quyền riêng tư và mã hóa tốt hơn, độc lập với các nhà cung cấp AI riêng lẻ, tập trung vào giáo dục và cảm hứng, và với mục tiêu tổng thể là làm cho các khía cạnh hữu ích của AI có thể tiếp cận với mọi người trong các tác vụ hàng ngày. Thay vì xây dựng thêm một cỗ máy nội dung rác khiến mọi người nghiện và internet ngày càng tệ hơn. Và bây giờ, nó đã trực tuyến. Vâng, vẫn là bản alpha với một số lỗi và tính năng còn thiếu, nhưng mỗi tuần đều tốt hơn.\n\nỒ, và tất nhiên OpenMates hoàn toàn là mã nguồn mở. Bởi vì đó là nền tảng của mọi phần mềm muốn đảm bảo khả năng chống lại sự xuống cấp và ưu tiên lợi ích người dùng trong tương lai.\n\nNếu bạn muốn tham gia hành trình này với tư cách người dùng, cảm ơn rất nhiều và chào mừng!\nNếu bạn muốn tham gia với tư cách cộng tác viên và có thể là thành viên nhóm — hãy xem [kho git của OpenMates](https://github.com/glowingkitty/openmates) và [nhóm phát triển của chúng tôi](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) — và tôi hy vọng được nghe từ bạn!\n\nMong đợi những tháng tới. Sẽ là một hành trình thú vị :)"
+      },
+      "follow_up_1": {
+        "text": "Tầm nhìn dài hạn cho OpenMates là gì?"
+      },
+      "follow_up_2": {
+        "text": "Tôi có thể đóng góp cho OpenMates như thế nào?"
+      },
+      "follow_up_3": {
+        "text": "Tại sao mã nguồn mở quan trọng với OpenMates?"
+      }
+    }
+  },
   "design_guidelines": {
     "section_title": {
       "text": "Hướng dẫn thiết kế"
@@ -3357,6 +3418,35 @@
   "highlight": {},
   "invoices_and_credit_notes": {},
   "legal": {
+    "imprint": {
+      "title": {
+        "text": "Thông báo pháp lý (Imprint)"
+      },
+      "information_tmg": {
+        "text": "Thông tin theo § 5 TMG"
+      },
+      "contact": {
+        "text": "Liên hệ"
+      },
+      "email": {
+        "text": "Email"
+      },
+      "follow_up_1": {
+        "text": "Tại sao luật Đức yêu cầu Imprint?"
+      },
+      "follow_up_2": {
+        "text": "Làm thế nào để liên hệ với đội ngũ pháp lý của bạn?"
+      },
+      "follow_up_3": {
+        "text": "Bạn sử dụng giấy phép mã nguồn mở nào?"
+      },
+      "follow_up_4": {
+        "text": "Công ty của bạn đăng ký ở đâu?"
+      },
+      "follow_up_5": {
+        "text": "Ai là đại diện pháp lý?"
+      }
+    },
     "privacy": {
       "title": {
         "text": "Chính sách Bảo mật"
@@ -3586,6 +3676,9 @@
         "content": {
           "text": "Nội dung: Tin nhắn trò chuyện, lời nhắc, tệp đính kèm và hình ảnh/video đã tải lên cần thiết để cung cấp dịch vụ (chịu sự kiểm duyệt khi áp dụng)."
         },
+        "payments": {
+          "text": "Thanh toán: Mã thông báo phương thức thanh toán, ID giao dịch, địa chỉ thanh toán và thông tin VAT theo yêu cầu để lập hóa đơn (được xử lý chủ yếu bởi Stripe). Chúng tôi không lưu trữ số thẻ đầy đủ."
+        },
         "newsletter": {
           "text": "Bản tin: Nếu bạn chọn đăng ký bản tin của chúng tôi, chúng tôi lưu trữ địa chỉ email của bạn ở dạng mã hóa. Đăng ký bản tin là tùy chọn và tách biệt với việc tạo tài khoản. Tạo tài khoản không tự động đăng ký bạn vào bản tin."
         }
@@ -3613,11 +3706,117 @@
       "legal_basis": {
         "heading": {
           "text": "7. Cơ sở Pháp lý cho Xử lý (GDPR)"
+        },
+        "contract": {
+          "text": "Hợp đồng: Xử lý cần thiết để thực hiện hợp đồng của chúng tôi với bạn hoặc để thực hiện các bước theo yêu cầu của bạn trước khi ký hợp đồng (ví dụ: tạo tài khoản, cung cấp các tính năng ứng dụng web)."
+        },
+        "consent": {
+          "text": "Sự đồng ý: Xử lý dựa trên sự đồng ý của bạn, khi có thể áp dụng (ví dụ: truyền thông tùy chọn, một số phân tích hoặc tiếp thị khi sử dụng). Bạn có thể rút lại sự đồng ý bất cứ lúc nào."
+        },
+        "legitimate_interests": {
+          "text": "Lợi ích hợp pháp: Xử lý cần thiết cho các lợi ích hợp pháp của chúng tôi, chẳng hạn như bảo mật dịch vụ, ngăn chặn gian lận, phát hiện lạm dụng và cải thiện dịch vụ, miễn là các lợi ích này không bị ghi đè bởi quyền và lợi ích của bạn."
+        },
+        "legal_obligation": {
+          "text": "Nghĩa vụ pháp lý: Xử lý cần thiết để tuân thủ các nghĩa vụ pháp lý (ví dụ: yêu cầu thuế và kế toán đối với hóa đơn và hồ sơ giao dịch)."
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. Quyền Riêng tư của Bạn"
+        },
+        "intro": {
+          "text": "Tùy thuộc vào thẩm quyền pháp lý của bạn, bạn có thể có một số quyền nhất định đối với dữ liệu cá nhân của mình. Dưới đây tóm tắt các quyền chính theo GDPR và CCPA/CPRA và cách thực hiện chúng:"
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "GDPR (EU/EEA)"
+          },
+          "access": {
+            "text": "Quyền truy cập"
+          },
+          "rectification": {
+            "text": "Quyền chỉnh sửa"
+          },
+          "erasure": {
+            "text": "Quyền xóa ('quyền được lãng quên')"
+          },
+          "restriction": {
+            "text": "Quyền hạn chế xử lý"
+          },
+          "portability": {
+            "text": "Quyền chuyển dữ liệu"
+          },
+          "objection": {
+            "text": "Quyền phản đối"
+          },
+          "withdraw_consent": {
+            "text": "Quyền rút lại sự đồng ý"
+          },
+          "exercise": {
+            "text": "Để thực hiện quyền GDPR của bạn, hãy liên hệ với chúng tôi tại contact@openmates.org hoặc qua trang Imprint. Chúng tôi có thể cần xác minh danh tính của bạn trước khi thực hiện yêu cầu."
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA (California)"
+          },
+          "right_to_know": {
+            "text": "Quyền biết/truy cập"
+          },
+          "right_to_delete": {
+            "text": "Quyền xóa"
+          },
+          "right_to_correct": {
+            "text": "Quyền sửa chữa"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "Quyền từ chối bán hoặc chia sẻ"
+          },
+          "right_to_non_discrimination": {
+            "text": "Quyền không bị phân biệt đối xử"
+          },
+          "exercise": {
+            "text": "Cư dân California có thể thực hiện quyền CCPA/CPRA bằng cách liên hệ với chúng tôi tại contact@openmates.org. Chúng tôi không bán thông tin cá nhân."
+          }
+        }
+      },
+      "discord_integration": {
+        "heading": {
+          "text": "9. Tích hợp Discord"
+        },
+        "description": {
+          "text": "Nếu bạn chọn tham gia cộng đồng Discord của chúng tôi qua các liên kết trên trang web này, hãy lưu ý rằng Discord sẽ thu thập và xử lý dữ liệu của bạn theo chính sách quyền riêng tư của họ. Điều này bao gồm thông tin tài khoản, dữ liệu sử dụng, nội dung liên lạc và các thông tin khác được nêu trong chính sách quyền riêng tư của Discord."
+        },
+        "admin_access": {
+          "text": "Là quản trị viên máy chủ Discord, chúng tôi có quyền truy cập vào tất cả các thông tin liên lạc công khai, danh sách thành viên và các thông tin khác được chia sẻ trong cộng đồng Discord của chúng tôi. Tuy nhiên, thông tin này được lưu trữ và xử lý chủ yếu bởi Discord. Chúng tôi không trích xuất, lưu trữ hoặc xử lý dữ liệu này ngoài nền tảng Discord. Để biết thêm thông tin về cách Discord xử lý dữ liệu của bạn, vui lòng xem Chính sách quyền riêng tư của Discord."
+        },
+        "privacy_policy_link": {
+          "text": "Chính sách quyền riêng tư của Discord"
+        }
+      },
+      "contact": {
+        "heading": {
+          "text": "4. Thông tin liên hệ"
+        },
+        "questions": {
+          "text": "Đối với các câu hỏi về bảo vệ dữ liệu:"
+        },
+        "email": {
+          "text": "Email"
+        },
+        "postal": {
+          "text": "Địa chỉ bưu điện: Xem Thông báo Pháp lý (Imprint) để biết địa chỉ đăng ký hiện tại."
+        },
+        "controller": {
+          "text": "Bên kiểm soát: OpenMates (xem Imprint để biết thông tin người đại diện pháp lý)."
         }
       },
       "aggregate_analytics": {
         "heading": {
           "text": "11. Phân tích tổng hợp ẩn danh"
+        },
+        "overview": {
+          "text": "Chúng tôi thu thập thống kê ẩn danh và tổng hợp về cách trang web và ứng dụng web của chúng tôi được sử dụng. Dữ liệu này thực sự ẩn danh — không thể liên kết với bất kỳ người dùng cá nhân nào và không có cookie hoặc mã nhận dạng theo dõi nào được đặt. Không cần banner đồng ý vì không có dữ liệu cá nhân nào được thu thập."
         }
       }
     },
@@ -5233,6 +5432,9 @@
       "share_transcript": {
         "text": "Chia sẻ bản ghi"
       }
+    },
+    "fork": {
+      "text": "Phân nhánh cuộc trò chuyện"
     },
     "developers_api_keys": {
       "text": "Khóa API"

@@ -2196,7 +2196,68 @@
     }
   },
   "daily_inspiration": {},
-  "demo_chats": {},
+  "demo_chats": {
+    "for_developers": {
+      "title": {
+        "text": "OpenMates | Geliştiriciler için"
+      },
+      "description": {
+        "text": "REST API, CLI, gizlilik ve MCP kurulumu gerektirmeyen AI destekli geliştirici araçları"
+      },
+      "message": {
+        "text": "# 👨‍💻 Geliştiriciler için dijital takım arkadaşları\n\nOpenMates, geliştiriciler için de harika bir araçtır. Hızlı sorulardan büyük projelerin planlanmasına, en güncel dokümanlara dayalı kod üretimine kadar, karmaşık MCP sunucu kurulumları olmadan, gizliliğinizi koruyarak tüm en iyi AI modellerine erişebilirsiniz.\nGeliştiriciler için OpenMates'in neler yapabileceğini görmek için bu örnek sohbetlere tıklayın:\n[[dev_example_chats_group]]\n\n## 🚀 Hızlı başlangıç\n\nSağ üstteki Kaydol düğmesine basarak kaydolun ve kullanım kredisi satın alın.\n\n## 📱 Geliştiriciler için uygulamalar\n\nOpenMates Apps ile JSON yapılandırma dosyalarında düz metin API anahtarları içeren karmaşık MCP kurulumlarına gerek yoktur. OpenMates, isteğiniz için otomatik olarak doğru AI modelini, uygulama becerisini ve odak modunu kullanır.\nÖrnekler:\n- 📖 [Kod | Doküman al](#settings/appstore/code/skills/get-docs): Kod üretmeden önce en güncel dokümanı kontrol eder.\n- 🔍 [Web | Arama](#settings/appstore/web/skills/search): Doğruluk için web araması yapar.\n- ✅ Üretilen kod için otomatik linter kontrolleri (yakında).\n[[dev_app_store_group]]\n\n### 🛠️ Geliştirici becerileri\n[[dev_skills_group]]\n\n### 🎯 Geliştirici odak modları\n[[dev_focus_modes_group]]\n\n### 💾 Geliştirici ayarları ve anılar\n[[dev_settings_memories_group]]\n\n## 🔌 REST API\n\nOpenMates REST API, diğer LLM API'leri gibi OpenMates'i kullanmanızı ve tüm App becerilerini kullanmanızı sağlar.\n\n## 💻 CLI ve paketler\n\nYakında çıkacak CLI ve pip/npm paketleri ile her yerden OpenMates hesabınıza tam erişim sağlayabilirsiniz.\n\n## 🔒 Gizlilik ve şifreleme\n\nOpenMates hiçbir zaman verilerinizle model eğitmez. Tüm sohbetleriniz ve uygulama ayarlarınız cihazınızda sıfır bilgi şifrelemesiyle şifrelenir.\n\n## 🛡️ Açık kaynak\n\n[OpenMates, AGPL 3 altında tamamen açık kaynaktır](https://github.com/glowingkitty/openmates).\n\n---\n\n📚 Herkes için girişi okudunuz mu? Okumadıysanız [buraya tıklayın](#chat-id=demo-for-everyone)."
+      },
+      "follow_up_1": {
+        "text": "REST API nasıl çalışır?"
+      },
+      "follow_up_2": {
+        "text": "Kodum gizli mi kalır?"
+      },
+      "follow_up_3": {
+        "text": "OpenMates'i kendi sunucumda nasıl barındırabilirim?"
+      }
+    },
+    "for_everyone": {
+      "title": {
+        "text": "OpenMates | Herkes için"
+      },
+      "description": {
+        "text": "Uygulamalar ve gizlilikle erişilebilir yapay zeka sohbet robotları, abonelik gerekmez"
+      },
+      "message": {
+        "text": "# ✨ Herkes için dijital takım arkadaşları\n\nOpenMates ile sizi ilham verebilen, yeni bilgiler öğretebilen ve uygulamaları kullanarak çeşitli görevleri yerine getirebilen özel AI sohbet botlarından oluşan bir ekibiniz var. AI'nin faydalı yönlerini gizliliğinizi koruyarak ve en iyi AI modellerine erişim sağlayarak herkese erişilebilir kılıyoruz.\nOpenMates'in neler yapabileceğini görmek için bu örnek sohbetlere tıklayın:\n[[example_chats_group]]\n\n## 🚀 Hızlı başlangıç\n\nKaydolmak için sağ üstteki Kaydol düğmesine basın, kullanım kredisi satın alın ve OpenMates'i kullanmaya başlayın. Ya da okumaya devam ederek OpenMates hakkında daha fazla bilgi edinin ve sol üstteki sohbet menüsündeki örnek sohbetleri inceleyin.\n\n## 📱 Uygulamalar\n\nYalnızca web araması günlük görevleri yerine getirmek için yeterli olmadığından, OpenMates çeşitli diğer uygulamaları da destekler.\n[[app_store_group]]\n[Uygulama Mağazası'nda](#settings/appstore) dijital takım arkadaşlarınızın isteklerinizi yerine getirmek için kullanabileceği tüm uygulamalara, bunların becerilerine, odak modlarına ve ayarlar ile anılara genel bir bakış görebilirsiniz.\n\n### 🛠️ Beceriler\n\nTakım arkadaşlarınızın harici servislerle etkileşime girmesini sağlar. Web araması yapmak, video dökümlerini ve web sitelerini okumak, konumları ve açılış saatlerini aramak, video aramak ve çok daha fazlası.\n[[skills_group]]\n\n### 🎯 Odak modları\n\nBelirli bir hedefe ulaşmak için bir sohbetin odağını geçici olarak değiştirin. Sohbet botlarınızdan çok daha iyi yanıtlar ve yardım almanızda büyük fark yaratır. Sohbet botları için karmaşık istekler tasarlama konusunda uzman olmanıza gerek yoktur.\n[[focus_modes_group]]\n\n### 💾 Ayarlar ve anılar\n\nOpenMates'in ilgi alanlarınıza, seyahatlerinize, okumak istediğiniz kitaplara, projelerinize ve daha fazlasına göre daha kişiselleştirilmiş yanıtlar vermesini sağlar. Ancak:\n- ✅ yalnızca gerektiğinde\n- ✅ yalnızca gerekli olan belirli sohbet için\n- ✅ yalnızca açıkça onay verdiğiniz verilerle\n- ✅ hassas veriler sunucu diskinde hiçbir zaman saklanmaz\nTüm ayarlar ve anılar, sohbetleriniz gibi cihazlarınızda şifrelenir ve çözülür. Bu, sunucunun bunları asla tek başına çözemeyeceği anlamına gelir. Yalnızca cihazlarınız, giriş yönteminizi kullanarak yapabilir.\n[[settings_memories_group]]\n\n## 🎨 Kullanım kolaylığı için tasarlandı\n\nVarsayılan olarak, OpenMates isteğinizi en uygun AI modeli, takım arkadaşı, uygulama becerileri, odak modları ve ayarlar ile anılar ile otomatik olarak işler (onayınızdan sonra). Otomatik seçimi istediğiniz zaman ayarlar menüsünde veya mesajınıza @ yazarak geçersiz kılabilirsiniz.\n\n### 🤖 AI modelleri\n\nOpenMates her isteğiniz için en iyi AI modelini otomatik olarak seçer; yeni AI modellerinin sürekli değişen dünyasını takip etmenize gerek yoktur. Ama tam kontrol istiyorsanız, belirli bir modeli kendiniz seçmek için mesajınıza **@** yazmanız yeterlidir.\n[[ai_models_group]]\n\n## 🎓 Öğrenme ve ilham\n\nDoğru kullanıldığında, AI sohbet botları şimdiye kadar geliştirilen en inanılmaz kişiselleştirilmiş öğrenme aracı olabilir. OpenMates, yalnızca görevlerde değil, her gün öğrenmeye devam etmenize yardımcı olacak çeşitli işlevler uygular. Sohbetlerinize dayalı takip önerileri ve yeni sohbet önerileriyle, ve yakında eklenecek 'Günlük İlham' özelliğiyle.\n\n## 🔒 Gizlilik ve şifreleme\n\nYalnızca cihazınız sohbetlerinizi ve hassas uygulama ayarları ile anılarınızı çözebilir.\nHangi verilerin OpenMates'e gönderileceği konusunda tam kontrole sahipsiniz.\nİsteğinizi işlemek için gereken minimum veri miktarı sunucuya gönderilir ve diske kaydedilmez.\nYalnızca giriş yönteminizle korunan şifreli veriler senkronizasyon için sunucuda saklanır. Böylece saldırganlar bile geçmiş sohbetlerinizi okuyamaz.\nKullandığımız AI sağlayıcıları tam olarak kimin istek gönderdiğini asla görmez. Gizliliğinizi daha da güçlendirmek için ek önlemler üzerinde çalışıyoruz.\n\n## 💰 Fiyatlandırma\n\nAbonelik gerekmez, reklam yok, kullanıcı verisi paylaşımı yok, risk sermayesi yok (OpenMates'in kullanıcı çıkarlarını önce tutmasını sağlamak için).\nBunun yerine: basit ve adil bir kullandıkça öde sistemi. Kullanım kredisi satın alırsınız, ardından Uygulama Mağazası'nda her Uygulama becerisi için bulabileceğiniz fiyatlara göre istek başına ücretlendirilirsiniz. Ve tabii ki: krediler sona ermez.\n\n---\n\n👨‍💻 Yazılım geliştiricisi misiniz? O zaman OpenMates'in yeni yazılım geliştirmede nasıl süper güçlü olabileceğini öğrenmek için geliştiriciler için giriş bölümüne göz atın.\n[[for_developers_embed]]"
+      },
+      "follow_up_1": {
+        "text": "Ne kadar tutar?"
+      },
+      "follow_up_2": {
+        "text": "Hangi uygulamalar mevcut?"
+      },
+      "follow_up_3": {
+        "text": "Gizlilik hakkında daha fazla bilgi ver"
+      }
+    },
+    "who_develops_openmates": {
+      "title": {
+        "text": "OpenMates'i kim geliştiriyor?"
+      },
+      "description": {
+        "text": "OpenMates'in yaratıcısıyla tanışın ve projenin arkasındaki felsefeyi öğrenin"
+      },
+      "message": {
+        "text": "# 👋 OpenMates'i kim geliştiriyor?\n\nMerhaba!\nBen Marco ([glowingkitty](https://github.com/glowingkitty) olarak da biliniyorum). Tasarımcı, yazılım mimarı, maker. Ve OpenMates'in yaratıcısı.\n\nHepimizin büyük teknoloji şirketleriyle hayal kırıklığı yaratan deneyimlerimiz oldu. Kötü kullanıcı deneyimi tasarımı, sürekli artan fiyatlarla zorunlu abonelikler, reklamlar, yetersiz güvenlik nedeniyle çalınan kullanıcı verileri, kullanıcı verilerinin satışı, hem bağımlılık yaratan hem de faydalı ürünler — liste uzayıp gider.\n\nAma yazılımın bu kadar sinir bozucu olması gerekmiyor; birçok geliştirici (özellikle açık kaynak topluluğunda) bunu her gün harika projelerle kanıtlıyor. Yeni konular öğrenmekten web aramaya, seyahat planlamaya, kariyer tavsiyesi almaya, yazılım geliştirmeye kadar her şeyi yapabilen kişisel asistanlara herkesin erişimini sağlama potansiyelinden hem heyecanlıydım, hem de büyük teknoloji şirketlerinin bu geleceği tanımlamasına ve kontrol etmesine izin vermekten endişeliydim. Çünkü bu şirketler defalarca yatırımcı çıkarlarını kullanıcı çıkarlarının önünde tuttuklarını kanıtladı.\n\nBu yüzden 2024 sonunda kişisel bir proje üzerinde çalışmaya başladım. Mevcut chatbot'lara / AI ajanlarına daha iyi bir alternatif. Kullanıcı çıkarlarını birinci öncelik olarak, daha iyi kullanıcı deneyimi tasarımı, daha iyi gizlilik ve şifreleme, bireysel AI sağlayıcılarından bağımsızlık, eğitim ve ilhama odaklanma ve genel olarak AI'nın faydalı yönlerini sıradan insanların günlük görevleri için erişilebilir kılma hedefiyle. Herkesi bağımlı yapan ve interneti daha sefil hale getiren başka bir içerik makinesi kurmak yerine. Ve şimdi çevrimiçi. Evet, hâlâ bazı hatalar ve eksik özelliklerle alpha aşamasında, ama her hafta daha iyi hale geliyor.\n\nVe tabii ki OpenMates tamamen açık kaynak. Çünkü bu, gelecekte de kötüleşmeye direnci sağlamak ve kullanıcı çıkarlarını önceliklendirmek isteyen her yazılımın temelidir.\n\nBu yolculuğa kullanıcı olarak katılmak istiyorsanız, çok teşekkürler ve hoş geldiniz!\nBu yolculuğa katkıcı ve olası bir ekip üyesi olarak katılmak istiyorsanız — [OpenMates'in git deposunu](https://github.com/glowingkitty/openmates) ve [geliştirici grubunu](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) inceleyin — sizden haber bekliyorum!\n\nÖnümüzdeki aylara dört gözle bekliyorum. Heyecanlı bir yolculuk olacak :)"
+      },
+      "follow_up_1": {
+        "text": "OpenMates için uzun vadeli vizyon nedir?"
+      },
+      "follow_up_2": {
+        "text": "OpenMates'e nasıl katkıda bulunabilirim?"
+      },
+      "follow_up_3": {
+        "text": "Açık kaynak OpenMates için neden önemlidir?"
+      }
+    }
+  },
   "design_guidelines": {
     "section_title": {
       "text": "Tasarım Kılavuzları"
@@ -3357,6 +3418,35 @@
   "highlight": {},
   "invoices_and_credit_notes": {},
   "legal": {
+    "imprint": {
+      "title": {
+        "text": "Yasal Bildirim (Künye)"
+      },
+      "information_tmg": {
+        "text": "§ 5 TMG'ye göre bilgiler"
+      },
+      "contact": {
+        "text": "İletişim"
+      },
+      "email": {
+        "text": "E-posta"
+      },
+      "follow_up_1": {
+        "text": "Alman hukuku neden bir Künyeyi zorunlu kılıyor?"
+      },
+      "follow_up_2": {
+        "text": "Hukuk ekibinizle nasıl iletişime geçebilirim?"
+      },
+      "follow_up_3": {
+        "text": "Hangi açık kaynak lisanslarını kullanıyorsunuz?"
+      },
+      "follow_up_4": {
+        "text": "Şirketiniz nerede kayıtlı?"
+      },
+      "follow_up_5": {
+        "text": "Yasal temsilci kimdir?"
+      }
+    },
     "privacy": {
       "title": {
         "text": "Gizlilik Politikası"
@@ -3586,6 +3676,9 @@
         "content": {
           "text": "İçerik: Hizmeti sağlamak için gerekli sohbet mesajları, istemler, ekler ve yüklenen görüntüler/videolar (uygulanabilir olduğunda moderasyona tabi)."
         },
+        "payments": {
+          "text": "Ödemeler: Faturalama için gerektiği şekilde ödeme yöntemi tokenları, işlem kimlikleri, fatura adresi ve KDV bilgileri (esas olarak Stripe tarafından işlenir). Tam kart numaralarını saklamıyoruz."
+        },
         "newsletter": {
           "text": "Bülten: Bültenimize abone olmayı seçerseniz, e-posta adresinizi şifrelenmiş biçimde saklarız. Bülten aboneliği isteğe bağlıdır ve hesap oluşturmadan ayrıdır. Bir hesap oluşturmak sizi otomatik olarak bültene abone etmez."
         }
@@ -3613,11 +3706,117 @@
       "legal_basis": {
         "heading": {
           "text": "7. İşleme için Yasal Dayanak (GDPR)"
+        },
+        "contract": {
+          "text": "Sözleşme: Sizinle aramızdaki sözleşmeyi yerine getirmek veya bir sözleşme imzalanmadan önce talebiniz üzerine adım atmak için gerekli işlem (ör. hesap oluşturma, web uygulaması özelliklerinin sunulması)."
+        },
+        "consent": {
+          "text": "Onay: Geçerli olduğu durumlarda onayınıza dayalı işlem (örn. isteğe bağlı iletişimler, kullanıldığı yerlerde belirli analizler veya pazarlama). Onayı istediğiniz zaman geri çekebilirsiniz."
+        },
+        "legitimate_interests": {
+          "text": "Meşru menfaatler: Hizmet güvenliği, dolandırıcılığı önleme, kötüye kullanımı tespit etme ve hizmeti geliştirme gibi meşru menfaatlerimiz için gerekli işlemler. Bu menfaatler, haklarınız ve çıkarlarınız tarafından geçersiz kılınmadığı sürece geçerlidir."
+        },
+        "legal_obligation": {
+          "text": "Yasal yükümlülük: Yasal yükümlülüklere uymak için gerekli işlem (örn. faturalar ve işlem kayıtları için vergi ve muhasebe gereksinimleri)."
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. Gizlilik Haklarınız"
+        },
+        "intro": {
+          "text": "Yargı bölgenize bağlı olarak kişisel verileriniz üzerinde belirli haklara sahip olabilirsiniz. Aşağıda GDPR ve CCPA/CPRA kapsamındaki temel haklar ve bunların nasıl kullanılacağı özetlenmektedir:"
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "GDPR (AB/AEA)"
+          },
+          "access": {
+            "text": "Erişim hakkı"
+          },
+          "rectification": {
+            "text": "Düzeltme hakkı"
+          },
+          "erasure": {
+            "text": "Silme hakkı (\"unutulma hakkı\")"
+          },
+          "restriction": {
+            "text": "İşleme kısıtlama hakkı"
+          },
+          "portability": {
+            "text": "Veri taşınabilirliği hakkı"
+          },
+          "objection": {
+            "text": "İtiraz hakkı"
+          },
+          "withdraw_consent": {
+            "text": "Rızayı geri çekme hakkı"
+          },
+          "exercise": {
+            "text": "GDPR haklarınızı kullanmak için contact@openmates.org adresinden veya Künye aracılığıyla bizimle iletişime geçin. Talebinizi yerine getirmeden önce kimliğinizi doğrulamamız gerekebilir."
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA (Kaliforniya)"
+          },
+          "right_to_know": {
+            "text": "Bilme/erişim hakkı"
+          },
+          "right_to_delete": {
+            "text": "Silme hakkı"
+          },
+          "right_to_correct": {
+            "text": "Düzeltme hakkı"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "Satış veya paylaşımdan çıkma hakkı"
+          },
+          "right_to_non_discrimination": {
+            "text": "Ayrımcılık yaşamamama hakkı"
+          },
+          "exercise": {
+            "text": "Kaliforniya sakinleri, contact@openmates.org adresinden bizimle iletişime geçerek CCPA/CPRA haklarını kullanabilir. Kişisel bilgileri satmıyoruz."
+          }
+        }
+      },
+      "discord_integration": {
+        "heading": {
+          "text": "9. Discord Entegrasyonu"
+        },
+        "description": {
+          "text": "Bu web sitesinde sağlanan bağlantılar aracılığıyla Discord topluluğumuza katılmayı seçerseniz, Discord'un gizlilik politikalarına göre verilerinizi toplayıp işleyeceğini lütfen unutmayın. Bu; hesap bilgileri, kullanım verileri, iletişim içeriği ve Discord'un gizlilik politikasında belirtilen diğer bilgileri kapsar."
+        },
+        "admin_access": {
+          "text": "Discord sunucu yöneticileri olarak, Discord topluluğumuz içinde paylaşılan tüm genel iletişimlere, üye listelerine ve diğer bilgilere erişimimiz vardır. Ancak bu bilgiler Discord tarafından barındırılmakta ve öncelikli olarak Discord tarafından işlenmektedir. Bu verileri Discord platformu dışında çıkarmıyor, depolamıyor veya işlemiyoruz. Discord'un verilerinizi nasıl işlediği hakkında daha fazla bilgi için Discord'un Gizlilik Politikasını inceleyin."
+        },
+        "privacy_policy_link": {
+          "text": "Discord Gizlilik Politikası"
+        }
+      },
+      "contact": {
+        "heading": {
+          "text": "4. İletişim Bilgileri"
+        },
+        "questions": {
+          "text": "Veri koruma hakkında sorular için:"
+        },
+        "email": {
+          "text": "E-posta"
+        },
+        "postal": {
+          "text": "Posta adresi: Güncel kayıtlı adres için Yasal Bildirim (Impressum) bölümüne bakın."
+        },
+        "controller": {
+          "text": "Veri sorumlusu: OpenMates (yasal temsilci ayrıntıları için Impressum'a bakın)."
         }
       },
       "aggregate_analytics": {
         "heading": {
           "text": "11. Anonim Toplu Analitik"
+        },
+        "overview": {
+          "text": "Web sitemizin ve web uygulamamızın nasıl kullanıldığına ilişkin anonim, toplu istatistikler topluyoruz. Bu veriler gerçek anlamda anonimdir — herhangi bir bireysel kullanıcıyla ilişkilendirilemez ve çerez veya izleme tanımlayıcısı kullanılmaz. Hiçbir kişisel veri toplanmadığından onay afişi gerekmez."
         }
       }
     },
@@ -5233,6 +5432,9 @@
       "share_transcript": {
         "text": "Transkripti paylaş"
       }
+    },
+    "fork": {
+      "text": "Konuşmayı çatalla"
     },
     "developers_api_keys": {
       "text": "API Anahtarları"

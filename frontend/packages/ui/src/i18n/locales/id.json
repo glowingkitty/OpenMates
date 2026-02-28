@@ -2196,7 +2196,68 @@
     }
   },
   "daily_inspiration": {},
-  "demo_chats": {},
+  "demo_chats": {
+    "for_developers": {
+      "title": {
+        "text": "OpenMates | Untuk pengembang"
+      },
+      "description": {
+        "text": "Alat pengembangan bertenaga AI dengan REST API, CLI, privasi, dan tanpa pengaturan MCP"
+      },
+      "message": {
+        "text": "# 👨‍💻 Rekan tim digital untuk pengembang\n\nOpenMates juga merupakan alat luar biasa untuk pengembang. Dari pertanyaan cepat, perencanaan proyek besar, hingga pembuatan kode berdasarkan dokumentasi terbaru, semua tanpa pengaturan MCP server yang rumit sambil melindungi privasi Anda.\nKlik obrolan contoh ini untuk melihat apa yang bisa dilakukan OpenMates untuk pengembang:\n[[dev_example_chats_group]]\n\n## 🚀 Mulai cepat\n\nTekan tombol Daftar di kanan atas, beli kredit penggunaan dan mulai menggunakan OpenMates.\n\n## 📱 Aplikasi untuk pengembang\n\nDengan Apps di OpenMates, tidak perlu pengaturan MCP yang rumit dengan kunci API teks biasa dalam file konfigurasi JSON. OpenMates secara otomatis menggunakan model AI, keterampilan app, dan mode fokus yang tepat.\nContoh:\n- 📖 [Kode | Dapatkan dok](#settings/appstore/code/skills/get-docs): Memeriksa dokumentasi terbaru sebelum membuat file kode.\n- 🔍 [Web | Cari](#settings/appstore/web/skills/search): Mencari web untuk meningkatkan akurasi respons.\n- ✅ Pemeriksaan linter otomatis untuk kode yang dibuat (segera hadir).\n[[dev_app_store_group]]\n\n### 🛠️ Keterampilan pengembang\n[[dev_skills_group]]\n\n### 🎯 Mode fokus pengembang\n[[dev_focus_modes_group]]\n\n### 💾 Pengaturan & memori pengembang\n[[dev_settings_memories_group]]\n\n## 🔌 REST API\n\nOpenMates REST API memungkinkan Anda menggunakan OpenMates seperti API LLM lainnya dan berinteraksi dengan semua keterampilan App.\n\n## 💻 CLI dan paket\n\nSegera hadir: CLI dan paket pip/npm untuk akses penuh ke akun OpenMates dari mana saja.\n\n## 🔒 Privasi & enkripsi\n\nOpenMates tidak pernah melatih model dengan data Anda. Semua obrolan dan pengaturan app dienkripsi zero-knowledge di perangkat Anda.\n\n## 🛡️ Open source\n\n[OpenMates sepenuhnya open source di bawah AGPL 3](https://github.com/glowingkitty/openmates).\n\n---\n\n📚 Sudahkah Anda membaca pengantar untuk semua orang? Jika belum, [klik di sini](#chat-id=demo-for-everyone)."
+      },
+      "follow_up_1": {
+        "text": "Bagaimana cara kerja REST API?"
+      },
+      "follow_up_2": {
+        "text": "Apakah kode saya tetap privat?"
+      },
+      "follow_up_3": {
+        "text": "Bagaimana cara self-host OpenMates?"
+      }
+    },
+    "for_everyone": {
+      "title": {
+        "text": "OpenMates | Untuk semua orang"
+      },
+      "description": {
+        "text": "Chatbot AI yang mudah diakses dengan aplikasi, privasi, dan tanpa langganan"
+      },
+      "message": {
+        "text": "# ✨ Rekan tim digital untuk semua orang\n\nDengan OpenMates, Anda memiliki tim chatbot AI khusus yang tidak hanya dapat menginspirasi dan mengajarkan pengetahuan baru, tetapi juga menyelesaikan berbagai tugas menggunakan aplikasi. Membuat aspek AI yang berguna dapat diakses oleh semua orang, sambil melindungi privasi Anda dan memberi Anda akses ke semua model AI terbaik.\nKlik obrolan contoh ini untuk melihat apa yang bisa dilakukan OpenMates:\n[[example_chats_group]]\n\n## 🚀 Mulai cepat\n\nTekan tombol Daftar di kanan atas untuk mendaftar, beli kredit penggunaan dan mulai menggunakan OpenMates. Atau terus membaca untuk mempelajari lebih lanjut tentang OpenMates, dan periksa obrolan contoh di menu obrolan di kiri atas.\n\n## 📱 Aplikasi\n\nKarena hanya mencari di web tidak cukup untuk menyelesaikan tugas sehari-hari, OpenMates mendukung berbagai aplikasi lainnya.\n[[app_store_group]]\nDi [App Store](#settings/appstore) Anda memiliki ikhtisar semua aplikasi yang dapat digunakan rekan tim digital Anda, beserta keterampilan, mode fokus, dan pengaturan & memori mereka.\n\n### 🛠️ Keterampilan\n\nMemungkinkan rekan tim Anda berinteraksi dengan layanan eksternal: mencari web, membaca transkrip video & situs web, mencari lokasi dan jam buka, mencari video, dan banyak lagi.\n[[skills_group]]\n\n### 🎯 Mode fokus\n\nUbah fokus obrolan sementara untuk mencapai tujuan tertentu. Membuat perbedaan besar dalam mendapatkan respons dan bantuan yang jauh lebih baik dari chatbot Anda.\n[[focus_modes_group]]\n\n### 💾 Pengaturan & memori\n\nMemungkinkan OpenMates memberi Anda jawaban yang lebih personal berdasarkan minat, perjalanan, buku yang ingin dibaca, proyek, dan lainnya. Namun:\n- ✅ hanya ketika diperlukan\n- ✅ hanya untuk obrolan tertentu yang membutuhkannya\n- ✅ hanya dengan data yang Anda setujui untuk dibagikan\n- ✅ tidak ada data sensitif yang pernah disimpan di server\nSemua pengaturan & memori dienkripsi & didekripsi di perangkat Anda, seperti obrolan Anda. Server tidak pernah dapat mendekripsinya sendiri. Hanya perangkat Anda yang bisa, menggunakan metode login Anda.\n[[settings_memories_group]]\n\n## 🎨 Dirancang untuk kemudahan penggunaan\n\nSecara default, OpenMates secara otomatis memproses permintaan Anda dengan model AI, rekan tim, keterampilan aplikasi, mode fokus, dan pengaturan & memori yang paling sesuai (setelah persetujuan Anda).\n\n### 🤖 Model AI\n\nOpenMates secara otomatis memilih model AI terbaik untuk setiap permintaan Anda — sehingga Anda tidak perlu mengikuti lanskap model AI baru yang terus berubah. Tapi jika ingin kontrol penuh, cukup ketik **@** di pesan Anda untuk memilih model tertentu sendiri.\n[[ai_models_group]]\n\n## 🎓 Belajar & inspirasi\n\nJika digunakan dengan benar, chatbot AI dapat menjadi alat pembelajaran yang luar biasa. OpenMates mengimplementasikan berbagai fitur untuk membantu Anda tidak hanya dengan tugas, tetapi untuk terus belajar setiap hari.\n\n## 🔒 Privasi & enkripsi\n\nHanya perangkat Anda yang dapat mendekripsi obrolan dan pengaturan aplikasi sensitif Anda.\nAnda memiliki kendali penuh atas data mana yang dikirim ke OpenMates.\nHanya jumlah data minimum yang diperlukan yang dikirim ke server — dan tidak pernah disimpan di disk.\nHanya data terenkripsi yang diamankan oleh metode login Anda yang disimpan untuk sinkronisasi di server.\n\n## 💰 Harga\n\nTidak perlu langganan, tidak ada iklan, tidak ada berbagi data pengguna, tidak ada modal ventura.\nSebagai gantinya: sistem bayar per penggunaan yang sederhana dan adil. Anda membeli kredit penggunaan, lalu dikenakan biaya per permintaan sesuai harga setiap keterampilan App di App Store. Dan tentu saja: kredit tidak kedaluwarsa.\n\n---\n\n👨‍💻 Apakah Anda pengembang perangkat lunak? Lihat pengantar untuk pengembang untuk mempelajari lebih lanjut tentang bagaimana OpenMates bisa sangat powerful untuk membangun perangkat lunak baru.\n[[for_developers_embed]]"
+      },
+      "follow_up_1": {
+        "text": "Berapa biayanya?"
+      },
+      "follow_up_2": {
+        "text": "Aplikasi apa yang tersedia?"
+      },
+      "follow_up_3": {
+        "text": "Ceritakan lebih banyak tentang privasi"
+      }
+    },
+    "who_develops_openmates": {
+      "title": {
+        "text": "Siapa yang mengembangkan OpenMates?"
+      },
+      "description": {
+        "text": "Temui pencipta OpenMates dan pelajari filosofi di balik proyek ini"
+      },
+      "message": {
+        "text": "# 👋 Siapa yang mengembangkan OpenMates?\n\nHalo!\nSaya Marco (juga dikenal sebagai [glowingkitty](https://github.com/glowingkitty)). Desainer, arsitek perangkat lunak, maker. Dan pencipta OpenMates.\n\nKita semua pernah mengalami pengalaman frustasi dengan perusahaan teknologi besar. Baik karena desain pengalaman pengguna yang buruk, langganan wajib dengan harga yang terus meningkat, iklan, data pengguna yang dicuri karena keamanan yang tidak memadai, penjualan data pengguna, membangun produk yang sama-sama adiktif dan berguna — dan daftarnya terus bertambah.\n\nNamun perangkat lunak tidak harus semembuat frustrasi ini, dan banyak pengembang (terutama di komunitas open source) membuktikannya setiap hari dengan proyek-proyek luar biasa. Saya merasa antusias dengan potensi memberi semua orang akses ke asisten pribadi yang bisa melakukan segalanya — dari membantu belajar topik baru, mencari di web, merencanakan perjalanan, mendapatkan saran karier, membangun perangkat lunak, dan banyak lagi — tetapi juga khawatir dengan membiarkan perusahaan teknologi besar mendefinisikan dan mengendalikan masa depan ini. Karena perusahaan-perusahaan itu telah berulang kali menunjukkan bahwa mereka tidak bisa dipercaya untuk memprioritaskan kepentingan pengguna di atas kepentingan investor.\n\nJadi, saya mulai mengerjakan proyek pribadi sekitar akhir 2024. Alternatif yang lebih baik untuk chatbot / agen AI yang ada. Dengan kepentingan pengguna sebagai prioritas utama, desain pengalaman pengguna yang lebih baik, privasi dan enkripsi yang lebih baik, kemandirian dari penyedia AI individual, fokus pada pendidikan dan inspirasi, dan dengan tujuan umum membuat aspek berguna dari AI dapat diakses oleh orang biasa untuk tugas sehari-hari. Daripada membangun mesin konten sampah lain yang membuat semua orang kecanduan dan internet semakin menyedihkan. Dan sekarang sudah online. Ya, masih dalam tahap alpha dengan beberapa bug dan fitur yang belum ada, tetapi semakin baik setiap minggu.\n\nOh, dan tentu saja OpenMates sepenuhnya open source. Karena itu adalah fondasi dari setiap perangkat lunak yang ingin memastikan ketahanan terhadap penurunan kualitas dan memprioritaskan kepentingan pengguna juga di masa depan.\n\nJika Anda ingin bergabung dalam perjalanan ini sebagai pengguna, terima kasih banyak dan selamat datang!\nJika Anda ingin bergabung sebagai kontributor dan kemungkinan anggota tim — lihat [repositori git OpenMates](https://github.com/glowingkitty/openmates) dan [grup pengembang kami](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) — dan saya berharap mendengar dari Anda!\n\nMenantikan bulan-bulan ke depan. Ini akan menjadi perjalanan yang mengasyikkan :)"
+      },
+      "follow_up_1": {
+        "text": "Apa visi jangka panjang untuk OpenMates?"
+      },
+      "follow_up_2": {
+        "text": "Bagaimana saya bisa berkontribusi pada OpenMates?"
+      },
+      "follow_up_3": {
+        "text": "Mengapa open source penting bagi OpenMates?"
+      }
+    }
+  },
   "design_guidelines": {
     "section_title": {
       "text": "Pedoman desain"
@@ -3357,6 +3418,35 @@
   "highlight": {},
   "invoices_and_credit_notes": {},
   "legal": {
+    "imprint": {
+      "title": {
+        "text": "Pemberitahuan Hukum (Imprint)"
+      },
+      "information_tmg": {
+        "text": "Informasi sesuai § 5 TMG"
+      },
+      "contact": {
+        "text": "Kontak"
+      },
+      "email": {
+        "text": "Email"
+      },
+      "follow_up_1": {
+        "text": "Mengapa hukum Jerman mewajibkan Imprint?"
+      },
+      "follow_up_2": {
+        "text": "Bagaimana cara menghubungi tim hukum Anda?"
+      },
+      "follow_up_3": {
+        "text": "Lisensi open source apa yang Anda gunakan?"
+      },
+      "follow_up_4": {
+        "text": "Di mana perusahaan Anda terdaftar?"
+      },
+      "follow_up_5": {
+        "text": "Siapa perwakilan hukumnya?"
+      }
+    },
     "privacy": {
       "title": {
         "text": "Kebijakan Privasi"
@@ -3586,6 +3676,9 @@
         "content": {
           "text": "Konten: Pesan obrolan, prompt, lampiran, dan gambar/video yang diunggah yang diperlukan untuk menyediakan layanan (tunduk pada moderasi jika berlaku)."
         },
+        "payments": {
+          "text": "Pembayaran: Token metode pembayaran, ID transaksi, alamat penagihan dan informasi PPN sebagaimana diperlukan untuk faktur (diproses terutama oleh Stripe). Kami tidak menyimpan nomor kartu lengkap."
+        },
         "newsletter": {
           "text": "Newsletter: Jika Anda memilih untuk berlangganan newsletter kami, kami menyimpan alamat email Anda dalam bentuk terenkripsi. Langganan newsletter bersifat opsional dan terpisah dari pembuatan akun. Membuat akun tidak secara otomatis berlangganan Anda ke newsletter."
         }
@@ -3613,11 +3706,117 @@
       "legal_basis": {
         "heading": {
           "text": "7. Dasar Hukum untuk Pemrosesan (GDPR)"
+        },
+        "contract": {
+          "text": "Kontrak: Pemrosesan yang diperlukan untuk melaksanakan kontrak kami dengan Anda atau untuk mengambil langkah-langkah atas permintaan Anda sebelum membuat kontrak (misalnya, pembuatan akun, pengiriman fitur aplikasi web)."
+        },
+        "consent": {
+          "text": "Persetujuan: Pemrosesan berdasarkan persetujuan Anda, jika berlaku (misalnya, komunikasi opsional, analitik atau pemasaran tertentu jika digunakan). Anda dapat menarik persetujuan kapan saja."
+        },
+        "legitimate_interests": {
+          "text": "Kepentingan sah: Pemrosesan yang diperlukan untuk kepentingan sah kami, seperti keamanan layanan, pencegahan penipuan, deteksi penyalahgunaan, dan peningkatan layanan, asalkan kepentingan ini tidak dikalahkan oleh hak dan kepentingan Anda."
+        },
+        "legal_obligation": {
+          "text": "Kewajiban hukum: Pemrosesan yang diperlukan untuk mematuhi kewajiban hukum (misalnya, persyaratan pajak dan akuntansi untuk faktur dan catatan transaksi)."
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. Hak Privasi Anda"
+        },
+        "intro": {
+          "text": "Bergantung pada yurisdiksi Anda, Anda mungkin memiliki hak-hak tertentu atas data pribadi Anda. Berikut ini merangkum hak-hak utama di bawah GDPR dan CCPA/CPRA dan cara menggunakannya:"
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "GDPR (EU/EEA)"
+          },
+          "access": {
+            "text": "Hak akses"
+          },
+          "rectification": {
+            "text": "Hak rektifikasi"
+          },
+          "erasure": {
+            "text": "Hak penghapusan ('hak untuk dilupakan')"
+          },
+          "restriction": {
+            "text": "Hak pembatasan pemrosesan"
+          },
+          "portability": {
+            "text": "Hak portabilitas data"
+          },
+          "objection": {
+            "text": "Hak keberatan"
+          },
+          "withdraw_consent": {
+            "text": "Hak menarik persetujuan"
+          },
+          "exercise": {
+            "text": "Untuk menggunakan hak GDPR Anda, hubungi kami di contact@openmates.org atau melalui Imprint. Kami mungkin perlu memverifikasi identitas Anda sebelum memenuhi permintaan Anda."
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA (California)"
+          },
+          "right_to_know": {
+            "text": "Hak untuk mengetahui/mengakses"
+          },
+          "right_to_delete": {
+            "text": "Hak penghapusan"
+          },
+          "right_to_correct": {
+            "text": "Hak koreksi"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "Hak untuk menolak penjualan atau berbagi"
+          },
+          "right_to_non_discrimination": {
+            "text": "Hak non-diskriminasi"
+          },
+          "exercise": {
+            "text": "Warga California dapat menggunakan hak CCPA/CPRA dengan menghubungi kami di contact@openmates.org. Kami tidak menjual informasi pribadi."
+          }
+        }
+      },
+      "discord_integration": {
+        "heading": {
+          "text": "9. Integrasi Discord"
+        },
+        "description": {
+          "text": "Jika Anda memilih bergabung dengan komunitas Discord kami melalui tautan di situs web ini, harap diketahui bahwa Discord akan mengumpulkan dan memproses data Anda sesuai kebijakan privasi mereka. Ini mencakup informasi akun, data penggunaan, konten komunikasi, dan informasi lainnya sebagaimana diuraikan dalam kebijakan privasi Discord."
+        },
+        "admin_access": {
+          "text": "Sebagai administrator server Discord, kami memiliki akses ke semua komunikasi publik, daftar anggota, dan informasi lain yang dibagikan dalam komunitas Discord kami. Namun, informasi ini di-hosting dan terutama diproses oleh Discord. Kami tidak mengekstrak, menyimpan, atau memproses data ini di luar platform Discord. Untuk informasi lebih lanjut tentang cara Discord menangani data Anda, tinjau Kebijakan Privasi Discord."
+        },
+        "privacy_policy_link": {
+          "text": "Kebijakan Privasi Discord"
+        }
+      },
+      "contact": {
+        "heading": {
+          "text": "4. Informasi Kontak"
+        },
+        "questions": {
+          "text": "Untuk pertanyaan tentang perlindungan data:"
+        },
+        "email": {
+          "text": "Email"
+        },
+        "postal": {
+          "text": "Alamat pos: Lihat Pemberitahuan Hukum (Imprint) untuk alamat terdaftar saat ini."
+        },
+        "controller": {
+          "text": "Pengontrol: OpenMates (lihat Imprint untuk detail perwakilan hukum)."
         }
       },
       "aggregate_analytics": {
         "heading": {
           "text": "11. Analitik agregat anonim"
+        },
+        "overview": {
+          "text": "Kami mengumpulkan statistik anonim dan agregat tentang cara situs web dan aplikasi web kami digunakan. Data ini benar-benar anonim — tidak dapat dikaitkan dengan pengguna individu mana pun, dan tidak ada cookie atau pengidentifikasi pelacakan yang ditetapkan. Tidak diperlukan banner persetujuan karena tidak ada data pribadi yang dikumpulkan."
         }
       }
     },
@@ -5233,6 +5432,9 @@
       "share_transcript": {
         "text": "Bagikan transkrip"
       }
+    },
+    "fork": {
+      "text": "Cabangkan percakapan"
     },
     "developers_api_keys": {
       "text": "Kunci API"

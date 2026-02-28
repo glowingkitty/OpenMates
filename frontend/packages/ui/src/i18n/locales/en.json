@@ -7635,6 +7635,39 @@
         "text": "Mate not found."
       }
     },
+    "pricing": {
+      "description": {
+        "text": "Explore credit packages and skill costs"
+      },
+      "text": "Pricing",
+      "packages_heading": {
+        "text": "Credit Packages"
+      },
+      "recommended": {
+        "text": "Recommended"
+      },
+      "bonus_credits": {
+        "text": "bonus/mo with Auto Top-Up"
+      },
+      "vat_note": {
+        "text": "All prices excluding VAT. Prices in EUR and USD."
+      },
+      "explore_heading": {
+        "text": "Explore App Skills & Costs"
+      },
+      "ai_ask_skill": {
+        "text": "AI Ask"
+      },
+      "ai_ask_subtitle": {
+        "text": "Biggest cost factor — explore model pricing"
+      },
+      "browse_app_store": {
+        "text": "Browse App Store"
+      },
+      "browse_app_store_subtitle": {
+        "text": "See pricing for all available skills"
+      }
+    },
     "shared": {
       "description": {
         "text": "Manage your shared chats and tips"
@@ -7790,6 +7823,9 @@
       "share_transcript": {
         "text": "Share Transcript"
       }
+    },
+    "fork": {
+      "text": "Fork Conversation"
     },
     "messengers": {
       "text": "Messengers"

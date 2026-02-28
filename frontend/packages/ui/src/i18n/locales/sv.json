@@ -2196,7 +2196,68 @@
     }
   },
   "daily_inspiration": {},
-  "demo_chats": {},
+  "demo_chats": {
+    "for_developers": {
+      "title": {
+        "text": "OpenMates | För utvecklare"
+      },
+      "description": {
+        "text": "AI-drivna utvecklingsverktyg med REST API, CLI, integritet och ingen MCP-konfiguration behövs"
+      },
+      "message": {
+        "text": "# 👨‍💻 Digitala lagkamrater för utvecklare\n\nOpenMates är också ett fantastiskt verktyg för utvecklare. För allt från snabba frågor, planering av stora projekt, kodgenerering baserad på den senaste dokumentationen och mycket mer. Allt utan komplicerade MCP-serverinställningar och med skydd av din integritet.\nKlicka på dessa exempelchatter för att se vad OpenMates kan göra för utvecklare:\n[[dev_example_chats_group]]\n\n## 🚀 Snabbstart\n\nTryck på knappen Registrera dig uppe till höger, köp användningskrediter och börja använda OpenMates.\n\n## 📱 Appar för utvecklare\n\nMed OpenMates Apps behövs inga komplicerade, tidskrävande och osäkra MCP-inställningar med API-nycklar i klartext i JSON-konfigurationsfiler. OpenMates använder automatiskt rätt AI-modell, app-färdighet och fokusmod.\nExempel:\n- 📖 [Kod | Hämta dokumentation](#settings/appstore/code/skills/get-docs): Kontrollerar den senaste dokumentationen innan kodfiler genereras.\n- 🔍 [Webb | Sök](#settings/appstore/web/skills/search): Söker på webben för bättre svarsnoggrannhet.\n- ✅ Automatiska linterkontroller för genererad kod (snart).\n[[dev_app_store_group]]\n\n### 🛠️ Utvecklarfärdigheter\n[[dev_skills_group]]\n\n### 🎯 Fokusmoder för utvecklare\n[[dev_focus_modes_group]]\n\n### 💾 Inställningar och minnen för utvecklare\n[[dev_settings_memories_group]]\n\n## 🔌 REST API\n\nOpenMates REST API gör att du kan använda OpenMates som andra LLM-API:er och interagera med alla App-färdigheter.\n\n## 💻 CLI och paket\n\nSnart: CLI och pip/npm-paket för full åtkomst till ditt OpenMates-konto var som helst.\n\n## 🔒 Integritet och kryptering\n\nOpenMates tränar aldrig modeller på dina data. Alla chattar och appinställningar krypteras zero-knowledge på din enhet.\n\n## 🛡️ Open source\n\n[OpenMates är helt open source under AGPL 3](https://github.com/glowingkitty/openmates).\n\n---\n\n📚 Har du redan läst introduktionen för alla? Om inte, [klicka här](#chat-id=demo-for-everyone)."
+      },
+      "follow_up_1": {
+        "text": "Hur fungerar REST API?"
+      },
+      "follow_up_2": {
+        "text": "Är min kod privat?"
+      },
+      "follow_up_3": {
+        "text": "Hur kan jag självhosta OpenMates?"
+      }
+    },
+    "for_everyone": {
+      "title": {
+        "text": "OpenMates | För alla"
+      },
+      "description": {
+        "text": "AI-chatbotar tillgängliga med appar, integritet och utan prenumeration"
+      },
+      "message": {
+        "text": "# ✨ Digitala lagkamrater för alla\n\nMed OpenMates har du ett team av specialiserade AI-chatbottar som inte bara kan inspirera dig och lära ut ny kunskap, utan också utföra olika uppgifter med hjälp av appar. Detta gör AI:s användbara aspekter tillgängliga för alla, medan din integritet skyddas och du får tillgång till de bästa AI-modellerna.\nKlicka på dessa exempelchatter för att se vad OpenMates kan göra:\n[[example_chats_group]]\n\n## 🚀 Snabbstart\n\nTryck på knappen Registrera dig uppe till höger för att registrera dig, köp användningskrediter och börja använda OpenMates.\n\n## 📱 Appar\n\nEftersom enbart webbsökning inte räcker för att klara vardagliga uppgifter stöder OpenMates också en rad andra appar.\n[[app_store_group]]\nI [App Store](#settings/appstore) har du en översikt över alla appar som dina digitala lagkamrater kan använda, med deras färdigheter, fokusmoder och inställningar och minnen.\n\n### 🛠️ Färdigheter\n\nLåter dina lagkamrater interagera med externa tjänster: söka på webben, läsa videotranskript och webbplatser, söka efter platser och öppettider, söka efter videor och mycket mer.\n[[skills_group]]\n\n### 🎯 Fokusmoder\n\nÄndra fokus på en chatt tillfälligt för att nå ett specifikt mål. Gör stor skillnad i att få mycket bättre svar från dina chatbottar.\n[[focus_modes_group]]\n\n### 💾 Inställningar och minnen\n\nLåter OpenMates ge dig mer personanpassade svar baserade på dina intressen, resor, böcker, projekt och mer. Men:\n- ✅ bara när det behövs\n- ✅ bara för den specifika chatten där det behövs\n- ✅ bara med data du uttryckligen samtycker till att dela\n- ✅ känslig data lagras aldrig på servern\nAlla inställningar och minnen krypteras och dekrypteras på dina enheter, precis som dina chattar. Servern kan aldrig dekryptera dem på egen hand.\n[[settings_memories_group]]\n\n## 🎨 Designad för enkel användning\n\nSom standard behandlar OpenMates automatiskt din förfrågan med den mest passande AI-modellen, lagkamraten, app-färdigheterna, fokusmoderna och inställningarna (efter ditt samtycke).\n\n### 🤖 AI-modeller\n\nOpenMates väljer automatiskt den bästa AI-modellen för varje förfrågan. Om du vill ha full kontroll skriver du **@** i ditt meddelande för att välja en specifik modell.\n[[ai_models_group]]\n\n## 🎓 Lärande och inspiration\n\nNär de används på rätt sätt kan AI-chatbottar vara det mest fantastiska personanpassade läroverktyget. OpenMates erbjuder funktioner för att hjälpa dig att lära dig varje dag.\n\n## 🔒 Integritet och kryptering\n\nBara din enhet kan dekryptera dina chattar och känsliga appinställningar.\nDu behåller full kontroll över vilken data som skickas till OpenMates.\nBara den minimala mängden data som behövs skickas till servern och lagras aldrig på disk.\n\n## 💰 Priser\n\nIngen prenumeration krävs, inga annonser, ingen delning av användardata, inget riskkapital.\nIstället: ett enkelt och rättvist betala-per-användning-system. Du köper användningskrediter och debiteras per förfrågan enligt priserna för varje App-färdighet i App Store. Och självklart: krediter går inte ut.\n\n---\n\n👨‍💻 Är du mjukvaruutvecklare? Kolla då in introduktionen för utvecklare för att lära dig mer om hur OpenMates kan vara kraftfullt för att bygga ny mjukvara.\n[[for_developers_embed]]"
+      },
+      "follow_up_1": {
+        "text": "Hur mycket kostar det?"
+      },
+      "follow_up_2": {
+        "text": "Vilka appar finns tillgängliga?"
+      },
+      "follow_up_3": {
+        "text": "Berätta mer om integritet"
+      }
+    },
+    "who_develops_openmates": {
+      "title": {
+        "text": "Vem utvecklar OpenMates?"
+      },
+      "description": {
+        "text": "Möt skaparen av OpenMates och lär dig om filosofin bakom projektet"
+      },
+      "message": {
+        "text": "# 👋 Vem utvecklar OpenMates?\n\nHej!\nHär är Marco (även känd som [glowingkitty](https://github.com/glowingkitty)). Designer, mjukvaruarkitekt, skapare. Och grundaren av OpenMates.\n\nVi har alla haft våra frustrerande upplevelser med stora teknikbolag. Antingen på grund av deras dåliga användarupplevelsedesign, obligatoriska prenumerationer med ständigt ökande priser, reklam, användardata som stulits på grund av bristfällig säkerhet, försäljning av användardata, produkter som är lika beroendeframkallande som nyttiga — och listan fortsätter.\n\nMen mjukvara behöver inte vara så frustrerande, och många utvecklare (särskilt i open source-gemenskapen) visar detta varje dag med fantastiska projekt. Jag var både entusiastisk över potentialen att ge alla tillgång till personliga assistenter som kan göra allt — från att hjälpa dig lära dig nya ämnen, söka på nätet, planera resor, få karriärråd, bygga programvara och mycket mer — men också orolig för att låta stora teknikbolag definiera och kontrollera den här framtiden. För de bolagen har gång på gång visat att man inte kan lita på att de prioriterar användarnas intressen framför investerarnas intressen.\n\nSå i slutet av 2024 började jag arbeta på ett personligt projekt. Ett bättre alternativ till befintliga chatbotar / AI-agenter. Med användarintressen som första prioritet, bättre användarupplevelsedesign, bättre integritet och kryptering, oberoende av enskilda AI-leverantörer, fokus på utbildning och inspiration och med det övergripande målet att göra AI:s användbara aspekter tillgängliga för vanliga människor i vardagliga uppgifter. Istället för att bygga ännu en skräpinnehållsmaskin som gör alla beroende och internet ännu mer eländigt att använda. Och nu är det online. Ja, fortfarande en alfaversion med några buggar och saknade funktioner, men det förbättras varje vecka.\n\nOch självklart är OpenMates helt open source. För det är grunden för all programvara som vill säkerställa motståndskraft mot försämring och prioritera användarintressen även i framtiden.\n\nOm du vill ansluta dig till den här resan som användare — tack så mycket och välkommen!\nOm du vill ansluta som bidragsgivare och möjlig teammedlem — kolla in [OpenMates git-repo](https://github.com/glowingkitty/openmates) och [vår utvecklargrupp](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) — och jag hoppas höra från dig!\n\nSer fram emot de kommande månaderna. Det kommer att bli en spännande resa :)"
+      },
+      "follow_up_1": {
+        "text": "Vad är den långsiktiga visionen för OpenMates?"
+      },
+      "follow_up_2": {
+        "text": "Hur kan jag bidra till OpenMates?"
+      },
+      "follow_up_3": {
+        "text": "Varför är open source viktigt för OpenMates?"
+      }
+    }
+  },
   "design_guidelines": {
     "section_title": {
       "text": "Designriktlinjer"
@@ -3384,6 +3445,35 @@
   "highlight": {},
   "invoices_and_credit_notes": {},
   "legal": {
+    "imprint": {
+      "title": {
+        "text": "Juridiskt meddelande (Impressum)"
+      },
+      "information_tmg": {
+        "text": "Information enligt § 5 TMG"
+      },
+      "contact": {
+        "text": "Kontakt"
+      },
+      "email": {
+        "text": "E-post"
+      },
+      "follow_up_1": {
+        "text": "Varför kräver tysk lag ett Impressum?"
+      },
+      "follow_up_2": {
+        "text": "Hur kan jag kontakta ert juridiska team?"
+      },
+      "follow_up_3": {
+        "text": "Vilka öppen källkodslicenser använder ni?"
+      },
+      "follow_up_4": {
+        "text": "Var är ert företag registrerat?"
+      },
+      "follow_up_5": {
+        "text": "Vem är den juridiska representanten?"
+      }
+    },
     "privacy": {
       "title": {
         "text": "Integritetspolicy"
@@ -3613,6 +3703,9 @@
         "content": {
           "text": "Innehåll: Chattmeddelanden, uppmaningar, bilagor och uppladdade bilder/videor som behövs för att leverera tjänsten (underkastade moderering där tillämpligt)."
         },
+        "payments": {
+          "text": "Betalningar: Betalningstokens, transaktions-ID, faktureringsadress och momsinformation som krävs för fakturering (behandlas huvudsakligen av Stripe). Vi lagrar inte fullständiga kortnummer."
+        },
         "newsletter": {
           "text": "Nyhetsbrev: Om du väljer att prenumerera på vårt nyhetsbrev lagrar vi din e-postadress i krypterad form. Nyhetsbrevsprenumeration är valfri och separat från kontoskapande. Att skapa ett konto prenumererar inte automatiskt dig på nyhetsbrevet."
         }
@@ -3640,11 +3733,117 @@
       "legal_basis": {
         "heading": {
           "text": "7. Rättslig grund för behandling (GDPR)"
+        },
+        "contract": {
+          "text": "Avtal: Behandling som är nödvändig för att fullgöra vårt avtal med dig eller för att vidta åtgärder på din begäran innan ett avtal ingås (t.ex. kontoskapande, leverans av webbappfunktioner)."
+        },
+        "consent": {
+          "text": "Samtycke: Behandling baserad på ditt samtycke, där tillämpligt (t.ex. valfri kommunikation, viss analys eller marknadsföring där det används). Du kan återkalla samtycket när som helst."
+        },
+        "legitimate_interests": {
+          "text": "Berättigade intressen: Behandling som är nödvändig för våra berättigade intressen, såsom tjänstesäkerhet, bedrägeriförebyggande, missbruks­detektion och förbättring av tjänsten, förutsatt att dessa intressen inte åsidosätts av dina rättigheter och intressen."
+        },
+        "legal_obligation": {
+          "text": "Rättslig förpliktelse: Behandling som är nödvändig för att uppfylla rättsliga förpliktelser (t.ex. skatte- och redovisningskrav för fakturor och transaktionsregister)."
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. Dina integritetsrättigheter"
+        },
+        "intro": {
+          "text": "Beroende på din jurisdiktion kan du ha vissa rättigheter beträffande dina personuppgifter. Följande sammanfattar viktiga rättigheter enligt GDPR och CCPA/CPRA och hur du utövar dem:"
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "GDPR (EU/EES)"
+          },
+          "access": {
+            "text": "Rätt till tillgång"
+          },
+          "rectification": {
+            "text": "Rätt till rättelse"
+          },
+          "erasure": {
+            "text": "Rätt till radering ('rätten att bli glömd')"
+          },
+          "restriction": {
+            "text": "Rätt till begränsning av behandling"
+          },
+          "portability": {
+            "text": "Rätt till dataportabilitet"
+          },
+          "objection": {
+            "text": "Rätt att invända"
+          },
+          "withdraw_consent": {
+            "text": "Rätt att återkalla samtycke"
+          },
+          "exercise": {
+            "text": "För att utöva dina GDPR-rättigheter, kontakta oss på contact@openmates.org eller via Impressum. Vi kan behöva verifiera din identitet innan vi uppfyller din begäran."
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA (Kalifornien)"
+          },
+          "right_to_know": {
+            "text": "Rätt att veta/få tillgång"
+          },
+          "right_to_delete": {
+            "text": "Rätt att radera"
+          },
+          "right_to_correct": {
+            "text": "Rätt till korrigering"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "Rätt att avsäga sig försäljning eller delning"
+          },
+          "right_to_non_discrimination": {
+            "text": "Rätt till icke-diskriminering"
+          },
+          "exercise": {
+            "text": "Invånare i Kalifornien kan utöva CCPA/CPRA-rättigheter genom att kontakta oss på contact@openmates.org. Vi säljer inte personuppgifter."
+          }
+        }
+      },
+      "discord_integration": {
+        "heading": {
+          "text": "9. Discord-integration"
+        },
+        "description": {
+          "text": "Om du väljer att gå med i vår Discord-community via länkar på den här webbplatsen, observera att Discord kommer att samla in och bearbeta dina uppgifter enligt sin sekretesspolicy. Detta inkluderar kontoinformation, användningsdata, kommunikationsinnehåll och annan information som beskrivs i Discords sekretesspolicy."
+        },
+        "admin_access": {
+          "text": "Som Discord-serveradministratörer har vi tillgång till all offentlig kommunikation, medlemslistor och annan information som delas inom vår Discord-community. Denna information är dock hostad och behandlas huvudsakligen av Discord. Vi extraherar, lagrar eller behandlar inte dessa uppgifter utanför Discords plattform. För mer information om hur Discord hanterar dina uppgifter, läs igenom Discords sekretesspolicy."
+        },
+        "privacy_policy_link": {
+          "text": "Discords sekretesspolicy"
+        }
+      },
+      "contact": {
+        "heading": {
+          "text": "4. Kontaktinformation"
+        },
+        "questions": {
+          "text": "För frågor om dataskydd:"
+        },
+        "email": {
+          "text": "E-post"
+        },
+        "postal": {
+          "text": "Postadress: Se Juridisk meddelande (Impressum) för den aktuella registrerade adressen."
+        },
+        "controller": {
+          "text": "Personuppgiftsansvarig: OpenMates (se Impressum för uppgifter om rättslig företrädare)."
         }
       },
       "aggregate_analytics": {
         "heading": {
           "text": "11. Anonym aggregerad analys"
+        },
+        "overview": {
+          "text": "Vi samlar in anonym, aggregerad statistik om hur vår webbplats och webbapplikation används. Dessa uppgifter är genuint anonyma — de kan inte kopplas till någon enskild användare och inga cookies eller spårningsidentifierare ställs in. Inget samtyckesmeddelande krävs eftersom inga personuppgifter samlas in."
         }
       }
     },
@@ -5257,6 +5456,9 @@
       "share_transcript": {
         "text": "Dela transkription"
       }
+    },
+    "fork": {
+      "text": "Förgrena konversation"
     },
     "developers_api_keys": {
       "text": "API-nycklar"

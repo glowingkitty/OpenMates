@@ -2196,7 +2196,68 @@
     }
   },
   "daily_inspiration": {},
-  "demo_chats": {},
+  "demo_chats": {
+    "for_developers": {
+      "title": {
+        "text": "OpenMates | Pro vývojáře"
+      },
+      "description": {
+        "text": "Nástroje pro vývoj poháněné AI s REST API, CLI, soukromím a bez nastavení MCP"
+      },
+      "message": {
+        "text": "# 👨‍💻 Digitální spoluhráči pro vývojáře\n\nOpenMates je také skvělý nástroj pro vývojáře. Pro vše od rychlých dotazů, plánování velkých projektů, generování kódu na základě nejnovější dokumentace a dalšího. Vše bez složitých nastavení MCP serverů a s ochranou vašeho soukromí.\nKlikněte na tyto ukázkové chaty a podívejte se, co OpenMates umí pro vývojáře:\n[[dev_example_chats_group]]\n\n## 🚀 Rychlý start\n\nStiskněte tlačítko Registrovat v pravém horním rohu, kupte kreditů a začněte OpenMates používat.\n\n## 📱 Aplikace pro vývojáře\n\nS Apps na OpenMates není potřeba složitých, časově náročných a nezabezpečených nastavení MCP s API klíči v prostém textu v konfiguračních souborech JSON. OpenMates automaticky použije správný AI model, dovednost aplikace a režim zaměření.\nPříklady:\n- 📖 [Kód | Získat dokumentaci](#settings/appstore/code/skills/get-docs): Zkontroluje nejnovější dokumentaci před generováním kódu.\n- 🔍 [Web | Vyhledat](#settings/appstore/web/skills/search): Prohledá web pro lepší přesnost odpovědí.\n- ✅ Automatické kontroly linteru pro generovaný kód (brzy).\n[[dev_app_store_group]]\n\n### 🛠️ Dovednosti pro vývojáře\n[[dev_skills_group]]\n\n### 🎯 Režimy zaměření pro vývojáře\n[[dev_focus_modes_group]]\n\n### 💾 Nastavení a vzpomínky pro vývojáře\n[[dev_settings_memories_group]]\n\n## 🔌 REST API\n\nOpenMates REST API vám umožňuje používat OpenMates podobně jako jiné LLM API a interagovat se všemi dovednostmi App.\n\n## 💻 CLI a balíčky\n\nBrzy: CLI a balíčky pip/npm pro plný přístup k vašemu účtu OpenMates odkudkoli.\n\n## 🔒 Soukromí a šifrování\n\nOpenMates nikdy netrénuje modely na vašich datech. Všechny chaty a nastavení aplikací jsou šifrována metodou zero-knowledge na vašem zařízení.\n\n## 🛡️ Open source\n\n[OpenMates je plně open source pod licencí AGPL 3](https://github.com/glowingkitty/openmates).\n\n---\n\n📚 Četli jste již úvod pro všechny? Pokud ne, [klikněte zde](#chat-id=demo-for-everyone)."
+      },
+      "follow_up_1": {
+        "text": "Jak funguje REST API?"
+      },
+      "follow_up_2": {
+        "text": "Zůstane můj kód soukromý?"
+      },
+      "follow_up_3": {
+        "text": "Jak mohu OpenMates provozovat sám?"
+      }
+    },
+    "for_everyone": {
+      "title": {
+        "text": "OpenMates | Pro všechny"
+      },
+      "description": {
+        "text": "AI chatboti zpřístupněni s aplikacemi, ochranou soukromí a bez předplatného"
+      },
+      "message": {
+        "text": "# ✨ Digitální spoluhráči pro všechny\n\nS OpenMates máte tým specializovaných AI chatbotů, kteří vás mohou inspirovat, učit nové znalosti a pomocí aplikací plnit různé úkoly. Díky tomu jsou užitečné aspekty AI dostupné pro všechny, přičemž je chráněno vaše soukromí a máte přístup k nejlepším AI modelům.\nKlikněte na tyto ukázkové chaty a podívejte se, co OpenMates umí:\n[[example_chats_group]]\n\n## 🚀 Rychlý start\n\nStiskněte tlačítko Registrovat v pravém horním rohu, kupte kreditů a začněte OpenMates používat.\n\n## 📱 Aplikace\n\nProtože pouhé vyhledávání na webu nestačí pro každodenní úkoly, OpenMates podporuje různé další aplikace.\n[[app_store_group]]\nV [App Store](#settings/appstore) najdete přehled všech aplikací, které mohou vaši digitální spoluhráči používat, spolu s jejich dovednostmi, režimy zaměření a nastaveními a vzpomínkami.\n\n### 🛠️ Dovednosti\n\nUmožňují vašim spoluhráčům komunikovat s externími službami: prohledávat web, číst přepisy videí a weby, hledat místa a jejich otevírací doby, hledat videa a mnohem více.\n[[skills_group]]\n\n### 🎯 Režimy zaměření\n\nDočasně změňte zaměření chatu k dosažení konkrétního cíle. Přináší velký rozdíl v získávání lepších odpovědí od chatbotů.\n[[focus_modes_group]]\n\n### 💾 Nastavení a vzpomínky\n\nUmožní OpenMates poskytovat osobnější odpovědi na základě vašich zájmů, cest, knih, projektů a dalšího. Ale:\n- ✅ pouze když je to potřeba\n- ✅ pouze pro konkrétní chat, kde je to potřeba\n- ✅ pouze s daty, ke sdílení kterých jasně souhlasíte\n- ✅ citlivá data nejsou nikdy uložena na serveru\nVšechna nastavení a vzpomínky jsou šifrovány a dešifrovány na vašich zařízeních, stejně jako vaše chaty. Server je nikdy nemůže sám dešifrovat.\n[[settings_memories_group]]\n\n## 🎨 Navrženo pro snadné použití\n\nStandardně OpenMates automaticky zpracovává váš požadavek s nejvhodnějším AI modelem, spoluhráčem, dovednostmi aplikací, režimy zaměření a nastaveními (po vašem souhlasu).\n\n### 🤖 AI modely\n\nOpenMates automaticky vybírá nejlepší AI model pro každý váš požadavek. Pro plnou kontrolu napište **@** ve zprávě pro výběr konkrétního modelu.\n[[ai_models_group]]\n\n## 🎓 Učení a inspirace\n\nPři správném použití mohou být AI chatboti nejúžasnějším personalizovaným nástrojem pro učení. OpenMates implementuje různé funkce, které vám pomáhají se každý den učit.\n\n## 🔒 Soukromí a šifrování\n\nPouze vaše zařízení může dešifrovat vaše chaty a citlivá nastavení aplikací.\nMáte plnou kontrolu nad tím, jaká data jsou odesílána do OpenMates.\nNa server je odesíláno pouze minimální množství dat a nikdy není uloženo na disku.\n\n## 💰 Ceny\n\nBez předplatného, bez reklam, bez sdílení dat, bez rizikového kapitálu.\nMísto toho: jednoduchý a spravedlivý systém platby za použití. Kupíte kredity a pak platíte za požadavek podle cen každé App dovednosti v App Store. A samozřejmě: kredity nevyprší.\n\n---\n\n👨‍💻 Jste vývojář softwaru? Prohlédněte si úvod pro vývojáře a dozvíte se více o tom, jak může být OpenMates velmi výkonný pro vývoj nového softwaru.\n[[for_developers_embed]]"
+      },
+      "follow_up_1": {
+        "text": "Kolik to stojí?"
+      },
+      "follow_up_2": {
+        "text": "Jaké aplikace jsou k dispozici?"
+      },
+      "follow_up_3": {
+        "text": "Řekni mi více o soukromí"
+      }
+    },
+    "who_develops_openmates": {
+      "title": {
+        "text": "Kdo vyvíjí OpenMates?"
+      },
+      "description": {
+        "text": "Poznejte tvůrce OpenMates a zjistěte, jaká filozofie stojí za projektem"
+      },
+      "message": {
+        "text": "# 👋 Kdo vyvíjí OpenMates?\n\nAhoj!\nTady Marco (také znám jako [glowingkitty](https://github.com/glowingkitty)). Designer, softwarový architekt, tvůrce. A zakladatel OpenMates.\n\nKaždý z nás má své frustrující zkušenosti s velkými technologickými firmami. Ať už kvůli špatnému designu uživatelského prostředí, povinným předplatným s neustále rostoucími cenami, reklamám, krádeži uživatelských dat kvůli nedostatečnému zabezpečení, prodeji uživatelských dat, budování produktů stejně návykových jako užitečných — a seznam pokračuje dál.\n\nSoftware ale nemusí být tak frustrující, a mnoho vývojářů (zejména v open source komunitě) to každý den dokazuje úžasnými projekty. Byl jsem nadšený z potenciálu dát každému přístup k osobním asistentům, kteří zvládnou vše — od pomoci s učením nových témat, vyhledávání na webu, plánování cest, kariérního poradenství, tvorby softwaru a mnohem více — zároveň jsem se ale obával, že velkým technologickým firmám dovolíme tuto budoucnost definovat a ovládat. Protože tyto firmy znovu a znovu prokázaly, že jim nelze důvěřovat, že budou upřednostňovat zájmy uživatelů nad zájmy investorů.\n\nTakže jsem koncem roku 2024 začal pracovat na osobním projektu. Lepší alternativa k existujícím chatbotům / AI agentům. S uživatelskými zájmy jako hlavní prioritou, lepším designem uživatelského prostředí, lepším soukromím a šifrováním, nezávislostí na jednotlivých poskytovatelích AI, zaměřením na vzdělávání a inspiraci a s obecným cílem zpřístupnit užitečné aspekty AI běžným lidem pro každodenní úkoly. Místo budování další mašiny na nesmyslný obsah, která dělá všechny závislými a internet ještě ubožejším. A teď je online. Ano, stále alfa s pár chybami a chybějícími funkcemi, ale každý týden se zlepšuje.\n\nA samozřejmě je OpenMates plně open source. Protože to je základ každého softwaru, který chce zajistit odolnost vůči zdegenerování a upřednostňovat zájmy uživatelů i v budoucnosti.\n\nPokud se chceš připojit k této cestě jako uživatel — moc děkuji a vítej!\nPokud se chceš připojit jako přispěvatel a možný člen týmu — podívej se na [git repo OpenMates](https://github.com/glowingkitty/openmates) a [naši skupinu vývojářů](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) — a doufám, že se ozvete!\n\nTěším se na nadcházející měsíce. Bude to vzrušující cesta :)"
+      },
+      "follow_up_1": {
+        "text": "Jaká je dlouhodobá vize pro OpenMates?"
+      },
+      "follow_up_2": {
+        "text": "Jak mohu přispět do OpenMates?"
+      },
+      "follow_up_3": {
+        "text": "Proč je open source důležitý pro OpenMates?"
+      }
+    }
+  },
   "design_guidelines": {
     "section_title": {
       "text": "Pokyny pro design"
@@ -3363,6 +3424,35 @@
   "highlight": {},
   "invoices_and_credit_notes": {},
   "legal": {
+    "imprint": {
+      "title": {
+        "text": "Právní oznámení (Imprint)"
+      },
+      "information_tmg": {
+        "text": "Informace dle § 5 TMG"
+      },
+      "contact": {
+        "text": "Kontakt"
+      },
+      "email": {
+        "text": "E-mail"
+      },
+      "follow_up_1": {
+        "text": "Proč německý zákon vyžaduje Imprint?"
+      },
+      "follow_up_2": {
+        "text": "Jak mohu kontaktovat váš právní tým?"
+      },
+      "follow_up_3": {
+        "text": "Jaké open source licence používáte?"
+      },
+      "follow_up_4": {
+        "text": "Kde je vaše společnost registrována?"
+      },
+      "follow_up_5": {
+        "text": "Kdo je zákonným zástupcem?"
+      }
+    },
     "privacy": {
       "title": {
         "text": "Zásady ochrany osobních údajů"
@@ -3592,6 +3682,9 @@
         "content": {
           "text": "Obsah: Chatové zprávy, výzvy, přílohy a nahrané obrázky/videa nezbytné pro poskytování služby (podléhají moderaci, pokud je to vhodné)."
         },
+        "payments": {
+          "text": "Platby: Tokeny platebních metod, identifikátory transakcí, fakturační adresa a informace o DPH podle potřeby pro fakturaci (zpracovávány převážně přes Stripe). Neukládáme úplná čísla karet."
+        },
         "newsletter": {
           "text": "Zpravodaj: Pokud se rozhodnete přihlásit k odběru našeho zpravodaje, ukládáme vaši e-mailovou adresu v zašifrované podobě. Přihlášení k odběru zpravodaje je volitelné a oddělené od vytvoření účtu. Vytvoření účtu vás automaticky nepřihlásí k odběru zpravodaje."
         }
@@ -3619,11 +3712,117 @@
       "legal_basis": {
         "heading": {
           "text": "7. Právní základ zpracování (GDPR)"
+        },
+        "contract": {
+          "text": "Smlouva: Zpracování nezbytné ke splnění naší smlouvy s vámi nebo k přijetí kroků na váš požadavek před uzavřením smlouvy (např. vytvoření účtu, poskytování funkcí webové aplikace)."
+        },
+        "consent": {
+          "text": "Souhlas: Zpracování na základě vašeho souhlasu, pokud je to relevantní (např. volitelná komunikace, určitá analytika nebo marketing). Souhlas můžete kdykoli odvolat."
+        },
+        "legitimate_interests": {
+          "text": "Oprávněné zájmy: Zpracování nezbytné pro naše oprávněné zájmy, jako je bezpečnost služby, prevence podvodů, detekce zneužití a zlepšování služby, za předpokladu, že tyto zájmy nepřevažují nad vašimi právy a zájmy."
+        },
+        "legal_obligation": {
+          "text": "Právní povinnost: Zpracování nezbytné ke splnění zákonných povinností (např. daňové a účetní požadavky pro faktury a záznamy o transakcích)."
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. Vaše práva na ochranu soukromí"
+        },
+        "intro": {
+          "text": "V závislosti na vaší jurisdikci můžete mít určitá práva ohledně svých osobních údajů. Níže jsou shrnuty klíčová práva podle GDPR a CCPA/CPRA a způsob jejich uplatnění:"
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "GDPR (EU/EHP)"
+          },
+          "access": {
+            "text": "Právo na přístup"
+          },
+          "rectification": {
+            "text": "Právo na opravu"
+          },
+          "erasure": {
+            "text": "Právo na výmaz („právo být zapomenut\")"
+          },
+          "restriction": {
+            "text": "Právo na omezení zpracování"
+          },
+          "portability": {
+            "text": "Právo na přenositelnost údajů"
+          },
+          "objection": {
+            "text": "Právo vznést námitku"
+          },
+          "withdraw_consent": {
+            "text": "Právo odvolat souhlas"
+          },
+          "exercise": {
+            "text": "Chcete-li uplatnit svá práva podle GDPR, kontaktujte nás na contact@openmates.org nebo prostřednictvím stránky Impressum. Před splněním vašeho požadavku možná budeme muset ověřit vaši totožnost."
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA (Kalifornie)"
+          },
+          "right_to_know": {
+            "text": "Právo vědět/přistupovat"
+          },
+          "right_to_delete": {
+            "text": "Právo na výmaz"
+          },
+          "right_to_correct": {
+            "text": "Právo na opravu"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "Právo odhlásit se z prodeje nebo sdílení"
+          },
+          "right_to_non_discrimination": {
+            "text": "Právo na nediskriminaci"
+          },
+          "exercise": {
+            "text": "Obyvatelé Kalifornie mohou uplatnit práva CCPA/CPRA kontaktováním na contact@openmates.org. Neprodáváme osobní údaje."
+          }
+        }
+      },
+      "discord_integration": {
+        "heading": {
+          "text": "9. Integrace Discord"
+        },
+        "description": {
+          "text": "Pokud se rozhodnete připojit k naší komunitě Discord prostřednictvím odkazů na tomto webu, vezměte prosím na vědomí, že Discord bude shromažďovat a zpracovávat vaše údaje v souladu se svými zásadami ochrany osobních údajů. To zahrnuje informace o účtu, data o používání, obsah komunikace a další informace uvedené v zásadách ochrany osobních údajů Discord."
+        },
+        "admin_access": {
+          "text": "Jako administrátoři Discord serveru máme přístup ke všem veřejným komunikacím, seznamům členů a dalším informacím sdíleným v naší komunitě Discord. Tyto informace jsou však hostovány a primárně zpracovávány společností Discord. Tato data nevytěžujeme, neukládáme ani nezpracováváme mimo platformu Discord. Další informace o tom, jak Discord nakládá s vašimi daty, naleznete v Zásadách ochrany osobních údajů Discord."
+        },
+        "privacy_policy_link": {
+          "text": "Zásady ochrany osobních údajů Discord"
+        }
+      },
+      "contact": {
+        "heading": {
+          "text": "4. Kontaktní informace"
+        },
+        "questions": {
+          "text": "Pro dotazy týkající se ochrany osobních údajů:"
+        },
+        "email": {
+          "text": "E-mail"
+        },
+        "postal": {
+          "text": "Poštovní adresa: Viz Právní upozornění (Impressum) pro aktuální registrovanou adresu."
+        },
+        "controller": {
+          "text": "Správce: OpenMates (viz Impressum pro podrobnosti o zákonném zástupci)."
         }
       },
       "aggregate_analytics": {
         "heading": {
           "text": "11. Anonymní agregovaná analytika"
+        },
+        "overview": {
+          "text": "Shromažďujeme anonymní agregovanou statistiku o tom, jak jsou využívány naše webové stránky a webová aplikace. Tato data jsou skutečně anonymní — nelze je spojit s žádným konkrétním uživatelem a nejsou nastaveny žádné cookies ani sledovací identifikátory. Souhlas není vyžadován, protože nejsou shromažďována žádná osobní data."
         }
       }
     },
@@ -5239,6 +5438,9 @@
       "share_transcript": {
         "text": "Sdílet přepis"
       }
+    },
+    "fork": {
+      "text": "Rozvětvit konverzaci"
     },
     "developers_api_keys": {
       "text": "API klíče"

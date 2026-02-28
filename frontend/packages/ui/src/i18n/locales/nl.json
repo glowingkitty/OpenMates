@@ -2196,7 +2196,68 @@
     }
   },
   "daily_inspiration": {},
-  "demo_chats": {},
+  "demo_chats": {
+    "for_developers": {
+      "title": {
+        "text": "OpenMates | Voor ontwikkelaars"
+      },
+      "description": {
+        "text": "AI-aangedreven ontwikkelaarstools met REST API, CLI, privacy en zonder MCP-configuratie"
+      },
+      "message": {
+        "text": "# 👨‍💻 Digitale teamgenoten voor ontwikkelaars\n\nOpenMates is ook een geweldig hulpmiddel voor ontwikkelaars. Voor alles van snelle vragen, het plannen van grote projecten, het genereren van code op basis van de meest actuele documentatie en nog veel meer. Alles zonder ingewikkelde MCP-serverinstellingen en met bescherming van uw privacy.\nKlik op deze voorbeeldchats om te zien wat OpenMates voor ontwikkelaars kan doen:\n[[dev_example_chats_group]]\n\n## 🚀 Snel aan de slag\n\nDruk op de knop Registreren rechts bovenaan, koop gebruikstegoed en begin OpenMates te gebruiken.\n\n## 📱 Apps voor ontwikkelaars\n\nMet OpenMates Apps is er geen behoefte aan ingewikkelde, tijdrovende en onveilige MCP-instellingen met API-sleutels in platte tekst in JSON-configuratiebestanden. OpenMates gebruikt automatisch het juiste AI-model, de vaardigheid en de focusmodus.\nVoorbeelden:\n- 📖 [Code | Documentatie ophalen](#settings/appstore/code/skills/get-docs): Controleert de nieuwste documentatie voor het genereren van codebestanden.\n- 🔍 [Web | Zoeken](#settings/appstore/web/skills/search): Zoekt op het web voor betere nauwkeurigheid.\n- ✅ Automatische lintercontroles voor gegenereerde code (binnenkort).\n[[dev_app_store_group]]\n\n### 🛠️ Vaardigheden voor ontwikkelaars\n[[dev_skills_group]]\n\n### 🎯 Focusmodi voor ontwikkelaars\n[[dev_focus_modes_group]]\n\n### 💾 Instellingen en herinneringen voor ontwikkelaars\n[[dev_settings_memories_group]]\n\n## 🔌 REST API\n\nDe OpenMates REST API stelt u in staat OpenMates te gebruiken zoals andere LLM-API's en te communiceren met alle App-vaardigheden.\n\n## 💻 CLI en pakketten\n\nBinnenkort: CLI en pip/npm-pakketten voor volledige toegang tot uw OpenMates-account van overal.\n\n## 🔒 Privacy en versleuteling\n\nOpenMates traint nooit modellen op uw gegevens. Alle chats en app-instellingen worden zero-knowledge versleuteld op uw apparaat.\n\n## 🛡️ Open source\n\n[OpenMates is volledig open source onder AGPL 3](https://github.com/glowingkitty/openmates).\n\n---\n\n📚 Hebt u de introductie voor iedereen al gelezen? Zo niet, [klik dan hier](#chat-id=demo-for-everyone)."
+      },
+      "follow_up_1": {
+        "text": "Hoe werkt de REST API?"
+      },
+      "follow_up_2": {
+        "text": "Blijft mijn code privé?"
+      },
+      "follow_up_3": {
+        "text": "Hoe kan ik OpenMates zelf hosten?"
+      }
+    },
+    "for_everyone": {
+      "title": {
+        "text": "OpenMates | Voor iedereen"
+      },
+      "description": {
+        "text": "AI-chatbots toegankelijk met apps, privacy en zonder abonnement"
+      },
+      "message": {
+        "text": "# ✨ Digitale teamgenoten voor iedereen\n\nMet OpenMates heeft u een team van gespecialiseerde AI-chatbots die u niet alleen kunnen inspireren en nieuwe kennis bijbrengen, maar ook allerlei taken uitvoeren met behulp van apps. Zodat de nuttige aspecten van AI voor iedereen toegankelijk zijn, terwijl uw privacy wordt beschermd en u toegang heeft tot alle beste AI-modellen.\nKlik op deze voorbeeldchats om te zien wat OpenMates kan doen:\n[[example_chats_group]]\n\n## 🚀 Snel aan de slag\n\nDruk op de knop Registreren rechts bovenaan om u te registreren, koop gebruikstegoed en begin OpenMates te gebruiken.\n\n## 📱 Apps\n\nOmdat alleen het doorzoeken van het web niet genoeg is voor dagelijkse taken, ondersteunt OpenMates ook diverse andere apps.\n[[app_store_group]]\nIn de [App Store](#settings/appstore) heeft u een overzicht van alle apps die uw digitale teamgenoten kunnen gebruiken, met hun vaardigheden, focusmodi en instellingen & herinneringen.\n\n### 🛠️ Vaardigheden\n\nLaten uw teamgenoten communiceren met externe diensten: het web doorzoeken, videotranscripties en websites lezen, locaties en openingstijden zoeken, video's zoeken en nog veel meer.\n[[skills_group]]\n\n### 🎯 Focusmodi\n\nWijzig tijdelijk de focus van een chat om een specifiek doel te bereiken. Maakt een groot verschil voor betere antwoorden van uw chatbots.\n[[focus_modes_group]]\n\n### 💾 Instellingen & herinneringen\n\nHiermee kan OpenMates persoonlijkere antwoorden geven op basis van uw interesses, reizen, boeken, projecten en meer. Maar:\n- ✅ alleen wanneer dat nodig is\n- ✅ alleen voor de specifieke chat waar het nodig is\n- ✅ alleen met gegevens waarvoor u duidelijk toestemming geeft\n- ✅ gevoelige gegevens worden nooit opgeslagen op de server\nAlle instellingen & herinneringen worden versleuteld en ontsleuteld op uw apparaten. Net als uw chats. De server kan ze nooit zelf ontsleutelen.\n[[settings_memories_group]]\n\n## 🎨 Ontworpen voor gebruiksgemak\n\nStandaard verwerkt OpenMates uw verzoek automatisch met het meest geschikte AI-model, teamgenoot, app-vaardigheden, focusmodi en instellingen & herinneringen (na uw toestemming).\n\n### 🤖 AI-modellen\n\nOpenMates selecteert automatisch het beste AI-model voor elk verzoek. Als u volledige controle wilt, typt u **@** in uw bericht om een specifiek model te kiezen.\n[[ai_models_group]]\n\n## 🎓 Leren & inspiratie\n\nAI-chatbots kunnen het meest verbazingwekkende gepersonaliseerde leermiddel zijn dat ooit is ontwikkeld. OpenMates biedt functies om u dagelijks te helpen leren, met vervolgsugesties en nieuwe chatsuggesties.\n\n## 🔒 Privacy & versleuteling\n\nAlleen uw apparaat kan uw chats en gevoelige app-instellingen ontsleutelen.\nU behoudt volledige controle over welke gegevens naar OpenMates worden gestuurd.\nAlleen de minimaal benodigde gegevens worden naar de server gestuurd en nooit op schijf opgeslagen.\n\n## 💰 Prijzen\n\nGeen abonnement vereist, geen advertenties, geen delen van gebruikersgegevens, geen durfkapitaal.\nIn plaats daarvan: een eenvoudig betaal-per-gebruik systeem. U koopt gebruikstegoed en betaalt per verzoek volgens de prijzen in de App Store. Tegoed verloopt niet.\n\n---\n\n👨‍💻 Bent u softwareontwikkelaar? Bekijk dan de introductie voor ontwikkelaars om meer te leren over hoe OpenMates zeer krachtig kan zijn voor het bouwen van nieuwe software.\n[[for_developers_embed]]"
+      },
+      "follow_up_1": {
+        "text": "Hoeveel kost het?"
+      },
+      "follow_up_2": {
+        "text": "Welke apps zijn beschikbaar?"
+      },
+      "follow_up_3": {
+        "text": "Vertel me meer over privacy"
+      }
+    },
+    "who_develops_openmates": {
+      "title": {
+        "text": "Wie ontwikkelt OpenMates?"
+      },
+      "description": {
+        "text": "Ontmoet de maker van OpenMates en leer over de filosofie achter het project"
+      },
+      "message": {
+        "text": "# 👋 Wie ontwikkelt OpenMates?\n\nHallo!\nHier Marco (ook bekend als [glowingkitty](https://github.com/glowingkitty)). Designer, software-architect, maker. En de maker van OpenMates.\n\nWe hebben allemaal onze frustrerende ervaringen met grote techbedrijven. Of het nu is door hun slechte gebruikerservaring-ontwerp, verplichte abonnementen met steeds stijgende prijzen, advertenties, gebruikersdata die worden gestolen door onvoldoende beveiliging, de verkoop van gebruikersdata, het bouwen van producten die even verslavend als nuttig zijn — en de lijst gaat maar door.\n\nMaar software hoeft niet zo frustrerend te zijn, en veel ontwikkelaars (vooral in de open-sourcegemeenschap) bewijzen dit elke dag met geweldige projecten. Ik was zowel enthousiast over het potentieel om iedereen toegang te geven tot persoonlijke assistenten die alles kunnen — van het helpen leren van nieuwe onderwerpen, zoeken op het web, reizen plannen, loopbaanadvies krijgen, software bouwen en nog veel meer — maar ook bezorgd over het toestaan van grote techbedrijven om deze toekomst te definiëren en te beheersen. Omdat die bedrijven keer op keer hebben aangetoond dat ze niet kunnen worden vertrouwd om gebruikersbelangen boven investeerdersbelangen te stellen.\n\nDus begon ik eind 2024 te werken aan een persoonlijk project. Een beter alternatief voor bestaande chatbots / AI-agenten. Met gebruikersbelangen als eerste prioriteit, een beter gebruikerservaring-ontwerp, betere privacy en versleuteling, onafhankelijkheid van individuele AI-providers, een focus op onderwijs en inspiratie en met het algemene doel om de nuttige aspecten van AI toegankelijk te maken voor gewone mensen voor dagelijkse taken. In plaats van nog een rommelmachine te bouwen die iedereen verslaafd maakt en het internet nog vervelender om te gebruiken. En nu is het online. Ja, nog steeds een alpha met wat bugs en ontbrekende functies, maar het wordt elke week beter.\n\nEn natuurlijk is OpenMates volledig open source. Omdat dat de basis is van alle software die verrotten wil voorkomen en ook in de toekomst de belangen van gebruikers wil prioriteren.\n\nAls je als gebruiker aan deze reis wilt deelnemen, heel erg bedankt en welkom!\nAls je als bijdrager en mogelijk teamlid aan deze reis wilt deelnemen — bekijk dan [de git-repo van OpenMates](https://github.com/glowingkitty/openmates) en [onze ontwikkelaarsgroep](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) — en ik hoop van je te horen!\n\nIk kijk uit naar de komende maanden. Het wordt een spannende reis :)"
+      },
+      "follow_up_1": {
+        "text": "Wat is de langetermijnvisie voor OpenMates?"
+      },
+      "follow_up_2": {
+        "text": "Hoe kan ik bijdragen aan OpenMates?"
+      },
+      "follow_up_3": {
+        "text": "Waarom is open source belangrijk voor OpenMates?"
+      }
+    }
+  },
   "design_guidelines": {
     "section_title": {
       "text": "Ontwerprichtlijnen"
@@ -3357,6 +3418,35 @@
   "highlight": {},
   "invoices_and_credit_notes": {},
   "legal": {
+    "imprint": {
+      "title": {
+        "text": "Wettelijke kennisgeving (Impressum)"
+      },
+      "information_tmg": {
+        "text": "Informatie conform § 5 TMG"
+      },
+      "contact": {
+        "text": "Contact"
+      },
+      "email": {
+        "text": "E-mail"
+      },
+      "follow_up_1": {
+        "text": "Waarom vereist de Duitse wet een Impressum?"
+      },
+      "follow_up_2": {
+        "text": "Hoe kan ik contact opnemen met uw juridisch team?"
+      },
+      "follow_up_3": {
+        "text": "Welke open source licenties gebruiken jullie?"
+      },
+      "follow_up_4": {
+        "text": "Waar is uw bedrijf geregistreerd?"
+      },
+      "follow_up_5": {
+        "text": "Wie is de wettelijke vertegenwoordiger?"
+      }
+    },
     "privacy": {
       "title": {
         "text": "Privacybeleid"
@@ -3586,6 +3676,9 @@
         "content": {
           "text": "Inhoud: Chatberichten, prompts, bijlagen en geüploade afbeeldingen/video's die nodig zijn om de service te leveren (onderworpen aan moderatie waar van toepassing)."
         },
+        "payments": {
+          "text": "Betalingen: Betaalmethode-tokens, transactie-ID's, factuuradres en btw-informatie zoals vereist voor facturering (verwerkt voornamelijk door Stripe). We slaan geen volledige kaartnummers op."
+        },
         "newsletter": {
           "text": "Nieuwsbrief: Als u ervoor kiest om u te abonneren op onze nieuwsbrief, slaan we uw e-mailadres op in versleutelde vorm. Nieuwsbriefabonnement is optioneel en gescheiden van accountaanmaak. Het aanmaken van een account abonneert u niet automatisch op de nieuwsbrief."
         }
@@ -3613,11 +3706,117 @@
       "legal_basis": {
         "heading": {
           "text": "7. Wettelijke Grondslag voor Verwerking (AVG)"
+        },
+        "contract": {
+          "text": "Contract: Verwerking die noodzakelijk is voor de uitvoering van onze overeenkomst met u of om op uw verzoek stappen te ondernemen vóór het sluiten van een overeenkomst (bijv. het aanmaken van een account, het leveren van web-app-functies)."
+        },
+        "consent": {
+          "text": "Toestemming: Verwerking op basis van uw toestemming, waar van toepassing (bijv. optionele communicatie, bepaalde analyses of marketing waar gebruikt). U kunt toestemming op elk moment intrekken."
+        },
+        "legitimate_interests": {
+          "text": "Gerechtvaardigde belangen: Verwerking die noodzakelijk is voor onze gerechtvaardigde belangen, zoals de veiligheid van de dienst, fraudepreventie, misbruikdetectie en verbetering van de dienst, mits deze belangen niet worden overschreden door uw rechten en belangen."
+        },
+        "legal_obligation": {
+          "text": "Wettelijke verplichting: Verwerking die noodzakelijk is om te voldoen aan wettelijke verplichtingen (bijv. fiscale en boekhoudkundige vereisten voor facturen en transactiegegevens)."
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. Uw Privacyrechten"
+        },
+        "intro": {
+          "text": "Afhankelijk van uw jurisdictie kunt u bepaalde rechten hebben met betrekking tot uw persoonsgegevens. Het volgende geeft een overzicht van de belangrijkste rechten onder de AVG en CCPA/CPRA en hoe u deze kunt uitoefenen:"
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "AVG (EU/EER)"
+          },
+          "access": {
+            "text": "Recht op inzage"
+          },
+          "rectification": {
+            "text": "Recht op rectificatie"
+          },
+          "erasure": {
+            "text": "Recht op verwijdering ('recht op vergetelheid')"
+          },
+          "restriction": {
+            "text": "Recht op beperking van verwerking"
+          },
+          "portability": {
+            "text": "Recht op gegevensoverdraagbaarheid"
+          },
+          "objection": {
+            "text": "Recht van bezwaar"
+          },
+          "withdraw_consent": {
+            "text": "Recht om toestemming in te trekken"
+          },
+          "exercise": {
+            "text": "Om uw AVG-rechten uit te oefenen, neem contact met ons op via contact@openmates.org of via de Imprint. We moeten mogelijk uw identiteit verifiëren voordat we uw verzoek uitvoeren."
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA (Californië)"
+          },
+          "right_to_know": {
+            "text": "Recht om te weten/in te zien"
+          },
+          "right_to_delete": {
+            "text": "Recht op verwijdering"
+          },
+          "right_to_correct": {
+            "text": "Recht op correctie"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "Recht om te weigeren verkoop of deling"
+          },
+          "right_to_non_discrimination": {
+            "text": "Recht op non-discriminatie"
+          },
+          "exercise": {
+            "text": "Inwoners van Californië kunnen CCPA/CPRA-rechten uitoefenen door contact met ons op te nemen via contact@openmates.org. Wij verkopen geen persoonsgegevens."
+          }
+        }
+      },
+      "discord_integration": {
+        "heading": {
+          "text": "9. Discord-integratie"
+        },
+        "description": {
+          "text": "Als u ervoor kiest om via links op deze website deel te nemen aan onze Discord-community, wees er dan van bewust dat Discord uw gegevens zal verzamelen en verwerken volgens hun privacybeleid. Dit omvat accountinformatie, gebruiksgegevens, communicatie-inhoud en andere informatie zoals beschreven in het privacybeleid van Discord."
+        },
+        "admin_access": {
+          "text": "Als Discord-serverbeheerders hebben we toegang tot alle openbare communicatie, ledenlijsten en andere informatie die wordt gedeeld in onze Discord-community. Deze informatie wordt echter gehost en hoofdzakelijk verwerkt door Discord. We extraheren, slaan op of verwerken deze gegevens niet buiten het Discord-platform. Voor meer informatie over hoe Discord uw gegevens verwerkt, raadpleegt u het privacybeleid van Discord."
+        },
+        "privacy_policy_link": {
+          "text": "Privacybeleid van Discord"
+        }
+      },
+      "contact": {
+        "heading": {
+          "text": "4. Contactinformatie"
+        },
+        "questions": {
+          "text": "Voor vragen over gegevensbescherming:"
+        },
+        "email": {
+          "text": "E-mail"
+        },
+        "postal": {
+          "text": "Postadres: Zie de Juridische Mededeling (Impressum) voor het huidige geregistreerde adres."
+        },
+        "controller": {
+          "text": "Verwerkingsverantwoordelijke: OpenMates (zie Impressum voor gegevens van de wettelijke vertegenwoordiger)."
         }
       },
       "aggregate_analytics": {
         "heading": {
           "text": "11. Anonieme geaggregeerde analyse"
+        },
+        "overview": {
+          "text": "We verzamelen anonieme, geaggregeerde statistieken over hoe onze website en webapplicatie worden gebruikt. Deze gegevens zijn echt anoniem — ze kunnen niet worden gekoppeld aan een individuele gebruiker en er worden geen cookies of tracking-ID's ingesteld. Een toestemmingsbanner is niet vereist omdat er geen persoonsgegevens worden verzameld."
         }
       }
     },
@@ -5233,6 +5432,9 @@
       "share_transcript": {
         "text": "Transcript delen"
       }
+    },
+    "fork": {
+      "text": "Gesprek vertakken"
     },
     "developers_api_keys": {
       "text": "API-sleutels"

@@ -2196,7 +2196,68 @@
     }
   },
   "daily_inspiration": {},
-  "demo_chats": {},
+  "demo_chats": {
+    "for_developers": {
+      "title": {
+        "text": "OpenMates | Dla programistów"
+      },
+      "description": {
+        "text": "Narzędzia programistyczne oparte na AI z REST API, CLI, prywatnością i bez konfiguracji MCP"
+      },
+      "message": {
+        "text": "# 👨‍💻 Cyfrowi współpracownicy dla programistów\n\nOpenMates to też świetne narzędzie dla programistów. Do wszystkiego: od szybkich pytań, planowania dużych projektów, generowania kodu na podstawie aktualnej dokumentacji i wiele więcej. Wszystko bez skomplikowanych konfiguracji MCP, chroniąc Twoją prywatność.\nKliknij te przykładowe czaty, aby zobaczyć, co OpenMates może zrobić dla programistów:\n[[dev_example_chats_group]]\n\n## 🚀 Szybki start\n\nNaciśnij przycisk Zarejestruj się w prawym górnym rogu, kup kredyty i zacznij używać OpenMates.\n\n## 📱 Aplikacje dla programistów\n\nDzięki Apps w OpenMates nie ma potrzeby skomplikowanych konfiguracji MCP z kluczami API w postaci tekstu jawnego w plikach konfiguracyjnych JSON. OpenMates automatycznie używa właściwego modelu AI, umiejętności i trybu skupienia.\nPrzykłady:\n- 📖 [Kod | Pobierz dokumentację](#settings/appstore/code/skills/get-docs): Sprawdza najnowszą dokumentację przed generowaniem kodu.\n- 🔍 [Web | Wyszukaj](#settings/appstore/web/skills/search): Wyszukuje w sieci dla poprawy dokładności.\n- ✅ Automatyczne sprawdzanie linterem dla wygenerowanego kodu (wkrótce).\n[[dev_app_store_group]]\n\n### 🛠️ Umiejętności programisty\n[[dev_skills_group]]\n\n### 🎯 Tryby skupienia programisty\n[[dev_focus_modes_group]]\n\n### 💾 Ustawienia i wspomnienia programisty\n[[dev_settings_memories_group]]\n\n## 🔌 REST API\n\nOpenMates REST API pozwala korzystać z OpenMates podobnie jak innych API LLM i interagować ze wszystkimi umiejętnościami App.\n\n## 💻 CLI i pakiety\n\nWkrótce: CLI i pakiety pip/npm zapewniające pełny dostęp do konta OpenMates z dowolnego miejsca.\n\n## 🔒 Prywatność i szyfrowanie\n\nOpenMates nigdy nie trenuje modeli na Twoich danych. Wszystkie czaty i ustawienia są szyfrowane zero-knowledge na Twoim urządzeniu.\n\n## 🛡️ Open source\n\n[OpenMates jest w pełni open source na licencji AGPL 3](https://github.com/glowingkitty/openmates).\n\n---\n\n📚 Czy czytałeś już wprowadzenie dla wszystkich? Jeśli nie, [kliknij tutaj](#chat-id=demo-for-everyone)."
+      },
+      "follow_up_1": {
+        "text": "Jak działa REST API?"
+      },
+      "follow_up_2": {
+        "text": "Czy mój kod pozostaje prywatny?"
+      },
+      "follow_up_3": {
+        "text": "Jak mogę samodzielnie hostować OpenMates?"
+      }
+    },
+    "for_everyone": {
+      "title": {
+        "text": "OpenMates | Dla wszystkich"
+      },
+      "description": {
+        "text": "Chatboty AI dostępne z aplikacjami, prywatnością i bez subskrypcji"
+      },
+      "message": {
+        "text": "# ✨ Cyfrowi współpracownicy dla wszystkich\n\nDzięki OpenMates masz zespół wyspecjalizowanych chatbotów AI, które nie tylko mogą Cię inspirować i przekazywać nową wiedzę, ale także wykonywać różne zadania za pomocą aplikacji. Udostępniając użyteczne aspekty AI dla wszystkich, chroniąc Twoją prywatność i dając dostęp do najlepszych modeli AI.\nKliknij te przykładowe czaty, aby zobaczyć, co OpenMates potrafi:\n[[example_chats_group]]\n\n## 🚀 Szybki start\n\nNaciśnij przycisk Zarejestruj się w prawym górnym rogu, aby się zarejestrować, kup kredyty użytkowania i zacznij używać OpenMates.\n\n## 📱 Aplikacje\n\nPonieważ samo wyszukiwanie w sieci nie wystarczy do wykonywania codziennych zadań, OpenMates obsługuje różne inne aplikacje.\n[[app_store_group]]\nW [App Store](#settings/appstore) masz przegląd wszystkich aplikacji, z których mogą korzystać Twoi cyfrowi współpracownicy, wraz z ich umiejętnościami, trybami skupienia oraz ustawieniami i wspomnieniami.\n\n### 🛠️ Umiejętności\n\nPozwalają Twoim współpracownikom interagować z zewnętrznymi usługami: wyszukiwać w sieci, czytać transkrypcje wideo i strony internetowe, szukać miejsc i ich godzin otwarcia, szukać filmów i wiele więcej.\n[[skills_group]]\n\n### 🎯 Tryby skupienia\n\nTymczasowo zmień skupienie czatu, aby osiągnąć określony cel. Robi ogromną różnicę w uzyskiwaniu lepszych odpowiedzi od chatbotów bez konieczności bycia ekspertem.\n[[focus_modes_group]]\n\n### 💾 Ustawienia i wspomnienia\n\nPozwala OpenMates udzielać bardziej spersonalizowanych odpowiedzi na podstawie Twoich zainteresowań, podróży, książek, projektów i innych. Ale:\n- ✅ tylko gdy jest to potrzebne\n- ✅ tylko dla konkretnego czatu gdzie jest potrzebne\n- ✅ tylko z danymi, na które wyraźnie wyrazisz zgodę\n- ✅ żadne wrażliwe dane nie są przechowywane na serwerze\nWszystkie ustawienia i wspomnienia są szyfrowane i deszyfrowane na Twoich urządzeniach, tak jak Twoje czaty. Serwer nigdy nie może ich samodzielnie odszyfrować.\n[[settings_memories_group]]\n\n## 🎨 Zaprojektowany dla łatwości użytkowania\n\nDomyślnie OpenMates automatycznie przetwarza Twoje żądanie z najbardziej odpowiednim modelem AI, współpracownikiem, umiejętnościami aplikacji, trybami skupienia i ustawieniami.\n\n### 🤖 Modele AI\n\nOpenMates automatycznie wybiera najlepszy model AI dla każdego żądania. Jeśli chcesz pełnej kontroli, wpisz **@** w wiadomości, aby samodzielnie wybrać konkretny model.\n[[ai_models_group]]\n\n## 🎓 Nauka i inspiracja\n\nPrzy właściwym użyciu chatboty AI mogą być najlepszym spersonalizowanym narzędziem edukacyjnym. OpenMates implementuje różne funkcje, aby pomóc Ci nie tylko w zadaniach, ale i w ciągłym uczeniu się każdego dnia.\n\n## 🔒 Prywatność i szyfrowanie\n\nTylko Twoje urządzenie może odszyfrować Twoje czaty i wrażliwe ustawienia aplikacji.\nMasz pełną kontrolę nad tym, jakie dane są wysyłane do OpenMates.\nTylko minimalna ilość danych jest wysyłana do serwera i nigdy nie jest przechowywana na dysku.\nTylko zaszyfrowane dane chronione Twoją metodą logowania są przechowywane na serwerze do synchronizacji.\n\n## 💰 Cennik\n\nBez subskrypcji, bez reklam, bez udostępniania danych, bez kapitału ryzyka.\nZamiast tego: prosty i uczciwy system płatności za użytkowanie. Kupujesz kredyty, a następnie płacisz za żądanie zgodnie z cenami każdej umiejętności App w App Store. Kredyty nie wygasają.\n\n---\n\n👨‍💻 Jesteś programistą? Sprawdź wprowadzenie dla programistów, aby dowiedzieć się więcej o tym, jak OpenMates może być super wydajne przy budowaniu nowego oprogramowania.\n[[for_developers_embed]]"
+      },
+      "follow_up_1": {
+        "text": "Ile to kosztuje?"
+      },
+      "follow_up_2": {
+        "text": "Jakie aplikacje są dostępne?"
+      },
+      "follow_up_3": {
+        "text": "Powiedz mi więcej o prywatności"
+      }
+    },
+    "who_develops_openmates": {
+      "title": {
+        "text": "Kto rozwija OpenMates?"
+      },
+      "description": {
+        "text": "Poznaj twórcę OpenMates i dowiedz się o filozofii stojącej za projektem"
+      },
+      "message": {
+        "text": "# 👋 Kto rozwija OpenMates?\n\nCześć!\nTu Marco (znany też jako [glowingkitty](https://github.com/glowingkitty)). Projektant, architekt oprogramowania, twórca. I twórca OpenMates.\n\nWszyscy mamy swoje frustrujące doświadczenia z wielkimi firmami technologicznymi. Czy to przez złe projektowanie doświadczeń użytkownika, obowiązkowe subskrypcje z stale rosnącymi cenami, reklamy, kradzież danych użytkowników przez niewystarczające zabezpieczenia, sprzedaż danych użytkowników, tworzenie produktów równie uzależniających co użytecznych — i lista idzie dalej.\n\nAle oprogramowanie nie musi być takie frustrujące, a wielu programistów (zwłaszcza w społeczności open source) udowadnia to każdego dnia wspaniałymi projektami. Byłem zarówno podekscytowany potencjałem dania każdemu dostępu do osobistych asystentów, którzy mogą robić wszystko — od pomocy w nauce nowych tematów, wyszukiwania w internecie, planowania podróży, doradztwa zawodowego, budowania oprogramowania i wielu innych — jak i zaniepokojony pozwalaniem wielkim firmom technologicznym definiować i kontrolować tę przyszłość. Bo te firmy wielokrotnie udowadniały, że nie można im ufać, że będą stawiać interesy użytkowników ponad interesy inwestorów.\n\nTak więc pod koniec 2024 roku zacząłem pracować nad osobistym projektem. Lepszą alternatywą dla istniejących chatbotów / agentów AI. Z interesami użytkowników jako głównym priorytetem, lepszym projektowaniem doświadczeń użytkownika, lepszą prywatnością i szyfrowaniem, niezależnością od poszczególnych dostawców AI, naciskiem na edukację i inspirację oraz z ogólnym celem uczynienia użytecznych aspektów AI dostępnymi dla zwykłych ludzi w codziennych zadaniach. Zamiast budować kolejną maszynę do śmieciowych treści, która uzależnia wszystkich i sprawia, że internet jest jeszcze bardziej ponury. I teraz jest online. Tak, wciąż alpha z pewnymi błędami i brakującymi funkcjami, ale poprawia się z tygodnia na tydzień.\n\nOch, i oczywiście OpenMates jest w pełni open source. Ponieważ to jest fundament każdego oprogramowania, które chce zapewnić odporność na pogarszanie się i priorytetyzować interesy użytkowników również w przyszłości.\n\nJeśli chcesz dołączyć do tej podróży jako użytkownik — wielkie dzięki i witaj!\nJeśli chcesz dołączyć jako współtwórca i ewentualny członek zespołu — sprawdź [repozytorium git OpenMates](https://github.com/glowingkitty/openmates) i [naszą grupę deweloperów](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) — i mam nadzieję usłyszeć od ciebie!\n\nZ niecierpliwością czekam na nadchodzące miesiące. To będzie ekscytująca podróż :)"
+      },
+      "follow_up_1": {
+        "text": "Jaka jest długoterminowa wizja dla OpenMates?"
+      },
+      "follow_up_2": {
+        "text": "Jak mogę przyczynić się do rozwoju OpenMates?"
+      },
+      "follow_up_3": {
+        "text": "Dlaczego open source jest ważny dla OpenMates?"
+      }
+    }
+  },
   "design_guidelines": {
     "section_title": {
       "text": "Wytyczne projektowe"
@@ -3357,6 +3418,35 @@
   "highlight": {},
   "invoices_and_credit_notes": {},
   "legal": {
+    "imprint": {
+      "title": {
+        "text": "Nota prawna (Impressum)"
+      },
+      "information_tmg": {
+        "text": "Informacje zgodnie z § 5 TMG"
+      },
+      "contact": {
+        "text": "Kontakt"
+      },
+      "email": {
+        "text": "E-mail"
+      },
+      "follow_up_1": {
+        "text": "Dlaczego prawo niemieckie wymaga Impressum?"
+      },
+      "follow_up_2": {
+        "text": "Jak mogę skontaktować się z Waszym zespołem prawnym?"
+      },
+      "follow_up_3": {
+        "text": "Jakich licencji open source używacie?"
+      },
+      "follow_up_4": {
+        "text": "Gdzie jest zarejestrowana Wasza firma?"
+      },
+      "follow_up_5": {
+        "text": "Kto jest przedstawicielem prawnym?"
+      }
+    },
     "privacy": {
       "title": {
         "text": "Polityka Prywatności"
@@ -3586,6 +3676,9 @@
         "content": {
           "text": "Treść: Wiadomości czatu, monity, załączniki i przesłane obrazy/filmy niezbędne do świadczenia usługi (podlegają moderacji, jeśli dotyczy)."
         },
+        "payments": {
+          "text": "Płatności: Tokeny metod płatności, identyfikatory transakcji, adres rozliczeniowy i informacje VAT wymagane do fakturowania (przetwarzane głównie przez Stripe). Nie przechowujemy pełnych numerów kart."
+        },
         "newsletter": {
           "text": "Newsletter: Jeśli zdecydujesz się zapisać do naszego newslettera, przechowujemy Twój adres e-mail w zaszyfrowanej formie. Subskrypcja newslettera jest opcjonalna i oddzielona od tworzenia konta. Utworzenie konta nie zapisuje Cię automatycznie do newslettera."
         }
@@ -3613,11 +3706,117 @@
       "legal_basis": {
         "heading": {
           "text": "7. Podstawa Prawna Przetwarzania (RODO)"
+        },
+        "contract": {
+          "text": "Umowa: Przetwarzanie niezbędne do wykonania naszej umowy z Tobą lub do podjęcia kroków na Twoje żądanie przed zawarciem umowy (np. tworzenie konta, dostarczanie funkcji aplikacji internetowej)."
+        },
+        "consent": {
+          "text": "Zgoda: Przetwarzanie na podstawie Twojej zgody, gdzie ma to zastosowanie (np. opcjonalna komunikacja, określone analizy lub marketing tam, gdzie są stosowane). Możesz wycofać zgodę w dowolnym momencie."
+        },
+        "legitimate_interests": {
+          "text": "Uzasadnione interesy: Przetwarzanie niezbędne dla naszych uzasadnionych interesów, takich jak bezpieczeństwo usługi, zapobieganie oszustwom, wykrywanie nadużyć i ulepszanie usługi, pod warunkiem że interesy te nie są nadrzędne wobec Twoich praw i interesów."
+        },
+        "legal_obligation": {
+          "text": "Obowiązek prawny: Przetwarzanie niezbędne do wypełnienia zobowiązań prawnych (np. wymogi podatkowe i księgowe dotyczące faktur i rejestrów transakcji)."
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. Twoje Prawa do Prywatności"
+        },
+        "intro": {
+          "text": "W zależności od jurysdykcji możesz mieć pewne prawa w odniesieniu do swoich danych osobowych. Poniżej podsumowano kluczowe prawa wynikające z RODO i CCPA/CPRA oraz sposoby ich realizacji:"
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "RODO (UE/EOG)"
+          },
+          "access": {
+            "text": "Prawo dostępu"
+          },
+          "rectification": {
+            "text": "Prawo do sprostowania"
+          },
+          "erasure": {
+            "text": "Prawo do usunięcia danych („prawo do bycia zapomnianym\")"
+          },
+          "restriction": {
+            "text": "Prawo do ograniczenia przetwarzania"
+          },
+          "portability": {
+            "text": "Prawo do przenoszenia danych"
+          },
+          "objection": {
+            "text": "Prawo do sprzeciwu"
+          },
+          "withdraw_consent": {
+            "text": "Prawo do cofnięcia zgody"
+          },
+          "exercise": {
+            "text": "Aby skorzystać z praw RODO, skontaktuj się z nami pod adresem contact@openmates.org lub przez stronę Impressum. Przed realizacją wniosku możemy potrzebować zweryfikować Twoją tożsamość."
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA (Kalifornia)"
+          },
+          "right_to_know": {
+            "text": "Prawo do wiedzy/dostępu"
+          },
+          "right_to_delete": {
+            "text": "Prawo do usunięcia"
+          },
+          "right_to_correct": {
+            "text": "Prawo do sprostowania"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "Prawo do rezygnacji ze sprzedaży lub udostępniania"
+          },
+          "right_to_non_discrimination": {
+            "text": "Prawo do niedyskryminacji"
+          },
+          "exercise": {
+            "text": "Mieszkańcy Kalifornii mogą korzystać z praw CCPA/CPRA, kontaktując się z nami pod adresem contact@openmates.org. Nie sprzedajemy danych osobowych."
+          }
+        }
+      },
+      "discord_integration": {
+        "heading": {
+          "text": "9. Integracja z Discord"
+        },
+        "description": {
+          "text": "Jeśli zdecydujesz się dołączyć do naszej społeczności Discord poprzez linki na tej stronie, pamiętaj, że Discord będzie zbierać i przetwarzać Twoje dane zgodnie z własną polityką prywatności. Obejmuje to informacje o koncie, dane dotyczące użytkowania, treści komunikacji i inne informacje opisane w polityce prywatności Discord."
+        },
+        "admin_access": {
+          "text": "Jako administratorzy serwera Discord mamy dostęp do wszystkich publicznych komunikatów, list członków i innych informacji udostępnianych w naszej społeczności Discord. Informacje te są jednak hostowane i przetwarzane głównie przez Discord. Nie wyodrębniamy, nie przechowujemy ani nie przetwarzamy tych danych poza platformą Discord. Aby uzyskać więcej informacji o tym, jak Discord przetwarza Twoje dane, zapoznaj się z Polityką prywatności Discord."
+        },
+        "privacy_policy_link": {
+          "text": "Polityka prywatności Discord"
+        }
+      },
+      "contact": {
+        "heading": {
+          "text": "4. Informacje kontaktowe"
+        },
+        "questions": {
+          "text": "W sprawach dotyczących ochrony danych:"
+        },
+        "email": {
+          "text": "E-mail"
+        },
+        "postal": {
+          "text": "Adres pocztowy: Aktualny adres rejestrowy znajduje się w Stopce Redakcyjnej (Impressum)."
+        },
+        "controller": {
+          "text": "Administrator: OpenMates (szczegóły dotyczące przedstawiciela prawnego w Impressum)."
         }
       },
       "aggregate_analytics": {
         "heading": {
           "text": "11. Anonimowa analityka zbiorcza"
+        },
+        "overview": {
+          "text": "Zbieramy anonimowe statystyki zbiorcze dotyczące korzystania z naszej strony internetowej i aplikacji webowej. Dane te są autentycznie anonimowe — nie można ich powiązać z żadnym indywidualnym użytkownikiem, a żadne pliki cookie ani identyfikatory śledzenia nie są ustawiane. Baner zgody nie jest wymagany, ponieważ żadne dane osobowe nie są gromadzone."
         }
       }
     },
@@ -5233,6 +5432,9 @@
       "share_transcript": {
         "text": "Udostępnij transkrypcję"
       }
+    },
+    "fork": {
+      "text": "Rozwidl rozmowę"
     },
     "developers_api_keys": {
       "text": "Klucze API"

@@ -2196,7 +2196,68 @@
     }
   },
   "daily_inspiration": {},
-  "demo_chats": {},
+  "demo_chats": {
+    "for_developers": {
+      "title": {
+        "text": "OpenMates | 面向开发者"
+      },
+      "description": {
+        "text": "由AI驱动的开发工具，含REST API、CLI、隐私保护，无需MCP配置"
+      },
+      "message": {
+        "text": "# 👨‍💻 面向开发者的数字团队伙伴\n\nOpenMates也是开发者的绝佳工具。无论是快速提问、规划大型项目、基于最新文档生成代码等，无需复杂的MCP服务器设置，同时保护您的隐私，让您访问所有最佳AI模型。包含所有应用技能的REST API，还计划推出强大的CLI及pip和npm包，让您从任何地方与聊天交互。\n点击这些示例聊天，看看OpenMates能为开发者做什么：\n[[dev_example_chats_group]]\n\n## 🚀 快速开始\n\n点击右上角的注册按钮注册，购买使用额度并开始使用OpenMates。\n\n## 📱 面向开发者的应用\n\n在OpenMates上使用应用，无需在JSON配置文件中用明文API密钥进行复杂、耗时且不安全的MCP设置。\nOpenMates会自动使用适合您请求的AI模型、应用技能、专注模式、设置和记忆（同时允许通过@覆盖自动选择）。\n一些应用使OpenMates更有用的例子：\n- 📖 [代码 | 获取文档](#settings/appstore/code/skills/get-docs)：在生成代码文件前检查API、框架或语言的最新文档。\n- 🔍 [网络 | 搜索](#settings/appstore/web/skills/search)：搜索网络以提高响应准确性。\n- ✅ 自动代码检查（即将推出）。\n[[dev_app_store_group]]\n\n### 🛠️ 开发者技能\n\n专为开发者应用设计的技能，让您的伙伴与外部开发者服务交互。\n[[dev_skills_group]]\n\n### 🎯 开发者专注模式\n\n针对开发者任务的专注模式，如规划项目、编写测试、提升安全性等。\n[[dev_focus_modes_group]]\n\n### 💾 开发者设置和记忆\n\n开发者应用的设置和记忆，无需每次都提及项目细节、首选技术栈或框架。\n[[dev_settings_memories_group]]\n\n## 🔌 REST API\n\nOpenMates REST API让您以类似其他LLM API的方式使用OpenMates，并与OpenMates的所有应用技能交互。\n\n## 💻 CLI、pip和npm包\n\n即将发布的CLI和pip及npm包将让您从任何地方完全访问OpenMates账户，同时确保零知识加密。\n\n## 🔒 隐私和加密\n\nOpenMates从不用您的数据训练模型。所有聊天、项目详情和应用设置在您的设备上进行零知识加密和解密。\n\n## 🛡️ 开源作为防腐保障\n\n用户利益优先，是OpenMates的核心理念。[OpenMates完全开源，采用AGPL 3协议](https://github.com/glowingkitty/openmates)。\n\n---\n\n📚 您已经阅读了面向所有人的介绍吗？如果没有，[点击这里](#chat-id=demo-for-everyone)了解OpenMates的所有核心基础。"
+      },
+      "follow_up_1": {
+        "text": "REST API是如何工作的？"
+      },
+      "follow_up_2": {
+        "text": "我的代码会保持私密吗？"
+      },
+      "follow_up_3": {
+        "text": "如何自托管OpenMates？"
+      }
+    },
+    "for_everyone": {
+      "title": {
+        "text": "OpenMates | 面向所有人"
+      },
+      "description": {
+        "text": "借助应用、隐私保护，无需订阅即可使用的AI聊天机器人"
+      },
+      "message": {
+        "text": "# ✨ 面向所有人的数字团队伙伴\n\n通过OpenMates，您拥有一支专业化AI聊天机器人团队，它们不仅能够激励您并传授新知识，还能利用应用程序完成各种任务。让AI的实用功能触手可及，同时保护您的隐私，让您访问所有最佳AI模型。\n点击这些示例聊天，看看OpenMates能做什么：\n[[example_chats_group]]\n\n## 🚀 快速开始\n\n点击右上角的注册按钮注册，购买使用额度并开始使用OpenMates。或继续阅读了解更多关于OpenMates的信息，并查看左上角聊天菜单中的示例聊天，探索OpenMates的功能。\n\n## 📱 应用\n\n仅搜索网络不足以完成日常任务，OpenMates支持各种其他应用程序。\n[[app_store_group]]\n在[应用商店](#settings/appstore)中，您可以概览您的数字团队伙伴可用的各种应用程序及其技能、专注模式和设置与记忆。\n\n### 🛠️ 技能\n\n允许您的伙伴与外部服务交互。搜索网络、阅读视频文字稿和网站、搜索地点及其营业时间、搜索视频等更多功能。\n[[skills_group]]\n\n### 🎯 专注模式\n\n临时更改聊天的专注点以达到特定目标。让您的聊天机器人提供更好的回复与帮助，效果显著。无需成为设计复杂聊天机器人请求的专家。\n[[focus_modes_group]]\n\n### 💾 设置与记忆\n\n让OpenMates根据您的兴趣、旅行、想读的书、项目等提供更个性化的回答。但是：\n- ✅ 仅在需要时使用\n- ✅ 仅用于需要的特定聊天\n- ✅ 仅使用您明确同意共享的数据\n- ✅ 敏感数据永不存储在服务器磁盘上\n所有设置和记忆都在您的设备上加密和解密，就像您的聊天记录一样。这意味着服务器永远无法自行解密它们，只有您的设备才能，使用您的登录方法。\n[[settings_memories_group]]\n\n## 🎨 为易用性而设计\n\n默认情况下，OpenMates自动使用最适合的AI模型、伙伴、应用技能、应用专注模式和设置与记忆（经您同意）处理您的请求，同时允许您随时在设置菜单中或通过在消息中输入@来覆盖自动选择。\n\n### 🤖 AI模型\n\nOpenMates自动为您的每个请求选择最佳AI模型，让您无需跟上不断变化的新AI模型格局。但如果您想要完全控制，只需在消息中输入**@**即可自行选择特定模型。\n[[ai_models_group]]\n\n## 🎓 学习与灵感\n\n如果使用得当，AI聊天机器人可以成为有史以来最神奇的个性化学习工具。OpenMates实现了各种功能，不仅帮助您完成任务，还帮助您每天持续学习。通过基于您聊天的后续建议和新聊天建议，以及即将推出的\"每日灵感\"功能。\n\n## 🔒 隐私与加密\n\n只有您的设备才能解密您的聊天记录和敏感的应用设置与记忆。\n您完全掌控哪些数据被发送到OpenMates。\n只发送处理您请求所需的最少数据到服务器，且从不存储在磁盘上。\n只有由您的登录方法保护的加密数据才会存储在服务器上用于同步，确保即使攻击者也无法读取您过去的聊天记录。\n我们使用的AI提供商永远不会看到究竟是谁发送了请求。我们还在努力采取更多措施，进一步加强您的隐私保护。\n\n## 💰 价格\n\n无需订阅、无广告、不共享您的用户数据、无风险资本（确保OpenMates始终将用户利益放在首位）。\n相反：一个简单公平的按需付费系统。您购买使用额度，然后根据应用商店中每个应用技能的价格按请求收费。当然，额度永不过期。\n\n---\n\n👨‍💻 您是软件开发者吗？那么请查看开发者介绍，了解OpenMates如何在构建新软件方面发挥强大作用。\n[[for_developers_embed]]"
+      },
+      "follow_up_1": {
+        "text": "费用是多少？"
+      },
+      "follow_up_2": {
+        "text": "有哪些可用的应用？"
+      },
+      "follow_up_3": {
+        "text": "告诉我更多关于隐私的信息"
+      }
+    },
+    "who_develops_openmates": {
+      "title": {
+        "text": "谁在开发 OpenMates？"
+      },
+      "description": {
+        "text": "认识 OpenMates 的创造者，了解项目背后的理念"
+      },
+      "message": {
+        "text": "# 👋 谁在开发 OpenMates？\n\n你好！\n我是 Marco（也叫 [glowingkitty](https://github.com/glowingkitty)）。设计师、软件架构师、创客。也是 OpenMates 的创始人。\n\n我们每个人都有过与大型科技公司打交道的糟糕经历。无论是因为糟糕的用户体验设计、强制订阅且价格不断上涨、广告、因安全不足而导致的用户数据被盗、出售用户数据、把产品做得既令人上瘾又实用——这份清单还在不断延伸。\n\n但软件不必如此令人沮丧，许多开发者（尤其是开源社区中的开发者）每天都用令人惊叹的项目证明了这一点。我既对让每个人都能使用个人助手的潜力感到兴奋——助手可以帮助学习新知识、搜索网络、规划旅行、获取职业建议、开发软件等等——同时也对允许大型科技公司定义并控制这个未来感到担忧。因为那些公司一再证明，他们不能被信任去把用户利益置于投资者利益之上。\n\n所以，我在 2024 年底开始了一个个人项目。一个比现有聊天机器人/AI 代理更好的替代品。以用户利益为首要优先级，更好的用户体验设计，更好的隐私与加密，不依赖单一 AI 提供商，专注于教育与启发，总体目标是让 AI 的有益方面对普通人日常任务可及。而不是又造一台让所有人上瘾、让互联网更加糟糕的内容机器。现在，它上线了。是的，仍是 alpha 版，有些错误和缺失功能，但每周都在进步。\n\n当然，OpenMates 是完全开源的。因为这是任何想要确保抗劣化并在未来也优先考虑用户利益的软件的基础。\n\n如果你想以用户身份加入这段旅程，非常感谢并欢迎你！\n如果你想以贡献者或可能的团队成员身份加入——请查看 [OpenMates 的 git 仓库](https://github.com/glowingkitty/openmates) 和[我们的开发者群组](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq)——期待听到你的消息！\n\n期待接下来的几个月。这将是一段激动人心的旅程 :)"
+      },
+      "follow_up_1": {
+        "text": "OpenMates 的长远愿景是什么？"
+      },
+      "follow_up_2": {
+        "text": "我如何为 OpenMates 做出贡献？"
+      },
+      "follow_up_3": {
+        "text": "开源对于 OpenMates 为何重要？"
+      }
+    }
+  },
   "design_guidelines": {
     "section_title": {
       "text": "设计准则"
@@ -4518,6 +4579,78 @@
       "legal_basis": {
         "heading": {
           "text": "7. 处理的法律依据（GDPR）"
+        },
+        "contract": {
+          "text": "合同：为履行我们与您的合同或在签订合同前根据您的要求采取步骤所必需的处理（例如，账户创建、提供网络应用功能）。"
+        },
+        "consent": {
+          "text": "同意：在适用情况下基于您同意的处理（例如，可选通讯、某些分析或营销）。您可以随时撤回同意。"
+        },
+        "legitimate_interests": {
+          "text": "合法利益：为我们的合法利益（如服务安全、欺诈预防、滥用检测和改善服务）所必需的处理，前提是这些利益不被您的权利和利益所凌驾。"
+        },
+        "legal_obligation": {
+          "text": "法律义务：为遵守法律义务而必需的处理（例如，发票和交易记录的税务和会计要求）。"
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. 您的隐私权"
+        },
+        "intro": {
+          "text": "根据您所在的司法管辖区，您可能对您的个人数据拥有某些权利。以下总结了GDPR和CCPA/CPRA下的主要权利及其行使方式："
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "GDPR（欧盟/欧经区）"
+          },
+          "access": {
+            "text": "访问权"
+          },
+          "rectification": {
+            "text": "更正权"
+          },
+          "erasure": {
+            "text": "删除权（\"被遗忘权\"）"
+          },
+          "restriction": {
+            "text": "限制处理权"
+          },
+          "portability": {
+            "text": "数据可携带权"
+          },
+          "objection": {
+            "text": "反对权"
+          },
+          "withdraw_consent": {
+            "text": "撤回同意权"
+          },
+          "exercise": {
+            "text": "如需行使您的GDPR权利，请通过contact@openmates.org或通过版权信息联系我们。在履行您的请求之前，我们可能需要验证您的身份。"
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA（加利福尼亚州）"
+          },
+          "right_to_know": {
+            "text": "知情/访问权"
+          },
+          "right_to_delete": {
+            "text": "删除权"
+          },
+          "right_to_correct": {
+            "text": "更正权"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "选择退出销售或共享的权利"
+          },
+          "right_to_non_discrimination": {
+            "text": "非歧视权"
+          },
+          "exercise": {
+            "text": "加利福尼亚州居民可以通过联系contact@openmates.org行使CCPA/CPRA权利。我们不出售个人信息。"
+          }
         }
       },
       "discord_integration": {
@@ -4543,6 +4676,12 @@
         },
         "email": {
           "text": "电子邮件"
+        },
+        "postal": {
+          "text": "邮政地址：当前注册地址见法律声明（版权页）。"
+        },
+        "controller": {
+          "text": "数据控制者：OpenMates（法定代表人详情见版权页）。"
         }
       },
       "aggregate_analytics": {
@@ -6377,6 +6516,39 @@
         "text": "未找到伙伴。"
       }
     },
+    "pricing": {
+      "description": {
+        "text": "探索积分包和技能费用"
+      },
+      "text": "定价",
+      "packages_heading": {
+        "text": "积分套餐"
+      },
+      "recommended": {
+        "text": "推荐"
+      },
+      "bonus_credits": {
+        "text": "自动充值附赠积分/月"
+      },
+      "vat_note": {
+        "text": "所有价格不含增值税。价格以欧元和美元计。"
+      },
+      "explore_heading": {
+        "text": "探索应用技能与费用"
+      },
+      "ai_ask_skill": {
+        "text": "AI 问答"
+      },
+      "ai_ask_subtitle": {
+        "text": "最大费用因素 — 探索模型定价"
+      },
+      "browse_app_store": {
+        "text": "浏览应用商店"
+      },
+      "browse_app_store_subtitle": {
+        "text": "查看所有可用技能的定价"
+      }
+    },
     "shared": {
       "description": {
         "text": "管理您的共享聊天和小费"
@@ -6532,6 +6704,9 @@
       "share_transcript": {
         "text": "分享转录"
       }
+    },
+    "fork": {
+      "text": "派生对话"
     },
     "messengers": {
       "text": "通讯工具"

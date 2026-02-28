@@ -4776,6 +4776,78 @@
       "legal_basis": {
         "heading": {
           "text": "7. Rechtsgrundlage für die Verarbeitung (DSGVO)"
+        },
+        "contract": {
+          "text": "Vertrag: Verarbeitung, die zur Erfüllung unseres Vertrags mit Ihnen oder zur Durchführung vorvertraglicher Maßnahmen auf Ihre Anfrage hin erforderlich ist (z. B. Kontoerstellung, Bereitstellung von Web-App-Funktionen)."
+        },
+        "consent": {
+          "text": "Einwilligung: Verarbeitung auf der Grundlage Ihrer Einwilligung, soweit zutreffend (z. B. optionale Kommunikation, bestimmte Analysen oder Marketing). Sie können Ihre Einwilligung jederzeit widerrufen."
+        },
+        "legitimate_interests": {
+          "text": "Berechtigte Interessen: Verarbeitung, die für unsere berechtigten Interessen erforderlich ist, wie Dienstsicherheit, Betrugsprävention, Missbrauchserkennung und Serviceverbesserung, sofern diese Interessen nicht Ihre Rechte und Interessen überwiegen."
+        },
+        "legal_obligation": {
+          "text": "Rechtliche Verpflichtung: Verarbeitung, die zur Erfüllung gesetzlicher Pflichten erforderlich ist (z. B. steuerliche und buchhalterische Anforderungen für Rechnungen und Transaktionsaufzeichnungen)."
+        }
+      },
+      "legal_rights": {
+        "heading": {
+          "text": "8. Ihre Datenschutzrechte"
+        },
+        "intro": {
+          "text": "Je nach Ihrem Wohnsitzland haben Sie möglicherweise bestimmte Rechte bezüglich Ihrer personenbezogenen Daten. Im Folgenden sind die wichtigsten Rechte gemäß DSGVO und CCPA/CPRA sowie deren Ausübung zusammengefasst:"
+        },
+        "gdpr": {
+          "subheading": {
+            "text": "DSGVO (EU/EWR)"
+          },
+          "access": {
+            "text": "Auskunftsrecht"
+          },
+          "rectification": {
+            "text": "Recht auf Berichtigung"
+          },
+          "erasure": {
+            "text": "Recht auf Löschung („Recht auf Vergessenwerden\")"
+          },
+          "restriction": {
+            "text": "Recht auf Einschränkung der Verarbeitung"
+          },
+          "portability": {
+            "text": "Recht auf Datenübertragbarkeit"
+          },
+          "objection": {
+            "text": "Widerspruchsrecht"
+          },
+          "withdraw_consent": {
+            "text": "Recht auf Widerruf der Einwilligung"
+          },
+          "exercise": {
+            "text": "Um Ihre DSGVO-Rechte auszuüben, kontaktieren Sie uns unter contact@openmates.org oder über das Impressum. Wir müssen möglicherweise Ihre Identität vor der Erfüllung Ihrer Anfrage überprüfen."
+          }
+        },
+        "ccpa_cpra": {
+          "subheading": {
+            "text": "CCPA/CPRA (Kalifornien)"
+          },
+          "right_to_know": {
+            "text": "Auskunfts-/Zugriffsrecht"
+          },
+          "right_to_delete": {
+            "text": "Recht auf Löschung"
+          },
+          "right_to_correct": {
+            "text": "Recht auf Berichtigung"
+          },
+          "right_to_opt_out_of_sale_or_sharing": {
+            "text": "Recht auf Widerspruch gegen Verkauf oder Weitergabe"
+          },
+          "right_to_non_discrimination": {
+            "text": "Recht auf Nichtdiskriminierung"
+          },
+          "exercise": {
+            "text": "Einwohner Kaliforniens können ihre CCPA/CPRA-Rechte ausüben, indem sie uns unter contact@openmates.org kontaktieren. Wir verkaufen keine personenbezogenen Daten."
+          }
         }
       },
       "discord_integration": {
@@ -4801,6 +4873,12 @@
         },
         "email": {
           "text": "E-Mail"
+        },
+        "postal": {
+          "text": "Postanschrift: Aktuelle Adresse siehe Impressum."
+        },
+        "controller": {
+          "text": "Verantwortlicher: OpenMates (Details zum gesetzlichen Vertreter siehe Impressum)."
         }
       },
       "aggregate_analytics": {
@@ -7176,6 +7254,39 @@
         "text": "Mate nicht gefunden."
       }
     },
+    "pricing": {
+      "description": {
+        "text": "Kreditpakete und Skill-Kosten erkunden"
+      },
+      "text": "Preise",
+      "packages_heading": {
+        "text": "Kreditpakete"
+      },
+      "recommended": {
+        "text": "Empfohlen"
+      },
+      "bonus_credits": {
+        "text": "Bonus/Mo mit Auto-Aufladen"
+      },
+      "vat_note": {
+        "text": "Alle Preise exkl. MwSt. Preise in EUR und USD."
+      },
+      "explore_heading": {
+        "text": "App-Skills & Kosten erkunden"
+      },
+      "ai_ask_skill": {
+        "text": "KI Fragen"
+      },
+      "ai_ask_subtitle": {
+        "text": "Größter Kostenfaktor — Modellpreise erkunden"
+      },
+      "browse_app_store": {
+        "text": "App Store durchsuchen"
+      },
+      "browse_app_store_subtitle": {
+        "text": "Preise für alle verfügbaren Skills einsehen"
+      }
+    },
     "shared": {
       "description": {
         "text": "Geteilte Chats und Trinkgelder verwalten"
@@ -7331,6 +7442,9 @@
       "share_transcript": {
         "text": "Transkript teilen"
       }
+    },
+    "fork": {
+      "text": "Konversation verzweigen"
     },
     "messengers": {
       "text": "Messenger"
