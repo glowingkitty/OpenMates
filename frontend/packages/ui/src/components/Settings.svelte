@@ -1171,24 +1171,6 @@ changes to the documentation (to keep the documentation up to date).
 
     // No more docking/undocking - we use two separate containers instead
    
-    // Track when profile container should be hidden (after transform animation completes)
-    let hideOriginalProfile = $state(false);
-    let hideProfileTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    // CRITICAL: On sub-settings pages (e.g. deep link to app skill, focus mode), hide the original
-    // profile container in the chat footer immediately. This prevents the profile button from
-    // showing on top of sub-pages when opening via deep links. On main settings view we keep
-    // the 400ms delay so the transform animation can play when the user opens the menu by click.
-    $effect(() => {
-        if (isMenuVisible && activeSettingsView !== 'main') {
-            if (hideProfileTimeout) {
-                clearTimeout(hideProfileTimeout);
-                hideProfileTimeout = null;
-            }
-            hideOriginalProfile = true;
-        }
-    });
-   
     // Handler for profile click to show menu
     function toggleMenu() {
         isMenuVisible = !isMenuVisible;
@@ -1201,32 +1183,9 @@ changes to the documentation (to keep the documentation up to date).
         } else {
             panelState.closeSettings();
         }
-        
-        // Clear any existing timeout
-        if (hideProfileTimeout) {
-            clearTimeout(hideProfileTimeout);
-            hideProfileTimeout = null;
-        }
-        
-        if (isMenuVisible) {
-            // Delay hiding the original profile until after transform animation (400ms)
-            // This allows it to move to its position first, then hide
-            hideProfileTimeout = setTimeout(() => {
-                hideOriginalProfile = true;
-            }, 400);
-        } else {
-            // Show immediately when menu closes
-            hideOriginalProfile = false;
-        }
 
         // If menu is being closed, reset scroll position and view state
         if (!isMenuVisible && settingsContentElement) {
-        	// Reset profile visibility immediately when closing via toggleMenu
-        	hideOriginalProfile = false;
-        	if (hideProfileTimeout) {
-        		clearTimeout(hideProfileTimeout);
-        		hideProfileTimeout = null;
-        	}
         	
         	// Reset the active view to main when closing the menu
         	activeSettingsView = 'main';
@@ -1250,9 +1209,6 @@ changes to the documentation (to keep the documentation up to date).
         	setTimeout(() => {
         		settingsContentElement.scrollTop = 0;
         	}, 300);
-        } else if (isMenuVisible) {
-        	// Menu is opening - original profile container will animate to its position
-        	// The duplicate profile container in settings will fade in
         }
     }
 
@@ -1318,12 +1274,6 @@ changes to the documentation (to keep the documentation up to date).
     			settingsMenuVisible.set(false);
     			// CRITICAL: Also close via panelState to keep state in sync
     			panelState.closeSettings();
-    			// Reset profile visibility so it shows again
-    			hideOriginalProfile = false;
-    			if (hideProfileTimeout) {
-    				clearTimeout(hideProfileTimeout);
-    				hideProfileTimeout = null;
-    			}
     		}
     	}
     }
@@ -1566,17 +1516,11 @@ changes to the documentation (to keep the documentation up to date).
                  	if (settingsContentElement) {
                  		settingsContentElement.scrollTop = 0;
                  	}
-                    // Close the settings menu visually
+                 	// Close the settings menu visually
                  	isMenuVisible = false;
                  	settingsMenuVisible.set(false);
                  	// CRITICAL: Also close via panelState to keep state in sync
                  	panelState.closeSettings();
-                 	// Reset profile visibility so it shows again
-                 	hideOriginalProfile = false;
-                 	if (hideProfileTimeout) {
-                 		clearTimeout(hideProfileTimeout);
-                 		hideProfileTimeout = null;
-                 	}
                     // Small delay to allow settings menu to close visually and state to clear
                  	await new Promise(resolve => setTimeout(resolve, 200)); // Slightly longer to ensure state is cleared
                 },
@@ -1668,20 +1612,6 @@ changes to the documentation (to keep the documentation up to date).
                 // deep link (e.g. badge click) bubbles to document and fires handleClickOutside
                 // within milliseconds. The 300ms grace period prevents this race condition.
                 lastProgrammaticOpenTime = Date.now();
-
-                // Deep link to a sub-page: hide the original profile immediately so it never
-                // appears on top of the sub-settings content. Main view: delay 400ms for animation.
-                if (hideProfileTimeout) {
-                    clearTimeout(hideProfileTimeout);
-                    hideProfileTimeout = null;
-                }
-                if (settingsPath !== 'main') {
-                    hideOriginalProfile = true;
-                } else {
-                    hideProfileTimeout = setTimeout(() => {
-                        hideOriginalProfile = true;
-                    }, 400);
-                }
 
                 // Force z-index update to ensure proper overlay on mobile
                 setTimeout(() => {
@@ -1776,12 +1706,6 @@ changes to the documentation (to keep the documentation up to date).
     	// If store value changes from true to false and our local state is still true
     	if (!$settingsMenuVisible && isMenuVisible) {
     		isMenuVisible = false;
-    		// Reset profile visibility so it shows again
-    		hideOriginalProfile = false;
-    		if (hideProfileTimeout) {
-    			clearTimeout(hideProfileTimeout);
-    			hideProfileTimeout = null;
-    		}
    
     		// Remove mobile overlay class when closing
     		const menuElement = document.querySelector('.settings-menu');
@@ -1819,15 +1743,6 @@ changes to the documentation (to keep the documentation up to date).
     		// Record the programmatic open time so handleClickOutside doesn't immediately close
     		// the panel on mobile (where the same tap event bubbles to document)
     		lastProgrammaticOpenTime = Date.now();
-   
-            // Delay hiding the original profile until after transform animation (400ms)
-            // This ensures it moves to its position first, then hides, matching manual toggle
-            if (hideProfileTimeout) {
-                clearTimeout(hideProfileTimeout);
-            }
-            hideProfileTimeout = setTimeout(() => {
-                hideOriginalProfile = true;
-            }, 400);
 
     		// Add mobile overlay class when opening on mobile
     		setTimeout(() => {
@@ -1855,7 +1770,6 @@ changes to the documentation (to keep the documentation up to date).
     	<div
     		class="profile-container"
     		class:menu-open={isMenuVisible}
-    		class:hidden={hideOriginalProfile}
     		data-action={isMenuVisible ? 'close-settings' : 'open-settings'}
     		onclick={toggleMenu}
     		onkeydown={e => e.key === 'Enter' && toggleMenu()}
@@ -2086,12 +2000,6 @@ changes to the documentation (to keep the documentation up to date).
                 settingsMenuVisible.set(false);
                 // CRITICAL: Also close via panelState to keep state in sync
                 panelState.closeSettings();
-                // Reset profile visibility so it shows again
-                hideOriginalProfile = false;
-                if (hideProfileTimeout) {
-                    clearTimeout(hideProfileTimeout);
-                    hideProfileTimeout = null;
-                }
             }}
         />
     </div>
@@ -2124,25 +2032,14 @@ changes to the documentation (to keep the documentation up to date).
         height: 50px;
         border-radius: 50%;
         cursor: pointer;
-        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+        /* Fade out when menu opens, fade in when menu closes */
+        transition: opacity 0.2s ease;
         opacity: 1;
     }
 
-    .profile-container.hidden {
+    .profile-container.menu-open {
         opacity: 0;
         pointer-events: none;
-        /* No transition - hide instantly to match docked profile appearance */
-        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
-    }
-
-    .profile-container.menu-open {
-    	transform: translate(-265px, 110px);
-    }
-
-    @media (max-width: 730px) {
-        .profile-container.menu-open {
-            transform: translate(-255px, 110px);
-        }
     }
    
     .close-icon-container {
