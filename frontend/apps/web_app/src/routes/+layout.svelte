@@ -69,11 +69,18 @@
 			const pageLoadTime = Date.now();
 
 			// Helper: send beacon, ignore errors silently
+			// NOTE: We intentionally use 'text/plain' as the Blob content-type instead of
+			// 'application/json'. 'text/plain' is a CORS-safelisted content-type, which means
+			// the browser sends the beacon as a "simple request" with no CORS preflight.
+			// Using 'application/json' would trigger a preflight, and the server responds with
+			// Access-Control-Allow-Origin: * (wildcard) — which the browser rejects when the
+			// request also carries cookies. The backend accepts and parses the JSON body
+			// regardless of the declared content-type.
 			const sendBeacon = (payload: object) => {
 				try {
 					navigator.sendBeacon(
 						getApiEndpoint('/v1/analytics/beacon'),
-						new Blob([JSON.stringify(payload)], { type: 'application/json' })
+						new Blob([JSON.stringify(payload)], { type: 'text/plain' })
 					);
 				} catch {
 					// Analytics failures must never affect the user experience

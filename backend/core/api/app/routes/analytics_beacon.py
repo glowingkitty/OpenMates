@@ -23,10 +23,11 @@
 #
 # See docs/analytics.md for the full design and privacy guarantees.
 
+import json
 import logging
 from typing import Optional, Literal
 from fastapi import APIRouter, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from backend.core.api.app.services.limiter import limiter
 
@@ -82,10 +83,16 @@ def _get_client_ip(request: Request) -> str:
 @limiter.limit("10/minute")
 async def analytics_beacon(
     request: Request,
-    payload: BeaconPayload,
 ) -> Response:
     """
     Receive an analytics beacon event from the client.
+
+    Accepts both 'application/json' and 'text/plain' content types.
+    The frontend sends 'text/plain' so that navigator.sendBeacon() makes a
+    CORS "simple request" (no preflight), avoiding a conflict between the
+    wildcard Access-Control-Allow-Origin header and the browser's ambient
+    cookie-sending behaviour. The body is always valid JSON regardless of
+    the declared content-type.
 
     Processes the event asynchronously — all analytics work happens in the
     background without blocking the HTTP response. Returns 204 No Content
@@ -94,6 +101,19 @@ async def analytics_beacon(
     Rate limited to 10 requests/minute per IP.
     No authentication required.
     """
+    # Parse the body manually to support both application/json and text/plain.
+    # sendBeacon() with a Blob of type text/plain avoids a CORS preflight, but
+    # FastAPI's automatic body parsing only handles application/json for Pydantic
+    # models. We read the raw bytes and parse JSON ourselves so both content-types
+    # work identically on the server side.
+    try:
+        raw = await request.body()
+        data = json.loads(raw)
+        payload = BeaconPayload(**data)
+    except (json.JSONDecodeError, ValidationError, Exception):
+        # Invalid or missing payload — return 204 silently to match the analytics
+        # "never fail" contract. Malformed beacons are simply discarded.
+        return Response(status_code=204)
     # Get web_analytics_service from app state (initialized in main.py lifespan)
     web_analytics_service = getattr(request.app.state, "web_analytics_service", None)
     if web_analytics_service is None:
