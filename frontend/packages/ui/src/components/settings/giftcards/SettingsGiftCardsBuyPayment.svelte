@@ -13,6 +13,7 @@ Supports both saved payment methods and new payment form
         subscribe: () => () => {},
         set: () => {},
         update: () => {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 </script>
 
@@ -26,7 +27,6 @@ Supports both saved payment methods and new payment form
     import * as cryptoService from '../../../services/cryptoService';
     import { loadStripe } from '@stripe/stripe-js';
     import PaymentAuth from '../billing/PaymentAuth.svelte';
-    import { webSocketService } from '../../../services/websocketService';
     import { notificationStore } from '../../../stores/notificationStore';
     import { userProfile, updateProfile } from '../../../stores/userProfile';
 
@@ -70,8 +70,15 @@ Supports both saved payment methods and new payment form
     let showPaymentForm = $state(false);
     let showAuthModal = $state(false);
     let authMethods: { has_passkey: boolean; has_2fa: boolean } | null = $state(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let stripe: any = $state(null);
     let isProcessingPayment = $state(false);
+
+    // Dual-provider state — mirrors SettingsBuyCreditsPayment.
+    // Tracks the detected provider from /config and any explicit user override
+    // (e.g. clicking "Pay with a non-EU card" to switch from Stripe to Polar).
+    let detectedProvider: 'stripe' | 'polar' | null = $state(null);
+    let savedMethodProviderOverride: 'stripe' | 'polar' | null = $state(null);
 
     // Skip the gift card refund consent screen if user already accepted it (at signup or a previous purchase).
     // Derived from the user profile field set by the backend after successful payment webhook.
@@ -82,6 +89,8 @@ Supports both saved payment methods and new payment form
 
     let giftCardCode: string | null = $state(null);
     let creditsValue: number = $state(0);
+    // orderId is tracked for debugging and future webhook correlation
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let orderId: string | null = $state(null);
     let isWaitingForGiftCard = $state(false);
     let delayedPaymentTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -105,13 +114,67 @@ Supports both saved payment methods and new payment form
         return `${expMonth.toString().padStart(2, '0')}/${expYear.toString().slice(-2)}`;
     }
 
-    // Load payment methods on mount
+    // Load payment methods on mount — detect provider first (same flow as credits purchase)
     onMount(async () => {
-        await checkPaymentMethods();
+        await detectProviderAndLoadMethods();
     });
 
-    async function checkPaymentMethods() {
+    /**
+     * Detect the active payment provider from /config, then load saved payment methods
+     * if on Stripe. Polar does not support saved payment methods (Stripe-only feature).
+     * Mirrors SettingsBuyCreditsPayment.detectProviderAndLoadMethods().
+     */
+    async function detectProviderAndLoadMethods() {
         isLoadingPaymentMethods = true;
+        try {
+            // Append provider_override if the user explicitly switched provider
+            let configUrl = getApiEndpoint(apiEndpoints.payments.config);
+            if (savedMethodProviderOverride) {
+                configUrl += `?provider_override=${savedMethodProviderOverride}`;
+            }
+
+            const configResponse = await fetch(configUrl, { credentials: 'include' });
+            if (configResponse.ok) {
+                const config = await configResponse.json();
+                detectedProvider = (config.provider as 'stripe' | 'polar') || 'stripe';
+            } else {
+                // If config fails, assume Stripe (safe default)
+                detectedProvider = 'stripe';
+            }
+
+            // Saved payment methods are Stripe-only — if Polar, go straight to payment form
+            if (detectedProvider === 'polar') {
+                hasSavedPaymentMethods = false;
+                showPaymentForm = true;
+                return;
+            }
+
+            await checkPaymentMethods();
+        } catch (error) {
+            console.error('Error detecting provider:', error);
+            detectedProvider = 'stripe';
+            showPaymentForm = true;
+        } finally {
+            isLoadingPaymentMethods = false;
+        }
+    }
+
+    /**
+     * Switch from the Stripe saved-method view to Polar (non-EU card) or back.
+     * Resets state and re-detects provider with the new override.
+     */
+    async function switchToProvider(newProvider: 'stripe' | 'polar') {
+        savedMethodProviderOverride = newProvider;
+        showPaymentForm = false;
+        hasSavedPaymentMethods = false;
+        paymentMethods = [];
+        selectedPaymentMethodId = null;
+        detectedProvider = null;
+        isLoadingPaymentMethods = true;
+        await detectProviderAndLoadMethods();
+    }
+
+    async function checkPaymentMethods() {
         try {
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.listPaymentMethods), {
                 credentials: 'include'
@@ -136,8 +199,6 @@ Supports both saved payment methods and new payment form
             // Fall back to payment form on error
             hasSavedPaymentMethods = false;
             showPaymentForm = true;
-        } finally {
-            isLoadingPaymentMethods = false;
         }
     }
 
@@ -280,37 +341,6 @@ Supports both saved payment methods and new payment form
         }
     }
 
-    // Listen for gift card created event from webhook
-    function handleGiftCardCreated(payload: { order_id: string, gift_card_code: string, credits_value: number }) {
-        console.log('[SettingsGiftCardsBuyPayment] Received gift_card_created notification:', payload);
-        
-        // Clear any pending timeout
-        if (delayedPaymentTimeoutId) {
-            clearTimeout(delayedPaymentTimeoutId);
-            delayedPaymentTimeoutId = null;
-        }
-        isWaitingForGiftCard = false;
-        
-        // Store the gift card code and order ID
-        giftCardCode = payload.gift_card_code;
-        creditsValue = payload.credits_value;
-        orderId = payload.order_id;
-        
-        // Store in sessionStorage so confirmation component can access it
-        if (giftCardCode) {
-            sessionStorage.setItem('gift_card_code', giftCardCode);
-            sessionStorage.setItem('gift_card_credits', creditsValue.toString());
-        }
-        
-        // Navigate to confirmation screen
-        dispatch('openSettings', {
-            settingsPath: 'gift_cards/buy/confirmation',
-            direction: 'forward',
-            icon: 'check',
-            title: $text('settings.gift_cards.purchase_successful')
-        });
-    }
-
     // Handle payment completion from Payment component (for new payment form)
     function handlePaymentComplete(event: CustomEvent<{ state: string, payment_intent_id?: string, isDelayed?: boolean, gift_card_code?: string, credits_value?: number }>) {
         const paymentState = event.detail?.state;
@@ -379,8 +409,8 @@ Supports both saved payment methods and new payment form
     <div class="loading-container">
         <p>{$text('settings.billing.loading_payment_methods')}</p>
     </div>
-{:else if hasSavedPaymentMethods && !showPaymentForm}
-    <!-- Show saved payment methods -->
+{:else if hasSavedPaymentMethods && !showPaymentForm && detectedProvider === 'stripe'}
+    <!-- Show saved payment methods (Stripe-only feature) -->
     <div class="payment-methods-container">
         <h3>{$text('settings.billing.select_payment_method')}</h3>
         
@@ -418,6 +448,13 @@ Supports both saved payment methods and new payment form
         >
             {isProcessingPayment ? $text('settings.billing.processing') : $text('settings.billing.buy_now')}
         </button>
+
+        <!-- Switch to Polar for non-EU cards — mirrors credits purchase flow -->
+        <div class="provider-switch-container">
+            <button class="provider-switch-btn" onclick={() => switchToProvider('polar')}>
+                {$text('signup.switch_to_non_eu_card')}
+            </button>
+        </div>
     </div>
 
     {#if showAuthModal && authMethods}
@@ -429,7 +466,10 @@ Supports both saved payment methods and new payment form
         />
     {/if}
 {:else}
-    <!-- Show payment form for new payment method -->
+    <!-- Show payment form for new payment method or Polar provider.
+         Pass savedMethodProviderOverride as initialProviderOverride so the Payment component
+         immediately requests the correct provider (e.g. 'polar' when user clicked non-EU card),
+         instead of re-detecting from geo which could fall back to Stripe. -->
     <div class="payment-container">
         <Payment
             purchasePrice={selectedPrice()}
@@ -439,6 +479,7 @@ Supports both saved payment methods and new payment form
             compact={false}
             isGiftCard={true}
             disableWebSocketHandlers={true}
+            initialProviderOverride={savedMethodProviderOverride}
             on:paymentStateChange={handlePaymentComplete}
             on:consentGiven={() => {
                 // User accepted the refund consent for gift cards — update local profile
@@ -551,14 +592,37 @@ Supports both saved payment methods and new payment form
     }
 
     .payment-container {
-        width: 90%;
-        padding: 0 10px;
+        /* Full width — Polar iframe needs to fill the entire panel.
+           The Payment component handles its own internal layout. */
+        width: 100%;
+        padding: 0;
     }
 
     @media (max-width: 480px) {
-        .payment-container,
         .payment-methods-container {
             padding: 0 5px;
         }
+    }
+
+    /* Provider switch button — shown below saved-method list to switch to Polar */
+    .provider-switch-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 12px;
+    }
+
+    .provider-switch-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: 13px;
+        color: var(--color-grey-60);
+        cursor: pointer;
+        text-decoration: underline;
+        transition: color 0.15s;
+    }
+
+    .provider-switch-btn:hover {
+        color: var(--color-grey-80);
     }
 </style>

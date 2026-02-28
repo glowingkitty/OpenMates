@@ -178,12 +178,15 @@ class BuyGiftCardRequest(BaseModel):
     currency: str
     email_encryption_key: Optional[str] = None
     payment_method_id: Optional[str] = None  # Optional saved payment method ID
+    # Optional explicit provider override ("stripe" or "polar") — mirrors CreateOrderRequest
+    provider: Optional[str] = None
 
 class BuyGiftCardResponse(BaseModel):
     provider: str
     order_token: Optional[str] = None  # For Revolut
     client_secret: Optional[str] = None  # For Stripe
     order_id: str
+    checkout_url: Optional[str] = None  # For Polar embedded checkout iframe URL
 
 class RedeemedGiftCardResponse(BaseModel):
     gift_card_code: str
@@ -3176,9 +3179,32 @@ async def buy_gift_card(
     """
     Purchase a gift card for the specified credit amount.
     Creates a payment order, and upon successful payment, creates a gift card with a unique code.
+
+    Supports both Stripe (EU/EEA/CH/GB users) and Polar (non-EU users), mirroring the
+    credits purchase flow. Provider is selected via geo-detection or explicit `provider` override.
     """
     user_id = current_user.id
-    logger.info(f"User {user_id} requesting to buy gift card: {gift_card_request.credits_amount} credits in {gift_card_request.currency}")
+
+    # Detect user region for provider selection (same logic as /create-order)
+    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+    is_eu = True  # Default to EU (Stripe) if geo detection fails
+    try:
+        geo_data = get_geo_data_from_ip(client_ip)
+        country_code = geo_data.get("country_code", "")
+        is_eu = is_eu_stripe_country(country_code)
+    except Exception as geo_err:
+        logger.warning(
+            f"Failed to detect region for gift card order (IP={client_ip}): {geo_err}. "
+            f"Defaulting to EU (Stripe)."
+        )
+
+    # Resolve the active provider (explicit override from request takes highest priority)
+    provider_name, _ = payment_service.get_provider(is_eu=is_eu, provider_override=gift_card_request.provider)
+
+    logger.info(
+        f"User {user_id} requesting to buy gift card: {gift_card_request.credits_amount} credits "
+        f"in {gift_card_request.currency} — Provider: {provider_name}"
+    )
     
     # Validate credits amount matches a pricing tier
     calculated_amount = get_price_for_credits(gift_card_request.credits_amount, gift_card_request.currency)
@@ -3236,21 +3262,26 @@ async def buy_gift_card(
                 payment_method_id=gift_card_request.payment_method_id
             )
         else:
-            # Create regular payment order
+            # Create regular payment order — pass is_eu and provider_override so
+            # non-EU users are routed to Polar (same as /create-order does).
+            embed_origin = request.headers.get("Origin") or request.headers.get("Referer")
             order_response = await payment_service.create_order(
                 amount=calculated_amount,
                 currency=gift_card_request.currency,
                 email=decrypted_email,
-                credits_amount=gift_card_request.credits_amount
+                credits_amount=gift_card_request.credits_amount,
+                provider_override=gift_card_request.provider,
+                is_eu=is_eu,
+                embed_origin=embed_origin,
             )
         
         if not order_response:
-            logger.error(f"Failed to create order with {payment_service.provider_name} for user {user_id}.")
+            logger.error(f"Failed to create order with {provider_name} for user {user_id}.")
             raise HTTPException(status_code=502, detail="Failed to initiate payment with provider.")
         
         order_id = order_response.get("id")
         if not order_id:
-            logger.error(f"Order response from {payment_service.provider_name} missing 'id' for user {user_id}.")
+            logger.error(f"Order response from {provider_name} missing 'id' for user {user_id}.")
             raise HTTPException(status_code=502, detail="Failed to get order ID from payment provider.")
         
         # Cache the order with a flag indicating it's a gift card purchase
@@ -3272,15 +3303,17 @@ async def buy_gift_card(
         # But we need to return the order info so the frontend can proceed with payment
         # The gift card will be created in the webhook handler when payment succeeds
         
-        logger.info(f"Created payment order {order_id} for gift card purchase by user {user_id}")
+        logger.info(f"Created {provider_name} payment order {order_id} for gift card purchase by user {user_id}")
         
-        # Return order info in the same format as create-order endpoint
-        # The gift card code will be provided via WebSocket after payment confirmation
+        # Return order info in the same format as create-order endpoint.
+        # The gift card code will be provided via WebSocket after payment confirmation.
+        # checkout_url is populated for Polar (embedded iframe); client_secret for Stripe.
         response_data = {
-            "provider": payment_service.provider_name,
+            "provider": provider_name,
             "order_id": order_id,
             "order_token": order_response.get("token"),  # For Revolut
-            "client_secret": order_response.get("client_secret")  # For Stripe
+            "client_secret": order_response.get("client_secret"),  # For Stripe
+            "checkout_url": order_response.get("checkout_url"),  # For Polar embedded checkout
         }
         
         return BuyGiftCardResponse(**response_data)
