@@ -17,8 +17,7 @@
 
 import base64
 import logging
-import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import httpx
 
@@ -135,14 +134,33 @@ async def run_mistral_ocr(
         # Dimensions from the page object
         dims = page.get("dimensions", {})
 
+        # Mistral OCR returns header/footer as plain strings (str|null).
+        # Earlier API versions returned dicts with a "markdown" key — handle
+        # both formats defensively so the code survives future API changes.
+        raw_header = page.get("header")
+        if isinstance(raw_header, dict):
+            header_text = raw_header.get("markdown")
+        elif isinstance(raw_header, str):
+            header_text = raw_header
+        else:
+            header_text = None
+
+        raw_footer = page.get("footer")
+        if isinstance(raw_footer, dict):
+            footer_text = raw_footer.get("markdown")
+        elif isinstance(raw_footer, str):
+            footer_text = raw_footer
+        else:
+            footer_text = None
+
         pages.append(
             {
                 "page_num": page_num,
                 "markdown": page.get("markdown", ""),
                 "images": images,
                 "tables": page.get("tables", []),
-                "header": (page.get("header") or {}).get("markdown") if page.get("header") else None,
-                "footer": (page.get("footer") or {}).get("markdown") if page.get("footer") else None,
+                "header": header_text,
+                "footer": footer_text,
                 "width": dims.get("width", 0.0),
                 "height": dims.get("height", 0.0),
             }

@@ -1100,7 +1100,6 @@ async def _async_persist_delete_draft_embed(
     )
 
     directus_service = DirectusService()
-    await directus_service.initialize()
 
     # Initialize S3 service for cleaning up S3 files.
     # If initialization fails, skip S3 deletion but still remove the Directus record
