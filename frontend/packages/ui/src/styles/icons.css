@@ -1232,6 +1232,13 @@ div.clickable-icon {
   }
 }
 
+.icon.pricing {
+  background: var(--color-primary);
+  &::before {
+    background-image: url("@openmates/ui/static/icons/coins.svg");
+  }
+}
+
 .icon.reload:not(.subsetting_icon) {
   background: var(--color-primary);
   &::before {
@@ -2134,6 +2141,17 @@ div.clickable-icon {
 .icon_openmates {
   -webkit-mask-image: url("@openmates/ui/static/icons/openmates.svg");
   mask-image: url("@openmates/ui/static/icons/openmates.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.icon_pricing {
+  -webkit-mask-image: url("@openmates/ui/static/icons/coins.svg");
+  mask-image: url("@openmates/ui/static/icons/coins.svg");
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;

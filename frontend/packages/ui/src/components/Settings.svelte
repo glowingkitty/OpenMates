@@ -550,6 +550,7 @@ changes to the documentation (to keep the documentation up to date).
      * Keys without a description are intentionally absent (banner shows title only).
      */
     const settingsPageDescriptionKeys: Record<string, string> = {
+        'pricing': 'settings.pricing.description',
         'privacy': 'settings.privacy.description',
         'usage': 'settings.usage.description',
         'billing': 'settings.billing.description',
