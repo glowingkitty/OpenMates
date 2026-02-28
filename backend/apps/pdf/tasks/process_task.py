@@ -457,7 +457,7 @@ async def _download_decrypt_pdf(
         dl_resp = await client.get(
             download_url,
             params={"bucket_key": "chatfiles", "s3_key": s3_key},
-            headers={"Authorization": f"Bearer {shared_token}"},
+            headers={"X-Internal-Service-Token": shared_token},
         )
     if dl_resp.status_code != 200:
         raise RuntimeError(f"S3 download failed for {s3_key}: HTTP {dl_resp.status_code} — {dl_resp.text[:200]}")
