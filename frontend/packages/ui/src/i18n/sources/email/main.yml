@@ -70,6 +70,30 @@ confirm_your_email_address:
   sv: "Bekräfta din e-postadress"
   verified_by_human: []
 
+this_is_your_email_code:
+  context: Email subject for signup one-time confirmation code email. {code} is replaced with the 6-digit code so users can copy it directly from the subject line without opening the email.
+  en: "Your code: {code}"
+  de: "Dein Code: {code}"
+  zh: "您的验证码：{code}"
+  es: "Tu código: {code}"
+  fr: "Votre code : {code}"
+  pt: "Seu código: {code}"
+  ru: "Ваш код: {code}"
+  ja: "確認コード：{code}"
+  ko: "인증 코드: {code}"
+  it: "Il tuo codice: {code}"
+  tr: "Kodunuz: {code}"
+  vi: "Mã của bạn: {code}"
+  id: "Kode Anda: {code}"
+  pl: "Twój kod: {code}"
+  nl: "Jouw code: {code}"
+  ar: "رمزك: {code}"
+  hi: "आपका कोड: {code}"
+  th: "รหัสของคุณ: {code}"
+  cs: "Váš kód: {code}"
+  sv: "Din kod: {code}"
+  verified_by_human: []
+
 # ---------------------------------------------------------------------------
 # usecase_submitted — admin notification when a user anonymously shares their
 # intended use-case during the welcome/onboarding focus mode.

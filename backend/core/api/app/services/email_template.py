@@ -322,11 +322,10 @@ class EmailTemplateService:
             if not subject:
                 if template == "confirm-email":
                     subject_key = "email.this_is_your_email_code"
-                    # For confirm-email template, ensure the code is directly formatted into the subject
+                    # Include the code directly in the subject so users can copy it without opening the email.
+                    # The translation value contains "{code}" which we format with the actual code.
                     if "code" in context:
-                        # Get the translation template
                         subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})
-                        # Manually format the code into the subject
                         subject = subject_template.format(code=context["code"])
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
@@ -420,6 +419,12 @@ class EmailTemplateService:
                         subject = subject_template.format(reminder_excerpt=context["reminder_excerpt"])
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "ai-response-notification":
+                    # Key uses underscores in YAML but template name uses hyphens — explicit branch avoids
+                    # the generic fallback constructing "email.ai-response-notification.subject" (hyphenated)
+                    # which would never match the YAML key "email.ai_response_notification.subject".
+                    subject_key = "email.ai_response_notification.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
