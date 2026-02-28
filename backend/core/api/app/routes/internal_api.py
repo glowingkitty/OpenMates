@@ -1102,8 +1102,9 @@ async def check_upload_duplicate(
 
         record = items[0]
         embed_id = record.get("embed_id")
-        # Note: page_count is not stored on upload_files records; stale detection
-        # applies to all uploads with an embed_id regardless of file type.
+        # page_count IS stored on upload_files records (for PDFs) and returned
+        # on dedup hits so the frontend can display the correct page count.
+        # Stale detection applies to all uploads with an embed_id regardless of file type.
 
         # For any upload with an embed_id, validate that the embed actually exists
         # in Directus with status='finished'. A stale record with no corresponding
@@ -1221,6 +1222,10 @@ class UploadStoreRecordRequest(BaseModel):
     malware_scan: str = Field(default="clean", description="ClamAV scan result")
     ai_detection: Optional[Dict[str, Any]] = Field(None, description="AI-generated detection result")
     created_at: int = Field(..., description="Unix timestamp of upload")
+    # PDF-specific: number of pages extracted by pymupdf during upload.
+    # Stored so that deduplication responses can return the correct page_count
+    # without re-parsing the PDF on subsequent uploads of the same file.
+    page_count: Optional[int] = Field(None, description="Number of pages (PDFs only)")
 
 
 @router.post("/uploads/store-record")
@@ -1843,57 +1848,70 @@ async def content_safety_reject(
 # ---------------------------------------------------------------------------
 
 class ProfileImageProcessRequest(BaseModel):
-    """Payload sent by the upload server after uploading a profile image to S3."""
+    """
+    Payload sent by the upload server after AES-encrypting and uploading a profile image.
+
+    The upload server performs AES-256-GCM encryption locally and uploads the ciphertext
+    to the private S3 bucket before calling this endpoint.  This endpoint then:
+    - Vault-wraps the plaintext AES key (the upload server never touches Vault)
+    - Reads and deletes the old profile_image_s3_key from S3 (to prevent orphaned blobs)
+    - Persists the three new encrypted-image fields to Directus
+    - Updates the Redis cache with the proxy URL for fast UI reads
+    """
     user_id: str = Field(..., description="ID of the user whose profile image was uploaded")
-    image_url: str = Field(..., description="Public S3 URL of the newly uploaded profile image")
+    s3_key: str = Field(..., description="S3 object key in the private profile-images bucket (e.g. '{user_id}-{ts}-{rand}.enc')")
+    aes_key_b64: str = Field(..., description="Plaintext AES-256 key (base64) — will be Vault-wrapped; NEVER stored as-is")
+    nonce_b64: str = Field(..., description="AES-GCM nonce (base64, 12 bytes)")
+    target_env: str = Field(default="prod", description="'dev' or 'prod' — selects the correct S3 bucket for old-key deletion")
 
 
 @router.post("/profile-image/process")
 async def process_profile_image(
     payload: ProfileImageProcessRequest,
+    request: Request,
     directus_service: DirectusService = Depends(get_directus_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
     cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
     """
-    Encrypt a newly uploaded profile image URL and persist it to Directus + cache.
+    Vault-wrap the AES key, clean up old S3 object, persist encrypted profile image fields.
 
     Called by the app-uploads microservice (POST /v1/upload/profile-image) after
-    uploading the image bytes to the public-read S3 profile_images bucket.
+    AES-256-GCM encrypting the image bytes and uploading the ciphertext to the
+    private S3 profile-images bucket.
 
-    This endpoint:
-    1. Fetches the user's vault_key_id (cache-first, then Directus)
-    2. Encrypts the public S3 URL using the user's Vault Transit key
-    3. Persists encrypted_profileimage_url to Directus (does NOT update last_opened)
-    4. Updates the Redis cache with the plaintext URL for fast UI reads
-
-    Architecture: Profile images are public-read on S3 by design (shown as avatars).
-    Only the URL is encrypted in Directus for zero-knowledge storage at rest.
-    The upload server never has direct Vault or Directus access, so this endpoint
-    acts as a secure proxy for those operations.
+    Pipeline:
+    1. Fetch the user's vault_key_id (cache-first, then Directus)
+    2. Read existing profile_image_s3_key from Directus (needed for old-object cleanup)
+    3. Vault-wrap the plaintext AES key using the user's Transit key
+    4. Write profile_image_s3_key, encrypted_profile_image_aes_key, profile_image_aes_nonce
+       to Directus (intentionally NOT updating last_opened)
+    5. Delete the old S3 object from the private bucket (if one existed)
+    6. Update Redis cache with the proxy URL /v1/users/{user_id}/profile-image
 
     Security:
     - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes)
-    - Only writes encrypted_profileimage_url — never reads or exposes user secrets
+    - Plaintext AES key is Vault-wrapped immediately; never stored in plaintext
+    - Old S3 objects are cleaned up to prevent orphaned encrypted blobs
     """
     log_prefix = f"[ProfileImageProcess] [user:{payload.user_id[:8]}...]"
-    logger.info(f"{log_prefix} Processing profile image URL update")
+    logger.info(f"{log_prefix} Processing encrypted profile image (s3_key={payload.s3_key})")
+
+    proxy_url = f"/v1/users/{payload.user_id}/profile-image"
 
     try:
-        # 1. Get user's vault_key_id — try cache first for speed
+        # 1. Always fetch profile from Directus to get vault_key_id + existing s3_key for cleanup
+        # (Cache only stores a subset of fields; profile_image_s3_key is not cached)
         vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
 
-        if not vault_key_id:
-            logger.debug(f"{log_prefix} vault_key_id not in cache, fetching from Directus")
-            profile_success, user_data, profile_msg = await directus_service.get_user_profile(
-                payload.user_id
-            )
-            if not profile_success or not user_data:
-                logger.error(
-                    f"{log_prefix} Could not fetch user profile: {profile_msg}"
-                )
-                raise HTTPException(status_code=404, detail="User not found")
+        profile_success, user_data, profile_msg = await directus_service.get_user_profile(
+            payload.user_id
+        )
+        if not profile_success or not user_data:
+            logger.error(f"{log_prefix} Could not fetch user profile: {profile_msg}")
+            raise HTTPException(status_code=404, detail="User not found")
 
+        if not vault_key_id:
             vault_key_id = user_data.get("vault_key_id")
             if not vault_key_id:
                 logger.error(f"{log_prefix} vault_key_id missing in Directus profile")
@@ -1901,25 +1919,33 @@ async def process_profile_image(
                     status_code=500,
                     detail="User account incomplete: missing encryption key",
                 )
-
-            # Cache the vault_key_id so future requests are fast
+            # Cache it so future requests skip the Directus round-trip
             await cache_service.update_user(payload.user_id, {"vault_key_id": vault_key_id})
 
-        # 2. Encrypt the public profile image URL using the user's Vault Transit key
-        encrypted_url, _key_version = await encryption_service.encrypt_with_user_key(
-            payload.image_url, vault_key_id
-        )
-        if not encrypted_url:
-            logger.error(f"{log_prefix} Vault Transit encryption returned empty result")
-            raise HTTPException(status_code=500, detail="Profile image URL encryption failed")
+        # Read old S3 key BEFORE overwriting so we can delete it after a successful write
+        old_s3_key: Optional[str] = user_data.get("profile_image_s3_key")
+        if old_s3_key:
+            logger.debug(f"{log_prefix} Existing profile_image_s3_key will be replaced: {old_s3_key}")
 
-        # 3. Persist to Directus — intentionally NOT updating last_opened here.
-        # The original settings.py endpoint set last_opened="/signup/credits" which is
-        # only appropriate during the signup flow.  Changing profile pic in Settings
-        # must NOT alter the user's signup progression state.
+        # 2. Vault-wrap the plaintext AES key using the user's Transit key.
+        # The wrapped (ciphertext) form is what gets stored in Directus.
+        # The plaintext key is never persisted.
+        wrapped_aes_key, _key_version = await encryption_service.encrypt_with_user_key(
+            payload.aes_key_b64, vault_key_id
+        )
+        if not wrapped_aes_key:
+            logger.error(f"{log_prefix} Vault Transit key-wrapping returned empty result")
+            raise HTTPException(status_code=500, detail="AES key wrapping failed")
+
+        # 3. Persist the three new encrypted-image fields to Directus.
+        # Intentionally NOT updating last_opened here.
         success = await directus_service.update_user(
             payload.user_id,
-            {"encrypted_profileimage_url": encrypted_url},
+            {
+                "profile_image_s3_key": payload.s3_key,
+                "encrypted_profile_image_aes_key": wrapped_aes_key,
+                "profile_image_aes_nonce": payload.nonce_b64,
+            },
         )
         if not success:
             logger.error(f"{log_prefix} Directus update_user returned failure")
@@ -1927,19 +1953,32 @@ async def process_profile_image(
                 status_code=500, detail="Failed to persist profile image to user profile"
             )
 
-        # 4. Update Redis cache with the plaintext URL for fast UI reads
+        # 4. Delete the old encrypted S3 object (only after a successful Directus write).
+        # Non-fatal: if deletion fails the old blob is orphaned but the new image is live.
+        if old_s3_key:
+            try:
+                s3_service = request.app.state.s3_service
+                await s3_service.delete_file("profile_images_private", old_s3_key)
+                logger.info(f"{log_prefix} Deleted old profile image S3 object: {old_s3_key}")
+            except Exception as e:
+                logger.warning(
+                    f"{log_prefix} Failed to delete old S3 object {old_s3_key}: {e} "
+                    f"(Directus updated successfully — new image is active)"
+                )
+
+        # 5. Update Redis cache with the proxy URL for fast UI reads
         cache_success = await cache_service.update_user(
             payload.user_id,
-            {"profile_image_url": payload.image_url},
+            {"profile_image_url": proxy_url},
         )
         if not cache_success:
-            # Non-fatal: Directus is the source of truth; cache will be refreshed on next login
+            # Non-fatal: Directus is source of truth; cache refreshes on next login
             logger.warning(
                 f"{log_prefix} Redis cache update failed (Directus was updated successfully)"
             )
 
-        logger.info(f"{log_prefix} Profile image URL updated successfully")
-        return {"status": "ok", "url": payload.image_url}
+        logger.info(f"{log_prefix} Encrypted profile image processed successfully → {proxy_url}")
+        return {"status": "ok", "url": proxy_url}
 
     except HTTPException:
         raise

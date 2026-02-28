@@ -16,7 +16,8 @@ Response handling:
     import InputWarning from '../../common/InputWarning.svelte';
     import { userProfile, updateProfileImage } from '../../../stores/userProfile';
     import { authStore } from '../../../stores/authStore';
-    import { getUploadEndpoint, uploadEndpoints } from '../../../config/api';
+    import { getUploadEndpoint, uploadEndpoints, getApiUrl } from '../../../config/api';
+    import { getProfileImageBlobUrl, invalidateProfileImageCache } from '../../../services/profileImageService';
     import { fade } from 'svelte/transition';
 
     // =========================================================================
@@ -53,6 +54,24 @@ Response handling:
 
     /** Reference to the hidden file input. */
     let fileInput: HTMLInputElement = $state(undefined!);
+
+    /**
+     * Resolved blob URL (or legacy public URL) for the current profile image.
+     * null while loading or if no profile image exists.
+     */
+    let resolvedAvatarUrl = $state<string | null>(null);
+
+    $effect(() => {
+        const rawUrl = $userProfile.profile_image_url;
+        const userId = $userProfile.user_id ?? '';
+        if (!rawUrl || !userId) {
+            resolvedAvatarUrl = null;
+            return;
+        }
+        getProfileImageBlobUrl(rawUrl, getApiUrl(), userId).then((url) => {
+            resolvedAvatarUrl = url;
+        });
+    });
 
     // =========================================================================
     // HELPERS
@@ -179,7 +198,11 @@ Response handling:
             const blob = await processImageToBlob(file);
             const newUrl = await uploadBlob(blob);
 
-            // Persist to the local store so every component sees the new avatar
+            // Invalidate the cached blob URL so the next render fetches fresh
+            const userId = $userProfile.user_id ?? '';
+            if (userId) invalidateProfileImageCache(userId);
+
+            // Persist to the local store so every component sees the new proxy URL
             updateProfileImage(newUrl);
             showSuccess = true;
         } catch (err) {
@@ -199,12 +222,14 @@ Response handling:
 
 <div class="profile-picture-container">
 
-    <!-- Current avatar preview -->
+    <!-- Current avatar preview.
+         Uses resolvedAvatarUrl (blob: URL for encrypted images, direct URL for legacy).
+         Falls back to placeholder while loading or when no image is set. -->
     <div class="avatar-section">
-        {#if $userProfile.profile_image_url}
+        {#if resolvedAvatarUrl}
             <img
                 class="avatar"
-                src={$userProfile.profile_image_url}
+                src={resolvedAvatarUrl}
                 alt="Profile"
             />
         {:else}

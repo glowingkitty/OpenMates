@@ -1,5 +1,6 @@
 import logging
 import json
+import httpx
 from typing import Dict, Any, Optional, Tuple, List # Added List import
 
 logger = logging.getLogger(__name__)
@@ -110,6 +111,25 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "encrypted_email_auto_topup": user_data.get("encrypted_email_auto_topup"),
         }
 
+        # Expose profile_image_s3_key in the profile dict so the internal
+        # process_profile_image endpoint can read it for old-object cleanup.
+        # (It is not sensitive — it's just an S3 key, not an AES key.)
+        profile["profile_image_s3_key"] = user_data.get("profile_image_s3_key")
+
+        # Backward-compatible profile image URL resolution:
+        #   - NEW users (profile_image_s3_key set): return the authenticated proxy URL.
+        #     The frontend fetches this via GET /v1/users/{id}/profile-image with credentials.
+        #   - LEGACY users (profile_image_s3_key null, encrypted_profileimage_url set):
+        #     fall through to the decryption loop below, which sets profile_image_url
+        #     to the old plaintext public S3 URL.
+        _new_s3_key = user_data.get("profile_image_s3_key")
+        if _new_s3_key:
+            profile["profile_image_url"] = f"/v1/users/{user_id}/profile-image"
+            logger.info(
+                f"[UserProfile] User {user_id[:8]}... has encrypted profile image; "
+                f"setting profile_image_url to proxy URL"
+            )
+
         # Decrypt fields that are safe to cache and commonly needed (DO NOT decrypt tfa_secret here)
         try:
             # Add debug logs for each decryption attempt
@@ -118,7 +138,9 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             fields_to_decrypt = [
                 ("username", "encrypted_username"),
                 ("credits", "encrypted_credit_balance"),
-                ("profile_image_url", "encrypted_profileimage_url"),
+                # profile_image_url: only decrypt legacy encrypted URL if no new S3 key exists.
+                # New users already have profile_image_url set above (proxy URL).
+                *([("profile_image_url", "encrypted_profileimage_url")] if not _new_s3_key else []),
                 ("tfa_app_name", "encrypted_tfa_app_name"),
                 ("gifted_credits_for_signup", "encrypted_gifted_credits_for_signup"),
                 ("invoice_counter", "encrypted_invoice_counter")

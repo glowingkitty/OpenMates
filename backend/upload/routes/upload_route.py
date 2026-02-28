@@ -1625,43 +1625,57 @@ async def upload_profile_image(
             f"(SightEngine not configured — set SECRET__SIGHTENGINE__* to enable)"
         )
 
-    # --- 4. Upload to S3 profile_images bucket (public-read, plaintext) ---
-    # Profile images are NOT encrypted — they are publicly readable by design
-    # (shown as user avatars). The URL itself is encrypted in Directus for
-    # zero-knowledge storage — the actual image is public-read.
-    import os as _os
-    file_ext = _os.path.splitext(filename)[1].lower() or ".jpg"
+    # --- 4. Encrypt bytes (AES-256-GCM) and upload to private S3 bucket ---
+    # New profile images are encrypted server-side before S3 storage.
+    # The private bucket has no public-read ACL; images are served by the core
+    # API via GET /v1/users/{user_id}/profile-image (authenticated proxy).
     import random as _random
     import string as _string
     random_suffix = "".join(_random.choices(_string.ascii_lowercase + _string.digits, k=8))
-    profile_image_filename = f"{user_id}-{int(time.time())}-{random_suffix}{file_ext}"
+    # Use .enc extension to signal encrypted content in S3
+    profile_s3_key = f"{user_id}-{int(time.time())}-{random_suffix}.enc"
 
     logger.info(
-        f"{log_prefix} [4/5] Uploading to S3 profile_images bucket "
-        f"(key={profile_image_filename})..."
+        f"{log_prefix} [4/5] Encrypting profile image bytes with AES-256-GCM..."
+    )
+    encryption_service = request.app.state.file_encryption
+    encrypted_bytes, aes_key_b64, nonce_b64 = encryption_service.encrypt_bytes(file_bytes)
+    logger.info(
+        f"{log_prefix} [4/5] Encrypted: {len(file_bytes) / 1024:.1f} KB → "
+        f"{len(encrypted_bytes) / 1024:.1f} KB ciphertext"
+    )
+
+    logger.info(
+        f"{log_prefix} [4/5] Uploading to private S3 profile bucket "
+        f"(key={profile_s3_key})..."
     )
     s3_start = time.monotonic()
     s3_service = request.app.state.s3
     try:
-        profile_image_url = await s3_service.upload_profile_image(
-            image_key=profile_image_filename,
-            content=file_bytes,
-            content_type=content_type,
+        await s3_service.upload_profile_image_private(
+            s3_key=profile_s3_key,
+            content=encrypted_bytes,
             target_env=target_env,
         )
         s3_elapsed = (time.monotonic() - s3_start) * 1000
         logger.info(
-            f"{log_prefix} [4/5] S3 upload: OK ({s3_elapsed:.0f} ms) — "
-            f"{len(file_bytes) / 1024:.1f} KB → {profile_image_url}"
+            f"{log_prefix} [4/5] S3 private upload: OK ({s3_elapsed:.0f} ms) — "
+            f"{len(encrypted_bytes) / 1024:.1f} KB → {profile_s3_key}"
         )
     except RuntimeError as e:
-        logger.error(f"{log_prefix} [4/5] S3 upload FAILED: {e}", exc_info=True)
+        logger.error(f"{log_prefix} [4/5] S3 private upload FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="File storage service unavailable")
 
-    # --- 5. Proxy URL to core API for encryption + Directus update ---
+    # --- 5. Proxy s3_key + AES fields to core API for Vault key-wrapping + Directus update ---
+    # The core API will:
+    #   - Vault-wrap the plaintext AES key using the user's Transit key
+    #   - Read and delete the old profile_image_s3_key from Directus (old object cleanup)
+    #   - Write profile_image_s3_key, encrypted_profile_image_aes_key, profile_image_aes_nonce
+    #   - Update Redis cache with the proxy URL /v1/users/{user_id}/profile-image
+    proxy_url = f"/v1/users/{user_id}/profile-image"
     logger.info(
-        f"{log_prefix} [5/5] Proxying new profile image URL to core API "
-        f"for encryption and Directus update..."
+        f"{log_prefix} [5/5] Proxying s3_key and AES metadata to core API "
+        f"for Vault key-wrapping and Directus update..."
     )
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -1669,7 +1683,10 @@ async def upload_profile_image(
                 f"{core_api_url}/internal/profile-image/process",
                 json={
                     "user_id": user_id,
-                    "image_url": profile_image_url,
+                    "s3_key": profile_s3_key,
+                    "aes_key_b64": aes_key_b64,
+                    "nonce_b64": nonce_b64,
+                    "target_env": target_env,
                 },
                 headers={"X-Internal-Service-Token": internal_token},
             )
@@ -1680,15 +1697,15 @@ async def upload_profile_image(
                 f"{log_prefix} ── Profile image upload COMPLETE ─────────────────"
             )
             logger.info(
-                f"{log_prefix} url={profile_image_url} | total={total_elapsed:.0f} ms"
+                f"{log_prefix} s3_key={profile_s3_key} | total={total_elapsed:.0f} ms"
             )
             return ProfileImageUploadResponse(
                 status="ok",
-                url=profile_image_url,
+                url=proxy_url,
             )
         elif resp.status_code == 422:
-            # The core API reports a content safety rejection (legacy path — should not happen
-            # since we check before uploading, but handle defensively)
+            # The core API reports a content safety rejection (defensive: should not happen
+            # since we check before uploading)
             process_data = resp.json()
             return ProfileImageUploadResponse(
                 status="rejected",

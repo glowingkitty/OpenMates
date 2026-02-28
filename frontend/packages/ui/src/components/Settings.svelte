@@ -40,6 +40,8 @@ changes to the documentation (to keep the documentation up to date).
     import { tooltip } from '../actions/tooltip';
     import { isInSignupProcess, isLoggingOut, showSignupFooter } from '../stores/signupState';
     import { userProfile, updateProfile } from '../stores/userProfile';
+    import { getProfileImageBlobUrl } from '../services/profileImageService';
+    import { getApiUrl } from '../config/api';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
     import { notificationStore } from '../stores/notificationStore'; // Import notification store for payment notifications
@@ -458,6 +460,28 @@ changes to the documentation (to keep the documentation up to date).
     let username = $derived($userProfile.username || '');
     let profile_image_url = $derived($userProfile.profile_image_url);
     let isInSignupMode = $derived($isInSignupProcess);
+
+    /**
+     * Resolved blob URL (or legacy https:// URL) for the user's profile image.
+     * Since the new profile images are served by an authenticated API endpoint,
+     * we cannot use a direct URL in `<img>` or CSS `background-image` — the browser
+     * won't send credentials. This effect fetches via the profileImageService
+     * (which handles both legacy public URLs and new proxy paths) and stores a
+     * displayable blob URL.
+     */
+    let resolvedProfileImageBlobUrl = $state<string | null>(null);
+
+    $effect(() => {
+        const url = $userProfile.profile_image_url;
+        const userId = $userProfile.user_id;
+        if (!url || !userId) {
+            resolvedProfileImageBlobUrl = null;
+            return;
+        }
+        getProfileImageBlobUrl(url, getApiUrl(), userId).then((resolved) => {
+            resolvedProfileImageBlobUrl = resolved;
+        });
+    });
 
     // State to track active submenu view
     let activeSettingsView = $state('main');
@@ -1787,11 +1811,13 @@ changes to the documentation (to keep the documentation up to date).
                     <div class="clickable-icon" class:icon_settings={!isMenuVisible} class:icon_user={isMenuVisible}></div>
                 </div>
             {:else}
-                <div
-                    class="profile-picture"
-                    style={profile_image_url ? `background-image: url(${profile_image_url})` : ''}
-                >
-                    {#if !profile_image_url}
+                <!-- Use resolvedProfileImageBlobUrl (fetched with credentials) so the
+                     new encrypted proxy endpoint works. Legacy https:// URLs are also
+                     passed through by the profileImageService unchanged. -->
+                <div class="profile-picture" class:profile-picture-img={!!resolvedProfileImageBlobUrl}>
+                    {#if resolvedProfileImageBlobUrl}
+                        <img class="profile-picture-avatar" src={resolvedProfileImageBlobUrl} alt="Profile" />
+                    {:else}
                         <div class="default-user-icon"></div>
                     {/if}
                 </div>
@@ -1906,7 +1932,7 @@ changes to the documentation (to keep the documentation up to date).
     {#if activeSettingsView === 'main'}
         <SettingsMainHeader
             {username}
-            profileImageUrl={$userProfile.profile_image_url ?? ''}
+            profileImageUrl={resolvedProfileImageBlobUrl ?? ''}
             isAuthenticated={$authStore.isAuthenticated}
             credits={$userProfile.credits ?? 0}
             {paymentEnabled}
@@ -2097,6 +2123,19 @@ changes to the documentation (to keep the documentation up to date).
         justify-content: center;
     }
     
+    /* When a profile image blob URL is available, clip <img> to the circle */
+    .profile-picture-img {
+        overflow: hidden;
+    }
+
+    .profile-picture-avatar {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        display: block;
+    }
+
     .language-icon-container {
         background-color: var(--color-grey-20);
         display: flex;

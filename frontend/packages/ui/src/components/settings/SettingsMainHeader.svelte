@@ -124,11 +124,20 @@
                     <div class="guest-user-icon"></div>
                 </div>
             {:else if profileImageUrl}
-                <!-- Authenticated with profile image -->
+                <!-- Authenticated with profile image.
+                     Use <img> instead of CSS background-image so the browser sends
+                     credentials automatically (blob: URLs work here; legacy https:// URLs also work). -->
                 <div
-                    class="avatar-circle"
-                    style="width: {avatarSize}px; height: {avatarSize}px; background-image: url({profileImageUrl});"
-                ></div>
+                    class="avatar-circle avatar-circle-img"
+                    style="width: {avatarSize}px; height: {avatarSize}px;"
+                >
+                    <img
+                        class="avatar-img"
+                        src={profileImageUrl}
+                        alt="Profile"
+                        style="width: {avatarSize}px; height: {avatarSize}px;"
+                    />
+                </div>
             {:else}
                 <!-- Authenticated without profile image: default user icon -->
                 <div class="avatar-circle default-avatar" style="width: {avatarSize}px; height: {avatarSize}px;">
@@ -220,6 +229,18 @@
         align-items: center;
         justify-content: center;
         transition: width 0.15s, height 0.15s;
+    }
+
+    /* Profile image avatar: overflow hidden so the <img> is clipped to the circle */
+    .avatar-circle-img {
+        overflow: hidden;
+    }
+
+    .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
     }
 
     /* Guest avatar: slightly more opaque white so the icon shows */

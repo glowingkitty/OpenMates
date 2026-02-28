@@ -48,7 +48,25 @@ directus_users:
     encrypted_profileimage_url:
       type: string
       length: 512
-      note: "Encrypted profile image URL"
+      note: "LEGACY: Encrypted profile image URL (public-read S3 bucket). Kept for backward compat — new uploads use profile_image_s3_key + encrypted_profile_image_aes_key + profile_image_aes_nonce instead."
+
+    profile_image_s3_key:
+      type: string
+      length: 512
+      nullable: true
+      note: "S3 object key in the private profile-images-private bucket (e.g. '<user_id>-<ts>-<random>.enc'). Set only for new-style encrypted uploads. Null for legacy public-URL users."
+
+    encrypted_profile_image_aes_key:
+      type: string
+      length: 512
+      nullable: true
+      note: "Vault Transit-wrapped AES-256 key used to encrypt the profile image bytes. Must be unwrapped with the user's Vault key before AES-GCM decryption."
+
+    profile_image_aes_nonce:
+      type: string
+      length: 128
+      nullable: true
+      note: "Base64-encoded 12-byte AES-GCM nonce for profile image decryption."
 
     encrypted_credit_balance:
       type: string
