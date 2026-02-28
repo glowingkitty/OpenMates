@@ -3284,7 +3284,9 @@ async def buy_gift_card(
             logger.error(f"Order response from {provider_name} missing 'id' for user {user_id}.")
             raise HTTPException(status_code=502, detail="Failed to get order ID from payment provider.")
         
-        # Cache the order with a flag indicating it's a gift card purchase
+        # Cache the order with a flag indicating it's a gift card purchase.
+        # `provider` is stored so the email task knows to send "Payment Confirmation"
+        # (not "Invoice") for Polar orders — Polar as MoR issues its own tax invoice.
         cache_success = await cache_service.set_order(
             order_id=order_id,
             user_id=user_id,
@@ -3293,7 +3295,8 @@ async def buy_gift_card(
             ttl=3600,
             email_encryption_key=gift_card_request.email_encryption_key,
             is_gift_card=True,  # Flag to indicate this is a gift card purchase
-            currency=gift_card_request.currency  # Store currency for invoice processing
+            currency=gift_card_request.currency,  # Store currency for invoice processing
+            provider=provider_name,  # Store provider so email task uses correct document type
         )
         
         if not cache_success:
