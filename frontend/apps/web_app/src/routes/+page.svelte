@@ -2157,7 +2157,9 @@
 	.sidebar {
 		/* Fixed positioning relative to viewport */
 		position: fixed;
-		left: 0;
+		/* Logical property: sidebar anchored to the inline-start edge
+		   (left in LTR, right in RTL — so it always sits beside the chat) */
+		inset-inline-start: 0;
 		top: 0;
 		bottom: 0;
 
@@ -2173,7 +2175,7 @@
 		/* Remove scrolling - let internal components handle it */
 		overflow: hidden;
 
-		/* Add more pronounced inner shadow on right side for better visibility */
+		/* LTR: inner shadow on the right edge of the sidebar */
 		box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
 
 		/* Smooth transition for sidebar reveal/hide */
@@ -2187,10 +2189,20 @@
 	}
 
 	.sidebar.closed {
-		/* Slide sidebar off-screen to the left instead of hiding instantly */
+		/* LTR: slide off-screen to the left (inline-start direction) */
 		transform: translateX(-100%);
 		opacity: 0;
 		visibility: hidden;
+	}
+
+	/* RTL: slide off-screen to the right (inline-start direction is right in RTL) */
+	:global([dir='rtl']) .sidebar.closed {
+		transform: translateX(100%);
+	}
+
+	/* RTL: inner shadow flips to the left edge of the sidebar (its inline-end side) */
+	:global([dir='rtl']) .sidebar {
+		box-shadow: inset 6px 0 12px -4px rgba(0, 0, 0, 0.25);
 	}
 
 	.sidebar-content {
@@ -2202,15 +2214,18 @@
 	.main-content {
 		/* Change from fixed to absolute positioning when in scrollable mode */
 		position: fixed;
-		left: calc(var(--sidebar-width) + var(--sidebar-margin));
+		/* Logical property: offset from the sidebar on the inline-start side.
+		   In LTR this pushes the main area right of the sidebar;
+		   in RTL it pushes it left of the sidebar (which is on the right). */
+		inset-inline-start: calc(var(--sidebar-width) + var(--sidebar-margin));
+		inset-inline-end: 0;
 		top: 0;
-		right: 0;
 		bottom: 0;
 		background-color: var(--color-grey-0);
 		z-index: 10;
 		/* Smooth transitions for width changes (large screens) and slide animations (small screens) */
 		transition:
-			left 0.3s ease,
+			inset-inline-start 0.3s ease,
 			transform 0.3s ease;
 	}
 
@@ -2224,7 +2239,7 @@
 	}
 
 	.main-content.menu-closed {
-		left: var(--sidebar-margin);
+		inset-inline-start: var(--sidebar-margin);
 	}
 
 	/* For Webkit browsers */
@@ -2255,7 +2270,8 @@
 		height: calc(100dvh - 82px);
 		gap: 0px;
 		padding: 10px;
-		padding-right: 20px;
+		/* Logical property: extra breathing room on the inline-end side (right in LTR, left in RTL) */
+		padding-inline-end: 20px;
 		/* Only apply gap transition on larger screens */
 		@media (min-width: 1100px) {
 			transition: gap 0.3s ease;
@@ -2285,20 +2301,20 @@
 	/* Add mobile styles */
 	@media (max-width: 600px) {
 		.chat-container {
-			padding-right: 10px;
+			padding-inline-end: 10px;
 			height: calc(100vh - 75px);
 			height: calc(100dvh - 75px);
 		}
 		.sidebar {
 			width: 100%;
-			/* On mobile, sidebar slides from the left */
+			/* On mobile, sidebar slides from the inline-start edge */
 			/* transform is handled by .sidebar.closed class */
 		}
 
 		.main-content {
 			/* Position main content over the sidebar by default */
-			left: 0;
-			right: 0;
+			inset-inline-start: 0;
+			inset-inline-end: 0;
 			z-index: 20; /* Higher than sidebar to cover it */
 			transform: translateX(0);
 			min-height: unset;
@@ -2306,16 +2322,16 @@
 			transition: transform 0.3s ease;
 		}
 
-		/* figure our css issues related to height */
-
-		/* When menu is open (sidebar visible), slide main content right */
+		/* When menu is open (sidebar visible), slide main content to inline-end
+		   to reveal the sidebar beneath it */
+		/* LTR: sidebar is on the left, slide main content right */
 		.main-content:not(.menu-closed) {
 			transform: translateX(100%);
 		}
 
 		/* When menu is closed, keep main content over sidebar */
 		.main-content.menu-closed {
-			left: 0;
+			inset-inline-start: 0;
 			transform: translateX(0);
 		}
 
@@ -2323,7 +2339,14 @@
 		.main-content.scrollable {
 			transition: none;
 			transform: none;
-			left: 0;
+			inset-inline-start: 0;
+		}
+	}
+
+	/* RTL mobile: sidebar is on the right, so slide main content left to reveal it */
+	@media (max-width: 600px) {
+		:global([dir='rtl']) .main-content:not(.menu-closed) {
+			transform: translateX(-100%);
 		}
 	}
 
@@ -2341,7 +2364,7 @@
 	/* Smooth transition for main content */
 	.main-content {
 		transition:
-			left 0.3s ease,
+			inset-inline-start 0.3s ease,
 			transform 0.3s ease;
 	}
 
@@ -2350,12 +2373,12 @@
 		transition: none;
 	}
 
-	/* Notification container - positioned at top of main-content */
+	/* Notification container - full-width banner at top of viewport */
 	.notification-container {
 		position: fixed;
 		top: 0;
-		left: 0;
-		right: 0;
+		inset-inline-start: 0;
+		inset-inline-end: 0;
 		z-index: 10000; /* High z-index to appear above all content */
 		pointer-events: none; /* Allow clicks to pass through container */
 		display: flex;
