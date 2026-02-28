@@ -183,9 +183,19 @@ def _parse_user_agent(ua_string: str) -> Dict[str, str]:
 
 def _extract_referrer_domain(referer_header: str) -> str:
     """
-    Extracts only the domain from a Referer header.
+    Extracts only the domain from a referrer URL.
     Full URLs are never stored — only the domain part.
-    Returns "(direct)" if the referrer is empty or same-origin.
+    Returns "(direct)" if the referrer is empty, unparseable, or same-origin.
+
+    NOTE: This function now receives the client-supplied document.referrer value
+    (forwarded from the beacon payload), NOT the HTTP Referer request header.
+    The HTTP Referer on a beacon POST always contains the app's own URL, making
+    it useless for external attribution. document.referrer contains the real
+    previous page the user navigated from — what we actually want to track.
+
+    Same-origin filtering is applied as a safety net: if the referrer domain
+    matches known app hostnames, it is treated as "(direct)" rather than
+    attributing visits to the app itself.
     """
     if not referer_header:
         return "(direct)"
@@ -200,7 +210,14 @@ def _extract_referrer_domain(referer_header: str) -> str:
         # Remove port number
         if ":" in domain:
             domain = domain.split(":")[0]
-        return domain if domain else "(direct)"
+        if not domain:
+            return "(direct)"
+        # Filter same-origin referrers: app subdomains (app.*, app.dev.*)
+        # and bare openmates.org domains should not appear as referrers.
+        # A user navigating within the app is not "referred" by the app itself.
+        if "openmates.org" in domain or "openmates.dev" in domain:
+            return "(direct)"
+        return domain
     except Exception:
         return "(direct)"
 

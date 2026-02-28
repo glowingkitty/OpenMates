@@ -524,18 +524,6 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error restoring web analytics counters from disk: {e}", exc_info=True)
 
-    # --- Wire WebAnalyticsService into ConnectionManager (Phase 7 session duration) ---
-    # The ConnectionManager singleton is created at module load time in websockets.py.
-    # We inject the service reference here, after the service is fully initialized,
-    # so _finalize_disconnect can record session duration without circular imports.
-    if hasattr(app.state, 'web_analytics_service'):
-        try:
-            from backend.core.api.app.routes.websockets import manager as ws_manager
-            ws_manager._web_analytics_service = app.state.web_analytics_service
-            logger.info("WebAnalyticsService wired into ConnectionManager for session duration tracking")
-        except Exception as e:
-            logger.warning(f"Could not wire WebAnalyticsService into ConnectionManager: {e}")
-
     # --- Preload and cache AI processing configuration files ---
     # This ensures base_instructions and mates_configs are ready in cache before first message arrives
     # This optimization prevents disk I/O on every message processing request

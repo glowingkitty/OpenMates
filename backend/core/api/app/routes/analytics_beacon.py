@@ -59,6 +59,7 @@ class BeaconPayload(BaseModel):
     # Page view fields
     p: Optional[str] = Field(None, max_length=256, description="Page path (page view only)")
     sc: Optional[str] = Field(None, max_length=4, description="Screen class: sm/md/lg/xl (page view only)")
+    r: Optional[str] = Field(None, max_length=512, description="document.referrer from client (page view only)")
 
     # Session duration fields
     d: Optional[str] = Field(None, max_length=10, description="Pre-bucketed duration label (pagehide)")
@@ -126,7 +127,14 @@ async def analytics_beacon(
             # Page view event
             client_ip = _get_client_ip(request)
             ua_string = request.headers.get("User-Agent", "")
-            referer = request.headers.get("Referer", "")
+
+            # Use the client-supplied document.referrer (payload.r) instead of the HTTP
+            # Referer header. The HTTP Referer on a beacon POST always contains the app's
+            # own URL (since the beacon fires from within the SPA), making it useless for
+            # attribution. document.referrer reflects the actual page the user came from
+            # before entering the app — the real external origin we want to track.
+            # Falls back to empty string if not provided (older clients / first visit).
+            referer = payload.r or ""
 
             # Validate screen class
             sc = payload.sc if payload.sc in VALID_SCREEN_CLASSES else None

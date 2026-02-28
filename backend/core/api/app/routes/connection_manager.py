@@ -1,11 +1,7 @@
 import asyncio
 import logging
-import time
 from fastapi import WebSocket
-from typing import Dict, Tuple, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from backend.core.api.app.services.web_analytics_service import WebAnalyticsService
+from typing import Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +30,7 @@ class ConnectionManager:
     """
     GRACE_PERIOD_SECONDS = 30  # 30 seconds grace period
 
-    def __init__(self, web_analytics_service: Optional["WebAnalyticsService"] = None):
+    def __init__(self):
         # Structure: {user_id: {device_fingerprint_hash: WebSocket}}
         # Note: Each browser instance has unique sessionId → unique device_fingerprint_hash
         # Example: {user123: {hash_arc: ws_arc, hash_firefox: ws_firefox}}
@@ -45,13 +41,6 @@ class ConnectionManager:
         self.active_chat_per_connection: Dict[Tuple[str, str], Optional[str]] = {}
         # Structure: {(user_id, device_fingerprint_hash): asyncio.Task} for disconnect grace period tasks
         self.grace_period_tasks: Dict[Tuple[str, str], asyncio.Task] = {}
-        # Structure: {(user_id, device_fingerprint_hash): float} — monotonic connect timestamp
-        # Used to compute WebSocket session duration for analytics (Phase 7).
-        # The connect time is set on each new connection and cleared on finalize_disconnect.
-        self.connection_times: Dict[Tuple[str, str], float] = {}
-        # Optional reference to WebAnalyticsService for recording session duration buckets.
-        # Injected by main.py after WebAnalyticsService is initialized.
-        self._web_analytics_service: Optional["WebAnalyticsService"] = web_analytics_service
 
     async def connect(self, websocket: WebSocket, user_id: str, device_fingerprint_hash: str):
         await websocket.accept()
@@ -84,11 +73,6 @@ class ConnectionManager:
             logger.debug(f"WebSocket connected: User {user_id}, Device {device_fingerprint_hash}. Initial active chat: None.")
         else:
             logger.debug(f"WebSocket re-established: User {user_id}, Device {device_fingerprint_hash}. Active chat: {self.active_chat_per_connection[connection_key]}.")
-
-        # Record connect time for session duration analytics (Phase 7).
-        # Always refresh the timestamp so a fresh connection (or reconnection after
-        # the grace period) gets a correct start time, not one from a previous session.
-        self.connection_times[connection_key] = time.monotonic()
 
     def disconnect(self, websocket: WebSocket, reason: str = "Unknown"):
         ws_id = id(websocket)
@@ -165,25 +149,6 @@ class ConnectionManager:
                     del self.active_connections[user_id]
                     logger.debug(f"Finalized: Removed user {user_id} from active_connections as no devices are left after grace period.")
                 
-                # --- Phase 7: Record WebSocket session duration for analytics ---
-                # Compute duration from the stored connect time (if available) and record
-                # it via WebAnalyticsService.  Runs fire-and-forget; failures are logged
-                # but never raised so they cannot disrupt the disconnect finalization flow.
-                connect_time = self.connection_times.pop(connection_key, None)
-                if connect_time is not None and self._web_analytics_service is not None:
-                    duration_seconds = time.monotonic() - connect_time
-                    # Fire-and-forget: create_task so the coroutine is actually scheduled
-                    # on the event loop. Without this, calling an async method without
-                    # await/create_task silently discards the coroutine and records nothing.
-                    try:
-                        asyncio.create_task(
-                            self._web_analytics_service.record_session_duration(duration_seconds)
-                        )
-                    except Exception as _analytics_err:
-                        logger.debug(
-                            f"Analytics session duration recording failed (non-critical): {_analytics_err}"
-                        )
-
                 # Clean up active chat tracking only if we actually removed the connection
                 if connection_key in self.active_chat_per_connection:
                     del self.active_chat_per_connection[connection_key]

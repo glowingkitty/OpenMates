@@ -87,8 +87,12 @@
 				}
 			};
 
-			// Fire page view beacon immediately
-			sendBeacon({ t: 'pv', p: window.location.pathname, sc });
+			// Fire page view beacon immediately.
+			// Include document.referrer so the backend can attribute the real external
+			// origin (e.g. Google, direct) instead of reading the HTTP Referer header,
+			// which always contains the app's own URL when fired from within a SPA.
+			const ref = document.referrer || '';
+			sendBeacon({ t: 'pv', p: window.location.pathname, sc, r: ref });
 
 			// Fire session duration beacon on page hide (tab close, navigation away)
 			window.addEventListener(
