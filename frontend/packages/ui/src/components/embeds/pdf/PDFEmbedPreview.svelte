@@ -10,16 +10,18 @@
   - 'error'       → upload or processing failure
 
   Displays:
-  - PDF icon (via CSS icon class 'pdf')
-  - Truncated filename as card title
-  - Subtitle: upload/processing status or page count on completion
+  - When finished + screenshot available: full-width page-1 screenshot image
+    (same pattern as ImageEmbedPreview — decrypted client-side via AES-256-GCM)
+  - Otherwise: single centered PDF icon (no duplicate icon — BasicInfosBar is hidden
+    for this case and the icon fills the details area)
 
   Architecture:
-  - Mounts inside the TipTap editor via PdfRenderer.ts (the same pattern as
-    ImageEmbedPreview.svelte mounted via ImageRenderer.ts).
+  - Mounts inside the TipTap editor via PdfRenderer.ts.
   - Uses UnifiedEmbedPreview for layout, status bar, and the 3D hover effect.
-  - showSkillIcon=false — the PDF icon is shown by the InlinePreviewBase CSS
-    class, not as an app skill icon.
+  - screenshot_s3_keys + aes_key + aes_nonce come from the embed TOON content,
+    delivered via onEmbedDataUpdated when the WS send_embed_data event is processed
+    by UnifiedEmbedPreview.
+  - showSkillIcon=false always — the PDF icon is rendered inside the details snippet.
 -->
 
 <script lang="ts">
@@ -27,6 +29,12 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { skillPreviewService } from '../../../services/skillPreviewService';
+  import {
+    fetchAndDecryptImage,
+    getCachedImageUrl,
+    retainCachedImage,
+    releaseCachedImage,
+  } from '../images/imageEmbedCrypto';
 
   /** Max display length for the filename in the card title (chars) */
   const MAX_FILENAME_LENGTH = 30;
@@ -49,7 +57,6 @@
     /**
      * Called when the user clicks the embed card after it reaches 'finished' state.
      * ActiveChat.svelte handles this by mounting PDFEmbedFullscreen.svelte.
-     * When absent, clicking is a no-op (e.g. during upload or on error).
      */
     onFullscreen?: () => void;
   }
@@ -67,42 +74,160 @@
 
   let status = $derived(statusProp);
 
+  // -------------------------------------------------------------------------
+  // Screenshot image state (decrypted from S3 after OCR completes)
+  // -------------------------------------------------------------------------
+
+  /** S3 key for page 1 screenshot — populated via onEmbedDataUpdated */
+  let screenshotS3Key = $state<string | undefined>(undefined);
+  /** Plaintext AES-256 key (base64) — from embed TOON content */
+  let aesKey = $state<string | undefined>(undefined);
+  /** AES-GCM nonce (base64) — from embed TOON content */
+  let aesNonce = $state<string | undefined>(undefined);
+
+  /** Decrypted page-1 blob URL */
+  let imageUrl = $state<string | undefined>(undefined);
+  let isLoadingImage = $state(false);
+  let imageError = $state<string | undefined>(undefined);
+
+  /** Track which S3 key we retained in the shared cache */
+  let retainedS3Key: string | undefined = undefined;
+
+  /** Max retries for S3 fetch */
+  const MAX_LOAD_RETRIES = 3;
+  let loadRetryCount = $state(0);
+
+  // Lazy loading via IntersectionObserver
+  let isInView = $state(false);
+  let containerRef: HTMLElement | undefined = $state(undefined);
+  let observer: IntersectionObserver | undefined = undefined;
+
+  $effect(() => {
+    if (!containerRef) return;
+    observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          isInView = true;
+          observer?.disconnect();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(containerRef);
+    return () => observer?.disconnect();
+  });
+
   /**
-   * When the pdf.view skill is executing, show "Viewing…" status on this embed.
-   * Set to true when skill_execution_status event with app_id="pdf", skill_id="view",
-   * status="processing", and preview_data.embed_id matching our id is received.
-   * Reset to false when skill finishes or errors.
+   * Receive decoded TOON content from UnifiedEmbedPreview after the WS
+   * send_embed_data event is processed. Extracts the page-1 screenshot S3
+   * key and AES credentials needed to fetch the preview image.
    */
+  function handleEmbedDataUpdated(data: {
+    status: string;
+    decodedContent: Record<string, unknown>;
+  }): void {
+    const content = data.decodedContent;
+    const keys = content.screenshot_s3_keys as Record<string, string> | undefined;
+    const key = keys?.['1'];
+    if (key) {
+      screenshotS3Key = key;
+    }
+    const k = content.aes_key as string | undefined;
+    const n = content.aes_nonce as string | undefined;
+    if (k) aesKey = k;
+    if (n) aesNonce = n;
+  }
+
+  // Fetch page-1 screenshot once key + credentials become available and embed is in view
+  $effect(() => {
+    if (
+      isInView &&
+      status === 'finished' &&
+      screenshotS3Key &&
+      aesKey &&
+      aesNonce &&
+      !imageUrl &&
+      !isLoadingImage &&
+      !imageError
+    ) {
+      loadScreenshot();
+    }
+  });
+
+  async function loadScreenshot(): Promise<void> {
+    if (!screenshotS3Key || !aesKey || !aesNonce) return;
+    if (imageUrl) return;
+    if (loadRetryCount >= MAX_LOAD_RETRIES) {
+      console.warn('[PDFEmbedPreview] Giving up after max retries:', screenshotS3Key);
+      return;
+    }
+
+    // Check shared cache first
+    const cached = getCachedImageUrl(screenshotS3Key);
+    if (cached) {
+      imageUrl = cached;
+      if (retainedS3Key && retainedS3Key !== screenshotS3Key) releaseCachedImage(retainedS3Key);
+      retainedS3Key = screenshotS3Key;
+      retainCachedImage(screenshotS3Key);
+      return;
+    }
+
+    loadRetryCount += 1;
+    isLoadingImage = true;
+    imageError = undefined;
+
+    try {
+      console.debug(`[PDFEmbedPreview] Loading page-1 screenshot (attempt ${loadRetryCount}):`, screenshotS3Key);
+      // s3BaseUrl not needed — fetchAndDecryptImage uses presigned URL service
+      const blob = await fetchAndDecryptImage('', screenshotS3Key, aesKey, aesNonce);
+      imageUrl = URL.createObjectURL(blob);
+      if (retainedS3Key && retainedS3Key !== screenshotS3Key) releaseCachedImage(retainedS3Key);
+      retainedS3Key = screenshotS3Key;
+      retainCachedImage(screenshotS3Key);
+      console.debug('[PDFEmbedPreview] Page-1 screenshot loaded');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[PDFEmbedPreview] Failed to load screenshot:', msg);
+      imageError = 'Preview unavailable';
+    } finally {
+      isLoadingImage = false;
+    }
+  }
+
+  onDestroy(() => {
+    if (retainedS3Key) {
+      releaseCachedImage(retainedS3Key);
+      retainedS3Key = undefined;
+    }
+    observer?.disconnect();
+    skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
+  });
+
+  // -------------------------------------------------------------------------
+  // "Viewing…" state — while pdf.view skill is running on this embed
+  // -------------------------------------------------------------------------
+
   let isBeingViewed = $state(false);
 
-  // Subscribe to skill preview updates to show "Viewing…" state while pdf.view runs
   function handleSkillPreviewUpdate(event: Event): void {
     const customEvent = event as CustomEvent;
     const { previewData } = customEvent.detail || {};
     if (!previewData) return;
-    // Only react to pdf.view skill events for our embed
     if (previewData.app_id !== 'pdf' || previewData.skill_id !== 'view') return;
     const embedId = (previewData as Record<string, unknown>).embed_id as string | undefined;
     if (embedId && embedId !== id) return;
-    // Set viewing state based on skill status
-    if (previewData.status === 'processing') {
-      isBeingViewed = true;
-    } else {
-      // finished or error — revert to normal
-      isBeingViewed = false;
-    }
+    isBeingViewed = previewData.status === 'processing';
   }
 
   skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
 
-  onDestroy(() => {
-    skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
-  });
+  // -------------------------------------------------------------------------
+  // Derived display state
+  // -------------------------------------------------------------------------
 
   /**
    * Map upload-specific status to the UnifiedEmbedPreview status union.
    * 'uploading' → 'processing' (shows the animated spinner in the card).
-   * 'viewing'   → 'processing' (shows spinner while AI views pages).
    */
   let unifiedStatus = $derived(
     isBeingViewed ? 'processing'
@@ -110,10 +235,10 @@
     : (status as 'processing' | 'finished' | 'error'),
   );
 
-  /**
-   * Card title: truncated filename.
-   * Falls back to a generic "PDF" label if no filename is set.
-   */
+  /** Whether a screenshot image is ready to display */
+  let hasImage = $derived(!!imageUrl && !imageError);
+
+  /** Card title: truncated filename */
   let skillName = $derived.by(() => {
     if (!filename) return 'PDF';
     if (filename.length > MAX_FILENAME_LENGTH) {
@@ -132,21 +257,18 @@
   });
 
   /**
-   * Card subtitle (customStatusText):
-   * - 'viewing'    → "Viewing…"            (AI is actively reading page screenshots)
+   * Card subtitle:
+   * - 'viewing'    → "Viewing…"
    * - 'uploading'  → "Uploading…"
-   * - 'processing' → "Processing N pages…" (OCR + screenshot generation running; falls back
-   *                                         to "Processing…" when page count is unknown)
-   * - 'finished'   → "42 pages" (or plain "PDF" if page count unavailable)
+   * - 'processing' → "Processing N pages…" or "Processing…"
+   * - 'finished'   → "N page(s)" (or plain "PDF")
    * - 'error'      → error message
    */
   let statusText = $derived.by(() => {
-    // When the AI is actively viewing this PDF, show "Viewing…"
     if (isBeingViewed) return $text('app_skills.pdf.view.viewing');
     if (status === 'uploading') return $text('app_skills.pdf.view.uploading');
     if (status === 'error') return uploadError || $text('app_skills.pdf.view.upload_failed');
     if (status === 'processing') {
-      // Show page count if available ("Processing 3 pages…"), otherwise generic fallback
       if (pageCount && pageCount > 0) {
         return $text('app_skills.pdf.view.processing_pages', { values: { count: pageCount } });
       }
@@ -161,17 +283,7 @@
     return '';
   });
 
-  /**
-   * Show the stop button during active upload OR during OCR processing.
-   * Both are cancellable: upload aborts the HTTP request; processing revokes
-   * the Celery OCR task server-side (via the cancel_pdf_processing WS message).
-   */
   let showStop = $derived((status === 'uploading' || status === 'processing') && !!onStop);
-
-  /**
-   * Only pass onFullscreen when status is 'finished' — clicking a processing
-   * or error card should not open the fullscreen viewer.
-   */
   let handleFullscreen = $derived(status === 'finished' ? onFullscreen : undefined);
 </script>
 
@@ -188,85 +300,104 @@
   showStatus={true}
   customStatusText={statusText}
   showSkillIcon={false}
+  hasFullWidthImage={hasImage}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <div class="pdf-preview" class:mobile={isMobileSnippet}>
-      <!-- PDF icon using the existing CSS icon system -->
-      <div class="pdf-icon-container">
-        <div class="icon_rounded pdf"></div>
-      </div>
+    <div class="pdf-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
 
-      <!-- Filename + status detail -->
-      <div class="pdf-info">
-        <span class="pdf-filename" title={filename}>{skillName}</span>
-        {#if statusText}
-          <span class="pdf-status">{statusText}</span>
-        {/if}
-      </div>
+      {#if hasImage}
+        <!--
+          Page-1 screenshot available: show full-bleed like ImageEmbedPreview.
+          Clicking opens the fullscreen viewer (cursor: zoom-in).
+        -->
+        <div
+          class="image-content"
+          class:clickable={status === 'finished' && !!handleFullscreen}
+        >
+          <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
+          <img
+            src={imageUrl}
+            alt={filename || 'PDF page 1'}
+            class="preview-image"
+            onclick={status === 'finished' ? handleFullscreen : undefined}
+          />
+        </div>
+
+      {:else}
+        <!--
+          No screenshot yet (uploading / processing / error / screenshot not loaded).
+          Show a single centered PDF icon — no filename text here since the
+          BasicInfosBar below already shows the name + status.
+        -->
+        <div class="pdf-icon-center">
+          <div class="icon_rounded pdf"></div>
+        </div>
+      {/if}
+
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
   .pdf-preview {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 20px;
     width: 100%;
     height: 100%;
-    box-sizing: border-box;
-    overflow: hidden;
-  }
-
-  .pdf-preview.mobile {
+    display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    padding: 12px;
-    gap: 8px;
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
-  /* Large PDF icon circle */
-  .pdf-icon-container {
-    flex-shrink: 0;
+  /* Full-bleed screenshot — mirrors ImageEmbedPreview */
+  .image-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: var(--color-grey-10, #f5f5f5);
   }
 
-  /* Override inline preview base icon size for the embed preview context */
-  .pdf-icon-container .icon_rounded {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background-size: 22px 22px;
+  .image-content.clickable {
+    cursor: zoom-in;
+  }
+
+  .preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: opacity 0.15s ease;
+  }
+
+  .image-content.clickable:hover .preview-image {
+    opacity: 0.92;
+  }
+
+  /* Fallback: single centered PDF icon when no screenshot */
+  .pdf-icon-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .pdf-icon-center .icon_rounded {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background-size: 26px 26px;
     background-repeat: no-repeat;
     background-position: center;
+    flex-shrink: 0;
   }
 
-  .pdf-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .pdf-filename {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.3;
-  }
-
-  .pdf-status {
-    font-size: 12px;
-    color: var(--color-grey-60, #888);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  /* Dark mode */
+  :global(.dark) .image-content {
+    background: var(--color-grey-90, #1a1a1a);
   }
 </style>

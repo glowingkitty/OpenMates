@@ -81,3 +81,7 @@ upload_files:
     created_at:
       type: integer
       note: "Unix timestamp (seconds) when the upload was created."
+
+    page_count:
+      type: integer
+      note: "[Optional] Number of pages in the uploaded file. Set for PDFs; null for images and audio. Used by dedup responses to return the correct page count without re-parsing the file."
