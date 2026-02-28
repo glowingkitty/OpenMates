@@ -7,6 +7,9 @@
 //
 // The chat is created with the 'openmates-welcome' focus mode pre-activated,
 // which guides Suki's AI responses through the onboarding conversation flow.
+//
+// The chat has a pre-set encrypted title ("Getting Started") and title_v: 1
+// so it displays correctly in the sidebar immediately — no "Untitled chat" fallback.
 
 import { get } from "svelte/store";
 import { text } from "../i18n/translations";
@@ -46,10 +49,12 @@ const ONBOARDING_FOCUS_ID = "openmates-welcome";
  * The welcome message is NOT charged to the user since it's a static template,
  * not an AI-generated response.
  *
- * @param username - The user's display name (injected into the welcome message)
  * @returns The chat_id of the created onboarding chat, or null if creation failed
  */
 export async function createOnboardingChat(
+  // username kept for backward compatibility — the welcome message uses a generic
+  // greeting instead of interpolating the name, so this parameter is unused
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   username: string,
 ): Promise<string | null> {
   try {
@@ -72,9 +77,9 @@ export async function createOnboardingChat(
     }
 
     // --- Build the welcome message content ---
-    const welcomeContent = $text("onboarding.welcome_message", {
-      username: username || "there",
-    });
+    // The welcome message no longer uses a {username} variable — it's generic
+    // ("Hey there!") to avoid interpolation issues and keep a consistent tone.
+    const welcomeContent = $text("onboarding.welcome_message");
 
     // Verify the translation resolved (not a missing placeholder)
     if (welcomeContent.startsWith("[T:")) {
@@ -126,13 +131,19 @@ export async function createOnboardingChat(
     // Encrypt icon (compass for onboarding)
     const encryptedIcon = await encryptWithChatKey("compass", chatKey);
 
+    // Encrypt the chat title — pre-set so the sidebar shows "Getting Started"
+    // immediately instead of the "Untitled chat" fallback. title_v is set to 1
+    // to signal that a real title exists (no need to wait for server metadata).
+    const chatTitleText = $text("onboarding.chat_title");
+    const encryptedTitle = await encryptWithChatKey(chatTitleText, chatKey);
+
     // --- Build the chat object ---
     const chat: Chat = {
       chat_id: chatId,
-      encrypted_title: null, // Title will be generated after first user message
+      encrypted_title: encryptedTitle, // Pre-set: "Getting Started" (localized)
       encrypted_chat_key: encryptedChatKey,
       messages_v: 1,
-      title_v: 0,
+      title_v: 1, // Pre-set title — no need to wait for server metadata
       draft_v: 0,
       last_edited_overall_timestamp: now,
       unread_count: 0,
@@ -157,9 +168,15 @@ export async function createOnboardingChat(
       `[OnboardingChat] Created onboarding chat ${chatId} with welcome message ${messageId}`,
     );
 
-    // Dispatch event so the chat list updates
+    // Dispatch event so the chat list updates.
+    // Include chat_id so Chats.svelte can do an incremental update and
+    // _chatIdToSelectAfterUpdate can be set for auto-selection if needed.
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("localChatListChanged"));
+      window.dispatchEvent(
+        new CustomEvent("localChatListChanged", {
+          detail: { chat_id: chatId },
+        }),
+      );
     }
 
     return chatId;

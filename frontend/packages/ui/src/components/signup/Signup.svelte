@@ -1108,6 +1108,10 @@
         // Create the onboarding chat with Suki's pre-activated welcome focus mode.
         // Uses hasOnboardingChat() as a guard against duplicate creation on page reload.
         // This is fire-and-forget — a failure here must not block signup completion.
+        //
+        // After creation, the chat is auto-opened on ALL devices (mobile + desktop) by
+        // setting it as the active chat via activeChatStore. This is a one-time action
+        // that only runs during signup, never on subsequent page loads.
         try {
             const alreadyExists = await hasOnboardingChat();
             if (!alreadyExists) {
@@ -1115,6 +1119,19 @@
                 const onboardingChatId = await createOnboardingChat(username);
                 if (onboardingChatId) {
                     console.debug(`[Signup] Created onboarding chat ${onboardingChatId} for new user`);
+
+                    // Auto-open the onboarding chat on all devices (one-time, only after signup).
+                    // activeChatStore.setActiveChat() updates the URL hash and notifies Chats.svelte,
+                    // which dispatches chatSelected → +page.svelte calls loadChat() → ActiveChat.svelte
+                    // sets currentChat so the user sees the chat and can reply to it directly.
+                    try {
+                        const { activeChatStore } = await import('../../stores/activeChatStore');
+                        activeChatStore.setActiveChat(onboardingChatId);
+                        console.debug(`[Signup] Auto-opened onboarding chat ${onboardingChatId}`);
+                    } catch (openError) {
+                        // Non-fatal: chat was created, user can click it manually
+                        console.warn("[Signup] Failed to auto-open onboarding chat:", openError);
+                    }
                 } else {
                     console.warn("[Signup] createOnboardingChat returned null — onboarding chat was not created");
                 }
@@ -1126,6 +1143,8 @@
             console.error("[Signup] Failed to create onboarding chat:", error);
         }
 
+        // Open sidebar on desktop so the user sees the chat list.
+        // On mobile, the chat will open in the main area via activeChatStore.
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);
         }

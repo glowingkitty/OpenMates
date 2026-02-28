@@ -1,7 +1,12 @@
+chat_title:
+  context: Title shown in the sidebar for the onboarding chat with Suki. Short and welcoming.
+  en: "Getting Started"
+  de: "Erste Schritte"
+  verified_by_human: []
 welcome_message:
-  context: Welcome message from Suki in the onboarding chat after signup. Uses {username} variable.
-  en: "Hey {username}! 👋 I'm Suki, your personal assistant. I'm here to help you get started with OpenMates. Feel free to ask me anything!"
-  de: "Hey {username}! 👋 Ich bin Suki, dein persönlicher Assistent. Ich bin hier, um dir den Einstieg bei OpenMates zu erleichtern. Frag mich einfach alles!"
+  context: Welcome message from Suki in the onboarding chat after signup. Should be warm, engaging, and ask the user about their interests so Suki can recommend apps, skills, and settings.
+  en: "Hey there! 👋 I'm Suki, your personal assistant on OpenMates.\n\nI'm here to help you discover the right tools and get the most out of the platform — from AI mates for writing, research, and coding, to apps for travel, health, news, and more.\n\nTo point you in the right direction, I'd love to learn a bit about you:\n\n• **What kinds of tasks** do you want help with? (e.g. writing, research, coding, planning, learning…)\n• **What topics or skills** are you interested in exploring or getting better at?\n\nThe more you share, the better I can tailor your experience — recommending the right mates, apps, and settings for you. 🚀"
+  de: "Hey! 👋 Ich bin Suki, dein persönlicher Assistent auf OpenMates.\n\nIch helfe dir dabei, die richtigen Tools zu entdecken und das Beste aus der Plattform herauszuholen – von KI-Mates für Schreiben, Recherche und Coding bis hin zu Apps für Reisen, Gesundheit, News und vieles mehr.\n\nUm dich in die richtige Richtung zu lenken, würde ich gerne ein bisschen mehr über dich erfahren:\n\n• **Bei welchen Aufgaben** möchtest du Hilfe? (z. B. Schreiben, Recherche, Coding, Planung, Lernen…)\n• **Welche Themen oder Fähigkeiten** interessieren dich oder möchtest du vertiefen?\n\nJe mehr du erzählst, desto besser kann ich deine Erfahrung anpassen – mit den richtigen Mates, Apps und Einstellungen für dich. 🚀"
   verified_by_human: []
 follow_up_1:
   context: First suggestion chip shown below the onboarding welcome message
