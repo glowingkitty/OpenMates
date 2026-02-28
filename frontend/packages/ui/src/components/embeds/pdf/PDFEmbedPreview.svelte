@@ -133,9 +133,10 @@
 
   /**
    * Card subtitle (customStatusText):
-   * - 'viewing'    → "Viewing…"      (AI is actively reading page screenshots)
+   * - 'viewing'    → "Viewing…"            (AI is actively reading page screenshots)
    * - 'uploading'  → "Uploading…"
-   * - 'processing' → "Reading PDF…"  (OCR + screenshot generation running)
+   * - 'processing' → "Processing N pages…" (OCR + screenshot generation running; falls back
+   *                                         to "Processing…" when page count is unknown)
    * - 'finished'   → "42 pages" (or plain "PDF" if page count unavailable)
    * - 'error'      → error message
    */
@@ -144,7 +145,13 @@
     if (isBeingViewed) return $text('app_skills.pdf.view.viewing');
     if (status === 'uploading') return $text('app_skills.pdf.view.uploading');
     if (status === 'error') return uploadError || $text('app_skills.pdf.view.upload_failed');
-    if (status === 'processing') return $text('app_skills.pdf.view.processing');
+    if (status === 'processing') {
+      // Show page count if available ("Processing 3 pages…"), otherwise generic fallback
+      if (pageCount && pageCount > 0) {
+        return $text('app_skills.pdf.view.processing_pages', { count: pageCount });
+      }
+      return $text('app_skills.pdf.view.processing');
+    }
     if (status === 'finished') {
       if (pageCount && pageCount > 0) {
         return pageCount === 1 ? '1 page' : `${pageCount} pages`;

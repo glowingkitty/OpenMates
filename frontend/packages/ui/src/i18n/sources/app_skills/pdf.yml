@@ -126,29 +126,52 @@ view.uploading:
     - en
 
 view.processing:
-  context: Status text shown on PDF embed card while OCR background processing is running
-  en: "Reading PDF\u2026"
-  de: "PDF wird gelesen\u2026"
-  zh: "正在读取PDF\u2026"
-  es: "Leyendo PDF\u2026"
-  fr: "Lecture du PDF\u2026"
-  pt: "Lendo PDF\u2026"
-  ru: "Читается PDF\u2026"
-  ja: "PDFを読み込み中\u2026"
-  ko: "PDF 읽는 중\u2026"
-  it: "Lettura PDF\u2026"
-  tr: "PDF okunuyor\u2026"
-  vi: "\u0110ang \u0111\u1ecdc PDF\u2026"
-  id: "Membaca PDF\u2026"
-  pl: "Odczytywanie PDF\u2026"
-  nl: "PDF lezen\u2026"
-  ar: "\u062c\u0627\u0631\u064a \u0642\u0631\u0627\u0621\u0629 PDF\u2026"
-  hi: "PDF \u092a\u0922\u093c\u093e \u091c\u093e \u0930\u0939\u093e \u0939\u0948\u2026"
-  th: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2d\u0e48\u0e32\u0e19 PDF\u2026"
-  cs: "Na\u010d\u00edt\u00e1n\u00ed PDF\u2026"
-  sv: "L\u00e4ser PDF\u2026"
-  verified_by_human:
-    - en
+  context: Status text shown on PDF embed card while OCR background processing is running (fallback when page count is unknown)
+  en: "Processing\u2026"
+  de: "Verarbeitung\u2026"
+  zh: "处理中\u2026"
+  es: "Procesando\u2026"
+  fr: "Traitement\u2026"
+  pt: "Processando\u2026"
+  ru: "Обработка\u2026"
+  ja: "処理中\u2026"
+  ko: "처리 중\u2026"
+  it: "Elaborazione\u2026"
+  tr: "İşleniyor\u2026"
+  vi: "Đang xử lý\u2026"
+  id: "Memproses\u2026"
+  pl: "Przetwarzanie\u2026"
+  nl: "Verwerken\u2026"
+  ar: "جارٍ المعالجة\u2026"
+  hi: "प्रोसेसिंग\u2026"
+  th: "กำลังประมวลผล\u2026"
+  cs: "Zpracování\u2026"
+  sv: "Bearbetar\u2026"
+  verified_by_human: []
+
+view.processing_pages:
+  context: Status text shown on PDF embed card while OCR is running, when page count is known. {count} is the number of pages (e.g. "Processing 3 pages…")
+  en: "Processing {count} {count, plural, one {page} other {pages}}\u2026"
+  de: "{count} {count, plural, one {Seite} other {Seiten}} werden verarbeitet\u2026"
+  zh: "正在处理 {count} 页\u2026"
+  es: "Procesando {count} {count, plural, one {página} other {páginas}}\u2026"
+  fr: "Traitement de {count} {count, plural, one {page} other {pages}}\u2026"
+  pt: "Processando {count} {count, plural, one {página} other {páginas}}\u2026"
+  ru: "Обработка {count} {count, plural, one {страницы} few {страниц} many {страниц} other {страниц}}\u2026"
+  ja: "{count} ページ処理中\u2026"
+  ko: "{count} {count, plural, one {페이지} other {페이지}} 처리 중\u2026"
+  it: "Elaborazione di {count} {count, plural, one {pagina} other {pagine}}\u2026"
+  tr: "{count} {count, plural, one {sayfa} other {sayfa}} işleniyor\u2026"
+  vi: "Đang xử lý {count} {count, plural, one {trang} other {trang}}\u2026"
+  id: "Memproses {count} {count, plural, one {halaman} other {halaman}}\u2026"
+  pl: "Przetwarzanie {count} {count, plural, one {strony} few {stron} many {stron} other {stron}}\u2026"
+  nl: "{count} {count, plural, one {pagina} other {pagina's}} verwerken\u2026"
+  ar: "معالجة {count} {count, plural, one {صفحة} other {صفحات}}\u2026"
+  hi: "{count} {count, plural, one {पृष्ठ} other {पृष्ठ}} प्रोसेस हो रहे हैं\u2026"
+  th: "กำลังประมวลผล {count} {count, plural, one {หน้า} other {หน้า}}\u2026"
+  cs: "Zpracování {count} {count, plural, one {stránky} few {stránek} many {stránek} other {stránek}}\u2026"
+  sv: "Bearbetar {count} {count, plural, one {sida} other {sidor}}\u2026"
+  verified_by_human: []
 
 view.viewing:
   context: Status text shown on PDF embed card while the AI is viewing page screenshots (skill is executing)
