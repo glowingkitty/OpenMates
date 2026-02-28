@@ -1530,7 +1530,10 @@ class PdfProcessPayload(BaseModel):
 
 
 @router.post("/pdf/process", status_code=202)
-async def trigger_pdf_processing(payload: PdfProcessPayload) -> Dict[str, Any]:
+async def trigger_pdf_processing(
+    payload: PdfProcessPayload,
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
     """
     Trigger background PDF processing after a successful upload.
 
@@ -1541,6 +1544,9 @@ async def trigger_pdf_processing(payload: PdfProcessPayload) -> Dict[str, Any]:
       - TOC and legend detection (Groq)
       - S3 artefact upload
       - Embed TOON content delivery to client
+
+    Also stores the Celery task ID in Redis under pdf_task:<embed_id> (TTL 2h)
+    so that a subsequent cancel request can revoke the task.
 
     Returns 202 Accepted immediately; processing happens in the background.
     """
@@ -1562,11 +1568,105 @@ async def trigger_pdf_processing(payload: PdfProcessPayload) -> Dict[str, Any]:
         f"embed_id={payload.embed_id[:8]}..."
     )
 
+    # Cache the task ID so a cancel request can revoke it.
+    # TTL of 2 hours is generous — OCR tasks typically finish in under 5 minutes.
+    try:
+        await cache_service.set(
+            key=f"pdf_task:{payload.embed_id}",
+            value=task_result.id,
+            ttl=7200,
+        )
+    except Exception as cache_err:
+        # Non-fatal: cancel won't work but OCR will still complete.
+        logger.warning(
+            f"[PDF Process] Failed to cache task ID for embed {payload.embed_id[:8]}: {cache_err}"
+        )
+
     return {
         "status": "accepted",
         "task_id": task_result.id,
         "embed_id": payload.embed_id,
         "page_count": payload.page_count,
+    }
+
+
+class PdfCancelPayload(BaseModel):
+    """Payload sent by the WebSocket handler to cancel an in-progress PDF OCR task."""
+    embed_id: str = Field(..., description="Embed ID whose Celery task should be revoked.")
+    user_id: str = Field(..., description="User ID — used for logging and auth verification.")
+
+
+@router.post("/pdf/cancel", status_code=200)
+async def cancel_pdf_processing(
+    payload: PdfCancelPayload,
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Cancel an in-progress PDF OCR Celery task.
+
+    Called by the cancel_pdf_processing WebSocket handler when the user presses
+    Stop during OCR processing (status='processing').
+
+    Flow:
+      1. Look up the Celery task ID stored at pdf_task:<embed_id> in Redis.
+      2. If found, revoke the task (with SIGTERM so it terminates cleanly).
+      3. Remove the Redis key so subsequent accidental calls are no-ops.
+
+    Returns 200 even if the task was not found (it may have already completed).
+    The client-side cleanup (delete embed node, deleteDraftEmbed) is handled
+    separately by the WebSocket handler.
+    """
+    logger.info(
+        f"[PDF Cancel] Cancel request for embed {payload.embed_id[:8]}... by user {payload.user_id[:8]}..."
+    )
+
+    # Look up the Celery task ID in Redis.
+    task_id: Optional[str] = None
+    try:
+        task_id = await cache_service.get(f"pdf_task:{payload.embed_id}")
+    except Exception as cache_err:
+        logger.warning(
+            f"[PDF Cancel] Failed to read task ID from cache for embed {payload.embed_id[:8]}: {cache_err}"
+        )
+
+    if not task_id:
+        logger.info(
+            f"[PDF Cancel] No pending task found for embed {payload.embed_id[:8]} — "
+            "task may have already completed or was never started."
+        )
+        return {"status": "not_found", "embed_id": payload.embed_id}
+
+    # Revoke the Celery task so the PDF worker stops processing.
+    # terminate=True sends SIGTERM to the worker process handling this task.
+    try:
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+        celery_app.control.revoke(task_id, terminate=True, signal="SIGTERM")
+        logger.info(
+            f"[PDF Cancel] Revoked Celery task {task_id[:8]}... for embed {payload.embed_id[:8]}..."
+        )
+    except Exception as revoke_err:
+        logger.error(
+            f"[PDF Cancel] Failed to revoke task {task_id[:8]}: {revoke_err}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to revoke PDF processing task: {str(revoke_err)}",
+        )
+
+    # Remove the Redis key — the task is no longer cancellable.
+    try:
+        await cache_service.delete(f"pdf_task:{payload.embed_id}")
+    except Exception as del_err:
+        # Non-fatal — TTL will clean it up.
+        logger.warning(
+            f"[PDF Cancel] Failed to delete cached task ID for embed {payload.embed_id[:8]}: {del_err}"
+        )
+
+    return {
+        "status": "revoked",
+        "task_id": task_id,
+        "embed_id": payload.embed_id,
     }
 
 

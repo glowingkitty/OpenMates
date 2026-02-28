@@ -200,6 +200,41 @@ export async function sendDeleteDraftEmbedImpl(
 }
 
 /**
+ * Send a cancel_pdf_processing WebSocket message.
+ *
+ * Called when the user presses Stop on a PDF embed that is already in 'processing'
+ * status (OCR task is running on the server). The server handler will:
+ *   1. Revoke the Celery OCR task via /internal/pdf/cancel.
+ *   2. Delete S3 files and the Directus upload_files record.
+ *   3. Broadcast draft_embed_deleted to other devices for IndexedDB cleanup.
+ *
+ * Note: client-side node deletion (removing the embed from TipTap) is done by
+ * the caller (Embed.ts cancelpdfupload handler) before calling this function.
+ */
+export async function sendCancelPdfProcessingImpl(
+  _serviceInstance: ChatSynchronizationService,
+  embed_id: string,
+  chat_id?: string,
+): Promise<void> {
+  try {
+    await webSocketService.sendMessage("cancel_pdf_processing", {
+      embed_id,
+      chat_id: chat_id ?? null,
+    });
+    console.debug(
+      `[ChatSyncService:Senders] Sent cancel_pdf_processing for embed ${embed_id} (chat ${chat_id ?? "n/a"})`,
+    );
+  } catch (error) {
+    // Non-fatal: the PDF task will eventually complete or time out, and the embed
+    // record will be cleaned up by the periodic billing reconciliation.
+    console.error(
+      `[ChatSyncService:Senders] Failed to send cancel_pdf_processing for embed ${embed_id}:`,
+      error,
+    );
+  }
+}
+
+/**
  * Send delete chat request to server
  * NOTE: The actual deletion from IndexedDB should be done by the caller (e.g., Chat.svelte)
  * before calling this function. This function only handles server communication.

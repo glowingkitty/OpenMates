@@ -2221,6 +2221,19 @@
                 console.info(
                     `[MessageInput] PDF embed ${embed_id} OCR failed — updated in-editor node to error state`
                 );
+            } else if (status === 'finished') {
+                // OCR completed successfully — update the in-editor node so
+                // PDFEmbedPreview transitions from "Reading PDF…" to the page count.
+                // Preserve all existing attrs (filename, pageCount, etc.) and only
+                // update the status field.
+                const tr = editor.state.tr.setNodeMarkup(targetPos, undefined, {
+                    ...editor.state.doc.nodeAt(targetPos)?.attrs,
+                    status: 'finished',
+                });
+                editor.view.dispatch(tr);
+                console.info(
+                    `[MessageInput] PDF embed ${embed_id} OCR finished — updated in-editor node to finished state`
+                );
             }
         };
         chatSyncService.addEventListener('embedUpdated', embedUpdatedFromServerHandler);

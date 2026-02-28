@@ -154,8 +154,12 @@
     return '';
   });
 
-  /** Show the stop button only during active upload (not during OCR processing) */
-  let showStop = $derived(status === 'uploading' && !!onStop);
+  /**
+   * Show the stop button during active upload OR during OCR processing.
+   * Both are cancellable: upload aborts the HTTP request; processing revokes
+   * the Celery OCR task server-side (via the cancel_pdf_processing WS message).
+   */
+  let showStop = $derived((status === 'uploading' || status === 'processing') && !!onStop);
 
   /**
    * Only pass onFullscreen when status is 'finished' — clicking a processing

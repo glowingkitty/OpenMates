@@ -814,17 +814,54 @@ export const Embed = Node.create<EmbedOptions>({
       }
 
       // For PDF embeds: listen for 'cancelpdfupload' fired by PDFEmbedPreview Stop button.
-      // Same pattern as cancelimageupload above.
+      // Handles two cases:
+      //   1. status='uploading'  — abort the in-flight HTTP upload (cancelUpload) then
+      //                            delete the draft record.
+      //   2. status='processing' — upload is done but OCR is running on the server.
+      //                            Send cancel_pdf_processing via WebSocket to revoke the
+      //                            Celery task; also call deleteDraftEmbed for S3/DB cleanup.
       if (currentAttrs.type === "pdf") {
         wrapper.addEventListener("cancelpdfupload", (e) => {
           const embedId = (e as CustomEvent<{ embedId: string }>).detail
             ?.embedId;
+
+          // embedId here is the local attrs.id (pre-upload UUID).
+          // uploadEmbedId is the server-assigned UUID (set after upload completes).
+          const uploadEmbedId = currentAttrs.uploadEmbedId as string | null;
+
           if (embedId) {
+            // Always attempt to abort an in-flight upload (no-op if already completed).
             cancelUpload(embedId);
-            // Delete server-side upload_files record + S3 variants for completed uploads.
-            // Safe to call even if still uploading — server handles missing record gracefully.
-            deleteDraftEmbed(embedId);
+
+            // If the embed is in 'processing' state and we have the server-assigned
+            // upload embed ID, send the cancel_pdf_processing WebSocket message so
+            // the server can revoke the Celery OCR task.
+            if (currentAttrs.status === "processing" && uploadEmbedId) {
+              import("../../../services/chatSyncService")
+                .then(({ chatSyncService }) => {
+                  chatSyncService
+                    .sendCancelPdfProcessing(uploadEmbedId)
+                    .catch((err) => {
+                      console.error(
+                        "[Embed] Failed to send cancel_pdf_processing for embed:",
+                        uploadEmbedId,
+                        err,
+                      );
+                    });
+                })
+                .catch((err) => {
+                  console.error(
+                    "[Embed] Failed to import chatSyncService for PDF cancel:",
+                    err,
+                  );
+                });
+            } else {
+              // Upload phase (or processing without uploadEmbedId) — standard delete.
+              // deleteDraftEmbed uses the local embedId as sent to the server during upload.
+              deleteDraftEmbed(uploadEmbedId ?? embedId);
+            }
           }
+
           if (typeof getPos === "function") {
             const pos = getPos();
             const nodeSize = editor.state.doc.nodeAt(pos)?.nodeSize ?? 1;
@@ -839,8 +876,12 @@ export const Embed = Node.create<EmbedOptions>({
               .run();
           }
           console.debug(
-            "[Embed] Stop button: cancelled upload and deleted PDF embed:",
+            "[Embed] Stop button: cancelled PDF embed (status was",
+            currentAttrs.status,
+            ") embedId:",
             embedId,
+            "uploadEmbedId:",
+            uploadEmbedId,
           );
           editor.view.dom.dispatchEvent(
             new CustomEvent("embed-upload-cancelled", {

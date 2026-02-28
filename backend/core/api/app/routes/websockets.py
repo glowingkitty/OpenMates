@@ -23,6 +23,7 @@ from .handlers.websocket_handlers.initial_sync_handler import handle_initial_syn
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
 from .handlers.websocket_handlers.delete_draft_embed_handler import handle_delete_draft_embed
+from .handlers.websocket_handlers.cancel_pdf_processing_handler import handle_cancel_pdf_processing # Handler for cancelling in-progress PDF OCR tasks
 from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
 from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
@@ -1737,6 +1738,20 @@ async def websocket_endpoint(
                 # the message draft before being sent.  Cleans up S3 files, the
                 # upload_files Directus record, and decrements storage_used_bytes.
                 await handle_delete_draft_embed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+            elif message_type == "cancel_pdf_processing":
+                # Cancels an in-progress PDF OCR Celery task (triggered when the user
+                # presses Stop during the 'processing' phase, after upload is complete).
+                # Revokes the Celery task, deletes S3 files + Directus record, and
+                # broadcasts draft_embed_deleted to other devices for IndexedDB cleanup.
+                await handle_cancel_pdf_processing(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

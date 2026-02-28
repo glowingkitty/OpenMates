@@ -1246,6 +1246,16 @@ export class ChatSynchronizationService extends EventTarget {
   public async sendDeleteDraftEmbed(embed_id: string, chat_id?: string) {
     await senders.sendDeleteDraftEmbedImpl(this, embed_id, chat_id);
   }
+
+  /**
+   * Cancel an in-progress PDF OCR task.
+   * Called when the user presses Stop during status='processing'.
+   * The server revokes the Celery task, deletes S3 files, and broadcasts
+   * draft_embed_deleted to other devices.
+   */
+  public async sendCancelPdfProcessing(embed_id: string, chat_id?: string) {
+    await senders.sendCancelPdfProcessingImpl(this, embed_id, chat_id);
+  }
   public async sendDeleteChat(
     chat_id: string,
     embed_ids_to_delete: string[] = [],
