@@ -305,7 +305,8 @@
     .icon-container {
         width: 44px;
         height: 44px;
-        margin-right: 12px;
+        /* Logical property: gap between icon and text label (after icon in reading direction) */
+        margin-inline-end: 12px;
         flex-shrink: 0;
         display: flex;
         align-items: center;
@@ -316,7 +317,7 @@
     .app-icon-wrapper {
         width: 44px;
         height: 44px;
-        margin-right: 12px;
+        margin-inline-end: 12px;
         flex-shrink: 0;
         display: flex;
         align-items: center;
@@ -327,7 +328,7 @@
     .category-circle-wrapper {
         width: 44px;
         height: 44px;
-        margin-right: 12px;
+        margin-inline-end: 12px;
         flex-shrink: 0;
         display: flex;
         align-items: center;
@@ -379,7 +380,8 @@
     .menu-title {
         font-size: 16px;
         color: var(--color-grey-100);
-        text-align: left;
+        /* Use logical alignment: left in LTR, right in RTL */
+        text-align: start;
         display: -webkit-box;
         -webkit-line-clamp: 3;
         line-clamp: 3;
@@ -396,7 +398,7 @@
     .menu-subtitle-bottom {
         font-size: 14px;
         color: var(--color-grey-60);
-        text-align: left;
+        text-align: start;
     }
 
     .menu-credits {
@@ -407,7 +409,8 @@
 
     .nested-content {
         margin-top: 8px;
-        padding-left: 36px;
+        /* Logical property: indent nested items from the inline-start side */
+        padding-inline-start: 36px;
     }
 
     .menu-item-right {

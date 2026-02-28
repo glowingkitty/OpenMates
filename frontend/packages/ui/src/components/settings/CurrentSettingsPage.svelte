@@ -462,7 +462,8 @@
     }
 
     .user-info-container {
-        margin-left: 85px;
+        /* Logical property: indent text to clear the avatar on the inline-start side */
+        margin-inline-start: 85px;
         display: flex;
         flex-direction: column;
         gap: 4px;

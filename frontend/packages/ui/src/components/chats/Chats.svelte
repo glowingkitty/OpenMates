@@ -4188,7 +4188,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         font-size: 0.85em;
         font-weight: 500;
         color: var(--color-text-primary);
-        text-align: left;
+        text-align: start;
         transition: background-color 0.15s ease;
         white-space: nowrap;
     }
