@@ -3,6 +3,7 @@
 # This module provides a dependency for verifying internal service tokens
 # for securing internal API endpoints.
 
+import hmac
 import os
 from fastapi import Request, HTTPException, status, Depends
 import logging
@@ -43,7 +44,9 @@ async def verify_internal_token(request: Request):
             detail="Missing internal service token (X-Internal-Service-Token)."
         )
     
-    if token != INTERNAL_API_SHARED_TOKEN:
+    # Use hmac.compare_digest for constant-time comparison to prevent timing attacks.
+    # Even though this endpoint is on a private Docker network, this is best practice.
+    if not hmac.compare_digest(token, INTERNAL_API_SHARED_TOKEN):
         logger.warning("Internal API call attempt with an invalid X-Internal-Service-Token.")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

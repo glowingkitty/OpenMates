@@ -52,6 +52,11 @@ ${DEPLOY_PREVIEW_DOMAIN} {
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
 		-Server
+		# Content Security Policy (partial — safe subset with no risk of breaking the preview service)
+		# object-src: blocks Flash/Java applets (legacy plugin-based attack vectors)
+		# base-uri:   prevents <base> tag injection attacks (base tag hijacking)
+		# frame-ancestors: blocks clickjacking (redundant with X-Frame-Options, adds defence-in-depth)
+		Content-Security-Policy "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 	}
 
 	# Health endpoint — always accessible, no referer check needed
