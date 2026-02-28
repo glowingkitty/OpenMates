@@ -3531,8 +3531,11 @@ export function handleDailyInspirationImpl(
     import("./dailyInspirationDB"),
   ])
     .then(async ([{ dailyInspirationStore }, dailyInspirationDB]) => {
-      // 1. Update the Svelte store immediately so the banner appears at once
-      dailyInspirationStore.setInspirations(payload.inspirations);
+      // 1. Update the Svelte store immediately so the banner appears at once.
+      //    Mark as personalized so public defaults can never overwrite this data.
+      dailyInspirationStore.setInspirations(payload.inspirations, {
+        personalized: true,
+      });
       console.debug(
         "[ChatSyncService:AI] Daily inspirations loaded into store:",
         payload.inspirations.length,

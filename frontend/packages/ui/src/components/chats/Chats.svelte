@@ -1067,9 +1067,9 @@ let _chatUpdatedFlushPending = false;
 			const { get: svGet } = await import('svelte/store');
 
 			const initialState = svGet(inspirationStore);
-			if (initialState.inspirations.length > 0) {
-				// Already populated (IndexedDB load or WS delivery) — nothing to do
-				console.debug('[Chats] syncInspirationLoginFallback: store already populated — skipping');
+			if (initialState.inspirations.length > 0 && initialState.isPersonalized) {
+				// Already populated with personalized data (Phase 1 sync or WS delivery) — nothing to do
+				console.debug('[Chats] syncInspirationLoginFallback: personalized inspirations already in store — skipping');
 				return;
 			}
 
@@ -1097,10 +1097,11 @@ let _chatUpdatedFlushPending = false;
 			const inspirations = await loadInspirationsFromAPI();
 
 			if (inspirations.length > 0) {
-				// Re-check in case WS delivered them while we were loading from API
+				// Re-check in case WS delivered them while we were loading from API.
+				// API data is personalized (user-specific, includes is_opened / opened_chat_id).
 				const nowState = svGet(inspirationStore);
-				if (nowState.inspirations.length === 0) {
-					inspirationStore.setInspirations(inspirations);
+				if (!nowState.isPersonalized) {
+					inspirationStore.setInspirations(inspirations, { personalized: true });
 					console.info(`[Chats] Loaded ${inspirations.length} inspiration(s) from API after login sync`);
 				} else {
 					console.debug('[Chats] WS delivered inspirations while loading from API — keeping WS data');

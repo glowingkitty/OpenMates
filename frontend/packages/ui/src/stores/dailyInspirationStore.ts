@@ -79,6 +79,19 @@ export interface DailyInspirationState {
    * completes around that same time, so 1 extra second of headroom is enough.
    */
   phase1Empty: boolean;
+  /**
+   * True when the store holds inspirations sourced from the authenticated user's
+   * personal sync (Phase 1 WS payload, WS daily_inspiration event, or
+   * loadInspirationsFromAPI). False when the store only holds public server
+   * defaults (no auth, no is_opened / opened_chat_id state).
+   *
+   * This flag prevents public defaults written by loadDefaultInspirations()
+   * from overwriting personalized data that arrived via Phase 1 sync — which
+   * is the root cause of "Open chat" reverting to "Create new chat" after
+   * logout/login: defaults load fast (unauthenticated REST) and fill the store
+   * before Phase 1 WS sync completes, causing Phase 1 to skip its update.
+   */
+  isPersonalized: boolean;
 }
 
 // ─── Initial state ────────────────────────────────────────────────────────────
@@ -89,6 +102,7 @@ const initialState: DailyInspirationState = {
   inspirations: [],
   currentIndex: 0,
   phase1Empty: false,
+  isPersonalized: false,
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -113,14 +127,33 @@ export const dailyInspirationStore = {
   /**
    * Replace all inspirations (e.g. on fresh WS delivery or login sync).
    * Automatically positions the carousel at the first unopened inspiration.
+   *
+   * @param inspirations - The inspirations to store (capped at 3).
+   * @param options.personalized - Pass `true` when writing data sourced from
+   *   the authenticated user's sync (Phase 1, WS event, or API). Personalized
+   *   data always wins over public defaults. Defaults to `false`.
    */
-  setInspirations: (inspirations: DailyInspiration[]): void => {
+  setInspirations: (
+    inspirations: DailyInspiration[],
+    options: { personalized?: boolean } = {},
+  ): void => {
+    const { personalized = false } = options;
     const sliced = inspirations.slice(0, 3);
-    store.update((state) => ({
-      ...state,
-      inspirations: sliced,
-      currentIndex: preferredIndex(sliced),
-    }));
+    store.update((state) => {
+      // Never overwrite personalized data with public defaults.
+      // This prevents the fast unauthenticated default-inspirations REST call
+      // from wiping out is_opened / opened_chat_id state that was just written
+      // by the slower Phase 1 WS sync.
+      if (state.isPersonalized && !personalized) {
+        return state;
+      }
+      return {
+        ...state,
+        inspirations: sliced,
+        currentIndex: preferredIndex(sliced),
+        isPersonalized: personalized,
+      };
+    });
   },
 
   /**

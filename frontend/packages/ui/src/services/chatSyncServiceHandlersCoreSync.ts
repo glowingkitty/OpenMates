@@ -521,26 +521,23 @@ export async function handlePhase1LastChatImpl(
             payload.daily_inspirations,
           );
 
-          // Populate the store so UI updates immediately (only if not already set).
-          // Check store state inline without an extra dynamic import of svelte/store.
+          // Populate the store so UI updates immediately.
+          // Always write personalized data from Phase 1 — it must override any
+          // public defaults that loadDefaultInspirations() may have already loaded
+          // (defaults load fast via unauthenticated REST; Phase 1 is slower because
+          // it requires the WS auth handshake). The store's setInspirations guard
+          // prevents defaults from overwriting personalized data, but the reverse
+          // must never apply: personalized data (with is_opened / opened_chat_id)
+          // must always win.
           if (savedInspirations && savedInspirations.length > 0) {
-            const { get } = await import("svelte/store");
-            const currentState = get(dailyInspirationStore);
-            if (
-              !currentState.inspirations ||
-              currentState.inspirations.length === 0
-            ) {
-              dailyInspirationStore.setInspirations(savedInspirations);
-              console.info(
-                "[ChatSyncService:CoreSync] ✅ Daily inspiration store populated with",
-                savedInspirations.length,
-                "inspirations from Phase 1 sync",
-              );
-            } else {
-              console.info(
-                "[ChatSyncService:CoreSync] ✅ Daily inspirations already in store, skipping store update",
-              );
-            }
+            dailyInspirationStore.setInspirations(savedInspirations, {
+              personalized: true,
+            });
+            console.info(
+              "[ChatSyncService:CoreSync] ✅ Daily inspiration store populated with",
+              savedInspirations.length,
+              "personalized inspiration(s) from Phase 1 sync",
+            );
           } else {
             // Server sent N inspirations but decryption returned 0 — most likely the
             // master key was not yet available (first login race condition). Log this

@@ -62,10 +62,22 @@ export async function loadDefaultInspirations(): Promise<void> {
       const persisted = await loadInspirationsFromIndexedDB();
 
       if (persisted.length > 0) {
-        // Re-check store — a WS event may have arrived during the async load
+        // Re-check store — a WS event or Phase 1 sync may have arrived during the async load.
+        // If personalized data already landed, skip — it has is_opened / opened_chat_id state
+        // that must not be overwritten by anything from this function.
         const currentNow = get(dailyInspirationStore);
+        if (currentNow.isPersonalized) {
+          console.debug(
+            `${LOG_PREFIX} Personalized inspirations already in store — skipping IndexedDB load`,
+          );
+          return;
+        }
         if (currentNow.inspirations.length === 0) {
-          dailyInspirationStore.setInspirations(persisted);
+          // IndexedDB data is from a prior authenticated session — it IS personalized
+          // (it was written by processInspirationRecordsFromSync with is_opened state).
+          dailyInspirationStore.setInspirations(persisted, {
+            personalized: true,
+          });
           console.debug(
             `${LOG_PREFIX} Loaded ${persisted.length} personalised inspiration(s) from IndexedDB`,
           );
@@ -116,9 +128,16 @@ export async function loadDefaultInspirations(): Promise<void> {
       return;
     }
 
-    // Only populate the store if it is still empty — personalized inspirations
-    // delivered via WebSocket or loaded from IndexedDB have priority.
+    // Only populate the store if it is still empty and does not already hold
+    // personalized data — personalized inspirations (with is_opened / opened_chat_id
+    // state) delivered via Phase 1 WS sync, WS event, or IndexedDB have priority.
     const currentFinal = get(dailyInspirationStore);
+    if (currentFinal.isPersonalized) {
+      console.debug(
+        `${LOG_PREFIX} Personalized inspirations in store while fetching defaults — skipping server defaults`,
+      );
+      return;
+    }
     if (currentFinal.inspirations.length > 0) {
       console.debug(
         `${LOG_PREFIX} Store populated while fetching defaults — skipping server defaults`,
@@ -126,7 +145,11 @@ export async function loadDefaultInspirations(): Promise<void> {
       return;
     }
 
-    dailyInspirationStore.setInspirations(inspirations);
+    // Public server defaults: not personalized (no is_opened / opened_chat_id).
+    // setInspirations guards against overwriting personalized data, so this is safe.
+    dailyInspirationStore.setInspirations(inspirations, {
+      personalized: false,
+    });
     console.debug(
       `${LOG_PREFIX} Loaded ${inspirations.length} server default inspiration(s) into store`,
     );
