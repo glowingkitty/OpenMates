@@ -1091,7 +1091,10 @@
           "text": "アップロード中…"
         },
         "processing": {
-          "text": "PDFを読み込み中…"
+          "text": "処理中…"
+        },
+        "processing_pages": {
+          "text": "{count} ページ処理中…"
         },
         "viewing": {
           "text": "確認中…"
@@ -4509,6 +4512,17 @@
         },
         "privacy_policy_link": {
           "text": "Groqプライバシーポリシー"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar（決済処理）"
+        },
+        "description": {
+          "text": "当社は、ウェブアプリケーションのPolar Storefrontを通じた購入の決済処理にPolar（米国企業）を使用しています。購入時に、Polarはお客様の支払いカードの種類、カード番号の下4桁、請求先住所、電話番号、メールアドレスを処理して取引を安全に完了します。"
+        },
+        "privacy_policy_link": {
+          "text": "Polarプライバシーポリシー"
         }
       },
       "security_measures": {

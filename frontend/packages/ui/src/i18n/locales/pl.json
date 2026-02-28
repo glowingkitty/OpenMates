@@ -1091,7 +1091,10 @@
           "text": "Przesyłanie…"
         },
         "processing": {
-          "text": "Odczytywanie PDF…"
+          "text": "Przetwarzanie…"
+        },
+        "processing_pages": {
+          "text": "Przetwarzanie {count} {count, plural, one {strony} few {stron} many {stron} other {stron}}…"
         },
         "viewing": {
           "text": "Wyświetlanie…"
@@ -3636,6 +3639,17 @@
         },
         "privacy_policy_link": {
           "text": "Polityka Prywatności Groq"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (Przetwarzanie Płatności)"
+        },
+        "description": {
+          "text": "Używamy Polar (firma amerykańska) do przetwarzania płatności za zakupy dokonane przez Polar Storefront w aplikacji internetowej. Podczas zakupu Polar przetwarza typ karty płatniczej, ostatnie 4 cyfry karty, adres rozliczeniowy, numer telefonu i adres e-mail w celu bezpiecznego sfinalizowania transakcji."
+        },
+        "privacy_policy_link": {
+          "text": "Polityka Prywatności Polar"
         }
       },
       "security_measures": {

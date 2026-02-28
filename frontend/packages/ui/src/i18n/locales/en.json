@@ -1097,7 +1097,10 @@
           "text": "Uploading…"
         },
         "processing": {
-          "text": "Reading PDF…"
+          "text": "Processing…"
+        },
+        "processing_pages": {
+          "text": "Processing {count} {count, plural, one {page} other {pages}}…"
         },
         "viewing": {
           "text": "Viewing…"
@@ -4901,6 +4904,17 @@
         },
         "privacy_policy_link": {
           "text": "Groq Privacy Policy"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (Payment Processing)"
+        },
+        "description": {
+          "text": "We use Polar (US company) for payment processing for purchases made through the Polar Storefront in the web application. When you make a purchase, your payment card type, last 4 digits of your payment card, billing address, phone number, and email address are processed by Polar to complete the transaction securely."
+        },
+        "privacy_policy_link": {
+          "text": "Polar Privacy Policy"
         }
       },
       "security_measures": {

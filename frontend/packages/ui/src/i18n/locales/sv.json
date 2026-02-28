@@ -1091,7 +1091,10 @@
           "text": "Laddar upp…"
         },
         "processing": {
-          "text": "Läser PDF…"
+          "text": "Bearbetar…"
+        },
+        "processing_pages": {
+          "text": "Bearbetar {count} {count, plural, one {sida} other {sidor}}…"
         },
         "viewing": {
           "text": "Visas…"
@@ -3663,6 +3666,17 @@
         },
         "privacy_policy_link": {
           "text": "Groqs integritetspolicy"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (Betalningshantering)"
+        },
+        "description": {
+          "text": "Vi använder Polar (amerikanskt företag) för betalningshantering för köp som görs via Polar Storefront i webbapplikationen. När du gör ett köp bearbetar Polar betalkortstyp, de sista 4 siffrorna på ditt kort, faktureringsadress, telefonnummer och e-postadress för att slutföra transaktionen på ett säkert sätt."
+        },
+        "privacy_policy_link": {
+          "text": "Polars integritetspolicy"
         }
       },
       "security_measures": {

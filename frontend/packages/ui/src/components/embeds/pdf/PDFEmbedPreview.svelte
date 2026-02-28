@@ -148,7 +148,7 @@
     if (status === 'processing') {
       // Show page count if available ("Processing 3 pages…"), otherwise generic fallback
       if (pageCount && pageCount > 0) {
-        return $text('app_skills.pdf.view.processing_pages', { count: pageCount });
+        return $text('app_skills.pdf.view.processing_pages', { values: { count: pageCount } });
       }
       return $text('app_skills.pdf.view.processing');
     }

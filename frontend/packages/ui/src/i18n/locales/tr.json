@@ -1091,7 +1091,10 @@
           "text": "Yükleniyor…"
         },
         "processing": {
-          "text": "PDF okunuyor…"
+          "text": "İşleniyor…"
+        },
+        "processing_pages": {
+          "text": "{count} {count, plural, one {sayfa} other {sayfa}} işleniyor…"
         },
         "viewing": {
           "text": "Görüntüleniyor…"
@@ -3636,6 +3639,17 @@
         },
         "privacy_policy_link": {
           "text": "Groq Gizlilik Politikası"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (Ödeme İşleme)"
+        },
+        "description": {
+          "text": "Web uygulamasında Polar Storefront üzerinden yapılan satın alımlar için ödeme işleme amacıyla Polar (ABD şirketi) kullanıyoruz. Bir satın alma işlemi gerçekleştirdiğinizde, Polar işlemi güvenli bir şekilde tamamlamak için ödeme kartı türünüzü, kartınızın son 4 hanesini, fatura adresinizi, telefon numaranızı ve e-posta adresinizi işler."
+        },
+        "privacy_policy_link": {
+          "text": "Polar Gizlilik Politikası"
         }
       },
       "security_measures": {

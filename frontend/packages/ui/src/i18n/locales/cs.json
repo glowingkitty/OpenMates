@@ -1091,7 +1091,10 @@
           "text": "Nahrávání…"
         },
         "processing": {
-          "text": "Načítání PDF…"
+          "text": "Zpracování…"
+        },
+        "processing_pages": {
+          "text": "Zpracování {count} {count, plural, one {stránky} few {stránek} many {stránek} other {stránek}}…"
         },
         "viewing": {
           "text": "Prohlížení…"
@@ -3642,6 +3645,17 @@
         },
         "privacy_policy_link": {
           "text": "Zásady ochrany osobních údajů Groq"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (Zpracování plateb)"
+        },
+        "description": {
+          "text": "Používáme Polar (americká společnost) pro zpracování plateb za nákupy provedené prostřednictvím Polar Storefront v webové aplikaci. Při nákupu Polar zpracovává typ platební karty, poslední 4 číslice vaší karty, fakturační adresu, telefonní číslo a e-mailovou adresu pro bezpečné dokončení transakce."
+        },
+        "privacy_policy_link": {
+          "text": "Zásady ochrany osobních údajů Polar"
         }
       },
       "security_measures": {

@@ -1091,7 +1091,10 @@
           "text": "Uploaden…"
         },
         "processing": {
-          "text": "PDF lezen…"
+          "text": "Verwerken…"
+        },
+        "processing_pages": {
+          "text": "{count} {count, plural, one {pagina} other {pagina's}} verwerken…"
         },
         "viewing": {
           "text": "Bekijken…"
@@ -3636,6 +3639,17 @@
         },
         "privacy_policy_link": {
           "text": "Privacybeleid van Groq"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (Betalingsverwerking)"
+        },
+        "description": {
+          "text": "We gebruiken Polar (Amerikaans bedrijf) voor de verwerking van betalingen voor aankopen die via de Polar Storefront in de webapplicatie worden gedaan. Wanneer u een aankoop doet, verwerkt Polar het type betaalkaart, de laatste 4 cijfers van uw kaart, het factuuradres, het telefoonnummer en het e-mailadres om de transactie veilig te voltooien."
+        },
+        "privacy_policy_link": {
+          "text": "Privacybeleid van Polar"
         }
       },
       "security_measures": {

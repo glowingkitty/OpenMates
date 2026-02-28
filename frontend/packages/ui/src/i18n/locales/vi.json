@@ -1091,7 +1091,10 @@
           "text": "Đang tải lên…"
         },
         "processing": {
-          "text": "Đang đọc PDF…"
+          "text": "Đang xử lý…"
+        },
+        "processing_pages": {
+          "text": "Đang xử lý {count} {count, plural, one {trang} other {trang}}…"
         },
         "viewing": {
           "text": "Đang xem…"
@@ -3636,6 +3639,17 @@
         },
         "privacy_policy_link": {
           "text": "Chính sách Bảo mật của Groq"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (Xử lý Thanh toán)"
+        },
+        "description": {
+          "text": "Chúng tôi sử dụng Polar (công ty Hoa Kỳ) để xử lý thanh toán cho các giao dịch mua hàng thực hiện qua Polar Storefront trong ứng dụng web. Khi bạn thực hiện giao dịch mua hàng, Polar xử lý loại thẻ thanh toán, 4 chữ số cuối của thẻ, địa chỉ thanh toán, số điện thoại và địa chỉ email để hoàn tất giao dịch một cách an toàn."
+        },
+        "privacy_policy_link": {
+          "text": "Chính sách Bảo mật của Polar"
         }
       },
       "security_measures": {

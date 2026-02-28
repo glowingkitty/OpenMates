@@ -1091,7 +1091,10 @@
           "text": "Mengunggah…"
         },
         "processing": {
-          "text": "Membaca PDF…"
+          "text": "Memproses…"
+        },
+        "processing_pages": {
+          "text": "Memproses {count} {count, plural, one {halaman} other {halaman}}…"
         },
         "viewing": {
           "text": "Melihat…"
@@ -3636,6 +3639,17 @@
         },
         "privacy_policy_link": {
           "text": "Kebijakan Privasi Groq"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (Pemrosesan Pembayaran)"
+        },
+        "description": {
+          "text": "Kami menggunakan Polar (perusahaan AS) untuk pemrosesan pembayaran untuk pembelian yang dilakukan melalui Polar Storefront di aplikasi web. Saat Anda melakukan pembelian, Polar memproses jenis kartu pembayaran, 4 digit terakhir kartu Anda, alamat penagihan, nomor telepon, dan alamat email untuk menyelesaikan transaksi dengan aman."
+        },
+        "privacy_policy_link": {
+          "text": "Kebijakan Privasi Polar"
         }
       },
       "security_measures": {

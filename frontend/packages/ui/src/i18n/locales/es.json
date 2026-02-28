@@ -1091,7 +1091,10 @@
           "text": "Subiendo…"
         },
         "processing": {
-          "text": "Leyendo PDF…"
+          "text": "Procesando…"
+        },
+        "processing_pages": {
+          "text": "Procesando {count} {count, plural, one {página} other {páginas}}…"
         },
         "viewing": {
           "text": "Viendo…"
@@ -4546,6 +4549,17 @@
         },
         "privacy_policy_link": {
           "text": "Política de privacidad de Groq"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (Procesamiento de Pagos)"
+        },
+        "description": {
+          "text": "Utilizamos Polar (empresa estadounidense) para el procesamiento de pagos de compras realizadas a través de la Polar Storefront en la aplicación web. Cuando realiza una compra, Polar procesa el tipo de tarjeta de pago, los últimos 4 dígitos de su tarjeta, la dirección de facturación, el número de teléfono y el correo electrónico para completar la transacción de forma segura."
+        },
+        "privacy_policy_link": {
+          "text": "Política de privacidad de Polar"
         }
       },
       "security_measures": {

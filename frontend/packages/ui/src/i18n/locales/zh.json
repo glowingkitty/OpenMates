@@ -1091,7 +1091,10 @@
           "text": "上传中…"
         },
         "processing": {
-          "text": "正在读取PDF…"
+          "text": "处理中…"
+        },
+        "processing_pages": {
+          "text": "正在处理 {count} 页…"
         },
         "viewing": {
           "text": "查看中…"
@@ -4509,6 +4512,17 @@
         },
         "privacy_policy_link": {
           "text": "Groq 隐私政策"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar（支付处理）"
+        },
+        "description": {
+          "text": "我们使用 Polar（美国公司）处理通过 Web 应用程序中 Polar 商店进行的购买付款。当您进行购买时，Polar 会处理您的支付卡类型、支付卡末四位数字、账单地址、电话号码和电子邮件地址，以安全完成交易。"
+        },
+        "privacy_policy_link": {
+          "text": "Polar 隐私政策"
         }
       },
       "security_measures": {

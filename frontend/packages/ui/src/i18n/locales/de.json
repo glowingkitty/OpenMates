@@ -1091,7 +1091,10 @@
           "text": "Wird hochgeladen…"
         },
         "processing": {
-          "text": "PDF wird gelesen…"
+          "text": "Verarbeitung…"
+        },
+        "processing_pages": {
+          "text": "{count} {count, plural, one {Seite} other {Seiten}} werden verarbeitet…"
         },
         "viewing": {
           "text": "Wird angesehen…"
@@ -4706,6 +4709,17 @@
         },
         "privacy_policy_link": {
           "text": "Groq Datenschutzerklärung"
+        }
+      },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (Zahlungsabwicklung)"
+        },
+        "description": {
+          "text": "Wir verwenden Polar (US-Unternehmen) für die Zahlungsabwicklung von Käufen im Polar Storefront der Webanwendung. Wenn Sie einen Kauf tätigen, werden Ihr Kartentyp, die letzten 4 Ziffern Ihrer Zahlungskarte, Ihre Rechnungsadresse, Telefonnummer und E-Mail-Adresse von Polar zur sicheren Abwicklung der Transaktion verarbeitet."
+        },
+        "privacy_policy_link": {
+          "text": "Polar Datenschutzerklärung"
         }
       },
       "security_measures": {
