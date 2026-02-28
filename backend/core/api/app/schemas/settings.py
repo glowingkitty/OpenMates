@@ -205,3 +205,51 @@ class StorageOverviewResponse(BaseModel):
         default_factory=list,
         description="Storage usage broken down by file-type category."
     )
+
+
+# ─── Storage File Listing ──────────────────────────────────────────────────────
+
+class StorageFileItem(BaseModel):
+    """
+    A single uploaded file record as returned by GET /v1/settings/storage/files.
+
+    Represents one row in the upload_files Directus collection, enriched with
+    the category name derived from its MIME type.
+    """
+    id: str = Field(description="Directus UUID of the upload_files record (used for deletion)")
+    embed_id: str = Field(description="Embed UUID — used to construct the view URL (/v1/settings/storage/files/{embed_id}/view)")
+    original_filename: str = Field(description="Original filename as provided by the browser at upload time")
+    content_type: str = Field(description="Detected MIME type (e.g. 'image/jpeg', 'application/pdf')")
+    category: str = Field(description="Classified category: images, videos, audio, pdf, code, docs, sheets, archives, other")
+    file_size_bytes: int = Field(default=0, description="Pre-encryption file size in bytes")
+    variant_count: int = Field(default=1, description="Number of S3 variants stored (1 for PDF/audio, 3 for images)")
+    created_at: Optional[int] = Field(default=None, description="Unix timestamp (seconds) when the file was uploaded")
+
+
+class StorageFilesListResponse(BaseModel):
+    """Response for GET /v1/settings/storage/files."""
+    files: List[StorageFileItem] = Field(default_factory=list)
+    total_count: int = Field(default=0, description="Total number of files in the response (after category filter)")
+    total_bytes: int = Field(default=0, description="Total bytes for the files in the response")
+
+
+# ─── Storage File Deletion ─────────────────────────────────────────────────────
+
+class StorageDeleteFilesRequest(BaseModel):
+    """
+    Request body for DELETE /v1/settings/storage/files.
+
+    Three mutually-exclusive scopes:
+      - single:   Delete one file by its upload_files Directus ID.
+      - category: Delete all files matching a category name (images, pdf, etc.).
+      - all:      Delete every upload_files record for the current user.
+    """
+    scope: str = Field(description="Deletion scope: 'single', 'category', or 'all'")
+    file_id: Optional[str] = Field(default=None, description="Directus ID of the upload_files record (required when scope='single')")
+    category: Optional[str] = Field(default=None, description="Category name to delete (required when scope='category')")
+
+
+class StorageDeleteFilesResponse(BaseModel):
+    """Response for DELETE /v1/settings/storage/files."""
+    deleted_count: int = Field(default=0, description="Number of upload_files records deleted")
+    bytes_freed: int = Field(default=0, description="Total bytes freed (sum of file_size_bytes for deleted records)")

@@ -9465,6 +9465,42 @@
       },
       "storage_breakdown_title": {
         "text": "Breakdown by type"
+      },
+      "storage_files_title": {
+        "text": "Your Files"
+      },
+      "storage_files_loading": {
+        "text": "Loading files…"
+      },
+      "storage_files_empty": {
+        "text": "No files uploaded yet."
+      },
+      "storage_filter_all": {
+        "text": "All"
+      },
+      "storage_delete_file": {
+        "text": "Delete file"
+      },
+      "storage_delete_category": {
+        "text": "Delete all {category}"
+      },
+      "storage_delete_all": {
+        "text": "Delete all files"
+      },
+      "storage_delete_confirm_single": {
+        "text": "Delete {filename} ({size})? This cannot be undone."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Delete all {category} files ({count} files, {size})? This cannot be undone."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Delete all {count} files ({size})? This cannot be undone."
+      },
+      "storage_delete_success": {
+        "text": "{count} file(s) deleted ({size} freed)."
+      },
+      "storage_delete_error": {
+        "text": "Failed to delete files. Please try again."
       }
     }
   },

@@ -6677,6 +6677,42 @@
       },
       "storage_breakdown_title": {
         "text": "Rincian berdasarkan jenis"
+      },
+      "storage_files_title": {
+        "text": "File Anda"
+      },
+      "storage_files_loading": {
+        "text": "Memuat file…"
+      },
+      "storage_files_empty": {
+        "text": "Belum ada file yang diunggah."
+      },
+      "storage_filter_all": {
+        "text": "Semua"
+      },
+      "storage_delete_file": {
+        "text": "Hapus file"
+      },
+      "storage_delete_category": {
+        "text": "Hapus semua {category}"
+      },
+      "storage_delete_all": {
+        "text": "Hapus semua file"
+      },
+      "storage_delete_confirm_single": {
+        "text": "Hapus {filename} ({size})? Tindakan ini tidak dapat dibatalkan."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Hapus semua file {category} ({count} file, {size})? Tindakan ini tidak dapat dibatalkan."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Hapus semua {count} file ({size})? Tindakan ini tidak dapat dibatalkan."
+      },
+      "storage_delete_success": {
+        "text": "{count} file dihapus ({size} dibebaskan)."
+      },
+      "storage_delete_error": {
+        "text": "Gagal menghapus file. Silakan coba lagi."
       }
     }
   },

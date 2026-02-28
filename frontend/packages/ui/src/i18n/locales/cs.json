@@ -6683,6 +6683,42 @@
       },
       "storage_breakdown_title": {
         "text": "Rozdělení podle typu"
+      },
+      "storage_files_title": {
+        "text": "Vaše soubory"
+      },
+      "storage_files_loading": {
+        "text": "Načítání souborů…"
+      },
+      "storage_files_empty": {
+        "text": "Zatím nebyly nahrány žádné soubory."
+      },
+      "storage_filter_all": {
+        "text": "Vše"
+      },
+      "storage_delete_file": {
+        "text": "Smazat soubor"
+      },
+      "storage_delete_category": {
+        "text": "Smazat vše {category}"
+      },
+      "storage_delete_all": {
+        "text": "Smazat všechny soubory"
+      },
+      "storage_delete_confirm_single": {
+        "text": "Smazat {filename} ({size})? Tuto akci nelze vrátit zpět."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Smazat všechny soubory {category} ({count} souborů, {size})? Tuto akci nelze vrátit zpět."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Smazat všechny {count} soubory ({size})? Tuto akci nelze vrátit zpět."
+      },
+      "storage_delete_success": {
+        "text": "Smazáno {count} souborů ({size} uvolněno)."
+      },
+      "storage_delete_error": {
+        "text": "Nepodařilo se smazat soubory. Zkuste to prosím znovu."
       }
     }
   },

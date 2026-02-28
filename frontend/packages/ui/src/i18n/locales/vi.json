@@ -6677,6 +6677,42 @@
       },
       "storage_breakdown_title": {
         "text": "Phân loại theo loại"
+      },
+      "storage_files_title": {
+        "text": "Tệp của bạn"
+      },
+      "storage_files_loading": {
+        "text": "Đang tải tệp…"
+      },
+      "storage_files_empty": {
+        "text": "Chưa có tệp nào được tải lên."
+      },
+      "storage_filter_all": {
+        "text": "Tất cả"
+      },
+      "storage_delete_file": {
+        "text": "Xóa tệp"
+      },
+      "storage_delete_category": {
+        "text": "Xóa tất cả {category}"
+      },
+      "storage_delete_all": {
+        "text": "Xóa tất cả tệp"
+      },
+      "storage_delete_confirm_single": {
+        "text": "Xóa {filename} ({size})? Thao tác này không thể hoàn tác."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Xóa tất cả tệp {category} ({count} tệp, {size})? Thao tác này không thể hoàn tác."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Xóa tất cả {count} tệp ({size})? Thao tác này không thể hoàn tác."
+      },
+      "storage_delete_success": {
+        "text": "Đã xóa {count} tệp ({size} được giải phóng)."
+      },
+      "storage_delete_error": {
+        "text": "Không thể xóa tệp. Vui lòng thử lại."
       }
     }
   },

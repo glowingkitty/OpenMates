@@ -6677,6 +6677,42 @@
       },
       "storage_breakdown_title": {
         "text": "Detalhamento por tipo"
+      },
+      "storage_files_title": {
+        "text": "Seus arquivos"
+      },
+      "storage_files_loading": {
+        "text": "Carregando arquivos…"
+      },
+      "storage_files_empty": {
+        "text": "Nenhum arquivo enviado ainda."
+      },
+      "storage_filter_all": {
+        "text": "Todos"
+      },
+      "storage_delete_file": {
+        "text": "Excluir arquivo"
+      },
+      "storage_delete_category": {
+        "text": "Excluir todos {category}"
+      },
+      "storage_delete_all": {
+        "text": "Excluir todos os arquivos"
+      },
+      "storage_delete_confirm_single": {
+        "text": "Excluir {filename} ({size})? Isso não pode ser desfeito."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Excluir todos os arquivos {category} ({count} arquivos, {size})? Isso não pode ser desfeito."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Excluir todos os {count} arquivos ({size})? Isso não pode ser desfeito."
+      },
+      "storage_delete_success": {
+        "text": "{count} arquivo(s) excluído(s) ({size} liberado)."
+      },
+      "storage_delete_error": {
+        "text": "Falha ao excluir arquivos. Por favor, tente novamente."
       }
     }
   },

@@ -9057,6 +9057,42 @@
       },
       "storage_breakdown_title": {
         "text": "Aufschlüsselung nach Typ"
+      },
+      "storage_files_title": {
+        "text": "Deine Dateien"
+      },
+      "storage_files_loading": {
+        "text": "Dateien werden geladen…"
+      },
+      "storage_files_empty": {
+        "text": "Noch keine Dateien hochgeladen."
+      },
+      "storage_filter_all": {
+        "text": "Alle"
+      },
+      "storage_delete_file": {
+        "text": "Datei löschen"
+      },
+      "storage_delete_category": {
+        "text": "Alle {category} löschen"
+      },
+      "storage_delete_all": {
+        "text": "Alle Dateien löschen"
+      },
+      "storage_delete_confirm_single": {
+        "text": "{filename} ({size}) löschen? Dies kann nicht rückgängig gemacht werden."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Alle {category}-Dateien ({count} Dateien, {size}) löschen? Dies kann nicht rückgängig gemacht werden."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Alle {count} Dateien ({size}) löschen? Dies kann nicht rückgängig gemacht werden."
+      },
+      "storage_delete_success": {
+        "text": "{count} Datei(en) gelöscht ({size} freigegeben)."
+      },
+      "storage_delete_error": {
+        "text": "Fehler beim Löschen der Dateien. Bitte versuche es erneut."
       }
     }
   },

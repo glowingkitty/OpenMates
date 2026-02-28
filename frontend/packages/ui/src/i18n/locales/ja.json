@@ -8049,6 +8049,42 @@
       },
       "storage_breakdown_title": {
         "text": "タイプ別内訳"
+      },
+      "storage_files_title": {
+        "text": "あなたのファイル"
+      },
+      "storage_files_loading": {
+        "text": "ファイルを読み込み中…"
+      },
+      "storage_files_empty": {
+        "text": "まだファイルがアップロードされていません。"
+      },
+      "storage_filter_all": {
+        "text": "すべて"
+      },
+      "storage_delete_file": {
+        "text": "ファイルを削除"
+      },
+      "storage_delete_category": {
+        "text": "すべての{category}を削除"
+      },
+      "storage_delete_all": {
+        "text": "すべてのファイルを削除"
+      },
+      "storage_delete_confirm_single": {
+        "text": "{filename}（{size}）を削除しますか？この操作は元に戻せません。"
+      },
+      "storage_delete_confirm_category": {
+        "text": "すべての{category}ファイル（{count}件、{size}）を削除しますか？この操作は元に戻せません。"
+      },
+      "storage_delete_confirm_all": {
+        "text": "すべての{count}件のファイル（{size}）を削除しますか？この操作は元に戻せません。"
+      },
+      "storage_delete_success": {
+        "text": "{count}件のファイルを削除しました（{size}解放）。"
+      },
+      "storage_delete_error": {
+        "text": "ファイルの削除に失敗しました。もう一度お試しください。"
       }
     }
   },

@@ -527,3 +527,279 @@ storage_breakdown_title:
   cs: Rozdělení podle typu
   sv: Uppdelning efter typ
   verified_by_human: []
+storage_files_title:
+  context: Section heading for the uploaded files list in storage settings
+  en: Your Files
+  de: Deine Dateien
+  zh: 你的文件
+  es: Tus archivos
+  fr: Vos fichiers
+  pt: Seus arquivos
+  ru: Ваши файлы
+  ja: あなたのファイル
+  ko: 내 파일
+  it: I tuoi file
+  tr: Dosyalarınız
+  vi: Tệp của bạn
+  id: File Anda
+  pl: Twoje pliki
+  nl: Jouw bestanden
+  ar: ملفاتك
+  hi: आपकी फ़ाइलें
+  th: ไฟล์ของคุณ
+  cs: Vaše soubory
+  sv: Dina filer
+  verified_by_human: []
+storage_files_loading:
+  context: Loading spinner text while fetching the file list for a selected category
+  en: Loading files…
+  de: Dateien werden geladen…
+  zh: 正在加载文件…
+  es: Cargando archivos…
+  fr: Chargement des fichiers…
+  pt: Carregando arquivos…
+  ru: Загрузка файлов…
+  ja: ファイルを読み込み中…
+  ko: 파일 불러오는 중…
+  it: Caricamento file…
+  tr: Dosyalar yükleniyor…
+  vi: Đang tải tệp…
+  id: Memuat file…
+  pl: Ładowanie plików…
+  nl: Bestanden laden…
+  ar: جارٍ تحميل الملفات…
+  hi: फ़ाइलें लोड हो रही हैं…
+  th: กำลังโหลดไฟล์…
+  cs: Načítání souborů…
+  sv: Läser in filer…
+  verified_by_human: []
+storage_files_empty:
+  context: Message shown when the user has no uploaded files in the selected category
+  en: No files uploaded yet.
+  de: Noch keine Dateien hochgeladen.
+  zh: 尚未上传任何文件。
+  es: Aún no hay archivos subidos.
+  fr: Aucun fichier téléversé pour l'instant.
+  pt: Nenhum arquivo enviado ainda.
+  ru: Файлы ещё не загружены.
+  ja: まだファイルがアップロードされていません。
+  ko: 아직 업로드된 파일이 없습니다.
+  it: Nessun file caricato.
+  tr: Henüz dosya yüklenmedi.
+  vi: Chưa có tệp nào được tải lên.
+  id: Belum ada file yang diunggah.
+  pl: Nie przesłano jeszcze żadnych plików.
+  nl: Er zijn nog geen bestanden geüpload.
+  ar: لم يتم رفع أي ملفات بعد.
+  hi: अभी तक कोई फ़ाइल अपलोड नहीं की गई।
+  th: ยังไม่มีไฟล์ที่อัปโหลด
+  cs: Zatím nebyly nahrány žádné soubory.
+  sv: Inga filer uppladdade ännu.
+  verified_by_human: []
+storage_filter_all:
+  context: Label for the "All" tab in the file type filter row (shows all file types)
+  en: All
+  de: Alle
+  zh: 全部
+  es: Todo
+  fr: Tout
+  pt: Todos
+  ru: Все
+  ja: すべて
+  ko: 전체
+  it: Tutto
+  tr: Tümü
+  vi: Tất cả
+  id: Semua
+  pl: Wszystkie
+  nl: Alles
+  ar: الكل
+  hi: सभी
+  th: ทั้งหมด
+  cs: Vše
+  sv: Alla
+  verified_by_human: []
+storage_delete_file:
+  context: Accessible label for the delete button on an individual file row
+  en: Delete file
+  de: Datei löschen
+  zh: 删除文件
+  es: Eliminar archivo
+  fr: Supprimer le fichier
+  pt: Excluir arquivo
+  ru: Удалить файл
+  ja: ファイルを削除
+  ko: 파일 삭제
+  it: Elimina file
+  tr: Dosyayı sil
+  vi: Xóa tệp
+  id: Hapus file
+  pl: Usuń plik
+  nl: Bestand verwijderen
+  ar: حذف الملف
+  hi: फ़ाइल हटाएं
+  th: ลบไฟล์
+  cs: Smazat soubor
+  sv: Radera fil
+  verified_by_human: []
+storage_delete_category:
+  context: Button label for deleting all files in the currently selected category. {category} is the localised category name (e.g. "Images").
+  en: Delete all {category}
+  de: Alle {category} löschen
+  zh: 删除所有{category}
+  es: Eliminar todos {category}
+  fr: Tout supprimer {category}
+  pt: Excluir todos {category}
+  ru: Удалить все {category}
+  ja: すべての{category}を削除
+  ko: 모든 {category} 삭제
+  it: Elimina tutti {category}
+  tr: Tüm {category} sil
+  vi: Xóa tất cả {category}
+  id: Hapus semua {category}
+  pl: Usuń wszystkie {category}
+  nl: Alles verwijderen {category}
+  ar: حذف كل {category}
+  hi: सभी {category} हटाएं
+  th: ลบทั้งหมด {category}
+  cs: Smazat vše {category}
+  sv: Radera alla {category}
+  verified_by_human: []
+storage_delete_all:
+  context: Button label for deleting ALL uploaded files regardless of type
+  en: Delete all files
+  de: Alle Dateien löschen
+  zh: 删除所有文件
+  es: Eliminar todos los archivos
+  fr: Supprimer tous les fichiers
+  pt: Excluir todos os arquivos
+  ru: Удалить все файлы
+  ja: すべてのファイルを削除
+  ko: 모든 파일 삭제
+  it: Elimina tutti i file
+  tr: Tüm dosyaları sil
+  vi: Xóa tất cả tệp
+  id: Hapus semua file
+  pl: Usuń wszystkie pliki
+  nl: Alle bestanden verwijderen
+  ar: حذف جميع الملفات
+  hi: सभी फ़ाइलें हटाएं
+  th: ลบไฟล์ทั้งหมด
+  cs: Smazat všechny soubory
+  sv: Radera alla filer
+  verified_by_human: []
+storage_delete_confirm_single:
+  context: Confirmation dialog text when deleting a single file. {filename} is the file name, {size} is the formatted size (e.g. "2.5 MB").
+  en: Delete {filename} ({size})? This cannot be undone.
+  de: "{filename} ({size}) löschen? Dies kann nicht rückgängig gemacht werden."
+  zh: 删除{filename}（{size}）？此操作无法撤销。
+  es: "¿Eliminar {filename} ({size})? Esto no se puede deshacer."
+  fr: "Supprimer {filename} ({size}) ? Cette action est irréversible."
+  pt: "Excluir {filename} ({size})? Isso não pode ser desfeito."
+  ru: Удалить {filename} ({size})? Это действие нельзя отменить.
+  ja: "{filename}（{size}）を削除しますか？この操作は元に戻せません。"
+  ko: "{filename} ({size})을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+  it: "Eliminare {filename} ({size})? Questa azione non può essere annullata."
+  tr: "{filename} ({size}) silinsin mi? Bu işlem geri alınamaz."
+  vi: "Xóa {filename} ({size})? Thao tác này không thể hoàn tác."
+  id: "Hapus {filename} ({size})? Tindakan ini tidak dapat dibatalkan."
+  pl: "Usunąć {filename} ({size})? Tej operacji nie można cofnąć."
+  nl: "{filename} ({size}) verwijderen? Dit kan niet ongedaan worden gemaakt."
+  ar: "حذف {filename} ({size})؟ لا يمكن التراجع عن هذا الإجراء."
+  hi: "{filename} ({size}) हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
+  th: ลบ {filename} ({size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้
+  cs: "Smazat {filename} ({size})? Tuto akci nelze vrátit zpět."
+  sv: "Radera {filename} ({size})? Det går inte att ångra."
+  verified_by_human: []
+storage_delete_confirm_category:
+  context: Confirmation dialog text when deleting all files in a category. {category} is the category name, {count} is the number of files, {size} is total formatted size.
+  en: Delete all {category} files ({count} files, {size})? This cannot be undone.
+  de: "Alle {category}-Dateien ({count} Dateien, {size}) löschen? Dies kann nicht rückgängig gemacht werden."
+  zh: 删除所有{category}文件（{count}个文件，{size}）？此操作无法撤销。
+  es: "¿Eliminar todos los archivos de {category} ({count} archivos, {size})? Esto no se puede deshacer."
+  fr: "Supprimer tous les fichiers {category} ({count} fichiers, {size}) ? Cette action est irréversible."
+  pt: "Excluir todos os arquivos {category} ({count} arquivos, {size})? Isso não pode ser desfeito."
+  ru: "Удалить все файлы {category} ({count} файлов, {size})? Это действие нельзя отменить."
+  ja: "すべての{category}ファイル（{count}件、{size}）を削除しますか？この操作は元に戻せません。"
+  ko: "모든 {category} 파일 ({count}개, {size})을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+  it: "Eliminare tutti i file {category} ({count} file, {size})? Questa azione non può essere annullata."
+  tr: "Tüm {category} dosyaları ({count} dosya, {size}) silinsin mi? Bu işlem geri alınamaz."
+  vi: "Xóa tất cả tệp {category} ({count} tệp, {size})? Thao tác này không thể hoàn tác."
+  id: "Hapus semua file {category} ({count} file, {size})? Tindakan ini tidak dapat dibatalkan."
+  pl: "Usunąć wszystkie pliki {category} ({count} pliki, {size})? Tej operacji nie można cofnąć."
+  nl: "Alle {category}-bestanden ({count} bestanden, {size}) verwijderen? Dit kan niet ongedaan worden gemaakt."
+  ar: "حذف جميع ملفات {category} ({count} ملفات، {size})؟ لا يمكن التراجع عن هذا الإجراء."
+  hi: "सभी {category} फ़ाइलें ({count} फ़ाइलें, {size}) हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
+  th: ลบไฟล์ {category} ทั้งหมด ({count} ไฟล์, {size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้
+  cs: "Smazat všechny soubory {category} ({count} souborů, {size})? Tuto akci nelze vrátit zpět."
+  sv: "Radera alla {category}-filer ({count} filer, {size})? Det går inte att ångra."
+  verified_by_human: []
+storage_delete_confirm_all:
+  context: Confirmation dialog text when deleting ALL files. {count} is total file count, {size} is total formatted size.
+  en: Delete all {count} files ({size})? This cannot be undone.
+  de: "Alle {count} Dateien ({size}) löschen? Dies kann nicht rückgängig gemacht werden."
+  zh: 删除所有{count}个文件（{size}）？此操作无法撤销。
+  es: "¿Eliminar todos los {count} archivos ({size})? Esto no se puede deshacer."
+  fr: "Supprimer les {count} fichiers ({size}) ? Cette action est irréversible."
+  pt: "Excluir todos os {count} arquivos ({size})? Isso não pode ser desfeito."
+  ru: "Удалить все {count} файлов ({size})? Это действие нельзя отменить."
+  ja: "すべての{count}件のファイル（{size}）を削除しますか？この操作は元に戻せません。"
+  ko: "모든 {count}개 파일 ({size})을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+  it: "Eliminare tutti i {count} file ({size})? Questa azione non può essere annullata."
+  tr: "Tüm {count} dosya ({size}) silinsin mi? Bu işlem geri alınamaz."
+  vi: "Xóa tất cả {count} tệp ({size})? Thao tác này không thể hoàn tác."
+  id: "Hapus semua {count} file ({size})? Tindakan ini tidak dapat dibatalkan."
+  pl: "Usunąć wszystkie {count} pliki ({size})? Tej operacji nie można cofnąć."
+  nl: "Alle {count} bestanden ({size}) verwijderen? Dit kan niet ongedaan worden gemaakt."
+  ar: "حذف جميع الملفات {count} ({size})؟ لا يمكن التراجع عن هذا الإجراء."
+  hi: "सभी {count} फ़ाइलें ({size}) हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
+  th: ลบไฟล์ทั้งหมด {count} ไฟล์ ({size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้
+  cs: "Smazat všechny {count} soubory ({size})? Tuto akci nelze vrátit zpět."
+  sv: "Radera alla {count} filer ({size})? Det går inte att ångra."
+  verified_by_human: []
+storage_delete_success:
+  context: Success message after deleting files. {count} is number deleted, {size} is bytes freed formatted.
+  en: "{count} file(s) deleted ({size} freed)."
+  de: "{count} Datei(en) gelöscht ({size} freigegeben)."
+  zh: 已删除{count}个文件（释放{size}）。
+  es: "{count} archivo(s) eliminado(s) ({size} liberado)."
+  fr: "{count} fichier(s) supprimé(s) ({size} libéré(s))."
+  pt: "{count} arquivo(s) excluído(s) ({size} liberado)."
+  ru: "Удалено {count} файл(ов) (освобождено {size})."
+  ja: "{count}件のファイルを削除しました（{size}解放）。"
+  ko: "{count}개의 파일이 삭제되었습니다 ({size} 확보)."
+  it: "{count} file eliminati ({size} liberati)."
+  tr: "{count} dosya silindi ({size} boşaltıldı)."
+  vi: "Đã xóa {count} tệp ({size} được giải phóng)."
+  id: "{count} file dihapus ({size} dibebaskan)."
+  pl: "Usunięto {count} plik(ów) ({size} zwolnione)."
+  nl: "{count} bestand(en) verwijderd ({size} vrijgemaakt)."
+  ar: "تم حذف {count} ملف ({size} محرر)."
+  hi: "{count} फ़ाइल(ें) हटाई गईं ({size} मुक्त)।"
+  th: "ลบ {count} ไฟล์แล้ว ({size} ว่างขึ้น)"
+  cs: "Smazáno {count} souborů ({size} uvolněno)."
+  sv: "{count} fil(er) raderades ({size} frigjordes)."
+  verified_by_human: []
+storage_delete_error:
+  context: Error message when file deletion fails
+  en: Failed to delete files. Please try again.
+  de: Fehler beim Löschen der Dateien. Bitte versuche es erneut.
+  zh: 删除文件失败，请重试。
+  es: Error al eliminar archivos. Por favor, inténtalo de nuevo.
+  fr: Échec de la suppression des fichiers. Veuillez réessayer.
+  pt: Falha ao excluir arquivos. Por favor, tente novamente.
+  ru: Не удалось удалить файлы. Пожалуйста, попробуйте снова.
+  ja: ファイルの削除に失敗しました。もう一度お試しください。
+  ko: 파일 삭제에 실패했습니다. 다시 시도하세요.
+  it: Eliminazione dei file non riuscita. Riprova.
+  tr: Dosyalar silinemedi. Lütfen tekrar deneyin.
+  vi: Không thể xóa tệp. Vui lòng thử lại.
+  id: Gagal menghapus file. Silakan coba lagi.
+  pl: Nie udało się usunąć plików. Spróbuj ponownie.
+  nl: Verwijderen van bestanden mislukt. Probeer het opnieuw.
+  ar: فشل حذف الملفات. يرجى المحاولة مرة أخرى.
+  hi: फ़ाइलें हटाने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถลบไฟล์ได้ กรุณาลองอีกครั้ง
+  cs: Nepodařilo se smazat soubory. Zkuste to prosím znovu.
+  sv: Det gick inte att radera filerna. Försök igen.
+  verified_by_human: []

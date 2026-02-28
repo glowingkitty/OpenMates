@@ -6680,6 +6680,42 @@
       },
       "storage_breakdown_title": {
         "text": "Suddivisione per tipo"
+      },
+      "storage_files_title": {
+        "text": "I tuoi file"
+      },
+      "storage_files_loading": {
+        "text": "Caricamento file…"
+      },
+      "storage_files_empty": {
+        "text": "Nessun file caricato."
+      },
+      "storage_filter_all": {
+        "text": "Tutto"
+      },
+      "storage_delete_file": {
+        "text": "Elimina file"
+      },
+      "storage_delete_category": {
+        "text": "Elimina tutti {category}"
+      },
+      "storage_delete_all": {
+        "text": "Elimina tutti i file"
+      },
+      "storage_delete_confirm_single": {
+        "text": "Eliminare {filename} ({size})? Questa azione non può essere annullata."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Eliminare tutti i file {category} ({count} file, {size})? Questa azione non può essere annullata."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Eliminare tutti i {count} file ({size})? Questa azione non può essere annullata."
+      },
+      "storage_delete_success": {
+        "text": "{count} file eliminati ({size} liberati)."
+      },
+      "storage_delete_error": {
+        "text": "Eliminazione dei file non riuscita. Riprova."
       }
     }
   },

@@ -6677,6 +6677,42 @@
       },
       "storage_breakdown_title": {
         "text": "Podział według typu"
+      },
+      "storage_files_title": {
+        "text": "Twoje pliki"
+      },
+      "storage_files_loading": {
+        "text": "Ładowanie plików…"
+      },
+      "storage_files_empty": {
+        "text": "Nie przesłano jeszcze żadnych plików."
+      },
+      "storage_filter_all": {
+        "text": "Wszystkie"
+      },
+      "storage_delete_file": {
+        "text": "Usuń plik"
+      },
+      "storage_delete_category": {
+        "text": "Usuń wszystkie {category}"
+      },
+      "storage_delete_all": {
+        "text": "Usuń wszystkie pliki"
+      },
+      "storage_delete_confirm_single": {
+        "text": "Usunąć {filename} ({size})? Tej operacji nie można cofnąć."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Usunąć wszystkie pliki {category} ({count} pliki, {size})? Tej operacji nie można cofnąć."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Usunąć wszystkie {count} pliki ({size})? Tej operacji nie można cofnąć."
+      },
+      "storage_delete_success": {
+        "text": "Usunięto {count} plik(ów) ({size} zwolnione)."
+      },
+      "storage_delete_error": {
+        "text": "Nie udało się usunąć plików. Spróbuj ponownie."
       }
     }
   },

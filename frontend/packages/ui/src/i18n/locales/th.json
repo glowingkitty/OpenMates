@@ -6683,6 +6683,42 @@
       },
       "storage_breakdown_title": {
         "text": "แยกตามประเภท"
+      },
+      "storage_files_title": {
+        "text": "ไฟล์ของคุณ"
+      },
+      "storage_files_loading": {
+        "text": "กำลังโหลดไฟล์…"
+      },
+      "storage_files_empty": {
+        "text": "ยังไม่มีไฟล์ที่อัปโหลด"
+      },
+      "storage_filter_all": {
+        "text": "ทั้งหมด"
+      },
+      "storage_delete_file": {
+        "text": "ลบไฟล์"
+      },
+      "storage_delete_category": {
+        "text": "ลบทั้งหมด {category}"
+      },
+      "storage_delete_all": {
+        "text": "ลบไฟล์ทั้งหมด"
+      },
+      "storage_delete_confirm_single": {
+        "text": "ลบ {filename} ({size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้"
+      },
+      "storage_delete_confirm_category": {
+        "text": "ลบไฟล์ {category} ทั้งหมด ({count} ไฟล์, {size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้"
+      },
+      "storage_delete_confirm_all": {
+        "text": "ลบไฟล์ทั้งหมด {count} ไฟล์ ({size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้"
+      },
+      "storage_delete_success": {
+        "text": "ลบ {count} ไฟล์แล้ว ({size} ว่างขึ้น)"
+      },
+      "storage_delete_error": {
+        "text": "ไม่สามารถลบไฟล์ได้ กรุณาลองอีกครั้ง"
       }
     }
   },

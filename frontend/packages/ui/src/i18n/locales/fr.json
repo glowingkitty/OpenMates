@@ -8151,6 +8151,42 @@
       },
       "storage_breakdown_title": {
         "text": "Répartition par type"
+      },
+      "storage_files_title": {
+        "text": "Vos fichiers"
+      },
+      "storage_files_loading": {
+        "text": "Chargement des fichiers…"
+      },
+      "storage_files_empty": {
+        "text": "Aucun fichier téléversé pour l'instant."
+      },
+      "storage_filter_all": {
+        "text": "Tout"
+      },
+      "storage_delete_file": {
+        "text": "Supprimer le fichier"
+      },
+      "storage_delete_category": {
+        "text": "Tout supprimer {category}"
+      },
+      "storage_delete_all": {
+        "text": "Supprimer tous les fichiers"
+      },
+      "storage_delete_confirm_single": {
+        "text": "Supprimer {filename} ({size}) ? Cette action est irréversible."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Supprimer tous les fichiers {category} ({count} fichiers, {size}) ? Cette action est irréversible."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Supprimer les {count} fichiers ({size}) ? Cette action est irréversible."
+      },
+      "storage_delete_success": {
+        "text": "{count} fichier(s) supprimé(s) ({size} libéré(s))."
+      },
+      "storage_delete_error": {
+        "text": "Échec de la suppression des fichiers. Veuillez réessayer."
       }
     }
   },

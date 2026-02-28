@@ -8206,6 +8206,42 @@
       },
       "storage_breakdown_title": {
         "text": "Desglose por tipo"
+      },
+      "storage_files_title": {
+        "text": "Tus archivos"
+      },
+      "storage_files_loading": {
+        "text": "Cargando archivos…"
+      },
+      "storage_files_empty": {
+        "text": "Aún no hay archivos subidos."
+      },
+      "storage_filter_all": {
+        "text": "Todo"
+      },
+      "storage_delete_file": {
+        "text": "Eliminar archivo"
+      },
+      "storage_delete_category": {
+        "text": "Eliminar todos {category}"
+      },
+      "storage_delete_all": {
+        "text": "Eliminar todos los archivos"
+      },
+      "storage_delete_confirm_single": {
+        "text": "¿Eliminar {filename} ({size})? Esto no se puede deshacer."
+      },
+      "storage_delete_confirm_category": {
+        "text": "¿Eliminar todos los archivos de {category} ({count} archivos, {size})? Esto no se puede deshacer."
+      },
+      "storage_delete_confirm_all": {
+        "text": "¿Eliminar todos los {count} archivos ({size})? Esto no se puede deshacer."
+      },
+      "storage_delete_success": {
+        "text": "{count} archivo(s) eliminado(s) ({size} liberado)."
+      },
+      "storage_delete_error": {
+        "text": "Error al eliminar archivos. Por favor, inténtalo de nuevo."
       }
     }
   },

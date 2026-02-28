@@ -6677,6 +6677,42 @@
       },
       "storage_breakdown_title": {
         "text": "Türe göre dağılım"
+      },
+      "storage_files_title": {
+        "text": "Dosyalarınız"
+      },
+      "storage_files_loading": {
+        "text": "Dosyalar yükleniyor…"
+      },
+      "storage_files_empty": {
+        "text": "Henüz dosya yüklenmedi."
+      },
+      "storage_filter_all": {
+        "text": "Tümü"
+      },
+      "storage_delete_file": {
+        "text": "Dosyayı sil"
+      },
+      "storage_delete_category": {
+        "text": "Tüm {category} sil"
+      },
+      "storage_delete_all": {
+        "text": "Tüm dosyaları sil"
+      },
+      "storage_delete_confirm_single": {
+        "text": "{filename} ({size}) silinsin mi? Bu işlem geri alınamaz."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Tüm {category} dosyaları ({count} dosya, {size}) silinsin mi? Bu işlem geri alınamaz."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Tüm {count} dosya ({size}) silinsin mi? Bu işlem geri alınamaz."
+      },
+      "storage_delete_success": {
+        "text": "{count} dosya silindi ({size} boşaltıldı)."
+      },
+      "storage_delete_error": {
+        "text": "Dosyalar silinemedi. Lütfen tekrar deneyin."
       }
     }
   },

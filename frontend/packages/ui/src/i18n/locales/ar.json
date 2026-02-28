@@ -7643,6 +7643,42 @@
       },
       "storage_breakdown_title": {
         "text": "التقسيم حسب النوع"
+      },
+      "storage_files_title": {
+        "text": "ملفاتك"
+      },
+      "storage_files_loading": {
+        "text": "جارٍ تحميل الملفات…"
+      },
+      "storage_files_empty": {
+        "text": "لم يتم رفع أي ملفات بعد."
+      },
+      "storage_filter_all": {
+        "text": "الكل"
+      },
+      "storage_delete_file": {
+        "text": "حذف الملف"
+      },
+      "storage_delete_category": {
+        "text": "حذف كل {category}"
+      },
+      "storage_delete_all": {
+        "text": "حذف جميع الملفات"
+      },
+      "storage_delete_confirm_single": {
+        "text": "حذف {filename} ({size})؟ لا يمكن التراجع عن هذا الإجراء."
+      },
+      "storage_delete_confirm_category": {
+        "text": "حذف جميع ملفات {category} ({count} ملفات، {size})؟ لا يمكن التراجع عن هذا الإجراء."
+      },
+      "storage_delete_confirm_all": {
+        "text": "حذف جميع الملفات {count} ({size})؟ لا يمكن التراجع عن هذا الإجراء."
+      },
+      "storage_delete_success": {
+        "text": "تم حذف {count} ملف ({size} محرر)."
+      },
+      "storage_delete_error": {
+        "text": "فشل حذف الملفات. يرجى المحاولة مرة أخرى."
       }
     }
   },

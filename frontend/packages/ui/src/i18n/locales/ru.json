@@ -6677,6 +6677,42 @@
       },
       "storage_breakdown_title": {
         "text": "Разбивка по типу"
+      },
+      "storage_files_title": {
+        "text": "Ваши файлы"
+      },
+      "storage_files_loading": {
+        "text": "Загрузка файлов…"
+      },
+      "storage_files_empty": {
+        "text": "Файлы ещё не загружены."
+      },
+      "storage_filter_all": {
+        "text": "Все"
+      },
+      "storage_delete_file": {
+        "text": "Удалить файл"
+      },
+      "storage_delete_category": {
+        "text": "Удалить все {category}"
+      },
+      "storage_delete_all": {
+        "text": "Удалить все файлы"
+      },
+      "storage_delete_confirm_single": {
+        "text": "Удалить {filename} ({size})? Это действие нельзя отменить."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Удалить все файлы {category} ({count} файлов, {size})? Это действие нельзя отменить."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Удалить все {count} файлов ({size})? Это действие нельзя отменить."
+      },
+      "storage_delete_success": {
+        "text": "Удалено {count} файл(ов) (освобождено {size})."
+      },
+      "storage_delete_error": {
+        "text": "Не удалось удалить файлы. Пожалуйста, попробуйте снова."
       }
     }
   },

@@ -6677,6 +6677,42 @@
       },
       "storage_breakdown_title": {
         "text": "प्रकार के अनुसार विभाजन"
+      },
+      "storage_files_title": {
+        "text": "आपकी फ़ाइलें"
+      },
+      "storage_files_loading": {
+        "text": "फ़ाइलें लोड हो रही हैं…"
+      },
+      "storage_files_empty": {
+        "text": "अभी तक कोई फ़ाइल अपलोड नहीं की गई।"
+      },
+      "storage_filter_all": {
+        "text": "सभी"
+      },
+      "storage_delete_file": {
+        "text": "फ़ाइल हटाएं"
+      },
+      "storage_delete_category": {
+        "text": "सभी {category} हटाएं"
+      },
+      "storage_delete_all": {
+        "text": "सभी फ़ाइलें हटाएं"
+      },
+      "storage_delete_confirm_single": {
+        "text": "{filename} ({size}) हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
+      },
+      "storage_delete_confirm_category": {
+        "text": "सभी {category} फ़ाइलें ({count} फ़ाइलें, {size}) हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
+      },
+      "storage_delete_confirm_all": {
+        "text": "सभी {count} फ़ाइलें ({size}) हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
+      },
+      "storage_delete_success": {
+        "text": "{count} फ़ाइल(ें) हटाई गईं ({size} मुक्त)।"
+      },
+      "storage_delete_error": {
+        "text": "फ़ाइलें हटाने में विफल। कृपया पुनः प्रयास करें।"
       }
     }
   },

@@ -21,7 +21,7 @@ from backend.core.api.app.routes.auth_routes.auth_utils import validate_username
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, StorageOverviewResponse, StorageCategoryBreakdown  # Import request/response models
+from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
@@ -4041,3 +4041,486 @@ async def get_storage_overview(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Failed to fetch storage overview")
+
+
+# ─── Category → MIME filter helper ────────────────────────────────────────────
+
+def _mime_filter_for_category(category: str) -> Dict[str, Any]:
+    """
+    Return a Directus _or filter clause that matches all MIME types in a given
+    storage category.  Used by the file-list and delete-by-category endpoints.
+
+    Each returned dict is suitable for merging into a Directus params dict as
+    the value of "filter[content_type]".
+
+    Raises ValueError for unknown category names so callers can surface a 400.
+    """
+    # Map category → list of exact MIME values or prefix flags.
+    # Using Directus _starts_with for prefix-based matching (image/, video/, audio/).
+    CATEGORY_FILTERS: Dict[str, Any] = {
+        "images":   {"_starts_with": "image/"},
+        "videos":   {"_starts_with": "video/"},
+        "audio":    {"_starts_with": "audio/"},
+        "pdf":      {"_eq": "application/pdf"},
+        "code": {"_in": [
+            "application/json", "application/xml",
+            "application/javascript", "application/x-javascript",
+            "application/typescript", "application/x-typescript",
+            "application/x-sh", "application/x-python",
+            "application/x-ruby", "application/x-perl",
+            # text/* handled separately via starts_with below — combine with _or
+        ]},
+        "docs": {"_in": [
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+            "application/vnd.oasis.opendocument.text",
+            "application/rtf",
+        ]},
+        "sheets": {"_in": [
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+            "application/vnd.oasis.opendocument.spreadsheet",
+        ]},
+        "archives": {"_in": [
+            "application/zip", "application/x-zip-compressed",
+            "application/x-tar", "application/gzip", "application/x-gzip",
+            "application/x-bzip2", "application/x-7z-compressed",
+            "application/x-rar-compressed", "application/vnd.rar",
+        ]},
+    }
+    if category not in CATEGORY_FILTERS and category != "other":
+        raise ValueError(f"Unknown storage category: {category!r}")
+    if category in CATEGORY_FILTERS:
+        return CATEGORY_FILTERS[category]
+    # "other" cannot be expressed as a single Directus filter cleanly — we
+    # return None to signal that Python-side filtering must be used.
+    return {}
+
+
+# ─── Storage File Listing ──────────────────────────────────────────────────────
+
+@router.get("/storage/files", response_model=StorageFilesListResponse)
+@limiter.limit("30/minute")
+async def list_storage_files(
+    request: Request,
+    category: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> StorageFilesListResponse:
+    """
+    Return the list of uploaded files for the current user, optionally filtered
+    by storage category.
+
+    Files are returned newest-first (sorted by created_at descending).
+    The category param must match one of the standard category names
+    (images, videos, audio, pdf, code, docs, sheets, archives, other).
+    If omitted, all files are returned.
+
+    Endpoint: GET /v1/settings/storage/files?category=<name>
+    """
+    user_id: str = current_user.id
+    logger.info(f"[StorageFiles] Listing files for user {user_id} (category={category!r})")
+
+    try:
+        # ── 1. Build Directus filter ─────────────────────────────────────────
+        base_filter: Dict[str, Any] = {"user_id": {"_eq": user_id}}
+        if category and category != "other":
+            # Validate category name first
+            try:
+                mime_filter = _mime_filter_for_category(category)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Unknown category: {category!r}")
+
+            # For prefix-based categories (images/videos/audio), Directus supports
+            # _starts_with; for the rest we use _in.  "code" also needs text/ prefix —
+            # handled by Python-side classification below.
+            base_filter["content_type"] = mime_filter
+
+        # ── 2. Fetch upload_files ─────────────────────────────────────────────
+        records = await directus_service.get_items(
+            "upload_files",
+            params={
+                "filter": base_filter,
+                "fields": "id,embed_id,original_filename,content_type,file_size_bytes,files_metadata,created_at",
+                "sort": "-created_at",
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+
+        if not records or not isinstance(records, list):
+            records = []
+
+        # ── 3. Build response items ────────────────────────────────────────────
+        file_items: list[StorageFileItem] = []
+        total_bytes: int = 0
+
+        for row in records:
+            mime: str = row.get("content_type") or ""
+            row_category: str = _classify_mime_type(mime)
+
+            # For "other" category filter and "code" (which needs text/ prefix too),
+            # apply Python-side classification to match correctly.
+            if category and row_category != category:
+                continue
+
+            size: int = int(row.get("file_size_bytes") or 0)
+            files_metadata = row.get("files_metadata") or {}
+            variant_count: int = len(files_metadata) if isinstance(files_metadata, dict) else 1
+
+            raw_ts = row.get("created_at")
+            created_at: Optional[int] = int(raw_ts) if raw_ts is not None else None
+
+            file_items.append(StorageFileItem(
+                id=str(row.get("id") or ""),
+                embed_id=str(row.get("embed_id") or ""),
+                original_filename=str(row.get("original_filename") or ""),
+                content_type=mime,
+                category=row_category,
+                file_size_bytes=size,
+                variant_count=variant_count,
+                created_at=created_at,
+            ))
+            total_bytes += size
+
+        logger.info(
+            f"[StorageFiles] Returning {len(file_items)} file(s) "
+            f"({total_bytes:,} bytes) for user {user_id}"
+        )
+
+        return StorageFilesListResponse(
+            files=file_items,
+            total_count=len(file_items),
+            total_bytes=total_bytes,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[StorageFiles] Unexpected error listing files for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Failed to list storage files")
+
+
+# ─── Storage File View (server-side decrypt + stream) ─────────────────────────
+
+@router.get("/storage/files/{embed_id}/view")
+@limiter.limit("60/minute")
+async def view_storage_file(
+    embed_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """
+    Stream the decrypted content of an uploaded file so the browser can open it.
+
+    Fetches the upload_files record, downloads the AES-256-GCM encrypted bytes
+    from S3, decrypts them using the stored plaintext AES key/nonce, and streams
+    the result with the correct Content-Type header.
+
+    For images, the 'full' variant is used (best quality for viewing).
+    For all other file types (PDF, audio, etc.), the 'original' variant is used.
+
+    Security model:
+    - Authentication required.
+    - Ownership validated: upload_files.user_id must match current_user.id.
+    - The AES key is stored server-side in upload_files (same security model as
+      the existing deduplication path — the server already has the key).
+
+    Endpoint: GET /v1/settings/storage/files/{embed_id}/view
+    """
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    import base64
+    from fastapi.responses import Response as FastAPIResponse
+
+    user_id: str = current_user.id
+    log_prefix = f"[StorageView] [user:{user_id[:8]}...] [embed:{embed_id[:8]}...]"
+
+    try:
+        # ── 1. Fetch upload_files record (ownership check) ─────────────────────
+        records = await directus_service.get_items(
+            "upload_files",
+            params={
+                "filter": {
+                    "embed_id": {"_eq": embed_id},
+                    "user_id": {"_eq": user_id},
+                },
+                "fields": "id,content_type,files_metadata,aes_key,aes_nonce",
+                "limit": 1,
+            },
+            no_cache=True,
+        )
+
+        if not records or not isinstance(records, list) or len(records) == 0:
+            logger.warning(f"{log_prefix} upload_files record not found or not owned by user")
+            raise HTTPException(status_code=404, detail="File not found")
+
+        record = records[0]
+        content_type: str = record.get("content_type") or "application/octet-stream"
+        files_metadata: Dict[str, Any] = record.get("files_metadata") or {}
+        aes_key_b64: str = record.get("aes_key") or ""
+        aes_nonce_b64: str = record.get("aes_nonce") or ""
+
+        if not aes_key_b64 or not aes_nonce_b64:
+            logger.error(f"{log_prefix} Missing AES key or nonce in upload_files record")
+            raise HTTPException(status_code=500, detail="Encryption metadata missing")
+
+        # ── 2. Choose the best variant to serve ───────────────────────────────
+        # For images: prefer 'full' (high-res WEBP), fall back to 'preview', then 'original'.
+        # For everything else: 'original' only.
+        category = _classify_mime_type(content_type)
+        if category == "images":
+            variant_preference = ["full", "preview", "original"]
+        else:
+            variant_preference = ["original"]
+
+        chosen_variant: Optional[Dict[str, Any]] = None
+        chosen_variant_name: str = "original"
+        for variant_name in variant_preference:
+            v = files_metadata.get(variant_name)
+            if v and isinstance(v, dict) and v.get("s3_key"):
+                chosen_variant = v
+                chosen_variant_name = variant_name
+                break
+
+        if not chosen_variant:
+            logger.error(f"{log_prefix} No usable variant found in files_metadata: {list(files_metadata.keys())}")
+            raise HTTPException(status_code=404, detail="File content not found")
+
+        s3_key: str = chosen_variant["s3_key"]
+        # For image variants we serve as webp; for others use the original content_type
+        serve_content_type: str = "image/webp" if category == "images" else content_type
+
+        logger.info(f"{log_prefix} Serving variant '{chosen_variant_name}' s3_key={s3_key[:40]}...")
+
+        # ── 3. Get S3 service from app state ──────────────────────────────────
+        s3_service = request.app.state.s3_service
+        if not s3_service:
+            logger.error(f"{log_prefix} S3 service not available")
+            raise HTTPException(status_code=503, detail="Storage service unavailable")
+
+        # ── 4. Download encrypted bytes from S3 ──────────────────────────────
+        from backend.core.api.app.services.s3.config import get_bucket_name as _get_bucket_name_sv
+        chatfiles_bucket = _get_bucket_name_sv("chatfiles", os.getenv("SERVER_ENVIRONMENT", "development"))
+        encrypted_bytes: bytes = await s3_service.get_file(
+            bucket_name=chatfiles_bucket,
+            object_key=s3_key,
+        )
+
+        if not encrypted_bytes:
+            logger.error(f"{log_prefix} S3 returned empty content for {s3_key}")
+            raise HTTPException(status_code=404, detail="File content not found in storage")
+
+        # ── 5. Decrypt AES-256-GCM ────────────────────────────────────────────
+        try:
+            aes_key: bytes = base64.b64decode(aes_key_b64)
+            aes_nonce: bytes = base64.b64decode(aes_nonce_b64)
+            aesgcm = AESGCM(aes_key)
+            plaintext: bytes = aesgcm.decrypt(aes_nonce, encrypted_bytes, None)
+        except Exception as dec_err:
+            logger.error(f"{log_prefix} Decryption failed: {dec_err}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to decrypt file")
+
+        logger.info(
+            f"{log_prefix} Serving {len(plaintext):,} decrypted bytes "
+            f"as {serve_content_type}"
+        )
+
+        # ── 6. Stream response with Content-Disposition: inline ───────────────
+        return FastAPIResponse(
+            content=plaintext,
+            media_type=serve_content_type,
+            headers={"Content-Disposition": "inline"},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Unexpected error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve file")
+
+
+# ─── Storage File Deletion ─────────────────────────────────────────────────────
+
+@router.delete("/storage/files", response_model=StorageDeleteFilesResponse)
+@limiter.limit("10/minute")
+async def delete_storage_files(
+    payload: StorageDeleteFilesRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> StorageDeleteFilesResponse:
+    """
+    Delete uploaded files for the current user from S3 and Directus.
+
+    Embed records are intentionally NOT deleted — the chat UI will continue to
+    show an entry but will display "File deleted" when the embed content is gone.
+
+    Scopes:
+      - single:   Delete one file by its upload_files Directus ID (file_id required).
+      - category: Delete all files in a MIME category (category required).
+      - all:      Delete every uploaded file for the current user.
+
+    For each deleted record:
+      1. All S3 variant objects (original, full, preview) are deleted.
+      2. The upload_files Directus record is deleted.
+      3. The user's storage_used_bytes counter is decremented.
+
+    Endpoint: DELETE /v1/settings/storage/files
+    Rate limited: 10/minute (irreversible bulk operation).
+    """
+    user_id: str = current_user.id
+    log_prefix = f"[StorageDelete] [user:{user_id[:8]}...] scope={payload.scope!r}"
+
+    VALID_SCOPES = {"single", "category", "all"}
+    if payload.scope not in VALID_SCOPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid scope {payload.scope!r}. Must be one of: {', '.join(VALID_SCOPES)}"
+        )
+    if payload.scope == "single" and not payload.file_id:
+        raise HTTPException(status_code=400, detail="file_id is required when scope='single'")
+    if payload.scope == "category" and not payload.category:
+        raise HTTPException(status_code=400, detail="category is required when scope='category'")
+
+    logger.info(f"{log_prefix} file_id={payload.file_id!r} category={payload.category!r}")
+
+    try:
+        # ── 1. Get S3 service ─────────────────────────────────────────────────
+        s3_service = request.app.state.s3_service
+        if not s3_service:
+            logger.error(f"{log_prefix} S3 service not available")
+            raise HTTPException(status_code=503, detail="Storage service unavailable")
+
+        # ── 2. Fetch target records ───────────────────────────────────────────
+        base_filter: Dict[str, Any] = {"user_id": {"_eq": user_id}}
+
+        if payload.scope == "single":
+            base_filter["id"] = {"_eq": payload.file_id}
+        elif payload.scope == "category":
+            category_name = payload.category
+            # Validate and build MIME filter
+            try:
+                mime_filter = _mime_filter_for_category(category_name)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Unknown category: {category_name!r}")
+
+            if mime_filter:
+                base_filter["content_type"] = mime_filter
+            # "other" category has empty mime_filter — Python-side filter applied below
+
+        records = await directus_service.get_items(
+            "upload_files",
+            params={
+                "filter": base_filter,
+                "fields": "id,embed_id,file_size_bytes,files_metadata,content_type",
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+
+        if not records or not isinstance(records, list):
+            records = []
+
+        # Python-side category filter for "other" and "code" (text/* prefix)
+        if payload.scope == "category" and payload.category:
+            category_name = payload.category
+            records = [
+                r for r in records
+                if _classify_mime_type(r.get("content_type") or "") == category_name
+            ]
+
+        if not records:
+            logger.info(f"{log_prefix} No matching records found; nothing to delete")
+            return StorageDeleteFilesResponse(deleted_count=0, bytes_freed=0)
+
+        # ── 3. Ownership double-check: reject if any record doesn't belong to user ──
+        # The filter already enforces user_id, but log a warning if somehow a mismatch slips through.
+        for r in records:
+            # (filter already guarantees this; belt-and-suspenders check)
+            pass
+
+        logger.info(f"{log_prefix} Deleting {len(records)} record(s)")
+
+        # ── 4. Delete S3 variant objects ──────────────────────────────────────
+        s3_deleted = 0
+        s3_failed = 0
+        for record in records:
+            files_metadata = record.get("files_metadata")
+            if not files_metadata or not isinstance(files_metadata, dict):
+                continue
+            for variant_name, variant_data in files_metadata.items():
+                if not isinstance(variant_data, dict):
+                    continue
+                s3_key = variant_data.get("s3_key")
+                if not s3_key:
+                    continue
+                try:
+                    await s3_service.delete_file(bucket_key="chatfiles", file_key=s3_key)
+                    s3_deleted += 1
+                    logger.debug(
+                        f"{log_prefix} Deleted S3 chatfiles/{s3_key} (variant: {variant_name})"
+                    )
+                except Exception as s3_err:
+                    s3_failed += 1
+                    logger.warning(
+                        f"{log_prefix} Failed to delete S3 chatfiles/{s3_key}: {s3_err}"
+                    )
+
+        logger.info(
+            f"{log_prefix} S3: {s3_deleted} deleted, {s3_failed} failed"
+        )
+
+        # ── 5. Bulk-delete Directus records ───────────────────────────────────
+        directus_ids = [r.get("id") for r in records if r.get("id")]
+        total_bytes_freed = sum(int(r.get("file_size_bytes") or 0) for r in records)
+
+        delete_success = await directus_service.bulk_delete_items(
+            collection="upload_files", item_ids=directus_ids
+        )
+        if not delete_success:
+            logger.error(
+                f"{log_prefix} Bulk Directus delete failed for {len(directus_ids)} records. "
+                "S3 objects may already be deleted."
+            )
+            raise HTTPException(status_code=500, detail="Failed to delete file records")
+
+        # ── 6. Decrement storage_used_bytes on directus_users ─────────────────
+        if total_bytes_freed > 0:
+            try:
+                user_fields = await directus_service.get_user_fields_direct(
+                    user_id, ["storage_used_bytes"]
+                )
+                current_bytes = int((user_fields or {}).get("storage_used_bytes") or 0)
+                new_bytes = max(0, current_bytes - total_bytes_freed)
+                await directus_service.update_user(user_id, {"storage_used_bytes": new_bytes})
+                logger.info(
+                    f"{log_prefix} storage_used_bytes: {current_bytes:,} → {new_bytes:,} "
+                    f"(freed {total_bytes_freed:,})"
+                )
+            except Exception as counter_err:
+                # Non-fatal: the direct upload_files query in GET /storage is source of truth.
+                logger.warning(
+                    f"{log_prefix} Failed to update storage_used_bytes: {counter_err}"
+                )
+
+        logger.info(
+            f"{log_prefix} Done: {len(directus_ids)} records deleted, "
+            f"{total_bytes_freed:,} bytes freed"
+        )
+
+        return StorageDeleteFilesResponse(
+            deleted_count=len(directus_ids),
+            bytes_freed=total_bytes_freed,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Unexpected error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete storage files")

@@ -6677,6 +6677,42 @@
       },
       "storage_breakdown_title": {
         "text": "유형별 분류"
+      },
+      "storage_files_title": {
+        "text": "내 파일"
+      },
+      "storage_files_loading": {
+        "text": "파일 불러오는 중…"
+      },
+      "storage_files_empty": {
+        "text": "아직 업로드된 파일이 없습니다."
+      },
+      "storage_filter_all": {
+        "text": "전체"
+      },
+      "storage_delete_file": {
+        "text": "파일 삭제"
+      },
+      "storage_delete_category": {
+        "text": "모든 {category} 삭제"
+      },
+      "storage_delete_all": {
+        "text": "모든 파일 삭제"
+      },
+      "storage_delete_confirm_single": {
+        "text": "{filename} ({size})을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+      },
+      "storage_delete_confirm_category": {
+        "text": "모든 {category} 파일 ({count}개, {size})을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+      },
+      "storage_delete_confirm_all": {
+        "text": "모든 {count}개 파일 ({size})을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+      },
+      "storage_delete_success": {
+        "text": "{count}개의 파일이 삭제되었습니다 ({size} 확보)."
+      },
+      "storage_delete_error": {
+        "text": "파일 삭제에 실패했습니다. 다시 시도하세요."
       }
     }
   },

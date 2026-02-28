@@ -6701,6 +6701,42 @@
       },
       "storage_breakdown_title": {
         "text": "Uppdelning efter typ"
+      },
+      "storage_files_title": {
+        "text": "Dina filer"
+      },
+      "storage_files_loading": {
+        "text": "Läser in filer…"
+      },
+      "storage_files_empty": {
+        "text": "Inga filer uppladdade ännu."
+      },
+      "storage_filter_all": {
+        "text": "Alla"
+      },
+      "storage_delete_file": {
+        "text": "Radera fil"
+      },
+      "storage_delete_category": {
+        "text": "Radera alla {category}"
+      },
+      "storage_delete_all": {
+        "text": "Radera alla filer"
+      },
+      "storage_delete_confirm_single": {
+        "text": "Radera {filename} ({size})? Det går inte att ångra."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Radera alla {category}-filer ({count} filer, {size})? Det går inte att ångra."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Radera alla {count} filer ({size})? Det går inte att ångra."
+      },
+      "storage_delete_success": {
+        "text": "{count} fil(er) raderades ({size} frigjordes)."
+      },
+      "storage_delete_error": {
+        "text": "Det gick inte att radera filerna. Försök igen."
       }
     }
   },

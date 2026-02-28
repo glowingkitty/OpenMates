@@ -6677,6 +6677,42 @@
       },
       "storage_breakdown_title": {
         "text": "Verdeling per type"
+      },
+      "storage_files_title": {
+        "text": "Jouw bestanden"
+      },
+      "storage_files_loading": {
+        "text": "Bestanden laden…"
+      },
+      "storage_files_empty": {
+        "text": "Er zijn nog geen bestanden geüpload."
+      },
+      "storage_filter_all": {
+        "text": "Alles"
+      },
+      "storage_delete_file": {
+        "text": "Bestand verwijderen"
+      },
+      "storage_delete_category": {
+        "text": "Alles verwijderen {category}"
+      },
+      "storage_delete_all": {
+        "text": "Alle bestanden verwijderen"
+      },
+      "storage_delete_confirm_single": {
+        "text": "{filename} ({size}) verwijderen? Dit kan niet ongedaan worden gemaakt."
+      },
+      "storage_delete_confirm_category": {
+        "text": "Alle {category}-bestanden ({count} bestanden, {size}) verwijderen? Dit kan niet ongedaan worden gemaakt."
+      },
+      "storage_delete_confirm_all": {
+        "text": "Alle {count} bestanden ({size}) verwijderen? Dit kan niet ongedaan worden gemaakt."
+      },
+      "storage_delete_success": {
+        "text": "{count} bestand(en) verwijderd ({size} vrijgemaakt)."
+      },
+      "storage_delete_error": {
+        "text": "Verwijderen van bestanden mislukt. Probeer het opnieuw."
       }
     }
   },
