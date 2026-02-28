@@ -315,15 +315,11 @@ export async function insertImage(
   // Register an AbortController so the upload can be cancelled via cancelUpload().
   const controller = new AbortController();
   _uploadControllers.set(embedId, controller);
-  _performUpload(
-    editor,
-    embedId,
-    uploadFile,
-    controller.signal,
-    file.name,
-  ).catch((err) => {
-    console.error("[EmbedHandlers] Unhandled error in _performUpload:", err);
-  });
+  _performUpload(editor, embedId, uploadFile, controller.signal).catch(
+    (err) => {
+      console.error("[EmbedHandlers] Unhandled error in _performUpload:", err);
+    },
+  );
 }
 
 /**
@@ -334,14 +330,12 @@ export async function insertImage(
  * @param signal - AbortSignal from the registered AbortController. Aborting it
  *   cancels the fetch and causes the error branch to run with an AbortError,
  *   which we handle by leaving the embed node as-is (caller removes it).
- * @param filename - Original filename for progress reporting in pendingUploadStore.
  */
 async function _performUpload(
   editor: Editor,
   localEmbedId: string,
   file: File,
   signal?: AbortSignal,
-  filename?: string,
 ): Promise<void> {
   // Build an onProgress callback that updates pendingUploadStore if a pending send
   // is waiting on this embed. We lazily import to avoid a circular dependency.
@@ -659,10 +653,17 @@ async function _performPdfUpload(
     // Remove the AbortController — upload completed successfully
     _uploadControllers.delete(localEmbedId);
 
-    // Transition to 'processing' — the server is now running OCR in the background.
-    // The WebSocket embed_update event will push the final 'finished' state later.
+    // If the upload server detected a duplicate (same content hash, same user),
+    // the returned embed_id points to an already-finished embed — OCR is complete
+    // and no WebSocket embed_update event will arrive. Skip the 'processing' state
+    // and go straight to 'finished' so the embed card renders immediately.
+    //
+    // Otherwise, transition to 'processing' — the server is running OCR in the
+    // background and the WebSocket embed_update event will push 'finished' later.
+    const uploadedStatus = result.deduplicated ? "finished" : "processing";
+
     updateEmbedNode({
-      status: "processing",
+      status: uploadedStatus,
       uploadEmbedId: result.embed_id,
       // page_count is returned by the upload server for PDFs (see UploadFileResponse)
       pageCount: result.page_count ?? null,
@@ -673,19 +674,23 @@ async function _performPdfUpload(
     });
 
     console.debug(
-      "[EmbedHandlers] PDF upload complete — processing in background:",
-      { filename: file.name, embed_id: result.embed_id },
+      result.deduplicated
+        ? "[EmbedHandlers] PDF duplicate detected — embed already finished, skipping processing state:"
+        : "[EmbedHandlers] PDF upload complete — processing in background:",
+      {
+        filename: file.name,
+        embed_id: result.embed_id,
+        deduplicated: result.deduplicated,
+      },
     );
 
     // Emit the finished event so MessageInput can check if a pending send is unblocked.
-    // For PDFs the status transitions uploading → processing → (WebSocket) finished.
-    // We notify here on the upload completion (status now "processing") so the
-    // pending send can proceed — the PDF embed reference will be included and the AI
-    // will receive the OCR data once the background task completes via WebSocket.
+    // For fresh PDFs: uploading → processing → (WebSocket) finished.
+    // For deduped PDFs: uploading → finished (immediately, no WebSocket needed).
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("embedUploadFinished", {
-          detail: { embedId: localEmbedId, status: "processing" },
+          detail: { embedId: localEmbedId, status: uploadedStatus },
         }),
       );
     }
