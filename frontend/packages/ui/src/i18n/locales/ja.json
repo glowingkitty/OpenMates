@@ -5228,6 +5228,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "ユーザー名",
+        "current": {
+          "text": "現在のユーザー名"
+        },
+        "new": {
+          "text": "新しいユーザー名"
+        },
+        "placeholder": {
+          "text": "例：jane.doe"
+        },
+        "save": {
+          "text": "ユーザー名を保存"
+        },
+        "saving": {
+          "text": "保存中…"
+        },
+        "success": {
+          "text": "ユーザー名が更新されました"
+        },
+        "error_length": {
+          "text": "ユーザー名は3〜20文字である必要があります"
+        },
+        "error_no_letter": {
+          "text": "ユーザー名には少なくとも1文字含める必要があります"
+        },
+        "error_invalid_chars": {
+          "text": "ユーザー名には文字、数字、ドット、アンダースコアのみ使用できます"
+        },
+        "error_failed": {
+          "text": "ユーザー名の更新に失敗しました。再試行してください。"
+        },
+        "info": {
+          "text": "ユーザー名はOpenMatesでの表示名です。3〜20文字で、文字、数字、ドット、アンダースコアを使用できます。"
+        }
+      },
       "account": {
         "description": {
           "text": "プロフィール、認証、アカウント設定を管理する"
@@ -6218,10 +6254,8 @@
       }
     },
     "interface": {
-      "interface": {
-        "description": {
-          "text": "OpenMatesの外観と言語をカスタマイズする"
-        }
+      "description": {
+        "text": "OpenMatesの外観と言語をカスタマイズする"
       },
       "text": "インターフェース",
       "language": {

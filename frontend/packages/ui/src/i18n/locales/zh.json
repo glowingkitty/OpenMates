@@ -5228,6 +5228,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "用户名",
+        "current": {
+          "text": "当前用户名"
+        },
+        "new": {
+          "text": "新用户名"
+        },
+        "placeholder": {
+          "text": "例如 jane.doe"
+        },
+        "save": {
+          "text": "保存用户名"
+        },
+        "saving": {
+          "text": "保存中…"
+        },
+        "success": {
+          "text": "用户名已更新"
+        },
+        "error_length": {
+          "text": "用户名必须在 3 到 20 个字符之间"
+        },
+        "error_no_letter": {
+          "text": "用户名必须包含至少一个字母"
+        },
+        "error_invalid_chars": {
+          "text": "用户名只能包含字母、数字、点和下划线"
+        },
+        "error_failed": {
+          "text": "更新用户名失败，请重试。"
+        },
+        "info": {
+          "text": "您的用户名是您在 OpenMates 中的显示名称。它必须是 3–20 个字符，可以包含字母、数字、点和下划线。"
+        }
+      },
       "account": {
         "description": {
           "text": "管理您的个人资料、身份验证和账户设置"
@@ -6218,10 +6254,8 @@
       }
     },
     "interface": {
-      "interface": {
-        "description": {
-          "text": "自定义OpenMates的外观和语言"
-        }
+      "description": {
+        "text": "自定义OpenMates的外观和语言"
       },
       "text": "界面",
       "language": {

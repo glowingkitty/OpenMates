@@ -4197,6 +4197,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "Uživatelské jméno",
+        "current": {
+          "text": "Aktuální uživatelské jméno"
+        },
+        "new": {
+          "text": "Nové uživatelské jméno"
+        },
+        "placeholder": {
+          "text": "např. jane.doe"
+        },
+        "save": {
+          "text": "Uložit uživatelské jméno"
+        },
+        "saving": {
+          "text": "Ukládání…"
+        },
+        "success": {
+          "text": "Uživatelské jméno aktualizováno"
+        },
+        "error_length": {
+          "text": "Uživatelské jméno musí mít délku 3 až 20 znaků"
+        },
+        "error_no_letter": {
+          "text": "Uživatelské jméno musí obsahovat alespoň jedno písmeno"
+        },
+        "error_invalid_chars": {
+          "text": "Uživatelské jméno může obsahovat pouze písmena, číslice, tečky a podtržítka"
+        },
+        "error_failed": {
+          "text": "Aktualizace uživatelského jména selhala. Zkuste to prosím znovu."
+        },
+        "info": {
+          "text": "Vaše uživatelské jméno je vaše zobrazovací jméno v OpenMates. Musí mít délku 3–20 znaků a může obsahovat písmena, číslice, tečky a podtržítka."
+        }
+      },
       "text": "Účet",
       "security": {
         "text": "Zabezpečení"

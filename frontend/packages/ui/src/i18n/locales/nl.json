@@ -4191,6 +4191,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "Gebruikersnaam",
+        "current": {
+          "text": "Huidige gebruikersnaam"
+        },
+        "new": {
+          "text": "Nieuwe gebruikersnaam"
+        },
+        "placeholder": {
+          "text": "bijv. jane.doe"
+        },
+        "save": {
+          "text": "Gebruikersnaam opslaan"
+        },
+        "saving": {
+          "text": "Opslaan…"
+        },
+        "success": {
+          "text": "Gebruikersnaam bijgewerkt"
+        },
+        "error_length": {
+          "text": "Gebruikersnaam moet tussen 3 en 20 tekens lang zijn"
+        },
+        "error_no_letter": {
+          "text": "Gebruikersnaam moet minimaal één letter bevatten"
+        },
+        "error_invalid_chars": {
+          "text": "Gebruikersnaam mag alleen letters, cijfers, punten en underscores bevatten"
+        },
+        "error_failed": {
+          "text": "Gebruikersnaam bijwerken mislukt. Probeer het opnieuw."
+        },
+        "info": {
+          "text": "Uw gebruikersnaam is uw weergavenaam in OpenMates. Deze moet 3–20 tekens lang zijn en kan letters, cijfers, punten en underscores bevatten."
+        }
+      },
       "text": "Account",
       "security": {
         "text": "Beveiliging"

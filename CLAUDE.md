@@ -159,6 +159,17 @@ Rules: be honest about risks, be specific with file references, and always expla
 - Adding a new backend app or service
 - Building a feature that touches external data sources
 
+### Privacy Policy Must Be Updated When a New Provider Is Added (CRITICAL)
+
+**Every time a new third-party service provider is integrated** (payment processor, AI provider, hosting, email, analytics, etc.), you **MUST** update the privacy policy across all four files:
+
+1. **`shared/docs/privacy_policy.yml`** — Add the provider entry with `privacy_policy`, `provider_location`, `used_for`, and optionally `data_shared` fields.
+2. **`frontend/packages/ui/src/i18n/sources/legal/privacy.yml`** — Add three keys for the new provider: `<provider>.heading`, `<provider>.description`, and `<provider>.privacy_policy_link`. Each key must include all 20 supported locales (en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv) plus `verified_by_human: []`. Follow the existing section numbering (e.g., if last provider is 3.14, new one is 3.15).
+3. **`frontend/packages/ui/src/legal/buildLegalContent.ts`** — Add a new section block after the last provider section (before "Section 4: Security Measures"), following the pattern of existing sections.
+4. **`frontend/packages/ui/src/config/links.ts`** — Add the provider's privacy policy URL to the `privacyPolicyLinks` object.
+
+**Also update the `lastUpdated` date** in `frontend/packages/ui/src/legal/documents/privacy-policy.ts` → `metadata.lastUpdated` to today's date whenever the privacy policy content changes.
+
 ### Explicit Consent Required for Destructive/External Actions
 
 - **NEVER create pull requests** unless the user explicitly asks for one. No exceptions.

@@ -4191,6 +4191,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "Kullanıcı adı",
+        "current": {
+          "text": "Mevcut kullanıcı adı"
+        },
+        "new": {
+          "text": "Yeni kullanıcı adı"
+        },
+        "placeholder": {
+          "text": "ör. jane.doe"
+        },
+        "save": {
+          "text": "Kullanıcı adını kaydet"
+        },
+        "saving": {
+          "text": "Kaydediliyor…"
+        },
+        "success": {
+          "text": "Kullanıcı adı güncellendi"
+        },
+        "error_length": {
+          "text": "Kullanıcı adı 3 ile 20 karakter arasında olmalıdır"
+        },
+        "error_no_letter": {
+          "text": "Kullanıcı adı en az bir harf içermelidir"
+        },
+        "error_invalid_chars": {
+          "text": "Kullanıcı adı yalnızca harf, rakam, nokta ve alt çizgi içerebilir"
+        },
+        "error_failed": {
+          "text": "Kullanıcı adı güncellenemedi. Lütfen tekrar deneyin."
+        },
+        "info": {
+          "text": "Kullanıcı adınız OpenMates'teki görünen adınızdır. 3–20 karakter olmalı ve harfler, rakamlar, noktalar ve alt çizgiler içerebilir."
+        }
+      },
       "text": "Hesap",
       "security": {
         "text": "Güvenlik"

@@ -4191,6 +4191,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "Nama pengguna",
+        "current": {
+          "text": "Nama pengguna saat ini"
+        },
+        "new": {
+          "text": "Nama pengguna baru"
+        },
+        "placeholder": {
+          "text": "mis. jane.doe"
+        },
+        "save": {
+          "text": "Simpan nama pengguna"
+        },
+        "saving": {
+          "text": "Menyimpan…"
+        },
+        "success": {
+          "text": "Nama pengguna diperbarui"
+        },
+        "error_length": {
+          "text": "Nama pengguna harus antara 3 dan 20 karakter"
+        },
+        "error_no_letter": {
+          "text": "Nama pengguna harus mengandung setidaknya satu huruf"
+        },
+        "error_invalid_chars": {
+          "text": "Nama pengguna hanya boleh mengandung huruf, angka, titik, dan garis bawah"
+        },
+        "error_failed": {
+          "text": "Gagal memperbarui nama pengguna. Silakan coba lagi."
+        },
+        "info": {
+          "text": "Nama pengguna Anda adalah nama tampilan Anda di OpenMates. Harus terdiri dari 3–20 karakter dan dapat berisi huruf, angka, titik, dan garis bawah."
+        }
+      },
       "text": "Akun",
       "security": {
         "text": "Keamanan"

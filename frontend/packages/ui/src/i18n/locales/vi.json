@@ -4191,6 +4191,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "Tên người dùng",
+        "current": {
+          "text": "Tên người dùng hiện tại"
+        },
+        "new": {
+          "text": "Tên người dùng mới"
+        },
+        "placeholder": {
+          "text": "vd. jane.doe"
+        },
+        "save": {
+          "text": "Lưu tên người dùng"
+        },
+        "saving": {
+          "text": "Đang lưu…"
+        },
+        "success": {
+          "text": "Tên người dùng đã được cập nhật"
+        },
+        "error_length": {
+          "text": "Tên người dùng phải từ 3 đến 20 ký tự"
+        },
+        "error_no_letter": {
+          "text": "Tên người dùng phải chứa ít nhất một chữ cái"
+        },
+        "error_invalid_chars": {
+          "text": "Tên người dùng chỉ có thể chứa chữ cái, số, dấu chấm và dấu gạch dưới"
+        },
+        "error_failed": {
+          "text": "Không thể cập nhật tên người dùng. Vui lòng thử lại."
+        },
+        "info": {
+          "text": "Tên người dùng của bạn là tên hiển thị trên OpenMates. Phải có từ 3–20 ký tự và có thể chứa chữ cái, số, dấu chấm và dấu gạch dưới."
+        }
+      },
       "text": "Tài khoản",
       "security": {
         "text": "Bảo mật"

@@ -5644,6 +5644,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "Benutzername",
+        "current": {
+          "text": "Aktueller Benutzername"
+        },
+        "new": {
+          "text": "Neuer Benutzername"
+        },
+        "placeholder": {
+          "text": "z. B. jane.doe"
+        },
+        "save": {
+          "text": "Benutzername speichern"
+        },
+        "saving": {
+          "text": "Wird gespeichert…"
+        },
+        "success": {
+          "text": "Benutzername aktualisiert"
+        },
+        "error_length": {
+          "text": "Benutzername muss zwischen 3 und 20 Zeichen lang sein"
+        },
+        "error_no_letter": {
+          "text": "Benutzername muss mindestens einen Buchstaben enthalten"
+        },
+        "error_invalid_chars": {
+          "text": "Benutzername darf nur Buchstaben, Zahlen, Punkte und Unterstriche enthalten"
+        },
+        "error_failed": {
+          "text": "Benutzername konnte nicht aktualisiert werden. Bitte versuche es erneut."
+        },
+        "info": {
+          "text": "Dein Benutzername ist dein Anzeigename in OpenMates. Er muss 3–20 Zeichen lang sein und kann Buchstaben, Zahlen, Punkte und Unterstriche enthalten."
+        }
+      },
       "account": {
         "description": {
           "text": "Verwalte dein Profil, Authentifizierung und Kontoeinstellungen"
@@ -6956,10 +6992,8 @@
       }
     },
     "interface": {
-      "interface": {
-        "description": {
-          "text": "Passe Aussehen und Sprache von OpenMates an"
-        }
+      "description": {
+        "text": "Passe Aussehen und Sprache von OpenMates an"
       },
       "text": "Oberfläche",
       "language": {

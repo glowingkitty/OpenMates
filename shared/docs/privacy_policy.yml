@@ -36,6 +36,11 @@ providers:
     provider_location: US
     used_for:
       - payment processing for purchases made in web app
+  polar:
+    privacy_policy: https://polar.sh/legal/privacy
+    provider_location: US
+    used_for:
+      - payment processing for purchases made in web app (Polar Storefront)
   mistral:
     privacy_policy: https://mistral.ai/privacy-policy
     provider_location: EU

@@ -5318,6 +5318,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "Nom d'utilisateur",
+        "current": {
+          "text": "Nom d'utilisateur actuel"
+        },
+        "new": {
+          "text": "Nouveau nom d'utilisateur"
+        },
+        "placeholder": {
+          "text": "ex. jane.doe"
+        },
+        "save": {
+          "text": "Enregistrer le nom d'utilisateur"
+        },
+        "saving": {
+          "text": "Enregistrement…"
+        },
+        "success": {
+          "text": "Nom d'utilisateur mis à jour"
+        },
+        "error_length": {
+          "text": "Le nom d'utilisateur doit contenir entre 3 et 20 caractères"
+        },
+        "error_no_letter": {
+          "text": "Le nom d'utilisateur doit contenir au moins une lettre"
+        },
+        "error_invalid_chars": {
+          "text": "Le nom d'utilisateur ne peut contenir que des lettres, des chiffres, des points et des traits de soulignement"
+        },
+        "error_failed": {
+          "text": "Impossible de mettre à jour le nom d'utilisateur. Veuillez réessayer."
+        },
+        "info": {
+          "text": "Votre nom d'utilisateur est votre nom d'affichage sur OpenMates. Il doit comporter entre 3 et 20 caractères et peut contenir des lettres, des chiffres, des points et des traits de soulignement."
+        }
+      },
       "account": {
         "description": {
           "text": "Gérez votre profil, l'authentification et les paramètres du compte"
@@ -6311,10 +6347,8 @@
       }
     },
     "interface": {
-      "interface": {
-        "description": {
-          "text": "Personnalisez l'apparence et la langue d'OpenMates"
-        }
+      "description": {
+        "text": "Personnalisez l'apparence et la langue d'OpenMates"
       },
       "text": "Interface",
       "language": {

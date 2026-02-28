@@ -4191,6 +4191,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "사용자 이름",
+        "current": {
+          "text": "현재 사용자 이름"
+        },
+        "new": {
+          "text": "새 사용자 이름"
+        },
+        "placeholder": {
+          "text": "예: jane.doe"
+        },
+        "save": {
+          "text": "사용자 이름 저장"
+        },
+        "saving": {
+          "text": "저장 중…"
+        },
+        "success": {
+          "text": "사용자 이름이 업데이트되었습니다"
+        },
+        "error_length": {
+          "text": "사용자 이름은 3자에서 20자 사이여야 합니다"
+        },
+        "error_no_letter": {
+          "text": "사용자 이름에는 최소 한 개의 문자가 포함되어야 합니다"
+        },
+        "error_invalid_chars": {
+          "text": "사용자 이름은 문자, 숫자, 점 및 밑줄만 포함할 수 있습니다"
+        },
+        "error_failed": {
+          "text": "사용자 이름을 업데이트하지 못했습니다. 다시 시도해 주세요."
+        },
+        "info": {
+          "text": "사용자 이름은 OpenMates에서의 표시 이름입니다. 3~20자여야 하며 문자, 숫자, 점 및 밑줄을 포함할 수 있습니다."
+        }
+      },
       "text": "계정",
       "security": {
         "text": "보안"

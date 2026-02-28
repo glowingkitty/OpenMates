@@ -4215,6 +4215,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "Användarnamn",
+        "current": {
+          "text": "Nuvarande användarnamn"
+        },
+        "new": {
+          "text": "Nytt användarnamn"
+        },
+        "placeholder": {
+          "text": "t.ex. jane.doe"
+        },
+        "save": {
+          "text": "Spara användarnamn"
+        },
+        "saving": {
+          "text": "Sparar…"
+        },
+        "success": {
+          "text": "Användarnamn uppdaterat"
+        },
+        "error_length": {
+          "text": "Användarnamnet måste vara mellan 3 och 20 tecken"
+        },
+        "error_no_letter": {
+          "text": "Användarnamnet måste innehålla minst en bokstav"
+        },
+        "error_invalid_chars": {
+          "text": "Användarnamnet får endast innehålla bokstäver, siffror, punkter och understreck"
+        },
+        "error_failed": {
+          "text": "Det gick inte att uppdatera användarnamnet. Försök igen."
+        },
+        "info": {
+          "text": "Ditt användarnamn är ditt visningsnamn på OpenMates. Det måste vara 3–20 tecken och kan innehålla bokstäver, siffror, punkter och understreck."
+        }
+      },
       "text": "Konto",
       "security": {
         "text": "Säkerhet"

@@ -4191,6 +4191,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "Nome de usuário",
+        "current": {
+          "text": "Nome de usuário atual"
+        },
+        "new": {
+          "text": "Novo nome de usuário"
+        },
+        "placeholder": {
+          "text": "ex. jane.doe"
+        },
+        "save": {
+          "text": "Salvar nome de usuário"
+        },
+        "saving": {
+          "text": "Salvando…"
+        },
+        "success": {
+          "text": "Nome de usuário atualizado"
+        },
+        "error_length": {
+          "text": "O nome de usuário deve ter entre 3 e 20 caracteres"
+        },
+        "error_no_letter": {
+          "text": "O nome de usuário deve conter pelo menos uma letra"
+        },
+        "error_invalid_chars": {
+          "text": "O nome de usuário só pode conter letras, números, pontos e sublinhados"
+        },
+        "error_failed": {
+          "text": "Falha ao atualizar o nome de usuário. Por favor, tente novamente."
+        },
+        "info": {
+          "text": "Seu nome de usuário é seu nome de exibição no OpenMates. Deve ter entre 3 e 20 caracteres e pode conter letras, números, pontos e sublinhados."
+        }
+      },
       "text": "Conta",
       "security": {
         "text": "Segurança"

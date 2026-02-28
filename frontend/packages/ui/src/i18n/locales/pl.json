@@ -4191,6 +4191,42 @@
   },
   "settings": {
     "account": {
+      "username": {
+        "text": "Nazwa użytkownika",
+        "current": {
+          "text": "Aktualna nazwa użytkownika"
+        },
+        "new": {
+          "text": "Nowa nazwa użytkownika"
+        },
+        "placeholder": {
+          "text": "np. jane.doe"
+        },
+        "save": {
+          "text": "Zapisz nazwę użytkownika"
+        },
+        "saving": {
+          "text": "Zapisywanie…"
+        },
+        "success": {
+          "text": "Nazwa użytkownika zaktualizowana"
+        },
+        "error_length": {
+          "text": "Nazwa użytkownika musi mieć od 3 do 20 znaków"
+        },
+        "error_no_letter": {
+          "text": "Nazwa użytkownika musi zawierać co najmniej jedną literę"
+        },
+        "error_invalid_chars": {
+          "text": "Nazwa użytkownika może zawierać tylko litery, cyfry, kropki i podkreślenia"
+        },
+        "error_failed": {
+          "text": "Nie udało się zaktualizować nazwy użytkownika. Spróbuj ponownie."
+        },
+        "info": {
+          "text": "Twoja nazwa użytkownika to Twoja nazwa wyświetlana w OpenMates. Musi mieć od 3 do 20 znaków i może zawierać litery, cyfry, kropki i podkreślenia."
+        }
+      },
       "text": "Konto",
       "security": {
         "text": "Bezpieczeństwo"
