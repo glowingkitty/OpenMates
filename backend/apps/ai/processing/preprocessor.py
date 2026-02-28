@@ -924,9 +924,17 @@ async def handle_preprocessing(
         # -----------------------------------------------------------------------
         # Call B: fast_tool only needs CATEGORIES_LIST and CURRENT_DATE_TIME.
         # Call A (main tool): needs the full dynamic_context.
+        # Include the user's UI language so the title is generated in the user's preferred language,
+        # regardless of the language the user is chatting in (mirrors how chat_summary works).
+        user_system_language_for_title = (
+            request_data.user_preferences.get("language", "en")
+            if request_data.user_preferences
+            else "en"
+        )
         fast_dynamic_context = {
             "CATEGORIES_LIST": available_categories_list,
             "CURRENT_DATE_TIME": date_time_str,
+            "USER_SYSTEM_LANGUAGE": user_system_language_for_title,
         }
 
         logger.info(f"{log_prefix} Firing Call A (fast UI) and Call B (routing) in parallel.")
