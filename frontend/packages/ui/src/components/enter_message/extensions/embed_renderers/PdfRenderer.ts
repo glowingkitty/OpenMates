@@ -101,7 +101,13 @@ export class PdfRenderer implements EmbedRenderer {
       const component = mount(PDFEmbedPreview, {
         target: content,
         props: {
-          id: attrs.id || "",
+          // Use the server-assigned uploadEmbedId once available — this is the
+          // ID used in 'embedUpdated' events and IndexedDB, so UnifiedEmbedPreview
+          // can match the event and call refetchFromStore() to get the decoded
+          // TOON content (screenshot_s3_keys, aes_key, etc.) after OCR finishes.
+          // Falls back to the local TipTap node id during the 'uploading' phase
+          // before the server has assigned a UUID.
+          id: attrs.uploadEmbedId || attrs.id || "",
           filename: attrs.filename ?? undefined,
           status: (attrs.status || "uploading") as
             | "uploading"
