@@ -33,6 +33,28 @@ logger = logging.getLogger(__name__)
 # Model for inspiration generation — same as post-processing for cost efficiency
 INSPIRATION_MODEL_ID = "mistral/mistral-small-latest"
 
+# Lowercase substrings that identify OpenMates-related topic suggestions.
+# Any topic suggestion containing one of these (case-insensitive) is excluded from
+# the inspiration generator — daily inspirations must never promote the platform itself.
+_OPENMATES_TOPIC_KEYWORDS = [
+    "openmates",
+    "open mates",
+    "openmate",
+    "open mate",
+]
+
+
+def _is_openmates_topic(phrase: str) -> bool:
+    """
+    Return True if a topic suggestion phrase references OpenMates.
+
+    Uses substring matching (case-insensitive) so variations like
+    "OpenMates features", "open mates platform", or "Openmates AI" are all caught.
+    """
+    lower = phrase.lower()
+    return any(kw in lower for kw in _OPENMATES_TOPIC_KEYWORDS)
+
+
 # Available chat categories (must match frontend categoryUtils.ts)
 AVAILABLE_CATEGORIES = [
     "software_development",
@@ -140,9 +162,14 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                 "or assistant messages that read like marketing copy, product reviews, or endorsements. "
                 "Focus on the underlying topic's educational or intellectual value, not on any brand or "
                 "product associated with it. "
-                "EXCEPTION: If a specific product or brand appears in the user's recent conversation "
-                "topics (provided below), you may reference it neutrally when it is genuinely central "
-                "to an educational or curiosity-driven angle — but still do not endorse or recommend it."
+                "ABSOLUTE PROHIBITION — NO OPENMATES CONTENT: NEVER mention, reference, or allude to "
+                "OpenMates, the OpenMates platform, or any of its features under any circumstances. "
+                "Daily inspirations exist to spark genuine curiosity about the world — not to promote "
+                "this platform. If you see 'OpenMates' in any context, ignore it entirely. "
+                "EXCEPTION (non-OpenMates brands only): If a specific non-OpenMates product or brand "
+                "appears in the user's recent conversation topics (provided below), you may reference "
+                "it neutrally when it is genuinely central to an educational or curiosity-driven angle "
+                "— but still do not endorse or recommend it."
             ),
             "parameters": {
                 "type": "object",
@@ -314,8 +341,12 @@ def _build_generation_prompt(
             "Frame them as user messages (questions or commands).\n\n"
             "IMPORTANT: Do NOT write content that promotes, advertises, or recommends specific "
             "products, brands, apps, or commercial services. All phrases and messages must be "
-            "educational and curiosity-driven. The only exception is if a product or brand is "
-            "already present in the user's conversation topics listed above — in that case you "
+            "educational and curiosity-driven. "
+            "ABSOLUTE PROHIBITION: Never mention OpenMates or this platform in any inspiration — "
+            "not the name, not its features, not anything about it. Ignore any OpenMates reference "
+            "you may encounter. "
+            "The only exception (non-OpenMates brands only) is if a non-OpenMates product or brand "
+            "is already present in the user's conversation topics listed above — in that case you "
             "may reference it neutrally as part of an educational angle, but still do not endorse it."
         )
         + lang_instruction
@@ -355,13 +386,24 @@ async def generate_inspirations(
     # Step 1: Derive topic phrases to search for.
     # Deduplicate the full 3-day pool, then randomly sample to maximise variety —
     # this prevents the same recent topics from always being picked across days.
+    #
+    # OpenMates-related suggestions are filtered out entirely: daily inspirations
+    # are for genuine educational curiosity, not platform self-promotion.
     search_phrases: List[str] = []
     if topic_suggestions:
         # Deduplicate while preserving order (dict.fromkeys keeps first occurrence)
         unique_pool = list(dict.fromkeys(topic_suggestions))
-        # Randomly sample up to `count` phrases from the entire 3-day pool
-        sample_size = min(count, len(unique_pool))
-        search_phrases = random.sample(unique_pool, sample_size)
+        # Remove any suggestions that reference OpenMates
+        filtered_pool = [p for p in unique_pool if not _is_openmates_topic(p)]
+        excluded = len(unique_pool) - len(filtered_pool)
+        if excluded > 0:
+            logger.info(
+                f"[DailyInspiration][{task_id}] Excluded {excluded} OpenMates-related "
+                f"topic suggestion(s) from inspiration generation"
+            )
+        # Randomly sample up to `count` phrases from the filtered 3-day pool
+        sample_size = min(count, len(filtered_pool))
+        search_phrases = random.sample(filtered_pool, sample_size) if filtered_pool else []
 
     # Fill remaining slots with generic phrases if not enough suggestions
     generic_fallbacks = [
@@ -402,9 +444,14 @@ async def generate_inspirations(
         )
         return []
 
-    # Step 3: Single LLM call to generate all inspiration items
+    # Step 3: Single LLM call to generate all inspiration items.
+    # Also filter OpenMates references from the topic_suggestions context passed to the LLM,
+    # so the model never sees them as inspiration seeds even indirectly.
+    filtered_topic_suggestions = [
+        p for p in topic_suggestions if not _is_openmates_topic(p)
+    ]
     messages = _build_generation_prompt(
-        topic_suggestions, video_candidates_per_slot, count, language=language,
+        filtered_topic_suggestions, video_candidates_per_slot, count, language=language,
     )
     tool_def = _build_tool_definition(language)
 
