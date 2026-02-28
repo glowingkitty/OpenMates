@@ -325,9 +325,16 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
             "ocr_data_s3_key": ocr_s3_key,
             "screenshot_s3_keys": screenshot_s3_keys,
             "extracted_image_s3_keys": extracted_image_s3_keys,
-            # Encryption metadata for skill decryption
-            "vault_wrapped_aes_key": output_vault_wrapped_key,
+            # Plaintext AES key/nonce for CLIENT-SIDE decryption of screenshots.
+            # The embed TOON content is itself encrypted with the chat's master key
+            # (stored only in IndexedDB), so storing the plaintext key here is safe —
+            # it follows the same pattern as images.generate (generate_task.py line 768).
+            # This allows PDFEmbedPreview and PDFEmbedFullscreen to decrypt and render
+            # page screenshots directly in the browser without a server round-trip.
+            "aes_key": output_aes_key_b64,
             "aes_nonce": output_nonce_b64,
+            # Vault-wrapped key for SERVER-SIDE skill decryption (pdf.read / pdf.view / pdf.search).
+            "vault_wrapped_aes_key": output_vault_wrapped_key,
             "s3_base_url": s3_base_url,
             # Embed status
             "app_id": "pdf",
@@ -480,6 +487,15 @@ async def _wrap_key_via_vault(
     encrypt/decrypt call MUST include ``context = base64(vault_key_id)``.
     Without context, Vault returns HTTP 400 "missing 'context' for key derivation".
 
+    IMPORTANT: Vault Transit requires the plaintext to be base64-encoded.
+    EncryptionService.encrypt() (called by the upload server via encrypt_with_user_key)
+    applies an extra base64 layer: it does base64(aes_key_b64.encode()) before sending
+    to Vault, so Vault stores base64(base64(raw_key_bytes)).
+    The pdf.read / pdf.view / pdf.search skills all use a double-decode to unwrap:
+      base64.b64decode(vault_response).decode("utf-8") → aes_key_b64
+      base64.b64decode(aes_key_b64) → raw AES key bytes
+    We MUST apply the same extra encode here so the skills' double-decode works.
+
     Returns Vault-wrapped ciphertext string.
     """
     vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
@@ -489,10 +505,15 @@ async def _wrap_key_via_vault(
     # Derived keys require context = base64(key_id) — same pattern as _download_decrypt_pdf().
     context = base64.b64encode(vault_key_id.encode()).decode("utf-8")
 
+    # Match EncryptionService.encrypt() which does base64(plaintext.encode()) before Vault.
+    # Without this extra layer the skills' double-decode would fail with UnicodeDecodeError
+    # because the first b64decode would yield raw AES bytes (not a valid UTF-8 string).
+    encoded_plaintext = base64.b64encode(aes_key_b64.encode()).decode("utf-8")
+
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
             f"{vault_url}/v1/transit/encrypt/{vault_key_id}",
-            json={"plaintext": aes_key_b64, "context": context},
+            json={"plaintext": encoded_plaintext, "context": context},
             headers={"X-Vault-Token": vault_token},
         )
     if resp.status_code != 200:

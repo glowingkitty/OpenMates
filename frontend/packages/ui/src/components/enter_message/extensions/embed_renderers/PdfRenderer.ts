@@ -82,6 +82,8 @@ export class PdfRenderer implements EmbedRenderer {
       // can re-dispatch it to ActiveChat.svelte, which mounts PDFEmbedFullscreen.
       // Only wired when status is 'finished' (PDFEmbedPreview guards this too,
       // but we skip creating the handler entirely for clarity).
+      // We pass the embed ID so PDFEmbedFullscreen can look up the TOON content
+      // from IndexedDB to get screenshot_s3_keys, aes_key, aes_nonce for rendering.
       const handleFullscreen =
         attrs.status === "finished"
           ? () => {
@@ -90,6 +92,7 @@ export class PdfRenderer implements EmbedRenderer {
                   bubbles: true,
                   composed: true,
                   detail: {
+                    embedId: attrs.uploadEmbedId || attrs.id || "",
                     filename: attrs.filename,
                     pageCount: attrs.pageCount ?? null,
                   },

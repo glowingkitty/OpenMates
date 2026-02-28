@@ -478,7 +478,7 @@
 
     // PDF embed fullscreen — triggered by clicking a finished PDF embed (editor or read-only)
     let showPdfEmbedFullscreen = $state(false);
-    let pdfFullscreenData = $state<{ filename?: string; pageCount?: number }>({});
+    let pdfFullscreenData = $state<{ embedId?: string; filename?: string; pageCount?: number }>({});
 
     // Recording embed fullscreen — triggered by clicking a finished voice recording embed
     let showRecordingFullscreen = $state(false);
@@ -819,6 +819,7 @@
     function handlePdfFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received pdffullscreen event:', event.detail);
         pdfFullscreenData = {
+            embedId: event.detail.embedId,
             filename: event.detail.filename,
             pageCount: event.detail.pageCount,
         };
@@ -8226,6 +8227,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             {#if showPdfEmbedFullscreen}
                 <PDFEmbedFullscreen
+                    embedId={pdfFullscreenData.embedId}
                     filename={pdfFullscreenData.filename}
                     pageCount={pdfFullscreenData.pageCount}
                     onClose={handleClosePdfFullscreen}
