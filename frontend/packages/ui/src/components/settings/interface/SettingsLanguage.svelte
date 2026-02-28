@@ -261,7 +261,9 @@ changes to the documentation (to keep the documentation up to date).
         transform: translate(-50%, -50%);
         font-size: 16px;
         font-weight: 600;
-        color: var(--color-grey-90);
+        /* Always white so the text is legible on the blue subsetting_icon background
+           regardless of light/dark theme mode */
+        color: #ffffff;
         pointer-events: none;
         z-index: 2;
     }

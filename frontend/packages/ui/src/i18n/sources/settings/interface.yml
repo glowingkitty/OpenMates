@@ -1,4 +1,4 @@
-interface.description:
+description:
   context: Short description shown in the interface settings page gradient banner header
   en: Customize the appearance and language of OpenMates
   de: Passe Aussehen und Sprache von OpenMates an
