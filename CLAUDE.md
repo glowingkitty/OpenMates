@@ -375,6 +375,16 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - You are adding or modifying user-facing strings (labels, messages, errors shown to users)
 - You are editing translation/i18n files
 
+#### `docs/claude/manage-translations.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are looking for missing translations to fill in
+- You are asked to translate keys for a specific language
+- You need to find which file a translation key lives in
+- You are validating or auditing the translation files
+- You are running `manage_translations.py` or deciding which command to use
+
 #### `docs/claude/planning.md`
 
 **MUST READ when ANY of these are true:**
