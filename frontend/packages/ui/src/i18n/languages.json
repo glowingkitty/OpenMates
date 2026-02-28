@@ -94,7 +94,8 @@
       "code": "ar",
       "name": "العربية",
       "shortCode": "AR",
-      "nativeName": "العربية"
+      "nativeName": "العربية",
+      "rtl": true
     },
     {
       "code": "hi",

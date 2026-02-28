@@ -3782,8 +3782,8 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     }
 
     .top-button.right {
-       /* No specific positioning needed if using flex end */
-       margin-left: auto;
+       /* Logical property: pushes close button to inline-end (right in LTR, left in RTL) */
+       margin-inline-start: auto;
     }
 
     .select-mode-button {
@@ -3795,7 +3795,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         cursor: pointer;
         font-size: 0.9em;
         transition: background-color 0.2s ease;
-        margin-right: 8px;
+        margin-inline-end: 8px;
     }
 
     .select-mode-button:hover {
@@ -3803,7 +3803,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     }
 
     .select-mode-button.cancel {
-        margin-left: auto;
+        margin-inline-start: auto;
         color: var(--color-grey-60);
     }
 

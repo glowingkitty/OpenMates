@@ -2009,7 +2009,8 @@ changes to the documentation (to keep the documentation up to date).
     .profile-container-wrapper {
         position: fixed;
         top: 8px;
-        right: 10px;
+        /* Logical property: avatar pinned to inline-end corner (top-right in LTR, top-left in RTL) */
+        inset-inline-end: 10px;
         width: 50px;
         height: 50px;
         z-index: 1005;
@@ -2020,14 +2021,15 @@ changes to the documentation (to keep the documentation up to date).
         position: absolute;
         top: 8px;
         /* Use calc to ensure it doesn't extend beyond viewport */
-        left: calc(100% - 67px); /* 57px width + 10px margin */
-        right: auto;
+        inset-inline-start: calc(100% - 67px); /* 57px width + 10px margin */
+        inset-inline-end: auto;
     }
 
     .profile-container {
         position: absolute;
         top: 0;
-        right: 0;
+        /* Logical property: anchored to inline-end corner */
+        inset-inline-end: 0;
         width: 50px;
         height: 50px;
         border-radius: 50%;
@@ -2045,7 +2047,8 @@ changes to the documentation (to keep the documentation up to date).
     .close-icon-container {
         position: absolute;
         top: 0;
-        right: 0;
+        /* Logical property: anchored to inline-end corner */
+        inset-inline-end: 0;
         width: 50px;
         height: 50px;
         display: flex;
@@ -2135,7 +2138,8 @@ changes to the documentation (to keep the documentation up to date).
     @media (max-width: 1100px) {
         .settings-menu {
             position: fixed;
-            right: 20px;
+            /* Logical property: panel anchored to inline-end edge (right in LTR, left in RTL) */
+            inset-inline-end: 20px;
             top: 65px;
             bottom: 18px;
             height: auto;
@@ -2161,7 +2165,7 @@ changes to the documentation (to keep the documentation up to date).
 
     @media (max-width: 730px) {
         .settings-menu {
-            right: 10px;
+            inset-inline-end: 10px;
             bottom: 10px;
         }
     }

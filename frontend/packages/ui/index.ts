@@ -44,6 +44,7 @@ export {
   SUPPORTED_LOCALES,
   getLanguageByCode,
   isLanguageSupported,
+  isRtlLanguage,
 } from "./src/i18n/languages";
 
 // Stores

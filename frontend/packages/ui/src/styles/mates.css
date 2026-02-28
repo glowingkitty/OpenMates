@@ -23,7 +23,8 @@
     content: "";
     position: absolute;
     bottom: -8px;
-    right: -8px;
+    /* Logical property: badge on inline-end corner (bottom-right in LTR, bottom-left in RTL) */
+    inset-inline-end: -8px;
     width: 24px;
     height: 24px;
     border-radius: 50%;
@@ -39,7 +40,8 @@
     content: "";
     position: absolute;
     bottom: -4px;
-    right: -4px;
+    /* Logical property: AI icon badge on inline-end corner */
+    inset-inline-end: -4px;
     width: 16px;
     height: 16px;
     background: var(--color-primary);
@@ -62,19 +64,19 @@
   height: 25px;
   margin-top: 0;
   margin-bottom: 8px;
-  margin-left: 0px;
+  margin-inline-start: 0px;
 
   /* Adjust after and before pseudo-elements for smaller size */
   &::after {
     bottom: -4px;
-    right: -4px;
+    inset-inline-end: -4px;
     width: 12px;
     height: 12px;
   }
 
   &::before {
     bottom: -2px;
-    right: -2px;
+    inset-inline-end: -2px;
     width: 8px;
     height: 8px;
   }
@@ -187,14 +189,14 @@
 
   &::after {
     bottom: -4px;
-    right: -4px;
+    inset-inline-end: -4px;
     width: 16px;
     height: 16px;
   }
 
   &::before {
     bottom: -2px;
-    right: -2px;
+    inset-inline-end: -2px;
     width: 12px;
     height: 12px;
   }
@@ -206,7 +208,8 @@
   align-items: center;
 
   .mate-profile-small:not(:first-child) {
-    margin-left: -8px; /* Creates overlap effect */
+    /* Logical property: overlap on the inline-start side (left in LTR, right in RTL) */
+    margin-inline-start: -8px;
   }
 }
 

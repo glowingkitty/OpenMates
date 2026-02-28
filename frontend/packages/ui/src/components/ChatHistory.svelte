@@ -1691,11 +1691,21 @@
   }
 
   .message-wrapper.user {
-    justify-content: flex-end; /* User messages aligned to the right */
+    /* LTR default: user messages on the right */
+    justify-content: flex-end;
+  }
+
+  /* RTL: user messages sit on the left (inline-start), assistant on the right */
+  :global([dir="rtl"]) .message-wrapper.user {
+    justify-content: flex-start;
   }
 
   .message-wrapper.assistant { /* Assistant messages aligned to the left */
     justify-content: flex-start;
+  }
+
+  :global([dir="rtl"]) .message-wrapper.assistant {
+    justify-content: flex-end;
   }
 
   .message-wrapper.system { /* System messages (e.g., insufficient credits) centered */
@@ -1713,10 +1723,10 @@
      The container has 10px padding on all sides — we cancel it on left/right/top
      with negative margins so the banner is flush with the scroll container edges. */
   .chat-header-wrapper {
-    /* Cancel the container's 10px padding on left/right/top */
+    /* Cancel the container's 10px padding on all sides */
     margin-top: -10px;
-    margin-left: -10px;
-    margin-right: -10px;
+    margin-inline-start: -10px;
+    margin-inline-end: -10px;
     /* Full width including the cancelled side padding */
     width: calc(100% + 20px);
   }

@@ -15,6 +15,7 @@ changes to the documentation (to keep the documentation up to date).
     import { locale } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
+    import { isRtlLanguage } from '../../../i18n/languages';
     import { loadMetaTags, getMetaTags } from '../../../config/meta';
     import { createEventDispatcher, onMount } from 'svelte';
     import { updateBreadcrumbsWithLanguage } from '../../../stores/settingsNavigationStore';
@@ -94,8 +95,10 @@ changes to the documentation (to keep the documentation up to date).
             // Wait for translations to load
             await waitLocale();
 
-            // Update HTML lang attribute
+            // Update HTML lang + dir attributes.
+            // dir="rtl" flips the entire layout for right-to-left languages like Arabic.
             document.documentElement.setAttribute('lang', newLocale);
+            document.documentElement.setAttribute('dir', isRtlLanguage(newLocale) ? 'rtl' : 'ltr');
 
             try {
                 // Attempt to reload meta tags with new language (with proper error handling)
