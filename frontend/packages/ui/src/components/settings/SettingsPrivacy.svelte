@@ -66,7 +66,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <!-- Privacy Policy Link (description text is shown in the gradient banner header above) -->
 <div class="settings-description">
     <a
-        href="https://openmates.org/privacy"
+        href="/legal/privacy"
         target="_blank"
         rel="noopener noreferrer"
         class="settings-gradient-link"
