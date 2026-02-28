@@ -3,6 +3,7 @@
     import ModifyButton from './buttons/ModifyButton.svelte';
     import Icon from './Icon.svelte';
     import { getCategoryGradientColors, getLucideIcon, getFallbackIconForCategory } from '../utils/categoryUtils';
+    import type { Snippet } from 'svelte';
 
     // Props using Svelte 5 runes
     let { 
@@ -50,7 +51,7 @@
         iconType?: 'default' | 'app' | 'category';
         category?: string | undefined;
         categoryIcon?: string | undefined;
-        children?: any;
+        children?: Snippet | undefined;
     } = $props();
 
     // Backward-compat: `subtitle` is an alias for `subtitleTop`, without mutating props.
@@ -58,7 +59,6 @@
 
     // Computed values
     let isClickable = $derived(onClick !== undefined);
-    let isSubmenuWithoutModify = $derived(type === 'submenu' && !hasModifyButton);
     let hasAnySubtitle = $derived(displaySubtitleTop || subtitleBottom);
     let iconClass = $derived(type === 'quickaction' || type === 'subsubmenu' ? 
         `icon settings_size subsetting_icon ${icon}` : `icon settings_size ${icon}`);
@@ -124,6 +124,7 @@
 -->
 
 <!-- Single unified template — clickable vs non-clickable is handled via conditional attributes -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div 
     class="menu-item"
     class:clickable={isClickable}
@@ -137,7 +138,7 @@
     onclick={isClickable ? handleItemClick : undefined}
     onkeydown={isClickable ? (e) => !disabled && handleKeydown(e, () => handleItemClick(e)) : undefined}
     role={isClickable ? 'menuitem' : 'presentation'}
-    tabindex={isClickable && !disabled ? 0 : -1}
+    tabindex={isClickable ? (disabled ? -1 : 0) : undefined}
 >
     <div class="menu-item-content">
         <div class="menu-item-left">
@@ -237,7 +238,7 @@
                     class="toggle-container"
                 >
                     <Toggle 
-                        bind:checked
+                        checked={checked}
                         name={title || displaySubtitleTop?.toLowerCase?.() || ''}
                         ariaLabel={`Toggle ${(title || displaySubtitleTop || '').toLowerCase()} mode`}
                         disabled={disabled}
