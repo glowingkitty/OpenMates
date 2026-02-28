@@ -5337,6 +5337,12 @@
       },
       "view_api_key_details": {
         "text": "Zobrazit podrobnosti API klíče"
+      },
+      "tool_iterations_label": {
+        "text": "Iterace dovedností aplikace"
+      },
+      "tool_iterations_hint": {
+        "text": "Včetně odpovědí dovedností aplikace"
       }
     },
     "share": {

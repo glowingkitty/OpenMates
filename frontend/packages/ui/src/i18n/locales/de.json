@@ -7270,6 +7270,12 @@
       },
       "view_api_key_details": {
         "text": "API-Schlüssel-Details anzeigen"
+      },
+      "tool_iterations_label": {
+        "text": "App-Skill-Iterationen"
+      },
+      "tool_iterations_hint": {
+        "text": "Einschließlich App-Skill-Antworten"
       }
     },
     "apps": {

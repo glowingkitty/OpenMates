@@ -5331,6 +5331,12 @@
       },
       "view_api_key_details": {
         "text": "API anahtarı ayrıntılarını görüntüle"
+      },
+      "tool_iterations_label": {
+        "text": "Uygulama becerisi tekrarları"
+      },
+      "tool_iterations_hint": {
+        "text": "Uygulama becerisi yanıtları dahil"
       }
     },
     "share": {

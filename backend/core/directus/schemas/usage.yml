@@ -109,6 +109,10 @@ usage:
       length: 512
       note: "Encrypted server region (e.g., 'EU', 'US', 'APAC'). Only saved for AI Ask skill (app_id='ai', skill_id='ask')."
 
+    tool_inference_iterations:
+      type: integer
+      note: "Number of extra LLM calls triggered by tool use in this turn. 0 or null = no tool calls. Only populated for AI Ask skill (app_id='ai', skill_id='ask'). Stored in cleartext for client-side display."
+
     created_at:
       type: integer
       note: "Unix timestamp (seconds) when this usage entry was first created. Application should provide this."

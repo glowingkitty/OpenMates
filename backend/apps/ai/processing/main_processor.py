@@ -1548,6 +1548,25 @@ async def handle_main_processing(
 
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
 
+    # === CUMULATIVE TOKEN TRACKING ACROSS ALL LLM ITERATIONS ===
+    # When tool calls are involved, the LLM is called multiple times per user turn:
+    # once to decide which tools to use, and again after receiving tool results.
+    # Each intermediate call sends the full (growing) chat history plus all tool results
+    # accumulated so far, so each call incurs real API token costs.
+    #
+    # We accumulate the token counts from every LLM call in this turn so the user is
+    # billed for the true total rather than only the final iteration's tokens.
+    # The final `usage` object from the last iteration is still used for provider/model
+    # metadata — only its token counts are replaced by these cumulative totals.
+    #
+    # `tool_inference_iterations` counts how many EXTRA LLM calls were triggered by
+    # tool use (i.e., total iterations minus 1).  A value of 0 means no tool calls
+    # were made (single LLM call, baseline behaviour).  This is stored in the usage
+    # entry so users can see it in Settings → Usage detail view.
+    cumulative_input_tokens: int = 0
+    cumulative_output_tokens: int = 0
+    tool_inference_iterations: int = 0  # Number of extra LLM calls caused by tool use
+
     # === SKILL CALL BUDGET TRACKING ===
     # Track total skill calls across all iterations to prevent runaway research loops.
     # Each request within a tool call counts as one skill call.
@@ -1666,6 +1685,30 @@ async def handle_main_processing(
         async for chunk in aggregate_paragraphs(llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
+                # Accumulate token counts from every LLM call in this turn.
+                # Each tool-use iteration re-sends the full history plus tool results,
+                # so all iterations contribute real API costs that must be billed.
+                _iter_input = 0
+                _iter_output = 0
+                if isinstance(chunk, MistralUsage):
+                    _iter_input = chunk.prompt_tokens or 0
+                    _iter_output = chunk.completion_tokens or 0
+                elif isinstance(chunk, GoogleUsageMetadata):
+                    _iter_input = chunk.prompt_token_count or 0
+                    _iter_output = chunk.candidates_token_count or 0
+                elif isinstance(chunk, AnthropicUsageMetadata):
+                    _iter_input = chunk.input_tokens or 0
+                    _iter_output = chunk.output_tokens or 0
+                elif isinstance(chunk, OpenAIUsageMetadata):
+                    _iter_input = chunk.input_tokens or 0
+                    _iter_output = chunk.output_tokens or 0
+                cumulative_input_tokens += _iter_input
+                cumulative_output_tokens += _iter_output
+                logger.debug(
+                    f"{log_prefix} [CUMULATIVE_TOKENS] Iteration {iteration + 1}: "
+                    f"+{_iter_input} input, +{_iter_output} output tokens. "
+                    f"Running totals: {cumulative_input_tokens} in / {cumulative_output_tokens} out"
+                )
                 continue
             if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall)):
                 tool_calls_for_this_turn.append(chunk)
@@ -1971,6 +2014,17 @@ async def handle_main_processing(
 
         if not tool_calls_for_this_turn:
             break
+
+        # This iteration produced tool calls — the loop will continue with at least one
+        # more LLM call to process the tool results.  Each such additional call re-sends
+        # the full conversation history plus the new tool results, contributing real token
+        # costs that we must bill.  Counting extra iterations here lets us surface this
+        # information to the user in the usage detail view.
+        tool_inference_iterations += 1
+        logger.info(
+            f"{log_prefix} [CUMULATIVE_TOKENS] Tool calls detected — incrementing tool_inference_iterations "
+            f"to {tool_inference_iterations}."
+        )
 
         logger.info(f"{log_prefix} Processing {len(tool_calls_for_this_turn)} tool call(s).")
         
@@ -3878,6 +3932,32 @@ async def handle_main_processing(
             break
 
     if usage:
+        # Yield cumulative token totals as a sentinel dict BEFORE the usage object.
+        # stream_consumer.py reads this to bill for ALL LLM calls in this turn rather
+        # than only the last one.  The sentinel is always emitted when we have usage
+        # data — when no tools were used there is exactly one iteration so the
+        # cumulative totals equal the single-iteration totals (zero-overhead path).
+        #
+        # Fields:
+        #   total_input_tokens  — sum of input tokens across every LLM call in this turn
+        #   total_output_tokens — sum of output tokens across every LLM call in this turn
+        #   tool_inference_iterations — number of extra LLM calls triggered by tool use
+        #                               (0 = no tools used, 1 = one tool round, etc.)
+        #
+        # A future FAQ link can explain why input_tokens may be higher than expected:
+        # each tool result is injected back into the context, making the next call's
+        # input larger.  See docs/billing.md (TODO: create) for the full explanation.
+        yield {
+            "__cumulative_llm_usage__": True,
+            "total_input_tokens": cumulative_input_tokens,
+            "total_output_tokens": cumulative_output_tokens,
+            "tool_inference_iterations": tool_inference_iterations,
+        }
+        logger.info(
+            f"{log_prefix} [CUMULATIVE_TOKENS] Final totals: "
+            f"{cumulative_input_tokens} input tokens, {cumulative_output_tokens} output tokens, "
+            f"{tool_inference_iterations} tool inference iteration(s)."
+        )
         yield usage
 
     # Yield tool calls info as a special marker at the end of the stream

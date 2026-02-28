@@ -7651,6 +7651,12 @@
       },
       "view_api_key_details": {
         "text": "View API key details"
+      },
+      "tool_iterations_label": {
+        "text": "App skill iterations"
+      },
+      "tool_iterations_hint": {
+        "text": "Including app skill responses"
       }
     },
     "apps": {

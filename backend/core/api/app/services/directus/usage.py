@@ -43,6 +43,7 @@ class UsageMethods:
         device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
         server_provider: Optional[str] = None,  # Server provider display name (e.g., "AWS Bedrock")
         server_region: Optional[str] = None,  # Server region (e.g., "EU", "US")
+        tool_inference_iterations: Optional[int] = None,  # Extra LLM calls from tool use (cleartext int)
     ) -> Optional[str]:
         """
         Creates a new usage entry in Directus.
@@ -72,6 +73,9 @@ class UsageMethods:
             device_hash: Optional SHA-256 hash of the device that created this usage entry (for API key-based usage)
             server_provider: Optional server provider display name (e.g., "AWS Bedrock", "Anthropic API"). Only for AI Ask skill.
             server_region: Optional server region (e.g., "EU", "US", "APAC"). Only for AI Ask skill.
+            tool_inference_iterations: Number of extra LLM calls triggered by tool use in this turn
+                (0 or None = no tool calls). Stored as a cleartext integer for client-side display.
+                Only populated for AI Ask skill.
         """
         log_prefix = f"DirectusService ({self.collection}):"
         logger.info(f"{log_prefix} Creating new usage entry for user '{user_id_hash}' (app_id='{app_id}', skill_id='{skill_id}').")
@@ -254,6 +258,12 @@ class UsageMethods:
             if encrypted_server_region:
                 payload["encrypted_server_region"] = encrypted_server_region
 
+            # Store tool_inference_iterations as a cleartext integer when present.
+            # This lets the client display "X app skill iterations" in the usage detail view
+            # without needing to decrypt anything.  Only present for AI Ask skill.
+            if should_save_tokens and tool_inference_iterations is not None and isinstance(tool_inference_iterations, int):
+                payload["tool_inference_iterations"] = tool_inference_iterations
+
             success, response_data = await self.sdk.create_item(self.collection, payload)
             
             if success and response_data and response_data.get("id"):
@@ -320,7 +330,7 @@ class UsageMethods:
             app_id: App identifier (for app summaries)
             api_key_hash: Optional API key hash (for API key summaries)
         """
-        log_prefix = f"DirectusService (usage summaries):"
+        log_prefix = "DirectusService (usage summaries):"
         
         try:
             # Convert timestamp to year_month format (YYYY-MM)
@@ -900,6 +910,8 @@ class UsageMethods:
                         "message_id": entry.get("message_id"),  # Cleartext - for client-side matching
                         "api_key_hash": entry.get("api_key_hash"),  # Cleartext - API key hash for tracking (nullable)
                         "device_hash": entry.get("device_hash"),  # Cleartext - device hash for tracking (nullable)
+                        # Cleartext int - extra LLM calls triggered by tool use (0/null = no tool calls)
+                        "tool_inference_iterations": entry.get("tool_inference_iterations"),
                     }
                     
                     # Collect all decryption tasks for encrypted fields only
@@ -1064,7 +1076,7 @@ class UsageMethods:
         Returns:
             List of summary records grouped by month
         """
-        log_prefix = f"DirectusService (usage summaries):"
+        log_prefix = "DirectusService (usage summaries):"
         logger.info(f"{log_prefix} Fetching {summary_type} summaries for user '{user_id_hash}', last {months} months")
         
         try:
@@ -1135,7 +1147,7 @@ class UsageMethods:
         Returns:
             List of decrypted usage entries
         """
-        log_prefix = f"DirectusService (usage details):"
+        log_prefix = "DirectusService (usage details):"
         logger.info(f"{log_prefix} Fetching {summary_type} usage entries for '{identifier}', month '{year_month}'")
         
         try:
@@ -1383,7 +1395,7 @@ class UsageMethods:
         Decrypt usage entries (helper method).
         Similar to get_user_usage_entries but for already-fetched entries.
         """
-        log_prefix = f"DirectusService (usage):"
+        log_prefix = "DirectusService (usage):"
         
         async def process_entry(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             try:
@@ -1399,6 +1411,9 @@ class UsageMethods:
                     "message_id": entry.get("message_id"),
                     "api_key_hash": entry.get("api_key_hash"),
                     "device_hash": entry.get("device_hash"),
+                    # Cleartext integer — number of extra LLM iterations triggered by tool use.
+                    # 0 or null = no tool calls occurred.  Only present for AI Ask skill.
+                    "tool_inference_iterations": entry.get("tool_inference_iterations"),
                 }
                 
                 decrypt_tasks = {}

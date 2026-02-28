@@ -6532,6 +6532,12 @@
       },
       "view_api_key_details": {
         "text": "APIキーの詳細を表示"
+      },
+      "tool_iterations_label": {
+        "text": "アプリスキルの反復回数"
+      },
+      "tool_iterations_hint": {
+        "text": "アプリスキルのレスポンスを含む"
       }
     },
     "apps": {

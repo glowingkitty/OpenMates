@@ -52,6 +52,8 @@ class BillingService:
                 - model_used: Model identifier if applicable
                 - input_tokens: Input token count if applicable
                 - output_tokens: Output token count if applicable
+                - tool_inference_iterations: Extra LLM calls from tool use (0 = no tools used).
+                    Only present for AI Ask skill. Stored as cleartext integer for client-side display.
             api_key_hash: Optional SHA-256 hash of the API key that created this usage entry (for API key-based usage)
             device_hash: Optional SHA-256 hash of the device that created this usage entry (for API key-based usage)
         """
@@ -263,6 +265,15 @@ class BillingService:
             else:
                 source = "direct"
             
+            # Extract tool_inference_iterations from usage_details (AI Ask skill only).
+            # This is the count of extra LLM calls triggered by tool use in this turn.
+            # 0 = no tool calls were made; stored as cleartext integer in the usage entry.
+            _tool_inference_iterations: Optional[int] = None
+            if usage_details:
+                _raw_tii = usage_details.get("tool_inference_iterations")
+                if isinstance(_raw_tii, int):
+                    _tool_inference_iterations = _raw_tii
+
             await self.directus_service.usage.create_usage_entry(
                 user_id_hash=user_id_hash,
                 app_id=app_id.strip(),  # Ensure no leading/trailing whitespace
@@ -286,6 +297,7 @@ class BillingService:
                 device_hash=device_hash,  # Device hash for tracking which device created this usage
                 server_provider=usage_details.get("server_provider") if usage_details else None,
                 server_region=usage_details.get("server_region") if usage_details else None,
+                tool_inference_iterations=_tool_inference_iterations,
             )
 
         except HTTPException as e:

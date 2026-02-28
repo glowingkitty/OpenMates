@@ -1355,3 +1355,49 @@ view_api_key_details:
   cs: Zobrazit podrobnosti API klíče
   sv: Visa API-nyckeldetaljer
   verified_by_human: []
+tool_iterations_label:
+  context: Label for the number of extra LLM iterations triggered by app skill tool use in usage entry detail view
+  en: App skill iterations
+  de: App-Skill-Iterationen
+  zh: 应用技能迭代次数
+  es: Iteraciones de habilidades de la app
+  fr: Itérations de compétences d'app
+  pt: Iterações de habilidades do app
+  ru: Итерации навыков приложения
+  ja: アプリスキルの反復回数
+  ko: 앱 스킬 반복 횟수
+  it: Iterazioni skill app
+  tr: Uygulama becerisi tekrarları
+  vi: Số lần lặp kỹ năng ứng dụng
+  id: Iterasi keterampilan aplikasi
+  pl: Iteracje umiejętności aplikacji
+  nl: App-vaardigheidsherhaling
+  ar: تكرارات مهارة التطبيق
+  hi: ऐप स्किल पुनरावृत्ति
+  th: รอบซ้ำทักษะแอป
+  cs: Iterace dovedností aplikace
+  sv: Iterationer för appfärdigheter
+  verified_by_human: []
+tool_iterations_hint:
+  context: Short hint shown next to the tool iteration count explaining why token counts are higher when app skills were used
+  en: Including app skill responses
+  de: Einschließlich App-Skill-Antworten
+  zh: 包含应用技能响应
+  es: Incluye respuestas de habilidades de la app
+  fr: Réponses de compétences d'app incluses
+  pt: Incluindo respostas de habilidades do app
+  ru: Включая ответы навыков приложения
+  ja: アプリスキルのレスポンスを含む
+  ko: 앱 스킬 응답 포함
+  it: Include risposte skill app
+  tr: Uygulama becerisi yanıtları dahil
+  vi: Bao gồm phản hồi kỹ năng ứng dụng
+  id: Termasuk respons keterampilan aplikasi
+  pl: W tym odpowiedzi umiejętności aplikacji
+  nl: Inclusief app-vaardigheidsantwoorden
+  ar: يشمل ردود مهارة التطبيق
+  hi: ऐप स्किल प्रतिक्रियाएं सहित
+  th: รวมการตอบสนองทักษะแอป
+  cs: Včetně odpovědí dovedností aplikace
+  sv: Inklusive svar på appfärdigheter
+  verified_by_human: []

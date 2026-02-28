@@ -5331,6 +5331,12 @@
       },
       "view_api_key_details": {
         "text": "API-sleuteldetails bekijken"
+      },
+      "tool_iterations_label": {
+        "text": "App-vaardigheidsherhaling"
+      },
+      "tool_iterations_hint": {
+        "text": "Inclusief app-vaardigheidsantwoorden"
       }
     },
     "share": {

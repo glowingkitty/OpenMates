@@ -556,11 +556,22 @@ async def _handle_normal_billing(
     preprocessing_result: PreprocessingResult,
     request_data: AskSkillRequest,
     task_id: str,
-    log_prefix: str
+    log_prefix: str,
+    cumulative_input_tokens: Optional[int] = None,
+    cumulative_output_tokens: Optional[int] = None,
+    tool_inference_iterations: int = 0,
 ) -> Dict[str, Any]:
     """
     Handle billing for normal processing flow.
     Returns usage information for Redis publishing.
+
+    When tool use is involved the LLM is called multiple times. In that case
+    cumulative_input_tokens / cumulative_output_tokens contain the sum across
+    all iterations (emitted via the __cumulative_llm_usage__ sentinel from
+    handle_main_processing).  We use those totals for billing so every iteration
+    is charged, not just the last one.  Falls back to the single-iteration
+    token counts from the usage metadata object when no sentinel was received
+    (i.e. no tool calls were made).
     """
     # Extract token counts and provider name based on usage type
     user_input_tokens = None
@@ -617,6 +628,21 @@ async def _handle_normal_billing(
 
     logger.info(f"{log_prefix} Determined provider_name for billing: {provider_name}")
 
+    # Override per-iteration token counts with cumulative totals when tool calls were made.
+    # The cumulative values are populated by the __cumulative_llm_usage__ sentinel emitted
+    # from handle_main_processing and cover ALL LLM iterations in this turn.
+    # When no tool calls occurred the sentinel is not emitted and we fall back to the
+    # single-iteration counts already extracted from the usage metadata object above.
+    if cumulative_input_tokens is not None:
+        logger.info(
+            f"{log_prefix} Using cumulative token totals for billing "
+            f"(tool_iterations={tool_inference_iterations}): "
+            f"input {input_tokens} → {cumulative_input_tokens}, "
+            f"output {output_tokens} → {cumulative_output_tokens}"
+        )
+        input_tokens = cumulative_input_tokens
+        output_tokens = cumulative_output_tokens or 0
+
     # Get pricing configuration
     pricing_config = celery_config.config_manager.get_provider_config(provider_name)
     if not pricing_config:
@@ -667,6 +693,7 @@ async def _handle_normal_billing(
         "external_request": request_data.is_external,
         "server_provider": preprocessing_result.server_provider_name,
         "server_region": preprocessing_result.server_region,
+        "tool_inference_iterations": tool_inference_iterations,
     }
 
     await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
@@ -1077,6 +1104,16 @@ async def _consume_main_processing_stream(
 
     stream_chunk_count = 0
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
+
+    # Cumulative token totals from all LLM iterations in this turn (set via sentinel dict
+    # emitted by handle_main_processing just before the final usage metadata object).
+    # When tool calls are involved the LLM is called multiple times; these totals capture
+    # every call so we can bill the user for the true API cost rather than only the last
+    # iteration.  Falls back to the single-iteration usage object when absent (no tool use).
+    cumulative_input_tokens: Optional[int] = None
+    cumulative_output_tokens: Optional[int] = None
+    tool_inference_iterations: int = 0
+
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     thinking_channel_name = f"chat_stream_thinking::{request_data.chat_id}"  # Separate channel for thinking content
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
@@ -1183,6 +1220,21 @@ async def _consume_main_processing_stream(
                 awaiting_focus_mode_confirmation = True
                 focus_id = chunk.get("focus_id", "unknown")
                 logger.info(f"{log_prefix} Awaiting focus mode confirmation for '{focus_id}'. Task will complete — continuation handled by auto-confirm or rejection.")
+                continue
+
+            # Check for cumulative LLM usage sentinel (emitted by handle_main_processing
+            # just before the final usage metadata object when tool use occurred).
+            # This captures the sum of tokens across ALL LLM iterations in this turn so
+            # billing uses the true total instead of only the last iteration's tokens.
+            if isinstance(chunk, dict) and "__cumulative_llm_usage__" in chunk:
+                cumulative_input_tokens = chunk.get("total_input_tokens")
+                cumulative_output_tokens = chunk.get("total_output_tokens")
+                tool_inference_iterations = chunk.get("tool_inference_iterations", 0)
+                logger.info(
+                    f"{log_prefix} Received cumulative LLM usage sentinel: "
+                    f"input={cumulative_input_tokens}, output={cumulative_output_tokens}, "
+                    f"tool_iterations={tool_inference_iterations}"
+                )
                 continue
             
             # Handle UnifiedStreamChunk for thinking models (Gemini, Anthropic)
@@ -2879,7 +2931,10 @@ async def _consume_main_processing_stream(
     if should_bill:
         try:
             billing_info = await _handle_normal_billing(
-                usage, preprocessing_result, request_data, task_id, log_prefix
+                usage, preprocessing_result, request_data, task_id, log_prefix,
+                cumulative_input_tokens=cumulative_input_tokens,
+                cumulative_output_tokens=cumulative_output_tokens,
+                tool_inference_iterations=tool_inference_iterations,
             )
         except Exception as e:
             # CRITICAL: Don't let billing errors prevent the final chunk from being sent

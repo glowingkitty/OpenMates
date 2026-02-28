@@ -5331,6 +5331,12 @@
       },
       "view_api_key_details": {
         "text": "Zobacz szczegóły klucza API"
+      },
+      "tool_iterations_label": {
+        "text": "Iteracje umiejętności aplikacji"
+      },
+      "tool_iterations_hint": {
+        "text": "W tym odpowiedzi umiejętności aplikacji"
       }
     },
     "share": {

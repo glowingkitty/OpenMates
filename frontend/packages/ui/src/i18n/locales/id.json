@@ -5331,6 +5331,12 @@
       },
       "view_api_key_details": {
         "text": "Lihat detail kunci API"
+      },
+      "tool_iterations_label": {
+        "text": "Iterasi keterampilan aplikasi"
+      },
+      "tool_iterations_hint": {
+        "text": "Termasuk respons keterampilan aplikasi"
       }
     },
     "share": {

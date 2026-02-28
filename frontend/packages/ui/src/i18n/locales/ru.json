@@ -5331,6 +5331,12 @@
       },
       "view_api_key_details": {
         "text": "Просмотреть детали API-ключа"
+      },
+      "tool_iterations_label": {
+        "text": "Итерации навыков приложения"
+      },
+      "tool_iterations_hint": {
+        "text": "Включая ответы навыков приложения"
       }
     },
     "share": {

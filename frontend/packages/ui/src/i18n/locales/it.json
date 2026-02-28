@@ -5334,6 +5334,12 @@
       },
       "view_api_key_details": {
         "text": "Visualizza dettagli chiave API"
+      },
+      "tool_iterations_label": {
+        "text": "Iterazioni skill app"
+      },
+      "tool_iterations_hint": {
+        "text": "Include risposte skill app"
       }
     },
     "share": {

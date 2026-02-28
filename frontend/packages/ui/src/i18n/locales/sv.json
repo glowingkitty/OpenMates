@@ -5355,6 +5355,12 @@
       },
       "view_api_key_details": {
         "text": "Visa API-nyckeldetaljer"
+      },
+      "tool_iterations_label": {
+        "text": "Iterationer för appfärdigheter"
+      },
+      "tool_iterations_hint": {
+        "text": "Inklusive svar på appfärdigheter"
       }
     },
     "share": {

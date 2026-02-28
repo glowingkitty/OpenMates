@@ -5331,6 +5331,12 @@
       },
       "view_api_key_details": {
         "text": "API 키 세부정보 보기"
+      },
+      "tool_iterations_label": {
+        "text": "앱 스킬 반복 횟수"
+      },
+      "tool_iterations_hint": {
+        "text": "앱 스킬 응답 포함"
       }
     },
     "share": {

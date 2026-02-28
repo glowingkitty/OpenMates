@@ -5829,6 +5829,12 @@
       },
       "view_api_key_details": {
         "text": "عرض تفاصيل مفتاح API"
+      },
+      "tool_iterations_label": {
+        "text": "تكرارات مهارة التطبيق"
+      },
+      "tool_iterations_hint": {
+        "text": "يشمل ردود مهارة التطبيق"
       }
     },
     "apps": {

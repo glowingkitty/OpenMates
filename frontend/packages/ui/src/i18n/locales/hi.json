@@ -5331,6 +5331,12 @@
       },
       "view_api_key_details": {
         "text": "API कुंजी विवरण देखें"
+      },
+      "tool_iterations_label": {
+        "text": "ऐप स्किल पुनरावृत्ति"
+      },
+      "tool_iterations_hint": {
+        "text": "ऐप स्किल प्रतिक्रियाएं सहित"
       }
     },
     "share": {

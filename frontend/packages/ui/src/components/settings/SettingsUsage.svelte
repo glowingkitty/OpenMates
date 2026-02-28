@@ -35,6 +35,7 @@ Usage Settings - View usage statistics and export usage data
         credits_response?: number; // Credit cost for response tokens
         server_provider?: string; // Server provider display name (e.g., "AWS Bedrock")
         server_region?: string; // Server region (e.g., "EU", "US")
+        tool_inference_iterations?: number | null; // Extra LLM calls from tool use (0 = no tools). Cleartext.
         chat_id?: string | null; // Cleartext - for matching with IndexedDB
         message_id?: string | null; // Cleartext - for matching with IndexedDB
         api_key_hash?: string | null; // SHA-256 hash of the API key that created this usage entry
@@ -1557,6 +1558,20 @@ Usage Settings - View usage statistics and export usage data
                         <div class="entry-detail-row">
                             <span class="entry-detail-label">{$text('settings.usage.output_tokens_label')}</span>
                             <span class="entry-detail-value">{selEntry.output_tokens.toLocaleString()}</span>
+                        </div>
+                    {/if}
+                    <!-- Tool inference iterations hint (only shown when tool use occurred, i.e. > 0) -->
+                    <!-- This tells the user why their token count is higher than expected:        -->
+                    <!-- the AI called one or more app skills and re-processed the full context    -->
+                    <!-- after receiving each result, adding an extra LLM call per skill round.   -->
+                    <!-- FAQ: https://openmates.app/faq#tool-inference (do NOT show URL in UI)   -->
+                    {#if selEntry.tool_inference_iterations != null && selEntry.tool_inference_iterations > 0}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.tool_iterations_label')}</span>
+                            <span class="entry-detail-value entry-detail-value--hint">
+                                {selEntry.tool_inference_iterations}
+                                <span class="entry-detail-hint">{$text('settings.usage.tool_iterations_hint')}</span>
+                            </span>
                         </div>
                     {/if}
                 </div>
@@ -3084,6 +3099,19 @@ Usage Settings - View usage statistics and export usage data
         font-size: 12px;
         color: var(--color-grey-50);
         font-weight: 400;
+    }
+
+    /* Tool iteration hint: subtle secondary text shown after the iteration count */
+    .entry-detail-value--hint {
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px;
+    }
+
+    .entry-detail-hint {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--color-grey-50);
     }
 
     /* Deleted chat styles */

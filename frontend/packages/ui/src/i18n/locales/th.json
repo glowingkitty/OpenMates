@@ -5337,6 +5337,12 @@
       },
       "view_api_key_details": {
         "text": "ดูรายละเอียดคีย์ API"
+      },
+      "tool_iterations_label": {
+        "text": "รอบซ้ำทักษะแอป"
+      },
+      "tool_iterations_hint": {
+        "text": "รวมการตอบสนองทักษะแอป"
       }
     },
     "share": {

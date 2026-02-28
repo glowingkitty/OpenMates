@@ -6668,6 +6668,12 @@
       },
       "view_api_key_details": {
         "text": "Ver detalles de la clave API"
+      },
+      "tool_iterations_label": {
+        "text": "Iteraciones de habilidades de la app"
+      },
+      "tool_iterations_hint": {
+        "text": "Incluye respuestas de habilidades de la app"
       }
     },
     "apps": {

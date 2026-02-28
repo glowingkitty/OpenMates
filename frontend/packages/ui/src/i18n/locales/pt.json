@@ -5331,6 +5331,12 @@
       },
       "view_api_key_details": {
         "text": "Ver detalhes da chave API"
+      },
+      "tool_iterations_label": {
+        "text": "Iterações de habilidades do app"
+      },
+      "tool_iterations_hint": {
+        "text": "Incluindo respostas de habilidades do app"
       }
     },
     "share": {

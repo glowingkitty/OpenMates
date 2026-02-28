@@ -5331,6 +5331,12 @@
       },
       "view_api_key_details": {
         "text": "Xem chi tiết khóa API"
+      },
+      "tool_iterations_label": {
+        "text": "Số lần lặp kỹ năng ứng dụng"
+      },
+      "tool_iterations_hint": {
+        "text": "Bao gồm phản hồi kỹ năng ứng dụng"
       }
     },
     "share": {

@@ -6532,6 +6532,12 @@
       },
       "view_api_key_details": {
         "text": "查看 API 密钥详情"
+      },
+      "tool_iterations_label": {
+        "text": "应用技能迭代次数"
+      },
+      "tool_iterations_hint": {
+        "text": "包含应用技能响应"
       }
     },
     "apps": {

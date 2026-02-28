@@ -6625,6 +6625,12 @@
       },
       "view_api_key_details": {
         "text": "Voir les détails de la clé API"
+      },
+      "tool_iterations_label": {
+        "text": "Itérations de compétences d'app"
+      },
+      "tool_iterations_hint": {
+        "text": "Réponses de compétences d'app incluses"
       }
     },
     "apps": {
