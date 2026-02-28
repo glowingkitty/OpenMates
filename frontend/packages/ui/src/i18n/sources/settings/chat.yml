@@ -20,7 +20,7 @@ description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تخصيص الإشعارات وسلوك الدردشة
   hi: ""
   th: ""
   cs: ""
@@ -32,155 +32,186 @@ chat:
   context: Chat settings menu title
   en: Chat
   de: Chat
+  ar: الدردشة
 
 # Notifications submenu (becomes settings.chat.notifications.text)
 notifications:
   context: Notifications submenu title
   en: Notifications
   de: Benachrichtigungen
+  ar: الإشعارات
 
 notifications.enabled:
   context: Status text when notifications are enabled
   en: Enabled
   de: Aktiviert
+  ar: مفعّل
 
 notifications.disabled:
   context: Status text when notifications are disabled
   en: Disabled
   de: Deaktiviert
+  ar: معطّل
 
 notifications.blocked:
   context: Status text when notifications are blocked by browser
   en: Blocked by browser
   de: Vom Browser blockiert
+  ar: محجوب بواسطة المتصفح
 
 notifications.enable:
   context: Push notifications toggle title
   en: Push Notifications
   de: Push-Benachrichtigungen
+  ar: إشعارات الدفع
 
 notifications.permission_granted:
   context: Permission status when granted
   en: Permission granted
   de: Berechtigung erteilt
+  ar: تم منح الإذن
 
 notifications.permission_denied:
   context: Permission status when denied
   en: Permission denied in browser settings
   de: Berechtigung in Browser-Einstellungen verweigert
+  ar: تم رفض الإذن في إعدادات المتصفح
 
 notifications.permission_default:
   context: Permission status when not yet requested
   en: Permission not yet requested
   de: Berechtigung noch nicht angefragt
+  ar: لم يُطلب الإذن بعد
 
 notifications.not_supported:
   context: Warning when push notifications are not supported
   en: Push notifications are not supported on this browser or device.
   de: Push-Benachrichtigungen werden auf diesem Browser oder Gerät nicht unterstützt.
+  ar: إشعارات الدفع غير مدعومة على هذا المتصفح أو الجهاز.
 
 notifications.pwa_install_title:
   context: Title shown on iOS Safari when push requires PWA installation
   en: Add to Home Screen to Enable Notifications
   de: Zum Home-Bildschirm hinzufügen, um Benachrichtigungen zu aktivieren
+  ar: أضف إلى الشاشة الرئيسية لتفعيل الإشعارات
 
 notifications.pwa_install_desc:
   context: Description explaining why PWA installation is needed for push notifications
   en: "Push notifications require the app to be installed on your device. Follow these steps:"
   de: "Push-Benachrichtigungen erfordern, dass die App auf Ihrem Gerät installiert ist. Folgen Sie diesen Schritten:"
+  ar: "تتطلب إشعارات الدفع تثبيت التطبيق على جهازك. اتبع هذه الخطوات:"
 
 notifications.denied_info:
   context: Info text when permission is denied
   en: To enable notifications, please allow them in your browser settings and refresh the page.
   de: Um Benachrichtigungen zu aktivieren, erlauben Sie diese bitte in Ihren Browser-Einstellungen und aktualisieren Sie die Seite.
+  ar: لتفعيل الإشعارات، يرجى السماح بها في إعدادات المتصفح وإعادة تحميل الصفحة.
 
 notifications.categories:
   context: Section title for notification categories
   en: Notification Types
   de: Benachrichtigungstypen
+  ar: أنواع الإشعارات
 
 notifications.new_messages:
   context: New messages notification toggle
   en: New Messages
   de: Neue Nachrichten
+  ar: رسائل جديدة
 
 notifications.new_messages_desc:
   context: Description for new messages notifications
   en: When an assistant completes a response
   de: Wenn ein Assistent eine Antwort abgeschlossen hat
+  ar: عندما يكمل المساعد ردًا
 
 notifications.server_events:
   context: Server events notification toggle
   en: Server Events
   de: Server-Ereignisse
+  ar: أحداث الخادم
 
 notifications.server_events_desc:
   context: Description for server event notifications
   en: Connection issues and maintenance alerts
   de: Verbindungsprobleme und Wartungsmeldungen
+  ar: مشاكل الاتصال وتنبيهات الصيانة
 
 notifications.software_updates:
   context: Software updates notification toggle
   en: Software Updates
   de: Software-Updates
+  ar: تحديثات البرنامج
 
 notifications.software_updates_desc:
   context: Description for software update notifications
   en: When new versions are available
   de: Wenn neue Versionen verfügbar sind
+  ar: عند توفر إصدارات جديدة
 
 # Email notifications section
 notifications.email_section:
   context: Section title for email notifications
   en: Email Notifications
   de: E-Mail-Benachrichtigungen
+  ar: إشعارات البريد الإلكتروني
 
 notifications.email_enable:
   context: Email notifications toggle title
   en: Email Notifications
   de: E-Mail-Benachrichtigungen
+  ar: إشعارات البريد الإلكتروني
 
 notifications.email_enable_desc:
   context: Description for email notifications toggle
   en: Receive emails when you're offline
   de: E-Mails erhalten, wenn Sie offline sind
+  ar: استلام رسائل بريد إلكتروني عند عدم الاتصال
 
 notifications.email_address:
   context: Email address input label
   en: Notification Email
   de: Benachrichtigungs-E-Mail
+  ar: بريد الإشعارات
 
 notifications.email_address_placeholder:
   context: Email address input placeholder
   en: Enter email address
   de: E-Mail-Adresse eingeben
+  ar: أدخل عنوان البريد الإلكتروني
 
 notifications.email_address_desc:
   context: Description for notification email field
   en: Where to send notifications (can differ from login email)
   de: Wohin Benachrichtigungen gesendet werden (kann von der Login-E-Mail abweichen)
+  ar: مكان إرسال الإشعارات (يمكن أن يختلف عن بريد تسجيل الدخول)
 
 notifications.email_ai_responses:
   context: AI responses notification toggle
   en: AI Responses
   de: KI-Antworten
+  ar: ردود الذكاء الاصطناعي
 
 notifications.email_ai_responses_desc:
   context: Description for AI responses email notifications
   en: When an assistant completes a response while you're away
   de: Wenn ein Assistent eine Antwort abschließt, während Sie abwesend sind
+  ar: عندما يكمل المساعد الرد أثناء غيابك
 
 notifications.email_how_it_works:
   context: Info banner explaining how email notifications work
   en: Email notifications are only sent when you're not actively using OpenMates on any device.
   de: E-Mail-Benachrichtigungen werden nur gesendet, wenn Sie OpenMates auf keinem Gerät aktiv nutzen.
+  ar: يتم إرسال إشعارات البريد الإلكتروني فقط عندما لا تستخدم OpenMates بنشاط على أي جهاز.
 
 notifications.email_invalid:
   context: Error message for invalid email
   en: Please enter a valid email address
   de: Bitte geben Sie eine gültige E-Mail-Adresse ein
+  ar: يرجى إدخال عنوان بريد إلكتروني صالح
 
 notifications.email_saving:
   context: Status text while saving email settings
   en: Saving...
   de: Wird gespeichert...
+  ar: جاري الحفظ...

@@ -1091,7 +1091,10 @@
           "text": "جاري التحميل…"
         },
         "processing": {
-          "text": "جاري قراءة PDF…"
+          "text": "جارٍ المعالجة…"
+        },
+        "processing_pages": {
+          "text": "معالجة {count} {count, plural, one {صفحة} other {صفحات}}…"
         },
         "viewing": {
           "text": "جاري العرض…"
@@ -3638,6 +3641,17 @@
           "text": "سياسة خصوصية Groq"
         }
       },
+      "polar": {
+        "heading": {
+          "text": "3.15 Polar (معالجة المدفوعات)"
+        },
+        "description": {
+          "text": "نستخدم Polar (شركة أمريكية) لمعالجة المدفوعات للمشتريات التي تتم من خلال Polar Storefront في تطبيق الويب. عند إجراء عملية شراء، تعالج Polar نوع بطاقة الدفع، والأرقام الأربعة الأخيرة من بطاقتك، وعنوان إرسال الفواتير، ورقم الهاتف، وعنوان البريد الإلكتروني لإتمام المعاملة بأمان."
+        },
+        "privacy_policy_link": {
+          "text": "سياسة خصوصية Polar"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. تدابير الأمان"
@@ -4227,7 +4241,30 @@
           "text": "اسم المستخدم الخاص بك هو اسمك المعروض على OpenMates. يجب أن يتراوح بين 3 و 20 حرفًا ويمكن أن يحتوي على حروف وأرقام ونقاط وشرطات سفلية."
         }
       },
+      "account": {
+        "description": {
+          "text": "إدارة ملفك الشخصي وإعدادات المصادقة والحساب"
+        }
+      },
       "text": "حساب",
+      "email": {
+        "text": "البريد الإلكتروني",
+        "loading": {
+          "text": "جارٍ فك تشفير عنوان البريد الإلكتروني..."
+        },
+        "current_email": {
+          "text": "عنوان البريد الإلكتروني الحالي"
+        },
+        "privacy_info": {
+          "text": "يتم تخزين عنوان بريدك الإلكتروني بشكل مشفر على جهازك والخادم. أنت وحدك يمكنك فك تشفيره باستخدام مفتاحك الرئيسي."
+        },
+        "copied": {
+          "text": "تم نسخ عنوان البريد الإلكتروني إلى الحافظة"
+        },
+        "error_decrypting": {
+          "text": "فشل فك تشفير عنوان البريد الإلكتروني."
+        }
+      },
       "security": {
         "text": "الأمان"
       },
@@ -4235,7 +4272,25 @@
         "text": "مفاتيح الوصول"
       },
       "profile_picture": {
-        "text": "صورة الملف الشخصي"
+        "text": "صورة الملف الشخصي",
+        "upload": {
+          "text": "تحميل صورة جديدة"
+        },
+        "uploading": {
+          "text": "جارٍ التحميل…"
+        },
+        "upload_success": {
+          "text": "تم تحديث صورة الملف الشخصي"
+        },
+        "upload_error": {
+          "text": "فشل التحميل. يرجى المحاولة مرة أخرى."
+        },
+        "file_too_large": {
+          "text": "الصورة كبيرة جدًا. يرجى اختيار صورة أصغر."
+        },
+        "wrong_format": {
+          "text": "يرجى اختيار صورة بتنسيق JPEG أو PNG."
+        }
       },
       "storage": {
         "text": "التخزين"
@@ -4413,15 +4468,165 @@
       },
       "change_password": {
         "text": "تغيير كلمة المرور"
+      },
+      "delete_account_uncompleted_title": {
+        "text": "حذف الحساب غير المكتمل"
+      },
+      "delete_account_uncompleted_message": {
+        "text": "لم يكتمل هذا الحساب عملية التسجيل بعد. يمكنك حذفه الآن دون تسجيل الدخول."
+      },
+      "delete_account_login_required_title": {
+        "text": "تسجيل الدخول مطلوب"
+      },
+      "delete_account_login_required_message": {
+        "text": "أكمل هذا الحساب عملية التسجيل أو لديه رصيد/استخدام. يرجى تسجيل الدخول لحذفه عبر الواجهة العادية."
+      },
+      "delete_account_status_error": {
+        "text": "فشل التحقق من حالة الحساب. يرجى المحاولة مرة أخرى لاحقًا."
+      },
+      "timezone": {
+        "text": "المنطقة الزمنية"
+      },
+      "timezone_current": {
+        "text": "المنطقة الزمنية الحالية"
+      },
+      "timezone_use_browser": {
+        "text": "استخدام المنطقة الزمنية للمتصفح"
+      },
+      "timezone_saved": {
+        "text": "تم حفظ المنطقة الزمنية"
+      },
+      "timezone_loading": {
+        "text": "جارٍ تحميل إعدادات المنطقة الزمنية..."
+      },
+      "timezone_other": {
+        "text": "أخرى"
+      },
+      "timezone_info": {
+        "text": "تُستخدم منطقتك الزمنية لجدولة التذكيرات وعرض الأوقات. تم اكتشافها تلقائيًا من متصفحك ولكن يمكنك تغييرها هنا."
       }
     },
     "ai_ask": {
       "ai_ask_settings": {
         "description": {
           "text": "اطرح سؤالاً باستخدام النص والصور والوسائط الأخرى."
+        },
+        "pricing": {
+          "text": "التسعير"
+        },
+        "pricing_starting_at": {
+          "text": "يبدأ من"
+        },
+        "input_text": {
+          "text": "إدخال"
+        },
+        "output_text": {
+          "text": "إخراج"
+        },
+        "per": {
+          "text": "لكل"
+        },
+        "tokens": {
+          "text": "رموز"
+        },
+        "pricing_note": {
+          "text": "تختلف الأسعار حسب الموديل. تكلف النماذج المميزة رصيدًا أكثر لكل رمز."
+        },
+        "settings": {
+          "text": "الإعدادات"
+        },
+        "auto_select_model": {
+          "text": "اختيار النموذج تلقائيًا"
+        },
+        "auto_select_description": {
+          "text": "يختار تلقائيًا أفضل نموذج بناءً على تعقيد استعلامك وتفضيلاتك."
+        },
+        "manual_select_note": {
+          "text": "يمكنك دائمًا اختيار نموذج يدويًا باستخدام @الإشارة في الدردشة."
+        },
+        "available_models": {
+          "text": "النماذج المتاحة"
+        },
+        "models_description": {
+          "text": "مكّن أو عطّل النماذج لمهارة AI Ask. لن تظهر النماذج المعطّلة في اقتراحات @الإشارة."
+        },
+        "search_placeholder": {
+          "text": "البحث في النماذج..."
+        },
+        "sort_by_price": {
+          "text": "السعر (الأرخص)"
+        },
+        "sort_by_performance": {
+          "text": "الأداء"
+        },
+        "sort_by_new": {
+          "text": "الأحدث"
+        },
+        "no_models_found": {
+          "text": "لم يتم العثور على نماذج تطابق بحثك."
         }
       },
       "ai_ask_model_details": {
+        "model_not_found": {
+          "text": "النموذج غير موجود."
+        },
+        "back_to_models": {
+          "text": "العودة إلى النماذج"
+        },
+        "model_info": {
+          "text": "معلومات النموذج"
+        },
+        "origin": {
+          "text": "المصدر"
+        },
+        "release_date": {
+          "text": "تاريخ الإصدار"
+        },
+        "tier": {
+          "text": "الفئة"
+        },
+        "tier_economy": {
+          "text": "اقتصادي"
+        },
+        "tier_standard": {
+          "text": "قياسي"
+        },
+        "tier_premium": {
+          "text": "مميز"
+        },
+        "type": {
+          "text": "النوع"
+        },
+        "reasoning_model": {
+          "text": "نموذج الاستدلال"
+        },
+        "input_types": {
+          "text": "يقبل"
+        },
+        "output_types": {
+          "text": "مخرجات"
+        },
+        "input_type_text": {
+          "text": "نص"
+        },
+        "input_type_image": {
+          "text": "صور"
+        },
+        "input_type_video": {
+          "text": "فيديو"
+        },
+        "input_type_audio": {
+          "text": "صوت"
+        },
+        "output_type_text": {
+          "text": "نص"
+        },
+        "output_type_image": {
+          "text": "صور"
+        },
+        "pricing": {
+          "text": "التسعير"
+        },
         "text_input": {
           "text": "إدخال النص"
         },
@@ -4430,7 +4635,103 @@
         },
         "provider": {
           "text": "المزود"
+        },
+        "servers": {
+          "text": "الخوادم"
+        },
+        "servers_description": {
+          "text": "اختر الخوادم التي ستُستخدم لهذا النموذج. سيتم تخطي الخوادم المعطّلة أثناء المعالجة."
+        },
+        "default": {
+          "text": "افتراضي"
+        },
+        "enable_model": {
+          "text": "تفعيل النموذج"
         }
+      }
+    },
+    "app_settings_memories": {
+      "text": "الإعدادات والذكريات",
+      "item_key_required": {
+        "text": "مفتاح الإدخال مطلوب"
+      },
+      "item_value_required": {
+        "text": "قيمة الإدخال مطلوبة"
+      },
+      "authentication_required": {
+        "text": "المصادقة مطلوبة"
+      },
+      "confirm_delete": {
+        "text": "هل أنت متأكد أنك تريد حذف هذا الإدخال؟"
+      },
+      "entry_not_found": {
+        "text": "الإدخال غير موجود"
+      },
+      "back_to_category": {
+        "text": "العودة إلى الفئة"
+      },
+      "deleting": {
+        "text": "جارٍ الحذف..."
+      },
+      "saving": {
+        "text": "جارٍ الحفظ..."
+      },
+      "examples_label": {
+        "text": "أمثلة:"
+      },
+      "my": {
+        "text": "تبتي"
+      },
+      "settings_and_memories": {
+        "text": "الإعدادات والذكريات"
+      },
+      "my_settings_and_memories": {
+        "text": "إعداداتي وذكرياتي"
+      },
+      "no_entries_yet": {
+        "text": "لا توجد إدخالات حتى الآن."
+      },
+      "examples": {
+        "text": "أمثلة"
+      },
+      "no_settings": {
+        "text": "لم يتم مزامنة أي إعدادات أو ذكريات حتى الآن. ستظهر هنا بمجرد توفرها."
+      },
+      "add_entry": {
+        "text": "إضافة إدخال"
+      },
+      "loading": {
+        "text": "جاري تحميل الإعدادات والذكريات..."
+      },
+      "item_key": {
+        "text": "مفتاح العنصر"
+      },
+      "settings_group": {
+        "text": "مجموعة الإعدادات"
+      },
+      "item_value": {
+        "text": "قيمة العنصر"
+      },
+      "cancel": {
+        "text": "إلغاء"
+      },
+      "creating": {
+        "text": "جاري الإنشاء..."
+      },
+      "placeholder": {
+        "text": "قريباً ستتمكن من إدارة وإنشاء إعدادات تطبيقاتك وذكرياتك هنا."
+      },
+      "just_now": {
+        "text": "الآن"
+      },
+      "edit": {
+        "text": "تعديل"
+      },
+      "delete": {
+        "text": "حذف"
+      },
+      "save": {
+        "text": "حفظ"
       }
     },
     "app_store": {
@@ -4683,6 +4984,9 @@
           "text": "إضافة إدخال"
         }
       },
+      "plus_n_more": {
+        "text": "+ {count} أخرى"
+      },
       "ai": {
         "skill": {
           "ask": {
@@ -4776,6 +5080,11 @@
       }
     },
     "billing": {
+      "billing": {
+        "description": {
+          "text": "إدارة رصيدك واشتراكاتك وطرق الدفع"
+        }
+      },
       "text": "الفوترة",
       "title": {
         "text": "الفوترة والاعتمادات"
@@ -5069,6 +5378,9 @@
       "auto_topup_payment_method_error": {
         "text": "تعذر حفظ طريقة الدفع. إعادة الشحن التلقائي الشهرية غير متاحة. يمكنك إعداد هذا لاحقًا في الإعدادات."
       },
+      "buy_credits_explainer": {
+        "text": "تُستخدم الاعتمادات عند الدردشة مع رفاقك الرقميين واستخدام مهارات التطبيق."
+      },
       "insufficient_credits_error": {
         "text": "ليس لديك رصيد كافٍ لإكمال هذا الطلب. يرجى شراء المزيد من الاعتمادات أو تفعيل إعادة الشحن التلقائي بطريقة دفع صالحة."
       },
@@ -5079,7 +5391,108 @@
         "text": "خطأ في تحميل الفواتير"
       }
     },
+    "chat": {
+      "description": {
+        "text": "تخصيص الإشعارات وسلوك الدردشة"
+      },
+      "text": "الدردشة",
+      "notifications": {
+        "text": "الإشعارات",
+        "enabled": {
+          "text": "مفعّل"
+        },
+        "disabled": {
+          "text": "معطّل"
+        },
+        "blocked": {
+          "text": "محجوب بواسطة المتصفح"
+        },
+        "enable": {
+          "text": "إشعارات الدفع"
+        },
+        "permission_granted": {
+          "text": "تم منح الإذن"
+        },
+        "permission_denied": {
+          "text": "تم رفض الإذن في إعدادات المتصفح"
+        },
+        "permission_default": {
+          "text": "لم يُطلب الإذن بعد"
+        },
+        "not_supported": {
+          "text": "إشعارات الدفع غير مدعومة على هذا المتصفح أو الجهاز."
+        },
+        "pwa_install_title": {
+          "text": "أضف إلى الشاشة الرئيسية لتفعيل الإشعارات"
+        },
+        "pwa_install_desc": {
+          "text": "تتطلب إشعارات الدفع تثبيت التطبيق على جهازك. اتبع هذه الخطوات:"
+        },
+        "denied_info": {
+          "text": "لتفعيل الإشعارات، يرجى السماح بها في إعدادات المتصفح وإعادة تحميل الصفحة."
+        },
+        "categories": {
+          "text": "أنواع الإشعارات"
+        },
+        "new_messages": {
+          "text": "رسائل جديدة"
+        },
+        "new_messages_desc": {
+          "text": "عندما يكمل المساعد ردًا"
+        },
+        "server_events": {
+          "text": "أحداث الخادم"
+        },
+        "server_events_desc": {
+          "text": "مشاكل الاتصال وتنبيهات الصيانة"
+        },
+        "software_updates": {
+          "text": "تحديثات البرنامج"
+        },
+        "software_updates_desc": {
+          "text": "عند توفر إصدارات جديدة"
+        },
+        "email_section": {
+          "text": "إشعارات البريد الإلكتروني"
+        },
+        "email_enable": {
+          "text": "إشعارات البريد الإلكتروني"
+        },
+        "email_enable_desc": {
+          "text": "استلام رسائل بريد إلكتروني عند عدم الاتصال"
+        },
+        "email_address": {
+          "text": "بريد الإشعارات"
+        },
+        "email_address_placeholder": {
+          "text": "أدخل عنوان البريد الإلكتروني"
+        },
+        "email_address_desc": {
+          "text": "مكان إرسال الإشعارات (يمكن أن يختلف عن بريد تسجيل الدخول)"
+        },
+        "email_ai_responses": {
+          "text": "ردود الذكاء الاصطناعي"
+        },
+        "email_ai_responses_desc": {
+          "text": "عندما يكمل المساعد الرد أثناء غيابك"
+        },
+        "email_how_it_works": {
+          "text": "يتم إرسال إشعارات البريد الإلكتروني فقط عندما لا تستخدم OpenMates بنشاط على أي جهاز."
+        },
+        "email_invalid": {
+          "text": "يرجى إدخال عنوان بريد إلكتروني صالح"
+        },
+        "email_saving": {
+          "text": "جاري الحفظ..."
+        }
+      }
+    },
     "gift_cards": {
+      "gift_cards": {
+        "description": {
+          "text": "استرداد أو شراء بطاقات هدايا مقابل رصيد OpenMates"
+        }
+      },
       "text": "بطاقات الهدايا",
       "redeem": {
         "text": "استبدال"
@@ -5141,6 +5554,108 @@
       "error_fetch_failed": {
         "text": "فشل تحميل بطاقات الهدية. يرجى المحاولة مرة أخرى."
       }
+    },
+    "interface": {
+      "description": {
+        "text": "تخصيص مظهر ولغة OpenMates"
+      },
+      "text": "واجهة",
+      "language": {
+        "text": "اللغة"
+      },
+      "dark_mode": {
+        "text": "الوضع الداكن",
+        "auto": {
+          "text": "تلقائي",
+          "description": {
+            "text": "يتبع إعدادات جهازك"
+          }
+        },
+        "light": {
+          "text": "ضوء",
+          "description": {
+            "text": "استخدم الوضع الفاتح دائماً"
+          }
+        },
+        "dark": {
+          "text": "مظلم",
+          "description": {
+            "text": "استخدم الوضع الداكن دائماً"
+          }
+        }
+      }
+    },
+    "open_settings_menu": {
+      "text": "افتح قائمة الإعدادات"
+    },
+    "close_settings_menu": {
+      "text": "إغلاق قائمة الإعدادات"
+    },
+    "search": {
+      "text": "بحث"
+    },
+    "add_credits": {
+      "text": "إضافة رصيد"
+    },
+    "credits": {
+      "text": "الاعتمادات"
+    },
+    "settings": {
+      "text": "الإعدادات"
+    },
+    "enabled": {
+      "text": "مُفعّل"
+    },
+    "disabled": {
+      "text": "مُعطّل"
+    },
+    "active": {
+      "text": "نشط"
+    },
+    "team": {
+      "text": "فريق"
+    },
+    "incognito": {
+      "text": "متخفٍ"
+    },
+    "incognito_explainer_description": {
+      "text": "ينطبق وضع التصفح المتخفي فقط على الدردشات الجديدة التي تنشئها. الدردشات الجديدة التي يتم إنشاؤها أثناء تفعيل وضع التصفح المتخفي لا تتم مزامنتها عبر الأجهزة، ولا يتم تخزينها على الخادم، ولا يتم تخزينها مؤقتًا. توجد هذه الدردشات فقط في جلسة المتصفح الحالية. تظل الدردشات الحالية دون تغيير."
+    },
+    "incognito_explainer_feature_device_specific": {
+      "text": "خاص بالجهاز: ينطبق فقط على علامة تبويب المتصفح هذه"
+    },
+    "incognito_explainer_feature_not_stored": {
+      "text": "غير مخزنة: لا يتم حفظ الدردشات على الخادم"
+    },
+    "incognito_explainer_feature_session_only": {
+      "text": "للجلسة فقط: تختفي الدردشات عند إغلاق علامة التبويب"
+    },
+    "incognito_explainer_feature_no_recovery": {
+      "text": "لا يمكن الاسترداد: لا يمكن استعادة دردشات التصفح المتخفي المحذوفة"
+    },
+    "incognito_explainer_warning_title": {
+      "text": "إشعار خصوصية هام"
+    },
+    "incognito_explainer_warning_providers": {
+      "text": "حتى في وضع التصفح المتخفي، لا تزال دردشاتك تُرسل إلى مزودي خدمات الذكاء الاصطناعي الخارجيين المحددين لمعالجة طلباتك. وبينما لا يمكن لهؤلاء المزودين معرفة أي مستخدم أرسل الطلب بشكل مباشر، إلا أن رسائلك لا تزال تُعالج بواسطة أنظمتهم."
+    },
+    "incognito_explainer_warning_personal_info": {
+      "text": "يُنصح بشدة بعدم تضمين أي معلومات شخصية أو بيانات حساسة أو تفاصيل سرية في الدردشات المتخفية."
+    },
+    "incognito_mode_applies_to_new_chats_only": {
+      "text": "ينطبق وضع التصفح المتخفي على الدردشات الجديدة فقط، وليس على هذه الدردشة."
+    },
+    "incognito_explainer_understood": {
+      "text": "فهمتُ ذلك"
+    },
+    "guest": {
+      "text": "ضيف"
+    },
+    "offline": {
+      "text": "غير متصل"
+    },
+    "user": {
+      "text": "المستخدم"
     },
     "usage": {
       "text": "الاستخدام",
@@ -5319,6 +5834,72 @@
         "text": "عرض تفاصيل مفتاح API"
       }
     },
+    "apps": {
+      "text": "تطبيقات"
+    },
+    "mates": {
+      "description": {
+        "text": "قم بتهيئة رفاق الذكاء الاصطناعي الخاصين بك وشخصياتهم"
+      },
+      "text": "رفاق",
+      "chat_with_mate": {
+        "text": "الدردشة مع {mate_name}"
+      },
+      "system_prompt_heading": {
+        "text": "التعليمات"
+      },
+      "show_full_prompt": {
+        "text": "إظهار موجه النظام الكامل"
+      },
+      "hide_full_prompt": {
+        "text": "إخفاء موجه النظام الكامل"
+      },
+      "no_description": {
+        "text": "لا يوجد وصف متاح."
+      },
+      "mate_not_found": {
+        "text": "لم يتم العثور على رفيق."
+      }
+    },
+    "pricing": {
+      "description": {
+        "text": "استكشف باقات الرصيد وتكاليف المهارات"
+      },
+      "text": "التسعير",
+      "packages_heading": {
+        "text": "باقات الرصيد"
+      },
+      "recommended": {
+        "text": "موصى به"
+      },
+      "bonus_credits": {
+        "text": "رصيد إضافي/شهري مع التعبئة التلقائية"
+      },
+      "vat_note": {
+        "text": "جميع الأسعار لا تشمل ضريبة القيمة المضافة. الأسعار باليورو والدولار الأمريكي."
+      },
+      "explore_heading": {
+        "text": "استكشاف مهارات التطبيق والتكاليف"
+      },
+      "ai_ask_skill": {
+        "text": "الاستعلام بالذكاء الاصطناعي"
+      },
+      "ai_ask_subtitle": {
+        "text": "أكبر عامل تكلفة — استكشاف تسعير النموذج"
+      },
+      "browse_app_store": {
+        "text": "تصفح متجر التطبيقات"
+      },
+      "browse_app_store_subtitle": {
+        "text": "اطلع على أسعار جميع المهارات المتاحة"
+      }
+    },
+    "shared": {
+      "description": {
+        "text": "إدارة دردشاتك المشتركة ونصائحك"
+      },
+      "text": "تمت المشاركة"
+    },
     "share": {
       "text": "مشاركة",
       "share_public": {
@@ -5472,8 +6053,23 @@
     "fork": {
       "text": "تفريع المحادثة"
     },
+    "messengers": {
+      "text": "المراسلون"
+    },
+    "developers": {
+      "text": "المطورون"
+    },
+    "developers_title": {
+      "text": "إعدادات المطور"
+    },
+    "developers_description": {
+      "text": "إدارة مفاتيح API وأدوات المطور الخاصة بك للتكامل مع OpenMates."
+    },
     "developers_api_keys": {
       "text": "مفاتيح API"
+    },
+    "developers_api_keys_description": {
+      "text": "إنشاء وإدارة مفاتيح API للتطبيقات وعمليات التكامل الخارجية."
     },
     "developers_devices_text": {
       "text": "الأجهزة"
@@ -5538,7 +6134,378 @@
     "developers_devices_rename_empty_error": {
       "text": "لا يمكن أن يكون اسم الجهاز فارغًا"
     },
+    "dark_mode": {
+      "text": "الوضع الداكن"
+    },
+    "tooltips": {
+      "text": "تلميحات الأدوات"
+    },
+    "keyboard_shortcuts": {
+      "text": "اختصارات لوحة المفاتيح"
+    },
+    "logout": {
+      "text": "تسجيل الخروج"
+    },
+    "docs": {
+      "text": "المستندات"
+    },
+    "user_guide": {
+      "text": "دليل المستخدم"
+    },
+    "api_docs": {
+      "text": "مستندات API"
+    },
+    "contact": {
+      "text": "المستندات"
+    },
+    "discord": {
+      "text": "دليل المستخدم"
+    },
+    "signal": {
+      "text": "وثائق الـ API"
+    },
+    "github": {
+      "text": "تواصل"
+    },
+    "instagram": {
+      "text": "ديسكورد"
+    },
+    "mastodon": {
+      "text": "إشارة"
+    },
+    "pixelfed": {
+      "text": "GitHub"
+    },
+    "element": {
+      "text": "إنستغرام"
+    },
+    "meetup": {
+      "text": "ماستودون"
+    },
+    "email": {
+      "text": "بيكسلفيد"
+    },
+    "legal": {
+      "text": "العنصر X"
+    },
+    "imprint": {
+      "text": "لقاء"
+    },
+    "privacy": {
+      "text": "الخصوصية",
+      "description": {
+        "text": "ادعم المبدع بإرسال إكرامية من رصيد رصيدك."
+      },
+      "open_privacy_policy": {
+        "text": "فتح سياسة خصوصية OpenMates"
+      },
+      "anonymization": {
+        "text": "إخفاء الهوية"
+      },
+      "hide_personal_data": {
+        "text": "إخفاء البيانات الشخصية",
+        "chats": {
+          "text": "المحادثات"
+        },
+        "description": {
+          "text": "سيقوم OpenMates تلقائيًا باستبدال البيانات الحساسة بعناصر نائبة، قبل إرسالها إلى خادم OpenMates وأي مزود خارجي، لحماية خصوصيتك. يتم تمييز البيانات المستبدلة بصريًا. يمكنك دائمًا النقر على إدخال بيانات مستبدل لتجاوز الاستبدال، أو إيقاف تشغيل الوظيفة بالكامل هنا."
+        }
+      },
+      "nearby_by_default": {
+        "text": "بالقرب افتراضيًا"
+      },
+      "maps_location": {
+        "text": "الخرائط | الموقع"
+      },
+      "device_permissions": {
+        "text": "أذونات الجهاز"
+      },
+      "microphone": {
+        "text": "الميكروفون"
+      },
+      "camera": {
+        "text": "الكاميرا"
+      },
+      "location": {
+        "text": "الموقع"
+      },
+      "auto_deletion": {
+        "text": "الحذف التلقائي",
+        "chats": {
+          "text": "المحادثات",
+          "value": {
+            "text": "90 يومًا فأكثر"
+          },
+          "description": {
+            "text": "اختر المدة التي يجب الاحتفاظ بمحادثاتك خلالها قبل حذفها تلقائيًا. سيتم حذف المحادثات الأقدم نهائيًا."
+          }
+        },
+        "files": {
+          "text": "الملفات (على OpenMates)",
+          "value": {
+            "text": "90 يومًا فأكثر"
+          },
+          "description": {
+            "text": "اختر المدة التي يجب الاحتفاظ بملفاتك المحملة على OpenMates خلالها قبل حذفها تلقائيًا."
+          }
+        },
+        "usage_data": {
+          "text": "بيانات الاستخدام",
+          "value": {
+            "text": "سنة واحدة فأكثر"
+          },
+          "description": {
+            "text": "اختر المدة التي يجب الاحتفاظ ببيانات استخدامك (الإحصائيات، سجلات النشاط) خلالها قبل حذفها تلقائيًا."
+          }
+        },
+        "compliance_logs": {
+          "text": "سجلات الامتثال",
+          "value": {
+            "text": "سنة واحدة فأكثر"
+          }
+        },
+        "invoices": {
+          "text": "الفواتير",
+          "value": {
+            "text": "10 سنوات فأكثر"
+          }
+        },
+        "select_period": {
+          "text": "تحديد فترة الحذف"
+        },
+        "period": {
+          "30_days": {
+            "text": "30 يومًا فأكثر"
+          },
+          "60_days": {
+            "text": "60 يومًا فأكثر"
+          },
+          "90_days": {
+            "text": "90 يومًا فأكثر"
+          },
+          "6_months": {
+            "text": "6 أشهر فأكثر"
+          },
+          "1_year": {
+            "text": "سنة واحدة فأكثر"
+          },
+          "2_years": {
+            "text": "سنتان فأكثر"
+          },
+          "5_years": {
+            "text": "5 سنوات فأكثر"
+          },
+          "never": {
+            "text": "عدم الحذف أبدًا"
+          }
+        },
+        "compliance_note": {
+          "text": "لا يمكن تقليل وقت الحذف التلقائي لسجلات الامتثال والفواتير، وذلك للامتثال القانوني."
+        }
+      },
+      "contacts": {
+        "text": "جهات الاتصال"
+      },
+      "names": {
+        "text": "الأسماء"
+      },
+      "add_name": {
+        "text": "إضافة اسم"
+      },
+      "addresses": {
+        "text": "العناوين"
+      },
+      "add_address": {
+        "text": "إضافة عنوان"
+      },
+      "birthday": {
+        "text": "تاريخ الميلاد"
+      },
+      "add_birthday": {
+        "text": "إضافة تاريخ ميلاد"
+      },
+      "for_everyone": {
+        "text": "للجميع"
+      },
+      "email_addresses": {
+        "text": "عناوين البريد الإلكتروني"
+      },
+      "phone_numbers": {
+        "text": "أرقام الهواتف"
+      },
+      "credit_card_numbers": {
+        "text": "أرقام بطاقات الائتمان"
+      },
+      "iban_bank_account": {
+        "text": "IBAN / أرقام الحسابات المصرفية"
+      },
+      "tax_id_vat": {
+        "text": "الرقم الضريبي / VAT"
+      },
+      "crypto_wallets": {
+        "text": "محافظ العملات المشفرة"
+      },
+      "social_security_numbers": {
+        "text": "أرقام الضمان الاجتماعي"
+      },
+      "passport_numbers": {
+        "text": "أرقام جوازات السفر"
+      },
+      "for_developers": {
+        "text": "للمطورين"
+      },
+      "api_keys": {
+        "text": "مفاتيح API"
+      },
+      "jwt_tokens": {
+        "text": "رموز JWT"
+      },
+      "private_keys": {
+        "text": "مفاتيح خاصة"
+      },
+      "generic_secrets": {
+        "text": "أسرار عامة"
+      },
+      "ip_addresses": {
+        "text": "عناوين IP"
+      },
+      "mac_addresses": {
+        "text": "عناوين MAC"
+      },
+      "user_at_hostname": {
+        "text": "المستخدم@اسم_المضيف"
+      },
+      "home_folder": {
+        "text": "مجلد المنزل"
+      },
+      "custom": {
+        "text": "مخصص"
+      },
+      "add_custom_entry": {
+        "text": "إضافة إدخال مخصص"
+      },
+      "form": {
+        "title": {
+          "text": "العنوان",
+          "placeholder_name": {
+            "text": "مثال: 'اسمي الأول'"
+          },
+          "placeholder_address": {
+            "text": "مثال: 'المنزل'"
+          },
+          "placeholder_birthday": {
+            "text": "مثال: 'أنا'"
+          },
+          "placeholder_custom": {
+            "text": "مثال: 'اسم شركتي'"
+          }
+        },
+        "text_to_hide": {
+          "text": "نص للإخفاء",
+          "placeholder_name": {
+            "text": "مثال: 'ماكس'"
+          },
+          "placeholder_custom": {
+            "text": "مثال: 'Acme Corp'"
+          }
+        },
+        "first_line": {
+          "text": "السطر الأول للإخفاء",
+          "placeholder": {
+            "text": "مثال: 'Friedrichstr. 19'"
+          }
+        },
+        "second_line": {
+          "text": "السطر الثاني للإخفاء",
+          "placeholder": {
+            "text": "مثال: '10247 برلين'"
+          }
+        },
+        "replace_with": {
+          "text": "استبدال بـ",
+          "placeholder_name": {
+            "text": "مثال: 'ME_FIRST_NAME'"
+          },
+          "placeholder_address": {
+            "text": "مثال: 'MY_HOME_ADDRESS'"
+          },
+          "placeholder_birthday": {
+            "text": "مثال: 'MY_BIRTHDAY'"
+          },
+          "placeholder_custom": {
+            "text": "مثال: 'MY_COMPANY'"
+          }
+        },
+        "date": {
+          "text": "التاريخ",
+          "placeholder": {
+            "text": "مثال: '15.03.1990'"
+          }
+        },
+        "street": {
+          "text": "الشارع",
+          "placeholder": {
+            "text": "مثال: '123 الشارع الرئيسي'"
+          }
+        },
+        "city": {
+          "text": "المدينة",
+          "placeholder": {
+            "text": "مثال: \"برلين\""
+          }
+        },
+        "state": {
+          "text": "الولاية / المقاطعة",
+          "placeholder": {
+            "text": "مثال: \"كاليفورنيا\""
+          }
+        },
+        "zip": {
+          "text": "الرمز البريدي",
+          "placeholder": {
+            "text": "مثال: \"10115\""
+          }
+        },
+        "country": {
+          "text": "البلد",
+          "placeholder": {
+            "text": "مثال: \"ألمانيا\""
+          }
+        },
+        "save": {
+          "text": "حفظ"
+        },
+        "delete": {
+          "text": "حذف"
+        }
+      },
+      "encryption_note": {
+        "text": "جميع إدخالات بياناتك الشخصية مشفرة على جهازك. حتى خادم OpenMates لا يمكنه قراءتها."
+      }
+    },
+    "terms_and_conditions": {
+      "text": "قانوني"
+    },
+    "credits_amount": {
+      "text": "إشعار قانوني"
+    },
+    "modify": {
+      "text": "الخصوصية"
+    },
+    "save": {
+      "text": "الشروط والأحكام"
+    },
+    "back": {
+      "text": "{credits_amount} رصيد"
+    },
     "server": {
+      "description": {
+        "text": "تعديل"
+      },
+      "text": "حفظ",
+      "community_suggestions": {
+        "text": "اقتراحات المجتمع"
+      },
       "stats": {
         "text": "الإحصائيات"
       },
@@ -5740,6 +6707,45 @@
         "text": "لا توجد بيانات بعد"
       }
     },
+    "software_updates": {
+      "text": "تحديثات البرامج"
+    },
+    "checking_for_updates": {
+      "text": "جاري التحقق من وجود تحديثات..."
+    },
+    "new_update_available": {
+      "text": "تحديث جديد متاح"
+    },
+    "install": {
+      "text": "تثبيت"
+    },
+    "server_will_be_restarted": {
+      "text": "سيتم إعادة تشغيل الخادم وبالتالي سيكون غير متصل لفترة وجيزة بمجرد تثبيت التحديث."
+    },
+    "installing_update": {
+      "text": "جاري تثبيت التحديث..."
+    },
+    "restarting_server": {
+      "text": "جاري إعادة تشغيل الخادم..."
+    },
+    "update_failed": {
+      "text": "فشل التحديث. تحقق من سجلات الخادم."
+    },
+    "update_successful": {
+      "text": "تم التحديث بنجاح"
+    },
+    "installed": {
+      "text": "مثبت"
+    },
+    "profile_image_not_allowed": {
+      "text": "لا يُسمح بالعري أو العنف أو المحتوى الدموي في صور الملف الشخصي."
+    },
+    "last_warning_image_not_allowed": {
+      "text": "تحذير أخير: لا يُسمح بالعري أو العنف أو المحتوى الدموي في صور الملف الشخصي. انتهاك آخر وسيتم حذف حسابك."
+    },
+    "your_account_got_deleted": {
+      "text": "تم حذف حسابك."
+    },
     "app_embeds": {
       "no_embeds": {
         "text": "لم يتم العثور على محتوى مضمن لهذا التطبيق."
@@ -5748,66 +6754,10 @@
         "text": "جاري تحميل المحتوى المضمن..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "أمثلة:"
-      },
-      "my": {
-        "text": "تبتي"
-      },
-      "settings_and_memories": {
-        "text": "الإعدادات والذكريات"
-      },
-      "my_settings_and_memories": {
-        "text": "إعداداتي وذكرياتي"
-      },
-      "no_entries_yet": {
-        "text": "لا توجد إدخالات حتى الآن."
-      },
-      "examples": {
-        "text": "أمثلة"
-      },
-      "no_settings": {
-        "text": "لم يتم مزامنة أي إعدادات أو ذكريات حتى الآن. ستظهر هنا بمجرد توفرها."
-      },
-      "add_entry": {
-        "text": "إضافة إدخال"
-      },
-      "loading": {
-        "text": "جاري تحميل الإعدادات والذكريات..."
-      },
-      "item_key": {
-        "text": "مفتاح العنصر"
-      },
-      "settings_group": {
-        "text": "مجموعة الإعدادات"
-      },
-      "item_value": {
-        "text": "قيمة العنصر"
-      },
-      "cancel": {
-        "text": "إلغاء"
-      },
-      "creating": {
-        "text": "جاري الإنشاء..."
-      },
-      "placeholder": {
-        "text": "قريباً ستتمكن من إدارة وإنشاء إعدادات تطبيقاتك وذكرياتك هنا."
-      },
-      "just_now": {
-        "text": "الآن"
-      },
-      "edit": {
-        "text": "تعديل"
-      },
-      "delete": {
-        "text": "حذف"
-      },
-      "save": {
-        "text": "حفظ"
-      }
-    },
     "newsletter": {
+      "description": {
+        "text": "اشترك لتبقى على اطلاع بآخر أخبار OpenMates"
+      },
       "text": "النشرة الإخبارية"
     },
     "newsletter_title": {
@@ -5862,6 +6812,9 @@
       "text": "بعد الاشتراك، سوف تتلقى بريدًا إلكترونيًا للتأكيد. انقر فوق الرابط في البريد الإلكتروني لإكمال اشتراكك."
     },
     "support": {
+      "description": {
+        "text": "احصل على المساعدة وتواصل مع فريق OpenMates"
+      },
       "text": "الدعم",
       "one_time": {
         "text": "دعم لمرة واحدة"
@@ -6244,9 +7197,39 @@
     "tip": {
       "tip_creator": {
         "text": "إكرامية للمبدع"
+      },
+      "description": {
+        "text": "ادعم المبدع بإرسال إكرامية من رصيد رصيدك."
+      },
+      "amount": {
+        "text": "المبلغ"
+      },
+      "credits": {
+        "text": "رصيد"
+      },
+      "current_balance": {
+        "text": "الرصيد الحالي"
+      },
+      "insufficient_balance": {
+        "text": "تحتاج إلى {needed} رصيد إضافي لإرسال هذه الإكرامية."
+      },
+      "tipping": {
+        "text": "جاري إرسال الإكرامية..."
+      },
+      "tip_info": {
+        "text": "يتم إرسال الإكراميات مباشرة من رصيدك إلى منشئ المحتوى."
+      },
+      "channel_id_required": {
+        "text": "معرف القناة مطلوب لإرسال إكرامية لمنشئي الفيديو."
       }
     },
     "security": {
+      "security": {
+        "description": {
+          "text": "إدارة كلمات المرور ومفاتيح المرور والمصادقة الثنائية"
+        }
+      },
+      "text": "الأمان",
       "auth_title": {
         "text": "تحقق من هويتك"
       },

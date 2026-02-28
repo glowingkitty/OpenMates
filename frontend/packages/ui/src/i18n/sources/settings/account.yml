@@ -291,7 +291,7 @@ account.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إدارة ملفك الشخصي وإعدادات المصادقة والحساب
   hi: ""
   th: ""
   cs: ""
@@ -324,14 +324,17 @@ email:
   context: Email submenu item
   en: E-mail
   de: E-Mail
+  ar: البريد الإلكتروني
 email.loading:
   context: Loading message for email decryption
   en: Decrypting e-mail address...
   de: E-Mail-Adresse wird entschlüsselt...
+  ar: جارٍ فك تشفير عنوان البريد الإلكتروني...
 email.current_email:
   context: Header for current email address
   en: Current E-mail Address
   de: Aktuelle E-Mail-Adresse
+  ar: عنوان البريد الإلكتروني الحالي
 email.privacy_info:
   context: Privacy information about email storage
   en: >-
@@ -340,14 +343,19 @@ email.privacy_info:
   de: >-
     Ihre E-Mail-Adresse wird verschlüsselt auf Ihrem Gerät und dem Server gespeichert.
     Nur Sie können sie mit Ihrem Hauptschlüssel entschlüsseln.
+  ar: >-
+    يتم تخزين عنوان بريدك الإلكتروني بشكل مشفر على جهازك والخادم.
+    أنت وحدك يمكنك فك تشفيره باستخدام مفتاحك الرئيسي.
 email.copied:
   context: Notification shown when email address is copied to clipboard
   en: E-mail address copied to clipboard
   de: E-Mail-Adresse in die Zwischenablage kopiert
+  ar: تم نسخ عنوان البريد الإلكتروني إلى الحافظة
 email.error_decrypting:
   context: Error message when email decryption fails
   en: Failed to decrypt e-mail address.
   de: E-Mail-Adresse konnte nicht entschlüsselt werden.
+  ar: فشل فك تشفير عنوان البريد الإلكتروني.
 security:
   context: Security submenu under Account settings
   en: Security
@@ -434,7 +442,7 @@ profile_picture.upload:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تحميل صورة جديدة
   hi: ""
   th: ""
   cs: ""
@@ -457,7 +465,7 @@ profile_picture.uploading:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: جارٍ التحميل…
   hi: ""
   th: ""
   cs: ""
@@ -480,7 +488,7 @@ profile_picture.upload_success:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تم تحديث صورة الملف الشخصي
   hi: ""
   th: ""
   cs: ""
@@ -503,7 +511,7 @@ profile_picture.upload_error:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: فشل التحميل. يرجى المحاولة مرة أخرى.
   hi: ""
   th: ""
   cs: ""
@@ -526,7 +534,7 @@ profile_picture.file_too_large:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: الصورة كبيرة جدًا. يرجى اختيار صورة أصغر.
   hi: ""
   th: ""
   cs: ""
@@ -549,7 +557,7 @@ profile_picture.wrong_format:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: يرجى اختيار صورة بتنسيق JPEG أو PNG.
   hi: ""
   th: ""
   cs: ""
@@ -1925,6 +1933,7 @@ delete_account_uncompleted_title:
   fr: Supprimer le compte non terminé
   ja: 未完了のアカウントを削除
   zh: 删除未完成的账户
+  ar: حذف الحساب غير المكتمل
 delete_account_uncompleted_message:
   context: Message for uncompleted account deletion
   en: This account hasn't completed the signup process yet. You can delete it now without logging in.
@@ -1933,6 +1942,7 @@ delete_account_uncompleted_message:
   fr: Ce compte n'a pas encore terminé le processus d'inscription. Vous pouvez le supprimer maintenant sans vous connecter.
   ja: このアカウントはまだサインアッププロセスを完了していません。ログインせずに今すぐ削除できます。
   zh: 此账户尚未完成注册流程。您现在可以在不登录的情况下将其删除。
+  ar: لم يكتمل هذا الحساب عملية التسجيل بعد. يمكنك حذفه الآن دون تسجيل الدخول.
 delete_account_login_required_title:
   context: Title when login is required for account deletion
   en: Login required
@@ -1941,6 +1951,7 @@ delete_account_login_required_title:
   fr: Connexion requise
   ja: ログインが必要です
   zh: 需要登录
+  ar: تسجيل الدخول مطلوب
 delete_account_login_required_message:
   context: Message when login is required for account deletion
   en: This account has completed signup or has credits/usage. Please log in to delete it using the regular interface.
@@ -1949,6 +1960,7 @@ delete_account_login_required_message:
   fr: Ce compte a terminé son inscription ou possède des crédits/utilisations. Veuillez vous connecter pour le supprimer via l'interface habituelle.
   ja: このアカウントはサインアップを完了しているか、クレジットまたは使用履歴があります。通常のインターフェースを使用して削除するには、ログインしてください。
   zh: 此账户已完成注册或有信用/使用记录。请登录后使用常规界面将其删除。
+  ar: أكمل هذا الحساب عملية التسجيل أو لديه رصيد/استخدام. يرجى تسجيل الدخول لحذفه عبر الواجهة العادية.
 delete_account_status_error:
   context: Error message when checking account status fails
   en: Failed to check account status. Please try again later.
@@ -1957,6 +1969,7 @@ delete_account_status_error:
   fr: Échec de la vérification de l'état du compte. Veuillez réessayer plus tard.
   ja: アカウントステータスの確認に失敗しました。後でもう一度お試しください。
   zh: 无法检查账户状态。请稍后再试。
+  ar: فشل التحقق من حالة الحساب. يرجى المحاولة مرة أخرى لاحقًا.
 
 # --- Timezone Settings ---
 timezone:
@@ -1976,7 +1989,7 @@ timezone:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: المنطقة الزمنية
   hi: ""
   th: ""
   cs: ""
@@ -1999,7 +2012,7 @@ timezone_current:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: المنطقة الزمنية الحالية
   hi: ""
   th: ""
   cs: ""
@@ -2022,7 +2035,7 @@ timezone_use_browser:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: استخدام المنطقة الزمنية للمتصفح
   hi: ""
   th: ""
   cs: ""
@@ -2045,7 +2058,7 @@ timezone_saved:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تم حفظ المنطقة الزمنية
   hi: ""
   th: ""
   cs: ""
@@ -2068,7 +2081,7 @@ timezone_loading:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: جارٍ تحميل إعدادات المنطقة الزمنية...
   hi: ""
   th: ""
   cs: ""
@@ -2091,7 +2104,7 @@ timezone_other:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: أخرى
   hi: ""
   th: ""
   cs: ""
@@ -2114,7 +2127,7 @@ timezone_info:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تُستخدم منطقتك الزمنية لجدولة التذكيرات وعرض الأوقات. تم اكتشافها تلقائيًا من متصفحك ولكن يمكنك تغييرها هنا.
   hi: ""
   th: ""
   cs: ""

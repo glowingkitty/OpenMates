@@ -15,7 +15,7 @@ open_settings_menu:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: افتح قائمة الإعدادات
   hi: ""
   th: ""
   cs: ""
@@ -38,7 +38,7 @@ close_settings_menu:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إغلاق قائمة الإعدادات
   hi: ""
   th: ""
   cs: ""
@@ -61,7 +61,7 @@ search:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: بحث
   hi: ""
   th: ""
   cs: ""
@@ -84,7 +84,7 @@ add_credits:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إضافة رصيد
   hi: ""
   th: ""
   cs: ""
@@ -107,7 +107,7 @@ credits:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: الاعتمادات
   hi: ""
   th: ""
   cs: ""
@@ -130,7 +130,7 @@ settings:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: الإعدادات
   hi: ""
   th: ""
   cs: ""
@@ -153,7 +153,7 @@ enabled:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: مُفعّل
   hi: ""
   th: ""
   cs: ""
@@ -176,7 +176,7 @@ disabled:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: مُعطّل
   hi: ""
   th: ""
   cs: ""
@@ -199,7 +199,7 @@ active:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: نشط
   hi: ""
   th: ""
   cs: ""
@@ -222,7 +222,7 @@ team:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: فريق
   hi: ""
   th: ""
   cs: ""
@@ -245,7 +245,7 @@ incognito:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: متخفٍ
   hi: ""
   th: ""
   cs: ""
@@ -268,7 +268,7 @@ incognito_explainer_description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: ينطبق وضع التصفح المتخفي فقط على الدردشات الجديدة التي تنشئها. الدردشات الجديدة التي يتم إنشاؤها أثناء تفعيل وضع التصفح المتخفي لا تتم مزامنتها عبر الأجهزة، ولا يتم تخزينها على الخادم، ولا يتم تخزينها مؤقتًا. توجد هذه الدردشات فقط في جلسة المتصفح الحالية. تظل الدردشات الحالية دون تغيير.
   hi: ""
   th: ""
   cs: ""
@@ -291,7 +291,7 @@ incognito_explainer_feature_device_specific:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: "خاص بالجهاز: ينطبق فقط على علامة تبويب المتصفح هذه"
   hi: ""
   th: ""
   cs: ""
@@ -314,7 +314,7 @@ incognito_explainer_feature_not_stored:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: "غير مخزنة: لا يتم حفظ الدردشات على الخادم"
   hi: ""
   th: ""
   cs: ""
@@ -337,7 +337,7 @@ incognito_explainer_feature_session_only:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: "للجلسة فقط: تختفي الدردشات عند إغلاق علامة التبويب"
   hi: ""
   th: ""
   cs: ""
@@ -360,7 +360,7 @@ incognito_explainer_feature_no_recovery:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: "لا يمكن الاسترداد: لا يمكن استعادة دردشات التصفح المتخفي المحذوفة"
   hi: ""
   th: ""
   cs: ""
@@ -383,7 +383,7 @@ incognito_explainer_warning_title:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إشعار خصوصية هام
   hi: ""
   th: ""
   cs: ""
@@ -406,7 +406,7 @@ incognito_explainer_warning_providers:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: حتى في وضع التصفح المتخفي، لا تزال دردشاتك تُرسل إلى مزودي خدمات الذكاء الاصطناعي الخارجيين المحددين لمعالجة طلباتك. وبينما لا يمكن لهؤلاء المزودين معرفة أي مستخدم أرسل الطلب بشكل مباشر، إلا أن رسائلك لا تزال تُعالج بواسطة أنظمتهم.
   hi: ""
   th: ""
   cs: ""
@@ -429,7 +429,7 @@ incognito_explainer_warning_personal_info:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: يُنصح بشدة بعدم تضمين أي معلومات شخصية أو بيانات حساسة أو تفاصيل سرية في الدردشات المتخفية.
   hi: ""
   th: ""
   cs: ""
@@ -452,7 +452,7 @@ incognito_mode_applies_to_new_chats_only:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: ينطبق وضع التصفح المتخفي على الدردشات الجديدة فقط، وليس على هذه الدردشة.
   hi: ""
   th: ""
   cs: ""
@@ -475,7 +475,7 @@ incognito_explainer_understood:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: فهمتُ ذلك
   hi: ""
   th: ""
   cs: ""
@@ -498,7 +498,7 @@ guest:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: ضيف
   hi: ""
   th: ""
   cs: ""
@@ -521,7 +521,7 @@ offline:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: غير متصل
   hi: ""
   th: ""
   cs: ""
@@ -544,7 +544,7 @@ user:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: المستخدم
   hi: ""
   th: ""
   cs: ""
@@ -567,7 +567,7 @@ usage:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: الاستخدام
   hi: ""
   th: ""
   cs: ""
@@ -590,7 +590,7 @@ apps:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تطبيقات
   hi: ""
   th: ""
   cs: ""
@@ -613,7 +613,7 @@ mates.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: قم بتهيئة رفاق الذكاء الاصطناعي الخاصين بك وشخصياتهم
   hi: ""
   th: ""
   cs: ""
@@ -636,7 +636,7 @@ mates:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: أصدقاء
   hi: ""
   th: ""
   cs: ""
@@ -659,7 +659,7 @@ pricing.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: استكشف باقات الرصيد وتكاليف المهارات
   hi: ""
   th: ""
   cs: ""
@@ -682,7 +682,7 @@ pricing:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: التسعير
   hi: ""
   th: ""
   cs: ""
@@ -705,7 +705,7 @@ shared.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إدارة دردشاتك المشتركة ونصائحك
   hi: ""
   th: ""
   cs: ""
@@ -728,7 +728,7 @@ shared:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تمت المشاركة
   hi: ""
   th: ""
   cs: ""
@@ -797,7 +797,7 @@ messengers:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: المراسلون
   hi: ""
   th: ""
   cs: ""
@@ -820,7 +820,7 @@ developers:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: المطورون
   hi: ""
   th: ""
   cs: ""
@@ -835,6 +835,7 @@ developers_title:
   zh: 开发者设置
   es: Configuración de Desarrollador
   fr: Paramètres Développeur
+  ar: إعدادات المطور
   verified_by_human: []
 
 developers_description:
@@ -844,6 +845,7 @@ developers_description:
   zh: 管理您的 API 密钥和开发者工具以与 OpenMates 集成。
   es: Administre sus claves API y herramientas de desarrollador para integrar con OpenMates.
   fr: Gérez vos clés API et outils de développeur pour intégrer avec OpenMates.
+  ar: إدارة مفاتيح API وأدوات المطور الخاصة بك للتكامل مع OpenMates.
   verified_by_human: []
 
 developers_api_keys:
@@ -877,6 +879,7 @@ developers_api_keys_description:
   zh: 为外部应用程序和集成创建和管理 API 密钥。
   es: Cree y administre claves API para aplicaciones externas e integraciones.
   fr: Créez et gérez les clés API pour les applications externes et les intégrations.
+  ar: إنشاء وإدارة مفاتيح API للتطبيقات وعمليات التكامل الخارجية.
   verified_by_human: []
 
 developers_devices_text:
@@ -1400,7 +1403,7 @@ dark_mode:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: الوضع الداكن
   hi: ""
   th: ""
   cs: ""
@@ -1423,7 +1426,7 @@ tooltips:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تلميحات الأدوات
   hi: ""
   th: ""
   cs: ""
@@ -1446,7 +1449,7 @@ keyboard_shortcuts:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: اختصارات لوحة المفاتيح
   hi: ""
   th: ""
   cs: ""
@@ -1469,7 +1472,7 @@ logout:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تسجيل الخروج
   hi: ""
   th: ""
   cs: ""
@@ -1492,7 +1495,7 @@ docs:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: المستندات
   hi: ""
   th: ""
   cs: ""
@@ -1515,7 +1518,7 @@ user_guide:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: دليل المستخدم
   hi: ""
   th: ""
   cs: ""
@@ -1538,7 +1541,7 @@ api_docs:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: مستندات API
   hi: ""
   th: ""
   cs: ""
@@ -1561,7 +1564,7 @@ contact:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: المستندات
   hi: ""
   th: ""
   cs: ""
@@ -1584,7 +1587,7 @@ discord:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: دليل المستخدم
   hi: ""
   th: ""
   cs: ""
@@ -1607,7 +1610,7 @@ signal:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: وثائق الـ API
   hi: ""
   th: ""
   cs: ""
@@ -1630,7 +1633,7 @@ github:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تواصل
   hi: ""
   th: ""
   cs: ""
@@ -1653,7 +1656,7 @@ instagram:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: ديسكورد
   hi: ""
   th: ""
   cs: ""
@@ -1676,7 +1679,7 @@ mastodon:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إشارة
   hi: ""
   th: ""
   cs: ""
@@ -1699,7 +1702,7 @@ pixelfed:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: GitHub
   hi: ""
   th: ""
   cs: ""
@@ -1722,7 +1725,7 @@ element:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إنستغرام
   hi: ""
   th: ""
   cs: ""
@@ -1745,7 +1748,7 @@ meetup:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: ماستودون
   hi: ""
   th: ""
   cs: ""
@@ -1768,7 +1771,7 @@ email:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: بيكسلفيد
   hi: ""
   th: ""
   cs: ""
@@ -1791,7 +1794,7 @@ legal:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: العنصر X
   hi: ""
   th: ""
   cs: ""
@@ -1814,7 +1817,7 @@ imprint:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: لقاء
   hi: ""
   th: ""
   cs: ""
@@ -1837,7 +1840,7 @@ privacy:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: بريد إلكتروني
   hi: ""
   th: ""
   cs: ""
@@ -1860,7 +1863,7 @@ terms_and_conditions:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: قانوني
   hi: ""
   th: ""
   cs: ""
@@ -1883,7 +1886,7 @@ credits_amount:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إشعار قانوني
   hi: ""
   th: ""
   cs: ""
@@ -1906,7 +1909,7 @@ modify:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: الخصوصية
   hi: ""
   th: ""
   cs: ""
@@ -1929,7 +1932,7 @@ save:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: الشروط والأحكام
   hi: ""
   th: ""
   cs: ""
@@ -1952,7 +1955,7 @@ back:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: "{credits_amount} رصيد"
   hi: ""
   th: ""
   cs: ""
@@ -1975,7 +1978,7 @@ server.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تعديل
   hi: ""
   th: ""
   cs: ""
@@ -1998,7 +2001,7 @@ server:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: حفظ
   hi: ""
   th: ""
   cs: ""
@@ -2008,6 +2011,7 @@ server.community_suggestions:
   context: Community suggestions menu item
   en: Community Suggestions
   de: Community-Vorschläge
+  ar: اقتراحات المجتمع
 server.stats:
   context: Server stats settings menu item
   en: Stats
@@ -3467,7 +3471,7 @@ software_updates:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تحديثات البرامج
   hi: ""
   th: ""
   cs: ""
@@ -3490,7 +3494,7 @@ checking_for_updates:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: جاري التحقق من وجود تحديثات...
   hi: ""
   th: ""
   cs: ""
@@ -3513,7 +3517,7 @@ new_update_available:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تحديث جديد متاح
   hi: ""
   th: ""
   cs: ""
@@ -3536,7 +3540,7 @@ install:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تثبيت
   hi: ""
   th: ""
   cs: ""
@@ -3595,7 +3599,7 @@ server_will_be_restarted:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: سيتم إعادة تشغيل الخادم وبالتالي سيكون غير متصل لفترة وجيزة بمجرد تثبيت التحديث.
   hi: ""
   th: ""
   cs: ""
@@ -3618,7 +3622,7 @@ installing_update:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: جاري تثبيت التحديث...
   hi: ""
   th: ""
   cs: ""
@@ -3641,7 +3645,7 @@ restarting_server:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: جاري إعادة تشغيل الخادم...
   hi: ""
   th: ""
   cs: ""
@@ -3688,7 +3692,7 @@ update_failed:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: فشل التحديث. تحقق من سجلات الخادم.
   hi: ""
   th: ""
   cs: ""
@@ -3711,7 +3715,7 @@ update_successful:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تم التحديث بنجاح
   hi: ""
   th: ""
   cs: ""
@@ -3734,7 +3738,7 @@ installed:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: مثبت
   hi: ""
   th: ""
   cs: ""
@@ -3777,7 +3781,7 @@ profile_image_not_allowed:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: لا يُسمح بالعري أو العنف أو المحتوى الدموي في صور الملف الشخصي.
   hi: ""
   th: ""
   cs: ""
@@ -3792,6 +3796,7 @@ last_warning_image_not_allowed:
     One more violation and your account will be deleted.
 
     "
+  ar: "تحذير أخير: لا يُسمح بالعري أو العنف أو المحتوى الدموي في صور الملف الشخصي. انتهاك آخر وسيتم حذف حسابك."
   de: "Letzte Warnung:
 
     Keine Nacktheit, Gewalt oder Blut in Profilbildern.
@@ -3834,7 +3839,6 @@ last_warning_image_not_allowed:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
   hi: ""
   th: ""
   cs: ""
@@ -3857,7 +3861,7 @@ your_account_got_deleted:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تم حذف حسابك.
   hi: ""
   th: ""
   cs: ""
@@ -4365,7 +4369,7 @@ newsletter.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: اشترك لتبقى على اطلاع بآخر أخبار OpenMates
   hi: ""
   th: ""
   cs: ""
@@ -4802,7 +4806,7 @@ support.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: احصل على المساعدة وتواصل مع فريق OpenMates
   hi: ""
   th: ""
   cs: ""

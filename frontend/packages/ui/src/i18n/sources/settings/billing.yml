@@ -15,7 +15,7 @@ billing.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إدارة رصيدك واشتراكاتك وطرق الدفع
   hi: ""
   th: ""
   cs: ""
@@ -2257,6 +2257,7 @@ auto_topup_payment_method_error:
 buy_credits_explainer:
   context: Short explainer text shown above credit tier options on the Buy Credits page
   en: Credits are used when you chat with your digital team mates and use app skills.
+  ar: تُستخدم الاعتمادات عند الدردشة مع رفاقك الرقميين واستخدام مهارات التطبيق.
   verified_by_human: []
 insufficient_credits_error:
   context: Error message when user doesn't have enough credits to complete a request

@@ -20,7 +20,7 @@ mates:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: رفاق
   hi: ""
   th: ""
   cs: ""
@@ -44,7 +44,7 @@ chat_with_mate:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: "الدردشة مع {mate_name}"
   hi: ""
   th: ""
   cs: ""
@@ -68,7 +68,7 @@ system_prompt_heading:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: التعليمات
   hi: ""
   th: ""
   cs: ""
@@ -92,7 +92,7 @@ show_full_prompt:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إظهار موجه النظام الكامل
   hi: ""
   th: ""
   cs: ""
@@ -116,7 +116,7 @@ hide_full_prompt:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إخفاء موجه النظام الكامل
   hi: ""
   th: ""
   cs: ""
@@ -140,7 +140,7 @@ no_description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: لا يوجد وصف متاح.
   hi: ""
   th: ""
   cs: ""
@@ -164,7 +164,7 @@ mate_not_found:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: لم يتم العثور على رفيق.
   hi: ""
   th: ""
   cs: ""

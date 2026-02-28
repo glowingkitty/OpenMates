@@ -1407,6 +1407,7 @@ plus_n_more:
   es: "+ {count} más"
   fr: "+ {count} de plus"
   it: "+ {count} in più"
+  ar: "+ {count} أخرى"
   verified_by_human: []
 skills.models:
   context: Section heading for available models list on a skill details page

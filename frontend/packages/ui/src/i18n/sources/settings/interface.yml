@@ -15,7 +15,7 @@ description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تخصيص مظهر ولغة OpenMates
   hi: ""
   th: ""
   cs: ""
@@ -38,7 +38,7 @@ interface:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: واجهة
   hi: ""
   th: ""
   cs: ""
@@ -61,7 +61,7 @@ language:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: اللغة
   hi: ""
   th: ""
   cs: ""
@@ -85,7 +85,7 @@ dark_mode:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: الوضع الداكن
   hi: ""
   th: ""
   cs: ""
@@ -109,7 +109,7 @@ dark_mode.auto:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: تلقائي
   hi: ""
   th: ""
   cs: ""
@@ -133,7 +133,7 @@ dark_mode.auto.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: يتبع إعدادات جهازك
   hi: ""
   th: ""
   cs: ""
@@ -157,7 +157,7 @@ dark_mode.light:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: ضوء
   hi: ""
   th: ""
   cs: ""
@@ -181,7 +181,7 @@ dark_mode.light.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: استخدم الوضع الفاتح دائماً
   hi: ""
   th: ""
   cs: ""
@@ -205,7 +205,7 @@ dark_mode.dark:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: مظلم
   hi: ""
   th: ""
   cs: ""
@@ -229,7 +229,7 @@ dark_mode.dark.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: استخدم الوضع الداكن دائماً
   hi: ""
   th: ""
   cs: ""

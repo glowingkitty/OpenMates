@@ -18,7 +18,7 @@ security.description:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: إدارة كلمات المرور ومفاتيح المرور والمصادقة الثنائية
   hi: ""
   th: ""
   cs: ""
@@ -29,6 +29,7 @@ security:
   context: Security settings section title
   en: Security
   de: Sicherheit
+  ar: الأمان
   verified_by_human: []
 
 # --- SecurityAuth Component ---

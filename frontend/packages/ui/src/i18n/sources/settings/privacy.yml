@@ -2,479 +2,575 @@ privacy:
   context: Privacy settings menu item
   en: Privacy
   de: Datenschutz
+  ar: الخصوصية
   verified_by_human: []
 description:
   context: Description text on privacy settings page explaining data processing
   en: If you want to learn more about how OpenMates is processing your data, check the privacy policy.
   de: Wenn du mehr darüber erfahren möchtest, wie OpenMates deine Daten verarbeitet, schau dir die Datenschutzrichtlinie an.
+  ar: ادعم المبدع بإرسال إكرامية من رصيد رصيدك.
   verified_by_human: []
 open_privacy_policy:
   context: Link text to open the OpenMates privacy policy
   en: Open OpenMates privacy policy
   de: OpenMates Datenschutzrichtlinie öffnen
+  ar: فتح سياسة خصوصية OpenMates
   verified_by_human: []
 anonymization:
   context: Section heading for anonymization settings
   en: Anonymization
   de: Anonymisierung
+  ar: إخفاء الهوية
   verified_by_human: []
 hide_personal_data:
   context: Toggle label for hiding personal data in chats
   en: Hide personal data
   de: Persönliche Daten verbergen
+  ar: إخفاء البيانات الشخصية
   verified_by_human: []
 hide_personal_data.chats:
   context: Subtitle for the hide personal data toggle
   en: Chats
   de: Chats
+  ar: المحادثات
   verified_by_human: []
 hide_personal_data.description:
   context: Description text explaining the hide personal data feature
   en: OpenMates will auto replace sensitive data with placeholders, before sending them to the OpenMates server and any external provider, to protect your privacy. Replaced data are visually highlighted. You can always click on a replaced data entry to overwrite the replacement, or turn off the functionality completely here.
   de: OpenMates ersetzt automatisch sensible Daten durch Platzhalter, bevor sie an den OpenMates-Server und externe Anbieter gesendet werden, um deine Privatsphäre zu schützen. Ersetzte Daten werden visuell hervorgehoben. Du kannst jederzeit auf einen ersetzten Dateneintrag klicken, um die Ersetzung zu überschreiben, oder die Funktionalität hier komplett deaktivieren.
+  ar: سيقوم OpenMates تلقائيًا باستبدال البيانات الحساسة بعناصر نائبة، قبل إرسالها إلى خادم OpenMates وأي مزود خارجي، لحماية خصوصيتك. يتم تمييز البيانات المستبدلة بصريًا. يمكنك دائمًا النقر على إدخال بيانات مستبدل لتجاوز الاستبدال، أو إيقاف تشغيل الوظيفة بالكامل هنا.
   verified_by_human: []
 nearby_by_default:
   context: Toggle label for nearby by default location setting
   en: Nearby by default
   de: Standardmäßig in der Nähe
+  ar: بالقرب افتراضيًا
   verified_by_human: []
 maps_location:
   context: Subtitle for the nearby by default toggle
   en: Maps | Location
   de: Karten | Standort
+  ar: الخرائط | الموقع
   verified_by_human: []
 device_permissions:
   context: Section heading for device permission settings
   en: Device permissions
   de: Geräteberechtigungen
+  ar: أذونات الجهاز
   verified_by_human: []
 microphone:
   context: Toggle label for microphone permission
   en: Microphone
   de: Mikrofon
+  ar: الميكروفون
   verified_by_human: []
 camera:
   context: Toggle label for camera permission
   en: Camera
   de: Kamera
+  ar: الكاميرا
   verified_by_human: []
 location:
   context: Toggle label for location permission
   en: Location
   de: Standort
+  ar: الموقع
   verified_by_human: []
 auto_deletion:
   context: Section heading for auto deletion settings
   en: Auto deletion
   de: Automatische Löschung
+  ar: الحذف التلقائي
   verified_by_human: []
 auto_deletion.chats:
   context: Label for chat auto deletion setting
   en: Chats
   de: Chats
+  ar: المحادثات
   verified_by_human: []
 auto_deletion.chats.value:
   context: Default value for chat auto deletion
   en: 90 days & older
   de: 90 Tage & älter
+  ar: 90 يومًا فأكثر
   verified_by_human: []
 auto_deletion.files:
   context: Label for files auto deletion setting
   en: Files (on OpenMates)
   de: Dateien (auf OpenMates)
+  ar: الملفات (على OpenMates)
   verified_by_human: []
 auto_deletion.files.value:
   context: Default value for files auto deletion
   en: 90 days & older
   de: 90 Tage & älter
+  ar: 90 يومًا فأكثر
   verified_by_human: []
 auto_deletion.usage_data:
   context: Label for usage data auto deletion setting
   en: Usage data
   de: Nutzungsdaten
+  ar: بيانات الاستخدام
   verified_by_human: []
 auto_deletion.usage_data.value:
   context: Default value for usage data auto deletion
   en: 1 year & older
   de: 1 Jahr & älter
+  ar: سنة واحدة فأكثر
   verified_by_human: []
 auto_deletion.compliance_logs:
   context: Label for compliance logs auto deletion setting
   en: Compliance logs
   de: Compliance-Protokolle
+  ar: سجلات الامتثال
   verified_by_human: []
 auto_deletion.compliance_logs.value:
   context: Default value for compliance logs auto deletion
   en: 1 year & older
   de: 1 Jahr & älter
+  ar: سنة واحدة فأكثر
   verified_by_human: []
 auto_deletion.invoices:
   context: Label for invoices auto deletion setting
   en: Invoices
   de: Rechnungen
+  ar: الفواتير
   verified_by_human: []
 auto_deletion.invoices.value:
   context: Default value for invoices auto deletion
   en: 10 years & older
   de: 10 Jahre & älter
+  ar: 10 سنوات فأكثر
   verified_by_human: []
 auto_deletion.select_period:
   context: Heading for the period selection list on the auto-deletion editing page
   en: Select deletion period
   de: Löschzeitraum auswählen
+  ar: تحديد فترة الحذف
   verified_by_human: []
 auto_deletion.chats.description:
   context: Description text on the chats auto-deletion editing page
   en: Choose how long your chats should be kept before being automatically deleted. Older chats will be permanently removed.
   de: Wähle, wie lange deine Chats aufbewahrt werden sollen, bevor sie automatisch gelöscht werden. Ältere Chats werden dauerhaft entfernt.
+  ar: اختر المدة التي يجب الاحتفاظ بمحادثاتك خلالها قبل حذفها تلقائيًا. سيتم حذف المحادثات الأقدم نهائيًا.
   verified_by_human: []
 auto_deletion.files.description:
   context: Description text on the files auto-deletion editing page
   en: Choose how long your uploaded files should be kept on OpenMates before being automatically deleted.
   de: Wähle, wie lange deine hochgeladenen Dateien auf OpenMates aufbewahrt werden sollen, bevor sie automatisch gelöscht werden.
+  ar: اختر المدة التي يجب الاحتفاظ بملفاتك المحملة على OpenMates خلالها قبل حذفها تلقائيًا.
   verified_by_human: []
 auto_deletion.usage_data.description:
   context: Description text on the usage data auto-deletion editing page
   en: Choose how long your usage data (statistics, activity logs) should be kept before being automatically deleted.
   de: Wähle, wie lange deine Nutzungsdaten (Statistiken, Aktivitätsprotokolle) aufbewahrt werden sollen, bevor sie automatisch gelöscht werden.
+  ar: اختر المدة التي يجب الاحتفاظ ببيانات استخدامك (الإحصائيات، سجلات النشاط) خلالها قبل حذفها تلقائيًا.
   verified_by_human: []
 auto_deletion.period.30_days:
   context: Auto-deletion period option - 30 days
   en: 30 days & older
   de: 30 Tage & älter
+  ar: 30 يومًا فأكثر
   verified_by_human: []
 auto_deletion.period.60_days:
   context: Auto-deletion period option - 60 days
   en: 60 days & older
   de: 60 Tage & älter
+  ar: 60 يومًا فأكثر
   verified_by_human: []
 auto_deletion.period.90_days:
   context: Auto-deletion period option - 90 days
   en: 90 days & older
   de: 90 Tage & älter
+  ar: 90 يومًا فأكثر
   verified_by_human: []
 auto_deletion.period.6_months:
   context: Auto-deletion period option - 6 months
   en: 6 months & older
   de: 6 Monate & älter
+  ar: 6 أشهر فأكثر
   verified_by_human: []
 auto_deletion.period.1_year:
   context: Auto-deletion period option - 1 year
   en: 1 year & older
   de: 1 Jahr & älter
+  ar: سنة واحدة فأكثر
   verified_by_human: []
 auto_deletion.period.2_years:
   context: Auto-deletion period option - 2 years
   en: 2 years & older
   de: 2 Jahre & älter
+  ar: سنتان فأكثر
   verified_by_human: []
 auto_deletion.period.5_years:
   context: Auto-deletion period option - 5 years
   en: 5 years & older
   de: 5 Jahre & älter
+  ar: 5 سنوات فأكثر
   verified_by_human: []
 auto_deletion.period.never:
   context: Auto-deletion period option - never delete
   en: Never delete
   de: Nie löschen
+  ar: عدم الحذف أبدًا
   verified_by_human: []
 auto_deletion.compliance_note:
   context: Note about legal compliance for auto deletion
   en: The compliance logs and invoices auto deletion time can not be reduced, because of legal compliance.
   de: Die automatische Löschzeit für Compliance-Protokolle und Rechnungen kann aufgrund gesetzlicher Vorschriften nicht reduziert werden.
+  ar: لا يمكن تقليل وقت الحذف التلقائي لسجلات الامتثال والفواتير، وذلك للامتثال القانوني.
   verified_by_human: []
 contacts:
   context: Section heading for consolidated contacts section (names, addresses, birthdays) in hide personal data
   en: Contacts
   de: Kontakte
+  ar: جهات الاتصال
   verified_by_human: []
 names:
   context: Section heading for names in hide personal data
   en: Names
   de: Namen
+  ar: الأسماء
   verified_by_human: []
 add_name:
   context: Button text to add a new name entry
   en: Add name
   de: Name hinzufügen
+  ar: إضافة اسم
   verified_by_human: []
 addresses:
   context: Section heading for addresses in hide personal data
   en: Addresses
   de: Adressen
+  ar: العناوين
   verified_by_human: []
 add_address:
   context: Button text to add a new address entry
   en: Add address
   de: Adresse hinzufügen
+  ar: إضافة عنوان
   verified_by_human: []
 birthday:
   context: Section heading for birthday in hide personal data
   en: Birthday
   de: Geburtstag
+  ar: تاريخ الميلاد
   verified_by_human: []
 add_birthday:
   context: Button text to add a new birthday entry
   en: Add birthday
   de: Geburtstag hinzufügen
+  ar: إضافة تاريخ ميلاد
   verified_by_human: []
 for_everyone:
   context: Section heading for universal PII detection patterns
   en: For everyone
   de: Für alle
+  ar: للجميع
   verified_by_human: []
 email_addresses:
   context: Toggle label for email address detection
   en: E-mail addresses
   de: E-Mail-Adressen
+  ar: عناوين البريد الإلكتروني
   verified_by_human: []
 phone_numbers:
   context: Toggle label for phone number detection
   en: Phone numbers
   de: Telefonnummern
+  ar: أرقام الهواتف
   verified_by_human: []
 credit_card_numbers:
   context: Toggle label for credit card number detection
   en: Credit card numbers
   de: Kreditkartennummern
+  ar: أرقام بطاقات الائتمان
   verified_by_human: []
 iban_bank_account:
   context: Toggle label for IBAN/bank account detection
   en: IBAN / Bank account numbers
   de: IBAN / Bankkontonummern
+  ar: IBAN / أرقام الحسابات المصرفية
   verified_by_human: []
 tax_id_vat:
   context: Toggle label for tax ID/VAT detection
   en: Tax ID / VAT
   de: Steuer-ID / USt-IdNr.
+  ar: الرقم الضريبي / VAT
   verified_by_human: []
 crypto_wallets:
   context: Toggle label for cryptocurrency wallet detection
   en: Crypto wallets
   de: Krypto-Wallets
+  ar: محافظ العملات المشفرة
   verified_by_human: []
 social_security_numbers:
   context: Toggle label for social security number detection
   en: Social security numbers
   de: Sozialversicherungsnummern
+  ar: أرقام الضمان الاجتماعي
   verified_by_human: []
 passport_numbers:
   context: Toggle label for passport number detection
   en: Passport numbers
   de: Passnummern
+  ar: أرقام جوازات السفر
   verified_by_human: []
 for_developers:
   context: Section heading for developer-specific PII detection patterns
   en: For developers
   de: Für Entwickler
+  ar: للمطورين
   verified_by_human: []
 api_keys:
   context: Toggle label for API key detection
   en: API keys
   de: API-Schlüssel
+  ar: مفاتيح API
   verified_by_human: []
 jwt_tokens:
   context: Toggle label for JWT token detection
   en: JWT tokens
   de: JWT-Token
+  ar: رموز JWT
   verified_by_human: []
 private_keys:
   context: Toggle label for private key detection
   en: Private keys
   de: Private Schlüssel
+  ar: مفاتيح خاصة
   verified_by_human: []
 generic_secrets:
   context: Toggle label for generic secret detection
   en: Generic secrets
   de: Allgemeine Geheimnisse
+  ar: أسرار عامة
   verified_by_human: []
 ip_addresses:
   context: Toggle label for IP address detection
   en: IP addresses
   de: IP-Adressen
+  ar: عناوين IP
   verified_by_human: []
 mac_addresses:
   context: Toggle label for MAC address detection
   en: MAC addresses
   de: MAC-Adressen
+  ar: عناوين MAC
   verified_by_human: []
 user_at_hostname:
   context: Toggle label for user@hostname detection
   en: user@hostname
   de: user@hostname
+  ar: المستخدم@اسم_المضيف
   verified_by_human: []
 home_folder:
   context: Toggle label for home folder path detection
   en: Home folder
   de: Home-Ordner
+  ar: مجلد المنزل
   verified_by_human: []
 custom:
   context: Section heading for custom PII entries
   en: Custom
   de: Benutzerdefiniert
+  ar: مخصص
   verified_by_human: []
 add_custom_entry:
   context: Button text to add a custom PII entry
   en: Add custom entry
   de: Benutzerdefinierten Eintrag hinzufügen
+  ar: إضافة إدخال مخصص
   verified_by_human: []
 form.title:
   context: Form field label for entry title
   en: Title
   de: Titel
+  ar: العنوان
   verified_by_human: []
 form.title.placeholder_name:
   context: Placeholder for name title input
   en: "example: 'My first name'"
   de: "Beispiel: 'Mein Vorname'"
+  ar: "مثال: 'اسمي الأول'"
   verified_by_human: []
 form.title.placeholder_address:
   context: Placeholder for address title input
   en: "example: 'Home'"
   de: "Beispiel: 'Zuhause'"
+  ar: "مثال: 'المنزل'"
   verified_by_human: []
 form.title.placeholder_birthday:
   context: Placeholder for birthday title input
   en: "example: 'Me'"
   de: "Beispiel: 'Ich'"
+  ar: "مثال: 'أنا'"
   verified_by_human: []
 form.title.placeholder_custom:
   context: Placeholder for custom entry title input
   en: "example: 'My company name'"
   de: "Beispiel: 'Mein Firmenname'"
+  ar: "مثال: 'اسم شركتي'"
   verified_by_human: []
 form.text_to_hide:
   context: Form field label for the text that should be hidden
   en: Text to hide
   de: Text zum Verbergen
+  ar: نص للإخفاء
   verified_by_human: []
 form.text_to_hide.placeholder_name:
   context: Placeholder for name text input
   en: "example: 'Max'"
   de: "Beispiel: 'Max'"
+  ar: "مثال: 'ماكس'"
   verified_by_human: []
 form.text_to_hide.placeholder_custom:
   context: Placeholder for custom text to hide input
   en: "example: 'Acme Corp'"
   de: "Beispiel: 'Acme GmbH'"
+  ar: "مثال: 'Acme Corp'"
   verified_by_human: []
 form.first_line:
   context: Form field label for the first address line to hide
   en: First line to hide
   de: Erste Zeile zum Verbergen
+  ar: السطر الأول للإخفاء
   verified_by_human: []
 form.first_line.placeholder:
   context: Placeholder for the first address line input
   en: "example: 'Friedrichstr. 19'"
   de: "Beispiel: 'Friedrichstr. 19'"
+  ar: "مثال: 'Friedrichstr. 19'"
   verified_by_human: []
 form.second_line:
   context: Form field label for the second address line to hide
   en: Second line to hide
   de: Zweite Zeile zum Verbergen
+  ar: السطر الثاني للإخفاء
   verified_by_human: []
 form.second_line.placeholder:
   context: Placeholder for the second address line input
   en: "example: '10247 Berlin'"
   de: "Beispiel: '10247 Berlin'"
+  ar: "مثال: '10247 برلين'"
   verified_by_human: []
 form.replace_with:
   context: Form field label for the replacement placeholder
   en: Replace with
   de: Ersetzen durch
+  ar: استبدال بـ
   verified_by_human: []
 form.replace_with.placeholder_name:
   context: Placeholder for name replacement input
   en: "example: 'ME_FIRST_NAME'"
   de: "Beispiel: 'MEIN_VORNAME'"
+  ar: "مثال: 'ME_FIRST_NAME'"
   verified_by_human: []
 form.replace_with.placeholder_address:
   context: Placeholder for address replacement input
   en: "example: 'MY_HOME_ADDRESS'"
   de: "Beispiel: 'MEINE_ADRESSE'"
+  ar: "مثال: 'MY_HOME_ADDRESS'"
   verified_by_human: []
 form.replace_with.placeholder_birthday:
   context: Placeholder for birthday replacement input
   en: "example: 'MY_BIRTHDAY'"
   de: "Beispiel: 'MEIN_GEBURTSTAG'"
+  ar: "مثال: 'MY_BIRTHDAY'"
   verified_by_human: []
 form.replace_with.placeholder_custom:
   context: Placeholder for custom replacement input
   en: "example: 'MY_COMPANY'"
   de: "Beispiel: 'MEINE_FIRMA'"
+  ar: "مثال: 'MY_COMPANY'"
   verified_by_human: []
 form.date:
   context: Form field label for birthday date
   en: Date
   de: Datum
+  ar: التاريخ
   verified_by_human: []
 form.date.placeholder:
   context: Placeholder for birthday date input
   en: "example: '15.03.1990'"
   de: "Beispiel: '15.03.1990'"
+  ar: "مثال: '15.03.1990'"
   verified_by_human: []
 form.street:
   context: Form field label for street address
   en: Street
   de: Straße
+  ar: الشارع
   verified_by_human: []
 form.street.placeholder:
   context: Placeholder for street address input
   en: "example: '123 Main Street'"
   de: "Beispiel: 'Hauptstraße 123'"
+  ar: "مثال: '123 الشارع الرئيسي'"
   verified_by_human: []
 form.city:
   context: Form field label for city
   en: City
   de: Stadt
+  ar: المدينة
   verified_by_human: []
 form.city.placeholder:
   context: Placeholder for city input
   en: "example: 'Berlin'"
   de: "Beispiel: 'Berlin'"
+  ar: "مثال: \"برلين\""
   verified_by_human: []
 form.state:
   context: Form field label for state/province
   en: State / Province
   de: Bundesland
+  ar: الولاية / المقاطعة
   verified_by_human: []
 form.state.placeholder:
   context: Placeholder for state input
   en: "example: 'California'"
   de: "Beispiel: 'Bayern'"
+  ar: "مثال: \"كاليفورنيا\""
   verified_by_human: []
 form.zip:
   context: Form field label for zip/postal code
   en: ZIP / Postal code
   de: PLZ
+  ar: الرمز البريدي
   verified_by_human: []
 form.zip.placeholder:
   context: Placeholder for zip code input
   en: "example: '10115'"
   de: "Beispiel: '10115'"
+  ar: "مثال: \"10115\""
   verified_by_human: []
 form.country:
   context: Form field label for country
   en: Country
   de: Land
+  ar: البلد
   verified_by_human: []
 form.country.placeholder:
   context: Placeholder for country input
   en: "example: 'Germany'"
   de: "Beispiel: 'Deutschland'"
+  ar: "مثال: \"ألمانيا\""
   verified_by_human: []
 form.save:
   context: Save button text for personal data form
   en: Save
   de: Speichern
+  ar: حفظ
   verified_by_human: []
 form.delete:
   context: Delete button text for personal data entry
   en: Delete
   de: Löschen
+  ar: حذف
   verified_by_human: []
 encryption_note:
   context: Note explaining that personal data entries are client-side encrypted
   en: All your personal data entries are encrypted on your device. Not even the OpenMates server can read them.
   de: Alle deine persönlichen Dateneinträge werden auf deinem Gerät verschlüsselt. Nicht einmal der OpenMates-Server kann sie lesen.
+  ar: جميع إدخالات بياناتك الشخصية مشفرة على جهازك. حتى خادم OpenMates لا يمكنه قراءتها.
   verified_by_human: []
