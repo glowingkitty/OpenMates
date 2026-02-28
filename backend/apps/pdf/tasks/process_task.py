@@ -448,13 +448,19 @@ async def _download_decrypt_pdf(
     aes_key_b64 = base64.b64decode(resp.json()["data"]["plaintext"]).decode("utf-8")
     aes_key_bytes = base64.b64decode(aes_key_b64)
 
-    # Download encrypted PDF from S3
-    url = f"{s3_base_url.rstrip('/')}/{s3_key}"
-    logger.info(f"{log_prefix} Downloading PDF from: {url}")
+    # Download encrypted PDF from S3 via internal API (chatfiles bucket is private).
+    internal_api_base = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
+    shared_token = os.getenv("INTERNAL_API_SHARED_TOKEN", "")
+    download_url = f"{internal_api_base}/internal/s3/download"
+    logger.info(f"{log_prefix} Downloading PDF from private S3 via internal API: {s3_key}")
     async with httpx.AsyncClient(timeout=300) as client:
-        dl_resp = await client.get(url)
+        dl_resp = await client.get(
+            download_url,
+            params={"bucket_key": "chatfiles", "s3_key": s3_key},
+            headers={"Authorization": f"Bearer {shared_token}"},
+        )
     if dl_resp.status_code != 200:
-        raise RuntimeError(f"S3 download failed for {s3_key}: HTTP {dl_resp.status_code}")
+        raise RuntimeError(f"S3 download failed for {s3_key}: HTTP {dl_resp.status_code} — {dl_resp.text[:200]}")
 
     # Decrypt
     nonce = base64.b64decode(aes_nonce)

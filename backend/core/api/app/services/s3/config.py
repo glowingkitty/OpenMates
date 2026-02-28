@@ -65,11 +65,14 @@ BUCKETS = {
         'dev_name': 'dev-openmates-chatfiles',
         'allowed_types': ['*/*'],  # Allow all file types
         'max_size': 500 * 1024 * 1024,  # 500MB
-        'access': 'public-read',
+        'access': 'private',
         'lifecycle_policy': None,  # No auto-delete
-        # Aggressive caching: encrypted blobs are content-addressed (unique S3 key per upload)
-        # and never modified in place, so browsers can cache them indefinitely.
-        'cache_control': 'public, max-age=31536000, immutable',
+        # Cache-Control for presigned URL responses: encrypted blobs are content-addressed
+        # (unique S3 key per upload) and never modified in place, so browsers can cache them.
+        # Changed from 'public' to 'private' because files are now served via presigned URLs
+        # from a private bucket — 'private' tells CDNs not to cache shared copies, while
+        # still allowing the user's browser to cache for 1 year.
+        'cache_control': 'private, max-age=31536000, immutable',
     },
     'userdata_backups': {
         'name': 'openmates-userdata-backups',

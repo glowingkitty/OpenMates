@@ -121,11 +121,37 @@ class ViewSkill(BaseSkill):
         return base64.b64decode(aes_key_b64)
 
     async def _download_from_s3(self, s3_base_url: str, s3_key: str) -> bytes:
-        url = f"{s3_base_url.rstrip('/')}/{s3_key}"
+        """
+        Download an encrypted file from S3 via the internal API's S3 service.
+
+        The chatfiles bucket is private — direct HTTP GET is not allowed.
+        This method calls the core API's internal S3 download endpoint which
+        uses boto3 get_object (server-side credentials, no presigned URL needed).
+
+        Args:
+            s3_base_url: Base URL of the S3 bucket (unused, kept for interface compat).
+            s3_key: Object key within the bucket.
+
+        Returns:
+            Encrypted file bytes.
+
+        Raises:
+            RuntimeError: If the download fails.
+        """
+        download_url = f"{os.environ.get('INTERNAL_API_BASE_URL', 'http://api:8000')}/internal/s3/download"
+        shared_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
         async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.get(url)
+            resp = await client.get(
+                download_url,
+                params={"bucket_key": "chatfiles", "s3_key": s3_key},
+                headers={"Authorization": f"Bearer {shared_token}"},
+            )
+
         if resp.status_code != 200:
-            raise RuntimeError(f"S3 download failed for {s3_key}: HTTP {resp.status_code}")
+            raise RuntimeError(
+                f"S3 download failed for {s3_key}: HTTP {resp.status_code} — {resp.text[:200]}"
+            )
+
         return resp.content
 
     async def execute(

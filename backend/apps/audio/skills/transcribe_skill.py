@@ -3,10 +3,17 @@
 # Audio transcription skill using Mistral Voxtral Mini (voxtral-mini-2602).
 #
 # Flow per request:
-#   1. Fetch encrypted audio file from S3 using provided s3_base_url + s3_key.
-#   2. Decrypt via AES-256-GCM using the plaintext aes_key + aes_nonce.
-#   3. POST decrypted audio bytes to Mistral's transcription API.
-#   4. Return the transcript text.
+#   1. Fetch encrypted audio file from S3 via the internal API endpoint.
+#   2. Unwrap AES key via Vault Transit using vault_wrapped_aes_key.
+#   3. Decrypt via AES-256-GCM using the unwrapped AES key + aes_nonce.
+#   4. POST decrypted audio bytes to Mistral's transcription API.
+#   5. Return the transcript text.
+#
+# Security: The plaintext aes_key is no longer accepted from the client.
+# Instead, the skill uses vault_wrapped_aes_key + Vault Transit to unwrap
+# the AES key server-side — matching the pattern used by images and PDF skills.
+# The chatfiles S3 bucket is private; files are fetched via the internal API's
+# /internal/s3/download endpoint (boto3 get_object with server credentials).
 #
 # Pricing: $0.003/min — cheapest Voxtral model, ideal for short voice messages.
 # Model: voxtral-mini-2602 (alias: voxtral-mini-latest for the transcriptions endpoint)
@@ -18,12 +25,14 @@
 import logging
 import base64
 import io
+import os
 import math
 import hashlib
 import httpx
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from fastapi import HTTPException
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -45,14 +54,21 @@ class TranscribeRequestItem(BaseModel):
     Individual audio transcription request item.
 
     The audio file has already been uploaded to S3 encrypted (AES-256-GCM).
-    This skill fetches + decrypts it before sending to Mistral.
+    This skill fetches the encrypted file via the internal API, unwraps the AES
+    key via Vault Transit, decrypts, and sends to Mistral for transcription.
+
+    Security: vault_wrapped_aes_key is required for server-side key unwrap.
+    The plaintext aes_key field is accepted for backward compatibility but ignored
+    when vault_wrapped_aes_key is present.
     """
     s3_base_url: str = Field(..., description="S3 base URL for the encrypted audio file.")
     s3_key: str = Field(..., description="S3 object key for the encrypted audio file.")
-    aes_key: str = Field(..., description="Base64-encoded plaintext AES-256 key.")
     aes_nonce: str = Field(..., description="Base64-encoded AES-GCM nonce.")
-    vault_wrapped_aes_key: Optional[str] = Field(
-        None, description="Vault Transit-wrapped AES key (unused in this skill, present for schema consistency)."
+    vault_wrapped_aes_key: str = Field(
+        ..., description="Vault Transit-wrapped AES key for server-side unwrap."
+    )
+    aes_key: Optional[str] = Field(
+        None, description="Deprecated: Base64-encoded plaintext AES-256 key. Ignored when vault_wrapped_aes_key is present."
     )
     language: Optional[str] = Field(
         None, description="Optional ISO 639-1 language hint (e.g. 'en', 'de'). Improves accuracy."
@@ -190,22 +206,72 @@ class TranscribeSkill(BaseSkill):
         }
         return mime_map.get(ext, default)
 
+    VAULT_TOKEN_PATH: str = "/vault-data/api.token"
+
+    def _load_vault_token(self) -> str:
+        """Load the Vault service token from the mounted token file."""
+        with open(self.VAULT_TOKEN_PATH) as f:
+            token = f.read().strip()
+        if not token:
+            raise RuntimeError("Vault token file is empty")
+        return token
+
+    async def _unwrap_aes_key(
+        self, vault_wrapped_aes_key: str, vault_key_id: str
+    ) -> bytes:
+        """
+        Unwrap AES key via Vault Transit.
+
+        Uses the same double-decode pattern as images/view_skill.py and pdf skills:
+        encrypt_with_user_key encoded the input as base64(aes_key_b64) before
+        sending to Vault, so Vault's plaintext = base64(aes_key_b64).
+        Decode twice to get raw 32-byte AES key.
+
+        Args:
+            vault_wrapped_aes_key: Vault Transit-wrapped ciphertext.
+            vault_key_id: The user's Vault Transit key ID (e.g. "user_{uuid}").
+
+        Returns:
+            Raw AES key bytes (32 bytes for AES-256).
+
+        Raises:
+            RuntimeError: If Vault transit decryption fails.
+        """
+        vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
+        token = self._load_vault_token()
+        # User keys are derived — must pass context = base64(key_id) to match encryption.
+        context = base64.b64encode(vault_key_id.encode()).decode("utf-8")
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{vault_url}/v1/transit/decrypt/{vault_key_id}",
+                json={"ciphertext": vault_wrapped_aes_key, "context": context},
+                headers={"X-Vault-Token": token},
+            )
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Vault transit decrypt failed: HTTP {resp.status_code} — {resp.text[:200]}"
+            )
+        # Double-decode: encrypt_with_user_key does base64(aes_key_b64) before sending to Vault,
+        # so Vault's plaintext = base64(aes_key_b64). Decode twice to get raw AES key bytes.
+        aes_key_b64 = base64.b64decode(resp.json()["data"]["plaintext"]).decode("utf-8")
+        return base64.b64decode(aes_key_b64)
+
     def _decrypt_audio(
         self,
         encrypted_bytes: bytes,
-        aes_key_b64: str,
+        aes_key: bytes,
         aes_nonce_b64: str,
     ) -> bytes:
         """
         Decrypt AES-256-GCM encrypted audio bytes.
 
         The upload server encrypts files with AES-256-GCM before storing in S3.
-        This method performs the symmetric decryption using the plaintext key
-        returned by the upload server (stored in the embed node attrs).
+        This method performs the symmetric decryption using the raw key bytes
+        obtained from Vault Transit unwrap.
 
         Args:
-            encrypted_bytes: Raw encrypted bytes from S3 (nonce prepended or separate?).
-            aes_key_b64: Base64-encoded 32-byte AES-256 key.
+            encrypted_bytes: Raw encrypted bytes from S3.
+            aes_key: Raw 32-byte AES-256 key (from Vault Transit unwrap).
             aes_nonce_b64: Base64-encoded 12-byte AES-GCM nonce.
 
         Returns:
@@ -215,56 +281,79 @@ class TranscribeSkill(BaseSkill):
             ValueError: If decryption fails due to wrong key/nonce or corrupted data.
         """
         try:
-            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-            key = base64.b64decode(aes_key_b64)
             nonce = base64.b64decode(aes_nonce_b64)
-            aesgcm = AESGCM(key)
+            aesgcm = AESGCM(aes_key)
             decrypted = aesgcm.decrypt(nonce, encrypted_bytes, None)
             return decrypted
         except Exception as e:
             logger.error(f"[TranscribeSkill] AES-GCM decryption failed: {e}", exc_info=True)
             raise ValueError(f"Audio decryption failed: {e}") from e
 
+    async def _download_from_s3(self, s3_key: str) -> bytes:
+        """
+        Download an encrypted file from S3 via the internal API's S3 service.
+
+        The chatfiles bucket is private — direct HTTP GET is not allowed.
+        This method calls the core API's internal S3 download endpoint which
+        uses boto3 get_object (server-side credentials, no presigned URL needed).
+
+        Args:
+            s3_key: Object key within the bucket.
+
+        Returns:
+            Encrypted file bytes.
+
+        Raises:
+            RuntimeError: If the download fails.
+        """
+        download_url = f"{os.environ.get('INTERNAL_API_BASE_URL', 'http://api:8000')}/internal/s3/download"
+        shared_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.get(
+                download_url,
+                params={"bucket_key": "chatfiles", "s3_key": s3_key},
+                headers={"Authorization": f"Bearer {shared_token}"},
+            )
+
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"S3 download failed for {s3_key}: HTTP {resp.status_code} — {resp.text[:200]}"
+            )
+
+        return resp.content
+
     async def _fetch_and_decrypt_audio(
         self,
-        s3_base_url: str,
         s3_key: str,
-        aes_key_b64: str,
+        aes_key: bytes,
         aes_nonce_b64: str,
     ) -> bytes:
         """
-        Fetch encrypted audio from S3 and decrypt it.
+        Fetch encrypted audio from S3 via internal API and decrypt it.
 
-        The S3 URL is constructed as: {s3_base_url}/{s3_key}
-        The fetch is done with httpx (async); decryption runs synchronously
-        but is fast enough (milliseconds for typical voice clips) to run inline.
+        The fetch is done via the internal /internal/s3/download endpoint;
+        decryption runs synchronously but is fast enough (milliseconds for
+        typical voice clips) to run inline.
 
         Args:
-            s3_base_url: Base URL of the S3 bucket (e.g. 'https://s3.eu-central-1.wasabisys.com/bucket').
             s3_key: Object key in the bucket (e.g. 'uploads/uuid/original.webm.enc').
-            aes_key_b64: Base64-encoded AES-256 key.
+            aes_key: Raw AES-256 key bytes (from Vault Transit unwrap).
             aes_nonce_b64: Base64-encoded AES-GCM nonce.
 
         Returns:
             Decrypted audio bytes.
 
         Raises:
-            httpx.HTTPError: If the S3 fetch fails.
+            RuntimeError: If the S3 fetch fails.
             ValueError: If decryption fails.
         """
-        url = f"{s3_base_url.rstrip('/')}/{s3_key}"
-        logger.debug(f"[TranscribeSkill] Fetching audio from S3: {s3_key}")
+        logger.debug(f"[TranscribeSkill] Fetching audio from S3 via internal API: {s3_key}")
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            encrypted_bytes = response.content
-
+        encrypted_bytes = await self._download_from_s3(s3_key)
         logger.debug(f"[TranscribeSkill] Fetched {len(encrypted_bytes)} encrypted bytes from S3")
 
         # Decrypt synchronously (fast for audio files, no need for thread pool)
-        decrypted = self._decrypt_audio(encrypted_bytes, aes_key_b64, aes_nonce_b64)
+        decrypted = self._decrypt_audio(encrypted_bytes, aes_key, aes_nonce_b64)
         logger.debug(f"[TranscribeSkill] Decrypted audio: {len(decrypted)} bytes")
         return decrypted
 
@@ -348,30 +437,31 @@ class TranscribeSkill(BaseSkill):
         Process a single audio transcription request.
 
         Steps:
-          1. Extract S3 location + AES keys from request.
+          1. Extract S3 location + vault_wrapped_aes_key from request.
           2. Fetch Mistral API key from Vault.
-          3. Fetch encrypted audio from S3 and decrypt.
-          4. Send to Mistral Voxtral for transcription.
-          5. Return structured result.
+          3. Unwrap AES key via Vault Transit.
+          4. Fetch encrypted audio from S3 via internal API and decrypt.
+          5. Send to Mistral Voxtral for transcription.
+          6. Return structured result.
 
         Args:
-            req: Request dict with s3_base_url, s3_key, aes_key, aes_nonce, language, filename.
+            req: Request dict with s3_key, aes_nonce, vault_wrapped_aes_key, _vault_key_id, language, filename.
             request_id: The id of this request (for matching in response).
             secrets_manager: Injected secrets manager for Vault access.
 
         Returns:
             Tuple of (request_id, results_list, error_string_or_none).
         """
-        s3_base_url = req.get("s3_base_url", "")
         s3_key = req.get("s3_key", "")
-        aes_key = req.get("aes_key", "")
         aes_nonce = req.get("aes_nonce", "")
+        vault_wrapped_aes_key = req.get("vault_wrapped_aes_key", "")
+        vault_key_id = req.get("_vault_key_id", "")
         language = req.get("language") or None
         filename = req.get("filename") or "recording.webm"
 
         # Validate required fields
-        if not s3_base_url or not s3_key or not aes_key or not aes_nonce:
-            return (request_id, [], "Missing required fields: s3_base_url, s3_key, aes_key, aes_nonce")
+        if not s3_key or not aes_nonce or not vault_wrapped_aes_key or not vault_key_id:
+            return (request_id, [], "Missing required fields: s3_key, aes_nonce, vault_wrapped_aes_key, vault_key_id")
 
         try:
             # Step 1: Get Mistral API key from Vault
@@ -383,18 +473,20 @@ class TranscribeSkill(BaseSkill):
                 logger.error("[TranscribeSkill] Mistral API key not found in Vault")
                 return (request_id, [], "Mistral API key not configured")
 
-            # Step 2: Fetch and decrypt audio from S3
+            # Step 2: Unwrap AES key via Vault Transit
+            aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, vault_key_id)
+
+            # Step 3: Fetch and decrypt audio from S3 via internal API
             audio_bytes = await self._fetch_and_decrypt_audio(
-                s3_base_url=s3_base_url,
                 s3_key=s3_key,
-                aes_key_b64=aes_key,
+                aes_key=aes_key_bytes,
                 aes_nonce_b64=aes_nonce,
             )
 
-            # Step 3: Determine MIME type from filename
+            # Step 4: Determine MIME type from filename
             mime_type = self._detect_mime_type(filename)
 
-            # Step 4: Transcribe via Mistral Voxtral
+            # Step 5: Transcribe via Mistral Voxtral
             mistral_result = await self._transcribe_with_mistral(
                 audio_bytes=audio_bytes,
                 filename=filename,
@@ -403,7 +495,7 @@ class TranscribeSkill(BaseSkill):
                 mistral_api_key=mistral_api_key,
             )
 
-            # Step 5: Build result
+            # Step 6: Build result
             transcript_text = mistral_result.get("text", "").strip()
             detected_language = mistral_result.get("language")
             duration_seconds = mistral_result.get("duration")
@@ -447,6 +539,7 @@ class TranscribeSkill(BaseSkill):
         requests: List[Dict[str, Any]],
         secrets_manager: Optional[SecretsManager] = None,
         user_id: Optional[str] = None,
+        user_vault_key_id: Optional[str] = None,
         **kwargs,
     ) -> TranscribeResponse:
         """
@@ -464,6 +557,9 @@ class TranscribeSkill(BaseSkill):
             requests: Array of transcription request objects (see TranscribeRequest model).
             secrets_manager: SecretsManager instance injected by the app.
             user_id: The authenticated user's ID (injected by BaseApp route handler).
+            user_vault_key_id: The user's Vault Transit key ID, injected by
+                the transcribe_handler in apps_api.py. Required for unwrapping
+                vault_wrapped_aes_key via Vault Transit.
 
         Returns:
             TranscribeResponse with grouped results per request ID.
@@ -472,7 +568,7 @@ class TranscribeSkill(BaseSkill):
         ---------------
         1. Request received in FastAPI route (app-audio container).
         2. This async method is called directly (no Celery dispatch).
-        3. S3 fetch + Mistral API calls use async httpx (non-blocking).
+        3. For each request: unwrap AES key via Vault, fetch+decrypt from S3, transcribe.
         4. Credits charged based on total transcribed duration.
         5. Results returned directly to caller.
         """
@@ -486,6 +582,13 @@ class TranscribeSkill(BaseSkill):
         if error_response:
             return error_response
 
+        # Validate that vault_key_id is available — required for AES key unwrap
+        if not user_vault_key_id:
+            logger.error("[TranscribeSkill] user_vault_key_id not available — cannot unwrap AES keys")
+            return TranscribeResponse(
+                results=[], error="Cannot decrypt audio: vault key ID not available"
+            )
+
         # Convert Pydantic models to dicts if needed
         requests_as_dicts: List[Dict[str, Any]] = []
         for req in requests:
@@ -495,6 +598,11 @@ class TranscribeSkill(BaseSkill):
                 requests_as_dicts.append(req)
             else:
                 requests_as_dicts.append(dict(req))
+
+        # Inject vault_key_id into each request dict so _process_single_transcribe_request
+        # can use it for Vault Transit AES key unwrap.
+        for req_dict in requests_as_dicts:
+            req_dict["_vault_key_id"] = user_vault_key_id
 
         # Validate using BaseSkill helper
         validated_requests, error = self._validate_requests_array(

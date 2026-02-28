@@ -4,10 +4,10 @@
  * Utility for fetching AES-256-GCM encrypted image blobs from Hetzner S3
  * and decrypting them client-side using the Web Crypto API.
  *
- * The chatfiles S3 bucket is public-read, so blobs can be fetched directly
- * via HTTP GET. However, the content is AES-256-GCM encrypted before upload.
+ * The chatfiles S3 bucket is private — blobs require a presigned URL from
+ * the backend API. The content is AES-256-GCM encrypted before upload.
  * The plaintext AES key and nonce are included in the embed content (which
- * itself is client-encrypted with the chat's master key).
+ * itself is client-encrypted with the chat's master key in IndexedDB).
  *
  * Includes an in-memory cache of decrypted blob URLs keyed by S3 key,
  * so that re-mounting a component (e.g. scrolling away and back) does not
@@ -15,12 +15,14 @@
  *
  * Flow:
  * 1. Check in-memory cache for existing blob URL
- * 2. If miss: construct full S3 URL from s3_base_url + s3_key
- * 3. Fetch the encrypted blob
+ * 2. If miss: request a presigned URL from GET /v1/embeds/presigned-url
+ * 3. Fetch the encrypted blob from S3 using the presigned URL
  * 4. Import the AES key via Web Crypto API
  * 5. Decrypt using AES-256-GCM with the provided nonce
  * 6. Create blob URL, store in cache, return
  */
+
+import { fetchWithPresignedUrl } from "../../../services/presignedUrlService";
 
 /**
  * In-memory cache: maps S3 key -> blob URL.
@@ -92,7 +94,11 @@ export function getCachedImageUrl(s3Key: string): string | undefined {
  * Results are cached in memory keyed by s3Key so that subsequent calls
  * for the same image return instantly.
  *
- * @param s3BaseUrl - Base URL of the S3 bucket (e.g. "https://openmates-chatfiles.nbg1.your-objectstorage.com")
+ * The chatfiles S3 bucket is private — a presigned URL is obtained from the
+ * backend API (GET /v1/embeds/presigned-url) before fetching. If the URL
+ * expires (HTTP 403), a fresh one is requested and the fetch is retried once.
+ *
+ * @param s3BaseUrl - Base URL of the S3 bucket (unused, kept for interface compat — presigned URL is used instead)
  * @param s3Key - Relative file key in the bucket (e.g. "user_id/timestamp_id_preview.webp")
  * @param aesKeyBase64 - Base64-encoded plaintext AES-256 key (32 bytes)
  * @param nonceBase64 - Base64-encoded GCM nonce (12 bytes)
@@ -108,31 +114,19 @@ export async function fetchAndDecryptImage(
   const cached = imageCache.get(s3Key);
   if (cached) {
     // Return a fresh Blob reference from the cached blob URL.
-    // The caller will create its own objectURL, but we also keep our canonical one.
-    // Actually, callers use URL.createObjectURL on the returned Blob, so just
-    // fetch the blob from the cached URL to avoid re-decrypting.
     // Simpler: re-fetch from blob URL (instant, no network)
     const resp = await fetch(cached.blobUrl);
     return resp.blob();
   }
 
-  // 1. Construct the full S3 URL
-  const url = `${s3BaseUrl}/${s3Key}`;
+  // 1. Fetch the encrypted blob via presigned URL (with automatic 403 retry)
+  const encryptedData = await fetchWithPresignedUrl(s3Key);
 
-  // 2. Fetch the encrypted blob from S3 (public-read, CORS enabled)
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch encrypted image from S3: ${response.status} ${response.statusText} (${url})`,
-    );
-  }
-  const encryptedData = await response.arrayBuffer();
-
-  // 3. Decode the base64 AES key and nonce
+  // 2. Decode the base64 AES key and nonce
   const aesKeyBytes = base64ToArrayBuffer(aesKeyBase64);
   const nonceBytes = base64ToArrayBuffer(nonceBase64);
 
-  // 4. Import the AES key for Web Crypto API
+  // 3. Import the AES key for Web Crypto API
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
     aesKeyBytes,
@@ -141,7 +135,7 @@ export async function fetchAndDecryptImage(
     ["decrypt"],
   );
 
-  // 5. Decrypt using AES-256-GCM
+  // 4. Decrypt using AES-256-GCM
   // Note: AES-GCM ciphertext includes the 16-byte auth tag at the end
   const decryptedData = await crypto.subtle.decrypt(
     {
@@ -153,12 +147,12 @@ export async function fetchAndDecryptImage(
     encryptedData,
   );
 
-  // 6. Determine MIME type from the s3_key extension
+  // 5. Determine MIME type from the s3_key extension
   const mimeType = s3Key.endsWith(".png") ? "image/png" : "image/webp";
 
   const blob = new Blob([decryptedData], { type: mimeType });
 
-  // 7. Cache the decrypted blob URL for future use
+  // 6. Cache the decrypted blob URL for future use
   const blobUrl = URL.createObjectURL(blob);
   imageCache.set(s3Key, { blobUrl, refCount: 0, revokeTimer: null });
 

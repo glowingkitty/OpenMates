@@ -1344,6 +1344,28 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
         try:
             logger.info(f"Audio transcribe: User {user_id[:8]}... initiating transcription")
 
+            # Resolve the user's Vault Transit key ID so the transcribe skill can unwrap
+            # vault_wrapped_aes_key without needing the plaintext aes_key from the client.
+            # This closes a security asymmetry where audio was the only file type receiving
+            # a plaintext AES key — images and PDFs already use vault_wrapped_aes_key.
+            vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+            if not vault_key_id:
+                logger.debug(f"vault_key_id not in cache for user {user_id[:8]}..., fetching from Directus")
+                user_profile_result = await directus_service.users.get_user_profile(user_id)
+                if user_profile_result and user_profile_result[1]:
+                    vault_key_id = user_profile_result[1].get("vault_key_id")
+                    if vault_key_id:
+                        await cache_service.update_user(user_id, {"vault_key_id": vault_key_id})
+
+            if not vault_key_id:
+                logger.error(f"Audio transcribe: vault_key_id not found for user {user_id[:8]}...")
+                raise HTTPException(status_code=500, detail="Cannot resolve encryption key for transcription")
+
+            # Inject vault_key_id into the request body using the framework's standard
+            # context field name (_user_vault_key_id). The base_app.py skill execution
+            # framework reads this and passes it as user_vault_key_id kwarg to execute().
+            request_body["_user_vault_key_id"] = vault_key_id
+
             # Build a user_info dict compatible with call_app_skill's expectations.
             # api_key_encrypted_name and api_key_hash are not available for session auth —
             # use empty string / None as safe defaults.  The transcribe skill ignores them.

@@ -8,7 +8,8 @@ import logging
 import os
 import time
 import yaml
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, Query
+from fastapi.responses import Response
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 import base64
@@ -1948,3 +1949,66 @@ async def process_profile_image(
             status_code=500,
             detail=f"Profile image processing failed: {str(e)}",
         )
+
+
+# ---------------------------------------------------------------------------
+# S3 file download endpoint (internal, for app containers)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/s3/download")
+async def download_s3_file(
+    request: Request,
+    bucket_key: str = Query(..., description="Bucket config key (e.g. 'chatfiles')"),
+    s3_key: str = Query(..., description="S3 object key"),
+    s3_service: S3UploadService = Depends(get_s3_service),
+):
+    """
+    Download an encrypted file from S3 and return its raw bytes.
+
+    Internal-only endpoint for app containers (app-images, app-audio, app-pdf)
+    that need to fetch encrypted files from the private chatfiles bucket.
+    The chatfiles bucket is private — direct HTTP GET is no longer allowed.
+    This endpoint uses boto3 get_object with server-side credentials.
+
+    Args:
+        bucket_key: Bucket config key (e.g. "chatfiles", "invoices").
+        s3_key: Full S3 object key.
+
+    Returns:
+        Raw bytes of the S3 object (encrypted ciphertext).
+
+    Raises:
+        400: Invalid bucket_key or s3_key.
+        404: File not found in S3.
+        500: Download failed.
+    """
+    from backend.core.api.app.services.s3.config import get_bucket_name
+
+    if not s3_key or not s3_key.strip():
+        raise HTTPException(status_code=400, detail="s3_key is required")
+    if ".." in s3_key or s3_key.startswith("/") or "://" in s3_key:
+        raise HTTPException(status_code=400, detail="Invalid s3_key")
+
+    try:
+        environment = os.getenv("SERVER_ENVIRONMENT", "development")
+        bucket_name = get_bucket_name(bucket_key, environment)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown bucket: {bucket_key}")
+
+    try:
+        content = await s3_service.get_file(bucket_name=bucket_name, object_key=s3_key)
+        if content is None:
+            raise HTTPException(status_code=404, detail=f"File not found: {s3_key}")
+
+        return Response(
+            content=content,
+            media_type="application/octet-stream",
+            headers={"Cache-Control": "no-store"},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[S3 Download] Failed for {bucket_key}/{s3_key}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"S3 download failed: {str(e)}")
