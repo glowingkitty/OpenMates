@@ -6675,6 +6675,12 @@
       "storage_files_count": {
         "text": "{count} tệp"
       },
+      "storage_invoice_notice": {
+        "text": "Các tệp PDF hóa đơn không được liệt kê ở đây. Chúng được lưu trữ riêng, miễn phí và tự động xóa sau 10 năm theo luật thuế Đức."
+      },
+      "storage_delete_confirm": {
+        "text": "Xác nhận?"
+      },
       "storage_breakdown_title": {
         "text": "Phân loại theo loại"
       },

@@ -6699,6 +6699,12 @@
       "storage_files_count": {
         "text": "{count} filer"
       },
+      "storage_invoice_notice": {
+        "text": "Faktura-PDF:er visas inte här. De lagras separat, kostnadsfritt, och raderas automatiskt efter 10 år enligt tysk skattelagstiftning."
+      },
+      "storage_delete_confirm": {
+        "text": "Bekräfta?"
+      },
       "storage_breakdown_title": {
         "text": "Uppdelning efter typ"
       },

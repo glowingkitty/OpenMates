@@ -6675,6 +6675,12 @@
       "storage_files_count": {
         "text": "{count} bestanden"
       },
+      "storage_invoice_notice": {
+        "text": "Factuur-PDF's worden hier niet weergegeven. Ze worden apart opgeslagen, kosteloos, en na 10 jaar automatisch verwijderd conform de Duitse belastingwet."
+      },
+      "storage_delete_confirm": {
+        "text": "Bevestigen?"
+      },
       "storage_breakdown_title": {
         "text": "Verdeling per type"
       },

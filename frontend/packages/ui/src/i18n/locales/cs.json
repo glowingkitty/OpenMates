@@ -6681,6 +6681,12 @@
       "storage_files_count": {
         "text": "{count} souborů"
       },
+      "storage_invoice_notice": {
+        "text": "PDF faktury nejsou zde uvedeny. Jsou uloženy odděleně, zdarma, a automaticky smazány po 10 letech dle německého daňového práva."
+      },
+      "storage_delete_confirm": {
+        "text": "Potvrdit?"
+      },
       "storage_breakdown_title": {
         "text": "Rozdělení podle typu"
       },

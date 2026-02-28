@@ -6675,6 +6675,12 @@
       "storage_files_count": {
         "text": "{count} file"
       },
+      "storage_invoice_notice": {
+        "text": "PDF faktur tidak terdaftar di sini. Disimpan secara terpisah, gratis, dan otomatis dihapus setelah 10 tahun sesuai hukum pajak Jerman."
+      },
+      "storage_delete_confirm": {
+        "text": "Konfirmasi?"
+      },
       "storage_breakdown_title": {
         "text": "Rincian berdasarkan jenis"
       },

@@ -8041,6 +8041,12 @@
       "storage_files_count": {
         "text": "{count} 个文件"
       },
+      "storage_invoice_notice": {
+        "text": "发票PDF不在此处列出。它们单独存储，免费，并根据德国税法在10年后自动删除。"
+      },
+      "storage_delete_confirm": {
+        "text": "确认？"
+      },
       "storage_breakdown_title": {
         "text": "按类型细分"
       },

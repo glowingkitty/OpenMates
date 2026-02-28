@@ -9463,6 +9463,12 @@
       "storage_files_count": {
         "text": "{count} files"
       },
+      "storage_invoice_notice": {
+        "text": "Invoice PDFs are not listed here. They are stored separately, free of charge, and are automatically deleted after 10 years as required by German tax law."
+      },
+      "storage_delete_confirm": {
+        "text": "Confirm?"
+      },
       "storage_breakdown_title": {
         "text": "Breakdown by type"
       },

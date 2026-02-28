@@ -6681,6 +6681,12 @@
       "storage_files_count": {
         "text": "{count} ไฟล์"
       },
+      "storage_invoice_notice": {
+        "text": "ไฟล์ PDF ใบแจ้งหนี้ไม่ได้แสดงที่นี่ ถูกจัดเก็บแยกต่างหาก ฟรี และลบอัตโนมัติหลังจาก 10 ปีตามกฎหมายภาษีของเยอรมนี"
+      },
+      "storage_delete_confirm": {
+        "text": "ยืนยัน?"
+      },
       "storage_breakdown_title": {
         "text": "แยกตามประเภท"
       },

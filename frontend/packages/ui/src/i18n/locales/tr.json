@@ -6675,6 +6675,12 @@
       "storage_files_count": {
         "text": "{count} dosya"
       },
+      "storage_invoice_notice": {
+        "text": "Fatura PDF'leri burada listelenmez. Ayrıca ücretsiz olarak depolanır ve Alman vergi mevzuatı gereği 10 yıl sonra otomatik olarak silinir."
+      },
+      "storage_delete_confirm": {
+        "text": "Onaylıyor musun?"
+      },
       "storage_breakdown_title": {
         "text": "Türe göre dağılım"
       },

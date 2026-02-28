@@ -9055,6 +9055,12 @@
       "storage_files_count": {
         "text": "{count} Dateien"
       },
+      "storage_invoice_notice": {
+        "text": "Rechnungs-PDFs werden hier nicht angezeigt. Sie werden separat gespeichert, kostenlos, und werden nach 10 Jahren gemäß deutschem Steuerrecht automatisch gelöscht."
+      },
+      "storage_delete_confirm": {
+        "text": "Bestätigen?"
+      },
       "storage_breakdown_title": {
         "text": "Aufschlüsselung nach Typ"
       },

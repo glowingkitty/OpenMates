@@ -6675,6 +6675,12 @@
       "storage_files_count": {
         "text": "{count} pliki"
       },
+      "storage_invoice_notice": {
+        "text": "Faktury PDF nie są tutaj wymienione. Są przechowywane oddzielnie, bezpłatnie i automatycznie usuwane po 10 latach zgodnie z niemieckim prawem podatkowym."
+      },
+      "storage_delete_confirm": {
+        "text": "Potwierdzić?"
+      },
       "storage_breakdown_title": {
         "text": "Podział według typu"
       },

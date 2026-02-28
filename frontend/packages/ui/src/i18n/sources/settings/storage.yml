@@ -504,6 +504,52 @@ storage_files_count:
   cs: "{count} souborů"
   sv: "{count} filer"
   verified_by_human: []
+storage_invoice_notice:
+  context: Info notice shown below the breakdown explaining that invoice PDFs are stored separately and not listed here — users are not charged for them and they are auto-deleted after 10 years per German tax law (§147 AO)
+  en: Invoice PDFs are not listed here. They are stored separately, free of charge, and are automatically deleted after 10 years as required by German tax law.
+  de: Rechnungs-PDFs werden hier nicht angezeigt. Sie werden separat gespeichert, kostenlos, und werden nach 10 Jahren gemäß deutschem Steuerrecht automatisch gelöscht.
+  zh: 发票PDF不在此处列出。它们单独存储，免费，并根据德国税法在10年后自动删除。
+  es: Los PDFs de facturas no se muestran aquí. Se almacenan por separado, de forma gratuita, y se eliminan automáticamente después de 10 años según la ley fiscal alemana.
+  fr: Les PDFs de factures ne sont pas listés ici. Ils sont stockés séparément, gratuitement, et supprimés automatiquement après 10 ans conformément à la loi fiscale allemande.
+  pt: Os PDFs de faturas não estão listados aqui. Eles são armazenados separadamente, de forma gratuita, e excluídos automaticamente após 10 anos conforme a lei fiscal alemã.
+  ru: PDF-файлы счетов здесь не отображаются. Они хранятся отдельно, бесплатно, и автоматически удаляются через 10 лет в соответствии с немецким налоговым законодательством.
+  ja: 請求書PDFはここには表示されません。別途無料で保存され、ドイツ税法に基づき10年後に自動的に削除されます。
+  ko: 청구서 PDF는 여기에 표시되지 않습니다. 별도로 무료로 저장되며, 독일 세법에 따라 10년 후 자동으로 삭제됩니다.
+  it: I PDF delle fatture non sono elencati qui. Sono archiviati separatamente, gratuitamente, e vengono eliminati automaticamente dopo 10 anni secondo la legge fiscale tedesca.
+  tr: Fatura PDF'leri burada listelenmez. Ayrıca ücretsiz olarak depolanır ve Alman vergi mevzuatı gereği 10 yıl sonra otomatik olarak silinir.
+  vi: Các tệp PDF hóa đơn không được liệt kê ở đây. Chúng được lưu trữ riêng, miễn phí và tự động xóa sau 10 năm theo luật thuế Đức.
+  id: PDF faktur tidak terdaftar di sini. Disimpan secara terpisah, gratis, dan otomatis dihapus setelah 10 tahun sesuai hukum pajak Jerman.
+  pl: Faktury PDF nie są tutaj wymienione. Są przechowywane oddzielnie, bezpłatnie i automatycznie usuwane po 10 latach zgodnie z niemieckim prawem podatkowym.
+  nl: Factuur-PDF's worden hier niet weergegeven. Ze worden apart opgeslagen, kosteloos, en na 10 jaar automatisch verwijderd conform de Duitse belastingwet.
+  ar: لا يتم إدراج ملفات PDF للفواتير هنا. يتم تخزينها بشكل منفصل، مجانًا، ويتم حذفها تلقائيًا بعد 10 سنوات وفقًا لقانون الضرائب الألماني.
+  hi: चालान PDF यहाँ सूचीबद्ध नहीं हैं। वे अलग से, निःशुल्क संग्रहीत किए जाते हैं, और जर्मन कर कानून के अनुसार 10 वर्षों के बाद स्वचालित रूप से हटा दिए जाते हैं।
+  th: ไฟล์ PDF ใบแจ้งหนี้ไม่ได้แสดงที่นี่ ถูกจัดเก็บแยกต่างหาก ฟรี และลบอัตโนมัติหลังจาก 10 ปีตามกฎหมายภาษีของเยอรมนี
+  cs: PDF faktury nejsou zde uvedeny. Jsou uloženy odděleně, zdarma, a automaticky smazány po 10 letech dle německého daňového práva.
+  sv: Faktura-PDF:er visas inte här. De lagras separat, kostnadsfritt, och raderas automatiskt efter 10 år enligt tysk skattelagstiftning.
+  verified_by_human: []
+storage_delete_confirm:
+  context: Label shown on a delete button after the first press, indicating a second press is needed to confirm. Matches the same pattern as chat deletion.
+  en: Confirm?
+  de: Bestätigen?
+  zh: 确认？
+  es: ¿Confirmar?
+  fr: Confirmer ?
+  pt: Confirmar?
+  ru: Подтвердить?
+  ja: 確認？
+  ko: 확인?
+  it: Confermare?
+  tr: Onaylıyor musun?
+  vi: Xác nhận?
+  id: Konfirmasi?
+  pl: Potwierdzić?
+  nl: Bevestigen?
+  ar: تأكيد؟
+  hi: पुष्टि करें?
+  th: ยืนยัน?
+  cs: Potvrdit?
+  sv: Bekräfta?
+  verified_by_human: []
 storage_breakdown_title:
   context: Section heading for the per-category storage breakdown list
   en: Breakdown by type

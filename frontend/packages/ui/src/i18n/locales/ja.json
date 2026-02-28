@@ -8047,6 +8047,12 @@
       "storage_files_count": {
         "text": "{count} ファイル"
       },
+      "storage_invoice_notice": {
+        "text": "請求書PDFはここには表示されません。別途無料で保存され、ドイツ税法に基づき10年後に自動的に削除されます。"
+      },
+      "storage_delete_confirm": {
+        "text": "確認？"
+      },
       "storage_breakdown_title": {
         "text": "タイプ別内訳"
       },

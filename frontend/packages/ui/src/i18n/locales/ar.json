@@ -7641,6 +7641,12 @@
       "storage_files_count": {
         "text": "{count} ملفات"
       },
+      "storage_invoice_notice": {
+        "text": "لا يتم إدراج ملفات PDF للفواتير هنا. يتم تخزينها بشكل منفصل، مجانًا، ويتم حذفها تلقائيًا بعد 10 سنوات وفقًا لقانون الضرائب الألماني."
+      },
+      "storage_delete_confirm": {
+        "text": "تأكيد؟"
+      },
       "storage_breakdown_title": {
         "text": "التقسيم حسب النوع"
       },

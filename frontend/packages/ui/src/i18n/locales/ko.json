@@ -6675,6 +6675,12 @@
       "storage_files_count": {
         "text": "{count} 파일"
       },
+      "storage_invoice_notice": {
+        "text": "청구서 PDF는 여기에 표시되지 않습니다. 별도로 무료로 저장되며, 독일 세법에 따라 10년 후 자동으로 삭제됩니다."
+      },
+      "storage_delete_confirm": {
+        "text": "확인?"
+      },
       "storage_breakdown_title": {
         "text": "유형별 분류"
       },

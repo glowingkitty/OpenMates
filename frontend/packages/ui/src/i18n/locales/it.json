@@ -6678,6 +6678,12 @@
       "storage_files_count": {
         "text": "{count} file"
       },
+      "storage_invoice_notice": {
+        "text": "I PDF delle fatture non sono elencati qui. Sono archiviati separatamente, gratuitamente, e vengono eliminati automaticamente dopo 10 anni secondo la legge fiscale tedesca."
+      },
+      "storage_delete_confirm": {
+        "text": "Confermare?"
+      },
       "storage_breakdown_title": {
         "text": "Suddivisione per tipo"
       },
