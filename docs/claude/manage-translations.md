@@ -4,15 +4,34 @@ Load this document when working on translations, finding missing keys, or using 
 
 ---
 
+## MANDATORY: Always Use the Script First (CRITICAL)
+
+**Before answering any translation-related question or making any translation change, you MUST run `manage_translations.py` to get live data from the actual YAML files.** Never answer from memory or assumptions — the script is the single source of truth.
+
+| User asks…                                       | Run this first                                                                   |
+| ------------------------------------------------ | -------------------------------------------------------------------------------- |
+| "Which translations are missing?"                | `python3 scripts/manage_translations.py show-next-missing`                       |
+| "How complete is language X?"                    | `python3 scripts/manage_translations.py overview --lang X`                       |
+| "What's the overall translation status?"         | `python3 scripts/manage_translations.py overview`                                |
+| "Which file contains key Y?"                     | `python3 scripts/manage_translations.py find-key "Y"`                            |
+| "Translate the missing keys for language X"      | `python3 scripts/manage_translations.py show-next-missing --lang X --count 20`   |
+| "Are there structural issues in the YAML files?" | `python3 scripts/manage_translations.py validate`                                |
+| "Export missing translations for X"              | `python3 scripts/manage_translations.py export-missing --lang X`                 |
+| Any translation task involving a specific file   | `python3 scripts/manage_translations.py show-next-missing --file "filename.yml"` |
+
+**Do not skip this step.** Running the script takes under 2 seconds and gives exact file paths, line numbers, and current counts. Answering without it risks operating on stale information.
+
+---
+
 ## Overview
 
 `scripts/manage_translations.py` is the primary tool for managing i18n translations. It operates directly on the 186 YAML source files in `frontend/packages/ui/src/i18n/sources/` and reads the language list from `languages.json`.
 
-**Current state (as of last audit):**
+**Current state (as of last audit — run `overview` for live numbers):**
 
-- 3,201 total translation keys across 186 YAML files
+- ~3,200 total translation keys across 186 YAML files
 - 20 supported languages
-- `en` and `de` are most complete; `sv` has the most missing (~1,047 keys)
+- `en` and `de` are most complete; `sv` has the most missing
 
 ---
 

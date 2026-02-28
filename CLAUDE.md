@@ -384,6 +384,9 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - You need to find which file a translation key lives in
 - You are validating or auditing the translation files
 - You are running `manage_translations.py` or deciding which command to use
+- The user asks about translation completeness, coverage, or statistics for any language
+- The user asks which translations are missing or how many are left
+- The user asks anything about the state of translations (even informational questions)
 
 #### `docs/claude/planning.md`
 
