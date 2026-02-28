@@ -919,6 +919,16 @@
                         allow="payment 'self' https://polar.sh https://sandbox.polar.sh; publickey-credentials-get 'self' https://polar.sh https://sandbox.polar.sh"
                     ></iframe>
                 </div>
+                <!-- Switch to EU / Stripe — always visible below the iframe so users
+                     with an EU card can switch without losing the form. -->
+                <div class="provider-switch-container">
+                    <button
+                        class="provider-switch-btn"
+                        onclick={() => switchProvider('stripe')}
+                    >
+                        {$text('signup.switch_to_eu_card')}
+                    </button>
+                </div>
             {:else if isPolarLoading || isLoading}
                 <!-- Loading state while create-order is in flight -->
                 <div class="polar-loading-state">

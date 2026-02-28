@@ -367,15 +367,20 @@ step_10_top_content_svelte:
         position: relative;
         width: 95%;
         max-width: 400px;
-        /* Fill full height of container - payment form is expanded step with full height */
-        height: 100%;
+        /* min-height fills the available space for non-Polar forms; for the Polar
+           iframe (1800px tall) height is auto so the block grows to fit and the
+           .bottom-container scroll container (overflow-y: auto) can scroll over it. */
+        min-height: 100%;
+        height: auto;
         background-color: var(--color-grey-20);
         border-radius: 16px;
         padding: 16px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         display: flex;
         flex-direction: column;
-        overflow: hidden; /* Prevent content overflow */
+        /* overflow: visible so the 1800px Polar iframe isn't clipped and the
+           .bottom-container can scroll the full height. */
+        overflow: visible;
         box-sizing: border-box; /* Include padding in height calculation */
     }
     
