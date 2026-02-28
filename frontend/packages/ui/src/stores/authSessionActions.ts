@@ -1032,12 +1032,18 @@ export function setAuthenticatedState(): void {
     "Setting authentication state to authenticated after successful login",
   );
 
-  // CRITICAL: Reset phased sync state on login so syncing indicator shows
-  // This is needed because non-auth users have initialSyncCompleted=true (to prevent loading flash)
-  // When they log in, we need to reset so the real sync can show progress
-  phasedSyncState.reset();
+  // CRITICAL: Reset phased sync state on login so syncing indicator shows.
+  // This is needed because non-auth users have initialSyncCompleted=true (to prevent loading flash).
+  // When they log in, we need to reset so the real sync can show progress.
+  //
+  // We use resetForLogin() (NOT reset()) to preserve userMadeExplicitChoice and
+  // currentActiveChatId. The user may have clicked "new chat" before the login
+  // WebSocket response arrived; calling reset() wipes those flags, causing the
+  // Phase 1 sync handler to auto-open the old last_opened chat over the user's
+  // explicit choice (race condition: issue 3a991b5c).
+  phasedSyncState.resetForLogin();
   console.debug(
-    "Reset phased sync state for new login - syncing indicator will show",
+    "Reset phased sync state for new login (preserving user navigation choices) - syncing indicator will show",
   );
 
   authStore.update((state) => ({

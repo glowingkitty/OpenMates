@@ -295,9 +295,32 @@ export const phasedSyncState = {
 
   /**
    * Reset the sync state (e.g., on logout or connection loss).
+   * Clears all state including user choices.
    */
   reset: () => {
     set(initialState);
+  },
+
+  /**
+   * Reset sync progress state on login, but PRESERVE user navigation choices.
+   *
+   * Called by setAuthenticatedState() when a user logs in. We need to reset
+   * initialSyncCompleted (so the syncing indicator shows for the new session)
+   * and the resume/phase1 chat data, but we must NOT wipe:
+   *   - userMadeExplicitChoice: the user may have clicked "new chat" before
+   *     the login WebSocket response arrived; wiping this causes the Phase 1
+   *     sync handler to auto-open the old last_opened chat over the user's
+   *     explicit new-chat choice (the original reported race condition).
+   *   - currentActiveChatId: same reason — if the user navigated somewhere
+   *     before login completed, honour that destination.
+   */
+  resetForLogin: () => {
+    update((state) => ({
+      ...initialState,
+      // Preserve explicit user choices across the login transition
+      userMadeExplicitChoice: state.userMadeExplicitChoice,
+      currentActiveChatId: state.currentActiveChatId,
+    }));
   },
 };
 
