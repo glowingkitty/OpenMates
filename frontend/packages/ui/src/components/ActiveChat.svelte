@@ -9846,6 +9846,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /*
+     * RTL layout fixes for top-buttons:
+     * - Absolute mode: anchor to the right edge instead of the left.
+     * - Flow mode (welcome screen): reverse the flex row so the buttons
+     *   visually appear on the right / inline-end side of the row.
+     */
+    :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
+        left: auto;
+        right: 15px;
+    }
+
+    @media (max-width: 730px) {
+        :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
+            right: 10px;
+        }
+    }
+
+    :global([dir="rtl"]) .top-buttons.top-buttons-flow {
+        flex-direction: row-reverse;
+    }
+
+    /*
      * Daily inspiration area wrapper.
      * No padding — the banner spans edge-to-edge within the chat-side container.
      * Horizontal padding is handled inside DailyInspirationBanner.svelte's .banner-inner.

@@ -254,6 +254,14 @@
     width: 256px;
     height: 148px;
   }
+
+  /* RTL: scale cards toward the inline-start edge (right side in RTL).
+     Without this override, cards scale toward 'top left' which is the
+     inline-end edge in RTL — the overflow is clipped by the wrapper's
+     overflow: hidden, cutting off part of each card. */
+  :global([dir="rtl"]) .focus-mode-card-scaled {
+    transform-origin: top right;
+  }
   
   .focus-modes-group > :global(*) {
     flex-shrink: 0;
