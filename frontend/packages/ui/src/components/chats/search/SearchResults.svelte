@@ -200,15 +200,13 @@
 
   /**
    * Activate the currently focused item (Enter key from SearchBar).
-   * If no item is explicitly focused yet (focusedIndex === -1), activates the first result.
-   * Finds the DOM element matching the index and clicks it.
+   * The first result is selected by default when results load, so this always has
+   * something to activate as long as results exist.
    */
   export function activateFocused(): void {
-    if (!containerEl) return;
-    // Default to the first result when no item has been explicitly focused via arrow keys
-    const effectiveIndex = focusedIndex < 0 ? 0 : focusedIndex;
+    if (focusedIndex < 0 || !containerEl) return;
     const focusableEls = getFocusableElements();
-    const el = focusableEls[effectiveIndex];
+    const el = focusableEls[focusedIndex];
     if (el) {
       (el as HTMLElement).click();
     }
@@ -238,10 +236,12 @@
     }
   }
 
-  // Reset focused index and cancel any pending auto-open when results change (new query)
+  // When results change (new query), select the first result by default and cancel any
+  // pending auto-open. Selecting index 0 immediately makes it clear to the user what
+  // Enter will open, and provides a starting point for arrow-key navigation.
   $effect(() => {
-    void allFocusableItems; // React to items changing
-    focusedIndex = -1;
+    const items = allFocusableItems; // React to items changing
+    focusedIndex = items.length > 0 ? 0 : -1;
     if (autoOpenTimer !== null) {
       clearTimeout(autoOpenTimer);
       autoOpenTimer = null;
