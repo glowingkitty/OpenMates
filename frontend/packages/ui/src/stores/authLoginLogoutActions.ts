@@ -27,6 +27,7 @@ import { dailyInspirationStore } from "./dailyInspirationStore";
 import { webSocketService } from "../services/websocketService";
 import { chatListCache } from "../services/chatListCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
+import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService";
 import { resetChatNavigationList } from "./chatNavigationStore";
 import { clientLogForwarder } from "../services/clientLogForwarder";
 import { applyServerDarkMode } from "./theme";
@@ -451,6 +452,13 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // is destroyed (e.g., sidebar closed on mobile) when logout happens, its authStore subscriber
     // won't fire to clear the cache. Clearing here ensures stale chats never appear after logout.
     chatListCache.clear();
+    // CRITICAL: Clear sessionStorage drafts so that the unauthenticated allChats
+    // derived in Chats.svelte does NOT build virtual "Untitled chat" ghost entries
+    // from stale draft IDs left over from the previous session. This runs BEFORE
+    // authStore.set() flips isAuthenticated to false, so the derived never sees
+    // the stale data. (Confirmed root cause: ghost chats survive until tab reload
+    // because sessionStorage is tab-scoped and isn't cleared by any other logout path.)
+    clearAllSessionStorageDrafts();
     chatDB.clearAllChatKeys();
     // Reset the module-level chat list in chatNavigationStore so that stale
     // user chats do not remain in memory when Chats.svelte is unmounted (sidebar

@@ -21,7 +21,7 @@
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
 	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, addCommunityDemo, getAllCommunityDemoChats, communityDemoStore, loadCommunityDemos } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
-	import { getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
+	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
 	import { incognitoChatService } from '../../services/incognitoChatService'; // Import incognito chat service
 	import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
@@ -1460,6 +1460,10 @@ let _chatUpdatedFlushPending = false;
 			// Clear the persistent store
 			activeChatStore.clearActiveChat();
 			
+			// Belt-and-suspenders: clear sessionStorage drafts here too in case this event
+			// fires before authLoginLogoutActions.ts had a chance to (e.g. session expiry path)
+			clearAllSessionStorageDrafts();
+			
 			// Reset display state to show all demo chats
 			loadTier = 'all_local';
 			olderChatsFromServer = [];
@@ -1500,6 +1504,7 @@ let _chatUpdatedFlushPending = false;
 				selectedChatId = null;
 				_chatIdToSelectAfterUpdate = null;
 				currentServerSortOrder = [];
+				olderChatsFromServer = [];
 				activeChatStore.clearActiveChat();
 				// Clear global cache on logout to prevent stale data
 				chatListCache.clear();
