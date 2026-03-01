@@ -5102,8 +5102,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const chatToDecrypt = incomingChatMetadata;
             console.debug(`[ActiveChat] handleChatUpdated: Decrypting chat header metadata (type=${detail.type})`, chatToDecrypt);
             try {
-                const { decryptWithChatKey } = await import('../services/cryptoService');
-                const chatKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                // Safe key retrieval: never generate a new key for an existing chat.
+                // 1. Try in-memory cache first (covers the common case on the sender device).
+                // 2. If absent but encrypted_chat_key is present, decrypt it with the master key.
+                // 3. Only fall back to getOrGenerateChatKey if there truly is no stored key
+                //    (should not happen here, but avoids a silent null dereference).
+                let chatKey: Uint8Array | null = chatDB.getChatKey(incomingChatId);
+                if (!chatKey && chatToDecrypt.encrypted_chat_key) {
+                    try {
+                        const k = await decryptChatKeyWithMasterKey(chatToDecrypt.encrypted_chat_key);
+                        if (k) { chatKey = k; chatDB.setChatKey(incomingChatId, k); }
+                    } catch (keyErr) {
+                        console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat key from encrypted_chat_key:', keyErr);
+                    }
+                }
+                if (!chatKey) {
+                    // Last resort: key not in cache and no encrypted_chat_key in the event payload.
+                    // This path should only be reached for a brand-new chat on the originating device
+                    // where the key was already generated in memory by handleSendMessage.
+                    chatKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                }
                 if (chatKey) {
                     let decryptedTitle = activeChatDecryptedTitle;
                     let decryptedCategory = activeChatDecryptedCategory;
@@ -5148,10 +5167,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // is already shown. Decrypt and display it immediately so the header updates live.
         if (detail.type === 'post_processing_metadata' && incomingChatMetadata?.encrypted_chat_summary) {
             try {
-                const { decryptWithChatKey } = await import('../services/cryptoService');
-                const chatKey = chatDB.getOrGenerateChatKey(incomingChatId);
-                if (chatKey) {
-                    const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, chatKey);
+                const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                // Safe key retrieval — same pattern as the title_updated handler above.
+                let summaryKey: Uint8Array | null = chatDB.getChatKey(incomingChatId);
+                if (!summaryKey && incomingChatMetadata.encrypted_chat_key) {
+                    try {
+                        const k = await decryptChatKeyWithMasterKey(incomingChatMetadata.encrypted_chat_key);
+                        if (k) { summaryKey = k; chatDB.setChatKey(incomingChatId, k); }
+                    } catch (keyErr) {
+                        console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat key for summary:', keyErr);
+                    }
+                }
+                if (!summaryKey) {
+                    summaryKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                }
+                if (summaryKey) {
+                    const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, summaryKey);
                     if (decryptedSummary) {
                         activeChatDecryptedSummary = decryptedSummary;
                         console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
@@ -5566,8 +5597,40 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                   const hasPlaintextCategory = !!chatForHeader.category;
                   if (hasEncryptedTitle || hasEncryptedCategory || hasPlaintextCategory) {
                       try {
-                          const { decryptWithChatKey } = await import('../services/cryptoService');
-                          const chatKey = chatDB.getOrGenerateChatKey(chatForHeader.chat_id);
+                          const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                          // Safe key retrieval — critical for secondary devices that receive chats
+                          // via phased sync (where the in-memory cache may be cold).
+                          //
+                          // NEVER call getOrGenerateChatKey() directly on an existing chat: if the
+                          // cache is cold it silently generates a NEW random key, causing every
+                          // encrypted header field to decrypt to null → chat header stays hidden.
+                          //
+                          // Correct order:
+                          //   1. Check in-memory cache (fast, covers warm-cache case).
+                          //   2. If absent but encrypted_chat_key present, decrypt it with the
+                          //      master key and populate the cache.
+                          //   3. Only generate a new key if there is genuinely no stored key
+                          //      (brand-new chat created on this device before server confirmed).
+                          let chatKey: Uint8Array | null = chatDB.getChatKey(chatForHeader.chat_id);
+                          if (!chatKey && chatForHeader.encrypted_chat_key) {
+                              try {
+                                  const k = await decryptChatKeyWithMasterKey(chatForHeader.encrypted_chat_key);
+                                  if (k) {
+                                      chatKey = k;
+                                      chatDB.setChatKey(chatForHeader.chat_id, k);
+                                      console.debug('[ActiveChat] loadChat: Recovered chat key from encrypted_chat_key for', chatForHeader.chat_id);
+                                  }
+                              } catch (keyErr) {
+                                  console.error('[ActiveChat] loadChat: Failed to decrypt chat key from encrypted_chat_key:', keyErr);
+                              }
+                          }
+                          if (!chatKey) {
+                              // Genuinely new chat or key unavailable — fall back to generate.
+                              // This should only be reached for chats created on this device
+                              // before the server has stored encrypted_chat_key.
+                              console.warn('[ActiveChat] loadChat: No chat key in cache and no encrypted_chat_key for', chatForHeader.chat_id, '— generating new key (may cause header decryption failure for existing chats)');
+                              chatKey = chatDB.getOrGenerateChatKey(chatForHeader.chat_id);
+                          }
                           if (chatKey) {
                               let t = '';
                               let c: string | null = null;

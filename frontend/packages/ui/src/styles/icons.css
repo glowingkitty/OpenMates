@@ -1563,6 +1563,13 @@ div.clickable-icon {
   }
 }
 
+.icon.app-math {
+  background: var(--color-app-math);
+  &::before {
+    background-image: url("@openmates/ui/static/icons/math.svg");
+  }
+}
+
 .icon.app-messages {
   background: var(--color-app-messages);
   &::before {

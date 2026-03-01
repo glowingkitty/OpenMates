@@ -351,6 +351,7 @@
     --icon-url-logout: url('@openmates/ui/static/icons/logout.svg');
     --icon-url-mail: url('@openmates/ui/static/icons/mail.svg');
     --icon-url-maps: url('@openmates/ui/static/icons/maps.svg');
+    --icon-url-math: url('@openmates/ui/static/icons/math.svg');
     --icon-url-mattermost: url('@openmates/ui/static/icons/mattermost.svg');
     --icon-url-menu: url('@openmates/ui/static/icons/menu.svg');
     --icon-url-meta: url('@openmates/ui/static/icons/meta.svg');

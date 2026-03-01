@@ -27,11 +27,13 @@ skills:
     description_translation_key: math.calculate.description
     icon_image: math.svg
     preprocessor_hint: >
-      Calculate, evaluate, or solve mathematical expressions and equations accurately.
-      Use this for any arithmetic, algebra, trigonometry, calculus, unit conversions,
-      symbolic simplification, equation solving, derivatives, or integrals where
-      numerical precision matters. Always prefer this tool over mental arithmetic
-      to avoid hallucinated results.
+      MANDATORY: Use this skill for ALL mathematical calculations without exception.
+      This includes simple arithmetic such as addition, subtraction, multiplication
+      (written as *, x, or ×), division, and parenthesised expressions like
+      (4x22x7)/2 or (100+50)*3/2. Also use for algebra, trigonometry, calculus,
+      unit conversions, symbolic simplification, equation solving, derivatives,
+      and integrals. NEVER attempt to compute a numeric result yourself — always
+      call this skill so results are guaranteed to be exact.
     stage: production
     class_path: |
       backend.apps.math.skills.calculate_skill.CalculateSkill
