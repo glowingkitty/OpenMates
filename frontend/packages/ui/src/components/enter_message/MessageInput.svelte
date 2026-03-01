@@ -136,6 +136,13 @@
         activeFocusId?: string | null;
         activeFocusAppId?: string | null;
         activeFocusModeMetadata?: FocusModeMetadata | null;
+        /**
+         * Bounding rect of the parent ActiveChat container (the full-width card),
+         * passed from ActiveChat so that when MessageInput is in fullscreen mode
+         * it can use `position: fixed` anchored to the container card.
+         * Updated by ActiveChat on every container resize.
+         */
+        containerRect?: DOMRect | null;
         /** Called when user clicks the non-toggle area of the pill (deep-links to focus settings). */
         onFocusPillDeepLink?: () => void;
         /** Called after the 1-second deactivation timer elapses (no undo). */
@@ -148,6 +155,7 @@
         showActionButtons = true,
         isFocused = $bindable(false),
         isMapsOpen = $bindable(false),
+        containerRect = null,
         activeFocusId = null,
         activeFocusAppId = null,
         activeFocusModeMetadata = null,
@@ -1240,17 +1248,42 @@
  
     /**
      * Inline style for the message-field div.
-     * In fullscreen: fixed height 65dvh (works for all viewport sizes).
-     *   - When maps/camera are open in fullscreen, they fill the full 65dvh height.
-     * In maps/camera overlay (non-fullscreen): fixed height 400px.
+     * In maps/camera overlay: fixed height 400px (highest priority — also applies in fullscreen).
+     * In narrow fullscreen (<1024px, containerRect available): position:fixed covering the chat card,
+     *   leaving 20px visible at top so the user can tap outside to dismiss.
+     * In fullscreen (fallback, no containerRect yet): height 65dvh.
      * Default: auto height, max 350px.
      */
     let messagePanelStyle = $derived((() => {
-        if (isFullscreen) {
-            return 'height: 65dvh; max-height: 65dvh;';
-        }
         if (showMaps || showCamera) {
             return 'height: 400px; max-height: 400px;';
+        }
+        if (isFullscreen && containerRect && typeof window !== 'undefined') {
+            // Narrow/medium mode: cover the chat card, leaving 20px visible at top
+            // so the user can still tap outside to dismiss. Uses position:fixed anchored to
+            // containerRect so it works correctly even when sidebars are open.
+            // max-width:none overrides .message-input-container > * { max-width: 629px }.
+            const top    = containerRect.top + 20;
+            const bottom = window.innerHeight - containerRect.bottom;
+            const left   = containerRect.left;
+            const right  = window.innerWidth - containerRect.right;
+            return [
+                'position: fixed',
+                `left: ${left}px`,
+                `top: ${top}px`,
+                `right: ${right}px`,
+                `bottom: ${bottom}px`,
+                'width: auto',
+                'height: auto',
+                'max-height: none',
+                'max-width: none',
+                'z-index: 200',
+                'border-radius: 20px',
+            ].join('; ') + ';';
+        }
+        if (isFullscreen) {
+            // Fallback when containerRect is not yet available (initial render edge case).
+            return 'height: 65dvh; max-height: 65dvh;';
         }
         return 'height: auto; max-height: 350px;';
     })());

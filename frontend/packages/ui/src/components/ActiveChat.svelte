@@ -2010,6 +2010,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let isFullscreen = $state(false);
     // $: messages = chatHistoryRef?.messages || []; // Removed, messages will be managed in currentMessages
 
+    // Bounding rect of the active-chat-container element.
+    // Passed to MessageInput so it can compute position:fixed coordinates when
+    // expanding into fullscreen mode on narrow screens.
+    // Updated on container resize (containerWidth changes) and window scroll/resize.
+    let activeChatContainerEl = $state<HTMLElement | null>(null);
+    let containerRect = $state<DOMRect | null>(null);
+
+    /** Update containerRect from the current bounding rect of the container element. */
+    function updateContainerRect() {
+        if (activeChatContainerEl) {
+            containerRect = activeChatContainerEl.getBoundingClientRect();
+        }
+    }
+
     // Add state for message input height using $state
     let messageInputHeight = $state(0);
 
@@ -2636,6 +2650,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // instead of as overlays. This threshold accommodates iPad landscape (1024px+) and wider displays.
     // The chat panel is fixed at 400px, leaving 600+ px for the embed fullscreen content.
     let isUltraWide = $derived(containerWidth >= 1024);
+
+    // Keep containerRect in sync whenever containerWidth changes (i.e., on resize).
+    // Reading containerWidth here registers it as a dependency so the effect re-runs on resize.
+    $effect(() => {
+        if (containerWidth >= 0) updateContainerRect();
+    });
 
     // Force overlay mode: When true, forces the embed fullscreen to use overlay mode even on ultra-wide screens
     // This is toggled by the "minimize chat" button in the chat's top bar when in side-by-side mode
@@ -7143,6 +7163,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             recalculateSuggestionsOverlap();
         }
 
+        // Keep containerRect in sync with window scroll/resize so the fixed-position
+        // MessageInput fullscreen always stays aligned with the container card.
+        window.addEventListener('scroll', updateContainerRect, { passive: true });
+        window.addEventListener('resize', updateContainerRect, { passive: true });
+        // Initial population of containerRect — activeChatContainerEl is bound by this point.
+        updateContainerRect();
+
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
             handleChatUpdated(event);
@@ -7773,6 +7800,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('focusModeActivated', focusModeActivatedHandler as EventListenerCallback);
             // Remove viewport resize listener
             window.removeEventListener('resize', handleViewportResize);
+            // Remove container rect update listeners
+            window.removeEventListener('scroll', updateContainerRect);
+            window.removeEventListener('resize', updateContainerRect);
             // Disconnect overlap ResizeObserver
             overlapObserver?.disconnect();
         };
@@ -7809,6 +7839,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class:extra-wide={isExtraWide}
     class:side-by-side-active={showSideBySideLayout}
     bind:clientWidth={containerWidth}
+    bind:this={activeChatContainerEl}
 >
     {#if !showChat}
         <!-- Signup status bar - only show during signup process, not on basics or alpha disclaimer steps -->
@@ -8241,6 +8272,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                  bind:hasContent={messageInputHasContent}
                                  bind:isFocused={messageInputFocused}
                                  bind:isMapsOpen={messageInputMapsOpen}
+                                 {containerRect}
                              />
                         {/if}
                     </div>
