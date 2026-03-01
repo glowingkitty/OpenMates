@@ -756,15 +756,14 @@
   filter: none !important;
 }
 
-/* Stop processing button icon */
-/* More specific selector to override general .clickable-icon rules */
+/* Stop processing button icon — red mask fill with pulsing animation */
+/* Use background shorthand (not background-color) to match and override
+   the span.clickable-icon { background: var(--color-primary) } rule in icons.css */
 .stop-processing-button .clickable-icon.icon_stop_processing {
   width: 28px;
   height: 28px;
-  /* If using mask-image, set background-color to red for the mask */
-  /* If SVG already has color, this can be removed */
-  background-color: red !important;
-  transition: background-color 0.2s ease;
+  background: red !important;
+  transition: background 0.2s ease;
   /* Ensure mask-image is properly applied */
   -webkit-mask-size: contain;
   mask-size: contain;
@@ -772,10 +771,24 @@
   mask-position: center;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+  /* Pulsing animation matching BasicInfosBar stop button */
+  animation: stopButtonPulse 1.2s ease-in-out infinite;
 }
 
 .stop-processing-button:hover .clickable-icon.icon_stop_processing {
-  background-color: darkred !important;
+  background: darkred !important;
+  animation-play-state: paused;
+}
+
+/* Pulsing animation for stop button - subtle opacity changes */
+@keyframes stopButtonPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* Queued message indicator - shown when a message is queued due to active AI task */
