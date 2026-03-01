@@ -897,6 +897,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "搜索",
+        "description": {
+          "text": "搜索聚会、会议和本地活动。"
+        },
+        "how_to_use": {
+          "1": {
+            "text": "查找本周末柏林的AI聚会"
+          },
+          "2": {
+            "text": "下个月关于网络开发的在线会议"
+          },
+          "3": {
+            "text": "一月份伦敦有哪些科技活动？"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "搜索地点和课程",
@@ -1510,6 +1529,18 @@
         "text": "理解新闻",
         "description": {
           "text": "获得帮助理解时事。"
+        }
+      }
+    },
+    "events": {
+      "text": "活动",
+      "description": {
+        "text": "发现聚会、会议和本地活动。"
+      },
+      "search": {
+        "text": "搜索",
+        "description": {
+          "text": "搜索附近的活动、聚会和会议。"
         }
       }
     },

@@ -897,6 +897,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "Suche",
+        "description": {
+          "text": "Suche nach Meetups, Konferenzen und lokalen Veranstaltungen."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Finde KI-Meetups in Berlin dieses Wochenende"
+          },
+          "2": {
+            "text": "Online-Konferenzen über Webentwicklung nächsten Monat"
+          },
+          "3": {
+            "text": "Welche Tech-Veranstaltungen finden im Januar in London statt?"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "Standorte und Kurse suchen",
@@ -1520,6 +1539,18 @@
         "text": "Nachrichten verstehen",
         "description": {
           "text": "Hilfe beim Verstehen aktueller Ereignisse."
+        }
+      }
+    },
+    "events": {
+      "text": "Veranstaltungen",
+      "description": {
+        "text": "Entdecke Meetups, Konferenzen und lokale Events."
+      },
+      "search": {
+        "text": "Suche",
+        "description": {
+          "text": "Suche nach Veranstaltungen, Meetups und Konferenzen in deiner Nähe."
         }
       }
     },

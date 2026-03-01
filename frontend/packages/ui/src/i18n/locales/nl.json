@@ -897,6 +897,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "Zoeken",
+        "description": {
+          "text": "Zoek naar meetups, conferenties en lokale evenementen."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Vind AI-meetups in Berlijn dit weekend"
+          },
+          "2": {
+            "text": "Online conferenties over webontwikkeling volgende maand"
+          },
+          "3": {
+            "text": "Welke tech-evenementen vinden er in januari in Londen plaats?"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "Zoek locaties en cursussen",
@@ -1510,6 +1529,18 @@
         "text": "Het nieuws begrijpen",
         "description": {
           "text": "Hulp bij het begrijpen van actualiteiten."
+        }
+      }
+    },
+    "events": {
+      "text": "Evenementen",
+      "description": {
+        "text": "Ontdek meetups, conferenties en lokale evenementen."
+      },
+      "search": {
+        "text": "Zoeken",
+        "description": {
+          "text": "Zoek naar evenementen, meetups en conferenties bij jou in de buurt."
         }
       }
     },

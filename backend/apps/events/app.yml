@@ -1,0 +1,90 @@
+name_translation_key: events
+description_translation_key: events.description
+icon_image: |
+  events.svg
+category: personal
+last_updated: "2026-03-01"
+settings_and_memories: []
+instructions: []
+skills:
+  - id: search
+    name_translation_key: events.search
+    description_translation_key: events.search.description
+    icon_image: search.svg
+    preprocessor_hint: >
+      Search for local or online events, meetups, hackathons, conferences, workshops,
+      networking events, or any community gathering. Use when user asks about events
+      in a specific city, mentions wanting to attend a meetup, or asks what is happening
+      nearby on specific dates.
+    stage: production
+    class_path: |
+      backend.apps.events.skills.search_skill.SearchSkill
+    cost_credits: 5
+    providers:
+      - Meetup
+    # Follow-up suggestions shown to users after search results
+    suggestions_follow_up_requests:
+      - "Find more events this week"
+      - "Search events in another city"
+      - "Find online events"
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # Description can be long (1-5 KB) - exclude from LLM context to save tokens
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+      - "description"
+      - "image_url"
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: |
+            REQUIRED: Array of event search request objects for parallel processing.
+            This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
+            Example for single search: {"requests": [{"query": "AI meetup", "location": "Berlin, Germany"}]}
+            Example for multiple searches: {"requests": [{"query": "AI meetup", "location": "Berlin"}, {"query": "Python meetup", "location": "Munich"}]}
+            Each object must contain 'query' and 'location' (or lat/lon). All other parameters are optional.
+            Note: The 'id' field is auto-generated if not provided.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: "Keyword search term (e.g. 'AI', 'Python', 'hackathon', 'startup')"
+              location:
+                type: string
+                description: "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided."
+              lat:
+                type: number
+                description: "Latitude of search center (decimal degrees). Overrides location string if provided."
+              lon:
+                type: number
+                description: "Longitude of search center (decimal degrees). Overrides location string if provided."
+              start_date:
+                type: string
+                description: "Start of date range in ISO 8601 format. Include timezone if known (e.g. '2026-03-01T00:00:00+01:00[Europe/Berlin]'). If omitted, defaults to now."
+              end_date:
+                type: string
+                description: "End of date range in ISO 8601 format (same format as start_date). If omitted, no upper bound is applied."
+              event_type:
+                type: string
+                description: "Filter by event type. 'PHYSICAL' for in-person events, 'ONLINE' for virtual events. Omit for both."
+                enum:
+                  - "PHYSICAL"
+                  - "ONLINE"
+              radius_miles:
+                type: number
+                description: "Search radius in miles from the center coordinates (default: 25, ~40 km). Only applies to PHYSICAL events."
+                default: 25
+              count:
+                type: integer
+                description: "Maximum number of events to return (default: 20, max: 50)."
+                minimum: 1
+                maximum: 50
+                default: 20
+            required:
+              - query
+              - location
+      required:
+        - requests

@@ -897,6 +897,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "검색",
+        "description": {
+          "text": "밋업, 컨퍼런스, 로컬 이벤트를 검색하세요."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "이번 주말 베를린의 AI 밋업 찾아줘"
+          },
+          "2": {
+            "text": "다음 달 웹 개발에 관한 온라인 컨퍼런스"
+          },
+          "3": {
+            "text": "1월에 런던에서 어떤 기술 행사가 열리나요?"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "위치 및 코스 검색",
@@ -1510,6 +1529,18 @@
         "text": "뉴스 이해하기",
         "description": {
           "text": "현재 사건 이해를 위한 도움."
+        }
+      }
+    },
+    "events": {
+      "text": "이벤트",
+      "description": {
+        "text": "밋업, 컨퍼런스 및 지역 이벤트를 발견하세요."
+      },
+      "search": {
+        "text": "검색",
+        "description": {
+          "text": "근처의 이벤트, 밋업, 컨퍼런스를 검색하세요."
         }
       }
     },

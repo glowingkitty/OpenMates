@@ -897,6 +897,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "Hledat",
+        "description": {
+          "text": "Hledejte meetupy, konference a místní akce."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Najdi AI meetupy v Berlíně tento víkend"
+          },
+          "2": {
+            "text": "Online konference o vývoji webu příští měsíc"
+          },
+          "3": {
+            "text": "Jaké technologické akce se konají v Londýně v lednu?"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "Hledat místa a kurzy",
@@ -1510,6 +1529,18 @@
         "text": "Porozumět zprávám",
         "description": {
           "text": "Pomoc s porozuměním aktuálním událostem."
+        }
+      }
+    },
+    "events": {
+      "text": "Události",
+      "description": {
+        "text": "Objevujte meetupy, konference a místní události."
+      },
+      "search": {
+        "text": "Hledat",
+        "description": {
+          "text": "Hledejte události, meetupy a konference ve vašem okolí."
         }
       }
     },

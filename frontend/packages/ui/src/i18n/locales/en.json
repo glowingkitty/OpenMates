@@ -903,6 +903,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "Search",
+        "description": {
+          "text": "Search for meetups, conferences and local events."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find **AI meetups** in Berlin this weekend"
+          },
+          "2": {
+            "text": "**Online conferences** about web development next month"
+          },
+          "3": {
+            "text": "What **tech events** are happening in London in January?"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "Search locations and courses",
@@ -1526,6 +1545,18 @@
         "text": "Understand the news",
         "description": {
           "text": "Get help understanding current events."
+        }
+      }
+    },
+    "events": {
+      "text": "Events",
+      "description": {
+        "text": "Discover meetups, conferences & local events."
+      },
+      "search": {
+        "text": "Search",
+        "description": {
+          "text": "Search for events, meetups and conferences near you."
         }
       }
     },

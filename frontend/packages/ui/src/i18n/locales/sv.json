@@ -897,6 +897,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "Sök",
+        "description": {
+          "text": "Sök efter meetups, konferenser och lokala evenemang."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Hitta AI-meetups i Berlin den här helgen"
+          },
+          "2": {
+            "text": "Onlinekonferenser om webbutveckling nästa månad"
+          },
+          "3": {
+            "text": "Vilka tech-evenemang äger rum i London i januari?"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "Sök platser och kurser",
@@ -1510,6 +1529,18 @@
         "text": "Förstå nyheterna",
         "description": {
           "text": "Hjälp att förstå aktuella händelser."
+        }
+      }
+    },
+    "events": {
+      "text": "Evenemang",
+      "description": {
+        "text": "Hitta meetups, konferenser och lokala evenemang."
+      },
+      "search": {
+        "text": "Sök",
+        "description": {
+          "text": "Sök efter evenemang, meetups och konferenser nära dig."
         }
       }
     },

@@ -897,6 +897,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "Rechercher",
+        "description": {
+          "text": "Recherchez des meetups, des conférences et des événements locaux."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Trouve des meetups IA à Berlin ce week-end"
+          },
+          "2": {
+            "text": "Conférences en ligne sur le développement web le mois prochain"
+          },
+          "3": {
+            "text": "Quels événements tech ont lieu à Londres en janvier ?"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "Rechercher des emplacements et des cours",
@@ -1510,6 +1529,18 @@
         "text": "Comprendre l'actualité",
         "description": {
           "text": "Aide pour comprendre l'actualité."
+        }
+      }
+    },
+    "events": {
+      "text": "Événements",
+      "description": {
+        "text": "Découvrez des meetups, conférences et événements locaux."
+      },
+      "search": {
+        "text": "Rechercher",
+        "description": {
+          "text": "Recherche des événements, meetups et conférences près de chez vous."
         }
       }
     },

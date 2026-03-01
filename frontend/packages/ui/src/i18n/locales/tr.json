@@ -897,6 +897,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "Ara",
+        "description": {
+          "text": "Buluşmalar, konferanslar ve yerel etkinlikler arayın."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Bu hafta sonu Berlin'deki yapay zeka buluşmalarını bul"
+          },
+          "2": {
+            "text": "Önümüzdeki ay web geliştirme hakkında çevrimiçi konferanslar"
+          },
+          "3": {
+            "text": "Ocak ayında Londra'da hangi teknoloji etkinlikleri var?"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "Konum ve kurs ara",
@@ -1510,6 +1529,18 @@
         "text": "Haberleri anlamak",
         "description": {
           "text": "Güncel olayları anlamak için yardım alın."
+        }
+      }
+    },
+    "events": {
+      "text": "Etkinlikler",
+      "description": {
+        "text": "Meetup, konferans ve yerel etkinlikleri keşfedin."
+      },
+      "search": {
+        "text": "Ara",
+        "description": {
+          "text": "Yakınındaki etkinlikleri, meetupları ve konferansları ara."
         }
       }
     },

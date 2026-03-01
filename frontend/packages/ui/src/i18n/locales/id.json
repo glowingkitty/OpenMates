@@ -897,6 +897,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "Cari",
+        "description": {
+          "text": "Cari meetup, konferensi, dan acara lokal."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Temukan meetup AI di Berlin akhir pekan ini"
+          },
+          "2": {
+            "text": "Konferensi online tentang pengembangan web bulan depan"
+          },
+          "3": {
+            "text": "Acara teknologi apa yang berlangsung di London bulan Januari?"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "Cari lokasi dan kursus",
@@ -1510,6 +1529,18 @@
         "text": "Memahami berita",
         "description": {
           "text": "Bantuan memahami peristiwa terkini."
+        }
+      }
+    },
+    "events": {
+      "text": "Acara",
+      "description": {
+        "text": "Temukan meetup, konferensi & acara lokal."
+      },
+      "search": {
+        "text": "Cari",
+        "description": {
+          "text": "Cari acara, meetup, dan konferensi di dekat Anda."
         }
       }
     },

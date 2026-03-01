@@ -1,0 +1,128 @@
+search:
+  context: Skill name for search in Events app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human:
+    - en
+    - de
+
+search.description:
+  context: Description for search skill in Events app
+  en: Search for meetups, conferences and local events.
+  de: Suche nach Meetups, Konferenzen und lokalen Veranstaltungen.
+  zh: 搜索聚会、会议和本地活动。
+  es: Busca meetups, conferencias y eventos locales.
+  fr: Recherchez des meetups, des conférences et des événements locaux.
+  pt: Pesquise meetups, conferências e eventos locais.
+  ru: Ищите встречи, конференции и местные мероприятия.
+  ja: ミートアップ、カンファレンス、地域イベントを検索する。
+  ko: 밋업, 컨퍼런스, 로컬 이벤트를 검색하세요.
+  it: Cerca meetup, conferenze ed eventi locali.
+  tr: Buluşmalar, konferanslar ve yerel etkinlikler arayın.
+  vi: Tìm kiếm meetup, hội nghị và sự kiện địa phương.
+  id: Cari meetup, konferensi, dan acara lokal.
+  pl: Szukaj spotkań, konferencji i lokalnych wydarzeń.
+  nl: Zoek naar meetups, conferenties en lokale evenementen.
+  ar: ابحث عن اللقاءات والمؤتمرات والفعاليات المحلية.
+  hi: मीटअप, कॉन्फ्रेंस और स्थानीय इवेंट खोजें।
+  th: ค้นหา meetup การประชุม และกิจกรรมในท้องถิ่น
+  cs: Hledejte meetupy, konference a místní akce.
+  sv: Sök efter meetups, konferenser och lokala evenemang.
+  he: חיפוש מפגשים, כנסים ואירועים מקומיים.
+  verified_by_human:
+    - en
+    - de
+
+search.how_to_use.1:
+  context: Example instruction for events search skill - topic-based meetup
+  en: "Find **AI meetups** in Berlin this weekend"
+  de: Finde KI-Meetups in Berlin dieses Wochenende
+  zh: 查找本周末柏林的AI聚会
+  es: Encuentra meetups de IA en Berlín este fin de semana
+  fr: Trouve des meetups IA à Berlin ce week-end
+  pt: Encontre meetups de IA em Berlim neste fim de semana
+  ru: Найди AI-митапы в Берлине в эти выходные
+  ja: 今週末ベルリンのAIミートアップを探して
+  ko: 이번 주말 베를린의 AI 밋업 찾아줘
+  it: Trova meetup sull'IA a Berlino questo weekend
+  tr: Bu hafta sonu Berlin'deki yapay zeka buluşmalarını bul
+  vi: Tìm meetup AI ở Berlin cuối tuần này
+  id: Temukan meetup AI di Berlin akhir pekan ini
+  pl: Znajdź meetupy AI w Berlinie w ten weekend
+  nl: Vind AI-meetups in Berlijn dit weekend
+  ar: ابحث عن لقاءات الذكاء الاصطناعي في برلين هذا الأسبوع
+  hi: इस सप्ताहांत बर्लिन में AI मीटअप खोजें
+  th: ค้นหา meetup AI ในเบอร์ลินสุดสัปดาห์นี้
+  cs: Najdi AI meetupy v Berlíně tento víkend
+  sv: Hitta AI-meetups i Berlin den här helgen
+  he: "מצא **מפגשי AI** בברלין בסוף השבוע הזה"
+  verified_by_human: [en, de]
+
+search.how_to_use.2:
+  context: Example instruction for events search skill - online conference
+  en: "**Online conferences** about web development next month"
+  de: Online-Konferenzen über Webentwicklung nächsten Monat
+  zh: 下个月关于网络开发的在线会议
+  es: Conferencias online sobre desarrollo web el próximo mes
+  fr: Conférences en ligne sur le développement web le mois prochain
+  pt: Conferências online sobre desenvolvimento web no próximo mês
+  ru: Онлайн-конференции по веб-разработке в следующем месяце
+  ja: 来月のウェブ開発に関するオンラインカンファレンス
+  ko: 다음 달 웹 개발에 관한 온라인 컨퍼런스
+  it: Conferenze online sullo sviluppo web il mese prossimo
+  tr: Önümüzdeki ay web geliştirme hakkında çevrimiçi konferanslar
+  vi: Hội nghị trực tuyến về phát triển web tháng tới
+  id: Konferensi online tentang pengembangan web bulan depan
+  pl: Konferencje online o tworzeniu stron internetowych w przyszłym miesiącu
+  nl: Online conferenties over webontwikkeling volgende maand
+  ar: مؤتمرات عبر الإنترنت حول تطوير الويب الشهر القادم
+  hi: अगले महीने वेब डेवलपमेंट पर ऑनलाइन कॉन्फ्रेंस
+  th: การประชุมออนไลน์เกี่ยวกับการพัฒนาเว็บเดือนหน้า
+  cs: Online konference o vývoji webu příští měsíc
+  sv: Onlinekonferenser om webbutveckling nästa månad
+  he: "**כנסים מקוונים** על פיתוח ווב בחודש הבא"
+  verified_by_human: [en, de]
+
+search.how_to_use.3:
+  context: Example instruction for events search skill - local events by city
+  en: What **tech events** are happening in London in January?
+  de: Welche Tech-Veranstaltungen finden im Januar in London statt?
+  zh: 一月份伦敦有哪些科技活动？
+  es: ¿Qué eventos tecnológicos hay en Londres en enero?
+  fr: Quels événements tech ont lieu à Londres en janvier ?
+  pt: Quais eventos de tecnologia acontecem em Londres em janeiro?
+  ru: Какие технические мероприятия проходят в Лондоне в январе?
+  ja: 1月にロンドンで開催されるテックイベントは？
+  ko: 1월에 런던에서 어떤 기술 행사가 열리나요?
+  it: Quali eventi tech si tengono a Londra a gennaio?
+  tr: Ocak ayında Londra'da hangi teknoloji etkinlikleri var?
+  vi: Sự kiện công nghệ nào diễn ra ở London vào tháng Giêng?
+  id: Acara teknologi apa yang berlangsung di London bulan Januari?
+  pl: Jakie wydarzenia technologiczne odbywają się w Londynie w styczniu?
+  nl: Welke tech-evenementen vinden er in januari in Londen plaats?
+  ar: ما الفعاليات التقنية التي تجري في لندن في يناير؟
+  hi: जनवरी में लंदन में कौन से टेक इवेंट हो रहे हैं?
+  th: กิจกรรมเทคโนโลยีอะไรบ้างที่เกิดขึ้นในลอนดอนในเดือนมกราคม?
+  cs: Jaké technologické akce se konají v Londýně v lednu?
+  sv: Vilka tech-evenemang äger rum i London i januari?
+  he: "אילו **אירועי טכנולוגיה** מתקיימים בלונדון בינואר?"
+  verified_by_human: [en, de]

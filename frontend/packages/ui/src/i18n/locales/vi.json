@@ -897,6 +897,25 @@
         }
       }
     },
+    "events": {
+      "search": {
+        "text": "Tìm kiếm",
+        "description": {
+          "text": "Tìm kiếm meetup, hội nghị và sự kiện địa phương."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Tìm meetup AI ở Berlin cuối tuần này"
+          },
+          "2": {
+            "text": "Hội nghị trực tuyến về phát triển web tháng tới"
+          },
+          "3": {
+            "text": "Sự kiện công nghệ nào diễn ra ở London vào tháng Giêng?"
+          }
+        }
+      }
+    },
     "fitness": {
       "search_locations_and_courses": {
         "text": "Tìm kiếm địa điểm và khóa học",
@@ -1510,6 +1529,18 @@
         "text": "Hiểu tin tức",
         "description": {
           "text": "Nhận trợ giúp hiểu các sự kiện hiện tại."
+        }
+      }
+    },
+    "events": {
+      "text": "Sự kiện",
+      "description": {
+        "text": "Khám phá meetup, hội nghị và sự kiện địa phương."
+      },
+      "search": {
+        "text": "Tìm kiếm",
+        "description": {
+          "text": "Tìm kiếm sự kiện, meetup và hội nghị gần bạn."
         }
       }
     },
