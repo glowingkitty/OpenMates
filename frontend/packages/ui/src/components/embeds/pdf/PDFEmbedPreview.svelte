@@ -78,6 +78,21 @@
   // Screenshot image state (decrypted from S3 after OCR completes)
   // -------------------------------------------------------------------------
 
+  /**
+   * Local filename and pageCount — initialized from props and updated via
+   * handleEmbedDataUpdated when the TOON content arrives (readonly mode).
+   * This allows the card to show correct metadata even when the TipTap node
+   * attrs only carry `id`/`type`/`contentRef` (no filename/pageCount).
+   */
+  let localFilename = $state<string | undefined>(undefined);
+  let localPageCount = $state<number | null | undefined>(undefined);
+
+  // Initialize local metadata from props on mount/change
+  $effect(() => {
+    if (filename !== undefined) localFilename = filename;
+    if (pageCount !== undefined) localPageCount = pageCount;
+  });
+
   /** S3 key for page 1 screenshot — populated via onEmbedDataUpdated */
   let screenshotS3Key = $state<string | undefined>(undefined);
   /** Plaintext AES-256 key (base64) — from embed TOON content */
@@ -127,6 +142,14 @@
     decodedContent: Record<string, unknown>;
   }): void {
     const content = data.decodedContent;
+
+    // Populate filename + pageCount from TOON content (readonly mode — props may be empty)
+    const fn = content.filename as string | undefined;
+    if (fn) localFilename = fn;
+    const pc = content.page_count as number | undefined;
+    if (pc !== undefined) localPageCount = pc;
+
+    // Screenshot credentials for page-1 preview image
     const keys = content.screenshot_s3_keys as Record<string, string> | undefined;
     const key = keys?.['1'];
     if (key) {
@@ -238,26 +261,27 @@
   /** Whether a screenshot image is ready to display */
   let hasImage = $derived(!!imageUrl && !imageError);
 
-  /** Card title: truncated filename */
+  /** Card title: truncated filename — uses localFilename so readonly mode works */
   let skillName = $derived.by(() => {
-    if (!filename) return 'PDF';
-    if (filename.length > MAX_FILENAME_LENGTH) {
-      const lastDot = filename.lastIndexOf('.');
+    const fn = localFilename;
+    if (!fn) return 'PDF';
+    if (fn.length > MAX_FILENAME_LENGTH) {
+      const lastDot = fn.lastIndexOf('.');
       if (lastDot > 0) {
-        const ext = filename.slice(lastDot);
-        const stem = filename.slice(0, lastDot);
+        const ext = fn.slice(lastDot);
+        const stem = fn.slice(0, lastDot);
         const allowedStem = MAX_FILENAME_LENGTH - ext.length - 1;
         return allowedStem > 0
           ? stem.slice(0, allowedStem) + '\u2026' + ext
-          : filename.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
+          : fn.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
       }
-      return filename.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
+      return fn.slice(0, MAX_FILENAME_LENGTH - 1) + '\u2026';
     }
-    return filename;
+    return fn;
   });
 
   /**
-   * Card subtitle:
+   * Card subtitle — uses localPageCount so readonly mode shows the correct count.
    * - 'viewing'    → "Viewing…"
    * - 'uploading'  → "Uploading…"
    * - 'processing' → "Processing N pages…" or "Processing…"
@@ -265,18 +289,19 @@
    * - 'error'      → error message
    */
   let statusText = $derived.by(() => {
+    const pc = localPageCount;
     if (isBeingViewed) return $text('app_skills.pdf.view.viewing');
     if (status === 'uploading') return $text('app_skills.pdf.view.uploading');
     if (status === 'error') return uploadError || $text('app_skills.pdf.view.upload_failed');
     if (status === 'processing') {
-      if (pageCount && pageCount > 0) {
-        return $text('app_skills.pdf.view.processing_pages', { values: { count: pageCount } });
+      if (pc && pc > 0) {
+        return $text('app_skills.pdf.view.processing_pages', { values: { count: pc } });
       }
       return $text('app_skills.pdf.view.processing');
     }
     if (status === 'finished') {
-      if (pageCount && pageCount > 0) {
-        return pageCount === 1 ? '1 page' : `${pageCount} pages`;
+      if (pc && pc > 0) {
+        return pc === 1 ? '1 page' : `${pc} pages`;
       }
       return $text('app_skills.pdf.view');
     }
@@ -318,7 +343,7 @@
           <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
           <img
             src={imageUrl}
-            alt={filename || 'PDF page 1'}
+            alt={localFilename || 'PDF page 1'}
             class="preview-image"
             onclick={status === 'finished' ? handleFullscreen : undefined}
           />

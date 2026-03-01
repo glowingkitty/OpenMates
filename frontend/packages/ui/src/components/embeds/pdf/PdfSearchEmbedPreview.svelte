@@ -104,99 +104,91 @@
     return '';
   });
 
-  /** Fullscreen enabled when finished */
+  /** Fullscreen enabled when finished (skill result is ready) */
   let isFullscreenEnabled = $derived(status === 'finished' && !!onFullscreen);
 </script>
 
+<!--
+  showSkillIcon defaults to true — the search.svg icon is rendered in BasicInfosBar
+  by UnifiedEmbedPreview. The details snippet provides text-only content
+  (filename + status), following the same pattern as WebSearchEmbedPreview.
+-->
 <UnifiedEmbedPreview
   {id}
   appId="pdf"
   skillId="search"
-  skillIconName="pdf"
+  skillIconName="search"
   {status}
   {skillName}
   {isMobile}
   onFullscreen={isFullscreenEnabled ? onFullscreen : undefined}
   showStatus={true}
   customStatusText={statusText}
-  showSkillIcon={false}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <div class="pdf-search-preview" class:mobile={isMobileSnippet}>
-      <!-- PDF icon -->
-      <div class="pdf-icon-container">
-        <div class="icon_rounded pdf"></div>
-      </div>
-
-      <!-- Filename + status -->
-      <div class="pdf-info">
-        <span class="pdf-filename" title={filename}>{skillName}</span>
-        {#if statusText}
-          <span class="pdf-status">{statusText}</span>
-        {/if}
-      </div>
+    <div class="pdf-search-details" class:mobile={isMobileSnippet}>
+      <!-- Filename -->
+      <div class="pdf-name">{skillName}</div>
+      <!-- Status subtitle -->
+      {#if statusText}
+        <div class="pdf-status-text">{statusText}</div>
+      {/if}
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  .pdf-search-preview {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 20px;
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
-    overflow: hidden;
-  }
-
-  .pdf-search-preview.mobile {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 12px;
-    gap: 8px;
-  }
-
-  .pdf-icon-container {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .pdf-icon-container .icon_rounded {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background-size: 22px 22px;
-    background-repeat: no-repeat;
-    background-position: center;
-  }
-
-  .pdf-info {
+  .pdf-search-details {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    min-width: 0;
-    flex: 1;
+    height: 100%;
+    justify-content: center;
   }
 
-  .pdf-filename {
-    font-size: 14px;
+  .pdf-search-details.mobile {
+    justify-content: flex-start;
+  }
+
+  .pdf-name {
+    font-size: 16px;
     font-weight: 600;
-    color: var(--color-font-primary);
-    white-space: nowrap;
+    color: var(--color-grey-100);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.3;
+    word-break: break-word;
   }
 
-  .pdf-status {
-    font-size: 12px;
-    color: var(--color-grey-60, #888);
+  .pdf-search-details.mobile .pdf-name {
+    font-size: 14px;
+  }
+
+  .pdf-status-text {
+    font-size: 14px;
+    color: var(--color-grey-70);
+    line-height: 1.3;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .pdf-search-details.mobile .pdf-status-text {
+    font-size: 12px;
+  }
+
+  /* Skill icon: search.svg for pdf.search (registered here per WebSearch pattern) */
+  :global(.unified-embed-preview .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
+  }
+
+  :global(.unified-embed-preview.mobile .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
   }
 </style>

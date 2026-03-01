@@ -1958,6 +1958,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
       const event = new CustomEvent("pdffullscreen", {
         detail: {
+          // embedId is required by PDFEmbedFullscreen to load TOON content from IDB
+          embedId,
           filename:
             uploadContent?.filename || (uploadEmbed as any).filename || "",
           pageCount:

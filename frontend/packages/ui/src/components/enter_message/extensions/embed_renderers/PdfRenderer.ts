@@ -78,28 +78,45 @@ export class PdfRenderer implements EmbedRenderer {
         );
       };
 
+      // Resolve the real embed UUID for the fullscreen event.
+      // Priority:
+      //   1. uploadEmbedId — set after upload completes (live editor mode)
+      //   2. contentRef stripped of "embed:" prefix — set in readonly mode when
+      //      the node was parsed back from serialized JSON (e.g. existing messages)
+      //   3. attrs.id — local TipTap node UUID (fallback, only during uploading)
+      const resolvedEmbedId =
+        attrs.uploadEmbedId ||
+        (attrs.contentRef?.startsWith("embed:")
+          ? attrs.contentRef.replace("embed:", "")
+          : "") ||
+        attrs.id ||
+        "";
+
       // Fullscreen handler: fires a bubbling event so MessageInput.svelte
       // can re-dispatch it to ActiveChat.svelte, which mounts PDFEmbedFullscreen.
-      // Only wired when status is 'finished' (PDFEmbedPreview guards this too,
-      // but we skip creating the handler entirely for clarity).
-      // We pass the embed ID so PDFEmbedFullscreen can look up the TOON content
-      // from IndexedDB to get screenshot_s3_keys, aes_key, aes_nonce for rendering.
-      const handleFullscreen =
-        attrs.status === "finished"
-          ? () => {
-              content.dispatchEvent(
-                new CustomEvent("pdffullscreen", {
-                  bubbles: true,
-                  composed: true,
-                  detail: {
-                    embedId: attrs.uploadEmbedId || attrs.id || "",
-                    filename: attrs.filename,
-                    pageCount: attrs.pageCount ?? null,
-                  },
-                }),
-              );
-            }
-          : undefined;
+      //
+      // Bug A fix: allow fullscreen during 'processing' state once upload is done
+      // (resolvedEmbedId is real). The fullscreen viewer will show a fallback icon
+      // until OCR screenshots are ready — that is acceptable UX.
+      const canOpenFullscreen =
+        attrs.status === "finished" ||
+        (attrs.status === "processing" && !!resolvedEmbedId);
+
+      const handleFullscreen = canOpenFullscreen
+        ? () => {
+            content.dispatchEvent(
+              new CustomEvent("pdffullscreen", {
+                bubbles: true,
+                composed: true,
+                detail: {
+                  embedId: resolvedEmbedId,
+                  filename: attrs.filename,
+                  pageCount: attrs.pageCount ?? null,
+                },
+              }),
+            );
+          }
+        : undefined;
 
       const component = mount(PDFEmbedPreview, {
         target: content,
