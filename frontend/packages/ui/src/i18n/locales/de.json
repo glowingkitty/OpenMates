@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Berechnen",
+        "description": {
+          "text": "Ausdrücke auswerten, Gleichungen lösen und Ableitungen oder Integrale berechnen."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Suche",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Lesen"
+        },
         "text": "Lesen",
         "description": {
           "text": "Text aus bestimmten Seiten eines PDFs lesen."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Suche"
+        },
         "text": "Suche",
         "description": {
           "text": "Schlüsselwörter in allen Seiten eines PDFs suchen."
@@ -1571,6 +1585,12 @@
       "text": "PDF",
       "description": {
         "text": "PDFs hochladen und deren Inhalt lesen oder durchsuchen."
+      }
+    },
+    "math": {
+      "text": "Mathe",
+      "description": {
+        "text": "Gleichungen lösen, berechnen und Funktionen zeichnen."
       }
     },
     "shopping": {
@@ -3418,6 +3438,14 @@
       },
       "search_products": {
         "text": "Produkte suchen"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Berechnen"
+      },
+      "plot": {
+        "text": "Grafik"
       }
     }
   },
@@ -8486,6 +8514,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Kopiert Geräteinformationen, Konsolenprotokolle und IndexedDB-Daten zur lokalen Fehlersuche in die Zwischenablage"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Zwischenablage-Kopieren fehlgeschlagen. Bitte markieren Sie den gesamten Text unten und kopieren Sie ihn manuell (Strg+A, dann Strg+C)."
       },
       "screenshot_label": {
         "text": "Screenshot anhängen"

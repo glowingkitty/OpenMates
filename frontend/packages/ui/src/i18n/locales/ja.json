@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "計算する",
+        "description": {
+          "text": "式を評価し、方程式を解き、導関数や積分を計算する。"
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "検索",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "読む"
+        },
         "text": "読む",
         "description": {
           "text": "PDFの特定ページからテキストを読み取る。"
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "検索"
+        },
         "text": "検索",
         "description": {
           "text": "PDFの全ページでキーワードを検索します。"
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "PDFをアップロードしてコンテンツを読んだり検索したりできます。"
+      }
+    },
+    "math": {
+      "text": "数学",
+      "description": {
+        "text": "方程式を解いたり、計算したり、関数をグラフ化しましょう。"
       }
     },
     "shopping": {
@@ -3323,6 +3343,14 @@
       },
       "search_products": {
         "text": "商品を検索"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "計算"
+      },
+      "plot": {
+        "text": "グラフ"
       }
     }
   },
@@ -7500,6 +7528,9 @@
       },
       "copy_debug_info_hint": {
         "text": "ローカルデバッグ用にデバイス情報、コンソールログ、IndexedDBデータをクリップボードにコピーします"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "クリップボードへのコピーに失敗しました。以下のテキストをすべて選択して手動でコピーしてください（Ctrl+A / Cmd+A、その後 Ctrl+C / Cmd+C）。"
       },
       "screenshot_label": {
         "text": "スクリーンショットを添付"

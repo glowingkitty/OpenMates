@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Hitung",
+        "description": {
+          "text": "Evaluasi ekspresi, selesaikan persamaan, dan hitung turunan atau integral."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Cari",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Baca"
+        },
         "text": "Baca",
         "description": {
           "text": "Baca teks dari halaman tertentu PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Cari"
+        },
         "text": "Cari",
         "description": {
           "text": "Cari kata kunci di semua halaman PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "Unggah PDF dan baca atau cari isinya."
+      }
+    },
+    "math": {
+      "text": "Matematika",
+      "description": {
+        "text": "Selesaikan persamaan, hitung, dan plot fungsi."
       }
     },
     "shopping": {
@@ -2985,6 +3005,14 @@
       },
       "search_products": {
         "text": "Cari produk"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Hitung"
+      },
+      "plot": {
+        "text": "Grafik"
       }
     }
   },
@@ -6133,6 +6161,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Menyalin info perangkat, log konsol, dan data IndexedDB ke clipboard untuk debugging lokal"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Salin ke clipboard gagal. Silakan pilih semua teks di bawah ini dan salin secara manual (Ctrl+A / Cmd+A, lalu Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Lampirkan tangkapan layar"

@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "احسب",
+        "description": {
+          "text": "قيّم التعابير وحل المعادلات واحسب المشتقات أو التكاملات."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "بحث",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "قراءة"
+        },
         "text": "قراءة",
         "description": {
           "text": "اقرأ نصاً من صفحات محددة في PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "البحث"
+        },
         "text": "البحث",
         "description": {
           "text": "ابحث عن كلمات رئيسية في جميع صفحات PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "ارفع PDF واقرأ أو ابحث في محتواها."
+      }
+    },
+    "math": {
+      "text": "رياضيات",
+      "description": {
+        "text": "حل المعادلات والحساب ورسم الدوال."
       }
     },
     "shopping": {
@@ -2985,6 +3005,14 @@
       },
       "search_products": {
         "text": "البحث عن المنتجات"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "احسب"
+      },
+      "plot": {
+        "text": "رسم بياني"
       }
     }
   },
@@ -7069,6 +7097,9 @@
       },
       "copy_debug_info_hint": {
         "text": "ينسخ معلومات الجهاز وسجلات وحدة التحكم وبيانات IndexedDB إلى الحافظة لتصحيح الأخطاء محليًا"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "فشل النسخ إلى الحافظة. يرجى تحديد كل النص أدناه ونسخه يدويًا (Ctrl+A / Cmd+A، ثم Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "إرفاق لقطة شاشة"

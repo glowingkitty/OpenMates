@@ -1288,7 +1288,13 @@
     // State for copy debug info button
     let isCopyingDebugInfo = $state(false);
     let copyDebugInfoSuccess = $state(false);
-    
+    /**
+     * When both navigator.clipboard and execCommand both fail, we surface the
+     * debug text here so the user can manually select-all and copy it.
+     * Null = no fallback display needed.
+     */
+    let copyDebugInfoFallbackText = $state<string | null>(null);
+
     /**
      * Build the complete client-side debug info object that would be sent to the server.
      * This allows users to copy and share the debug info for local debugging.
@@ -1317,39 +1323,120 @@
             url: window.location.href
         };
     }
-    
+
     /**
-     * Copy client-side debug info to clipboard
+     * Fallback clipboard copy using a hidden textarea + document.execCommand('copy').
+     *
+     * This works even when the modern Clipboard API fails due to the browser
+     * revoking the user-gesture "token" during the async data-collection phase
+     * (IndexedDB inspection, etc.). execCommand does NOT require the gesture token
+     * to still be live at the moment of the call.
+     *
+     * Returns true if the copy succeeded, false otherwise.
+     */
+    function _fallbackCopyText(text: string): boolean {
+        try {
+            const el = document.createElement('textarea');
+            el.value = text;
+            // Position off-screen so it's invisible but still selectable
+            Object.assign(el.style, {
+                position: 'fixed',
+                top: '-9999px',
+                left: '-9999px',
+                width: '1px',
+                height: '1px',
+                opacity: '0',
+                fontSize: '12pt' // avoid iOS zoom on focus
+            });
+            document.body.appendChild(el);
+            el.focus();
+            el.select();
+            const success = document.execCommand('copy');
+            document.body.removeChild(el);
+            return success;
+        } catch (err) {
+            console.warn('[SettingsReportIssue] execCommand copy fallback failed:', err);
+            return false;
+        }
+    }
+
+    /**
+     * Copy client-side debug info to clipboard.
+     *
+     * Strategy (most-to-least reliable for async contexts):
+     *  1. Collect all data asynchronously (IndexedDB inspection, logs, DOM snapshots).
+     *  2. Try navigator.clipboard.writeText() — may fail because the user-gesture
+     *     "token" is consumed by the async await chain before writeText is called.
+     *  3. Fall back to execCommand('copy') via a hidden textarea — does NOT require
+     *     an active gesture token and works in all modern browsers.
+     *  4. Last resort: surface the text in an inline textarea so the user can
+     *     manually select-all and copy it without any clipboard API at all.
      */
     async function handleCopyDebugInfo() {
         isCopyingDebugInfo = true;
         copyDebugInfoSuccess = false;
-        
+        copyDebugInfoFallbackText = null;
+
+        let debugInfoText = '';
+
         try {
             const debugInfo = await buildClientDebugInfo();
-            const debugInfoText = JSON.stringify(debugInfo, null, 2);
-            
+            debugInfoText = JSON.stringify(debugInfo, null, 2);
+        } catch (error) {
+            console.error('[SettingsReportIssue] Failed to build debug info:', error);
+            notificationStore.error(
+                $text('settings.report_issue.copy_debug_info_error'),
+                5000
+            );
+            isCopyingDebugInfo = false;
+            return;
+        }
+
+        let copied = false;
+
+        // Attempt 1: modern Clipboard API
+        try {
             await navigator.clipboard.writeText(debugInfoText);
-            
+            copied = true;
+        } catch (clipboardError) {
+            // Expected failure: gesture token expired after async data collection.
+            // Log at debug level — this is a known limitation, not an unexpected error.
+            console.debug(
+                '[SettingsReportIssue] navigator.clipboard.writeText failed (gesture token expired), trying execCommand fallback:',
+                clipboardError
+            );
+        }
+
+        // Attempt 2: execCommand fallback (no gesture token required)
+        if (!copied) {
+            copied = _fallbackCopyText(debugInfoText);
+            if (copied) {
+                console.debug('[SettingsReportIssue] Copied debug info via execCommand fallback');
+            }
+        }
+
+        if (copied) {
             copyDebugInfoSuccess = true;
             notificationStore.success(
                 $text('settings.report_issue.copy_debug_info_success'),
                 3000
             );
-            
             // Reset success state after 3 seconds
             setTimeout(() => {
                 copyDebugInfoSuccess = false;
             }, 3000);
-        } catch (error) {
-            console.error('[SettingsReportIssue] Failed to copy debug info:', error);
-            notificationStore.error(
-                $text('settings.report_issue.copy_debug_info_error'),
-                5000
+        } else {
+            // Attempt 3: surface the text inline so the user can copy manually
+            console.warn('[SettingsReportIssue] All clipboard methods failed — showing inline fallback text');
+            copyDebugInfoFallbackText = debugInfoText;
+            // Notify user without showing an error — we've handled it gracefully
+            notificationStore.info(
+                $text('settings.report_issue.copy_debug_info_manual_hint'),
+                6000
             );
-        } finally {
-            isCopyingDebugInfo = false;
         }
+
+        isCopyingDebugInfo = false;
     }
     
     // Auto-generate share URL and collect initial device info when component mounts
@@ -1777,6 +1864,22 @@
                 <p class="copy-debug-info-hint">
                     {$text('settings.report_issue.copy_debug_info_hint')}
                 </p>
+                {#if copyDebugInfoFallbackText}
+                    <!-- Last-resort fallback: both clipboard methods failed.
+                         Show the debug text in a selectable textarea so the user
+                         can manually select-all and copy it. -->
+                    <p class="copy-debug-info-manual-label">
+                        {$text('settings.report_issue.copy_debug_info_manual_hint')}
+                    </p>
+                    <textarea
+                        class="copy-debug-info-fallback-textarea"
+                        readonly
+                        rows="8"
+                        value={copyDebugInfoFallbackText}
+                        onclick={(e) => (e.target as HTMLTextAreaElement).select()}
+                        aria-label="Debug info — select all and copy"
+                    ></textarea>
+                {/if}
             </div>
         </div>
     </div>
@@ -2105,6 +2208,30 @@
         margin: 8px 0 0 0;
         line-height: 1.4;
         opacity: 0.8;
+    }
+
+    /* Inline fallback when both clipboard APIs fail */
+    .copy-debug-info-manual-label {
+        font-size: 12px;
+        color: var(--color-font-secondary, #666);
+        margin: 12px 0 6px 0;
+        line-height: 1.4;
+        font-style: italic;
+    }
+
+    .copy-debug-info-fallback-textarea {
+        width: 100%;
+        font-family: monospace;
+        font-size: 11px;
+        line-height: 1.4;
+        padding: 8px;
+        border: 1px solid var(--color-grey-40, #bdbdbd);
+        border-radius: 6px;
+        background-color: var(--color-grey-10, #f5f5f5);
+        color: var(--color-font-primary);
+        resize: vertical;
+        box-sizing: border-box;
+        cursor: text;
     }
 
     /* ---- User action history section ---- */

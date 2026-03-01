@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "계산하기",
+        "description": {
+          "text": "식을 평가하고 방정식을 풀고 미분 또는 적분을 계산하세요."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "검색",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "읽기"
+        },
         "text": "읽기",
         "description": {
           "text": "PDF의 특정 페이지에서 텍스트를 읽습니다."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "검색"
+        },
         "text": "검색",
         "description": {
           "text": "PDF의 모든 페이지에서 키워드를 검색합니다."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "PDF를 업로드하여 내용을 읽거나 검색하세요."
+      }
+    },
+    "math": {
+      "text": "수학",
+      "description": {
+        "text": "방정식을 풀고, 계산하고, 함수를 그려보세요."
       }
     },
     "shopping": {
@@ -2985,6 +3005,14 @@
       },
       "search_products": {
         "text": "제품 검색"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "계산"
+      },
+      "plot": {
+        "text": "그래프"
       }
     }
   },
@@ -6133,6 +6161,9 @@
       },
       "copy_debug_info_hint": {
         "text": "로컬 디버깅을 위해 기기 정보, 콘솔 로그 및 IndexedDB 데이터를 클립보드에 복사합니다"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "클립보드 복사에 실패했습니다. 아래의 모든 텍스트를 선택하고 수동으로 복사하세요 (Ctrl+A / Cmd+A, 그 다음 Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "스크린샷 첨부"

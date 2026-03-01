@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Oblicz",
+        "description": {
+          "text": "Ewaluuj wyrażenia, rozwiązuj równania i obliczaj pochodne lub całki."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Szukaj",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Czytaj"
+        },
         "text": "Czytaj",
         "description": {
           "text": "Odczytaj tekst z określonych stron PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Szukaj"
+        },
         "text": "Szukaj",
         "description": {
           "text": "Szukaj słów kluczowych na wszystkich stronach PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "Prześlij PDF i czytaj lub szukaj ich treści."
+      }
+    },
+    "math": {
+      "text": "Matematyka",
+      "description": {
+        "text": "Rozwiązuj równania, obliczaj i rysuj wykresy funkcji."
       }
     },
     "shopping": {
@@ -2985,6 +3005,14 @@
       },
       "search_products": {
         "text": "Szukaj produktów"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Oblicz"
+      },
+      "plot": {
+        "text": "Wykres"
       }
     }
   },
@@ -6133,6 +6161,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Kopiuje informacje o urządzeniu, logi konsoli i dane IndexedDB do schowka do lokalnego debugowania"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Kopiowanie do schowka nie powiodło się. Zaznacz cały tekst poniżej i skopiuj go ręcznie (Ctrl+A / Cmd+A, następnie Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Dołącz zrzut ekranu"

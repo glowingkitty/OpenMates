@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Calculer",
+        "description": {
+          "text": "Évaluez des expressions, résolvez des équations et calculez des dérivées ou des intégrales."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Rechercher",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Lire"
+        },
         "text": "Lire",
         "description": {
           "text": "Lire le texte de pages précises d'un PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Rechercher"
+        },
         "text": "Rechercher",
         "description": {
           "text": "Rechercher des mots-clés dans toutes les pages d'un PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "Téléversez des PDFs et lisez ou recherchez."
+      }
+    },
+    "math": {
+      "text": "Maths",
+      "description": {
+        "text": "Résolvez des équations, calculez et tracez des fonctions."
       }
     },
     "shopping": {
@@ -3323,6 +3343,14 @@
       },
       "search_products": {
         "text": "Rechercher des produits"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Calculer"
+      },
+      "plot": {
+        "text": "Tracer"
       }
     }
   },
@@ -7602,6 +7630,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Copie les infos appareil, logs console et données IndexedDB dans le presse-papiers pour débogage local"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Échec de la copie dans le presse-papiers. Veuillez sélectionner tout le texte ci-dessous et le copier manuellement (Ctrl+A / Cmd+A, puis Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Joindre une capture d'écran"

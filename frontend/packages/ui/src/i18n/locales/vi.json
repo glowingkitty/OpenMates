@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Tính toán",
+        "description": {
+          "text": "Đánh giá biểu thức, giải phương trình và tính đạo hàm hoặc tích phân."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Tìm kiếm",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Đọc"
+        },
         "text": "Đọc",
         "description": {
           "text": "Đọc văn bản từ các trang cụ thể của PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Tìm kiếm"
+        },
         "text": "Tìm kiếm",
         "description": {
           "text": "Tìm kiếm từ khóa trên tất cả các trang của PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "Tải PDF lên và đọc hoặc tìm kiếm nội dung."
+      }
+    },
+    "math": {
+      "text": "Toán học",
+      "description": {
+        "text": "Giải phương trình, tính toán và vẽ đồ thị hàm số."
       }
     },
     "shopping": {
@@ -2985,6 +3005,14 @@
       },
       "search_products": {
         "text": "Tìm kiếm sản phẩm"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Tính toán"
+      },
+      "plot": {
+        "text": "Vẽ đồ thị"
       }
     }
   },
@@ -6133,6 +6161,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Sao chép thông tin thiết bị, nhật ký console và dữ liệu IndexedDB vào clipboard để gỡ lỗi cục bộ"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Sao chép vào clipboard thất bại. Vui lòng chọn tất cả văn bản bên dưới và sao chép thủ công (Ctrl+A / Cmd+A, sau đó Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Đính kèm ảnh chụp màn hình"

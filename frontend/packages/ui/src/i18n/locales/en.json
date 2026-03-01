@@ -1054,6 +1054,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Calculate",
+        "description": {
+          "text": "Evaluate expressions, solve equations, and compute derivatives or integrals."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Search",
@@ -1113,6 +1121,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Read"
+        },
         "text": "Read",
         "description": {
           "text": "Read text from specific pages of a PDF."
@@ -1130,6 +1141,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Search"
+        },
         "text": "Search",
         "description": {
           "text": "Search for keywords across all pages of a PDF."
@@ -1577,6 +1591,12 @@
       "text": "PDF",
       "description": {
         "text": "Upload PDFs and read or search their content."
+      }
+    },
+    "math": {
+      "text": "Math",
+      "description": {
+        "text": "Solve equations, calculate, and plot functions."
       }
     },
     "shopping": {
@@ -3478,6 +3498,14 @@
       },
       "search_products": {
         "text": "Search Products"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Calculate"
+      },
+      "plot": {
+        "text": "Plot"
       }
     }
   },
@@ -8894,6 +8922,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Copies device info, console logs, and IndexedDB data to clipboard for local debugging"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Clipboard copy failed. Please select all text below and copy it manually (Ctrl+A / Cmd+A, then Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Attach Screenshot"

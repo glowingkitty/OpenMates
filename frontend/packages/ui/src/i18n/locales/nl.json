@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Berekenen",
+        "description": {
+          "text": "Evalueer uitdrukkingen, los vergelijkingen op en bereken afgeleiden of integralen."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Zoeken",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Lezen"
+        },
         "text": "Lezen",
         "description": {
           "text": "Lees tekst van specifieke pagina's van een PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Zoeken"
+        },
         "text": "Zoeken",
         "description": {
           "text": "Zoek naar trefwoorden in alle pagina's van een PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "Upload PDF's en lees of doorzoek de inhoud."
+      }
+    },
+    "math": {
+      "text": "Wiskunde",
+      "description": {
+        "text": "Los vergelijkingen op, bereken en plot functies."
       }
     },
     "shopping": {
@@ -2985,6 +3005,14 @@
       },
       "search_products": {
         "text": "Producten zoeken"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Berekenen"
+      },
+      "plot": {
+        "text": "Plot"
       }
     }
   },
@@ -6133,6 +6161,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Kopieert apparaatinfo, consolelogboeken en IndexedDB-gegevens naar klembord voor lokale foutopsporing"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Kopiëren naar klembord mislukt. Selecteer alle tekst hieronder en kopieer deze handmatig (Ctrl+A / Cmd+A, dan Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Schermafbeelding bijvoegen"

@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Beräkna",
+        "description": {
+          "text": "Utvärdera uttryck, lös ekvationer och beräkna derivator eller integraler."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Sök",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Läs"
+        },
         "text": "Läs",
         "description": {
           "text": "Läs text från specifika sidor i en PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Sök"
+        },
         "text": "Sök",
         "description": {
           "text": "Sök efter nyckelord i alla sidor av en PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "Ladda upp PDF och läs eller sök i innehållet."
+      }
+    },
+    "math": {
+      "text": "Matematik",
+      "description": {
+        "text": "Lös ekvationer, beräkna och rita funktioner."
       }
     },
     "shopping": {
@@ -3027,6 +3047,14 @@
       },
       "search_products": {
         "text": "Sök produkter"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Beräkna"
+      },
+      "plot": {
+        "text": "Graf"
       }
     }
   },
@@ -6157,6 +6185,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Kopierar enhetsinformation, konsolloggar och IndexedDB-data till urklipp för lokal felsökning"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Kopiering till urklipp misslyckades. Markera all text nedan och kopiera manuellt (Ctrl+A / Cmd+A, sedan Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Bifoga skärmbild"

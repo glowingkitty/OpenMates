@@ -190,7 +190,7 @@ async def list_issues(
 
     params: Dict[str, Any] = {
         'fields': '*',
-        'sort': '-created_at',
+        'sort': '-timestamp',
         'limit': limit
     }
 

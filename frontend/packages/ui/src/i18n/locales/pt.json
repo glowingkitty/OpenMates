@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Calcular",
+        "description": {
+          "text": "Avalie expressões, resolva equações e calcule derivadas ou integrais."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Pesquisar",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Ler"
+        },
         "text": "Ler",
         "description": {
           "text": "Leia texto de páginas específicas de um PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Pesquisar"
+        },
         "text": "Pesquisar",
         "description": {
           "text": "Pesquise palavras-chave em todas as páginas de um PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "Carregue PDFs e leia ou pesquise o conteúdo."
+      }
+    },
+    "math": {
+      "text": "Matemática",
+      "description": {
+        "text": "Resolva equações, calcule e trace funções."
       }
     },
     "shopping": {
@@ -2985,6 +3005,14 @@
       },
       "search_products": {
         "text": "Pesquisar produtos"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Calcular"
+      },
+      "plot": {
+        "text": "Plotar"
       }
     }
   },
@@ -6133,6 +6161,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Copia informações do dispositivo, logs do console e dados IndexedDB para a área de transferência para depuração local"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Falha ao copiar para a área de transferência. Selecione todo o texto abaixo e copie manualmente (Ctrl+A / Cmd+A, depois Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Anexar captura de tela"

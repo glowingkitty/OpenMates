@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Calcular",
+        "description": {
+          "text": "Evalúa expresiones, resuelve ecuaciones y calcula derivadas o integrales."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Buscar",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Leer"
+        },
         "text": "Leer",
         "description": {
           "text": "Lee texto de páginas específicas de un PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Buscar"
+        },
         "text": "Buscar",
         "description": {
           "text": "Busca palabras clave en todas las páginas de un PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "Sube PDFs y lee o busca en su contenido."
+      }
+    },
+    "math": {
+      "text": "Matemáticas",
+      "description": {
+        "text": "Resuelve ecuaciones, calcula y traza funciones."
       }
     },
     "shopping": {
@@ -3323,6 +3343,14 @@
       },
       "search_products": {
         "text": "Buscar productos"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Calcular"
+      },
+      "plot": {
+        "text": "Graficar"
       }
     }
   },
@@ -7657,6 +7685,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Copia información del dispositivo, registros de consola y datos de IndexedDB al portapapeles para depuración local"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Error al copiar al portapapeles. Selecciona todo el texto a continuación y cópialo manualmente (Ctrl+A / Cmd+A, luego Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Adjuntar captura de pantalla"

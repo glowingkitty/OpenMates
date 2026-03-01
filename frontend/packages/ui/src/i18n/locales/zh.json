@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "计算",
+        "description": {
+          "text": "评估表达式、求解方程并计算导数或积分。"
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "搜索",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "读取"
+        },
         "text": "读取",
         "description": {
           "text": "从PDF的特定页面读取文本。"
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "搜索"
+        },
         "text": "搜索",
         "description": {
           "text": "在PDF的所有页面中搜索关键词。"
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "上传PDF并读取或搜索内容。"
+      }
+    },
+    "math": {
+      "text": "数学",
+      "description": {
+        "text": "求解方程、计算和绘制函数图像。"
       }
     },
     "shopping": {
@@ -3323,6 +3343,14 @@
       },
       "search_products": {
         "text": "搜索产品"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "计算"
+      },
+      "plot": {
+        "text": "绘图"
       }
     }
   },
@@ -7509,6 +7537,9 @@
       },
       "copy_debug_info_hint": {
         "text": "将设备信息、控制台日志和 IndexedDB 数据复制到剪贴板以供本地调试"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "剪贴板复制失败。请选中下方所有文字并手动复制（Ctrl+A / Cmd+A，然后 Ctrl+C / Cmd+C）。"
       },
       "screenshot_label": {
         "text": "附加截图"

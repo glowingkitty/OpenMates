@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Hesapla",
+        "description": {
+          "text": "İfadeleri değerlendirin, denklemleri çözün ve türev veya integralleri hesaplayın."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Ara",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Oku"
+        },
         "text": "Oku",
         "description": {
           "text": "PDF'in belirli sayfalarından metin okuyun."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Ara"
+        },
         "text": "Ara",
         "description": {
           "text": "PDF'in tüm sayfalarında anahtar kelimeler arayın."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "PDF yükleyin ve içeriklerini okuyun veya arayın."
+      }
+    },
+    "math": {
+      "text": "Matematik",
+      "description": {
+        "text": "Denklemleri çözün, hesaplayın ve fonksiyonları çizin."
       }
     },
     "shopping": {
@@ -2985,6 +3005,14 @@
       },
       "search_products": {
         "text": "Ürün ara"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Hesapla"
+      },
+      "plot": {
+        "text": "Grafik"
       }
     }
   },
@@ -6133,6 +6161,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Yerel hata ayıklama için cihaz bilgilerini, konsol günlüklerini ve IndexedDB verilerini panoya kopyalar"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Panoya kopyalama başarısız oldu. Lütfen aşağıdaki tüm metni seçin ve manuel olarak kopyalayın (Ctrl+A / Cmd+A, ardından Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Ekran görüntüsü ekle"

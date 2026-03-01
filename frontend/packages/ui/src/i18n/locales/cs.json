@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Vypočítat",
+        "description": {
+          "text": "Vyhodnoťte výrazy, řešte rovnice a počítejte derivace nebo integrály."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Hledat",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Číst"
+        },
         "text": "Číst",
         "description": {
           "text": "Přečtěte text z konkrétních stránek PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Prohledat"
+        },
         "text": "Prohledat",
         "description": {
           "text": "Hledejte klíčová slova ve všech stránkách PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "Nahrajte PDF a čtěte nebo prohledejte jejich obsah."
+      }
+    },
+    "math": {
+      "text": "Matematika",
+      "description": {
+        "text": "Řešte rovnice, počítejte a kreslete grafy funkcí."
       }
     },
     "shopping": {
@@ -2991,6 +3011,14 @@
       },
       "search_products": {
         "text": "Hledat produkty"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Vypočítat"
+      },
+      "plot": {
+        "text": "Graf"
       }
     }
   },
@@ -6139,6 +6167,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Zkopíruje informace o zařízení, protokoly konzole a data IndexedDB do schránky pro lokální ladění"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Kopírování do schránky se nezdařilo. Vyberte veškerý text níže a zkopírujte jej ručně (Ctrl+A / Cmd+A, poté Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Přiložit snímek obrazovky"

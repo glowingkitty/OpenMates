@@ -6744,6 +6744,29 @@ report_issue.copy_debug_info_hint:
   cs: Zkopíruje informace o zařízení, protokoly konzole a data IndexedDB do schránky pro lokální ladění
   sv: Kopierar enhetsinformation, konsolloggar och IndexedDB-data till urklipp för lokal felsökning
   verified_by_human: []
+report_issue.copy_debug_info_manual_hint:
+  context: Instruction shown when clipboard copy fails — tells the user to select all text in the box below and copy it manually
+  en: Clipboard copy failed. Please select all text below and copy it manually (Ctrl+A / Cmd+A, then Ctrl+C / Cmd+C).
+  de: Zwischenablage-Kopieren fehlgeschlagen. Bitte markieren Sie den gesamten Text unten und kopieren Sie ihn manuell (Strg+A, dann Strg+C).
+  zh: 剪贴板复制失败。请选中下方所有文字并手动复制（Ctrl+A / Cmd+A，然后 Ctrl+C / Cmd+C）。
+  es: Error al copiar al portapapeles. Selecciona todo el texto a continuación y cópialo manualmente (Ctrl+A / Cmd+A, luego Ctrl+C / Cmd+C).
+  fr: Échec de la copie dans le presse-papiers. Veuillez sélectionner tout le texte ci-dessous et le copier manuellement (Ctrl+A / Cmd+A, puis Ctrl+C / Cmd+C).
+  pt: Falha ao copiar para a área de transferência. Selecione todo o texto abaixo e copie manualmente (Ctrl+A / Cmd+A, depois Ctrl+C / Cmd+C).
+  ru: Не удалось скопировать в буфер обмена. Пожалуйста, выделите весь текст ниже и скопируйте вручную (Ctrl+A / Cmd+A, затем Ctrl+C / Cmd+C).
+  ja: クリップボードへのコピーに失敗しました。以下のテキストをすべて選択して手動でコピーしてください（Ctrl+A / Cmd+A、その後 Ctrl+C / Cmd+C）。
+  ko: 클립보드 복사에 실패했습니다. 아래의 모든 텍스트를 선택하고 수동으로 복사하세요 (Ctrl+A / Cmd+A, 그 다음 Ctrl+C / Cmd+C).
+  it: Copia negli appunti non riuscita. Seleziona tutto il testo qui sotto e copialo manualmente (Ctrl+A / Cmd+A, poi Ctrl+C / Cmd+C).
+  tr: Panoya kopyalama başarısız oldu. Lütfen aşağıdaki tüm metni seçin ve manuel olarak kopyalayın (Ctrl+A / Cmd+A, ardından Ctrl+C / Cmd+C).
+  vi: Sao chép vào clipboard thất bại. Vui lòng chọn tất cả văn bản bên dưới và sao chép thủ công (Ctrl+A / Cmd+A, sau đó Ctrl+C / Cmd+C).
+  id: Salin ke clipboard gagal. Silakan pilih semua teks di bawah ini dan salin secara manual (Ctrl+A / Cmd+A, lalu Ctrl+C / Cmd+C).
+  pl: Kopiowanie do schowka nie powiodło się. Zaznacz cały tekst poniżej i skopiuj go ręcznie (Ctrl+A / Cmd+A, następnie Ctrl+C / Cmd+C).
+  nl: Kopiëren naar klembord mislukt. Selecteer alle tekst hieronder en kopieer deze handmatig (Ctrl+A / Cmd+A, dan Ctrl+C / Cmd+C).
+  ar: فشل النسخ إلى الحافظة. يرجى تحديد كل النص أدناه ونسخه يدويًا (Ctrl+A / Cmd+A، ثم Ctrl+C / Cmd+C).
+  hi: क्लिपबोर्ड पर कॉपी विफल रही। नीचे सभी टेक्स्ट चुनें और मैन्युअल रूप से कॉपी करें (Ctrl+A / Cmd+A, फिर Ctrl+C / Cmd+C)।
+  th: การคัดลอกไปยังคลิปบอร์ดล้มเหลว กรุณาเลือกข้อความทั้งหมดด้านล่างและคัดลอกด้วยตนเอง (Ctrl+A / Cmd+A จากนั้น Ctrl+C / Cmd+C)
+  cs: Kopírování do schránky se nezdařilo. Vyberte veškerý text níže a zkopírujte jej ručně (Ctrl+A / Cmd+A, poté Ctrl+C / Cmd+C).
+  sv: Kopiering till urklipp misslyckades. Markera all text nedan och kopiera manuellt (Ctrl+A / Cmd+A, sedan Ctrl+C / Cmd+C).
+  verified_by_human: []
 report_issue.screenshot_label:
   context: Section label for the optional screenshot attachment in the report issue form
   en: Attach Screenshot

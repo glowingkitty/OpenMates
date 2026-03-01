@@ -1048,6 +1048,14 @@
         }
       }
     },
+    "math": {
+      "calculate": {
+        "text": "Calcola",
+        "description": {
+          "text": "Valuta espressioni, risolvi equazioni e calcola derivate o integrali."
+        }
+      }
+    },
     "news": {
       "search": {
         "text": "Cerca",
@@ -1107,6 +1115,9 @@
         }
       },
       "read": {
+        "skill_name": {
+          "text": "Leggi"
+        },
         "text": "Leggi",
         "description": {
           "text": "Leggi testo da pagine specifiche di un PDF."
@@ -1124,6 +1135,9 @@
         }
       },
       "search": {
+        "skill_name": {
+          "text": "Cerca"
+        },
         "text": "Cerca",
         "description": {
           "text": "Cerca parole chiave in tutte le pagine di un PDF."
@@ -1544,6 +1558,12 @@
       "text": "PDF",
       "description": {
         "text": "Carica PDF e leggi o cerca il loro contenuto."
+      }
+    },
+    "math": {
+      "text": "Matematica",
+      "description": {
+        "text": "Risolvi equazioni, calcola e traccia funzioni."
       }
     },
     "shopping": {
@@ -2985,6 +3005,14 @@
       },
       "search_products": {
         "text": "Cerca prodotti"
+      }
+    },
+    "math": {
+      "calculate": {
+        "text": "Calcola"
+      },
+      "plot": {
+        "text": "Grafico"
       }
     }
   },
@@ -6136,6 +6164,9 @@
       },
       "copy_debug_info_hint": {
         "text": "Copia informazioni dispositivo, log console e dati IndexedDB negli appunti per debug locale"
+      },
+      "copy_debug_info_manual_hint": {
+        "text": "Copia negli appunti non riuscita. Seleziona tutto il testo qui sotto e copialo manualmente (Ctrl+A / Cmd+A, poi Ctrl+C / Cmd+C)."
       },
       "screenshot_label": {
         "text": "Allega screenshot"
