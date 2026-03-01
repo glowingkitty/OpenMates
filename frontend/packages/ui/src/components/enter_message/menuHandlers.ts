@@ -109,13 +109,18 @@ export async function handleMenuAction(
       // For file upload embeds (image/pdf/recording), notify the server to delete
       // the upload_files record + S3 variants + decrement storage_used_bytes.
       // Fire-and-forget — server handles gracefully if record doesn't exist.
+      // IMPORTANT: The server's upload_files table indexes records by the
+      // server-assigned UUID (node.attrs.uploadEmbedId), NOT the local client UUID
+      // (node.attrs.id). Use uploadEmbedId when available so the server can find and
+      // delete the record. Fall back to the local id only if upload hasn't completed
+      // yet (uploadEmbedId is null/undefined in that case).
       if (
         node.attrs?.id &&
         (node.attrs.type === "image" ||
           node.attrs.type === "pdf" ||
           node.attrs.type === "recording")
       ) {
-        deleteDraftEmbed(node.attrs.id);
+        deleteDraftEmbed(node.attrs.uploadEmbedId ?? node.attrs.id);
       }
       break;
 

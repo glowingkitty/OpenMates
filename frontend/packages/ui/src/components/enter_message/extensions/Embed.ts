@@ -781,7 +781,15 @@ export const Embed = Node.create<EmbedOptions>({
             // server-side upload_files record + S3 variants + update storage counter.
             // If still uploading, cancelUpload aborted the fetch — server never created
             // the record, so deleteDraftEmbed is effectively a no-op server-side too.
-            deleteDraftEmbed(embedId);
+            // IMPORTANT: The server's upload_files table stores records by the
+            // server-assigned embed_id (attrs.uploadEmbedId), NOT the local UUID
+            // (attrs.id). Use uploadEmbedId when available so the server can find and
+            // delete the record. Fall back to the local id only if upload hasn't
+            // completed yet (uploadEmbedId is null in that case).
+            const serverEmbedId =
+              (currentAttrs.uploadEmbedId as string | null | undefined) ??
+              embedId;
+            deleteDraftEmbed(serverEmbedId);
           }
           if (typeof getPos === "function") {
             const pos = getPos();
@@ -903,7 +911,15 @@ export const Embed = Node.create<EmbedOptions>({
             cancelUpload(embedId);
             // Delete server-side upload_files record + S3 variants for completed uploads.
             // Safe to call even if still uploading/transcribing — server handles gracefully.
-            deleteDraftEmbed(embedId);
+            // IMPORTANT: The server's upload_files table stores records by the
+            // server-assigned embed_id (currentAttrs.uploadEmbedId), NOT the local UUID
+            // (attrs.id / embedId from the event). Use uploadEmbedId when available so the
+            // server can find and delete the record. Fall back to the local id only if the
+            // upload hasn't completed yet (uploadEmbedId is null in that case).
+            const serverEmbedId =
+              (currentAttrs.uploadEmbedId as string | null | undefined) ??
+              embedId;
+            deleteDraftEmbed(serverEmbedId);
           }
           if (typeof getPos === "function") {
             const pos = getPos();
@@ -1473,7 +1489,12 @@ export const Embed = Node.create<EmbedOptions>({
                 // server to delete the upload_files record + S3 variants + decrement
                 // storage_used_bytes. Safe to call unconditionally — server handles
                 // missing records gracefully.
-                deleteDraftEmbed(attrs.id);
+                // IMPORTANT: The server's upload_files table indexes records by the
+                // server-assigned UUID (attrs.uploadEmbedId), NOT the local client UUID
+                // (attrs.id). Use uploadEmbedId when available so the server can find and
+                // delete the record. Fall back to the local id only if upload hasn't
+                // completed yet (uploadEmbedId is null in that case).
+                deleteDraftEmbed(attrs.uploadEmbedId ?? attrs.id);
               }
               {
                 const hardBreakAfterImg = editor.state.doc.nodeAt(to);
@@ -1507,7 +1528,9 @@ export const Embed = Node.create<EmbedOptions>({
               if (attrs.id) {
                 cancelUpload(attrs.id);
                 // Notify server to delete upload_files record + S3 variants + decrement storage.
-                deleteDraftEmbed(attrs.id);
+                // IMPORTANT: Use the server-assigned uploadEmbedId (not the local attrs.id)
+                // so the server can find the upload_files record by its embed_id field.
+                deleteDraftEmbed(attrs.uploadEmbedId ?? attrs.id);
               }
               {
                 const hardBreakAfterPdf = editor.state.doc.nodeAt(to);
@@ -1538,7 +1561,9 @@ export const Embed = Node.create<EmbedOptions>({
               if (attrs.id) {
                 cancelUpload(attrs.id);
                 // Notify server to delete upload_files record + S3 variants + decrement storage.
-                deleteDraftEmbed(attrs.id);
+                // IMPORTANT: Use the server-assigned uploadEmbedId (not the local attrs.id)
+                // so the server can find the upload_files record by its embed_id field.
+                deleteDraftEmbed(attrs.uploadEmbedId ?? attrs.id);
               }
               {
                 const hardBreakAfterRec = editor.state.doc.nodeAt(to);
