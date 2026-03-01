@@ -2234,6 +2234,27 @@ async def handle_preprocessing(
                         f"{log_prefix} [RULE_BASED] PDF skills already preselected by LLM — no override needed."
                     )
 
+        # --- math-calculate ---
+        # Deterministic rule: when the preprocessing LLM identifies task_area == "math",
+        # always include math-calculate regardless of the LLM's relevant_app_skills output.
+        # Rationale: Mistral Small consistently returns task_area="math" for calculation
+        # requests but fails to populate relevant_app_skills with "math-calculate" (it
+        # omits it even when the hint says MANDATORY). Since the LLM's own task_area
+        # classification is the ground truth signal, we can rely on it deterministically.
+        # This mirrors the images-view / PDF rule-based forcing pattern.
+        if task_area_val == "math" and "math-calculate" in available_skill_ids:
+            if "math-calculate" not in validated_relevant_skills:
+                validated_relevant_skills.append("math-calculate")
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced 'math-calculate' into preselected skills: "
+                    f"task_area='math' detected by preprocessing LLM. "
+                    f"(Preprocessing LLM reliably classifies math tasks but fails to add the skill.)"
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] 'math-calculate' already preselected by LLM — no override needed."
+                )
+
     # --- Determine if hardcoded disclaimer injection is required ---
     # This is a HARDCODED safety mechanism for legal compliance.
     # We do NOT rely on LLM instructions to include disclaimers for sensitive topics.
