@@ -20,6 +20,7 @@ title:
   th: แผนงาน | OpenMates
   cs: Roadmap | OpenMates
   sv: Färdplan | OpenMates
+  he: "מפת דרכים | OpenMates"
   verified_by_human: []
 description:
   context: Description for the roadmap page
@@ -43,4 +44,5 @@ description:
   th: เรียนรู้สิ่งที่กำลังจะมาถึงสำหรับ OpenMates สถานะการพัฒนาปัจจุบันคืออะไร และเป้าหมายถัดไปคืออะไร
   cs: Zjistěte, co čeká OpenMates. Jaký je současný stav vývoje a jaké jsou další milníky.
   sv: Lär dig vad som kommer härnäst för OpenMates. Vad är utvecklingens nuvarande status och vilka är nästa milstolpar.
+  he: גלו מה מתוכנן בהמשך עבור OpenMates. מהו מצב הפיתוח הנוכחי ומהן אבני הדרך הבאות.
   verified_by_human: []

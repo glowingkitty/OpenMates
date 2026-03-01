@@ -20,6 +20,7 @@ view:
   th: PDF
   cs: PDF
   sv: PDF
+  he: PDF
   verified_by_human:
     - en
     - de
@@ -46,6 +47,7 @@ view.skill_name:
   th: ดู
   cs: Zobrazit
   sv: Visa
+  he: צפייה
   verified_by_human:
     - en
 
@@ -71,6 +73,7 @@ view.description:
   th: PDF ที่อัปโหลด
   cs: Nahraný PDF
   sv: Uppladdad PDF
+  he: PDF שהועלה
   verified_by_human:
     - en
     - de
@@ -97,6 +100,7 @@ view.skill_description:
   th: ดูภาพหน้าจอหน้าด้วย AI การมองเห็น
   cs: Zobrazit snímky stránek pomocí vizuální AI.
   sv: Visa sidskärmdumpar med visuell AI.
+  he: צפייה בצילומי מסך של דפים באמצעות בינה מלאכותית חזותית.
   verified_by_human:
     - en
 
@@ -122,6 +126,7 @@ view.uploading:
   th: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u2026"
   cs: "Nahr\u00e1v\u00e1n\u00ed\u2026"
   sv: "Laddar upp\u2026"
+  he: מעלה...
   verified_by_human:
     - en
 
@@ -147,6 +152,7 @@ view.processing:
   th: "กำลังประมวลผล\u2026"
   cs: "Zpracování\u2026"
   sv: "Bearbetar\u2026"
+  he: מעבד...
   verified_by_human: []
 
 view.processing_pages:
@@ -171,6 +177,7 @@ view.processing_pages:
   th: "กำลังประมวลผล {count} {count, plural, one {หน้า} other {หน้า}}\u2026"
   cs: "Zpracování {count} {count, plural, one {stránky} few {stránek} many {stránek} other {stránek}}\u2026"
   sv: "Bearbetar {count} {count, plural, one {sida} other {sidor}}\u2026"
+  he: "מעבד {count} {count, plural, one {דף} other {דפים}}..."
   verified_by_human: []
 
 view.viewing:
@@ -195,6 +202,7 @@ view.viewing:
   th: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e14\u0e39\u2026"
   cs: "Prohl\u00ed\u017een\u00ed\u2026"
   sv: "Visas\u2026"
+  he: צופה...
   verified_by_human:
     - en
 
@@ -220,6 +228,7 @@ view.upload_failed:
   th: "\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u0e25\u0e49\u0e21\u0e40\u0e2b\u0e25\u0e27"
   cs: "Nahr\u00e1v\u00e1n\u00ed selhalo"
   sv: Uppladdning misslyckades
+  he: העלאה נכשלה
   verified_by_human:
     - en
 
@@ -245,6 +254,7 @@ view.signup_to_upload:
   th: "\u0e40\u0e02\u0e49\u0e32\u0e2a\u0e39\u0e48\u0e23\u0e30\u0e1a\u0e1a\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u2026"
   cs: "P\u0159ihla\u0161te se pro nahr\u00e1n\u00ed\u2026"
   sv: "Logga in f\u00f6r att ladda upp\u2026"
+  he: הירשם כדי להעלות...
   verified_by_human:
     - en
 
@@ -270,6 +280,7 @@ read.skill_name:
   th: "อ่าน"
   cs: "Číst"
   sv: "Läs"
+  he: קריאה
   verified_by_human:
     - en
 
@@ -295,6 +306,7 @@ search.skill_name:
   th: "ค้นหา"
   cs: Prohledat
   sv: "Sök"
+  he: חיפוש
   verified_by_human:
     - en
 
@@ -320,6 +332,7 @@ read:
   th: "\u0e2d\u0e48\u0e32\u0e19"
   cs: "\u010c\u00edst"
   sv: "L\u00e4s"
+  he: קריאה
   verified_by_human:
     - en
 
@@ -345,6 +358,7 @@ read.description:
   th: "\u0e2d\u0e48\u0e32\u0e19\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e08\u0e32\u0e01\u0e2b\u0e19\u0e49\u0e32\u0e17\u0e35\u0e48\u0e40\u0e09\u0e1e\u0e32\u0e30\u0e02\u0e2d\u0e07 PDF"
   cs: "P\u0159e\u010dt\u011bte text z konkr\u00e9tn\u00edch str\u00e1nek PDF."
   sv: "L\u00e4s text fr\u00e5n specifika sidor i en PDF."
+  he: קריאת טקסט מדפים ספציפיים ב-PDF.
   verified_by_human:
     - en
 
@@ -370,6 +384,7 @@ search:
   th: "\u0e04\u0e49\u0e19\u0e2b\u0e32"
   cs: "Prohledat"
   sv: "S\u00f6k"
+  he: חיפוש
   verified_by_human:
     - en
 
@@ -395,6 +410,7 @@ search.description:
   th: "\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e04\u0e33\u0e2a\u0e33\u0e04\u0e31\u0e0d\u0e43\u0e19\u0e17\u0e38\u0e01\u0e2b\u0e19\u0e49\u0e32\u0e02\u0e2d\u0e07 PDF"
   cs: "Hledejte kl\u00ed\u010dov\u00e1 slova ve v\u0161ech str\u00e1nk\u00e1ch PDF."
   sv: "S\u00f6k efter nyckelord i alla sidor av en PDF."
+  he: חיפוש מילות מפתח בכל דפי ה-PDF.
   verified_by_human:
     - en
 
@@ -420,6 +436,7 @@ read.how_to_use.1:
   th: "\u0e2d\u0e48\u0e32\u0e19\u0e2b\u0e19\u0e49\u0e32 5 \u0e02\u0e2d\u0e07 PDF \u0e17\u0e35\u0e48\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14"
   cs: "P\u0159e\u010dt\u011bte stran\u00e9 5 nahran\u00e9ho PDF"
   sv: "L\u00e4s sida 5 i den uppladdade PDF:en"
+  he: קרא את עמוד 5 ב-PDF שהועלה
   verified_by_human: [en]
 
 read.how_to_use.2:
@@ -444,6 +461,7 @@ read.how_to_use.2:
   th: "\u0e2d\u0e48\u0e32\u0e19\u0e2b\u0e19\u0e49\u0e32 10 \u0e16\u0e36\u0e07 15 \u0e41\u0e25\u0e30\u0e2a\u0e23\u0e38\u0e1b\u0e40\u0e19\u0e37\u0e49\u0e2d\u0e2b\u0e32"
   cs: "P\u0159e\u010dt\u011bte strany 10 a\u017e 15 a shrn\u011bte obsah"
   sv: "L\u00e4s sidorna 10 till 15 och sammanfatta inneh\u00e5llet"
+  he: קרא את עמודים 10 עד 15 וסכם את התוכן
   verified_by_human: [en]
 
 read.how_to_use.3:
@@ -468,6 +486,7 @@ read.how_to_use.3:
   th: "\u0e2d\u0e48\u0e32\u0e19\u0e1a\u0e17\u0e19\u0e33\u0e02\u0e2d\u0e07 PDF"
   cs: "P\u0159e\u010dt\u011bte \u00favodn\u00ed kapitolu PDF"
   sv: "L\u00e4s introduktionskapitlet i PDF:en"
+  he: קרא את פרק המבוא ב-PDF
   verified_by_human: [en]
 
 search.how_to_use.1:
@@ -492,6 +511,7 @@ search.how_to_use.1:
   th: "\u0e04\u0e49\u0e19\u0e2b\u0e32 \"\u0e01\u0e32\u0e23\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19\u0e41\u0e1b\u0e25\u0e07\u0e2a\u0e20\u0e32\u0e1e\u0e20\u0e39\u0e21\u0e34\u0e2d\u0e32\u0e01\u0e32\u0e28\" \u0e43\u0e19 PDF"
   cs: "Hledejte \u201ezmena klimatu\u201c v PDF"
   sv: "S\u00f6k efter \"klimatf\u00f6r\u00e4ndringar\" i PDF:en"
+  he: "חפש \"שינויי אקלים\" ב-PDF"
   verified_by_human: [en]
 
 search.how_to_use.2:
@@ -516,6 +536,7 @@ search.how_to_use.2:
   th: "\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e17\u0e38\u0e01\u0e17\u0e35\u0e48\u0e17\u0e35\u0e48\u0e01\u0e25\u0e48\u0e32\u0e27\u0e16\u0e36\u0e07 \"\u0e44\u0e2d\u0e19\u0e2a\u0e44\u0e15\u0e19\u0e4c\" \u0e43\u0e19\u0e40\u0e2d\u0e01\u0e2a\u0e32\u0e23"
   cs: "Najdi v\u0161echny zm\u00ednky \u201eEinsteine\u201c v dokumentu"
   sv: "Hitta alla n\u00e4mningar av \"Einstein\" i dokumentet"
+  he: "מצא את כל האזכורים של \"איינשטיין\" במסמך"
   verified_by_human: [en]
 
 search.how_to_use.3:
@@ -540,4 +561,5 @@ search.how_to_use.3:
   th: "\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e17\u0e38\u0e01\u0e01\u0e32\u0e23\u0e2d\u0e49\u0e32\u0e07\u0e2d\u0e34\u0e07\u0e16\u0e36\u0e07 \"\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13\" \u0e43\u0e19\u0e23\u0e32\u0e22\u0e07\u0e32\u0e19\u0e19\u0e35\u0e49"
   cs: "Prohledejte v\u0161echny odkazy na \u201erozpo\u010det\u201c v t\u00e9to zpr\u00e1v\u011b"
   sv: "S\u00f6k efter alla referenser till \"budget\" i denna rapport"
+  he: "חפש את כל ההתייחסויות ל\"תקציב\" בדוח זה"
   verified_by_human: [en]

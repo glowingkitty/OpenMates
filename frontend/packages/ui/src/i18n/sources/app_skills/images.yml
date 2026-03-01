@@ -20,6 +20,7 @@ view:
   th: รูปภาพ
   cs: Obrázek
   sv: Bild
+  he: תמונה
   verified_by_human:
     - en
     - de
@@ -46,6 +47,7 @@ view.skill_title:
   th: ดู
   cs: Zobrazit
   sv: Visa
+  he: צפייה
   verified_by_human:
     - en
 
@@ -71,6 +73,7 @@ view.description:
   th: รูปภาพที่อัปโหลด
   cs: Nahraný obrázek
   sv: Uppladdad bild
+  he: תמונה שהועלתה
   verified_by_human:
     - en
     - de
@@ -97,6 +100,7 @@ view.uploading:
   th: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u2026"
   cs: "Nahr\u00e1v\u00e1n\u00ed\u2026"
   sv: "Laddar upp\u2026"
+  he: מעלה...
   verified_by_human:
     - en
 
@@ -122,6 +126,7 @@ view.upload_failed:
   th: "\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u0e25\u0e49\u0e21\u0e40\u0e2b\u0e25\u0e27"
   cs: "Nahr\u00e1v\u00e1n\u00ed selhalo"
   sv: Uppladdning misslyckades
+  he: העלאה נכשלה
   verified_by_human:
     - en
 
@@ -147,6 +152,7 @@ view.viewing:
   th: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e14\u0e39\u2026"
   cs: "Prohl\u00ed\u017een\u00ed\u2026"
   sv: "Visas\u2026"
+  he: צופה...
   verified_by_human:
     - en
 
@@ -172,6 +178,7 @@ view.ai_generated:
   th: สร้างโดย AI
   cs: Generováno AI
   sv: AI-genererad
+  he: נוצר על ידי AI
   verified_by_human:
     - en
 
@@ -197,6 +204,7 @@ view.signup_to_upload:
   th: "\u0e40\u0e02\u0e49\u0e32\u0e2a\u0e39\u0e48\u0e23\u0e30\u0e1a\u0e1a\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u2026"
   cs: "P\u0159ihla\u0161te se pro nahr\u00e1n\u00ed\u2026"
   sv: "Logga in f\u00f6r att ladda upp\u2026"
+  he: יש להירשם כדי להעלות...
   verified_by_human:
     - en
 
@@ -222,6 +230,7 @@ generate:
   th: สร้าง
   cs: Generovat
   sv: Generera
+  he: יצירה
   verified_by_human:
     - en
     - de
@@ -247,6 +256,7 @@ generate.description:
   th: สร้างภาพจากคำแนะนำและ/หรือภาพ
   cs: Vytvořte obrázky z výzvy a/nebo obrázků.
   sv: Skapa bilder från en prompt och/eller bilder.
+  he: יצירת תמונות מהנחיה ו/או מתמונות.
   verified_by_human:
     - en
     - de
@@ -273,6 +283,7 @@ generate.how_to_use.1:
   th: สร้างภาพพระอาทิตย์ตกเหนือทะเลสาบบนภูเขาในสไตล์สีน้ำ
   cs: Vygeneruj západ slunce nad horským jezerem ve stylu akvarelu
   sv: Generera en solnedgång över en bergssjö i akvarellstil
+  he: צור שקיעה מעל אגם הררי בסגנון צבעי מים
   verified_by_human: [en, de]
 
 generate.how_to_use.2:
@@ -297,6 +308,7 @@ generate.how_to_use.2:
   th: "สร้างโลโก้แบบมินิมอลสำหรับร้านกาแฟชื่อ 'Bean & Brew'"
   cs: "Vytvoř minimalistické logo pro kavárnu s názvem 'Bean & Brew'"
   sv: "Skapa en minimalistisk logotyp för ett kafé som heter 'Bean & Brew'"
+  he: "צור לוגו מינימליסטי לבית קפה בשם 'Bean & Brew'"
   verified_by_human: [en, de]
 
 generate.how_to_use.3:
@@ -321,6 +333,7 @@ generate.how_to_use.3:
   th: สร้างมุมอ่านหนังสือที่อบอุ่นพร้อมแสงไฟอบอุ่นและชั้นหนังสือ
   cs: Vygeneruj útulný čtecí koutek s teplým osvětlením a knihovnami
   sv: Generera en mysig läshörna med varm belysning och bokhyllor
+  he: צור פינת קריאה נעימה עם תאורה חמה ומדפי ספרים
   verified_by_human: [en, de]
 
 generate_draft:
@@ -345,6 +358,7 @@ generate_draft:
   th: สร้างฉบับร่าง
   cs: Generovat koncept
   sv: Generera utkast
+  he: יצירת טיוטה
   verified_by_human:
     - en
     - de
@@ -371,6 +385,7 @@ generate_draft.description:
   th: สร้างภาพฉบับร่างอย่างรวดเร็ว
   cs: Rychle generovat koncept obrázku.
   sv: Generera snabbt en utkastbild.
+  he: יצירה מהירה של טיוטת תמונה.
   verified_by_human:
     - en
     - de
@@ -397,6 +412,7 @@ generate_draft.how_to_use.1:
   th: ร่างเร็วของแมวสวมหมวกอวกาศ
   cs: Rychlý náčrt kočky s kosmickou helmou
   sv: Snabbt utkast av en katt med rymdhjälm
+  he: טיוטה מהירה של חתול חובש קסדת חלל
   verified_by_human: [en, de]
 
 generate_draft.how_to_use.2:
@@ -421,6 +437,7 @@ generate_draft.how_to_use.2:
   th: ร่างเลย์เอาต์สำหรับหน้าจอเข้าสู่ระบบแอปมือถือ
   cs: Nakresli rozložení přihlašovací obrazovky mobilní aplikace
   sv: Skissa en layout för en inloggningsskärm i en mobilapp
+  he: שרטט פריסה למסך התחברות של אפליקציה לנייד
   verified_by_human: [en, de]
 
 generate_draft.how_to_use.3:
@@ -445,6 +462,7 @@ generate_draft.how_to_use.3:
   th: ร่างภาพประกอบง่ายๆ ของต้นไม้ในสี่ฤดูกาล
   cs: Nakresli jednoduchý náčrt stromu ve čtyřech ročních obdobích
   sv: Gör ett utkast av en enkel illustration av ett träd i fyra årstider
+  he: צור טיוטה של איור פשוט של עץ בארבע עונות
   verified_by_human: [en, de]
 
 vectorize:
@@ -469,6 +487,7 @@ vectorize:
   th: แปลงเป็นเวกเตอร์
   cs: Vektorizovat
   sv: Vektorisera
+  he: וקטוריזציה
   verified_by_human:
     - en
     - de
@@ -495,6 +514,7 @@ vectorize.description:
   th: แปลงภาพ raster ให้เป็นไฟล์เวกเตอร์ SVG ที่ขยายได้
   cs: Převeďte rastrové obrázky na škálovatelné SVG vektorové soubory.
   sv: Konvertera rasterbilder till skalbara SVG-vektorfiler.
+  he: המרת תמונות רסטר לקובצי וקטור SVG הניתנים להגדלה.
   verified_by_human: []
 
 vectorize.how_to_use.1:
@@ -519,6 +539,7 @@ vectorize.how_to_use.1:
   th: แปลงโลโก้บริษัทของฉันเป็นเวกเตอร์เพื่อให้ขยายได้โดยไม่สูญเสียคุณภาพ
   cs: Vektorizuj logo mé firmy, abych ho mohl škálovat bez ztráty kvality
   sv: Vektorisera min företagslogotyp så att jag kan skala den utan kvalitetsförlust
+  he: הפוך את לוגו החברה שלי לווקטור כדי שאוכל להגדיל אותו מבלי לאבד איכות
   verified_by_human: [en, de]
 
 vectorize.how_to_use.2:
@@ -543,6 +564,7 @@ vectorize.how_to_use.2:
   th: แปลงภาพร่างที่วาดด้วยมือนี้ให้เป็นภาพประกอบเวกเตอร์ SVG ที่สะอาด
   cs: Přeměň tento ručně kreslený náčrt v čistou SVG vektorovou ilustraci
   sv: Förvandla den här handritade skissen till en ren SVG-vektorillustration
+  he: הפוך את הסקיצה הידנית הזו לאיור וקטורי SVG נקי
   verified_by_human: [en, de]
 
 vectorize.how_to_use.3:
@@ -567,4 +589,5 @@ vectorize.how_to_use.3:
   th: แปลงไอคอน PNG นี้เป็น SVG เพื่อให้ดูคมชัดในทุกขนาด
   cs: Převeď tuto PNG ikonu na SVG, aby vypadala ostře v jakékoliv velikosti
   sv: Konvertera den här PNG-ikonen till SVG så att den ser skarp ut i alla storlekar
+  he: המר את אייקון ה-PNG הזה ל-SVG כדי שייראה חד בכל גודל
   verified_by_human: [en, de]

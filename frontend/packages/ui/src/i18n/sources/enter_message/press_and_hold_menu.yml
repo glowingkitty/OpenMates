@@ -20,6 +20,7 @@ delete:
   th: ลบ
   cs: Smazat
   sv: 'Ta bort'
+  he: מחיקה
   verified_by_human: []
 copy_link:
   context: Menu option to copy web link
@@ -43,6 +44,7 @@ copy_link:
   th: คัดลอกลิงก์
   cs: Kopírovat odkaz
   sv: 'Kopiera länk'
+  he: העתקת קישור
   verified_by_human: []
 download:
   context: Menu option to download an attachment
@@ -66,6 +68,7 @@ download:
   th: ดาวน์โหลด
   cs: Stáhnout
   sv: 'Ladda ner'
+  he: הורדה
   verified_by_human: []
 view:
   context: Menu option to view attachment in full screen
@@ -89,6 +92,7 @@ view:
   th: ดู
   cs: Zobrazit
   sv: 'Visa'
+  he: צפייה
   verified_by_human: []
 copied_to_clipboard:
   context: Message shown when a URL has been copied to clipboard
@@ -112,4 +116,5 @@ copied_to_clipboard:
   th: คัดลอกไปยังคลิปบอร์ดแล้ว
   cs: Zkopírováno do schránky
   sv: 'Kopierat till urklipp'
+  he: הועתק ללוח
   verified_by_human: []

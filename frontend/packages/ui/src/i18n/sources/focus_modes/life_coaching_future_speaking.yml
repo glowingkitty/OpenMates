@@ -20,6 +20,7 @@ life_coaching_future_speaking:
   th: การพูดคุยเกี่ยวกับอนาคต
   cs: Rozhovor o budoucnosti
   sv: Framtidsamtal
+  he: דיבור אל העתיד
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: เทคนิคการโค้ชชีวิตที่ทรงพลัง
   cs: Mocná technika životního koučinku.
   sv: En kraftfull livscoachingteknik.
+  he: טכניקת אימון אישי עוצמתית.
   verified_by_human:
     - en

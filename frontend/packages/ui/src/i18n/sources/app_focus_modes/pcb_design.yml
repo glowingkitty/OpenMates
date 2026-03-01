@@ -20,6 +20,7 @@ create_schematic:
   th: สร้างแผนผัง
   cs: Vytvořit schéma
   sv: Skapa schema
+  he: יצירת סכימה
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ create_schematic.description:
   th: วางแผนและสร้างแผนผัง PCB
   cs: Naplánujte a vytvořte schéma desky plošných spojů.
   sv: Planera och skapa ett PCB-schema.
+  he: תכנון ויצירה של סכימת PCB.
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ create_layout:
   th: สร้างเค้าโครง
   cs: Vytvořit rozvržení
   sv: Skapa layout
+  he: יצירת עריכה
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ create_layout.description:
   th: วางแผนและสร้างเค้าโครง PCB
   cs: Naplánujte a vytvořte rozvržení desky plošných spojů.
   sv: Planera och skapa ett PCB-layout.
+  he: תכנון ויצירה של עריכת PCB.
   verified_by_human:
     - en
     - de

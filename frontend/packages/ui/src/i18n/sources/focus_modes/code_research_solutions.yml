@@ -20,6 +20,7 @@ code_research_solutions:
   th: วิจัยโซลูชัน
   cs: Zkoumat řešení
   sv: Forska lösningar
+  he: מחקר פתרונות
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: วิจัยเทคโนโลยีที่เหมาะกับความต้องการของคุณ
   cs: Zjistěte, jaká technologie vyhovuje vašim potřebám.
   sv: Undersök vilken teknik som passar dina behov.
+  he: חקור איזו טכנולוגיה מתאימה לדרישות שלך.
   verified_by_human:
     - en

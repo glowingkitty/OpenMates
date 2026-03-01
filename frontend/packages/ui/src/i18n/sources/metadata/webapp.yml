@@ -20,6 +20,7 @@ title:
   th: OpenMates
   cs: OpenMates
   sv: OpenMates
+  he: OpenMates
   verified_by_human: []
 description:
   context: Description for the web app page
@@ -43,4 +44,5 @@ description:
   th: แอป OpenMates เว็บช่วยให้คุณโต้ตอบกับ OpenMates ผ่านเบราว์เซอร์ของคุณ
   cs: Webová aplikace OpenMates vám umožňuje komunikovat s OpenMates prostřednictvím vašeho prohlížeče.
   sv: OpenMates webbapplikationen låter dig interagera med OpenMates via din webbläsare.
+  he: אפליקציית הווב של OpenMates מאפשרת לך ליצור אינטראקציה עם OpenMates דרך הדפדפן שלך.
   verified_by_human: []

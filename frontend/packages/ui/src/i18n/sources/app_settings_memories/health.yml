@@ -20,6 +20,7 @@ appointments:
   th: นัดหมาย
   cs: Schůzky
   sv: Bokningar
+  he: תורים
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ appointments.description:
   th: นัดหมายและการพบแพทย์ของคุณ
   cs: Vaše lékařské schůzky a návštěvy.
   sv: Dina medicinska bokningar och besök.
+  he: התורים והביקורים הרפואיים שלך.
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ medical_history:
   th: ประวัติการรักษา
   cs: Lékařská historie
   sv: Medicinsk historik
+  he: היסטוריה רפואית
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ medical_history.description:
   th: การผ่าตัด ภาวะสุขภาพ และการแพ้ในอดีต
   cs: Minulé operace, stavy a alergie.
   sv: Tidigare operationer, tillstånd och allergier.
+  he: ניתוחי עבר, מצבים רפואיים ואלרגיות.
   verified_by_human:
     - en
     - de
@@ -120,6 +124,7 @@ symptoms_log:
   th: บันทึกอาการ
   cs: Záznam příznaků
   sv: Symptomlogg
+  he: יומן תסמינים
   verified_by_human:
     - en
     - de
@@ -145,6 +150,7 @@ symptoms_log.description:
   th: ติดตามอาการพร้อมวันที่และรายละเอียด
   cs: Sledujte příznaky s daty a podrobnostmi.
   sv: Spåra symptom med datum och detaljer.
+  he: מעקב אחר תסמינים עם תאריכים ופרטים.
   verified_by_human:
     - en
     - de
@@ -170,6 +176,7 @@ sleep_diary:
   th: ไดอารี่การนอนหลับ
   cs: Deník spánku
   sv: Sömnjournal
+  he: יומן שינה
   verified_by_human:
     - en
     - de
@@ -195,6 +202,7 @@ sleep_diary.description:
   th: ติดตามรูปแบบและคุณภาพการนอนหลับ
   cs: Sledujte spánkové vzorce a kvalitu.
   sv: Spåra sömnmönster och kvalitet.
+  he: מעקב אחר דפוסי שינה ואיכות השינה.
   verified_by_human:
     - en
     - de
@@ -223,6 +231,7 @@ appointments.example_1:
   th: ทันตแพทย์ Dr. Mueller
   cs: Zubař Dr. Mueller
   sv: Tandläkare Dr. Mueller
+  he: "רופא שיניים ד\"ר מילר"
   verified_by_human: [en, de]
 
 appointments.example_2:
@@ -247,6 +256,7 @@ appointments.example_2:
   th: ตรวจสายตา
   cs: Oční vyšetření
   sv: Ögonundersökning
+  he: בדיקת עיניים תקופתית
   verified_by_human: [en, de]
 
 medical_history.example_1:
@@ -271,6 +281,7 @@ medical_history.example_1:
   th: แพ้ยาเพนิซิลลิน
   cs: Alergie na penicilin
   sv: Penicillinallergi
+  he: אלרגיה לפניצילין
   verified_by_human: [en, de]
 
 medical_history.example_2:
@@ -295,4 +306,5 @@ medical_history.example_2:
   th: ผ่าตัดเข่า 2023
   cs: Operace kolena 2023
   sv: Knäoperation 2023
+  he: ניתוח ברך 2023
   verified_by_human: [en, de]

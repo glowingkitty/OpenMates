@@ -20,6 +20,7 @@ calendar:
   th: ''
   cs: ''
   sv: ''
+  he: לוח שנה
   verified_by_human: []
 health:
   context: Health app name in the UI
@@ -43,6 +44,7 @@ health:
   th: ''
   cs: ''
   sv: ''
+  he: בריאות
   verified_by_human: []
 events:
   context: Used in 'Events | Search'
@@ -66,6 +68,7 @@ events:
   th: ''
   cs: ''
   sv: ''
+  he: אירועים
   verified_by_human: []
 search:
   context: Used in 'Events | Search'
@@ -89,4 +92,5 @@ search:
   th: ''
   cs: ''
   sv: ''
+  he: חיפוש
   verified_by_human: []

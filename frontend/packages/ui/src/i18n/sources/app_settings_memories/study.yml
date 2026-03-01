@@ -20,6 +20,7 @@ learning_goals:
   th: เป้าหมายการเรียนรู้
   cs: Učební cíle
   sv: Lärandemål
+  he: יעדי למידה
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ learning_goals.description:
   th: วัตถุประสงค์การเรียนรู้และหัวข้อที่ต้องการเชี่ยวชาญ
   cs: Vaše učební cíle a témata ke zvládnutí
   sv: Dina lärandemål och ämnen att bemästra
+  he: יעדי הלמידה שלך ונושאים להתמקצעות
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ education_history:
   th: ประวัติการศึกษา
   cs: Vzdělávací historie
   sv: Utbildningshistorik
+  he: היסטוריית השכלה
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ education_history.description:
   th: ประวัติการศึกษาและใบรับรองของคุณ
   cs: Vaše akademické zázemí a certifikace
   sv: Din akademiska bakgrund och certifieringar
+  he: הרקע האקדמי וההסמכות שלך
   verified_by_human:
     - en
     - de
@@ -120,6 +124,7 @@ career_interests:
   th: ความสนใจในอาชีพ
   cs: Kariérní zájmy
   sv: Karriärintressen
+  he: תחומי עניין בקריירה
   verified_by_human:
     - en
     - de
@@ -145,6 +150,7 @@ career_interests.description:
   th: เป้าหมายอาชีพและความปรารถนาในอาชีพของคุณ
   cs: Vaše kariérní cíle a profesní aspirace
   sv: Dina karriärmål och professionella ambitioner
+  he: יעדי הקריירה והשאיפות המקצועיות שלך
   verified_by_human:
     - en
     - de
@@ -173,6 +179,7 @@ learning_goals.example_1:
   th: ภาษาสเปนระดับ B2
   cs: Španělština úroveň B2
   sv: Spanska B2-nivå
+  he: ספרדית ברמת B2
   verified_by_human: [en, de]
 
 learning_goals.example_2:
@@ -197,4 +204,5 @@ learning_goals.example_2:
   th: พื้นฐาน Data Science
   cs: Základy Data Science
   sv: Data Science grunderna
+  he: יסודות מדעי הנתונים
   verified_by_human: [en, de]

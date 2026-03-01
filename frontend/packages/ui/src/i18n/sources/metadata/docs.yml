@@ -20,6 +20,7 @@ title:
   th: เอกสาร | OpenMates
   cs: Dokumentace | OpenMates
   sv: Dokumentation | OpenMates
+  he: "תיעוד | OpenMates"
   verified_by_human: []
 description:
   context: Description for the main documentation page
@@ -43,4 +44,5 @@ description:
   th: เอกสารที่ครอบคลุมสำหรับ OpenMates - จากเอกสาร API ไปจนถึงแนวทางการออกแบบ แผนงาน และอื่นๆ
   cs: Komplexní dokumentace pro OpenMates - od dokumentace API přes návrhové směrnice až po roadmapu a další.
   sv: Omfattande dokumentation för OpenMates - från API-dokumentation till designriktlinjer, färdplan och mer.
+  he: תיעוד מקיף עבור OpenMates - מתיעוד ה-API, ועד להנחיות העיצוב, מפת הדרכים ועוד.
   verified_by_human: []

@@ -20,6 +20,7 @@ section_title:
   th: แนวทางการออกแบบ
   cs: Pokyny pro design
   sv: Designriktlinjer
+  he: קווים מנחים לעיצוב
   verified_by_human: []
 privacy.headline:
   context: Main headline for privacy section
@@ -43,6 +44,7 @@ privacy.headline:
   th: ความเป็นส่วนตัวของคุณมีความสำคัญ
   cs: Vaše soukromí je důležité
   sv: Din integritet är viktig
+  he: הפרטיות שלך חשובה לנו
   verified_by_human: []
 privacy:
   context: Main text explaining privacy importance
@@ -66,6 +68,7 @@ privacy:
   th: ในโลกที่ปั่นป่วนในปัจจุบัน ที่บริษัทที่แสวงหากำไรอย่างไม่มีข้อจำกัดมักจะใช้ข้อมูลผู้ใช้ในทางที่ผิด ที่บริษัทที่มีมาตรการความปลอดภัยไม่เพียงพอถูกแฮ็กเป็นประจำและข้อมูลผู้ใช้ของพวกเขาตกไปอยู่ในมือของผู้ทำร้าย และที่เราไม่สามารถพึ่งพารัฐบาลเสมอไปในการปกป้องสิทธิและความเป็นอยู่ที่ดีของพลเมือง การตัดสินใจเพื่อปกป้องความเป็นส่วนตัวของคุณได้กลายเป็นสิ่งสำคัญมากขึ้น
   cs: V dnešním bouřlivém světě, kde společnosti zaměřené na zisk za každou cenu často zneužívají uživatelská data, kde společnosti s nedostatečnými bezpečnostními opatřeními jsou pravidelně hacknuty a data jejich uživatelů se dostanou do rukou zlých aktérů, a kde nemůžeme vždy spoléhat na vlády, že budou chránit práva a blahobyt svých občanů, se rozhodnutí o ochraně vašeho soukromí stala stále důležitější.
   sv: I dagens turbulenta värld, där företag som strävar efter vinst till varje pris ofta missbrukar användardata, där företag med otillräckliga säkerhetsåtgärder regelbundet hackas och deras användares data hamnar i händerna på dåliga aktörer, och där vi inte alltid kan lita på att regeringar skyddar sina medborgares rättigheter och välbefinnande, har beslut för att skydda din integritet blivit alltmer väsentliga.
+  he: בעולם הסוער של ימינו, שבו חברות השואפות לרווח בכל מחיר עושות לעיתים קרובות שימוש לרעה בנתוני משתמשים, שבו חברות עם אמצעי אבטחה לא מספקים נפרצות באופן קבוע ונתוני המשתמשים שלהן נופלים לידיהם של גורמים עוינים, ושבו לא תמיד ניתן לסמוך על ממשלות שיגנו על הזכויות והרווחה של אזרחיהן, קבלת החלטות להגנה על הפרטיות שלך הפכה לחיונית יותר ויותר.
   verified_by_human: []
 privacy.subtext:
   context: Conclusion for privacy section
@@ -125,6 +128,10 @@ privacy.subtext:
   th: ''
   cs: ''
   sv: ''
+  he: |
+    לכן,
+    OpenMates תוכננה
+    עם דגש על פרטיות.
   verified_by_human: []
 privacy.anonymization:
   context: Privacy feature - anonymization
@@ -148,6 +155,7 @@ privacy.anonymization:
   th: ''
   cs: ''
   sv: ''
+  he: אנונימיזציה
   verified_by_human: []
 privacy.local_processing:
   context: Privacy feature - local processing
@@ -171,6 +179,7 @@ privacy.local_processing:
   th: ''
   cs: ''
   sv: ''
+  he: עיבוד מקומי תחילה
   verified_by_human: []
 privacy.self_hosting:
   context: Privacy feature - self hosting
@@ -194,6 +203,7 @@ privacy.self_hosting:
   th: ''
   cs: ''
   sv: ''
+  he: אפשרות לאירוח עצמי
   verified_by_human: []
 maximum_good.headline_1:
   context: Used in 'Maximum good, not maximum greed.'
@@ -217,6 +227,7 @@ maximum_good.headline_1:
   th: ''
   cs: ''
   sv: ''
+  he: מקסימום טוב
   verified_by_human: []
 maximum_good.headline_2:
   context: Used in 'Maximum good, not maximum greed.'
@@ -240,6 +251,7 @@ maximum_good.headline_2:
   th: ''
   cs: ''
   sv: ''
+  he: לא מקסימום חמדנות.
   verified_by_human: []
 maximum_good:
   context: Main text explaining maximum good philosophy
@@ -263,6 +275,7 @@ maximum_good:
   th: ''
   cs: ''
   sv: ''
+  he: במהלך השנים האחרונות, מונופולי טכנולוגיה השואפים לרווח בכל מחיר העדיפו שוב ושוב את חמדנותם על פני האינטרסים של המשתמשים שלהם ושל כדור הארץ שלנו, תוך התעלמות מההשלכות השליליות ומההרס שנגרמו כתוצאה מהחלטות אלו. אנחנו לא יכולים פשוט להמשיך ככה.
   verified_by_human: []
 maximum_good.subtext:
   context: Conclusion for maximum good section
@@ -322,6 +335,10 @@ maximum_good.subtext:
   th: ''
   cs: ''
   sv: ''
+  he: |
+    לכן,
+    OpenMates תוכננה
+    עם דגש על מקסום ההשפעה החיובית של בינה מלאכותית.
   verified_by_human: []
 maximum_good.open_source:
   context: Maximum good feature - open source
@@ -345,6 +362,7 @@ maximum_good.open_source:
   th: ''
   cs: ''
   sv: ''
+  he: קוד פתוח
   verified_by_human: []
 maximum_good.provider_independent:
   context: Maximum good feature - provider independence
@@ -368,6 +386,7 @@ maximum_good.provider_independent:
   th: ''
   cs: ''
   sv: ''
+  he: בלתי תלוי בספקים
   verified_by_human: []
 maximum_good.chat_anywhere:
   context: Maximum good feature - universal chat
@@ -391,4 +410,5 @@ maximum_good.chat_anywhere:
   th: ''
   cs: ''
   sv: ''
+  he: "צ'אט בכל מקום"
   verified_by_human: []

@@ -20,6 +20,7 @@ take_photo:
   th: ถ่ายภาพ
   cs: Pořídit fotku
   sv: "Ta foto"
+  he: צלם תמונה
   verified_by_human: []
 attach_files:
   context: Button text for attaching files
@@ -43,6 +44,7 @@ attach_files:
   th: แนบไฟล์
   cs: Přiložit soubory
   sv: "Bifoga filer"
+  he: צרף קבצים
   verified_by_human: []
 record_audio:
   context: Button text for recording audio
@@ -66,6 +68,7 @@ record_audio:
   th: บันทึกเสียง
   cs: Nahrát zvuk
   sv: "Spela in ljud"
+  he: הקלט שמע
   verified_by_human: []
 share_location:
   context: Button text for sharing location
@@ -89,6 +92,7 @@ share_location:
   th: แชร์ตำแหน่ง
   cs: Sdílet polohu
   sv: "Dela plats"
+  he: שתף מיקום
   verified_by_human: []
 drop_files:
   context: Overlay text shown when the user drags files over the message input area
@@ -112,4 +116,5 @@ drop_files:
   th: วางไฟล์เพื่ออัปโหลด
   cs: Přetáhněte soubory pro nahrání
   sv: "Släpp filer för att ladda upp"
+  he: שחרר קבצים להעלאה
   verified_by_human: []

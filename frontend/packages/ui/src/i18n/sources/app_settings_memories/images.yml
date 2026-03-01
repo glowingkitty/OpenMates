@@ -20,6 +20,7 @@ preferred_styles:
   th: สไตล์ที่ชอบ
   cs: Preferované styly
   sv: Föredragna stilar
+  he: סגנונות מועדפים
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ preferred_styles.description:
   th: สไตล์ที่คุณชอบสำหรับภาพที่สร้าง
   cs: Vaše preferované styly pro generované obrázky
   sv: Dina föredragna stilar för genererade bilder
+  he: הסגנונות המועדפים עליך עבור תמונות שנוצרו
   verified_by_human:
     - en
     - de
@@ -73,6 +75,7 @@ preferred_styles.example_1:
   th: สีน้ำ
   cs: Akvarel
   sv: Akvarell
+  he: צבעי מים
   verified_by_human:
     - en
     - de
@@ -98,6 +101,7 @@ preferred_styles.example_2:
   th: มินิมอล
   cs: Minimalistický
   sv: Minimalistisk
+  he: מינימליסטי
   verified_by_human:
     - en
     - de
@@ -123,6 +127,7 @@ preferred_styles.example_3:
   th: ไซเบอร์พังค์
   cs: Cyberpunk
   sv: Cyberpunk
+  he: סייברפאנק
   verified_by_human:
     - en
     - de

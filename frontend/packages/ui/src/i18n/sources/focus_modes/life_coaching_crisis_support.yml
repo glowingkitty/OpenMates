@@ -20,6 +20,7 @@ life_coaching_crisis_support:
   th: การสนับสนุนในยามวิกฤต
   cs: Podpora v krizi
   sv: Krisstöd
+  he: תמיכה במשברים
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: รับการสนับสนุนในยามยากลำบากและวางแผนล่วงหน้า
   cs: Podpora v obtížných časech a plánování dalšího.
   sv: Få stöd i svåra tider och planera framåt.
+  he: קבלת תמיכה בזמנים קשים ותכנון קדימה.
   verified_by_human:
     - en

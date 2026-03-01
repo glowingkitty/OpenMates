@@ -20,6 +20,7 @@ study_learn_topic:
   th: เรียนรู้หัวข้อ
   cs: Naučit se téma
   sv: Lär dig ämne
+  he: למידת נושא
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: เรียนรู้ด้วยบทเรียนแบบปรับตัวและการแจ้งเตือน
   cs: Učte se s adaptivními lekcemi a připomínkami.
   sv: Lär dig med adaptiva lektioner och påminnelser.
+  he: למידה באמצעות שיעורים אדפטיביים ותזכורות.
   verified_by_human:
     - en
 process:
@@ -54,10 +56,17 @@ process:
     - breaks down the topic into manageable subtopics
     - creates a personalized learning schedule with spaced repetition
     - integrates with Reminder app to send periodic review notifications
+  he: |
+    - שואל איזה נושא ברצונך ללמוד
+    - קובע את רמת הידע הנוכחית ואת יעדי הלמידה שלך
+    - מחלק את הנושא לתתי-נושאים נוחים לניהול
+    - יוצר לוח זמנים מותאם אישית ללמידה עם חזרה מרווחת
+    - מתממשק עם אפליקציית התזכורות כדי לשלוח התראות חזרה תקופתיות
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when learn_topic focus mode is active
   en: You are an expert learning facilitator. Help users master new topics through structured learning, clear explanations, and strategic repetition.
+  he: אתה מנחה למידה מומחה. עזור למשתמשים לשלוט בנושאים חדשים באמצעות למידה מובנית, הסברים ברורים וחזרה אסטרטגית.
   verified_by_human:
     - en

@@ -20,6 +20,7 @@ code_improve_issue:
   th: ปรับปรุงปัญหา
   cs: Zlepšit problém
   sv: Förbättra problem
+  he: שיפור אישו
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: ปรับปรุงปัญหาโดยเพิ่มรายละเอียดและความชัดเจน
   cs: Vylepšete problémy přidáním detailů a jasnosti.
   sv: Förbättra ärenden med mer detaljer och tydlighet.
+  he: שפר משימות על ידי הוספת פרטים ובהירות.
   verified_by_human:
     - en

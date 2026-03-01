@@ -20,6 +20,7 @@ translate:
   th: แปล
   cs: Přeložit
   sv: Översätt
+  he: תרגום
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ translate.description:
   th: แปลอีบุ๊กเป็นภาษาอื่น
   cs: Přeložte eBook do jiného jazyka.
   sv: Översätt en e-bok till ett annat språk.
+  he: תרגום ספר דיגיטלי לשפה אחרת.
   verified_by_human:
     - en
     - de
@@ -71,6 +73,7 @@ translate.how_to_use.1:
   th: แปลอีบุ๊ก "เจ้าชายน้อย" เป็นภาษาเยอรมัน
   cs: Přeložte můj eBook „Malý princ" do němčiny
   sv: Översätt min e-bok "Lille prinsen" till tyska
+  he: "תרגם את הספר הדיגיטלי שלי \"הנסיך הקטן\" לגרמנית"
   verified_by_human: [en, de]
 
 translate.how_to_use.2:
@@ -95,6 +98,7 @@ translate.how_to_use.2:
   th: แปลหนังสือนี้จากภาษาอังกฤษเป็นภาษาสเปน
   cs: Přeložte tuto knihu z angličtiny do španělštiny
   sv: Översätt den här boken från engelska till spanska
+  he: תרגם את הספר הזה מאנגלית לספרדית
   verified_by_human: [en, de]
 
 translate.how_to_use.3:
@@ -119,4 +123,5 @@ translate.how_to_use.3:
   th: แปลงอีบุ๊กภาษาอังกฤษเป็นภาษาฝรั่งเศส
   cs: Převeďte můj anglický eBook do francouzštiny
   sv: Konvertera min engelska e-bok till franska
+  he: המר את הספר הדיגיטלי שלי מאנגלית לצרפתית
   verified_by_human: [en, de]

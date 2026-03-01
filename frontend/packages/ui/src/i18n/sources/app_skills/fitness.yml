@@ -20,6 +20,7 @@ search_locations_and_courses:
   th: ค้นหาสถานที่และหลักสูตร
   cs: Hledat místa a kurzy
   sv: Sök platser och kurser
+  he: חיפוש מיקומים ושיעורים
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ search_locations_and_courses.description:
   th: ค้นหาสถานที่และหลักสูตรฟิตเนสใกล้คุณ
   cs: Najděte fitness místa a kurzy poblíž.
   sv: Hitta fitnessplatser och kurser nära dig.
+  he: מצא מיקומי כושר ושיעורים בקרבתך.
   verified_by_human:
     - en
     - de
@@ -71,6 +73,7 @@ search_locations_and_courses.how_to_use.1:
   th: ค้นหาคลาสโยคะใกล้ฉันเย็นนี้
   cs: Najděte lekce jógy poblíž dnes večer
   sv: Hitta yogaklasser nära mig ikväll
+  he: מצא שיעורי יוגה בקרבתי הערב
   verified_by_human: [en, de]
 
 search_locations_and_courses.how_to_use.2:
@@ -95,6 +98,7 @@ search_locations_and_courses.how_to_use.2:
   th: ค้นหาฟิตเนสที่มีสระว่ายน้ำใน Berlin
   cs: Hledejte posilovny s bazény v Berlin
   sv: Sök gym med simbassänger i Berlin
+  he: חפש מכוני כושר עם בריכות שחייה בברלין
   verified_by_human: [en, de]
 
 search_locations_and_courses.how_to_use.3:
@@ -119,4 +123,5 @@ search_locations_and_courses.how_to_use.3:
   th: มีคอร์สพิลาทิสใกล้ๆ ช่วงสุดสัปดาห์นี้ไหม?
   cs: Jsou v okolí tento víkend nějaké kurzy Pilates?
   sv: Finns det Pilateskurser i närheten denna helg?
+  he: "האם יש שיעורי פילאטיס בקרבת מקום בסוף השבוע הזה?"
   verified_by_human: [en, de]

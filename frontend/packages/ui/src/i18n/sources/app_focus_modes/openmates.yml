@@ -20,6 +20,7 @@ welcome:
   th: ยินดีต้อนรับ
   cs: Vítejte
   sv: Välkommen
+  he: ברוכים הבאים
   verified_by_human: [en]
 
 welcome.description:
@@ -44,4 +45,5 @@ welcome.description:
   th: สำรวจ OpenMates และค้นหาเครื่องมือที่เหมาะกับคุณ
   cs: Prozkoumejte OpenMates a najděte správné nástroje.
   sv: Utforska OpenMates och hitta rätt verktyg.
+  he: גלו את OpenMates ומצאו את הכלים המתאימים.
   verified_by_human: [en]

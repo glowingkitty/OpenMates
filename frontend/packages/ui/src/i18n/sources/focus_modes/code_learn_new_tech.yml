@@ -20,6 +20,7 @@ code_learn_new_tech:
   th: เรียนรู้เทคโนโลยีใหม่
   cs: Naučit se novou technologii
   sv: Lär dig ny teknik
+  he: למידת טכנולוגיה חדשה
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: เรียนรู้ภาษา เฟรมเวิร์ก หรือเทคโนโลยีใหม่
   cs: Naučte se nový jazyk, framework nebo technologii.
   sv: Lär dig ett nytt språk, ramverk eller teknik.
+  he: למידת שפה, תשתית או טכנולוגיה חדשה.
   verified_by_human:
     - en
 process:
@@ -52,5 +54,9 @@ process:
     - asks user what their learning goal is (understanding a specific part of a new technology, extending knowledge, etc.)
     - show examples, suggest a sample project, consider Q&As or other learning methods for understanding a tech
     - goal is to assist software developers who don't want to use AI assisted coding but still profit from the use of AI (and ease the developers into accepting AI support more).
+  he: |
+    - שואל את המשתמש מהו יעד הלמידה שלו (הבנת חלק ספציפי בטכנולוגיה חדשה, הרחבת ידע וכו')
+    - מציג דוגמאות, מציע פרויקט לדוגמה, בוחן שאלות ותשובות או שיטות למידה אחרות להבנת טכנולוגיה
+    - המטרה היא לסייע למפתחי תוכנה שלא מעוניינים להשתמש בכתיבת קוד בסיוע AI, אך עדיין רוצים להפיק תועלת מהשימוש ב-AI (ולסייע למפתחים להתרגל בהדרגה לקבלת תמיכה מ-AI).
   verified_by_human:
     - en

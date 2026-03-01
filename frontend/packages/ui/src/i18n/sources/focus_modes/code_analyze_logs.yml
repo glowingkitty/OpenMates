@@ -20,6 +20,7 @@ code_analyze_logs:
   th: วิเคราะห์บันทึก
   cs: Analyzovat protokoly
   sv: Analysera loggar
+  he: ניתוח לוגים
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: วิเคราะห์บันทึกเพื่อค้นหาปัญหา
   cs: Analyzujte protokoly a najděte problémy.
   sv: Analysera loggar för att hitta problem.
+  he: הבנה וניתוח של לוגים כדי למצוא בעיות.
   verified_by_human:
     - en

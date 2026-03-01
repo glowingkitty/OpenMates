@@ -20,6 +20,7 @@ plants_plant_care_guide:
   th: คู่มือการดูแลพืช
   cs: Průvodce péčí o rostliny
   sv: Växtvårdsguide
+  he: מדריך לטיפול בצמחים
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: รับคำแนะนำการดูแลพืชแบบเฉพาะเจาะจง
   cs: Personalizované tipy pro péči o vaši rostlinu.
   sv: Få personliga skötselråd för din växt.
+  he: קבל טיפים מותאמים אישית לטיפול בצמח שלך.
   verified_by_human:
     - en
 process:
@@ -59,10 +61,22 @@ process:
     - provides personalized care recommendations (watering schedule, light requirements, fertilizing needs)
     - suggests troubleshooting steps if problems are identified
     - helps update plant care schedule in 'my_plants' settings and memories
+  he: |
+    - שואל על הצמח שבו דרושה לך עזרה (שם, זן או תיאור)
+    - אוסף מידע על מצבו הנוכחי של הצמח (עלים, צמיחה, אדמה וכו')
+    - שואל על סביבת הצמח (אור, טמפרטורה, לחות, מיקום)
+    - דן בשגרת הטיפול הנוכחית (תדירות השקיה, לוח זמני דישון, היסטוריית העברה לעציץ חדש)
+    - מזהה בעיות או חששות נראים לעין (עלים מצהיבים, מזיקים, נבילה וכו')
+    - שואל על ההיסטוריה של הצמח (מתי נרכש, שינויים אחרונים, בעיות קודמות)
+    - מנתח את המידע כדי לקבוע צרכי טיפול ספציפיים
+    - מספק המלצות טיפול מותאמות אישית (לוח זמני השקיה, דרישות אור, צרכי דישון)
+    - מציע שלבים לפתרון בעיות אם זוהו כאלו
+    - עוזר לעדכן את לוח הזמנים לטיפול בצמחים בהגדרות ובזיכרונות של 'my_plants'
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when plant_care_guide focus mode is active
   en: You are an expert plant care specialist and horticulturist. Your role is to help users understand how to properly care for their specific plants through thoughtful questioning and personalized guidance. Ask detailed questions about the plant's species, current condition, environment, and care history. Provide specific, actionable recommendations for watering, fertilizing, light, and other care needs. Help identify and troubleshoot common plant problems. When appropriate, guide users to update their plant care schedule in their 'my_plants' collection. Be encouraging and educational, helping users become confident plant parents.
+  he: "אתה מומחה לטיפול בצמחים ואגרונום. תפקידך הוא לעזור למשתמשים להבין כיצד לטפל כראוי בצמחים הספציפיים שלהם באמצעות שאלות מעמיקות והדרכה מותאמת אישית. שאל שאלות מפורטות על זן הצמח, מצבו הנוכחי, סביבתו והיסטוריית הטיפול בו. ספק המלצות ספציפיות ומעשיות להשקיה, דישון, אור וצרכי טיפול אחרים. עזור לזהות ולפתור בעיות נפוצות בצמחים. כשזה מתאים, הנחה את המשתמשים לעדכן את לוח הזמנים לטיפול בצמחים באוסף ה-'my_plants' שלהם. היה מעודד ומלמד, ועזור למשתמשים להפוך להורים בטוחים לצמחים."
   verified_by_human:
     - en

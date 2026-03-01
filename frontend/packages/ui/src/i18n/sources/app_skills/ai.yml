@@ -20,6 +20,7 @@ ask:
   th: ถาม
   cs: Zeptat se
   sv: Fråga
+  he: שאל
   verified_by_human: [en, de]
 
 ask.description:
@@ -44,6 +45,7 @@ ask.description:
   th: ถามด้วยข้อความ รูปภาพ และสื่ออื่นๆ
   cs: Ptejte se textem, obrázky a dalšími médii.
   sv: Fråga med text, bilder och annat media.
+  he: שאל באמצעות טקסט, תמונות ומדיה נוספת.
   verified_by_human: [en, de]
 
 ask.how_to_use.1:
@@ -68,6 +70,7 @@ ask.how_to_use.1:
   th: ข้อดีและข้อเสียของการทำงานทางไกลคืออะไร?
   cs: Jaké jsou výhody a nevýhody práce na dálku?
   sv: Vilka är fördelarna och nackdelarna med distansarbete?
+  he: "מהם ה**יתרונות והחסרונות** של עבודה מרחוק?"
   verified_by_human: [en, de]
 
 ask.how_to_use.2:
@@ -92,6 +95,7 @@ ask.how_to_use.2:
   th: อธิบายการประมวลผลควอนตัมด้วยคำง่ายๆ
   cs: Vysvětli kvantové počítání jednoduchými slovy
   sv: Förklara kvantdatorer med enkla ord
+  he: "**הסבר** מחשוב קוונטי במונחים פשוטים"
   verified_by_human: [en, de]
 
 ask.how_to_use.3:
@@ -116,4 +120,5 @@ ask.how_to_use.3:
   th: ช่วยเขียนอีเมลอย่างมืออาชีพถึงหัวหน้าเรื่องการขอขึ้นเงินเดือน
   cs: Pomoz mi napsat profesionální email šéfovi o zvýšení platu
   sv: Hjälp mig skriva ett professionellt mejl till min chef om löneförhöjning
+  he: "עזור לי **לכתוב** אימייל מקצועי למנהל שלי בנושא העלאה בשכר"
   verified_by_human: [en, de]

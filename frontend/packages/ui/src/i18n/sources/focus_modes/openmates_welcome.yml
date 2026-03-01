@@ -20,6 +20,7 @@ openmates_welcome:
   th: ยินดีต้อนรับ
   cs: Vítejte
   sv: Välkommen
+  he: ברוך הבא
   verified_by_human:
     - en
 process:
@@ -29,5 +30,10 @@ process:
     - introduces the 2–3 most relevant specialist mates based on the user's stated needs
     - highlights 1–2 relevant features (focus modes, memories, apps) that match the user's goals
     - summarizes the user's use cases and offers to share them anonymously with the OpenMates team
+  he: |
+    - שואל למה המשתמש רוצה להשתמש ב-OpenMates ומקשיב היטב לתשובתו
+    - מציג את 2–3 ה-mates המומחים הרלוונטיים ביותר על סמך הצרכים שהמשתמש ציין
+    - מדגיש 1–2 תכונות רלוונטיות (מצבי מיקוד, זיכרונות, אפליקציות) שמתאימות למטרות המשתמש
+    - מסכם את מקרי הבוחן של המשתמש ומציע לשתף אותם באופן אנונימי עם צוות OpenMates
   verified_by_human:
     - en

@@ -20,6 +20,7 @@ heading:
   th: ชุมชน
   cs: Komunita
   sv: Gemenskap
+  he: קהילה
   verified_by_human: []
 join_development_1:
   context: Used in 'Join the development'
@@ -43,6 +44,7 @@ join_development_1:
   th: เข้าร่วมการพัฒนา
   cs: Připojte se k
   sv: Gå med i
+  he: הצטרפו
   verified_by_human: []
 join_development_2:
   context: Used in 'Join the development'
@@ -66,6 +68,7 @@ join_development_2:
   th: การพัฒนา
   cs: vývoj
   sv: utveckling
+  he: לפיתוח
   verified_by_human: []
 description:
   context: Main description of the community and contribution opportunities
@@ -89,6 +92,7 @@ description:
   th: OpenMates เป็นความพยายามของชุมชน จากนักพัฒนาซอฟต์แวร์ ไปจนถึงนักออกแบบ ไปจนถึงผู้ใช้ที่ตื่นเต้นเกี่ยวกับวิธีที่ AI สามารถช่วยพวกเขาในการทำงานและชีวิตประจำวัน - ทุกคนสามารถมีส่วนช่วยในวิธีที่มีค่า
   cs: OpenMates je komunální úsilí. Od vývojářů softwaru, přes designéry, až po uživatele, kteří jsou nadšeni tím, jak jim AI může pomoci v práci a v každodenním životě - všichni mohou přispívat cennými způsoby.
   sv: OpenMates är en gemensam ansträngning. Från mjukvaruutvecklare, till designers, till användare som är upphetsade över hur AI kan hjälpa dem på jobbet och i det dagliga livet - alla kan bidra på värdefulla sätt.
+  he: OpenMates הוא מאמץ קהילתי. ממפתחי תוכנה, למעצבים, ועד למשתמשים שפשוט נרגשים מהאופן שבו בינה מלאכותית יכולה לעזור להם בעבודה ובחיי היומיום - כולם יכולים לתרום בדרכים בעלות ערך.
   verified_by_human: []
 join_discord:
   context: Call to action for joining Discord community
@@ -112,4 +116,5 @@ join_discord:
   th: สำหรับข้อมูลเพิ่มเติม โปรดเข้าร่วม Discord ของเรา
   cs: Chcete-li více informací, připojte se k nám na Discord.
   sv: För mer information, gå med oss på Discord.
+  he: למידע נוסף, הצטרפו אלינו בדיסקורד.
   verified_by_human: []

@@ -20,6 +20,7 @@ test_git_repo:
   th: ทดสอบ git repo
   cs: Otestovat git úložiště
   sv: Testa git-repo
+  he: בדיקת מאגר git
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ test_git_repo.description:
   th: โคลน git repo และทดสอบว่าทำงานหรือไม่
   cs: Naklonujte git úložiště a otestujte, zda funguje.
   sv: Klona ett git-repo och testa om det fungerar.
+  he: שכפול מאגר git ובדיקה אם הוא עובד.
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ plan_project:
   th: วางแผนโปรเจ็กต์
   cs: Naplánovat projekt
   sv: Planera projekt
+  he: תכנון פרויקט
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ plan_project.description:
   th: วางแผนโปรเจ็กต์และสร้างเอกสารความต้องการ
   cs: Naplánujte projekt a vytvořte dokumentaci požadavků.
   sv: Planera ett projekt och skapa kravdokumentation.
+  he: תכנון פרויקט ויצירת מסמכי דרישות.
   verified_by_human:
     - en
     - de
@@ -120,6 +124,7 @@ write_test_debug_document:
   th: เขียน ทดสอบ แก้ไขข้อผิดพลาด และจัดทำเอกสาร
   cs: Psát, testovat, ladit a dokumentovat
   sv: Skriv, testa, felsök och dokumentera
+  he: כתיבה, בדיקה, ניפוי שגיאות ותיעוד
   verified_by_human:
     - en
     - de
@@ -145,6 +150,7 @@ write_test_debug_document.description:
   th: เขียน ทดสอบ ดีบักโค้ด และอัปเดตเอกสาร
   cs: Pište, testujte, laďte kód a aktualizujte dok.
   sv: Skriv, testa, felsök kod och uppdatera dok.
+  he: כתיבה, בדיקה, ניפוי שגיאות בקוד ועדכון תיעוד.
   verified_by_human:
     - en
     - de
@@ -170,6 +176,7 @@ analyze_logs:
   th: วิเคราะห์บันทึก
   cs: Analyzovat protokoly
   sv: Analysera loggar
+  he: ניתוח לוגים
   verified_by_human:
     - en
     - de
@@ -195,6 +202,7 @@ analyze_logs.description:
   th: วิเคราะห์บันทึกเพื่อค้นหาปัญหา
   cs: Analyzujte protokoly a najděte problémy.
   sv: Analysera loggar för att hitta problem.
+  he: הבנה וניתוח של לוגים כדי למצוא תקלות.
   verified_by_human:
     - en
     - de
@@ -220,6 +228,7 @@ improve_issue:
   th: ปรับปรุงปัญหา
   cs: Zlepšit problém
   sv: Förbättra problem
+  he: שיפור דיווח תקלה
   verified_by_human:
     - en
     - de
@@ -245,6 +254,7 @@ improve_issue.description:
   th: ปรับปรุงปัญหาโดยเพิ่มรายละเอียดและความชัดเจน
   cs: Vylepšete problémy přidáním detailů a jasnosti.
   sv: Förbättra ärenden med mer detaljer och tydlighet.
+  he: שיפור דיווחי תקלות על ידי הוספת פרטים ובהירות.
   verified_by_human:
     - en
     - de
@@ -270,6 +280,7 @@ learn_new_tech:
   th: เรียนรู้เทคโนโลยีใหม่
   cs: Naučit se novou technologii
   sv: Lär dig ny teknik
+  he: למידת טכנולוגיה חדשה
   verified_by_human:
     - en
     - de
@@ -295,6 +306,7 @@ learn_new_tech.description:
   th: เรียนรู้ภาษา เฟรมเวิร์ก หรือเทคโนโลยีใหม่
   cs: Naučte se nový jazyk, framework nebo technologii.
   sv: Lär dig ett nytt språk, ramverk eller teknik.
+  he: למידת שפה, פריימוורק או טכנולוגיה חדשה.
   verified_by_human:
     - en
     - de
@@ -320,6 +332,7 @@ explain_project:
   th: อธิบายโปรเจ็กต์
   cs: Vysvětlit projekt
   sv: Förklara projekt
+  he: הסבר פרויקט
   verified_by_human:
     - en
     - de
@@ -345,6 +358,7 @@ explain_project.description:
   th: โคลนและวิเคราะห์สถาปัตยกรรมของ repo
   cs: Naklonujte a analyzujte architekturu repozitáře.
   sv: Klona och analysera ett repos arkitektur.
+  he: שכפול וניתוח של ארכיטקטורת מאגר (repo).
   verified_by_human:
     - en
     - de
@@ -370,6 +384,7 @@ research_solutions:
   th: วิจัยโซลูชัน
   cs: Zkoumat řešení
   sv: Forska lösningar
+  he: מחקר פתרונות
   verified_by_human:
     - en
     - de
@@ -395,6 +410,7 @@ research_solutions.description:
   th: วิจัยเทคโนโลยีที่เหมาะกับความต้องการของคุณ
   cs: Zjistěte, jaká technologie vyhovuje vašim potřebám.
   sv: Undersök vilken teknik som passar dina behov.
+  he: מחקר אילו טכנולוגיות מתאימות לדרישות שלך.
   verified_by_human:
     - en
     - de
@@ -420,6 +436,7 @@ code_walkthrough:
   th: การเดินผ่านโค้ด
   cs: Průchod kódem
   sv: Genomgång av kod
+  he: מעבר על הקוד
   verified_by_human:
     - en
     - de
@@ -445,6 +462,7 @@ code_walkthrough.description:
   th: สำรวจปัญหาโค้ดทีละขั้นตอน
   cs: Projděte problémy s kódem krok za krokem.
   sv: Gå igenom kodproblem steg för steg.
+  he: מעבר על בעיות קוד צעד אחר צעד.
   verified_by_human:
     - en
     - de
@@ -470,6 +488,7 @@ setup_infrastructure:
   th: ตั้งค่าโครงสร้างพื้นฐาน
   cs: Nastavit infrastrukturu
   sv: Konfigurera infrastruktur
+  he: הקמת תשתית
   verified_by_human:
     - en
     - de
@@ -495,6 +514,7 @@ setup_infrastructure.description:
   th: รับความช่วยเหลือตั้งค่าซอฟต์แวร์หรือโครงสร้าง
   cs: Pomoc s nastavením softwaru nebo infrastruktury.
   sv: Få hjälp att konfigurera programvara eller infra.
+  he: קבלת עזרה בהקמת תוכנה או תשתית.
   verified_by_human:
     - en
     - de
@@ -520,6 +540,7 @@ refactor_code:
   th: รีแฟกเตอร์โค้ด
   cs: Refaktorovat kód
   sv: Refaktorera kod
+  he: רה-פקטורינג לקוד
   verified_by_human:
     - en
     - de
@@ -545,6 +566,7 @@ refactor_code.description:
   th: ปรับปรุงโครงสร้างและความอ่านง่ายของโค้ด
   cs: Zlepšete strukturu a čitelnost kódu.
   sv: Förbättra kodstruktur och läsbarhet.
+  he: שיפור מבנה הקוד וקריאותו.
   verified_by_human:
     - en
     - de

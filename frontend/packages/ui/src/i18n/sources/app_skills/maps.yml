@@ -20,6 +20,7 @@ search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ search.description:
   th: ค้นหาสถานที่ ธุรกิจ และตำแหน่ง
   cs: Hledejte místa, podniky a lokace.
   sv: Sök efter platser, företag och platser.
+  he: חיפוש מקומות, עסקים ומיקומים.
   verified_by_human:
     - en
     - de
@@ -71,6 +73,7 @@ search.how_to_use.1:
   th: ค้นหาร้านอาหารอิตาเลียนใกล้ Alexanderplatz, Berlin
   cs: Najdi italské restaurace poblíž Alexanderplatz, Berlin
   sv: Hitta italienska restauranger nära Alexanderplatz, Berlin
+  he: "**מצא** מסעדות איטלקיות ליד אלכסנדרפלאץ, ברלין"
   verified_by_human: [en, de]
 
 search.how_to_use.2:
@@ -95,6 +98,7 @@ search.how_to_use.2:
   th: ค้นหาพื้นที่ทำงานร่วมในใจกลาง Munich
   cs: Najdi coworkingové prostory v centru Munich
   sv: Sök efter coworking-utrymmen i centrala Munich
+  he: "**חפש** חללי עבודה משותפים במרכז העיר מינכן"
   verified_by_human: [en, de]
 
 search.how_to_use.3:
@@ -119,4 +123,5 @@ search.how_to_use.3:
   th: ค้นหาร้านขายยาที่เปิดอยู่ใกล้ฉัน
   cs: Najdi lékárny otevřené teď poblíž
   sv: Hitta apotek som har öppet nu nära mig
+  he: "**מצא** בתי מרקחת פתוחים עכשיו בקרבתי"
   verified_by_human: [en, de]

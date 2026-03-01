@@ -20,6 +20,7 @@ code_plan_project:
   th: วางแผนโปรเจ็กต์
   cs: Naplánovat projekt
   sv: Planera projekt
+  he: תכנון פרויקט
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: วางแผนโปรเจ็กต์และสร้างเอกสารความต้องการ
   cs: Naplánujte projekt a vytvořte dokumentaci požadavků.
   sv: Planera ett projekt och skapa kravdokumentation.
+  he: תכנון פרויקט ויצירת מסמכי דרישות.
   verified_by_human:
     - en

@@ -20,6 +20,7 @@ pcb_design_create_schematic:
   th: สร้างแผนผัง
   cs: Vytvořit schéma
   sv: Skapa schema
+  he: יצירת סכימה
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: วางแผนและสร้างแผนผัง PCB
   cs: Naplánujte a vytvořte schéma desky plošných spojů.
   sv: Planera och skapa ett PCB-schema.
+  he: תכנון ויצירת סכמה חשמלית (PCB).
   verified_by_human:
     - en
 process:
@@ -53,10 +55,16 @@ process:
     - {'for more complex tasks': 'create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.'}
     - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
     - guide user throw the process of creating the atopile code for a pcb schematic, or alternatively guide throw how to create a schematic in KiCad
+  he: |
+    - שאל את המשתמש שאלות הבהרה כדי להבהיר את הדרישות וצור קובץ requirements.md
+    - {'למשימות מורכבות יותר': 'צור קובץ todo.md ושמור אותו מעודכן בהתאם להתקדמות. כלול נתיבי קבצים או שמות פונקציות / שמות משתנים רלוונטיים.'}
+    - אם לא ניתן לפתור את הבעיה תוך מספר צעדים, שאל אם כדאי לנסות גישה חדשה או להגדיר מחדש את הדרישות
+    - הדרכת המשתמש בתהליך יצירת קוד atopile עבור סכמה חשמלית, או לחלופין הדרכה כיצד ליצור סכמה ב-KiCad
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when create_schematic focus mode is active
   en: You are a PCB design expert.
+  he: אתה מומחה לתכנון מעגלים מודפסים (PCB).
   verified_by_human:
     - en

@@ -20,6 +20,7 @@ preferred_supermarkets:
   th: ซุปเปอร์มาร์เก็ตที่ชอบ
   cs: Preferované supermarkety
   sv: Föredragna supermarkets
+  he: סופרמרקטים מועדפים
   verified_by_human: [en, de]
 preferred_supermarkets.description:
   context: Description for preferred supermarkets settings/memory in Shopping app
@@ -43,6 +44,7 @@ preferred_supermarkets.description:
   th: ซุปเปอร์มาร์เก็ตที่ชอบสำหรับการค้นหาสินค้า
   cs: Vaše preferované supermarkety pro vyhledávání produktů.
   sv: Dina föredragna supermarkets för produktsökningar.
+  he: הסופרמרקטים המועדפים עליך לחיפוש מוצרים.
   verified_by_human: [en, de]
 dietary_preferences:
   context: Settings/memory name for dietary preferences in Shopping app
@@ -66,6 +68,7 @@ dietary_preferences:
   th: ความชอบด้านอาหาร
   cs: Stravovací preference
   sv: Kostpreferenser
+  he: העדפות תזונתיות
   verified_by_human: [en, de]
 dietary_preferences.description:
   context: Description for dietary preferences settings/memory in Shopping app
@@ -89,4 +92,5 @@ dietary_preferences.description:
   th: ความต้องการด้านอาหารของคุณ (วีแกน, มังสวิรัติ, ปราศจากกลูเตน ฯลฯ)
   cs: Vaše stravovací potřeby (vegan, vegetarián, bezlepkový atd.).
   sv: Dina kostbehov (vegan, vegetarian, glutenfri, etc.).
+  he: "הצרכים התזונתיים שלך (טבעוני, צמחוני, ללא גלוטן וכו')."
   verified_by_human: [en, de]

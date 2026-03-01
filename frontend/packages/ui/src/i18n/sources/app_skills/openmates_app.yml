@@ -20,6 +20,7 @@ share_usecase:
   th: แชร์กรณีการใช้งาน
   cs: Sdílet případ použití
   sv: Dela användningsfall
+  he: שיתוף מקרה שימוש
   verified_by_human: [en]
 
 share_usecase.description:
@@ -44,4 +45,5 @@ share_usecase.description:
   th: แชร์กรณีใช้งานของคุณแบบไม่ระบุตัวตน
   cs: Sdílejte svůj případ použití anonymně.
   sv: Dela ditt användningsfall anonymt.
+  he: שתף את מקרה השימוש שלך ב-OpenMates באופן אנונימי.
   verified_by_human: []

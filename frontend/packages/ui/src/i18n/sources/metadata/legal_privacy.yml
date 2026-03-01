@@ -20,6 +20,7 @@ title:
   th: ความเป็นส่วนตัว | OpenMates
   cs: Soukromí | OpenMates
   sv: Integritet | OpenMates
+  he: "פרטיות | OpenMates"
   verified_by_human: []
 description:
   context: Description for the privacy policy page
@@ -43,4 +44,5 @@ description:
   th: เรียนรู้ว่า OpenMates จัดการข้อมูลส่วนบุคคลของคุณอย่างไร
   cs: Zjistěte, jak OpenMates zachází s vašimi osobními údaji.
   sv: Lär dig hur OpenMates hanterar dina personuppgifter.
+  he: למדו כיצד OpenMates מטפלת בנתונים האישיים שלכם.
   verified_by_human: []

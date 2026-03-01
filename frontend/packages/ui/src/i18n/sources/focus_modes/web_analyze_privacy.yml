@@ -20,6 +20,7 @@ web_analyze_privacy:
   th: วิเคราะห์ความเป็นส่วนตัว
   cs: Analyzovat soukromí
   sv: Analysera integritet
+  he: ניתוח פרטיות
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: วิเคราะห์ความเป็นส่วนตัวของเว็บไซต์ตามเงื่อนไข
   cs: Analyzujte soukromí webu na základě jeho podmínek.
   sv: Analysera en webbplats integritet baserat på villkor.
+  he: ניתוח הפרטיות של אתר על סמך תנאי השימוש שלו.
   verified_by_human:
     - en
 process:
@@ -53,10 +55,16 @@ process:
     - analyzes the legal pages for privacy implications
     - creates a report based on the findings
     - asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions
+  he: |
+    - אוסף את הדפים המשפטיים של האתר
+    - מנתח את הדפים המשפטיים כדי למצוא השלכות על הפרטיות
+    - יוצר דוח על סמך הממצאים
+    - שואל את המשתמש אם ברצונו להמשיך להשתמש בשירות על סמך השלכות הפרטיות או אם יש לו שאלות נוספות
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when analyze_privacy focus mode is active
   en: You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
+  he: אתה מומחה לניתוח פרטיות והגנה על נתונים. תפקידך הוא לנתח דפים משפטיים (תנאי שימוש, מדיניות פרטיות, מדיניות קובצי Cookie) ולזהות השלכות על הפרטיות, נוהלי איסוף נתונים וסיכונים פוטנציאליים למשתמשים.
   verified_by_human:
     - en

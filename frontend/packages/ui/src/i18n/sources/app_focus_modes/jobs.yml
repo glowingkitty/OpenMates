@@ -20,6 +20,7 @@ career_insights:
   th: ข้อมูลเชิงลึกด้านอาชีพ
   cs: Kariérní postřehy
   sv: Karriärinsikter
+  he: תובנות קריירה
   verified_by_human:
     - en
     - de
@@ -33,6 +34,14 @@ career_insights.process:
     - Considers practical constraints (location, finances, family, timeline)
     - Suggests 2–4 concrete career directions that match your profile
     - Provides actionable next steps (networking, upskilling, job boards)
+  he: |
+    - הבנת מצב התעסוקה הנוכחי שלך ומה מניע את השינוי
+    - בחינת מה שמעניק לך אנרגיה ומה שמרוקן אותך בתפקידים קודמים ונוכחיים
+    - זיהוי מיומנויות הליבה, החוזקות ותחומי המומחיות שלך
+    - דיון בערכים, בתחומי העניין ובעדיפויות שלך בקריירה
+    - התחשבות במגבלות מעשיות (מיקום, מצב כלכלי, משפחה, לוחות זמנים)
+    - הצעה של 2–4 כיווני קריירה קונקרטיים שמתאימים לפרופיל שלך
+    - מתן צעדים מעשיים להמשך (נטוורקינג, שדרוג מיומנויות, לוחות דרושים)
   verified_by_human:
     - en
 career_insights.description:
@@ -57,6 +66,7 @@ career_insights.description:
   th: ค้นหาอาชีพที่เหมาะสมตามจุดแข็งของคุณ
   cs: Najděte kariéru na základě vašich silných stránek.
   sv: Hitta rätt karriär baserat på dina styrkor.
+  he: מציאת הקריירה הנכונה עבורך על סמך החוזקות שלך.
   verified_by_human:
     - en
     - de

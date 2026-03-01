@@ -20,6 +20,7 @@ slide_left_to_cancel:
   th: เลื่อนไปทางซ้ายเพื่อยกเลิก
   cs: Přejeďte doleva pro zrušení
   sv: "Dra åt vänster för att avbryta"
+  he: החלק שמאלה לביטול
   verified_by_human: []
 release_to_finish:
   context: Text shown when recording is in progress
@@ -43,6 +44,7 @@ release_to_finish:
   th: ปล่อยเพื่อเสร็จสิ้น
   cs: Uvolněte pro dokončení
   sv: "Släpp för att slutföra"
+  he: שחרר לסיום
   verified_by_human: []
 press_and_hold_reminder:
   context: Text shown when the user has only pressed the record button for less than 500ms
@@ -66,6 +68,7 @@ press_and_hold_reminder:
   th: กดค้างเพื่อบันทึก
   cs: Stiskněte a podržte pro nahrávání
   sv: "Tryck och håll kvar för att spela in"
+  he: לחץ והחזק כדי להקליט
   verified_by_human: []
 
 allow_microphone_access:
@@ -90,6 +93,7 @@ allow_microphone_access:
   th: อนุญาตการเข้าถึงไมโครโฟนเพื่อบันทึก
   cs: Povolte přístup k mikrofonu pro nahrávání
   sv: Tillåt mikrofonåtkomst för att spela in
+  he: אפשר גישה למיקרופון כדי להקליט
   verified_by_human: []
 
 microphone_blocked:
@@ -114,4 +118,5 @@ microphone_blocked:
   th: ไมโครโฟนถูกบล็อก — เปิดใช้งานในการตั้งค่าเบราว์เซอร์
   cs: Mikrofon je zablokován — povolte ho v nastavení prohlížeče
   sv: Mikrofon blockerad — aktivera den i webbläsarinställningarna
+  he: המיקרופון חסום — יש לאפשר אותו בהגדרות הדפדפן
   verified_by_human: []

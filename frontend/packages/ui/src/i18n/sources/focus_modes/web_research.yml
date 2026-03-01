@@ -20,6 +20,7 @@ web_research:
   th: การวิจัย
   cs: Výzkum
   sv: Forskning
+  he: מחקר
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: วิจัยหัวข้อจากหลายมุมมอง
   cs: Prozkoumejte téma z více úhlů pohledu.
   sv: Undersök ett ämne från flera vinklar.
+  he: מחקר נושא ממספר זוויות.
   verified_by_human:
     - en
 process:
@@ -54,10 +56,17 @@ process:
     - explores the topic from different angles (causes, effects, context, counterarguments)
     - synthesizes findings into a clear, well-structured response
     - cites sources and highlights areas of uncertainty or conflicting information
+  he: |
+    - מבין מה המשתמש רוצה לחקור ומבהיר את ההיקף במידת הצורך
+    - מבצע מספר חיפושי רשת ממוקדים כדי לאסוף מידע ממקורות מגוונים
+    - בוחן את הנושא מזוויות שונות (סיבות, השפעות, הקשר, טיעוני נגד)
+    - מסכם את הממצאים לכדי תגובה ברורה ומובנית היטב
+    - מצטט מקורות ומדגיש אזורים של אי-ודאות או מידע סותר
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when research focus mode is active
   en: You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand a topic comprehensively, including its causes, effects, and broader context.
+  he: אתה חוקר מומחה. תפקידך הוא לבצע מחקר רשת יסודי על ידי ביצוע מספר חיפושים כדי להבין נושא בצורה מקיפה, כולל הסיבות שלו, ההשפעות שלו וההקשר הרחב יותר.
   verified_by_human:
     - en

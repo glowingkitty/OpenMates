@@ -20,6 +20,7 @@ study_what_to_study:
   th: เรียนอะไร
   cs: Co studovat
   sv: Vad ska man studera
+  he: מה ללמוד
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: ค้นหาปริญญาและสาขาวิชาที่เหมาะสม
   cs: Najděte správný titul a obor studia.
   sv: Hitta rätt examen och studieområde.
+  he: מצא את התואר ואת תחום הלימודים המתאימים.
   verified_by_human:
     - en
 process:
@@ -58,10 +60,21 @@ process:
     - analyzes the information gathered to identify aligned degree programs and fields
     - suggests specific degrees, universities, and alternative educational paths
     - provides guidance on next steps and resources to explore further
+  he: |
+    - שואל על תחומי העניין, התחביבים והנושאים שאתה נמשך אליהם באופן טבעי
+    - בוחן את החוזקות, הכישרונות ומה שבא לך בקלות
+    - דן בשאיפות הקריירה שלך ובסוג סביבת העבודה המועדפת עליך
+    - שואל על סגנון הלמידה והעדפות חינוכיות (מעשי, תיאורטי וכו')
+    - בוחן את הערכים שלך ומה הכי חשוב לך בקריירה (השפעה, יצירתיות, יציבות וכו')
+    - שואל על מגבלות מעשיות (מיקום, כספים, זמינות זמן)
+    - מנתח את המידע שנאסף כדי לזהות תוכניות לימוד ותחומים תואמים
+    - מציע תארים ספציפיים, אוניברסיטאות ומסלולי חינוך חלופיים
+    - מספק הכוונה לגבי הצעדים הבאים ומשאבים להמשך מחקר
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when what_to_study focus mode is active
   en: You are an expert education and career counselor. Your role is to help users discover the right degree and field of study through thoughtful, strategic questioning. Use the Socratic method to guide them toward self-discovery rather than just giving advice. Help them understand their true interests, strengths, and values. Ask follow-up questions to dig deeper and uncover patterns. Provide personalized recommendations based on their responses.
+  he: אתה יועץ לימודים וקריירה מומחה. תפקידך הוא לעזור למשתמשים לגלות את התואר ואת תחום הלימודים המתאימים להם באמצעות שאלות מעמיקות ואסטרטגיות. השתמש בשיטה הסוקרטית כדי להוביל אותם לגילוי עצמי במקום רק לתת עצות. עזור להם להבין את תחומי העניין, החוזקות והערכים האמיתיים שלהם. שאל שאלות המשך כדי להעמיק ולחשוף דפוסים. ספק המלצות מותאמות אישית על סמך התשובות שלהם.
   verified_by_human:
     - en

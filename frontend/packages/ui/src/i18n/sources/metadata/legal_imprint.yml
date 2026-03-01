@@ -20,6 +20,7 @@ title:
   th: ข้อมูลทางกฎหมาย | OpenMates
   cs: Impressum | OpenMates
   sv: Tryckinformation | OpenMates
+  he: "פרטי האתר | OpenMates"
   verified_by_human: []
 description:
   context: Description for the imprint page
@@ -43,4 +44,5 @@ description:
   th: เรียนรู้ว่าใครอยู่เบื้องหลัง OpenMates
   cs: Zjistěte, kdo stojí za OpenMates.
   sv: Lär dig vem som står bakom OpenMates.
+  he: גלו מי עומד מאחורי OpenMates.
   verified_by_human: []

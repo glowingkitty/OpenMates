@@ -20,6 +20,7 @@ career_insights:
   th: ความเข้าใจเกี่ยวกับอาชีพ
   cs: Kariérní poznatky
   sv: Karriärinsikter
+  he: תובנות קריירה
   verified_by_human: []
 status.loaded:
   context: Status indicator for loading state
@@ -43,6 +44,7 @@ status.loaded:
   th: โหลดแล้ว
   cs: Načteno
   sv: Inläst
+  he: נטען
   verified_by_human: []
 status.started:
   context: Status indicator for started state
@@ -66,6 +68,7 @@ status.started:
   th: เริ่มแล้ว
   cs: Zahájeno
   sv: Startad
+  he: התחיל
   verified_by_human: []
 status.using:
   context: Status indicator for in-use state
@@ -89,6 +92,7 @@ status.using:
   th: ใช้งานอยู่
   cs: Používá se
   sv: Använder
+  he: בשימוש
   verified_by_human: []
 status.used:
   context: Status indicator for used state
@@ -112,6 +116,7 @@ status.used:
   th: ใช้แล้ว
   cs: Použito
   sv: Använd
+  he: נוצל
   verified_by_human: []
 details.preferences:
   context: Settings or preferences section
@@ -135,6 +140,7 @@ details.preferences:
   th: ตัวเลือก
   cs: Předvolby
   sv: Inställningar
+  he: העדפות
   verified_by_human: []
 details.apps:
   context: Plural form of application
@@ -158,6 +164,7 @@ details.apps:
   th: แอป
   cs: aplikace
   sv: appar
+  he: אפליקציות
   verified_by_human: []
 details.app:
   context: Single application
@@ -181,4 +188,5 @@ details.app:
   th: แอป
   cs: aplikace
   sv: app
+  he: אפליקציה
   verified_by_human: []

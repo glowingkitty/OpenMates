@@ -20,6 +20,7 @@ crisis_support:
   th: การสนับสนุนในยามวิกฤต
   cs: Podpora v krizi
   sv: Krisstöd
+  he: תמיכה בעת משבר
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ crisis_support.description:
   th: รับการสนับสนุนในยามยากลำบากและวางแผนล่วงหน้า
   cs: Podpora v obtížných časech a plánování dalšího.
   sv: Få stöd i svåra tider och planera framåt.
+  he: קבלת תמיכה בזמנים קשים ותכנון קדימה.
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ future_speaking:
   th: การพูดคุยเกี่ยวกับอนาคต
   cs: Rozhovor o budoucnosti
   sv: Framtidsamtal
+  he: שיח עתידי
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ future_speaking.description:
   th: เทคนิคการโค้ชชีวิตที่ทรงพลัง
   cs: Mocná technika životního koučinku.
   sv: En kraftfull livscoachingteknik.
+  he: טכניקת אימון אישי עוצמתית.
   verified_by_human:
     - en
     - de

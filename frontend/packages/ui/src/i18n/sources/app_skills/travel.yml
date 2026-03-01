@@ -20,6 +20,7 @@ search_connections:
   th: ค้นหาเส้นทาง
   cs: Hledat spojení
   sv: Sök förbindelser
+  he: חיפוש קווי נסיעה
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ search_connections.description:
   th: ค้นหาเที่ยวบิน รถไฟ และเส้นทางระหว่างเมือง
   cs: Najděte lety, vlaky a trasy mezi městy.
   sv: Hitta flyg, tåg och rutter mellan städer.
+  he: חיפוש טיסות, רכבות ומסלולים בין ערים.
   verified_by_human:
     - en
     - de
@@ -71,6 +73,7 @@ search_connections.how_to_use.1:
   th: ค้นหาเที่ยวบินจาก Berlin ไป Barcelona วันศุกร์หน้า
   cs: Najděte lety z Berlin do Barcelona příští pátek
   sv: Hitta flyg från Berlin till Barcelona nästa fredag
+  he: "**חיפוש טיסות** מברלין לברצלונה ביום שישי הבא"
   verified_by_human: [en, de]
 
 search_connections.how_to_use.2:
@@ -95,6 +98,7 @@ search_connections.how_to_use.2:
   th: ค้นหา train จาก Munich ไป Vienna ในวันที่ 15 มีนาคม
   cs: Vyhledejte vlaky z Munich do Vienna 15. března
   sv: Sök tåg från Munich till Vienna den 15 mars
+  he: "**חיפוש** רכבות ממינכן לווינה ב-15 במרץ"
   verified_by_human: [en, de]
 
 search_connections.how_to_use.3:
@@ -119,12 +123,14 @@ search_connections.how_to_use.3:
   th: เที่ยวบินไป Tokyo ที่ถูกที่สุดในเดือนเมษายนมีอะไรบ้าง?
   cs: Jaké jsou nejlevnější lety do Tokyo v dubnu?
   sv: Vilka är de billigaste flygen till Tokyo i april?
+  he: "מהן ה**טיסות הזולות ביותר** לטוקיו באפריל?"
   verified_by_human: [en, de]
 
 price_calendar:
   context: Skill name for travel price calendar (monthly flight price heatmap)
   en: Price Calendar
   de: Preiskalender
+  he: לוח מחירים
   verified_by_human:
     - en
     - de
@@ -132,6 +138,7 @@ price_calendar.description:
   context: Description for the travel price calendar skill - shows cheapest flight prices for each day of a month
   en: Show flight price trends for a month on a route.
   de: Flugpreistrends für einen Monat auf einer Strecke.
+  he: הצגת מגמות מחירי טיסות למשך חודש במסלול מסוים.
   verified_by_human:
     - en
     - de
@@ -139,6 +146,7 @@ search_stays:
   context: Skill name for travel search stays (hotels, hostels, accommodations)
   en: Search stays
   de: Unterkünfte suchen
+  he: חיפוש מקומות אירוח
   verified_by_human:
     - en
     - de
@@ -146,6 +154,7 @@ search_stays.description:
   context: Description for the travel search stays skill - searches for hotels, hostels, and accommodations
   en: Find hotels, hostels and accommodations nearby.
   de: Finde Hotels, Hostels und Unterkünfte vor Ort.
+  he: חיפוש מלונות, אכסניות ומקומות אירוח בקרבת מקום.
   verified_by_human:
     - en
     - de
@@ -172,6 +181,7 @@ search_stays.how_to_use.1:
   th: ค้นหาโรงแรมใกล้ Eiffel Tower สำหรับ 2 คืน
   cs: Najděte hotely u Eiffel Tower na 2 noci
   sv: Hitta hotell nära Eiffel Tower för 2 nätter
+  he: "**חיפוש מלונות** ליד מגדל אייפל ל-2 לילות"
   verified_by_human: [en, de]
 
 search_stays.how_to_use.2:
@@ -196,6 +206,7 @@ search_stays.how_to_use.2:
   th: ค้นหา hostel ใน Barcelona ต่ำกว่า 50 ยูโรต่อคืน
   cs: Vyhledejte hostely v Barcelona do 50 eur za noc
   sv: Sök hostels i Barcelona under 50 euro per natt
+  he: "**חיפוש** אכסניות בברצלונה בפחות מ-50 אירו ללילה"
   verified_by_human: [en, de]
 
 search_stays.how_to_use.3:
@@ -220,4 +231,5 @@ search_stays.how_to_use.3:
   th: ค้นหาที่พักเหมาะสำหรับครอบครัวใน Rome สำหรับสัปดาห์ Easter
   cs: Najděte ubytování vhodné pro rodiny v Rome na týden Easter
   sv: Hitta familjevänliga boenden i Rome för Easter-veckan
+  he: "**חיפוש** מקומות אירוח למשפחות ברומא בשבוע הפסחא"
   verified_by_human: [en, de]

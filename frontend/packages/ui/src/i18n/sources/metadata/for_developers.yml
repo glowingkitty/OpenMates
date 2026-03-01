@@ -20,6 +20,7 @@ title:
   th: สำหรับนักพัฒนา | OpenMates
   cs: Pro vývojáře | OpenMates
   sv: För utvecklare | OpenMates
+  he: "למפתחים | OpenMates"
   verified_by_human: []
 description:
   context: Description for the developers page
@@ -43,4 +44,5 @@ description:
   th: API ที่หลากหลายที่สุดสำหรับนักพัฒนา สำหรับการสร้าง AI agents หรือเพียงแค่ง่ายๆ ในการรวม API ที่มีอยู่หลากหลายเข้ากับโปรเจกต์ของคุณ
   cs: Nejuniverzálnější API pro vývojáře. Pro vytváření AI agentů nebo jednoduše snadnou integraci široké škály existujících API do vašeho projektu.
   sv: Den mest mångsidiga API:en för utvecklare. För att bygga AI-agenter eller helt enkelt integrera ett brett utbud av befintliga API:er enkelt i ditt projekt.
+  he: ה-API הרב-תכליתי ביותר למפתחים. לבניית סוכני AI, או פשוט לשילוב קל של מגוון רחב של ממשקי API קיימים בפרויקט שלך.
   verified_by_human: []

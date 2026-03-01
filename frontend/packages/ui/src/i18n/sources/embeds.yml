@@ -20,6 +20,7 @@ search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human: []
 transcript:
   context: Transcript skill label
@@ -43,6 +44,7 @@ transcript:
   th: สำเนา
   cs: Přepis
   sv: Transkription
+  he: תמלול
   verified_by_human: []
 processing:
   context: Status text when skill is processing
@@ -66,6 +68,7 @@ processing:
   th: กำลังประมวลผล...
   cs: Zpracování...
   sv: Bearbetar...
+  he: מעבד...
   verified_by_human: []
 completed:
   context: Status text when skill execution is completed
@@ -89,6 +92,7 @@ completed:
   th: เสร็จสิ้น
   cs: Dokončeno
   sv: Slutförd
+  he: הושלם
   verified_by_human: []
 via:
   context: Used in 'query via Brave Search'
@@ -112,6 +116,7 @@ via:
   th: ผ่าน
   cs: přes
   sv: via
+  he: באמצעות
   verified_by_human: []
 more_results:
   context: Text showing additional results count, e.g. '+ 9 more'
@@ -135,6 +140,7 @@ more_results:
   th: "+ {count} เพิ่มเติม"
   cs: "+ {count} dalších"
   sv: "+ {count} fler"
+  he: "ועוד {count}"
   verified_by_human: []
 open_search_results:
   context: Button label to open search results in fullscreen
@@ -158,6 +164,7 @@ open_search_results:
   th: เปิดผลการค้นหา
   cs: Otevřít výsledky hledání
   sv: Öppna sökresultat
+  he: פתיחת תוצאות חיפוש
   verified_by_human: []
 stop:
   context: Button label to stop skill execution
@@ -181,6 +188,7 @@ stop:
   th: หยุด
   cs: Zastavit
   sv: Stoppa
+  he: עצירה
   verified_by_human: []
 share:
   context: Button label to share skill results
@@ -204,6 +212,7 @@ share:
   th: แชร์
   cs: Sdílet
   sv: Dela
+  he: שיתוף
   verified_by_human: []
 exit_fullscreen:
   context: Button label to exit fullscreen view
@@ -227,6 +236,7 @@ exit_fullscreen:
   th: ออกจากโหมดเต็มจอ
   cs: Ukončit režim celé obrazovky
   sv: Avsluta helskärmsläge
+  he: יציאה ממסך מלא
   verified_by_human: []
 open_on_provider:
   context: Button label to open results on provider website, e.g. 'Open on Brave Search'
@@ -250,6 +260,7 @@ open_on_provider:
   th: "เปิดบน {provider}"
   cs: "Otevřít na {provider}"
   sv: "Öppna på {provider}"
+  he: "פתיחה ב-{provider}"
   verified_by_human: []
 open_on_youtube:
   context: Button label to open video on YouTube
@@ -273,6 +284,7 @@ open_on_youtube:
   th: เปิดบน YouTube
   cs: Otevřít na YouTube
   sv: Öppna på YouTube
+  he: פתיחה ב-YouTube
   verified_by_human: []
 tip_creator:
   context: Button label to tip the video creator
@@ -296,6 +308,7 @@ tip_creator:
   th: ให้ทิปผู้สร้าง
   cs: Podpořit tvůrce
   sv: Dricks till skaparen
+  he: מתן טיפ ליוצר
   verified_by_human: []
 code_snippet:
   context: Default filename for code embeds when no filename is provided
@@ -319,6 +332,7 @@ code_snippet:
   th: ตัวอย่างโค้ด
   cs: Úryvek kódu
   sv: Kodstycke
+  he: קטע קוד
   verified_by_human: []
 code_line_singular:
   context: Singular form of 'line' for code embeds, e.g. 'line'
@@ -342,6 +356,7 @@ code_line_singular:
   th: บรรทัด
   cs: řádek
   sv: rad
+  he: שורה
   verified_by_human: []
 code_line_plural:
   context: Plural form of 'line' for code embeds, e.g. 'lines'
@@ -365,6 +380,7 @@ code_line_plural:
   th: บรรทัด
   cs: řádků
   sv: rader
+  he: שורות
   verified_by_human: []
 code_info:
   context: Text showing line count and language for code embeds, e.g. '5 lines, Python' or '1 line'
@@ -388,6 +404,7 @@ code_info:
   th: "{lineCount} {lineCountText}, {language}"
   cs: "{lineCount} {lineCountText}, {language}"
   sv: "{lineCount} {lineCountText}, {language}"
+  he: "{lineCount} {lineCountText}, {language}"
   verified_by_human: []
 document_snippet:
   context: Default title for document embeds when no title is provided
@@ -411,6 +428,7 @@ document_snippet:
   th: เอกสาร
   cs: Dokument
   sv: Dokument
+  he: מסמך
   verified_by_human: []
 document_word_singular:
   context: Singular form of 'word' for document embeds, e.g. 'word'
@@ -434,6 +452,7 @@ document_word_singular:
   th: คำ
   cs: slovo
   sv: ord
+  he: מילה
   verified_by_human: []
 document_word_plural:
   context: Plural form of 'word' for document embeds, e.g. 'words'
@@ -457,6 +476,7 @@ document_word_plural:
   th: คำ
   cs: slov
   sv: ord
+  he: מילים
   verified_by_human: []
 document_generating:
   context: Status text when document is being generated
@@ -480,6 +500,7 @@ document_generating:
   th: กำลังสร้างเอกสาร...
   cs: Generování dokumentu...
   sv: Genererar dokument...
+  he: מפיק מסמך...
   verified_by_human: []
 document_no_content:
   context: Message shown when no document content is available
@@ -503,6 +524,7 @@ document_no_content:
   th: ไม่มีเนื้อหาเอกสารที่พร้อมใช้งาน
   cs: Žádný obsah dokumentu není k dispozici.
   sv: Inget dokumentinnehåll tillgängligt.
+  he: אין תוכן מסמך זמין.
   verified_by_human: []
 table:
   context: Default title for table/sheet embeds when no title is provided
@@ -526,6 +548,7 @@ table:
   th: ตาราง
   cs: Tabulka
   sv: Tabell
+  he: טבלה
   verified_by_human: []
 error:
   context: Status text when skill execution has an error
@@ -549,6 +572,7 @@ error:
   th: ข้อผิดพลาด
   cs: Chyba
   sv: Fel
+  he: שגיאה
   verified_by_human: []
 cancelled:
   context: Status text when skill execution was cancelled by user
@@ -572,6 +596,7 @@ cancelled:
   th: ยกเลิกแล้ว
   cs: Zrušeno
   sv: Avbruten
+  he: בוטל
   verified_by_human: []
 video_transcript:
   context: Video transcript skill label
@@ -595,6 +620,7 @@ video_transcript:
   th: สำเนา
   cs: Přepis
   sv: Transkription
+  he: תמלול
   verified_by_human: []
 web_read:
   context: Web Read skill label
@@ -618,6 +644,7 @@ web_read:
   th: อ่าน
   cs: Přečíst
   sv: Läs
+  he: קריאה
   verified_by_human: []
 web_read_full_view:
   context: Label above the open website button in web read fullscreen
@@ -641,6 +668,7 @@ web_read_full_view:
   th: "ประสบการณ์การดูเต็มรูปแบบ:"
   cs: "Plná prohlížecí zkušenost:"
   sv: "Fullständig visningsupplevelse:"
+  he: "חוויית צפייה מלאה:"
   verified_by_human: []
 web_read_text_preview:
   context: Label above markdown content in web read fullscreen
@@ -664,6 +692,7 @@ web_read_text_preview:
   th: "ตัวอย่างบทความ,"
   cs: "Náhled článku,"
   sv: "Artikelförhandsgranskning,"
+  he: תצוגה מקדימה של המאמר,
   verified_by_human: []
 web_read_no_content:
   context: Message shown when no content is available for web read
@@ -687,6 +716,7 @@ web_read_no_content:
   th: ไม่มีเนื้อหาที่พร้อมใช้งาน
   cs: Žádný obsah není k dispozici.
   sv: Inget innehåll tillgängligt.
+  he: אין תוכן זמין.
   verified_by_human: []
 web_read_loading_content:
   context: Message shown when web read content is still loading
@@ -710,6 +740,7 @@ web_read_loading_content:
   th: กำลังโหลดเนื้อหา...
   cs: Načítání obsahu...
   sv: Laddar innehåll...
+  he: טוען תוכן...
   verified_by_human: []
 video_views:
   context: View count for videos, e.g. '1.5M views'
@@ -733,6 +764,7 @@ video_views:
   th: "การดู {count} ครั้ง"
   cs: "{count} zhlédnutí"
   sv: "{count} visningar"
+  he: "{count} צפיות"
   verified_by_human: []
 video_likes:
   context: Like count for videos, e.g. '68K likes'
@@ -756,6 +788,7 @@ video_likes:
   th: "{count} ถูกใจ"
   cs: "{count} líbí se mi"
   sv: "{count} gillar"
+  he: "{count} לייקים"
   verified_by_human: []
 date_today:
   context: Relative date for today
@@ -779,6 +812,7 @@ date_today:
   th: วันนี้
   cs: Dnes
   sv: Idag
+  he: היום
   verified_by_human: []
 date_yesterday:
   context: Relative date for yesterday
@@ -802,6 +836,7 @@ date_yesterday:
   th: เมื่อวาน
   cs: Včera
   sv: Igår
+  he: אתמול
   verified_by_human: []
 date_days_ago:
   context: Relative date for N days ago
@@ -825,6 +860,7 @@ date_days_ago:
   th: "{count} วันที่แล้ว"
   cs: "před {count} dny"
   sv: "för {count} dagar sedan"
+  he: "לפני {count} ימים"
   verified_by_human: []
 date_weeks_ago:
   context: Relative date for N weeks ago
@@ -848,6 +884,7 @@ date_weeks_ago:
   th: "{count} สัปดาห์ที่แล้ว"
   cs: "před {count} týdny"
   sv: "för {count} veckor sedan"
+  he: "לפני {count} שבועות"
   verified_by_human: []
 date_months_ago:
   context: Relative date for N months ago
@@ -871,6 +908,7 @@ date_months_ago:
   th: "{count} เดือนที่แล้ว"
   cs: "před {count} měsíci"
   sv: "för {count} månader sedan"
+  he: "לפני {count} חודשים"
   verified_by_human: []
 date_years_ago:
   context: Relative date for N years ago
@@ -894,6 +932,7 @@ date_years_ago:
   th: "{count} ปีที่แล้ว"
   cs: "před {count} lety"
   sv: "för {count} år sedan"
+  he: "לפני {count} שנים"
   verified_by_human: []
 video_play:
   context: Button label to play video
@@ -917,6 +956,7 @@ video_play:
   th: เล่นวิดีโอ
   cs: Přehrát video
   sv: Spela upp video
+  he: נגן וידאו
   verified_by_human: []
 video_pip:
   context: Button label for picture-in-picture mode
@@ -940,6 +980,7 @@ video_pip:
   th: ภาพซ้อนภาพ
   cs: Obraz v obraze
   sv: Bild-i-bild
+  he: תמונה בתוך תמונה
   verified_by_human: []
 get_docs:
   context: Get Docs skill label for code app
@@ -963,6 +1004,7 @@ get_docs:
   th: รับเอกสาร
   cs: Získat dokumentaci
   sv: Hämta dokumentation
+  he: קבלת תיעוד
   verified_by_human:
     - en
     - de
@@ -988,6 +1030,7 @@ get_docs_full_view:
   th: "ประสบการณ์เอกสารเต็มรูปแบบ:"
   cs: "Plná dokumentační zkušenost:"
   sv: "Fullständig dokumentationsupplevelse:"
+  he: "חוויית תיעוד מלאה:"
   verified_by_human:
     - en
     - de
@@ -1013,6 +1056,7 @@ get_docs_preview:
   th: "ตัวอย่างเอกสาร,"
   cs: "Náhled dokumentace,"
   sv: "Dokumentationsförhandsgranskning,"
+  he: תצוגה מקדימה של התיעוד,
   verified_by_human:
     - en
     - de
@@ -1038,6 +1082,7 @@ get_docs_no_content:
   th: ไม่มีเอกสารที่พร้อมใช้งาน
   cs: Žádná dokumentace není k dispozici.
   sv: Ingen dokumentation tillgänglig.
+  he: אין תיעוד זמין.
   verified_by_human:
     - en
     - de
@@ -1063,6 +1108,7 @@ get_docs_loading:
   th: กำลังโหลดเอกสาร...
   cs: Načítání dokumentace...
   sv: Laddar dokumentation...
+  he: טוען תיעוד...
   verified_by_human:
     - en
     - de
@@ -1088,6 +1134,7 @@ reminder.scheduling:
   th: กำลังกำหนดเวลา...
   cs: Plánování...
   sv: Schemalägger...
+  he: מתזמן...
   verified_by_human: [en, de]
 reminder.error:
   context: Status text when reminder has an error
@@ -1111,6 +1158,7 @@ reminder.error:
   th: ข้อผิดพลาด
   cs: Chyba
   sv: Fel
+  he: שגיאה
   verified_by_human: [en, de]
 reminder.new_chat:
   context: Badge text for reminder targeting a new chat
@@ -1134,6 +1182,7 @@ reminder.new_chat:
   th: แชทใหม่
   cs: Nový chat
   sv: Ny chatt
+  he: "צ'אט חדש"
   verified_by_human: [en, de]
 reminder.existing_chat:
   context: Badge text for reminder targeting the existing chat
@@ -1157,6 +1206,7 @@ reminder.existing_chat:
   th: แชทนี้
   cs: Tento chat
   sv: Den här chatten
+  he: "צ'אט זה"
   verified_by_human: [en, de]
 reminder.repeating:
   context: Badge text for repeating reminders
@@ -1180,6 +1230,7 @@ reminder.repeating:
   th: ทำซ้ำ
   cs: Opakující se
   sv: Återkommande
+  he: חוזר
   verified_by_human: [en, de]
 reminder.error_generic:
   context: Generic error message for reminder embed
@@ -1203,6 +1254,7 @@ reminder.error_generic:
   th: ไม่สามารถกำหนดเวลาการแจ้งเตือนได้
   cs: Nepodařilo se naplánovat připomínku
   sv: Det gick inte att schemalägga påminnelse
+  he: תזמון התזכורת נכשל
   verified_by_human: [en, de]
 reminder.cancelled:
   context: Status text when reminder is cancelled
@@ -1226,6 +1278,7 @@ reminder.cancelled:
   th: ยกเลิกแล้ว
   cs: Zrušeno
   sv: Avbrutet
+  he: בוטל
   verified_by_human: [en, de]
 reminder.cancelled_message:
   context: Message shown when reminder has been cancelled
@@ -1249,6 +1302,7 @@ reminder.cancelled_message:
   th: การแจ้งเตือนนี้ถูกยกเลิกและจะไม่ทำงาน
   cs: Tato připomínka byla zrušena a nebude spuštěna.
   sv: Denna påminnelse har avbrutits och kommer inte att utlösas.
+  he: תזכורת זו בוטלה ולא תופעל.
   verified_by_human: [en, de]
 reminder.scheduled_for:
   context: Label above the trigger time in fullscreen
@@ -1272,6 +1326,7 @@ reminder.scheduled_for:
   th: กำหนดไว้สำหรับ
   cs: Naplánováno na
   sv: Schemalagd för
+  he: מתוזמן ל-
   verified_by_human: [en, de]
 reminder.target_type:
   context: Label for target type in fullscreen
@@ -1295,10 +1350,11 @@ reminder.target_type:
   th: เป้าหมาย
   cs: Cíl
   sv: Mål
+  he: יעד
   verified_by_human: [en, de]
 reminder.yes:
   context: Yes for boolean values
-  en: Yes
+  en: "Yes"
   de: Ja
   zh: 是
   es: Sí
@@ -1318,10 +1374,11 @@ reminder.yes:
   th: ใช่
   cs: Ano
   sv: Ja
+  he: כן
   verified_by_human: [en, de]
 reminder.no:
   context: No for boolean values
-  en: No
+  en: "No"
   de: Nein
   zh: 否
   es: No
@@ -1341,6 +1398,7 @@ reminder.no:
   th: ไม่
   cs: Ne
   sv: Nej
+  he: לא
   verified_by_human: [en, de]
 reminder.id:
   context: Label for reminder ID
@@ -1364,6 +1422,7 @@ reminder.id:
   th: ID การแจ้งเตือน
   cs: ID připomínky
   sv: Påminnelse-ID
+  he: מזהה תזכורת
   verified_by_human: [en, de]
 reminder.cancel:
   context: Button text to cancel a reminder
@@ -1387,6 +1446,7 @@ reminder.cancel:
   th: ยกเลิกการแจ้งเตือน
   cs: Zrušit připomínku
   sv: Avbryt påminnelse
+  he: ביטול תזכורת
   verified_by_human: [en, de]
 reminder.cancelling:
   context: Button text while cancelling a reminder
@@ -1410,6 +1470,7 @@ reminder.cancelling:
   th: กำลังยกเลิก...
   cs: Rušení...
   sv: Avbryter...
+  he: מבטל...
   verified_by_human: [en, de]
 reminder.cancel_success:
   context: Notification when reminder is successfully cancelled
@@ -1433,6 +1494,7 @@ reminder.cancel_success:
   th: ยกเลิกการแจ้งเตือนแล้ว
   cs: Připomínka zrušena
   sv: Påminnelse avbruten
+  he: התזכורת בוטלה
   verified_by_human: [en, de]
 reminder.cancel_error:
   context: Notification when reminder cancellation fails
@@ -1456,6 +1518,7 @@ reminder.cancel_error:
   th: ไม่สามารถยกเลิกการแจ้งเตือนได้
   cs: Nepodařilo se zrušit připomínku
   sv: Det gick inte att avbryta påminnelse
+  he: ביטול התזכורת נכשל
   verified_by_human: [en, de]
 reminder.already_fired:
   context: Notice when reminder has already fired
@@ -1479,6 +1542,7 @@ reminder.already_fired:
   th: การแจ้งเตือนนี้ได้ทำงานแล้ว
   cs: Tato připomínka již byla spuštěna
   sv: Denna påminnelse har redan utlösts
+  he: תזכורת זו כבר הופעלה
   verified_by_human: [en, de]
 connection:
   context: Singular label for a travel connection result
@@ -1502,6 +1566,7 @@ connection:
   th: การเชื่อมต่อ
   cs: spojení
   sv: förbindelse
+  he: חיבור
   verified_by_human: [en, de]
 connections:
   context: Plural label for travel connection results
@@ -1525,6 +1590,7 @@ connections:
   th: การเชื่อมต่อ
   cs: spojení
   sv: förbindelser
+  he: חיבורים
   verified_by_human: [en, de]
 from:
   context: Price prefix, e.g. 'from EUR 330'
@@ -1548,6 +1614,7 @@ from:
   th: จาก
   cs: od
   sv: från
+  he: מ-
   verified_by_human: [en, de]
 search_failed:
   context: Error title when a skill search fails
@@ -1571,6 +1638,7 @@ search_failed:
   th: การค้นหาล้มเหลว
   cs: Hledání selhalo
   sv: Sökningen misslyckades
+  he: החיפוש נכשל
   verified_by_human: [en, de]
 loading:
   context: Loading state text while results are being fetched
@@ -1594,6 +1662,7 @@ loading:
   th: กำลังโหลด...
   cs: Načítání...
   sv: Laddar...
+  he: טוען...
   verified_by_human: [en, de]
 no_results:
   context: Message when no results were found
@@ -1617,6 +1686,7 @@ no_results:
   th: ไม่พบการเชื่อมต่อ
   cs: Nebyly nalezeny žádné spoje.
   sv: Inga förbindelser hittades.
+  he: לא נמצאו חיבורים.
   verified_by_human: [en, de]
 book_on:
   context: CTA button text, e.g. 'Book on Google Flights'
@@ -1640,6 +1710,7 @@ book_on:
   th: จองบน {provider}
   cs: Rezervovat na {provider}
   sv: Boka på {provider}
+  he: "הזמנה ב-{provider}"
   verified_by_human: [en, de]
 open_google_flights:
   context: CTA button text when no direct airline booking URL is available
@@ -1663,6 +1734,7 @@ open_google_flights:
   th: เปิด Google Flights
   cs: Otevřít Google Flights
   sv: Öppna Google Flights
+  he: פתיחת Google Flights
   verified_by_human: [en, de]
 copied_to_clipboard:
   context: Notification shown when content has been copied to clipboard
@@ -1686,6 +1758,7 @@ copied_to_clipboard:
   th: คัดลอกไปยังคลิปบอร์ดแล้ว
   cs: Zkopírováno do schránky
   sv: Kopierat till urklipp
+  he: הועתק ללוח
   verified_by_human: []
 copy_failed:
   context: Notification shown when copying to clipboard fails
@@ -1709,6 +1782,7 @@ copy_failed:
   th: คัดลอกไม่สำเร็จ
   cs: Kopírování se nezdařilo
   sv: Kopiering misslyckades
+  he: ההעתקה ללוח נכשלה
   verified_by_human: []
 download_itinerary:
   context: Button label to download travel itinerary as PDF
@@ -1732,6 +1806,7 @@ download_itinerary:
   th: ดาวน์โหลดกำหนดการเดินทาง
   cs: Stáhnout itinerář
   sv: Ladda ner resplan
+  he: הורדת מסלול הטיול
   verified_by_human: [en, de]
 image_generate:
   context: Image generate skill label shown in BasicInfosBar - shows the skill name "Generate"
@@ -1755,6 +1830,7 @@ image_generate:
   th: สร้าง
   cs: Generovat
   sv: Generera
+  he: יצירה
   verified_by_human: []
 image_generate_draft:
   context: Image generate draft skill label shown in BasicInfosBar - shows the skill name "Generate Draft"
@@ -1778,6 +1854,7 @@ image_generate_draft:
   th: สร้างแบบร่าง
   cs: "Generovat návrh"
   sv: Generera utkast
+  he: יצירת טיוטה
   verified_by_human: []
 image_generate.error:
   context: Error message when image generation fails
@@ -1801,6 +1878,7 @@ image_generate.error:
   th: สร้างรูปภาพล้มเหลว
   cs: Generování obrázku selhalo
   sv: Bildgenerering misslyckades
+  he: יצירת התמונה נכשלה
   verified_by_human: []
 image_generate.loading:
   context: Loading text while image is being decrypted
@@ -1824,6 +1902,7 @@ image_generate.loading:
   th: กำลังโหลดรูปภาพ...
   cs: Načítání obrázku...
   sv: Laddar bild...
+  he: טוען תמונה...
   verified_by_human: []
 image_generate.prompt_label:
   context: Label for the prompt field in image fullscreen view
@@ -1847,6 +1926,7 @@ image_generate.prompt_label:
   th: คำสั่ง
   cs: Výzva
   sv: Prompt
+  he: פרומפט
   verified_by_human: []
 image_generate.model_label:
   context: Label for model name in image fullscreen view
@@ -1870,6 +1950,7 @@ image_generate.model_label:
   th: โมเดล
   cs: Model
   sv: Modell
+  he: מודל
   verified_by_human: []
 image_generate.aspect_ratio:
   context: Label for aspect ratio in image fullscreen view
@@ -1893,6 +1974,7 @@ image_generate.aspect_ratio:
   th: อัตราส่วนภาพ
   cs: Poměr stran
   sv: Bildförhållande
+  he: יחס גובה-רוחב
   verified_by_human: []
 image_generate.resolution:
   context: Label for resolution in image fullscreen view
@@ -1916,6 +1998,7 @@ image_generate.resolution:
   th: ความละเอียด
   cs: Rozlišení
   sv: Upplösning
+  he: רזולוציה
   verified_by_human: []
 image_generate.download:
   context: Button label to download the original image
@@ -1939,6 +2022,7 @@ image_generate.download:
   th: ดาวน์โหลดต้นฉบับ
   cs: Stáhnout originál
   sv: Ladda ner original
+  he: הורדת המקור
   verified_by_human: []
 image_generate.generated_by:
   context: Text shown above the prompt card in fullscreen view, followed by the model name. E.g. "Generated by Gemini 3 Pro"
@@ -1962,6 +2046,7 @@ image_generate.generated_by:
   th: สร้างโดย
   cs: Vygenerováno pomocí
   sv: Genererat av
+  he: נוצר על ידי
   verified_by_human: []
 image_generate.generating_via:
   context: Text shown in the preview card during image generation, followed by the model name and a colon. E.g. "Generating via FLUX Schnell:"
@@ -1985,6 +2070,7 @@ image_generate.generating_via:
   th: กำลังสร้างผ่าน
   cs: Generování přes
   sv: Genererar via
+  he: יוצר באמצעות
   verified_by_human: []
 image_generate.open_full_size:
   context: Tooltip shown when hovering over the image in fullscreen view - clicking opens the full-size image in a new browser tab
@@ -2008,6 +2094,7 @@ image_generate.open_full_size:
   th: เปิดรูปภาพขนาดเต็ม
   cs: Otevřít obrázek v plné velikosti
   sv: Öppna bild i full storlek
+  he: פתיחת תמונה בגודל מלא
   verified_by_human: []
 context_menu.view:
   context: Context menu action to open embed in fullscreen view
@@ -2031,6 +2118,7 @@ context_menu.view:
   th: ดู
   cs: Zobrazit
   sv: Visa
+  he: תצוגה
   verified_by_human: []
 context_menu.share:
   context: Context menu action to share an embed
@@ -2054,6 +2142,7 @@ context_menu.share:
   th: แชร์
   cs: Sdílet
   sv: Dela
+  he: שיתוף
   verified_by_human: []
 context_menu.copy:
   context: Context menu action to copy embed content
@@ -2077,6 +2166,7 @@ context_menu.copy:
   th: คัดลอก
   cs: Kopírovat
   sv: Kopiera
+  he: העתקה
   verified_by_human: []
 context_menu.download:
   context: Context menu action to download embed content
@@ -2100,6 +2190,7 @@ context_menu.download:
   th: ดาวน์โหลด
   cs: Stáhnout
   sv: Ladda ner
+  he: הורדה
   verified_by_human: []
 context_menu.deactivate:
   context: Context menu action to deactivate a focus mode
@@ -2123,6 +2214,7 @@ context_menu.deactivate:
   th: ปิดใช้งาน
   cs: Deaktivovat
   sv: Inaktivera
+  he: השבתה
   verified_by_human: []
 context_menu.details:
   context: Context menu action to view focus mode details in app store
@@ -2146,6 +2238,7 @@ context_menu.details:
   th: รายละเอียด
   cs: Podrobnosti
   sv: Detaljer
+  he: פרטים
   verified_by_human: []
 focus_mode.active_banner:
   context: Fixed header banner text shown in ActiveChat when a focus mode is active for the current chat. Short label indicating an active focus session.
@@ -2169,6 +2262,7 @@ focus_mode.active_banner:
   th: โฟกัสใช้งาน
   cs: Zaměření aktivní
   sv: Fokus aktivt
+  he: מיקוד פעיל
   verified_by_human: []
 focus_mode.focus_on:
   context: Trailing label in the focus mode pill shown above the message input. Displayed after the focus mode name, e.g. "Career Insights focus on". Kept short.
@@ -2192,6 +2286,7 @@ focus_mode.focus_on:
   th: โฟกัสเปิดอยู่
   cs: zaměření aktivní
   sv: fokus aktivt
+  he: מתמקד ב-
   verified_by_human: []
 focus_mode.activated:
   context: Status text shown on focus mode embed after activation completes
@@ -2215,6 +2310,7 @@ focus_mode.activated:
   th: เปิดใช้งานโหมดโฟกัสแล้ว
   cs: Režim zaměření aktivován
   sv: Fokusläge aktiverat
+  he: מצב מיקוד הופעל
   verified_by_human: []
 focus_mode.activating:
   context: Status text shown during focus mode countdown. {seconds} is replaced with the remaining seconds.
@@ -2238,6 +2334,7 @@ focus_mode.activating:
   th: "เปิดใช้งานใน {seconds} วินาที ..."
   cs: "Aktivace za {seconds} s ..."
   sv: "Aktiveras om {seconds} sek ..."
+  he: "הפעלה בעוד {seconds} שניות..."
   verified_by_human: []
 focus_mode.reject_hint:
   context: "Helper text below the focus mode card during countdown explaining how to prevent activation. Uses \\n for line break."
@@ -2261,6 +2358,9 @@ focus_mode.reject_hint:
   th: "คลิกหรือกด ESC เพื่อยกเลิกโหมดโฟกัส &\nและดำเนินการแชทปกติต่อ"
   cs: "Klikněte nebo stiskněte ESC pro zrušení režimu zaměření &\na pokračujte v běžném chatu"
   sv: "Klicka eller tryck ESC för att avbryta fokusläge &\noch fortsätta vanlig chatt"
+  he: |
+    יש ללחוץ או להקיש על ESC כדי למנוע את מצב המיקוד &
+    להמשיך בצ'אט רגיל
   verified_by_human: []
 days:
   context: Label for number of days (e.g., "22 / 31 days")
@@ -2284,6 +2384,7 @@ days:
   th: วัน
   cs: dní
   sv: dagar
+  he: ימים
   verified_by_human: [en, de]
 cheapest:
   context: Label for the cheapest price in a price calendar
@@ -2307,6 +2408,7 @@ cheapest:
   th: ถูกที่สุด
   cs: Nejlevnější
   sv: Billigast
+  he: הכי זול
   verified_by_human: [en, de]
 most_expensive:
   context: Label for the most expensive price in a price calendar
@@ -2330,6 +2432,7 @@ most_expensive:
   th: แพงที่สุด
   cs: Nejdražší
   sv: Dyrast
+  he: הכי יקר
   verified_by_human: [en, de]
 coverage:
   context: Label for data coverage (how many days have price data)
@@ -2353,6 +2456,7 @@ coverage:
   th: ความครอบคลุม
   cs: Pokrytí
   sv: Täckning
+  he: כיסוי
   verified_by_human: [en, de]
 no_price_data:
   context: Message shown when no price data is available for a route
@@ -2376,6 +2480,7 @@ no_price_data:
   th: ไม่มีข้อมูลราคาสำหรับเส้นทางนี้
   cs: Pro tuto trasu nejsou k dispozici cenové údaje
   sv: Inga prisuppgifter tillgängliga för denna rutt
+  he: אין נתוני מחירים זמינים למסלול זה
   verified_by_human: [en, de]
 price_calendar_note:
   context: Footnote explaining that price calendar prices are cached estimates
@@ -2399,6 +2504,7 @@ price_calendar_note:
   th: ราคาเป็นการประมาณจากแคช (~48 ชม.) ค้นหาวันที่เฉพาะเพื่อดูราคาแบบเรียลไทม์
   cs: Ceny jsou odhadované z mezipaměti (~48 h). Pro aktuální ceny vyhledejte konkrétní data.
   sv: Priser är cachade uppskattningar (~48 tim). Sök specifika datum för aktuella priser.
+  he: המחירים הם הערכות שמורות (מלפני כ-48 שעות). יש לחפש תאריכים ספציפיים למחירים עדכניים.
   verified_by_human: [en, de]
 get_booking_link:
   context: CTA button text for on-demand booking URL lookup (before loading)
@@ -2422,6 +2528,7 @@ get_booking_link:
   th: รับลิงก์จอง
   cs: Získat odkaz na rezervaci
   sv: Hämta bokningslänk
+  he: קבלת קישור להזמנה
   verified_by_human: [en, de]
 loading_booking:
   context: CTA button text while fetching booking URL from server
@@ -2445,6 +2552,7 @@ loading_booking:
   th: กำลังโหลดลิงก์จอง...
   cs: Načítání odkazu na rezervaci...
   sv: Laddar bokningslänk...
+  he: טוען קישור להזמנה...
   verified_by_human: [en, de]
 booking_link_failed:
   context: Error notification shown when booking link lookup fails
@@ -2468,6 +2576,7 @@ booking_link_failed:
   th: ไม่สามารถโหลดลิงก์จองได้ ลองค้นหาใน Google Flights แทน
   cs: Nepodařilo se načíst odkaz na rezervaci. Zkuste vyhledat na Google Flights.
   sv: Kunde inte ladda bokningslänk. Prova att söka på Google Flights istället.
+  he: לא ניתן היה לטעון את קישור ההזמנה. כדאי לנסות לחפש ב-Google Flights במקום.
   verified_by_human: [en, de]
 stay:
   context: Singular label for a travel stay/accommodation result
@@ -2491,6 +2600,7 @@ stay:
   th: ที่พัก
   cs: ubytování
   sv: boende
+  he: מקום אירוח
   verified_by_human: [en, de]
 stays:
   context: Plural label for travel stay/accommodation results
@@ -2514,6 +2624,7 @@ stays:
   th: ที่พัก
   cs: ubytování
   sv: boenden
+  he: מקומות אירוח
   verified_by_human: [en, de]
 per_night:
   context: Price suffix for nightly rate, e.g. 'EUR 120 /night'
@@ -2537,6 +2648,7 @@ per_night:
   th: /คืน
   cs: /noc
   sv: /natt
+  he: /לילה
   verified_by_human: [en, de]
 night:
   context: Singular label for one night, e.g. '1 night'
@@ -2560,6 +2672,7 @@ night:
   th: คืน
   cs: noc
   sv: natt
+  he: לילה
   verified_by_human: [en, de]
 total:
   context: Label for total price, e.g. 'EUR 360 total'
@@ -2583,6 +2696,7 @@ total:
   th: ทั้งหมด
   cs: celkem
   sv: totalt
+  he: "סה\"כ"
   verified_by_human: [en, de]
 no_stays_found:
   context: Message when no accommodation results were found
@@ -2606,6 +2720,7 @@ no_stays_found:
   th: ไม่พบที่พัก
   cs: Nebylo nalezeno žádné ubytování.
   sv: Inga boenden hittades.
+  he: לא נמצאו מקומות אירוח.
   verified_by_human: [en, de]
 free_cancellation:
   context: Badge text for hotels with free cancellation
@@ -2629,6 +2744,7 @@ free_cancellation:
   th: ยกเลิกฟรี
   cs: Bezplatné storno
   sv: Gratis avbokning
+  he: ביטול בחינם
   verified_by_human: [en, de]
 eco_certified:
   context: Badge text for eco-certified hotels
@@ -2652,6 +2768,7 @@ eco_certified:
   th: ได้รับการรับรองด้านสิ่งแวดล้อม
   cs: Ekologicky certifikováno
   sv: Miljöcertifierat
+  he: מוסמך אקולוגית
   verified_by_human: [en, de]
 check_in:
   context: Label for hotel check-in time
@@ -2675,6 +2792,7 @@ check_in:
   th: เช็คอิน
   cs: Příjezd
   sv: Incheckning
+  he: "צ'ק-אין"
   verified_by_human: [en, de]
 check_out:
   context: Label for hotel check-out time
@@ -2698,6 +2816,7 @@ check_out:
   th: เช็คเอาท์
   cs: Odjezd
   sv: Utcheckning
+  he: "צ'ק-אאוט"
   verified_by_human: [en, de]
 nearby:
   context: Section heading for nearby places around a hotel
@@ -2721,6 +2840,7 @@ nearby:
   th: ใกล้เคียง
   cs: V okolí
   sv: I närheten
+  he: בסביבה
   verified_by_human: [en, de]
 view_on_google_hotels:
   context: CTA button text to view a hotel on Google Hotels
@@ -2744,6 +2864,7 @@ view_on_google_hotels:
   th: ดูบน Google Hotels
   cs: Zobrazit na Google Hotels
   sv: Visa på Google Hotels
+  he: צפייה ב-Google Hotels
   verified_by_human: [en, de]
 focus_mode.context_menu.stop:
   context: Context menu button to stop an activated focus mode session
@@ -2767,6 +2888,7 @@ focus_mode.context_menu.stop:
   th: หยุด
   cs: Zastavit
   sv: Stoppa
+  he: עצירה
   verified_by_human: []
 focus_mode.context_menu.cancel:
   context: Context menu button to cancel a focus mode that hasn't been activated
@@ -2790,6 +2912,7 @@ focus_mode.context_menu.cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 loading_map:
   context: Loading placeholder text while map is being initialized
@@ -2813,6 +2936,7 @@ loading_map:
   th: กำลังโหลดแผนที่...
   cs: Načítání mapy...
   sv: Laddar karta...
+  he: טוען מפה...
   verified_by_human: []
 place:
   context: Singular noun for map search results count (e.g. "1 place")
@@ -2836,6 +2960,7 @@ place:
   th: สถานที่
   cs: místo
   sv: plats
+  he: מקום
   verified_by_human: []
 places:
   context: Plural noun for map search results count (e.g. "5 places")
@@ -2859,6 +2984,7 @@ places:
   th: สถานที่
   cs: míst
   sv: platser
+  he: מקומות
   verified_by_human: []
 youtube_video:
   context: Fallback title when a YouTube video has no display title
@@ -2882,6 +3008,7 @@ youtube_video:
   th: วิดีโอ YouTube
   cs: Video na YouTube
   sv: YouTube-video
+  he: סרטון YouTube
   verified_by_human: []
 video_by:
   context: Prefix text before channel name in video metadata (e.g. "by ChannelName")
@@ -2905,6 +3032,7 @@ video_by:
   th: โดย
   cs: od
   sv: av
+  he: מאת
   verified_by_human: []
 video_uploaded:
   context: Label after formatted date in video metadata (e.g. "Jan 1, 2024 uploaded")
@@ -2928,6 +3056,7 @@ video_uploaded:
   th: อัปโหลดเมื่อ
   cs: nahráno
   sv: uppladdad
+  he: הועלה בתאריך
   verified_by_human: []
 
 pii_hide:
@@ -2935,11 +3064,13 @@ pii_hide:
   en: Hide sensitive data
   de: Sensible Daten ausblenden
 
+  he: הסתרת נתונים רגישים
 pii_show:
   context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently hidden — clicking will reveal it
   en: Show sensitive data
   de: Sensible Daten anzeigen
 
+  he: הצגת נתונים רגישים
 maps_location:
   context: Maps Location skill label shown in BasicInfosBar
   en: Location
@@ -2962,6 +3093,7 @@ maps_location:
   th: ตำแหน่ง
   cs: Poloha
   sv: Plats
+  he: מיקום
   verified_by_human: []
 
 maps_location.open_in_google_maps:
@@ -2986,6 +3118,7 @@ maps_location.open_in_google_maps:
   th: เปิดใน Google Maps
   cs: Otevřít v Google Maps
   sv: Öppna i Google Maps
+  he: פתיחה ב-Google Maps
   verified_by_human: []
 
 maps_location.coordinates:
@@ -3010,6 +3143,7 @@ maps_location.coordinates:
   th: พิกัด
   cs: Souřadnice
   sv: Koordinater
+  he: קואורדינטות
   verified_by_human: []
 
 maps_location.loading_map:
@@ -3034,6 +3168,7 @@ maps_location.loading_map:
   th: กำลังโหลดแผนที่...
   cs: Načítání mapy...
   sv: Laddar karta...
+  he: טוען מפה...
   verified_by_human: []
 
 maps_location.nearby:
@@ -3058,6 +3193,7 @@ maps_location.nearby:
   th: ใกล้เคียง
   cs: V blízkosti
   sv: I närheten av
+  he: בסביבה
   verified_by_human: []
 
 health.doctor_with_slots:
@@ -3082,6 +3218,7 @@ health.doctor_with_slots:
   th: แพทย์ว่าง
   cs: lékař k dispozici
   sv: läkare tillgänglig
+  he: רופא זמין
   verified_by_human: []
 
 health.doctors_with_slots:
@@ -3106,6 +3243,7 @@ health.doctors_with_slots:
   th: แพทย์ว่าง
   cs: lékaři k dispozici
   sv: läkare tillgängliga
+  he: רופאים זמינים
   verified_by_human: []
 
 health.book_slot:
@@ -3130,6 +3268,7 @@ health.book_slot:
   th: จอง
   cs: Rezervovat
   sv: Boka
+  he: הזמנה
   verified_by_human: []
 
 health.view_practice:
@@ -3154,6 +3293,7 @@ health.view_practice:
   th: ดูคลินิก
   cs: Zobrazit praxi
   sv: Visa praktik
+  he: צפייה במרפאה
   verified_by_human: []
 
 health.no_slots_available:
@@ -3178,6 +3318,7 @@ health.no_slots_available:
   th: ไม่มีช่วงเวลาว่าง
   cs: Žádné dostupné termíny
   sv: Inga lediga tider
+  he: אין תורים פנויים
   verified_by_human: []
 
 health.next_slot:
@@ -3202,6 +3343,7 @@ health.next_slot:
   th: ถัดไปที่ว่าง
   cs: Příští dostupný
   sv: Nästa tillgänglig
+  he: התור הפנוי הבא
   verified_by_human: []
 
 health.telehealth:
@@ -3226,6 +3368,7 @@ health.telehealth:
   th: ทางไกล
   cs: Telemedicína
   sv: Telemedicin
+  he: ייעוץ מרחוק
   verified_by_human: []
 
 health.book_on_doctolib:
@@ -3250,6 +3393,7 @@ health.book_on_doctolib:
   th: จองบน Doctolib
   cs: Rezervovat na Doctolib
   sv: Boka på Doctolib
+  he: הזמנה ב-Doctolib
   verified_by_human: []
 
 health.slots_may_be_outdated:
@@ -3274,6 +3418,7 @@ health.slots_may_be_outdated:
   th: เวลาเหล่านี้อาจไม่มีให้บริการอีกต่อไป ตรวจสอบเวลาว่างล่าสุดบน Doctolib
   cs: Tyto termíny již nemusí být dostupné. Zkontrolujte aktuální dostupnost na Doctolib.
   sv: Dessa tider kanske inte längre är tillgängliga. Kontrollera aktuell tillgänglighet på Doctolib.
+  he: ייתכן שזמנים אלו כבר לא פנויים. בדוק זמינות עדכנית ב-Doctolib.
   verified_by_human: []
 
 health.no_appointments_found:
@@ -3298,6 +3443,7 @@ health.no_appointments_found:
   th: ไม่พบการนัดหมาย
   cs: Žádné termíny nenalezeny.
   sv: Inga bokningar hittades.
+  he: לא נמצאו תורים.
   verified_by_human: []
 shopping.product:
   context: Singular label for a shopping product result
@@ -3321,6 +3467,7 @@ shopping.product:
   th: สินค้า
   cs: produkt
   sv: produkt
+  he: מוצר
   verified_by_human: [en, de]
 shopping.products:
   context: Plural label for shopping product results
@@ -3344,6 +3491,7 @@ shopping.products:
   th: สินค้า
   cs: produkty
   sv: produkter
+  he: מוצרים
   verified_by_human: [en, de]
 shopping.sale:
   context: Badge label for products on sale / reduced price
@@ -3367,6 +3515,7 @@ shopping.sale:
   th: ลดราคา
   cs: Sleva
   sv: Rea
+  he: מבצע
   verified_by_human: [en, de]
 shopping.new:
   context: Badge label for newly listed products
@@ -3390,6 +3539,7 @@ shopping.new:
   th: ใหม่
   cs: Nový
   sv: Ny
+  he: חדש
   verified_by_human: [en, de]
 shopping.price_unavailable:
   context: Text shown when product price is not available
@@ -3413,6 +3563,7 @@ shopping.price_unavailable:
   th: ไม่มีราคา
   cs: Cena není dostupná
   sv: Pris ej tillgängligt
+  he: מחיר לא זמין
   verified_by_human: [en, de]
 shopping.no_results:
   context: Message when no products were found
@@ -3436,6 +3587,7 @@ shopping.no_results:
   th: ไม่พบสินค้า
   cs: Žádné produkty nenalezeny.
   sv: Inga produkter hittades.
+  he: לא נמצאו מוצרים.
   verified_by_human: [en, de]
 shopping.search_products:
   context: Shopping search products skill label shown in BasicInfosBar
@@ -3459,6 +3611,7 @@ shopping.search_products:
   th: ค้นหาสินค้า
   cs: Hledat produkty
   sv: Sök produkter
+  he: חיפוש מוצרים
   verified_by_human: [en, de]
 
 math.calculate:
@@ -3483,6 +3636,7 @@ math.calculate:
   th: คำนวณ
   cs: Vypočítat
   sv: Beräkna
+  he: חישוב
   verified_by_human: []
 
 math.plot:
@@ -3507,4 +3661,5 @@ math.plot:
   th: พล็อต
   cs: Graf
   sv: Graf
+  he: שרטוט
   verified_by_human: []

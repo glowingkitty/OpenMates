@@ -20,6 +20,7 @@ social_media_content_calendar_strategist:
   th: นักวิศวกรปฏิทินเนื้อหา
   cs: Stratég obsahu kalendáře
   sv: Innehållskalender-strateg
+  he: אסטרטג לוח שנה לתוכן
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: สร้างแผนเนื้อหาสื่อสังคม 30 วัน
   cs: Vytvořte 30denní plán obsahu pro sociální sítě.
   sv: Skapa en 30-dagars plan för sociala medier.
+  he: צור תוכנית תוכן לרשתות חברתיות ל-30 יום.
   verified_by_human:
     - en

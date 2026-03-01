@@ -26,6 +26,7 @@ calculate:
   th: คำนวณ
   cs: Vypočítat
   sv: Beräkna
+  he: חשב
   verified_by_human: []
 calculate.description:
   context: Description for the calculate skill in Math app
@@ -49,4 +50,5 @@ calculate.description:
   th: ประเมินนิพจน์ แก้สมการ และคำนวณอนุพันธ์หรืออินทิกรัล
   cs: Vyhodnoťte výrazy, řešte rovnice a počítejte derivace nebo integrály.
   sv: Utvärdera uttryck, lös ekvationer och beräkna derivator eller integraler.
+  he: חשב ביטויים, פתור משוואות וחשב נגזרות או אינטגרלים.
   verified_by_human: []

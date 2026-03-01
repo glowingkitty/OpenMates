@@ -20,6 +20,7 @@ watched_movies:
   th: ภาพยนตร์ที่ดูแล้ว
   cs: Sledované filmy
   sv: Tittade filmer
+  he: סרטים שראיתי
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ watched_movies.description:
   th: ภาพยนตร์ที่คุณดูแล้ว
   cs: Filmy, které jste viděli
   sv: Filmer du har sett
+  he: סרטים שראית
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ watched_tv_shows:
   th: รายการทีวีที่ดูแล้ว
   cs: Sledované seriály
   sv: Tittade TV-program
+  he: סדרות שראיתי
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ watched_tv_shows.description:
   th: รายการทีวีที่คุณดูแล้วหรือกำลังดูอยู่
   cs: Seriály, které jste viděli nebo sledujete
   sv: TV-program du har sett eller tittar på
+  he: סדרות שראית או שאתה צופה בהן
   verified_by_human:
     - en
     - de
@@ -120,6 +124,7 @@ to_watch_list:
   th: รายการที่ต้องดู
   cs: Seznam k sledování
   sv: Att-se-lista
+  he: רשימת צפייה
   verified_by_human:
     - en
     - de
@@ -145,6 +150,7 @@ to_watch_list.description:
   th: ภาพยนตร์และรายการทีวีที่คุณต้องการดู
   cs: Filmy a seriály, které chcete sledovat
   sv: Filmer och TV-program du vill titta på
+  he: סרטים וסדרות שאתה רוצה לראות
   verified_by_human:
     - en
     - de
@@ -173,6 +179,7 @@ watched_movies.example_1:
   th: อินเซปชัน
   cs: Počátek
   sv: Inception
+  he: התחלה
   verified_by_human: [en, de]
 
 watched_movies.example_2:
@@ -197,6 +204,7 @@ watched_movies.example_2:
   th: ชอว์แชงค์
   cs: Vykoupení z věznice Shawshank
   sv: Nyckeln till frihet
+  he: חומות של תקווה
   verified_by_human: [en, de]
 
 watched_tv_shows.example_1:
@@ -221,6 +229,7 @@ watched_tv_shows.example_1:
   th: บเรกกิ้ง แบด
   cs: Perníkový táta
   sv: Breaking Bad
+  he: שובר שורות
   verified_by_human: [en, de]
 
 watched_tv_shows.example_2:
@@ -245,6 +254,7 @@ watched_tv_shows.example_2:
   th: สเตรนเจอร์ ธิงส์
   cs: Stranger Things
   sv: Stranger Things
+  he: דברים מוזרים
   verified_by_human: [en, de]
 
 to_watch_list.example_1:
@@ -269,6 +279,7 @@ to_watch_list.example_1:
   th: ออพเพนไฮเมอร์
   cs: Oppenheimer
   sv: Oppenheimer
+  he: אופנהיימר
   verified_by_human: [en, de]
 
 to_watch_list.example_2:
@@ -293,5 +304,6 @@ to_watch_list.example_2:
   th: เดอะ แบร์
   cs: The Bear
   sv: The Bear
+  he: הדוב
   verified_by_human: [en, de]
 

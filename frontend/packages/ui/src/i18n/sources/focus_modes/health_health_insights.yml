@@ -20,6 +20,7 @@ health_health_insights:
   th: ข้อมูลเชิงลึกด้านสุขภาพ
   cs: Zdravotní poznatky
   sv: Hälsoinsikter
+  he: תובנות בריאותיות
   verified_by_human:
     - en
 description:
@@ -44,10 +45,12 @@ description:
   th: รับข้อมูลสุขภาพและค้นหาแพทย์ที่เหมาะสม
   cs: Získejte zdravotní poznatky a najděte lékaře.
   sv: Få hälsoinsikter och hitta rätt läkare.
+  he: קבל תובנות בריאותיות ומצא את הרופא המתאים.
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when health_insights focus mode is active
   en: You are a health expert.
+  he: אתה מומחה לבריאות.
   verified_by_human:
     - en

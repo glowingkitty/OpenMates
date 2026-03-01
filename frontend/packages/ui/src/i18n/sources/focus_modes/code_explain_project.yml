@@ -20,6 +20,7 @@ code_explain_project:
   th: อธิบายโปรเจ็กต์
   cs: Vysvětlit projekt
   sv: Förklara projekt
+  he: הסבר על הפרויקט
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: โคลนและวิเคราะห์สถาปัตยกรรมของ repo
   cs: Naklonujte a analyzujte architekturu repozitáře.
   sv: Klona och analysera ett repos arkitektur.
+  he: שכפול וניתוח של ארכיטקטורת המאגר.
   verified_by_human:
     - en

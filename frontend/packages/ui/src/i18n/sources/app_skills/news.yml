@@ -20,6 +20,7 @@ search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ search.description:
   th: ค้นหาบทความข่าวและเรื่องราว
   cs: Hledejte novinové články a příběhy.
   sv: Sök efter nyhetsartiklar och berättelser.
+  he: חיפוש מאמרי חדשות וכתבות.
   verified_by_human:
     - en
     - de
@@ -71,6 +73,7 @@ search.how_to_use.1:
   th: ข่าวล่าสุดเกี่ยวกับภารกิจดาวอังคารคืออะไร?
   cs: Jaké jsou nejnovější zprávy o misi na Mars?
   sv: Vad är de senaste nyheterna om Mars-uppdraget?
+  he: "מהן ה**חדשות האחרונות** בנוגע למשימה למאדים?"
   verified_by_human: [en, de]
 
 search.how_to_use.2:
@@ -95,6 +98,7 @@ search.how_to_use.2:
   th: ค้นหาข่าวเกี่ยวกับความก้าวหน้าด้านพลังงานทดแทน
   cs: Hledej zprávy o průlomech v obnovitelné energii
   sv: Sök efter nyheter om genombrott inom förnybar energi
+  he: "**חפש** חדשות על פריצות דרך באנרגיה מתחדשת"
   verified_by_human: [en, de]
 
 search.how_to_use.3:
@@ -119,4 +123,5 @@ search.how_to_use.3:
   th: วันนี้มีอะไรเกิดขึ้นในอุตสาหกรรมเทคโนโลยี?
   cs: Co se dnes stalo v technologickém průmyslu?
   sv: Vad hände idag i teknikbranschen?
+  he: "מה קרה **היום** בתעשיית הטכנולוגיה?"
   verified_by_human: [en, de]

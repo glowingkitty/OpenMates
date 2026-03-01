@@ -20,6 +20,7 @@ login:
   th: เข้าสู่ระบบ
   cs: Přihlásit se
   sv: Logga in
+  he: התחברות
   verified_by_human: []
 to_chat_to_your:
   context: "'Login to chat to your digital team mates"
@@ -43,6 +44,7 @@ to_chat_to_your:
   th: เพื่อแชทกับ
   cs: Pro chatování s vašimi
   sv: För att chatta med dina
+  he: "כדי לצ'וטט עם"
   verified_by_human: []
 digital_team_mates:
   context: "'Login to chat to your digital team mates"
@@ -66,6 +68,7 @@ digital_team_mates:
   th: เพื่อนร่วมทีมดิจิทัล
   cs: digitálními kolegy
   sv: digitala teamkamrater
+  he: חברי צוות דיגיטליים
   verified_by_human: []
 not_signed_up_yet:
   context: Asking the user if they are not signed up yet for the app
@@ -89,6 +92,7 @@ not_signed_up_yet:
   th: ยังไม่ได้สมัครสมาชิก?
   cs: Ještě nejste registrováni?
   sv: Inte registrerad än?
+  he: "עדיין לא נרשמת?"
   verified_by_human: []
 create_account:
   context: Button text for creating a new account
@@ -112,6 +116,7 @@ create_account:
   th: สร้างบัญชี
   cs: Vytvořit účet
   sv: Skapa konto
+  he: יצירת חשבון
   verified_by_human: []
 demo:
   context: Button text for going back to demo from login screen
@@ -135,6 +140,7 @@ demo:
   th: ตัวอย่าง
   cs: Demo
   sv: Demo
+  he: דמו
   verified_by_human: []
 session_expired:
   context: Message shown when the session has expired
@@ -238,6 +244,9 @@ session_expired:
     Du har loggats ut.
 
     "
+  he: |
+    החיבור שלך פג.
+    נותקת מהמערכת.
   verified_by_human: []
 auto_logout_notification.title:
   context: Title for the auto-logout notification when user is logged out due to page reload without 'stay logged in' enabled
@@ -261,6 +270,7 @@ auto_logout_notification.title:
   th: คุณถูกออกจากระบบแล้ว
   cs: Byli jste odhlášeni
   sv: Du har loggats ut
+  he: נותקת מהמערכת
   verified_by_human: []
 auto_logout_notification.message:
   context: Primary message explaining why auto-logout happened and what to do
@@ -284,6 +294,7 @@ auto_logout_notification.message:
   th: เปิดใช้งาน "เข้าสู่ระบบค้างไว้" ขณะเข้าสู่ระบบเพื่อป้องกันปัญหานี้
   cs: Aktivujte "Zůstat přihlášen" při přihlašování, abyste tomu zabránili.
   sv: Aktivera "Förbli inloggad" vid inloggning för att förhindra detta.
+  he: "יש להפעיל את האפשרות \"הישאר מחובר\" במהלך ההתחברות כדי למנוע זאת."
   verified_by_human: []
 auto_logout_notification.storage_evicted_title:
   context: Title for the auto-logout notification when the browser unexpectedly cleared local storage (e.g. Safari on iOS evicted IndexedDB data). Different from the normal auto-logout which is caused by not enabling 'stay logged in'.
@@ -307,6 +318,7 @@ auto_logout_notification.storage_evicted_title:
   th: เซสชันหมดอายุ
   cs: Relace vypršela
   sv: Sessionen har gått ut
+  he: החיבור פג
   verified_by_human: []
 auto_logout_notification.storage_evicted_message:
   context: Message shown when the browser unexpectedly cleared local storage (e.g. Safari on iOS). Reassures the user that their data is safe and they just need to log in again.
@@ -330,6 +342,7 @@ auto_logout_notification.storage_evicted_message:
   th: เบราว์เซอร์ของคุณล้างข้อมูลในเครื่อง กรุณาเข้าสู่ระบบอีกครั้ง — แชททั้งหมดของคุณปลอดภัย
   cs: Váš prohlížeč vymazal místní data. Přihlaste se znovu — všechny vaše chaty jsou v bezpečí.
   sv: Din webbläsare rensade lokala data. Logga in igen — alla dina chattar är säkra.
+  he: "הדפדפן שלך מחק נתונים מקומיים. יש להתחבר מחדש — כל הצ'אטים שלך שמורים."
   verified_by_human: []
 stay_logged_in:
   context: Checkbox text for staying logged in
@@ -433,6 +446,9 @@ stay_logged_in:
     (använd inte på delade datorer)
 
     "
+  he: |
+    הישאר מחובר במכשיר זה
+    (אין להשתמש במחשבים משותפים)
   verified_by_human: []
 email_placeholder:
   context: Placeholder text for email input field
@@ -456,6 +472,7 @@ email_placeholder:
   th: ใส่อีเมลแอดเดรส
   cs: Zadejte e-mailovou adresu
   sv: Ange e-postadress
+  he: הזן כתובת אימייל
   verified_by_human: []
 password_placeholder:
   context: Placeholder text for password input field
@@ -479,6 +496,7 @@ password_placeholder:
   th: ใส่รหัสผ่าน
   cs: Zadejte heslo
   sv: Ange lösenord
+  he: הזן סיסמה
   verified_by_human: []
 recoverykey_placeholder:
   context: Placeholder text for recovery key input field
@@ -502,6 +520,7 @@ recoverykey_placeholder:
   th: ใส่คีย์กู้คืน
   cs: Zadejte klíč pro obnovu
   sv: Ange återställningsnyckel
+  he: הזן מפתח שחזור
   verified_by_human: []
 check_your_2fa_app:
   context: Text for asking the user to check their 2FA app for the one-time code
@@ -525,6 +544,7 @@ check_your_2fa_app:
   th: ตรวจสอบ {tfa_app}
   cs: Zkontrolujte {tfa_app}
   sv: Kontrollera {tfa_app}
+  he: "בדוק את {tfa_app}"
   verified_by_human: []
 your_tfa_app:
   context: Placeholder if no 2FA app name is selected.
@@ -548,6 +568,7 @@ your_tfa_app:
   th: แอป 2FA ของคุณ
   cs: vaše aplikace 2FA
   sv: din 2FA-app
+  he: אפליקציית ה-2FA שלך
   verified_by_human: []
 verify_device_location_change_notice:
   context: Security notice shown when re-authentication is triggered because the user's connection location changed (e.g. VPN switch or travel). Explains why identity verification is required to protect against account takeover.
@@ -571,6 +592,7 @@ verify_device_location_change_notice:
   th: เราตรวจพบว่าตำแหน่งการเชื่อมต่อของคุณเปลี่ยนไป เพื่อปกป้องบัญชีของคุณจากการเข้าถึงโดยไม่ได้รับอนุญาต กรุณายืนยันตัวตนของคุณ
   cs: Zjistili jsme, ze se umisteni vaseho pripojeni zmenilo. Pro ochranu vaseho uctu pred neopravnenym pristupem overite prosim svou identitu.
   sv: Vi upptackte att din anslutningsplats har andrats. For att skydda ditt konto fran obehörig atkomst, verifiera din identitet.
+  he: זיהינו שמיקום החיבור שלך השתנה. כדי להגן על חשבונך מפני גישה לא מורשית, עליך לאמת את זהותך.
   verified_by_human: []
 verify_device_passkey_prompt:
   context: Text shown when user needs to verify their identity with a passkey on a new device
@@ -594,6 +616,7 @@ verify_device_passkey_prompt:
   th: ยืนยันตัวตนด้วยพาสคีย์ของคุณเพื่อดำเนินการต่อบนอุปกรณ์นี้
   cs: Overite svou identitu pomoci pristupoveho klice pro pokracovani na tomto zarizeni.
   sv: Verifiera din identitet med din nyckelbricka for att fortsatta pa den har enheten.
+  he: אמת את זהותך באמצעות מפתח הגישה שלך כדי להמשיך במכשיר זה.
   verified_by_human: []
 verify_device_passkey_button:
   context: Button text to start passkey verification on new device
@@ -617,6 +640,7 @@ verify_device_passkey_button:
   th: ยืนยันด้วยพาสคีย์
   cs: Ověřit přístupovým klíčem
   sv: Verifiera med nyckelbricka
+  he: אימות באמצעות מפתח גישה
   verified_by_human: []
 verify_device_passkey_error:
   context: Error message when passkey device verification fails
@@ -640,6 +664,7 @@ verify_device_passkey_error:
   th: การยืนยันพาสคีย์ล้มเหลว กรุณาลองอีกครั้ง
   cs: Ověření přístupovým klíčem se nezdařilo. Zkuste to prosím znovu.
   sv: Verifiering med nyckelbricka misslyckades. Försök igen.
+  he: אימות מפתח הגישה נכשל. יש לנסות שוב.
   verified_by_human: []
 2fa_code_placeholder:
   context: Placeholder text for 2FA code input field
@@ -663,6 +688,7 @@ verify_device_passkey_error:
   th: ใส่รหัสใช้ครั้งเดียว 6 หลัก
   cs: Zadejte 6místný jednorázový kód
   sv: Ange 6-siffrig engångskod
+  he: הזן קוד חד-פעמי בן 6 ספרות
   verified_by_human: []
 enter_backup_code:
   context: Placeholder text for backup code input field
@@ -686,6 +712,7 @@ enter_backup_code:
   th: ใส่รหัสสำรอง 14 ตัวอักษร
   cs: Zadejte 14místný záložní kód
   sv: Ange 14-tecken säkerhetskopieringskod
+  he: הזן קוד גיבוי בן 14 תווים
   verified_by_human: []
 login_with_another_account:
   context: Button text for logging in with another account
@@ -709,6 +736,7 @@ login_with_another_account:
   th: เข้าสู่ระบบด้วยบัญชีอื่น
   cs: Přihlásit se jiným účtem
   sv: Logga in med ett annat konto
+  he: התחברות עם חשבון אחר
   verified_by_human: []
 login_with_backup_code:
   context: Button text for logging in with a backup code
@@ -732,6 +760,7 @@ login_with_backup_code:
   th: เข้าสู่ระบบด้วยรหัสสำรอง
   cs: Přihlásit se záložním kódem
   sv: Logga in med säkerhetskopieringskod
+  he: התחברות עם קוד גיבוי
   verified_by_human: []
 login_with_recovery_key:
   context: Button text for logging in with a recovery key
@@ -755,6 +784,7 @@ login_with_recovery_key:
   th: เข้าสู่ระบบด้วยคีย์กู้คืน
   cs: Přihlásit se klíčem pro obnovu
   sv: Logga in med återställningsnyckel
+  he: התחברות עם מפתח שחזור
   verified_by_human: []
 login_with_tfa_app:
   context: Button text for logging in with a 2FA app
@@ -778,6 +808,7 @@ login_with_tfa_app:
   th: เข้าสู่ระบบด้วยแอป 2FA
   cs: Přihlásit se aplikací 2FA
   sv: Logga in med 2FA-app
+  he: התחברות עם אפליקציית 2FA
   verified_by_human: []
 login_with_password_and_tfa:
   context: Button text for logging in with password and 2FA
@@ -801,6 +832,7 @@ login_with_password_and_tfa:
   th: เข้าสู่ระบบด้วยรหัสผ่านและแอป 2FA
   cs: Přihlásit se heslem a aplikací 2FA
   sv: Logga in med lösenord och 2FA-app
+  he: התחברות עם סיסמה ואפליקציית 2FA
   verified_by_human: []
 login_with_passkey:
   context: Button text for logging in with a passkey
@@ -824,6 +856,7 @@ login_with_passkey:
   th: เข้าสู่ระบบด้วยคีย์ผ่าน
   cs: Přihlásit se pomocí přístupového klíče
   sv: ""
+  he: התחברות עם מפתח גישה
   verified_by_human: []
 or:
   context: Divider text between passkey and email login options
@@ -847,6 +880,7 @@ or:
   th: หรือ
   cs: nebo
   sv: eller
+  he: או
   verified_by_human: []
 logging_in_with_passkey:
   context: Loading message shown when passkey login is in progress
@@ -870,6 +904,7 @@ logging_in_with_passkey:
   th: กำลังเข้าสู่ระบบด้วยคีย์ผ่าน...
   cs: Přihlašování pomocí přístupového klíče...
   sv: Loggar in med åtkomstnyckel...
+  he: מתחבר באמצעות מפתח גישה...
   verified_by_human: []
 login_with_email:
   context: Button text to switch from passkey login to email login
@@ -893,6 +928,7 @@ login_with_email:
   th: เข้าสู่ระบบด้วยที่อยู่อีเมล
   cs: Přihlásit se pomocí e-mailové adresy
   sv: Logga in med e-postadress
+  he: התחברות באמצעות כתובת אימייל
   verified_by_human: []
 back_to_email:
   context: Button text to go back to email input step
@@ -916,6 +952,7 @@ back_to_email:
   th: กลับไปที่อีเมล
   cs: Zpět na e-mail
   sv: Tillbaka till e-post
+  he: חזרה לאימייל
   verified_by_human: []
 cant_connect_to_server:
   context: Error message shown when server connection times out
@@ -1019,6 +1056,9 @@ cant_connect_to_server:
     Kontrollera din internetanslutning.
 
     "
+  he: |
+    לא ניתן להתחבר לשרת.
+    אנא בדוק את חיבור האינטרנט שלך.
   verified_by_human: []
 retry:
   context: Button text for retrying server connection
@@ -1042,6 +1082,7 @@ retry:
   th: ลองอีกครั้ง
   cs: Zkusit znovu
   sv: Försök igen
+  he: נסה שוב
   verified_by_human: []
 login_with_security_key:
   context: Button text for logging in with a security key
@@ -1065,6 +1106,7 @@ login_with_security_key:
   th: เข้าสู่ระบบด้วยคีย์ความปลอดภัย
   cs: Přihlásit se bezpečnostním klíčem
   sv: Logga in med säkerhetsnyckel
+  he: התחברות באמצעות מפתח אבטחה
   verified_by_human: []
 backup_code_is_single_use:
   context: Message explaining that the backup code can only be used once
@@ -1088,6 +1130,7 @@ backup_code_is_single_use:
   th: รหัสแต่ละรหัสใช้ได้เพียงครั้งเดียว!
   cs: Každý kód lze použít pouze jednou!
   sv: Varje kod kan endast användas en gång!
+  he: "כל קוד הוא לשימוש חד-פעמי בלבד!"
   verified_by_human: []
 logging_in_with_security_key:
   context: Text shown while logging in with a security key
@@ -1111,6 +1154,7 @@ logging_in_with_security_key:
   th: กำลังเข้าสู่ระบบด้วยคีย์ความปลอดภัย...
   cs: Přihlašování bezpečnostním klíčem...
   sv: Loggar in med säkerhetsnyckel...
+  he: מתחבר באמצעות מפתח אבטחה...
   verified_by_human: []
 use_for_emergencies_only:
   context: Message explaining that the recovery key should only be used in emergencies
@@ -1214,6 +1258,9 @@ use_for_emergencies_only:
     om du har förlorat tillgången till dina inloggningsuppgifter.
 
     "
+  he: |
+    לשימוש במקרי חירום בלבד,
+    אם איבדת את הגישה לפרטי ההתחברות שלך.
   verified_by_human: []
 login_button:
   context: Button text for logging in
@@ -1237,6 +1284,7 @@ login_button:
   th: เข้าสู่ระบบ
   cs: Přihlásit se
   sv: Logga in
+  he: התחברות
   verified_by_human: []
 loading:
   context: Text shown when checking authentication
@@ -1260,6 +1308,7 @@ loading:
   th: กำลังโหลด...
   cs: Načítání...
   sv: Laddar...
+  he: טוען...
   verified_by_human: []
 login_failed:
   context: Error message shown when login fails
@@ -1283,6 +1332,7 @@ login_failed:
   th: ข้อมูลเข้าสู่ระบบผิด
   cs: Nesprávné přihlašovací údaje
   sv: Felaktiga inloggningsuppgifter
+  he: פרטי ההתחברות שגויים
   verified_by_human: []
 email_or_password_wrong:
   context: Error message shown when email address or password is incorrect
@@ -1306,6 +1356,7 @@ email_or_password_wrong:
   th: ที่อยู่อีเมลหรือรหัสผ่านผิด
   cs: Nesprávná e-mailová adresa nebo heslo
   sv: Felaktig e-postadress eller lösenord
+  he: כתובת האימייל או הסיסמה שגויים
   verified_by_human: []
 recovery_key_wrong:
   context: Error message shown when recovery key is incorrect
@@ -1329,6 +1380,7 @@ recovery_key_wrong:
   th: คีย์กู้คืนผิด
   cs: Nesprávný klíč pro obnovu
   sv: Felaktig återställningsnyckel
+  he: מפתח השחזור שגוי
   verified_by_human: []
 code_wrong:
   context: Error message shown when 2FA code or backup code is incorrect
@@ -1352,6 +1404,7 @@ code_wrong:
   th: รหัสผิด
   cs: Nesprávný kód
   sv: Felaktig kod
+  he: הקוד שגוי
   verified_by_human: []
 forgot_password:
   context: Starting process of resetting password
@@ -1375,6 +1428,7 @@ forgot_password:
   th: ลืมรหัสผ่าน
   cs: Zapomenuté heslo
   sv: Glömt mitt lösenord
+  he: שכחתי את הסיסמה שלי
   verified_by_human: []
 cant_login:
   context: Button text for users who cannot login to their account
@@ -1398,6 +1452,7 @@ cant_login:
   th: ไม่สามารถเข้าสู่ระบบบัญชีของฉันได้
   cs: Nemohu se přihlásit ke svému účtu
   sv: Jag kan inte logga in på mitt konto
+  he: לא מצליח להתחבר לחשבון שלי
   verified_by_human: []
 recovery_use_recovery_key:
   context: Message suggesting to use recovery key instead of full reset
@@ -1421,6 +1476,7 @@ recovery_use_recovery_key:
   th: หากคุณมีคีย์กู้คืน โปรดใช้ "เข้าสู่ระบบด้วยคีย์กู้คืน" แทน - จะเก็บรักษาข้อมูลทั้งหมดของคุณไว้
   cs: Pokud máte svůj klíč pro obnovu, použijte "Přihlásit se klíčem pro obnovu" - zachová to všechna vaše data.
   sv: Om du har din återställningsnyckel, använd "Logga in med återställningsnyckel" istället - det bevarar all din data.
+  he: "אם יש לך את מפתח השחזור שלך, השתמש ב-\"התחברות באמצעות מפתח שחזור\" במקום - זה שומר על כל הנתונים שלך."
   verified_by_human: []
 request_reset_code:
   context: Button text for requesting account reset code
@@ -1444,6 +1500,7 @@ request_reset_code:
   th: ขอรหัสรีเซ็ต
   cs: Vyžádat kód pro reset
   sv: Begär återställningskod
+  he: בקש קוד איפוס
   verified_by_human: []
 recovery_code_sent:
   context: Success message after requesting recovery code
@@ -1467,6 +1524,7 @@ recovery_code_sent:
   th: หากมีบัญชีที่ใช้อีเมลนี้ รหัสยืนยันได้ถูกส่งไปแล้ว
   cs: Pokud účet s tímto e-mailem existuje, byl odeslán ověřovací kód.
   sv: Om ett konto finns med denna e-post har en verifieringskod skickats.
+  he: אם קיים חשבון עם אימייל זה, נשלח קוד אימות.
   verified_by_human: []
 error_occurred:
   context: Generic error message
@@ -1490,6 +1548,7 @@ error_occurred:
   th: เกิดข้อผิดพลาด กรุณาลองอีกครั้ง
   cs: Došlo k chybě. Zkuste to prosím znovu.
   sv: Ett fel inträffade. Försök igen.
+  he: אירעה שגיאה. אנא נסה שוב.
   verified_by_human: []
 enter_code_sent:
   context: Instruction to enter verification code
@@ -1513,6 +1572,7 @@ enter_code_sent:
   th: ป้อนรหัส 6 หลักที่ส่งไปยังอีเมลของคุณ
   cs: Zadejte 6místný kód zaslaný na váš e-mail.
   sv: Ange den 6-siffriga koden som skickades till din e-post.
+  he: הזן את הקוד בן 6 הספרות שנשלח לאימייל שלך.
   verified_by_human: []
 verification_code:
   context: Label for verification code input
@@ -1536,6 +1596,7 @@ verification_code:
   th: รหัสยืนยัน
   cs: Ověřovací kód
   sv: Verifieringskod
+  he: קוד אימות
   verified_by_human: []
 acknowledge_data_loss:
   context: Toggle label for acknowledging data loss during account reset
@@ -1559,6 +1620,7 @@ acknowledge_data_loss:
   th: ฉันเข้าใจว่าแชท การตั้งค่า ความทรงจำ และการฝังทั้งหมดของฉันจะถูกลบอย่างถาวรและไม่สามารถยกเลิกได้
   cs: Rozumím, že všechny mé chaty, nastavení, vzpomínky a vložené položky budou trvale smazány a nelze to vrátit zpět.
   sv: Jag förstår att alla mina chattar, inställningar, minnen och inbäddningar kommer att raderas permanent och att detta inte kan ångras.
+  he: "אני מבין שכל הצ'אטים, ההגדרות, הזיכרונות וההטמעות שלי יימחקו לצמיתות ולא ניתן יהיה לבטל זאת."
   verified_by_human: []
 reset_account:
   context: Button text for resetting account
@@ -1582,6 +1644,7 @@ reset_account:
   th: รีเซ็ตบัญชี
   cs: Resetovat účet
   sv: Återställ konto
+  he: איפוס חשבון
   verified_by_human: []
 choose_login_method:
   context: Instruction for choosing login method after reset
@@ -1605,6 +1668,7 @@ choose_login_method:
   th: เลือกวิธีที่คุณต้องการเข้าสู่ระบบบัญชีของคุณ
   cs: Zvolte, jak se chcete přihlásit ke svému účtu
   sv: Välj hur du vill logga in på ditt konto
+  he: בחר כיצד ברצונך להתחבר לחשבון שלך
   verified_by_human: []
 account_reset_success:
   context: Success message after account reset
@@ -1628,6 +1692,7 @@ account_reset_success:
   th: รีเซ็ตบัญชีสำเร็จแล้ว!
   cs: Účet byl úspěšně resetován!
   sv: Kontot har återställts!
+  he: "החשבון אופס בהצלחה!"
   verified_by_human: []
 account_reset_complete:
   context: Header text after account reset is complete
@@ -1651,6 +1716,7 @@ account_reset_complete:
   th: การรีเซ็ตบัญชีเสร็จสมบูรณ์!
   cs: Reset účtu dokončen!
   sv: Kontoåterställning klar!
+  he: "איפוס החשבון הושלם!"
   verified_by_human: []
 account_reset_complete_login_now:
   context: Notification message after account reset is complete, instructing user to login with new credentials
@@ -1674,6 +1740,7 @@ account_reset_complete_login_now:
   th: การรีเซ็ตบัญชีเสร็จสมบูรณ์! กรุณาเข้าสู่ระบบด้วยข้อมูลประจำตัวใหม่ของคุณ
   cs: Reset účtu dokončen! Přihlaste se prosím s novými přihlašovacími údaji.
   sv: Kontoåterställning klar! Logga in med dina nya inloggningsuppgifter.
+  he: "איפוס החשבון הושלם! אנא התחבר עם פרטי ההתחברות החדשים שלך."
   verified_by_human: []
 resetting_account:
   context: Loading screen title while account is being reset
@@ -1697,6 +1764,7 @@ resetting_account:
   th: กำลังรีเซ็ตบัญชีของคุณ...
   cs: Resetování vašeho účtu...
   sv: Återställer ditt konto...
+  he: מאפס את החשבון שלך...
   verified_by_human: []
 resetting_account_description:
   context: Loading screen description while account is being reset
@@ -1720,6 +1788,7 @@ resetting_account_description:
   th: อาจใช้เวลาสักครู่ กรุณาอย่าปิดหน้าต่างนี้
   cs: Může to chvíli trvat. Prosím nezavírejte toto okno.
   sv: Detta kan ta en stund. Stäng inte det här fönstret.
+  he: זה עשוי לקחת רגע. נא לא לסגור את החלון הזה.
   verified_by_human: []
 you_can_now_login:
   context: Message after account reset explaining user can login
@@ -1743,6 +1812,7 @@ you_can_now_login:
   th: ตอนนี้คุณสามารถเข้าสู่ระบบด้วยข้อมูลประจำตัวใหม่ของคุณได้แล้ว
   cs: Nyní se můžete přihlásit s novými přihlašovacími údaji.
   sv: Du kan nu logga in med dina nya inloggningsuppgifter.
+  he: כעת ניתן להתחבר עם פרטי הגישה החדשים שלך.
   verified_by_human: []
 go_to_login:
   context: Button text to go back to login screen
@@ -1766,6 +1836,7 @@ go_to_login:
   th: ไปที่หน้าเข้าสู่ระบบ
   cs: Přejít na přihlášení
   sv: Gå till inloggning
+  he: מעבר להתחברות
   verified_by_human: []
 continue:
   context: Button text to continue to next step
@@ -1789,6 +1860,7 @@ continue:
   th: ดำเนินการต่อ
   cs: Pokračovat
   sv: Fortsätt
+  he: המשך
   verified_by_human: []
 complete_reset:
   context: Button text to complete account reset with new password
@@ -1812,6 +1884,7 @@ complete_reset:
   th: ดำเนินการรีเซ็ตให้เสร็จสมบูรณ์
   cs: Dokončit reset
   sv: Slutför återställning
+  he: השלמת האיפוס
   verified_by_human: []
 email_not_found:
   context: Error message when email is not valid
@@ -1835,6 +1908,7 @@ email_not_found:
   th: กรุณาใส่ที่อยู่อีเมลที่ถูกต้อง
   cs: Zadejte prosím platnou e-mailovou adresu
   sv: Ange en giltig e-postadress
+  he: נא להזין כתובת אימייל תקינה
   verified_by_human: []
 resend_code:
   context: Button label to resend verification code
@@ -1858,6 +1932,7 @@ resend_code:
   th: ส่งรหัสอีกครั้ง
   cs: Znovu odeslat kód
   sv: Skicka koden igen
+  he: שליחת הקוד מחדש
   verified_by_human: []
 too_many_requests:
   context: Error message when user has sent too many requests (rate limited)
@@ -1881,6 +1956,7 @@ too_many_requests:
   th: คำขอมากเกินไป กรุณารอสักครู่ก่อนลองอีกครั้ง
   cs: Příliš mnoho požadavků. Počkejte prosím několik minut a zkuste to znovu.
   sv: För många förfrågningar. Vänta några minuter innan du försöker igen.
+  he: יותר מדי בקשות. נא להמתין מספר דקות לפני הניסיון הבא.
   verified_by_human: []
 code_verified:
   context: Success message after verification code is verified
@@ -1904,6 +1980,7 @@ code_verified:
   th: ยืนยันรหัสแล้ว!
   cs: Kód ověřen!
   sv: Kod verifierad!
+  he: "הקוד אומת!"
   verified_by_human: []
 registering_passkey:
   context: Loading message shown when passkey registration is in progress
@@ -1927,6 +2004,7 @@ registering_passkey:
   th: กำลังลงทะเบียนคีย์ผ่านของคุณ...
   cs: Registrace vašeho přístupového klíče...
   sv: Registrerar din åtkomstnyckel...
+  he: מבצע רישום של מפתח הגישה שלך...
   verified_by_human: []
 follow_passkey_prompts:
   context: Instruction to follow device prompts during passkey registration
@@ -1950,6 +2028,7 @@ follow_passkey_prompts:
   th: กรุณาทำตามคำแนะนำบนอุปกรณ์ของคุณ
   cs: Postupujte podle pokynů na vašem zařízení.
   sv: Följ anvisningarna på din enhet.
+  he: נא לפעול לפי ההנחיות במכשיר שלך.
   verified_by_human: []
 try_another_method:
   context: Button text to try a different login method
@@ -1973,6 +2052,7 @@ try_another_method:
   th: ลองวิธีอื่น
   cs: Zkusit jinou metodu
   sv: Prova en annan metod
+  he: ניסיון בשיטה אחרת
   verified_by_human: []
 back:
   context: Button text to go back to previous step
@@ -1996,14 +2076,17 @@ back:
   th: ย้อนกลับ
   cs: Zpět
   sv: Tillbaka
+  he: חזרה
   verified_by_human: []
 enter_backup_code_description:
   context: Description text above backup code input form explaining how backup codes work
   en: Enter one of your backup codes to sign in. Each code can only be used once.
   de: Gib einen deiner Backup-Codes ein, um dich anzumelden. Jeder Code kann nur einmal verwendet werden.
+  he: יש להזין את אחד מקודי הגיבוי שלך כדי להתחבר. ניתן להשתמש בכל קוד פעם אחת בלבד.
   verified_by_human: []
 use_authenticator_app:
   context: Button text to switch from backup code entry back to authenticator app verification
   en: Use authenticator app
   de: Authenticator-App verwenden
+  he: שימוש באפליקציית אימות
   verified_by_human: []

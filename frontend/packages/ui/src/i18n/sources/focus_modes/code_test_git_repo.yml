@@ -20,6 +20,7 @@ code_test_git_repo:
   th: ทดสอบ git repo
   cs: Otestovat git úložiště
   sv: Testa git-repo
+  he: בדיקת מאגר git
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: โคลน git repo และทดสอบว่าทำงานหรือไม่
   cs: Naklonujte git úložiště a otestujte, zda funguje.
   sv: Klona ett git-repo och testa om det fungerar.
+  he: שכפל מאגר git ובדוק אם הוא עובד.
   verified_by_human:
     - en
 process:
@@ -57,5 +59,14 @@ process:
     - clone the repo to the specified location
     - read project folder & file structure and readme.md to get an overview of the project
     - figure out how to test the project and start testing it
+  he: |
+    - אם לא סופק כבר, בקש מהמשתמש את כתובת ה-URL של המאגר ב-github/gitlab
+    - אם לא סופק כבר, שאל את המשתמש מה הוא רוצה לבדוק / מהו מקרה השימוש שלו
+    - השתמש במיומנות כדי לבדוק ב-issues אם דווחו לאחרונה בעיות קריטיות בשימוש במאגר
+    - אם דווח שהפרויקט לא תקין, שאל את המשתמש אם הוא רוצה להמשיך בבדיקתו
+    - שאל את המשתמש היכן לשכפל ולבדוק את המאגר? הגדרת מכונה חדשה? שימוש ב-github codespaces? מכונה מקומית? וכו'
+    - שכפל את המאגר למיקום שצוין
+    - קרא את מבנה התיקיות והקבצים של הפרויקט ואת קובץ ה-readme.md כדי לקבל סקירה כללית של הפרויקט
+    - הבן כיצד לבדוק את הפרויקט והתחל בבדיקה
   verified_by_human:
     - en

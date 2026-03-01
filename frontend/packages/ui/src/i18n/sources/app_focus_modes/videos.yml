@@ -20,6 +20,7 @@ analyze_video:
   th: วิเคราะห์วิดีโอ
   cs: Analyzovat video
   sv: Analysera video
+  he: ניתוח סרטון
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ analyze_video.description:
   th: วิเคราะห์ ตรวจสอบข้อเท็จจริง และตรวจจับอคติในวิดีโอ
   cs: Analyzujte fakta a odhalte zaujatost ve videích.
   sv: Analysera, faktagranska och identifiera partiskhet.
+  he: ניתוח, בדיקת עובדות וזיהוי הטיות בסרטונים.
   verified_by_human:
     - en
     - de

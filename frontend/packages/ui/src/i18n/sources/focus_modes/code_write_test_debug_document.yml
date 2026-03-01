@@ -20,6 +20,7 @@ code_write_test_debug_document:
   th: เขียน ทดสอบ แก้ไขข้อผิดพลาด และจัดทำเอกสาร
   cs: Psát, testovat, ladit a dokumentovat
   sv: Skriv, testa, felsök och dokumentera
+  he: כתיבה, בדיקה, ניפוי שגיאות ותיעוד
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: เขียน ทดสอบ ดีบักโค้ด และอัปเดตเอกสาร
   cs: Pište, testujte, laďte kód a aktualizujte dok.
   sv: Skriv, testa, felsök kod och uppdatera dok.
+  he: כתיבה, בדיקה, ניפוי שגיאות בקוד ועדכון תיעוד.
   verified_by_human:
     - en
 process:
@@ -52,10 +54,15 @@ process:
     - ask users clarifying question to make the requirements clear and create requirements.md file
     - for more complex tasks, create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.
     - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
+  he: |
+    - שאל את המשתמשים שאלות הבהרה כדי להבהיר את הדרישות וצור קובץ requirements.md
+    - עבור משימות מורכבות יותר, צור קובץ todo.md ושמור אותו מעודכן בהתאם להתקדמות. כלול נתיבי קבצים או שמות פונקציות / שמות משתנים רלוונטיים.
+    - אם לא ניתן לפתור את הבעיה תוך מספר צעדים, שאל אם כדאי לנסות גישה חדשה או אם יש להגדיר מחדש את הדרישות
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when write_test_debug_document focus mode is active
   en: You are a programming expert.
+  he: אתה מומחה בתכנות.
   verified_by_human:
     - en

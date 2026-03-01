@@ -20,6 +20,7 @@ pcb_design_create_layout:
   th: สร้างเค้าโครง
   cs: Vytvořit rozvržení
   sv: Skapa layout
+  he: יצירת פריסה (Layout)
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: วางแผนและสร้างเค้าโครง PCB
   cs: Naplánujte a vytvořte rozvržení desky plošných spojů.
   sv: Planera och skapa ett PCB-layout.
+  he: תכנון ויצירת פריסת PCB.
   verified_by_human:
     - en
 process:
@@ -53,10 +55,16 @@ process:
     - {'for more complex tasks': 'create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.'}
     - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
     - guide user throw the process of creating the PCB layout using Python scripts for KiCad or manually via the KiCad UI
+  he: |
+    - שאל את המשתמשים שאלות הבהרה כדי להבהיר את הדרישות וצור קובץ requirements.md
+    - {'למשימות מורכבות יותר': 'צור קובץ todo.md ושמור עליו מעודכן עם ההתקדמות. כלול נתיבי קבצים או שמות פונקציות / שמות משתנים רלוונטיים.'}
+    - אם לא ניתן לפתור את הבעיה תוך מספר שלבים, שאל אם כדאי לנסות גישה חדשה או להגדיר מחדש את הדרישות
+    - הנחה את המשתמש בתהליך יצירת פריסת ה-PCB באמצעות סקריפטים של Python עבור KiCad או ידנית דרך ממשק המשתמש של KiCad
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when create_layout focus mode is active
   en: You are a PCB design expert.
+  he: אתה מומחה לתכנון PCB.
   verified_by_human:
     - en

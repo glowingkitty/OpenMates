@@ -20,6 +20,7 @@ check_reputation:
   th: ตรวจสอบชื่อเสียง
   cs: Zkontrolovat pověst
   sv: Kontrollera rykte
+  he: בדיקת מוניטין
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ check_reputation.description:
   th: ตรวจสอบว่าธุรกิจถูกต้องตามกฎหมายและน่าเชื่อถือหรือไม่
   cs: Zkontrolujte, zda je podnik legitimní a spolehlivý.
   sv: Kontrollera om ett företag är legitimt och pålitligt.
+  he: בדוק אם עסק הוא לגיטימי ואמין.
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ analyze_privacy:
   th: วิเคราะห์ความเป็นส่วนตัว
   cs: Analyzovat soukromí
   sv: Analysera integritet
+  he: ניתוח פרטיות
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ analyze_privacy.description:
   th: วิเคราะห์ความเป็นส่วนตัวของเว็บไซต์ตามเงื่อนไข
   cs: Analyzujte soukromí webu na základě jeho podmínek.
   sv: Analysera en webbplats integritet baserat på villkor.
+  he: נתח את רמת הפרטיות של אתר על סמך תנאי השימוש שלו.
   verified_by_human:
     - en
     - de
@@ -120,6 +124,7 @@ research:
   th: การวิจัย
   cs: Výzkum
   sv: Forskning
+  he: מחקר
   verified_by_human:
     - en
     - de
@@ -145,6 +150,7 @@ research.description:
   th: วิจัยหัวข้อจากหลายมุมมอง
   cs: Prozkoumejte téma z více úhlů pohledu.
   sv: Undersök ett ämne från flera vinklar.
+  he: חקור נושא ממספר זוויות.
   verified_by_human:
     - en
     - de
@@ -170,6 +176,7 @@ deep_web_research:
   th: การวิจัยเว็บเชิงลึก
   cs: Hluboký webový výzkum
   sv: Djup webbforskning
+  he: מחקר ברשת העמוקה
   verified_by_human:
     - en
     - de
@@ -195,6 +202,7 @@ deep_web_research.description:
   th: วางแผนและวิจัยเว็บเชิงลึกเพื่อสร้างรายงาน
   cs: Naplánujte a proveďte hloubkový webový výzkum.
   sv: Planera och genomför djup webbforskning.
+  he: תכנן ובצע מחקר ברשת העמוקה עבור דוח.
   verified_by_human:
     - en
     - de

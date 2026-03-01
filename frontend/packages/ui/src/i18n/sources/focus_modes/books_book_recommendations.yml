@@ -20,6 +20,7 @@ books_book_recommendations:
   th: คำแนะนำหนังสือ
   cs: Doporučení knih
   sv: Bokrekommendationer
+  he: המלצות על ספרים
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: รับคำแนะนำหนังสือตามรสนิยมของคุณ
   cs: Získejte doporučení knih podle vašeho vkusu.
   sv: Få bokrekommendationer baserat på din smak.
+  he: קבל המלצות ספרים לפי הטעם שלך.
   verified_by_human:
     - en

@@ -20,4 +20,5 @@ total_exceeded:
   th: 'ขนาดไฟล์รวมจะเกินขีดจำกัด {size}MB ขนาดปัจจุบัน: {current}MB พยายามเพิ่ม: {attempted}MB'
   cs: 'Celková velikost souboru by překročila limit {size}MB. Aktuální velikost: {current}MB, Pokus o přidání: {attempted}MB'
   sv: 'Total filstorlek skulle överskrida {size}MB-gränsen. Nuvarande storlek: {current}MB, Försökte lägga till: {attempted}MB'
+  he: "גודל הקבצים הכולל יעלה על המגבלה של {size}MB. גודל נוכחי: {current}MB, ניסיון להוסיף: {attempted}MB"
   verified_by_human: []

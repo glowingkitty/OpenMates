@@ -20,6 +20,7 @@ code_code_walkthrough:
   th: การเดินผ่านโค้ด
   cs: Průchod kódem
   sv: Genomgång av kod
+  he: מעבר על הקוד
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: สำรวจปัญหาโค้ดทีละขั้นตอน
   cs: Projděte problémy s kódem krok za krokem.
   sv: Gå igenom kodproblem steg för steg.
+  he: מעבר על בעיות קוד צעד אחר צעד.
   verified_by_human:
     - en

@@ -20,6 +20,7 @@ prepare_doctor_report:
   th: เตรียมรายงานแพทย์
   cs: Připravit lékařskou zprávu
   sv: Förbereda läkarrapport
+  he: הכנת דוח לרופא
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ prepare_doctor_report.description:
   th: สร้างรายงานสำหรับการพบแพทย์ครั้งถัดไป
   cs: Vytvořte zprávu pro další návštěvu lékaře.
   sv: Skapa en rapport för nästa läkarbesök.
+  he: צור דוח לקראת הביקור הבא אצל הרופא.
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ health_insights:
   th: ข้อมูลเชิงลึกด้านสุขภาพ
   cs: Zdravotní poznatky
   sv: Hälsoinsikter
+  he: תובנות בריאות
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ health_insights.description:
   th: รับข้อมูลสุขภาพและค้นหาแพทย์ที่เหมาะสม
   cs: Získejte zdravotní poznatky a najděte lékaře.
   sv: Få hälsoinsikter och hitta rätt läkare.
+  he: קבל תובנות בריאות ומצא את הרופא המתאים.
   verified_by_human:
     - en
     - de
@@ -120,6 +124,7 @@ prepare_doctor_appointment:
   th: เตรียมการนัดหมายแพทย์
   cs: Připravit lékařskou schůzku
   sv: Förbereda läkarbesök
+  he: הכנה לתור לרופא
   verified_by_human:
     - en
     - de
@@ -145,6 +150,7 @@ prepare_doctor_appointment.description:
   th: เตรียมหัวข้อสำหรับการนัดหมายแพทย์ครั้งถัดไป
   cs: Připravte témata pro další návštěvu lékaře.
   sv: Förbered vad du vill diskutera vid nästa besök.
+  he: הכן את הנושאים לדיון בביקור הבא שלך.
   verified_by_human:
     - en
     - de

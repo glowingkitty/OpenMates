@@ -20,6 +20,7 @@ sign_up:
   th: สมัครสมาชิก
   cs: Registrovat
   sv: ""
+  he: הרשמה
   verified_by_human: []
 version_title:
   context: Version title on alpha disclaimer page
@@ -43,6 +44,7 @@ version_title:
   th: v0.4 อัลฟา
   cs: v0.4 alpha
   sv: ""
+  he: v0.4 אלפא
   verified_by_human: []
 domain_not_allowed:
   context: Error message shown when the domain is not allowed to sign up
@@ -66,6 +68,7 @@ domain_not_allowed:
   th: ไม่อนุญาตโดเมนอีเมล
   cs: E-mailová doména není povolena.
 
+  he: דומיין האימייל אינו מורשה.
 email_ignored:
   context: Error message shown when the email address is on the ignored list
   en: This email address cannot be used for signup. Please contact support if you believe this is an error.
@@ -88,6 +91,7 @@ email_ignored:
   th: ไม่สามารถใช้ที่อยู่อีเมลนี้เพื่อลงทะเบียนได้ โปรดติดต่อฝ่ายสนับสนุนหากคุณเชื่อว่านี่เป็นข้อผิดพลาด
   cs: Tato e-mailová adresa nemůže být použita pro registraci. Pokud si myslíte, že se jedná o chybu, kontaktujte prosím podporu.
   sv: ""
+  he: לא ניתן להשתמש בכתובת אימייל זו להרשמה. אנא צור קשר עם התמיכה אם לדעתך זו טעות.
   verified_by_human: []
 is_alpha_disclaimer:
   context: Alpha disclaimer text on alpha disclaimer page
@@ -111,6 +115,7 @@ is_alpha_disclaimer:
   th: OpenMates อยู่ในช่วงเวอร์ชันอัลฟาสำหรับผู้ทดสอบก่อน
   cs: OpenMates je v současnosti alfa verze pro rané testery.
   sv: ""
+  he: OpenMates נמצאת כרגע בגרסת אלפא לנסיינים מוקדמים.
   verified_by_human: []
 decent_stable:
   context: Statement about the stability of the alpha release
@@ -134,6 +139,7 @@ decent_stable:
   th: เวอร์ชันอัลฟานี้ค่อนข้างเสถียร
   cs: Tato alfa verze je poměrně stabilní
   sv: ""
+  he: גרסת אלפא זו יציבה למדי
   verified_by_human: []
 not_all_core_features_implemented:
   context: Statement about the completeness of the alpha release
@@ -157,6 +163,7 @@ not_all_core_features_implemented:
   th: อย่างไรก็ตาม ยังไม่ได้ใช้งานฟีเจอร์หลักทั้งหมด
   cs: Nicméně ještě nejsou implementovány všechny základní funkce.
   sv: ""
+  he: עם זאת, לא כל תכונות הליבה הוטמעו עדיין.
   verified_by_human: []
 expect_bugs_and_missing_features:
   context: Statement about the expected state of the alpha release
@@ -180,6 +187,7 @@ expect_bugs_and_missing_features:
   th: "คาดหวังข้อผิดพลาดบางอย่างที่นี่และที่นั่น และจำไว้ว่า: แชทบอต AI สามารถทำผิดพลาดได้"
   cs: "Očekávejte některé chyby tu a tam a pamatujte: AI chatboty mohou dělat chyby."
   sv: ""
+  he: "צפו לבאגים פה ושם וזכרו: צ'אטבוטים מבוססי בינה מלאכותית עלולים לטעות."
   verified_by_human: []
 view_on_github:
   context: Button text for viewing the source code on GitHub
@@ -203,6 +211,7 @@ view_on_github:
   th: ดู OpenMates บน GitHub
   cs: Zobrazit OpenMates na GitHub
   sv: ""
+  he: צפה ב-OpenMates ב-GitHub
   verified_by_human: []
 view_on_github_description:
   context: Description for the button text for viewing the source code on GitHub
@@ -226,6 +235,7 @@ view_on_github_description:
   th: เพื่อหารือเกี่ยวกับข้อผิดพลาด ฟีเจอร์ และรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่
   cs: Pro diskusi o chybách, funkcích a aktualizacích o nových verzích.
   sv: ""
+  he: כדי לדון בבאגים, תכונות ולהישאר מעודכנים בגרסאות חדשות.
   verified_by_human: []
 view_on_instagram:
   context: Button text for viewing the source code on Instagram
@@ -249,6 +259,7 @@ view_on_instagram:
   th: ดู OpenMates บน Instagram
   cs: Zobrazit OpenMates na Instagram
   sv: ""
+  he: צפה ב-OpenMates ב-Instagram
   verified_by_human: []
 view_on_instagram_description:
   context: Description for the button text for viewing the source code on Instagram
@@ -272,6 +283,7 @@ view_on_instagram_description:
   th: เพื่อรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่และการอัปเดตอื่นๆ
   cs: Pro aktualizace o nových verzích a dalších aktualizacích.
   sv: ""
+  he: כדי להישאר מעודכנים בגרסאות חדשות ועדכונים נוספים.
   verified_by_human: []
 continue_with_alpha:
   context: Button text for continuing with the alpha release
@@ -295,6 +307,7 @@ continue_with_alpha:
   th: ดำเนินการต่อด้วย {version}
   cs: Pokračovat s {version}
   sv: ""
+  he: "המשך עם {version}"
   verified_by_human: []
 server_admin:
   context: Heading on signup page indicating server admin signup
@@ -318,6 +331,7 @@ server_admin:
   th: ผู้ดูแลระบบเซิร์ฟเวอร์
   cs: Správce serveru
   sv: ""
+  he: מנהל שרת
   verified_by_human: []
 enter_personal_invite_code:
   context: Placeholder text for personal invite code input field
@@ -341,6 +355,7 @@ enter_personal_invite_code:
   th: ใส่รหัสเชิญ
   cs: Zadejte pozvánkový kód
   sv: ""
+  he: הזן קוד הזמנה
   verified_by_human: []
 dont_have_personal_invite_code:
   context: "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
@@ -364,6 +379,7 @@ dont_have_personal_invite_code:
   th: ไม่มีรหัสเชิญ?
   cs: Nemáte pozvánkový kód?
   sv: ""
+  he: "אין לך קוד הזמנה?"
   verified_by_human: []
 follow_us:
   context: "in message: 'Dont have a personal invite code? Follow us, to see when you can signup again without a code.'"
@@ -463,6 +479,9 @@ follow_us:
 
     "
   sv: ""
+  he: |
+    עקבו אחרינו כדי לראות מתי תוכלו
+    להירשם שוב ללא קוד.
   verified_by_human: []
 open_instagram:
   context: Button text for opening OpenMates on Instagram
@@ -486,6 +505,7 @@ open_instagram:
   th: เปิด Instagram
   cs: Otevřít Instagram
   sv: ""
+  he: פתח את Instagram
   verified_by_human: []
 open_mastodon:
   context: Button text for opening OpenMates on Mastodon
@@ -509,6 +529,7 @@ open_mastodon:
   th: เปิด Mastodon
   cs: Otevřít Mastodon
   sv: ""
+  he: פתח את Mastodon
   verified_by_human: []
 checking_code:
   context: Text shown for the duration while the invite code is being checked
@@ -532,6 +553,7 @@ checking_code:
   th: กำลังตรวจสอบรหัส...
   cs: Kontrola kódu...
   sv: ""
+  he: בודק קוד...
   verified_by_human: []
 too_many_requests:
   context: Error message shown when too many requests have been made
@@ -555,6 +577,7 @@ too_many_requests:
   th: คุณส่งคำขอมากเกินไป ลองอีกครั้งในภายหลัง
   cs: Odeslali jste příliš mnoho požadavků. Zkuste to znovu později.
   sv: ""
+  he: שלחת יותר מדי בקשות. נסה שוב מאוחר יותר.
   verified_by_human: []
 username_too_short:
   context: Error message shown when username is too short
@@ -578,6 +601,7 @@ username_too_short:
   th: อย่างน้อย 3 ตัวอักษร
   cs: Minimálně 3 znaky
   sv: ""
+  he: מינימום 3 תווים
   verified_by_human: []
 username_too_long:
   context: Error message shown when username is too long
@@ -601,6 +625,7 @@ username_too_long:
   th: น้อยกว่า 20 ตัวอักษร
   cs: Méně než 20 znaků
   sv: ""
+  he: פחות מ-20 תווים
   verified_by_human: []
 username_invalid_chars:
   context: Error message shown when username contains invalid characters
@@ -624,6 +649,7 @@ username_invalid_chars:
   th: "อนุญาต: ตัวอักษร, ตัวเลข, _, ."
   cs: "Povoleno: písmena, číslice, _, ."
   sv: ""
+  he: "מותר: אותיות, מספרים, _, ."
   verified_by_human: []
 enter_username:
   context: Placeholder text for username input field
@@ -647,6 +673,7 @@ enter_username:
   th: ใส่ชื่อผู้ใช้
   cs: Zadejte uživatelské jméno
   sv: ""
+  he: הזן שם משתמש
   verified_by_human: []
 repeat_password:
   context: Placeholder text for password repeat input field
@@ -670,6 +697,7 @@ repeat_password:
   th: ยืนยันรหัสผ่าน
   cs: Zopakujte heslo
   sv: ""
+  he: חזור על הסיסמה
   verified_by_human: []
 create_password:
   context: Instruction text for creating a new password during account recovery
@@ -693,6 +721,7 @@ create_password:
   th: สร้างรหัสผ่านใหม่ของคุณ
   cs: Vytvořte si nové heslo
   sv: ""
+  he: צור את הסיסמה החדשה שלך
   verified_by_human: []
 confirm_password:
   context: Placeholder text for confirm password input field during account recovery
@@ -716,6 +745,7 @@ confirm_password:
   th: ยืนยันรหัสผ่าน
   cs: Potvrďte heslo
   sv: ""
+  he: אשר סיסמה
   verified_by_human: []
 passwords_do_not_match:
   context: Error message shown when passwords do not match
@@ -739,6 +769,7 @@ passwords_do_not_match:
   th: รหัสผ่านไม่ตรงกัน
   cs: Hesla se neshodují
   sv: ""
+  he: הסיסמאות אינן תואמות
   verified_by_human: []
 password_too_short:
   context: Error message shown when password is too short
@@ -762,6 +793,7 @@ password_too_short:
   th: อย่างน้อย 8 ตัวอักษร
   cs: Minimálně 8 znaků
   sv: ""
+  he: מינימום 8 תווים
   verified_by_human: []
 password_too_long:
   context: Error message shown when password is too long
@@ -785,6 +817,7 @@ password_too_long:
   th: น้อยกว่า 60 ตัวอักษร
   cs: Méně než 60 znaků
   sv: ""
+  he: פחות מ-60 תווים
   verified_by_human: []
 password_needs_letter:
   context: Error message shown when password does not contain a letter
@@ -808,6 +841,7 @@ password_needs_letter:
   th: อย่างน้อยหนึ่งตัวอักษร
   cs: Alespoň jedno písmeno
   sv: ""
+  he: לפחות אות אחת
   verified_by_human: []
 password_needs_number:
   context: Error message shown when password does not contain a number
@@ -831,6 +865,7 @@ password_needs_number:
   th: อย่างน้อยหนึ่งตัวเลข
   cs: Alespoň jedna číslice
   sv: ""
+  he: לפחות ספרה אחת
   verified_by_human: []
 password_needs_special:
   context: Error message shown when password does not contain a special character
@@ -854,6 +889,7 @@ password_needs_special:
   th: อย่างน้อยหนึ่งอักขระพิเศษ
   cs: Alespoň jeden speciální znak
   sv: ""
+  he: לפחות תו מיוחד אחד
   verified_by_human: []
 agree_to:
   context: "in message: 'Agree to Terms of service' and 'Agree to Privacy policy'"
@@ -877,6 +913,7 @@ agree_to:
   th: ยอมรับ
   cs: Souhlasím s
   sv: ""
+  he: אני מסכים ל-
   verified_by_human: []
 terms_of_service:
   context: "in message: 'Agree to Terms of service'"
@@ -900,6 +937,7 @@ terms_of_service:
   th: เงื่อนไขการให้บริการ
   cs: Podmínky služby
   sv: ""
+  he: תנאי השימוש
   verified_by_human: []
 privacy_policy:
   context: "in message: 'Agree to Privacy policy'"
@@ -923,6 +961,7 @@ privacy_policy:
   th: นโยบายความเป็นส่วนตัว
   cs: Zásady ochrany osobních údajů
   sv: ""
+  he: מדיניות הפרטיות
   verified_by_human: []
 subscribe_to_newsletter:
   context: Toggle label for subscribing to newsletter during signup
@@ -946,6 +985,7 @@ subscribe_to_newsletter:
   th: สมัครรับจดหมายข่าว
   cs: Přihlásit se k odběru newsletteru
   sv: Prenumerera på nyhetsbrev
+  he: הרשמה לניוזלטר
   verified_by_human: []
 create_new_account:
   context: Button text for creating a new account
@@ -969,6 +1009,7 @@ create_new_account:
   th: สร้างบัญชีใหม่
   cs: Vytvořit nový účet
   sv: ""
+  he: יצירת חשבון חדש
   verified_by_human: []
 email_address_already_in_use:
   context: Error message shown when email address is already in use
@@ -992,6 +1033,7 @@ email_address_already_in_use:
   th: ที่อยู่อีเมลถูกใช้งานแล้ว
   cs: E-mailová adresa je již používána
   sv: ""
+  he: כתובת האימייל כבר בשימוש
   verified_by_human: []
 you_received_a_one_time_code_via_email:
   context: Message shown when a one-time code has been sent via email
@@ -1015,6 +1057,7 @@ you_received_a_one_time_code_via_email:
   th: คุณได้รับรหัสครั้งเดียวทางอีเมล
   cs: Obdrželi jste jednorázový kód e-mailem
   sv: ""
+  he: קיבלת קוד חד-פעמי באימייל
   verified_by_human: []
 open_mail_app:
   context: Button text for opening mail app
@@ -1038,6 +1081,7 @@ open_mail_app:
   th: เปิดแอปอีเมล
   cs: Otevřít e-mailovou aplikaci
   sv: ""
+  he: פתיחת אפליקציית המייל
   verified_by_human: []
 enter_one_time_code:
   context: Placeholder text for one-time code input field in email verification
@@ -1061,6 +1105,7 @@ enter_one_time_code:
   th: ใส่รหัส 6 หลัก
   cs: Zadejte 6místný jednorázový kód
   sv: ""
+  he: הזן קוד חד-פעמי בן 6 ספרות
   verified_by_human: []
 havent_received_a_code:
   context: Asking the user if they haven't received a code via email
@@ -1084,6 +1129,7 @@ havent_received_a_code:
   th: ยังไม่ได้รับรหัส?
   cs: Neobdrželi jste kód?
   sv: ""
+  he: "לא קיבלת קוד?"
   verified_by_human: []
 click_to_resend:
   context: Button text for resending the one-time code via email
@@ -1107,6 +1153,7 @@ click_to_resend:
   th: คลิกที่นี่เพื่อส่งอีกครั้ง
   cs: Klikněte sem pro opětovné odeslání
   sv: ""
+  he: לחץ כאן לשליחה חוזרת
   verified_by_human: []
 code_is_invalid:
   context: Error message shown when code is invalid
@@ -1130,6 +1177,7 @@ code_is_invalid:
   th: รหัสไม่ถูกต้อง
   cs: Kód je neplatný
   sv: ""
+  he: הקוד אינו תקין
   verified_by_human: []
 at_missing:
   context: Error message shown when @ is missing in email
@@ -1153,6 +1201,7 @@ at_missing:
   th: "@ ขาดหายไป"
   cs: "@ chybí"
   sv: ""
+  he: חסר @
   verified_by_human: []
 domain_ending_missing:
   context: Error message shown when domain ending is missing in email
@@ -1176,6 +1225,7 @@ domain_ending_missing:
   th: ส่วนท้ายโดเมนขาดหายไป
   cs: Chybí koncovka domény
   sv: ""
+  he: חסרה סיומת דומיין
   verified_by_human: []
 skip:
   context: Button text for skipping to the next step
@@ -1199,6 +1249,7 @@ skip:
   th: ข้าม
   cs: Přeskočit
   sv: ""
+  he: דילוג
   verified_by_human: []
 next:
   context: Button text for going to the next step
@@ -1222,6 +1273,7 @@ next:
   th: ถัดไป
   cs: Další
   sv: ""
+  he: הבא
   verified_by_human: []
 upload_profile_image:
   context: Button text for uploading a profile image
@@ -1245,6 +1297,7 @@ upload_profile_image:
   th: อัปโหลดรูปโปรไฟล์
   cs: Nahrát profilový obrázek
   sv: ""
+  he: העלאת תמונת פרופיל
   verified_by_human: []
 image_too_large:
   context: Error message shown when image is too large
@@ -1268,6 +1321,7 @@ image_too_large:
   th: สูงสุด 2MB
   cs: Max 2MB
   sv: ""
+  he: מקסימום 2MB
   verified_by_human: []
 image_wrong_filetype:
   context: Error message shown when image is not a supported filetype
@@ -1291,6 +1345,7 @@ image_wrong_filetype:
   th: เฉพาะ .jpg, .jpeg, .png
   cs: Pouze .jpg, .jpeg, .png
   sv: ""
+  he: רק .jpg, .jpeg, .png
   verified_by_human: []
 image_no_nudity_or_violence:
   context: Error message shown when image contains nudity or violence
@@ -1314,6 +1369,7 @@ image_no_nudity_or_violence:
   th: ไม่อนุญาตให้มีภาพเปลือยหรือความรุนแรง
   cs: Nahota nebo násilí není povoleno
   sv: ""
+  he: ללא עירום או אלימות
   verified_by_human: []
 profile_image:
   context: Button text for going back to upload a profile image
@@ -1337,6 +1393,7 @@ profile_image:
   th: รูปโปรไฟล์
   cs: Profilový obrázek
   sv: ""
+  he: תמונת פרופיל
   verified_by_human: []
 cancel_signup:
   context: text for going back to signup start page and clear data
@@ -1360,6 +1417,7 @@ cancel_signup:
   th: ยกเลิกการสมัครสมาชิก
   cs: Zrušit registraci
   sv: ""
+  he: ביטול ההרשמה
   verified_by_human: []
 secure_your_account:
   context: headline during signup process
@@ -1383,6 +1441,7 @@ secure_your_account:
   th: ป้องกันบัญชีของคุณ
   cs: Zabezpečte svůj účet
   sv: ""
+  he: אבטחת החשבון שלך
   verified_by_human: []
 click_on_an_option:
   context: cta to click on an option
@@ -1406,6 +1465,7 @@ click_on_an_option:
   th: คลิกที่ตัวเลือก
   cs: Klikněte na možnost
   sv: ""
+  he: לחץ על אפשרות
   verified_by_human: []
 how_to_login:
   context: Question asking how the user wants to login
@@ -1429,6 +1489,7 @@ how_to_login:
   th: คุณต้องการเข้าสู่ระบบอย่างไร?
   cs: Jak se chcete přihlásit?
   sv: ""
+  he: "איך ברצונך להתחבר?"
   verified_by_human: []
 password:
   context: password
@@ -1452,6 +1513,7 @@ password:
   th: รหัสผ่าน
   cs: Heslo
   sv: ""
+  he: סיסמה
   verified_by_human: []
 passkey:
   context: passkey
@@ -1475,6 +1537,7 @@ passkey:
   th: คีย์ผ่าน
   cs: Přístupový klíč
   sv: ""
+  he: מפתח גישה
   verified_by_human: []
 passkey_descriptor:
   context: passkey as option descriptor
@@ -1498,6 +1561,7 @@ passkey_descriptor:
   th: "ปลอดภัยที่สุด ป้องกันฟิชชิ่ง เร็วที่สุด และใช้งานง่ายที่สุด"
   cs: "Nejbezpečnější, odolné proti phishingu, nejrychlejší a nejsnadnější na použití."
   sv: ""
+  he: הכי מאובטח, עמיד בפני פישינג, הכי מהיר וקל לשימוש.
   verified_by_human: []
 passkey_instruction_title:
   context: Passkey registration instruction title
@@ -1521,6 +1585,7 @@ passkey_instruction_title:
   th: "สร้างคีย์ผ่าน"
   cs: "Vytvořit přístupový klíč"
   sv: ""
+  he: יצירת מפתח גישה
   verified_by_human: []
 passkey_instruction_text:
   context: Passkey registration instruction text
@@ -1544,6 +1609,7 @@ passkey_instruction_text:
   th: "คลิกปุ่มด้านล่างเพื่อสร้างคีย์ผ่านโดยใช้ไบโอเมตริกซ์ของอุปกรณ์หรือตัวจัดการรหัสผ่านของคุณ ซึ่งจะช่วยให้คุณเข้าสู่ระบบโดยไม่ต้องใช้รหัสผ่าน"
   cs: "Klikněte na tlačítko níže a vytvořte přístupový klíč pomocí biometrie vašeho zařízení nebo správce hesel. To vám umožní přihlásit se bez hesla."
   sv: ""
+  he: לחץ על הכפתור למטה כדי ליצור מפתח גישה באמצעות הביומטריה של המכשיר או מנהל הסיסמאות שלך. זה יאפשר לך להיכנס ללא סיסמה.
   verified_by_human: []
 create_passkey:
   context: Button text to create passkey
@@ -1567,6 +1633,7 @@ create_passkey:
   th: "สร้างคีย์ผ่าน"
   cs: "Vytvořit přístupový klíč"
   sv: ""
+  he: יצירת מפתח גישה
   verified_by_human: []
 passkey_info:
   context: Information text about passkeys
@@ -1590,6 +1657,7 @@ passkey_info:
   th: "คีย์ผ่านของคุณจะถูกเก็บไว้อย่างปลอดภัยบนอุปกรณ์หรือในตัวจัดการรหัสผ่านของคุณ"
   cs: "Váš přístupový klíč bude bezpečně uložen na vašem zařízení nebo ve správci hesel."
   sv: ""
+  he: מפתח הגישה שלך יישמר בצורה מאובטחת במכשיר שלך או במנהל הסיסמאות שלך.
   verified_by_human: []
 passkey_prf_error_title:
   context: PRF error title
@@ -1613,6 +1681,7 @@ passkey_prf_error_title:
   th: "ไม่รองรับ PRF"
   cs: "PRF není podporováno"
   sv: ""
+  he: PRF אינו נתמך
   verified_by_human: []
 passkey_prf_error_message:
   context: PRF error message
@@ -1636,6 +1705,7 @@ passkey_prf_error_message:
   th: "ตัวจัดการรหัสผ่านของคุณไม่รองรับมาตรฐาน PRF ลองใช้ตัวจัดการรหัสผ่านอื่นหรือใช้รหัสผ่านเป็นตัวเลือกการสมัครแทน"
   cs: "Váš správce hesel nepodporuje standard PRF. Zkuste jiný správce hesel nebo místo toho použijte heslo jako možnost registrace."
   sv: ""
+  he: מנהל הסיסמאות שלך אינו תומך בתקן PRF. נסה מנהל סיסמאות אחר או השתמש בסיסמה כאפשרות הרשמה במקום זאת.
   verified_by_human: []
 password_descriptor:
   context: passwords as option descriptor
@@ -1735,6 +1805,9 @@ password_descriptor:
 
     "
   sv: ""
+  he: |
+    הכי מוכר.
+    נדרש אימות נוסף באמצעות אפליקציית 2FA OTP לאבטחה טובה יותר.
   verified_by_human: []
 security_key:
   context: security key
@@ -1758,6 +1831,7 @@ security_key:
   th: คีย์ความปลอดภัย
   cs: Bezpečnostní klíč
   sv: ""
+  he: מפתח אבטחה
   verified_by_human: []
 security_key_descriptor:
   context: security key as option descriptor
@@ -1857,6 +1931,9 @@ security_key_descriptor:
 
     "
   sv: ""
+  he: |
+    חלופה למפתח גישה.
+    באמצעות חומרה ייעודית.
   verified_by_human: []
 additional_options_follow_soon:
   context: Explainer text when password is temporary the only option.
@@ -1880,6 +1957,7 @@ additional_options_follow_soon:
   th: ตัวเลือกเพิ่มเติม เช่น คีย์การเข้าถึงและคีย์ความปลอดภัยจะตามมาเร็วๆ นี้
   cs: Další možnosti, jako jsou přístupové klíče a bezpečnostní klíče, budou brzy následovat.
   sv: ""
+  he: אפשרויות נוספות כמו מפתחות גישה ומפתחות אבטחה יתווספו בקרוב.
   verified_by_human: []
 advice:
   context: advice
@@ -1903,6 +1981,7 @@ advice:
   th: คำแนะนำ
   cs: Rada
   sv: ""
+  he: עצה
   verified_by_human: []
 use_your_password_manager:
   context: Advice to use a password manager for strong passwords
@@ -2002,6 +2081,9 @@ use_your_password_manager:
 
     "
   sv: ""
+  he: |
+    השתמש במנהל הסיסמאות שלך
+    כדי ליצור ולשמור סיסמה חזקה.
   verified_by_human: []
 dont_have_password_manager_yet:
   context: Asking the user if they don't have a password manager yet
@@ -2025,6 +2107,7 @@ dont_have_password_manager_yet:
   th: ยังไม่มีตัวจัดการรหัสผ่าน?
   cs: Ještě nemáte správce hesel?
   sv: ""
+  he: "עדיין אין לך מנהל סיסמאות?"
   verified_by_human: []
 click_here_to_show_password_managers:
   context: Button text for showing password managers
@@ -2048,6 +2131,7 @@ click_here_to_show_password_managers:
   th: คลิกที่นี่เพื่อดูตัวจัดการรหัสผ่านที่ดี
   cs: Klikněte sem pro zobrazení skvělých správců hesel
   sv: Klicka här för att visa bra lösenordshanterare
+  he: לחץ כאן כדי להציג מנהלי סיסמאות מעולים
   verified_by_human: []
 backup_key:
   context: Title for backup key section
@@ -2071,6 +2155,7 @@ backup_key:
   th: คีย์สำรอง
   cs: Zálohovací klíč
   sv: Säkerhetskopia
+  he: מפתח גיבוי
   verified_by_human: []
 backup_key_info:
   context: Message explaining the importance of having a backup key for account access
@@ -2241,6 +2326,11 @@ backup_key_info:
     som säkerhetskopia</bold>
 
     "
+  he: |
+    אל תאבד את הגישה לחשבון שלך
+    אם תאבד את מפתח האבטחה שלך:
+    <bold>הוסף מפתח אבטחה שני
+    כגיבוי</bold>
   verified_by_human: []
 add_backup_key:
   context: Button text for adding a backup key
@@ -2264,6 +2354,7 @@ add_backup_key:
   th: เพิ่มคีย์ความปลอดภัยที่สอง
   cs: Přidat druhý Bezpečnostní klíč
   sv: Lägg till andra Säkerhetsnyckel
+  he: הוסף מפתח אבטחה שני
   verified_by_human: []
 or_skip_backup_key:
   context: Text for skipping the backup key step
@@ -2367,6 +2458,9 @@ or_skip_backup_key:
     och lägg till en säkerhetskopia senare.
 
     "
+  he: |
+    או לחץ על 'דילוג' בפינה הימנית העליונה
+    והוסף מפתח גיבוי מאוחר יותר.
   verified_by_human: []
 one_time_codes:
   context: Title for setting up 2FA for securing account
@@ -2390,6 +2484,7 @@ one_time_codes:
   th: รหัสครั้งเดียว
   cs: Jednorázové kódy
   sv: Engångskoder
+  he: קודים חד-פעמיים
   verified_by_human: []
 prevent_access:
   context: Message explaining the benefits of setting up 2FA
@@ -2413,6 +2508,7 @@ prevent_access:
   th: ป้องกันแฮ็กเกอร์ไม่ให้เข้าถึงบัญชีของคุณ แม้ว่าพวกเขาจะเข้าถึงอีเมลและรหัสผ่านของคุณได้
   cs: Zabraňte hackerům v přístupu k vašemu účtu, i když získají přístup k vašemu e-mailu a heslu.
   sv: Förhindra hackare från att komma åt ditt konto, även om de får tillgång till din e-post och lösenord.
+  he: מנע מהאקרים לגשת לחשבון שלך, גם אם הם השיגו גישה לאימייל ולסיסמה שלך.
   verified_by_human: []
 free:
   context: its free to setup 2FA
@@ -2436,6 +2532,7 @@ free:
   th: ฟรี
   cs: zdarma
   sv: gratis
+  he: חינם
   verified_by_human: []
 fast_to_setup:
   context: its fast to setup 2FA
@@ -2459,6 +2556,7 @@ fast_to_setup:
   th: ตั้งค่าอย่างรวดเร็ว
   cs: rychlé nastavení
   sv: snabb att konfigurera
+  he: מהיר להגדרה
   verified_by_human: []
 max_security:
   context: 2FA provides maximum security
@@ -2482,6 +2580,7 @@ max_security:
   th: ความปลอดภัยสูงสุด
   cs: maximální zabezpečení
   sv: maximal säkerhet
+  he: אבטחה מקסימלית
   verified_by_human: []
 add_to_2fa_app:
   context: Button text for adding the user account to the installed 2FA app.
@@ -2505,6 +2604,7 @@ add_to_2fa_app:
   th: เพิ่มในแอป 2FA
   cs: Přidat do aplikace 2FA
   sv: Lägg till i 2FA-appen
+  he: הוסף לאפליקציית 2FA
   verified_by_human: []
 or:
   context: "in message: 'Add to 2FA app or Scan via 2FA app'"
@@ -2528,6 +2628,7 @@ or:
   th: หรือ
   cs: nebo
   sv: eller
+  he: או
   verified_by_human: []
 scan_via_2fa_app:
   context: Button text for opening the QR code that can be scanned with the 2FA app
@@ -2551,6 +2652,7 @@ scan_via_2fa_app:
   th: สแกนผ่านแอป 2FA
   cs: Skenovat přes aplikaci 2FA
   sv: Skanna via 2FA-appen
+  he: סרוק באמצעות אפליקציית 2FA
   verified_by_human: []
 copy_secret:
   context: Button text for copying the secret key for 2FA to the clipboard
@@ -2574,6 +2676,7 @@ copy_secret:
   th: คัดลอกคีย์ลับ
   cs: Kopírovat tajný klíč
   sv: Kopiera hemlighet
+  he: העתק סוד
   verified_by_human: []
 your_secret_key:
   context: Label shown above the 2FA secret key when displayed for manual copying
@@ -2597,6 +2700,7 @@ your_secret_key:
   th: คีย์ลับของคุณ
   cs: Váš tajný klíč
   sv: Din hemliga nyckel
+  he: המפתח הסודי שלך
   verified_by_human: []
 hide_secret:
   context: Button text to hide the displayed 2FA secret key
@@ -2620,6 +2724,7 @@ hide_secret:
   th: ซ่อน
   cs: Skrýt
   sv: Dölj
+  he: הסתר
   verified_by_human: []
 or_enter_manually:
   context: Label for manual 2FA secret entry option
@@ -2643,6 +2748,7 @@ or_enter_manually:
   th: หรือป้อนด้วยตนเอง
   cs: Nebo zadejte ručně
   sv: Eller ange manuellt
+  he: או הזן ידנית
   verified_by_human: []
 which_2fa_app:
   context: Label asking which 2FA app the user is using
@@ -2666,6 +2772,7 @@ which_2fa_app:
   th: คุณใช้แอป 2FA อันไหน?
   cs: Jakou 2FA aplikaci používáte?
   sv: Vilken 2FA-app använder du?
+  he: "באיזו אפליקציית 2FA את/ה משתמש/ת?"
   verified_by_human: []
 dont_have_2fa_app:
   context: Asking the user if they don't have a 2FA app yet
@@ -2689,6 +2796,7 @@ dont_have_2fa_app:
   th: ยังไม่มีแอป 2FA?
   cs: Ještě nemáte aplikaci 2FA?
   sv: Har du inte en 2FA-app än?
+  he: "עדיין אין לך אפליקציית 2FA?"
   verified_by_human: []
 click_here_to_show_free_2fa_apps:
   context: Button text for showing free 2FA apps
@@ -2712,6 +2820,7 @@ click_here_to_show_free_2fa_apps:
   th: คลิกที่นี่เพื่อดูแอป 2FA ฟรี
   cs: Klikněte sem pro zobrazení bezplatných aplikací 2FA
   sv: Klicka här för att visa gratis 2FA-appar
+  he: לחץ כאן להצגת אפליקציות 2FA בחינם
   verified_by_human: []
 connect_2fa_app:
   context: Button text for going back to connect 2FA app
@@ -2735,6 +2844,7 @@ connect_2fa_app:
   th: เชื่อมต่อแอป 2FA
   cs: Připojit aplikaci 2FA
   sv: Anslut 2FA-app
+  he: חיבור אפליקציית 2FA
   verified_by_human: []
 backup_codes:
   context: Title for backup codes section
@@ -2758,6 +2868,7 @@ backup_codes:
   th: รหัสสำรอง
   cs: Zálohovací kódy
   sv: Säkerhetskopieringskoder
+  he: קודי גיבוי
   verified_by_human: []
 upload_profile_picture:
   context: Title for uploading a profile picture
@@ -2781,6 +2892,7 @@ upload_profile_picture:
   th: อัปโหลดรูปโปรไฟล์
   cs: Nahrát profilovou fotku
   sv: Ladda upp profilbild
+  he: העלאת תמונת פרופיל
   verified_by_human: []
 allows_you_to_log_in_without_tfa:
   context: Message explaining the purpose of backup codes
@@ -2948,6 +3060,10 @@ allows_you_to_log_in_without_tfa:
 
     "
 
+  he: |
+    התחברות לחשבון שלך,
+    גם אם אין לך גישה אל
+    {tfa_app}
   verified_by_human: []
 your_tfa_app:
   context: Placeholder if no 2FA app name is selected.
@@ -2971,6 +3087,7 @@ your_tfa_app:
   th: แอป 2FA ของคุณ
   cs: vaše aplikace 2FA.
   sv: din 2FA-app.
+  he: אפליקציית ה-2FA שלך.
   verified_by_human: []
 store_backup_codes_safely:
   context: Button text for storing backup codes somewhere safe
@@ -2994,6 +3111,7 @@ store_backup_codes_safely:
   th: เก็บรหัสสำรองที่ดาวน์โหลดไว้ในที่ปลอดภัย
   cs: Uložte stažené zálohovací kódy na bezpečné místo.
   sv: Förvara de nedladdade säkerhetskopieringskoderna på en säker plats.
+  he: שמור את קודי הגיבוי שהורדו במקום בטוח.
   verified_by_human: []
 i_stored_backup_codes:
   context: Button text for confirming that the 2FA backup codes have been stored safely by the user.
@@ -3017,6 +3135,7 @@ i_stored_backup_codes:
   th: ฉันได้เก็บรหัสสำรองไว้ในที่ปลอดภัยแล้ว
   cs: Uložil jsem zálohovací kódy na bezpečné místo.
   sv: Jag har förvarat säkerhetskopieringskoderna på en säker plats.
+  he: שמרתי את קודי הגיבוי במקום בטוח.
   verified_by_human: []
 recovery_key:
   context: Title for recovery key section
@@ -3040,6 +3159,7 @@ recovery_key:
   th: คีย์กู้คืน
   cs: Obnovovací klíč
   sv: Återställningsnyckel
+  he: מפתח שחזור
   verified_by_human: []
 create_recovery_key:
   context: Button text for creating a recovery key
@@ -3063,6 +3183,7 @@ create_recovery_key:
   th: สร้างคีย์กู้คืน
   cs: Vytvořit obnovovací klíč
   sv: Skapa återställningsnyckel
+  he: יצירת מפתח שחזור
   verified_by_human: []
 create_recovery_key_description:
   context: Message explaining the purpose of the recovery key
@@ -3199,6 +3320,10 @@ create_recovery_key_description:
     {login_secret}.
 
     "
+  he: |
+    התחברות לחשבון שלך,
+    גם אם איבדת את הגישה אל
+    ה-{login_secret} שלך.
   verified_by_human: []
 accept_lockedout_risk:
   context: Message explaining the risk of not having a recovery key
@@ -3300,6 +3425,9 @@ accept_lockedout_risk:
     att bli utelåst.
 
     "
+  he: |
+    אישור הסיכון
+    להינעל מחוץ לחשבון.
   verified_by_human: []
 we_cant_help_you:
   context: Message explaining that support cannot help if the user loses access without backup codes
@@ -3403,6 +3531,9 @@ we_cant_help_you:
     Av säkerhetsskäl kan vi inte hjälpa dig att återfå tillgång till ditt konto om du har glömt/förlorat dina inloggningsuppgifter.
 
     "
+  he: |
+    <mark>אזהרה:</mark>
+    מסיבות אבטחה, לא נוכל לעזור לך לקבל גישה מחודשת לחשבון שלך אם שכחת/איבדת את פרטי ההתחברות.
   verified_by_human: []
 store_recovery_key_safely:
   context: Button text for storing the recovery key somewhere safe
@@ -3426,6 +3557,7 @@ store_recovery_key_safely:
   th: เก็บคีย์กู้คืนที่ดาวน์โหลดไว้ในที่ปลอดภัย
   cs: Uložte stažený Obnovovací klíč na bezpečné místo.
   sv: Förvara den nedladdade Återställningsnyckeln på en säker plats.
+  he: שמור את מפתח השחזור שהורד במקום בטוח.
   verified_by_human: []
 i_stored_recovery_key:
   context: Button text for confirming that the recovery key has been stored safely by the user.
@@ -3449,6 +3581,7 @@ i_stored_recovery_key:
   th: ฉันได้เก็บคีย์กู้คืนไว้ในที่ปลอดภัยแล้ว
   cs: Uložil jsem Obnovovací klíč na bezpečné místo.
   sv: Jag har förvarat Återställningsnyckeln på en säker plats.
+  he: שמרתי את מפתח השחזור במקום בטוח.
   verified_by_human: []
 cant_connect:
   context: heading that shows up when the server cant be reached anymore during setup.
@@ -3472,6 +3605,7 @@ cant_connect:
   th: ไม่สามารถเชื่อมต่อกับ OpenMates ได้
   cs: Nelze se připojit k OpenMates
   sv: Kan inte ansluta till OpenMates
+  he: לא ניתן להתחבר ל-OpenMates
   verified_by_human: []
 either_offline_or_server:
   context: message that shows up when the server cant be reached anymore during setup.
@@ -3495,6 +3629,7 @@ either_offline_or_server:
   th: ปัญหาอาจเกิดจากการเชื่อมต่ออินเทอร์เน็ตของคุณหรือเซิร์ฟเวอร์ของเรา
   cs: Problém může být ve vašem internetovém připojení nebo na našem serveru.
   sv: Problemet kan vara din internetanslutning eller vår server.
+  he: הבעיה היא בחיבור האינטרנט שלך, או בשרת שלנו.
   verified_by_human: []
 attempt_to_reconnect_for_another:
   context: in message 'Attempt to reconnect for another 30 seconds', then 29 seconds, 28 seconds, etc.
@@ -3518,6 +3653,7 @@ attempt_to_reconnect_for_another:
   th: กำลังพยายามเชื่อมต่อใหม่อีก
   cs: Pokus o opětovné připojení na další
   sv: Försöker återansluta i ytterligare
+  he: ניסיון התחברות מחדש למשך עוד
   verified_by_human: []
 reconnect_attempts_failed:
   context: message that shows up if the reconnect attempts failed over and over again.
@@ -3541,6 +3677,7 @@ reconnect_attempts_failed:
   th: การพยายามเชื่อมต่อใหม่ล้มเหลว ขออภัยในเรื่องนี้ กรุณาลองอีกครั้งในภายหลัง
   cs: Pokusy o opětovné připojení selhaly. Omlouváme se za to. Zkuste to prosím později znovu.
   sv: Återanslutningsförsök misslyckades. Förlåt för det. Försök igen senare.
+  he: ניסיונות ההתחברות מחדש נכשלו. מצטערים על כך. נא לנסות שוב מאוחר יותר.
   verified_by_human: []
 reset_tfa:
   context: Button text to reset/reconnect the 2FA app setup
@@ -3564,6 +3701,7 @@ reset_tfa:
   th: เชื่อมต่อแอป 2FA ใหม่
   cs: Znovu připojit aplikaci 2FA
   sv: Återanslut 2FA-app
+  he: חיבור מחדש של אפליקציית 2FA
   verified_by_human: []
 attempt_to_reconnect:
   context: Button text for attempting to reconnect
@@ -3587,6 +3725,7 @@ attempt_to_reconnect:
   th: พยายามเชื่อมต่อใหม่
   cs: Pokus o opětovné připojení
   sv: Försök återansluta
+  he: ניסיון התחברות מחדש
   verified_by_human: []
 loading_backup_codes:
   context: Message shown while loading backup codes during signup
@@ -3610,6 +3749,7 @@ loading_backup_codes:
   th: กำลังโหลดรหัสสำรอง...
   cs: Načítání zálohovacích kódů...
   sv: Laddar säkerhetskopieringskoder...
+  he: טוען קודי גיבוי...
   verified_by_human: []
 2fa_backup_codes:
   context: Button text to go back to 2FA backup codes section
@@ -3633,6 +3773,7 @@ loading_backup_codes:
   th: รหัสสำรอง 2FA
   cs: Zálohovací kódy 2FA
   sv: 2FA säkerhetskopieringskoder
+  he: קודי גיבוי 2FA
   verified_by_human: []
 2fa_app_reminder:
   context: Heading for setting up 2FA provider for reminder when 2FA is needed
@@ -3656,6 +3797,7 @@ loading_backup_codes:
   th: การแจ้งเตือนแอป 2FA
   cs: Připomínka aplikace 2FA
   sv: 2FA-app påminnelse
+  he: תזכורת לאפליקציית 2FA
   verified_by_human: []
 in_case_you_forget:
   context: explaining what the 2FA app reminder is for
@@ -3679,6 +3821,7 @@ in_case_you_forget:
   th: ในกรณีที่คุณลืม เราสามารถเตือนคุณได้ว่าคุณใช้แอป 2FA ตัวไหนสำหรับ OpenMates
   cs: Pokud zapomenete, můžeme vám připomenout, kterou aplikaci 2FA jste použili pro OpenMates.
   sv: Om du glömmer kan vi påminna dig om vilken 2FA-app du använde för OpenMates.
+  he: למקרה שתשכח, נוכל להזכיר לך באיזו אפליקציית 2FA השתמשת עבור OpenMates.
   verified_by_human: []
 click_to_enter_app_name:
   context: Placeholder for 2FA app search input
@@ -3702,6 +3845,7 @@ click_to_enter_app_name:
   th: คลิกเพื่อใส่ชื่อแอป
   cs: Klikněte pro zadání názvu aplikace
   sv: Klicka för att ange appnamn
+  he: לחץ להזנת שם האפליקציה
   verified_by_human: []
 safety_tip:
   context: safety tip header
@@ -3725,6 +3869,7 @@ safety_tip:
   th: เคล็ดลับความปลอดภัย
   cs: Bezpečnostní tip
   sv: Säkerhetstips
+  he: טיפ בטיחות
   verified_by_human: []
 separate_2fa_app:
   context: explaining the importance of using a separate 2FA app instead of saving 2FA codes in a password manager
@@ -3748,6 +3893,7 @@ separate_2fa_app:
   th: ใช้แอป 2FA แยกต่างหากเสมอ และ<mark>อย่าบันทึกรหัส 2FA ในตัวจัดการรหัสผ่านของคุณ</mark> เฉพาะเมื่อนั้น 2FA จึงจะสามารถปกป้องบัญชีของคุณได้
   cs: Vždy používejte samostatnou aplikaci 2FA a <mark>neukládejte kódy 2FA do správce hesel.</mark> Pouze tehdy může 2FA chránit váš účet.
   sv: Använd alltid en separat 2FA-app och <mark>spara inte 2FA-koder i din lösenordshanterare.</mark> Endast då kan 2FA skydda ditt konto.
+  he: "השתמש תמיד באפליקציית 2FA נפרדת ו<mark>אל תשמור קודי 2FA במנהל הסיסמאות שלך.</mark> רק כך 2FA יכול להגן על החשבון שלך."
   verified_by_human: []
 continue:
   context: Button text for continuing after entering the 2FA app name
@@ -3771,6 +3917,7 @@ continue:
   th: ดำเนินการต่อ
   cs: Pokračovat
   sv: Fortsätt
+  he: המשך
   verified_by_human: []
 settings:
   context: Heading for the settings section during the signup process
@@ -3794,6 +3941,7 @@ settings:
   th: การตั้งค่า
   cs: Nastavení
   sv: Inställningar
+  he: הגדרות
   verified_by_human: []
 default_settings_balance:
   context: explaining the default settings during signup
@@ -3817,6 +3965,7 @@ default_settings_balance:
   th: การตั้งค่าเริ่มต้นจะสร้างสมดุลระหว่างความเป็นส่วนตัวสูงสุดและความสามารถในการใช้งาน
   cs: Výchozí nastavení vyvažují maximální soukromí a použitelnost.
   sv: Standardinställningarna balanserar maximal integritet och användbarhet.
+  he: הגדרות ברירת המחדל מאזנות בין פרטיות מרבית לשימושיות.
   verified_by_human: []
 click_toggle_to_open_settings:
   context: explaining how to make changes to the default settings
@@ -3840,6 +3989,7 @@ click_toggle_to_open_settings:
   th: คลิกที่สวิตช์เพื่อเปิดการตั้งค่า
   cs: Klikněte na přepínač pro otevření nastavení.
   sv: Klicka på växeln för att öppna inställningarna.
+  he: לחץ על המתג כדי לפתוח את ההגדרות.
   verified_by_human: []
 default_settings:
   context: Toggle title for default settings
@@ -3863,6 +4013,7 @@ default_settings:
   th: ค่าเริ่มต้น
   cs: Výchozí
   sv: Standard
+  he: ברירת מחדל
   verified_by_human: []
 accept_settings:
   context: Button text for accepting the current/default settings
@@ -3886,6 +4037,7 @@ accept_settings:
   th: ยอมรับการตั้งค่า
   cs: Přijmout nastavení
   sv: Acceptera inställningar
+  he: אישור הגדרות
   verified_by_human: []
 click_toggle_to_continue:
   context: explaining how to continue after accepting the default settings
@@ -3909,6 +4061,7 @@ click_toggle_to_continue:
   th: คลิกที่สวิตช์เพื่อดำเนินการต่อ
   cs: Klikněte na přepínač pro pokračování.
   sv: Klicka på växeln för att fortsätta.
+  he: לחץ על המתג כדי להמשיך.
   verified_by_human: []
 you_can_customize_your_mates:
   context: explaining that mates can be customized
@@ -3932,6 +4085,7 @@ you_can_customize_your_mates:
   th: คุณสามารถปรับแต่งผู้ให้บริการ AI ของคุณและวิธีที่เพื่อนของคุณตอบสนอง
   cs: Můžete přizpůsobit své poskytovatele AI a způsob, jakým vaši společníci reagují.
   sv: Du kan anpassa dina AI-leverantörer och hur dina kompanjoner svarar.
+  he: ניתן להתאים אישית את ספקי ה-AI ואת אופן התגובה של ה-mates שלך.
   verified_by_human: []
 ai_providers:
   context: for confirming the default AI provider
@@ -3955,6 +4109,7 @@ ai_providers:
   th: ผู้ให้บริการ AI
   cs: Poskytovatelé AI
   sv: AI-leverantörer
+  he: ספקי AI
   verified_by_human: []
 location_company_server:
   context: Used in 'US company, EU server'
@@ -3978,6 +4133,7 @@ location_company_server:
   th: "บริษัท {company_region} เซิร์ฟเวอร์ {server_region}"
   cs: "Společnost {company_region}, server {server_region}"
   sv: "{company_region} företag, {server_region} server"
+  he: "חברה מ-{company_region}, שרת ב-{server_region}"
   verified_by_human: []
 all_ai_models_make_mistakes:
   context: ai models make mistakes disclaimer
@@ -4001,6 +4157,7 @@ all_ai_models_make_mistakes:
   th: โปรดจำไว้ว่าโมเดล AI ทั้งหมดทำผิดพลาดได้ ดังนั้นควรตรวจสอบข้อเท็จจริงของคำตอบเสมอ
   cs: Mějte na paměti, že všechny modely AI dělají chyby. Proto vždy ověřujte odpovědi.
   sv: Kom ihåg att alla AI-modeller gör misstag. Så kontrollera alltid svaren.
+  he: חשוב לזכור, כל מודלי ה-AI טועים. לכן, תמיד כדאי לאמת את התשובות.
   verified_by_human: []
 mates_settings:
   context: Button text for going back to mates settings
@@ -4024,6 +4181,7 @@ mates_settings:
   th: การตั้งค่าคู่หู
   cs: Nastavení společníků
   sv: Kompanjonsinställningar
+  he: הגדרות Mates
   verified_by_human: []
 skip_and_show_demo_first:
   context: Button text for skipping the purchase and showing the demo first
@@ -4047,6 +4205,7 @@ skip_and_show_demo_first:
   th: ข้ามและแสดงเดโมก่อน
   cs: Přeskočit a nejprve zobrazit demo
   sv: Hoppa över och visa demo först
+  he: דלג והצג דמו תחילה
   verified_by_human: []
 pay_per_use:
   context: "in message: 'Pay credits per use'"
@@ -4070,6 +4229,7 @@ pay_per_use:
   th: จ่าย {credits} ต่อการใช้งาน
   cs: Zaplatit {credits} za použití
   sv: Betala {credits} per användning
+  he: "שלם {credits} לכל שימוש"
   verified_by_human: []
 recommended:
   context: Highlights the recommended credits package
@@ -4093,6 +4253,7 @@ recommended:
   th: แนะนำ
   cs: Doporučeno
   sv: Rekommenderas
+  he: מומלץ
   verified_by_human: []
 your_gift:
   context: Highlights if the credits are a gift
@@ -4116,6 +4277,7 @@ your_gift:
   th: ของขวัญของคุณ
   cs: Váš dárek
   sv: Din gåva
+  he: המתנה שלך
   verified_by_human: []
 accept:
   context: Button text for accepting the gift
@@ -4139,6 +4301,7 @@ accept:
   th: ยอมรับ
   cs: Přijmout
   sv: Acceptera
+  he: קבל
   verified_by_human: []
 amount_currency:
   context: "in message: '21.000 credits' or '30 EUR'"
@@ -4162,6 +4325,7 @@ amount_currency:
   th: "{amount} {currency}"
   cs: "{amount} {currency}"
   sv: "{amount} {currency}"
+  he: "{amount} {currency}"
   verified_by_human: []
 for_chatting_and_apps:
   context: Explainer what the credits are needed for
@@ -4185,6 +4349,7 @@ for_chatting_and_apps:
   th: สำหรับการแชทและการใช้แอป
   cs: Pro chatování a používání aplikací
   sv: För chatt och användning av appar
+  he: "לצ'אט ולשימוש באפליקציות"
   verified_by_human: []
 only_pay_what_you_use:
   context: explainer how the payment system works
@@ -4288,6 +4453,9 @@ only_pay_what_you_use:
     Rättvist och tillgängligt för oss alla.
 
     "
+  he: |
+    משלמים רק על מה שמשתמשים.
+    הוגן ונגיש לכולנו.
   verified_by_human: []
 no_expiration_of_credits:
   context: explainer that credits dont expire
@@ -4311,6 +4479,7 @@ no_expiration_of_credits:
   th: ไม่มีการหมดอายุของเครดิต
   cs: žádné vypršení kreditů
   sv: inget utgångsdatum för krediter
+  he: ללא תוקף לקרדיטים
   verified_by_human: []
 no_subscription:
   context: explainer that there is no subscription
@@ -4334,6 +4503,7 @@ no_subscription:
   th: ไม่ต้องสมัครสมาชิก
   cs: není vyžadováno předplatné
   sv: ingen prenumeration krävs
+  he: ללא צורך במנוי
   verified_by_human: []
 no_ads:
   context: explainer that there are no ads
@@ -4357,6 +4527,7 @@ no_ads:
   th: ไม่มีโฆษณา
   cs: žádné reklamy
   sv: inga annonser
+  he: ללא פרסומות
   verified_by_human: []
 no_selling_of_user_data:
   context: explainer that user data is not sold
@@ -4380,6 +4551,7 @@ no_selling_of_user_data:
   th: ไม่มีการขายข้อมูลผู้ใช้
   cs: žádný prodej uživatelských dat
   sv: ingen försäljning av användardata
+  he: ללא מכירת נתוני משתמשים
   verified_by_human: []
 prices_on_app_store_soon:
   context: explainer that prices will be available on the app store soon
@@ -4403,6 +4575,7 @@ prices_on_app_store_soon:
   th: "คลิกที่นี่เพื่อตรวจสอบราคาใน App Store"
   cs: "Klikněte zde a zkontrolujte ceny v App Store."
   sv: "Klicka här för att kontrollera priserna i App Store."
+  he: לחץ כאן כדי לבדוק מחירים ב-App Store.
   verified_by_human: []
 usage_prices_on_app_store:
   context: explainer where to find pricing details
@@ -4505,6 +4678,9 @@ usage_prices_on_app_store:
     i App Store.
 
     "
+  he: |
+    מחירי השימוש מופיעים
+    ב-App Store.
   verified_by_human: []
 open_app_store:
   context: Button text for opening app store to see usage prices
@@ -4528,6 +4704,7 @@ open_app_store:
   th: เปิด App Store
   cs: Otevřít App Store
   sv: Öppna App Store
+  he: פתח את ה-App Store
   verified_by_human: []
 less:
   context: Button text to reduce the amount of credits to buy
@@ -4551,6 +4728,7 @@ less:
   th: น้อยลง
   cs: Méně
   sv: Mindre
+  he: פחות
   verified_by_human: []
 more:
   context: Button text to increase the amount of credits to buy
@@ -4574,6 +4752,7 @@ more:
   th: มากขึ้น
   cs: Více
   sv: Mer
+  he: עוד
   verified_by_human: []
 select_amount:
   context: text for choosing the amount of credits to buy
@@ -4597,6 +4776,7 @@ select_amount:
   th: เลือกจำนวนเงิน
   cs: Vyberte částku
   sv: Välj ett belopp
+  he: בחירת סכום
   verified_by_human: []
 select_credits:
   context: Button text going back to select credits
@@ -4620,6 +4800,7 @@ select_credits:
   th: เลือกเครดิต
   cs: Vybrat kredity
   sv: Välj krediter
+  he: בחירת קרדיטים
   verified_by_human: []
 limited_refund:
   context: heading for explainer about limited refund
@@ -4643,6 +4824,7 @@ limited_refund:
   th: การคืนเงินจำกัด
   cs: Omezená náhrada
   sv: Begränsad återbetalning
+  he: החזר כספי מוגבל
   verified_by_human: []
 i_agree_to_limited_refund:
   context: toggle text for agreeing to limited refund
@@ -4666,6 +4848,7 @@ i_agree_to_limited_refund:
   th: ฉันยอมรับว่าฉันสามารถขอคืนเงินได้เฉพาะเครดิตที่ยังไม่ได้ใช้ภายใน 14 วันหลังจากซื้อ ฉันยังยินยอมให้ดำเนินการบริการดิจิทัลที่ OpenMates ให้บริการทันที โดยยอมรับว่าสิทธิในการถอนตัวของฉันจะหมดอายุเมื่อเครดิตถูกใช้
   cs: Souhlasím, že mohu požádat o refundaci pouze za nevyužité kredity do 14 dnů po zakoupení. Souhlasím také s okamžitým provedením digitálních služeb poskytovaných OpenMates a uznávám, že mé právo na odstoupení vyprší, jakmile budou kredity použity.
   sv: Jag godkänner att jag endast kan begära återbetalning för oanvända krediter inom 14 dagar efter köpet. Jag samtycker också till omedelbar utförande av de digitala tjänster som tillhandahålls av OpenMates, och erkänner att min rätt att återkalla upphör när krediterna används.
+  he: אני מאשר שניתן לבקש החזר כספי רק עבור קרדיטים שלא נוצלו תוך 14 ימים מהרכישה. אני גם מסכים לביצוע המיידי של השירותים הדיגיטליים המסופקים על ידי OpenMates, ומאשר שזכות הביטול שלי פוקעת ברגע שהקרדיטים נוצלו. כרטיסי מתנה שנרכשו מוחרגים ולא ניתן לקבל עבורם החזר לאחר שנעשה בהם שימוש.
   verified_by_human: []
 click_here_learn_more:
   context: Button text for learning more about the limited refund policy
@@ -4689,6 +4872,7 @@ click_here_learn_more:
   th: คลิกที่นี่เพื่อเรียนรู้ว่าทำไมคุณต้องยอมรับ
   cs: Klikněte zde a zjistěte, proč musíte souhlasit.
   sv: Klicka här för att lära dig varför du måste godkänna.
+  he: לחץ כאן כדי להבין למה עליך להסכים.
   verified_by_human: []
 purchase_successful:
   context: Success message after payment completion
@@ -4712,6 +4896,7 @@ purchase_successful:
   th: ซื้อสำเร็จ!
   cs: Nákup úspěšný!
   sv: Köp lyckades!
+  he: "הרכישה הושלמה בהצלחה!"
   verified_by_human: []
 gift_card_redeemed_success:
   context: Success message after gift card redemption during signup
@@ -4735,6 +4920,7 @@ gift_card_redeemed_success:
   th: สนุกกับของขวัญของคุณ!
   cs: Užijte si svůj dárek!
   sv: Njut av din present!
+  he: "תהנה מהמתנה שלך!"
   verified_by_human: []
 credits_purchased:
   context: Label for credits purchased in purchase summary
@@ -4758,6 +4944,7 @@ credits_purchased:
   th: เครดิตที่ซื้อ
   cs: Zakoupené kredity
   sv: Köpta krediter
+  he: קרדיטים שנרכשו
   verified_by_human: []
 amount_paid:
   context: Label for amount paid in purchase summary
@@ -4781,6 +4968,7 @@ amount_paid:
   th: จำนวนที่จ่าย
   cs: Zaplacená částka
   sv: Betalt belopp
+  he: סכום ששולם
   verified_by_human: []
 never_run_out:
   context: Title for auto top-up section
@@ -4804,6 +4992,7 @@ never_run_out:
   th: ไม่เคยหมดเครดิต
   cs: Nikdy vám nedojdou kredity
   sv: Slut aldrig på krediter
+  he: שהקרדיטים לא ייגמרו לעולם
   verified_by_human: []
 auto_topup_benefits:
   context: Explanation of auto top-up benefits
@@ -4827,6 +5016,7 @@ auto_topup_benefits:
   th: เปิดใช้งานการเติมเงินอัตโนมัติรายเดือนเพื่อแชทต่อเนื่องโดยไม่ขาดตอน พร้อมรับเครดิตโบนัสทุกเดือน!
   cs: Aktivujte měsíční automatické doplnění, abyste mohli pokračovat v chatování bez přerušení, navíc každý měsíc získáte bonusové kredity!
   sv: Aktivera månadsvis automatisk påfyllning för att fortsätta chatta utan avbrott, plus få bonuskrediter varje månad!
+  he: "הפעל טעינה אוטומטית חודשית כדי להמשיך להתכתב ללא הפרעות, וקבל קרדיטי בונוס בכל חודש!"
   verified_by_human: []
 activate_monthly_auto_topup:
   context: Toggle label for activating monthly auto top-up
@@ -4850,6 +5040,7 @@ activate_monthly_auto_topup:
   th: เปิดใช้งานการเติมเงินอัตโนมัติรายเดือน
   cs: Aktivovat měsíční automatické doplnění
   sv: Aktivera månadsvis automatisk påfyllning
+  he: הפעלת טעינה אוטומטית חודשית
   verified_by_human: []
 base_credits:
   context: Label for base credits in subscription
@@ -4873,6 +5064,7 @@ base_credits:
   th: เครดิตพื้นฐาน
   cs: Základní kredity
   sv: Bas krediter
+  he: קרדיטים בסיסיים
   verified_by_human: []
 bonus_credits:
   context: Label for bonus credits in subscription
@@ -4896,6 +5088,7 @@ bonus_credits:
   th: เครดิตโบนัส
   cs: Bonusové kredity
   sv: Bonus krediter
+  he: קרדיטי בונוס
   verified_by_human: []
 total_per_month:
   context: Label for total credits per month
@@ -4919,6 +5112,7 @@ total_per_month:
   th: รวมต่อเดือน
   cs: Celkem za měsíc
   sv: Totalt per månad
+  he: "סה\"כ לחודש"
   verified_by_human: []
 month:
   context: Time unit for monthly subscription
@@ -4942,6 +5136,7 @@ month:
   th: เดือน
   cs: měsíc
   sv: månad
+  he: חודש
   verified_by_human: []
 auto_topup_benefit_1:
   context: First benefit of auto top-up
@@ -4965,6 +5160,7 @@ auto_topup_benefit_1:
   th: ไม่เคยหมดเครดิต
   cs: Nikdy vám nedojdou kredity
   sv: Slut aldrig på krediter
+  he: שהקרדיטים לא ייגמרו לעולם
   verified_by_human: []
 auto_topup_benefit_2:
   context: Second benefit of auto top-up
@@ -4988,6 +5184,7 @@ auto_topup_benefit_2:
   th: รับเครดิตโบนัส {percent}% ทุกเดือน
   cs: Získejte každý měsíc {percent}% bonusových kreditů
   sv: Få {percent}% bonuskrediter varje månad
+  he: "קבל {percent}% קרדיטי בונוס בכל חודש"
   verified_by_human: []
 auto_topup_benefit_3:
   context: Third benefit of auto top-up
@@ -5011,6 +5208,7 @@ auto_topup_benefit_3:
   th: ยกเลิกได้ตลอดเวลาในการตั้งค่า
   cs: Zrušte kdykoli v nastavení
   sv: Avbryt när som helst i inställningarna
+  he: ביטול בכל עת בהגדרות
   verified_by_human: []
 activate_and_finish:
   context: Button text to activate subscription and finish signup
@@ -5034,6 +5232,7 @@ activate_and_finish:
   th: เปิดใช้งานและเสร็จสิ้นการตั้งค่า
   cs: Aktivovat a dokončit nastavení
   sv: Aktivera och slutför installation
+  he: הפעל וסיים את ההגדרה
   verified_by_human: []
 finish_setup:
   context: Button text to finish signup without auto top-up
@@ -5057,6 +5256,7 @@ finish_setup:
   th: เสร็จสิ้นการตั้งค่า
   cs: Dokončit nastavení
   sv: Slutför installation
+  he: סיום הגדרה
   verified_by_human: []
 processing:
   context: Text shown when processing subscription activation
@@ -5080,6 +5280,7 @@ processing:
   th: กำลังประมวลผล...
   cs: Zpracovávání...
   sv: Bearbetar...
+  he: מעבד...
   verified_by_human: []
 pay_with_card:
   context: Header text for paying with card
@@ -5103,6 +5304,7 @@ pay_with_card:
   th: ชำระด้วยบัตร
   cs: Platit kartou
   sv: Betala med kort
+  he: תשלום בכרטיס
   verified_by_human: []
 full_name_on_card:
   context: Placeholder text for full name on card input field for card payments
@@ -5126,6 +5328,7 @@ full_name_on_card:
   th: ชื่อเต็มบนบัตร
   cs: Celé jméno na kartě
   sv: Fullständigt namn på kortet
+  he: שם מלא על הכרטיס
   verified_by_human: []
 vat_info:
   context: Info text about VAT charges shown on the Stripe payment form
@@ -5149,6 +5352,7 @@ vat_info:
   th: ""
   cs: ""
   sv: ""
+  he: "לא נגבה מע\"מ בהתאם ל-§19 UStG (תקנת עסקים קטנים)."
   verified_by_human: []
 card_number:
   context: Placeholder text for card number input field for card payments
@@ -5172,6 +5376,7 @@ card_number:
   th: ""
   cs: ""
   sv: ""
+  he: מספר כרטיס
   verified_by_human: []
 cvv:
   context: Placeholder text for CVV input field for card payments
@@ -5195,6 +5400,7 @@ cvv:
   th: ""
   cs: ""
   sv: ""
+  he: CVV
   verified_by_human: []
 mm_yy:
   context: Placeholder text for MM/YY input field for card payments
@@ -5218,6 +5424,7 @@ mm_yy:
   th: ""
   cs: ""
   sv: ""
+  he: MM/YY
   verified_by_human: []
 buy_for:
   context: Used in 'Buy for 10 EUR'
@@ -5241,6 +5448,7 @@ buy_for:
   th: ""
   cs: ""
   sv: ""
+  he: "קנייה ב-{amount} {currency}"
   verified_by_human: []
 send_amount:
   context: Used in 'Send 10 EUR' for supporter contributions
@@ -5264,6 +5472,7 @@ send_amount:
   th: ส่ง {amount} {currency}
   cs: Odeslat {amount} {currency}
   sv: Skicka {amount} {currency}
+  he: "שליחת {amount} {currency}"
   verified_by_human: []
 secured_and_powered_by:
   context: Used in 'Secured & powered by mollie'
@@ -5287,6 +5496,7 @@ secured_and_powered_by:
   th: ""
   cs: ""
   sv: ""
+  he: "מאובטח ומופעל על ידי {provider}"
   verified_by_human: []
 name_too_short:
   context: Error message shown when name is too short
@@ -5310,6 +5520,7 @@ name_too_short:
   th: ""
   cs: ""
   sv: ""
+  he: מינימום 3 תווים
   verified_by_human: []
 invalid_card_number:
   context: Error message shown when card number is invalid
@@ -5333,6 +5544,7 @@ invalid_card_number:
   th: หมายเลขบัตรไม่ถูกต้อง
   cs: Neplatné číslo karty
   sv: Ogiltigt kortnummer
+  he: מספר כרטיס לא תקין
   verified_by_human: []
 invalid_expiry_format:
   context: Error message shown when expiry format is invalid
@@ -5356,6 +5568,7 @@ invalid_expiry_format:
   th: รูปแบบวันหมดอายุไม่ถูกต้อง
   cs: Neplatný formát expirace
   sv: Ogiltigt utgångsformat
+  he: פורמט תוקף לא תקין
   verified_by_human: []
 invalid_month:
   context: Error message shown when month is invalid
@@ -5379,6 +5592,7 @@ invalid_month:
   th: เดือนไม่ถูกต้อง
   cs: Neplatný měsíc
   sv: Ogiltig månad
+  he: חודש לא תקין
   verified_by_human: []
 card_expired:
   context: Error message shown when card is expired
@@ -5402,6 +5616,7 @@ card_expired:
   th: บัตรหมดอายุ
   cs: Karta vypršela
   sv: Kortet har gått ut
+  he: תוקף הכרטיס פג
   verified_by_human: []
 invalid_cvv:
   context: Error message shown when CVV is invalid
@@ -5425,6 +5640,7 @@ invalid_cvv:
   th: CVV ไม่ถูกต้อง
   cs: Neplatný CVV
   sv: Ogiltig CVV
+  he: קוד CVV לא תקין
   verified_by_human: []
 show_sensitive_data:
   context: Button text for showing sensitive card payment data
@@ -5448,6 +5664,7 @@ show_sensitive_data:
   th: แสดงข้อมูลที่ละเอียดอ่อน
   cs: Zobrazit citlivá data
   sv: Visa känsliga data
+  he: הצגת נתונים רגישים
   verified_by_human: []
 hide_sensitive_data:
   context: Button text for hiding sensitive card payment data
@@ -5471,6 +5688,7 @@ hide_sensitive_data:
   th: ซ่อนข้อมูลที่ละเอียดอ่อน
   cs: Skrýt citlivá data
   sv: Dölj känsliga data
+  he: הסתרת נתונים רגישים
   verified_by_human: []
 processing_payment:
   context: Text shown while processing payment
@@ -5494,6 +5712,7 @@ processing_payment:
   th: กำลังประมวลผลการชำระเงิน...
   cs: Zpracovávání platby...
   sv: Bearbetar betalning...
+  he: מעבד תשלום...
   verified_by_human: []
 payment_processing_delayed:
   context: Message shown when payment processing takes longer than usual (after 10 seconds)
@@ -5517,6 +5736,7 @@ payment_processing_delayed:
   th: การประมวลผลการชำระเงินของคุณใช้เวลานานกว่าปกติ เราจะแจ้งให้คุณทราบเมื่อการชำระเงินเสร็จสมบูรณ์
   cs: Zpracování vaší platby trvá déle než obvykle. Dáme vám vědět, jakmile bude platba dokončena.
   sv: Bearbetningen av din betalning tar längre tid än vanligt. Vi meddelar dig när betalningen är klar.
+  he: עיבוד התשלום לוקח זמן רב מהרגיל. נעדכן אותך ברגע שהתשלום יושלם.
   verified_by_human: []
 payment_failed:
   context: Error message shown when payment fails
@@ -5540,6 +5760,7 @@ payment_failed:
   th: การชำระเงินล้มเหลว
   cs: Platba selhala
   sv: Betalning misslyckades
+  he: התשלום נכשל
   verified_by_human: []
 switch_to_eu_card:
   context: Link text in Polar payment form to switch to Stripe (for EU card holders)
@@ -5563,6 +5784,7 @@ switch_to_eu_card:
   th: ""
   cs: ""
   sv: ""
+  he: תשלום בכרטיס אירופאי במקום זאת
   verified_by_human: []
 switch_to_non_eu_card:
   context: Link text in Stripe payment form to switch to Polar (for non-EU card holders)
@@ -5586,6 +5808,7 @@ switch_to_non_eu_card:
   th: ""
   cs: ""
   sv: ""
+  he: תשלום בכרטיס לא-אירופאי
   verified_by_human: []
 you_will_receive_payment_confirmation_soon:
   context: Message shown after successful Polar purchase (says 'payment confirmation' instead of 'invoice' because Polar as MoR issues the official tax invoice)
@@ -5609,6 +5832,7 @@ you_will_receive_payment_confirmation_soon:
   th: ""
   cs: ""
   sv: ""
+  he: אישור אימייל עם אישור התשלום שלך יישלח אליך בקרוב.
   verified_by_human: []
 enjoy_your_gift:
   context: Success message shown when gift is accepted.
@@ -5632,6 +5856,7 @@ enjoy_your_gift:
   th: สนุกกับของขวัญของคุณ!
   cs: Užijte si svůj dárek!
   sv: Njut av din gåva!
+  he: "תהנו מהמתנה שלכם!"
   verified_by_human: []
 you_will_receive_confirmation_soon:
   context: Message shown after successful purchase
@@ -5655,6 +5880,7 @@ you_will_receive_confirmation_soon:
   th: คุณจะได้รับอีเมลยืนยันพร้อมใบแจ้งหนี้ในเร็วๆ นี้
   cs: Brzy obdržíte e-mailové potvrzení s vaší fakturou.
   sv: Du kommer snart att få en e-postbekräftelse med din faktura.
+  he: אישור אימייל עם החשבונית שלך יישלח אליך בקרוב.
   verified_by_human: []
 newsletter.subscribe_text:
   context: Text shown above newsletter signup form
@@ -5678,6 +5904,7 @@ newsletter.subscribe_text:
   th: คุณไม่มีรหัสเชิญใช่ไหม? สมัครรับจดหมายข่าวของเราเพื่อรับการแจ้งเตือนเมื่อมีการเชิญใหม่ ประกาศฟีเจอร์ใหม่ และประกาศสำคัญอื่นๆ เกี่ยวกับ OpenMates
   cs: Nemáte pozvánkový kód? Přihlaste se k odběru našeho newsletteru, abyste byli informováni, když budou k dispozici nové pozvánky, oznámení o nových funkcích a další důležitá oznámení o OpenMates.
   sv: Har du ingen inbjudningskod? Prenumerera på vårt nyhetsbrev för att bli informerad när nya inbjudningar är tillgängliga, nya funktionsmeddelanden och andra viktiga meddelanden om OpenMates.
+  he: "אין לך קוד הזמנה? הירשם לניוזלטר שלנו כדי להתעדכן כשיהיו הזמנות חדשות, הכרזות על פיצ'רים חדשים ועדכונים חשובים נוספים סביב OpenMates."
   verified_by_human: []
 newsletter.email_placeholder:
   context: Placeholder text for newsletter email input
@@ -5701,6 +5928,7 @@ newsletter.email_placeholder:
   th: กรอกที่อยู่อีเมลของคุณ
   cs: Zadejte svou e-mailovou adresu
   sv: Ange din e-postadress
+  he: כתובת האימייל שלך
   verified_by_human: []
 newsletter.subscribe_button:
   context: Button text for newsletter subscription
@@ -5724,6 +5952,7 @@ newsletter.subscribe_button:
   th: สมัครรับจดหมายข่าว
   cs: Přihlásit se k odběru newsletteru
   sv: Prenumerera på nyhetsbrev
+  he: הרשמה לניוזלטר
   verified_by_human: []
 newsletter.subscribing:
   context: Loading text while subscribing to newsletter
@@ -5747,6 +5976,7 @@ newsletter.subscribing:
   th: กำลังสมัครสมาชิก...
   cs: Přihlašování...
   sv: Prenumererar...
+  he: נרשם...
   verified_by_human: []
 newsletter.subscribe_success:
   context: Success message after newsletter subscription
@@ -5770,6 +6000,7 @@ newsletter.subscribe_success:
   th: ตรวจสอบอีเมลของคุณเพื่อยืนยันการสมัครสมาชิก!
   cs: Zkontrolujte svůj e-mail a potvrďte své předplatné!
   sv: Kontrollera din e-post för att bekräfta din prenumeration!
+  he: "בדקו את האימייל שלכם כדי לאשר את ההרשמה!"
   verified_by_human: []
 newsletter.subscribe_error:
   context: Error message when newsletter subscription fails
@@ -5793,6 +6024,7 @@ newsletter.subscribe_error:
   th: การสมัครสมาชิกล้มเหลว กรุณาลองอีกครั้ง
   cs: Přihlášení se nezdařilo. Zkuste to prosím znovu.
   sv: Prenumerationen misslyckades. Försök igen.
+  he: ההרשמה נכשלה. נא לנסות שוב.
   verified_by_human: []
 newsletter.invalid_email:
   context: Error message for invalid email address
@@ -5816,6 +6048,7 @@ newsletter.invalid_email:
   th: กรุณากรอกที่อยู่อีเมลที่ถูกต้อง
   cs: Zadejte prosím platnou e-mailovou adresu
   sv: Ange en giltig e-postadress
+  he: נא להזין כתובת אימייל תקינה
   verified_by_human: []
 generating_recovery_key:
   context: Loading text shown while generating the recovery key during signup
@@ -5839,6 +6072,7 @@ generating_recovery_key:
   th: กำลังสร้างคีย์กู้คืนของคุณ...
   cs: Generování vašeho klíče pro obnovení...
   sv: Genererar din återställningsnyckel...
+  he: מייצר את מפתח השחזור שלך...
   verified_by_human: []
 recovery_key_mandatory_description:
   context: Description explaining that recovery key is mandatory and its purpose
@@ -5862,6 +6096,7 @@ recovery_key_mandatory_description:
   th: คีย์กู้คืนของคุณกำลังถูกสร้างและดาวน์โหลดโดยอัตโนมัติ คีย์นี้มีความจำเป็นสำหรับการกู้คืนบัญชีหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบของคุณ
   cs: Váš klíč pro obnovení je automaticky generován a stahován. Tento klíč je nezbytný pro obnovení účtu, pokud ztratíte přístup ke své přihlašovací metodě.
   sv: Din återställningsnyckel genereras och laddas ner automatiskt. Denna nyckel är nödvändig för kontoåterställning om du förlorar åtkomst till din inloggningsmetod.
+  he: מפתח השחזור שלך מיוצר ומורד באופן אוטומטי. מפתח זה חיוני לשחזור החשבון אם אי פעם תאבד גישה לשיטת ההתחברות שלך.
   verified_by_human: []
 recovery_key_downloaded:
   context: Message shown after recovery key file has been downloaded
@@ -5885,6 +6120,7 @@ recovery_key_downloaded:
   th: คีย์กู้คืนของคุณถูกดาวน์โหลดแล้ว
   cs: Váš klíč pro obnovení byl stažen.
   sv: Din återställningsnyckel har laddats ner.
+  he: מפתח השחזור שלך הורד.
   verified_by_human: []
 download_again:
   context: Button text to re-download the recovery key file
@@ -5908,6 +6144,7 @@ download_again:
   th: ดาวน์โหลดอีกครั้ง
   cs: Stáhnout znovu
   sv: Ladda ner igen
+  he: הורדה מחדש
   verified_by_human: []
 recovery_key_only_way:
   context: Important notice explaining recovery key is the only way to recover account
@@ -5931,6 +6168,7 @@ recovery_key_only_way:
   th: <strong>สำคัญ:</strong> คีย์กู้คืนนี้เป็นวิธีเดียวในการกู้คืนบัญชีของคุณหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบของคุณ เก็บรักษาอย่างปลอดภัย
   cs: <strong>Důležité:</strong> Tento klíč pro obnovení je jediný způsob, jak obnovit váš účet, pokud ztratíte přístup ke své přihlašovací metodě. Uložte jej bezpečně.
   sv: <strong>Viktigt:</strong> Denna återställningsnyckel är det enda sättet att återställa ditt konto om du förlorar åtkomst till din inloggningsmetod. Förvara den säkert.
+  he: "<strong>חשוב:</strong> מפתח שחזור זה הוא הדרך היחידה לשחזר את החשבון שלך אם תאבד גישה לשיטת ההתחברות שלך. שמור אותו במקום מאובטח."
   verified_by_human: []
 choose_how_to_save:
   context: Instruction text asking user to choose how to save their recovery key
@@ -5954,6 +6192,7 @@ choose_how_to_save:
   th: "เลือกวิธีบันทึกคีย์กู้คืนของคุณ:"
   cs: "Zvolte způsob uložení klíče pro obnovení:"
   sv: "Välj hur du vill spara din återställningsnyckel:"
+  he: "בחר כיצד לשמור את מפתח השחזור שלך:"
   verified_by_human: []
 recovery_key_save_description:
   context: Description explaining that the recovery key allows account recovery
@@ -5977,6 +6216,7 @@ recovery_key_save_description:
   th: คีย์กู้คืนนี้ช่วยให้คุณกู้คืนบัญชีได้หากคุณสูญเสียการเข้าถึง {login_secret} บันทึกอย่างปลอดภัยก่อนดำเนินการต่อ
   cs: Tento klíč pro obnovení vám umožní obnovit účet, pokud ztratíte přístup k {login_secret}. Uložte jej bezpečně, než budete pokračovat.
   sv: Denna återställningsnyckel låter dig återställa ditt konto om du förlorar åtkomst till din {login_secret}. Spara den säkert innan du fortsätter.
+  he: "מפתח שחזור זה מאפשר לך לשחזר את חשבונך אם תאבד את הגישה ל-{login_secret}. שמור אותו במקום בטוח לפני שתמשיך."
   verified_by_human: []
 recovery_key_loss_warning:
   context: Warning about permanent data loss if recovery key is lost
@@ -6000,6 +6240,7 @@ recovery_key_loss_warning:
   th: หากคุณทำคีย์นี้หายและไม่สามารถเข้าถึงบัญชีได้ <strong>ข้อมูลของคุณจะสูญหายอย่างถาวร</strong> เราไม่สามารถกู้คืนให้คุณได้
   cs: Pokud tento klíč ztratíte a nebudete moci přistupovat ke svému účtu, <strong>vaše data budou trvale ztracena</strong>. Nemůžeme je za vás obnovit.
   sv: Om du tappar bort denna nyckel och inte kan komma åt ditt konto, <strong>kommer dina data att gå förlorade permanent</strong>. Vi kan inte återställa dem åt dig.
+  he: "אם תאבד את המפתח הזה ולא תוכל לגשת לחשבונך, <strong>הנתונים שלך יאבדו לצמיתות</strong>. לא נוכל לשחזר אותם עבורך."
   verified_by_human: []
 recovery_key_error_email:
   context: Error message when email cannot be retrieved for recovery key generation
@@ -6023,6 +6264,7 @@ recovery_key_error_email:
   th: ไม่สามารถดึงอีเมลสำหรับการสร้างคีย์กู้คืน กรุณาลองอีกครั้ง
   cs: Nepodařilo se získat e-mail pro vygenerování klíče pro obnovení. Zkuste to prosím znovu.
   sv: Kunde inte hämta e-post för generering av återställningsnyckel. Försök igen.
+  he: לא ניתן היה לאחזר את כתובת האימייל ליצירת מפתח שחזור. אנא נסה שוב.
   verified_by_human: []
 recovery_key_error_encryption_key:
   context: Error message when encryption key cannot be retrieved
@@ -6046,6 +6288,7 @@ recovery_key_error_encryption_key:
   th: ไม่สามารถดึงคีย์เข้ารหัส กรุณาลองอีกครั้ง
   cs: Nepodařilo se získat šifrovací klíč. Zkuste to prosím znovu.
   sv: Kunde inte hämta krypteringsnyckel. Försök igen.
+  he: לא ניתן היה לאחזר את מפתח ההצפנה. אנא נסה שוב.
   verified_by_human: []
 recovery_key_error_encryption_data:
   context: Error message when encryption data is missing
@@ -6069,6 +6312,7 @@ recovery_key_error_encryption_data:
   th: ข้อมูลเข้ารหัสหายไป กรุณาลองอีกครั้ง
   cs: Chybí šifrovací data. Zkuste to prosím znovu.
   sv: Krypteringsdata saknas. Försök igen.
+  he: נתוני הצפנה חסרים. אנא נסה שוב.
   verified_by_human: []
 recovery_key_error_generic:
   context: Generic error message for recovery key generation failure
@@ -6092,6 +6336,7 @@ recovery_key_error_generic:
   th: เกิดข้อผิดพลาดขณะสร้างคีย์กู้คืนของคุณ กรุณาลองอีกครั้ง
   cs: Při generování klíče pro obnovení došlo k chybě. Zkuste to prosím znovu.
   sv: Ett fel uppstod när din återställningsnyckel genererades. Försök igen.
+  he: אירעה שגיאה בעת יצירת מפתח השחזור שלך. אנא נסה שוב.
   verified_by_human: []
 download:
   context: Button text to download the recovery key file
@@ -6115,6 +6360,7 @@ download:
   th: ดาวน์โหลด
   cs: Stáhnout
   sv: Ladda ner
+  he: הורד
   verified_by_human: []
 copy:
   context: Button text to copy recovery key to clipboard
@@ -6138,6 +6384,7 @@ copy:
   th: คัดลอก
   cs: Kopírovat
   sv: Kopiera
+  he: העתק
   verified_by_human: []
 print:
   context: Button text to print recovery key
@@ -6161,6 +6408,7 @@ print:
   th: พิมพ์
   cs: Tisk
   sv: Skriv ut
+  he: הדפס
   verified_by_human: []
 copy_failed:
   context: Error message when copy to clipboard fails
@@ -6184,6 +6432,7 @@ copy_failed:
   th: การคัดลอกล้มเหลว กรุณาลองอีกครั้ง
   cs: Kopírování se nezdařilo. Zkuste to prosím znovu.
   sv: Kopiering misslyckades. Försök igen.
+  he: ההעתקה נכשלה. אנא נסה שוב.
   verified_by_human: []
 recovery_key_print_title:
   context: Title shown on printed recovery key page
@@ -6207,6 +6456,7 @@ recovery_key_print_title:
   th: คีย์กู้คืน OpenMates
   cs: Klíč pro Obnovení OpenMates
   sv: OpenMates Återställningsnyckel
+  he: מפתח שחזור OpenMates
   verified_by_human: []
 recovery_key_print_warning:
   context: Warning shown on printed recovery key page
@@ -6230,6 +6480,7 @@ recovery_key_print_warning:
   th: เก็บรักษาอย่างปลอดภัย! นี่คือวิธีเดียวในการกู้คืนบัญชีหากคุณสูญเสียการเข้าถึงรหัสผ่านหรือ passkey
   cs: Uchovejte to v bezpečí! Toto je jediný způsob, jak obnovit váš účet, pokud ztratíte přístup k heslu nebo klíči.
   sv: Förvara detta säkert! Detta är ditt enda sätt att återställa ditt konto om du förlorar åtkomst till ditt lösenord eller passkey.
+  he: "שמור על זה היטב! זו הדרך היחידה שלך לשחזר את חשבונך אם תאבד את הגישה לסיסמה או למפתח הגישה שלך."
   verified_by_human: []
 recovery_key_print_storage_title:
   context: Title for storage recommendations on printed page
@@ -6253,6 +6504,7 @@ recovery_key_print_storage_title:
   th: "คำแนะนำในการจัดเก็บ:"
   cs: "Doporučení pro uložení:"
   sv: "Förvaringsrekommendationer:"
+  he: "המלצות לאחסון:"
   verified_by_human: []
 recovery_key_print_storage_1:
   context: Storage recommendation item 1
@@ -6276,6 +6528,7 @@ recovery_key_print_storage_1:
   th: เก็บในที่ปลอดภัย (ตู้นิรภัย กล่องล็อค)
   cs: Uložte na bezpečném místě (trezor, uzamykatelná schránka)
   sv: Förvara på en säker plats (kassaskåp, låsbar låda)
+  he: אחסן במיקום מאובטח (כספת, תיבה נעולה)
   verified_by_human: []
 recovery_key_print_storage_2:
   context: Storage recommendation item 2
@@ -6299,6 +6552,7 @@ recovery_key_print_storage_2:
   th: เก็บแบบออฟไลน์ถ้าเป็นไปได้
   cs: Pokud možno uchovávejte offline
   sv: Förvara offline om möjligt
+  he: שמור במצב לא מקוון במידת האפשר
   verified_by_human: []
 recovery_key_print_storage_3:
   context: Storage recommendation item 3
@@ -6322,6 +6576,7 @@ recovery_key_print_storage_3:
   th: พิจารณาทำสำเนาสำรอง
   cs: Zvažte vytvoření záložní kopie
   sv: Överväg att göra en säkerhetskopia
+  he: שקול ליצור עותק גיבוי
   verified_by_human: []
 recovery_key_print_storage_4:
   context: Storage recommendation item 4
@@ -6345,6 +6600,7 @@ recovery_key_print_storage_4:
   th: อย่าเก็บรวมกับรหัสผ่านของคุณ
   cs: NEUKLÁDEJTE společně s heslem
   sv: Förvara INTE tillsammans med ditt lösenord
+  he: אל תאחסן יחד עם הסיסמה שלך
   verified_by_human: []
 passkey_prf_not_supported:
   context: Error message when WebAuthn PRF extension is not supported by the device
@@ -6368,6 +6624,7 @@ passkey_prf_not_supported:
   th: อุปกรณ์ของคุณไม่รองรับการเข้ารหัส passkey
   cs: Vaše zařízení nepodporuje šifrování přístupového klíče
   sv: Din enhet stöder inte kryptering med nyckelåtkomst
+  he: המכשיר שלך אינו תומך בהצפנת מפתח גישה (passkey)
   verified_by_human: []
 dont_lose_access:
   context: Warning text about backup codes importance
@@ -6391,6 +6648,7 @@ dont_lose_access:
   th: อย่าสูญเสียการเข้าถึง
   cs: Neztratťe přístup
   sv: Tappa inte åtkomsten
+  he: אל תאבד את הגישה
   verified_by_human: []
 setup_2fa:
   context: Button text for setting up two-factor authentication
@@ -6414,6 +6672,7 @@ setup_2fa:
   th: ตั้งค่า 2FA
   cs: Nastavit 2FA
   sv: Konfigurera 2FA
+  he: הגדר אימות דו-שלבי (2FA)
   verified_by_human: []
 pricing_details_on_page_of_app_skill:
   context: Text about pricing information location
@@ -6437,6 +6696,7 @@ pricing_details_on_page_of_app_skill:
   th: รายละเอียดราคาในหน้าของแต่ละแอป/ทักษะ
   cs: Podrobnosti o cenách na stránce každé aplikace/dovednosti
   sv: Prisuppgifter på sidan för varje app/färdighet
+  he: פרטי תמחור בדף של כל אפליקציה/מיומנות
   verified_by_human: []
 open_app_settings:
   context: Button text to open app settings
@@ -6460,6 +6720,7 @@ open_app_settings:
   th: เปิดการตั้งค่าแอป
   cs: Otevřít nastavení aplikace
   sv: Öppna appinställningar
+  he: פתח הגדרות אפליקציה
   verified_by_human: []
 advantage_no_ads:
   context: Signup page advantage item - no advertisements
@@ -6483,6 +6744,7 @@ advantage_no_ads:
   th: ไม่มีโฆษณา
   cs: Žádné reklamy
   sv: Ingen reklam
+  he: ללא פרסומות
   verified_by_human: []
 advantage_no_subscription:
   context: Signup page advantage item - no subscription required
@@ -6506,6 +6768,7 @@ advantage_no_subscription:
   th: ไม่มีการสมัครสมาชิก
   cs: Žádné předplatné
   sv: Ingen prenumeration
+  he: ללא מנוי
   verified_by_human: []
 advantage_privacy_focus:
   context: Signup page advantage item - privacy focused
@@ -6529,6 +6792,7 @@ advantage_privacy_focus:
   th: เน้นความเป็นส่วนตัว
   cs: Zaměření na soukromí
   sv: Integritetsfokus
+  he: דגש על פרטיות
   verified_by_human: []
 advantage_pay_per_use:
   context: Signup page advantage item - pay only for what you use
@@ -6552,4 +6816,5 @@ advantage_pay_per_use:
   th: จ่ายตามการใช้งาน
   cs: Platba za použití
   sv: Betala per användning
+  he: תשלום לפי שימוש
   verified_by_human: []

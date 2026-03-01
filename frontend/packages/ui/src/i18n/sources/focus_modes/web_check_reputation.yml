@@ -20,6 +20,7 @@ web_check_reputation:
   th: ตรวจสอบชื่อเสียง
   cs: Zkontrolovat pověst
   sv: Kontrollera rykte
+  he: בדיקת מוניטין
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: ตรวจสอบว่าธุรกิจถูกต้องตามกฎหมายและน่าเชื่อถือหรือไม่
   cs: Zkontrolujte, zda je podnik legitimní a spolehlivý.
   sv: Kontrollera om ett företag är legitimt och pålitligt.
+  he: בדוק אם עסק הוא לגיטימי ואמין.
   verified_by_human:
     - en
 process:
@@ -52,10 +54,15 @@ process:
     - check if a business exist on trustpilot and what its rating is
     - check on whois.com if the website is nearky registered
     - use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings
+  he: |
+    - בדוק אם עסק קיים ב-Trustpilot ומה הדירוג שלו
+    - בדוק ב-whois.com אם האתר נרשם לאחרונה
+    - השתמש ב-Trustpilot, whois.com ובאתרים אחרים כדי לזהות הונאות ועסקים עם דירוגי לקוחות גרועים
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when check_reputation focus mode is active
   en: You are an expert on identifying scams vs legit businesses.
+  he: אתה מומחה בזיהוי הונאות לעומת עסקים לגיטימיים.
   verified_by_human:
     - en

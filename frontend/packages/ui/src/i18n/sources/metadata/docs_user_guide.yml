@@ -20,6 +20,7 @@ title:
   th: คู่มือผู้ใช้ | OpenMates
   cs: Uživatelská příručka | OpenMates
   sv: Användarhandbok | OpenMates
+  he: "מדריך למשתמש | OpenMates"
   verified_by_human: []
 description:
   context: Description for the user guide page
@@ -43,4 +44,5 @@ description:
   th: เรียนรู้วิธีใช้ OpenMates
   cs: Naučte se, jak používat OpenMates.
   sv: Lär dig hur du använder OpenMates.
+  he: למדו איך להשתמש ב-OpenMates.
   verified_by_human: []

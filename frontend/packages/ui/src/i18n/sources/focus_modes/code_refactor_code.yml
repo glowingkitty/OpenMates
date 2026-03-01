@@ -20,6 +20,7 @@ code_refactor_code:
   th: รีแฟกเตอร์โค้ด
   cs: Refaktorovat kód
   sv: Refaktorera kod
+  he: ריפקטורינג לקוד
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: ปรับปรุงโครงสร้างและความอ่านง่ายของโค้ด
   cs: Zlepšete strukturu a čitelnost kódu.
   sv: Förbättra kodstruktur och läsbarhet.
+  he: שיפור מבנה הקוד והקריאות.
   verified_by_human:
     - en
 process:
@@ -53,5 +55,10 @@ process:
     - mate checks code structure overview and asks further clearifying questions if needed
     - mate tries to find redundant code, unnecessary complexity, etc. and suggests improvements before implementing them
     - mate implements the changes step-by-step, asks for feedback and then continues with the next step
+  he: |
+    - mate שואל מספר שאלות כדי להבין טוב יותר את הדרישות ומה לא עובד טוב בקוד הנוכחי
+    - mate בודק את סקירת מבנה הקוד ושואל שאלות הבהרה נוספות במידת הצורך
+    - mate מנסה למצוא קוד מיותר, מורכבות שאינה נחוצה וכו', ומציע שיפורים לפני יישומם
+    - mate מיישם את השינויים צעד אחר צעד, מבקש משוב ואז ממשיך לשלב הבא
   verified_by_human:
     - en

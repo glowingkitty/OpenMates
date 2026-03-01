@@ -20,6 +20,7 @@ health_prepare_doctor_report:
   th: เตรียมรายงานแพทย์
   cs: Připravit lékařskou zprávu
   sv: Förbereda läkarrapport
+  he: הכנת דוח לרופא
   verified_by_human:
     - en
 description:
@@ -44,5 +45,6 @@ description:
   th: สร้างรายงานสำหรับการพบแพทย์ครั้งถัดไป
   cs: Vytvořte zprávu pro další návštěvu lékaře.
   sv: Skapa en rapport för nästa läkarbesök.
+  he: צור דוח לביקור הבא אצל הרופא.
   verified_by_human:
     - en

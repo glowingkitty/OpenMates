@@ -20,6 +20,7 @@ study_test_knowledge:
   th: ทดสอบความรู้
   cs: Otestovat znalosti
   sv: Testa kunskap
+  he: בחינת ידע
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: ทดสอบความรู้ด้วยคำถามแบบควิซ
   cs: Otestujte znalosti pomocí kvízových otázek.
   sv: Testa dina kunskaper med quizfrågor.
+  he: בחן את הידע שלך באמצעות שאלות בסגנון חידון.
   verified_by_human:
     - en
 process:
@@ -55,10 +57,18 @@ process:
     - evaluates your answers for correctness and understanding
     - provides detailed feedback and explanations for incorrect answers
     - identifies knowledge gaps for further study
+  he: |
+    - שואל על איזה נושא תרצה להיבחן
+    - קובע את רמת הקושי ומספר השאלות
+    - מייצר שאלות המותאמות לרמת הידע שלך
+    - מעריך את התשובות שלך מבחינת נכונות והבנה
+    - מספק משוב מפורט והסברים לתשובות שגויות
+    - מזהה פערי ידע ללימוד נוסף
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when test_knowledge focus mode is active
   en: You are an expert educator and assessor. Create challenging, fair questions that test deep understanding. Provide constructive feedback that helps users learn from their mistakes.
+  he: אתה מורה ומעריך מומחה. צור שאלות מאתגרות והוגנות שבוחנות הבנה עמוקה. ספק משוב בונה שעוזר למשתמשים ללמוד מהטעויות שלהם.
   verified_by_human:
     - en

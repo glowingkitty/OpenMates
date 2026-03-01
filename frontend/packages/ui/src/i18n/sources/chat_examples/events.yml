@@ -20,6 +20,7 @@ user_question:
   th: มีกิจกรรมอะไรเกิดขึ้นในอีกไม่กี่วันข้างหน้า?
   cs: Jaké akce se konají v nadcházejících dnech?
   sv: Vilka evenemang händer de kommande dagarna?
+  he: "אילו אירועים מתקיימים בימים הקרובים?"
   verified_by_human: []
 mate_response:
   context: AI response about upcoming events
@@ -43,6 +44,7 @@ mate_response:
   th: มีกิจกรรมที่น่าตื่นเต้นในอีกไม่กี่วันข้างหน้า! ทั้งเพื่อช่วยให้คุณเรียนรู้เพื่ออาชีพที่ดีขึ้นและเพื่อเข้าสังคมมากขึ้น
   cs: V nadcházejících dnech se konají zajímavé akce! Jak pro lepší kariéru, tak pro více socializace.
   sv: Det händer några spännande evenemang de kommande dagarna! Både för att hjälpa dig lära för en bättre karriär och för att umgås mer.
+  he: "יש כמה אירועים מרגשים בימים הקרובים! גם כדי לעזור לך ללמוד לקריירה טובה יותר וגם כדי להתרועע יותר."
   verified_by_human: []
 events.book_club:
   context: Event title for book club
@@ -66,6 +68,7 @@ events.book_club:
   th: 'การพบปะผู้รักหนังสือ: ค่ำคืนแห่งการอ่านและการอภิปราย'
   cs: 'Setkání milovníků knih: Večer čtení a diskuse'
   sv: 'Bokälskares Träff: En Kväll av Läsning och Diskussion'
+  he: "מפגש חובבי ספרים: ערב של קריאה ודיון"
   verified_by_human: []
 events.tech_talk:
   context: Event title for tech talk
@@ -89,6 +92,7 @@ events.tech_talk:
   th: 'TechTalk: AI ในธุรกิจประจำวัน'
   cs: 'TechTalk: AI v každodenním podnikání'
   sv: 'TechTalk: AI i Vardaglig Affärsverksamhet'
+  he: "TechTalk: בינה מלאכותית בעסקים ביומיום"
   verified_by_human: []
 events.workshop:
   context: Event title for workshop
@@ -112,6 +116,7 @@ events.workshop:
   th: 'เวิร์กชอป: การสร้างแอปพลิเคชันที่ขับเคลื่อนด้วย AI'
   cs: 'Workshop: Vytváření aplikací poháněných AI'
   sv: 'Workshop: Att Bygga AI-Drivna Applikationer'
+  he: "סדנה: בניית אפליקציות מבוססות בינה מלאכותית"
   verified_by_human: []
 calendar.today:
   context: Calendar reference to current day
@@ -135,6 +140,7 @@ calendar.today:
   th: วันนี้
   cs: Dnes
   sv: Idag
+  he: היום
   verified_by_human: []
 calendar.dec_15:
   context: Calendar date
@@ -158,6 +164,7 @@ calendar.dec_15:
   th: 15 ธ.ค.
   cs: 15. pro
   sv: 15 dec
+  he: 15 בדצמבר
   verified_by_human: []
 calendar.dec_16:
   context: Calendar date
@@ -181,4 +188,5 @@ calendar.dec_16:
   th: 16 ธ.ค.
   cs: 16. pro
   sv: 16 dec
+  he: 16 בדצמבר
   verified_by_human: []

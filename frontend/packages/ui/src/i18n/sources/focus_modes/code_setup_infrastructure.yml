@@ -20,6 +20,7 @@ code_setup_infrastructure:
   th: ตั้งค่าโครงสร้างพื้นฐาน
   cs: Nastavit infrastrukturu
   sv: Konfigurera infrastruktur
+  he: הגדרת תשתית
   verified_by_human:
     - en
 description:
@@ -44,6 +45,7 @@ description:
   th: รับความช่วยเหลือตั้งค่าซอฟต์แวร์หรือโครงสร้าง
   cs: Pomoc s nastavením softwaru nebo infrastruktury.
   sv: Få hjälp att konfigurera programvara eller infra.
+  he: קבל עזרה בהגדרת תוכנה או תשתית.
   verified_by_human:
     - en
 process:
@@ -54,10 +56,17 @@ process:
     - mate provides step-by-step instructions for setting up the software or infrastructure the user asked for
     - mate explains the first step, then waits for user feedback, then continues with the next step if step is successful, etc.
     - at the end of the successful setup process, mate suggests saving the setup instructions as markdown (for humans), terraform, ansible playbook or cloud-init script (depending on the context)
+  he: |
+    - mate שואל מספר שאלות כדי להבין מה המשתמש רוצה להגדיר ובאיזה הקשר
+    - mate שואל שאלות הבהרה אם התגובה הראשונה אינה ברורה
+    - mate מספק הוראות שלב אחר שלב להגדרת התוכנה או התשתית שהמשתמש ביקש
+    - mate מסביר את השלב הראשון, ממתין למשוב מהמשתמש, ואז ממשיך לשלב הבא אם השלב הצליח, וכן הלאה.
+    - בסיום תהליך ההגדרה המוצלח, mate מציע לשמור את הוראות ההגדרה כ-markdown (עבור בני אדם), terraform, ansible playbook או סקריפט cloud-init (בהתאם להקשר)
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when setup_infrastructure focus mode is active
   en: You are an expert in setting up infrastructure and software via terminal.
+  he: אתה מומחה בהגדרת תשתיות ותוכנה דרך הטרמינל.
   verified_by_human:
     - en

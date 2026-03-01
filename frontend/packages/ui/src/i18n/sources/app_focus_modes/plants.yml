@@ -20,6 +20,7 @@ plant_care_guide:
   th: คู่มือการดูแลพืช
   cs: Průvodce péčí o rostliny
   sv: Växtvårdsguide
+  he: מדריך לטיפול בצמחים
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ plant_care_guide.description:
   th: รับคำแนะนำการดูแลพืชแบบเฉพาะเจาะจง
   cs: Personalizované tipy pro péči o vaši rostlinu.
   sv: Få personliga skötselråd för din växt.
+  he: קבל טיפים מותאמים אישית לטיפול בצמח שלך.
   verified_by_human:
     - en
     - de

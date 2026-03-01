@@ -20,6 +20,7 @@ books_book_discussion:
   th: การสนทนาเกี่ยวกับหนังสือ
   cs: Diskuze o knize
   sv: Bokdiskussion
+  he: דיון על ספר
   verified_by_human:
     - en
 description:
@@ -44,10 +45,12 @@ description:
   th: สนทนาเกี่ยวกับหนังสือเหมือนในชมรมอ่านหนังสือ
   cs: Diskutujte o knize jako ve čtenářském klubu.
   sv: Diskutera en bok som i en bokklubb.
+  he: דון בספר כמו במועדון קריאה.
   verified_by_human:
     - en
 systemprompt:
   context: System prompt for the LLM when book_discussion focus mode is active
   en: You are a books expert.
+  he: אתה מומחה לספרים.
   verified_by_human:
     - en

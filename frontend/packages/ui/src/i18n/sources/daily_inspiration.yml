@@ -11,34 +11,40 @@ label:
   context: Label shown at the top of each Daily Inspiration banner (next to book icon)
   en: Daily inspiration
   de: Tägliche Inspiration
+  he: השראה יומית
   verified_by_human: []
 
 click_to_start_chat:
   context: Call-to-action button at the bottom of a Daily Inspiration banner
   en: Click to start chat
   de: Klicken um Chat zu starten
+  he: "לחץ כדי להתחיל בצ'אט"
   verified_by_human: []
 
 next:
   context: Accessible label for the "next inspiration" navigation arrow button
   en: Next inspiration
   de: Nächste Inspiration
+  he: ההשראה הבאה
   verified_by_human: []
 
 previous:
   context: Accessible label for the "previous inspiration" navigation arrow button
   en: Previous inspiration
   de: Vorherige Inspiration
+  he: ההשראה הקודמת
   verified_by_human: []
 
 watch_video:
   context: Accessible label for the video thumbnail play button overlay
   en: Watch video
   de: Video ansehen
+  he: צפה בסרטון
   verified_by_human: []
 
 open_chat:
   context: CTA button text shown on a Daily Inspiration banner when the user has already started a chat from this inspiration (replaces "Click to start chat")
   en: Open chat
   de: Chat öffnen
+  he: "פתח צ'אט"
   verified_by_human: []

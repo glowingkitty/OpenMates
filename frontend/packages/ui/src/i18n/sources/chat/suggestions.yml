@@ -20,6 +20,7 @@ header_click:
   th: 'คลิกเพื่อคัดลอกไปยังการป้อนข้อความ:'
   cs: 'Klikněte pro kopírování do vstupu zprávy:'
   sv: 'Klicka för att kopiera till meddelandeinmatning:'
+  he: "לחץ כדי להעתיק לשורת ההודעה:"
   verified_by_human: []
 header_tap:
   context: Header text for suggestions on touch devices
@@ -43,4 +44,5 @@ header_tap:
   th: 'แตะเพื่อคัดลอกไปยังการป้อนข้อความ:'
   cs: 'Klepněte pro kopírování do vstupu zprávy:'
   sv: 'Tryck för att kopiera till meddelandeinmatning:'
+  he: "הקש כדי להעתיק לשורת ההודעה:"
   verified_by_human: []

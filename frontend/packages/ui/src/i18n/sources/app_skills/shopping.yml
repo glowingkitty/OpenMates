@@ -20,6 +20,7 @@ search_products:
   th: ค้นหาสินค้า
   cs: Hledat produkty
   sv: Sök produkter
+  he: חיפוש מוצרים
   verified_by_human: [en, de]
 search_products.description:
   context: Description for shopping search products skill
@@ -43,6 +44,7 @@ search_products.description:
   th: ค้นหาและเปรียบเทียบสินค้าในซุปเปอร์มาร์เก็ต
   cs: Hledejte a porovnávejte produkty v supermarketech.
   sv: Sök och jämför produkter i supermarkets.
+  he: חיפוש והשוואת מוצרים בסופרמרקטים.
   verified_by_human: []
 
 search_products.how_to_use.1:
@@ -67,6 +69,7 @@ search_products.how_to_use.1:
   th: ค้นหานมสดออร์แกนิกที่ REWE
   cs: Najděte bio plnotučné mléko v REWE
   sv: Hitta ekologisk helmjölk på REWE
+  he: "**מצא** חלב אורגני מלא ב-REWE"
   verified_by_human: [en, de]
 
 search_products.how_to_use.2:
@@ -91,6 +94,7 @@ search_products.how_to_use.2:
   th: เปรียบเทียบราคาสปาเก็ตตี้ในซุปเปอร์มาร์เก็ตต่างๆ
   cs: Porovnejte ceny špaget v různých supermarketech
   sv: Jämför priser på spagetti i olika supermarkets
+  he: "**השווה מחירים** לספגטי בסופרמרקטים שונים"
   verified_by_human: [en, de]
 
 search_products.how_to_use.3:
@@ -115,4 +119,5 @@ search_products.how_to_use.3:
   th: มีตัวเลือกชีสวีแกนอะไรบ้างที่ REWE?
   cs: Jaké veganské sýrové alternativy jsou dostupné v REWE?
   sv: Vilka veganska ostalternativ finns på REWE?
+  he: "אילו אפשרויות ל**גבינה טבעונית** קיימות ב-REWE?"
   verified_by_human: [en, de]
