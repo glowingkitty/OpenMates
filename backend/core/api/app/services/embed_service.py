@@ -2112,6 +2112,13 @@ class EmbedService:
                         child_embed_ref = self._generate_embed_ref_slug(child_type, result)
                         result_with_ref["embed_ref"] = child_embed_ref
 
+                    # Inject app_id and skill_id into child TOON so the frontend can
+                    # extract them when registering embed_ref → appId in the in-memory index.
+                    # Without this the inline badge gradient falls back to grey because
+                    # the child result dict only contains flight/event fields, not app metadata.
+                    result_with_ref["app_id"] = app_id
+                    result_with_ref["skill_id"] = skill_id
+
                     # Convert result to TOON format (PLAINTEXT)
                     flattened_result = _flatten_for_toon_tabular(result_with_ref)
                     
@@ -2861,6 +2868,13 @@ class EmbedService:
                     else:
                         child_embed_ref = self._generate_embed_ref_slug(child_type, result)
                         result_with_ref["embed_ref"] = child_embed_ref
+
+                    # Inject app_id and skill_id into child TOON so the frontend can
+                    # extract them when registering embed_ref → appId in the in-memory index.
+                    # Without this the inline badge gradient falls back to grey because
+                    # the child result dict only contains flight/event fields, not app metadata.
+                    result_with_ref["app_id"] = app_id
+                    result_with_ref["skill_id"] = skill_id
 
                     flattened_result = _flatten_for_toon_tabular(result_with_ref)
                     content_toon = encode(flattened_result)

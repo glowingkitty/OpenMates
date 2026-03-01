@@ -48,8 +48,14 @@
    * Open embed fullscreen on click.
    * Resolves embed_ref → embed_id at click time (lazy resolution handles the case
    * where the embed arrives after the message was already rendered).
+   *
+   * Child embeds (e.g. individual "connection" flight results) cannot be opened in
+   * fullscreen directly — only their parent "app-skill-use" embed has a fullscreen
+   * component. So when a child embed is clicked, we look up its parent_embed_id
+   * and dispatch that instead, which opens the parent's fullscreen (e.g. the
+   * TravelSearchEmbedFullscreen showing all flights).
    */
-  function handleClick(e: MouseEvent) {
+  async function handleClick(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
 
@@ -63,14 +69,31 @@
       return;
     }
 
+    // If this embed is a child embed (e.g. a single flight result of type "connection"),
+    // navigate to the parent "app-skill-use" embed instead — child embeds have no
+    // own fullscreen component and the parent already renders all results.
+    let targetEmbedId = resolvedEmbedId;
+    try {
+      const rawEntry = await embedStore.getRawEntry(`embed:${resolvedEmbedId}`);
+      if (rawEntry?.parent_embed_id) {
+        targetEmbedId = rawEntry.parent_embed_id;
+        console.debug(
+          `[EmbedInlineLink] Child embed detected — navigating to parent ${targetEmbedId} instead of child ${resolvedEmbedId}`,
+        );
+      }
+    } catch (err) {
+      // getRawEntry failed — proceed with child embed_id (will show "not available" error)
+      console.debug(`[EmbedInlineLink] getRawEntry failed, using child embed_id:`, err);
+    }
+
     console.debug(
-      `[EmbedInlineLink] Opening fullscreen for embed_ref "${embedRef}" → ${resolvedEmbedId}`,
+      `[EmbedInlineLink] Opening fullscreen for embed_ref "${embedRef}" → ${targetEmbedId}`,
     );
 
     document.dispatchEvent(
       new CustomEvent('embedfullscreen', {
         detail: {
-          embedId: resolvedEmbedId,
+          embedId: targetEmbedId,
           embedType: 'app-skill-use', // default type; ActiveChat will look up the real type
         },
         bubbles: true,
@@ -80,7 +103,7 @@
 </script>
 
 <!-- Inline badge + link, rendered as a <span> so it flows within text -->
-<span class="embed-inline-link" role="link" tabindex="0" onclick={handleClick} onkeydown={(e) => e.key === 'Enter' && handleClick(e as unknown as MouseEvent)}>
+<span class="embed-inline-link" role="link" tabindex="0" onclick={handleClick} onkeydown={(e) => { if (e.key === 'Enter') handleClick(e as unknown as MouseEvent); }}>
   <!-- Small circular app-icon badge -->
   <span class="embed-inline-badge" style={gradientStyle} aria-hidden="true">
     <span class="icon_rounded {appId || ''}"></span>
