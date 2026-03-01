@@ -16,6 +16,10 @@ Usage Settings - View usage statistics and export usage data
     import { decryptWithMasterKey, getKeyFromStorage, decryptChatKeyWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
     import { appsMetadata } from '../../data/appsMetadata';
     import { getAllDraftAudioChatIds } from '../../stores/draftAudioChatStore';
+    import { embedStore } from '../../services/embedStore';
+    import { messageHighlightStore } from '../../stores/messageHighlightStore';
+    import { activeChatStore } from '../../stores/activeChatStore';
+    import { computeSHA256 } from '../../message_parsing/utils';
 
     // Usage entry interface
     interface UsageEntry {
@@ -137,7 +141,15 @@ Usage Settings - View usage statistics and export usage data
     let overviewChatEntries: UsageEntry[] = $state([]); // All entries for the selected chat
     let isLoadingOverviewEntries = $state(false);
     let overviewSelectedEntry: UsageEntry | null = $state(null); // Selected entry for detail view (level 2)
-    
+
+    // "Open message" / "Open embed" button state for level-2 detail view.
+    // Populated by a $effect that runs when overviewSelectedEntry changes.
+    // null = still checking or no navigable target found (button is hidden).
+    interface OpenMessageTarget { type: 'message'; chat: Chat; }
+    interface OpenEmbedTarget { type: 'embed'; embedId: string; embedType: string; }
+    type OpenTarget = OpenMessageTarget | OpenEmbedTarget;
+    let openTarget: OpenTarget | null = $state(null);
+
     // Chat metadata cache for usage display
     let chatMetadataMap = $state<Map<string, { chat: Chat | null; metadata: DecryptedChatMetadata | null; isDeleted?: boolean }>>(new Map());
     
@@ -1265,6 +1277,49 @@ Usage Settings - View usage statistics and export usage data
         return { title, subtitle };
     }
 
+    /**
+     * Navigate to the message or embed identified by openTarget.
+     * - "message": opens the chat via globalChatSelected + sets messageHighlightStore
+     * - "embed": dispatches an embedfullscreen event (ActiveChat handles loading the data)
+     * The settings panel stays open so the user can return to the usage detail view.
+     */
+    function handleOpenTarget(): void {
+        if (!openTarget) return;
+
+        if (openTarget.type === 'message') {
+            const { chat } = openTarget;
+            const messageId = overviewSelectedEntry?.message_id;
+            if (!messageId) return;
+
+            // Set the active chat in the store and dispatch the global event so Chats.svelte
+            // opens the correct conversation (mirrors SettingsFooter.svelte navigation pattern).
+            activeChatStore.setActiveChat(chat.chat_id);
+            window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
+
+            // Set the highlight store AFTER dispatching so ChatHistory's $effect fires after
+            // messages have begun loading (avoids the timing race documented in Chats.svelte).
+            // A short delay matches the pattern used in handleSearchMessageSnippetClick.
+            setTimeout(() => {
+                messageHighlightStore.set(messageId);
+            }, 100);
+
+        } else if (openTarget.type === 'embed') {
+            const { embedId, embedType } = openTarget;
+            // ActiveChat listens on document for 'embedfullscreen' and loads fresh data itself.
+            document.dispatchEvent(new CustomEvent('embedfullscreen', {
+                bubbles: true,
+                cancelable: true,
+                detail: {
+                    embedId,
+                    embedType,
+                    attrs: {},
+                    embedData: null,
+                    decodedContent: null,
+                },
+            }));
+        }
+    }
+
     // Fetch summaries when the active tab actually changes after the initial load.
     // We explicitly track the last tab to avoid double-fetching when hasInitialized flips to true.
     let lastFetchedTab = $state<UsageTab | null>(null);
@@ -1307,6 +1362,59 @@ Usage Settings - View usage statistics and export usage data
     $effect(() => {
         if (selectedChatId) {
             loadChatMetadata(selectedChatId);
+        }
+    });
+
+    // Resolve "Open message" / "Open embed" target when the level-2 detail entry changes.
+    // We check IndexedDB so the button is only shown when the data is actually accessible.
+    // The check is async so openTarget is reset to null immediately on entry change.
+    $effect(() => {
+        const entry = overviewSelectedEntry;
+        // Reset immediately so the button disappears while checking
+        openTarget = null;
+
+        if (!entry || !entry.message_id) return;
+
+        const messageId = entry.message_id;
+        const isAiAsk = entry.app_id === 'ai' && entry.skill_id === 'ask';
+
+        if (isAiAsk) {
+            // For AI Ask: check if the source message exists in IndexedDB
+            chatDB.getMessage(messageId).then((msg) => {
+                // Only update if the user hasn't navigated away to a different entry
+                if (overviewSelectedEntry?.message_id !== messageId) return;
+                if (!msg) return;
+
+                // Fetch the chat object so we can dispatch globalChatSelected
+                const chatId = entry.chat_id;
+                if (!chatId) return;
+
+                chatDB.getChat(chatId).then((chat) => {
+                    if (overviewSelectedEntry?.message_id !== messageId) return;
+                    if (!chat) return;
+                    openTarget = { type: 'message', chat };
+                }).catch(() => { /* chat not in local DB — button stays hidden */ });
+            }).catch(() => { /* message not found — button stays hidden */ });
+        } else if (entry.app_id && entry.skill_id) {
+            // For app skills: look for an embed with matching hashed_message_id
+            const appId = entry.app_id;
+            const skillId = entry.skill_id;
+
+            computeSHA256(messageId).then((hashedMsgId) => {
+                return embedStore.getEmbedsByAppAndSkill(appId, skillId).then((embeds) => {
+                    if (overviewSelectedEntry?.message_id !== messageId) return;
+                    const match = embeds.find((e) => e.hashed_message_id === hashedMsgId);
+                    if (!match) return;
+
+                    // embedId is the contentRef (e.g. "embed:abc123"), strip the prefix for the event
+                    const embedId = match.contentRef.startsWith('embed:')
+                        ? match.contentRef.slice('embed:'.length)
+                        : match.contentRef;
+                    // Use app_id+skill_id to build a recognisable embed type string
+                    const embedType = `${appId}-${skillId}`;
+                    openTarget = { type: 'embed', embedId, embedType };
+                });
+            }).catch(() => { /* hash or embed lookup failed — button stays hidden */ });
         }
     });
 
@@ -1575,6 +1683,18 @@ Usage Settings - View usage statistics and export usage data
                         </div>
                     {/if}
                 </div>
+
+                <!-- "Open message" / "Open result" button — only shown when the target exists in IndexedDB -->
+                {#if openTarget}
+                    <button class="open-target-button" onclick={handleOpenTarget}>
+                        <div class="clickable-icon icon_{openTarget.type === 'message' ? 'message-circle' : 'external-link'}"></div>
+                        <span>
+                            {openTarget.type === 'message'
+                                ? $text('settings.usage.open_message')
+                                : $text('settings.usage.open_embed')}
+                        </span>
+                    </button>
+                {/if}
             </div>
         {/each}
     {:else if overviewSelectedChatId}
@@ -2786,6 +2906,28 @@ Usage Settings - View usage statistics and export usage data
 
     .back-button:hover {
         color: var(--color-grey-80);
+    }
+
+    /* Button shown on the level-2 usage entry detail page to jump to the source message/embed */
+    .open-target-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 20px;
+        padding: 8px 14px;
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-20);
+        border-radius: 8px;
+        color: var(--color-grey-70);
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+        width: fit-content;
+    }
+
+    .open-target-button:hover {
+        background: var(--color-grey-20);
+        color: var(--color-grey-90);
     }
 
     .detail-header {

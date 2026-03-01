@@ -2290,6 +2290,9 @@
   "discord": {},
   "documentation": {},
   "email": {
+    "this_is_your_email_code": {
+      "text": "आपका कोड: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "ऑनबोर्डिंग से नया उपयोग-मामला सबमिशन"
@@ -5337,6 +5340,12 @@
       },
       "tool_iterations_hint": {
         "text": "ऐप स्किल प्रतिक्रियाएं सहित"
+      },
+      "open_message": {
+        "text": "संदेश खोलें"
+      },
+      "open_embed": {
+        "text": "परिणाम खोलें"
       }
     },
     "share": {

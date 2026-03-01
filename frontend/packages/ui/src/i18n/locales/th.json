@@ -2290,6 +2290,9 @@
   "discord": {},
   "documentation": {},
   "email": {
+    "this_is_your_email_code": {
+      "text": "รหัสของคุณ: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "การส่งกรณีการใช้งานใหม่จากการเริ่มต้นใช้งาน"
@@ -5343,6 +5346,12 @@
       },
       "tool_iterations_hint": {
         "text": "รวมการตอบสนองทักษะแอป"
+      },
+      "open_message": {
+        "text": "เปิดข้อความ"
+      },
+      "open_embed": {
+        "text": "เปิดผลลัพธ์"
       }
     },
     "share": {

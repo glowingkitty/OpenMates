@@ -2293,6 +2293,9 @@
     "confirm_your_email_address": {
       "text": "Bekräfta din e-postadress"
     },
+    "this_is_your_email_code": {
+      "text": "Din kod: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "Ny användningsfallsinlämning från introduktionen"
@@ -5361,6 +5364,12 @@
       },
       "tool_iterations_hint": {
         "text": "Inklusive svar på appfärdigheter"
+      },
+      "open_message": {
+        "text": "Öppna meddelande"
+      },
+      "open_embed": {
+        "text": "Öppna resultat"
       }
     },
     "share": {

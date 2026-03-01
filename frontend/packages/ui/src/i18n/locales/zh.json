@@ -2356,6 +2356,9 @@
     "confirm_your_email_address": {
       "text": "确认您的电子邮件地址"
     },
+    "this_is_your_email_code": {
+      "text": "您的验证码：{code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "来自引导流程的新用例提交"
@@ -6538,6 +6541,12 @@
       },
       "tool_iterations_hint": {
         "text": "包含应用技能响应"
+      },
+      "open_message": {
+        "text": "打开消息"
+      },
+      "open_embed": {
+        "text": "打开结果"
       }
     },
     "apps": {

@@ -2290,6 +2290,9 @@
   "discord": {},
   "documentation": {},
   "email": {
+    "this_is_your_email_code": {
+      "text": "Il tuo codice: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "Nuovo caso d'uso inviato dall'onboarding"
@@ -5340,6 +5343,12 @@
       },
       "tool_iterations_hint": {
         "text": "Include risposte skill app"
+      },
+      "open_message": {
+        "text": "Apri messaggio"
+      },
+      "open_embed": {
+        "text": "Apri risultato"
       }
     },
     "share": {

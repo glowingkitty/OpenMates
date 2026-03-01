@@ -2290,6 +2290,9 @@
   "discord": {},
   "documentation": {},
   "email": {
+    "this_is_your_email_code": {
+      "text": "Kodunuz: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "Oryantasyondan yeni kullanım senaryosu gönderimi"
@@ -5337,6 +5340,12 @@
       },
       "tool_iterations_hint": {
         "text": "Uygulama becerisi yanıtları dahil"
+      },
+      "open_message": {
+        "text": "Mesajı aç"
+      },
+      "open_embed": {
+        "text": "Sonucu aç"
       }
     },
     "share": {

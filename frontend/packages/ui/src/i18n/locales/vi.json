@@ -2290,6 +2290,9 @@
   "discord": {},
   "documentation": {},
   "email": {
+    "this_is_your_email_code": {
+      "text": "Mã của bạn: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "Gửi trường hợp sử dụng mới từ quá trình giới thiệu"
@@ -5337,6 +5340,12 @@
       },
       "tool_iterations_hint": {
         "text": "Bao gồm phản hồi kỹ năng ứng dụng"
+      },
+      "open_message": {
+        "text": "Mở tin nhắn"
+      },
+      "open_embed": {
+        "text": "Mở kết quả"
       }
     },
     "share": {

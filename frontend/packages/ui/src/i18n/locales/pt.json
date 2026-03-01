@@ -2290,6 +2290,9 @@
   "discord": {},
   "documentation": {},
   "email": {
+    "this_is_your_email_code": {
+      "text": "Seu código: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "Nova submissão de caso de uso do onboarding"
@@ -5337,6 +5340,12 @@
       },
       "tool_iterations_hint": {
         "text": "Incluindo respostas de habilidades do app"
+      },
+      "open_message": {
+        "text": "Abrir mensagem"
+      },
+      "open_embed": {
+        "text": "Abrir resultado"
       }
     },
     "share": {

@@ -596,17 +596,14 @@ async def _charge_skill_credits(
             "server_region": resolved_region,  # Server region (e.g., "US", "EU")
         }
         
-        # Charge credits via internal API (this will also create usage entry)
-        # app_id and skill_id are required and must be non-empty - they come from tool call parsing
-        # The billing service will validate these fields before creating the usage entry
-        charge_payload = {
-            "user_id": request_data.user_id,
-            "user_id_hash": request_data.user_id_hash,
-            "credits": credits_charged,
-            "skill_id": skill_id,  # Required: ID of the skill that was executed
-            "app_id": app_id,  # Required: ID of the app that contains the skill
-            "usage_details": usage_details  # Contains chat_id, message_id, and other optional metadata
-        }
+        # Charge credits via internal API — one call per successful request.
+        # This creates one usage entry per request instead of one combined entry,
+        # so users can see individual search/map/news requests in the usage detail view.
+        # credits_charged is the TOTAL for all requests; per_request_credits is the
+        # per-unit cost computed by dividing total credits by units_processed.
+        per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
+        # Use ceiling division to handle rounding: the last request gets any remainder.
+        credits_remainder = credits_charged - (per_request_credits * units_processed)
         
         headers = {"Content-Type": "application/json"}
         if INTERNAL_API_SHARED_TOKEN:
@@ -614,10 +611,29 @@ async def _charge_skill_credits(
         
         async with httpx.AsyncClient() as client:
             url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
-            logger.info(f"{log_prefix} Charging {credits_charged} credits for skill '{app_id}.{skill_id}'. Payload: {charge_payload}")
-            response = await client.post(url, json=charge_payload, headers=headers, timeout=10.0)
-            response.raise_for_status()
-            logger.info(f"{log_prefix} Successfully charged {credits_charged} credits for skill '{app_id}.{skill_id}'. Response: {response.json()}")
+            for i in range(units_processed):
+                # Add any remainder credits to the last request
+                request_credits = per_request_credits + (credits_remainder if i == units_processed - 1 else 0)
+                if request_credits <= 0:
+                    continue
+                
+                # Each individual request gets units_processed=1 to reflect one request
+                request_usage_details = {**usage_details, "units_processed": 1}
+                
+                charge_payload = {
+                    "user_id": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "credits": request_credits,
+                    "skill_id": skill_id,  # Required: ID of the skill that was executed
+                    "app_id": app_id,  # Required: ID of the app that contains the skill
+                    "usage_details": request_usage_details  # Contains chat_id, message_id, and other optional metadata
+                }
+                logger.info(f"{log_prefix} Charging {request_credits} credits for skill '{app_id}.{skill_id}' (request {i + 1}/{units_processed}).")
+                response = await client.post(url, json=charge_payload, headers=headers, timeout=10.0)
+                response.raise_for_status()
+                logger.debug(f"{log_prefix} Charged request {i + 1}/{units_processed} for '{app_id}.{skill_id}': {response.json()}")
+            
+            logger.info(f"{log_prefix} Successfully charged {credits_charged} total credits for skill '{app_id}.{skill_id}' across {units_processed} request(s).")
             
     except httpx.HTTPStatusError as e:
         logger.error(f"{log_prefix} HTTP error charging credits for skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}", exc_info=True)

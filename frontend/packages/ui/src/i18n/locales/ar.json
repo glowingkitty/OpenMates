@@ -2290,6 +2290,9 @@
   "discord": {},
   "documentation": {},
   "email": {
+    "this_is_your_email_code": {
+      "text": "رمزك: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "إرسال حالة استخدام جديدة من الإعداد الأولي"
@@ -5835,6 +5838,12 @@
       },
       "tool_iterations_hint": {
         "text": "يشمل ردود مهارة التطبيق"
+      },
+      "open_message": {
+        "text": "فتح الرسالة"
+      },
+      "open_embed": {
+        "text": "فتح النتيجة"
       }
     },
     "apps": {

@@ -2290,6 +2290,9 @@
   "discord": {},
   "documentation": {},
   "email": {
+    "this_is_your_email_code": {
+      "text": "Váš kód: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "Nové odeslání případu použití z procesu zavádění"
@@ -5343,6 +5346,12 @@
       },
       "tool_iterations_hint": {
         "text": "Včetně odpovědí dovedností aplikace"
+      },
+      "open_message": {
+        "text": "Otevřít zprávu"
+      },
+      "open_embed": {
+        "text": "Otevřít výsledek"
       }
     },
     "share": {

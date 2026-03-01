@@ -2290,6 +2290,9 @@
   "discord": {},
   "documentation": {},
   "email": {
+    "this_is_your_email_code": {
+      "text": "Ваш код: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "Новая заявка на сценарий использования из онбординга"
@@ -5337,6 +5340,12 @@
       },
       "tool_iterations_hint": {
         "text": "Включая ответы навыков приложения"
+      },
+      "open_message": {
+        "text": "Открыть сообщение"
+      },
+      "open_embed": {
+        "text": "Открыть результат"
       }
     },
     "share": {

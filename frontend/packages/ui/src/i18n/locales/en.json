@@ -2451,6 +2451,9 @@
     "confirm_your_email_address": {
       "text": "Confirm your email address"
     },
+    "this_is_your_email_code": {
+      "text": "Your code: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "New use-case submission from onboarding"
@@ -5978,8 +5981,11 @@
     }
   },
   "onboarding": {
+    "chat_title": {
+      "text": "Getting Started"
+    },
     "welcome_message": {
-      "text": "Hey {username}! 👋 I'm Suki, your personal assistant. I'm here to help you get started with OpenMates. Feel free to ask me anything!"
+      "text": "Hey there! 👋 I'm Suki, your personal assistant on OpenMates.\n\nI'm here to help you discover the right tools and get the most out of the platform — from AI mates for writing, research, and coding, to apps for travel, health, news, and more.\n\nTo point you in the right direction, I'd love to learn a bit about you:\n\n• **What kinds of tasks** do you want help with? (e.g. writing, research, coding, planning, learning…)\n• **What topics or skills** are you interested in exploring or getting better at?\n\nThe more you share, the better I can tailor your experience — recommending the right mates, apps, and settings for you. 🚀"
     },
     "follow_up_1": {
       "text": "What can you help me with?"
@@ -7657,6 +7663,12 @@
       },
       "tool_iterations_hint": {
         "text": "Including app skill responses"
+      },
+      "open_message": {
+        "text": "Open message"
+      },
+      "open_embed": {
+        "text": "Open result"
       }
     },
     "apps": {

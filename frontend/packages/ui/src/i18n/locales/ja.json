@@ -2356,6 +2356,9 @@
     "confirm_your_email_address": {
       "text": "メールアドレスを確認"
     },
+    "this_is_your_email_code": {
+      "text": "確認コード：{code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "オンボーディングからの新しいユースケース提出"
@@ -6538,6 +6541,12 @@
       },
       "tool_iterations_hint": {
         "text": "アプリスキルのレスポンスを含む"
+      },
+      "open_message": {
+        "text": "メッセージを開く"
+      },
+      "open_embed": {
+        "text": "結果を開く"
       }
     },
     "apps": {

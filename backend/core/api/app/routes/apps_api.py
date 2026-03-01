@@ -1918,7 +1918,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 else:
                                     units_processed = 1
                                 
-                                # Charge credits via internal API (this also creates usage entry)
+                                # Charge credits via internal API — one call per request.
+                                # This creates one usage entry per request instead of one combined
+                                # entry, so users can see individual requests in the usage detail view.
                                 if credits_charged > 0:
                                     # Create user_id_hash for privacy
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
@@ -1926,27 +1928,35 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     # Resolve provider info for usage tracking
                                     provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
                                     
-                                    # Create usage details (matching format from main_processor.py)
-                                    usage_details = {
-                                        "api_key_name": user_info.get('api_key_encrypted_name'),
-                                        "external_request": True,
-                                        "units_processed": units_processed,  # Number of requests processed
-                                        "model_used": provider_info["model_used"],
-                                        "server_provider": provider_info["server_provider"],
-                                        "server_region": provider_info["server_region"],
-                                    }
+                                    # Calculate per-request credits (distribute evenly, remainder on last)
+                                    per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
+                                    credits_remainder = credits_charged - (per_request_credits * units_processed)
                                     
-                                    # Charge credits (this happens asynchronously and won't block the response)
-                                    await charge_credits_via_internal_api(
-                                        user_id=user_info['user_id'],
-                                        user_id_hash=user_id_hash,
-                                        credits=credits_charged,
-                                        app_id=captured_app_id,
-                                        skill_id=captured_skill.id,
-                                        usage_details=usage_details,
-                                        api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
-                                        device_hash=user_info.get('device_hash'),  # Device hash for tracking
-                                    )
+                                    for i in range(units_processed):
+                                        request_credits = per_request_credits + (credits_remainder if i == units_processed - 1 else 0)
+                                        if request_credits <= 0:
+                                            continue
+                                        
+                                        # Each individual request gets units_processed=1 in usage details
+                                        usage_details = {
+                                            "api_key_name": user_info.get('api_key_encrypted_name'),
+                                            "external_request": True,
+                                            "units_processed": 1,  # One entry per request
+                                            "model_used": provider_info["model_used"],
+                                            "server_provider": provider_info["server_provider"],
+                                            "server_region": provider_info["server_region"],
+                                        }
+                                        
+                                        await charge_credits_via_internal_api(
+                                            user_id=user_info['user_id'],
+                                            user_id_hash=user_id_hash,
+                                            credits=request_credits,
+                                            app_id=captured_app_id,
+                                            skill_id=captured_skill.id,
+                                            usage_details=usage_details,
+                                            api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                            device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                        )
                             
                             # Parse result into the skill's response model for proper typing
                             try:
@@ -2361,7 +2371,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 else:
                                     units_processed = 1
                                 
-                                # Charge credits via internal API (this also creates usage entry)
+                                # Charge credits via internal API — one call per request.
+                                # This creates one usage entry per request instead of one combined
+                                # entry, so users can see individual requests in the usage detail view.
                                 if credits_charged > 0:
                                     # Create user_id_hash for privacy
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
@@ -2369,27 +2381,35 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     # Resolve provider info for usage tracking
                                     provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
                                     
-                                    # Create usage details (matching format from main_processor.py)
-                                    usage_details = {
-                                        "api_key_name": user_info.get('api_key_encrypted_name'),
-                                        "external_request": True,
-                                        "units_processed": units_processed,  # Number of requests processed
-                                        "model_used": provider_info["model_used"],
-                                        "server_provider": provider_info["server_provider"],
-                                        "server_region": provider_info["server_region"],
-                                    }
+                                    # Calculate per-request credits (distribute evenly, remainder on last)
+                                    per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
+                                    credits_remainder = credits_charged - (per_request_credits * units_processed)
                                     
-                                    # Charge credits (this happens asynchronously and won't block the response)
-                                    await charge_credits_via_internal_api(
-                                        user_id=user_info['user_id'],
-                                        user_id_hash=user_id_hash,
-                                        credits=credits_charged,
-                                        app_id=captured_app_id,
-                                        skill_id=captured_skill.id,
-                                        usage_details=usage_details,
-                                        api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
-                                        device_hash=user_info.get('device_hash'),  # Device hash for tracking
-                                    )
+                                    for i in range(units_processed):
+                                        request_credits = per_request_credits + (credits_remainder if i == units_processed - 1 else 0)
+                                        if request_credits <= 0:
+                                            continue
+                                        
+                                        # Each individual request gets units_processed=1 in usage details
+                                        usage_details = {
+                                            "api_key_name": user_info.get('api_key_encrypted_name'),
+                                            "external_request": True,
+                                            "units_processed": 1,  # One entry per request
+                                            "model_used": provider_info["model_used"],
+                                            "server_provider": provider_info["server_provider"],
+                                            "server_region": provider_info["server_region"],
+                                        }
+                                        
+                                        await charge_credits_via_internal_api(
+                                            user_id=user_info['user_id'],
+                                            user_id_hash=user_id_hash,
+                                            credits=request_credits,
+                                            app_id=captured_app_id,
+                                            skill_id=captured_skill.id,
+                                            usage_details=usage_details,
+                                            api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                            device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                        )
                             
                             return SkillResponse(
                                 success=True,

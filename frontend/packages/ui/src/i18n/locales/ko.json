@@ -2290,6 +2290,9 @@
   "discord": {},
   "documentation": {},
   "email": {
+    "this_is_your_email_code": {
+      "text": "인증 코드: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "온보딩에서 새 사용 사례 제출"
@@ -5337,6 +5340,12 @@
       },
       "tool_iterations_hint": {
         "text": "앱 스킬 응답 포함"
+      },
+      "open_message": {
+        "text": "메시지 열기"
+      },
+      "open_embed": {
+        "text": "결과 열기"
       }
     },
     "share": {

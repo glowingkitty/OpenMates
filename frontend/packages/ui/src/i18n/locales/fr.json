@@ -2356,6 +2356,9 @@
     "confirm_your_email_address": {
       "text": "Confirmez votre adresse e-mail"
     },
+    "this_is_your_email_code": {
+      "text": "Votre code : {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "Nouvelle soumission de cas d'utilisation depuis l'intégration"
@@ -6631,6 +6634,12 @@
       },
       "tool_iterations_hint": {
         "text": "Réponses de compétences d'app incluses"
+      },
+      "open_message": {
+        "text": "Ouvrir le message"
+      },
+      "open_embed": {
+        "text": "Ouvrir le résultat"
       }
     },
     "apps": {

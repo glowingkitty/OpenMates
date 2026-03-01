@@ -2356,6 +2356,9 @@
     "confirm_your_email_address": {
       "text": "Confirma tu dirección de correo electrónico"
     },
+    "this_is_your_email_code": {
+      "text": "Tu código: {code}"
+    },
     "usecase_submitted": {
       "subject": {
         "text": "Nueva presentación de caso de uso del proceso de incorporación"
@@ -6674,6 +6677,12 @@
       },
       "tool_iterations_hint": {
         "text": "Incluye respuestas de habilidades de la app"
+      },
+      "open_message": {
+        "text": "Abrir mensaje"
+      },
+      "open_embed": {
+        "text": "Abrir resultado"
       }
     },
     "apps": {
