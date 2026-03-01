@@ -200,12 +200,15 @@
 
   /**
    * Activate the currently focused item (Enter key from SearchBar).
-   * Finds the DOM element matching focusedIndex and clicks it.
+   * If no item is explicitly focused yet (focusedIndex === -1), activates the first result.
+   * Finds the DOM element matching the index and clicks it.
    */
   export function activateFocused(): void {
-    if (focusedIndex < 0 || !containerEl) return;
+    if (!containerEl) return;
+    // Default to the first result when no item has been explicitly focused via arrow keys
+    const effectiveIndex = focusedIndex < 0 ? 0 : focusedIndex;
     const focusableEls = getFocusableElements();
-    const el = focusableEls[focusedIndex];
+    const el = focusableEls[effectiveIndex];
     if (el) {
       (el as HTMLElement).click();
     }

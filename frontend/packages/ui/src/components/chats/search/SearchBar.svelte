@@ -22,6 +22,8 @@
     onArrowDown?: () => void;
     /** Called when ArrowUp is pressed in the input (to move focus within results) */
     onArrowUp?: () => void;
+    /** Called when Enter is pressed — activates the currently focused/first result */
+    onEnter?: () => void;
     /**
      * Initial query to pre-populate the search input.
      * Used when the panel is reopened after being closed while search was active,
@@ -30,7 +32,7 @@
     initialQuery?: string;
   }
 
-  let { onSearch, onClose, onArrowDown, onArrowUp, initialQuery = '' }: Props = $props();
+  let { onSearch, onClose, onArrowDown, onArrowUp, onEnter, initialQuery = '' }: Props = $props();
 
   // Local state — initialize from initialQuery so the search is restored on panel reopen
   let query = $state(initialQuery);
@@ -57,6 +59,7 @@
    * Handle key events on the input:
    * - Escape: close search
    * - ArrowDown/Up: delegate to search results for keyboard navigation
+   * - Enter: activate the currently focused (or first) result
    */
   function handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
@@ -69,6 +72,9 @@
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       onArrowUp?.();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      onEnter?.();
     }
   }
 

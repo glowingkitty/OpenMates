@@ -3240,13 +3240,14 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				<!-- Search bar replaces top buttons when active.
 				     initialQuery restores the previous query when the panel reopens on mobile
 				     after the user navigated to a chat result from search. -->
-				<SearchBar
-					onSearch={handleSearchQuery}
-					onClose={handleSearchClose}
-					onArrowDown={() => searchResultsComponent?.focusNext()}
-					onArrowUp={() => searchResultsComponent?.focusPrevious()}
-					initialQuery={searchState.query}
-				/>
+			<SearchBar
+				onSearch={handleSearchQuery}
+				onClose={handleSearchClose}
+				onArrowDown={() => searchResultsComponent?.focusNext()}
+				onArrowUp={() => searchResultsComponent?.focusPrevious()}
+				onEnter={() => searchResultsComponent?.activateFocused()}
+				initialQuery={searchState.query}
+			/>
 			{:else}
 				<div class="top-buttons">
 					{#if selectMode}
