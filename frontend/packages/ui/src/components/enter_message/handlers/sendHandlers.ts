@@ -98,6 +98,67 @@ function detectUrlsInText(
   return urls;
 }
 
+// =============================================================================
+// Embed Reference Protection for PII Detection
+// =============================================================================
+
+/**
+ * Temporarily replaces embed reference JSON blocks with opaque placeholders so
+ * that the PII anonymizer cannot corrupt embed IDs embedded in them.
+ *
+ * UUID segments can accidentally match PII patterns (e.g. "051-4369" matches the
+ * local phone-number regex). Since embed IDs are machine-generated and not
+ * sensitive data, they must be preserved verbatim across the PII pass.
+ *
+ * Usage pattern:
+ *   const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
+ *   // run PII detection/replacement on safeMarkdown …
+ *   markdown = restore(safeMarkdown); // put embed blocks back
+ *
+ * @param markdown The markdown string that may contain embed reference blocks.
+ * @returns An object with the protected markdown and a restore function.
+ */
+function protectEmbedRefsFromPII(markdown: string): {
+  safeMarkdown: string;
+  restore: (processed: string) => string;
+} {
+  // Map from placeholder token → original embed reference block.
+  const placeholders = new Map<string, string>();
+
+  // Replace every ```json … ``` block that is an embed reference (has embed_id
+  // or embed_ids) with a unique opaque token that cannot trigger PII patterns.
+  const safeMarkdown = markdown.replace(
+    /```json\n([\s\S]*?)\n```/g,
+    (block, content) => {
+      try {
+        const parsed = JSON.parse(content.trim());
+        if ("embed_id" in parsed || "embed_ids" in parsed) {
+          // Use a token that contains no digits or PII-like separators so the
+          // PII detector cannot match anything inside it.
+          const token = `__EMBED_REF_PROTECTED_${placeholders.size}__`;
+          placeholders.set(token, block);
+          return token;
+        }
+      } catch {
+        // Not valid JSON — leave block as-is for normal PII detection.
+      }
+      return block;
+    },
+  );
+
+  const restore = (processed: string): string => {
+    let result = processed;
+    // Use forEach instead of for...of to avoid requiring downlevelIteration on Maps.
+    placeholders.forEach((original, token) => {
+      // Use split+join to avoid regex special-character issues in token names.
+      result = result.split(token).join(original);
+    });
+    return result;
+  };
+
+  return { safeMarkdown, restore };
+}
+
 /**
  * Process all URLs in the message content and convert them to embeds.
  * This is called BEFORE sending a message to ensure URL metadata is fetched
@@ -823,7 +884,14 @@ export async function handleSend(
         personalDataEntries: personalDataForDetection,
       };
 
-      const piiMatches = detectPII(markdown, detectionOptions);
+      // CRITICAL: Protect embed reference blocks (```json {"embed_id":…} ```) from the
+      // PII anonymizer. UUID segments can match PII patterns (e.g. "051-4369" fires the
+      // local phone-number regex), which corrupts embed IDs and causes message sends to
+      // be blocked with "missing embeds". We swap them out for opaque tokens, run PII on
+      // the rest of the markdown, then restore the original blocks afterwards.
+      const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
+
+      const piiMatches = detectPII(safeMarkdown, detectionOptions);
       if (piiMatches.length > 0) {
         console.debug(
           "[handleSend] Detected PII to anonymize:",
@@ -839,12 +907,18 @@ export async function handleSend(
         // and used to restore original values when rendering messages
         piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
 
-        markdown = replacePIIWithPlaceholders(markdown, piiMatches);
+        markdown = restore(
+          replacePIIWithPlaceholders(safeMarkdown, piiMatches),
+        );
         console.debug(
           "[handleSend] PII anonymization complete, replaced",
           piiMatches.length,
           "sensitive items. Mappings will be stored with message.",
         );
+      } else {
+        // No PII found, but still restore embed blocks (restore is a no-op if none
+        // were protected, so this is always safe).
+        markdown = restore(safeMarkdown);
       }
     } else {
       console.debug(
@@ -1599,13 +1673,20 @@ export async function executeDeferredSend(
         personalDataEntries: personalDataForDetection,
       };
 
-      const piiMatches = detectPII(markdown, detectionOptions);
+      // Protect embed reference blocks from PII corruption (same reason as in
+      // handleSend: UUID segments can match phone/other PII patterns).
+      const { safeMarkdown: safeMd, restore: restoreMd } =
+        protectEmbedRefsFromPII(markdown);
+
+      const piiMatches = detectPII(safeMd, detectionOptions);
       if (piiMatches.length > 0) {
         piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
-        markdown = replacePIIWithPlaceholders(markdown, piiMatches);
+        markdown = restoreMd(replacePIIWithPlaceholders(safeMd, piiMatches));
         console.debug(
           `[executeDeferredSend] PII anonymization: replaced ${piiMatches.length} items`,
         );
+      } else {
+        markdown = restoreMd(safeMd);
       }
     }
   } catch (error) {
