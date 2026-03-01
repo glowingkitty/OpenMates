@@ -458,7 +458,6 @@ changes to the documentation (to keep the documentation up to date).
     let showSettingsIcon = $derived(true);
     
     let username = $derived($userProfile.username || '');
-    let profile_image_url = $derived($userProfile.profile_image_url);
     let isInSignupMode = $derived($isInSignupProcess);
 
     /**
@@ -931,6 +930,23 @@ changes to the documentation (to keep the documentation up to date).
             } else if (settingsPath === 'shared/share') {
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
                 activeSubMenuTitleKey = 'settings.share';
+            } else if (settingsPath.startsWith('account/storage/')) {
+                // Storage category sub-pages: account/storage/<category>
+                // Use the storage category label keys (e.g. storage_category_images)
+                // instead of the auto-generated settings.account.storage.<category> key which doesn't exist.
+                const storageCategoryKeyMap: Record<string, string> = {
+                    images:   'settings.storage.storage_category_images',
+                    videos:   'settings.storage.storage_category_videos',
+                    audio:    'settings.storage.storage_category_audio',
+                    pdf:      'settings.storage.storage_category_pdf',
+                    code:     'settings.storage.storage_category_code',
+                    docs:     'settings.storage.storage_category_docs',
+                    sheets:   'settings.storage.storage_category_sheets',
+                    archives: 'settings.storage.storage_category_archives',
+                    other:    'settings.storage.storage_category_other',
+                };
+                const storageCategory = settingsPath.split('/').pop() ?? '';
+                activeSubMenuTitleKey = storageCategoryKeyMap[storageCategory] ?? 'settings.storage.storage_category_other';
             } else {
                 // Build the translation key from the path
                 const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
@@ -1660,6 +1676,21 @@ changes to the documentation (to keep the documentation up to date).
                 let translationKey;
                 if (settingsPath === 'shared/share') {
                     translationKey = 'settings.share';
+                } else if (settingsPath.startsWith('account/storage/')) {
+                    // Storage category pages use the storage_category_* keys in storage.yml
+                    const deepLinkStorageCategoryKeyMap: Record<string, string> = {
+                        images:   'settings.storage.storage_category_images',
+                        videos:   'settings.storage.storage_category_videos',
+                        audio:    'settings.storage.storage_category_audio',
+                        pdf:      'settings.storage.storage_category_pdf',
+                        code:     'settings.storage.storage_category_code',
+                        docs:     'settings.storage.storage_category_docs',
+                        sheets:   'settings.storage.storage_category_sheets',
+                        archives: 'settings.storage.storage_category_archives',
+                        other:    'settings.storage.storage_category_other',
+                    };
+                    const deepLinkCategory = settingsPath.split('/').pop() ?? '';
+                    translationKey = deepLinkStorageCategoryKeyMap[deepLinkCategory] ?? 'settings.storage.storage_category_other';
                 } else {
                     const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
                     translationKey = `settings.${translationKeyParts.join('.')}`;
