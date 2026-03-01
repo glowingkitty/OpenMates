@@ -43,6 +43,150 @@ from backend.core.api.app.utils.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
 
+
+async def translate_chat_title(
+    task_id: str,
+    title: str,
+    target_language: str,
+    secrets_manager: "SecretsManager",
+) -> str:
+    """
+    Translate a chat title into the user's system/UI language via an isolated LLM call.
+
+    Why a separate call instead of relying on the fast_preprocess_request_tool instruction:
+    The preprocessing Call A sees the full conversation history (in any language). Even with
+    an explicit USER_SYSTEM_LANGUAGE instruction in the schema and description, the model
+    frequently generates the title in the conversation language when the entire message is
+    in a foreign language. An isolated call with no conversation context is immune to language
+    bleed and reliably produces the correct language.
+
+    This mirrors the translate_new_chat_suggestions / translate_chat_summary pattern used
+    in the postprocessor.
+
+    Args:
+        task_id: Task ID for logging
+        title: Raw chat title string (may be in the wrong language)
+        target_language: ISO 639-1 language code to translate into (e.g. "en", "de", "fr")
+        secrets_manager: Secrets manager instance for LLM credentials
+
+    Returns:
+        Translated title string. Falls back to the original title if the translation
+        call fails (non-fatal — we prefer a title in the wrong language over no title).
+    """
+    if not title or not title.strip():
+        return title
+
+    logger.info(
+        f"[Task ID: {task_id}] [TranslateTitle] Translating chat title to '{target_language}'"
+    )
+
+    language_names = {
+        "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+        "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "pl": "Polish",
+        "ru": "Russian", "ja": "Japanese", "zh": "Chinese", "ko": "Korean",
+        "ar": "Arabic", "tr": "Turkish", "sv": "Swedish", "no": "Norwegian",
+        "da": "Danish", "fi": "Finnish", "cs": "Czech", "ro": "Romanian",
+        "hu": "Hungarian", "el": "Greek", "he": "Hebrew", "hi": "Hindi",
+        "uk": "Ukrainian",
+    }
+    language_name = language_names.get(target_language, target_language.upper())
+
+    # Inline tool schema — static and minimal, no conversation context
+    translation_tool = {
+        "type": "function",
+        "function": {
+            "name": "translate_title",
+            "description": (
+                f"Translate a short chat title into {language_name} ({target_language}). "
+                "Preserve the exact meaning. Keep it concise (max 7 words). "
+                "Return only the translated title."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "translated_title": {
+                        "type": "string",
+                        "description": (
+                            f"The title translated into {language_name}. "
+                            "Must be concise (max 7 words) and preserve the original meaning."
+                        ),
+                    }
+                },
+                "required": ["translated_title"],
+            },
+        },
+    }
+
+    system_message = (
+        f"You are a professional translation engine. "
+        f"Translate the given short chat title into {language_name} ({target_language}). "
+        f"Rules:\n"
+        f"- Preserve the exact meaning of the title\n"
+        f"- Keep it concise (max 7 words)\n"
+        f"- Use natural phrasing in {language_name}\n"
+        f"- Do NOT add explanations, articles, or extra words unless needed for the language"
+    )
+
+    user_message = f"Translate this chat title to {language_name}:\n\n{title}"
+
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": user_message},
+    ]
+
+    model_id = "mistral/mistral-small-latest"
+
+    try:
+        from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
+        translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+
+        llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            task_id=task_id,
+            model_id=model_id,
+            message_history=messages,
+            tool_definition=translation_tool,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=None,
+            dynamic_context=None,
+            fallback_models=translation_fallbacks,
+        )
+
+        if llm_result.error_message:
+            logger.error(
+                f"[Task ID: {task_id}] [TranslateTitle] LLM call failed: {llm_result.error_message}. "
+                f"Falling back to original (untranslated) title."
+            )
+            return title
+
+        if llm_result.arguments is None:
+            logger.warning(
+                f"[Task ID: {task_id}] [TranslateTitle] LLM returned None arguments. "
+                f"Falling back to original title."
+            )
+            return title
+
+        translated = llm_result.arguments.get("translated_title", "")
+
+        if not translated or not isinstance(translated, str) or not translated.strip():
+            logger.warning(
+                f"[Task ID: {task_id}] [TranslateTitle] Empty or invalid translated_title. "
+                f"Falling back to original title."
+            )
+            return title
+
+        logger.info(
+            f"[Task ID: {task_id}] [TranslateTitle] Successfully translated title to '{target_language}'"
+        )
+        return translated.strip()
+
+    except Exception as e:
+        logger.error(
+            f"[Task ID: {task_id}] [TranslateTitle] Unexpected error during translation: {e}",
+            exc_info=True,
+        )
+        return title
+
+
 class PreprocessingResult(BaseModel):
     """
     Defines the Pydantic model for the output structure of the preprocessing step.
@@ -2152,7 +2296,34 @@ async def handle_preprocessing(
         raw_llm_response=llm_analysis_args,
         error_message=None
     )
-    
+
+    # Translate the chat title into the user's system/UI language when the conversation was
+    # detected in a different language. This mirrors the translate_chat_summary /
+    # translate_new_chat_suggestions pattern: an isolated LLM call with no conversation
+    # context cannot be affected by language bleed, making it far more reliable than
+    # relying on the USER_SYSTEM_LANGUAGE instruction in the fast_preprocess_request_tool
+    # prompt (which the model frequently ignores when the entire message is in a foreign language).
+    #
+    # Only fires on first messages (when title is freshly generated) and only when the
+    # detected conversation language differs from the user's UI language.
+    if (
+        is_first_message
+        and final_result.title
+        and final_result.output_language
+        and user_system_language_for_title != final_result.output_language
+    ):
+        logger.info(
+            f"{log_prefix} Conversation language '{final_result.output_language}' differs "
+            f"from UI language '{user_system_language_for_title}' — translating chat title."
+        )
+        translated_title = await translate_chat_title(
+            task_id=f"{request_data.chat_id}_{request_data.message_id}_title_translate",
+            title=final_result.title,
+            target_language=user_system_language_for_title,
+            secrets_manager=secrets_manager,
+        )
+        final_result.title = translated_title
+
     logger.info(f"{log_prefix} Preprocessing finished.")
 
     # --- Emit real-time preprocessing step events ---

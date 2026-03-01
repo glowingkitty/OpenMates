@@ -387,6 +387,24 @@ async def handle_postprocessing(
         logger.warning(f"[Task ID: {task_id}] [PostProcessor] chat_summary missing or empty from post-processing LLM. Will fall back to preprocessing summary.")
         postproc_chat_summary = None
 
+    # Translate the chat summary into the user's system/UI language when the conversation
+    # was conducted in a different language. This mirrors the translate_new_chat_suggestions
+    # pattern: an isolated call with no conversation context avoids language bleed reliably.
+    # The system prompt already instructs the LLM to use user_system_language, but that
+    # instruction is frequently overridden when the entire conversation history is in a
+    # foreign language. The post-hoc translation call is the reliable enforcement layer.
+    if postproc_chat_summary and output_language != user_system_language:
+        logger.info(
+            f"[Task ID: {task_id}] [PostProcessor] Conversation language '{output_language}' differs "
+            f"from UI language '{user_system_language}' — translating chat summary."
+        )
+        postproc_chat_summary = await translate_chat_summary(
+            task_id=task_id,
+            summary=postproc_chat_summary,
+            target_language=user_system_language,
+            secrets_manager=secrets_manager,
+        )
+
     # Parse and validate daily inspiration topic suggestions
     # These are short topic phrases (English, 2-5 words) capturing user interests from the conversation.
     # Stored in server-side cache to inform personalized daily inspiration generation later.
@@ -457,6 +475,144 @@ async def handle_postprocessing(
     )
 
     return result
+
+
+async def translate_chat_summary(
+    task_id: str,
+    summary: str,
+    target_language: str,
+    secrets_manager: SecretsManager,
+) -> str:
+    """
+    Translate a chat summary into the user's system/UI language via an isolated LLM call.
+
+    Why a separate call instead of relying on the postprocessor's language instruction:
+    The main postprocessor call sees the full conversation history (which may be in any language).
+    Even with an explicit language instruction, the model frequently generates the summary in the
+    conversation language instead of the user's UI language. An isolated call with no conversation
+    context is immune to language bleed and reliably produces the correct language.
+
+    Args:
+        task_id: Task ID for logging
+        summary: Raw chat summary string (may be in the wrong language)
+        target_language: ISO 639-1 language code to translate into (e.g. "en", "de", "fr")
+        secrets_manager: Secrets manager instance for LLM credentials
+
+    Returns:
+        Translated summary string. Falls back to the original summary if the translation
+        call fails (non-fatal — we prefer a summary in the wrong language over no summary).
+    """
+    if not summary or not summary.strip():
+        return summary
+
+    logger.info(
+        f"[Task ID: {task_id}] [TranslateSummary] Translating chat summary to '{target_language}'"
+    )
+
+    # Build the human-readable language name for clearer model instructions
+    language_names = {
+        "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+        "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "pl": "Polish",
+        "ru": "Russian", "ja": "Japanese", "zh": "Chinese", "ko": "Korean",
+        "ar": "Arabic", "tr": "Turkish", "sv": "Swedish", "no": "Norwegian",
+        "da": "Danish", "fi": "Finnish", "cs": "Czech", "ro": "Romanian",
+        "hu": "Hungarian", "el": "Greek", "he": "Hebrew", "hi": "Hindi",
+        "uk": "Ukrainian",
+    }
+    language_name = language_names.get(target_language, target_language.upper())
+
+    # Inline tool schema — static and minimal, no conversation context needed
+    translation_tool = {
+        "type": "function",
+        "function": {
+            "name": "translate_summary",
+            "description": (
+                f"Translate a chat summary into {language_name} ({target_language}). "
+                "Preserve the exact meaning and keep it concise (max 20 words). "
+                "Return only the translated summary text."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "translated_summary": {
+                        "type": "string",
+                        "description": (
+                            f"The summary translated into {language_name}. "
+                            "Must be concise (max 20 words) and preserve the original meaning."
+                        ),
+                    }
+                },
+                "required": ["translated_summary"],
+            },
+        },
+    }
+
+    system_message = (
+        f"You are a professional translation engine. "
+        f"Translate the given chat summary into {language_name} ({target_language}). "
+        f"Rules:\n"
+        f"- Preserve the exact meaning of the summary\n"
+        f"- Keep it concise (max 20 words)\n"
+        f"- Use natural, fluent phrasing in {language_name}\n"
+        f"- Do NOT add explanations, commentary, or extra content"
+    )
+
+    user_message = f"Translate this chat summary to {language_name}:\n\n{summary}"
+
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": user_message},
+    ]
+
+    model_id = "mistral/mistral-small-latest"
+    translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+
+    try:
+        llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            task_id=task_id,
+            model_id=model_id,
+            message_history=messages,
+            tool_definition=translation_tool,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=None,
+            dynamic_context=None,
+            fallback_models=translation_fallbacks,
+        )
+
+        if llm_result.error_message:
+            logger.error(
+                f"[Task ID: {task_id}] [TranslateSummary] LLM call failed: {llm_result.error_message}. "
+                f"Falling back to original (untranslated) summary."
+            )
+            return summary
+
+        if llm_result.arguments is None:
+            logger.warning(
+                f"[Task ID: {task_id}] [TranslateSummary] LLM returned None arguments. "
+                f"Falling back to original summary."
+            )
+            return summary
+
+        translated = llm_result.arguments.get("translated_summary", "")
+
+        if not translated or not isinstance(translated, str) or not translated.strip():
+            logger.warning(
+                f"[Task ID: {task_id}] [TranslateSummary] Empty or invalid translated_summary. "
+                f"Falling back to original summary."
+            )
+            return summary
+
+        logger.info(
+            f"[Task ID: {task_id}] [TranslateSummary] Successfully translated summary to '{target_language}'"
+        )
+        return translated.strip()
+
+    except Exception as e:
+        logger.error(
+            f"[Task ID: {task_id}] [TranslateSummary] Unexpected error during translation: {e}",
+            exc_info=True,
+        )
+        return summary
 
 
 async def translate_new_chat_suggestions(
