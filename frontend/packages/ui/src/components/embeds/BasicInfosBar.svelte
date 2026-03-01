@@ -73,8 +73,8 @@
   // Silence lint for props that exist in the interface for API consistency
   // but are not directly used in the template. skillId is used by data attributes
   // in parent components; taskId is reserved for future cancellation logic.
-  void skillId;
-  void taskId;
+  // Use $effect to suppress Svelte 5 "state_referenced_locally" warning for reactive props.
+  $effect(() => { void skillId; void taskId; });
   
   // Status text from translations or custom text
   let statusText = $derived(() => {
@@ -318,6 +318,11 @@
   .basic-infos-bar .skill-icon[data-skill-icon="sheets"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/sheets.svg');
     mask-image: url('@openmates/ui/static/icons/sheets.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="event"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
+    mask-image: url('@openmates/ui/static/icons/event.svg');
   }
   
   /* Status text container */

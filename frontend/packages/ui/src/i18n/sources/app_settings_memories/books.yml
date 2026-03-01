@@ -182,7 +182,7 @@ favorite_books.example_1:
   th: "1984"
   cs: "1984"
   sv: "1984"
-  he: 1984
+  he: "1984"
   verified_by_human:
     - en
     - de
