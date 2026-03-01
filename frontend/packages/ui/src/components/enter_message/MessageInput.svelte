@@ -129,14 +129,6 @@
          *  while the map overlay is active. */
         isMapsOpen?: boolean;
         /**
-         * Bounding rect of the parent ActiveChat container (the full-width card),
-         * passed from ActiveChat so that when MessageInput is in side-panel fullscreen
-         * mode on wide screens it can compute where to position itself with
-         * `position: fixed` to visually occupy the embed panel area.
-         * Updated by ActiveChat on every container resize.
-         */
-        containerRect?: DOMRect | null;
-        /**
          * Focus pill props — passed from ActiveChat when a focus mode is active.
          * The pill is rendered absolutely inside the message-field, and the field
          * increases padding-top to prevent text collision.
@@ -156,7 +148,6 @@
         showActionButtons = true,
         isFocused = $bindable(false),
         isMapsOpen = $bindable(false),
-        containerRect = null,
         activeFocusId = null,
         activeFocusAppId = null,
         activeFocusModeMetadata = null,
@@ -172,7 +163,6 @@
     let editorElement = $state<HTMLElement | undefined>(undefined);
     let scrollableContent: HTMLElement;
     let messageInputWrapper: HTMLElement;
-    // Type the ref using the component's type
     let recordAudioComponent = $state<RecordAudio>();
 
     // --- Local UI State ---
@@ -1248,96 +1238,24 @@
     // Debounce timeout for layout updates
     let layoutUpdateTimeout: NodeJS.Timeout;
  
-    // --- Fullscreen side-panel positioning ---
-    // On wide screens (containerRect provided by ActiveChat and width ≥ 1024px),
-    // entering fullscreen "breaks out" the message field into the embed panel slot
-    // using position:fixed with JS-computed coordinates.
-    // containerRect is kept up-to-date by ActiveChat via a ResizeObserver + scroll listener.
-    let wrapperResizeObserver: ResizeObserver; // kept for any future use; currently unused
-
-    /**
-     * Whether the current fullscreen is in "side-panel" mode (≥1024px container).
-     * In this mode the message field uses position:fixed to visually fill the
-     * embed panel area to the right of the 400px chat column.
-     */
-    let isWidescreenFullscreen = $derived(
-        isFullscreen && containerRect !== null && containerRect.width >= 1024
-    );
-
     /**
      * Inline style for the message-field div.
-     * In side-panel fullscreen: position:fixed with coordinates derived from
-     * containerRect so the field fills the embed area (right of 400px chat column).
-     * In tall (narrow) fullscreen: normal flow, height 65dvh.
-     * In maps/camera overlay: fixed height 400px.
+     * In fullscreen: fixed height 65dvh (works for all viewport sizes).
+     *   - When maps/camera are open in fullscreen, they fill the full 65dvh height.
+     * In maps/camera overlay (non-fullscreen): fixed height 400px.
      * Default: auto height, max 350px.
-     *
-     * Side-panel geometry:
-     *   - Container left edge: containerRect.left
-     *   - Chat column is 400px wide + 10px gap (matches CSS .content-container.side-by-side gap:10px)
-     *   - Panel starts at: containerRect.left + 410
-     *   - Panel ends at: containerRect.right - 10px padding (17px border-radius card padding)
-     *   - Top: containerRect.top + 10 (inner padding)
-     *   - Bottom: containerRect.bottom - 10
      */
     let messagePanelStyle = $derived((() => {
+        if (isFullscreen) {
+            return 'height: 65dvh; max-height: 65dvh;';
+        }
         if (showMaps || showCamera) {
             return 'height: 400px; max-height: 400px;';
-        }
-        if (isFullscreen && containerRect && typeof window !== 'undefined') {
-            if (isWidescreenFullscreen) {
-                // Wide-screen side-panel mode (≥1024px): fill the embed area to the right of
-                // the 400px chat column. The +410 offset = 400px chat col + 10px gap.
-                // max-width:none overrides .message-input-container > * { max-width: 629px }.
-                const left   = containerRect.left + 410;
-                const top    = containerRect.top + 10;
-                const right  = window.innerWidth - containerRect.right + 10;
-                const bottom = window.innerHeight - containerRect.bottom + 10;
-                return [
-                    'position: fixed',
-                    `left: ${left}px`,
-                    `top: ${top}px`,
-                    `right: ${right}px`,
-                    `bottom: ${bottom}px`,
-                    'width: auto',
-                    'height: auto',
-                    'max-height: none',
-                    'max-width: none',
-                    'z-index: 200',
-                    'border-radius: 17px',
-                ].join('; ') + ';';
-            }
-            // Narrow/medium mode (<1024px): cover the chat card, leaving 20px visible at top
-            // so the user can still tap outside to dismiss. Uses position:fixed anchored to
-            // containerRect so it works correctly even when sidebars are open.
-            // max-width:none overrides .message-input-container > * { max-width: 629px }.
-            const top    = containerRect.top + 20;
-            const bottom = window.innerHeight - containerRect.bottom;
-            const left   = containerRect.left;
-            const right  = window.innerWidth - containerRect.right;
-            return [
-                'position: fixed',
-                `left: ${left}px`,
-                `top: ${top}px`,
-                `right: ${right}px`,
-                `bottom: ${bottom}px`,
-                'width: auto',
-                'height: auto',
-                'max-height: none',
-                'max-width: none',
-                'z-index: 200',
-                'border-radius: 20px',
-            ].join('; ') + ';';
-        }
-        if (isFullscreen) {
-            // Fallback when containerRect is not yet available (initial render edge case).
-            return 'height: 65dvh; max-height: 65dvh;';
         }
         return 'height: auto; max-height: 350px;';
     })());
 
-    // In fullscreen the container height is driven by position:fixed top/bottom insets,
-    // so the scrollable content area fills 100% minus the ~120px toolbar row.
+    // In fullscreen the scrollable content area fills the panel height minus the action buttons row (~120px).
     let messagePanelScrollableStyle = $derived(
         isFullscreen
             ? 'max-height: calc(100% - 120px);'
@@ -1514,11 +1432,6 @@
 
         resizeObserver = new ResizeObserver(handleResize);
         if (scrollableContent) resizeObserver.observe(scrollableContent);
-
-        // wrapperResizeObserver is kept for potential future use
-        wrapperResizeObserver = new ResizeObserver(() => {
-            // Reserved for future width-based logic inside MessageInput
-        });
 
         // Setup embed group layout observers
         setupEmbedGroupResizeObserver();
@@ -2285,7 +2198,6 @@
     function cleanup() {
         resizeObserver?.disconnect();
         embedGroupResizeObserver?.disconnect();
-        wrapperResizeObserver?.disconnect();
         clearTimeout(layoutUpdateTimeout);
         // Clear any pending blur timeout
         if (blurTimeoutId) {
@@ -3336,9 +3248,6 @@
     // When the map overlay or camera overlay is open, grow the container to a fixed height
     // so the overlay fills edge-to-edge (same as maps). Without this the desktop camera
     // view renders at a tiny default height.
-    // NOTE: containerStyle / scrollableStyle delegate to messagePanelStyle /
-    // messagePanelScrollableStyle (derived above) which handle all modes including
-    // the new side-panel fullscreen mode (containerRect-based position:fixed).
     // These aliases exist so the template references remain unchanged.
     let containerStyle = $derived(messagePanelStyle);
     let scrollableStyle = $derived(messagePanelScrollableStyle);
@@ -3479,7 +3388,7 @@
     />
     
     <div
-        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isWidescreenFullscreen ? 'input-sidepanel' : ''}"
+        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''}"
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill}
         style={containerStyle}

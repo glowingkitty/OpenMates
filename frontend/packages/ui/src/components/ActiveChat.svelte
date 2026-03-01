@@ -2010,20 +2010,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let isFullscreen = $state(false);
     // $: messages = chatHistoryRef?.messages || []; // Removed, messages will be managed in currentMessages
 
-    // Bounding rect of the active-chat-container element.
-    // Passed to MessageInput so it can compute position:fixed coordinates when
-    // expanding into the embed panel area on wide screens (side-panel fullscreen).
-    // Updated on container resize (containerWidth changes) and window scroll/resize.
-    let activeChatContainerEl = $state<HTMLElement | null>(null);
-    let containerRect = $state<DOMRect | null>(null);
-
-    /** Update containerRect from the current bounding rect of the container element. */
-    function updateContainerRect() {
-        if (activeChatContainerEl) {
-            containerRect = activeChatContainerEl.getBoundingClientRect();
-        }
-    }
-
     // Add state for message input height using $state
     let messageInputHeight = $state(0);
 
@@ -2651,17 +2637,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // The chat panel is fixed at 400px, leaving 600+ px for the embed fullscreen content.
     let isUltraWide = $derived(containerWidth >= 1024);
 
-    // Whether the MessageInput is in side-panel fullscreen mode.
-    // True when the user expanded the input AND the container is wide enough.
-    // When true, the input field uses position:fixed to fill the embed panel area.
-    let showInputSidePanel = $derived(isFullscreen && isUltraWide);
-
-    // Keep containerRect in sync whenever containerWidth changes (i.e., on resize).
-    // Reading containerWidth here registers it as a dependency so the effect re-runs on resize.
-    $effect(() => {
-        if (containerWidth >= 0) updateContainerRect();
-    });
-    
     // Force overlay mode: When true, forces the embed fullscreen to use overlay mode even on ultra-wide screens
     // This is toggled by the "minimize chat" button in the chat's top bar when in side-by-side mode
     // User can click this to temporarily hide the chat and show only the embed fullscreen
@@ -7168,13 +7143,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             recalculateSuggestionsOverlap();
         }
 
-        // Keep containerRect in sync with window scroll/resize so the fixed-position
-        // MessageInput side-panel always stays aligned with the container card.
-        window.addEventListener('scroll', updateContainerRect, { passive: true });
-        window.addEventListener('resize', updateContainerRect, { passive: true });
-        // Initial population of containerRect — activeChatContainerEl is bound by this point.
-        updateContainerRect();
-
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
             handleChatUpdated(event);
@@ -7805,9 +7773,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('focusModeActivated', focusModeActivatedHandler as EventListenerCallback);
             // Remove viewport resize listener
             window.removeEventListener('resize', handleViewportResize);
-            // Remove container rect update listeners
-            window.removeEventListener('scroll', updateContainerRect);
-            window.removeEventListener('resize', updateContainerRect);
             // Disconnect overlap ResizeObserver
             overlapObserver?.disconnect();
         };
@@ -7844,7 +7809,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class:extra-wide={isExtraWide}
     class:side-by-side-active={showSideBySideLayout}
     bind:clientWidth={containerWidth}
-    bind:this={activeChatContainerEl}
 >
     {#if !showChat}
         <!-- Signup status bar - only show during signup process, not on basics or alpha disclaimer steps -->
@@ -7867,7 +7831,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             in:fade={{ duration: 300 }} 
             out:fade={{ duration: 200 }}
             class="content-container"
-            class:side-by-side={showSideBySideLayout || showInputSidePanel}
+            class:side-by-side={showSideBySideLayout}
         >
             <!-- Main content wrapper that will handle the fullscreen layout -->
             <!-- When side-by-side mode is active, chat takes left portion with smooth transition -->
@@ -7876,7 +7840,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             <div 
                 class="chat-wrapper" 
                 class:fullscreen={isFullscreen} 
-                class:side-by-side-chat={showSideBySideLayout || showInputSidePanel}
+                class:side-by-side-chat={showSideBySideLayout}
                 class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
                 class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
                 class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
@@ -8277,7 +8241,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                  bind:hasContent={messageInputHasContent}
                                  bind:isFocused={messageInputFocused}
                                  bind:isMapsOpen={messageInputMapsOpen}
-                                 {containerRect}
                              />
                         {/if}
                     </div>
@@ -8338,21 +8301,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 />
             {/if}
             
-            <!-- MessageInput side-panel fullscreen placeholder:
-                 When the user expands the message input on a wide screen (≥1024px),
-                 the input field itself uses position:fixed to fill this area.
-                 This placeholder provides the visible card background and reserves
-                 the layout space so the chat column stays at 400px. -->
-            {#if showInputSidePanel && !showEmbedFullscreen}
-                <div
-                    class="fullscreen-embed-container side-panel input-sidepanel-placeholder"
-                    transition:fade={{ duration: 300 }}
-                >
-                    <!-- The actual MessageInput renders here visually via position:fixed.
-                         This div is just a background/layout placeholder. -->
-                </div>
-            {/if}
-
             <!-- Embed fullscreen view (app-skill-use, website, etc.) -->
             <!-- Container switches between overlay mode (default) and side panel mode (ultra-wide screens) -->
             <!-- Side-by-side mode shows embed next to chat for better large display usage -->
@@ -9247,17 +9195,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
     }
     
-    /* Message input side-panel placeholder:
-       When the user expands the message input on a wide screen, this div reserves
-       the embed panel area. The actual input uses position:fixed over this space.
-       We make it transparent so the fixed-positioned message field shows through. */
-    .fullscreen-embed-container.side-panel.input-sidepanel-placeholder {
-        background-color: transparent;
-        box-shadow: none;
-        /* Allow pointer events to pass through to the fixed input above */
-        pointer-events: none;
-    }
-
     /* ENTER: Panel reveals from left edge (grows leftward as chat shrinks) */
     .fullscreen-embed-container.side-panel.side-by-side-entering {
         animation: panelReveal 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
