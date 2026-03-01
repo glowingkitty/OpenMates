@@ -120,6 +120,13 @@
       "name": "Svenska",
       "shortCode": "SV",
       "nativeName": "Svenska"
+    },
+    {
+      "code": "he",
+      "name": "עברית",
+      "shortCode": "HE",
+      "nativeName": "עברית",
+      "rtl": true
     }
   ]
 }

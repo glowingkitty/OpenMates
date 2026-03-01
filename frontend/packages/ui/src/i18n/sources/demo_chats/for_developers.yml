@@ -20,6 +20,7 @@ title:
   th: OpenMates | สำหรับนักพัฒนา
   cs: OpenMates | Pro vývojáře
   sv: OpenMates | För utvecklare
+  he: "OpenMates | למפתחים"
   verified_by_human: []
 description:
   context: Description of for_developers demo chat for SEO
@@ -43,6 +44,7 @@ description:
   th: เครื่องมือพัฒนาที่ขับเคลื่อนด้วย AI พร้อม REST API, CLI, ความเป็นส่วนตัว และไม่ต้องตั้งค่า MCP
   cs: Nástroje pro vývoj poháněné AI s REST API, CLI, soukromím a bez nastavení MCP
   sv: AI-drivna utvecklingsverktyg med REST API, CLI, integritet och ingen MCP-konfiguration behövs
+  he: כלי פיתוח מבוססי AI עם REST API, CLI, פרטיות, וללא צורך בהגדרת MCP
   verified_by_human: []
 message:
   context: Main for_developers message content explaining OpenMates features for developers
@@ -1684,6 +1686,64 @@ message:
     📚 Har du redan läst introduktionen för alla? Om inte, [klicka här](#chat-id=demo-for-everyone).
 
     "
+  he: |
+    # 👨‍💻 חברי צוות דיגיטליים למפתחים
+    
+    OpenMates הוא גם כלי מדהים למפתחים. לכל דבר, משאלות מהירות, תכנון פרויקטים גדולים, יצירת קוד המבוסס על התיעוד העדכני ביותר ועוד הרבה יותר. הכל ללא הגדרות שרת MCP מסובכות, ותוך הגנה על הפרטיות שלך ומתן גישה לכל מודלי ה-AI הטובים ביותר. API של REST לכל כישורי האפליקציה כלול, וגם CLI עוצמתי וחבילות pip ו-npm מתוכננים, כדי לאפשר לך לתקשר עם הצ'אטים שלך מכל מקום.
+    לחץ על צ'אטים לדוגמה אלו כדי לראות מה OpenMates יכול לעשות עבור מפתחים:
+    [[dev_example_chats_group]]
+    
+    ## 🚀 התחלה מהירה
+    
+    לחץ על כפתור ההרשמה בפינה הימנית העליונה כדי להירשם, לקנות קרדיטים לשימוש ולהתחיל להשתמש ב-OpenMates. או המשך לקרוא כדי ללמוד עוד על OpenMates למפתחים, ובדוק את הצ'אטים לדוגמה בתפריט הצ'אטים בפינה השמאלית העליונה כדי לחקור מה OpenMates יכול לעשות.
+    
+    ## 📱 אפליקציות למפתחים
+    
+    עם אפליקציות ב-OpenMates, אין צורך בהגדרות MCP מסובכות, גוזלות זמן ולא מאובטחות עם מפתחות API בטקסט גלוי בקובצי קונפיגורציה של JSON.
+    במקום זאת, OpenMates ישתמש באופן אוטומטי במודל ה-AI הנכון, בכישור האפליקציה, במצב המיקוד, בהגדרות ובזיכרונות המותאמים לבקשה שלך (תוך מתן אפשרות לדרוס את הבחירה האוטומטית באמצעות @ בהודעה שלך).
+    כמה דוגמאות לאופן שבו אפליקציות הופכות את OpenMates לשימושי יותר:
+    - 📖 [Code | Get docs](#settings/appstore/code/skills/get-docs): בודק את התיעוד העדכני ביותר עבור API, פריימוורק או שפה לפני יצירת קובצי קוד.
+    - 🔍 [Web | Search](#settings/appstore/web/skills/search): מחפש באינטרנט כדי לשפר את דיוק התגובה.
+    - ✅ בדיקות linter אוטומטיות לקוד שנוצר (בקרוב).
+    [[dev_app_store_group]]
+    
+    ### 🛠️ כישורי מפתח
+    
+    כישורים ספציפיים לאפליקציות מפתחים המאפשרים לחברים שלך לתקשר עם שירותי מפתחים חיצוניים.
+    [[dev_skills_group]]
+    
+    ### 🎯 מצבי מיקוד למפתחים
+    
+    מצבי מיקוד למשימות פיתוח כמו תכנון פרויקטים, כתיבת בדיקות, שיפור אבטחה ועוד.
+    [[dev_focus_modes_group]]
+    
+    ### 💾 הגדרות וזיכרונות למפתחים
+    
+    הגדרות וזיכרונות לאפליקציות מפתחים, כך שלא תצטרך לציין פרטי פרויקט, טכנולוגיות מועדפות או פריימוורקים כל הזמן.
+    [[dev_settings_memories_group]]
+    
+    ## 🔌 REST API
+    
+    ה-API של OpenMates REST מאפשר לך להשתמש ב-OpenMates בדומה ל-APIs אחרים של LLM, ולתקשר עם כל כישורי האפליקציה מ-OpenMates. כך שתוכל להטמיע את OpenMates ואת כישורי האפליקציה שלו בקלות בתוכנה שלך.
+    
+    ## 💻 חבילות CLI, pip ו-npm - גישה ממוקדת שימושיות
+    
+    חבילות ה-CLI, ה-pip וה-npm שישוחררו בקרוב יאפשרו לך גישה מלאה לחשבון ה-OpenMates שלך מכל מקום. תוך הבטחת הצפנת zero-knowledge ושמירה על השליטה שלך. גש לכל הצ'אטים וכישורי האפליקציה שלך מהטרמינל.
+    או הטל על OpenMates לבנות או לדבג פרויקט תוכנה ב-VM / שרת הפיתוח שלך, אך עם הנוחות של ניהול המשימה הזו בדפדפן האינטרנט שלך במקום מהטרמינל.
+    
+    ## 🔒 פרטיות והצפנה
+    
+    OpenMates לעולם לא מאמן מודלים על הנתונים שלך. וכל הצ'אטים, פרטי הפרויקט והגדרות וזיכרונות אפליקציה אחרים מוצפנים ומפוענחים בשיטת zero-knowledge במכשיר שלך. כשאתה מבצע בקשה, רק כמות הנתונים המינימלית הדרושה למילוי הבקשה שלך מעובדת בשרת ולעולם לא נשמרת בדיסק באופן שיאפשר לשרת או להאקרים לפענח את הצ'אטים או את הגדרות וזיכרונות האפליקציה שלך.
+    
+    ## 🛡️ קוד פתוח כהגנה מפני enshittification
+    
+    האינטרסים של המשתמשים קודמים לכל, זוהי פילוסופיית הליבה מאחורי OpenMates. כדי להבטיח זאת גם בעתיד, [OpenMates הוא קוד פתוח לחלוטין תחת AGPL 3](https://github.com/glowingkitty/openmates). כי היות התוכנה קוד פתוח היא הבסיס למניעת enshittification מלהפוך את התוכנה לגרועה יותר לאורך זמן.
+    בנוסף, תוכל לבדוק את הארכיטקטורה והאבטחה של OpenMates בעצמך בכל עת ואתה מוזמן לתרום, כדי להפוך את הפרויקט לטוב עוד יותר עבור כולם.
+    אם תרצה לארח את OpenMates בעצמך ולדאוג לכל ההגדרה והתחזוקה, תוכל לעשות זאת גם כן. תוך שימוש במפתחות API משלך עבור שירותי ה-AI השונים, ובעתיד גם שימוש במודלים לא מקוונים, לפרטיות ושליטה מקסימליות.
+    
+    ---
+    
+    📚 האם כבר קראת את ההקדמה לכולם? אם לא, [לחץ כאן](#chat-id=demo-for-everyone) כדי ללמוד את כל יסודות הליבה של OpenMates.
   verified_by_human: []
 follow_up_1:
   context: Follow-up suggestion 1 - REST API details
@@ -1707,6 +1767,7 @@ follow_up_1:
   th: REST API ทำงานอย่างไร?
   cs: Jak funguje REST API?
   sv: Hur fungerar REST API?
+  he: "איך ה-REST API עובד?"
   verified_by_human: []
 follow_up_2:
   context: Follow-up suggestion 2 - privacy for devs
@@ -1730,6 +1791,7 @@ follow_up_2:
   th: โค้ดของฉันถูกเก็บเป็นความลับหรือไม่?
   cs: Zůstane můj kód soukromý?
   sv: Är min kod privat?
+  he: "האם הקוד שלי נשמר פרטי?"
   verified_by_human: []
 follow_up_3:
   context: Follow-up suggestion 3 - self hosting
@@ -1753,4 +1815,5 @@ follow_up_3:
   th: ฉันจะ self-host OpenMates ได้อย่างไร?
   cs: Jak mohu OpenMates provozovat sám?
   sv: Hur kan jag självhosta OpenMates?
+  he: "איך אני יכול לארח את OpenMates בעצמי?"
   verified_by_human: []

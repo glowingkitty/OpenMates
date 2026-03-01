@@ -20,6 +20,7 @@ username:
   th: ชื่อผู้ใช้
   cs: Uživatelské jméno
   sv: Användarnamn
+  he: שם משתמש
   verified_by_human: []
 username.current:
   context: Label shown above the current username in the username settings page
@@ -43,6 +44,7 @@ username.current:
   th: ชื่อผู้ใช้ปัจจุบัน
   cs: Aktuální uživatelské jméno
   sv: Nuvarande användarnamn
+  he: שם משתמש נוכחי
   verified_by_human: []
 username.new:
   context: Label for the new username input field
@@ -66,6 +68,7 @@ username.new:
   th: ชื่อผู้ใช้ใหม่
   cs: Nové uživatelské jméno
   sv: Nytt användarnamn
+  he: שם משתמש חדש
   verified_by_human: []
 username.placeholder:
   context: Placeholder text for the username input field
@@ -89,6 +92,7 @@ username.placeholder:
   th: เช่น jane.doe
   cs: např. jane.doe
   sv: t.ex. jane.doe
+  he: למשל jane.doe
   verified_by_human: []
 username.save:
   context: Save button label on the username settings page
@@ -112,6 +116,7 @@ username.save:
   th: บันทึกชื่อผู้ใช้
   cs: Uložit uživatelské jméno
   sv: Spara användarnamn
+  he: שמירת שם משתמש
   verified_by_human: []
 username.saving:
   context: Button label while the username save request is in progress
@@ -135,6 +140,7 @@ username.saving:
   th: กำลังบันทึก…
   cs: Ukládání…
   sv: Sparar…
+  he: שומר…
   verified_by_human: []
 username.success:
   context: Success message shown after username is successfully updated
@@ -158,6 +164,7 @@ username.success:
   th: อัปเดตชื่อผู้ใช้แล้ว
   cs: Uživatelské jméno aktualizováno
   sv: Användarnamn uppdaterat
+  he: שם המשתמש עודכן
   verified_by_human: []
 username.error_length:
   context: Validation error when username is too short or too long (3–20 chars)
@@ -181,6 +188,7 @@ username.error_length:
   th: ชื่อผู้ใช้ต้องมีความยาวระหว่าง 3 ถึง 20 ตัวอักษร
   cs: Uživatelské jméno musí mít délku 3 až 20 znaků
   sv: Användarnamnet måste vara mellan 3 och 20 tecken
+  he: שם המשתמש חייב להכיל בין 3 ל-20 תווים
   verified_by_human: []
 username.error_no_letter:
   context: Validation error when username contains no letters
@@ -204,6 +212,7 @@ username.error_no_letter:
   th: ชื่อผู้ใช้ต้องมีตัวอักษรอย่างน้อยหนึ่งตัว
   cs: Uživatelské jméno musí obsahovat alespoň jedno písmeno
   sv: Användarnamnet måste innehålla minst en bokstav
+  he: שם המשתמש חייב להכיל לפחות אות אחת
   verified_by_human: []
 username.error_invalid_chars:
   context: Validation error when username contains characters that are not allowed
@@ -227,6 +236,7 @@ username.error_invalid_chars:
   th: ชื่อผู้ใช้สามารถประกอบด้วยตัวอักษร ตัวเลข จุด และขีดล่างเท่านั้น
   cs: Uživatelské jméno může obsahovat pouze písmena, číslice, tečky a podtržítka
   sv: Användarnamnet får endast innehålla bokstäver, siffror, punkter och understreck
+  he: שם המשתמש יכול להכיל רק אותיות, מספרים, נקודות וקווים תחתונים
   verified_by_human: []
 username.error_failed:
   context: Generic error when username update fails on the server
@@ -250,6 +260,7 @@ username.error_failed:
   th: ไม่สามารถอัปเดตชื่อผู้ใช้ได้ กรุณาลองอีกครั้ง
   cs: Aktualizace uživatelského jména selhala. Zkuste to prosím znovu.
   sv: Det gick inte att uppdatera användarnamnet. Försök igen.
+  he: עדכון שם המשתמש נכשל. יש לנסות שוב.
   verified_by_human: []
 username.info:
   context: Informational note at the bottom of the username settings page explaining what the username is used for
@@ -273,6 +284,7 @@ username.info:
   th: ชื่อผู้ใช้ของคุณคือชื่อที่แสดงใน OpenMates ต้องมีความยาว 3–20 ตัวอักษร และสามารถประกอบด้วยตัวอักษร ตัวเลข จุด และขีดล่าง
   cs: Vaše uživatelské jméno je vaše zobrazovací jméno v OpenMates. Musí mít délku 3–20 znaků a může obsahovat písmena, číslice, tečky a podtržítka.
   sv: Ditt användarnamn är ditt visningsnamn på OpenMates. Det måste vara 3–20 tecken och kan innehålla bokstäver, siffror, punkter och understreck.
+  he: שם המשתמש שלך הוא שם התצוגה שלך ב-OpenMates. עליו להכיל 3–20 תווים ויכול לכלול אותיות, מספרים, נקודות וקווים תחתונים.
   verified_by_human: []
 description:
   context: Short description shown in the account settings page gradient banner header
@@ -296,6 +308,7 @@ description:
   th: ""
   cs: ""
   sv: ""
+  he: ניהול הפרופיל, האימות והגדרות החשבון
   verified_by_human: []
 account:
   context: Account settings menu item
@@ -319,22 +332,26 @@ account:
   th: บัญชี
   cs: Účet
   sv: Konto
+  he: חשבון
   verified_by_human: []
 email:
   context: Email submenu item
   en: E-mail
   de: E-Mail
   ar: البريد الإلكتروني
+  he: אימייל
 email.loading:
   context: Loading message for email decryption
   en: Decrypting e-mail address...
   de: E-Mail-Adresse wird entschlüsselt...
   ar: جارٍ فك تشفير عنوان البريد الإلكتروني...
+  he: מפענח כתובת אימייל...
 email.current_email:
   context: Header for current email address
   en: Current E-mail Address
   de: Aktuelle E-Mail-Adresse
   ar: عنوان البريد الإلكتروني الحالي
+  he: כתובת אימייל נוכחית
 email.privacy_info:
   context: Privacy information about email storage
   en: >-
@@ -346,16 +363,19 @@ email.privacy_info:
   ar: >-
     يتم تخزين عنوان بريدك الإلكتروني بشكل مشفر على جهازك والخادم.
     أنت وحدك يمكنك فك تشفيره باستخدام مفتاحك الرئيسي.
+  he: כתובת האימייל שלך נשמרת מוצפנת במכשיר שלך ובשרת. רק לך יש אפשרות לפענח אותה באמצעות מפתח המאסטר שלך.
 email.copied:
   context: Notification shown when email address is copied to clipboard
   en: E-mail address copied to clipboard
   de: E-Mail-Adresse in die Zwischenablage kopiert
   ar: تم نسخ عنوان البريد الإلكتروني إلى الحافظة
+  he: כתובת האימייל הועתקה ללוח
 email.error_decrypting:
   context: Error message when email decryption fails
   en: Failed to decrypt e-mail address.
   de: E-Mail-Adresse konnte nicht entschlüsselt werden.
   ar: فشل فك تشفير عنوان البريد الإلكتروني.
+  he: פענוח כתובת האימייל נכשל.
 security:
   context: Security submenu under Account settings
   en: Security
@@ -378,6 +398,7 @@ security:
   th: ความปลอดภัย
   cs: Zabezpečení
   sv: Säkerhet
+  he: אבטחה
   verified_by_human: []
 passkeys:
   context: Passkeys submenu under Security settings
@@ -401,6 +422,7 @@ passkeys:
   th: คีย์การเข้าถึง
   cs: Přístupové klíče
   sv: Åtkomstnycklar
+  he: מפתחות גישה
   verified_by_human: []
 profile_picture:
   context: Profile picture submenu under Account settings — menu item label and page title
@@ -424,6 +446,7 @@ profile_picture:
   th: รูปโปรไฟล์
   cs: Profilový obrázek
   sv: Profilbild
+  he: תמונת פרופיל
   verified_by_human: []
 profile_picture.upload:
   context: Upload button label on the profile picture settings page
@@ -447,6 +470,7 @@ profile_picture.upload:
   th: ""
   cs: ""
   sv: ""
+  he: העלאת תמונה חדשה
   verified_by_human: []
 profile_picture.uploading:
   context: Status message shown while profile picture is being uploaded
@@ -470,6 +494,7 @@ profile_picture.uploading:
   th: ""
   cs: ""
   sv: ""
+  he: מעלה…
   verified_by_human: []
 profile_picture.upload_success:
   context: Success message shown after profile picture is successfully uploaded
@@ -493,6 +518,7 @@ profile_picture.upload_success:
   th: ""
   cs: ""
   sv: ""
+  he: תמונת הפרופיל עודכנה
   verified_by_human: []
 profile_picture.upload_error:
   context: Generic error message shown when profile picture upload fails unexpectedly
@@ -516,6 +542,7 @@ profile_picture.upload_error:
   th: ""
   cs: ""
   sv: ""
+  he: ההעלאה נכשלה. יש לנסות שוב.
   verified_by_human: []
 profile_picture.file_too_large:
   context: Error message shown when selected profile picture file is too large (max 20 MB before canvas processing)
@@ -539,6 +566,7 @@ profile_picture.file_too_large:
   th: ""
   cs: ""
   sv: ""
+  he: התמונה גדולה מדי. יש לבחור תמונה קטנה יותר.
   verified_by_human: []
 profile_picture.wrong_format:
   context: Error message shown when selected profile picture has an unsupported file type
@@ -562,6 +590,7 @@ profile_picture.wrong_format:
   th: ""
   cs: ""
   sv: ""
+  he: יש לבחור תמונה בפורמט JPEG או PNG.
   verified_by_human: []
 storage:
   context: Storage overview submenu under Account settings (header title shown when navigating into account/storage)
@@ -585,6 +614,7 @@ storage:
   th: การจัดเก็บ
   cs: Úložiště
   sv: Lagring
+  he: אחסון
   verified_by_human: []
 delete:
   context: Delete Account submenu under Account settings
@@ -608,6 +638,7 @@ delete:
   th: ลบ
   cs: Smazat
   sv: Radera
+  he: מחיקה
   verified_by_human: []
 delete_account_title:
   context: Title for delete account page
@@ -631,6 +662,7 @@ delete_account_title:
   th: ลบบัญชีของคุณ
   cs: Smazat váš účet
   sv: Ta bort ditt konto
+  he: מחיקת החשבון שלך
   verified_by_human: []
 delete_account_loading_preview:
   context: Loading message while fetching deletion preview
@@ -654,6 +686,7 @@ delete_account_loading_preview:
   th: กำลังโหลดตัวอย่างการลบ...
   cs: Načítání náhledu smazání...
   sv: Laddar borttagningsförhandsvisning...
+  he: טוען תצוגה מקדימה של המחיקה...
   verified_by_human: []
 delete_account_credits_loss_warning_title:
   context: Title for credits loss warning
@@ -677,6 +710,7 @@ delete_account_credits_loss_warning_title:
   th: คำเตือนการสูญเสียเครดิต
   cs: Varování před ztrátou kreditů
   sv: Varning för kreditförlust
+  he: אזהרת אובדן קרדיטים
   verified_by_human: []
 delete_account_credits_loss_warning_message:
   context: Message about credits loss
@@ -700,6 +734,7 @@ delete_account_credits_loss_warning_message:
   th: คุณจะสูญเสีย {count} เครดิตที่มีอายุมากกว่า 14 วัน เครดิตเหล่านี้ไม่สามารถคืนเงินได้
   cs: Ztratíte {count} kreditů, které jsou starší než 14 dní. Tyto kredity nelze vrátit.
   sv: Du kommer att förlora {count} krediter som är äldre än 14 dagar. Dessa krediter kan inte återbetalas.
+  he: "תאבד {count} קרדיטים שגילם עולה על 14 ימים. לא ניתן לקבל החזר על קרדיטים אלו."
   verified_by_human: []
 delete_account_credits_loss_warning_confirm:
   context: Confirmation checkbox for credits loss
@@ -723,6 +758,7 @@ delete_account_credits_loss_warning_confirm:
   th: ฉันเข้าใจว่าฉันจะสูญเสีย {count} เครดิตที่มีอายุมากกว่า 14 วัน
   cs: Rozumím, že ztratím {count} kreditů starších než 14 dní
   sv: Jag förstår att jag kommer att förlora {count} krediter som är äldre än 14 dagar
+  he: "אני מבין שאאבד {count} קרדיטים שגילם עולה על 14 ימים"
   verified_by_human: []
 delete_account_auto_refund_title:
   context: Title for auto-refund information
@@ -746,6 +782,7 @@ delete_account_auto_refund_title:
   th: การคืนเงินอัตโนมัติ
   cs: Automatické vrácení peněz
   sv: Automatiska återbetalningar
+  he: החזרים אוטומטיים
   verified_by_human: []
 delete_account_auto_refund_description:
   context: Description of auto-refund process
@@ -769,6 +806,7 @@ delete_account_auto_refund_description:
   th: การซื้อในช่วง 14 วันที่ผ่านมาพร้อมเครดิตที่ไม่ได้ใช้จะถูกคืนเงินอัตโนมัติ
   cs: Nákupy z posledních 14 dnů s nevyužitými kredity budou automaticky vráceny.
   sv: Köp från de senaste 14 dagarna med oanvända krediter kommer automatiskt att återbetalas.
+  he: רכישות מ-14 הימים האחרונים עם קרדיטים שלא נוצלו יוחזרו באופן אוטומטי.
   verified_by_human: []
 delete_account_auto_refund_total_refund:
   context: Label for total refund amount
@@ -792,6 +830,7 @@ delete_account_auto_refund_total_refund:
   th: จำนวนเงินคืนทั้งหมด
   cs: Celková částka vrácení
   sv: Totalt återbetalningsbelopp
+  he: סכום ההחזר הכולל
   verified_by_human: []
 delete_account_auto_refund_unused_credits:
   context: Label for unused credits
@@ -815,6 +854,7 @@ delete_account_auto_refund_unused_credits:
   th: เครดิตที่ไม่ได้ใช้
   cs: Nevyužité kredity
   sv: Oanvända krediter
+  he: קרדיטים שלא נוצלו
   verified_by_human: []
 delete_account_auto_refund_eligible_invoices:
   context: Label for eligible invoices count
@@ -838,6 +878,7 @@ delete_account_auto_refund_eligible_invoices:
   th: ใบแจ้งหนี้ที่เหมาะสม
   cs: Oprávněné faktury
   sv: Berättigade fakturor
+  he: חשבוניות זכאיות
   verified_by_human: []
 delete_account_auto_refund_gift_cards:
   context: Label for gift cards
@@ -861,6 +902,7 @@ delete_account_auto_refund_gift_cards:
   th: บัตรของขวัญ
   cs: Dárkové karty
   sv: Presentkort
+  he: כרטיסי מתנה
   verified_by_human: []
 delete_account_auto_refund_gift_cards_note:
   context: Note about gift cards
@@ -884,6 +926,7 @@ delete_account_auto_refund_gift_cards_note:
   th: (ไม่สามารถคืนเงินได้เมื่อใช้แล้ว)
   cs: (Nelze vrátit po použití)
   sv: (Kan inte återbetalas när den väl använts)
+  he: (לא ניתן לקבל החזר לאחר השימוש)
   verified_by_human: []
 delete_account_refund_all_description:
   context: Description explaining all unused credits will be refunded (except gift card credits)
@@ -907,6 +950,7 @@ delete_account_refund_all_description:
   th: เครดิตที่ไม่ได้ใช้ทั้งหมดของคุณจะถูกคืนเงินโดยอัตโนมัติไปยังวิธีการชำระเงินเดิมของคุณ
   cs: Všechny vaše nevyužité kredity budou automaticky vráceny na vaši původní platební metodu.
   sv: Alla dina oanvända krediter kommer automatiskt att återbetalas till din ursprungliga betalningsmetod.
+  he: כל הקרדיטים שלא נוצלו יוחזרו באופן אוטומטי לאמצעי התשלום המקורי שלך.
   verified_by_human: []
 delete_account_refundable_credits:
   context: Label for refundable credits count
@@ -930,6 +974,7 @@ delete_account_refundable_credits:
   th: เครดิตที่สามารถคืนเงินได้
   cs: Vratné kredity
   sv: Återbetalningsbara krediter
+  he: קרדיטים ברי החזר
   verified_by_human: []
 delete_account_gift_card_credits_title:
   context: Title for gift card credits notice section
@@ -953,6 +998,7 @@ delete_account_gift_card_credits_title:
   th: เครดิตบัตรของขวัญ
   cs: Kredity z dárkové karty
   sv: Presentkortskrediter
+  he: קרדיטים מכרטיסי מתנה
   verified_by_human: []
 delete_account_gift_card_credits_message:
   context: Message explaining gift card credits are not refundable
@@ -976,6 +1022,7 @@ delete_account_gift_card_credits_message:
   th: คุณมี {count} เครดิตจากบัตรของขวัญที่แลกแล้ว เครดิตเหล่านี้ไม่สามารถคืนเงินได้เนื่องจากเป็นของขวัญ
   cs: Máte {count} kreditů z uplatněných dárkových karet. Tyto kredity nelze vrátit, protože byly dárkem.
   sv: Du har {count} krediter från inlösta presentkort. Dessa krediter kan inte återbetalas eftersom de var en gåva.
+  he: "יש לך {count} קרדיטים שמומשו מכרטיסי מתנה. לא ניתן לקבל החזר על קרדיטים אלו מכיוון שהם ניתנו כמתנה."
   verified_by_human: []
 delete_account_data_deletion_warning_title:
   context: Title for data deletion warning
@@ -999,6 +1046,7 @@ delete_account_data_deletion_warning_title:
   th: คำเตือนการลบข้อมูล
   cs: Varování před smazáním dat
   sv: Varning för data borttagning
+  he: אזהרת מחיקת נתונים
   verified_by_human: []
 delete_account_data_deletion_warning_message:
   context: Message about data deletion
@@ -1022,6 +1070,7 @@ delete_account_data_deletion_warning_message:
   th: ข้อมูลทั้งหมดของคุณจะถูกลบอย่างถาวรและไม่สามารถกู้คืนได้ รวมถึงการแชท การฝัง ไฟล์ที่อัปโหลด การตั้งค่า ความทรงจำ ฯลฯ
   cs: Všechna vaše data budou trvale smazána a nelze je obnovit, včetně chatů, vložení, nahraných souborů, nastavení, vzpomínek atd.
   sv: All din data kommer att raderas permanent och kan inte återställas, inklusive chattar, inbäddningar, uppladdade filer, inställningar, minnen, etc.
+  he: "כל הנתונים שלך יימחקו לצמיתות ולא יהיה ניתן לשחזר אותם, כולל צ'אטים, הטמעות (embeds), קבצים שהועלו, הגדרות, זיכרונות וכו'."
   verified_by_human: []
 delete_account_data_deletion_warning_confirm:
   context: Confirmation checkbox for data deletion
@@ -1045,6 +1094,7 @@ delete_account_data_deletion_warning_confirm:
   th: ฉันเข้าใจว่าข้อมูลทั้งหมดของฉันจะถูกลบอย่างถาวรและไม่สามารถกู้คืนได้ รวมถึงการแชท การฝัง ไฟล์ที่อัปโหลด การตั้งค่า ความทรงจำ ฯลฯ
   cs: Rozumím, že všechna má data budou trvale smazána a nelze je obnovit, včetně chatů, vložení, nahraných souborů, nastavení, vzpomínek atd.
   sv: Jag förstår att all min data kommer att raderas permanent och inte kan återställas, inklusive chattar, inbäddningar, uppladdade filer, inställningar, minnen, etc.
+  he: "אני מבין שכל הנתונים שלי יימחקו לצמיתות ולא יהיה ניתן לשחזר אותם, כולל צ'אטים, הטמעות (embeds), קבצים שהועלו, הגדרות, זיכרונות וכו'."
   verified_by_human: []
 delete_account_confirmation_input_label:
   context: Label for confirmation input field
@@ -1068,6 +1118,7 @@ delete_account_confirmation_input_label:
   th: พิมพ์ "ลบบัญชี" เพื่อยืนยัน
   cs: Zadejte "smazat účet" pro potvrzení
   sv: Skriv "ta bort konto" för att bekräfta
+  he: "הקלד \"delete account\" כדי לאשר"
   verified_by_human: []
 delete_account_confirmation_input_placeholder:
   context: Placeholder for confirmation input field
@@ -1091,6 +1142,7 @@ delete_account_confirmation_input_placeholder:
   th: ลบบัญชี
   cs: smazat účet
   sv: ta bort konto
+  he: delete account
   verified_by_human: []
 delete_account_delete_button:
   context: Delete account button text
@@ -1114,6 +1166,7 @@ delete_account_delete_button:
   th: ลบบัญชีของฉัน
   cs: Smazat můj účet
   sv: Ta bort mitt konto
+  he: מחק את החשבון שלי
   verified_by_human: []
 delete_account_deleting:
   context: Deleting account in progress
@@ -1137,6 +1190,7 @@ delete_account_deleting:
   th: กำลังลบบัญชี...
   cs: Mazání účtu...
   sv: Tar bort konto...
+  he: מוחק את החשבון...
   verified_by_human: []
 delete_account_retry:
   context: Retry button text
@@ -1160,6 +1214,7 @@ delete_account_retry:
   th: ลองอีกครั้ง
   cs: Zkusit znovu
   sv: Försök igen
+  he: ניסיון חוזר
   verified_by_human: []
 delete_account_no_auth_method:
   context: Error message when user has no authentication method (no passkey and no 2FA) for account deletion
@@ -1183,6 +1238,7 @@ delete_account_no_auth_method:
   th: ต้องการการยืนยันตัวตน กรุณาตั้งค่า passkey หรือ 2FA ในการตั้งค่าความปลอดภัยก่อน
   cs: Vyžadována autentizace. Nejprve prosím nastavte přístupový klíč nebo 2FA v nastavení zabezpečení.
   sv: Autentisering krävs. Vänligen konfigurera först en nyckel eller 2FA i säkerhetsinställningarna.
+  he: נדרש אימות. אנא הגדר מפתח גישה (passkey) או אימות דו-שלבי (2FA) בהגדרות האבטחה תחילה.
   verified_by_human: []
 delete_account_passkey_failed:
   context: Error message when passkey authentication fails during account deletion
@@ -1206,6 +1262,7 @@ delete_account_passkey_failed:
   th: การยืนยันตัวตนด้วย passkey ล้มเหลว กรุณาลองอีกครั้ง
   cs: Autentizace přístupovým klíčem selhala. Zkuste to prosím znovu.
   sv: Passkey-autentisering misslyckades. Försök igen.
+  he: אימות מפתח הגישה נכשל. אנא נסה שוב.
   verified_by_human: []
 delete_account_2fa_title:
   context: Title for 2FA input section during account deletion
@@ -1229,6 +1286,7 @@ delete_account_2fa_title:
   th: ใส่รหัส 2FA
   cs: Zadejte kód 2FA
   sv: Ange 2FA-kod
+  he: הזן קוד 2FA
   verified_by_human: []
 delete_account_2fa_description:
   context: Description for 2FA input during account deletion
@@ -1252,6 +1310,7 @@ delete_account_2fa_description:
   th: กรุณาใส่รหัส 6 หลักจากแอปยืนยันตัวตนของคุณเพื่อยืนยันการลบบัญชี
   cs: Zadejte prosím 6místný kód z vaší autentizační aplikace pro potvrzení smazání účtu.
   sv: Ange den 6-siffriga koden från din autentiseringsapp för att bekräfta kontoborttagningen.
+  he: אנא הזן את הקוד בן 6 הספרות מאפליקציית האימות שלך כדי לאשר את מחיקת החשבון.
   verified_by_human: []
 delete_account_2fa_cancel:
   context: Cancel button text in 2FA input section
@@ -1275,6 +1334,7 @@ delete_account_2fa_cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 delete_account_2fa_invalid:
   context: Error message when 2FA code is invalid
@@ -1298,6 +1358,7 @@ delete_account_2fa_invalid:
   th: รหัส 2FA ไม่ถูกต้อง กรุณาลองอีกครั้ง
   cs: Neplatný kód 2FA. Zkuste to prosím znovu.
   sv: Ogiltig 2FA-kod. Försök igen.
+  he: קוד 2FA לא תקין. יש לנסות שוב.
   verified_by_human: []
 delete_account_2fa_failed:
   context: Error message when 2FA authentication fails
@@ -1321,6 +1382,7 @@ delete_account_2fa_failed:
   th: การยืนยันตัวตน 2FA ล้มเหลว กรุณาลองอีกครั้ง
   cs: Autentizace 2FA selhala. Zkuste to prosím znovu.
   sv: 2FA-autentisering misslyckades. Försök igen.
+  he: אימות 2FA נכשל. יש לנסות שוב.
   verified_by_human: []
 delete_account_auth_title:
   context: Title for the SecurityAuth modal when deleting account
@@ -1344,6 +1406,7 @@ delete_account_auth_title:
   th: ยืนยันการลบบัญชี
   cs: Potvrdit smazání účtu
   sv: Bekräfta kontoborttagning
+  he: אישור מחיקת חשבון
   verified_by_human: []
 delete_account_auth_description:
   context: Description for the SecurityAuth modal when deleting account
@@ -1367,6 +1430,7 @@ delete_account_auth_description:
   th: กรุณายืนยันตัวตนเพื่อยืนยันว่าคุณต้องการลบบัญชีของคุณอย่างถาวร
   cs: Prosím, ověřte se, abyste potvrdili, že chcete trvale smazat svůj účet.
   sv: Vänligen autentisera för att bekräfta att du vill ta bort ditt konto permanent.
+  he: יש לבצע אימות כדי לאשר שברצונך למחוק את חשבונך לצמיתות.
   verified_by_human: []
 delete_account_auth_failed:
   context: Error message when authentication fails during account deletion
@@ -1390,6 +1454,7 @@ delete_account_auth_failed:
   th: การยืนยันตัวตนล้มเหลว กรุณาลองอีกครั้ง
   cs: Autentizace selhala. Zkuste to prosím znovu.
   sv: Autentiseringen misslyckades. Försök igen.
+  he: האימות נכשל. יש לנסות שוב.
   verified_by_human: []
 delete_account_success:
   context: Success message when account deletion is initiated
@@ -1413,6 +1478,7 @@ delete_account_success:
   th: เริ่มการลบบัญชีแล้ว คุณจะถูกออกจากระบบในไม่ช้า
   cs: Mazání účtu zahájeno. Brzy budete odhlášeni.
   sv: Kontoborttagning påbörjad. Du kommer snart att loggas ut.
+  he: תהליך מחיקת החשבון החל. תנותק מהמערכת בקרוב.
   verified_by_human: []
 
 # --- Export Account (GDPR Article 20 - Data Portability) ---
@@ -1438,6 +1504,7 @@ export:
   th: ส่งออก
   cs: Exportovat
   sv: Exportera
+  he: ייצוא
   verified_by_human: []
 export_title:
   context: Title for export data page
@@ -1461,6 +1528,7 @@ export_title:
   th: ส่งออกข้อมูลของคุณ
   cs: Exportovat vaše data
   sv: Exportera dina data
+  he: ייצוא הנתונים שלך
   verified_by_human: []
 export_description:
   context: Description for export data page
@@ -1484,6 +1552,7 @@ export_description:
   th: ดาวน์โหลดข้อมูลทั้งหมดของคุณในรูปแบบที่พกพาได้ รวมถึงการแชท ข้อความ ใบแจ้งหนี้ ประวัติการใช้งาน และการตั้งค่า
   cs: Stáhněte si všechna svá data v přenosném formátu. Zahrnuje vaše chaty, zprávy, faktury, historii použití a nastavení.
   sv: Ladda ner all din data i ett portabelt format. Detta inkluderar dina chattar, meddelanden, fakturor, användningshistorik och inställningar.
+  he: "הורד את כל הנתונים שלך בפורמט נייד. זה כולל את הצ'אטים, ההודעות, החשבוניות, היסטוריית השימוש וההגדרות שלך."
   verified_by_human: []
 export_includes_title:
   context: Title for what's included section
@@ -1507,6 +1576,7 @@ export_includes_title:
   th: สิ่งที่รวมอยู่
   cs: Co je zahrnuto
   sv: Vad som ingår
+  he: מה כלול
   verified_by_human: []
 export_includes_chats:
   context: Chats included in export
@@ -1530,6 +1600,7 @@ export_includes_chats:
   th: การแชทและการสนทนาทั้งหมดของคุณ
   cs: Všechny vaše chaty a konverzace
   sv: Alla dina chattar och konversationer
+  he: "כל הצ'אטים והשיחות שלך"
   verified_by_human: []
 export_includes_invoices:
   context: Invoices included in export
@@ -1553,6 +1624,7 @@ export_includes_invoices:
   th: ประวัติใบแจ้งหนี้และไฟล์ PDF
   cs: Historie faktur a PDF soubory
   sv: Fakturahistorik och PDF-filer
+  he: היסטוריית חשבוניות וקבצי PDF
   verified_by_human: []
 export_includes_usage:
   context: Usage history included in export
@@ -1576,6 +1648,7 @@ export_includes_usage:
   th: ประวัติการใช้งานและการทำธุรกรรมเครดิต
   cs: Historie použití a kreditové transakce
   sv: Användningshistorik och kredittransaktioner
+  he: היסטוריית שימוש ועסקאות קרדיט
   verified_by_human: []
 export_includes_settings:
   context: Settings included in export
@@ -1599,6 +1672,7 @@ export_includes_settings:
   th: การตั้งค่าแอปและความทรงจำ AI
   cs: Nastavení aplikací a AI vzpomínky
   sv: Appinställningar och AI-minnen
+  he: הגדרות אפליקציה וזיכרונות AI
   verified_by_human: []
 export_includes_profile:
   context: Profile included in export
@@ -1622,6 +1696,7 @@ export_includes_profile:
   th: โปรไฟล์และการตั้งค่าของคุณ
   cs: Váš profil a preference
   sv: Din profil och preferenser
+  he: הפרופיל וההעדפות שלך
   verified_by_human: []
 export_gdpr_notice:
   context: GDPR compliance notice
@@ -1645,6 +1720,7 @@ export_gdpr_notice:
   th: การส่งออกนี้จัดทำตามมาตรา 20 ของ GDPR (สิทธิ์ในการพกพาข้อมูล) ข้อมูลของคุณถูกส่งออกในรูปแบบที่มีโครงสร้างและเครื่องสามารถอ่านได้
   cs: Tento export je poskytován v souladu s článkem 20 GDPR (Právo na přenositelnost údajů). Vaše data jsou exportována ve strukturovaném, strojově čitelném formátu.
   sv: Denna export tillhandahålls i enlighet med GDPR artikel 20 (Rätt till dataportabilitet). Din data exporteras i ett strukturerat, maskinläsbart format.
+  he: ייצוא זה מסופק בהתאם לסעיף 20 של ה-GDPR (הזכות לניידות נתונים). הנתונים שלך מיוצאים בפורמט מובנה וקריא על ידי מכונה.
   verified_by_human: []
 export_button:
   context: Export button text
@@ -1668,6 +1744,7 @@ export_button:
   th: ส่งออกข้อมูลของฉัน
   cs: Exportovat má data
   sv: Exportera mina data
+  he: ייצוא הנתונים שלי
   verified_by_human: []
 exporting:
   context: Exporting in progress
@@ -1691,6 +1768,7 @@ exporting:
   th: กำลังส่งออก...
   cs: Exportování...
   sv: Exporterar...
+  he: מייצא...
   verified_by_human: []
 export_success:
   context: Export completed successfully
@@ -1714,6 +1792,7 @@ export_success:
   th: ส่งออกเสร็จสมบูรณ์! การดาวน์โหลดของคุณควรเริ่มต้นโดยอัตโนมัติ
   cs: Export dokončen! Stahování by mělo začít automaticky.
   sv: Export slutförd! Din nedladdning bör starta automatiskt.
+  he: "הייצוא הושלם! ההורדה אמורה להתחיל באופן אוטומטי."
   verified_by_human: []
 export_failed:
   context: Export failed message
@@ -1737,6 +1816,7 @@ export_failed:
   th: ส่งออกล้มเหลว กรุณาลองอีกครั้ง
   cs: Export selhal. Zkuste to prosím znovu.
   sv: Export misslyckades. Försök igen.
+  he: הייצוא נכשל. יש לנסות שוב.
   verified_by_human: []
 export_another:
   context: Button to start another export
@@ -1760,6 +1840,7 @@ export_another:
   th: ส่งออกอีกครั้ง
   cs: Exportovat znovu
   sv: Exportera igen
+  he: ייצוא מחדש
   verified_by_human: []
 export_requires_login:
   context: Message when user needs to log in
@@ -1783,6 +1864,7 @@ export_requires_login:
   th: กรุณาเข้าสู่ระบบเพื่อส่งออกข้อมูลของคุณ
   cs: Pro export dat se prosím přihlaste.
   sv: Logga in för att exportera dina data.
+  he: יש להתחבר כדי לייצא את הנתונים שלך.
   verified_by_human: []
 export_login_required:
   context: Notice for non-authenticated users
@@ -1806,6 +1888,7 @@ export_login_required:
   th: คุณต้องเข้าสู่ระบบเพื่อส่งออกข้อมูลของคุณ
   cs: Pro export dat musíte být přihlášeni.
   sv: Du måste vara inloggad för att exportera dina data.
+  he: עליך להיות מחובר כדי לייצא את הנתונים שלך.
   verified_by_human: []
 
 # --- Password Settings ---
@@ -1831,6 +1914,7 @@ password:
   th: รหัสผ่าน
   cs: Heslo
   sv: Lösenord
+  he: סיסמה
   verified_by_human: []
 password_add:
   context: Subtitle when user needs to add password
@@ -1854,6 +1938,7 @@ password_add:
   th: เพิ่มการเข้าสู่ระบบด้วยรหัสผ่าน
   cs: Přidat přihlášení heslem
   sv: Lägg till lösenordsinloggning
+  he: הוספת התחברות עם סיסמה
   verified_by_human: []
 password_change:
   context: Subtitle when user already has password
@@ -1877,6 +1962,7 @@ password_change:
   th: เปลี่ยนรหัสผ่าน
   cs: Změnit heslo
   sv: Ändra lösenord
+  he: שינוי הסיסמה שלך
   verified_by_human: []
 add_password:
   context: Title for add password page
@@ -1900,6 +1986,7 @@ add_password:
   th: เพิ่มรหัสผ่าน
   cs: Přidat heslo
   sv: Lägg till lösenord
+  he: הוספת סיסמה
   verified_by_human: []
 change_password:
   context: Title for change password page
@@ -1923,6 +2010,7 @@ change_password:
   th: เปลี่ยนรหัสผ่าน
   cs: Změnit heslo
   sv: Ändra lösenord
+  he: שינוי סיסמה
   verified_by_human: []
 
 delete_account_uncompleted_title:
@@ -1934,6 +2022,7 @@ delete_account_uncompleted_title:
   ja: 未完了のアカウントを削除
   zh: 删除未完成的账户
   ar: حذف الحساب غير المكتمل
+  he: מחיקת חשבון שלא הושלם
 delete_account_uncompleted_message:
   context: Message for uncompleted account deletion
   en: This account hasn't completed the signup process yet. You can delete it now without logging in.
@@ -1943,6 +2032,7 @@ delete_account_uncompleted_message:
   ja: このアカウントはまだサインアッププロセスを完了していません。ログインせずに今すぐ削除できます。
   zh: 此账户尚未完成注册流程。您现在可以在不登录的情况下将其删除。
   ar: لم يكتمل هذا الحساب عملية التسجيل بعد. يمكنك حذفه الآن دون تسجيل الدخول.
+  he: חשבון זה טרם השלים את תהליך ההרשמה. ניתן למחוק אותו כעת ללא צורך בהתחברות.
 delete_account_login_required_title:
   context: Title when login is required for account deletion
   en: Login required
@@ -1952,6 +2042,7 @@ delete_account_login_required_title:
   ja: ログインが必要です
   zh: 需要登录
   ar: تسجيل الدخول مطلوب
+  he: נדרשת התחברות
 delete_account_login_required_message:
   context: Message when login is required for account deletion
   en: This account has completed signup or has credits/usage. Please log in to delete it using the regular interface.
@@ -1961,6 +2052,7 @@ delete_account_login_required_message:
   ja: このアカウントはサインアップを完了しているか、クレジットまたは使用履歴があります。通常のインターフェースを使用して削除するには、ログインしてください。
   zh: 此账户已完成注册或有信用/使用记录。请登录后使用常规界面将其删除。
   ar: أكمل هذا الحساب عملية التسجيل أو لديه رصيد/استخدام. يرجى تسجيل الدخول لحذفه عبر الواجهة العادية.
+  he: חשבון זה השלים את ההרשמה או שיש בו קרדיטים/שימוש. עליך להתחבר כדי למחוק אותו דרך הממשק הרגיל.
 delete_account_status_error:
   context: Error message when checking account status fails
   en: Failed to check account status. Please try again later.
@@ -1972,6 +2064,7 @@ delete_account_status_error:
   ar: فشل التحقق من حالة الحساب. يرجى المحاولة مرة أخرى لاحقًا.
 
 # --- Timezone Settings ---
+  he: בדיקת סטטוס החשבון נכשלה. כדאי לנסות שוב מאוחר יותר.
 timezone:
   context: Timezone settings menu item in account section
   en: Timezone
@@ -1994,6 +2087,7 @@ timezone:
   th: ""
   cs: ""
   sv: ""
+  he: אזור זמן
   verified_by_human: []
 timezone_current:
   context: Label for current timezone display
@@ -2017,6 +2111,7 @@ timezone_current:
   th: ""
   cs: ""
   sv: ""
+  he: אזור זמן נוכחי
   verified_by_human: []
 timezone_use_browser:
   context: Button to use browser detected timezone
@@ -2040,6 +2135,7 @@ timezone_use_browser:
   th: ""
   cs: ""
   sv: ""
+  he: שימוש באזור הזמן של הדפדפן
   verified_by_human: []
 timezone_saved:
   context: Success message when timezone is saved
@@ -2063,6 +2159,7 @@ timezone_saved:
   th: ""
   cs: ""
   sv: ""
+  he: אזור הזמן נשמר
   verified_by_human: []
 timezone_loading:
   context: Loading message for timezone settings
@@ -2086,6 +2183,7 @@ timezone_loading:
   th: ""
   cs: ""
   sv: ""
+  he: טוען הגדרות אזור זמן...
   verified_by_human: []
 timezone_other:
   context: Header for other/custom timezones not in predefined list
@@ -2109,6 +2207,7 @@ timezone_other:
   th: ""
   cs: ""
   sv: ""
+  he: אחר
   verified_by_human: []
 timezone_info:
   context: Info text explaining timezone usage
@@ -2132,4 +2231,5 @@ timezone_info:
   th: ""
   cs: ""
   sv: ""
+  he: אזור הזמן שלך משמש לתזמון תזכורות ולהצגת זמנים. הוא זוהה אוטומטית מהדפדפן שלך, אך ניתן לשנות אותו כאן.
   verified_by_human: []

@@ -20,6 +20,7 @@ storage:
   th: การจัดเก็บ
   cs: Úložiště
   sv: Lagring
+  he: אחסון
   verified_by_human: []
 storage_title:
   context: Title for the storage overview settings page
@@ -43,6 +44,7 @@ storage_title:
   th: การจัดเก็บ
   cs: Úložiště
   sv: Lagring
+  he: אחסון
   verified_by_human: []
 storage_loading:
   context: Loading state message while fetching storage usage data
@@ -66,6 +68,7 @@ storage_loading:
   th: กำลังโหลดการใช้พื้นที่เก็บข้อมูล…
   cs: Načítám využití úložiště…
   sv: Laddar lagringsutnyttjande…
+  he: טוען נתוני שימוש באחסון...
   verified_by_human: []
 storage_error:
   context: Error message displayed when storage usage data fails to load
@@ -89,6 +92,7 @@ storage_error:
   th: ไม่สามารถโหลดการใช้พื้นที่เก็บข้อมูลได้ โปรดลองอีกครั้ง
   cs: Nepodařilo se načíst využití úložiště. Zkuste to prosím znovu.
   sv: Det gick inte att ladda lagringsutnyttjandet. Försök igen.
+  he: טעינת נתוני השימוש באחסון נכשלה. יש לנסות שוב.
   verified_by_human: []
 storage_total_used:
   context: "Label showing how much total storage the user is using out of the free tier. {used} = formatted size used, {free} = free tier size."
@@ -112,6 +116,7 @@ storage_total_used:
   th: "ใช้ {used} จาก {free} ฟรี"
   cs: "{used} použito z {free} zdarma"
   sv: "{used} används av {free} gratis"
+  he: "{used} בשימוש מתוך {free} בחינם"
   verified_by_human: []
 storage_free_tier_label:
   context: Label for the free storage tier section
@@ -135,6 +140,7 @@ storage_free_tier_label:
   th: ระดับฟรี
   cs: Bezplatná úroveň
   sv: Gratisplan
+  he: מסלול חינמי
   verified_by_human: []
 storage_within_free_tier:
   context: Message shown when the user's storage usage is within the free 1 GB tier
@@ -158,6 +164,7 @@ storage_within_free_tier:
   th: คุณอยู่ในระดับพื้นที่เก็บข้อมูลฟรี — ไม่มีการเรียกเก็บเงิน
   cs: Jste v bezplatné úrovni úložiště — žádné poplatky se neúčtují.
   sv: Du befinner dig i den gratis lagringsnivån — inga avgifter tillämpas.
+  he: השימוש שלך הוא במסגרת המסלול החינמי — לא יחולו חיובים.
   verified_by_human: []
 storage_billable:
   context: Label for billable storage above the free tier
@@ -181,6 +188,7 @@ storage_billable:
   th: พื้นที่เก็บข้อมูลที่ต้องชำระ
   cs: Zpoplatněné úložiště
   sv: Fakturerbart lagringsutrymme
+  he: אחסון לחיוב
   verified_by_human: []
 storage_weekly_cost:
   context: Label for the weekly storage cost in credits
@@ -204,6 +212,7 @@ storage_weekly_cost:
   th: ค่าใช้จ่ายรายสัปดาห์
   cs: Týdenní náklady
   sv: Veckokostnad
+  he: עלות שבועית
   verified_by_human: []
 storage_credits_per_week:
   context: Inline value for weekly cost in credits (e.g. "6 credits / week"). {credits} is a number.
@@ -227,6 +236,7 @@ storage_credits_per_week:
   th: "{credits} เครดิต / สัปดาห์"
   cs: "{credits} kreditů / týden"
   sv: "{credits} krediter / vecka"
+  he: "{credits} קרדיטים לשבוע"
   verified_by_human: []
 storage_next_billing:
   context: Label for the next billing date
@@ -250,6 +260,7 @@ storage_next_billing:
   th: การเรียกเก็บเงินครั้งถัดไป
   cs: Příští fakturace
   sv: Nästa fakturering
+  he: חיוב הבא
   verified_by_human: []
 storage_last_billed:
   context: Label for the date the user was last charged for storage
@@ -273,6 +284,7 @@ storage_last_billed:
   th: ล่าสุดที่เรียกเก็บเงิน
   cs: Naposledy fakturováno
   sv: Senast fakturerat
+  he: חיוב אחרון
   verified_by_human: []
 storage_category_images:
   context: Storage category label for image files
@@ -296,6 +308,7 @@ storage_category_images:
   th: รูปภาพ
   cs: Obrázky
   sv: Bilder
+  he: תמונות
   verified_by_human: []
 storage_category_videos:
   context: Storage category label for video files
@@ -319,6 +332,7 @@ storage_category_videos:
   th: วิดีโอ
   cs: Videa
   sv: Videor
+  he: סרטונים
   verified_by_human: []
 storage_category_audio:
   context: Storage category label for audio files
@@ -342,6 +356,7 @@ storage_category_audio:
   th: เสียง
   cs: Zvuk
   sv: Ljud
+  he: אודיו
   verified_by_human: []
 storage_category_pdf:
   context: Storage category label for PDF files
@@ -365,6 +380,7 @@ storage_category_pdf:
   th: PDF
   cs: PDF
   sv: PDF
+  he: PDF
   verified_by_human: []
 storage_category_code:
   context: Storage category label for code and text files
@@ -388,6 +404,7 @@ storage_category_code:
   th: โค้ดและข้อความ
   cs: Kód a Text
   sv: Kod och Text
+  he: קוד וטקסט
   verified_by_human: []
 storage_category_docs:
   context: Storage category label for word processor document files (e.g. Word, ODT)
@@ -411,6 +428,7 @@ storage_category_docs:
   th: เอกสาร
   cs: Dokumenty
   sv: Dokument
+  he: מסמכים
   verified_by_human: []
 storage_category_sheets:
   context: Storage category label for spreadsheet files (e.g. Excel, ODS)
@@ -434,6 +452,7 @@ storage_category_sheets:
   th: สเปรดชีต
   cs: Tabulky
   sv: Kalkylblad
+  he: גיליונות אלקטרוניים
   verified_by_human: []
 storage_category_archives:
   context: Storage category label for archive/compressed files (e.g. ZIP, TAR, 7Z)
@@ -457,6 +476,7 @@ storage_category_archives:
   th: ไฟล์บีบอัด
   cs: Archivy
   sv: Arkiv
+  he: ארכיונים
   verified_by_human: []
 storage_category_other:
   context: Storage category label for other/uncategorized files
@@ -480,6 +500,7 @@ storage_category_other:
   th: อื่นๆ
   cs: Ostatní
   sv: Övrigt
+  he: אחר
   verified_by_human: []
 storage_files_count:
   context: Number of files in a storage category (e.g. "3 files"). {count} is a number.
@@ -503,6 +524,7 @@ storage_files_count:
   th: "{count} ไฟล์"
   cs: "{count} souborů"
   sv: "{count} filer"
+  he: "{count} קבצים"
   verified_by_human: []
 storage_invoice_notice:
   context: Info notice shown below the breakdown explaining that invoice PDFs are stored separately and not listed here — users are not charged for them and they are auto-deleted after 10 years per German tax law (§147 AO)
@@ -526,6 +548,7 @@ storage_invoice_notice:
   th: ไฟล์ PDF ใบแจ้งหนี้ไม่ได้แสดงที่นี่ ถูกจัดเก็บแยกต่างหาก ฟรี และลบอัตโนมัติหลังจาก 10 ปีตามกฎหมายภาษีของเยอรมนี
   cs: PDF faktury nejsou zde uvedeny. Jsou uloženy odděleně, zdarma, a automaticky smazány po 10 letech dle německého daňového práva.
   sv: Faktura-PDF:er visas inte här. De lagras separat, kostnadsfritt, och raderas automatiskt efter 10 år enligt tysk skattelagstiftning.
+  he: חשבוניות PDF אינן מופיעות כאן. הן נשמרות בנפרד, ללא תשלום, ונמחקות אוטומטית לאחר 10 שנים כנדרש על פי חוקי המס בגרמניה.
   verified_by_human: []
 storage_delete_confirm:
   context: Label shown on a delete button after the first press, indicating a second press is needed to confirm. Matches the same pattern as chat deletion.
@@ -549,6 +572,7 @@ storage_delete_confirm:
   th: ยืนยัน?
   cs: Potvrdit?
   sv: Bekräfta?
+  he: "לאשר?"
   verified_by_human: []
 storage_breakdown_title:
   context: Section heading for the per-category storage breakdown list
@@ -572,6 +596,7 @@ storage_breakdown_title:
   th: แยกตามประเภท
   cs: Rozdělení podle typu
   sv: Uppdelning efter typ
+  he: פירוט לפי סוג
   verified_by_human: []
 storage_files_title:
   context: Section heading for the uploaded files list in storage settings
@@ -595,6 +620,7 @@ storage_files_title:
   th: ไฟล์ของคุณ
   cs: Vaše soubory
   sv: Dina filer
+  he: הקבצים שלך
   verified_by_human: []
 storage_files_loading:
   context: Loading spinner text while fetching the file list for a selected category
@@ -618,6 +644,7 @@ storage_files_loading:
   th: กำลังโหลดไฟล์…
   cs: Načítání souborů…
   sv: Läser in filer…
+  he: טוען קבצים...
   verified_by_human: []
 storage_files_empty:
   context: Message shown when the user has no uploaded files in the selected category
@@ -641,6 +668,7 @@ storage_files_empty:
   th: ยังไม่มีไฟล์ที่อัปโหลด
   cs: Zatím nebyly nahrány žádné soubory.
   sv: Inga filer uppladdade ännu.
+  he: טרם הועלו קבצים.
   verified_by_human: []
 storage_filter_all:
   context: Label for the "All" tab in the file type filter row (shows all file types)
@@ -664,6 +692,7 @@ storage_filter_all:
   th: ทั้งหมด
   cs: Vše
   sv: Alla
+  he: הכול
   verified_by_human: []
 storage_delete_file:
   context: Accessible label for the delete button on an individual file row
@@ -687,6 +716,7 @@ storage_delete_file:
   th: ลบไฟล์
   cs: Smazat soubor
   sv: Radera fil
+  he: מחיקת קובץ
   verified_by_human: []
 storage_delete_category:
   context: Button label for deleting all files in the currently selected category. {category} is the localised category name (e.g. "Images").
@@ -710,6 +740,7 @@ storage_delete_category:
   th: ลบทั้งหมด {category}
   cs: Smazat vše {category}
   sv: Radera alla {category}
+  he: "מחיקת כל ה-{category}"
   verified_by_human: []
 storage_delete_all:
   context: Button label for deleting ALL uploaded files regardless of type
@@ -733,6 +764,7 @@ storage_delete_all:
   th: ลบไฟล์ทั้งหมด
   cs: Smazat všechny soubory
   sv: Radera alla filer
+  he: מחיקת כל הקבצים
   verified_by_human: []
 storage_delete_confirm_single:
   context: Confirmation dialog text when deleting a single file. {filename} is the file name, {size} is the formatted size (e.g. "2.5 MB").
@@ -756,6 +788,7 @@ storage_delete_confirm_single:
   th: ลบ {filename} ({size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้
   cs: "Smazat {filename} ({size})? Tuto akci nelze vrátit zpět."
   sv: "Radera {filename} ({size})? Det går inte att ångra."
+  he: "למחוק את {filename} ({size})? לא ניתן לבטל פעולה זו."
   verified_by_human: []
 storage_delete_confirm_category:
   context: Confirmation dialog text when deleting all files in a category. {category} is the category name, {count} is the number of files, {size} is total formatted size.
@@ -779,6 +812,7 @@ storage_delete_confirm_category:
   th: ลบไฟล์ {category} ทั้งหมด ({count} ไฟล์, {size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้
   cs: "Smazat všechny soubory {category} ({count} souborů, {size})? Tuto akci nelze vrátit zpět."
   sv: "Radera alla {category}-filer ({count} filer, {size})? Det går inte att ångra."
+  he: "למחוק את כל קבצי ה-{category} ({count} קבצים, {size})? לא ניתן לבטל פעולה זו."
   verified_by_human: []
 storage_delete_confirm_all:
   context: Confirmation dialog text when deleting ALL files. {count} is total file count, {size} is total formatted size.
@@ -802,6 +836,7 @@ storage_delete_confirm_all:
   th: ลบไฟล์ทั้งหมด {count} ไฟล์ ({size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้
   cs: "Smazat všechny {count} soubory ({size})? Tuto akci nelze vrátit zpět."
   sv: "Radera alla {count} filer ({size})? Det går inte att ångra."
+  he: "למחוק את כל {count} הקבצים ({size})? לא ניתן לבטל פעולה זו."
   verified_by_human: []
 storage_delete_success:
   context: Success message after deleting files. {count} is number deleted, {size} is bytes freed formatted.
@@ -825,6 +860,7 @@ storage_delete_success:
   th: "ลบ {count} ไฟล์แล้ว ({size} ว่างขึ้น)"
   cs: "Smazáno {count} souborů ({size} uvolněno)."
   sv: "{count} fil(er) raderades ({size} frigjordes)."
+  he: "{count} קבצים נמחקו ({size} התפנו)."
   verified_by_human: []
 storage_delete_error:
   context: Error message when file deletion fails
@@ -848,4 +884,5 @@ storage_delete_error:
   th: ไม่สามารถลบไฟล์ได้ กรุณาลองอีกครั้ง
   cs: Nepodařilo se smazat soubory. Zkuste to prosím znovu.
   sv: Det gick inte att radera filerna. Försök igen.
+  he: מחיקת הקבצים נכשלה. כדאי לנסות שוב.
   verified_by_human: []

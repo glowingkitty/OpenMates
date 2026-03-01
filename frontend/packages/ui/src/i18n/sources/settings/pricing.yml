@@ -20,6 +20,7 @@ packages_heading:
   th: ""
   cs: ""
   sv: ""
+  he: חבילות קרדיטים
   verified_by_human: []
 recommended:
   context: Badge label for the recommended credit package
@@ -43,6 +44,7 @@ recommended:
   th: ""
   cs: ""
   sv: ""
+  he: מומלץ
   verified_by_human: []
 bonus_credits:
   context: Label for bonus credits that come with a monthly auto top-up subscription
@@ -66,6 +68,7 @@ bonus_credits:
   th: ""
   cs: ""
   sv: ""
+  he: בונוס/חודש עם טעינה אוטומטית
   verified_by_human: []
 vat_note:
   context: Small footnote on the Pricing page indicating prices are excluding VAT
@@ -89,6 +92,7 @@ vat_note:
   th: ""
   cs: ""
   sv: ""
+  he: "כל המחירים אינם כוללים מע\"מ. מחירים ב-EUR וב-USD."
   verified_by_human: []
 explore_heading:
   context: Section heading for the App Store exploration links on the Pricing page
@@ -112,6 +116,7 @@ explore_heading:
   th: ""
   cs: ""
   sv: ""
+  he: גלה יכולות ועלויות
   verified_by_human: []
 ai_ask_skill:
   context: Title for the AI Ask skill link on the Pricing page
@@ -135,6 +140,7 @@ ai_ask_skill:
   th: ""
   cs: ""
   sv: ""
+  he: AI Ask
   verified_by_human: []
 ai_ask_subtitle:
   context: Subtitle for the AI Ask skill link on the Pricing page — explains it is the main cost driver
@@ -158,6 +164,7 @@ ai_ask_subtitle:
   th: ""
   cs: ""
   sv: ""
+  he: גורם העלות העיקרי — גלה את מחירי המודלים
   verified_by_human: []
 browse_app_store:
   context: Title for the App Store link on the Pricing page
@@ -181,6 +188,7 @@ browse_app_store:
   th: ""
   cs: ""
   sv: ""
+  he: עיון בחנות האפליקציות
   verified_by_human: []
 browse_app_store_subtitle:
   context: Subtitle for the App Store link on the Pricing page — tells user they can see per-skill pricing
@@ -204,4 +212,5 @@ browse_app_store_subtitle:
   th: ""
   cs: ""
   sv: ""
+  he: צפה במחירים של כל היכולות הזמינות
   verified_by_human: []

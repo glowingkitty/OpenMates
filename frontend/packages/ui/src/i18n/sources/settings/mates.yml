@@ -25,6 +25,7 @@ mates:
   th: ""
   cs: ""
   sv: ""
+  he: Mates
   verified_by_human: []
 
 chat_with_mate:
@@ -49,6 +50,7 @@ chat_with_mate:
   th: ""
   cs: ""
   sv: ""
+  he: "צ'אט עם {mate_name}"
   verified_by_human: []
 
 system_prompt_heading:
@@ -73,6 +75,7 @@ system_prompt_heading:
   th: ""
   cs: ""
   sv: ""
+  he: הוראות
   verified_by_human: []
 
 show_full_prompt:
@@ -97,6 +100,7 @@ show_full_prompt:
   th: ""
   cs: ""
   sv: ""
+  he: הצג הנחיית מערכת מלאה
   verified_by_human: []
 
 hide_full_prompt:
@@ -121,6 +125,7 @@ hide_full_prompt:
   th: ""
   cs: ""
   sv: ""
+  he: הסתר הנחיית מערכת מלאה
   verified_by_human: []
 
 no_description:
@@ -145,6 +150,7 @@ no_description:
   th: ""
   cs: ""
   sv: ""
+  he: אין תיאור זמין.
   verified_by_human: []
 
 mate_not_found:
@@ -169,4 +175,5 @@ mate_not_found:
   th: ""
   cs: ""
   sv: ""
+  he: ה-Mate לא נמצא.
   verified_by_human: []

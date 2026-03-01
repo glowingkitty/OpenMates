@@ -20,6 +20,7 @@ title:
   th: ใครพัฒนา OpenMates?
   cs: Kdo vyvíjí OpenMates?
   sv: Vem utvecklar OpenMates?
+  he: "מי מפתח את OpenMates?"
   verified_by_human: []
 description:
   context: Description of who_develops_openmates demo chat for SEO
@@ -43,6 +44,7 @@ description:
   th: พบกับผู้สร้าง OpenMates และเรียนรู้เกี่ยวกับปรัชญาเบื้องหลังโครงการ
   cs: Poznejte tvůrce OpenMates a zjistěte, jaká filozofie stojí za projektem
   sv: Möt skaparen av OpenMates och lär dig om filosofin bakom projektet
+  he: הכירו את היוצר של OpenMates ולמדו על הפילוסופיה שמאחורי הפרויקט
   verified_by_human: []
 message:
   context: Main who_develops_openmates message content introducing the creator and philosophy
@@ -606,6 +608,24 @@ message:
     Ser fram emot de kommande månaderna. Det kommer att bli en spännande resa :)
 
     "
+  he: |
+    # 👋 מי מפתח את OpenMates?
+    
+    שלום!
+    כאן מרקו (הידוע גם כ-[glowingkitty](https://github.com/glowingkitty)). מעצב, ארכיטקט תוכנה, מייקר. והיוצר של OpenMates.
+    
+    לכולנו יש חלק בחוויות מתסכלות עם חברות טכנולוגיה גדולות. בין אם זה בגלל עיצוב חוויית משתמש גרוע, מנויים חובה עם מחירים שרק עולים, פרסומות, גניבת נתוני משתמשים בגלל אבטחה לקויה, מכירת נתוני משתמשים, בניית מוצרים ממכרים באותה מידה שהם שימושיים - והרשימה עוד ארוכה.
+    
+    אבל תוכנה לא חייבת להיות כל כך מתסכלת, ומפתחים רבים (במיוחד בקהילת הקוד הפתוח) מוכיחים זאת מדי יום עם פרויקטים מדהימים. מצד אחד, אני נרגש מהפוטנציאל לתת לכולם גישה לעוזרים אישיים שיכולים לעשות הכל - החל מעזרה בלמידת נושאים חדשים, חיפוש באינטרנט, תכנון טיולים, קבלת ייעוץ קריירה, בניית תוכנה ועוד הרבה יותר - אך מצד שני, אני מודאג מכך שחברות הטכנולוגיה הגדולות הן אלו שיגדירו וישלטו בעתיד הזה. כי החברות האלו הוכיחו שוב ושוב שאי אפשר לסמוך עליהן שיתעדפו את האינטרסים של המשתמשים על פני האינטרסים של המשקיעים.
+    
+    לכן, לקראת סוף 2024, התחלתי לעבוד על פרויקט אישי. חלופה טובה יותר לצ'אטבוטים / סוכני AI קיימים. עם דגש על האינטרסים של המשתמשים כעדיפות עליונה, עיצוב חוויית משתמש טוב יותר, פרטיות והצפנה משופרות, עצמאות מספקי AI בודדים, התמקדות בחינוך ובהשראה, ומטרה כללית להנגיש את ההיבטים השימושיים של AI לאנשים רגילים למשימות יומיומיות. במקום לבנות עוד "מכונת זבל" שגורמת לכולם להתמכר והופכת את האינטרנט לאומלל יותר לשימוש. ועכשיו, זה באוויר. כן, זו עדיין גרסת אלפא עם כמה באגים ופיצ'רים חסרים, אבל זה משתפר מדי שבוע.
+    
+    אה, וכמובן ש-OpenMates היא בקוד פתוח מלא. כי זה הבסיס לכל תוכנה שרוצה להבטיח עמידות בפני "enshittification" (התדרדרות השירות) ולתעדף את האינטרסים של המשתמשים גם בעתיד.
+    
+    אם ברצונך להצטרף למסע הזה כמשתמש/ת, תודה רבה וברוך הבא!
+    אם ברצונך להצטרף למסע הזה כתורם/ת וכחבר/ת צוות פוטנציאלי/ת - כדאי לבדוק את [מאגר הגיט של OpenMates](https://github.com/glowingkitty/openmates) ואת [קבוצת המפתחים שלנו](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq) - ואני מקווה לשמוע ממך!
+    
+    מצפה בקוצר רוח לחודשים הקרובים. זה הולך להיות מסע מרגש :)
   verified_by_human: []
 follow_up_1:
   context: Follow-up suggestion 1 - learn about the vision
@@ -629,6 +649,7 @@ follow_up_1:
   th: วิสัยทัศน์ระยะยาวสำหรับ OpenMates คืออะไร?
   cs: Jaká je dlouhodobá vize pro OpenMates?
   sv: Vad är den långsiktiga visionen för OpenMates?
+  he: "מהו החזון לטווח הארוך של OpenMates?"
   verified_by_human: []
 follow_up_2:
   context: Follow-up suggestion 2 - contributing
@@ -652,6 +673,7 @@ follow_up_2:
   th: ฉันจะมีส่วนร่วมใน OpenMates ได้อย่างไร?
   cs: Jak mohu přispět do OpenMates?
   sv: Hur kan jag bidra till OpenMates?
+  he: "איך אוכל לתרום ל-OpenMates?"
   verified_by_human: []
 follow_up_3:
   context: Follow-up suggestion 3 - open source details
@@ -675,4 +697,5 @@ follow_up_3:
   th: ทำไมโอเพ่นซอร์สถึงสำคัญสำหรับ OpenMates?
   cs: Proč je open source důležitý pro OpenMates?
   sv: Varför är open source viktigt för OpenMates?
+  he: "מדוע קוד פתוח חשוב ל-OpenMates?"
   verified_by_human: []

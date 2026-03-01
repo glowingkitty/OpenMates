@@ -20,6 +20,7 @@ open_settings_menu:
   th: ""
   cs: ""
   sv: ""
+  he: פתיחת תפריט ההגדרות
   verified_by_human: []
 close_settings_menu:
   context: Button text for closing settings menu
@@ -43,6 +44,7 @@ close_settings_menu:
   th: ""
   cs: ""
   sv: ""
+  he: סגירת תפריט ההגדרות
   verified_by_human: []
 search:
   context: Search settings input placeholder
@@ -66,6 +68,7 @@ search:
   th: ""
   cs: ""
   sv: ""
+  he: חיפוש
   verified_by_human: []
 add_credits:
   context: Button text for adding credits
@@ -89,6 +92,7 @@ add_credits:
   th: ""
   cs: ""
   sv: ""
+  he: הוספת קרדיטים
   verified_by_human: []
 credits:
   context: Link text in settings menu to add credits
@@ -112,6 +116,7 @@ credits:
   th: ""
   cs: ""
   sv: ""
+  he: קרדיטים
   verified_by_human: []
 settings:
   context: Header text in settings menu
@@ -135,6 +140,7 @@ settings:
   th: ""
   cs: ""
   sv: ""
+  he: הגדרות
   verified_by_human: []
 enabled:
   context: Status indicating a feature is enabled
@@ -158,6 +164,7 @@ enabled:
   th: ""
   cs: ""
   sv: ""
+  he: מופעל
   verified_by_human: []
 disabled:
   context: Status indicating a feature is disabled
@@ -181,6 +188,7 @@ disabled:
   th: ""
   cs: ""
   sv: ""
+  he: מושבת
   verified_by_human: []
 active:
   context: Status indicating a service is active
@@ -204,6 +212,7 @@ active:
   th: ""
   cs: ""
   sv: ""
+  he: פעיל
   verified_by_human: []
 team:
   context: Team toggle and menu item
@@ -227,6 +236,7 @@ team:
   th: ""
   cs: ""
   sv: ""
+  he: צוות
   verified_by_human: []
 incognito:
   context: Incognito mode toggle
@@ -250,6 +260,7 @@ incognito:
   th: ""
   cs: ""
   sv: ""
+  he: גלישה בסתר
   verified_by_human: []
 incognito_explainer_description:
   context: Description of what incognito mode does
@@ -273,6 +284,7 @@ incognito_explainer_description:
   th: ""
   cs: ""
   sv: ""
+  he: "מצב גלישה בסתר חל רק על צ'אטים חדשים שתיצור. צ'אטים חדשים שנוצרו בזמן שמצב גלישה בסתר פעיל אינם מסונכרנים בין מכשירים, אינם נשמרים בשרת ואינם נשמרים במטמון. צ'אטים אלו קיימים רק בהפעלת הדפדפן הנוכחית שלך. צ'אטים קיימים נותרים ללא שינוי."
   verified_by_human: []
 incognito_explainer_feature_device_specific:
   context: Feature explaining device-specific nature
@@ -296,6 +308,7 @@ incognito_explainer_feature_device_specific:
   th: ""
   cs: ""
   sv: ""
+  he: "ספציפי למכשיר: חל רק על לשונית דפדפן זו"
   verified_by_human: []
 incognito_explainer_feature_not_stored:
   context: Feature explaining chats are not stored
@@ -319,6 +332,7 @@ incognito_explainer_feature_not_stored:
   th: ""
   cs: ""
   sv: ""
+  he: "לא נשמר: הצ'אטים אינם נשמרים בשרת"
   verified_by_human: []
 incognito_explainer_feature_session_only:
   context: Feature explaining chats are session-only
@@ -342,6 +356,7 @@ incognito_explainer_feature_session_only:
   th: ""
   cs: ""
   sv: ""
+  he: "לסשן בלבד: הצ'אטים נעלמים כשסוגרים את הלשונית"
   verified_by_human: []
 incognito_explainer_feature_no_recovery:
   context: Feature warning about no recovery
@@ -365,6 +380,7 @@ incognito_explainer_feature_no_recovery:
   th: ""
   cs: ""
   sv: ""
+  he: "אין אפשרות שחזור: לא ניתן לשחזר צ'אטים שנמחקו במצב גלישה בסתר"
   verified_by_human: []
 incognito_explainer_warning_title:
   context: Title for the warning section about third-party providers
@@ -388,6 +404,7 @@ incognito_explainer_warning_title:
   th: ""
   cs: ""
   sv: ""
+  he: הודעת פרטיות חשובה
   verified_by_human: []
 incognito_explainer_warning_providers:
   context: Warning that chats are still sent to third-party AI providers
@@ -411,6 +428,7 @@ incognito_explainer_warning_providers:
   th: ""
   cs: ""
   sv: ""
+  he: "גם במצב גלישה בסתר, הצ'אטים שלך עדיין נשלחים לספקי ה-AI הנבחרים של צד שלישי כדי לעבד את הבקשות שלך. למרות שספקים אלו אינם יכולים לראות ישירות איזה משתמש שלח את הבקשה, ההודעות שלך עדיין מעובדות על ידי המערכות שלהם."
   verified_by_human: []
 incognito_explainer_warning_personal_info:
   context: Warning to not include personal information in incognito chats
@@ -434,6 +452,7 @@ incognito_explainer_warning_personal_info:
   th: ""
   cs: ""
   sv: ""
+  he: "מומלץ מאוד לא לכלול מידע אישי, נתונים רגישים או פרטים חסויים בצ'אטים במצב גלישה בסתר."
   verified_by_human: []
 incognito_mode_applies_to_new_chats_only:
   context: Banner message shown for non-incognito chats when incognito mode is active
@@ -457,6 +476,7 @@ incognito_mode_applies_to_new_chats_only:
   th: ""
   cs: ""
   sv: ""
+  he: "מצב גלישה בסתר חל על צ'אטים חדשים בלבד. לא על צ'אט זה."
   verified_by_human: []
 incognito_explainer_understood:
   context: Button text to close the explainer
@@ -480,6 +500,7 @@ incognito_explainer_understood:
   th: ""
   cs: ""
   sv: ""
+  he: הבנתי
   verified_by_human: []
 guest:
   context: Guest mode toggle
@@ -503,6 +524,7 @@ guest:
   th: ""
   cs: ""
   sv: ""
+  he: אורח
   verified_by_human: []
 offline:
   context: Offline mode toggle
@@ -526,6 +548,7 @@ offline:
   th: ""
   cs: ""
   sv: ""
+  he: אופליין
   verified_by_human: []
 user:
   context: User settings menu item
@@ -549,6 +572,7 @@ user:
   th: ""
   cs: ""
   sv: ""
+  he: משתמש
   verified_by_human: []
 usage:
   context: Usage statistics menu item
@@ -572,6 +596,7 @@ usage:
   th: ""
   cs: ""
   sv: ""
+  he: שימוש
   verified_by_human: []
 apps:
   context: Apps settings menu item
@@ -595,6 +620,7 @@ apps:
   th: ""
   cs: ""
   sv: ""
+  he: אפליקציות
   verified_by_human: []
 mates.description:
   context: Short description shown in the mates settings page gradient banner header
@@ -618,6 +644,7 @@ mates.description:
   th: ""
   cs: ""
   sv: ""
+  he: הגדר את חברי ה-AI שלך ואת האישיות שלהם
   verified_by_human: []
 mates:
   context: Mates settings menu item
@@ -641,6 +668,7 @@ mates:
   th: ""
   cs: ""
   sv: ""
+  he: חברים
   verified_by_human: []
 pricing.description:
   context: Short description shown in the pricing settings page gradient banner header (for unauthenticated users)
@@ -664,6 +692,7 @@ pricing.description:
   th: ""
   cs: ""
   sv: ""
+  he: גלה חבילות קרדיטים ועלויות של מיומנויות
   verified_by_human: []
 pricing:
   context: Pricing settings menu item (shown to unauthenticated users only)
@@ -687,6 +716,7 @@ pricing:
   th: ""
   cs: ""
   sv: ""
+  he: תמחור
   verified_by_human: []
 shared.description:
   context: Short description shown in the shared settings page gradient banner header
@@ -710,6 +740,7 @@ shared.description:
   th: ""
   cs: ""
   sv: ""
+  he: "נהל את הצ'אטים והטיפים המשותפים שלך"
   verified_by_human: []
 shared:
   context: Shared chats settings menu item
@@ -733,6 +764,7 @@ shared:
   th: ""
   cs: ""
   sv: ""
+  he: משותפים
   verified_by_human: []
 share:
   context: Share chat submenu title
@@ -756,6 +788,7 @@ share:
   th: แชร์
   cs: Sdílet
   sv: Dela
+  he: שתף
   verified_by_human: []
 fork:
   context: Fork conversation settings panel breadcrumb/title (opened from message context menu)
@@ -779,6 +812,7 @@ fork:
   th: แยกการสนทนา
   cs: Rozvětvit konverzaci
   sv: Förgrena konversation
+  he: פיצול שיחה
   verified_by_human: []
 messengers:
   context: Messengers settings menu item
@@ -802,6 +836,7 @@ messengers:
   th: ""
   cs: ""
   sv: ""
+  he: "מסנג'רים"
   verified_by_human: []
 developers:
   context: Developers settings menu item
@@ -825,6 +860,7 @@ developers:
   th: ""
   cs: ""
   sv: ""
+  he: מפתחים
   verified_by_human: []
 
 # Developer settings translations
@@ -836,6 +872,7 @@ developers_title:
   es: Configuración de Desarrollador
   fr: Paramètres Développeur
   ar: إعدادات المطور
+  he: הגדרות מפתח
   verified_by_human: []
 
 developers_description:
@@ -846,6 +883,7 @@ developers_description:
   es: Administre sus claves API y herramientas de desarrollador para integrar con OpenMates.
   fr: Gérez vos clés API et outils de développeur pour intégrer avec OpenMates.
   ar: إدارة مفاتيح API وأدوات المطور الخاصة بك للتكامل مع OpenMates.
+  he: נהל את מפתחות ה-API וכלי המפתחים שלך לשילוב עם OpenMates.
   verified_by_human: []
 
 developers_api_keys:
@@ -870,6 +908,7 @@ developers_api_keys:
   th: คีย์ API
   cs: API klíče
   sv: API-nycklar
+  he: מפתחות API
   verified_by_human: []
 
 developers_api_keys_description:
@@ -880,6 +919,7 @@ developers_api_keys_description:
   es: Cree y administre claves API para aplicaciones externas e integraciones.
   fr: Créez et gérez les clés API pour les applications externes et les intégrations.
   ar: إنشاء وإدارة مفاتيح API للتطبيقات وعمليات التكامل الخارجية.
+  he: צור ונהל מפתחות API עבור אפליקציות ואינטגרציות חיצוניות.
   verified_by_human: []
 
 developers_devices_text:
@@ -904,6 +944,7 @@ developers_devices_text:
   th: อุปกรณ์
   cs: Zařízení
   sv: Enheter
+  he: מכשירים
   verified_by_human: []
 
 developers_devices_description:
@@ -928,6 +969,7 @@ developers_devices_description:
   th: จัดการอุปกรณ์ที่สามารถใช้คีย์ API ของคุณ อนุมัติหรือเพิกถอนการเข้าถึงอุปกรณ์
   cs: Spravujte zařízení, která mohou používat vaše API klíče. Schvalte nebo odvolejte přístup zařízení.
   sv: Hantera enheter som kan använda dina API-nycklar. Godkänn eller återkalla enhetsåtkomst.
+  he: נהל מכשירים שיכולים להשתמש במפתחות ה-API שלך. אשר או בטל גישת מכשירים.
   verified_by_human: []
 
 developers_devices_loading:
@@ -952,6 +994,7 @@ developers_devices_loading:
   th: กำลังโหลดอุปกรณ์...
   cs: Načítání zařízení...
   sv: Laddar enheter...
+  he: טוען מכשירים...
   verified_by_human: []
 
 developers_devices_no_devices:
@@ -976,6 +1019,7 @@ developers_devices_no_devices:
   th: ไม่พบอุปกรณ์ อุปกรณ์จะปรากฏที่นี่เมื่อพยายามใช้คีย์ API ของคุณเป็นครั้งแรก
   cs: Nebyla nalezena žádná zařízení. Zařízení se zde zobrazí, když se poprvé pokusí použít vaše API klíče.
   sv: Inga enheter hittades. Enheter visas här när de först försöker använda dina API-nycklar.
+  he: לא נמצאו מכשירים. מכשירים יופיעו כאן כשינסו להשתמש במפתחות ה-API שלך בפעם הראשונה.
   verified_by_human: []
 
 developers_devices_status_approved:
@@ -1000,6 +1044,7 @@ developers_devices_status_approved:
   th: อนุมัติแล้ว
   cs: Schváleno
   sv: Godkänd
+  he: מאושר
   verified_by_human: []
 
 developers_devices_status_pending:
@@ -1024,6 +1069,7 @@ developers_devices_status_pending:
   th: รอการอนุมัติ
   cs: Čeká na schválení
   sv: Väntar på godkännande
+  he: ממתין לאישור
   verified_by_human: []
 
 developers_devices_first_access:
@@ -1048,6 +1094,7 @@ developers_devices_first_access:
   th: การเข้าถึงครั้งแรก
   cs: První přístup
   sv: Första åtkomst
+  he: גישה ראשונה
   verified_by_human: []
 
 developers_devices_last_access:
@@ -1072,6 +1119,7 @@ developers_devices_last_access:
   th: การเข้าถึงล่าสุด
   cs: Poslední přístup
   sv: Senaste åtkomst
+  he: גישה אחרונה
   verified_by_human: []
 
 developers_devices_approve:
@@ -1096,6 +1144,7 @@ developers_devices_approve:
   th: อนุมัติ
   cs: Schválit
   sv: Godkänn
+  he: אשר
   verified_by_human: []
 
 developers_devices_revoke:
@@ -1120,6 +1169,7 @@ developers_devices_revoke:
   th: เพิกถอน
   cs: Odvolat
   sv: Återkalla
+  he: בטל גישה
   verified_by_human: []
 
 developers_devices_confirm_revoke:
@@ -1144,6 +1194,7 @@ developers_devices_confirm_revoke:
   th: คุณแน่ใจหรือไม่ว่าต้องการเพิกถอนการเข้าถึงสำหรับอุปกรณ์นี้?
   cs: Opravdu chcete odvolat přístup pro toto zařízení?
   sv: Är du säker på att du vill återkalla åtkomsten för denna enhet?
+  he: "האם אתה בטוח שברצונך לבטל את הגישה למכשיר זה?"
   verified_by_human: []
 
 developers_devices_processing:
@@ -1168,6 +1219,7 @@ developers_devices_processing:
   th: กำลังประมวลผล...
   cs: Zpracování...
   sv: Bearbetar...
+  he: מעבד...
   verified_by_human: []
 
 developers_devices_access_type_rest_api:
@@ -1192,6 +1244,7 @@ developers_devices_access_type_rest_api:
   th: REST API
   cs: REST API
   sv: REST API
+  he: REST API
   verified_by_human: []
 
 developers_devices_access_type_cli:
@@ -1216,6 +1269,7 @@ developers_devices_access_type_cli:
   th: CLI
   cs: CLI
   sv: CLI
+  he: CLI
   verified_by_human: []
 
 developers_devices_access_type_pip:
@@ -1240,6 +1294,7 @@ developers_devices_access_type_pip:
   th: แพ็คเกจ pip
   cs: Balíček pip
   sv: pip Paket
+  he: חבילת pip
   verified_by_human: []
 
 developers_devices_access_type_npm:
@@ -1264,6 +1319,7 @@ developers_devices_access_type_npm:
   th: แพ็คเกจ npm
   cs: Balíček npm
   sv: npm Paket
+  he: חבילת npm
   verified_by_human: []
 
 developers_devices_rename:
@@ -1288,6 +1344,7 @@ developers_devices_rename:
   th: เปลี่ยนชื่อ
   cs: Přejmenovat
   sv: Byt namn
+  he: שנה שם
   verified_by_human: []
 
 developers_devices_save:
@@ -1312,6 +1369,7 @@ developers_devices_save:
   th: บันทึก
   cs: Uložit
   sv: Spara
+  he: שמור
   verified_by_human: []
 
 developers_devices_cancel:
@@ -1336,6 +1394,7 @@ developers_devices_cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 
 developers_devices_name_placeholder:
@@ -1360,6 +1419,7 @@ developers_devices_name_placeholder:
   th: "ใส่ชื่ออุปกรณ์ (เช่น: แล็ปท็อปทำงาน, เซิร์ฟเวอร์บ้าน)"
   cs: "Zadejte název zařízení (např. Pracovní notebook, Domácí server)"
   sv: Ange enhetsnamn (t.ex. Arbetslaptop, Hemserver)
+  he: הזן שם מכשיר (למשל, מחשב עבודה, שרת ביתי)
   verified_by_human: []
 
 developers_devices_rename_empty_error:
@@ -1384,6 +1444,7 @@ developers_devices_rename_empty_error:
   th: ชื่ออุปกรณ์ไม่สามารถว่างได้
   cs: Název zařízení nemůže být prázdný
   sv: Enhetsnamnet kan inte vara tomt
+  he: שם המכשיר לא יכול להיות ריק
   verified_by_human: []
 
 dark_mode:
@@ -1408,6 +1469,7 @@ dark_mode:
   th: ""
   cs: ""
   sv: ""
+  he: מצב כהה
   verified_by_human: []
 tooltips:
   context: Tooltips toggle
@@ -1431,6 +1493,7 @@ tooltips:
   th: ""
   cs: ""
   sv: ""
+  he: הסברים צפים
   verified_by_human: []
 keyboard_shortcuts:
   context: Keyboard shortcuts settings menu item
@@ -1454,6 +1517,7 @@ keyboard_shortcuts:
   th: ""
   cs: ""
   sv: ""
+  he: קיצורי מקלדת
   verified_by_human: []
 logout:
   context: Logout menu item
@@ -1477,6 +1541,7 @@ logout:
   th: ""
   cs: ""
   sv: ""
+  he: התנתקות
   verified_by_human: []
 docs:
   context: Documentation section header
@@ -1500,6 +1565,7 @@ docs:
   th: ""
   cs: ""
   sv: ""
+  he: תיעוד
   verified_by_human: []
 user_guide:
   context: User guide documentation link
@@ -1523,6 +1589,7 @@ user_guide:
   th: ""
   cs: ""
   sv: ""
+  he: מדריך למשתמש
   verified_by_human: []
 api_docs:
   context: API documentation link
@@ -1546,6 +1613,7 @@ api_docs:
   th: ""
   cs: ""
   sv: ""
+  he: תיעוד API
   verified_by_human: []
 contact:
   context: Contact section header
@@ -1569,6 +1637,7 @@ contact:
   th: ""
   cs: ""
   sv: ""
+  he: צור קשר
   verified_by_human: []
 discord:
   context: Discord contact link
@@ -1592,6 +1661,7 @@ discord:
   th: ""
   cs: ""
   sv: ""
+  he: Discord
   verified_by_human: []
 signal:
   context: Signal contact link
@@ -1615,6 +1685,7 @@ signal:
   th: ""
   cs: ""
   sv: ""
+  he: Signal
   verified_by_human: []
 github:
   context: GitHub contact link
@@ -1638,6 +1709,7 @@ github:
   th: ""
   cs: ""
   sv: ""
+  he: GitHub
   verified_by_human: []
 instagram:
   context: Instagram contact link
@@ -1661,6 +1733,7 @@ instagram:
   th: ""
   cs: ""
   sv: ""
+  he: Instagram
   verified_by_human: []
 mastodon:
   context: Mastodon contact link
@@ -1684,6 +1757,7 @@ mastodon:
   th: ""
   cs: ""
   sv: ""
+  he: Mastodon
   verified_by_human: []
 pixelfed:
   context: Pixelfed contact link
@@ -1707,6 +1781,7 @@ pixelfed:
   th: ""
   cs: ""
   sv: ""
+  he: Pixelfed
   verified_by_human: []
 element:
   context: Element contact link
@@ -1730,6 +1805,7 @@ element:
   th: ""
   cs: ""
   sv: ""
+  he: Element X
   verified_by_human: []
 meetup:
   context: Meetup contact link
@@ -1753,6 +1829,7 @@ meetup:
   th: ""
   cs: ""
   sv: ""
+  he: Meetup
   verified_by_human: []
 email:
   context: Email contact link
@@ -1776,6 +1853,7 @@ email:
   th: ""
   cs: ""
   sv: ""
+  he: אימייל
   verified_by_human: []
 legal:
   context: Legal section header
@@ -1799,6 +1877,7 @@ legal:
   th: ""
   cs: ""
   sv: ""
+  he: משפטי
   verified_by_human: []
 imprint:
   context: Imprint legal link
@@ -1822,6 +1901,7 @@ imprint:
   th: ""
   cs: ""
   sv: ""
+  he: פרטי העסק
   verified_by_human: []
 privacy:
   context: Privacy policy link
@@ -1845,6 +1925,7 @@ privacy:
   th: ""
   cs: ""
   sv: ""
+  he: פרטיות
   verified_by_human: []
 terms_and_conditions:
   context: Terms and conditions link
@@ -1868,6 +1949,7 @@ terms_and_conditions:
   th: ""
   cs: ""
   sv: ""
+  he: תנאי שימוש
   verified_by_human: []
 credits_amount:
   context: User credits amount
@@ -1891,6 +1973,7 @@ credits_amount:
   th: ""
   cs: ""
   sv: ""
+  he: "{credits_amount} קרדיטים"
   verified_by_human: []
 modify:
   context: Button text for modifying settings
@@ -1914,6 +1997,7 @@ modify:
   th: ""
   cs: ""
   sv: ""
+  he: שינוי
   verified_by_human: []
 save:
   context: Button text for saving settings
@@ -1937,6 +2021,7 @@ save:
   th: ""
   cs: ""
   sv: ""
+  he: שמירה
   verified_by_human: []
 back:
   context: Button text for going back
@@ -1960,6 +2045,7 @@ back:
   th: ""
   cs: ""
   sv: ""
+  he: חזרה
   verified_by_human: []
 server.description:
   context: Short description shown in the server settings page gradient banner header (admin only)
@@ -1983,6 +2069,7 @@ server.description:
   th: ""
   cs: ""
   sv: ""
+  he: ניהול הגדרות השרת וניהול מערכת
   verified_by_human: []
 server:
   context: Server settings menu item
@@ -2006,12 +2093,14 @@ server:
   th: ""
   cs: ""
   sv: ""
+  he: שרת
   verified_by_human: []
 server.community_suggestions:
   context: Community suggestions menu item
   en: Community Suggestions
   de: Community-Vorschläge
   ar: اقتراحات المجتمع
+  he: הצעות מהקהילה
 server.stats:
   context: Server stats settings menu item
   en: Stats
@@ -2034,6 +2123,7 @@ server.stats:
   th: สถิติ
   cs: Statistiky
   sv: Statistik
+  he: סטטיסטיקות
 server.gift_cards:
   context: Admin gift card generator menu item in server settings
   en: Gift Cards
@@ -2056,6 +2146,7 @@ server.gift_cards:
   th: บัตรของขวัญ
   cs: Dárkové karty
   sv: Presentkort
+  he: כרטיסי מתנה
   verified_by_human: []
 server.gift_cards.title:
   context: Title shown at top of admin gift card generator page
@@ -2079,6 +2170,7 @@ server.gift_cards.title:
   th: สร้างบัตรของขวัญ
   cs: Vygenerovat dárkové karty
   sv: Generera presentkort
+  he: הנפקת כרטיסי מתנה
   verified_by_human: []
 server.gift_cards.subtitle:
   context: Subtitle description for admin gift card generator
@@ -2102,6 +2194,7 @@ server.gift_cards.subtitle:
   th: สร้างรหัสบัตรของขวัญสำหรับผู้ใช้
   cs: Generovat kódy dárkových karet pro uživatele
   sv: Generera presentkortskoder för användare
+  he: הנפקת קודי כרטיסי מתנה למשתמשים
   verified_by_human: []
 server.gift_cards.credits_value:
   context: Label for credit value input field in gift card generator
@@ -2125,6 +2218,7 @@ server.gift_cards.credits_value:
   th: มูลค่าเครดิต
   cs: Hodnota kreditů
   sv: Kreditvärde
+  he: ערך בקרדיטים
   verified_by_human: []
 server.gift_cards.quantity:
   context: Label for quantity input field in gift card generator
@@ -2148,6 +2242,7 @@ server.gift_cards.quantity:
   th: จำนวน
   cs: Množství
   sv: Antal
+  he: כמות
   verified_by_human: []
 server.gift_cards.prefix:
   context: Label for custom prefix input field in gift card generator
@@ -2171,6 +2266,7 @@ server.gift_cards.prefix:
   th: คำนำหน้าที่กำหนดเอง
   cs: Vlastní prefix
   sv: Anpassat prefix
+  he: קידומת מותאמת אישית
   verified_by_human: []
 server.gift_cards.prefix_placeholder:
   context: Placeholder text for prefix input field
@@ -2194,6 +2290,7 @@ server.gift_cards.prefix_placeholder:
   th: เช่น XMAS
   cs: např. XMAS
   sv: t.ex. XMAS
+  he: למשל XMAS
   verified_by_human: []
 server.gift_cards.prefix_preview:
   context: Label shown before the code format preview when a prefix is entered
@@ -2217,6 +2314,7 @@ server.gift_cards.prefix_preview:
   th: ตัวอย่าง
   cs: Náhled
   sv: Förhandsvisning
+  he: תצוגה מקדימה
   verified_by_human: []
 server.gift_cards.optional:
   context: Label indicating a field is optional
@@ -2240,6 +2338,7 @@ server.gift_cards.optional:
   th: ไม่บังคับ
   cs: volitelné
   sv: valfritt
+  he: אופציונלי
   verified_by_human: []
 server.gift_cards.notes:
   context: Label for admin notes input field in gift card generator
@@ -2263,6 +2362,7 @@ server.gift_cards.notes:
   th: หมายเหตุ
   cs: Poznámky
   sv: Anteckningar
+  he: הערות
   verified_by_human: []
 server.gift_cards.notes_placeholder:
   context: Placeholder text for notes input field
@@ -2286,6 +2386,7 @@ server.gift_cards.notes_placeholder:
   th: หมายเหตุผู้ดูแลระบบ (ไม่บังคับ)
   cs: Volitelné poznámky správce
   sv: Valfria administratörsanteckningar
+  he: הערות מנהל אופציונליות
   verified_by_human: []
 server.gift_cards.generate:
   context: Generate button text in gift card generator
@@ -2309,6 +2410,7 @@ server.gift_cards.generate:
   th: สร้าง
   cs: Vygenerovat
   sv: Generera
+  he: הנפק
   verified_by_human: []
 server.gift_cards.generating:
   context: Button text shown while gift cards are being generated
@@ -2332,6 +2434,7 @@ server.gift_cards.generating:
   th: กำลังสร้าง...
   cs: Generování...
   sv: Genererar...
+  he: מנפיק...
   verified_by_human: []
 server.gift_cards.generated_codes:
   context: Heading shown above the list of generated gift card codes
@@ -2355,6 +2458,7 @@ server.gift_cards.generated_codes:
   th: รหัสที่สร้างแล้ว
   cs: Vygenerované kódy
   sv: Genererade koder
+  he: קודים שהונפקו
   verified_by_human: []
 server.gift_cards.copy_code:
   context: Tooltip for copy button on individual gift card code
@@ -2378,6 +2482,7 @@ server.gift_cards.copy_code:
   th: คัดลอก
   cs: Kopírovat
   sv: Kopiera
+  he: העתק
   verified_by_human: []
 server.gift_cards.copy_all:
   context: Button text to copy all generated gift card codes to clipboard
@@ -2401,6 +2506,7 @@ server.gift_cards.copy_all:
   th: คัดลอกรหัสทั้งหมด
   cs: Kopírovat všechny kódy
   sv: Kopiera alla koder
+  he: העתק את כל הקודים
   verified_by_human: []
 server.gift_cards.copied:
   context: Feedback message shown after codes are copied to clipboard
@@ -2424,6 +2530,7 @@ server.gift_cards.copied:
   th: คัดลอกไปยังคลิปบอร์ดแล้ว
   cs: Zkopírováno do schránky
   sv: Kopierat till urklipp
+  he: הועתק ללוח
   verified_by_human: []
 server.gift_cards.invalid_prefix:
   context: Error message shown when prefix contains invalid characters
@@ -2447,6 +2554,7 @@ server.gift_cards.invalid_prefix:
   th: คำนำหน้าต้องมี 1-4 ตัวอักษร (A-Z, 2-9 ยกเว้น O, I, 0, 1)
   cs: Prefix musí mít 1-4 znaky (A-Z, 2-9, kromě O, I, 0, 1)
   sv: Prefix måste vara 1-4 tecken (A-Z, 2-9, exklusive O, I, 0, 1)
+  he: הקידומת חייבת להכיל 1-4 תווים (A-Z, 2-9, ללא O, I, 0, 1)
   verified_by_human: []
 server_stats.title:
   en: Server Statistics
@@ -2469,6 +2577,7 @@ server_stats.title:
   th: สถิติเซิร์ฟเวอร์
   cs: Statistiky serveru
   sv: Serverstatistik
+  he: סטטיסטיקות שרת
 server_stats.description:
   en: Global usage and growth metrics
   de: Globale Nutzungs- und Wachstumsmetriken
@@ -2490,6 +2599,7 @@ server_stats.description:
   th: เมทริกซ์การใช้งานและการเติบโตทั่วโลก
   cs: Globální metriky využití a růstu
   sv: Globala användnings- och tillväxtmått
+  he: מדדי שימוש וצמיחה גלובליים
 server_stats.loading:
   en: Loading statistics...
   de: Statistiken werden geladen...
@@ -2511,6 +2621,7 @@ server_stats.loading:
   th: กำลังโหลดสถิติ...
   cs: Načítání statistik...
   sv: Laddar statistik...
+  he: טוען סטטיסטיקות...
 server_stats.try_again:
   en: Try Again
   de: Erneut versuchen
@@ -2532,6 +2643,7 @@ server_stats.try_again:
   th: ลองอีกครั้ง
   cs: Zkusit znovu
   sv: Försök igen
+  he: נסה שוב
 server_stats.total_users:
   en: Total Users
   de: Benutzer gesamt
@@ -2553,6 +2665,7 @@ server_stats.total_users:
   th: ผู้ใช้ทั้งหมด
   cs: Celkem uživatelů
   sv: Totalt antal användare
+  he: "סה\"כ משתמשים"
 server_stats.total_users_sub:
   en: Non-admin users
   de: Nicht-Admin-Benutzer
@@ -2574,6 +2687,7 @@ server_stats.total_users_sub:
   th: ผู้ใช้ที่ไม่ใช่ผู้ดูแลระบบ
   cs: Neadministrátoři
   sv: Icke-admin-användare
+  he: משתמשים שאינם מנהלים
 server_stats.active_subscriptions:
   en: Active Subscriptions
   de: Aktive Abonnements
@@ -2595,6 +2709,7 @@ server_stats.active_subscriptions:
   th: การสมัครใช้งานที่ใช้งานอยู่
   cs: Aktivní předplatné
   sv: Aktiva prenumerationer
+  he: מנויים פעילים
 server_stats.active_subscriptions_sub:
   en: Stripe subscriptions
   de: Stripe-Abonnements
@@ -2616,6 +2731,7 @@ server_stats.active_subscriptions_sub:
   th: การสมัครใช้งาน Stripe
   cs: Předplatné Stripe
   sv: Stripe-prenumerationer
+  he: מנויי Stripe
 server_stats.total_liability:
   en: Total Liability
   de: Gesamtverbindlichkeiten
@@ -2637,6 +2753,7 @@ server_stats.total_liability:
   th: หนี้สินทั้งหมด
   cs: Celkové závazky
   sv: Totalt ansvar
+  he: התחייבות כוללת
 server_stats.total_liability_sub:
   en: Outstanding credits
   de: Ausstehende Credits
@@ -2658,6 +2775,7 @@ server_stats.total_liability_sub:
   th: เครดิตคงค้าง
   cs: Nevyplacené kredity
   sv: Utestående krediter
+  he: קרדיטים שטרם מומשו
 server_stats.newsletter_subscribers:
   en: Newsletter Subscribers
   de: Newsletter-Abonnenten
@@ -2679,6 +2797,7 @@ server_stats.newsletter_subscribers:
   th: ผู้สมัครรับจดหมายข่าว
   cs: Odběratelé newsletteru
   sv: Nyhetsbrevsprenumeranter
+  he: רשומים לניוזלטר
 server_stats.latest_activity:
   en: Latest Day Activity ({date})
   de: Letzte Tagesaktivität ({date})
@@ -2700,6 +2819,7 @@ server_stats.latest_activity:
   th: กิจกรรมวันล่าสุด ({date})
   cs: Aktivita za poslední den ({date})
   sv: Senaste dagens aktivitet ({date})
+  he: "פעילות ביום האחרון ({date})"
 server_stats.new_registrations:
   en: New Registrations
   de: Neuanmeldungen
@@ -2721,6 +2841,7 @@ server_stats.new_registrations:
   th: การลงทะเบียนใหม่
   cs: Nové registrace
   sv: Nya registreringar
+  he: הרשמות חדשות
 server_stats.finished_signup:
   en: Finished Signup
   de: Anmeldung abgeschlossen
@@ -2742,6 +2863,7 @@ server_stats.finished_signup:
   th: ลงทะเบียนเสร็จสิ้น
   cs: Dokončená registrace
   sv: Avslutad registrering
+  he: סיימו הרשמה
 server_stats.income:
   en: Income
   de: Einnahmen
@@ -2763,6 +2885,7 @@ server_stats.income:
   th: รายได้
   cs: Příjem
   sv: Inkomst
+  he: הכנסה
 server_stats.credits_sold:
   en: Credits Sold
   de: Verkaufte Credits
@@ -2784,6 +2907,7 @@ server_stats.credits_sold:
   th: เครดิตที่ขายแล้ว
   cs: Prodané kredity
   sv: Sålda krediter
+  he: קרדיטים שנמכרו
 server_stats.credits_used:
   en: Credits Used
   de: Verbrauchte Credits
@@ -2805,6 +2929,7 @@ server_stats.credits_used:
   th: เครดิตที่ใช้ไป
   cs: Využité kredity
   sv: Använda krediter
+  he: קרדיטים שנוצלו
 server_stats.messages_sent:
   en: Messages Sent
   de: Gesendete Nachrichten
@@ -2826,6 +2951,7 @@ server_stats.messages_sent:
   th: ข้อความที่ส่งแล้ว
   cs: Odeslané zprávy
   sv: Skickade meddelanden
+  he: הודעות שנשלחו
 server_stats.chats_created:
   en: Chats Created
   de: Erstellte Chats
@@ -2847,6 +2973,7 @@ server_stats.chats_created:
   th: แชทที่สร้างขึ้น
   cs: Vytvořené chaty
   sv: Skapade chattar
+  he: "צ'אטים שנוצרו"
 server_stats.daily_history:
   en: Daily History (Last 30 Days)
   de: Täglicher Verlauf (Letzte 30 Tage)
@@ -2868,6 +2995,7 @@ server_stats.daily_history:
   th: ประวัติรายวัน (30 วันล่าสุด)
   cs: Denní historie (posledních 30 dní)
   sv: Daglig historik (senaste 30 dagarna)
+  he: היסטוריה יומית (30 ימים אחרונים)
 server_stats.monthly_history:
   en: Monthly History (Last 12 Months)
   de: Monatlicher Verlauf (Letzte 12 Monate)
@@ -2889,6 +3017,7 @@ server_stats.monthly_history:
   th: ประวัติรายเดือน (12 เดือนล่าสุด)
   cs: Měsíční historie (posledních 12 měsíců)
   sv: Månadshistorik (senaste 12 månaderna)
+  he: היסטוריה חודשית (12 חודשים אחרונים)
 server_stats.date:
   en: Date
   de: Datum
@@ -2910,6 +3039,7 @@ server_stats.date:
   th: วันที่
   cs: Datum
   sv: Datum
+  he: תאריך
 server_stats.new_users:
   en: New Users
   de: Neue Benutzer
@@ -2931,6 +3061,7 @@ server_stats.new_users:
   th: ผู้ใช้ใหม่
   cs: Noví uživatelé
   sv: Nya användare
+  he: משתמשים חדשים
 server_stats.signup_fin:
   en: Signup Fin.
   de: Anm. abg.
@@ -2952,6 +3083,7 @@ server_stats.signup_fin:
   th: ลงทะเบียนเสร็จสิ้น
   cs: Dokončená reg.
   sv: Avslutad reg.
+  he: סיום הרשמה
 server_stats.messages:
   en: Messages
   de: Nachrichten
@@ -2973,6 +3105,7 @@ server_stats.messages:
   th: ข้อความ
   cs: Zprávy
   sv: Meddelanden
+  he: הודעות
 server_stats.chats:
   en: Chats
   de: Chats
@@ -2994,6 +3127,7 @@ server_stats.chats:
   th: แชท
   cs: Chaty
   sv: Chattar
+  he: "צ'אטים"
 server_stats.month:
   en: Month
   de: Monat
@@ -3015,6 +3149,7 @@ server_stats.month:
   th: เดือน
   cs: Měsíc
   sv: Månad
+  he: חודש
 server_stats.embeds:
   en: Embeds
   de: Embeds
@@ -3036,6 +3171,7 @@ server_stats.embeds:
   th: ฝังตัว
   cs: Vložení
   sv: Inbäddningar
+  he: הטמעות
 server_stats.web_traffic:
   context: Section heading for web traffic analytics chart
   en: Web Traffic
@@ -3058,6 +3194,7 @@ server_stats.web_traffic:
   th: ทราฟฟิกเว็บ
   cs: Webový provoz
   sv: Webbtrafik
+  he: תעבורת אינטרנט
 server_stats.page_loads:
   context: Label for total page load count metric
   en: Page Loads
@@ -3080,6 +3217,7 @@ server_stats.page_loads:
   th: การโหลดหน้า
   cs: Načtení stránky
   sv: Sidladdningar
+  he: טעינות דפים
 server_stats.unique_visits:
   context: Label for approximate unique visits metric (HyperLogLog estimate)
   en: Unique Visits (approx.)
@@ -3102,6 +3240,7 @@ server_stats.unique_visits:
   th: การเยี่ยมชมที่ไม่ซ้ำ (ประมาณ)
   cs: Unikátní návštěvy (přibližně)
   sv: Unika besök (ungefär)
+  he: ביקורים ייחודיים (בקירוב)
 server_stats.top_countries:
   context: Section heading for top countries by page loads
   en: Top Countries
@@ -3124,6 +3263,7 @@ server_stats.top_countries:
   th: ประเทศยอดนิยม
   cs: Nejlepší země
   sv: Toppländer
+  he: מדינות מובילות
 server_stats.devices:
   context: Section heading for device type breakdown
   en: Devices
@@ -3146,6 +3286,7 @@ server_stats.devices:
   th: อุปกรณ์
   cs: Zařízení
   sv: Enheter
+  he: מכשירים
 server_stats.top_browsers:
   context: Section heading for top browsers
   en: Top Browsers
@@ -3168,6 +3309,7 @@ server_stats.top_browsers:
   th: เบราว์เซอร์ยอดนิยม
   cs: Nejlepší prohlížeče
   sv: Toppwebbläsare
+  he: דפדפנים מובילים
 server_stats.session_duration:
   context: Section heading for session duration distribution
   en: Session Duration
@@ -3190,6 +3332,7 @@ server_stats.session_duration:
   th: ระยะเวลาเซสชัน
   cs: Délka relace
   sv: Sessionslängd
+  he: משך סשן
 server_stats.top_referrers:
   context: Section heading for top referrer domains
   en: Top Referrers
@@ -3212,6 +3355,7 @@ server_stats.top_referrers:
   th: ผู้ส่งต่อยอดนิยม
   cs: Nejlepší zdroje
   sv: Topprefererare
+  he: מקורות הגעה מובילים
 server_stats.signup_funnel:
   context: Section heading for signup funnel analytics
   en: Signup Funnel
@@ -3234,6 +3378,7 @@ server_stats.signup_funnel:
   th: ช่องทางการสมัคร
   cs: Registrační trychtýř
   sv: Registreringstunnel
+  he: משפך הרשמה
 server_stats.funnel_started:
   context: Signup funnel step — user started signup (validated invite code)
   en: Started signup
@@ -3256,6 +3401,7 @@ server_stats.funnel_started:
   th: เริ่มการสมัคร
   cs: Registrace zahájena
   sv: Påbörjad registrering
+  he: התחילו הרשמה
 server_stats.funnel_email_confirmed:
   context: Signup funnel step — email confirmed
   en: Email confirmed
@@ -3278,6 +3424,7 @@ server_stats.funnel_email_confirmed:
   th: ยืนยันอีเมลแล้ว
   cs: E-mail potvrzen
   sv: E-post bekräftad
+  he: אימייל אושר
 server_stats.funnel_password_setup:
   context: Signup funnel step — password set up
   en: Password set up
@@ -3300,6 +3447,7 @@ server_stats.funnel_password_setup:
   th: ตั้งรหัสผ่านแล้ว
   cs: Heslo nastaveno
   sv: Lösenord inställt
+  he: סיסמה הוגדרה
 server_stats.funnel_passkey_setup:
   context: Signup funnel step — passkey registered
   en: Passkey registered
@@ -3322,6 +3470,7 @@ server_stats.funnel_passkey_setup:
   th: ลงทะเบียน passkey แล้ว
   cs: Passkey zaregistrováno
   sv: Nyckel registrerad
+  he: מפתח גישה נרשם
 server_stats.funnel_recovery_saved:
   context: Signup funnel step — recovery key acknowledged
   en: Recovery key saved
@@ -3344,6 +3493,7 @@ server_stats.funnel_recovery_saved:
   th: บันทึกคีย์กู้คืนแล้ว
   cs: Obnovovací klíč uložen
   sv: Återställningsnyckel sparad
+  he: מפתח שחזור נשמר
 server_stats.funnel_reached_payment:
   context: Signup funnel step — user reached payment step
   en: Reached payment
@@ -3366,6 +3516,7 @@ server_stats.funnel_reached_payment:
   th: ถึงขั้นตอนการชำระเงิน
   cs: Dosáhl platby
   sv: Nådde betalning
+  he: הגיע לתשלום
 server_stats.funnel_payment_completed:
   context: Signup funnel step — first payment or gift card completed
   en: Payment completed
@@ -3388,6 +3539,7 @@ server_stats.funnel_payment_completed:
   th: ชำระเงินเสร็จสิ้น
   cs: Platba dokončena
   sv: Betalning slutförd
+  he: התשלום הושלם
 server_stats.funnel_auto_topup:
   context: Signup funnel step — auto top-up (subscription) configured
   en: Auto top-up set up
@@ -3410,6 +3562,7 @@ server_stats.funnel_auto_topup:
   th: ตั้งค่าเติมเงินอัตโนมัติแล้ว
   cs: Automatické dobití nastaveno
   sv: Automatisk påfyllning inställd
+  he: הוגדרה טעינה אוטומטית
 server_stats.app_usage:
   context: Section heading for app usage analytics
   en: App Usage
@@ -3432,6 +3585,7 @@ server_stats.app_usage:
   th: การใช้งานแอป
   cs: Využití aplikace
   sv: Appanvändning
+  he: שימוש באפליקציה
 server_stats.no_data:
   context: Placeholder shown when no analytics data is available yet
   en: No data yet
@@ -3454,6 +3608,7 @@ server_stats.no_data:
   th: ยังไม่มีข้อมูล
   cs: Zatím žádná data
   sv: Inga data ännu
+  he: אין עדיין נתונים
 software_updates:
   context: Software updates settings menu item
   en: Software updates
@@ -3476,6 +3631,7 @@ software_updates:
   th: ""
   cs: ""
   sv: ""
+  he: עדכוני תוכנה
   verified_by_human: []
 checking_for_updates:
   context: Message shown while checking for software updates
@@ -3499,6 +3655,7 @@ checking_for_updates:
   th: ""
   cs: ""
   sv: ""
+  he: בודק אם יש עדכונים...
   verified_by_human: []
 new_update_available:
   context: Message shown when new software update is available
@@ -3522,6 +3679,7 @@ new_update_available:
   th: ""
   cs: ""
   sv: ""
+  he: עדכון חדש זמין
   verified_by_human: []
 install:
   context: Button text for installing software updates
@@ -3545,6 +3703,7 @@ install:
   th: ""
   cs: ""
   sv: ""
+  he: התקנה
   verified_by_human: []
 server_will_be_restarted:
   context: Message shown under the install button to inform the user that the server will be restarted
@@ -3604,6 +3763,10 @@ server_will_be_restarted:
   th: ""
   cs: ""
   sv: ""
+  he: |
+    השרת יופעל מחדש ולכן
+    יהיה לא זמין לזמן קצר לאחר
+    התקנת העדכון.
   verified_by_human: []
 installing_update:
   context: Message shown while installing software update
@@ -3627,6 +3790,7 @@ installing_update:
   th: ""
   cs: ""
   sv: ""
+  he: מתקין עדכון...
   verified_by_human: []
 restarting_server:
   context: Message shown while restarting server after software update
@@ -3650,6 +3814,7 @@ restarting_server:
   th: ""
   cs: ""
   sv: ""
+  he: מפעיל מחדש את השרת...
   verified_by_human: []
 update_failed:
   context: Error message shown when software update fails
@@ -3697,6 +3862,9 @@ update_failed:
   th: ""
   cs: ""
   sv: ""
+  he: |
+    העדכון נכשל.
+    בדוק את יומני השרת (logs).
   verified_by_human: []
 update_successful:
   context: Success message shown when software update is successful
@@ -3720,6 +3888,7 @@ update_successful:
   th: ""
   cs: ""
   sv: ""
+  he: העדכון הצליח
   verified_by_human: []
 installed:
   context: Message shown above the currently installed software version
@@ -3743,6 +3912,7 @@ installed:
   th: ""
   cs: ""
   sv: ""
+  he: מותקן
   verified_by_human: []
 profile_image_not_allowed:
   context: Error message shown when profile image contains nudity or violence or gore
@@ -3786,6 +3956,9 @@ profile_image_not_allowed:
   th: ""
   cs: ""
   sv: ""
+  he: |
+    אין להשתמש בעירום, אלימות או תכנים קשים
+    בתמונות פרופיל.
   verified_by_human: []
 last_warning_image_not_allowed:
   context: Last warning error message shown when profile image contains nudity or violence or gore
@@ -3843,6 +4016,10 @@ last_warning_image_not_allowed:
   th: ""
   cs: ""
   sv: ""
+  he: |
+    אזהרה אחרונה:
+    אין להשתמש בעירום, אלימות או תכנים קשים בתמונות פרופיל.
+    הפרה נוספת אחת וחשבונך יימחק.
   verified_by_human: []
 your_account_got_deleted:
   context: Message shown when account got deleted due to violation of guidelines or when user manually deletes account
@@ -3866,6 +4043,7 @@ your_account_got_deleted:
   th: ""
   cs: ""
   sv: ""
+  he: חשבונך נמחק.
   verified_by_human: []
 app_embeds.no_embeds:
   context: Message when no embeds are found for an app
@@ -3889,6 +4067,7 @@ app_embeds.no_embeds:
   th: ไม่พบการฝังสำหรับแอปนี้
   cs: Pro tuto aplikaci nebyly nalezeny žádné vložené prvky.
   sv: Inga inbäddningar hittades för denna app.
+  he: לא נמצאו הטמעות עבור אפליקציה זו.
   verified_by_human: []
 app_embeds.loading:
   context: Loading message while fetching embeds
@@ -3912,6 +4091,7 @@ app_embeds.loading:
   th: กำลังโหลดการฝัง...
   cs: Načítání vložených prvků...
   sv: Läser in inbäddningar...
+  he: טוען הטמעות...
   verified_by_human: []
 app_settings_memories.examples_label:
   context: Label shown above example entries for non-authenticated users
@@ -3935,6 +4115,7 @@ app_settings_memories.examples_label:
   th: "ตัวอย่าง:"
   cs: "Příklady:"
   sv: "Exempel:"
+  he: "דוגמאות:"
   verified_by_human:
     - en
     - de
@@ -3960,6 +4141,7 @@ app_settings_memories.my:
   th: "ของฉัน"
   cs: "Moje"
   sv: "Mina"
+  he: הגדרות וזיכרונות
   verified_by_human: []
 app_settings_memories.settings_and_memories:
   context: Second line of the "My Settings & memories" section heading (the bold title)
@@ -3983,6 +4165,7 @@ app_settings_memories.settings_and_memories:
   th: การตั้งค่าและความทรงจำ
   cs: Nastavení a paměti
   sv: Inställningar och minnen
+  he: שלי
   verified_by_human: []
 app_settings_memories.my_settings_and_memories:
   context: Section heading for the user's own settings and memories entries
@@ -4006,6 +4189,7 @@ app_settings_memories.my_settings_and_memories:
   th: การตั้งค่าและความทรงจำของฉัน
   cs: Moje nastavení a paměti
   sv: Mina inställningar och minnen
+  he: הגדרות וזיכרונות שלי
   verified_by_human: []
 app_settings_memories.no_entries_yet:
   context: Message shown when the user has no entries yet in this settings/memories category
@@ -4029,6 +4213,7 @@ app_settings_memories.no_entries_yet:
   th: ยังไม่มีรายการ
   cs: Zatím žádné záznamy.
   sv: Inga poster ännu.
+  he: אין עדיין רשומות.
   verified_by_human: []
 app_settings_memories.examples:
   context: Section heading for example entries shown to all users
@@ -4052,6 +4237,7 @@ app_settings_memories.examples:
   th: ตัวอย่าง
   cs: Příklady
   sv: Exempel
+  he: דוגמאות
   verified_by_human: []
 app_settings_memories.no_settings:
   context: Message when no settings and memories have been synced for an app
@@ -4075,6 +4261,7 @@ app_settings_memories.no_settings:
   th: ยังไม่มีการตั้งค่าหรือความทรงจำที่ซิงค์แล้ว พวกเขาจะปรากฏที่นี่เมื่อมีให้บริการ
   cs: Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná.
   sv: Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga.
+  he: עדיין לא סונכרנו הגדרות או זיכרונות. הם יופיעו כאן כשהם יהיו זמינים.
   verified_by_human: []
 app_settings_memories.add_entry:
   context: Button text to add a new entry
@@ -4098,6 +4285,7 @@ app_settings_memories.add_entry:
   th: เพิ่มรายการ
   cs: Přidat položku
   sv: Lägg till post
+  he: הוספת רשומה
   verified_by_human: []
 app_settings_memories.loading:
   context: Loading message while fetching settings and memories
@@ -4121,6 +4309,7 @@ app_settings_memories.loading:
   th: กำลังโหลดการตั้งค่าและความทรงจำ...
   cs: Načítání nastavení a paměti...
   sv: Läser in inställningar och minnen...
+  he: טוען הגדרות וזיכרונות...
   verified_by_human: []
 app_settings_memories.item_key:
   context: Label for item key input field
@@ -4144,6 +4333,7 @@ app_settings_memories.item_key:
   th: คีย์รายการ
   cs: Klíč položky
   sv: Objektnyckel
+  he: מפתח פריט
   verified_by_human: []
 app_settings_memories.settings_group:
   context: Label for settings group input field
@@ -4167,6 +4357,7 @@ app_settings_memories.settings_group:
   th: กลุ่มการตั้งค่า
   cs: Skupina nastavení
   sv: Inställningsgrupp
+  he: קבוצת הגדרות
   verified_by_human: []
 app_settings_memories.item_value:
   context: Label for item value input field
@@ -4190,6 +4381,7 @@ app_settings_memories.item_value:
   th: ค่ารายการ
   cs: Hodnota položky
   sv: Objektvärde
+  he: ערך הפריט
   verified_by_human: []
 app_settings_memories.cancel:
   context: Cancel button text
@@ -4213,6 +4405,7 @@ app_settings_memories.cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 app_settings_memories.creating:
   context: Button text while creating entry
@@ -4236,6 +4429,7 @@ app_settings_memories.creating:
   th: กำลังสร้าง...
   cs: Vytváření...
   sv: Skapar...
+  he: יוצר...
   verified_by_human: []
 app_settings_memories.placeholder:
   context: Placeholder message when app settings and memories management is temporarily disabled
@@ -4259,6 +4453,7 @@ app_settings_memories.placeholder:
   th: เร็วๆ นี้คุณจะสามารถจัดการและสร้างการตั้งค่าแอปและความทรงจำของคุณได้ที่นี่
   cs: Brzy budete moci spravovat a vytvářet nastavení aplikací a vzpomínky zde.
   sv: Snart kommer du att kunna hantera och skapa dina appinställningar och minnen här.
+  he: בקרוב תוכל לנהל וליצור כאן את הגדרות האפליקציה והזיכרונות שלך.
   verified_by_human: []
 app_settings_memories.just_now:
   context: Timestamp text indicating something happened just now
@@ -4282,6 +4477,7 @@ app_settings_memories.just_now:
   th: เมื่อสักครู่
   cs: Právě teď
   sv: Just nu
+  he: ממש עכשיו
   verified_by_human: []
 app_settings_memories.edit:
   context: Button text to edit an entry
@@ -4305,6 +4501,7 @@ app_settings_memories.edit:
   th: แก้ไข
   cs: Upravit
   sv: Redigera
+  he: עריכה
   verified_by_human: []
 app_settings_memories.delete:
   context: Button text to delete an entry
@@ -4328,6 +4525,7 @@ app_settings_memories.delete:
   th: ลบ
   cs: Smazat
   sv: Radera
+  he: מחיקה
   verified_by_human: []
 app_settings_memories.save:
   context: Button text to save an entry
@@ -4351,6 +4549,7 @@ app_settings_memories.save:
   th: บันทึก
   cs: Uložit
   sv: Spara
+  he: שמירה
   verified_by_human: []
 newsletter.description:
   context: Short description shown in the newsletter settings page gradient banner header
@@ -4374,6 +4573,7 @@ newsletter.description:
   th: ""
   cs: ""
   sv: ""
+  he: הירשם כדי להישאר מעודכן בחדשות האחרונות של OpenMates
   verified_by_human: []
 newsletter:
   context: Newsletter settings menu item
@@ -4397,6 +4597,7 @@ newsletter:
   th: จดหมายข่าว
   cs: Zpravodaj
   sv: Nyhetsbrev
+  he: ניוזלטר
   verified_by_human: []
 newsletter_title:
   context: Newsletter settings page title
@@ -4420,6 +4621,7 @@ newsletter_title:
   th: การสมัครรับจดหมายข่าว
   cs: Přihlášení k odběru zpravodaje
   sv: Nyhetsbrevsprenumeration
+  he: הרשמה לניוזלטר
   verified_by_human: []
 newsletter_description:
   context: Newsletter settings description
@@ -4443,6 +4645,7 @@ newsletter_description:
   th: ติดตามข่าวสาร อัปเดต และฟีเจอร์ล่าสุดจาก OpenMates
   cs: Zůstaňte informováni o nejnovějších zprávách, aktualizacích a funkcích OpenMates.
   sv: Håll dig uppdaterad med de senaste nyheterna, uppdateringarna och funktionerna från OpenMates.
+  he: הישאר מעודכן בחדשות, בעדכונים ובתכונות האחרונות של OpenMates.
   verified_by_human: []
 newsletter_email_placeholder:
   context: Email input placeholder for newsletter subscription
@@ -4466,6 +4669,7 @@ newsletter_email_placeholder:
   th: ป้อนที่อยู่อีเมลของคุณ
   cs: Zadejte svou e-mailovou adresu
   sv: Ange din e-postadress
+  he: הזן את כתובת האימייל שלך
   verified_by_human: []
 newsletter_subscribe_button:
   context: Subscribe button text
@@ -4489,6 +4693,7 @@ newsletter_subscribe_button:
   th: สมัครสมาชิก
   cs: Přihlásit se
   sv: Prenumerera
+  he: הרשמה
   verified_by_human: []
 newsletter_subscribing:
   context: Subscribe button text while submitting
@@ -4512,6 +4717,7 @@ newsletter_subscribing:
   th: กำลังสมัครสมาชิก...
   cs: Přihlašování...
   sv: Prenumererar...
+  he: נרשם...
   verified_by_human: []
 newsletter_subscribe_success:
   context: Success message after subscribing
@@ -4535,6 +4741,7 @@ newsletter_subscribe_success:
   th: กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยันการสมัครสมาชิก
   cs: Zkontrolujte prosím svůj e-mail a potvrďte své přihlášení.
   sv: Kontrollera din e-post för att bekräfta din prenumeration.
+  he: אנא בדוק את האימייל שלך כדי לאשר את ההרשמה.
   verified_by_human: []
 newsletter_subscribe_error:
   context: Error message when subscription fails
@@ -4558,6 +4765,7 @@ newsletter_subscribe_error:
   th: เกิดข้อผิดพลาดขณะประมวลผลคำขอสมัครสมาชิกของคุณ กรุณาลองอีกครั้ง
   cs: Při zpracování vašeho požadavku na přihlášení došlo k chybě. Zkuste to prosím znovu.
   sv: Ett fel uppstod vid bearbetning av din prenumerationsförfrågan. Försök igen.
+  he: אירעה שגיאה בעת עיבוד בקשת ההרשמה שלך. אנא נסה שוב.
   verified_by_human: []
 newsletter_processing:
   context: Message shown while processing newsletter action from email link
@@ -4581,6 +4789,7 @@ newsletter_processing:
   th: กำลังประมวลผลคำขอของคุณ...
   cs: Zpracování vašeho požadavku...
   sv: Bearbetar din begäran...
+  he: מעבד את בקשתך...
   verified_by_human: []
 newsletter_confirm_success:
   context: Success message when newsletter confirmation succeeds
@@ -4604,6 +4813,7 @@ newsletter_confirm_success:
   th: คุณได้สมัครรับจดหมายข่าวของเราสำเร็จแล้ว!
   cs: Úspěšně jste se přihlásili k odběru našeho zpravodaje!
   sv: Du har framgångsrikt prenumererat på vårt nyhetsbrev!
+  he: "נרשמת בהצלחה לניוזלטר שלנו!"
   verified_by_human: []
 newsletter_confirm_error:
   context: Error message when newsletter confirmation fails
@@ -4627,6 +4837,7 @@ newsletter_confirm_error:
   th: ยืนยันการสมัครรับจดหมายข่าวล้มเหลว ลิงก์อาจหมดอายุแล้ว กรุณาสมัครรับจดหมายข่าวอีกครั้ง
   cs: Nepodařilo se potvrdit vaše předplatné. Odkaz mohl vypršet. Přihlaste se prosím znovu.
   sv: Det gick inte att bekräfta din prenumeration. Länken kan ha gått ut. Prenumerera igen.
+  he: אישור ההרשמה נכשל. ייתכן שתוקף הקישור פג. אנא הירשם שוב.
   verified_by_human: []
 newsletter_unsubscribe_success:
   context: Success message when newsletter unsubscribe succeeds
@@ -4650,6 +4861,7 @@ newsletter_unsubscribe_success:
   th: คุณได้ยกเลิกการสมัครรับจดหมายข่าวของเราสำเร็จแล้ว
   cs: Úspěšně jste se odhlásili z odběru našeho zpravodaje.
   sv: Du har framgångsrikt avprenumererat från vårt nyhetsbrev.
+  he: הסרת את הרישום לניוזלטר שלנו בהצלחה.
   verified_by_human: []
 newsletter_unsubscribe_error:
   context: Error message when newsletter unsubscribe fails
@@ -4673,6 +4885,7 @@ newsletter_unsubscribe_error:
   th: ยกเลิกการสมัครรับจดหมายข่าวล้มเหลว ลิงก์อาจหมดอายุหรือไม่ถูกต้อง
   cs: Odhlášení se nezdařilo. Odkaz mohl vypršet nebo je neplatný.
   sv: Avprenumeration misslyckades. Länken kan ha gått ut eller vara ogiltig.
+  he: הסרת הרישום נכשלה. ייתכן שתוקף הקישור פג או שהוא אינו תקין.
   verified_by_human: []
 newsletter_block_success:
   context: Success message when email blocking succeeds
@@ -4696,6 +4909,7 @@ newsletter_block_success:
   th: ที่อยู่อีเมลของคุณถูกบล็อกแล้ว คุณจะไม่ได้รับอีเมลจากเราอีกต่อไป
   cs: Vaše e-mailová adresa byla zablokována. Už od nás nebudete dostávat žádné e-maily.
   sv: Din e-postadress har blockerats. Du kommer inte att få några fler e-postmeddelanden från oss.
+  he: כתובת האימייל שלך נחסמה. לא תקבל מאיתנו אימיילים נוספים.
   verified_by_human: []
 newsletter_block_error:
   context: Error message when email blocking fails
@@ -4719,6 +4933,7 @@ newsletter_block_error:
   th: ไม่สามารถบล็อกที่อยู่อีเมลของคุณได้ กรุณาลองอีกครั้ง
   cs: Nepodařilo se zablokovat vaši e-mailovou adresu. Zkuste to prosím znovu.
   sv: Det gick inte att blockera din e-postadress. Försök igen.
+  he: חסימת כתובת האימייל נכשלה. אנא נסה שוב.
   verified_by_human: []
 newsletter_email_required:
   context: Error message when email is empty
@@ -4742,6 +4957,7 @@ newsletter_email_required:
   th: ต้องระบุที่อยู่อีเมล
   cs: E-mailová adresa je povinná.
   sv: E-postadress krävs.
+  he: כתובת אימייל היא שדה חובה.
   verified_by_human: []
 newsletter_email_invalid:
   context: Error message when email format is invalid
@@ -4765,6 +4981,7 @@ newsletter_email_invalid:
   th: กรุณากรอกที่อยู่อีเมลที่ถูกต้อง
   cs: Zadejte prosím platnou e-mailovou adresu.
   sv: Ange en giltig e-postadress.
+  he: אנא הזן כתובת אימייל תקינה.
   verified_by_human: []
 newsletter_info:
   context: Additional information about newsletter subscription
@@ -4788,6 +5005,7 @@ newsletter_info:
   th: หลังจากสมัครสมาชิกแล้ว คุณจะได้รับอีเมลยืนยัน คลิกที่ลิงก์ในอีเมลเพื่อเสร็จสิ้นการสมัครสมาชิก
   cs: Po přihlášení obdržíte potvrzovací e-mail. Klikněte na odkaz v e-mailu a dokončete přihlášení.
   sv: Efter prenumeration får du ett bekräftelsemejl. Klicka på länken i e-postmeddelandet för att slutföra din prenumeration.
+  he: לאחר ההרשמה, תקבל אימייל אישור. לחץ על הקישור באימייל כדי להשלים את ההרשמה.
   verified_by_human: []
 support.description:
   context: Short description shown in the support settings page gradient banner header
@@ -4811,6 +5029,7 @@ support.description:
   th: ""
   cs: ""
   sv: ""
+  he: קבל עזרה וצור קשר עם צוות OpenMates
   verified_by_human: []
 support:
   context: Support settings menu item
@@ -4834,6 +5053,7 @@ support:
   th: การสนับสนุน
   cs: Podpora
   sv: Stöd
+  he: תמיכה
   verified_by_human: []
 support.one_time:
   context: One-time support option title
@@ -4857,6 +5077,7 @@ support.one_time:
   th: สนับสนุนครั้งเดียว
   cs: Jednorázová podpora
   sv: Engångsstöd
+  he: תמיכה חד-פעמית
   verified_by_human: []
 support.one_time_description:
   context: One-time support option description
@@ -4880,6 +5101,7 @@ support.one_time_description:
   th: บริจาคครั้งเดียว
   cs: Přispějte jednorázově
   sv: Ge ett engångsbidrag
+  he: ביצוע תרומה חד-פעמית
   verified_by_human: []
 support.monthly:
   context: Monthly support option title
@@ -4903,6 +5125,7 @@ support.monthly:
   th: สนับสนุนรายเดือน
   cs: Měsíční podpora
   sv: Månatligt stöd
+  he: תמיכה חודשית
   verified_by_human: []
 support.monthly_description:
   context: Monthly support option description
@@ -4926,6 +5149,7 @@ support.monthly_description:
   th: ตั้งค่าการสนับสนุนรายเดือนแบบต่อเนื่อง
   cs: Nastavte opakovaný měsíční příspěvek
   sv: Ställ in en återkommande månadsbetalning
+  he: הגדרת תרומה חודשית קבועה
   verified_by_human: []
 support.disclaimer:
   context: Support contribution disclaimer text
@@ -4949,6 +5173,7 @@ support.disclaimer:
   th: เงินสนับสนุนช่วยเป็นทุนในการพัฒนา OpenMates และไม่รวมเครดิตเพิ่มเติม
   cs: Příspěvky na podporu pomáhají financovat vývoj OpenMates. Neobsahují žádné další kredity.
   sv: Stödbidrag hjälper till att finansiera utvecklingen av OpenMates. De inkluderar inga extra krediter.
+  he: תרומות תמיכה עוזרות במימון הפיתוח של OpenMates. הן אינן כוללות קרדיטים נוספים.
   verified_by_human: []
 support.back_to_amounts:
   context: Back button text to return to amount selection
@@ -4972,6 +5197,7 @@ support.back_to_amounts:
   th: กลับไปเลือกจำนวนเงิน
   cs: Zpět na částky
   sv: Tillbaka till beloppen
+  he: חזרה לבחירת סכום
   verified_by_human: []
 support.email_label:
   context: Label for email field on support payment screens
@@ -4995,6 +5221,7 @@ support.email_label:
   th: อีเมล
   cs: E-mail
   sv: E-post
+  he: אימייל
   verified_by_human: []
 support.monthly.cancellation_info:
   context: Short note about cancellation for monthly support
@@ -5018,6 +5245,7 @@ support.monthly.cancellation_info:
   th: ยกเลิกได้ทุกเมื่อ
   cs: Zrušit kdykoli.
   sv: Avsluta när som helst.
+  he: ניתן לבטל בכל עת.
   verified_by_human: []
 support.monthly.per_month:
   context: Unit shown after currency amount (e.g., “€5/month”)
@@ -5041,6 +5269,7 @@ support.monthly.per_month:
   th: เดือน
   cs: měsíc
   sv: månad
+  he: חודש
   verified_by_human: []
 support.monthly.recurring_notice:
   context: Notice explaining the payment is recurring
@@ -5064,6 +5293,7 @@ support.monthly.recurring_notice:
   th: การชำระเงินรายเดือนแบบต่อเนื่อง
   cs: Opakovaná měsíční platba.
   sv: Återkommande månadsbetalning.
+  he: תשלום חודשי קבוע.
   verified_by_human: []
 support.monthly.cancellation_details:
   context: Cancellation details shown on monthly support payment screen
@@ -5087,6 +5317,7 @@ support.monthly.cancellation_details:
   th: คุณสามารถยกเลิกการสนับสนุนรายเดือนได้ทุกเมื่อ
   cs: Měsíční podporu můžete kdykoli zrušit.
   sv: Du kan avsluta ditt månatliga stöd när som helst.
+  he: ניתן לבטל את התמיכה החודשית בכל עת.
   verified_by_human: []
 support.subscription_successful:
   context: Message shown when subscription is successfully created
@@ -5110,6 +5341,7 @@ support.subscription_successful:
   th: สมัครสมาชิกสำเร็จ! ขอบคุณสำหรับการสนับสนุนของคุณ
   cs: Předplatné bylo úspěšné! Děkujeme za vaši podporu.
   sv: Prenumerationen lyckades! Tack för ditt stöd.
+  he: "המנוי הופעל בהצלחה! תודה על התמיכה שלך."
   verified_by_human: []
 support.monthly_subscription_setup:
   context: Message shown during monthly subscription setup
@@ -5133,6 +5365,7 @@ support.monthly_subscription_setup:
   th: กำลังตั้งค่าการสมัครสมาชิกรายเดือนของคุณ...
   cs: Nastavování vašeho měsíčního předplatného...
   sv: Ställer in din månatliga prenumeration...
+  he: מגדיר את המנוי החודשי שלך...
   verified_by_human: []
 support.per_month:
   context: Text indicating per month pricing
@@ -5156,6 +5389,7 @@ support.per_month:
   th: ต่อเดือน
   cs: za měsíc
   sv: per månad
+  he: לחודש
   verified_by_human: []
 support.recurring_monthly:
   context: Text describing recurring monthly payment
@@ -5179,6 +5413,7 @@ support.recurring_monthly:
   th: รายเดือนที่เกิดขึ้นประจำ
   cs: Opakující se měsíčně
   sv: Återkommande månadsvis
+  he: חודשי קבוע
   verified_by_human: []
 support.email_sent:
   context: Message confirming email has been sent
@@ -5202,6 +5437,7 @@ support.email_sent:
   th: ส่งอีเมลสำเร็จแล้ว
   cs: E-mail byl успешно odeslán.
   sv: E-postmeddelandet har skickats.
+  he: האימייל נשלח בהצלחה.
   verified_by_human: []
 support.monthly_invoice_pdf_info:
   context: Information about monthly invoice PDF delivery
@@ -5225,6 +5461,7 @@ support.monthly_invoice_pdf_info:
   th: คุณจะได้รับ PDF ใบแจ้งหนี้รายเดือนทางอีเมล
   cs: Měsíční faktury v PDF obdržíte emailem.
   sv: Du kommer att få månatliga faktura-PDF-filer via e-post.
+  he: קבלות PDF חודשיות יישלחו אליך באימייל.
   verified_by_human: []
 support.subscription_management:
   context: Title for subscription management section
@@ -5248,6 +5485,7 @@ support.subscription_management:
   th: การจัดการการสมัครสมาชิก
   cs: Správa předplatného
   sv: Hantera prenumeration
+  he: ניהול מנוי
   verified_by_human: []
 support.subscription_management_info:
   context: Information about managing subscription
@@ -5271,6 +5509,7 @@ support.subscription_management_info:
   th: จัดการการสมัครสมาชิกของคุณ ดูใบแจ้งหนี้ หรือยกเลิกได้ทุกเมื่อ
   cs: Spravujte své předplatné, prohlížejte si faktury nebo ho kdykoli zrušte.
   sv: Hantera din prenumeration, visa fakturor eller avsluta när som helst.
+  he: ניהול המנוי, צפייה בחשבוניות או ביטול בכל עת.
   verified_by_human: []
 support.monthly_confirmation_details:
   context: Details text on the monthly support confirmation screen
@@ -5294,6 +5533,7 @@ support.monthly_confirmation_details:
   th: คุณจะได้รับอีเมลพร้อมลิงก์ไปยัง Stripe สำหรับจัดการการสมัครสนับสนุนของคุณ ซึ่งคุณสามารถแก้ไขหรือยกเลิกได้ตลอดเวลา
   cs: Obdržíte e-mail s odkazem na Stripe pro správu vašeho předplatného podpory, kde ho můžete kdykoli upravit nebo zrušit.
   sv: Du kommer att få ett e-postmeddelande med en länk till Stripe för att hantera din stödprenumeration, där du kan ändra eller avbryta den när som helst.
+  he: יישלח אליך אימייל עם קישור ל-Stripe לניהול מנוי התמיכה שלך, שם ניתן לשנות או לבטל אותו בכל עת.
   verified_by_human: []
 support.payment_successful:
   context: Message shown when one-time payment is successfully completed
@@ -5317,6 +5557,7 @@ support.payment_successful:
   th: การชำระเงินสำเร็จ! ขอบคุณสำหรับการสนับสนุนของคุณ
   cs: Platba byla úspěšná! Děkujeme za vaši podporu.
   sv: Betalningen lyckades! Tack för ditt stöd.
+  he: "התשלום בוצע בהצלחה! תודה על התמיכה שלך."
   verified_by_human: []
 support.one_time_contribution:
   context: Label for one-time contribution amount
@@ -5340,6 +5581,7 @@ support.one_time_contribution:
   th: การสนับสนุนครั้งเดียว
   cs: jednorázový příspěvek
   sv: engångsbidrag
+  he: תרומה חד-פעמית
   verified_by_human: []
 support.one_time_confirmation_details:
   context: Details text on the one-time support confirmation screen
@@ -5363,6 +5605,7 @@ support.one_time_confirmation_details:
   th: คุณจะได้รับอีเมลพร้อมใบแจ้งหนี้ของคุณ
   cs: Obdržíte e-mail s fakturou.
   sv: Du kommer att få ett e-postmeddelande med din faktura.
+  he: יישלח אליך אימייל עם החשבונית שלך.
   verified_by_human: []
 support.done:
   context: Text for done button or completion message
@@ -5386,6 +5629,7 @@ support.done:
   th: เสร็จเรียบร้อย
   cs: Hotovo
   sv: Färdig
+  he: סיום
   verified_by_human: []
 support_sponsor_github:
   context: Sponsor on GitHub menu item
@@ -5409,6 +5653,7 @@ support_sponsor_github:
   th: สนับสนุนบน GitHub
   cs: Sponzorovat na GitHubu
   sv: Sponsra på GitHub
+  he: תמיכה ב-GitHub
   verified_by_human: []
 support_sponsor_github_description:
   context: Description for Sponsor on GitHub option
@@ -5432,6 +5677,7 @@ support_sponsor_github_description:
   th: สนับสนุนการพัฒนา OpenMates โดยการเป็นผู้สนับสนุน GitHub
   cs: Podpořte vývoj OpenMates tím, že se stanete sponzorem GitHub.
   sv: Stöd utvecklingen av OpenMates genom att bli en GitHub-sponsor.
+  he: תמיכה בפיתוח של OpenMates באמצעות הפיכה לנותן חסות (Sponsor) ב-GitHub.
   verified_by_human: []
 report_issue:
   context: Report issue settings menu item
@@ -5455,6 +5701,7 @@ report_issue:
   th: รายงานปัญหา
   cs: Nahlásit problém
   sv: Rapportera problem
+  he: דיווח על תקלה
   verified_by_human: []
 report_issue.description:
   context: Description text for the report issue form — encourages users to add details and a screenshot for faster resolution
@@ -5478,6 +5725,7 @@ report_issue.description:
   th: "พบข้อผิดพลาดหรือมีข้อเสนอแนะ? แจ้งให้เราทราบ! ยิ่งคุณใส่รายละเอียดมาก — และโดยเฉพาะอย่างยิ่งภาพหน้าจอ — เราก็ยิ่งสามารถระบุและแก้ไขปัญหาได้เร็วขึ้น"
   cs: "Našli jste chybu nebo máte návrh? Dejte nám vědět! Čím více podrobností uvedete — ideálně se snímkem obrazovky — tím rychleji budeme moci problém identifikovat a vyřešit."
   sv: "Hittat en bugg eller har ett förslag? Låt oss veta! Ju mer detaljer du inkluderar — och helst en skärmbild — desto snabbare kan vi identifiera och åtgärda problemet."
+  he: "מצאת באג או שיש לך הצעה? נשמח לשמוע! ככל שיהיו יותר פרטים — ובאופן אידיאלי גם צילום מסך — כך נוכל לזהות ולתקן את הבעיה מהר יותר."
   verified_by_human: []
 report_issue.title_label:
   context: Label for issue title input field
@@ -5501,6 +5749,7 @@ report_issue.title_label:
   th: หัวข้อปัญหา
   cs: Název problému
   sv: Problemrubrik
+  he: כותרת התקלה
   verified_by_human: []
 report_issue.title_placeholder:
   context: Placeholder text for issue title input field
@@ -5524,6 +5773,7 @@ report_issue.title_placeholder:
   th: ป้อนหัวข้อสั้นๆ สำหรับปัญหาของคุณ
   cs: Zadejte stručný název pro váš problém
   sv: Ange en kort rubrik för ditt problem
+  he: הזן כותרת קצרה לתקלה שלך
   verified_by_human: []
 report_issue.title_required:
   context: Error message when issue title is empty
@@ -5547,6 +5797,7 @@ report_issue.title_required:
   th: หัวข้อปัญหาจำเป็นต้องระบุ
   cs: Název problému je povinný
   sv: Problemrubrik krävs
+  he: נדרשת כותרת לדיווח
   verified_by_human: []
 report_issue.title_too_short:
   context: Error message when issue title is too short
@@ -5570,6 +5821,7 @@ report_issue.title_too_short:
   th: หัวข้อปัญหาต้องมีความยาวอย่างน้อย 3 ตัวอักษร
   cs: Název problému musí mít alespoň 3 znaky
   sv: Problemrubriken måste vara minst 3 tecken lång
+  he: כותרת הדיווח חייבת להכיל לפחות 3 תווים
   verified_by_human: []
 report_issue.description_label:
   context: Label for issue description textarea field
@@ -5593,6 +5845,7 @@ report_issue.description_label:
   th: คำอธิบายปัญหา
   cs: Popis problému
   sv: Problembeskrivning
+  he: תיאור הבעיה
   verified_by_human: []
 report_issue.description_placeholder:
   context: Placeholder text for issue description textarea field
@@ -5616,6 +5869,7 @@ report_issue.description_placeholder:
   th: อธิบายปัญหาอย่างละเอียด รวมขั้นตอนในการทำซ้ำหากเป็นไปได้
   cs: Popište problém podrobně. Pokud je to možné, zahrňte kroky k reprodukci.
   sv: Beskriv problemet i detalj. Inkludera steg för att återskapa om möjligt.
+  he: תאר את הבעיה בפירוט. כלול שלבים לשחזור במידת האפשר.
   verified_by_human: []
 report_issue.description_required:
   context: Error message when issue description is empty
@@ -5639,6 +5893,7 @@ report_issue.description_required:
   th: คำอธิบายปัญหาจำเป็นต้องระบุ
   cs: Popis problému je povinný
   sv: Problembeskrivning krävs
+  he: נדרש תיאור של הבעיה
   verified_by_human: []
 report_issue.description_too_short:
   context: Error message when issue description is too short
@@ -5662,6 +5917,7 @@ report_issue.description_too_short:
   th: คำอธิบายปัญหาต้องมีความยาวอย่างน้อย 10 ตัวอักษร
   cs: Popis problému musí mít alespoň 10 znaků
   sv: Problembeskrivningen måste vara minst 10 tecken lång
+  he: תיאור הבעיה חייב להכיל לפחות 10 תווים
   verified_by_human: []
 report_issue.user_flow_label:
   context: Label for the "What did you do?" textarea in the report issue form
@@ -5685,6 +5941,7 @@ report_issue.user_flow_label:
   th: คุณทำอะไร?
   cs: Co jste udělal?
   sv: Vad gjorde du?
+  he: "מה עשית?"
   verified_by_human: []
 report_issue.user_flow_placeholder:
   context: Placeholder text inside the "What did you do?" textarea — tells users what kind of steps to write
@@ -5708,6 +5965,7 @@ report_issue.user_flow_placeholder:
   th: "เช่น ฉันเปิดแชท พิมพ์ข้อความ แล้วกดส่ง หน้าจอค้างหลังจากนั้นไม่กี่วินาที"
   cs: "např. Otevřel jsem chat, napsal zprávu a stiskl odeslat. Stránka zamrzla po několika sekundách."
   sv: "t.ex. Jag öppnade en chatt, skrev ett meddelande och tryckte på skicka. Sidan frös efter några sekunder."
+  he: "למשל: פתחתי צ'אט, הקלדתי הודעה ואז לחצתי על שליחה. העמוד קפא אחרי כמה שניות."
   verified_by_human: []
 report_issue.user_flow_hint:
   context: Hint text below the "What did you do?" textarea
@@ -5731,6 +5989,7 @@ report_issue.user_flow_hint:
   th: ไม่บังคับ — อธิบายขั้นตอนที่นำไปสู่ปัญหา
   cs: Volitelné — popište kroky, které vedly k problému
   sv: Valfritt — beskriv stegen som ledde till problemet
+  he: אופציונלי — תאר את השלבים שהובילו לבעיה
   verified_by_human: []
 report_issue.expected_behaviour_label:
   context: Label for the "What did you expect to happen?" textarea in the report issue form
@@ -5754,6 +6013,7 @@ report_issue.expected_behaviour_label:
   th: คุณคาดหวังว่าจะเกิดอะไรขึ้น?
   cs: Co jste očekával, že se stane?
   sv: Vad förväntade du dig skulle hända?
+  he: "מה ציפית שיקרה?"
   verified_by_human: []
 report_issue.expected_behaviour_placeholder:
   context: Placeholder text inside the "Expected behaviour" textarea — gives an example of a good answer
@@ -5777,6 +6037,7 @@ report_issue.expected_behaviour_placeholder:
   th: "เช่น ข้อความควรถูกส่ง และแชทควรดำเนินต่อไปตามปกติ"
   cs: "např. Zpráva měla být odeslána a chat měl pokračovat normálně."
   sv: "t.ex. Meddelandet borde ha skickats och chatten borde ha fortsatt normalt."
+  he: "למשל: ההודעה הייתה אמורה להישלח והצ'אט היה אמור להמשיך כרגיל."
   verified_by_human: []
 report_issue.expected_behaviour_hint:
   context: Hint text below the "Expected behaviour" textarea
@@ -5800,6 +6061,7 @@ report_issue.expected_behaviour_hint:
   th: ไม่บังคับ — ควรเกิดอะไรขึ้นแทน?
   cs: Volitelné — co se místo toho mělo stát?
   sv: Valfritt — vad borde ha hänt istället?
+  he: "אופציונלי — מה היה אמור לקרות במקום?"
   verified_by_human: []
 report_issue.actual_behaviour_label:
   context: Label for the "What actually happened?" textarea in the report issue form
@@ -5823,6 +6085,7 @@ report_issue.actual_behaviour_label:
   th: สิ่งที่เกิดขึ้นจริงคืออะไร?
   cs: Co se skutečně stalo?
   sv: Vad hände faktiskt?
+  he: "מה קרה בפועל?"
   verified_by_human: []
 report_issue.actual_behaviour_placeholder:
   context: Placeholder text inside the "Actual behaviour" textarea — gives an example of a good answer
@@ -5846,6 +6109,7 @@ report_issue.actual_behaviour_placeholder:
   th: "เช่น หน้าจอกลายเป็นหน้าว่าง และแสดงตัวโหลดที่หมุนไม่หยุด ไม่มีข้อความแจ้งข้อผิดพลาดปรากฏขึ้น"
   cs: "např. Stránka zčernala a zobrazila se otáčející se načítací animace, která nikdy neskončila. Nezobrazila se žádná chybová zpráva."
   sv: "t.ex. Sidan blev tom och visade en snurrande laddningsindikator som aldrig slutade. Inget felmeddelande visades."
+  he: "למשל: העמוד הפך ללבן והופיע סמל טעינה שלא הפסיק. לא הופיעה הודעת שגיאה."
   verified_by_human: []
 report_issue.actual_behaviour_hint:
   context: Hint text below the "Actual behaviour" textarea
@@ -5869,6 +6133,7 @@ report_issue.actual_behaviour_hint:
   th: ไม่บังคับ — อธิบายสิ่งที่ผิดพลาด
   cs: Volitelné — popište co se pokazilo
   sv: Valfritt — beskriv vad som gick fel
+  he: אופציונלי — תאר מה השתבש
   verified_by_human: []
 report_issue.share_chat_label:
   context: Label for the toggle that enables sharing the current chat or embed with the issue report
@@ -5892,6 +6157,7 @@ report_issue.share_chat_label:
   th: แชร์แชทปัจจุบันกับรายงานนี้
   cs: Sdilet aktualni chat s timto hlasenim
   sv: Dela aktuell chatt med denna rapport
+  he: "שיתוף הצ'אט הנוכחי עם דיווח זה"
   verified_by_human: []
 report_issue.share_chat_hint:
   context: Hint text explaining what sharing the chat does when the toggle is enabled
@@ -5915,6 +6181,7 @@ report_issue.share_chat_hint:
   th: สิ่งนี้ช่วยให้ผู้ดูแลระบบดูแชทเพื่อช่วยแก้ไขปัญหา
   cs: To umoznuje administratorovi zobrazit chat pro pomoc s ladenenim problemu.
   sv: Detta gor att administratoren kan se chatten for att hjalpa med felsoning.
+  he: "זה מאפשר למנהל המערכת לצפות בצ'אט כדי לעזור בפתרון הבעיה."
   verified_by_human: []
 report_issue.url_label:
   context: Label for shared chat or embed URL input field
@@ -5938,6 +6205,7 @@ report_issue.url_label:
   th: URL แชทที่แชร์หรือการฝัง
   cs: URL sdíleného chatu nebo vložení
   sv: Delad chatt- eller inbäddnings-URL
+  he: "כתובת URL של צ'אט משותף או הטמעה"
   verified_by_human: []
 report_issue.url_placeholder:
   context: Placeholder text for shared chat or embed URL input field
@@ -5961,6 +6229,7 @@ report_issue.url_placeholder:
   th: https://openmates.org/share/chat/123#key=...
   cs: https://openmates.org/share/chat/123#key=...
   sv: https://openmates.org/share/chat/123#key=...
+  he: "https://openmates.org/share/chat/123#key=..."
   verified_by_human: []
 report_issue.url_invalid:
   context: Error message when URL is not a valid shared chat or embed URL
@@ -5984,6 +6253,7 @@ report_issue.url_invalid:
   th: แชร์แชทหรือการฝังก่อน แล้ววาง URL ที่นี่
   cs: Nejprve sdílejte chat nebo vložení, poté sem vložte URL.
   sv: Dela chatt eller inbäddning först, klistra sedan in URL:en här.
+  he: "שתף את הצ'אט או ההטמעה תחילה, ואז הדבק את כתובת ה-URL כאן."
   verified_by_human: []
 report_issue.email_label:
   context: Label for contact email input field
@@ -6007,6 +6277,7 @@ report_issue.email_label:
   th: ที่อยู่อีเมลของคุณ (ไม่บังคับ)
   cs: Vaše e-mailová adresa (Volitelné)
   sv: Din e-postadress (Valfritt)
+  he: כתובת האימייל שלך (אופציונלי)
   verified_by_human: []
 report_issue.email_placeholder:
   context: Placeholder text for contact email input field
@@ -6030,6 +6301,7 @@ report_issue.email_placeholder:
   th: your.email@example.com
   cs: vas.email@priklad.cz
   sv: din.email@exempel.com
+  he: your.email@example.com
   verified_by_human: []
 report_issue.email_hint:
   context: Hint text explaining the contact email field is optional and used for follow-up
@@ -6053,6 +6325,7 @@ report_issue.email_hint:
   th: ไม่บังคับ ให้อีเมลของคุณหากคุณต้องการให้เราติดต่อคุณเกี่ยวกับปัญหานี้
   cs: Volitelné. Uveďte svůj e-mail, pokud chcete, abychom vás kontaktovali ohledně tohoto problému.
   sv: Valfritt. Ange din e-post om du vill att vi kontaktar dig angående detta problem.
+  he: אופציונלי. ציין את האימייל שלך אם תרצה שנוכל ליצור איתך קשר בנוגע לבעיה זו.
   verified_by_human: []
 report_issue.email_invalid:
   context: Error message when email format is invalid
@@ -6076,6 +6349,7 @@ report_issue.email_invalid:
   th: กรุณากรอกที่อยู่อีเมลที่ถูกต้อง
   cs: Zadejte prosím platnou e-mailovou adresu
   sv: Ange en giltig e-postadress
+  he: נא להזין כתובת אימייל תקינה
   verified_by_human: []
 report_issue.email_toggle_label:
   context: Label for the toggle that lets authenticated users include their account email in the issue report
@@ -6099,6 +6373,7 @@ report_issue.email_toggle_label:
   th: รวมอีเมลของฉันสำหรับการติดตาม
   cs: Zahrnout můj e-mail pro následnou komunikaci
   sv: Inkludera min e-post för uppföljning
+  he: כלול את כתובת האימייל שלי לצורך המשך טיפול
   verified_by_human: []
 report_issue.email_toggle_hint:
   context: Hint shown under the email toggle for authenticated users, explaining that their account email will be submitted. The {email} placeholder is replaced with the user's actual email address.
@@ -6122,6 +6397,7 @@ report_issue.email_toggle_hint:
   th: "อีเมลบัญชีของคุณ ({email}) จะถูกรวมไว้ในรายงาน"
   cs: "E-mail vašeho účtu ({email}) bude zahrnut do hlášení."
   sv: "Ditt konto-e-post ({email}) kommer att inkluderas i rapporten."
+  he: "כתובת האימייל של חשבונך ({email}) תיכלל בדיווח."
   verified_by_human: []
 report_issue.email_toggle_off_hint:
   context: Hint shown under the email toggle when authenticated user has toggled it off, meaning no email will be submitted
@@ -6145,6 +6421,7 @@ report_issue.email_toggle_off_hint:
   th: ไม่มีอีเมลถูกรวมไว้ในรายงานนี้
   cs: Do tohoto hlášení nebude zahrnut žádný e-mail.
   sv: Ingen e-post kommer att inkluderas i denna rapport.
+  he: לא תיכלל כתובת אימייל בדיווח זה.
   verified_by_human: []
 report_issue.device_info.heading:
   context: Heading for the device information notice shown under the report issue submit button
@@ -6168,6 +6445,7 @@ report_issue.device_info.heading:
   th: "ข้อมูลอุปกรณ์สำหรับการแก้ไขข้อผิดพลาด"
   cs: "Informace o zařízení pro ladění"
   sv: "Enhetsinformation för debugging"
+  he: מידע על המכשיר לצורך ניפוי שגיאות
   verified_by_human: []
 report_issue.device_info.description:
   context: Description for the device information notice shown under the report issue submit button
@@ -6191,6 +6469,7 @@ report_issue.device_info.description:
   th: "เพื่อช่วยในการแก้ไขปัญหาของคุณ ข้อมูลทางเทคนิคต่อไปนี้เกี่ยวกับอุปกรณ์ของคุณจะถูกรวมไว้ในรายงานของคุณและส่งทางอีเมลไปยังผู้ดูแลเซิร์ฟเวอร์ของเรา:"
   cs: "Pro pomoc při ladění vašeho problému budou následující technické informace o vašem zařízení zahrnuty do vaší zprávy a odeslány e-mailem našemu správci serveru:"
   sv: "För att hjälpa till med debugging av ditt problem kommer följande tekniska information om din enhet att inkluderas i din rapport och skickas via e-post till vår serveradministratör:"
+  he: "כדי לעזור בפתרון הבעיה, המידע הטכני הבא על המכשיר שלך ייכלל בדיווח ויישלח באימייל למנהל השרת:"
   verified_by_human: []
 report_issue.device_info.browser_os_label:
   context: Label for the user agent entry in the device information notice
@@ -6214,6 +6493,7 @@ report_issue.device_info.browser_os_label:
   th: "เบราว์เซอร์และ OS"
   cs: "Prohlížeč a OS"
   sv: "Webbläsare & OS"
+  he: דפדפן ומערכת הפעלה
   verified_by_human: []
 report_issue.device_info.screen_size_label:
   context: Label for the viewport size entry in the device information notice
@@ -6237,6 +6517,7 @@ report_issue.device_info.screen_size_label:
   th: "ขนาดหน้าจอ"
   cs: "Velikost obrazovky"
   sv: "Skärmstorlek"
+  he: גודל מסך
   verified_by_human: []
 report_issue.device_info.touch_support_label:
   context: Label for the touch capability entry in the device information notice
@@ -6260,6 +6541,7 @@ report_issue.device_info.touch_support_label:
   th: "การสนับสนุนการสัมผัส"
   cs: "Podpora dotyku"
   sv: "Pekstöd"
+  he: תמיכה במגע
   verified_by_human: []
 report_issue.device_info.privacy_label:
   context: Label prefix for the privacy notice inside the device information notice
@@ -6283,6 +6565,7 @@ report_issue.device_info.privacy_label:
   th: "ประกาศความเป็นส่วนตัว"
   cs: "Oznámení o ochraně osobních údajů"
   sv: "Integritetsmeddelande"
+  he: הצהרת פרטיות
   verified_by_human: []
 report_issue.device_info.privacy_body:
   context: Privacy notice body text inside the device information notice
@@ -6306,6 +6589,7 @@ report_issue.device_info.privacy_body:
   th: "ข้อมูลเทคนิคนี้ใช้เฉพาะเพื่อการแก้ไขข้อบกพร่องเพื่อช่วยแก้ไขปัญหาของคุณ ข้อมูลจะถูกส่งผ่าน Brevo ไปยังผู้ดูแลเซิร์ฟเวอร์ของเราและไม่ได้เก็บไว้อย่างถาวรบนเซิร์ฟเวอร์ OpenMates ข้อมูลช่วยให้เราเข้าใจบริบททางเทคนิค (ความเข้ากันได้ของเบราว์เซอร์ ปัญหาเลย์เอาต์หน้าจอ การใช้งานแบบสัมผัสเทียบกับเดสก์ท็อป) เพื่อให้การสนับสนุนที่ดีขึ้น"
   cs: "Tato technická data se používají pouze pro účely ladění, aby pomohla vyřešit váš problém. Jsou odeslána prostřednictvím Brevo našemu správci serveru a nejsou trvale uložena na serverech OpenMates. Data nám pomáhají pochopit technický kontext (kompatibilita prohlížeče, problémy s rozložením obrazovky, použití dotyku vs desktopu) pro poskytnutí lepší podpory."
   sv: "Dessa tekniska data används endast för felsökningsändamål för att hjälpa till att lösa ditt problem. De skickas via Brevo till vår serveradministratör och lagras inte permanent på OpenMates-servrar. Data hjälper oss att förstå teknisk kontext (webbläsarkompatibilitet, skärmlayoutproblem, touch- vs skrivbordsanvändning) för att ge bättre support."
+  he: נתונים טכניים אלו משמשים למטרות ניפוי שגיאות בלבד כדי לסייע בפתרון הבעיה שלך. המידע נשלח באמצעות Brevo למנהל המערכת שלנו ואינו נשמר לצמיתות בשרתי OpenMates. הנתונים עוזרים לנו להבין את ההקשר הטכני (תאימות דפדפן, בעיות בתצוגת המסך, שימוש במגע לעומת מחשב) כדי לספק תמיכה טובה יותר.
   verified_by_human: []
 report_issue.signal_reminder:
   context: Reminder text about Signal group — for discussions and questions only (screenshots are now submitted directly in the form)
@@ -6329,6 +6613,7 @@ report_issue.signal_reminder:
   th: "มีคำถามหรืออยากพูดคุย? ยินดีต้อนรับคุณเข้าร่วมกลุ่ม Signal ของเรา คุณสามารถค้นหาลิงก์ได้ในส่วนการสนับสนุน"
   cs: "Máte otázky nebo chcete diskutovat? Jste vítáni připojit se k naší skupině Signal. Odkaz najdete v sekci Podpora."
   sv: "Har du frågor eller vill diskutera? Du är välkommen att gå med i vår Signal-grupp. Du hittar länken i avsnittet Stöd."
+  he: "יש לך שאלות או רצון לדון? מוזמן/נת להצטרף ל-"
   verified_by_human: []
 report_issue.signal_link:
   context: Link text for Signal group (shown after the signal_reminder text as an inline hyperlink)
@@ -6352,6 +6637,7 @@ report_issue.signal_link:
   th: กลุ่ม Signal ของเรา
   cs: skupině Signal
   sv: Signal-grupp
+  he: קבוצת ה-Signal
   verified_by_human: []
 report_issue.submit_button:
   context: Submit button text for report issue form
@@ -6375,6 +6661,7 @@ report_issue.submit_button:
   th: ส่งปัญหา
   cs: Odeslat problém
   sv: Skicka problem
+  he: שליחת הדיווח
   verified_by_human: []
 report_issue.submitting:
   context: Submit button text while submitting issue report
@@ -6398,6 +6685,7 @@ report_issue.submitting:
   th: กำลังส่ง...
   cs: Odesílání...
   sv: Skickar...
+  he: שולח...
   verified_by_human: []
 report_issue_success:
   context: Success message after submitting issue report
@@ -6421,6 +6709,7 @@ report_issue_success:
   th: รายงานปัญหาสำเร็จแล้ว ขอบคุณสำหรับความคิดเห็นของคุณ!
   cs: Problém byl úspěšně nahlášen. Děkujeme za vaši zpětnou vazbu!
   sv: Problem rapporterat framgångsrikt. Tack för din feedback!
+  he: "הדיווח נשלח בהצלחה. תודה על המשוב!"
   verified_by_human: []
 report_issue_success_with_id:
   context: Success message after submitting issue report, includes the issue ID for reference. {issue_id} is replaced with the actual UUID.
@@ -6444,6 +6733,7 @@ report_issue_success_with_id:
   th: "รายงานปัญหาสำเร็จแล้ว ขอบคุณสำหรับความคิดเห็นของคุณ! ID ปัญหาของคุณ: {issue_id}"
   cs: "Problém byl úspěšně nahlášen. Děkujeme za vaši zpětnou vazbu! Vaše ID problému: {issue_id}"
   sv: "Problem rapporterat framgångsrikt. Tack för din feedback! Ditt problem-ID: {issue_id}"
+  he: "הדיווח נשלח בהצלחה. תודה על המשוב! מזהה הדיווח שלך: {issue_id}"
   verified_by_human: []
 report_issue.issue_id_label:
   context: Label shown above the issue ID in the success message after reporting an issue
@@ -6467,6 +6757,7 @@ report_issue.issue_id_label:
   th: "ID ปัญหาของคุณ:"
   cs: "Vaše ID problému:"
   sv: "Ditt problem-ID:"
+  he: "מזהה הדיווח שלך:"
   verified_by_human: []
 report_issue.copy_issue_id:
   context: Button text to copy the issue ID to clipboard
@@ -6490,6 +6781,7 @@ report_issue.copy_issue_id:
   th: คัดลอก
   cs: Kopírovat
   sv: Kopiera
+  he: העתקה
   verified_by_human: []
 report_issue.issue_id_copied:
   context: Button text shown after the issue ID has been copied to clipboard
@@ -6513,6 +6805,7 @@ report_issue.issue_id_copied:
   th: คัดลอกแล้ว!
   cs: Zkopírováno!
   sv: Kopierat!
+  he: "הועתק!"
   verified_by_human: []
 report_issue_error:
   context: Error message when submitting issue report fails
@@ -6536,6 +6829,7 @@ report_issue_error:
   th: ส่งปัญหาล้มเหลว กรุณาลองอีกครั้งในภายหลัง
   cs: Odeslání problému se nezdařilo. Zkuste to prosím později znovu.
   sv: Det gick inte att skicka problemet. Försök igen senare.
+  he: שליחת הדיווח נכשלה. כדאי לנסות שוב מאוחר יותר.
   verified_by_human: []
 report_issue.copy_debug_info_button:
   context: Button text to copy client-side debug info to clipboard
@@ -6559,6 +6853,7 @@ report_issue.copy_debug_info_button:
   th: คัดลอกข้อมูลดีบักไปยังคลิปบอร์ด
   cs: Zkopírovat ladicí informace do schránky
   sv: Kopiera felsökningsinfo till urklipp
+  he: העתקת פרטי ניפוי שגיאות ללוח
   verified_by_human: []
 report_issue.copy_debug_info_copying:
   context: Button text while copying debug info
@@ -6582,6 +6877,7 @@ report_issue.copy_debug_info_copying:
   th: กำลังคัดลอก...
   cs: Kopírování...
   sv: Kopierar...
+  he: מעתיק...
   verified_by_human: []
 report_issue.copy_debug_info_copied:
   context: Button text after successfully copying debug info
@@ -6605,6 +6901,7 @@ report_issue.copy_debug_info_copied:
   th: คัดลอกแล้ว!
   cs: Zkopírováno!
   sv: Kopierat!
+  he: "הועתק!"
   verified_by_human: []
 report_issue.copy_debug_info_success:
   context: Notification message after successfully copying debug info
@@ -6628,6 +6925,7 @@ report_issue.copy_debug_info_success:
   th: คัดลอกข้อมูลดีบักไปยังคลิปบอร์ดแล้ว
   cs: Ladicí informace zkopírovány do schránky
   sv: Felsökningsinfo kopierad till urklipp
+  he: פרטי ניפוי השגיאות הועתקו ללוח
   verified_by_human: []
 report_issue.copy_debug_info_error:
   context: Error message when copying debug info fails
@@ -6651,6 +6949,7 @@ report_issue.copy_debug_info_error:
   th: คัดลอกข้อมูลดีบักล้มเหลว กรุณาลองอีกครั้ง
   cs: Kopírování ladicích informací se nezdařilo. Zkuste to znovu.
   sv: Det gick inte att kopiera felsökningsinfo. Försök igen.
+  he: העתקת פרטי ניפוי השגיאות נכשלה. כדאי לנסות שוב.
   verified_by_human: []
 report_issue.action_history_heading:
   context: Section heading for the recent user-action history shown in the report issue form's device info panel
@@ -6674,6 +6973,7 @@ report_issue.action_history_heading:
   th: การกระทำล่าสุด
   cs: Poslední akce
   sv: Senaste åtgärder
+  he: פעולות אחרונות
   verified_by_human: []
 report_issue.action_history_description:
   context: Short description below the action history heading explaining what is tracked (privacy note)
@@ -6697,6 +6997,7 @@ report_issue.action_history_description:
   th: เฉพาะชื่อปุ่มและการนำทาง — ไม่มีเนื้อหาข้อความที่คุณป้อน
   cs: Pouze názvy tlačítek a navigace — žádný vámi zadaný text
   sv: Endast knappnamn och navigering — ingen text du har skrivit
+  he: שמות כפתורים וניווט בלבד — ללא תוכן טקסט שהזנת
   verified_by_human: []
 report_issue.action_history_empty:
   context: Placeholder text shown in the action history list when no actions have been recorded yet
@@ -6720,6 +7021,7 @@ report_issue.action_history_empty:
   th: ยังไม่มีการบันทึกการกระทำ
   cs: Zatím nebyly zaznamenány žádné akce
   sv: Inga åtgärder registrerade ännu
+  he: טרם נרשמו פעולות
   verified_by_human: []
 report_issue.copy_debug_info_hint:
   context: Hint text below the copy debug info button explaining its purpose
@@ -6743,6 +7045,7 @@ report_issue.copy_debug_info_hint:
   th: คัดลอกข้อมูลอุปกรณ์ ล็อกคอนโซล และข้อมูล IndexedDB ไปยังคลิปบอร์ดสำหรับการดีบักในเครื่อง
   cs: Zkopíruje informace o zařízení, protokoly konzole a data IndexedDB do schránky pro lokální ladění
   sv: Kopierar enhetsinformation, konsolloggar och IndexedDB-data till urklipp för lokal felsökning
+  he: מעתיק ללוח פרטי מכשיר, יומני קונסולה ונתוני IndexedDB לצורך ניפוי שגיאות מקומי
   verified_by_human: []
 report_issue.copy_debug_info_manual_hint:
   context: Instruction shown when clipboard copy fails — tells the user to select all text in the box below and copy it manually
@@ -6766,6 +7069,7 @@ report_issue.copy_debug_info_manual_hint:
   th: การคัดลอกไปยังคลิปบอร์ดล้มเหลว กรุณาเลือกข้อความทั้งหมดด้านล่างและคัดลอกด้วยตนเอง (Ctrl+A / Cmd+A จากนั้น Ctrl+C / Cmd+C)
   cs: Kopírování do schránky se nezdařilo. Vyberte veškerý text níže a zkopírujte jej ručně (Ctrl+A / Cmd+A, poté Ctrl+C / Cmd+C).
   sv: Kopiering till urklipp misslyckades. Markera all text nedan och kopiera manuellt (Ctrl+A / Cmd+A, sedan Ctrl+C / Cmd+C).
+  he: העתקה ללוח נכשלה. יש לבחור את כל הטקסט למטה ולהעתיק אותו ידנית (Ctrl+A / Cmd+A, ואז Ctrl+C / Cmd+C).
   verified_by_human: []
 report_issue.screenshot_label:
   context: Section label for the optional screenshot attachment in the report issue form
@@ -6789,6 +7093,7 @@ report_issue.screenshot_label:
   th: แนบภาพหน้าจอ
   cs: Přiložit snímek obrazovky
   sv: Bifoga skärmbild
+  he: צירוף צילום מסך
   verified_by_human: []
 report_issue.screenshot_hint:
   context: Hint text below the screenshot section label explaining its purpose
@@ -6812,6 +7117,7 @@ report_issue.screenshot_hint:
   th: จับภาพหน้าจอเพื่อช่วยอธิบายปัญหา
   cs: Zachyťte obrazovku, aby pomohla ilustrovat problém
   sv: Fånga din skärm för att illustrera problemet
+  he: צילום המסך יעזור להמחיש את הבעיה
   verified_by_human: []
 report_issue.screenshot_capture_button:
   context: Button label to trigger the screen capture flow
@@ -6835,6 +7141,7 @@ report_issue.screenshot_capture_button:
   th: จับภาพหน้าจอ
   cs: Pořídit snímek obrazovky
   sv: Ta skärmbild
+  he: צילום מסך
   verified_by_human: []
 report_issue.screenshot_capturing:
   context: Button label shown while the screen capture is in progress
@@ -6858,6 +7165,7 @@ report_issue.screenshot_capturing:
   th: กำลังจับภาพ…
   cs: Zachycování…
   sv: Fångar…
+  he: מצלם...
   verified_by_human: []
 report_issue.screenshot_remove:
   context: Button label to remove the attached screenshot preview
@@ -6881,6 +7189,7 @@ report_issue.screenshot_remove:
   th: ลบภาพหน้าจอ
   cs: Odstranit snímek obrazovky
   sv: Ta bort skärmbild
+  he: הסרת צילום המסך
   verified_by_human: []
 report_issue.screenshot_permission_denied:
   context: Error message shown when the user denies the screen capture permission
@@ -6904,6 +7213,7 @@ report_issue.screenshot_permission_denied:
   th: ถูกปฏิเสธสิทธิ์ โปรดอนุญาตการจับภาพหน้าจอ
   cs: Oprávnění odmítnuto. Povolte prosím zachytávání obrazovky.
   sv: Tillstånd nekades. Tillåt skärminspelning.
+  he: ההרשאה נדחתה. יש לאשר צילום מסך.
   verified_by_human: []
 report_issue.screenshot_capture_failed:
   context: Generic error message shown when the screenshot capture fails for an unexpected reason
@@ -6927,6 +7237,7 @@ report_issue.screenshot_capture_failed:
   th: ไม่สามารถจับภาพหน้าจอได้
   cs: Pořízení snímku obrazovky selhalo.
   sv: Det gick inte att ta skärmbild.
+  he: צילום המסך נכשל.
   verified_by_human: []
 report_issue.screenshot_size_too_large:
   context: Error message shown when the captured screenshot exceeds the maximum allowed size
@@ -6950,6 +7261,7 @@ report_issue.screenshot_size_too_large:
   th: ภาพหน้าจอใหญ่เกินไป โปรดลองใช้หน้าต่างที่เล็กกว่า
   cs: Snímek obrazovky je příliš velký. Zkuste menší okno.
   sv: Skärmbild för stor. Försök med ett mindre fönster.
+  he: צילום המסך גדול מדי. כדאי לנסות חלון קטן יותר.
   verified_by_human: []
 report_issue.screenshot_preview_alt:
   context: Alt text for the screenshot preview image
@@ -6973,6 +7285,7 @@ report_issue.screenshot_preview_alt:
   th: ตัวอย่างภาพหน้าจอ
   cs: Náhled snímku obrazovky
   sv: Förhandsgranskning av skärmbild
+  he: תצוגה מקדימה של צילום המסך
   verified_by_human: []
 report_issue.confirmation:
   context: Settings header title key auto-generated from the route path "report_issue/confirmation" — must match confirmation_title
@@ -6996,6 +7309,7 @@ report_issue.confirmation:
   th: ส่งรายงานแล้ว
   cs: Zpráva odeslána
   sv: Rapport skickad
+  he: הדיווח נשלח
   verified_by_human: []
 report_issue.confirmation_title:
   context: Sub-page title shown in the settings header after an issue is successfully submitted
@@ -7019,6 +7333,7 @@ report_issue.confirmation_title:
   th: ส่งรายงานแล้ว
   cs: Zpráva odeslána
   sv: Rapport skickad
+  he: הדיווח נשלח
   verified_by_human: []
 report_issue.confirmation_heading:
   context: Large heading on the confirmation page after a successful issue submission
@@ -7042,6 +7357,7 @@ report_issue.confirmation_heading:
   th: ขอบคุณสำหรับรายงานของคุณ!
   cs: Děkujeme za váš report!
   sv: Tack för din rapport!
+  he: "תודה על הדיווח!"
   verified_by_human: []
 report_issue.confirmation_body:
   context: Body text on the confirmation page explaining what happens next
@@ -7065,6 +7381,7 @@ report_issue.confirmation_body:
   th: เราได้รับรายงานของคุณแล้วและจะดำเนินการตรวจสอบ คุณสามารถอ้างอิงปัญหาด้วย ID ด้านล่าง
   cs: Obdrželi jsme váš report a prověříme ho. Na problém se můžete odvolávat pomocí níže uvedeného ID.
   sv: Vi har tagit emot din rapport och kommer att undersöka den. Du kan referera till ditt problem med ID:t nedan.
+  he: קיבלנו את הדיווח שלך ונבדוק אותו. ניתן להתייחס לדיווח באמצעות המזהה (ID) שלמטה.
   verified_by_human: []
 report_issue.confirmation_submit_another:
   context: Button on the confirmation page to go back and submit another issue report
@@ -7088,6 +7405,7 @@ report_issue.confirmation_submit_another:
   th: ส่งรายงานอีกครั้ง
   cs: Odeslat další report
   sv: Skicka in en ny rapport
+  he: שליחת דיווח נוסף
   verified_by_human: []
 report_issue.screenshot_upload_button:
   context: Button label to upload a screenshot from the device (shown on iOS or after screen capture fails)
@@ -7111,6 +7429,7 @@ report_issue.screenshot_upload_button:
   th: อัปโหลดภาพหน้าจอ
   cs: Nahrát snímek obrazovky
   sv: Ladda upp skärmbild
+  he: העלאת צילום מסך
   verified_by_human: []
 report_issue.element_picker_label:
   context: Label for the DOM element picker section in the report issue form — lets the user tap/click a broken part of the UI to include its HTML in the report
@@ -7134,6 +7453,7 @@ report_issue.element_picker_label:
   th: เลือกองค์ประกอบที่ผิดพลาด
   cs: Vybrat poškozený prvek
   sv: Välj felaktigt element
+  he: בחירת רכיב לא תקין
   verified_by_human: []
 report_issue.element_picker_hint:
   context: Hint text below the element picker label explaining what the feature does
@@ -7157,6 +7477,7 @@ report_issue.element_picker_hint:
   th: แตะองค์ประกอบใดก็ได้บนหน้าเพื่อจับโครงสร้าง HTML สำหรับการแก้ไขข้อผิดพลาด
   cs: Klepněte na libovolný prvek na stránce a zachyťte jeho HTML strukturu pro ladění
   sv: Tryck på vilket element som helst på sidan för att fånga dess HTML-struktur för felsökning
+  he: יש להקיש על רכיב כלשהו בדף כדי ללכוד את מבנה ה-HTML שלו לצורך ניפוי שגיאות
   verified_by_human: []
 report_issue.element_picker_button:
   context: Button label to start the DOM element picker mode (clicking/tapping a broken UI element)
@@ -7180,6 +7501,7 @@ report_issue.element_picker_button:
   th: เลือกองค์ประกอบ
   cs: Vybrat prvek
   sv: Välj element
+  he: בחירת רכיב
   verified_by_human: []
 report_issue.element_picker_active:
   context: Label shown on the pick-element button while the picker mode is active (user is selecting an element)
@@ -7203,6 +7525,7 @@ report_issue.element_picker_active:
   th: กำลังเลือก...
   cs: Výběr...
   sv: Väljer...
+  he: בוחר...
   verified_by_human: []
 report_issue.element_picker_instruction:
   context: Floating instruction bar shown during element picker mode, explaining to the user how to select and confirm an element
@@ -7226,6 +7549,7 @@ report_issue.element_picker_instruction:
   th: แตะองค์ประกอบเพื่อเลือก จากนั้นยืนยัน
   cs: Klepněte na prvek pro výběr, poté potvrďte
   sv: Tryck på ett element för att välja det, bekräfta sedan
+  he: יש להקיש על רכיב כדי לבחור אותו, ואז לאשר
   verified_by_human: []
 report_issue.element_picker_confirm:
   context: Button label to confirm the selected element during DOM element picker mode
@@ -7249,6 +7573,7 @@ report_issue.element_picker_confirm:
   th: ยืนยัน
   cs: Potvrdit
   sv: Bekräfta
+  he: אישור
   verified_by_human: []
 report_issue.element_picker_cancel:
   context: Button label to cancel the DOM element picker mode without selecting anything
@@ -7272,6 +7597,7 @@ report_issue.element_picker_cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 report_issue.element_picker_remove:
   context: Button label to remove/clear a previously selected DOM element from the report
@@ -7295,6 +7621,7 @@ report_issue.element_picker_remove:
   th: ลบองค์ประกอบ
   cs: Odstranit prvek
   sv: Ta bort element
+  he: הסרת רכיב
   verified_by_human: []
 report_issue.element_picker_preview_label:
   context: Clickable summary label for the captured element HTML preview (inside a <details> element)
@@ -7318,6 +7645,7 @@ report_issue.element_picker_preview_label:
   th: HTML ขององค์ประกอบที่จับได้ (คลิกเพื่อขยาย)
   cs: HTML zachyceného prvku (kliknutím rozbalte)
   sv: Infångat elements HTML (klicka för att expandera)
+  he: קוד ה-HTML של הרכיב שנלכד (לחץ להרחבה)
   verified_by_human: []
 report_issue.element_picker_copy:
   context: Button label to copy the captured DOM element's outerHTML to clipboard
@@ -7341,6 +7669,7 @@ report_issue.element_picker_copy:
   th: คัดลอก HTML
   cs: Kopírovat HTML
   sv: Kopiera HTML
+  he: העתקת HTML
   verified_by_human: []
 report_issue.element_picker_copied:
   context: Button label shown briefly after copying the element HTML to clipboard (success state)
@@ -7364,6 +7693,7 @@ report_issue.element_picker_copied:
   th: คัดลอกแล้ว!
   cs: Zkopírováno!
   sv: Kopierad!
+  he: "הועתק!"
   verified_by_human: []
 report_issue.screenshot_upload_failed:
   context: Error message shown when reading the uploaded screenshot file fails
@@ -7387,6 +7717,7 @@ report_issue.screenshot_upload_failed:
   th: ไม่สามารถอ่านภาพที่อัปโหลดได้
   cs: Nelze přečíst nahraný obrázek.
   sv: Det gick inte att läsa den uppladdade bilden.
+  he: קריאת התמונה שהועלתה נכשלה.
   verified_by_human: []
 logout_all:
   context: Menu item to log out of all devices and sessions
@@ -7410,6 +7741,7 @@ logout_all:
   th: ออกจากระบบทุกที่
   cs: Odhlásit se všude
   sv: Logga ut överallt
+  he: התנתקות מכל המכשירים
   verified_by_human: []
 # --- Missing navigation item labels used by searchSettingsCatalog.ts ---
 # These keys are looked up as settings.{key}.text for display in search results.
@@ -7436,6 +7768,7 @@ hide_personal_data:
   th: ซ่อนข้อมูลส่วนตัว
   cs: Skrýt osobní data
   sv: Dölj personuppgifter
+  he: הסתרת נתונים אישיים
   verified_by_human: []
 notifications:
   context: Navigation label for the notifications settings sub-page
@@ -7459,6 +7792,7 @@ notifications:
   th: การแจ้งเตือน
   cs: Oznámení
   sv: Notiser
+  he: התראות
   verified_by_human: []
 buy_credits:
   context: Navigation label for the buy credits settings sub-page
@@ -7482,6 +7816,7 @@ buy_credits:
   th: ซื้อเครดิต
   cs: Koupit kredity
   sv: Köp krediter
+  he: קניית קרדיטים
   verified_by_human: []
 auto_topup:
   context: Navigation label for the auto top-up settings sub-page
@@ -7505,6 +7840,7 @@ auto_topup:
   th: เติมเงินอัตโนมัติ
   cs: Automatické doplnění
   sv: Automatisk påfyllning
+  he: טעינה אוטומטית
   verified_by_human: []
 invoices:
   context: Navigation label for the invoices settings sub-page
@@ -7528,6 +7864,7 @@ invoices:
   th: ใบแจ้งหนี้
   cs: Faktury
   sv: Fakturor
+  he: חשבוניות
   verified_by_human: []
 api_keys:
   context: Navigation label for the API keys settings sub-page
@@ -7551,6 +7888,7 @@ api_keys:
   th: คีย์ API
   cs: API klíče
   sv: API-nycklar
+  he: מפתחות API
   verified_by_human: []
 devices:
   context: Navigation label for the devices settings sub-page
@@ -7574,6 +7912,7 @@ devices:
   th: อุปกรณ์
   cs: Zařízení
   sv: Enheter
+  he: מכשירים
   verified_by_human: []
 language:
   context: Navigation label for the language settings sub-page
@@ -7597,6 +7936,7 @@ language:
   th: ภาษา
   cs: Jazyk
   sv: Språk
+  he: שפה
   verified_by_human: []
 passkeys:
   context: Navigation label for the passkeys settings sub-page
@@ -7620,6 +7960,7 @@ passkeys:
   th: คีย์การเข้าถึง
   cs: Přístupové klíče
   sv: Åtkomstnycklar
+  he: מפתחות גישה
   verified_by_human: []
 password:
   context: Navigation label for the password settings sub-page
@@ -7643,6 +7984,7 @@ password:
   th: รหัสผ่าน
   cs: Heslo
   sv: Lösenord
+  he: סיסמה
   verified_by_human: []
 two_factor_auth:
   context: Navigation label for the two-factor authentication settings sub-page
@@ -7666,6 +8008,7 @@ two_factor_auth:
   th: การยืนยันตัวตนสองขั้นตอน
   cs: Dvoufaktorové ověření
   sv: Tvåfaktorsautentisering
+  he: אימות דו-שלבי
   verified_by_human: []
 recovery_key:
   context: Navigation label for the recovery key settings sub-page
@@ -7689,6 +8032,7 @@ recovery_key:
   th: คีย์กู้คืน
   cs: Obnovovací klíč
   sv: Återställningsnyckel
+  he: מפתח שחזור
   verified_by_human: []
 export_data:
   context: Navigation label for the export data settings sub-page
@@ -7712,6 +8056,7 @@ export_data:
   th: ส่งออกข้อมูล
   cs: Exportovat data
   sv: Exportera data
+  he: ייצוא נתונים
   verified_by_human: []
 delete_account:
   context: Navigation label for the delete account settings sub-page
@@ -7735,6 +8080,7 @@ delete_account:
   th: ลบบัญชี
   cs: Smazat účet
   sv: Ta bort konto
+  he: מחיקת חשבון
   verified_by_human: []
 
 tip.tip_creator:
@@ -7759,4 +8105,5 @@ tip.tip_creator:
   th: ให้ทิปผู้สร้าง
   cs: Příspěvek tvůrci
   sv: Dricks till skaparen
+  he: טיפ ליוצר
   verified_by_human: []

@@ -20,6 +20,7 @@ description:
   th: ""
   cs: ""
   sv: ""
+  he: ממש או רכוש כרטיסי מתנה עבור קרדיטים של OpenMates
   verified_by_human: []
 gift_cards:
   context: Gift cards settings menu item
@@ -43,6 +44,7 @@ gift_cards:
   th: บัตรของขวัญ
   cs: Dárkové Karty
   sv: Presentkort
+  he: כרטיסי מתנה
   verified_by_human: []
 redeem:
   context: Redeem gift card menu item
@@ -66,6 +68,7 @@ redeem:
   th: แลก
   cs: Vyměnit
   sv: Lösa in
+  he: מימוש
   verified_by_human: []
 redeemed:
   context: View redeemed gift cards menu item
@@ -89,6 +92,7 @@ redeemed:
   th: ใช้แล้ว
   cs: Použité
   sv: Använda
+  he: מומשו
   verified_by_human: []
 buy:
   context: Buy gift card menu item
@@ -112,6 +116,7 @@ buy:
   th: ซื้อ
   cs: Koupit
   sv: Köpa
+  he: רכישה
   verified_by_human: []
 buy.payment:
   context: Payment page title for buying gift cards
@@ -135,6 +140,7 @@ buy.payment:
   th: การชำระเงิน
   cs: Platba
   sv: Betalning
+  he: תשלום
   verified_by_human: []
 buy.confirmation:
   context: Confirmation page title after purchasing gift card
@@ -158,6 +164,7 @@ buy.confirmation:
   th: ยืนยันการซื้อบัตรของขวัญ
   cs: Potvrzení Nákupu Dárkové Karty
   sv: Bekräftelse av Presentkortsköp
+  he: אישור רכישת כרטיס מתנה
   verified_by_human: []
 credits:
   context: Credits label for gift cards
@@ -181,6 +188,7 @@ credits:
   th: เครดิต
   cs: kredity
   sv: krediter
+  he: קרדיטים
   verified_by_human: []
 code:
   context: Gift card code label
@@ -204,6 +212,7 @@ code:
   th: รหัสบัตรของขวัญ
   cs: Kód Dárkové Karty
   sv: Presentkortskod
+  he: קוד כרטיס מתנה
   verified_by_human: []
 copy:
   context: Copy gift card code button
@@ -227,6 +236,7 @@ copy:
   th: คัดลอกรหัส
   cs: Kopírovat kód
   sv: Kopiera kod
+  he: העתק קוד
   verified_by_human: []
 code_copied:
   context: Message when gift card code is copied
@@ -250,6 +260,7 @@ code_copied:
   th: คัดลอกรหัสบัตรของขวัญไปยังคลิปบอร์ดแล้ว
   cs: Kód dárkové karty zkopírován do schránky
   sv: Presentkortskod kopierad till urklipp
+  he: קוד כרטיס המתנה הועתק ללוח
   verified_by_human: []
 download:
   context: Download gift card code button
@@ -273,6 +284,7 @@ download:
   th: ดาวน์โหลดรหัสบัตรของขวัญ
   cs: Stáhnout Kód Dárkové Karty
   sv: Ladda ner Presentkortskod
+  he: הורד קוד כרטיס מתנה
   verified_by_human: []
 done:
   context: Done button after viewing gift card
@@ -296,6 +308,7 @@ done:
   th: เสร็จสิ้น
   cs: Hotovo
   sv: Klar
+  he: בוצע
   verified_by_human: []
 purchase_successful:
   context: Success message after purchasing gift card
@@ -319,6 +332,7 @@ purchase_successful:
   th: ซื้อบัตรของขวัญสำเร็จแล้ว
   cs: Dárková Karta Úspěšně Zakoupena
   sv: Presentkort Köpt Framgångsrikt
+  he: כרטיס המתנה נרכש בהצלחה
   verified_by_human: []
 purchase_successful_subtitle:
   context: Subtitle after purchasing gift card
@@ -342,6 +356,7 @@ purchase_successful_subtitle:
   th: รหัสบัตรของขวัญของคุณพร้อมแล้ว
   cs: Váš kód dárkové karty je připraven
   sv: Din presentkortskod är redo
+  he: קוד כרטיס המתנה שלך מוכן
   verified_by_human: []
 processing:
   context: Processing message while waiting for gift card
@@ -365,6 +380,7 @@ processing:
   th: กำลังประมวลผลบัตรของขวัญของคุณ...
   cs: Zpracování vaší dárkové karty...
   sv: Bearbetar ditt presentkort...
+  he: מעבד את כרטיס המתנה שלך...
   verified_by_human: []
 buy_info:
   context: Information text about buying gift cards
@@ -388,6 +404,7 @@ buy_info:
   th: ซื้อบัตรของขวัญเพื่อมอบเครดิตให้ผู้อื่น ผู้รับสามารถแลกรหัสเพื่อเพิ่มเครดิตเข้าบัญชีของตน
   cs: Kupte si dárkovou kartu, abyste někomu jinému darovali kredity. Příjemce může vyměnit kód a přidat kredity na svůj účet.
   sv: Köp ett presentkort för att ge krediter till någon annan. Mottagaren kan lösa in koden för att lägga till krediter på sitt konto.
+  he: רכוש כרטיס מתנה כדי להעניק קרדיטים למישהו אחר. המקבל יוכל לממש את הקוד כדי להוסיף קרדיטים לחשבונו.
   verified_by_human: []
 buy_processing:
   context: Message while waiting for gift card code after payment
@@ -411,6 +428,7 @@ buy_processing:
   th: การชำระเงินสำเร็จ! รหัสบัตรของขวัญของคุณจะพร้อมใช้งานในไม่ช้า
   cs: Platba úspěšná! Váš kód dárkové karty bude brzy k dispozici.
   sv: Betalning lyckades! Din presentkortskod kommer snart att vara tillgänglig.
+  he: "התשלום בוצע בהצלחה! קוד כרטיס המתנה שלך יהיה זמין בקרוב."
   verified_by_human: []
 redeemed_empty:
   context: Message when user has no redeemed gift cards
@@ -434,6 +452,7 @@ redeemed_empty:
   th: คุณยังไม่ได้แลกบัตรของขวัญใดๆ
   cs: Ještě jste nevyměnili žádnou dárkovou kartu.
   sv: Du har inte löst in några presentkort ännu.
+  he: עדיין לא מימשת אף כרטיס מתנה.
   verified_by_human: []
 loading:
   context: Loading message while fetching gift cards
@@ -457,6 +476,7 @@ loading:
   th: กำลังโหลด...
   cs: Načítání...
   sv: Laddar...
+  he: טוען...
   verified_by_human: []
 retry:
   context: Retry button text
@@ -480,6 +500,7 @@ retry:
   th: ลองอีกครั้ง
   cs: Zkusit Znovu
   sv: Försök Igen
+  he: נסה שוב
   verified_by_human: []
 error_fetch_failed:
   context: Error message when fetching gift cards fails
@@ -503,4 +524,5 @@ error_fetch_failed:
   th: โหลดบัตรของขวัญไม่สำเร็จ กรุณาลองอีกครั้ง
   cs: Nepodařilo se načíst dárkové karty. Zkuste to prosím znovu.
   sv: Kunde inte ladda presentkort. Försök igen.
+  he: טעינת כרטיסי המתנה נכשלה. אנא נסה שוב.
   verified_by_human: []

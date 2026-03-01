@@ -20,6 +20,7 @@ description:
   th: ""
   cs: ""
   sv: ""
+  he: התאמת המראה והשפה של OpenMates
   verified_by_human: []
 interface:
   context: Interface settings menu item
@@ -43,6 +44,7 @@ interface:
   th: ""
   cs: ""
   sv: ""
+  he: ממשק
   verified_by_human: []
 language:
   context: Language settings menu item in interface section
@@ -66,6 +68,7 @@ language:
   th: ""
   cs: ""
   sv: ""
+  he: שפה
   verified_by_human: []
 
 dark_mode:
@@ -90,6 +93,7 @@ dark_mode:
   th: ""
   cs: ""
   sv: ""
+  he: מצב כהה
   verified_by_human: []
 
 dark_mode.auto:
@@ -114,6 +118,7 @@ dark_mode.auto:
   th: ""
   cs: ""
   sv: ""
+  he: אוטומטי
   verified_by_human: []
 
 dark_mode.auto.description:
@@ -138,6 +143,7 @@ dark_mode.auto.description:
   th: ""
   cs: ""
   sv: ""
+  he: בהתאם להגדרות המכשיר שלך
   verified_by_human: []
 
 dark_mode.light:
@@ -162,6 +168,7 @@ dark_mode.light:
   th: ""
   cs: ""
   sv: ""
+  he: בהיר
   verified_by_human: []
 
 dark_mode.light.description:
@@ -186,6 +193,7 @@ dark_mode.light.description:
   th: ""
   cs: ""
   sv: ""
+  he: שימוש קבוע במצב בהיר
   verified_by_human: []
 
 dark_mode.dark:
@@ -210,6 +218,7 @@ dark_mode.dark:
   th: ""
   cs: ""
   sv: ""
+  he: כהה
   verified_by_human: []
 
 dark_mode.dark.description:
@@ -234,4 +243,5 @@ dark_mode.dark.description:
   th: ""
   cs: ""
   sv: ""
+  he: שימוש קבוע במצב כהה
   verified_by_human: []

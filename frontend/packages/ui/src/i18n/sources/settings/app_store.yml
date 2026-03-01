@@ -20,6 +20,7 @@ description:
   th: ""
   cs: ""
   sv: ""
+  he: עיון וניהול של אפליקציות ומיומנויות עבור עוזר ה-AI שלך
   verified_by_human: []
 app_store:
   context: App Store settings menu item
@@ -43,6 +44,7 @@ app_store:
   th: App Store
   cs: App Store
   sv: App Store
+  he: App Store
   verified_by_human: []
 no_apps_available:
   context: Message shown when no apps are available in the App Store
@@ -66,6 +68,7 @@ no_apps_available:
   th: ไม่มีแอปพลิเคชันที่พร้อมใช้งาน
   cs: Nejsou k dispozici žádné aplikace.
   sv: Inga appar tillgängliga.
+  he: אין אפליקציות זמינות.
   verified_by_human: []
 show_all_apps:
   context: Button to show all apps in a list view
@@ -89,6 +92,7 @@ show_all_apps:
   th: แสดงแอปพลิเคชันทั้งหมด
   cs: Zobrazit všechny aplikace
   sv: Visa alla appar
+  he: הצגת כל האפליקציות
   verified_by_human: []
 all:
   context: Title for the "All Apps" page showing all available apps
@@ -112,6 +116,7 @@ all:
   th: แอปพลิเคชันทั้งหมด
   cs: Všechny aplikace
   sv: Alla appar
+  he: כל האפליקציות
   verified_by_human: []
 all_apps.search_placeholder:
   context: Placeholder text for the search input on the All Apps page
@@ -135,6 +140,7 @@ all_apps.search_placeholder:
   th: ค้นหาแอป...
   cs: Hledat aplikace...
   sv: Sök appar...
+  he: חיפוש אפליקציות...
   verified_by_human: []
 all_apps.sort_by_name_asc:
   context: Sort option — alphabetical A to Z on the All Apps page
@@ -158,6 +164,7 @@ all_apps.sort_by_name_asc:
   th: ชื่อ (A–Z)
   cs: Název (A–Z)
   sv: Namn (A–Z)
+  he: שם (א–ת)
   verified_by_human: []
 all_apps.sort_by_name_desc:
   context: Sort option — reverse alphabetical Z to A on the All Apps page
@@ -181,6 +188,7 @@ all_apps.sort_by_name_desc:
   th: ชื่อ (Z–A)
   cs: Název (Z–A)
   sv: Namn (Z–A)
+  he: שם (ת–א)
   verified_by_human: []
 all_apps.sort_by_newest:
   context: Sort option — most recently updated apps first on the All Apps page
@@ -204,6 +212,7 @@ all_apps.sort_by_newest:
   th: ใหม่ล่าสุด
   cs: Nejnovější
   sv: Nyaste
+  he: החדשים ביותר
   verified_by_human: []
 all_apps.no_apps_found:
   context: Message shown when the search query returns no matching apps on the All Apps page
@@ -227,6 +236,7 @@ all_apps.no_apps_found:
   th: ไม่พบแอปที่ตรงกับการค้นหาของคุณ
   cs: Nebyly nalezeny žádné aplikace odpovídající vašemu hledání.
   sv: Inga appar hittades som matchar din sökning.
+  he: לא נמצאו אפליקציות התואמות לחיפוש שלך.
   verified_by_human: []
 categories.top_picks:
   en: Top picks for you
@@ -249,6 +259,7 @@ categories.top_picks:
   th: คำแนะนำสำหรับคุณ
   cs: Doporučeno pro vás
   sv: Rekommenderat för dig
+  he: הבחירות המובילות עבורך
   verified_by_human: []
 categories.explore_discover:
   context: Category name for personalized app recommendations
@@ -272,6 +283,7 @@ categories.explore_discover:
   th: สำรวจและค้นพบ
   cs: Prozkoumejte a objevujte
   sv: Utforska och upptäck
+  he: סיור וגילוי
   verified_by_human: []
 categories.new_apps:
   context: Category name for recently updated apps
@@ -295,6 +307,7 @@ categories.new_apps:
   th: แอปพลิเคชันใหม่
   cs: Nové aplikace
   sv: Nya appar
+  he: אפליקציות חדשות
   verified_by_human: []
 categories.for_work:
   context: Category name for work-related apps
@@ -318,6 +331,7 @@ categories.for_work:
   th: สำหรับงาน
   cs: Pro práci
   sv: För arbete
+  he: לעבודה
   verified_by_human: []
 categories.for_everyday_life:
   context: Category name for everyday life apps
@@ -341,6 +355,7 @@ categories.for_everyday_life:
   th: สำหรับชีวิตประจำวัน
   cs: Pro každodenní život
   sv: För vardagen
+  he: לחיי היומיום
   verified_by_human: []
 categories.most_used:
   context: Category name for most used apps
@@ -364,6 +379,7 @@ categories.most_used:
   th: ใช้งานบ่อยที่สุด
   cs: Nejpoužívanější
   sv: Mest använd
+  he: הנפוצים ביותר
   verified_by_human: []
 categories.other:
   context: Category name for other apps
@@ -387,6 +403,7 @@ categories.other:
   th: อื่น ๆ
   cs: Ostatní
   sv: Övrigt
+  he: אחר
   verified_by_human: []
 skills.title:
   context: Section title for skills in app details
@@ -410,6 +427,7 @@ skills.title:
   th: ทักษะ
   cs: Dovednosti
   sv: Färdigheter
+  he: מיומנויות
   verified_by_human: []
 skills.how_to_use:
   context: Section title for how to use examples on skill detail page
@@ -433,6 +451,7 @@ skills.how_to_use:
   th: วิธีใช้
   cs: Jak používat
   sv: Hur man använder
+  he: אופן השימוש
   verified_by_human: [en, de]
 skills.description:
   context: Label for skill description
@@ -456,6 +475,7 @@ skills.description:
   th: คำอธิบาย
   cs: Popis
   sv: Beskrivning
+  he: תיאור
   verified_by_human: []
 skills.providers:
   context: Label for skill providers
@@ -479,6 +499,7 @@ skills.providers:
   th: ผู้ให้บริการ
   cs: Poskytovatelé
   sv: Leverantörer
+  he: ספקים
   verified_by_human: []
 skills.pricing:
   context: Label for skill pricing
@@ -502,6 +523,7 @@ skills.pricing:
   th: การกำหนดราคา
   cs: Ceny
   sv: Prissättning
+  he: תמחור
   verified_by_human: []
 skills.pricing.free:
   context: Free pricing label
@@ -525,6 +547,7 @@ skills.pricing.free:
   th: ฟรี
   cs: Zdarma
   sv: Gratis
+  he: חינם
   verified_by_human: []
 skills.pricing.credits:
   context: Credits currency label
@@ -548,6 +571,7 @@ skills.pricing.credits:
   th: หน่วยเครดิต
   cs: kredity
   sv: krediter
+  he: קרדיטים
   verified_by_human: []
 skills.pricing.unit:
   context: Generic unit label
@@ -571,6 +595,7 @@ skills.pricing.unit:
   th: หน่วย
   cs: jednotka
   sv: enhet
+  he: יחידה
   verified_by_human: []
 skills.pricing.minute:
   context: Minute time unit
@@ -594,6 +619,7 @@ skills.pricing.minute:
   th: นาที
   cs: minuta
   sv: minut
+  he: דקה
   verified_by_human: []
 skills.pricing.token:
   context: Token unit for AI pricing
@@ -617,6 +643,7 @@ skills.pricing.token:
   th: โทเค็น
   cs: token
   sv: token
+  he: טוקן
   verified_by_human: []
 skills.pricing.input:
   context: Input label for token pricing
@@ -640,6 +667,7 @@ skills.pricing.input:
   th: อินพุต
   cs: vstup
   sv: inmatning
+  he: קלט
   verified_by_human: []
 skills.pricing.output:
   context: Output label for token pricing
@@ -663,6 +691,7 @@ skills.pricing.output:
   th: เอาต์พุต
   cs: výstup
   sv: utdata
+  he: פלט
   verified_by_human: []
 focus_modes.title:
   context: Section title for focus modes in app details
@@ -686,6 +715,7 @@ focus_modes.title:
   th: โหมดโฟกัส
   cs: Režimy zaměření
   sv: Fok lägen
+  he: מצבי ריכוז
   verified_by_human: []
 focus_modes.description:
   context: Label for focus mode description
@@ -709,6 +739,7 @@ focus_modes.description:
   th: คำอธิบาย
   cs: Popis
   sv: Beskrivning
+  he: תיאור
   verified_by_human: []
 focus_modes.system_prompt:
   context: Section title for the instructions the AI follows when this focus mode is active (user-friendly label)
@@ -732,6 +763,7 @@ focus_modes.system_prompt:
   th: คำแนะนำ
   cs: Instrukce
   sv: Instruktioner
+  he: הוראות
   verified_by_human: []
 focus_modes.no_system_prompt:
   context: Message when focus mode has no instructions defined
@@ -755,6 +787,7 @@ focus_modes.no_system_prompt:
   th: ไม่มีการกำหนดคำแนะนำสำหรับโหมดโฟกัสนี้
   cs: Pro tento režim zaměření nejsou definovány žádné instrukce.
   sv: Inga instruktioner definierade för detta fok läge.
+  he: לא הוגדרו הוראות למצב מיקוד זה.
   verified_by_human: []
 focus_modes.show_full_instruction:
   context: Button to expand collapsed instructions to show full text
@@ -778,6 +811,7 @@ focus_modes.show_full_instruction:
   th: แสดงคำแนะนำแบบเต็ม
   cs: Zobrazit celou instrukci
   sv: Visa fullständig instruktion
+  he: הצג הוראה מלאה
   verified_by_human: []
 focus_modes.show_less:
   context: Button to collapse expanded instructions
@@ -801,6 +835,7 @@ focus_modes.show_less:
   th: แสดงน้อยลง
   cs: Zobrazit méně
   sv: Visa mindre
+  he: הצג פחות
   verified_by_human: []
 focus_modes.summary:
   context: Section heading for the bullet-point process summary on the focus mode settings detail page. Shows what steps the AI takes when this focus mode is active.
@@ -824,6 +859,7 @@ focus_modes.summary:
   th: โหมดโฟกัสนี้ทำอะไร
   cs: Co dělá tento režim zaměření
   sv: Vad detta fokusläge gör
+  he: מה מצב המיקוד הזה עושה
   verified_by_human: []
 focus_modes.no_description:
   context: Message when focus mode has no description
@@ -847,6 +883,7 @@ focus_modes.no_description:
   th: ไม่มีคำอธิบายสำหรับโหมดโฟกัสนี้
   cs: Pro tento režim zaměření není k dispozici žádný popis.
   sv: Ingen beskrivning tillgänglig för detta fok läge.
+  he: אין תיאור זמין למצב מיקוד זה.
   verified_by_human: []
 focus_mode_not_found:
   context: Error message when focus mode is not found
@@ -870,6 +907,7 @@ focus_mode_not_found:
   th: ไม่พบโหมดโฟกัส
   cs: Režim zaměření nenalezen.
   sv: Fok läge hittades inte.
+  he: מצב המיקוד לא נמצא.
   verified_by_human: []
 settings_memories.title:
   context: Section title for settings and memories in app details
@@ -893,6 +931,7 @@ settings_memories.title:
   th: การตั้งค่าและความทรงจำ
   cs: Nastavení a vzpomínky
   sv: Inställningar och minnen
+  he: הגדרות וזיכרונות
   verified_by_human: []
 settings_memories.subtitle:
   context: Subtitle showing number of settings/memories categories
@@ -916,6 +955,7 @@ settings_memories.subtitle:
   th: "{count} หมวดหมู่พร้อมใช้งาน"
   cs: "{count} kategorií k dispozici"
   sv: "{count} kategorier tillgängliga"
+  he: "{count} קטגוריות זמינות"
   verified_by_human: []
 skill_not_found:
   context: Error message when skill is not found
@@ -939,6 +979,7 @@ skill_not_found:
   th: ไม่พบทักษะ
   cs: Dovednost nenalezena.
   sv: Färdighet hittades inte.
+  he: המיומנות לא נמצאה.
   verified_by_human: []
 back_to_app:
   context: Button text to go back to app details
@@ -962,6 +1003,7 @@ back_to_app:
   th: กลับไปที่แอป
   cs: Zpět k aplikaci
   sv: Tillbaka till appen
+  he: חזרה לאפליקציה
   verified_by_human: []
 settings_memories.manage_subtitle:
   context: Subtitle for settings and memories management page
@@ -985,6 +1027,7 @@ settings_memories.manage_subtitle:
   th: จัดการการตั้งค่าแอปและรายการความทรงจำของคุณ
   cs: Spravujte nastavení aplikace a položky paměti
   sv: Hantera dina appinställningar och minnesposter
+  he: ניהול הגדרות האפליקציה ורשומות הזיכרונות שלך
   verified_by_human: []
 settings_memories.no_categories:
   context: Message when app has no settings/memories categories
@@ -1008,6 +1051,7 @@ settings_memories.no_categories:
   th: แอปนี้ไม่มีหมวดหมู่การตั้งค่าหรือความทรงจำที่กำหนดไว้
   cs: Tato aplikace nemá definované kategorie nastavení nebo paměti.
   sv: Denna app har inga inställnings- eller minneskategorier definierade.
+  he: לא הוגדרו קטגוריות הגדרות או זיכרונות לאפליקציה זו.
   verified_by_human: []
 settings_memories.no_entries:
   context: Message when a category has no entries
@@ -1031,6 +1075,7 @@ settings_memories.no_entries:
   th: "ยังไม่มีรายการใน {category}"
   cs: "V {category} zatím nejsou žádné položky."
   sv: "Inga poster i {category} ännu."
+  he: "אין עדיין רשומות ב-{category}."
   verified_by_human: []
 settings_memories.add_entry:
   context: Button text to add a new entry
@@ -1054,6 +1099,7 @@ settings_memories.add_entry:
   th: เพิ่มรายการ
   cs: Přidat položku
   sv: Lägg till post
+  he: הוספת רשומה
   verified_by_human: []
 settings_memories.delete:
   context: Button text to delete an entry
@@ -1077,6 +1123,7 @@ settings_memories.delete:
   th: ลบ
   cs: Smazat
   sv: Ta bort
+  he: מחיקה
   verified_by_human: []
 settings_memories.pending:
   context: Badge text for pending entries
@@ -1100,6 +1147,7 @@ settings_memories.pending:
   th: รอดำเนินการ
   cs: Čekající
   sv: Väntande
+  he: בהמתנה
   verified_by_human: []
 settings_memories.loading:
   context: Loading message while fetching settings and memories entries
@@ -1123,6 +1171,7 @@ settings_memories.loading:
   th: กำลังโหลดการตั้งค่าและความทรงจำ...
   cs: Načítání nastavení a paměti...
   sv: Läser in inställningar och minnen...
+  he: טוען הגדרות וזיכרונות...
   verified_by_human: []
 settings_memories.no_settings:
   context: Message when no settings and memories have been synced for an app
@@ -1146,6 +1195,7 @@ settings_memories.no_settings:
   th: ยังไม่มีการตั้งค่าหรือความทรงจำที่ซิงค์แล้ว พวกเขาจะปรากฏที่นี่เมื่อมีให้บริการ
   cs: Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná.
   sv: Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga.
+  he: טרם סונכרנו הגדרות או זיכרונות. הם יופיעו כאן כשהם יהיו זמינים.
   verified_by_human: []
 settings_memories.item_key:
   context: Label for entry key input field
@@ -1169,6 +1219,7 @@ settings_memories.item_key:
   th: คีย์รายการ
   cs: Klíč položky
   sv: Inmatningsnyckel
+  he: מפתח רשומה
   verified_by_human: []
 settings_memories.settings_group:
   context: Label for settings group input field
@@ -1192,6 +1243,7 @@ settings_memories.settings_group:
   th: กลุ่มการตั้งค่า
   cs: Skupina nastavení
   sv: Inställningsgrupp
+  he: קבוצת הגדרות
   verified_by_human: []
 settings_memories.item_value:
   context: Label for entry value input field
@@ -1215,6 +1267,7 @@ settings_memories.item_value:
   th: ค่ารายการ
   cs: Hodnota položky
   sv: Ingångsvärde
+  he: ערך רשומה
   verified_by_human: []
 settings_memories.cancel:
   context: Cancel button text
@@ -1238,6 +1291,7 @@ settings_memories.cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 settings_memories.creating:
   context: Button text while creating entry
@@ -1261,6 +1315,7 @@ settings_memories.creating:
   th: กำลังสร้าง...
   cs: Vytváření...
   sv: Skapar...
+  he: יוצר...
   verified_by_human: []
 app_not_found:
   context: Error message when app is not found
@@ -1284,6 +1339,7 @@ app_not_found:
   th: ไม่พบแอป
   cs: Aplikace nenalezena.
   sv: Appen hittades inte.
+  he: האפליקציה לא נמצאה.
   verified_by_human: []
 back_to_app_store:
   context: Button text to go back to app store
@@ -1307,6 +1363,7 @@ back_to_app_store:
   th: กลับไปที่ร้านค้าแอป
   cs: Zpět do obchodu s aplikacemi
   sv: Tillbaka till appbutiken
+  he: חזרה לחנות האפליקציות
   verified_by_human: []
 category_not_found:
   context: Error message when category is not found
@@ -1330,6 +1387,7 @@ category_not_found:
   th: ไม่พบหมวดหมู่
   cs: Kategorie nenalezena.
   sv: Kategori hittades inte.
+  he: הקטגוריה לא נמצאה.
   verified_by_human: []
 app_embeds.no_embeds:
   context: Message when no embeds are found for an app
@@ -1353,6 +1411,7 @@ app_embeds.no_embeds:
   th: ไม่พบการฝังสำหรับแอปนี้
   cs: Pro tuto aplikaci nebyly nalezeny žádné vložené prvky.
   sv: Inga inbäddningar hittades för denna app.
+  he: לא נמצאו הטמעות לאפליקציה זו.
   verified_by_human: []
 app_embeds.loading:
   context: Loading message while fetching embeds
@@ -1376,6 +1435,7 @@ app_embeds.loading:
   th: กำลังโหลดการฝัง...
   cs: Načítání vložených prvků...
   sv: Läser in inbäddningar...
+  he: טוען הטמעות...
   verified_by_human: []
 app_settings_memories.no_settings:
   context: Message when no settings and memories have been synced for an app
@@ -1399,6 +1459,7 @@ app_settings_memories.no_settings:
   th: ยังไม่มีการตั้งค่าหรือความทรงจำที่ซิงค์แล้ว พวกเขาจะปรากฏที่นี่เมื่อมีให้บริการ
   cs: Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná.
   sv: Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga.
+  he: טרם סונכרנו הגדרות או זיכרונות. הם יופיעו כאן ברגע שיהיו זמינים.
   verified_by_human: []
 app_settings_memories.add_entry:
   context: Button text to add a new entry
@@ -1422,6 +1483,7 @@ app_settings_memories.add_entry:
   th: เพิ่มรายการ
   cs: Přidat položku
   sv: Lägg till post
+  he: הוספת רשומה
   verified_by_human: []
 plus_n_more:
   context: Shows remaining count in scrollable app/skill/focus mode/settings lists (e.g. "+ 5 more")
@@ -1431,6 +1493,7 @@ plus_n_more:
   fr: "+ {count} de plus"
   it: "+ {count} in più"
   ar: "+ {count} أخرى"
+  he: "+ {count} נוספים"
   verified_by_human: []
 skills.models:
   context: Section heading for available models list on a skill details page
@@ -1454,6 +1517,7 @@ skills.models:
   th: โมเดล
   cs: Modely
   sv: Modeller
+  he: מודלים
   verified_by_human: []
 skills.model_detail.model_info:
   context: Section heading for model information on the skill model detail page
@@ -1477,6 +1541,7 @@ skills.model_detail.model_info:
   th: ข้อมูลโมเดล
   cs: Informace o modelu
   sv: Modellinformation
+  he: מידע על המודל
   verified_by_human: []
 skills.model_detail.origin:
   context: Label for model origin/provider country on skill model detail page
@@ -1500,6 +1565,7 @@ skills.model_detail.origin:
   th: แหล่งกำเนิด
   cs: Původ
   sv: Ursprung
+  he: מקור
   verified_by_human: []
 skills.model_detail.release_date:
   context: Label for model release date on skill model detail page
@@ -1523,6 +1589,7 @@ skills.model_detail.release_date:
   th: วันที่เปิดตัว
   cs: Vydáno
   sv: Utgiven
+  he: שוחרר
   verified_by_human: []
 skills.model_detail.tier:
   context: Label for model pricing tier on skill model detail page
@@ -1546,6 +1613,7 @@ skills.model_detail.tier:
   th: ระดับ
   cs: Úroveň
   sv: Nivå
+  he: רמה
   verified_by_human: []
 skills.model_detail.tier_economy:
   context: Economy tier badge label on skill model detail page
@@ -1569,6 +1637,7 @@ skills.model_detail.tier_economy:
   th: ประหยัด
   cs: Economy
   sv: Economy
+  he: חיסכון
   verified_by_human: []
 skills.model_detail.tier_standard:
   context: Standard tier badge label on skill model detail page
@@ -1592,6 +1661,7 @@ skills.model_detail.tier_standard:
   th: มาตรฐาน
   cs: Standard
   sv: Standard
+  he: סטנדרט
   verified_by_human: []
 skills.model_detail.tier_premium:
   context: Premium tier badge label on skill model detail page
@@ -1615,6 +1685,7 @@ skills.model_detail.tier_premium:
   th: พรีเมียม
   cs: Premium
   sv: Premium
+  he: פרימיום
   verified_by_human: []
 skills.model_detail.input_types:
   context: Label for supported input types on skill model detail page
@@ -1638,6 +1709,7 @@ skills.model_detail.input_types:
   th: ยอมรับ
   cs: Přijímá
   sv: Accepterar
+  he: מקבל
   verified_by_human: []
 skills.model_detail.output_types:
   context: Label for supported output types on skill model detail page
@@ -1661,6 +1733,7 @@ skills.model_detail.output_types:
   th: ส่งออก
   cs: Výstupy
   sv: Utdata
+  he: פלט
   verified_by_human: []
 skills.model_detail.pricing:
   context: Section heading for pricing on skill model detail page
@@ -1684,6 +1757,7 @@ skills.model_detail.pricing:
   th: ราคา
   cs: Ceny
   sv: Prissättning
+  he: תמחור
   verified_by_human: []
 skills.model_detail.provider:
   context: Section heading for provider/server info on skill model detail page
@@ -1707,6 +1781,7 @@ skills.model_detail.provider:
   th: ผู้ให้บริการ
   cs: Poskytovatel
   sv: Leverantör
+  he: ספק
   verified_by_human: []
 skills.model_detail.model_not_found:
   context: Error message when skill model is not found on detail page
@@ -1730,6 +1805,7 @@ skills.model_detail.model_not_found:
   th: ไม่พบโมเดล
   cs: Model nenalezen.
   sv: Modell hittades inte.
+  he: המודל לא נמצא.
   verified_by_human: []
 skills.model_detail.per_image:
   context: Pricing unit label showing cost per generated image
@@ -1753,6 +1829,7 @@ skills.model_detail.per_image:
   th: ต่อภาพ
   cs: za obrázek
   sv: per bild
+  he: לתמונה
   verified_by_human: []
 skills.model_detail.per_megapixel:
   context: Pricing unit label showing cost per megapixel
@@ -1776,6 +1853,7 @@ skills.model_detail.per_megapixel:
   th: ต่อเมกะพิกเซล
   cs: za megapixel
   sv: per megapixel
+  he: למגה-פיקסל
   verified_by_human: []
 skills.model_detail.per_minute:
   context: Pricing unit label showing cost per minute of audio
@@ -1799,6 +1877,7 @@ skills.model_detail.per_minute:
   th: ต่อนาที
   cs: za minutu
   sv: per minut
+  he: לדקה
   verified_by_human: []
 skills.model_detail.servers:
   context: Label for the server/infrastructure region on model detail page
@@ -1822,6 +1901,7 @@ skills.model_detail.servers:
   th: เซิร์ฟเวอร์
   cs: Servery
   sv: Servrar
+  he: שרתים
   verified_by_human: []
 
 # AI Ask skill model names — used as the page title when deep-linking directly to a model detail page.
@@ -1848,6 +1928,7 @@ ai.skill.ask.model.qwen3_235b_a22b_2507:
   th: Qwen 3 256b
   cs: Qwen 3 256b
   sv: Qwen 3 256b
+  he: Qwen 3 256b
   verified_by_human: []
 
 ai.skill.ask.model.claude_haiku_4_5_20251001:
@@ -1872,6 +1953,7 @@ ai.skill.ask.model.claude_haiku_4_5_20251001:
   th: Claude Haiku 4.5
   cs: Claude Haiku 4.5
   sv: Claude Haiku 4.5
+  he: Claude Haiku 4.5
   verified_by_human: []
 
 ai.skill.ask.model.claude_sonnet_4_6:
@@ -1896,6 +1978,7 @@ ai.skill.ask.model.claude_sonnet_4_6:
   th: Claude Sonnet 4.6
   cs: Claude Sonnet 4.6
   sv: Claude Sonnet 4.6
+  he: Claude Sonnet 4.6
   verified_by_human: []
 
 ai.skill.ask.model.claude_opus_4_6:
@@ -1920,6 +2003,7 @@ ai.skill.ask.model.claude_opus_4_6:
   th: Claude Opus 4.6
   cs: Claude Opus 4.6
   sv: Claude Opus 4.6
+  he: Claude Opus 4.6
   verified_by_human: []
 
 ai.skill.ask.model.deepseek_v3.2:
@@ -1944,6 +2028,7 @@ ai.skill.ask.model.deepseek_v3.2:
   th: DeepSeek V3.2
   cs: DeepSeek V3.2
   sv: DeepSeek V3.2
+  he: DeepSeek V3.2
   verified_by_human: []
 
 ai.skill.ask.model.gemini_3_flash_preview:
@@ -1968,6 +2053,7 @@ ai.skill.ask.model.gemini_3_flash_preview:
   th: Gemini 3 Flash
   cs: Gemini 3 Flash
   sv: Gemini 3 Flash
+  he: Gemini 3 Flash
   verified_by_human: []
 
 ai.skill.ask.model.gemini_3.1_pro_preview:
@@ -1992,6 +2078,7 @@ ai.skill.ask.model.gemini_3.1_pro_preview:
   th: Gemini 3.1 Pro
   cs: Gemini 3.1 Pro
   sv: Gemini 3.1 Pro
+  he: Gemini 3.1 Pro
   verified_by_human: []
 
 ai.skill.ask.model.mistral_small_latest:
@@ -2016,6 +2103,7 @@ ai.skill.ask.model.mistral_small_latest:
   th: Mistral Small
   cs: Mistral Small
   sv: Mistral Small
+  he: Mistral Small
   verified_by_human: []
 
 ai.skill.ask.model.mistral_medium_latest:
@@ -2040,6 +2128,7 @@ ai.skill.ask.model.mistral_medium_latest:
   th: Mistral Medium
   cs: Mistral Medium
   sv: Mistral Medium
+  he: Mistral Medium
   verified_by_human: []
 
 ai.skill.ask.model.ministral_8b_2512:
@@ -2064,6 +2153,7 @@ ai.skill.ask.model.ministral_8b_2512:
   th: Ministral 3 8B
   cs: Ministral 3 8B
   sv: Ministral 3 8B
+  he: Ministral 3 8B
   verified_by_human: []
 
 ai.skill.ask.model.devstral_2512:
@@ -2088,6 +2178,7 @@ ai.skill.ask.model.devstral_2512:
   th: Devstral 2
   cs: Devstral 2
   sv: Devstral 2
+  he: Devstral 2
   verified_by_human: []
 
 ai.skill.ask.model.kimi_k2.5:
@@ -2112,6 +2203,7 @@ ai.skill.ask.model.kimi_k2.5:
   th: Kimi K2.5
   cs: Kimi K2.5
   sv: Kimi K2.5
+  he: Kimi K2.5
   verified_by_human: []
 
 ai.skill.ask.model.gpt_5.2:
@@ -2136,6 +2228,7 @@ ai.skill.ask.model.gpt_5.2:
   th: GPT-5.2
   cs: GPT-5.2
   sv: GPT-5.2
+  he: GPT-5.2
   verified_by_human: []
 
 ai.skill.ask.model.gpt_oss_120b:
@@ -2160,6 +2253,7 @@ ai.skill.ask.model.gpt_oss_120b:
   th: GPT-OSS-120b
   cs: GPT-OSS-120b
   sv: GPT-OSS-120b
+  he: GPT-OSS-120b
   verified_by_human: []
 
 ai.skill.ask.model.zai_glm_4.7:
@@ -2184,6 +2278,7 @@ ai.skill.ask.model.zai_glm_4.7:
   th: GLM 4.7
   cs: GLM 4.7
   sv: GLM 4.7
+  he: GLM 4.7
   verified_by_human: []
 
 skill:
@@ -2208,6 +2303,7 @@ skill:
   th: ทักษะ
   cs: Dovednost
   sv: Färdighet
+  he: מיומנות
   verified_by_human: []
 
 focus_mode:
@@ -2232,6 +2328,7 @@ focus_mode:
   th: โหมดโฟกัส
   cs: Režim soustředění
   sv: Fokusläge
+  he: מצב מיקוד
   verified_by_human: []
 
 settings_memories:
@@ -2256,6 +2353,7 @@ settings_memories:
   th: การตั้งค่าและความทรงจำ
   cs: Nastavení a vzpomínky
   sv: Inställningar & Minnen
+  he: הגדרות וזיכרונות
   verified_by_human: []
 
 nav.previous_item:
@@ -2280,6 +2378,7 @@ nav.previous_item:
   th: "ก่อนหน้า: {name}"
   cs: "Předchozí: {name}"
   sv: "Föregående: {name}"
+  he: "הקודם: {name}"
   verified_by_human: []
 
 nav.next_item:
@@ -2304,6 +2403,7 @@ nav.next_item:
   th: "ถัดไป: {name}"
   cs: "Další: {name}"
   sv: "Nästa: {name}"
+  he: "הבא: {name}"
   verified_by_human: []
 provider_detail.connected_skills:
   context: Section heading on provider detail page listing all app skills that use this provider
@@ -2327,6 +2427,7 @@ provider_detail.connected_skills:
   th: ทักษะที่เชื่อมต่อ
   cs: Propojené dovednosti
   sv: Anslutna färdigheter
+  he: מיומנויות מחוברות
   verified_by_human: []
 provider_detail.about:
   context: Section heading on provider detail page showing provider information (description + location)
@@ -2350,6 +2451,7 @@ provider_detail.about:
   th: เกี่ยวกับ
   cs: O poskytovateli
   sv: Om
+  he: אודות
   verified_by_human: []
 provider_detail.location:
   context: Label for the provider's country/location on the provider detail page
@@ -2373,6 +2475,7 @@ provider_detail.location:
   th: ที่ตั้ง
   cs: Umístění
   sv: Plats
+  he: מיקום
   verified_by_human: []
 provider_not_found:
   context: Error message when provider is not found on provider detail page
@@ -2396,4 +2499,5 @@ provider_not_found:
   th: ไม่พบผู้ให้บริการ
   cs: Poskytovatel nenalezen.
   sv: Leverantör hittades inte.
+  he: הספק לא נמצא.
   verified_by_human: []
