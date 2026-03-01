@@ -435,6 +435,35 @@ Note: `appsMetadata.ts` is gitignored — it is regenerated automatically by the
 
 ---
 
+## Browser-Based Debugging with Firecrawl
+
+Use Firecrawl to **reproduce bugs and verify fixes** on `https://app.dev.openmates.org`. Use it for frontend/UI issues where "what the user sees" is the key question. For production or backend-only bugs, use the Admin Debug CLI and logs instead.
+
+```
+firecrawl_browser_create
+→ agent-browser open https://app.dev.openmates.org
+→ agent-browser snapshot -i -c   # find interactive element refs
+→ [reproduce the bug step by step]
+→ agent-browser screenshot        # capture broken state
+[fix → rebuild containers (1–3 min) or push frontend (wait ~150s)]
+→ agent-browser open https://app.dev.openmates.org
+→ [repeat steps → confirm fix]
+→ agent-browser screenshot        # capture fixed state
+```
+
+### Inspecting client-side state
+
+Once logged in, run these in the browser to dump IndexedDB data for a chat or embed:
+
+```
+agent-browser executeScript "await window.inspectChat('<chat-id>')"
+agent-browser executeScript "await window.inspectEmbed('<embed-id>')"
+```
+
+These print a formatted report of the decrypted client-side data (messages, metadata, embed content). Useful for diagnosing encryption sync issues, missing messages, or embed resolution failures without needing backend logs.
+
+---
+
 ## Debugging Frontend Issues (Client Console Logs)
 
 **Admin users only** — browser console logs are automatically forwarded to Loki via `clientLogForwarder.ts`. Regular users' logs are **never** collected or stored. This only works when an admin has the app open in their browser.
@@ -536,56 +565,3 @@ After adding volume mounts:
 1. Restart affected services: `docker-compose restart <service-name>`
 2. Verify the mount: `docker exec <container-name> ls -la /app/.cursor`
 3. Test debug logging by triggering the instrumented code path
-
----
-
-## Vercel Deployment Verification (Frontend)
-
-**IMPORTANT:** After every `git push origin dev` that includes frontend changes, verify the Vercel deployment succeeded. The frontend (`open-mates-webapp`) is deployed automatically by Vercel on push.
-
-### Checking Deployment Status
-
-```bash
-# List recent deployments — check the latest one's status
-vercel ls open-mates-webapp 2>&1 | head -10
-
-# Expected: ● Ready (success) or ● Building (in progress)
-# Problem:  ● Error (build failed)
-```
-
-### Getting Build Logs for Failed Deployments
-
-```bash
-# Get the deployment URL from `vercel ls`, then inspect build logs:
-vercel inspect --logs <deployment-url> 2>&1 | tail -80
-
-# Example:
-vercel inspect --logs https://open-mates-webapp-2ktsb5tu0-marcos-projects-e740a395.vercel.app 2>&1 | tail -80
-```
-
-### Getting Runtime Logs (for successful deployments)
-
-```bash
-# Runtime logs are only available for deployments with status ● Ready
-vercel logs <deployment-url> 2>&1
-```
-
-### Common Build Failures
-
-| Error Pattern                                              | Cause                          | Fix                                                         |
-| ---------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------- |
-| `'onsubmit\|preventDefault' is not a valid attribute name` | Svelte 4 event modifier syntax | Use `onsubmit={(e) => { e.preventDefault(); handler(e); }}` |
-| `'on:click' is not a valid attribute name`                 | Svelte 4 `on:` event syntax    | Use `onclick={handler}`                                     |
-| `export let` errors                                        | Svelte 4 prop syntax           | Use `let { prop } = $props()`                               |
-| `$:` reactive statement errors                             | Svelte 4 reactivity            | Use `$derived()` or `$effect()`                             |
-| `Command failed with exit code 1`                          | General build error            | Check the lines above for the specific error                |
-
-### Post-Push Verification Workflow
-
-After pushing frontend changes to `dev`:
-
-1. **Wait ~30 seconds** for Vercel to pick up the push
-2. **Check deployment status:** `vercel ls open-mates-webapp 2>&1 | head -5`
-3. **If status is ● Error:** Get build logs with `vercel inspect --logs <url> 2>&1 | tail -80`
-4. **Fix the error**, commit, and push again
-5. **If status is ● Ready:** Deployment succeeded — verify at https://open-mates-webapp-git-dev-marcos-projects-e740a395.vercel.app
