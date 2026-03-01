@@ -68,6 +68,18 @@ class SkillPricing(BaseModel):
             return {"credits": float(v)}
         return v
 
+    @validator('fixed', pre=True, always=True)
+    def coerce_fixed(cls, v):
+        """
+        Coerce a plain int/float value for fixed into the expected
+        FixedPricingConfig dict format, so that app.yml can use the shorthand
+        ``fixed: 1`` instead of ``fixed: {credits: 1}``.
+        This is a flat per-request credit cost (e.g. ``fixed: 1`` = 1 credit per call).
+        """
+        if isinstance(v, (int, float)):
+            return {"credits": float(v)}
+        return v
+
 class BaseSkill:
     """
     Base class for all skills.
