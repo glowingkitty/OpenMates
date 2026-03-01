@@ -10,6 +10,17 @@ export {};
  *    before sending, send the message, verify the image embed appears in chat.
  * 2. Attaching a Python code file: same flow but for a .py file.
  * 3. Attaching multiple files at once: verify both appear (image + code reference).
+ * 4. Finance mate image — full image flow:
+ *    - Attach the finance mate profile image
+ *    - Ask the AI to describe what it sees in the image
+ *    - Verify the AI acknowledges viewing the image
+ *    - Verify the ImageViewEmbedPreview card renders in the assistant message
+ *      (data-app-id="images" data-skill-id="view") with an image thumbnail inside
+ *    - Click the preview card → verify ImageEmbedFullscreen opens
+ *      (root .unified-embed-fullscreen-overlay, content .image-embed-fullscreen,
+ *       image .full-image, minimize button button.icon_minimize)
+ *    - Close the fullscreen via minimize button
+ *    - Delete the chat
  *
  * Architecture — important distinction between image and code file handling:
  *
@@ -19,6 +30,16 @@ export {};
  *       .embed-full-width-wrapper > (Svelte ImageEmbedPreview)
  *   - The file is uploaded to the server asynchronously (S3 via /v1/upload/file).
  *   - The embed node updates to status="finished" once the upload completes.
+ *
+ * IMAGE VIEW SKILL EMBED (AI-side):
+ *   - When the AI "views" an image, AppSkillUseRenderer mounts ImageViewEmbedPreview.
+ *   - DOM: .unified-embed-preview[data-app-id="images"][data-skill-id="view"]
+ *          > .details-section.full-width-image > .image-view-preview
+ *          > .image-content.clickable > img.preview-image
+ *   - Clicking the preview fires 'imagefullscreen' CustomEvent → ActiveChat mounts
+ *     ImageEmbedFullscreen (wrapped in UnifiedEmbedFullscreen → .unified-embed-fullscreen-overlay)
+ *   - Inside: .image-embed-fullscreen > .image-wrapper > a.image-link > img.full-image
+ *   - Close: button.icon_minimize in EmbedTopBar (.embed-top-bar)
  *
  * CODE/TEXT FILES (.py, .js, .ts, etc.) — AUTHENTICATED PATH:
  *   - PII detection runs client-side, then the code is stored in IndexedDB (EmbedStore).
@@ -81,6 +102,8 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // Fixture file paths — these exist at tests/fixtures/
 const SAMPLE_PNG = path.join(__dirname, 'fixtures', 'sample.png');
 const SAMPLE_PY = path.join(__dirname, 'fixtures', 'sample.py');
+// Finance mate profile image — deep forest-green background, used for image flow test
+const FINANCE_JPEG = path.join(__dirname, 'fixtures', 'finance.jpeg');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -356,14 +379,11 @@ test('attaches a PNG image, shows embed preview in editor, and appears in chat a
 	log('Image embed (embed-full-width-wrapper) appeared in editor.');
 	await screenshot(page, 'embed-in-editor');
 
-	// Add some text. We use keyboard.press('End') + type to position the cursor
-	// at the end of the document without clicking on the embed (which would open fullscreen).
-	// Press Escape first to close any accidental overlay, then focus via keyboard.
+	// Add some text. Use keyboard.press('End') to position cursor without clicking
+	// on the embed (which would open the image fullscreen overlay).
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(300);
-
 	const editor = page.locator('.editor-content.prose');
-	// Focus the editor via Tab to avoid clicking on the embed node
 	await editor.press('End');
 	await page.keyboard.type('Here is my attached image:');
 
@@ -603,4 +623,267 @@ test('attaches multiple files at once and shows image embed and code reference i
 	log('Navigated away without sending (test only verified editor state).');
 
 	log('Test complete.');
+});
+
+// ---------------------------------------------------------------------------
+// Test 4: Finance mate image — full image flow end-to-end
+//
+// Uploads the finance mate profile image, asks the AI to describe it,
+// verifies the AI acknowledges viewing the image (ImageViewEmbedPreview card
+// with data-app-id="images" data-skill-id="view" reaches "finished" state),
+// verifies the thumbnail renders, clicks it to open ImageEmbedFullscreen,
+// and closes it.
+// ---------------------------------------------------------------------------
+
+test('finance image: upload, AI views image, image-view embed renders and opens fullscreen', async ({
+	page
+}: {
+	page: any;
+}) => {
+	// ── Console log listeners ────────────────────────────────────────────────
+	page.on('console', (msg: any) => {
+		const timestamp = new Date().toISOString();
+		const type = msg.type();
+		const text = msg.text();
+		consoleLogs.push(`[${timestamp}] [${type}] ${text}`);
+		if (type === 'warning' || type === 'error') {
+			warnErrorLogs.push({ timestamp, type, text });
+		}
+	});
+	page.on('request', (req: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] >> ${req.method()} ${req.url()}`)
+	);
+	page.on('response', (res: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
+	);
+
+	test.slow();
+	// AI response + image processing can be slow — allow 4 minutes
+	test.setTimeout(240000);
+
+	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
+	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
+	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+
+	const log = createSignupLogger('FILE_ATTACH_FINANCE');
+	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'file-attach-finance' });
+	await archiveExistingScreenshots(log);
+
+	// ======================================================================
+	// STEP 1: Login and start a new chat
+	// ======================================================================
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+	await openNewChat(page, log);
+	await screenshot(page, 'new-chat-ready');
+
+	// ======================================================================
+	// STEP 2: Attach the finance mate image
+	// ======================================================================
+	await attachFiles(page, [FINANCE_JPEG], log);
+	// Allow time for upload to S3 and TipTap NodeView to mount
+	await page.waitForTimeout(4000);
+	await screenshot(page, 'after-finance-attach');
+	saveWarnErrorLogs('finance', 'after_file_attach');
+
+	// Verify the image embed appeared in the editor
+	const embedInEditor = page.locator('.editor-content .embed-full-width-wrapper');
+	await expect(async () => {
+		await expect(embedInEditor.first()).toBeVisible();
+	}).toPass({ timeout: 20000 });
+	log('Finance image embed appeared in editor.');
+	await screenshot(page, 'finance-embed-in-editor');
+
+	// ======================================================================
+	// STEP 3: Type the question and send
+	// The question is intentionally simple so the AI just views the image
+	// and answers with a color — no long reasoning needed.
+	// ======================================================================
+	// Move cursor to end without clicking on the embed (would open fullscreen)
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	const editor = page.locator('.editor-content.prose');
+	await editor.press('End');
+	await page.keyboard.type('Please look at the image I attached and describe what you see in it.');
+
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeVisible({ timeout: 15000 });
+	await expect(sendButton).toBeEnabled({ timeout: 5000 });
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	await sendButton.click();
+	log('Message with finance image sent.');
+
+	// Wait for the chat URL to confirm we are in a real (non-demo) chat
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	const chatUrl = page.url();
+	log(`Chat URL after send: ${chatUrl}`);
+
+	await screenshot(page, 'message-sent');
+	saveWarnErrorLogs('finance', 'after_send');
+
+	// ======================================================================
+	// STEP 4: Wait for the assistant response and verify the AI viewed the image
+	// We wait for streaming to finish before reading the text.
+	//
+	// IMPORTANT: Scope to .active-chat-container to avoid picking up messages
+	// from demo chats or previous chats that may still be in the DOM.
+	// Record the pre-send count so we can wait for a NEW assistant message.
+	// ======================================================================
+	log('Waiting for assistant response...');
+
+	// Scope all message lookups to the active chat container only
+	const activeChatContainer = page.locator('.active-chat-container');
+
+	// Record how many assistant messages exist before the new one arrives.
+	// We need to wait for a brand new message, not re-read an existing one.
+	const preSendCount = await activeChatContainer.locator('.message-wrapper.assistant').count();
+	log(`Pre-send assistant message count in active chat: ${preSendCount}`);
+
+	// Wait for at least one new assistant message (count > preSendCount)
+	const assistantMessages = activeChatContainer.locator('.message-wrapper.assistant');
+	await expect(async () => {
+		const count = await assistantMessages.count();
+		if (count <= preSendCount) throw new Error(`No new assistant message yet (count=${count})`);
+	}).toPass({ timeout: 60000, intervals: [1000] });
+	log('New assistant message wrapper appeared.');
+
+	// Wait for streaming to finish: the response should stop updating.
+	// Poll until the text is non-empty and stable (two consecutive reads match).
+	let stableText = '';
+	await expect(async () => {
+		const text = await assistantMessages.last().textContent();
+		if (!text || text.trim().length < 3) throw new Error('Response too short');
+		if (text === stableText) return; // stable — done
+		stableText = text ?? '';
+		throw new Error('Still streaming');
+	}).toPass({ timeout: 90000, intervals: [2000] });
+	log(`Stable assistant response: "${stableText.substring(0, 200)}"`);
+
+	// Assert the AI actually processed and viewed the image — it should mention
+	// something about the image content (person, man, image, photo, etc.).
+	// We do NOT assert on color since the finance mate persona (George) tends to
+	// redirect color questions toward financial topics. The key test value here
+	// is the embed render + fullscreen flow, not AI text interpretation.
+	const responseTextLower = stableText.toLowerCase();
+	const mentionsImage =
+		responseTextLower.includes('image') ||
+		responseTextLower.includes('photo') ||
+		responseTextLower.includes('picture') ||
+		responseTextLower.includes('person') ||
+		responseTextLower.includes('man') ||
+		responseTextLower.includes('woman') ||
+		responseTextLower.includes('finance') ||
+		responseTextLower.includes('jpeg') ||
+		responseTextLower.includes('view') ||
+		responseTextLower.includes('see');
+	if (!mentionsImage) {
+		throw new Error(
+			`AI did not acknowledge viewing the image. Response: "${stableText.substring(0, 300)}"`
+		);
+	}
+	log('Verified: AI response acknowledges the attached image.');
+	await screenshot(page, 'ai-response-green-verified');
+	saveWarnErrorLogs('finance', 'after_ai_response');
+
+	// ======================================================================
+	// STEP 5: Verify the ImageViewEmbedPreview card rendered in the assistant message
+	// The AI uses the images/view skill to view the image, which mounts
+	// ImageViewEmbedPreview with data-app-id="images" data-skill-id="view".
+	// Scope to activeChatContainer to avoid matching cards from other chats.
+	// ======================================================================
+	log('Looking for ImageViewEmbedPreview card in assistant message...');
+	const imageViewPreview = activeChatContainer.locator(
+		'.unified-embed-preview[data-app-id="images"][data-skill-id="view"]'
+	);
+	await expect(imageViewPreview.first()).toBeVisible({ timeout: 30000 });
+	log('ImageViewEmbedPreview card is visible.');
+
+	// Verify it reached finished state
+	const finishedImageView = activeChatContainer.locator(
+		'.unified-embed-preview[data-app-id="images"][data-skill-id="view"][data-status="finished"]'
+	);
+	await expect(finishedImageView.first()).toBeVisible({ timeout: 30000 });
+	log('ImageViewEmbedPreview reached finished state.');
+
+	// Verify the image thumbnail is rendered inside the preview card
+	// Architecture: .image-view-preview > .image-content.clickable > img.preview-image
+	const imageThumbnail = finishedImageView.first().locator('img.preview-image');
+	await expect(imageThumbnail).toBeVisible({ timeout: 10000 });
+	const thumbSrc = await imageThumbnail.getAttribute('src');
+	log(`Image thumbnail src prefix: "${thumbSrc?.substring(0, 60)}"`);
+	expect(thumbSrc).toBeTruthy();
+	log('Image thumbnail is visible inside the preview card.');
+	await screenshot(page, 'image-view-preview-verified');
+
+	// ======================================================================
+	// STEP 6: Click the preview card to open ImageEmbedFullscreen
+	// Flow: click → UnifiedEmbedPreview.handleClick() → onFullscreen() →
+	//       AppSkillUseRenderer.openImageUploadFullscreen() →
+	//       fires 'imagefullscreen' CustomEvent →
+	//       ActiveChat mounts ImageEmbedFullscreen (wrapped in UnifiedEmbedFullscreen)
+	// Root overlay: .unified-embed-fullscreen-overlay
+	// Content area: .image-embed-fullscreen > .image-wrapper > a.image-link > img.full-image
+	// ======================================================================
+	log('Clicking ImageViewEmbedPreview card to open image fullscreen...');
+	await finishedImageView.first().click();
+
+	// The fullscreen overlay should appear
+	const fullscreenOverlay = page.locator('.unified-embed-fullscreen-overlay');
+	await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
+	await page.waitForTimeout(500); // wait for slide-up animation (320ms)
+	log('Image fullscreen overlay (.unified-embed-fullscreen-overlay) is visible.');
+	await screenshot(page, 'image-fullscreen-opened');
+	saveWarnErrorLogs('finance', 'after_fullscreen_open');
+
+	// ======================================================================
+	// STEP 7: Verify fullscreen content
+	// ======================================================================
+	// The content div inside the overlay
+	const fullscreenContent = fullscreenOverlay.locator('.image-embed-fullscreen');
+	await expect(fullscreenContent).toBeVisible({ timeout: 10000 });
+	log('Image fullscreen content (.image-embed-fullscreen) is visible.');
+
+	// The full-resolution image should load (may start as loading spinner then show image)
+	// Wait for either the .full-image or the .image-loading spinner to appear
+	await expect(async () => {
+		const fullImg = fullscreenOverlay.locator('img.full-image');
+		const loadingSpinner = fullscreenOverlay.locator('.image-loading');
+		const hasImage = await fullImg.isVisible().catch(() => false);
+		const hasSpinner = await loadingSpinner.isVisible().catch(() => false);
+		expect(hasImage || hasSpinner).toBe(true);
+	}).toPass({ timeout: 15000 });
+
+	// Wait for the full image to actually load (spinner disappears, image appears)
+	const fullImage = fullscreenOverlay.locator('img.full-image');
+	await expect(fullImage).toBeVisible({ timeout: 30000 });
+	log('Full-resolution image (img.full-image) is visible in fullscreen.');
+	await screenshot(page, 'image-fullscreen-content-verified');
+
+	// Verify the EmbedTopBar buttons are present
+	const topBar = fullscreenOverlay.locator('.embed-top-bar');
+	await expect(topBar).toBeVisible({ timeout: 5000 });
+	const minimizeButton = fullscreenOverlay.locator('button.icon_minimize');
+	await expect(minimizeButton).toBeVisible({ timeout: 5000 });
+	log('EmbedTopBar and minimize button are visible.');
+	await screenshot(page, 'image-fullscreen-buttons-verified');
+
+	// ======================================================================
+	// STEP 8: Close the fullscreen via the minimize button
+	// ======================================================================
+	log('Closing image fullscreen via minimize button...');
+	await minimizeButton.click();
+	await page.waitForTimeout(400);
+	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 5000 });
+	log('Image fullscreen closed successfully.');
+	await screenshot(page, 'image-fullscreen-closed');
+	saveWarnErrorLogs('finance', 'after_fullscreen_closed');
+
+	// ======================================================================
+	// STEP 9: Delete the chat
+	// ======================================================================
+	await deleteActiveChat(page, log);
+	log(`Final console warn/error count: ${warnErrorLogs.length}`);
+	saveWarnErrorLogs('finance', 'final');
+	log('Finance image flow test completed successfully.');
 });
