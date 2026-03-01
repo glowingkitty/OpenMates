@@ -1170,6 +1170,11 @@ async def handle_main_processing(
     # Add document generation instruction for rich document embeds (document_html fences)
     # This enables the LLM to create structured HTML documents rendered as document previews
     prompt_parts.append(base_instructions.get("base_document_generation_instruction", ""))
+    # Add math plot instruction only when the math app is available.
+    # Teaches the LLM to emit ```plot f(x) = ... ``` fences that stream_consumer.py
+    # converts to interactive math-plot embeds rendered by function-plot on the frontend.
+    if discovered_apps_metadata and "math" in discovered_apps_metadata:
+        prompt_parts.append(base_instructions.get("base_plot_code_block_instruction", ""))
     
     # DEBUG: Log the app_settings_memories content before adding to prompt
     # This helps diagnose issues where data is found in cache but not injected into prompt

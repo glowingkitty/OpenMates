@@ -1162,6 +1162,11 @@ async def _consume_main_processing_stream(
     # Title extracted from <!-- title: "..." --> comment in document HTML content
     current_document_title: Optional[str] = None
 
+    # Math plot block tracking: ```plot ... ``` fences produce math-plot embeds (type="math-plot").
+    # This flag is set when the language is "plot" and controls which embed service methods are
+    # called during streaming and finalization. The expression is accumulated and stored at close.
+    in_plot_block = False
+
     # Table/sheet embed tracking: detect markdown tables (|...|) and convert to embeds.
     # Tables don't have explicit delimiters like code blocks (```). Instead, they are
     # sequences of pipe-delimited lines (|col1|col2|). A table ends when we see a
@@ -1568,10 +1573,52 @@ async def _consume_main_processing_stream(
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
+                                # Check if this is a math plot block (```plot ... ```)
+                                is_plot_block = current_code_language.lower() == 'plot' if current_code_language else False
+                                
                                 # Check if this is a document_html block
                                 is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
                                 
-                                if is_document_html:
+                                if is_plot_block:
+                                    # Create math-plot embed placeholder and finalize immediately
+                                    embed_data = await embed_service.create_plot_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Update with the full expression and finalize
+                                        await embed_service.update_plot_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            expression=code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            log_prefix=log_prefix
+                                        )
+                                        
+                                        # Replace plot block with embed reference in chunk
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created and finalized math-plot embed {current_code_embed_id} (expr len={len(code_content)})")
+                                        
+                                        # Reset state
+                                        in_code_block = False
+                                        in_plot_block = False
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
+                                elif is_document_html:
                                     # Extract title from <!-- title: "..." --> comment
                                     import re
                                     doc_title = None
@@ -1723,9 +1770,13 @@ async def _consume_main_processing_stream(
                             continue  # Skip embed creation, just track the content
                         
                         # Create embed placeholder (only for non-suspicious languages)
-                        # Document_html blocks get document embeds; all others get code embeds
+                        # Plot blocks get math-plot embeds; document_html blocks get document embeds;
+                        # all others get code embeds.
+                        is_plot_block_multi = current_code_language.lower() == 'plot' if current_code_language else False
                         is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
-                        if is_document_html:
+                        if is_plot_block_multi:
+                            in_plot_block = True
+                        elif is_document_html:
                             in_document_block = True
                             current_document_title = None
                             # Try to extract title from initial content
@@ -1740,7 +1791,26 @@ async def _consume_main_processing_stream(
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                if is_document_html:
+                                if is_plot_block_multi:
+                                    # Create math-plot embed placeholder (expression arrives in subsequent chunks)
+                                    embed_data = await embed_service.create_plot_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Replace opening fence with embed reference immediately
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created math-plot embed placeholder {current_code_embed_id}")
+                                elif is_document_html:
                                     # Create document embed placeholder
                                     embed_data = await embed_service.create_document_embed_placeholder(
                                         chat_id=request_data.chat_id,
@@ -1875,9 +1945,12 @@ async def _consume_main_processing_stream(
                             continue
 
                         # Now create the embed placeholder with the extracted (or empty) language
-                        # Check if this is a document_html block (language resolved after bare fence)
+                        # Check if this is a plot or document_html block (language resolved after bare fence)
+                        is_plot_block_post_bare = current_code_language.lower() == 'plot' if current_code_language else False
                         is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
-                        if is_document_html:
+                        if is_plot_block_post_bare:
+                            in_plot_block = True
+                        elif is_document_html:
                             in_document_block = True
                             current_document_title = None
                             # Try to extract title from initial content
@@ -1892,7 +1965,26 @@ async def _consume_main_processing_stream(
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                if is_document_html:
+                                if is_plot_block_post_bare:
+                                    # Create math-plot embed placeholder (expression will arrive in subsequent chunks)
+                                    embed_data = await embed_service.create_plot_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Replace opening fence with embed reference immediately
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created math-plot embed placeholder {current_code_embed_id} (language resolved after bare fence)")
+                                elif is_document_html:
                                     embed_data = await embed_service.create_document_embed_placeholder(
                                         chat_id=request_data.chat_id,
                                         message_id=request_data.message_id,
@@ -2145,13 +2237,27 @@ async def _consume_main_processing_stream(
                                     current_code_filename = None
                                     current_code_content = ""
                                     current_code_embed_id = None
-                        # Finalize embed (only for real code/document blocks, not fake tool calls)
+                        # Finalize embed (only for real code/document/plot blocks, not fake tool calls)
                         elif current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                if in_document_block:
+                                if in_plot_block:
+                                    # Finalize math-plot embed with the accumulated expression
+                                    await embed_service.update_plot_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        expression=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    logger.info(f"{log_prefix} Finalized math-plot embed {current_code_embed_id} with expr len={len(current_code_content)}")
+                                elif in_document_block:
                                     # Finalize document embed with accumulated HTML content
                                     # Try to extract title if not already found
                                     if not current_document_title:
@@ -2189,8 +2295,9 @@ async def _consume_main_processing_stream(
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error finalizing embed: {e}", exc_info=True)
                         
-                            # Reset state (only for real code/document blocks - fake tool calls already reset above)
+                            # Reset state (only for real code/document/plot blocks - fake tool calls already reset above)
                             in_code_block = False
+                            in_plot_block = False
                             in_document_block = False
                             current_document_title = None
                             current_code_language = ""

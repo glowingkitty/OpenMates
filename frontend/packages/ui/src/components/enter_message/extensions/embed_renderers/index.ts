@@ -7,6 +7,7 @@ import { RecordingRenderer } from "./RecordingRenderer";
 import { AppSkillUseRenderer } from "./AppSkillUseRenderer";
 import { FocusModeActivationRenderer } from "./FocusModeActivationRenderer";
 import { MapLocationRenderer } from "./MapLocationRenderer";
+import { MathPlotRenderer } from "./MathPlotRenderer";
 import type { EmbedRendererRegistry } from "./types";
 
 /**
@@ -45,6 +46,8 @@ export const embedRenderers: EmbedRendererRegistry = {
   recording: new RecordingRenderer(),
   // Map location embed renderer — mounts MapsLocationEmbedPreview in the editor
   maps: new MapLocationRenderer(),
+  // Math plot embed renderer — mounts MathPlotEmbedPreview in the editor (direct-type)
+  "math-plot": new MathPlotRenderer(),
 };
 
 /**

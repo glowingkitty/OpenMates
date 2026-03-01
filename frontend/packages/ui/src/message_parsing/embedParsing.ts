@@ -27,6 +27,8 @@ function mapEmbedReferenceType(embedType: string): string {
     // Audio recording embeds: serialized as "audio-recording" by sendHandlers/serializers,
     // but the TipTap node type and renderer are registered as "recording".
     "audio-recording": "recording",
+    // Math plot embeds: auto-detected from ```plot ... ``` code blocks by stream_consumer.py
+    "math-plot": "math-plot",
   };
 
   return typeMap[embedType] || embedType;

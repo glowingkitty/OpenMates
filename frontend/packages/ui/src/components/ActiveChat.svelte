@@ -40,6 +40,8 @@
     import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
+    import MathCalculateEmbedFullscreen from './embeds/math/MathCalculateEmbedFullscreen.svelte';
+    import MathPlotEmbedFullscreen from './embeds/math/MathPlotEmbedFullscreen.svelte';
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
@@ -1259,6 +1261,8 @@
                 case 'sheet':
                 case 'sheets-sheet':
                     return 'sheets-sheet';
+                case 'math-plot':
+                    return 'math-plot';
                 default:
                     return t;
             }
@@ -1289,7 +1293,7 @@
         // denote the output format) are NOT valid top-level embed types and must NOT override
         // 'app-skill-use' — doing so causes the fullscreen branch to be skipped entirely because
         // no template case handles embedType === 'image'.
-        const validTopLevelEmbedTypes = new Set(['website', 'code-code', 'docs-doc', 'videos-video', 'sheets-sheet', 'maps']);
+        const validTopLevelEmbedTypes = new Set(['website', 'code-code', 'docs-doc', 'videos-video', 'sheets-sheet', 'maps', 'math-plot']);
         if (resolvedEmbedType === 'app-skill-use' && finalDecodedContent) {
             const contentType = typeof finalDecodedContent.type === 'string' ? finalDecodedContent.type : null;
             if (contentType) {
@@ -8654,6 +8658,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
+                    {:else if appId === 'math' && skillId === 'calculate'}
+                        <!-- Math Calculate Fullscreen -->
+                        <MathCalculateEmbedFullscreen
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
+                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
                     {:else}
                         <!-- Generic app skill fullscreen (fallback) -->
                         <div class="embed-fullscreen-fallback">
@@ -8826,6 +8846,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         address={typeof embedFullscreenData.decodedContent?.address === 'string' ? embedFullscreenData.decodedContent.address : (typeof embedFullscreenData.attrs?.address === 'string' ? embedFullscreenData.attrs.address : undefined)}
                         locationType={typeof embedFullscreenData.decodedContent?.location_type === 'string' ? embedFullscreenData.decodedContent.location_type : (typeof embedFullscreenData.attrs?.locationType === 'string' ? embedFullscreenData.attrs.locationType : undefined)}
                         status="finished"
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        navigateDirection={embedNavigateDirection}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
+                    />
+                {:else if embedFullscreenData.embedType === 'math-plot'}
+                    <!-- Math Plot Fullscreen (direct-type embed rendered from ```plot ... ``` blocks) -->
+                    <MathPlotEmbedFullscreen
+                        plotSpec={typeof embedFullscreenData.decodedContent?.plot_spec === 'string' ? embedFullscreenData.decodedContent.plot_spec : (typeof embedFullscreenData.attrs?.code === 'string' ? embedFullscreenData.attrs.code : '')}
+                        title={typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : (typeof embedFullscreenData.attrs?.title === 'string' ? embedFullscreenData.attrs.title : 'Function Plot')}
                         embedId={embedFullscreenData.embedId}
                         onClose={handleCloseEmbedFullscreen}
                         {hasPreviousEmbed}

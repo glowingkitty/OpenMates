@@ -3460,3 +3460,51 @@ shopping.search_products:
   cs: Hledat produkty
   sv: Sök produkter
   verified_by_human: [en, de]
+
+math.calculate:
+  context: Math Calculate skill label shown in BasicInfosBar
+  en: Calculate
+  de: Berechnen
+  zh: 计算
+  es: Calcular
+  fr: Calculer
+  pt: Calcular
+  ru: Вычислить
+  ja: 計算
+  ko: 계산
+  it: Calcola
+  tr: Hesapla
+  vi: Tính toán
+  id: Hitung
+  pl: Oblicz
+  nl: Berekenen
+  ar: احسب
+  hi: गणना करें
+  th: คำนวณ
+  cs: Vypočítat
+  sv: Beräkna
+  verified_by_human: []
+
+math.plot:
+  context: Math Plot embed label shown in BasicInfosBar
+  en: Plot
+  de: Grafik
+  zh: 绘图
+  es: Graficar
+  fr: Tracer
+  pt: Plotar
+  ru: График
+  ja: グラフ
+  ko: 그래프
+  it: Grafico
+  tr: Grafik
+  vi: Vẽ đồ thị
+  id: Grafik
+  pl: Wykres
+  nl: Plot
+  ar: رسم بياني
+  hi: ग्राफ
+  th: พล็อต
+  cs: Graf
+  sv: Graf
+  verified_by_human: []

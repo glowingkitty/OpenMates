@@ -848,6 +848,185 @@ class EmbedService:
             return False
 
     # =========================================================================
+    # Math plot embed methods (for ```plot ... ``` fenced blocks)
+    # Mirrors the table embed pattern but uses type="math-plot" with expression content.
+    # Created by stream_consumer.py when the LLM outputs a ```plot\nf(x)=...\n``` block.
+    # =========================================================================
+
+    async def create_plot_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a "processing" math-plot embed placeholder when a ```plot block starts.
+        Mirrors create_table_embed_placeholder() but for type="math-plot".
+
+        The embed will be updated with the full expression content once the closing
+        ``` fence is received, then finalized to "finished" status.
+
+        Returns:
+            Dictionary with embed_id and embed_reference, or None on failure.
+        """
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+
+            # Placeholder content — expression will be filled in when the closing fence arrives
+            placeholder_content = {
+                "type": "math-plot",
+                "expression": "",   # Raw expression from the plot block, filled in at finalization
+                "status": "processing",
+            }
+
+            placeholder_toon = encode(placeholder_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "math-plot",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # Send plaintext TOON to client immediately so it can render the placeholder
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="math-plot",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix
+            )
+
+            logger.info(f"{log_prefix} Created processing math-plot embed placeholder {embed_id}")
+
+            embed_reference = json.dumps({
+                "type": "math-plot",
+                "embed_id": embed_id
+            })
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating math-plot embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_plot_embed_content(
+        self,
+        embed_id: str,
+        expression: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "finished",
+        log_prefix: str = ""
+    ) -> bool:
+        """
+        Update math-plot embed content with the expression from the plot block.
+        Called once when the closing ``` fence is received.
+
+        Args:
+            embed_id:          The embed to update.
+            expression:        The full expression text from between the ```plot fences.
+            status:            "finished" when the block is complete.
+        """
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Math-plot embed {embed_id} not found in cache, cannot update")
+                return False
+
+            updated_content = {
+                "type": "math-plot",
+                "expression": expression,
+                "status": status,
+            }
+
+            updated_toon = encode(updated_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="math-plot",
+                content_toon=updated_toon,
+                chat_id=chat_id,
+                message_id=cached_embed.get("message_id", ""),
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status=status,
+                task_id=cached_embed.get("hashed_task_id"),
+                is_private=cached_embed.get("is_private", False),
+                is_shared=cached_embed.get("is_shared", False),
+                created_at=cached_embed.get("created_at"),
+                updated_at=updated_embed_data["updated_at"],
+                log_prefix=log_prefix,
+                check_cache_status=False
+            )
+
+            logger.info(f"{log_prefix} Updated math-plot embed {embed_id} (expr len={len(expression)}, status: {status})")
+
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating math-plot embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
     # Document embed methods (for document_html fenced blocks)
     # Mirrors the code embed pattern but uses type="document" with HTML content
     # =========================================================================

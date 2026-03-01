@@ -568,6 +568,15 @@
     var(--color-app-3dmodels-end) 90.06%
   );
 
+  /* App/Math */
+  --color-app-math-start: #4c1d95;
+  --color-app-math-end: #7c3aed;
+  --color-app-math: linear-gradient(
+    135deg,
+    var(--color-app-math-start) 9.04%,
+    var(--color-app-math-end) 90.06%
+  );
+
   /* App/OpenMates - uses primary blue gradient matching the <mark> highlight color */
   --color-app-openmates-start: var(--color-primary-start);
   --color-app-openmates-end: var(--color-primary-end);

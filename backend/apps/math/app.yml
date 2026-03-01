@@ -1,0 +1,93 @@
+# backend/apps/math/app.yml
+#
+# Math app — accurate calculations, symbolic math, and function plotting.
+#
+# Provides a calculate skill that evaluates numeric and symbolic expressions
+# using sympy + mpmath on the backend, guaranteeing precision that LLMs cannot
+# provide on their own. Covers arithmetic, trigonometry, logarithms, unit
+# conversions, equation solving, derivatives, and integrals.
+#
+# Plot embeds are generated separately by stream_consumer.py when the LLM
+# outputs a ```plot ... ``` fenced code block.
+
+name_translation_key: math
+description_translation_key: math.description
+icon_image: |
+  math.svg
+category: productivity
+last_updated: "2026-03-01"
+settings_and_memories: []
+instructions: []
+skills:
+  # -----------------------------------------------------------------------
+  # Calculate — evaluate expressions with guaranteed numerical/symbolic accuracy
+  # -----------------------------------------------------------------------
+  - id: calculate
+    name_translation_key: app_skills.math.calculate
+    description_translation_key: app_skills.math.calculate.description
+    icon_image: math.svg
+    preprocessor_hint: >
+      Calculate, evaluate, or solve mathematical expressions and equations accurately.
+      Use this for any arithmetic, algebra, trigonometry, calculus, unit conversions,
+      symbolic simplification, equation solving, derivatives, or integrals where
+      numerical precision matters. Always prefer this tool over mental arithmetic
+      to avoid hallucinated results.
+    stage: production
+    class_path: |
+      backend.apps.math.skills.calculate_skill.CalculateSkill
+    # Fixed 1-credit cost per calculation — the minimum fallback for all app skills
+    pricing:
+      fixed:
+        credits: 1
+    tool_schema:
+      type: object
+      properties:
+        expression:
+          type: string
+          description: >
+            The mathematical expression, equation, or operation to evaluate.
+            Examples:
+            - Arithmetic: "3.14159 * (42.7)^2 / cos(0.3)"
+            - Symbolic simplify: "simplify((x^2 - 1) / (x - 1))"
+            - Solve equation: "solve(x^2 - 4*x + 3, x)"
+            - Derivative: "diff(sin(x) * exp(x), x)"
+            - Integral: "integrate(x^2 * log(x), x)"
+            - Unit conversion: "convert(100, kg, lbs)"
+            - With context vars: "E = m * c^2 where m=1, c=299792458"
+        mode:
+          type: string
+          description: >
+            Evaluation mode. 'auto' (default) detects the appropriate mode from
+            the expression. 'numeric' forces numerical evaluation. 'symbolic'
+            forces symbolic computation. 'solve' solves an equation for a variable.
+            'simplify' simplifies an algebraic expression. 'diff' computes derivative.
+            'integrate' computes integral. 'convert' converts units.
+          enum:
+            [
+              "auto",
+              "numeric",
+              "symbolic",
+              "solve",
+              "simplify",
+              "diff",
+              "integrate",
+              "convert",
+            ]
+          default: "auto"
+        variable:
+          type: string
+          description: >
+            The variable to differentiate or integrate with respect to, or to
+            solve for. Defaults to 'x'. Only needed when mode is 'diff', 'integrate',
+            or 'solve'.
+          default: "x"
+        precision:
+          type: integer
+          description: >
+            Number of significant digits for numeric results. Defaults to 15.
+            Use higher values (e.g. 50) for high-precision calculations.
+          default: 15
+          minimum: 1
+          maximum: 100
+      required:
+        - expression

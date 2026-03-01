@@ -44,5 +44,7 @@ webauthn==2.7.0
 airports-py==3.0.0
 maxminddb==3.1.0
 pymupdf==1.27.1  # Required by app-pdf-worker for PDF page screenshot rendering
+sympy==1.14.0    # Required by app-math for symbolic math (calculate skill)
+mpmath==1.4.0    # Required by app-math for high-precision numeric evaluation
 
 # TODO separate requirements file for each app and for core services, to only include what is needed
