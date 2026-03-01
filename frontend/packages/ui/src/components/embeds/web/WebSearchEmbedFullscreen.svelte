@@ -93,6 +93,12 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
+    /**
+     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
+     * When provided, the fullscreen will immediately open WebsiteEmbedFullscreen overlay
+     * for that specific result once results have loaded.
+     */
+    initialChildEmbedId?: string;
   }
   
   let {
@@ -111,7 +117,8 @@
     onNavigateNext,
     navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    initialChildEmbedId
   }: Props = $props();
   
   // Debug: Log what props WebSearchEmbedFullscreen receives
@@ -392,6 +399,35 @@
   // Share is handled by UnifiedEmbedFullscreen's built-in share handler
   // which uses currentEmbedId, appId, and skillId to construct the embed
   // share context and properly opens the settings panel (including on mobile).
+
+  /**
+   * Auto-open the website overlay for a specific child embed when the fullscreen
+   * is opened via an inline badge click (initialChildEmbedId is set).
+   * Watches allWebResults (populated when child embeds finish loading).
+   */
+  $effect(() => {
+    if (!initialChildEmbedId) return;
+    if (selectedWebsiteIndex >= 0) return; // already open
+    if (allWebResults.length === 0) return; // results not yet loaded
+
+    const idx = allWebResults.findIndex(r => r.embed_id === initialChildEmbedId);
+    if (idx >= 0) {
+      console.debug(
+        '[WebSearchEmbedFullscreen] Auto-opening website overlay for initialChildEmbedId:',
+        initialChildEmbedId,
+        'at index',
+        idx,
+      );
+      handleWebsiteFullscreen(allWebResults[idx]);
+    } else {
+      console.warn(
+        '[WebSearchEmbedFullscreen] initialChildEmbedId not found in loaded results:',
+        initialChildEmbedId,
+        'available embed_ids:',
+        allWebResults.map(r => r.embed_id),
+      );
+    }
+  });
 </script>
 
 <!-- 

@@ -205,6 +205,8 @@
             videoId?: string;
         };
         restoreFromPip?: boolean;
+        /** Child embed to auto-focus when the search fullscreen opens (from inline badge click) */
+        focusChildEmbedId?: string | null;
     } | null;
 
     type EmbedFullscreenEventDetail = {
@@ -219,6 +221,8 @@
             favicon?: string;
             image?: string;
         };
+        /** Child embed to auto-focus when the search fullscreen opens (from inline badge click) */
+        focusChildEmbedId?: string | null;
     };
 
     type AiMessageChunkPayload = {
@@ -1150,7 +1154,7 @@
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
-        const { embedId, embedData, decodedContent, embedType, attrs } = detail;
+        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId } = detail;
 
         // CRITICAL: Set the URL hash guard BEFORE any async work.
         //
@@ -1469,14 +1473,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             embedData: finalEmbedData,
             decodedContent: finalDecodedContent,
             embedType: resolvedEmbedType,
-            attrs
+            attrs,
+            // Forwarded from EmbedInlineLink when an inline badge references a child embed.
+            // The search fullscreen components use this to auto-open the specific result overlay.
+            focusChildEmbedId: focusChildEmbedId ?? null
         };
         showEmbedFullscreen = true;
         
         // URL hash was already set at the top of this function (before async work) to ensure
         // the programmatic-update guard was live before the hashchange fired.  No second call needed.
         
-        console.debug('[ActiveChat] Opening embed fullscreen:', resolvedEmbedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
+        console.debug('[ActiveChat] Opening embed fullscreen:', resolvedEmbedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData, 'focusChildEmbedId:', focusChildEmbedId);
     }
     
     // Handler for closing embed fullscreen
@@ -8301,6 +8308,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
@@ -8319,6 +8327,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={getNewsSearchResults(embedFullscreenData.decodedContent?.results)}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
@@ -8396,6 +8405,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}

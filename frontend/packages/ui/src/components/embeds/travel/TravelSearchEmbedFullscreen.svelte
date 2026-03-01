@@ -139,6 +139,12 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
+    /**
+     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
+     * When provided, the fullscreen will immediately open the TravelConnectionEmbedFullscreen
+     * overlay for that specific connection result once the child results have loaded.
+     */
+    initialChildEmbedId?: string;
   }
   
   let {
@@ -156,7 +162,8 @@
     onNavigateNext,
     navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    initialChildEmbedId
   }: Props = $props();
   
   // Currently selected connection index for fullscreen detail view (-1 = none)
@@ -601,6 +608,40 @@
   $effect(() => {
     if (localResults.length > 0 && headerConnectionResults.length === 0) {
       headerConnectionResults = transformLegacyResults(localResults);
+    }
+  });
+
+  /**
+   * Auto-open the connection overlay for a specific child embed when the fullscreen
+   * is opened via an inline badge click (initialChildEmbedId is set).
+   *
+   * We watch connectionResultsForNav via handleChildrenLoaded populating
+   * headerConnectionResults, because connectionResultsForNav is only populated
+   * once a card is clicked. Instead we use headerConnectionResults — which is
+   * populated by handleChildrenLoaded — as the trigger, then find the matching
+   * connection in that list.
+   */
+  $effect(() => {
+    if (!initialChildEmbedId) return;
+    if (selectedConnectionIndex >= 0) return; // already open
+    if (headerConnectionResults.length === 0) return; // results not yet loaded
+
+    const idx = headerConnectionResults.findIndex(r => r.embed_id === initialChildEmbedId);
+    if (idx >= 0) {
+      console.debug(
+        '[TravelSearchEmbedFullscreen] Auto-opening connection overlay for initialChildEmbedId:',
+        initialChildEmbedId,
+        'at index',
+        idx,
+      );
+      handleConnectionFullscreen(headerConnectionResults[idx], headerConnectionResults);
+    } else {
+      console.warn(
+        '[TravelSearchEmbedFullscreen] initialChildEmbedId not found in loaded results:',
+        initialChildEmbedId,
+        'available embed_ids:',
+        headerConnectionResults.map(r => r.embed_id),
+      );
     }
   });
   

@@ -51,9 +51,10 @@
    *
    * Child embeds (e.g. individual "connection" flight results) cannot be opened in
    * fullscreen directly — only their parent "app-skill-use" embed has a fullscreen
-   * component. So when a child embed is clicked, we look up its parent_embed_id
-   * and dispatch that instead, which opens the parent's fullscreen (e.g. the
-   * TravelSearchEmbedFullscreen showing all flights).
+   * component. So when a child embed is clicked, we open the parent's fullscreen
+   * (TravelSearchEmbedFullscreen, WebSearchEmbedFullscreen, etc.) and pass the
+   * child's embed_id as `focusChildEmbedId` so the fullscreen can auto-open the
+   * matching child overlay on mount, jumping straight to the specific result.
    */
   async function handleClick(e: MouseEvent) {
     e.preventDefault();
@@ -70,24 +71,27 @@
     }
 
     // If this embed is a child embed (e.g. a single flight result of type "connection"),
-    // navigate to the parent "app-skill-use" embed instead — child embeds have no
-    // own fullscreen component and the parent already renders all results.
+    // navigate to the parent "app-skill-use" embed but also pass the child embed_id so
+    // the fullscreen can auto-focus that specific result.
     let targetEmbedId = resolvedEmbedId;
+    let focusChildEmbedId: string | undefined;
     try {
       const rawEntry = await embedStore.getRawEntry(`embed:${resolvedEmbedId}`);
       if (rawEntry?.parent_embed_id) {
         targetEmbedId = rawEntry.parent_embed_id;
+        focusChildEmbedId = resolvedEmbedId;
         console.debug(
-          `[EmbedInlineLink] Child embed detected — navigating to parent ${targetEmbedId} instead of child ${resolvedEmbedId}`,
+          `[EmbedInlineLink] Child embed detected — opening parent ${targetEmbedId}, focusing child ${focusChildEmbedId}`,
         );
       }
     } catch (err) {
-      // getRawEntry failed — proceed with child embed_id (will show "not available" error)
+      // getRawEntry failed — proceed with child embed_id as target (may show "not available" error)
       console.debug(`[EmbedInlineLink] getRawEntry failed, using child embed_id:`, err);
     }
 
     console.debug(
-      `[EmbedInlineLink] Opening fullscreen for embed_ref "${embedRef}" → ${targetEmbedId}`,
+      `[EmbedInlineLink] Opening fullscreen for embed_ref "${embedRef}" → ${targetEmbedId}` +
+        (focusChildEmbedId ? ` (focus child: ${focusChildEmbedId})` : ''),
     );
 
     document.dispatchEvent(
@@ -95,6 +99,8 @@
         detail: {
           embedId: targetEmbedId,
           embedType: 'app-skill-use', // default type; ActiveChat will look up the real type
+          // Pass the child embed_id so the search fullscreen can auto-open the specific result
+          focusChildEmbedId,
         },
         bubbles: true,
       }),

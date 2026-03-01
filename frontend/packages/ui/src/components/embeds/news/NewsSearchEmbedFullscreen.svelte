@@ -74,8 +74,14 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
+    /**
+     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
+     * When provided, the fullscreen will immediately open the NewsEmbedFullscreen overlay
+     * for that specific article once results have loaded.
+     */
+    initialChildEmbedId?: string;
   }
-  
+
   let {
     query,
     provider,
@@ -89,7 +95,8 @@
     onNavigateNext,
     navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    initialChildEmbedId
   }: Props = $props();
   
   // Debug: Log what props NewsSearchEmbedFullscreen receives
@@ -255,6 +262,35 @@
       onClose();
     }
   }
+
+  /**
+   * Auto-open the article overlay for a specific child embed when the fullscreen
+   * is opened via an inline badge click (initialChildEmbedId is set).
+   * Watches allNewsResults (populated when child embeds finish loading).
+   */
+  $effect(() => {
+    if (!initialChildEmbedId) return;
+    if (selectedArticleIndex >= 0) return; // already open
+    if (allNewsResults.length === 0) return; // results not yet loaded
+
+    const idx = allNewsResults.findIndex(r => r.embed_id === initialChildEmbedId);
+    if (idx >= 0) {
+      console.debug(
+        '[NewsSearchEmbedFullscreen] Auto-opening article overlay for initialChildEmbedId:',
+        initialChildEmbedId,
+        'at index',
+        idx,
+      );
+      handleArticleFullscreen(allNewsResults[idx]);
+    } else {
+      console.warn(
+        '[NewsSearchEmbedFullscreen] initialChildEmbedId not found in loaded results:',
+        initialChildEmbedId,
+        'available embed_ids:',
+        allNewsResults.map(r => r.embed_id),
+      );
+    }
+  });
 </script>
 
 <!-- 
