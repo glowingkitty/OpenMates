@@ -20,6 +20,7 @@ software_development:
   th: ""
   cs: ""
   sv: ""
+  he: סופיה
   verified_by_human: []
 business_development:
   context: Male name starting with first two characters of the word 'Business' in english.
@@ -43,6 +44,7 @@ business_development:
   th: ""
   cs: ""
   sv: ""
+  he: ברטון
   verified_by_human: []
 medical_health:
   context: Male name starting with first two characters of the word 'Medical' in english.
@@ -66,6 +68,7 @@ medical_health:
   th: ""
   cs: ""
   sv: ""
+  he: מלווין
   verified_by_human: []
 legal_law:
   context: Male name starting with first two characters of the word 'Legal' in english.
@@ -89,6 +92,7 @@ legal_law:
   th: ""
   cs: ""
   sv: ""
+  he: ליאון
   verified_by_human: []
 maker_prototyping:
   context: Female name starting with first two characters of the word 'Maker' in english.
@@ -112,6 +116,7 @@ maker_prototyping:
   th: ""
   cs: ""
   sv: ""
+  he: מאקאני
   verified_by_human: []
 marketing_sales:
   context: Male name starting with first two characters of the word 'Marketing' in english.
@@ -135,6 +140,7 @@ marketing_sales:
   th: ""
   cs: ""
   sv: ""
+  he: מארק
   verified_by_human: []
 finance:
   context: Male name starting with first two characters of the word 'Finance' in english.
@@ -158,6 +164,7 @@ finance:
   th: ""
   cs: ""
   sv: ""
+  he: פין
   verified_by_human: []
 design:
   context: Female name starting with first two characters of the word 'Design' in english.
@@ -181,6 +188,7 @@ design:
   th: ""
   cs: ""
   sv: ""
+  he: דניס
   verified_by_human: []
 electrical_engineering:
   context: Male name starting with first two characters of the word 'Electrical' in english.
@@ -204,6 +212,7 @@ electrical_engineering:
   th: ""
   cs: ""
   sv: ""
+  he: אלטון
   verified_by_human: []
 movies_tv:
   context: Female name starting with first two characters of the word 'Movies' in english.
@@ -227,6 +236,7 @@ movies_tv:
   th: ""
   cs: ""
   sv: ""
+  he: מוניקה
   verified_by_human: []
 history:
   context: Male name starting with first two characters of the word 'History' in english.
@@ -250,6 +260,7 @@ history:
   th: ""
   cs: ""
   sv: ""
+  he: הירו
   verified_by_human: []
 science:
   context: Female name starting with first two characters of the word 'Science' in english.
@@ -273,6 +284,7 @@ science:
   th: ""
   cs: ""
   sv: ""
+  he: סקרלט
   verified_by_human: []
 life_coach_psychology:
   context: Female name starting with first two characters of the word 'Life' in english.
@@ -296,6 +308,7 @@ life_coach_psychology:
   th: ""
   cs: ""
   sv: ""
+  he: ליזה
   verified_by_human: []
 cooking_food:
   context: Male name starting with first two characters of the word 'Cooking' in english.
@@ -319,6 +332,7 @@ cooking_food:
   th: ""
   cs: ""
   sv: ""
+  he: קולין
   verified_by_human: []
 activism:
   context: Male name starting with first two characters of the word 'Activism' in english.
@@ -342,6 +356,7 @@ activism:
   th: ""
   cs: ""
   sv: ""
+  he: אייס
   verified_by_human: []
 general_knowledge:
   context: Male name starting with first two characters of the word 'General' in english.
@@ -365,6 +380,7 @@ general_knowledge:
   th: ""
   cs: ""
   sv: ""
+  he: "ג'ורג'"
   verified_by_human: []
 onboarding_support:
   context: Name for the OpenMates onboarding and support assistant mate. Suki is the persona name used consistently across the platform (onboarding chat, welcome focus mode, and direct @mate:suki selection).
@@ -388,4 +404,5 @@ onboarding_support:
   th: Suki
   cs: Suki
   sv: Suki
+  he: סוקי
   verified_by_human: []

@@ -20,6 +20,7 @@ context_menu.download:
   th: ดาวน์โหลด
   cs: Stáhnout
   sv: Ladda ned
+  he: הורדה
   verified_by_human: []
 context_menu.copy:
   context: Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available.
@@ -43,6 +44,7 @@ context_menu.copy:
   th: คัดลอก
   cs: Kopírovat
   sv: Kopiera
+  he: העתקה
   verified_by_human: []
 context_menu.delete:
   context: Menu option to delete chat and all its messages
@@ -66,6 +68,7 @@ context_menu.delete:
   th: ลบ
   cs: Smazat
   sv: Ta bort
+  he: מחיקה
   verified_by_human: []
 context_menu.confirm:
   context: Menu option to confirm deletion of chat
@@ -89,6 +92,7 @@ context_menu.confirm:
   th: ยืนยัน
   cs: Potvrdit
   sv: Bekräfta
+  he: אישור
   verified_by_human: []
 
 context_menu.select:
@@ -113,6 +117,7 @@ context_menu.select:
   th: เลือก
   cs: Vybrat
   sv: Välj
+  he: בחירה
   verified_by_human: []
 
 context_menu.downloading:
@@ -137,6 +142,7 @@ context_menu.downloading:
   th: กำลังดาวน์โหลด...
   cs: Stahování...
   sv: Laddar ned...
+  he: מוריד...
   verified_by_human: []
 
 context_menu.downloading_selected:
@@ -161,6 +167,7 @@ context_menu.downloading_selected:
   th: กำลังดาวน์โหลด...
   cs: Stahování...
   sv: Laddar ned...
+  he: מוריד...
   verified_by_human: []
 
 context_menu.download_selected:
@@ -185,6 +192,7 @@ context_menu.download_selected:
   th: ดาวน์โหลดที่เลือก
   cs: Stáhnout vybrané
   sv: Ladda ned markerade
+  he: הורדת הנבחרים
   verified_by_human: []
 
 context_menu.copy_selected:
@@ -209,6 +217,7 @@ context_menu.copy_selected:
   th: คัดลอกที่เลือก
   cs: Kopírovat vybrané
   sv: Kopiera markerade
+  he: העתקת הנבחרים
   verified_by_human: []
 
 context_menu.delete_selected:
@@ -233,6 +242,7 @@ context_menu.delete_selected:
   th: ลบที่เลือก
   cs: Smazat vybrané
   sv: Ta bort markerade
+  he: מחיקת הנבחרים
   verified_by_human: []
 
 context_menu.unselect:
@@ -257,6 +267,7 @@ context_menu.unselect:
   th: ยกเลิกการเลือก
   cs: Zrušit výběr
   sv: Avmarkera
+  he: ביטול בחירה
   verified_by_human: []
 
 context_menu.pin:
@@ -281,6 +292,7 @@ context_menu.pin:
   th: ปักหมุด
   cs: Připnout
   sv: Fäst
+  he: נעיצה
   verified_by_human: []
 
 context_menu.unpin:
@@ -305,6 +317,7 @@ context_menu.unpin:
   th: เลิกปักหมุด
   cs: Odepnout
   sv: Lossa
+  he: ביטול נעיצה
   verified_by_human: []
 
 context_menu.mark_unread:
@@ -329,6 +342,7 @@ context_menu.mark_unread:
   th: ทำเครื่องหมายว่ายังไม่ได้อ่าน
   cs: Označit jako nepřečtené
   sv: Markera som oläst
+  he: סימון כלא נקרא
   verified_by_human: []
 
 context_menu.mark_read:
@@ -353,6 +367,7 @@ context_menu.mark_read:
   th: ทำเครื่องหมายว่าอ่านแล้ว
   cs: Označit jako přečtené
   sv: Markera som läst
+  he: סימון כנקרא
   verified_by_human: []
 
 context_menu.hide:
@@ -377,6 +392,7 @@ context_menu.hide:
   th: ซ่อน
   cs: Skrýt
   sv: Dölj
+  he: הסתרה
   verified_by_human: []
 
 hidden_chats.unlock:
@@ -401,6 +417,7 @@ hidden_chats.unlock:
   th: ปลดล็อกแชทที่ซ่อนอยู่
   cs: Odemknout skryté chaty
   sv: Lås upp dolda chattar
+  he: "פתיחת צ'אטים מוסתרים"
   verified_by_human: []
 
 hidden_chats.lock:
@@ -425,6 +442,7 @@ hidden_chats.lock:
   th: ล็อกแชทที่ซ่อนอยู่
   cs: Zamknout skryté chaty
   sv: Lås dolda chattar
+  he: "נעילת צ'אטים מוסתרים"
   verified_by_human: []
 
 hidden_chats.title:
@@ -449,6 +467,7 @@ hidden_chats.title:
   th: แชทที่ซ่อนอยู่
   cs: Skryté chaty
   sv: Dolda chattar
+  he: "צ'אטים מוסתרים"
   verified_by_human: []
 
 hidden_chats.unlock_title:
@@ -473,6 +492,7 @@ hidden_chats.unlock_title:
   th: ปลดล็อกแชทที่ซ่อนอยู่
   cs: Odemknout skryté chaty
   sv: Lås upp dolda chattar
+  he: "פתיחת צ'אטים מוסתרים"
   verified_by_human: []
 
 hidden_chats.set_code_title:
@@ -497,6 +517,7 @@ hidden_chats.set_code_title:
   th: ตั้งค่ารหัสแชทที่ซ่อนอยู่
   cs: Nastavit kód skrytých chatů
   sv: Ange kod för dolda chattar
+  he: "הגדרת קוד לצ'אטים מוסתרים"
   verified_by_human: []
 
 hidden_chats.set_code_description:
@@ -521,6 +542,7 @@ hidden_chats.set_code_description:
   th: ป้อนรหัส 4-6 หลักเพื่อปกป้องแชทที่ซ่อนอยู่ของคุณ รหัสนี้แยกจากรหัสผ่านการเข้าสู่ระบบของคุณ
   cs: Zadejte 4-6místný kód pro ochranu vašich skrytých chatů. Tento kód je oddělený od vašeho přihlašovacího hesla.
   sv: Ange en 4-6-siffrig kod för att skydda dina dolda chattar. Denna kod är separat från ditt inloggningslösenord.
+  he: "הזן קוד בן 4-6 ספרות כדי להגן על הצ'אטים המוסתרים שלך. קוד זה נפרד מסיסמת ההתחברות שלך."
   verified_by_human: []
 
 hidden_chats.code_label:
@@ -545,6 +567,7 @@ hidden_chats.code_label:
   th: รหัส
   cs: Kód
   sv: Kod
+  he: קוד
   verified_by_human: []
 
 hidden_chats.confirm_code_label:
@@ -569,6 +592,7 @@ hidden_chats.confirm_code_label:
   th: ยืนยันรหัส
   cs: Potvrdit kód
   sv: Bekräfta kod
+  he: אישור קוד
   verified_by_human: []
 
 hidden_chats.unlock_and_hide_button:
@@ -593,6 +617,7 @@ hidden_chats.unlock_and_hide_button:
   th: "ปลดล็อกและซ่อนแชท"
   cs: "Odemknout a skrýt chat"
   sv: "Lås upp och dölj chatt"
+  he: "פתיחה והסתרת צ'אט"
   verified_by_human: []
 
 hidden_chats.unlocked_and_hiding:
@@ -617,6 +642,7 @@ hidden_chats.unlocked_and_hiding:
   th: "ปลดล็อกแชทที่ซ่อนอยู่แล้ว กำลังซ่อนแชท..."
   cs: "Skryté chaty odemčeny. Chat se skrývá..."
   sv: "Dolda chattar upplåsta. Chatt döljs..."
+  he: "הצ'אטים המוסתרים נפתחו. הצ'אט מוסתר כעת..."
   verified_by_human: []
 
 hidden_chats.unlock_button:
@@ -641,6 +667,7 @@ hidden_chats.unlock_button:
   th: ปลดล็อก
   cs: Odemknout
   sv: Lås upp
+  he: פתיחה
   verified_by_human: []
 
 hidden_chats.set_code_button:
@@ -665,6 +692,7 @@ hidden_chats.set_code_button:
   th: ตั้งค่ารหัส
   cs: Nastavit kód
   sv: Ange kod
+  he: הגדרת קוד
   verified_by_human: []
 
 hidden_chats.cancel:
@@ -689,6 +717,7 @@ hidden_chats.cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 
 hidden_chats.incorrect_code:
@@ -713,6 +742,7 @@ hidden_chats.incorrect_code:
   th: รหัสไม่ถูกต้อง กรุณาลองอีกครั้ง
   cs: Nesprávný kód. Zkuste to znovu.
   sv: Felaktig kod. Försök igen.
+  he: קוד שגוי. יש לנסות שוב.
   verified_by_human: []
 
 hidden_chats.invalid_code_format:
@@ -737,6 +767,7 @@ hidden_chats.invalid_code_format:
   th: กรุณาป้อนรหัส 4-6 หลัก
   cs: Zadejte 4-6místný kód
   sv: Ange en 4-6-siffrig kod
+  he: נא להזין קוד בן 4-6 ספרות
   verified_by_human: []
 
 hidden_chats.codes_dont_match:
@@ -761,6 +792,7 @@ hidden_chats.codes_dont_match:
   th: รหัสไม่ตรงกัน
   cs: Kódy se neshodují
   sv: Koderna matchar inte
+  he: הקודים אינם תואמים
   verified_by_human: []
 
 hidden_chats.lockout_message:
@@ -785,6 +817,7 @@ hidden_chats.lockout_message:
   th: พยายามล้มเหลวมากเกินไป กรุณารอ {seconds} วินาที
   cs: Příliš mnoho neúspěšných pokusů. Počkejte {seconds} sekund.
   sv: För många misslyckade försök. Vänta {seconds} sekunder.
+  he: "יותר מדי ניסיונות כושלים. נא להמתין {seconds} שניות."
   verified_by_human: []
 
 hidden_chats.unlock_error:
@@ -809,6 +842,7 @@ hidden_chats.unlock_error:
   th: เกิดข้อผิดพลาด กรุณาลองอีกครั้ง
   cs: Došlo k chybě. Zkuste to znovu.
   sv: Ett fel uppstod. Försök igen.
+  he: אירעה שגיאה. נא לנסות שוב.
   verified_by_human: []
 
 hidden_chats.unlocked:
@@ -833,6 +867,7 @@ hidden_chats.unlocked:
   th: ปลดล็อกแชทที่ซ่อนอยู่แล้ว
   cs: Skryté chaty odemčeny
   sv: Dolda chattar upplåsta
+  he: "הצ\\'אטים החבויים נפתחו"
   verified_by_human: []
 
 hidden_chats.locked:
@@ -857,6 +892,7 @@ hidden_chats.locked:
   th: ล็อกแชทที่ซ่อนอยู่แล้ว
   cs: Skryté chaty zamčeny
   sv: Dolda chattar låsta
+  he: "הצ\\'אטים החבויים ננעלו"
   verified_by_human: []
 
 hidden_chats.show_hidden_chats:
@@ -881,6 +917,7 @@ hidden_chats.show_hidden_chats:
   th: "แสดงแชทที่ซ่อนอยู่"
   cs: "Zobrazit skryté chaty"
   sv: "Visa dolda chattar"
+  he: "הצג צ\\'אטים חבויים"
   verified_by_human: []
 
 hidden_chats.login_required:
@@ -905,6 +942,7 @@ hidden_chats.login_required:
   th: "เข้าสู่ระบบเพื่อซ่อนแชทและดูแชทที่ซ่อนอยู่ของคุณที่นี่"
   cs: "Přihlaste se, abyste mohli skrýt chaty a zobrazit zde své skryté chaty"
   sv: "Logga in för att dölja chattar och se dina dolda chattar här"
+  he: "יש להתחבר כדי להסתיר צ\\'אטים ולראות את הצ\\'אטים החבויים שלך כאן"
   verified_by_human: []
 
 hidden_chats.code_placeholder:
@@ -929,6 +967,7 @@ hidden_chats.code_placeholder:
   th: ป้อนรหัสผ่านของคุณ
   cs: Zadejte svůj přístupový kód
   sv: Ange din lösenkod
+  he: הזן קוד גישה
   verified_by_human: []
 
 hidden_chats.set_password_title:
@@ -953,6 +992,7 @@ hidden_chats.set_password_title:
   th: ตั้งค่ารหัสผ่านแชทที่ซ่อนอยู่
   cs: Nastavit heslo skrytých chatů
   sv: Ange lösenord för dolda chattar
+  he: "הגדרת סיסמה לצ\\'אטים חבויים"
   verified_by_human: []
 
 hidden_chats.set_password_description:
@@ -977,6 +1017,7 @@ hidden_chats.set_password_description:
   th: ป้อนรหัสผ่านเพื่อปกป้องแชทที่ซ่อนอยู่ของคุณ รหัสผ่านนี้แยกจากรหัสผ่านการเข้าสู่ระบบของคุณ รหัสผ่านที่ไม่ซ้ำกันแต่ละรหัสสามารถใช้เพื่อซ่อน/แสดงแชทที่แตกต่างกัน
   cs: Zadejte heslo pro ochranu vašich skrytých chatů. Toto heslo je oddělené od vašeho přihlašovacího hesla. Každé jedinečné heslo lze použít k skrytí/zobrazení různých chatů.
   sv: Ange ett lösenord för att skydda dina dolda chattar. Detta lösenord är separat från ditt inloggningslösenord. Varje unikt lösenord kan användas för att dölja/visa olika chattar.
+  he: "יש להזין סיסמה כדי להגן על הצ\\'אטים החבויים שלך. סיסמה זו נפרדת מסיסמת ההתחברות שלך. ניתן להשתמש בכל סיסמה ייחודית כדי להסתיר/להציג צ\\'אטים שונים."
   verified_by_human: []
 
 hidden_chats.password_label:
@@ -1001,6 +1042,7 @@ hidden_chats.password_label:
   th: รหัสผ่าน
   cs: Heslo
   sv: Lösenord
+  he: סיסמה
   verified_by_human: []
 
 hidden_chats.confirm_password_label:
@@ -1025,6 +1067,7 @@ hidden_chats.confirm_password_label:
   th: ยืนยันรหัสผ่าน
   cs: Potvrdit heslo
   sv: Bekräfta lösenord
+  he: אימות סיסמה
   verified_by_human: []
 
 hidden_chats.password_placeholder:
@@ -1049,6 +1092,7 @@ hidden_chats.password_placeholder:
   th: ป้อนรหัสผ่าน
   cs: Zadejte heslo
   sv: Ange lösenord
+  he: הזן סיסמה
   verified_by_human: []
 
 hidden_chats.password_info:
@@ -1073,6 +1117,7 @@ hidden_chats.password_info:
   th: รหัสผ่านที่ไม่ซ้ำกันแต่ละรหัสสามารถใช้เพื่อซ่อน/แสดงแชทที่แตกต่างกัน
   cs: Každé jedinečné heslo lze použít k skrytí/zobrazení různých chatů.
   sv: Varje unikt lösenord kan användas för att dölja/visa olika chattar.
+  he: "ניתן להשתמש בכל סיסמה ייחודית כדי להסתיר/להציג צ\\'אטים שונים."
   verified_by_human: []
 
 hidden_chats.set_password_button:
@@ -1097,6 +1142,7 @@ hidden_chats.set_password_button:
   th: ตั้งค่ารหัสผ่าน
   cs: Nastavit heslo
   sv: Ange lösenord
+  he: הגדר סיסמה
   verified_by_human: []
 
 hidden_chats.invalid_password_format:
@@ -1121,6 +1167,7 @@ hidden_chats.invalid_password_format:
   th: กรุณาป้อนรหัสผ่านที่ถูกต้อง
   cs: Zadejte platné heslo
   sv: Ange ett giltigt lösenord
+  he: נא להזין סיסמה תקינה
   verified_by_human: []
 
 hidden_chats.passwords_dont_match:
@@ -1145,6 +1192,7 @@ hidden_chats.passwords_dont_match:
   th: รหัสผ่านไม่ตรงกัน
   cs: Hesla se neshodují
   sv: Lösenorden matchar inte
+  he: הסיסמאות אינן תואמות
   verified_by_human: []
 
 hidden_chats.incorrect_password:
@@ -1169,6 +1217,7 @@ hidden_chats.incorrect_password:
   th: รหัสผ่านไม่ถูกต้อง กรุณาลองอีกครั้ง
   cs: Nesprávné heslo. Zkuste to znovu.
   sv: Felaktigt lösenord. Försök igen.
+  he: סיסמה שגויה. נא לנסות שוב.
   verified_by_human: []
 
 hidden_chats.unlock_description:
@@ -1193,6 +1242,7 @@ hidden_chats.unlock_description:
   th: ป้อนรหัสผ่านของคุณเพื่อปลดล็อกแชทที่ซ่อนอยู่ รหัสผ่านที่ไม่ซ้ำกันแต่ละรหัสสามารถใช้เพื่อซ่อน/แสดงแชทที่แตกต่างกัน
   cs: Zadejte své heslo pro odemknutí skrytých chatů. Každé jedinečné heslo lze použít k skrytí/zobrazení různých chatů.
   sv: Ange ditt lösenord för att låsa upp dolda chattar. Varje unikt lösenord kan användas för att dölja/visa olika chattar.
+  he: "יש להזין את הסיסמה כדי לפתוח צ\\'אטים חבויים. ניתן להשתמש בכל סיסמה ייחודית כדי להסתיר/להציג צ\\'אטים שונים."
   verified_by_human: []
 
 hidden_chats.auto_locked:
@@ -1217,6 +1267,7 @@ hidden_chats.auto_locked:
   th: แชทที่ซ่อนอยู่ถูกล็อกเนื่องจากไม่มีการใช้งาน
   cs: Skryté chaty zamčeny kvůli nečinnosti
   sv: Dolda chattar låsta på grund av inaktivitet
+  he: "הצ\\'אטים החבויים ננעלו עקב חוסר פעילות"
   verified_by_human: []
 
 select_all:
@@ -1241,6 +1292,7 @@ select_all:
   th: เลือกทั้งหมด
   cs: Vybrat vše
   sv: Välj alla
+  he: בחר הכל
   verified_by_human: []
 
 unselect_all:
@@ -1265,6 +1317,7 @@ unselect_all:
   th: ยกเลิกการเลือกทั้งหมด
   cs: Zrušit výběr všech
   sv: Avmarkera alla
+  he: ביטול בחירת הכל
   verified_by_human: []
 
 cancel:
@@ -1289,6 +1342,7 @@ cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 
 loadMore.button:
@@ -1313,6 +1367,7 @@ loadMore.button:
   th: แสดงเพิ่มเติม
   cs: Zobrazit více
   sv: Visa fler
+  he: הצג עוד
   verified_by_human: []
 
 resume_last_chat.title:
@@ -1337,6 +1392,7 @@ resume_last_chat.title:
   th: ดำเนินการต่อจากจุดที่คุณค้างไว้
   cs: Pokračujte tam, kde jste skončili
   sv: Fortsätt där du slutade
+  he: להמשיך מהמקום שבו הפסקת
   verified_by_human: []
 
 resume_last_chat.continue_button:
@@ -1361,6 +1417,7 @@ resume_last_chat.continue_button:
   th: ดำเนินการต่อ
   cs: Pokračovat
   sv: Fortsätt
+  he: המשך
   verified_by_human: []
 
 resume_last_chat.start_new:
@@ -1385,6 +1442,7 @@ resume_last_chat.start_new:
   th: หรือเริ่มแชทใหม่
   cs: nebo začněte nový chat
   sv: eller starta en ny chatt
+  he: "או להתחיל צ\\'אט חדש"
   verified_by_human: []
 
 back_to_intro.title:
@@ -1409,6 +1467,7 @@ back_to_intro.title:
   th: กลับไปที่บทนำ
   cs: Zpět k úvodu
   sv: Tillbaka till intro
+  he: חזרה למבוא
   verified_by_human: []
 
 context_menu.credits:
@@ -1433,6 +1492,7 @@ context_menu.credits:
   th: เครดิต
   cs: kredity
   sv: krediter
+  he: קרדיטים
   verified_by_human: []
 
 context_menu.delete_message:
@@ -1457,6 +1517,7 @@ context_menu.delete_message:
   th: ลบ
   cs: Smazat
   sv: Ta bort
+  he: מחיקה
   verified_by_human: []
 context_menu.unhide:
   context: Context menu action to unhide a hidden chat
@@ -1480,6 +1541,7 @@ context_menu.unhide:
   th: ยกเลิกการซ่อน
   cs: Zobrazit
   sv: Visa igen
+  he: ביטול הסתרה
   verified_by_human: []
 hidden_chats.no_hidden_chats:
   context: Message shown when hidden chats section is empty
@@ -1503,6 +1565,7 @@ hidden_chats.no_hidden_chats:
   th: ไม่มีแชทที่ซ่อนอยู่
   cs: Žádné skryté chaty
   sv: Inga dolda chattar
+  he: "אין צ'אטים מוסתרים"
   verified_by_human: []
 hidden_chats.no_hidden_chats_unlocked:
   context: Error message when unlock attempt succeeds but no chats were decrypted
@@ -1526,6 +1589,7 @@ hidden_chats.no_hidden_chats_unlocked:
   th: ไม่มีแชทที่ซ่อนถูกปลดล็อก รหัสผ่านอาจไม่ถูกต้อง
   cs: Žádné skryté chaty nebyly odemčeny. Heslo může být nesprávné.
   sv: Inga dolda chattar låstes upp. Lösenordet kan vara felaktigt.
+  he: "לא שוחררו צ'אטים מוסתרים. ייתכן שהסיסמה שגויה."
   verified_by_human: []
 
 search.placeholder:
@@ -1550,6 +1614,7 @@ search.placeholder:
   th: ค้นหาแชทและการตั้งค่า...
   cs: Hledat chaty a nastavení...
   sv: Sök chattar och inställningar...
+  he: "חיפוש צ'אטים, הגדרות ואפליקציות…"
   verified_by_human: []
 
 search.no_results:
@@ -1574,6 +1639,7 @@ search.no_results:
   th: ไม่พบผลลัพธ์
   cs: Nebyly nalezeny žádné výsledky
   sv: Inga resultat hittades
+  he: לא נמצאו תוצאות
   verified_by_human: []
 
 search.settings:
@@ -1598,6 +1664,7 @@ search.settings:
   th: การตั้งค่า
   cs: Nastavení
   sv: Inställningar
+  he: הגדרות
   verified_by_human: []
 
 search.indexing:
@@ -1622,6 +1689,7 @@ search.indexing:
   th: กำลังสร้างดัชนีการค้นหา...
   cs: Vytváření vyhledávacího indexu...
   sv: Bygger sökindex...
+  he: בונה אינדקס חיפוש…
   verified_by_human: []
 
 search.apps:
@@ -1646,6 +1714,7 @@ search.apps:
   th: แอปและทักษะ
   cs: Aplikace a dovednosti
   sv: Appar och färdigheter
+  he: אפליקציות ומיומנויות
   verified_by_human: []
 
 search.app_app:
@@ -1670,6 +1739,7 @@ search.app_app:
   th: แอป
   cs: Aplikace
   sv: App
+  he: אפליקציה
   verified_by_human: []
 
 search.app_skill:
@@ -1694,6 +1764,7 @@ search.app_skill:
   th: ทักษะ
   cs: Dovednost
   sv: Färdighet
+  he: מיומנות
   verified_by_human: []
 
 search.app_focus_mode:
@@ -1718,6 +1789,7 @@ search.app_focus_mode:
   th: โหมดโฟกัส
   cs: Režim soustředění
   sv: Fokusläge
+  he: מצב מיקוד
   verified_by_human: []
 
 search.app_memory:
@@ -1742,6 +1814,7 @@ search.app_memory:
   th: หน่วยความจำ
   cs: Paměť
   sv: Minne
+  he: זיכרון
   verified_by_human: []
 
 search.go_to_message:
@@ -1766,6 +1839,7 @@ search.go_to_message:
   th: ไปที่ข้อความ
   cs: Přejít na zprávu
   sv: Gå till meddelande
+  he: מעבר להודעה
   verified_by_human: []
 
 scroll_to_active_chat:
@@ -1790,6 +1864,7 @@ scroll_to_active_chat:
   th: เลื่อนไปยังแชทที่ใช้งานอยู่
   cs: Přejít na aktivní chat
   sv: Rulla till aktiv chatt
+  he: "גלילה לצ'אט הפעיל"
   verified_by_human: []
 
 active_chat:
@@ -1814,6 +1889,7 @@ active_chat:
   th: แชทที่ใช้งานอยู่
   cs: Aktivní chat
   sv: Aktiv chatt
+  he: "צ'אט פעיל"
   verified_by_human: []
 
 search.results_label:
@@ -1838,6 +1914,7 @@ search.results_label:
   th: ผลการค้นหา
   cs: Výsledky hledání
   sv: Sökresultat
+  he: תוצאות חיפוש
   verified_by_human: []
 
 context_menu.fork:
@@ -1862,6 +1939,7 @@ context_menu.fork:
   th: แยกการสนทนา
   cs: Rozvětvit konverzaci
   sv: Förgrena konversation
+  he: פיצול שיחה
   verified_by_human: []
 
 fork.title:
@@ -1886,6 +1964,7 @@ fork.title:
   th: แยกการสนทนา
   cs: Rozvětvit konverzaci
   sv: Förgrena konversation
+  he: פיצול שיחה
   verified_by_human: []
 
 fork.name_label:
@@ -1910,6 +1989,7 @@ fork.name_label:
   th: ชื่อสาขา
   cs: Název větve
   sv: Förgreningsnamn
+  he: שם הפיצול
   verified_by_human: []
 
 fork.name_placeholder:
@@ -1934,6 +2014,7 @@ fork.name_placeholder:
   th: ป้อนชื่อสาขา...
   cs: Zadejte název větve...
   sv: Ange ett namn för förgreningen...
+  he: הזן שם לפיצול…
   verified_by_human: []
 
 fork.fork_button:
@@ -1958,6 +2039,7 @@ fork.fork_button:
   th: แยก
   cs: Rozvětvit
   sv: Förgrena
+  he: פיצול
   verified_by_human: []
 
 fork.forking_progress:
@@ -1982,6 +2064,7 @@ fork.forking_progress:
   th: กำลังแยก… {progress}%
   cs: Rozvětvování… {progress}%
   sv: Förgrenar… {progress}%
+  he: "מפצל… {progress}%"
   verified_by_human: []
 
 fork.forking_banner:
@@ -2006,6 +2089,7 @@ fork.forking_banner:
   th: กำลังแยกแชท…
   cs: Rozvětvování chatu…
   sv: Förgrenar chatt…
+  he: "מפצל צ'אט…"
   verified_by_human: []
 
 fork.complete_notification:
@@ -2030,6 +2114,7 @@ fork.complete_notification:
   th: แยกสำเร็จ — แตะเพื่อเปิด
   cs: Rozvětvení dokončeno — klepněte pro otevření
   sv: Förgrening klar — tryck för att öppna
+  he: "פיצול הצ'אט הושלם — לחץ לפתיחה"
   verified_by_human: []
 
 fork.error_notification:
@@ -2054,6 +2139,7 @@ fork.error_notification:
   th: การแยกล้มเหลว กรุณาลองใหม่
   cs: Rozvětvení se nezdařilo. Zkuste to znovu.
   sv: Förgrening misslyckades. Försök igen.
+  he: הפיצול נכשל. יש לנסות שוב.
   verified_by_human: []
 
 fork.disabled_incognito:
@@ -2078,6 +2164,7 @@ fork.disabled_incognito:
   th: ไม่สามารถแยกในโหมดไม่ระบุตัวตน
   cs: V anonymním režimu není rozvětvení dostupné
   sv: Förgrening är inte tillgänglig i inkognitoläge
+  he: פיצול אינו זמין במצב גלישה בסתר
   verified_by_human: []
 
 fork.messages_label:
@@ -2102,4 +2189,5 @@ fork.messages_label:
   th: ข้อความที่จะแยก
   cs: Zprávy k rozvětvení
   sv: Meddelanden att förgrena
+  he: הודעות לפיצול
   verified_by_human: []

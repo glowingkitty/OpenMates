@@ -20,6 +20,7 @@ toggle_menu:
   th: สลับเมนู
   cs: Přepnout menu
   sv: ''
+  he: החלפת מצב תפריט
   verified_by_human: []
 login_signup:
   context: Button text for login/signup button in header (kept for backwards compatibility)
@@ -43,6 +44,7 @@ login_signup:
   th: เข้าสู่ระบบ / สมัครสมาชิก
   cs: Přihlásit / Registrovat
   sv: ''
+  he: התחברות / הרשמה
   verified_by_human: []
 login:
   context: Button text for sign in button in header (opens interface with both login and signup options)
@@ -66,6 +68,7 @@ login:
   th: เข้าสู่ระบบ
   cs: Přihlásit se
   sv: ''
+  he: התחברות
   verified_by_human: []
 self_hosting_edition:
   context: Text displayed under the logo when server is in self-hosting edition mode
@@ -89,6 +92,7 @@ self_hosting_edition:
   th: รุ่นโฮสต์เอง
   cs: Edice vlastního hostování
   sv: ''
+  he: מהדורת אירוח עצמי
   verified_by_human: []
 development_server:
   context: Text displayed under the logo when server is in development mode
@@ -112,6 +116,7 @@ development_server:
   th: เซิร์ฟเวอร์พัฒนา
   cs: Vývojový server
   sv: ''
+  he: שרת פיתוח
   verified_by_human: []
 report_issue:
   context: Tooltip and aria-label for the report issue bug icon in header
@@ -135,4 +140,5 @@ report_issue:
   th: รายงานปัญหา
   cs: Nahlásit problém
   sv: Rapportera problem
+  he: דיווח על תקלה
   verified_by_human: []

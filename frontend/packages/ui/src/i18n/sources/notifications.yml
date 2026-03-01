@@ -9,67 +9,80 @@ auto_logout.title:
   en: Auto logout
   de: Automatische Abmeldung
 
+  he: התנתקות אוטומטית
 auto_logout.consider_stay_logged_in:
   context: Message suggesting to enable stay logged in
   en: "Consider activating 'Stay logged in'."
   de: "Erwägen Sie, 'Eingeloggt bleiben' zu aktivieren."
 
+  he: "כדאי להפעיל את 'הישאר מחובר'."
 auto_logout.during_login:
   context: Secondary message about when to enable the setting
   en: During login, to remain connected.
   de: Beim Einloggen, um verbunden zu bleiben.
 
 # Connection problem notifications
+  he: במהלך ההתחברות, כדי להישאר מחובר.
 connection.title:
   context: Title for connection problem notification
   en: "Can't connect to server."
   de: "Verbindung zum Server nicht möglich."
 
+  he: לא ניתן להתחבר לשרת.
 connection.trying_to_reconnect:
   context: Message about reconnection attempt
   en: Trying to reconnect for {seconds} seconds.
   de: Versuche seit {seconds} Sekunden die Verbindung wiederherzustellen.
 
+  he: "מנסה להתחבר מחדש במשך {seconds} שניות."
 connection.offline_mode:
   context: Secondary message about offline mode activation
   en: Else Offline Mode will be activated.
   de: Andernfalls wird der Offline-Modus aktiviert.
 
+  he: אחרת, מצב לא מקוון יופעל.
 connection.offline_banner:
   context: Message shown in the notification when the device loses network connectivity
   en: You are offline. Your chats are still available.
   de: Du bist offline. Deine Chats sind weiterhin verfügbar.
 
+  he: "אין חיבור לאינטרנט. הצ'אטים שלך עדיין זמינים."
 connection.offline_banner.title:
   context: Title for the offline notification shown when the device loses network connectivity
   en: You are offline
   de: Du bist offline
 
+  he: אין חיבור לאינטרנט
 connection.tap_to_reconnect:
   context: Action button text on the offline notification, lets the user manually trigger a reconnection attempt
   en: Tap to reconnect
   de: Zum Wiederverbinden tippen
 
+  he: הקש להתחברות מחדש
 connection.reconnecting.title:
   context: Title shown on the notification while a reconnection attempt is in progress
   en: Reconnecting...
   de: Verbindung wird hergestellt...
 
+  he: מתחבר מחדש...
 connection.reconnecting:
   context: Message shown on the notification while a reconnection attempt is in progress
   en: Attempting to reconnect to the server.
   de: Verbindung zum Server wird hergestellt.
 
+  he: מנסה להתחבר מחדש לשרת.
 connection.reconnected:
   context: Message shown in the success notification when the server connection is restored after an offline period
   en: Connection to server restored.
   de: Verbindung zum Server wiederhergestellt.
+  he: החיבור לשרת חודש.
   verified_by_human: []
 
 connection.reconnected.title:
   context: Title for the success notification shown briefly when the server connection is restored
   en: Reconnected
   de: Wieder verbunden
+  he: מחובר מחדש
   verified_by_human: []
 
 # Software update notifications
@@ -78,85 +91,102 @@ software_update.title:
   en: Software update available
   de: Software-Update verfügbar
 
+  he: עדכון תוכנה זמין
 software_update.new_version:
   context: Message about new version availability
   en: OpenMates {version} is available now.
   de: OpenMates {version} ist jetzt verfügbar.
 
+  he: "OpenMates {version} זמינה כעת."
 software_update.check_settings:
   context: Secondary message about where to install update
   en: Check your server settings to install it.
   de: Überprüfen Sie Ihre Server-Einstellungen zur Installation.
 
 # Web app version update notifications (shown when SvelteKit detects a new deployment)
+  he: בדוק את הגדרות השרת כדי להתקין אותו.
 software_update.web_app_available:
   context: Primary message shown in the notification when a new web app version is detected
   en: A new version is available. It will load on your next navigation.
   de: Eine neue Version ist verfügbar. Sie wird bei der nächsten Navigation geladen.
 
+  he: גרסה חדשה זמינה. היא תיטען במעבר הבא בין דפים.
 software_update.refresh_now:
   context: Action button label to immediately refresh the page and load the new version
   en: Refresh now
   de: Jetzt aktualisieren
 
 # Chat message notifications
+  he: רענן כעת
 chat_message.new_ai_response:
   context: Default message for new AI response notification
   en: New AI response ready
   de: Neue KI-Antwort bereit
 
+  he: תגובת AI חדשה מוכנה
 click_to_respond:
   context: Button text for reply action in chat notification
   en: Click here to respond
   de: Hier klicken zum Antworten
 
 # Push notification permission banner
+  he: לחץ כאן כדי להגיב
 push.banner_title:
   context: Title for the push notification permission banner
   en: Want to receive notifications when your assistant responds?
   de: Möchten Sie Benachrichtigungen erhalten, wenn Ihr Assistent antwortet?
 
+  he: "רוצה לקבל התראות כשהעוזר שלך מגיב?"
 push.banner_subtitle:
   context: Subtitle explaining the benefit
   en: "Even when you're not in the app."
   de: "Auch wenn Sie nicht in der App sind."
 
+  he: גם כשאינך באפליקציה.
 push.enable_btn:
   context: Button to enable notifications
   en: Enable Notifications
   de: Benachrichtigungen aktivieren
 
+  he: הפעל התראות
 push.not_yet_btn:
   context: Button to dismiss the banner temporarily
   en: Not Yet
   de: Noch nicht
 
+  he: לא כרגע
 push.requesting:
   context: Loading state while requesting permission
   en: Requesting...
   de: Wird angefragt...
 
+  he: מבקש...
 push.ios_install_title:
   context: Title for iOS PWA installation instructions
   en: Install OpenMates First
   de: Installieren Sie zuerst OpenMates
 
+  he: התקן את OpenMates תחילה
 push.ios_install_step1:
   context: Step 1 for iOS installation
   en: 1. Tap the Share button in Safari
   de: 1. Tippen Sie auf die Teilen-Schaltfläche in Safari
 
+  he: 1. הקש על כפתור השיתוף ב-Safari
 push.ios_install_step2:
   context: Step 2 for iOS installation
   en: 2. Select "Add to Home Screen"
   de: 2. Wählen Sie "Zum Home-Bildschirm"
 
+  he: "2. בחר ב-\"הוסף למסך הבית\""
 push.ios_install_step3:
   context: Step 3 for iOS installation
   en: 3. Open OpenMates from your home screen
   de: 3. Öffnen Sie OpenMates vom Home-Bildschirm
 
+  he: 3. פתח את OpenMates ממסך הבית
 push.ios_install_step4:
   context: Step 4 for iOS installation
   en: 4. Then you can enable notifications
   de: 4. Dann können Sie Benachrichtigungen aktivieren
+  he: 4. לאחר מכן תוכל להפעיל התראות

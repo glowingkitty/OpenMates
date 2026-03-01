@@ -23,6 +23,7 @@ software_development:
   th: ""
   cs: ""
   sv: ""
+  he: מומחית לפיתוח תוכנה
   verified_by_human: []
 
 business_development:
@@ -47,6 +48,7 @@ business_development:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה לפיתוח עסקי
   verified_by_human: []
 
 life_coach_psychology:
@@ -71,6 +73,7 @@ life_coach_psychology:
   th: ""
   cs: ""
   sv: ""
+  he: מאמנת אישית ומומחית לפסיכולוגיה
   verified_by_human: []
 
 medical_health:
@@ -95,6 +98,7 @@ medical_health:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה לרפואה ובריאות
   verified_by_human: []
 
 legal_law:
@@ -119,6 +123,7 @@ legal_law:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה למשפטים וחוק
   verified_by_human: []
 
 finance:
@@ -143,6 +148,7 @@ finance:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה לפיננסים
   verified_by_human: []
 
 design:
@@ -167,6 +173,7 @@ design:
   th: ""
   cs: ""
   sv: ""
+  he: מומחית לעיצוב
   verified_by_human: []
 
 marketing_sales:
@@ -191,6 +198,7 @@ marketing_sales:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה לשיווק ומכירות
   verified_by_human: []
 
 science:
@@ -215,6 +223,7 @@ science:
   th: ""
   cs: ""
   sv: ""
+  he: מומחית למדעים
   verified_by_human: []
 
 history:
@@ -239,6 +248,7 @@ history:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה להיסטוריה
   verified_by_human: []
 
 cooking_food:
@@ -263,6 +273,7 @@ cooking_food:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה לבישול ואוכל
   verified_by_human: []
 
 electrical_engineering:
@@ -287,6 +298,7 @@ electrical_engineering:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה להנדסת חשמל
   verified_by_human: []
 
 maker_prototyping:
@@ -311,6 +323,7 @@ maker_prototyping:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה ליצירה ואבטיפוס
   verified_by_human: []
 
 movies_tv:
@@ -335,6 +348,7 @@ movies_tv:
   th: ""
   cs: ""
   sv: ""
+  he: מומחית לסרטים וטלוויזיה
   verified_by_human: []
 
 activism:
@@ -359,6 +373,7 @@ activism:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה לאקטיביזם
   verified_by_human: []
 
 general_knowledge:
@@ -383,6 +398,7 @@ general_knowledge:
   th: ""
   cs: ""
   sv: ""
+  he: מומחה לידע כללי
   verified_by_human: []
 
 onboarding_support:
@@ -407,4 +423,5 @@ onboarding_support:
   th: คู่มือและการสนับสนุน OpenMates
   cs: Průvodce a podpora OpenMates
   sv: OpenMates guide & support
+  he: מדריכה ותמיכה ב-OpenMates
   verified_by_human: []

@@ -20,6 +20,7 @@ precise:
   th: แม่นยำ
   cs: Přesné
   sv: "Exakt"
+  he: מדויק
   verified_by_human: []
 toggle_precise:
   context: Button text for toggling precise location
@@ -43,6 +44,7 @@ toggle_precise:
   th: สลับความแม่นยำ
   cs: Přepnout přesnost
   sv: "Växla exakt"
+  he: שינוי דיוק המיקום
   verified_by_human: []
 close:
   context: Button text for closing location selection
@@ -66,6 +68,7 @@ close:
   th: ปิด
   cs: Zavřít
   sv: "Stäng"
+  he: סגירה
   verified_by_human: []
 select:
   context: Button text for selecting location
@@ -89,6 +92,7 @@ select:
   th: เลือก
   cs: Vybrat
   sv: "Välj"
+  he: בחירה
   verified_by_human: []
 get_location:
   context: Button text for getting current location
@@ -112,6 +116,7 @@ get_location:
   th: รับตำแหน่ง
   cs: Získat polohu
   sv: "Hämta plats"
+  he: קבלת מיקום
   verified_by_human: []
 current_location:
   context: Text for current location
@@ -135,6 +140,7 @@ current_location:
   th: ตำแหน่งปัจจุบัน
   cs: Aktuální poloha
   sv: "Nuvarande plats"
+  he: מיקום נוכחי
   verified_by_human: []
 selected_location:
   context: Text for selected location
@@ -158,6 +164,7 @@ selected_location:
   th: ตำแหน่งที่เลือก
   cs: Vybraná poloha
   sv: "Vald plats"
+  he: מיקום נבחר
   verified_by_human: []
 current_area:
   context: Text for current area
@@ -181,6 +188,7 @@ current_area:
   th: พื้นที่ปัจจุบัน
   cs: Aktuální oblast
   sv: "Nuvarande område"
+  he: אזור נוכחי
   verified_by_human: []
 selected_area:
   context: Text for selected area
@@ -204,6 +212,7 @@ selected_area:
   th: พื้นที่ที่เลือก
   cs: Vybraná oblast
   sv: "Valt område"
+  he: אזור נבחר
   verified_by_human: []
 search_results:
   context: Text for search results
@@ -227,6 +236,7 @@ search_results:
   th: ผลการค้นหา
   cs: Výsledky vyhledávání
   sv: "Sökresultat"
+  he: תוצאות חיפוש
   verified_by_human: []
 close_search:
   context: Text for closing search
@@ -250,6 +260,7 @@ close_search:
   th: ปิดการค้นหา
   cs: Zavřít vyhledávání
   sv: "Stäng sökning"
+  he: סגירת חיפוש
   verified_by_human: []
 search_placeholder:
   context: Placeholder text for search input
@@ -273,6 +284,7 @@ search_placeholder:
   th: ค้นหาตำแหน่ง...
   cs: Hledat polohu...
   sv: "Sök plats..."
+  he: חיפוש מיקום...
   verified_by_human: []
 search_button:
   context: Text for search button
@@ -296,6 +308,7 @@ search_button:
   th: ค้นหา
   cs: Hledat
   sv: "Sök"
+  he: חיפוש
   verified_by_human: []
 location_permission_denied:
   context: Error message shown when the user denies browser location permission
@@ -319,6 +332,7 @@ location_permission_denied:
   th: การเข้าถึงตำแหน่งถูกปฏิเสธ โปรดอนุญาตการเข้าถึงตำแหน่งในการตั้งค่าเบราว์เซอร์
   cs: Přístup k poloze byl zamítnut. Povolte přístup k poloze v nastavení prohlížeče.
   sv: "Platsåtkomst nekad. Tillåt platsåtkomst i dina webbläsarinställningar."
+  he: הגישה למיקום נדחתה. יש לאפשר גישה למיקום בהגדרות הדפדפן.
   verified_by_human: []
 location_unavailable:
   context: Error message shown when the device cannot determine the user's location
@@ -342,4 +356,5 @@ location_unavailable:
   th: ไม่สามารถระบุตำแหน่งของคุณได้ โปรดลองอีกครั้ง
   cs: Nepodařilo se určit vaši polohu. Zkuste to znovu.
   sv: "Det gick inte att fastställa din plats. Försök igen."
+  he: לא ניתן היה לקבוע את המיקום שלך. כדאי לנסות שוב.
   verified_by_human: []

@@ -27,6 +27,7 @@ header:
   th: ''
   cs: ''
   sv: ''
+  he: כברירת מחדל, OpenMates בוחרת אוטומטית את מודל ה-AI, ה-mates, כישורי האפליקציה, מצבי המיקוד וההגדרות והזיכרונות. חפש כדי לדרוס את הבחירה האוטומטית
   verified_by_human: []
 autocomplete_hint:
   context: Footer hint text in the @ mention dropdown suggesting how to autocomplete
@@ -50,6 +51,7 @@ autocomplete_hint:
   th: ''
   cs: ''
   sv: ''
+  he: לחץ על Enter או Tab להשלמה אוטומטית.
   verified_by_human: []
 show_more:
   context: Button text in the @ mention dropdown to show more settings/memory entries
@@ -75,6 +77,7 @@ show_more:
   th: ''
   cs: ''
   sv: ''
+  he: "הצג עוד {count}..."
   verified_by_human: []
 from_provider:
   context: Subtitle template showing which provider a model is from. {provider} is
@@ -99,6 +102,7 @@ from_provider:
   th: ''
   cs: ''
   sv: ''
+  he: "מ-{provider}"
   verified_by_human: []
 type_labels.model:
   context: Label for AI model type in mention dropdown
@@ -122,6 +126,7 @@ type_labels.model:
   th: ''
   cs: ''
   sv: ''
+  he: מודל AI
   verified_by_human: []
 type_labels.mate:
   context: Label for mate persona type in mention dropdown
@@ -145,6 +150,7 @@ type_labels.mate:
   th: ''
   cs: ''
   sv: ''
+  he: Mate
   verified_by_human: []
 type_labels.skill:
   context: Label for app skill type in mention dropdown
@@ -168,6 +174,7 @@ type_labels.skill:
   th: ''
   cs: ''
   sv: ''
+  he: מיומנות
   verified_by_human: []
 type_labels.focus_mode:
   context: Label for focus mode type in mention dropdown
@@ -191,6 +198,7 @@ type_labels.focus_mode:
   th: ''
   cs: ''
   sv: ''
+  he: מצב מיקוד
   verified_by_human: []
 type_labels.settings_memory:
   context: Label for settings and memories type in mention dropdown
@@ -214,4 +222,5 @@ type_labels.settings_memory:
   th: ''
   cs: ''
   sv: ''
+  he: הגדרות וזיכרונות
   verified_by_human: []

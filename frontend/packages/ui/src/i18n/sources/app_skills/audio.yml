@@ -20,6 +20,7 @@ transcribe:
   th: รับสำเนา
   cs: Získat přepis
   sv: Hämta transkription
+  he: קבלת תמלול
   verified_by_human: []
 
 transcribe.description:
@@ -44,6 +45,7 @@ transcribe.description:
   th: บันทึกเสียงที่ถอดเสียงแล้ว
   cs: Přepsaná hlasová nahrávka
   sv: Transkriberad röstinspelning
+  he: הקלטה קולית מתומללת
   verified_by_human:
     - en
 
@@ -69,6 +71,7 @@ transcribe.uploading:
   th: กำลังอัปโหลด…
   cs: Nahrávání…
   sv: Laddar upp…
+  he: מעלה…
   verified_by_human: []
 
 transcribe.transcribing:
@@ -93,6 +96,7 @@ transcribe.transcribing:
   th: กำลังถอดเสียง…
   cs: Přepis…
   sv: Transkriberar…
+  he: מתמלל…
   verified_by_human: []
 
 transcribe.upload_failed:
@@ -117,6 +121,7 @@ transcribe.upload_failed:
   th: อัปโหลดไม่สำเร็จ
   cs: Nahrávání se nezdařilo
   sv: Uppladdning misslyckades
+  he: העלאה נכשלה
   verified_by_human: []
 
 transcribe.transcription_failed:
@@ -141,6 +146,7 @@ transcribe.transcription_failed:
   th: ถอดเสียงไม่สำเร็จ
   cs: Přepis se nezdařil
   sv: Transkription misslyckades
+  he: התמלול נכשל
   verified_by_human: []
 
 transcribe.no_credits:
@@ -165,6 +171,7 @@ transcribe.no_credits:
   th: เครดิตของคุณหมดแล้ว ซื้อเพิ่มเพื่อถอดเสียงบันทึกเสียงต่อไป
   cs: Vyčerpali jste kredity. Zakupte další pro pokračování v přepisu hlasových poznámek.
   sv: Du har slut på krediter. Köp mer för att fortsätta transkribera röstanteckningar.
+  he: נגמרו לך הקרדיטים. רכוש עוד כדי להמשיך לתמלל הודעות קוליות.
   verified_by_human: []
 
 transcribe.retry:
@@ -189,6 +196,7 @@ transcribe.retry:
   th: ลองใหม่
   cs: Zkusit znovu
   sv: Försök igen
+  he: נסה שוב
   verified_by_human: []
 
 transcribe.no_transcript:
@@ -213,6 +221,7 @@ transcribe.no_transcript:
   th: ไม่มีข้อความถอดเสียง
   cs: Přepis není dostupný
   sv: Transkription ej tillgänglig
+  he: תמלול לא זמין
   verified_by_human: []
 
 transcribe.edit_transcript:
@@ -237,6 +246,7 @@ transcribe.edit_transcript:
   th: แก้ไขข้อความถอดเสียง…
   cs: Upravit přepis…
   sv: Redigera transkription…
+  he: עריכת תמלול…
   verified_by_human: []
 
 transcribe.audio_recording:
@@ -261,6 +271,7 @@ transcribe.audio_recording:
   th: การบันทึกเสียง
   cs: Zvuková nahrávka
   sv: Ljudinspelning
+  he: הקלטת שמע
   verified_by_human: []
 
 transcribe.signup_to_upload:
@@ -285,6 +296,7 @@ transcribe.signup_to_upload:
   th: ลงทะเบียนเพื่ออัปโหลด...
   cs: Zaregistrujte se pro nahrání...
   sv: Registrera dig för att ladda upp...
+  he: הירשם כדי להעלות...
   verified_by_human: []
 
 transcribe.signup_to_see_transcript:
@@ -309,6 +321,7 @@ transcribe.signup_to_see_transcript:
   th: ลงทะเบียนเพื่อดูข้อความถอดเสียงที่นี่
   cs: Zaregistrujte se pro zobrazení přepisu zde.
   sv: Registrera dig för att se transkriptionen här.
+  he: הירשם כדי לראות את התמלול כאן.
   verified_by_human: []
 
 transcribe.transcribing_via:
@@ -333,6 +346,7 @@ transcribe.transcribing_via:
   th: "กำลังถอดเสียงผ่าน {model}…"
   cs: "Přepis přes {model}…"
   sv: "Transkriberar via {model}…"
+  he: "מתמלל באמצעות {model}…"
   verified_by_human: []
 
 transcribe.transcribed_by:
@@ -357,6 +371,7 @@ transcribe.transcribed_by:
   th: "ถอดเสียงโดย {model}:"
   cs: "Přepsáno {model}:"
   sv: "Transkriberat av {model}:"
+  he: "תומלל על ידי {model}:"
   verified_by_human: []
 
 transcribe.processing:
@@ -381,6 +396,7 @@ transcribe.processing:
   th: กำลังประมวลผล...
   cs: Zpracování...
   sv: Bearbetar...
+  he: מעבד...
   verified_by_human: []
 
 transcribe.how_to_use.1:
@@ -405,6 +421,7 @@ transcribe.how_to_use.1:
   th: "บันทึกเสียงของคุณและฉันจะถอดเสียงให้"
   cs: "Nahrajte svůj hlas a já ho přepíšu"
   sv: "Spela in din röst och jag transkriberar den"
+  he: הקלט את קולך ואני אתמלל אותו
   verified_by_human: []
 
 transcribe.how_to_use.2:
@@ -429,6 +446,7 @@ transcribe.how_to_use.2:
   th: "ถอดเสียงไฟล์เสียงนี้ให้ฉัน"
   cs: "Přepiš mi tento zvukový soubor"
   sv: "Transkribera den här ljudfilen åt mig"
+  he: תמלל עבורי את קובץ השמע הזה
   verified_by_human: []
 
 transcribe.how_to_use.3:
@@ -453,4 +471,5 @@ transcribe.how_to_use.3:
   th: "ถอดเสียงการบันทึกการประชุมนี้และสรุปการตัดสินใจสำคัญ"
   cs: "Přepiš tento záznam schůzky a shrň klíčová rozhodnutí"
   sv: "Transkribera den här mötesinspelningen och sammanfatta de viktigaste besluten"
+  he: תמלל את הקלטת הפגישה הזו וסכם את ההחלטות המרכזיות
   verified_by_human: []

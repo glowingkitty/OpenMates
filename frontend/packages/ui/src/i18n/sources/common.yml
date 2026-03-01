@@ -2,40 +2,47 @@ admin:
   context: Badge label shown next to admin username in navigation
   en: Admin
   de: Admin
+  he: מנהל
   verified_by_human: []
 
 close:
   context: Generic close button text
   en: Close
   de: Schließen
+  he: סגור
   verified_by_human: []
 
 cancel:
   context: Generic cancel button text
   en: Cancel
   de: Abbrechen
+  he: ביטול
   verified_by_human: []
 
 continue:
   context: Generic continue/proceed button text
   en: Continue
   de: Weiter
+  he: המשך
   verified_by_human: []
 
 copy:
   context: Generic copy-to-clipboard button text
   en: Copy
   de: Kopieren
+  he: העתק
   verified_by_human: []
 
 copied:
   context: Feedback text shown after copying to clipboard
   en: Copied
   de: Kopiert
+  he: הועתק
   verified_by_human: []
 
 done:
   context: Generic done/finish button text
   en: Done
   de: Fertig
+  he: בוצע
   verified_by_human: []

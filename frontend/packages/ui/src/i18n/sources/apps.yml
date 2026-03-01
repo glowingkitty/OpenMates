@@ -20,6 +20,7 @@ ai:
   th: AI
   cs: AI
   sv: AI
+  he: AI
   verified_by_human: [en, de]
 ai.description:
   context: Description for the AI app
@@ -43,6 +44,7 @@ ai.description:
   th: ถามคำถาม สร้างไอเดีย และอื่นๆ
   cs: Pokládejte otázky, generujte nápady a další.
   sv: Ställ frågor, brainstorma idéer och mer.
+  he: שאל שאלות, העלה רעיונות ועוד.
   verified_by_human: [en, de]
 ai.skills.ask:
   context: Skill name for AI ask skill
@@ -66,6 +68,7 @@ ai.skills.ask:
   th: ถาม
   cs: Zeptat se
   sv: Fråga
+  he: שאל
   verified_by_human: [en, de]
 ai.skills.ask.description:
   context: Description for AI ask skill
@@ -89,6 +92,7 @@ ai.skills.ask.description:
   th: ถามด้วยข้อความ รูปภาพ และสื่ออื่นๆ
   cs: Ptejte se textem, obrázky a dalšími médii.
   sv: Fråga med text, bilder och annat media.
+  he: שאל באמצעות טקסט, תמונות ומדיה נוספת.
   verified_by_human: [en, de]
 web:
   context: App name for the Web app
@@ -112,6 +116,7 @@ web:
   th: เว็บ
   cs: Internet
   sv: Internet
+  he: Web
   verified_by_human: [en, de]
 web.description:
   context: Description for the Web app
@@ -135,6 +140,7 @@ web.description:
   th: เรียกดูเว็บไซต์ วิจัยหัวข้อ
   cs: Procházejte weby, zkoumejte témata.
   sv: Bläddra på webbplatser, forska ämnen.
+  he: גלוש באתרים, חקור נושאים ועוד.
   verified_by_human: [en, de]
 web.skills.search:
   context: Skill name for web search
@@ -158,6 +164,7 @@ web.skills.search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חפש
   verified_by_human: [en, de]
 web.skills.search.description:
   context: Description for web search skill
@@ -181,6 +188,7 @@ web.skills.search.description:
   th: ค้นหาเว็บ
   cs: Hledat na webu.
   sv: Sök på webben.
+  he: חפש באינטרנט.
   verified_by_human: [en, de]
 mail:
   context: App name for the Mail app (handles both email and physical mail)
@@ -204,6 +212,7 @@ mail:
   th: ไปรษณีย์
   cs: Pošta
   sv: Post
+  he: דואר
   verified_by_human: [en, de]
 mail.description:
   context: Description for the Mail app
@@ -227,6 +236,7 @@ mail.description:
   th: ส่ง จัดการ และเขียนอีเมล
   cs: Posílejte, spravujte a vytvářejte e-maily.
   sv: Skicka, hantera och skriv e-post.
+  he: שלח, נהל וכתוב הודעות אימייל.
   verified_by_human: [en, de]
 life_coaching:
   context: App name for the Life coaching app
@@ -250,6 +260,7 @@ life_coaching:
   th: การโค้ชชีวิต
   cs: Life coaching
   sv: Livscoaching
+  he: אימון אישי
   verified_by_human: [en, de]
 life_coaching.description:
   context: Description for the Life coaching app
@@ -273,6 +284,7 @@ life_coaching.description:
   th: วางแผนขั้นตอนต่อไปในชีวิตของคุณ
   cs: Naplánujte si další kroky v životě.
   sv: Planera dina nästa steg i livet.
+  he: תכנן את הצעדים הבאים שלך בחיים.
   verified_by_human: [en, de]
 audio:
   context: App name for the Audio app (voice notes with AI transcription)
@@ -296,6 +308,7 @@ audio:
   th: เสียง
   cs: Zvuk
   sv: Ljud
+  he: אודיו
   verified_by_human: []
 audio.description:
   context: Description for the Audio app (voice note recording + AI transcription)
@@ -319,6 +332,7 @@ audio.description:
   th: บันทึกโน้ตเสียงและรับข้อความถอดเสียง
   cs: Nahrajte hlasové poznámky a získejte přepisy.
   sv: Spela in röstanteckningar och få transkriberingar.
+  he: הקלט הערות קוליות וקבל תמלולים.
   verified_by_human: []
 videos:
   context: App name for the Videos app
@@ -342,6 +356,7 @@ videos:
   th: วิดีโอ
   cs: Videa
   sv: Videor
+  he: סרטונים
   verified_by_human: [en, de]
 videos.description:
   context: Description for the Videos app
@@ -365,6 +380,7 @@ videos.description:
   th: ค้นหาวิดีโอ รับสำเนาและอื่นๆ
   cs: Hledejte videa, získejte přepisy.
   sv: Sök videor, hämta transkriptioner.
+  he: חפש סרטונים, קבל תמלולים ועוד.
   verified_by_human: [en, de]
 tv:
   context: App name for the TV app
@@ -388,6 +404,7 @@ tv:
   th: ทีวี
   cs: TV
   sv: TV
+  he: טלוויזיה
   verified_by_human: [en, de]
 tv.description:
   context: Description for the TV app
@@ -411,6 +428,7 @@ tv.description:
   th: ติดตามหนัง รายการ และรายการที่ต้องดู
   cs: Sledujte filmy, seriály a seznam k zhlédnutí.
   sv: Följ filmer, serier och din att-se-lista.
+  he: עקוב אחר סרטים, סדרות ובנה רשימת צפייה.
   verified_by_human: [en, de]
 travel:
   context: App name for the Travel app
@@ -434,6 +452,7 @@ travel:
   th: การเดินทาง
   cs: Cestování
   sv: Resor
+  he: נסיעות
   verified_by_human: [en, de]
 travel.description:
   context: Description for the Travel app
@@ -457,6 +476,7 @@ travel.description:
   th: ค้นหาที่พัก การเดินทาง และวางแผน
   cs: Hledejte ubytování, spojení a plánujte.
   sv: Sök boenden, förbindelser och planera.
+  he: חפש מקומות לינה, דרכי הגעה ותכנן טיולים.
   verified_by_human: [en, de]
 study:
   context: App name for the Study app
@@ -480,6 +500,7 @@ study:
   th: การศึกษา
   cs: Studium
   sv: Studier
+  he: לימודים
   verified_by_human: [en, de]
 study.description:
   context: Description for the Study app
@@ -503,6 +524,7 @@ study.description:
   th: เรียนรู้หัวข้อและเตรียมสอบ
   cs: Učte se témata a připravte se na zkoušky.
   sv: Lär dig ämnen och förbered dig för tentor.
+  he: למד נושאים, התכונן למבחנים ועוד.
   verified_by_human: [en, de]
 plants:
   context: App name for the Plants app
@@ -526,6 +548,7 @@ plants:
   th: พืช
   cs: Rostliny
   sv: Växter
+  he: צמחים
   verified_by_human: [en, de]
 plants.description:
   context: Description for the Plants app
@@ -549,6 +572,7 @@ plants.description:
   th: ติดตามพืชและความต้องการการดูแล
   cs: Sledujte rostliny a potřeby péče.
   sv: Följ dina växter och vårdbehov.
+  he: עקוב אחר הצמחים שלך, השקיה וצרכי טיפול.
   verified_by_human: [en, de]
 pcb_design:
   context: App name for the PCB design app
@@ -572,6 +596,7 @@ pcb_design:
   th: การออกแบบ PCB
   cs: Návrh desek plošných spojů
   sv: PCB-design
+  he: עיצוב PCB
   verified_by_human: [en, de]
 pcb_design.description:
   context: Description for the PCB design app
@@ -595,6 +620,7 @@ pcb_design.description:
   th: วางแผน สร้าง และดีบักการออกแบบ PCB
   cs: Plánujte, tvořte a laďte návrhy PCB.
   sv: Planera, skapa och felsök PCB-design.
+  he: תכנן, צור ונפה שגיאות בעיצובי ה-PCB שלך.
   verified_by_human: [en, de]
 nutrition:
   context: App name for the Nutrition app
@@ -618,6 +644,7 @@ nutrition:
   th: โภชนาการ
   cs: Výživa
   sv: Nutrition
+  he: תזונה
   verified_by_human: [en, de]
 nutrition.description:
   context: Description for the Nutrition app
@@ -641,6 +668,7 @@ nutrition.description:
   th: ติดตามมื้ออาหาร หาสูตร และกินอย่างสุขภาพ
   cs: Sledujte jídla, najděte recepty a jezte zdravěji.
   sv: Följ måltider, hitta recept och ät hälsosammare.
+  he: עקוב אחר ארוחות, מצא מתכונים ואכול בריא יותר.
   verified_by_human: [en, de]
 images:
   context: App name for the Images app
@@ -664,6 +692,7 @@ images:
   th: รูปภาพ
   cs: Obrázky
   sv: Bilder
+  he: תמונות
   verified_by_human: [en, de]
 images.description:
   context: Description for the Images app
@@ -687,6 +716,7 @@ images.description:
   th: สร้างภาพจากคำอธิบาย
   cs: Generujte obrázky z textových popisů.
   sv: Generera bilder från textbeskrivningar.
+  he: צור תמונות מתיאורי טקסט.
   verified_by_human: [en, de]
 images.skills.generate:
   context: Skill name for image generation
@@ -710,6 +740,7 @@ images.skills.generate:
   th: สร้าง
   cs: Generovat
   sv: Generera
+  he: יצירה
   verified_by_human: [en, de]
 images.skills.generate.description:
   context: Description for image generation skill
@@ -733,6 +764,7 @@ images.skills.generate.description:
   th: สร้างภาพจากข้อความหรือภาพอื่น
   cs: Vytvořte obrázky z textu nebo jiných obrázků.
   sv: Skapa bilder från text eller andra bilder.
+  he: יצירת תמונות מטקסט או מתמונות אחרות.
   verified_by_human: [en, de]
 images.skills.generate_draft:
   context: Skill name for draft image generation
@@ -756,6 +788,7 @@ images.skills.generate_draft:
   th: สร้างฉบับร่าง
   cs: Generovat koncept
   sv: Generera utkast
+  he: יצירת טיוטה
   verified_by_human: [en, de]
 images.skills.generate_draft.description:
   context: Description for draft image generation skill
@@ -779,6 +812,7 @@ images.skills.generate_draft.description:
   th: สร้างภาพฉบับร่างอย่างรวดเร็ว
   cs: Rychle generovat koncept obrázku.
   sv: Generera snabbt en utkastbild.
+  he: יצירה מהירה של טיוטת תמונה.
   verified_by_human: [en, de]
 images.preferred_styles:
   context: Settings/memory category name for preferred image styles
@@ -802,6 +836,7 @@ images.preferred_styles:
   th: สไตล์ที่ชอบ
   cs: Preferované styly
   sv: Föredragna stilar
+  he: סגנונות מועדפים
   verified_by_human: [en, de]
 images.preferred_styles.description:
   context: Description for preferred image styles settings/memory category
@@ -825,6 +860,7 @@ images.preferred_styles.description:
   th: สไตล์ที่ชอบสำหรับภาพที่สร้าง
   cs: Vaše preferované styly pro obrázky
   sv: Dina föredragna stilar för bilder
+  he: הסגנונות המועדפים שלך עבור תמונות שנוצרו
   verified_by_human: [en, de]
 health:
   context: App name for the Health app
@@ -848,6 +884,7 @@ health:
   th: สุขภาพ
   cs: Zdraví
   sv: Hälsa
+  he: בריאות
   verified_by_human: [en, de]
 health.description:
   context: Description for the Health app
@@ -871,6 +908,7 @@ health.description:
   th: ปรับปรุงสุขภาพและความเป็นอยู่ที่ดีของคุณ
   cs: Zlepšete své zdraví a pohodu.
   sv: Förbättra din hälsa och välbefinnande.
+  he: שיפור הבריאות והרווחה האישית שלך.
   verified_by_human: [en, de]
 fitness:
   context: App name for the Fitness app
@@ -894,6 +932,7 @@ fitness:
   th: ฟิตเนส
   cs: Fitness
   sv: Fitness
+  he: כושר
   verified_by_human: [en, de]
 fitness.description:
   context: Description for the Fitness app
@@ -917,6 +956,7 @@ fitness.description:
   th: รักษาความฟิต เคลื่อนไหว รักษาสุขภาพ
   cs: Zůstaňte fit, pohybujte se, zůstaňte zdraví.
   sv: Håll dig i form, rör dig, håll dig frisk.
+  he: שמירה על כושר, תנועה ואורח חיים בריא.
   verified_by_human: [en, de]
 code:
   context: App name for the Code app
@@ -940,6 +980,7 @@ code:
   th: โค้ด
   cs: Kód
   sv: Kod
+  he: קוד
   verified_by_human: [en, de]
 code.description:
   context: Description for the Code app
@@ -963,6 +1004,7 @@ code.description:
   th: ช่วยเขียนโค้ด เอกสาร และคำแนะนำโปรเจกต์
   cs: Pomoc s kódem, dokumentací a projekty.
   sv: Kodningshjälp, docs och projektråd.
+  he: קבלת עזרה בתכנות, תיעוד וייעוץ לפרויקטים.
   verified_by_human: [en, de]
 docs:
   context: App name for the Docs app
@@ -986,6 +1028,7 @@ docs:
   th: เอกสาร
   cs: Dokumenty
   sv: Dokument
+  he: מסמכים
   verified_by_human: []
 docs.description:
   context: Description for the Docs app
@@ -1009,6 +1052,7 @@ docs.description:
   th: สร้างเอกสาร รายงาน บทความ และอื่นๆ
   cs: Vytvářejte dokumenty, zprávy, články a další.
   sv: Skapa dokument, rapporter, artiklar och mer.
+  he: יצירת מסמכים, דוחות, מאמרים ועוד.
   verified_by_human: []
 books:
   context: App name for the Books app
@@ -1032,6 +1076,7 @@ books:
   th: หนังสือ
   cs: Knihy
   sv: Böcker
+  he: ספרים
   verified_by_human: [en, de]
 books.description:
   context: Description for the Books app
@@ -1055,6 +1100,7 @@ books.description:
   th: จัดการรายการหนังสือและพูดคุยเรื่องหนังสือ
   cs: Spravujte seznam četby a diskutujte.
   sv: Hantera din läslista och diskutera böcker.
+  he: מעקב אחר רשימת הקריאה ודיון על ספרים.
   verified_by_human: [en, de]
 maps:
   context: App name for the Maps app
@@ -1078,6 +1124,7 @@ maps:
   th: แผนที่
   cs: Mapy
   sv: Kartor
+  he: מפות
   verified_by_human: [en, de]
 maps.description:
   context: Description for the Maps app
@@ -1101,6 +1148,7 @@ maps.description:
   th: ค้นหาสถานที่ รับเส้นทาง
   cs: Hledejte místa, získejte směry.
   sv: Sök platser, få vägbeskrivningar.
+  he: חיפוש מקומות, קבלת הנחיות הגעה ועוד.
   verified_by_human: [en, de]
 maps.favorite_places:
   context: Setting name for favorite places in Maps app
@@ -1124,6 +1172,7 @@ maps.favorite_places:
   th: สถานที่โปรด
   cs: Oblíbená místa
   sv: Favoritplatser
+  he: מקומות מועדפים
   verified_by_human: [en, de]
 maps.favorite_places.description:
   context: Description for favorite places setting in Maps app
@@ -1147,6 +1196,7 @@ maps.favorite_places.description:
   th: สถานที่โปรดที่บันทึกไว้
   cs: Vaše uložená oblíbená místa.
   sv: Dina sparade favoritplatser.
+  he: המקומות המועדפים ששמרת לגישה מהירה.
   verified_by_human: [en, de]
 maps.search:
   context: Skill name for search in Maps app
@@ -1170,6 +1220,7 @@ maps.search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human: [en, de]
 maps.search.description:
   context: Description for search skill in Maps app
@@ -1193,6 +1244,7 @@ maps.search.description:
   th: ค้นหาสถานที่ ธุรกิจ และตำแหน่ง
   cs: Hledejte místa, podniky a lokace.
   sv: Sök platser, företag och platser.
+  he: חיפוש מקומות, עסקים ומיקומים.
   verified_by_human: [en, de]
 news:
   context: App name for the News app
@@ -1216,6 +1268,7 @@ news:
   th: ข่าว
   cs: Zprávy
   sv: Nyheter
+  he: חדשות
   verified_by_human: [en, de]
 news.description:
   context: Description for the News app
@@ -1239,6 +1292,7 @@ news.description:
   th: ติดตามข่าวสารด้วยข่าวล่าสุด
   cs: Zůstaňte informováni s nejnovějšími zprávami.
   sv: Håll dig informerad med de senaste nyheterna.
+  he: להישאר מעודכנים בחדשות האחרונות.
   verified_by_human: [en, de]
 news.search:
   context: Skill name for search in News app
@@ -1262,6 +1316,7 @@ news.search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human: [en, de]
 news.search.description:
   context: Description for search skill in News app
@@ -1285,6 +1340,7 @@ news.search.description:
   th: ค้นหาบทความข่าวและเรื่องราว
   cs: Hledejte novinové články a příběhy.
   sv: Sök efter nyhetsartiklar och berättelser.
+  he: חיפוש כתבות וסיפורים חדשותיים.
   verified_by_human: [en, de]
 news.understand_the_news:
   context: Focus name for understanding the news in News app
@@ -1308,6 +1364,7 @@ news.understand_the_news:
   th: เข้าใจข่าว
   cs: Porozumět zprávám
   sv: Förstå nyheterna
+  he: הבנת החדשות
   verified_by_human: [en, de]
 news.understand_the_news.description:
   context: Description for understand the news focus in News app
@@ -1331,6 +1388,7 @@ news.understand_the_news.description:
   th: รับความช่วยเหลือในการเข้าใจเหตุการณ์ปัจจุบัน
   cs: Pomoc s porozuměním aktuálním událostem.
   sv: Hjälp att förstå aktuella händelser.
+  he: קבלת עזרה בהבנת אירועים אקטואליים.
   verified_by_human: [en, de]
 reminder:
   context: App name for the Reminder app
@@ -1354,6 +1412,7 @@ reminder:
   th: การแจ้งเตือน
   cs: Připomínka
   sv: Påminnelse
+  he: תזכורת
   verified_by_human: [en, de]
 reminder.description:
   context: Description for the Reminder app
@@ -1377,6 +1436,7 @@ reminder.description:
   th: ตั้งการเตือนสำหรับเวลาที่กำหนด
   cs: Nastavte připomínky na konkrétní časy.
   sv: Ställ in påminnelser för specifika tider.
+  he: הגדרת תזכורות לזמנים ספציפיים או אקראיים.
   verified_by_human: [en, de]
 reminder.skills.set_reminder:
   context: Skill name for setting a reminder
@@ -1400,6 +1460,7 @@ reminder.skills.set_reminder:
   th: ตั้งการแจ้งเตือน
   cs: Nastavit připomínku
   sv: Ställ in påminnelse
+  he: הגדרת תזכורת
   verified_by_human: [en, de]
 reminder.skills.set_reminder.description:
   context: Description for set reminder skill
@@ -1423,6 +1484,7 @@ reminder.skills.set_reminder.description:
   th: สร้างแจ้งเตือนครั้งเดียวหรือซ้ำ
   cs: Vytvořte jednorázové nebo opakující se.
   sv: Skapa engångs- eller återkommande.
+  he: יצירת תזכורות חד-פעמיות או חוזרות.
   verified_by_human: [en, de]
 reminder.skills.list_reminders:
   context: Skill name for listing reminders
@@ -1446,6 +1508,7 @@ reminder.skills.list_reminders:
   th: รายการแจ้งเตือน
   cs: Seznam připomínek
   sv: Lista påminnelser
+  he: רשימת תזכורות
   verified_by_human: [en, de]
 reminder.skills.list_reminders.description:
   context: Description for list reminders skill
@@ -1469,6 +1532,7 @@ reminder.skills.list_reminders.description:
   th: ดูการแจ้งเตือนที่กำหนดไว้ของคุณ
   cs: Zobrazit naplánované připomínky.
   sv: Visa dina schemalagda påminnelser.
+  he: צפייה בתזכורות המתוזמנות שלך.
   verified_by_human: [en, de]
 reminder.skills.cancel_reminder:
   context: Skill name for cancelling a reminder
@@ -1492,6 +1556,7 @@ reminder.skills.cancel_reminder:
   th: ยกเลิกการแจ้งเตือน
   cs: Zrušit připomínku
   sv: Avbryt påminnelse
+  he: ביטול תזכורת
   verified_by_human: [en, de]
 reminder.skills.cancel_reminder.description:
   context: Description for cancel reminder skill
@@ -1515,31 +1580,37 @@ reminder.skills.cancel_reminder.description:
   th: ยกเลิกการแจ้งเตือนที่กำหนดไว้
   cs: Zrušit naplánovanou připomínku.
   sv: Avbryt en schemalagd påminnelse.
+  he: ביטול תזכורת מתוזמנת.
   verified_by_human: [en, de]
 reminder.active_reminders.title:
   context: Heading for the active reminders list in reminder app settings
   en: Active Reminders
   de: Aktive Erinnerungen
+  he: תזכורות פעילות
   verified_by_human: []
 reminder.active_reminders.empty:
   context: Message when user has no active reminders
   en: No active reminders
   de: Keine aktiven Erinnerungen
+  he: אין תזכורות פעילות
   verified_by_human: []
 reminder.active_reminders.loading:
   context: Loading text while fetching reminders
   en: Loading reminders...
   de: Lade Erinnerungen...
+  he: טוען תזכורות...
   verified_by_human: []
 reminder.active_reminders.error:
   context: Error message when fetching reminders fails
   en: Could not load reminders
   de: Erinnerungen konnten nicht geladen werden
+  he: לא ניתן לטעון תזכורות
   verified_by_human: []
 reminder.active_reminders.repeating:
   context: Badge text for repeating reminders in the list
   en: Repeating
   de: Wiederkehrend
+  he: חוזרת
   verified_by_human: []
 openmates:
   context: App name for the OpenMates platform app (used by Settings.svelte via apps.${appId})
@@ -1563,6 +1634,7 @@ openmates:
   th: OpenMates
   cs: OpenMates
   sv: OpenMates
+  he: OpenMates
   verified_by_human: [en]
 openmates_app:
   context: App name for the OpenMates platform app
@@ -1586,6 +1658,7 @@ openmates_app:
   th: OpenMates
   cs: OpenMates
   sv: OpenMates
+  he: OpenMates
   verified_by_human: [en]
 openmates_app.description:
   context: Description for the OpenMates platform app
@@ -1609,6 +1682,7 @@ openmates_app.description:
   th: ค้นพบสิ่งที่ OpenMates สามารถทำให้คุณได้
   cs: Zjistěte, co pro vás OpenMates může udělat.
   sv: Upptäck vad OpenMates kan göra för dig.
+  he: גלה מה OpenMates יכולה לעשות עבורך.
   verified_by_human: [en]
 jobs:
   context: App name for the Jobs app
@@ -1632,6 +1706,7 @@ jobs:
   th: งาน
   cs: Práce
   sv: Jobb
+  he: משרות
   verified_by_human: [en, de]
 jobs.description:
   context: Description for the Jobs app
@@ -1655,6 +1730,7 @@ jobs.description:
   th: รับข้อมูลเชิงลึกด้านอาชีพและคำแนะนำในการทำงาน
   cs: Získejte kariérní postřehy a pracovní rady.
   sv: Få karriärinsikter och jobbråd.
+  he: קבל תובנות קריירה וייעוץ תעסוקתי.
   verified_by_human: [en, de]
 pdf:
   context: App name for the PDF app (upload and process PDF documents)
@@ -1678,6 +1754,7 @@ pdf:
   th: PDF
   cs: PDF
   sv: PDF
+  he: PDF
   verified_by_human: [en, de]
 pdf.description:
   context: Description for the PDF app
@@ -1701,6 +1778,7 @@ pdf.description:
   th: "\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14 PDF \u0e41\u0e25\u0e30\u0e2d\u0e48\u0e32\u0e19\u0e2b\u0e23\u0e37\u0e2d\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e40\u0e19\u0e37\u0e49\u0e2d\u0e2b\u0e32"
   cs: "Nahrajte PDF a \u010dt\u011bte nebo prohledejte jejich obsah."
   sv: "Ladda upp PDF och l\u00e4s eller s\u00f6k i inneh\u00e5llet."
+  he: העלאת קובצי PDF וקריאה או חיפוש בתוכן שלהם.
   verified_by_human: [en, de]
 math:
   context: App name for the Math app
@@ -1724,6 +1802,7 @@ math:
   th: คณิตศาสตร์
   cs: Matematika
   sv: Matematik
+  he: מתמטיקה
   verified_by_human: []
 math.description:
   context: Description for the Math app
@@ -1747,6 +1826,7 @@ math.description:
   th: แก้สมการ คำนวณ และพล็อตฟังก์ชัน
   cs: Řešte rovnice, počítejte a kreslete grafy funkcí.
   sv: Lös ekvationer, beräkna och rita funktioner.
+  he: פתרון משוואות, ביצוע חישובים וסרטוט פונקציות.
   verified_by_human: []
 shopping:
   context: App name for the Shopping app
@@ -1770,6 +1850,7 @@ shopping:
   th: ช้อปปิ้ง
   cs: Nakupování
   sv: Shopping
+  he: קניות
   verified_by_human: [en, de]
 shopping.description:
   context: Description for the Shopping app
@@ -1793,4 +1874,5 @@ shopping.description:
   th: เปรียบเทียบราคาซุปเปอร์มาร์เก็ตและค้นหาข้อเสนอ
   cs: Porovnejte ceny v supermarketech a najděte nabídky.
   sv: Jämför supermarketpriser och hitta erbjudanden.
+  he: השוואת מחירי סופרמרקטים ומציאת מבצעים.
   verified_by_human: [en, de]

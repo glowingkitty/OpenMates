@@ -20,6 +20,7 @@ playback_progress:
   th: ''
   cs: ''
   sv: ''
+  he: התקדמות הפעלת הווידאו
   verified_by_human: []
 pause:
   context: Button text for pausing video playback
@@ -43,6 +44,7 @@ pause:
   th: ''
   cs: ''
   sv: ''
+  he: השהיה
   verified_by_human: []
 play:
   context: Button text for playing video
@@ -66,4 +68,5 @@ play:
   th: ''
   cs: ''
   sv: ''
+  he: הפעלה
   verified_by_human: []

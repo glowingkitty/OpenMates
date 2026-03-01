@@ -20,6 +20,7 @@ ask.heading:
   th: ''
   cs: ''
   sv: ''
+  he: שאל
   verified_by_human: []
 ask.main_heading_1:
   context: In 'Your personalized experts for your questions.'
@@ -43,6 +44,7 @@ ask.main_heading_1:
   th: ''
   cs: ''
   sv: ''
+  he: המומחים המותאמים אישית שלך
   verified_by_human: []
 ask.main_heading_2:
   context: In 'Your personalized experts for your questions.'
@@ -66,6 +68,7 @@ ask.main_heading_2:
   th: ''
   cs: ''
   sv: ''
+  he: לשאלות שלך
   verified_by_human: []
 ask.paragraph:
   context: Example text for Ask section
@@ -125,6 +128,10 @@ ask.paragraph:
   th: ''
   cs: ''
   sv: ''
+  he: |
+    לדוגמה:
+    קבל ייעוץ קריירה
+    על סמך תחומי העניין שלך.
   verified_by_human: []
 tasks.heading:
   context: Section heading for Tasks feature
@@ -148,6 +155,7 @@ tasks.heading:
   th: ''
   cs: ''
   sv: ''
+  he: משימות
   verified_by_human: []
 tasks.main_heading_1:
   context: In 'Ask them to fulfill your tasks using apps.'
@@ -171,6 +179,7 @@ tasks.main_heading_1:
   th: ''
   cs: ''
   sv: ''
+  he: בקש מהם
   verified_by_human: []
 tasks.main_heading_2:
   context: In 'Ask them to fulfill your tasks using apps.'
@@ -194,6 +203,7 @@ tasks.main_heading_2:
   th: ''
   cs: ''
   sv: ''
+  he: לבצע את המשימות שלך
   verified_by_human: []
 tasks.paragraph:
   context: Example text for Tasks section
@@ -265,6 +275,11 @@ tasks.paragraph:
   th: ''
   cs: ''
   sv: ''
+  he: |
+    לדוגמה:
+    מצא תורים לרופא
+    שלא מתנגשים עם היומן שלך
+    ב-Doctolib ו-Jameda.
   verified_by_human: []
 apps.heading:
   context: Section heading for Apps feature
@@ -288,6 +303,7 @@ apps.heading:
   th: ''
   cs: ''
   sv: ''
+  he: אפליקציות
   verified_by_human: []
 apps.main_heading_1:
   context: In 'So many apps to transform your personal life & work.'
@@ -311,6 +327,7 @@ apps.main_heading_1:
   th: ''
   cs: ''
   sv: ''
+  he: כל כך הרבה אפליקציות
   verified_by_human: []
 apps.main_heading_2:
   context: In 'So many apps to transform your personal life & work.'
@@ -354,6 +371,9 @@ apps.main_heading_2:
   th: ''
   cs: ''
   sv: ''
+  he: |
+    כדי לשנות את
+    החיים האישיים והעבודה שלך.
   verified_by_human: []
 apps.paragraph:
   context: Example text for Apps section
@@ -413,4 +433,8 @@ apps.paragraph:
   th: ''
   cs: ''
   sv: ''
+  he: |
+    לדוגמה:
+    מצא אירועים
+    ב-Meetup, Eventbrite ו-RA.
   verified_by_human: []

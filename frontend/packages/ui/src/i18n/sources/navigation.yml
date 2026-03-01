@@ -20,6 +20,7 @@ for_all:
   th: ''
   cs: ''
   sv: ''
+  he: לכולנו
   verified_by_human: []
 for_developers:
   context: Main navigation item for developer features
@@ -43,6 +44,7 @@ for_developers:
   th: ''
   cs: ''
   sv: ''
+  he: למפתחים
   verified_by_human: []
 docs:
   context: Navigation item for documentation
@@ -66,6 +68,7 @@ docs:
   th: ''
   cs: ''
   sv: ''
+  he: תיעוד
   verified_by_human: []
 chat:
   context: Navigation item for chat feature
@@ -89,6 +92,7 @@ chat:
   th: ''
   cs: ''
   sv: ''
+  he: "צ'אט"
   verified_by_human: []
 projects:
   context: Navigation item for projects section
@@ -112,6 +116,7 @@ projects:
   th: ''
   cs: ''
   sv: ''
+  he: פרויקטים
   verified_by_human: []
 workflows:
   context: Navigation item for workflow management
@@ -135,4 +140,5 @@ workflows:
   th: ''
   cs: ''
   sv: ''
+  he: תהליכי עבודה
   verified_by_human: []
