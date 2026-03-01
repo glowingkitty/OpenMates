@@ -159,17 +159,17 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         logger.info(f"{log_prefix} Output AES key generated and Vault-wrapped")
 
         # -----------------------------------------------------------------------
-        # Step 3: Run Mistral OCR
+        # Step 3: Run OCR with fallback chain (Mistral → Gemini Flash → pymupdf)
         # -----------------------------------------------------------------------
-        logger.info(f"{log_prefix} Step 3: Running Mistral OCR")
-        from backend.apps.pdf.services.ocr_service import run_mistral_ocr
+        logger.info(f"{log_prefix} Step 3: Running OCR (Mistral → Gemini Flash → pymupdf)")
+        from backend.apps.pdf.services.ocr_service import run_ocr_with_fallback
 
-        ocr_pages = await run_mistral_ocr(
+        ocr_pages, ocr_provider = await run_ocr_with_fallback(
             pdf_bytes=pdf_bytes,
             secrets_manager=task._secrets_manager,
             log_prefix=log_prefix,
         )
-        logger.info(f"{log_prefix} OCR complete: {len(ocr_pages)} pages")
+        logger.info(f"{log_prefix} OCR complete via {ocr_provider}: {len(ocr_pages)} pages")
 
         # -----------------------------------------------------------------------
         # Step 4: Render page screenshots via pymupdf (in thread to avoid blocking)
@@ -347,6 +347,9 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
             # Vault-wrapped key for SERVER-SIDE skill decryption (pdf.read / pdf.view / pdf.search).
             "vault_wrapped_aes_key": output_vault_wrapped_key,
             "s3_base_url": s3_base_url,
+            # OCR provider used to process this PDF (for analytics/debugging).
+            # Possible values: "mistral", "gemini_flash", "pymupdf".
+            "ocr_provider": ocr_provider,
             # Embed status
             "app_id": "pdf",
             "status": "finished",
