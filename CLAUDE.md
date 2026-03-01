@@ -128,7 +128,7 @@ Rules: be honest about risks, be specific with file references, and always expla
 - **ALWAYS commit and push to `dev` after completing a feature or bug fix** — do not wait for the user to ask.
 - Only add files you actually modified in the current session (never `git add .`).
 - Run the linter and fix all errors before committing.
-- **After pushing frontend files (`frontend/`) or any `.yml` files**, wait for and verify the Vercel deployment succeeded before marking the task complete. Fix any build errors and re-deploy until the status is "● Ready". See `docs/claude/git-and-deployment.md` for the full verification procedure.
+- Run the linter (`lint_changed.sh`) and fix all errors before committing — this covers TypeScript, Svelte, and ESLint checks. For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
 - **When a commit resolves or attempts to fix a reported issue**, include the issue ID and a short anonymous description in the commit body (no PII — no emails, usernames, or user IDs). See `docs/claude/git-and-deployment.md` → "Issue-Linked Commits" for format.
 - See `docs/claude/git-and-deployment.md` for commit message format and full workflow.
 
@@ -424,6 +424,15 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - You are adding a new third-party API connection (events, maps, payments, social, etc.)
 - The user asks to reverse-engineer or scrape a website as a data source
 - You need to build a test script for an API integration
+
+#### `docs/claude/embed-types.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are creating a new embed type (Preview + Fullscreen component pair)
+- You are adding a new `app_id` / `skill_id` to the embed renderer routing
+- You are creating a new direct-type embed renderer class
+- You are modifying how embed cards render in the chat message stream
 
 #### `docs/claude/logging-and-docs.md`
 
