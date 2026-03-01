@@ -1150,6 +1150,14 @@ div.clickable-icon {
   }
 }
 
+.icon.image {
+  background: var(--color-primary);
+
+  &::before {
+    background-image: url("@openmates/ui/static/icons/image.svg");
+  }
+}
+
 .icon.security {
   background: var(--color-primary);
 

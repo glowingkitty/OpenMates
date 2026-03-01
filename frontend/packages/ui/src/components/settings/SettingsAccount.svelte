@@ -46,7 +46,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
         dispatch('openSettings', {
             settingsPath: 'account/profile-picture',
             direction: 'forward',
-            icon: 'user',
+            icon: 'image',
             title: $text('settings.account.profile_picture')
         });
     }

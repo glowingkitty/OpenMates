@@ -202,7 +202,17 @@ Response handling:
             const userId = $userProfile.user_id ?? '';
             if (userId) invalidateProfileImageCache(userId);
 
-            // Persist to the local store so every component sees the new proxy URL
+            // Force $effects watching profile_image_url to re-run even if the proxy URL
+            // path is unchanged (same /v1/users/{id}/profile-image path before and after
+            // re-upload). Svelte's $effect only re-runs when a reactive dependency changes
+            // value — setting null first guarantees the subsequent set triggers all watchers.
+            updateProfileImage(null);
+            // Fetch the fresh blob URL for the local preview immediately, before the store
+            // update so there is no flash of the placeholder.
+            const freshBlobUrl = await getProfileImageBlobUrl(newUrl, getApiUrl(), userId);
+            resolvedAvatarUrl = freshBlobUrl;
+            // Now update the store — $effects in Settings.svelte and other consumers will
+            // re-run (null → newUrl is a change) and pick up the already-cached blob URL.
             updateProfileImage(newUrl);
             showSuccess = true;
         } catch (err) {
@@ -272,6 +282,7 @@ Response handling:
     {:else if showLastWarning}
         <!-- Final policy warning — shown after 3rd violation, before account deletion -->
         <div class="last-warning-banner" transition:fade={{ duration: 300 }}>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html $text('settings.last_warning_image_not_allowed')}
         </div>
     {/if}
