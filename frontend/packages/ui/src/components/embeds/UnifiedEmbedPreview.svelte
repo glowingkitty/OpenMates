@@ -521,20 +521,6 @@
     if ((status === 'finished' || status === 'error') && onFullscreen) {
       console.debug('[UnifiedEmbedPreview] Calling onFullscreen for embed:', id);
       
-      // Store the preview element's position for transition
-      if (previewElement) {
-        const rect = previewElement.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        
-        // Store position in a data attribute that UnifiedEmbedFullscreen can read
-        // This allows the fullscreen to animate from the preview position
-        document.documentElement.style.setProperty('--preview-center-x', `${centerX}px`);
-        document.documentElement.style.setProperty('--preview-center-y', `${centerY}px`);
-        document.documentElement.style.setProperty('--preview-width', `${rect.width}px`);
-        document.documentElement.style.setProperty('--preview-height', `${rect.height}px`);
-      }
-      
       try {
         onFullscreen();
         console.debug('[UnifiedEmbedPreview] onFullscreen called successfully');

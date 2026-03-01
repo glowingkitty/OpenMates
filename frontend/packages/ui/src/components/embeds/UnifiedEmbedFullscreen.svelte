@@ -13,10 +13,9 @@
   every screen size — mirroring how ChatHeader sits above chat messages.
   
   Animations:
-  - Opening: Scale up from 0.5 to 1.0 with opacity fade (originates from preview position)
-  - Closing: Scale down to 0.5 with opacity fade (back to preview position)
-  - CSS variables --preview-center-x and --preview-center-y set by UnifiedEmbedPreview
-    determine the transform-origin for smooth origin-based animations
+  - Opening: Slides up from the bottom of the container at full size (translateY 100% → 0)
+  - Closing: Slides back down off-screen (translateY 0 → 100%)
+  - No scale change — the card appears at its final size throughout the animation
   
   Child Embed Loading:
   - For fullscreens that display multiple child embeds (e.g., search results)
@@ -848,7 +847,6 @@
 <div
   class="unified-embed-fullscreen-overlay"
   class:animating-in={isAnimatingIn}
-  style="--preview-center-x: var(--preview-center-x, 50vw); --preview-center-y: var(--preview-center-y, 50vh);"
 >
   <div class="fullscreen-container">
 
@@ -930,23 +928,19 @@
     z-index: 100;
     display: flex;
     flex-direction: column;
-    /* Origin-based open/close animation — coords set by UnifiedEmbedPreview */
-    transform-origin: var(--preview-center-x, 50%) var(--preview-center-y, 50%);
-    transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    /* Slide-up-from-bottom animation — starts off-screen at the bottom */
+    transition: transform 320ms cubic-bezier(0.32, 0, 0.2, 1);
     overflow: hidden;
     /* Container queries so child components can detect their available width */
     container-type: inline-size;
     container-name: fullscreen;
-    /* Initial (collapsed) state for the default scale-up open animation */
-    transform: scale(0.5);
-    opacity: 0.5;
+    /* Initial (hidden) state: pushed below the visible area */
+    transform: translateY(100%);
   }
 
-  /* ── Default open/close: scale-up from preview origin ── */
+  /* ── Expanded state: slide up to fill the container ── */
   .unified-embed-fullscreen-overlay.animating-in {
-    transform: scale(1);
-    opacity: 1;
+    transform: translateY(0);
   }
 
   /* position: relative so EmbedTopBar (position: absolute) is contained here */
