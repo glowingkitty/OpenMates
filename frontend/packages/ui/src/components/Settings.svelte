@@ -2042,6 +2042,16 @@ changes to the documentation (to keep the documentation up to date).
             on:navigateBack={() => backToMainView()}
             on:quickSettingClick={handleQuickSettingClick}
             on:logout={handleLogout}
+            on:chatSelected={(e) => {
+                // Forward chatSelected event from sub-pages (e.g. SettingsUsage) to +page.svelte
+                dispatch('chatSelected', e.detail);
+            }}
+            on:closeSettings={() => {
+                // Close settings when a sub-page (e.g. SettingsUsage) requests it
+                isMenuVisible = false;
+                settingsMenuVisible.set(false);
+                panelState.closeSettings();
+            }}
         />
 
         <!-- Show footer for both authenticated and non-authenticated users -->

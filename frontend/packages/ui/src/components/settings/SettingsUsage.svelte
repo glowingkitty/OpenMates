@@ -3,7 +3,7 @@ Usage Settings - View usage statistics and export usage data
 -->
 
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import SettingsItem from '../SettingsItem.svelte';
@@ -20,6 +20,11 @@ Usage Settings - View usage statistics and export usage data
     import { messageHighlightStore } from '../../stores/messageHighlightStore';
     import { activeChatStore } from '../../stores/activeChatStore';
     import { computeSHA256 } from '../../message_parsing/utils';
+
+    const dispatch = createEventDispatcher<{
+        chatSelected: { chat: Chat };
+        closeSettings: void;
+    }>();
 
     // Usage entry interface
     interface UsageEntry {
@@ -1279,9 +1284,10 @@ Usage Settings - View usage statistics and export usage data
 
     /**
      * Navigate to the message or embed identified by openTarget.
-     * - "message": opens the chat via globalChatSelected + sets messageHighlightStore
-     * - "embed": dispatches an embedfullscreen event (ActiveChat handles loading the data)
-     * The settings panel stays open so the user can return to the usage detail view.
+     * - "message": opens the chat via chatSelected event chain + globalChatSelected, then
+     *              scrolls to the message via messageHighlightStore. Closes settings.
+     * - "embed": dispatches an embedfullscreen event (ActiveChat handles loading the data).
+     *            Closes settings so the embed is visible.
      */
     function handleOpenTarget(): void {
         if (!openTarget) return;
@@ -1291,32 +1297,45 @@ Usage Settings - View usage statistics and export usage data
             const messageId = overviewSelectedEntry?.message_id;
             if (!messageId) return;
 
-            // Set the active chat in the store and dispatch the global event so Chats.svelte
-            // opens the correct conversation (mirrors SettingsFooter.svelte navigation pattern).
+            // Update the active chat store (updates URL hash, sidebar highlight)
             activeChatStore.setActiveChat(chat.chat_id);
+
+            // Dispatch Svelte event upward so +page.svelte calls activeChat.loadChat()
+            // (mirrors the SettingsFooter.svelte navigation pattern)
+            dispatch('chatSelected', { chat });
+
+            // Dispatch global window event so Chats.svelte marks the chat active in sidebar
             window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
 
-            // Set the highlight store AFTER dispatching so ChatHistory's $effect fires after
-            // messages have begun loading (avoids the timing race documented in Chats.svelte).
-            // A short delay matches the pattern used in handleSearchMessageSnippetClick.
+            // Close the settings panel so the chat is visible
+            dispatch('closeSettings');
+
+            // Scroll to and highlight the specific message after the chat has had time to load
             setTimeout(() => {
                 messageHighlightStore.set(messageId);
-            }, 100);
+            }, 300);
 
         } else if (openTarget.type === 'embed') {
             const { embedId, embedType } = openTarget;
+
+            // Close settings so the embed fullscreen is visible
+            dispatch('closeSettings');
+
             // ActiveChat listens on document for 'embedfullscreen' and loads fresh data itself.
-            document.dispatchEvent(new CustomEvent('embedfullscreen', {
-                bubbles: true,
-                cancelable: true,
-                detail: {
-                    embedId,
-                    embedType,
-                    attrs: {},
-                    embedData: null,
-                    decodedContent: null,
-                },
-            }));
+            // Small delay so the settings panel starts closing before the embed opens.
+            setTimeout(() => {
+                document.dispatchEvent(new CustomEvent('embedfullscreen', {
+                    bubbles: true,
+                    cancelable: true,
+                    detail: {
+                        embedId,
+                        embedType,
+                        attrs: {},
+                        embedData: null,
+                        decodedContent: null,
+                    },
+                }));
+            }, 50);
         }
     }
 
@@ -1686,7 +1705,7 @@ Usage Settings - View usage statistics and export usage data
 
                 <!-- "Open message" / "Open result" button — only shown when the target exists in IndexedDB -->
                 {#if openTarget}
-                    <button class="open-target-button" onclick={handleOpenTarget}>
+                    <button onclick={handleOpenTarget}>
                         <div class="clickable-icon icon_{openTarget.type === 'message' ? 'message-circle' : 'external-link'}"></div>
                         <span>
                             {openTarget.type === 'message'
@@ -2908,27 +2927,6 @@ Usage Settings - View usage statistics and export usage data
         color: var(--color-grey-80);
     }
 
-    /* Button shown on the level-2 usage entry detail page to jump to the source message/embed */
-    .open-target-button {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 20px;
-        padding: 8px 14px;
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        color: var(--color-grey-70);
-        font-size: 14px;
-        cursor: pointer;
-        transition: background 0.15s ease, color 0.15s ease;
-        width: fit-content;
-    }
-
-    .open-target-button:hover {
-        background: var(--color-grey-20);
-        color: var(--color-grey-90);
-    }
 
     .detail-header {
         display: flex;
