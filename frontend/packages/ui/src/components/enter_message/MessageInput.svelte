@@ -253,12 +253,14 @@
     let previousHeight = 0;
     
     // Computed state for showing action buttons
-    // Shows when prop is true OR when field is focused OR when recording is in progress.
+    // In extended/fullscreen mode: always visible (no tap required).
+    // In minimized mode: shows when prop is true OR when field is focused OR when recording is in progress.
     // CRITICAL: Keep action buttons visible while record button is pressed or recording
     // is active — otherwise the onmouseup/touchend handlers on the record button are
     // removed from the DOM before they can fire (because the editor blur clears
     // isMessageFieldFocused after 150ms, hiding ActionButtons mid-interaction).
     let shouldShowActionButtons = $derived(
+        isFullscreen ||
         showActionButtons ||
         isMessageFieldFocused ||
         $recordingState.isRecordButtonPressed ||
