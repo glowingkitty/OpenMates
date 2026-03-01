@@ -106,8 +106,11 @@ api.dev.openmates.org {
 	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	# NOTE: Do NOT add /v1/apps/* broadly here — it would break external developer API
 	# access which relies on the wildcard CORS handler in @public_api_paths
+	# NOTE: /v1/embeds/presigned-url is here (not in @public_api_paths) because the webapp
+	# calls it with credentials: include (session cookie) — browsers block wildcard CORS
+	# with credentials, so it must go through FastAPI's CORSMiddleware (specific origin).
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/daily-inspirations /v1/daily-inspirations/*
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url
 		method OPTIONS
 	}
 
@@ -118,10 +121,12 @@ api.dev.openmates.org {
 	# requires specific origin in CORS response, not wildcard)
 	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
 	# Includes /v1/daily-inspirations/* — daily inspiration persistence (session auth, credentials: include)
+	# Includes /v1/embeds/presigned-url — webapp uses credentials: include for session-authenticated
+	# presigned S3 URL generation; browsers block wildcard CORS with credentials.
 	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
 	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/daily-inspirations /v1/daily-inspirations/*
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url
 		not method OPTIONS
 	}
 

@@ -538,8 +538,7 @@ export async function handleSend(
         node.type.name === "embed" &&
         node.attrs.type === "image" &&
         node.attrs.status === "finished" &&
-        node.attrs.uploadEmbedId &&
-        !node.attrs.contentRef // Not yet registered
+        node.attrs.uploadEmbedId
       ) {
         uploadedImageNodes.push({ attrs: { ...node.attrs } });
       }
@@ -647,8 +646,7 @@ export async function handleSend(
         node.type.name === "embed" &&
         node.attrs.type === "recording" &&
         node.attrs.status === "finished" &&
-        node.attrs.uploadEmbedId &&
-        !node.attrs.contentRef // Not yet registered
+        node.attrs.uploadEmbedId
       ) {
         uploadedRecordingNodes.push({ attrs: { ...node.attrs } });
       }
