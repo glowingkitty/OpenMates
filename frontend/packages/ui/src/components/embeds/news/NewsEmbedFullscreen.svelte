@@ -14,8 +14,8 @@
   
   Used as child fullscreen from NewsSearchEmbedFullscreen via ChildEmbedOverlay pattern.
   
-  Bottom bar shows:
-  - News app gradient icon
+  Header banner shows:
+  - News app gradient icon (icon_rounded news — same as preview card)
   - Favicon + truncated title
 -->
 
@@ -377,7 +377,6 @@
   skillId="article"
   {onClose}
   currentEmbedId={embedId}
-  skillIconName="article"
   embedHeaderTitle={displayTitle}
   embedHeaderFaviconUrl={faviconUrl}
   {hasPreviousEmbed}
