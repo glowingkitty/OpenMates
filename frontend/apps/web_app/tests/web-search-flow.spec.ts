@@ -2,38 +2,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
-const { test, expect } = require('@playwright/test');
-
-const consoleLogs: string[] = [];
-const networkActivities: string[] = [];
-
-test.beforeEach(async () => {
-	consoleLogs.length = 0;
-	networkActivities.length = 0;
-});
-
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo: any) => {
-	if (testInfo.status !== 'passed') {
-		console.log('\n--- DEBUG INFO ON FAILURE ---');
-		console.log('\n[RECENT CONSOLE LOGS]');
-		consoleLogs.slice(-30).forEach((log) => console.log(log));
-
-		console.log('\n[RECENT NETWORK ACTIVITIES]');
-		networkActivities.slice(-30).forEach((activity) => console.log(activity));
-		console.log('\n--- END DEBUG INFO ---\n');
-	}
-});
-
-const {
-	createSignupLogger,
-	archiveExistingScreenshots,
-	createStepScreenshotter,
-	generateTotp,
-	assertNoMissingTranslations,
-	getTestAccount,
-} = require('./signup-flow-helpers');
-
 /**
  * Web search flow tests: verify that app skill uses (web search) render correctly,
  * fullscreen interactions work, and multi-search grouping behaves as expected.
@@ -57,6 +25,10 @@ const {
  *         - Verifies fullscreen content and website results
  *         - Closes and deletes the chat
  *
+ * Console warn/error logs are captured throughout each test and saved to
+ * playwright-artifacts/console-warnings-web-search-{testId}.json when any occur.
+ * Tests only fail on missing/broken UI state — not on mere warnings.
+ *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL: Email of an existing test account.
  * - OPENMATES_TEST_ACCOUNT_PASSWORD: Password for the test account.
@@ -64,14 +36,101 @@ const {
  * - PLAYWRIGHT_TEST_BASE_URL: Base URL for the deployed web app under test.
  */
 
+const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+
+// ─── Log buckets ─────────────────────────────────────────────────────────────
+// All console messages captured for failure diagnostics.
+const consoleLogs: string[] = [];
+// Only warn / error entries — written to file if non-empty.
+const warnErrorLogs: Array<{ timestamp: string; type: string; text: string }> = [];
+const networkActivities: string[] = [];
+
+test.beforeEach(async () => {
+	consoleLogs.length = 0;
+	warnErrorLogs.length = 0;
+	networkActivities.length = 0;
+});
+
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo: any) => {
+	if (testInfo.status !== 'passed') {
+		console.log('\n--- DEBUG INFO ON FAILURE ---');
+		console.log('\n[RECENT CONSOLE LOGS]');
+		consoleLogs.slice(-30).forEach((log) => console.log(log));
+
+		console.log('\n[RECENT NETWORK ACTIVITIES]');
+		networkActivities.slice(-30).forEach((activity) => console.log(activity));
+		console.log('\n--- END DEBUG INFO ---\n');
+	}
+});
+
+const {
+	createSignupLogger,
+	archiveExistingScreenshots,
+	createStepScreenshotter,
+	generateTotp,
+	assertNoMissingTranslations,
+	getTestAccount
+} = require('./signup-flow-helpers');
+
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-// ---------------------------------------------------------------------------
-// Shared helpers (same pattern as model-override.spec.ts)
-// ---------------------------------------------------------------------------
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Save warn/error logs to a JSON file in playwright-artifacts/.
+ * Only writes the file if warnErrorLogs is non-empty.
+ * Appends a new phase entry to an existing file if it already exists.
+ */
+function saveWarnErrorLogs(testId: string, phase: string): void {
+	if (warnErrorLogs.length === 0) return;
+
+	const artifactsDir = path.resolve(process.cwd(), 'artifacts');
+	fs.mkdirSync(artifactsDir, { recursive: true });
+
+	const filePath = path.join(artifactsDir, `console-warnings-web-search-${testId}.json`);
+
+	// Save all console logs to a separate .txt file for context
+	const allLogsPath = path.join(artifactsDir, `console-all-logs-web-search-${testId}-${phase}.txt`);
+	fs.writeFileSync(allLogsPath, consoleLogs.join('\n'), 'utf8');
+	console.log(`All console logs saved to ${allLogsPath}`);
+
+	// Load existing data or start fresh
+	let existing: any = {
+		test_id: testId,
+		test: 'web-search-flow',
+		run_timestamp: new Date().toISOString(),
+		phases: {},
+		total_warn_errors: 0
+	};
+	try {
+		if (fs.existsSync(filePath)) {
+			existing = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+		}
+	} catch {
+		// Ignore parse errors — start fresh
+	}
+
+	existing.phases[phase] = warnErrorLogs.slice();
+	existing.total_warn_errors = Object.values(existing.phases as Record<string, any[]>).reduce(
+		(sum: number, entries: any[]) => sum + entries.length,
+		0
+	);
+
+	fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), 'utf8');
+	console.log(
+		`[WARN/ERROR LOGS] Saved ${warnErrorLogs.length} entries for phase "${phase}" → ${filePath}`
+	);
+
+	// Clear the buffer so the next phase starts fresh
+	warnErrorLogs.length = 0;
+}
 
 /**
  * Login to the test account with email, password, and 2FA OTP.
+ * Checks "Stay logged in" so keys are persisted to IndexedDB.
  * Includes retry logic for OTP timing edge cases.
  */
 async function loginToTestAccount(
@@ -92,6 +151,26 @@ async function loginToTestAccount(
 	const emailInput = page.locator('input[name="username"][type="email"]');
 	await expect(emailInput).toBeVisible();
 	await emailInput.fill(TEST_EMAIL);
+
+	// Click "Stay logged in" toggle so keys survive any page navigation during the test.
+	// The Toggle component hides the <input> behind a CSS slider; click the visible label.
+	const stayLoggedInLabel = page.locator(
+		'label.toggle[for="stayLoggedIn"], label.toggle:has(#stayLoggedIn)'
+	);
+	try {
+		await stayLoggedInLabel.waitFor({ state: 'visible', timeout: 3000 });
+		const checkbox = page.locator('#stayLoggedIn');
+		const isChecked = await checkbox.evaluate((el: HTMLInputElement) => el.checked);
+		if (!isChecked) {
+			await stayLoggedInLabel.click();
+			logCheckpoint('Clicked "Stay logged in" toggle.');
+		} else {
+			logCheckpoint('"Stay logged in" toggle was already on.');
+		}
+	} catch {
+		logCheckpoint('Could not find "Stay logged in" toggle — proceeding without it.');
+	}
+
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
 
@@ -122,11 +201,6 @@ async function loginToTestAccount(
 		logCheckpoint('Submitted login form.');
 
 		try {
-			// Wait for login dialog to disappear as the primary success indicator.
-			// The URL may already contain /chat/ if the user was previously logged in
-			// and the login dialog is shown as an overlay, so URL-based checks are unreliable.
-			// Instead, wait for the OTP input to become hidden (dialog closed after successful login)
-			// AND the message editor to appear (confirming full chat interface loaded).
 			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
 			loginSuccess = true;
 			logCheckpoint('Login dialog closed, login successful.');
@@ -151,8 +225,6 @@ async function loginToTestAccount(
 
 /**
  * Start a new chat session by clicking the new chat button.
- * On the welcome/demo screen, the button only becomes visible when there's content
- * in the message input. We handle this by typing a character first if needed.
  */
 async function startNewChat(
 	page: any,
@@ -163,7 +235,6 @@ async function startNewChat(
 	const currentUrl = page.url();
 	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
 
-	// First try: look for visible new chat button
 	const newChatButtonSelectors = [
 		'.new-chat-cta-button',
 		'.icon_create',
@@ -183,8 +254,6 @@ async function startNewChat(
 		}
 	}
 
-	// If button not visible, it might be because we're on welcome screen.
-	// Type a space in the editor to trigger button visibility, then look again.
 	if (!clicked) {
 		logCheckpoint('New Chat button not initially visible, trying to trigger it...');
 		const messageEditor = page.locator('.editor-content.prose');
@@ -193,7 +262,6 @@ async function startNewChat(
 			await page.keyboard.type(' ');
 			await page.waitForTimeout(500);
 
-			// Now try again to find the button
 			for (const selector of newChatButtonSelectors) {
 				const button = page.locator(selector).first();
 				if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -205,7 +273,6 @@ async function startNewChat(
 				}
 			}
 
-			// Clear the space we typed
 			if (clicked) {
 				const newEditor = page.locator('.editor-content.prose');
 				if (await newEditor.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -227,6 +294,7 @@ async function startNewChat(
 
 /**
  * Send a message in the chat editor and wait for the send to complete.
+ * Uses [data-action="send-message"] for a stable selector.
  */
 async function sendMessage(
 	page: any,
@@ -242,8 +310,11 @@ async function sendMessage(
 	logCheckpoint(`Typed message: "${message}"`);
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
-	const sendButton = page.locator('.send-button');
-	await expect(sendButton).toBeEnabled();
+	// The send button only appears when the editor has content (hasContent reactive state).
+	// Use data-action for a stable selector; wait up to 15s for Svelte reactivity + fly-in animation.
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeVisible({ timeout: 15000 });
+	await expect(sendButton).toBeEnabled({ timeout: 5000 });
 	await sendButton.click();
 	logCheckpoint('Clicked send button.');
 	await takeStepScreenshot(page, `${stepLabel}-message-sent`);
@@ -329,17 +400,23 @@ test('single web search with fullscreen, website result click, and button verifi
 }: {
 	page: any;
 }) => {
+	// ── Console log listeners ────────────────────────────────────────────────
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
-		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
+		const type = msg.type();
+		const text = msg.text();
+		consoleLogs.push(`[${timestamp}] [${type}] ${text}`);
+		if (type === 'warning' || type === 'error') {
+			warnErrorLogs.push({ timestamp, type, text });
+		}
 	});
 	page.on('request', (request: any) => {
-		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
+		networkActivities.push(`[${new Date().toISOString()}] >> ${request.method()} ${request.url()}`);
 	});
 	page.on('response', (response: any) => {
-		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
+		networkActivities.push(
+			`[${new Date().toISOString()}] << ${response.status()} ${response.url()}`
+		);
 	});
 
 	test.slow();
@@ -391,6 +468,10 @@ test('single web search with fullscreen, website result click, and button verifi
 	await expect(finishedPreview.first()).toBeVisible({ timeout: 90000 });
 	logCheckpoint('Web search preview reached finished state.');
 
+	// Check + save warn/error logs after search completes
+	logCheckpoint(`Console warn/error count after search: ${warnErrorLogs.length}`);
+	saveWarnErrorLogs('single-search', 'after_search_finished');
+
 	// Verify preview inner elements
 	const searchQueryElement = finishedPreview.first().locator('.search-query');
 	await expect(searchQueryElement).toBeVisible({ timeout: 10000 });
@@ -427,19 +508,20 @@ test('single web search with fullscreen, website result click, and button verifi
 
 	// ======================================================================
 	// STEP 4: Verify fullscreen content - header with query and provider
+	// EmbedHeader renders as .embed-header; title is .header-title-text; provider is .header-subtitle
 	// ======================================================================
-	const fullscreenHeader = fullscreenOverlay.locator('.fullscreen-header');
+	const fullscreenHeader = fullscreenOverlay.locator('.embed-header');
 	await expect(fullscreenHeader).toBeVisible({ timeout: 10000 });
-	logCheckpoint('Fullscreen header is visible.');
+	logCheckpoint('Fullscreen header (.embed-header) is visible.');
 
-	const fullscreenQuery = fullscreenHeader.locator('.search-query');
+	const fullscreenQuery = fullscreenHeader.locator('.header-title-text');
 	await expect(fullscreenQuery).toBeVisible({ timeout: 5000 });
 	const fullscreenQueryText = await fullscreenQuery.textContent();
 	logCheckpoint(`Fullscreen search query: "${fullscreenQueryText}"`);
 	// The query should contain something related to "Amadeus" (AI may rephrase)
 	expect(fullscreenQueryText?.toLowerCase()).toContain('amadeus');
 
-	const fullscreenProvider = fullscreenHeader.locator('.search-provider');
+	const fullscreenProvider = fullscreenHeader.locator('.header-subtitle');
 	await expect(fullscreenProvider).toBeVisible({ timeout: 5000 });
 	const providerText = await fullscreenProvider.textContent();
 	logCheckpoint(`Fullscreen provider: "${providerText}"`);
@@ -469,28 +551,26 @@ test('single web search with fullscreen, website result click, and button verifi
 
 	// ======================================================================
 	// STEP 6: Verify fullscreen action buttons exist
+	// EmbedTopBar renders buttons with icon_ classes (not semantic button names).
+	// icon_minimize = close/minimize, icon_share = share, icon_bug = report issue.
 	// ======================================================================
 	logCheckpoint('Verifying fullscreen action buttons...');
 
-	// Share button (always shown)
-	const shareButton = fullscreenOverlay.locator('.share-button');
+	const shareButton = fullscreenOverlay.locator('button.icon_share');
 	await expect(shareButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Share button is visible.');
+	logCheckpoint('Share button (icon_share) is visible.');
 
-	// Report issue button (always shown)
-	const reportIssueButton = fullscreenOverlay.locator('.report-issue-button');
+	const reportIssueButton = fullscreenOverlay.locator('button.icon_bug');
 	await expect(reportIssueButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Report issue button is visible.');
+	logCheckpoint('Report issue button (icon_bug) is visible.');
 
-	// Minimize button (always shown, used to close fullscreen)
-	const minimizeButton = fullscreenOverlay.locator('.minimize-button');
+	const minimizeButton = fullscreenOverlay.locator('button.icon_minimize');
 	await expect(minimizeButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Minimize button is visible.');
+	logCheckpoint('Minimize button (icon_minimize) is visible.');
 
-	// Bottom bar with BasicInfosBar
-	const bottomBar = fullscreenOverlay.locator('.basic-infos-bar-wrapper');
-	await expect(bottomBar).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Bottom BasicInfosBar wrapper is visible in fullscreen.');
+	const topBar = fullscreenOverlay.locator('.embed-top-bar');
+	await expect(topBar).toBeVisible({ timeout: 5000 });
+	logCheckpoint('EmbedTopBar (.embed-top-bar) is visible in fullscreen.');
 
 	await takeStepScreenshot(page, 'fullscreen-buttons-verified');
 
@@ -500,33 +580,32 @@ test('single web search with fullscreen, website result click, and button verifi
 	logCheckpoint('Clicking first website result to open website fullscreen...');
 	await websiteResults.first().click();
 
-	// Wait for the child embed overlay to appear (z-index 101, on top of search fullscreen)
 	const childOverlay = page.locator('.child-embed-overlay');
 	await expect(childOverlay).toBeVisible({ timeout: 10000 });
-	// Wait for animation
 	await page.waitForTimeout(500);
 	logCheckpoint('Child embed overlay (website fullscreen) is visible.');
 	await takeStepScreenshot(page, 'website-fullscreen-opened');
 
 	// ======================================================================
 	// STEP 8: Verify website fullscreen content
+	// The website title is rendered in EmbedHeader (.header-title-text) above
+	// the .website-fullscreen-content div, not inside it.
 	// ======================================================================
 	const websiteContent = childOverlay.locator('.website-fullscreen-content');
 	await expect(websiteContent).toBeVisible({ timeout: 10000 });
 	logCheckpoint('Website fullscreen content is visible.');
 
-	// Verify the website title is shown
-	const websiteTitle = websiteContent.locator('.website-title');
+	// Title is rendered by EmbedHeader as .header-title-text (outside .website-fullscreen-content)
+	const websiteTitle = childOverlay.locator('.header-title-text');
 	await expect(websiteTitle).toBeVisible({ timeout: 5000 });
 	const titleText = await websiteTitle.textContent();
 	logCheckpoint(`Website title: "${titleText}"`);
 
-	// Verify the CTA button exists ("Open on [hostname]")
-	const ctaButton = websiteContent.locator('.cta-button');
+	// CTA is rendered via embedHeaderCta snippet inside EmbedHeader, not inside .website-fullscreen-content
+	const ctaButton = childOverlay.locator('.cta-button');
 	await expect(ctaButton).toBeVisible({ timeout: 5000 });
 	const ctaText = await ctaButton.textContent();
 	logCheckpoint(`CTA button text: "${ctaText}"`);
-	// CTA should start with "Open on "
 	expect(ctaText?.toLowerCase()).toContain('open on');
 
 	// ======================================================================
@@ -534,19 +613,15 @@ test('single web search with fullscreen, website result click, and button verifi
 	// ======================================================================
 	logCheckpoint('Testing CTA button opens website in new tab...');
 
-	// Listen for the popup (new tab) that will be created
 	const [newPage] = await Promise.all([
 		page.waitForEvent('popup', { timeout: 10000 }),
 		ctaButton.click()
 	]);
 	logCheckpoint(`New tab opened with URL: ${newPage.url()}`);
-	// The new page URL should be a valid URL (not empty or about:blank after load)
-	// Wait briefly for the new tab to start loading
 	await newPage.waitForTimeout(2000);
 	const newTabUrl = newPage.url();
 	logCheckpoint(`New tab final URL: ${newTabUrl}`);
 	expect(newTabUrl).not.toBe('about:blank');
-	// Close the new tab
 	await newPage.close();
 	logCheckpoint('Closed new tab.');
 
@@ -554,20 +629,20 @@ test('single web search with fullscreen, website result click, and button verifi
 
 	// ======================================================================
 	// STEP 10: Verify website fullscreen buttons
+	// Buttons use icon_ CSS classes in EmbedTopBar (not semantic class names).
 	// ======================================================================
-	// The website fullscreen (inside child overlay) also has its own top bar buttons
 	const websiteFullscreen = childOverlay.locator('.unified-embed-fullscreen-overlay');
-	const websiteShareButton = websiteFullscreen.locator('.share-button');
+	const websiteShareButton = websiteFullscreen.locator('button.icon_share');
 	await expect(websiteShareButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Website fullscreen share button is visible.');
+	logCheckpoint('Website fullscreen share button (icon_share) is visible.');
 
-	const websiteReportButton = websiteFullscreen.locator('.report-issue-button');
+	const websiteReportButton = websiteFullscreen.locator('button.icon_bug');
 	await expect(websiteReportButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Website fullscreen report issue button is visible.');
+	logCheckpoint('Website fullscreen report issue button (icon_bug) is visible.');
 
-	const websiteMinimizeButton = websiteFullscreen.locator('.minimize-button');
+	const websiteMinimizeButton = websiteFullscreen.locator('button.icon_minimize');
 	await expect(websiteMinimizeButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Website fullscreen minimize button is visible.');
+	logCheckpoint('Website fullscreen minimize button (icon_minimize) is visible.');
 
 	await takeStepScreenshot(page, 'website-buttons-verified');
 
@@ -576,14 +651,11 @@ test('single web search with fullscreen, website result click, and button verifi
 	// ======================================================================
 	logCheckpoint('Closing website fullscreen via minimize button...');
 	await websiteMinimizeButton.click();
-	// Wait for close animation (300ms) + buffer
 	await page.waitForTimeout(500);
 
-	// The child overlay should be gone, but the search fullscreen should still be visible
 	await expect(childOverlay).not.toBeVisible({ timeout: 5000 });
 	logCheckpoint('Website fullscreen overlay closed.');
 
-	// Verify the search fullscreen is still showing
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 5000 });
 	await expect(websiteGrid).toBeVisible({ timeout: 5000 });
 	logCheckpoint('Search fullscreen is still visible after closing website overlay.');
@@ -593,15 +665,17 @@ test('single web search with fullscreen, website result click, and button verifi
 	// STEP 12: Close search fullscreen via minimize button
 	// ======================================================================
 	logCheckpoint('Closing search fullscreen via minimize button...');
-	// Re-locate the minimize button on the search fullscreen (not the child overlay)
-	const searchMinimizeButton = fullscreenOverlay.locator('.minimize-button');
+	const searchMinimizeButton = fullscreenOverlay.locator('button.icon_minimize');
 	await searchMinimizeButton.click();
-	// Wait for close animation
 	await page.waitForTimeout(500);
 
 	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 5000 });
 	logCheckpoint('Search fullscreen closed successfully.');
 	await takeStepScreenshot(page, 'fullscreen-closed');
+
+	// Save final warn/error log snapshot
+	logCheckpoint(`Final console warn/error count: ${warnErrorLogs.length}`);
+	saveWarnErrorLogs('single-search', 'after_fullscreen_closed');
 
 	// ======================================================================
 	// STEP 13: Delete the chat
@@ -619,17 +693,23 @@ test('multiple web searches are grouped and fullscreen works on grouped items', 
 }: {
 	page: any;
 }) => {
+	// ── Console log listeners ────────────────────────────────────────────────
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
-		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
+		const type = msg.type();
+		const text = msg.text();
+		consoleLogs.push(`[${timestamp}] [${type}] ${text}`);
+		if (type === 'warning' || type === 'error') {
+			warnErrorLogs.push({ timestamp, type, text });
+		}
 	});
 	page.on('request', (request: any) => {
-		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
+		networkActivities.push(`[${new Date().toISOString()}] >> ${request.method()} ${request.url()}`);
 	});
 	page.on('response', (response: any) => {
-		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
+		networkActivities.push(
+			`[${new Date().toISOString()}] << ${response.status()} ${response.url()}`
+		);
 	});
 
 	test.slow();
@@ -695,6 +775,10 @@ test('multiple web searches are grouped and fullscreen works on grouped items', 
 	logCheckpoint(`Total finished web search previews: ${totalFinished}`);
 	await takeStepScreenshot(page, 'multi-search-all-finished');
 
+	// Check + save warn/error logs after searches complete
+	logCheckpoint(`Console warn/error count after searches: ${warnErrorLogs.length}`);
+	saveWarnErrorLogs('multi-search', 'after_searches_finished');
+
 	// ======================================================================
 	// STEP 3: Verify grouping - scroll container and group header
 	// ======================================================================
@@ -702,7 +786,6 @@ test('multiple web searches are grouped and fullscreen works on grouped items', 
 	await expect(groupScrollContainer.first()).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Group scroll container is visible.');
 
-	// Verify the group contains multiple items
 	const groupItems = groupScrollContainer.first().locator('.embed-group-item');
 	await expect(async () => {
 		const itemCount = await groupItems.count();
@@ -713,20 +796,17 @@ test('multiple web searches are grouped and fullscreen works on grouped items', 
 	const groupItemCount = await groupItems.count();
 	logCheckpoint(`Confirmed ${groupItemCount} items in the group scroll container.`);
 
-	// Verify the group header shows the correct count text (e.g. "3 requests")
 	const groupHeader = page.locator('.group-header');
 	await expect(groupHeader.first()).toBeVisible({ timeout: 5000 });
 	const headerText = await groupHeader.first().textContent();
 	logCheckpoint(`Group header text: "${headerText}"`);
 	expect(headerText).toMatch(/\d+\s+requests?/i);
 
-	// Verify no error embeds are visible
 	const errorEmbeds = page.locator('.unified-embed-preview[data-status="error"]');
 	const errorCount = await errorEmbeds.count();
 	logCheckpoint(`Error embeds found (should be 0): ${errorCount}`);
 	expect(errorCount).toBe(0);
 
-	// Verify the scroll container has horizontal overflow enabled
 	const overflowX = await groupScrollContainer.first().evaluate((el: Element) => {
 		return window.getComputedStyle(el).overflowX;
 	});
@@ -776,7 +856,6 @@ test('multiple web searches are grouped and fullscreen works on grouped items', 
 	// ======================================================================
 	logCheckpoint('Opening first finished grouped embed in fullscreen...');
 
-	// Find the first finished preview within the group
 	let firstFinishedGroupItem: any = null;
 	for (let i = 0; i < groupItemCount; i++) {
 		const item = groupItems.nth(i);
@@ -794,28 +873,27 @@ test('multiple web searches are grouped and fullscreen works on grouped items', 
 	expect(firstFinishedGroupItem).not.toBeNull();
 	await firstFinishedGroupItem.click();
 
-	// Wait for the fullscreen overlay to appear
 	const fullscreenOverlay = page.locator('.unified-embed-fullscreen-overlay');
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
-	await page.waitForTimeout(500); // Wait for animation
+	await page.waitForTimeout(500);
 	logCheckpoint('Fullscreen overlay is visible for grouped embed.');
 	await takeStepScreenshot(page, 'multi-fullscreen-opened');
 
 	// ======================================================================
 	// STEP 6: Verify fullscreen content for grouped embed
+	// EmbedHeader renders as .embed-header; title is .header-title-text; provider is .header-subtitle
 	// ======================================================================
-	const fullscreenHeader = fullscreenOverlay.locator('.fullscreen-header');
+	const fullscreenHeader = fullscreenOverlay.locator('.embed-header');
 	await expect(fullscreenHeader).toBeVisible({ timeout: 10000 });
 
-	const fullscreenQuery = fullscreenHeader.locator('.search-query');
+	const fullscreenQuery = fullscreenHeader.locator('.header-title-text');
 	await expect(fullscreenQuery).toBeVisible({ timeout: 5000 });
 	const fullscreenQueryText = await fullscreenQuery.textContent();
 	logCheckpoint(`Grouped fullscreen search query: "${fullscreenQueryText}"`);
 
-	const fullscreenProvider = fullscreenHeader.locator('.search-provider');
+	const fullscreenProvider = fullscreenHeader.locator('.header-subtitle');
 	await expect(fullscreenProvider).toBeVisible({ timeout: 5000 });
 
-	// Verify website results grid is present
 	const websiteGrid = fullscreenOverlay.locator('.website-embeds-grid');
 	await expect(websiteGrid).toBeVisible({ timeout: 15000 });
 
@@ -832,18 +910,19 @@ test('multiple web searches are grouped and fullscreen works on grouped items', 
 
 	// ======================================================================
 	// STEP 7: Test buttons in grouped fullscreen
+	// Buttons use icon_ CSS classes in EmbedTopBar (not semantic class names).
 	// ======================================================================
-	const shareButton = fullscreenOverlay.locator('.share-button');
+	const shareButton = fullscreenOverlay.locator('button.icon_share');
 	await expect(shareButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Grouped fullscreen share button is visible.');
+	logCheckpoint('Grouped fullscreen share button (icon_share) is visible.');
 
-	const reportIssueButton = fullscreenOverlay.locator('.report-issue-button');
+	const reportIssueButton = fullscreenOverlay.locator('button.icon_bug');
 	await expect(reportIssueButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Grouped fullscreen report issue button is visible.');
+	logCheckpoint('Grouped fullscreen report issue button (icon_bug) is visible.');
 
-	const minimizeButton = fullscreenOverlay.locator('.minimize-button');
+	const minimizeButton = fullscreenOverlay.locator('button.icon_minimize');
 	await expect(minimizeButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Grouped fullscreen minimize button is visible.');
+	logCheckpoint('Grouped fullscreen minimize button (icon_minimize) is visible.');
 
 	// ======================================================================
 	// STEP 8: Click a website result from the grouped fullscreen
@@ -857,16 +936,18 @@ test('multiple web searches are grouped and fullscreen works on grouped items', 
 	logCheckpoint('Website fullscreen overlay opened from grouped search.');
 	await takeStepScreenshot(page, 'multi-website-fullscreen-opened');
 
-	// Verify website content
 	const websiteContent = childOverlay.locator('.website-fullscreen-content');
 	await expect(websiteContent).toBeVisible({ timeout: 10000 });
 
-	const websiteTitle = websiteContent.locator('.website-title');
+	// Title is rendered by EmbedHeader as .header-title-text (outside .website-fullscreen-content)
+	const websiteTitle = childOverlay.locator('.header-title-text');
 	await expect(websiteTitle).toBeVisible({ timeout: 5000 });
 	const titleText = await websiteTitle.textContent();
 	logCheckpoint(`Grouped website title: "${titleText}"`);
 
-	const ctaButton = websiteContent.locator('.cta-button');
+	// CTA button is rendered inside .website-fullscreen-content via the embedHeaderCta snippet
+	// but the button itself is in EmbedHeader's CTA area, scoped within .embed-header
+	const ctaButton = childOverlay.locator('.cta-button');
 	await expect(ctaButton).toBeVisible({ timeout: 5000 });
 	const ctaText = await ctaButton.textContent();
 	logCheckpoint(`Grouped website CTA: "${ctaText}"`);
@@ -878,26 +959,26 @@ test('multiple web searches are grouped and fullscreen works on grouped items', 
 	// STEP 9: Close website overlay, then close search fullscreen
 	// ======================================================================
 	logCheckpoint('Closing website overlay from grouped search...');
-	const websiteMinimize = childOverlay.locator(
-		'.unified-embed-fullscreen-overlay .minimize-button'
-	);
+	const websiteMinimize = childOverlay.locator('button.icon_minimize');
 	await websiteMinimize.click();
 	await page.waitForTimeout(500);
 	await expect(childOverlay).not.toBeVisible({ timeout: 5000 });
 	logCheckpoint('Website overlay closed.');
 
-	// Search fullscreen should still be showing
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 5000 });
 	logCheckpoint('Search fullscreen still visible after closing website overlay.');
 
-	// Close search fullscreen
 	logCheckpoint('Closing search fullscreen...');
-	const searchMinimize = fullscreenOverlay.locator('.minimize-button');
+	const searchMinimize = fullscreenOverlay.locator('button.icon_minimize');
 	await searchMinimize.click();
 	await page.waitForTimeout(500);
 	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 5000 });
 	logCheckpoint('Search fullscreen closed.');
 	await takeStepScreenshot(page, 'multi-fullscreen-closed');
+
+	// Save final warn/error log snapshot
+	logCheckpoint(`Final console warn/error count: ${warnErrorLogs.length}`);
+	saveWarnErrorLogs('multi-search', 'after_fullscreen_closed');
 
 	// ======================================================================
 	// STEP 10: Delete the chat
