@@ -224,11 +224,21 @@
   }
   
   /**
-   * Handle closing the article fullscreen - returns to search results.
+   * Handle closing the article fullscreen.
+   *
+   * When opened via inline badge (initialChildEmbedId set): close the entire
+   * fullscreen immediately — no parent results grid expected.
+   * When opened normally (card click): return to the parent search results grid.
    */
   function handleArticleFullscreenClose() {
-    console.debug('[NewsSearchEmbedFullscreen] Closing article fullscreen, returning to search results');
-    selectedArticleIndex = -1;
+    if (initialChildEmbedId) {
+      // Opened via inline badge — skip the parent grid and close completely
+      console.debug('[NewsSearchEmbedFullscreen] Closing article fullscreen (inline badge origin) — closing entire fullscreen');
+      onClose();
+    } else {
+      console.debug('[NewsSearchEmbedFullscreen] Closing article fullscreen, returning to search results');
+      selectedArticleIndex = -1;
+    }
   }
   
   /** Navigate to the previous sibling article */
@@ -257,11 +267,12 @@
    * Called when user closes the main NewsSearchEmbedFullscreen
    */
   function handleMainClose() {
-    // If an article is open, first close it and return to search results
-    if (selectedArticleIndex >= 0) {
+    // If an article is open AND we were NOT opened via inline badge,
+    // return to the parent search results grid first.
+    // If opened via inline badge, close the entire fullscreen immediately.
+    if (selectedArticleIndex >= 0 && !initialChildEmbedId) {
       selectedArticleIndex = -1;
     } else {
-      // Otherwise, close the entire fullscreen
       onClose();
     }
   }

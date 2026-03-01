@@ -339,11 +339,21 @@
   }
   
   /**
-   * Handle closing the website fullscreen - returns to search results.
+   * Handle closing the website fullscreen.
+   *
+   * When opened via inline badge (initialChildEmbedId set): close the entire
+   * fullscreen immediately — no parent results grid expected.
+   * When opened normally (card click): return to the parent search results grid.
    */
   function handleWebsiteFullscreenClose() {
-    console.debug('[WebSearchEmbedFullscreen] Closing website fullscreen, returning to search results');
-    selectedWebsiteIndex = -1;
+    if (initialChildEmbedId) {
+      // Opened via inline badge — skip the parent grid and close completely
+      console.debug('[WebSearchEmbedFullscreen] Closing website fullscreen (inline badge origin) — closing entire fullscreen');
+      onClose();
+    } else {
+      console.debug('[WebSearchEmbedFullscreen] Closing website fullscreen, returning to search results');
+      selectedWebsiteIndex = -1;
+    }
   }
   
   /** Navigate to the previous sibling website */
@@ -390,11 +400,12 @@
    * Called when user closes the main WebSearchEmbedFullscreen
    */
   function handleMainClose() {
-    // If a website is open, first close it and return to search results
-    if (selectedWebsiteIndex >= 0) {
+    // If a website is open AND we were NOT opened via inline badge,
+    // return to the parent search results grid first.
+    // If opened via inline badge, close the entire fullscreen immediately.
+    if (selectedWebsiteIndex >= 0 && !initialChildEmbedId) {
       selectedWebsiteIndex = -1;
     } else {
-      // Otherwise, close the entire fullscreen
       onClose();
     }
   }

@@ -554,11 +554,23 @@
   }
   
   /**
-   * Handle closing the connection detail fullscreen
+   * Handle closing the connection detail fullscreen.
+   *
+   * Behaviour depends on how the child overlay was opened:
+   * - Opened via inline badge (initialChildEmbedId set): close the entire
+   *   fullscreen immediately — the user used a direct link and has no
+   *   expectation of a parent results grid.
+   * - Opened normally (by clicking a card in the grid): go back to the
+   *   parent results grid (selectedConnectionIndex = -1).
    */
   function handleConnectionFullscreenClose() {
-    selectedConnectionIndex = -1;
-    connectionResultsForNav = [];
+    if (initialChildEmbedId) {
+      // Opened via inline badge — skip the parent grid and close completely
+      onClose();
+    } else {
+      selectedConnectionIndex = -1;
+      connectionResultsForNav = [];
+    }
   }
   
   /**
@@ -650,10 +662,15 @@
   });
   
   /**
-   * Handle closing the entire search fullscreen
+   * Handle closing the entire search fullscreen.
+   *
+   * When opened via inline badge (initialChildEmbedId set) and a child overlay
+   * is currently shown, close the entire fullscreen rather than going back to
+   * the parent results grid — the user arrived directly at the child result.
    */
   function handleMainClose() {
-    if (selectedConnectionIndex >= 0) {
+    if (selectedConnectionIndex >= 0 && !initialChildEmbedId) {
+      // Normal flow: child open, go back to parent grid
       selectedConnectionIndex = -1;
       connectionResultsForNav = [];
     } else {
