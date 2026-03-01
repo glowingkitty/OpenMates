@@ -1303,18 +1303,29 @@
             ].join('; ') + ';';
         }
         if (isFullscreen) {
-            // Tall (narrow) mode: expand in-place to 65dvh
+            // Tall (narrow) mode: expand in-place to fill the active chat container height.
+            // containerRect is provided by ActiveChat via ResizeObserver — use its height minus
+            // 20px breathing room. Fall back to 65dvh if containerRect is not yet available.
+            if (containerRect) {
+                const h = Math.max(200, containerRect.height - 20);
+                return `height: ${h}px; max-height: ${h}px;`;
+            }
             return 'height: 65dvh; max-height: 65dvh;';
         }
         return 'height: auto; max-height: 350px;';
     })());
 
+    // Toolbar / action-buttons row is ~120px; subtract it so the scrollable content area
+    // doesn't overflow the container. In widescreen-fullscreen mode the container height
+    // is driven by position:fixed so we use 100% minus the toolbar height.
     let messagePanelScrollableStyle = $derived(
         isWidescreenFullscreen
             ? 'max-height: calc(100% - 120px);'
-            : isFullscreen
-                ? 'max-height: calc(65dvh - 120px);'
-                : 'max-height: 250px;'
+            : isFullscreen && containerRect
+                ? `max-height: ${Math.max(80, containerRect.height - 20 - 120)}px;`
+                : isFullscreen
+                    ? 'max-height: calc(65dvh - 120px);'
+                    : 'max-height: 250px;'
     );
 
     // --- Lifecycle ---

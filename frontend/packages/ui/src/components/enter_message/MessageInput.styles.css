@@ -424,8 +424,10 @@
 }
 
 .clickable-icon {
-  /* General style for icon buttons */
-  background: none;
+  /* General style for icon buttons.
+     NOTE: Do NOT set background here — the icon colour (mask fill) is controlled by
+     button.clickable-icon { background: var(--color-primary) } in icons.css.
+     Setting background:none here would override that and make mask-image icons invisible. */
   border: none;
   padding: 0;
   cursor: pointer;
