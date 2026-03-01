@@ -1284,11 +1284,37 @@
         if (showMaps || showCamera) {
             return 'height: 400px; max-height: 400px;';
         }
-        if (isWidescreenFullscreen && containerRect && typeof window !== 'undefined') {
-            const left = containerRect.left + 410;
-            const top = containerRect.top + 10;
-            const right = window.innerWidth - containerRect.right + 10;
-            const bottom = window.innerHeight - containerRect.bottom + 10;
+        if (isFullscreen && containerRect && typeof window !== 'undefined') {
+            if (isWidescreenFullscreen) {
+                // Wide-screen side-panel mode (≥1024px): fill the embed area to the right of
+                // the 400px chat column. The +410 offset = 400px chat col + 10px gap.
+                // max-width:none overrides .message-input-container > * { max-width: 629px }.
+                const left   = containerRect.left + 410;
+                const top    = containerRect.top + 10;
+                const right  = window.innerWidth - containerRect.right + 10;
+                const bottom = window.innerHeight - containerRect.bottom + 10;
+                return [
+                    'position: fixed',
+                    `left: ${left}px`,
+                    `top: ${top}px`,
+                    `right: ${right}px`,
+                    `bottom: ${bottom}px`,
+                    'width: auto',
+                    'height: auto',
+                    'max-height: none',
+                    'max-width: none',
+                    'z-index: 200',
+                    'border-radius: 17px',
+                ].join('; ') + ';';
+            }
+            // Narrow/medium mode (<1024px): cover the chat card, leaving 20px visible at top
+            // so the user can still tap outside to dismiss. Uses position:fixed anchored to
+            // containerRect so it works correctly even when sidebars are open.
+            // max-width:none overrides .message-input-container > * { max-width: 629px }.
+            const top    = containerRect.top + 20;
+            const bottom = window.innerHeight - containerRect.bottom;
+            const left   = containerRect.left;
+            const right  = window.innerWidth - containerRect.right;
             return [
                 'position: fixed',
                 `left: ${left}px`,
@@ -1298,34 +1324,24 @@
                 'width: auto',
                 'height: auto',
                 'max-height: none',
+                'max-width: none',
                 'z-index: 200',
-                'border-radius: 17px',
+                'border-radius: 20px',
             ].join('; ') + ';';
         }
         if (isFullscreen) {
-            // Tall (narrow) mode: expand in-place to fill the active chat container height.
-            // containerRect is provided by ActiveChat via ResizeObserver — use its height minus
-            // 20px breathing room. Fall back to 65dvh if containerRect is not yet available.
-            if (containerRect) {
-                const h = Math.max(200, containerRect.height - 20);
-                return `height: ${h}px; max-height: ${h}px;`;
-            }
+            // Fallback when containerRect is not yet available (initial render edge case).
             return 'height: 65dvh; max-height: 65dvh;';
         }
         return 'height: auto; max-height: 350px;';
     })());
 
-    // Toolbar / action-buttons row is ~120px; subtract it so the scrollable content area
-    // doesn't overflow the container. In widescreen-fullscreen mode the container height
-    // is driven by position:fixed so we use 100% minus the toolbar height.
+    // In fullscreen the container height is driven by position:fixed top/bottom insets,
+    // so the scrollable content area fills 100% minus the ~120px toolbar row.
     let messagePanelScrollableStyle = $derived(
-        isWidescreenFullscreen
+        isFullscreen
             ? 'max-height: calc(100% - 120px);'
-            : isFullscreen && containerRect
-                ? `max-height: ${Math.max(80, containerRect.height - 20 - 120)}px;`
-                : isFullscreen
-                    ? 'max-height: calc(65dvh - 120px);'
-                    : 'max-height: 250px;'
+            : 'max-height: 250px;'
     );
 
     // --- Lifecycle ---
