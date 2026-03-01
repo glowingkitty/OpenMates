@@ -93,7 +93,15 @@ class ClientLogForwarder {
 
     // Use warn level so this is visible even when debug logging is filtered in browser dev tools.
     // This is a critical diagnostic breadcrumb confirming the forwarder activated for the admin user.
+    // logCollector intercepts this console.warn and routes it through logListener into the buffer,
+    // so the very first flush will include it as a positive "forwarder alive" signal in Loki.
     console.warn(`[ClientLogForwarder] Started - tab=${this.tabId}`);
+
+    // Flush immediately so the startup breadcrumb reaches Loki without waiting up to
+    // FLUSH_INTERVAL_MS (5s). This also acts as an early session-validity probe —
+    // if the session cookie is not yet set (offline-first race), the 401 response is
+    // now logged-and-continued rather than killing the forwarder.
+    void this.flush();
   }
 
   /**
@@ -165,12 +173,22 @@ class ClientLogForwarder {
 
       console.debug(`[ClientLogForwarder] Flush response: ${response.status}`);
 
-      // If we get a 401/403, stop forwarding (user is no longer admin or session expired)
+      // Auth errors (401/403) are logged but do NOT stop the forwarder.
+      //
+      // Rationale: the forwarder is started optimistically during the offline-first
+      // phase (before the session cookie is fully established). A 401 at that point
+      // would kill the forwarder permanently, and the subsequent start() call from
+      // the login completion path may be missed if is_admin is momentarily missing
+      // from the response — leaving no forwarding for the rest of the session.
+      //
+      // Instead we let the forwarder keep running. The backend validates admin status
+      // on every request, so a genuine de-admin event will simply cause all future
+      // flushes to return 401 (harmless network chatter). When the session becomes
+      // valid again after login, the next flush succeeds automatically.
       if (response.status === 401 || response.status === 403) {
         console.warn(
-          `[ClientLogForwarder] Auth failed (${response.status}), stopping forwarder`,
+          `[ClientLogForwarder] Auth error (${response.status}) — keeping forwarder alive, will retry on next flush`,
         );
-        this.stop();
       }
       // Silently ignore other errors (429 rate limit, 500 server error, network issues)
       // This is non-critical debug infrastructure - should never interfere with the app
