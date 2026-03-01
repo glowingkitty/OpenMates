@@ -157,6 +157,12 @@
 .subsetting_icon.sort {
   --icon-mask-image: url("@openmates/ui/static/icons/sort.svg");
 }
+.subsetting_icon.clock {
+  --icon-mask-image: url("@openmates/ui/static/icons/time.svg");
+}
+.subsetting_icon.user {
+  --icon-mask-image: url("@openmates/ui/static/icons/user.svg");
+}
 
 /* Modify icon for subsubmenu items */
 .clickable-icon.icon_modify {
@@ -1156,6 +1162,22 @@ div.clickable-icon {
   background: var(--color-primary);
   &::before {
     background-image: url("@openmates/ui/static/icons/delete.svg");
+  }
+}
+
+.icon.mail {
+  background: var(--color-primary);
+
+  &::before {
+    background-image: url("@openmates/ui/static/icons/mail.svg");
+  }
+}
+
+.icon.storage {
+  background: var(--color-primary);
+
+  &::before {
+    background-image: url("@openmates/ui/static/icons/files.svg");
   }
 }
 

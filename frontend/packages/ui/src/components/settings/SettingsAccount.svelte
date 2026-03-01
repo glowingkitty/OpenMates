@@ -134,8 +134,8 @@ Account Settings - Main menu for account-related settings including Security, Ex
 <SettingsItem
     type="subsubmenu"
     icon="user"
-    subtitle={$text('settings.account.username')}
-    title={currentUsername}
+    title={$text('settings.account.username')}
+    subtitle={currentUsername}
     onClick={navigateToUsername}
 />
 
@@ -149,8 +149,8 @@ Account Settings - Main menu for account-related settings including Security, Ex
 <SettingsItem 
     type="subsubmenu"
     icon="clock"
-    subtitle={$text('settings.account.timezone')}
-    title={getTimezoneDisplayLabel(currentTimezone)}
+    title={$text('settings.account.timezone')}
+    subtitle={getTimezoneDisplayLabel(currentTimezone)}
     onClick={navigateToTimezone}
 />
 
