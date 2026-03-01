@@ -32,12 +32,16 @@ const embedCache = new Map<string, EmbedStoreEntry>();
 // In-memory cache for unwrapped embed keys (for performance)
 const embedKeyCache = new Map<string, Uint8Array>();
 
-// In-memory index: embed_ref (short slug) → embed_id (UUID).
+// In-memory index: embed_ref (short slug) → { embedId, appId }.
 // Populated in handleSendEmbedDataImpl() when plaintext TOON arrives from the server.
 // NEVER persisted to IndexedDB — zero-knowledge compliant (slugs like "ryanair-0600"
 // would otherwise reveal content to anyone with DB access).
 // On chat reload the index is rebuilt automatically as embeds are decrypted.
-const embedRefToIdIndex = new Map<string, string>();
+interface EmbedRefEntry {
+  embedId: string;
+  appId: string | null;
+}
+const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
 
 // TOON decoder (lazy-loaded to avoid circular dependencies)
 let toonDecode:
@@ -2272,22 +2276,28 @@ export class EmbedStore {
   // ============================================================
 
   /**
-   * Register an embed_ref → embed_id mapping.
+   * Register an embed_ref → { embedId, appId } mapping.
    * Called by handleSendEmbedDataImpl() when plaintext TOON arrives from the server
    * (before it is encrypted and stored). This is the ONLY window in which the plaintext
    * slug is available, so we must extract it here.
    *
-   * @param embedRef  Short descriptive slug, e.g. "wikipedia.org-k8D"
+   * @param embedRef  Short descriptive slug, e.g. "ryanair-0600-k8D"
    * @param embedId   UUID of the embed, e.g. "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+   * @param appId     Optional app_id (e.g. "travel") — used to colour the inline badge correctly
    */
-  registerEmbedRef(embedRef: string, embedId: string): void {
+  registerEmbedRef(
+    embedRef: string,
+    embedId: string,
+    appId?: string | null,
+  ): void {
     if (!embedRef || !embedId) return;
-    embedRefToIdIndex.set(embedRef, embedId);
+    embedRefToIdIndex.set(embedRef, { embedId, appId: appId ?? null });
     console.debug(
-      "[EmbedStore] Registered embed_ref → embed_id:",
+      "[EmbedStore] Registered embed_ref → { embedId, appId }:",
       embedRef,
       "→",
       embedId,
+      appId ? `(appId: ${appId})` : "(no appId)",
     );
   }
 
@@ -2295,11 +2305,23 @@ export class EmbedStore {
    * Resolve an embed_ref slug to its embed_id UUID.
    * Returns null if the ref is not yet indexed (e.g., embed not yet arrived).
    *
-   * @param embedRef  Short descriptive slug, e.g. "wikipedia.org-k8D"
+   * @param embedRef  Short descriptive slug, e.g. "ryanair-0600-k8D"
    * @returns embed_id UUID or null
    */
   resolveByRef(embedRef: string): string | null {
-    return embedRefToIdIndex.get(embedRef) ?? null;
+    return embedRefToIdIndex.get(embedRef)?.embedId ?? null;
+  }
+
+  /**
+   * Resolve an embed_ref slug to its app_id string.
+   * Returns null if the ref is not indexed or appId was not registered.
+   * Used by parse_message.ts to set the correct badge gradient/icon.
+   *
+   * @param embedRef  Short descriptive slug, e.g. "ryanair-0600-k8D"
+   * @returns app_id string or null
+   */
+  resolveAppIdByRef(embedRef: string): string | null {
+    return embedRefToIdIndex.get(embedRef)?.appId ?? null;
   }
 
   /**

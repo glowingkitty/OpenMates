@@ -2640,15 +2640,25 @@ export async function handleSendEmbedDataImpl(
       // Register embed_ref for processing embeds so inline links resolve even before finalization.
       // embed_ref lives only in plaintext TOON content (zero-knowledge: never stored unencrypted).
       // We decode here while content is still plaintext and register in the in-memory index only.
+      // Also register appId so parse_message.ts can colour the badge correctly immediately.
       try {
         const { embedStore: esForRef } = await import("./embedStore");
         const decodedForRef = await decodeToonContentSafe(embedData.content);
         if (decodedForRef && typeof decodedForRef === "object") {
           const refObj = decodedForRef as Record<string, unknown>;
           if (typeof refObj.embed_ref === "string" && refObj.embed_ref) {
-            esForRef.registerEmbedRef(refObj.embed_ref, embedData.embed_id);
+            // Prefer app_id from decoded TOON content; fall back to payload field
+            const refAppId =
+              typeof refObj.app_id === "string"
+                ? refObj.app_id
+                : ((embedPayload.app_id as string | undefined) ?? null);
+            esForRef.registerEmbedRef(
+              refObj.embed_ref,
+              embedData.embed_id,
+              refAppId,
+            );
             console.debug(
-              `[ChatSyncService:AI] Registered embed_ref (processing) "${refObj.embed_ref}" → ${embedData.embed_id}`,
+              `[ChatSyncService:AI] Registered embed_ref (processing) "${refObj.embed_ref}" → ${embedData.embed_id} (appId: ${refAppId})`,
             );
           }
         }
@@ -3189,16 +3199,22 @@ export async function handleSendEmbedDataImpl(
           // appears as an unencrypted field anywhere (zero-knowledge compliance).
           // We extract it here during the brief window when plaintext TOON is available,
           // before we encrypt it, and store it only in the in-memory index.
+          // Also store appId so parse_message.ts can colour the badge gradient immediately.
           if (
             typeof decodedObj.embed_ref === "string" &&
             decodedObj.embed_ref
           ) {
+            const refAppId =
+              typeof decodedObj.app_id === "string"
+                ? decodedObj.app_id
+                : (preExtractedMetadata?.app_id ?? null);
             embedStore.registerEmbedRef(
               decodedObj.embed_ref,
               embedData.embed_id,
+              refAppId,
             );
             console.debug(
-              `[ChatSyncService:AI] Registered embed_ref "${decodedObj.embed_ref}" → ${embedData.embed_id}`,
+              `[ChatSyncService:AI] Registered embed_ref "${decodedObj.embed_ref}" → ${embedData.embed_id} (appId: ${refAppId})`,
             );
           }
         }

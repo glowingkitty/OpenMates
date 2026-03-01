@@ -2097,12 +2097,20 @@ class EmbedService:
                         f"meta_url={result.get('meta_url')}"
                     )
 
-                    # Generate embed_ref slug and inject into content dict before encoding.
-                    # This mirrors create_embeds_from_skill_results() so that _filter_toon_for_llm()
-                    # can expose the embed_ref to the LLM on subsequent turns when reading from cache.
-                    child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+                    # Use pre-generated embed_ref from result dict if present (single source of truth).
+                    # main_processor.py pre-generates slugs in results_with_refs BEFORE building
+                    # the tool_result_content_str, so the LLM sees the SAME slug that ends up in
+                    # the child embed TOON — preventing the slug-mismatch bug where two independent
+                    # random suffixes are generated for the same logical result.
+                    # Fall back to generating a new slug only if embed_ref is missing (e.g., for
+                    # non-composite skills or code paths that bypass the pre-generation step).
                     result_with_ref = dict(result)
-                    result_with_ref["embed_ref"] = child_embed_ref
+                    if "embed_ref" in result_with_ref:
+                        child_embed_ref = result_with_ref["embed_ref"]
+                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
+                    else:
+                        child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+                        result_with_ref["embed_ref"] = child_embed_ref
 
                     # Convert result to TOON format (PLAINTEXT)
                     flattened_result = _flatten_for_toon_tabular(result_with_ref)
@@ -2839,17 +2847,20 @@ class EmbedService:
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
 
-                    # Generate a short descriptive embed_ref for this result.
-                    # The embed_ref is injected INSIDE the encrypted TOON content so
-                    # only the client (after decryption) and the LLM (via filtered TOON
-                    # in tool results) can see it. Server admins cannot read the slug.
-                    child_embed_ref = self._generate_embed_ref_slug(child_type, result)
-
-                    # Convert result to TOON format.
-                    # Inject embed_ref directly into the content dict before encoding
-                    # so it is part of the encrypted payload — zero-knowledge compliant.
+                    # Use pre-generated embed_ref from result dict if present (single source of truth).
+                    # main_processor.py pre-generates slugs in results_with_refs BEFORE building
+                    # the tool_result_content_str and passes them here via the results list.
+                    # This ensures the LLM's inline ref slug EXACTLY matches the slug stored in
+                    # the child embed TOON — preventing the slug-mismatch bug.
+                    # The embed_ref is injected INSIDE the encrypted TOON content so only the
+                    # client (after decryption) and the LLM (via filtered TOON) can see it.
                     result_with_ref = dict(result)
-                    result_with_ref["embed_ref"] = child_embed_ref
+                    if "embed_ref" in result_with_ref:
+                        child_embed_ref = result_with_ref["embed_ref"]
+                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
+                    else:
+                        child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+                        result_with_ref["embed_ref"] = child_embed_ref
 
                     flattened_result = _flatten_for_toon_tabular(result_with_ref)
                     content_toon = encode(flattened_result)

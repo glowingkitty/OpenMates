@@ -20,6 +20,25 @@ import { migrateEmbedNodes, needsMigration } from "./migration";
 //
 // Only applied in read mode — the editor (write mode) should keep them as plain
 // links so the user can still edit the raw markdown.
+//
+// appId lookup: embedStore is imported lazily (it's a singleton module that may
+// not be initialised at module load time). resolveAppIdByRef() is synchronous
+// (in-memory Map lookup), so it is safe to call inside the parse loop.
+
+// Lazy singleton reference — populated on first convertEmbedLinks call.
+let _embedStoreRef: import("../services/embedStore").EmbedStore | null = null;
+async function _ensureEmbedStore(): Promise<void> {
+  if (!_embedStoreRef) {
+    const mod = await import("../services/embedStore");
+    _embedStoreRef = mod.embedStore;
+  }
+}
+// For synchronous use inside convertEmbedLinksInNode we use the cached ref
+// (will be null on the very first parse before the async warm-up completes,
+// which is acceptable — the badge will fall back to grey and correct on next render).
+function _getEmbedStore(): import("../services/embedStore").EmbedStore | null {
+  return _embedStoreRef;
+}
 
 /**
  * Walk a TipTap node tree and replace inline link marks whose href starts with
@@ -48,6 +67,14 @@ function convertEmbedLinksInNode(node: any): any | any[] {
       const embedRef = href.slice("embed:".length);
       const displayText = node.text || embedRef;
 
+      // Look up appId from the in-memory embed_ref index (synchronous Map lookup).
+      // If the embed has already arrived via WebSocket and been registered in
+      // chatSyncServiceHandlersAI.ts, this returns the app_id immediately so the
+      // badge renders with the correct gradient and icon class on the first pass.
+      // Falls back to null (grey badge) if the embed hasn't arrived yet — the
+      // NodeView will re-render when the embed finishes loading.
+      const appId = _getEmbedStore()?.resolveAppIdByRef(embedRef) ?? null;
+
       // Return an embedInline node — the NodeView will resolve embedRef → embedId at render time
       return {
         type: "embedInline",
@@ -55,7 +82,7 @@ function convertEmbedLinksInNode(node: any): any | any[] {
           embedRef,
           embedId: null, // resolved lazily via embedStore.resolveByRef()
           displayText,
-          appId: null, // resolved lazily via embedStore when fullscreen opens
+          appId,
         },
       };
     }
@@ -81,9 +108,18 @@ function convertEmbedLinksInNode(node: any): any | any[] {
 /**
  * Apply embed: link → embedInline conversion to a full TipTap document.
  * Returns a new document object (does not mutate the input).
+ *
+ * Fires an async warm-up of the embedStore reference on first call so that
+ * subsequent (synchronous) calls to _getEmbedStore() find the cached ref.
  */
 function convertEmbedLinks(doc: any): any {
   if (!doc || !doc.content) return doc;
+  // Warm up embedStore ref asynchronously (no-op if already done).
+  // The result is intentionally not awaited — this function must remain
+  // synchronous for TipTap. The ref will be ready for the next render cycle.
+  _ensureEmbedStore().catch(() => {
+    /* ignore — embedStore may not be loaded in SSR/test envs */
+  });
   return convertEmbedLinksInNode(doc);
 }
 // ──────────────────────────────────────────────────────────────────────────────

@@ -2975,7 +2975,49 @@ async def handle_main_processing(
                 # Filter results for current LLM inference (removes non-essential fields to reduce tokens)
                 # Full results are kept in preview_data for UI rendering and will be stored in chat history
                 filtered_results = _filter_skill_results_for_llm(results, ignore_fields_for_inference) if not is_async_skill else []
-                
+
+                # Inject embed_ref slugs into composite skill results (web search, flights, places, etc.)
+                # CRITICAL: Slugs are generated HERE (once) so that:
+                #   1. The LLM sees them in the tool result → can write [text](embed:ref) inline refs
+                #   2. The SAME slugs are baked into child embed TOON by update_embed_with_results
+                #      (which reads embed_ref from the result dict if already present)
+                # Generating slugs in two places would produce different random suffixes → ref mismatch.
+                _composite_skill_ids = {"search", "places_search", "events_search", "search_connections", "search_stays"}
+                if skill_id in _composite_skill_ids and not is_async_skill and not is_multimodal_result:
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService as _EmbedSvc
+                        _child_type = _EmbedSvc.get_child_embed_type(app_id, skill_id)
+                        _seen_refs: Dict[str, int] = {}
+                        results_with_refs = []
+                        for _r in results:
+                            _raw_ref = _EmbedSvc._generate_embed_ref_slug(_child_type, _r)
+                            _unique_ref = _EmbedSvc._unique_embed_ref(_raw_ref, _seen_refs)
+                            _r_with_ref = dict(_r)
+                            _r_with_ref["embed_ref"] = _unique_ref
+                            results_with_refs.append(_r_with_ref)
+                        logger.debug(
+                            f"{log_prefix} Pre-generated embed_ref slugs for {len(results_with_refs)} "
+                            f"{_child_type} results (single source of truth for tool result + child TOON)"
+                        )
+                        # Also annotate grouped_results so per-group embed calls use the same slugs.
+                        # We match by position within each group to the flat results_with_refs list.
+                        if grouped_results:
+                            _ref_iter = iter(results_with_refs)
+                            for _gr in grouped_results:
+                                _gr_results = _gr.get("results", [])
+                                _gr["results"] = []
+                                for _grr in _gr_results:
+                                    try:
+                                        _grr_with_ref = next(_ref_iter)
+                                    except StopIteration:
+                                        _grr_with_ref = _grr  # safety fallback
+                                    _gr["results"].append(_grr_with_ref)
+                    except Exception as _slug_err:
+                        logger.warning(f"{log_prefix} embed_ref slug pre-generation failed, falling back to per-embed generation: {_slug_err}")
+                        results_with_refs = results
+                else:
+                    results_with_refs = results
+
                 # CRITICAL: Store FULL results (not filtered) in chat history for persistence
                 # This ensures all fields from Brave search (page_age, profile.name, url, etc.) are available
                 # for future LLM calls and UI rendering. The filtered version is only used for the current LLM call.
@@ -2986,29 +3028,6 @@ async def handle_main_processing(
                 # This ensures efficient encoding with tabular arrays instead of repeated field names
                 if not is_async_skill and not is_multimodal_result:
                     try:
-                        # Inject embed_ref slugs into composite skill results (web search, flights, places, etc.)
-                        # so the LLM can use [text](embed:ref) inline references in the SAME response where
-                        # the skill ran, not only in follow-up turns. This mirrors what embed_service does when
-                        # storing child embeds — the slug must match so the frontend can resolve the reference.
-                        _composite_skill_ids = {"search", "places_search", "events_search", "search_connections", "search_stays"}
-                        if skill_id in _composite_skill_ids:
-                            from backend.core.api.app.services.embed_service import EmbedService as _EmbedSvc
-                            _child_type = _EmbedSvc.get_child_embed_type(app_id, skill_id)
-                            _seen_refs: Dict[str, int] = {}
-                            results_with_refs = []
-                            for _r in results:
-                                _raw_ref = _EmbedSvc._generate_embed_ref_slug(_child_type, _r)
-                                _unique_ref = _EmbedSvc._unique_embed_ref(_raw_ref, _seen_refs)
-                                _r_with_ref = dict(_r)
-                                _r_with_ref["embed_ref"] = _unique_ref
-                                results_with_refs.append(_r_with_ref)
-                            logger.debug(
-                                f"{log_prefix} Injected embed_ref slugs into {len(results_with_refs)} "
-                                f"{_child_type} results for inline LLM references"
-                            )
-                        else:
-                            results_with_refs = results
-
                         # DEBUG: Log original JSON structure (first 15 lines)
                         json_before = json.dumps(results_with_refs, indent=2) if len(results_with_refs) == 1 else json.dumps({"results": results_with_refs, "count": len(results_with_refs)}, indent=2)
                         json_lines = json_before.split('\n')
@@ -3301,6 +3320,11 @@ async def handle_main_processing(
                                         f"{log_prefix} Updating placeholder {placeholder_embed_id} with results for request {request_id}"
                                     )
                                     
+                                    # CRITICAL: Pass request_results directly — for grouped multi-request
+                                    # skills, grouped_results[i]["results"] was already annotated with
+                                    # pre-generated embed_ref slugs in the results_with_refs block above
+                                    # (via in-place patch of grouped_results). So request_results here
+                                    # already carries embed_ref → embed_service will reuse it, not regenerate.
                                     updated_embed_data = await embed_service.update_embed_with_results(
                                         embed_id=placeholder_embed_id,
                                         app_id=app_id,
@@ -3423,11 +3447,12 @@ async def handle_main_processing(
                                         # Filter out None values
                                         placeholder_metadata = {k: v for k, v in placeholder_metadata.items() if v is not None}
                                         
+                                        # CRITICAL: Pass results_with_refs (pre-generated embed_ref slugs)
                                         updated_embed_data = await embed_service.update_embed_with_results(
                                             embed_id=embed_id,
                                             app_id=app_id,
                                             skill_id=skill_id,
-                                            results=results,  # Same results for all placeholders
+                                            results=results_with_refs,  # Pre-annotated with embed_ref
                                             chat_id=request_data.chat_id,
                                             message_id=request_data.message_id,
                                             user_id=request_data.user_id,
@@ -3494,11 +3519,14 @@ async def handle_main_processing(
                                                 f"len: {len(first_result) if hasattr(first_result, '__len__') else 'N/A'}"
                                             )
                                     
+                                    # CRITICAL: Pass results_with_refs so embed_service receives the
+                                    # pre-generated embed_ref slugs (same slugs the LLM saw in the
+                                    # tool_result_content_str). This prevents the slug-mismatch bug.
                                     updated_embed_data = await embed_service.update_embed_with_results(
                                         embed_id=single_embed_id,
                                         app_id=app_id,
                                         skill_id=skill_id,
-                                        results=results,
+                                        results=results_with_refs,
                                         chat_id=request_data.chat_id,
                                         message_id=request_data.message_id,
                                         user_id=request_data.user_id,
@@ -3520,10 +3548,11 @@ async def handle_main_processing(
                                     logger.warning(f"{log_prefix} Failed to update embed for '{tool_name}'")
                             else:
                                 # No placeholder, create new embed
+                                # CRITICAL: Pass results_with_refs (pre-generated embed_ref slugs)
                                 embed_data = await embed_service.create_embeds_from_skill_results(
                                     app_id=app_id,
                                     skill_id=skill_id,
-                                    results=results,
+                                    results=results_with_refs,
                                     chat_id=request_data.chat_id,
                                     message_id=request_data.message_id,
                                     user_id=request_data.user_id,
