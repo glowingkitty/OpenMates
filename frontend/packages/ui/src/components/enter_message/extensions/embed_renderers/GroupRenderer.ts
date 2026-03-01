@@ -31,6 +31,7 @@ import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPrev
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
+import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -772,6 +773,24 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             query: query || "",
             provider: provider || "Brave Search",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "events" && skillId === "search") {
+        const component = mount(EventsSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Meetup",
             status,
             results,
             taskId,
