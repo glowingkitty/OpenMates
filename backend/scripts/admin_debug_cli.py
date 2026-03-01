@@ -43,10 +43,15 @@ Examples:
     docker exec api python /app/backend/scripts/admin_debug_cli.py issues
 
     # Trigger a full self-update of the upload server (git pull + rebuild + restart)
+    # Automatically polls /admin/update/status until done and prints per-step results
     docker exec api python /app/backend/scripts/admin_debug_cli.py upload-update
 
     # Trigger a full self-update of the preview server
     docker exec api python /app/backend/scripts/admin_debug_cli.py preview-update
+
+    # Poll the current/last update status without triggering a new update
+    docker exec api python /app/backend/scripts/admin_debug_cli.py upload-status
+    docker exec api python /app/backend/scripts/admin_debug_cli.py preview-status
 
     # Inspect a user
     docker exec api python /app/backend/scripts/admin_debug_cli.py user someone@example.com
@@ -138,6 +143,10 @@ PREVIEW_SERVER_URL = "https://preview.openmates.org/admin/logs"
 # Served by the admin-sidecar container. Never available on the core API server.
 UPLOAD_SERVER_UPDATE_URL = "https://upload.openmates.org/admin/update"
 PREVIEW_SERVER_UPDATE_URL = "https://preview.openmates.org/admin/update"
+
+# Status endpoints — poll the current/last update status (no side effects).
+UPLOAD_SERVER_STATUS_URL = "https://upload.openmates.org/admin/update/status"
+PREVIEW_SERVER_STATUS_URL = "https://preview.openmates.org/admin/update/status"
 
 
 async def get_api_key_from_vault() -> str:
@@ -442,32 +451,40 @@ async def cmd_preview_logs(args, _unused_api_key: str):
         print(output)
 
 
-async def _trigger_satellite_update(url: str, api_key: str, server_name: str) -> None:
+async def _trigger_satellite_update(
+    update_url: str,
+    status_url: str,
+    api_key: str,
+    server_name: str,
+    poll_timeout_s: int = 720,
+) -> None:
     """
-    Call the POST /admin/update endpoint on a satellite server (upload or preview).
-
-    The endpoint is fire-and-forget: it returns 202 immediately and runs the
-    update (git pull + docker compose build + up -d) in the background.
-    Use the corresponding *-logs command to monitor progress afterward.
+    Call the POST /admin/update endpoint on a satellite server (upload or preview),
+    then poll GET /admin/update/status until the update completes or times out.
 
     Args:
-        url:         Full URL of the /admin/update endpoint.
-        api_key:     X-Admin-Log-Key secret.
-        server_name: Human-readable name for error messages (e.g. "upload server").
+        update_url:     Full URL of the /admin/update endpoint.
+        status_url:     Full URL of the /admin/update/status endpoint.
+        api_key:        X-Admin-Log-Key secret.
+        server_name:    Human-readable name for error messages (e.g. "upload server").
+        poll_timeout_s: Maximum seconds to wait for completion (default: 720 = 12 min).
     """
+    import time as _time
+
     headers = {"X-Admin-Log-Key": api_key}
 
+    # ── Step 1: trigger the update ──────────────────────────────────────────
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, headers=headers)
+            response = await client.post(update_url, headers=headers)
 
         if response.status_code == 401:
             print("Error: Invalid admin log API key", file=sys.stderr)
             sys.exit(1)
         elif response.status_code == 409:
-            print("Error: An update is already in progress on the server.", file=sys.stderr)
-            print("Use the *-logs command to monitor it.", file=sys.stderr)
-            sys.exit(1)
+            print(f"Note: An update is already in progress on the {server_name}.")
+            print("Polling status until it completes...\n")
+            # Fall through to polling below — no need to trigger again
         elif response.status_code == 503:
             print(
                 "Error: Admin update endpoint not configured on the server "
@@ -475,24 +492,112 @@ async def _trigger_satellite_update(url: str, api_key: str, server_name: str) ->
                 file=sys.stderr,
             )
             sys.exit(1)
+        elif response.status_code == 404:
+            # Older sidecar without /admin/update/status — fall back to simple trigger
+            print("Note: This sidecar does not support status polling (old version).")
+            print("Update triggered. Check logs manually with *-logs command.")
+            return
         elif response.status_code != 202:
             print(f"Error: Server returned {response.status_code}", file=sys.stderr)
             print(response.text, file=sys.stderr)
             sys.exit(1)
-
-        # 202 Accepted — update started in background
-        try:
-            data = response.json()
-            print(data.get("message", "Update accepted."))
-        except Exception:
-            print("Update accepted (202).")
+        else:
+            # 202 Accepted
+            try:
+                data = response.json()
+                print(data.get("message", "Update accepted (202). Polling for completion...\n"))
+            except Exception:
+                print("Update accepted (202). Polling for completion...\n")
 
     except httpx.ConnectError:
-        print(f"Error: Could not connect to {url}", file=sys.stderr)
+        print(f"Error: Could not connect to {update_url}", file=sys.stderr)
         sys.exit(1)
     except httpx.TimeoutException:
         print("Error: Request timed out", file=sys.stderr)
         sys.exit(1)
+
+    # ── Step 2: poll /admin/update/status until done ────────────────────────
+    poll_interval_s = 10
+    deadline = _time.monotonic() + poll_timeout_s
+    dots = 0
+
+    while _time.monotonic() < deadline:
+        await asyncio.sleep(poll_interval_s)
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                status_resp = await client.get(status_url, headers=headers)
+        except (httpx.ConnectError, httpx.TimeoutException):
+            # Network hiccup during rebuild — the container may be restarting
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Waiting for server to come back...", flush=True)
+            continue
+
+        if status_resp.status_code == 404:
+            # "never_run" — sidecar restarted and has no record of an update;
+            # this means the rebuild succeeded (new container running).
+            print("\n  Server restarted with fresh sidecar (no update record — rebuild likely succeeded).")
+            print("  Verify by checking logs: upload-logs --services admin-sidecar --since 5")
+            return
+
+        if status_resp.status_code not in (200, 404):
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Status poll returned HTTP {status_resp.status_code} — retrying...")
+            continue
+
+        try:
+            status_data = status_resp.json()
+        except Exception:
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Could not parse status response — retrying...")
+            continue
+
+        status = status_data.get("status", "unknown")
+
+        if status == "in_progress":
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Update in progress...", flush=True)
+            continue
+
+        # Completed (success or failed)
+        _print_update_status(status_data, server_name)
+        if status != "success":
+            sys.exit(1)
+        return
+
+    # Timed out
+    print(
+        f"\nError: Update did not complete within {poll_timeout_s}s. "
+        "Check logs manually with *-logs --services admin-sidecar.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
+def _print_update_status(data: dict, server_name: str) -> None:
+    """Pretty-print a completed update status response."""
+    status = data.get("status", "unknown")
+    icon = "✓" if status == "success" else "✗"
+    print(f"\n{icon} Update {status.upper()} on {server_name}")
+    print(f"  Started:  {data.get('started_at', 'N/A')}")
+    print(f"  Finished: {data.get('finished_at', 'N/A')}")
+    print(f"  Duration: {data.get('duration_s', '?')}s")
+    print(f"  Target:   {data.get('target', 'N/A')}")
+    if data.get("extras"):
+        print(f"  Extras:   {', '.join(data['extras'])}")
+    steps = data.get("steps", [])
+    if steps:
+        print("\n  Steps:")
+        for step in steps:
+            step_icon = "✓" if step.get("success") else "✗"
+            print(f"    {step_icon} {step.get('name')}  ({step.get('duration_s', '?')}s)")
+            if not step.get("success") and step.get("output"):
+                # Print last 600 chars of output for failed steps
+                output_tail = step["output"][-600:].strip()
+                if output_tail:
+                    for line in output_tail.splitlines():
+                        print(f"         {line}")
+    if data.get("error"):
+        print(f"\n  Error: {data['error']}")
 
 
 async def cmd_upload_update(args, _unused_api_key: str):
@@ -506,8 +611,9 @@ async def cmd_upload_update(args, _unused_api_key: str):
       1. git pull
       2. docker compose build app-uploads
       3. docker compose up -d app-uploads
+      4. docker compose up -d vault-setup  (if SERVICE_UPDATE_EXTRAS is set)
 
-    Progress is streamed line by line so the operator sees live output.
+    Then polls GET /admin/update/status every 10s until done, printing per-step results.
     """
     api_key = await get_satellite_log_key(
         vault_path="kv/data/providers/upload_server",
@@ -517,7 +623,8 @@ async def cmd_upload_update(args, _unused_api_key: str):
 
     print("=== Triggering update on upload server ===\n")
     await _trigger_satellite_update(
-        url=UPLOAD_SERVER_UPDATE_URL,
+        update_url=UPLOAD_SERVER_UPDATE_URL,
+        status_url=UPLOAD_SERVER_STATUS_URL,
         api_key=api_key,
         server_name="upload server",
     )
@@ -535,7 +642,7 @@ async def cmd_preview_update(args, _unused_api_key: str):
       2. docker compose build preview
       3. docker compose up -d preview
 
-    Progress is streamed line by line so the operator sees live output.
+    Then polls GET /admin/update/status every 10s until done, printing per-step results.
     """
     api_key = await get_satellite_log_key(
         vault_path="kv/data/providers/preview_server",
@@ -545,7 +652,102 @@ async def cmd_preview_update(args, _unused_api_key: str):
 
     print("=== Triggering update on preview server ===\n")
     await _trigger_satellite_update(
-        url=PREVIEW_SERVER_UPDATE_URL,
+        update_url=PREVIEW_SERVER_UPDATE_URL,
+        status_url=PREVIEW_SERVER_STATUS_URL,
+        api_key=api_key,
+        server_name="preview server",
+    )
+
+
+async def _fetch_satellite_status(status_url: str, api_key: str, server_name: str) -> None:
+    """
+    Fetch and display the current/last update status from a satellite server.
+
+    Args:
+        status_url:  Full URL of the /admin/update/status endpoint.
+        api_key:     X-Admin-Log-Key secret.
+        server_name: Human-readable server name.
+    """
+    headers = {"X-Admin-Log-Key": api_key}
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(status_url, headers=headers)
+    except httpx.ConnectError:
+        print(f"Error: Could not connect to {status_url}", file=sys.stderr)
+        sys.exit(1)
+    except httpx.TimeoutException:
+        print("Error: Request timed out", file=sys.stderr)
+        sys.exit(1)
+
+    if response.status_code == 401:
+        print("Error: Invalid admin log API key", file=sys.stderr)
+        sys.exit(1)
+    elif response.status_code == 404:
+        try:
+            data = response.json()
+            if data.get("status") == "never_run":
+                print(f"No update has run on {server_name} since the sidecar last started.")
+                return
+        except Exception:
+            pass
+        print("Error: Status endpoint returned 404 — sidecar may be an older version", file=sys.stderr)
+        sys.exit(1)
+    elif response.status_code != 200:
+        print(f"Error: Server returned {response.status_code}", file=sys.stderr)
+        print(response.text, file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        data = response.json()
+    except Exception:
+        print("Error: Could not parse status response", file=sys.stderr)
+        sys.exit(1)
+
+    status = data.get("status", "unknown")
+    if status == "in_progress":
+        print(f"Update is currently IN PROGRESS on {server_name}.")
+        print(f"  Target: {data.get('target', 'N/A')}")
+        if data.get("extras"):
+            print(f"  Extras: {', '.join(data['extras'])}")
+        print("\nPoll again in a few seconds, or check sidecar logs:")
+        print("  upload-logs --services admin-sidecar --since 5")
+    else:
+        _print_update_status(data, server_name)
+
+
+async def cmd_upload_status(args, _unused_api_key: str):
+    """
+    Poll the current/last update status on the upload server.
+
+    Calls GET https://upload.openmates.org/admin/update/status — no side effects.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/upload_server",
+        vault_key="admin_log_api_key",
+        server_name="upload server",
+    )
+    print("=== Upload Server Update Status ===\n")
+    await _fetch_satellite_status(
+        status_url=UPLOAD_SERVER_STATUS_URL,
+        api_key=api_key,
+        server_name="upload server",
+    )
+
+
+async def cmd_preview_status(args, _unused_api_key: str):
+    """
+    Poll the current/last update status on the preview server.
+
+    Calls GET https://preview.openmates.org/admin/update/status — no side effects.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/preview_server",
+        vault_key="admin_log_api_key",
+        server_name="preview server",
+    )
+    print("=== Preview Server Update Status ===\n")
+    await _fetch_satellite_status(
+        status_url=PREVIEW_SERVER_STATUS_URL,
         api_key=api_key,
         server_name="preview server",
     )
@@ -911,7 +1113,11 @@ async def async_main(args):
     """Async main function."""
     # Satellite commands fetch their own Vault keys internally — they don't need
     # the core API admin key and don't distinguish between dev and prod.
-    _satellite_commands = {"upload-logs", "preview-logs", "upload-update", "preview-update"}
+    _satellite_commands = {
+        "upload-logs", "preview-logs",
+        "upload-update", "preview-update",
+        "upload-status", "preview-status",
+    }
     if args.command in _satellite_commands:
         # Satellite commands are not server-specific (there is only one upload/preview VM).
         # Pass None as api_key — the commands fetch their own keys from Vault.
@@ -956,7 +1162,7 @@ def main():
     upload_logs_parser.add_argument(
         "--services", "-s",
         default=None,
-        help="Comma-separated services (default: app-uploads). Allowed: app-uploads, clamav, vault",
+        help="Comma-separated services (default: app-uploads). Allowed: app-uploads, clamav, vault, admin-sidecar",
     )
     upload_logs_parser.add_argument(
         "--lines", "-n",
@@ -1019,6 +1225,20 @@ def main():
         help="git pull + rebuild + restart the preview server (preview.openmates.org)",
     )
     preview_update_parser.set_defaults(func=cmd_preview_update)
+
+    # upload-status command — poll /admin/update/status (no side effects)
+    upload_status_parser = subparsers.add_parser(  # noqa: F841
+        "upload-status",
+        help="Poll the current/last update status on the upload server (no side effects)",
+    )
+    upload_status_parser.set_defaults(func=cmd_upload_status)
+
+    # preview-status command — poll /admin/update/status (no side effects)
+    preview_status_parser = subparsers.add_parser(  # noqa: F841
+        "preview-status",
+        help="Poll the current/last update status on the preview server (no side effects)",
+    )
+    preview_status_parser.set_defaults(func=cmd_preview_status)
 
     # issues command
     issues_parser = subparsers.add_parser("issues", help="List issue reports")

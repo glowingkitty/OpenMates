@@ -196,7 +196,8 @@ services:
       COMPOSE_FILE: "backend/upload/docker-compose.yml"
 
       # Which services are queryable via /admin/logs
-      SERVICES_ALLOWED: "app-uploads,clamav,vault"
+      # Includes admin-sidecar itself so its update logs are visible remotely
+      SERVICES_ALLOWED: "app-uploads,clamav,vault,admin-sidecar"
 
       # Which service to rebuild and restart via /admin/update
       SERVICE_UPDATE_TARGET: "app-uploads"

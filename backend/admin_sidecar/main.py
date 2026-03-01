@@ -9,9 +9,10 @@
 # compromised (e.g. by a malicious uploaded file on the upload server).
 #
 # Endpoints:
-#   GET  /admin/logs   — fetch recent Docker Compose logs (plain text)
-#   POST /admin/update — git pull + docker compose build + docker compose up -d
-#   GET  /health       — liveness probe
+#   GET  /admin/logs          — fetch recent Docker Compose logs (plain text)
+#   POST /admin/update        — git pull + docker compose build + docker compose up -d
+#   GET  /admin/update/status — poll the current/last update status (JSON)
+#   GET  /health              — liveness probe
 #
 # Authentication:
 #   All /admin/* endpoints require X-Admin-Log-Key matching ADMIN_LOG_API_KEY env var.
@@ -22,6 +23,9 @@
 #   COMPOSE_FILE           — path to docker-compose.yml (absolute or relative to GIT_WORK_DIR)
 #   SERVICES_ALLOWED       — comma-separated list of log-queryable services
 #   SERVICE_UPDATE_TARGET  — service name to rebuild and restart on /admin/update
+#   SERVICE_UPDATE_EXTRAS  — comma-separated list of ADDITIONAL services to restart after
+#                            the main target (e.g. "vault-setup" to re-populate secrets).
+#                            These are restarted with `docker compose up -d`, not rebuilt.
 #   GIT_WORK_DIR           — git repository root on the host (default: /app)
 #   PORT                   — port to listen on (default: 8001)
 #
@@ -35,11 +39,13 @@
 #     the caller uses /admin/logs to monitor progress afterward.
 
 import asyncio
+import datetime
 import logging
 import os
 import re
 import subprocess
 import sys
+import time
 from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Query
@@ -54,6 +60,7 @@ _COMPOSE_PROJECT = os.environ.get("COMPOSE_PROJECT", "")
 _COMPOSE_FILE = os.environ.get("COMPOSE_FILE", "")
 _SERVICES_ALLOWED_RAW = os.environ.get("SERVICES_ALLOWED", "")
 _SERVICE_UPDATE_TARGET = os.environ.get("SERVICE_UPDATE_TARGET", "")
+_SERVICE_UPDATE_EXTRAS_RAW = os.environ.get("SERVICE_UPDATE_EXTRAS", "")
 _GIT_WORK_DIR = os.environ.get("GIT_WORK_DIR", "/app")
 _PORT = int(os.environ.get("PORT", "8001"))
 
@@ -61,6 +68,11 @@ _PORT = int(os.environ.get("PORT", "8001"))
 _SERVICES_ALLOWED: set[str] = {
     s.strip() for s in _SERVICES_ALLOWED_RAW.split(",") if s.strip()
 }
+
+# Parse extra services to restart after the main target (e.g. vault-setup)
+_SERVICE_UPDATE_EXTRAS: list[str] = [
+    s.strip() for s in _SERVICE_UPDATE_EXTRAS_RAW.split(",") if s.strip()
+]
 
 # Hard limits
 _MAX_LINES = 500
@@ -71,8 +83,16 @@ _STEP_TIMEOUT_GIT = 120    # git pull can be slow on cold fetch
 _STEP_TIMEOUT_BUILD = 600  # docker compose build can take several minutes
 _STEP_TIMEOUT_UP = 60      # docker compose up -d is fast
 
-# Tracks whether an update is already in progress (prevents concurrent updates)
+# =============================================================================
+# Update state (in-memory — resets on sidecar restart)
+# =============================================================================
+
+# Whether an update is currently running (prevents concurrent updates)
 _update_in_progress = False
+
+# Result of the most recent completed update (None if none has run yet)
+_last_update_result: Optional[dict] = None
+
 
 # =============================================================================
 # Logging
@@ -97,7 +117,7 @@ app = FastAPI(
         "Runs as an isolated sidecar container with Docker socket access. "
         "Protected by X-Admin-Log-Key shared secret."
     ),
-    version="1.0.0",
+    version="1.1.0",
     # Never expose docs publicly — this is an internal admin tool
     docs_url=None,
     redoc_url=None,
@@ -235,17 +255,25 @@ async def _fetch_docker_logs(
 # Update helper
 # =============================================================================
 
-def _run_update_script() -> tuple[bool, str]:
+def _run_update_script() -> tuple[bool, str, list[dict]]:
     """
     Execute the full update sequence synchronously (intended for asyncio.to_thread).
 
     Steps:
-      1. git pull              — fetch latest code
-      2. docker compose build  — rebuild the target service image
-      3. docker compose up -d  — restart the target service
+      1. git pull                         — fetch latest code
+      2. docker compose build <target>    — rebuild the target service image
+      3. docker compose up -d <target>    — restart the target service with new image
+      4. docker compose up -d <extras>    — restart any extra services (e.g. vault-setup)
+                                           so that secrets/init work is re-run
 
     Returns:
-        (success: bool, log_output: str)
+        (success: bool, log_output: str, steps: list[dict])
+
+        Each step dict contains:
+          - name: str       — human-readable step label
+          - success: bool   — whether the step completed successfully
+          - duration_s: float — wall-clock seconds the step took
+          - output: str     — truncated stdout+stderr (max 2000 chars)
     """
     work_dir = _GIT_WORK_DIR
     compose_file_abs = (
@@ -254,11 +282,15 @@ def _run_update_script() -> tuple[bool, str]:
     target = _SERVICE_UPDATE_TARGET
 
     log_lines: list[str] = []
+    steps: list[dict] = []
 
     def _step(label: str, cmd: list[str], timeout: int) -> bool:
         """Run one step; append output to log_lines; return success."""
-        log_lines.append(f"=== {label} ===")
+        log_lines.append(f"\n=== {label} ===")
         logger.info("[AdminSidecar/update] Step '%s': %s", label, " ".join(cmd))
+        step_start = time.monotonic()
+        step_record: dict = {"name": label, "success": False, "duration_s": 0.0, "output": ""}
+        steps.append(step_record)
         try:
             result = subprocess.run(
                 cmd,
@@ -269,30 +301,59 @@ def _run_update_script() -> tuple[bool, str]:
             )
             combined = (result.stdout or "") + (result.stderr or "")
             log_lines.append(combined)
+            step_record["output"] = combined[:2000]
+            step_record["duration_s"] = round(time.monotonic() - step_start, 1)
             if result.returncode != 0:
                 logger.error(
-                    "[AdminSidecar/update] Step '%s' failed (exit %d): %s",
+                    "[AdminSidecar/update] Step '%s' FAILED (exit %d) after %.1fs:\n%s",
                     label,
                     result.returncode,
-                    combined[:500],
+                    step_record["duration_s"],
+                    combined[:1000],
                 )
                 return False
-            logger.info("[AdminSidecar/update] Step '%s' succeeded", label)
+            logger.info(
+                "[AdminSidecar/update] Step '%s' succeeded in %.1fs",
+                label,
+                step_record["duration_s"],
+            )
+            step_record["success"] = True
             return True
         except subprocess.TimeoutExpired:
+            elapsed = round(time.monotonic() - step_start, 1)
             msg = f"[Error] Timed out after {timeout}s"
             log_lines.append(msg)
-            logger.error("[AdminSidecar/update] Step '%s' timed out", label)
+            step_record["output"] = msg
+            step_record["duration_s"] = elapsed
+            logger.error(
+                "[AdminSidecar/update] Step '%s' timed out after %ds (elapsed %.1fs)",
+                label,
+                timeout,
+                elapsed,
+            )
             return False
         except FileNotFoundError as exc:
+            elapsed = round(time.monotonic() - step_start, 1)
             msg = f"[Error] Command not found: {exc}"
             log_lines.append(msg)
-            logger.error("[AdminSidecar/update] Step '%s' — command not found: %s", label, exc)
+            step_record["output"] = msg
+            step_record["duration_s"] = elapsed
+            logger.error(
+                "[AdminSidecar/update] Step '%s' — command not found: %s", label, exc
+            )
             return False
         except Exception as exc:
+            elapsed = round(time.monotonic() - step_start, 1)
             msg = f"[Error] {exc}"
             log_lines.append(msg)
-            logger.error("[AdminSidecar/update] Step '%s' unexpected error: %s", label, exc, exc_info=True)
+            step_record["output"] = msg
+            step_record["duration_s"] = elapsed
+            logger.error(
+                "[AdminSidecar/update] Step '%s' unexpected error: %s",
+                label,
+                exc,
+                exc_info=True,
+            )
             return False
 
     # Build compose base args (reused for build and up)
@@ -304,40 +365,100 @@ def _run_update_script() -> tuple[bool, str]:
 
     # Step 1: git pull
     if not _step("git pull", ["git", "pull"], _STEP_TIMEOUT_GIT):
-        return False, "\n".join(log_lines)
+        return False, "\n".join(log_lines), steps
 
-    # Step 2: docker compose build
+    # Step 2: docker compose build <target>
     if not _step(
         f"docker compose build {target}",
         compose_base + ["build", target],
         _STEP_TIMEOUT_BUILD,
     ):
-        return False, "\n".join(log_lines)
+        return False, "\n".join(log_lines), steps
 
-    # Step 3: docker compose up -d
+    # Step 3: docker compose up -d <target>
     if not _step(
         f"docker compose up -d {target}",
         compose_base + ["up", "-d", target],
         _STEP_TIMEOUT_UP,
     ):
-        return False, "\n".join(log_lines)
+        return False, "\n".join(log_lines), steps
 
-    return True, "\n".join(log_lines)
+    # Step 4 (optional): restart extra services (e.g. vault-setup re-populates secrets)
+    # These are NOT rebuilt — just restarted so their entrypoint re-runs.
+    if _SERVICE_UPDATE_EXTRAS:
+        extras_label = ", ".join(_SERVICE_UPDATE_EXTRAS)
+        if not _step(
+            f"docker compose up -d {extras_label} (extras — re-init secrets/setup)",
+            compose_base + ["up", "-d"] + _SERVICE_UPDATE_EXTRAS,
+            _STEP_TIMEOUT_UP,
+        ):
+            # Extra restart failure is logged but does NOT mark the overall update as failed,
+            # because the main service is already running the new code.
+            logger.warning(
+                "[AdminSidecar/update] Extra services restart failed — "
+                "main service is still up but secrets may not be refreshed"
+            )
+            log_lines.append(
+                "\n[Warning] Extra services restart failed — "
+                "main service is running new code but secrets may need manual refresh"
+            )
+
+    return True, "\n".join(log_lines), steps
 
 
-async def _run_update_background() -> None:
+async def _run_update_background(started_at: str) -> None:
     """
-    Run the update sequence in a background thread and release the lock when done.
+    Run the update sequence in a background thread and store the result.
+    Releases the in-progress lock when done and writes to _last_update_result.
     Meant to be launched as an asyncio background task via asyncio.create_task().
     """
-    global _update_in_progress
-    logger.info("[AdminSidecar/update] Starting background update")
+    global _update_in_progress, _last_update_result
+
+    logger.info("[AdminSidecar/update] Background update starting (started_at=%s)", started_at)
+    wall_start = time.monotonic()
+
     try:
-        success, output = await asyncio.to_thread(_run_update_script)
+        success, output, steps = await asyncio.to_thread(_run_update_script)
+        elapsed_s = round(time.monotonic() - wall_start, 1)
+
         if success:
-            logger.info("[AdminSidecar/update] Update completed successfully")
+            logger.info(
+                "[AdminSidecar/update] Update SUCCEEDED in %.1fs", elapsed_s
+            )
         else:
-            logger.error("[AdminSidecar/update] Update FAILED:\n%s", output[-2000:])
+            logger.error(
+                "[AdminSidecar/update] Update FAILED after %.1fs:\n%s",
+                elapsed_s,
+                output[-3000:],
+            )
+
+        _last_update_result = {
+            "status": "success" if success else "failed",
+            "started_at": started_at,
+            "finished_at": datetime.datetime.utcnow().isoformat() + "Z",
+            "duration_s": elapsed_s,
+            "target": _SERVICE_UPDATE_TARGET,
+            "extras": _SERVICE_UPDATE_EXTRAS,
+            "steps": steps,
+        }
+    except Exception as exc:
+        elapsed_s = round(time.monotonic() - wall_start, 1)
+        logger.error(
+            "[AdminSidecar/update] Unexpected error in background update after %.1fs: %s",
+            elapsed_s,
+            exc,
+            exc_info=True,
+        )
+        _last_update_result = {
+            "status": "failed",
+            "started_at": started_at,
+            "finished_at": datetime.datetime.utcnow().isoformat() + "Z",
+            "duration_s": elapsed_s,
+            "target": _SERVICE_UPDATE_TARGET,
+            "extras": _SERVICE_UPDATE_EXTRAS,
+            "steps": [],
+            "error": str(exc),
+        }
     finally:
         _update_in_progress = False
         logger.info("[AdminSidecar/update] Lock released")
@@ -424,7 +545,8 @@ async def get_admin_logs(
     description=(
         "Runs git pull, rebuilds the target Docker service image, and restarts it. "
         "Returns 202 immediately; update runs in the background. "
-        "Use GET /admin/logs to monitor progress. "
+        "Use GET /admin/update/status to poll progress. "
+        "Use GET /admin/logs?services=admin-sidecar to see detailed step output. "
         "Requires X-Admin-Log-Key header matching ADMIN_LOG_API_KEY env var.\n\n"
         "Returns 409 if an update is already in progress."
     ),
@@ -436,7 +558,7 @@ async def post_admin_update(
     Trigger a self-update: git pull → docker compose build → docker compose up -d.
 
     Returns 202 immediately. The update runs as a background task.
-    Use GET /admin/logs to monitor progress.
+    Use GET /admin/update/status to poll for completion.
 
     Returns 409 if an update is already running.
     Returns 503 if SERVICE_UPDATE_TARGET is not configured.
@@ -459,27 +581,88 @@ async def post_admin_update(
         logger.warning("[AdminSidecar/update] Update already in progress — rejecting request")
         raise HTTPException(
             status_code=409,
-            detail="An update is already in progress. Check /admin/logs for progress.",
+            detail="An update is already in progress. Use GET /admin/update/status to monitor.",
         )
 
     _update_in_progress = True
+    started_at = datetime.datetime.utcnow().isoformat() + "Z"
     logger.info(
-        "[AdminSidecar/update] Update triggered for service '%s'", _SERVICE_UPDATE_TARGET
+        "[AdminSidecar/update] Update triggered for service '%s' (extras: %s) at %s",
+        _SERVICE_UPDATE_TARGET,
+        _SERVICE_UPDATE_EXTRAS or "none",
+        started_at,
     )
 
     # Fire-and-forget: run in background, return 202 immediately
-    asyncio.create_task(_run_update_background())
+    asyncio.create_task(_run_update_background(started_at))
 
     return JSONResponse(
         status_code=202,
         content={
             "status": "accepted",
+            "started_at": started_at,
+            "target": _SERVICE_UPDATE_TARGET,
+            "extras": _SERVICE_UPDATE_EXTRAS,
             "message": (
                 f"Update started for service '{_SERVICE_UPDATE_TARGET}'. "
-                "Use GET /admin/logs to monitor progress."
+                "Poll GET /admin/update/status for progress, or "
+                "GET /admin/logs?services=admin-sidecar to see step-by-step output."
             ),
         },
     )
+
+
+@app.get(
+    "/admin/update/status",
+    summary="Poll the current or last update status",
+    description=(
+        "Returns the status of a running update (in_progress) or the result of the "
+        "last completed update (success / failed). Returns 404 if no update has run "
+        "since this sidecar last started. "
+        "Requires X-Admin-Log-Key header matching ADMIN_LOG_API_KEY env var."
+    ),
+)
+async def get_update_status(
+    x_admin_log_key: Optional[str] = Header(None),
+) -> JSONResponse:
+    """
+    Poll update progress.
+
+    Possible 'status' values:
+      - "in_progress" — an update is currently running
+      - "success"     — the last update completed successfully
+      - "failed"      — the last update failed (check 'steps' for which step failed)
+      - "never_run"   — no update has run since this sidecar container started
+
+    The 'steps' array in completed results contains per-step details:
+      - name, success, duration_s, output (truncated to 2000 chars)
+    """
+    _require_admin_key(x_admin_log_key)
+
+    if _update_in_progress:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "in_progress",
+                "target": _SERVICE_UPDATE_TARGET,
+                "extras": _SERVICE_UPDATE_EXTRAS,
+                "message": (
+                    "Update is currently running. "
+                    "GET /admin/logs?services=admin-sidecar to see live step output."
+                ),
+            },
+        )
+
+    if _last_update_result is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "status": "never_run",
+                "message": "No update has run since this sidecar last started.",
+            },
+        )
+
+    return JSONResponse(status_code=200, content=_last_update_result)
 
 
 # =============================================================================
@@ -491,13 +674,20 @@ async def _log_config() -> None:
     """Log effective configuration at startup."""
     logger.info("=" * 60)
     logger.info("OpenMates Admin Sidecar starting")
-    logger.info("  COMPOSE_PROJECT:       %s", _COMPOSE_PROJECT or "(not set)")
-    logger.info("  COMPOSE_FILE:          %s", _COMPOSE_FILE or "(not set)")
-    logger.info("  SERVICES_ALLOWED:      %s", sorted(_SERVICES_ALLOWED) or "(all)")
-    logger.info("  SERVICE_UPDATE_TARGET: %s", _SERVICE_UPDATE_TARGET or "(not set — update disabled)")
-    logger.info("  GIT_WORK_DIR:          %s", _GIT_WORK_DIR)
-    logger.info("  PORT:                  %d", _PORT)
-    logger.info("  ADMIN_LOG_API_KEY set: %s", bool(_ADMIN_KEY))
+    logger.info("  COMPOSE_PROJECT:         %s", _COMPOSE_PROJECT or "(not set)")
+    logger.info("  COMPOSE_FILE:            %s", _COMPOSE_FILE or "(not set)")
+    logger.info("  SERVICES_ALLOWED:        %s", sorted(_SERVICES_ALLOWED) or "(all)")
+    logger.info(
+        "  SERVICE_UPDATE_TARGET:   %s",
+        _SERVICE_UPDATE_TARGET or "(not set — update disabled)",
+    )
+    logger.info(
+        "  SERVICE_UPDATE_EXTRAS:   %s",
+        _SERVICE_UPDATE_EXTRAS or "(none)",
+    )
+    logger.info("  GIT_WORK_DIR:            %s", _GIT_WORK_DIR)
+    logger.info("  PORT:                    %d", _PORT)
+    logger.info("  ADMIN_LOG_API_KEY set:   %s", bool(_ADMIN_KEY))
     logger.info("=" * 60)
 
 
