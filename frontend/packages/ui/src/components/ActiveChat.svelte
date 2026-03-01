@@ -1309,11 +1309,20 @@
             }
         }
         
-        // If we already have this embed open, ignore duplicate events (e.g. hashchange deep-link echoes).
-        if (showEmbedFullscreen && embedFullscreenData?.embedId === embedId && embedFullscreenData?.embedType === resolvedEmbedType) {
+        // If we already have this embed open with the same child focus target, ignore duplicate
+        // events (e.g. hashchange deep-link echoes). But if focusChildEmbedId differs — meaning
+        // the user clicked a different inline badge that points to a different child result of the
+        // same parent embed — allow the update through so the fullscreen can switch to that child.
+        const alreadyOpenSameChild =
+            showEmbedFullscreen &&
+            embedFullscreenData?.embedId === embedId &&
+            embedFullscreenData?.embedType === resolvedEmbedType &&
+            (embedFullscreenData?.focusChildEmbedId ?? null) === (focusChildEmbedId ?? null);
+        if (alreadyOpenSameChild) {
             console.debug('[ActiveChat] Ignoring duplicate embedfullscreen event for already-open embed:', {
                 embedId,
-                resolvedEmbedType
+                resolvedEmbedType,
+                focusChildEmbedId
             });
             return;
         }
@@ -8294,7 +8303,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 <!-- Key block forces complete recreation when embed changes -->
                 <!-- This resets internal component state (e.g., selectedWebsite in WebSearchEmbedFullscreen) -->
                 <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
-                {#key embedFullscreenData.embedId}
+                <!-- Also key on focusChildEmbedId: clicking a different inline badge of the same parent embed
+                     (same embedId, same type) must still re-mount the fullscreen so it opens the correct child. -->
+                {#key `${embedFullscreenData.embedId}:${embedFullscreenData.focusChildEmbedId ?? ''}`}
                 {#if embedFullscreenData.embedType === 'app-skill-use'}
                     {@const skillId = embedFullscreenData.decodedContent?.skill_id || ''}
                     {@const appId = embedFullscreenData.decodedContent?.app_id || ''}
