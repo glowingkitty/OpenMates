@@ -1702,6 +1702,98 @@ pdf.description:
   cs: "Nahrajte PDF a \u010dt\u011bte nebo prohledejte jejich obsah."
   sv: "Ladda upp PDF och l\u00e4s eller s\u00f6k i inneh\u00e5llet."
   verified_by_human: [en, de]
+math:
+  context: App name for the Math app
+  en: Math
+  de: Mathe
+  zh: 数学
+  es: Matemáticas
+  fr: Maths
+  pt: Matemática
+  ru: Математика
+  ja: 数学
+  ko: 수학
+  it: Matematica
+  tr: Matematik
+  vi: Toán học
+  id: Matematika
+  pl: Matematyka
+  nl: Wiskunde
+  ar: رياضيات
+  hi: गणित
+  th: คณิตศาสตร์
+  cs: Matematika
+  sv: Matematik
+  verified_by_human: []
+math.description:
+  context: Description for the Math app
+  en: Solve equations, calculate, and plot functions.
+  de: Gleichungen lösen, berechnen und Funktionen zeichnen.
+  zh: 求解方程、计算和绘制函数图像。
+  es: Resuelve ecuaciones, calcula y traza funciones.
+  fr: Résolvez des équations, calculez et tracez des fonctions.
+  pt: Resolva equações, calcule e trace funções.
+  ru: Решайте уравнения, вычисляйте и стройте графики функций.
+  ja: 方程式を解いたり、計算したり、関数をグラフ化しましょう。
+  ko: 방정식을 풀고, 계산하고, 함수를 그려보세요.
+  it: Risolvi equazioni, calcola e traccia funzioni.
+  tr: Denklemleri çözün, hesaplayın ve fonksiyonları çizin.
+  vi: Giải phương trình, tính toán và vẽ đồ thị hàm số.
+  id: Selesaikan persamaan, hitung, dan plot fungsi.
+  pl: Rozwiązuj równania, obliczaj i rysuj wykresy funkcji.
+  nl: Los vergelijkingen op, bereken en plot functies.
+  ar: حل المعادلات والحساب ورسم الدوال.
+  hi: समीकरण हल करें, गणना करें और फ़ंक्शन प्लॉट करें।
+  th: แก้สมการ คำนวณ และพล็อตฟังก์ชัน
+  cs: Řešte rovnice, počítejte a kreslete grafy funkcí.
+  sv: Lös ekvationer, beräkna och rita funktioner.
+  verified_by_human: []
+math.calculate:
+  context: Skill name for calculate in Math app
+  en: Calculate
+  de: Berechnen
+  zh: 计算
+  es: Calcular
+  fr: Calculer
+  pt: Calcular
+  ru: Вычислить
+  ja: 計算する
+  ko: 계산하기
+  it: Calcola
+  tr: Hesapla
+  vi: Tính toán
+  id: Hitung
+  pl: Oblicz
+  nl: Berekenen
+  ar: احسب
+  hi: गणना करें
+  th: คำนวณ
+  cs: Vypočítat
+  sv: Beräkna
+  verified_by_human: []
+math.calculate.description:
+  context: Description for the calculate skill in Math app
+  en: Evaluate expressions, solve equations, and compute derivatives or integrals.
+  de: Ausdrücke auswerten, Gleichungen lösen und Ableitungen oder Integrale berechnen.
+  zh: 评估表达式、求解方程并计算导数或积分。
+  es: Evalúa expresiones, resuelve ecuaciones y calcula derivadas o integrales.
+  fr: Évaluez des expressions, résolvez des équations et calculez des dérivées ou des intégrales.
+  pt: Avalie expressões, resolva equações e calcule derivadas ou integrais.
+  ru: Вычисляйте выражения, решайте уравнения и находите производные или интегралы.
+  ja: 式を評価し、方程式を解き、導関数や積分を計算する。
+  ko: 식을 평가하고 방정식을 풀고 미분 또는 적분을 계산하세요.
+  it: Valuta espressioni, risolvi equazioni e calcola derivate o integrali.
+  tr: İfadeleri değerlendirin, denklemleri çözün ve türev veya integralleri hesaplayın.
+  vi: Đánh giá biểu thức, giải phương trình và tính đạo hàm hoặc tích phân.
+  id: Evaluasi ekspresi, selesaikan persamaan, dan hitung turunan atau integral.
+  pl: Ewaluuj wyrażenia, rozwiązuj równania i obliczaj pochodne lub całki.
+  nl: Evalueer uitdrukkingen, los vergelijkingen op en bereken afgeleiden of integralen.
+  ar: قيّم التعابير وحل المعادلات واحسب المشتقات أو التكاملات.
+  hi: भाव का मूल्यांकन करें, समीकरण हल करें और अवकलज या समाकल की गणना करें।
+  th: ประเมินนิพจน์ แก้สมการ และคำนวณอนุพันธ์หรืออินทิกรัล
+  cs: Vyhodnoťte výrazy, řešte rovnice a počítejte derivace nebo integrály.
+  sv: Utvärdera uttryck, lös ekvationer och beräkna derivator eller integraler.
+  verified_by_human: []
 shopping:
   context: App name for the Shopping app
   en: Shopping

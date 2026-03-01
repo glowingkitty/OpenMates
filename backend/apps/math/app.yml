@@ -23,8 +23,8 @@ skills:
   # Calculate — evaluate expressions with guaranteed numerical/symbolic accuracy
   # -----------------------------------------------------------------------
   - id: calculate
-    name_translation_key: app_skills.math.calculate
-    description_translation_key: app_skills.math.calculate.description
+    name_translation_key: math.calculate
+    description_translation_key: math.calculate.description
     icon_image: math.svg
     preprocessor_hint: >
       Calculate, evaluate, or solve mathematical expressions and equations accurately.
@@ -37,8 +37,7 @@ skills:
       backend.apps.math.skills.calculate_skill.CalculateSkill
     # Fixed 1-credit cost per calculation — the minimum fallback for all app skills
     pricing:
-      fixed:
-        credits: 1
+      fixed: 1
     tool_schema:
       type: object
       properties:
