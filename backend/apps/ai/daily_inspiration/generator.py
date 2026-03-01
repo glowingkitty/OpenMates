@@ -165,11 +165,7 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                 "ABSOLUTE PROHIBITION — NO OPENMATES CONTENT: NEVER mention, reference, or allude to "
                 "OpenMates, the OpenMates platform, or any of its features under any circumstances. "
                 "Daily inspirations exist to spark genuine curiosity about the world — not to promote "
-                "this platform. If you see 'OpenMates' in any context, ignore it entirely. "
-                "EXCEPTION (non-OpenMates brands only): If a specific non-OpenMates product or brand "
-                "appears in the user's recent conversation topics (provided below), you may reference "
-                "it neutrally when it is genuinely central to an educational or curiosity-driven angle "
-                "— but still do not endorse or recommend it."
+                "this platform. If you see 'OpenMates' in any context, ignore it entirely."
             ),
             "parameters": {
                 "type": "object",
@@ -344,10 +340,7 @@ def _build_generation_prompt(
             "educational and curiosity-driven. "
             "ABSOLUTE PROHIBITION: Never mention OpenMates or this platform in any inspiration — "
             "not the name, not its features, not anything about it. Ignore any OpenMates reference "
-            "you may encounter. "
-            "The only exception (non-OpenMates brands only) is if a non-OpenMates product or brand "
-            "is already present in the user's conversation topics listed above — in that case you "
-            "may reference it neutrally as part of an educational angle, but still do not endorse it."
+            "you may encounter."
         )
         + lang_instruction
     )
