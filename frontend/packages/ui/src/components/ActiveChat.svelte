@@ -38,6 +38,7 @@
     import TravelStaysEmbedFullscreen from './embeds/travel/TravelStaysEmbedFullscreen.svelte';
     import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
     import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
+    import EventsSearchEmbedFullscreen from './embeds/events/EventsSearchEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
     import MathCalculateEmbedFullscreen from './embeds/math/MathCalculateEmbedFullscreen.svelte';
@@ -8549,6 +8550,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              showChatButton={showChatButtonInFullscreen}
                              onShowChat={handleShowChat}
                          />
+                     {:else if appId === 'events' && skillId === 'search'}
+                         <!-- Events Search Fullscreen -->
+                         <!-- Results are stored inline in the parent embed TOON (no child embeds) -->
+                         <EventsSearchEmbedFullscreen
+                             query={embedFullscreenData.decodedContent?.query || ''}
+                             provider={embedFullscreenData.decodedContent?.provider || 'Meetup'}
+                             results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
+                             embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             navigateDirection={embedNavigateDirection}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                         />
                      {:else if appId === 'videos' && skillId === 'get_transcript'}
                         <!-- Video Transcript Fullscreen -->
                         {@const previewData: VideoTranscriptSkillPreviewData = {
@@ -8902,7 +8920,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {:else if embedFullscreenData.embedType === 'math-plot'}
                     <!-- Math Plot Fullscreen (direct-type embed rendered from ```plot ... ``` blocks) -->
                     <MathPlotEmbedFullscreen
-                        plotSpec={typeof embedFullscreenData.decodedContent?.plot_spec === 'string' ? embedFullscreenData.decodedContent.plot_spec : (typeof embedFullscreenData.attrs?.code === 'string' ? embedFullscreenData.attrs.code : '')}
+                        plotSpec={typeof embedFullscreenData.decodedContent?.plot_spec === 'string' ? embedFullscreenData.decodedContent.plot_spec : (typeof embedFullscreenData.decodedContent?.['expression'] === 'string' ? embedFullscreenData.decodedContent['expression'] as string : (typeof embedFullscreenData.attrs?.code === 'string' ? embedFullscreenData.attrs.code : ''))}
                         title={typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : (typeof embedFullscreenData.attrs?.title === 'string' ? embedFullscreenData.attrs.title : 'Function Plot')}
                         embedId={embedFullscreenData.embedId}
                         onClose={handleCloseEmbedFullscreen}

@@ -880,10 +880,10 @@ class EmbedService:
 
             embed_id = str(uuid.uuid4())
 
-            # Placeholder content — expression will be filled in when the closing fence arrives
+            # Placeholder content — plot_spec will be filled in when the closing fence arrives
             placeholder_content = {
                 "type": "math-plot",
-                "expression": "",   # Raw expression from the plot block, filled in at finalization
+                "plot_spec": "",   # Raw expression from the plot block, filled in at finalization
                 "status": "processing",
             }
 
@@ -977,7 +977,7 @@ class EmbedService:
 
             updated_content = {
                 "type": "math-plot",
-                "expression": expression,
+                "plot_spec": expression,
                 "status": status,
             }
 

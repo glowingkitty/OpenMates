@@ -65,7 +65,10 @@
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     if (!data.decodedContent) return;
     const c = data.decodedContent;
+    // plot_spec is the canonical field name; expression is the legacy name (pre-rename).
+    // The fallback ensures embeds stored before the field rename still render correctly.
     if (typeof c.plot_spec === 'string') localPlotSpec = c.plot_spec;
+    else if (typeof c.expression === 'string') localPlotSpec = c.expression;
     if (typeof c.title === 'string') localTitle = c.title;
   }
 
