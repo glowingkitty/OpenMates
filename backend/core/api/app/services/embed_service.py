@@ -1819,6 +1819,8 @@ class EmbedService:
             return "place"
         elif skill_id == "events_search":
             return "event"
+        elif app_id == "events" and skill_id == "search":
+            return "event"
         else:
             return "website"  # Default: web search, news, videos, etc.
 

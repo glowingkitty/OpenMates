@@ -2,28 +2,30 @@
   frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
 
   Fullscreen view for Events Search skill embeds.
-  Uses UnifiedEmbedFullscreen as base.
+  Uses UnifiedEmbedFullscreen as base with unified child embed loading.
 
   Shows:
   - Header with search query and "via {provider}" formatting
   - List of event cards: title, date, event_type badge, location, RSVP count, link button
-  - Consistent BasicInfosBar at the bottom (matches preview)
 
   Architecture note:
-  Events results are stored inline in the parent embed TOON (not as separate child embeds
-  like news/web search). So we use legacyResults and do NOT pass embedIds or childEmbedTransformer.
-  This is the simplest fullscreen pattern in the codebase.
+  Events results are stored as SEPARATE CHILD EMBEDS (like news/web search) — NOT inline in
+  the parent embed TOON. The parent embed carries `embed_ids` pointing to the individual event
+  child embeds. We use embedIds + childEmbedTransformer so UnifiedEmbedFullscreen handles loading.
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
 
   /**
    * Single event result from the events/search skill backend.
+   * Produced by childEmbedTransformer from each child embed's decoded TOON content.
    * See backend/apps/events/skills/search_skill.py for the full schema.
    */
   interface EventResult {
+    /** Child embed ID (required for keying #each) */
+    embed_id: string;
     id?: string;
     provider?: string;
     title?: string;
@@ -60,15 +62,17 @@
 
   /**
    * Props for events search embed fullscreen.
-   * Results are passed inline (no child embeds needed).
+   * Child embeds are loaded automatically via UnifiedEmbedFullscreen when embedIds is provided.
    */
   interface Props {
     /** Search query */
     query: string;
     /** Events provider (e.g., 'Meetup') */
     provider: string;
-    /** Event results (inline, not child embeds) */
-    results?: EventResult[];
+    /** Pipe-separated embed IDs or array — loaded automatically by UnifiedEmbedFullscreen */
+    embedIds?: string | string[];
+    /** Processing status */
+    status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing */
@@ -90,9 +94,10 @@
   }
 
   let {
-    query,
-    provider,
-    results: resultsProp = [],
+    query: queryProp,
+    provider: providerProp,
+    embedIds,
+    status: statusProp,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -104,14 +109,126 @@
     onShowChat
   }: Props = $props();
 
+  // ── Local state ─────────────────────────────────────────────────────────────
+  let localQuery    = $state('');
+  let localProvider = $state('Meetup');
+  let localStatus   = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  // embedIdsOverride: updated by handleEmbedDataUpdated when new embed_ids arrive via streaming.
+  // Use override ?? prop so the prop value is available immediately on mount (before any $effect).
+  let embedIdsOverride = $state<string | string[] | undefined>(undefined);
+  let embedIdsValue    = $derived(embedIdsOverride ?? embedIds);
+
+  $effect(() => {
+    localQuery    = queryProp    || '';
+    localProvider = providerProp || 'Meetup';
+    localStatus   = statusProp   || 'finished';
+  });
+
+  let query    = $derived(localQuery);
+  let provider = $derived(localProvider);
+  let status   = $derived(localStatus);
+
   // Header props for gradient banner
-  let embedHeaderTitle = $derived(query);
+  let embedHeaderTitle    = $derived(query);
   let embedHeaderSubtitle = $derived(`${$text('embeds.via')} ${provider}`);
 
-  // Detect mobile layout
+  // Detect mobile layout via container queries (not window.innerWidth) is preferred in fullscreen,
+  // but for backwards compat with event-list class-based mobile detection we keep it minimal here.
   let isMobile = $derived(
     typeof window !== 'undefined' && window.innerWidth <= 500
   );
+
+  // ── Child embed transformer ──────────────────────────────────────────────────
+  /**
+   * Converts raw decoded TOON content of each child embed into a typed EventResult.
+   * Called once per child embed by UnifiedEmbedFullscreen.
+   *
+   * Child embed TOON content mirrors the fields written by search_skill.py:
+   *   id, provider, title, description, url, date_start, date_end, timezone,
+   *   event_type, venue (name/address/city/state/country/lat/lon), organizer
+   *   (id/name/slug), rsvp_count, is_paid, fee (amount/currency), image_url, type
+   *
+   * TOON flattening converts nested objects like venue.city → venue_city, so we
+   * check both nested and flat field names to be robust.
+   */
+  function transformToEventResult(childEmbedId: string, content: Record<string, unknown>): EventResult {
+    // Venue may be a nested object (raw) or TOON-flattened (venue_city, venue_country, …)
+    let venue: EventResult['venue'] | undefined;
+    if (content.venue && typeof content.venue === 'object') {
+      const v = content.venue as Record<string, unknown>;
+      venue = {
+        name:    v.name    as string | undefined,
+        address: v.address as string | undefined,
+        city:    v.city    as string | undefined,
+        state:   v.state   as string | undefined,
+        country: v.country as string | undefined,
+        lat:     v.lat     as number | undefined,
+        lon:     v.lon     as number | undefined,
+      };
+    } else if (content.venue_city || content.venue_country) {
+      // TOON-flattened fields
+      venue = {
+        name:    content.venue_name    as string | undefined,
+        address: content.venue_address as string | undefined,
+        city:    content.venue_city    as string | undefined,
+        state:   content.venue_state   as string | undefined,
+        country: content.venue_country as string | undefined,
+        lat:     content.venue_lat     as number | undefined,
+        lon:     content.venue_lon     as number | undefined,
+      };
+    }
+
+    // Fee may be nested or flattened
+    let fee: EventResult['fee'] | undefined;
+    if (content.fee && typeof content.fee === 'object') {
+      const f = content.fee as Record<string, unknown>;
+      fee = { amount: f.amount as number | undefined, currency: f.currency as string | undefined };
+    } else if (content.fee_amount != null) {
+      fee = { amount: content.fee_amount as number | undefined, currency: content.fee_currency as string | undefined };
+    }
+
+    // Organizer may be nested or flattened
+    let organizer: EventResult['organizer'] | undefined;
+    if (content.organizer && typeof content.organizer === 'object') {
+      const o = content.organizer as Record<string, unknown>;
+      organizer = { id: o.id as string | undefined, name: o.name as string | undefined, slug: o.slug as string | undefined };
+    } else if (content.organizer_name) {
+      organizer = { id: content.organizer_id as string | undefined, name: content.organizer_name as string | undefined, slug: content.organizer_slug as string | undefined };
+    }
+
+    return {
+      embed_id:   childEmbedId,
+      id:         content.id          as string | undefined,
+      provider:   content.provider    as string | undefined,
+      title:      content.title       as string | undefined,
+      description:content.description as string | undefined,
+      url:        content.url         as string | undefined,
+      date_start: content.date_start  as string | undefined,
+      date_end:   content.date_end    as string | undefined,
+      timezone:   content.timezone    as string | undefined,
+      event_type: content.event_type  as string | undefined,
+      venue,
+      organizer,
+      rsvp_count: content.rsvp_count  as number | undefined,
+      is_paid:    content.is_paid     as boolean | undefined,
+      fee,
+      image_url:  content.image_url   as string | null | undefined,
+    };
+  }
+
+  // ── Embed data updates ───────────────────────────────────────────────────────
+  function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
+    if (!data.decodedContent) return;
+    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
+      localStatus = data.status;
+    }
+    const c = data.decodedContent;
+    if (typeof c.query    === 'string') localQuery    = c.query;
+    if (typeof c.provider === 'string') localProvider = c.provider;
+    if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
+  }
+
+  // ── Display helpers ──────────────────────────────────────────────────────────
 
   /**
    * Format a date_start ISO string to a readable local date+time.
@@ -145,20 +262,9 @@
     if (event.event_type === 'ONLINE') return 'Online';
     if (!event.venue) return '';
     const parts: string[] = [];
-    if (event.venue.city) parts.push(event.venue.city);
+    if (event.venue.city)    parts.push(event.venue.city);
     if (event.venue.country) parts.push(event.venue.country);
     return parts.join(', ');
-  }
-
-  /**
-   * Get event results from UnifiedEmbedFullscreen context.
-   * Events don't use child embeds — always use legacyResults.
-   */
-  function getEventResults(ctx: ChildEmbedContext): EventResult[] {
-    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
-      return ctx.legacyResults as EventResult[];
-    }
-    return [];
   }
 </script>
 
@@ -170,7 +276,9 @@
   skillIconName="event"
   embedHeaderTitle={embedHeaderTitle}
   embedHeaderSubtitle={embedHeaderSubtitle}
-  legacyResults={resultsProp}
+  embedIds={embedIdsValue}
+  childEmbedTransformer={transformToEventResult}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -180,15 +288,23 @@
   {onShowChat}
 >
   {#snippet content(ctx)}
-    {@const events = getEventResults(ctx)}
+    {@const events = ctx.children as EventResult[]}
 
-    {#if events.length === 0}
+    {#if status === 'error'}
+      <div class="error-state">
+        <p class="error-title">{$text('chat.an_error_occured')}</p>
+      </div>
+    {:else if ctx.isLoadingChildren}
+      <div class="no-results">
+        <p>{$text('embeds.loading')}</p>
+      </div>
+    {:else if events.length === 0}
       <div class="no-results">
         <p>{$text('embeds.no_results')}</p>
       </div>
     {:else}
       <div class="events-list" class:mobile={isMobile}>
-        {#each events as event}
+        {#each events as event (event.embed_id)}
           {@const eventLocation = getEventLocation(event)}
           <div class="event-card">
             <!-- Event header: title + type badge -->
@@ -236,16 +352,23 @@
 
 <style>
   /* ===========================================
-     No Results State
+     Error / No Results / Loading States
      =========================================== */
 
-  .no-results {
+  .no-results,
+  .error-state {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 200px;
     color: var(--color-font-secondary);
     font-size: 16px;
+  }
+
+  .error-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-error);
   }
 
   /* ===========================================
@@ -389,5 +512,14 @@
 
   .event-link-button:hover {
     opacity: 0.85;
+  }
+
+  /* ===========================================
+     Skill Icon (EmbedHeader / BasicInfosBar)
+     =========================================== */
+
+  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="event"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
+    mask-image: url('@openmates/ui/static/icons/event.svg');
   }
 </style>

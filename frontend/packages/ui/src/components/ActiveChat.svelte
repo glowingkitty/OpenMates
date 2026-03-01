@@ -8552,11 +8552,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          />
                      {:else if appId === 'events' && skillId === 'search'}
                          <!-- Events Search Fullscreen -->
-                         <!-- Results are stored inline in the parent embed TOON (no child embeds) -->
+                         <!-- Results are stored as child embeds (like news/web search) — pass embedIds for loading -->
                          <EventsSearchEmbedFullscreen
                              query={embedFullscreenData.decodedContent?.query || ''}
                              provider={embedFullscreenData.decodedContent?.provider || 'Meetup'}
-                             results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
+                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
+                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                              embedId={embedFullscreenData.embedId}
                              onClose={handleCloseEmbedFullscreen}
                              {hasPreviousEmbed}
