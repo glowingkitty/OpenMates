@@ -171,6 +171,11 @@
   
   // All loaded connection results (from child embeds or legacy) — needed for navigation
   let connectionResultsForNav = $state<ConnectionResult[]>([]);
+
+  // Guard: prevent the auto-open $effect from firing more than once.
+  // Without this, closing the child overlay (selectedConnectionIndex → -1) would
+  // re-trigger the effect and immediately re-open it in an infinite loop.
+  let _autoOpenFired = $state(false);
   
   // Local reactive state — synced from props via $effect below.
   let localQuery = $state<string>('');
@@ -615,15 +620,13 @@
    * Auto-open the connection overlay for a specific child embed when the fullscreen
    * is opened via an inline badge click (initialChildEmbedId is set).
    *
-   * We watch connectionResultsForNav via handleChildrenLoaded populating
-   * headerConnectionResults, because connectionResultsForNav is only populated
-   * once a card is clicked. Instead we use headerConnectionResults — which is
-   * populated by handleChildrenLoaded — as the trigger, then find the matching
-   * connection in that list.
+   * Fires at most once (_autoOpenFired guard). Without the guard, closing the
+   * child overlay sets selectedConnectionIndex back to -1, which re-triggers the
+   * effect and immediately re-opens the overlay — preventing the user from closing.
    */
   $effect(() => {
     if (!initialChildEmbedId) return;
-    if (selectedConnectionIndex >= 0) return; // already open
+    if (_autoOpenFired) return; // fire at most once per mount
     if (headerConnectionResults.length === 0) return; // results not yet loaded
 
     const idx = headerConnectionResults.findIndex(r => r.embed_id === initialChildEmbedId);
@@ -634,6 +637,7 @@
         'at index',
         idx,
       );
+      _autoOpenFired = true;
       handleConnectionFullscreen(headerConnectionResults[idx], headerConnectionResults);
     } else {
       console.warn(

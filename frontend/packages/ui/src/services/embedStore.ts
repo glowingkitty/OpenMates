@@ -443,6 +443,18 @@ export class EmbedStore {
               "[EmbedStore] Extracted app metadata from plaintext content:",
               appMetadata,
             );
+            // Also register embed_ref if present (covers finalization path)
+            const embedRefPlain = (decodedContent as Record<string, unknown>)
+              .embed_ref;
+            if (typeof embedRefPlain === "string" && embedRefPlain) {
+              const refEmbedId =
+                encryptedData.embed_id || contentRef.replace("embed:", "");
+              this.registerEmbedRef(
+                embedRefPlain,
+                refEmbedId,
+                appMetadata.app_id ?? null,
+              );
+            }
           }
         } else if (encryptedData.encrypted_content) {
           // Fallback: Try to decrypt content temporarily to extract app_id/skill_id
@@ -460,7 +472,7 @@ export class EmbedStore {
               embedKey,
             );
             if (decryptedContent) {
-              // Decode TOON content to extract app_id and skill_id
+              // Decode TOON content to extract app_id, skill_id, and embed_ref
               const decodedContent =
                 await decodeToonContentLocal(decryptedContent);
               if (decodedContent && typeof decodedContent === "object") {
@@ -478,6 +490,16 @@ export class EmbedStore {
                   "[EmbedStore] Extracted app metadata from decrypted content:",
                   appMetadata,
                 );
+                // Register embed_ref for inline badge resolution on subsequent renders
+                const embedRefEnc = (decodedContent as Record<string, unknown>)
+                  .embed_ref;
+                if (typeof embedRefEnc === "string" && embedRefEnc) {
+                  this.registerEmbedRef(
+                    embedRefEnc,
+                    embedId,
+                    appMetadata.app_id ?? null,
+                  );
+                }
               }
             }
           } else {
@@ -646,6 +668,30 @@ export class EmbedStore {
               "[EmbedStore] ✅ Successfully decrypted embed content from separate fields:",
               embedId,
             );
+            // Re-register embed_ref → embed_id on reload/IDB read.
+            // embed_ref is stored only inside the encrypted TOON content (zero-knowledge).
+            // On page reload the in-memory embedRefToIdIndex is empty; we reconstruct it
+            // here each time content is successfully decrypted from IDB.
+            try {
+              const decoded = await decodeToonContentLocal(decryptedContent);
+              if (decoded && typeof decoded === "object") {
+                const ref = (decoded as Record<string, unknown>).embed_ref;
+                const appId = (decoded as Record<string, unknown>).app_id;
+                if (typeof ref === "string" && ref) {
+                  this.registerEmbedRef(
+                    ref,
+                    embedId,
+                    typeof appId === "string" ? appId : null,
+                  );
+                  console.debug(
+                    `[EmbedStore] Re-registered embed_ref on IDB read: "${ref}" → ${embedId}`,
+                  );
+                }
+              }
+            } catch {
+              // Non-critical: embed_ref registration failure only affects inline badge
+              // resolution; the embed itself will still display correctly.
+            }
           } else {
             console.warn(
               "[EmbedStore] ❌ Failed to decrypt encrypted_content from separate fields - decryptWithEmbedKey returned null",

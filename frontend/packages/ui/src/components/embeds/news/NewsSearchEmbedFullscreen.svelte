@@ -123,6 +123,9 @@
   
   /** Flat array of all loaded news results for sibling navigation */
   let allNewsResults = $state<NewsSearchResult[]>([]);
+
+  /** Guard: prevent the auto-open $effect from firing more than once per mount. */
+  let _autoOpenFired = $state(false);
   
   /** Currently selected article (derived from index) */
   let selectedArticle = $derived(selectedArticleIndex >= 0 ? allNewsResults[selectedArticleIndex] ?? null : null);
@@ -266,11 +269,12 @@
   /**
    * Auto-open the article overlay for a specific child embed when the fullscreen
    * is opened via an inline badge click (initialChildEmbedId is set).
-   * Watches allNewsResults (populated when child embeds finish loading).
+   * Fires at most once per mount (_autoOpenFired guard) to prevent re-opening
+   * after the user closes the child overlay.
    */
   $effect(() => {
     if (!initialChildEmbedId) return;
-    if (selectedArticleIndex >= 0) return; // already open
+    if (_autoOpenFired) return; // fire at most once per mount
     if (allNewsResults.length === 0) return; // results not yet loaded
 
     const idx = allNewsResults.findIndex(r => r.embed_id === initialChildEmbedId);
@@ -281,6 +285,7 @@
         'at index',
         idx,
       );
+      _autoOpenFired = true;
       handleArticleFullscreen(allNewsResults[idx]);
     } else {
       console.warn(

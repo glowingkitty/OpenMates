@@ -150,6 +150,9 @@
   
   /** Flat array of all loaded web results — populated when children finish loading */
   let allWebResults = $state<WebSearchResult[]>([]);
+
+  /** Guard: prevent the auto-open $effect from firing more than once per mount. */
+  let _autoOpenFired = $state(false);
   
   /** Currently selected website for fullscreen view (derived from index) */
   let selectedWebsite = $derived(selectedWebsiteIndex >= 0 ? allWebResults[selectedWebsiteIndex] ?? null : null);
@@ -403,11 +406,12 @@
   /**
    * Auto-open the website overlay for a specific child embed when the fullscreen
    * is opened via an inline badge click (initialChildEmbedId is set).
-   * Watches allWebResults (populated when child embeds finish loading).
+   * Fires at most once per mount (_autoOpenFired guard) to prevent re-opening
+   * after the user closes the child overlay.
    */
   $effect(() => {
     if (!initialChildEmbedId) return;
-    if (selectedWebsiteIndex >= 0) return; // already open
+    if (_autoOpenFired) return; // fire at most once per mount
     if (allWebResults.length === 0) return; // results not yet loaded
 
     const idx = allWebResults.findIndex(r => r.embed_id === initialChildEmbedId);
@@ -418,6 +422,7 @@
         'at index',
         idx,
       );
+      _autoOpenFired = true;
       handleWebsiteFullscreen(allWebResults[idx]);
     } else {
       console.warn(

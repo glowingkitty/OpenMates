@@ -162,11 +162,15 @@
     background: transparent !important;
   }
 
-  /* Make the icon white on the gradient background */
+  /* Make the icon white and scale it to fill the 10×10 badge circle.
+     The global icon_rounded::after has background-size: 25px 25px (larger than
+     our 10px element), which clips the SVG. Override with 'contain' so the icon
+     SVG scales down to fit within the available area instead of being cropped. */
   .embed-inline-badge :global(.icon_rounded::after) {
     filter: brightness(0) invert(1);
-    width: 10px;
-    height: 10px;
+    width: 100%;
+    height: 100%;
+    background-size: contain !important;
   }
 
   /* Display text — uses the same gradient-text technique as app store cards */
