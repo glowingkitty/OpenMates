@@ -21,6 +21,7 @@ import {
   decodeToonContent,
 } from "../../../../services/embedResolver";
 import { chatSyncService } from "../../../../services/chatSyncService";
+import { embedStore } from "../../../../services/embedStore";
 import { mount, unmount } from "svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
 import NewsSearchEmbedPreview from "../../../embeds/news/NewsSearchEmbedPreview.svelte";
@@ -68,6 +69,60 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
       // Load embed from EmbedStore (even if processing, so we can mount the correct component)
       embedData = await resolveEmbed(embedId);
+
+      // DECRYPTION FAILURE RECOVERY: If the embed loaded from IndexedDB but failed to decrypt
+      // (e.g. on tab reload when embed key could not be unwrapped), evict the broken entry and
+      // re-request fresh data from the server. The server response (send_embed_data) includes
+      // embed_keys, which lets the client try the unwrap again with a clean store state.
+      // Without this, the embed would be permanently hidden because status="error" is set by
+      // the decryption failure path, causing the "hide error embeds" guard below to fire.
+      if (embedData?._decryptionFailed) {
+        console.warn(
+          "[AppSkillUseRenderer] Embed decryption failed — evicting and re-requesting from server:",
+          embedId,
+        );
+        try {
+          // Evict the undecryptable entry so the next resolveEmbed() triggers a server fetch.
+          await embedStore.deleteEmbed(embedId);
+        } catch (deleteError) {
+          console.warn(
+            "[AppSkillUseRenderer] Could not evict decryption-failed embed:",
+            deleteError,
+          );
+        }
+        // Register a one-shot listener so we re-render the moment fresh data arrives.
+        const decryptRetryHandler = (event: Event) => {
+          const customEvent = event as CustomEvent<{ embed_id: string }>;
+          if (customEvent.detail?.embed_id !== embedId) return;
+          chatSyncService.removeEventListener(
+            "embedUpdated",
+            decryptRetryHandler,
+          );
+          this.render(context).catch((err) => {
+            console.error(
+              "[AppSkillUseRenderer] Error in decryption-retry re-render:",
+              err,
+            );
+          });
+        };
+        chatSyncService.addEventListener("embedUpdated", decryptRetryHandler);
+        // Request fresh embed data from the server (includes embed_keys for re-decryption).
+        try {
+          const { webSocketService } =
+            await import("../../../../services/websocketService");
+          await webSocketService.sendMessage("request_embed", {
+            embed_id: embedId,
+          });
+        } catch (requestError) {
+          console.warn(
+            "[AppSkillUseRenderer] Could not request embed from server after decryption failure:",
+            requestError,
+          );
+        }
+        // Leave content empty (processing skeleton) while waiting for the server response.
+        content.innerHTML = "";
+        return;
+      }
 
       // If the embed is not in IndexedDB yet but the node attributes already say "finished",
       // the send_embed_data WebSocket event hasn't been processed yet (race condition). Register

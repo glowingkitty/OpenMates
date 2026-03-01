@@ -68,7 +68,7 @@ class CalculateResponse(BaseModel):
     """
     Response model for the math calculate skill.
     
-    Fields:
+    Fields (internal names):
     - expression_latex: The input expression formatted as LaTeX
     - result_latex:     The result formatted as LaTeX (symbolic or numeric)
     - result_numeric:   Floating-point approximation (None for purely symbolic results)
@@ -76,6 +76,13 @@ class CalculateResponse(BaseModel):
     - steps:            Optional step-by-step breakdown (for solve/diff/integrate)
     - mode_used:        Which evaluation mode was actually applied
     - error:            Error message if computation failed
+    
+    When serialized for the frontend embed (via model_dump()), the short field names
+    are used so the frontend MathCalculateEmbedPreview can read them directly:
+    - expression_latex → expression
+    - result_str       → result
+    - mode_used        → mode
+    These match the CalculateResult interface in MathCalculateEmbedPreview.svelte.
     """
     expression_latex: str = Field(default="", description="Input expression as LaTeX")
     result_latex: str = Field(default="", description="Result as LaTeX")
@@ -84,6 +91,23 @@ class CalculateResponse(BaseModel):
     steps: List[CalculateStep] = Field(default_factory=list, description="Calculation steps")
     mode_used: str = Field(default="auto", description="Evaluation mode actually applied")
     error: Optional[str] = Field(None, description="Error message if computation failed")
+
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
+        """
+        Override model_dump to output short field names expected by the frontend.
+        
+        The frontend MathCalculateEmbedPreview reads:
+          results[0].expression  (not expression_latex)
+          results[0].result      (not result_str)
+          results[0].mode        (not mode_used)
+        
+        We keep the long-form fields too so nothing downstream breaks if it reads them.
+        """
+        base = super().model_dump(**kwargs)
+        base["expression"] = base.get("expression_latex", "")
+        base["result"] = base.get("result_str", "")
+        base["mode"] = base.get("mode_used", "auto")
+        return base
 
 
 # ── Unit conversion table ─────────────────────────────────────────────────────
