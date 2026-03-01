@@ -61,9 +61,15 @@
   }: Props = $props();
 
   /**
-   * Card title: truncated filename or generic "PDF" fallback.
+   * i18n skill name shown in the BasicInfosBar header line (e.g. "View" / "Ansehen").
+   * This is always the skill name — never the filename — per the embed card convention.
    */
-  let skillName = $derived.by(() => {
+  let skillName = $derived($text('app_skills.pdf.view.skill_name'));
+
+  /**
+   * Truncated filename or generic "PDF" fallback — shown in the card body details area.
+   */
+  let displayFilename = $derived.by(() => {
     if (!filename) return 'PDF';
     if (filename.length > MAX_FILENAME_LENGTH) {
       const lastDot = filename.lastIndexOf('.');
@@ -129,8 +135,8 @@
 >
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="pdf-view-details" class:mobile={isMobileSnippet}>
-      <!-- Filename -->
-      <div class="pdf-name">{skillName}</div>
+      <!-- Filename shown in the card body (not the header) -->
+      <div class="pdf-name">{displayFilename}</div>
       <!-- Status subtitle -->
       {#if statusText}
         <div class="pdf-status-text">{statusText}</div>

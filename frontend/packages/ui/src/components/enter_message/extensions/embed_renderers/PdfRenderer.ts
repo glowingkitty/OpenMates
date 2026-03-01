@@ -121,13 +121,18 @@ export class PdfRenderer implements EmbedRenderer {
       const component = mount(PDFEmbedPreview, {
         target: content,
         props: {
-          // Use the server-assigned uploadEmbedId once available — this is the
-          // ID used in 'embedUpdated' events and IndexedDB, so UnifiedEmbedPreview
-          // can match the event and call refetchFromStore() to get the decoded
-          // TOON content (screenshot_s3_keys, aes_key, etc.) after OCR finishes.
-          // Falls back to the local TipTap node id during the 'uploading' phase
-          // before the server has assigned a UUID.
-          id: attrs.uploadEmbedId || attrs.id || "",
+          // Use resolvedEmbedId — the server-assigned UUID derived from uploadEmbedId
+          // (live editor) or contentRef (readonly history). This is the ID used in
+          // 'embedUpdated' events and IndexedDB, so UnifiedEmbedPreview can match
+          // the event and call refetchFromStore() to get decoded TOON content
+          // (screenshot_s3_keys, aes_key, etc.) after OCR finishes.
+          //
+          // Fix 4: Previously used `attrs.uploadEmbedId || attrs.id` which failed in
+          // readonly history because uploadEmbedId is null there; attrs.id is the
+          // local TipTap node UUID (not the server embed UUID), causing IDB lookup
+          // misses and leaving the card blank. resolvedEmbedId correctly extracts
+          // the server UUID from contentRef in readonly mode.
+          id: resolvedEmbedId,
           filename: attrs.filename ?? undefined,
           status: (attrs.status || "uploading") as
             | "uploading"

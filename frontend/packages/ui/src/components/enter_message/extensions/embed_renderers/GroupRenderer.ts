@@ -32,6 +32,9 @@ import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbed
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
+import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
+import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
+import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -1076,6 +1079,109 @@ export class GroupRenderer implements EmbedRenderer {
         mountedComponents.set(target, component);
         return;
       }
+
+      // Handle pdf.read skill — opens original uploaded PDF fullscreen on click
+      if (appId === "pdf" && skillId === "read") {
+        const originalEmbedId = decodedContent?.embed_id || "";
+        const filename = decodedContent?.filename || "";
+        const pagesReturned: number[] = decodedContent?.pages_returned || [];
+        const pagesSkipped: number[] = decodedContent?.pages_skipped || [];
+        const pageCount: number | undefined =
+          decodedContent?.page_count ?? undefined;
+
+        const handlePdfReadFullscreen = () => {
+          if (!originalEmbedId) return;
+          this.openPdfUploadFullscreen(originalEmbedId);
+        };
+
+        const component = mount(PdfReadEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            filename,
+            pagesReturned,
+            pagesSkipped,
+            pageCount,
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            isMobile: false,
+            onFullscreen:
+              status === "finished" && originalEmbedId
+                ? handlePdfReadFullscreen
+                : undefined,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle pdf.view skill — opens original uploaded PDF fullscreen on click
+      if (appId === "pdf" && skillId === "view") {
+        const originalEmbedId = decodedContent?.embed_id || "";
+        const filename = decodedContent?.filename || "";
+        const pages: number[] = decodedContent?.pages || [];
+        const pageCount: number | undefined =
+          decodedContent?.page_count ?? undefined;
+
+        const handlePdfViewFullscreen = () => {
+          if (!originalEmbedId) return;
+          this.openPdfUploadFullscreen(originalEmbedId);
+        };
+
+        const component = mount(PdfViewEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            filename,
+            pages,
+            pageCount,
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            isMobile: false,
+            onFullscreen:
+              status === "finished" && originalEmbedId
+                ? handlePdfViewFullscreen
+                : undefined,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle pdf.search skill — opens original uploaded PDF fullscreen on click
+      if (appId === "pdf" && skillId === "search") {
+        const originalEmbedId = decodedContent?.embed_id || "";
+        const filename = decodedContent?.filename || "";
+        const searchQuery = decodedContent?.query || query || "";
+        const totalMatches: number | undefined =
+          decodedContent?.total_matches ?? undefined;
+        const truncated: boolean = decodedContent?.truncated ?? false;
+
+        const handlePdfSearchFullscreen = () => {
+          if (!originalEmbedId) return;
+          this.openPdfUploadFullscreen(originalEmbedId);
+        };
+
+        const component = mount(PdfSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            filename,
+            query: searchQuery,
+            totalMatches,
+            truncated,
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            isMobile: false,
+            onFullscreen:
+              status === "finished" && originalEmbedId
+                ? handlePdfSearchFullscreen
+                : undefined,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
     } catch (error) {
       console.error(
         "[GroupRenderer] Error mounting app-skill-use preview component:",
@@ -1162,6 +1268,60 @@ export class GroupRenderer implements EmbedRenderer {
     } catch (err) {
       console.error(
         "[GroupRenderer] Error resolving original image embed for ImageViewEmbedPreview:",
+        err,
+      );
+    }
+  }
+
+  /**
+   * Open the ORIGINAL uploaded PDF's fullscreen viewer from a GroupRenderer context.
+   *
+   * Resolves the PDF upload embed by embed_id, decodes its TOON content, then
+   * dispatches 'pdffullscreen' on document so ActiveChat mounts PDFEmbedFullscreen.
+   *
+   * This mirrors the same method in AppSkillUseRenderer — kept separate here so
+   * GroupRenderer has no dependency on AppSkillUseRenderer.
+   */
+  private async openPdfUploadFullscreen(embedId: string): Promise<void> {
+    if (!embedId) {
+      console.warn("[GroupRenderer] openPdfUploadFullscreen: no embed_id");
+      return;
+    }
+    try {
+      const uploadEmbed = await resolveEmbed(embedId);
+      if (!uploadEmbed) {
+        console.warn(
+          "[GroupRenderer] Could not resolve original PDF embed:",
+          embedId,
+        );
+        return;
+      }
+      const uploadContent = uploadEmbed.content
+        ? await decodeToonContent(uploadEmbed.content)
+        : null;
+
+      const event = new CustomEvent("pdffullscreen", {
+        detail: {
+          embedId,
+          filename:
+            uploadContent?.filename ||
+            (uploadEmbed as Record<string, unknown>).filename ||
+            "",
+          pageCount:
+            (uploadContent?.page_count as number | null | undefined) ??
+            (uploadEmbed as Record<string, unknown>).page_count ??
+            null,
+        },
+        bubbles: true,
+      });
+      document.dispatchEvent(event);
+      console.debug(
+        "[GroupRenderer] Dispatched pdffullscreen for upload embed:",
+        embedId,
+      );
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to open PDF upload fullscreen:",
         err,
       );
     }

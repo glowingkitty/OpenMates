@@ -248,6 +248,56 @@ view.signup_to_upload:
   verified_by_human:
     - en
 
+read.skill_name:
+  context: Skill name shown in the embed card header for the PDF read skill (the top line of the BasicInfosBar)
+  en: Read
+  de: Lesen
+  zh: 读取
+  es: Leer
+  fr: Lire
+  pt: Ler
+  ru: Читать
+  ja: 読む
+  ko: 읽기
+  it: Leggi
+  tr: Oku
+  vi: "Đọc"
+  id: Baca
+  pl: Czytaj
+  nl: Lezen
+  ar: "قراءة"
+  hi: "पढ़ें"
+  th: "อ่าน"
+  cs: "Číst"
+  sv: "Läs"
+  verified_by_human:
+    - en
+
+search.skill_name:
+  context: Skill name shown in the embed card header for the PDF search skill (the top line of the BasicInfosBar)
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: "Tìm kiếm"
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: "البحث"
+  hi: "खोजें"
+  th: "ค้นหา"
+  cs: Prohledat
+  sv: "Sök"
+  verified_by_human:
+    - en
+
 read:
   context: Skill name for the PDF read skill (reads text content from PDF pages)
   en: Read

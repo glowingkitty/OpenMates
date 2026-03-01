@@ -4096,11 +4096,8 @@ def _normalize_skill_arguments(
     """
     log_prefix = f"[Task ID: {task_id}]"
     
-    # If arguments already contain "requests", no normalization needed
-    if "requests" in arguments:
-        return arguments
-    
-    # Look up the skill's tool_schema to determine expected format
+    # Look up the skill's tool_schema FIRST — we need to know whether this skill
+    # expects a "requests" array before we can decide how to handle incoming args.
     app_metadata = discovered_apps_metadata.get(app_id)
     if not app_metadata or not app_metadata.skills:
         return arguments
@@ -4118,15 +4115,51 @@ def _normalize_skill_arguments(
     schema_properties = schema.get("properties", {})
     schema_required = schema.get("required", [])
     
-    # Check if the schema requires a "requests" property of type "array"
-    if "requests" not in schema_properties:
-        return arguments
+    schema_expects_requests = (
+        "requests" in schema_properties
+        and schema_properties["requests"].get("type") == "array"
+        and "requests" in schema_required
+    )
     
-    requests_schema = schema_properties["requests"]
-    if requests_schema.get("type") != "array":
-        return arguments
+    if "requests" in arguments:
+        # The LLM sent a "requests" key.
+        if schema_expects_requests:
+            # Schema also wants "requests" — no normalization needed.
+            return arguments
+        else:
+            # Schema does NOT have "requests" (flat-schema skill like pdf.read/view/search).
+            # The LLM mis-wrapped flat args as {"requests": [{"file_path": "x.pdf", ...}]}.
+            # Extract the first item and flatten it so the skill receives the expected kwargs.
+            requests_list = arguments.get("requests")
+            if isinstance(requests_list, list) and len(requests_list) > 0:
+                if len(requests_list) > 1:
+                    logger.warning(
+                        f"{log_prefix} [NORMALIZE] LLM sent {len(requests_list)} items in "
+                        f"'requests' for flat-schema skill '{app_id}.{skill_id}' (schema has "
+                        f"no 'requests' property). Using first item only and discarding the rest."
+                    )
+                flat_item = requests_list[0]
+                if isinstance(flat_item, dict):
+                    # Merge flat item with underscore-prefixed metadata keys from the outer dict.
+                    normalized = {k: v for k, v in arguments.items() if k.startswith("_")}
+                    normalized.update({k: v for k, v in flat_item.items() if not k.startswith("_")})
+                    logger.warning(
+                        f"{log_prefix} [NORMALIZE] Unwrapped 'requests[0]' into flat args for "
+                        f"'{app_id}.{skill_id}'. Flat keys: {list(flat_item.keys())}. "
+                        f"LLM incorrectly wrapped flat-schema skill args in a 'requests' array."
+                    )
+                    return normalized
+            # Unexpected shape — return as-is and let validation raise a clear error.
+            logger.warning(
+                f"{log_prefix} [NORMALIZE] LLM sent 'requests' for flat-schema skill "
+                f"'{app_id}.{skill_id}' but 'requests' value is not a non-empty list "
+                f"(type={type(arguments.get('requests')).__name__}). Passing through as-is."
+            )
+            return arguments
     
-    if "requests" not in schema_required:
+    # No "requests" key in arguments.
+    if not schema_expects_requests:
+        # Flat args for flat-schema skill — no normalization needed.
         return arguments
     
     # The schema requires a "requests" array but the LLM sent flat arguments.
@@ -4138,7 +4171,7 @@ def _normalize_skill_arguments(
         # Attempt recovery: check if the "requests" items schema requires a "query" field.
         # If so, extract the last user message from history and use it as the query.
         # This covers a known Qwen/Cerebras bug where web-search is called with no args.
-        items_schema = requests_schema.get("items", {})
+        items_schema = schema_properties["requests"].get("items", {})
         items_required = items_schema.get("required", [])
         
         if "query" in items_required and message_history:
