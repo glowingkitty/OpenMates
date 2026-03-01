@@ -264,7 +264,7 @@ class ViewSkill(BaseSkill):
             resp = await client.get(
                 download_url,
                 params={"bucket_key": "chatfiles", "s3_key": s3_key},
-                headers={"Authorization": f"Bearer {shared_token}"},
+                headers={"X-Internal-Service-Token": shared_token},
             )
 
         if resp.status_code != 200:
