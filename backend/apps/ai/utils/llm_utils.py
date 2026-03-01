@@ -749,21 +749,44 @@ async def call_preprocessing_llm(
         else:
             tool_desc = tool_desc.replace(app_data_placeholder, "No app settings or memories currently have data for this user.")
 
+        # Build the full set of placeholder→value substitutions so we can apply them
+        # consistently to ALL string fields in the tool definition, not just function.description.
+        all_substitutions: Dict[str, str] = {}
         if dynamic_context:
             for key, value in dynamic_context.items():
-                placeholder = f"{{{key}}}"
                 if isinstance(value, list):
                     # Use newline separation for skill/focus lists that include descriptive hints,
                     # comma separation for simple identifier-only lists (categories, etc.)
                     has_hints = any(": " in str(item) for item in value)
                     separator = "\n" if has_hints else ", "
-                    value_str = separator.join(map(str, value))
+                    all_substitutions[key] = separator.join(map(str, value))
                 else:
-                    value_str = str(value)
-                tool_desc = tool_desc.replace(placeholder, value_str)
+                    all_substitutions[key] = str(value)
+
+        for key, value_str in all_substitutions.items():
+            tool_desc = tool_desc.replace(f"{{{key}}}", value_str)
                 
         current_tool_definition["function"]["description"] = tool_desc
         logger.debug(f"[{task_id}] LLM Utils: Preprocessing tool description updated: {tool_desc[:300]}...")
+
+        # Also substitute placeholders in all parameter property descriptions.
+        # Previously only function.description was substituted, meaning placeholders like
+        # {USER_SYSTEM_LANGUAGE} in parameters.properties.title.description were sent to the
+        # LLM as literal strings — giving it contradictory signals and causing it to ignore the
+        # language instruction and default to the conversation language instead of the UI language.
+        if all_substitutions:
+            props = (
+                current_tool_definition
+                .get("function", {})
+                .get("parameters", {})
+                .get("properties", {})
+            )
+            for _prop_name, prop_def in props.items():
+                if isinstance(prop_def.get("description"), str):
+                    desc = prop_def["description"]
+                    for key, value_str in all_substitutions.items():
+                        desc = desc.replace(f"{{{key}}}", value_str)
+                    prop_def["description"] = desc
     else:
         logger.warning(f"[{task_id}] LLM Utils: Preprocessing tool definition issue. Cannot inject dynamic context. Def: {current_tool_definition}")
 
