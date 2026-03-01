@@ -379,32 +379,36 @@ async function loadVideoTranscriptEmbedsRecursively(
         if (Array.isArray(results) && results.length > 0) {
           // Format transcript as markdown
           const transcriptText = results
-            .filter((r: any) => {
+            .filter((r: Record<string, unknown>) => {
               return (
                 r.transcript || r.formatted_transcript || r.text || r.content
               );
             })
-            .map((r: any) => {
+            .map((r: Record<string, unknown>) => {
               let content = "";
 
-              if (r.metadata?.title) {
-                content += `# ${r.metadata.title}\n\n`;
+              const metadata = r.metadata as
+                | Record<string, unknown>
+                | undefined;
+              if (metadata?.title) {
+                content += `# ${metadata.title}\n\n`;
               }
 
               if (r.url) {
                 content += `Source: ${r.url}\n\n`;
               }
 
-              if (r.word_count) {
+              if (typeof r.word_count === "number") {
                 content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
               }
 
-              const transcript =
-                r.transcript ||
-                r.formatted_transcript ||
-                r.text ||
-                r.content ||
-                "";
+              const transcript = String(
+                r.transcript ??
+                  r.formatted_transcript ??
+                  r.text ??
+                  r.content ??
+                  "",
+              );
               content += transcript;
 
               return content;
@@ -560,10 +564,15 @@ async function loadImageEmbedsRecursively(
 ): Promise<
   Array<{
     embed_id: string;
+    /** Original filename for user-uploaded images (e.g. "photo.jpg") */
+    filename?: string;
+    /** Text prompt — only set for AI-generated images */
     prompt?: string;
     model?: string;
     generated_at?: string;
-    s3_base_url: string;
+    /** Whether this is a user upload (true) or AI-generated (false/undefined) */
+    is_upload?: boolean;
+    s3_base_url?: string;
     s3_key: string;
     aes_key: string;
     aes_nonce: string;
@@ -572,10 +581,12 @@ async function loadImageEmbedsRecursively(
 > {
   const imageEmbeds: Array<{
     embed_id: string;
+    filename?: string;
     prompt?: string;
     model?: string;
     generated_at?: string;
-    s3_base_url: string;
+    is_upload?: boolean;
+    s3_base_url?: string;
     s3_key: string;
     aes_key: string;
     aes_nonce: string;
@@ -642,16 +653,16 @@ async function loadImageEmbedsRecursively(
           : [],
       });
 
-      // If this is an image generate embed, process it
-      // Image embeds are stored as app_skill_use with app_id="images"
-      // and skill_id="generate" or "generate_draft"
+      // If this is an image embed (AI-generated OR user-uploaded), process it.
+      // AI-generated images: app_id="images", skill_id="generate"/"generate_draft"
+      // User-uploaded images: app_id="images", skill_id="upload" (type "images-image")
       if (
         decodedContent &&
         typeof decodedContent === "object" &&
         decodedContent.app_id === "images" &&
         (decodedContent.skill_id === "generate" ||
-          decodedContent.skill_id === "generate_draft") &&
-        decodedContent.s3_base_url &&
+          decodedContent.skill_id === "generate_draft" ||
+          decodedContent.skill_id === "upload") &&
         decodedContent.aes_key &&
         decodedContent.aes_nonce &&
         decodedContent.files
@@ -671,11 +682,18 @@ async function loadImageEmbedsRecursively(
         });
 
         if (fileEntry?.s3_key) {
+          const isUpload = decodedContent.skill_id === "upload";
           imageEmbeds.push({
             embed_id: embed.embed_id,
-            prompt: decodedContent.prompt,
+            filename: isUpload
+              ? (decodedContent.filename as string | undefined)
+              : undefined,
+            prompt: isUpload
+              ? undefined
+              : (decodedContent.prompt as string | undefined),
             model: decodedContent.model,
             generated_at: decodedContent.generated_at,
+            is_upload: isUpload,
             s3_base_url: decodedContent.s3_base_url,
             s3_key: fileEntry.s3_key,
             aes_key: decodedContent.aes_key,
@@ -838,13 +856,20 @@ async function getImageEmbedsForChat(messages: Message[]): Promise<
           }
         }
 
-        // Generate a human-readable filename from the prompt
-        let filename = generateImageFilename(
-          imageInfo.prompt,
-          imageInfo.format || "png",
-        );
+        // Generate filename: use original filename for uploads, prompt-based for AI-generated
+        let filename: string;
+        if (imageInfo.is_upload && imageInfo.filename) {
+          // User-uploaded image: keep the original filename as-is
+          filename = imageInfo.filename;
+        } else {
+          // AI-generated image: derive name from the generation prompt
+          filename = generateImageFilename(
+            imageInfo.prompt,
+            imageInfo.format || "png",
+          );
+        }
 
-        // Ensure unique filenames
+        // Ensure unique filenames within the images/ folder
         if (usedFilenames.has(filename.toLowerCase())) {
           const ext = filename.lastIndexOf(".");
           if (ext > 0) {
@@ -874,6 +899,357 @@ async function getImageEmbedsForChat(messages: Message[]): Promise<
     return imageResults;
   } catch (error) {
     console.error("[ZipExportService] Error getting image embeds:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetches and AES-256-GCM decrypts a binary blob from the private S3 bucket.
+ * Uses the shared presigned URL service (GET /v1/embeds/presigned-url) — same
+ * mechanism used by imageEmbedCrypto and audioEmbedCrypto.
+ *
+ * @param s3Key      - S3 object key (e.g. "user_id/hash/timestamp_original.bin")
+ * @param aesKeyB64  - Base64-encoded plaintext AES-256 key (32 bytes)
+ * @param nonceB64   - Base64-encoded AES-GCM nonce (12 bytes)
+ * @param mimeType   - MIME type for the resulting Blob
+ * @returns Decrypted Blob
+ */
+async function fetchAndDecryptBlob(
+  s3Key: string,
+  aesKeyB64: string,
+  nonceB64: string,
+  mimeType: string,
+): Promise<Blob> {
+  const { fetchWithPresignedUrl } = await import("./presignedUrlService");
+
+  // Fetch the encrypted ciphertext via a backend-generated presigned URL
+  const encryptedData = await fetchWithPresignedUrl(s3Key);
+
+  // Decode key and nonce from base64 (handles both standard and URL-safe variants)
+  function b64ToBuffer(b64: string): ArrayBuffer {
+    const normalized = b64.replace(/-/g, "+").replace(/_/g, "/");
+    const binary = atob(normalized);
+    const buf = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
+    return buf.buffer;
+  }
+
+  const keyBytes = b64ToBuffer(aesKeyB64);
+  const nonceBytes = b64ToBuffer(nonceB64);
+
+  // Import and apply AES-256-GCM decryption
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    keyBytes,
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"],
+  );
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: nonceBytes },
+    cryptoKey,
+    encryptedData,
+  );
+
+  return new Blob([decrypted], { type: mimeType });
+}
+
+// ---------------------------------------------------------------------------
+// Audio recording extractor
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts all audio recording embeds from a chat's messages.
+ * For each embed, returns:
+ *  - The decrypted audio blob (fetched from the private S3 bucket)
+ *  - The transcript text (if available)
+ *
+ * Audio TOON content shape (audio-recording type):
+ *   { app_id: "audio", skill_id: "transcribe", files: { original: { s3_key, size_bytes } },
+ *     aes_key, aes_nonce, transcript, filename, mime_type, duration }
+ */
+async function getAudioRecordingsForChat(messages: Message[]): Promise<
+  Array<{
+    /** Sanitised filename for the zip (e.g. "recording_01.webm") */
+    filename: string;
+    blob: Blob;
+    /** Transcript text (may be empty string) */
+    transcript: string;
+  }>
+> {
+  try {
+    // Collect all embed references from messages
+    const embedRefs = new Map<
+      string,
+      { type: string; embed_id: string; version?: number }
+    >();
+    for (const message of messages) {
+      let md = "";
+      if (typeof message.content === "string") {
+        md = message.content;
+      } else if (message.content && typeof message.content === "object") {
+        md = tipTapToCanonicalMarkdown(message.content);
+      }
+      for (const ref of extractEmbedReferences(md)) {
+        if (!embedRefs.has(ref.embed_id)) embedRefs.set(ref.embed_id, ref);
+      }
+    }
+
+    if (embedRefs.size === 0) return [];
+
+    // Load all embeds (audio-recording embeds are top-level, not nested)
+    const loadedEmbeds = await loadEmbeds(Array.from(embedRefs.keys()));
+    const results: Array<{ filename: string; blob: Blob; transcript: string }> =
+      [];
+    const usedFilenames = new Set<string>();
+
+    for (const embed of loadedEmbeds) {
+      try {
+        // Only handle audio-recording type embeds
+        if (embed.type !== "audio-recording") continue;
+        if (!embed.content || typeof embed.content !== "string") continue;
+
+        const decoded = await decodeToonContent(embed.content);
+        if (
+          !decoded ||
+          typeof decoded !== "object" ||
+          decoded.app_id !== "audio"
+        ) {
+          continue;
+        }
+
+        // Extract S3 key — prefer "original" variant, fall back to first available
+        const files = decoded.files as
+          | Record<string, { s3_key: string; size_bytes: number }>
+          | null
+          | undefined;
+        if (!files) continue;
+
+        const originalS3Key =
+          files.original?.s3_key ?? Object.values(files)[0]?.s3_key;
+        const aesKey = decoded.aes_key as string | undefined;
+        const aesNonce = decoded.aes_nonce as string | undefined;
+
+        if (!originalS3Key || !aesKey || !aesNonce) {
+          console.warn(
+            "[ZipExportService] Audio embed missing S3/AES fields:",
+            embed.embed_id,
+          );
+          continue;
+        }
+
+        // Determine MIME type and file extension from stored mime_type or filename
+        const storedMime =
+          (decoded.mime_type as string | undefined) ?? "audio/webm";
+        const storedFilename = decoded.filename as string | undefined;
+        const ext =
+          storedFilename?.split(".").pop() ??
+          (storedMime.includes("mp4") ? "mp4" : "webm");
+
+        // Fetch + decrypt the audio file from the private S3 bucket
+        const blob = await fetchAndDecryptBlob(
+          originalS3Key,
+          aesKey,
+          aesNonce,
+          storedMime,
+        );
+
+        // Build a unique filename: prefer the stored original filename, otherwise
+        // fall back to a sequential "recording_N.<ext>" pattern
+        let filename = storedFilename ?? `recording.${ext}`;
+
+        // Strip path separators (safety)
+        filename = filename.replace(/[/\\]/g, "_");
+
+        if (usedFilenames.has(filename.toLowerCase())) {
+          const dotIdx = filename.lastIndexOf(".");
+          const base = dotIdx > 0 ? filename.slice(0, dotIdx) : filename;
+          const extStr = dotIdx > 0 ? filename.slice(dotIdx) : "";
+          let counter = 2;
+          while (
+            usedFilenames.has(`${base}_${counter}${extStr}`.toLowerCase())
+          ) {
+            counter++;
+          }
+          filename = `${base}_${counter}${extStr}`;
+        }
+        usedFilenames.add(filename.toLowerCase());
+
+        const transcript = (decoded.transcript as string | undefined) ?? "";
+
+        results.push({ filename, blob, transcript });
+        console.debug(
+          "[ZipExportService] Added audio recording to zip:",
+          filename,
+          "size:",
+          blob.size,
+        );
+      } catch (err) {
+        console.warn(
+          "[ZipExportService] Failed to export audio recording:",
+          embed.embed_id,
+          err,
+        );
+      }
+    }
+
+    return results;
+  } catch (err) {
+    console.error("[ZipExportService] Error collecting audio recordings:", err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PDF embed extractor (page screenshots)
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts all PDF embeds from a chat's messages.
+ * PDFs are stored encrypted on S3 as page screenshots after server-side OCR.
+ * The TOON content for finished PDF embeds contains:
+ *   { type: "pdf", filename, page_count, screenshot_s3_keys: { "1": s3_key, ... },
+ *     aes_key, aes_nonce, s3_base_url }
+ *
+ * We export each page as an individual PNG inside a per-document sub-folder:
+ *   uploads/pdfs/<document-name>/page_01.png, page_02.png, ...
+ *
+ * The original encrypted PDF binary is NOT re-exported (the plaintext PDF
+ * itself is never stored on the client — only the page screenshots are).
+ */
+async function getPDFEmbedsForChat(messages: Message[]): Promise<
+  Array<{
+    /** Sub-folder name derived from the PDF filename (e.g. "report") */
+    folderName: string;
+    /** Original filename of the uploaded PDF */
+    pdfFilename: string;
+    pages: Array<{ filename: string; blob: Blob }>;
+  }>
+> {
+  try {
+    // Collect all embed references from messages
+    const embedRefs = new Map<
+      string,
+      { type: string; embed_id: string; version?: number }
+    >();
+    for (const message of messages) {
+      let md = "";
+      if (typeof message.content === "string") {
+        md = message.content;
+      } else if (message.content && typeof message.content === "object") {
+        md = tipTapToCanonicalMarkdown(message.content);
+      }
+      for (const ref of extractEmbedReferences(md)) {
+        if (!embedRefs.has(ref.embed_id)) embedRefs.set(ref.embed_id, ref);
+      }
+    }
+
+    if (embedRefs.size === 0) return [];
+
+    const loadedEmbeds = await loadEmbeds(Array.from(embedRefs.keys()));
+    const results: Array<{
+      folderName: string;
+      pdfFilename: string;
+      pages: Array<{ filename: string; blob: Blob }>;
+    }> = [];
+
+    for (const embed of loadedEmbeds) {
+      try {
+        // PDF embeds are stored under the "app_skill_use" type in IndexedDB
+        // (as sent by the backend process_task.py via send_embed_data).
+        // The decoded TOON content has type="pdf".
+        if (!embed.content || typeof embed.content !== "string") continue;
+
+        const decoded = await decodeToonContent(embed.content);
+        if (!decoded || typeof decoded !== "object" || decoded.type !== "pdf") {
+          continue;
+        }
+
+        const screenshotKeys = decoded.screenshot_s3_keys as
+          | Record<string, string>
+          | null
+          | undefined;
+        const aesKey = decoded.aes_key as string | undefined;
+        const aesNonce = decoded.aes_nonce as string | undefined;
+        const pdfFilename =
+          (decoded.filename as string | undefined) ?? "document.pdf";
+
+        // No screenshots means the OCR hasn't finished yet — skip gracefully
+        if (!screenshotKeys || Object.keys(screenshotKeys).length === 0) {
+          console.debug(
+            "[ZipExportService] PDF embed has no screenshot_s3_keys (OCR pending?), skipping:",
+            embed.embed_id,
+          );
+          continue;
+        }
+
+        if (!aesKey || !aesNonce) {
+          console.warn(
+            "[ZipExportService] PDF embed missing AES fields:",
+            embed.embed_id,
+          );
+          continue;
+        }
+
+        // Derive a safe folder name from the PDF filename
+        const baseWithoutExt = pdfFilename
+          .replace(/\.pdf$/i, "")
+          .replace(/[/\\]/g, "_");
+        const folderName =
+          baseWithoutExt.replace(/[^a-zA-Z0-9_\-. ]/g, "_").trim() ||
+          "document";
+
+        // Sort page numbers numerically
+        const pageNums = Object.keys(screenshotKeys)
+          .map(Number)
+          .sort((a, b) => a - b);
+
+        const pages: Array<{ filename: string; blob: Blob }> = [];
+        const totalPages = pageNums.length;
+        const padWidth = String(totalPages).length;
+
+        for (const pageNum of pageNums) {
+          const s3Key = screenshotKeys[String(pageNum)];
+          if (!s3Key) continue;
+
+          try {
+            // Screenshots are PNG images encrypted with AES-256-GCM
+            const blob = await fetchAndDecryptBlob(
+              s3Key,
+              aesKey,
+              aesNonce,
+              "image/png",
+            );
+            const pageFilename = `page_${String(pageNum).padStart(padWidth, "0")}.png`;
+            pages.push({ filename: pageFilename, blob });
+          } catch (pageErr) {
+            console.warn(
+              `[ZipExportService] Failed to fetch PDF page ${pageNum} for embed ${embed.embed_id}:`,
+              pageErr,
+            );
+          }
+        }
+
+        if (pages.length > 0) {
+          results.push({ folderName, pdfFilename, pages });
+          console.debug(
+            "[ZipExportService] Added PDF to zip:",
+            pdfFilename,
+            `(${pages.length}/${totalPages} pages)`,
+          );
+        }
+      } catch (err) {
+        console.warn(
+          "[ZipExportService] Failed to export PDF embed:",
+          embed.embed_id,
+          err,
+        );
+      }
+    }
+
+    return results;
+  } catch (err) {
+    console.error("[ZipExportService] Error collecting PDF embeds:", err);
     return [];
   }
 }
@@ -977,11 +1353,33 @@ export async function downloadChatAsZip(
       zip.file(filePath, transcriptEmbed.content);
     }
 
-    // Add image embeds as separate files (fetched, decrypted, with PNG metadata)
+    // Add AI-generated and user-uploaded images (fetched from private S3, AES-decrypted)
     const imageEmbeds = await getImageEmbedsForChat(messages);
     for (const imageEmbed of imageEmbeds) {
       const filePath = `images/${imageEmbed.filename}`;
       zip.file(filePath, imageEmbed.blob);
+    }
+
+    // Add user-uploaded audio recordings (original audio file + transcript sidecar)
+    const audioRecordings = await getAudioRecordingsForChat(messages);
+    for (const recording of audioRecordings) {
+      zip.file(`uploads/audio/${recording.filename}`, recording.blob);
+      // Always write a transcript sidecar — empty file if no transcript yet
+      const transcriptFilename =
+        recording.filename.replace(/\.[^.]+$/, "") + "_transcript.txt";
+      zip.file(`uploads/audio/${transcriptFilename}`, recording.transcript);
+    }
+
+    // Add user-uploaded PDFs as page screenshots (the encrypted PDF binary is
+    // never stored client-side; only the AES-encrypted PNG screenshots are available)
+    const pdfEmbeds = await getPDFEmbedsForChat(messages);
+    for (const pdfEmbed of pdfEmbeds) {
+      for (const page of pdfEmbed.pages) {
+        zip.file(
+          `uploads/pdfs/${pdfEmbed.folderName}/${page.filename}`,
+          page.blob,
+        );
+      }
     }
 
     // Generate and download zip
@@ -1075,11 +1473,37 @@ export async function downloadChatsAsZip(
           chatFolder.file(filePath, transcriptEmbed.content);
         }
 
-        // Add image embeds as separate files (fetched, decrypted, with PNG metadata)
+        // Add AI-generated and user-uploaded images (fetched from private S3, AES-decrypted)
         const imageEmbeds = await getImageEmbedsForChat(messages);
         for (const imageEmbed of imageEmbeds) {
           const filePath = `images/${imageEmbed.filename}`;
           chatFolder.file(filePath, imageEmbed.blob);
+        }
+
+        // Add user-uploaded audio recordings (original audio file + transcript sidecar)
+        const audioRecordings = await getAudioRecordingsForChat(messages);
+        for (const recording of audioRecordings) {
+          chatFolder.file(
+            `uploads/audio/${recording.filename}`,
+            recording.blob,
+          );
+          const transcriptFilename =
+            recording.filename.replace(/\.[^.]+$/, "") + "_transcript.txt";
+          chatFolder.file(
+            `uploads/audio/${transcriptFilename}`,
+            recording.transcript,
+          );
+        }
+
+        // Add user-uploaded PDFs as page screenshots
+        const pdfEmbeds = await getPDFEmbedsForChat(messages);
+        for (const pdfEmbed of pdfEmbeds) {
+          for (const page of pdfEmbed.pages) {
+            chatFolder.file(
+              `uploads/pdfs/${pdfEmbed.folderName}/${page.filename}`,
+              page.blob,
+            );
+          }
         }
 
         successCount++;
