@@ -1567,10 +1567,23 @@
         const unsubscribeAiTyping = aiTypingStore.subscribe(value => {
             currentTypingStatus = value;
         });
+
+        // Subscribe to the text store so that when the locale JSON finishes loading
+        // (which is async — svelte-i18n fetches it after editor mount), we force TipTap
+        // to re-evaluate its placeholder() callback with the now-resolved translation.
+        // Without this, the placeholder keeps showing "[T:enter_message.placeholder.touch]"
+        // for several seconds on page load because CustomPlaceholder calls get(text) at
+        // TipTap init time, before the locale fetch completes.
+        const unsubscribeText = text.subscribe(() => {
+            if (editor && !editor.isDestroyed) {
+                editor.view.dispatch(editor.state.tr);
+            }
+        });
  
         return () => {
             cleanup();
             unsubscribeAiTyping();
+            unsubscribeText();
         };
     });
  
