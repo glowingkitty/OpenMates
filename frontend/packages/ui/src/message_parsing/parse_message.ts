@@ -21,11 +21,25 @@ import { migrateEmbedNodes, needsMigration } from "./migration";
 // Only applied in read mode — the editor (write mode) should keep them as plain
 // links so the user can still edit the raw markdown.
 //
-// appId lookup: embedStore is imported lazily (it's a singleton module that may
-// not be initialised at module load time). resolveAppIdByRef() is synchronous
-// (in-memory Map lookup), so it is safe to call inside the parse loop.
+// TWO-PASS APPROACH for appId resolution:
+//
+// Pass 1 — collect appId from sibling `embed` nodes already in the document.
+//   `embed` nodes (type "app-skill-use") carry `app_id` directly from the JSON
+//   fenced block in the markdown — it is always available synchronously, on the
+//   very first parse, even on page reload. We collect all app_ids present in the
+//   document to use as a fallback when the in-memory ref index is empty.
+//
+// Pass 2 — convert embed: link marks to embedInline nodes.
+//   Primary:  resolveAppIdByRef() — works during live streaming once the ref has
+//             been registered via chatSyncServiceHandlersAI.
+//   Fallback: app_id collected from sibling embed nodes (Pass 1) — always available,
+//             gives instant correct colour/icon on page reload without any async wait.
+//
+// This means inline badges render with the correct gradient on the SAME render pass
+// as the embed preview card, with zero additional async work.
 
-// Lazy singleton reference — populated on first convertEmbedLinks call.
+// Lazy singleton reference to embedStore (populated on first call).
+// Used only for the secondary resolveAppIdByRef() lookup (live-streaming path).
 let _embedStoreRef: import("../services/embedStore").EmbedStore | null = null;
 async function _ensureEmbedStore(): Promise<void> {
   if (!_embedStoreRef) {
@@ -33,24 +47,62 @@ async function _ensureEmbedStore(): Promise<void> {
     _embedStoreRef = mod.embedStore;
   }
 }
-// For synchronous use inside convertEmbedLinksInNode we use the cached ref
-// (will be null on the very first parse before the async warm-up completes,
-// which is acceptable — the badge will fall back to grey and correct on next render).
 function _getEmbedStore(): import("../services/embedStore").EmbedStore | null {
   return _embedStoreRef;
 }
 
 /**
- * Walk a TipTap node tree and replace inline link marks whose href starts with
- * "embed:" with `embedInline` atom nodes.
+ * Pass 1: Walk the document tree and collect all `app_id` values from `embed`
+ * nodes (type "app-skill-use"). These are always populated from the raw JSON
+ * fenced block in the markdown, so they are available on the first synchronous
+ * parse without any IDB or network access.
  *
- * This is a read-mode-only transformation: in write mode the raw markdown link
- * syntax `[text](embed:ref)` remains editable.
- *
- * @param node - Any TipTap node (doc, paragraph, text, …)
- * @returns A new node (or array of nodes) with embed: links converted
+ * Returns a Map<embedRef | "*", appId> where "*" is a catch-all for the most
+ * common app_id in the document (used when a ref can't be matched specifically).
  */
-function convertEmbedLinksInNode(node: any): any | any[] {
+function collectEmbedAppIds(doc: any): string | null {
+  // We walk the tree and collect all app_id values from `embed` nodes.
+  // In practice a single message belongs to one app, so we return the first found.
+  const appIds: string[] = [];
+
+  function walk(node: any): void {
+    if (!node) return;
+    // `embed` nodes produced by enhanceDocumentWithEmbeds / groupConsecutiveEmbedsInDocument
+    // carry attrs.app_id or attrs.appId from the fenced JSON block.
+    if (node.type === "embed" || node.type === "app-skill-use") {
+      const id = node.attrs?.app_id || node.attrs?.appId;
+      if (typeof id === "string" && id) appIds.push(id);
+    }
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) walk(child);
+    }
+  }
+
+  walk(doc);
+  // Return the most-frequent app_id (or the only one). For mixed-app messages
+  // this gives the dominant app; for single-app messages (the common case) it's exact.
+  if (appIds.length === 0) return null;
+  const freq = new Map<string, number>();
+  for (const id of appIds) freq.set(id, (freq.get(id) ?? 0) + 1);
+  let best = appIds[0];
+  let bestCount = 0;
+  for (const [id, count] of Array.from(freq.entries())) {
+    if (count > bestCount) {
+      best = id;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/**
+ * Pass 2 inner: walk a node and convert embed: link marks to embedInline nodes.
+ * Uses the pre-collected `fallbackAppId` when the live ref index has no entry.
+ */
+function convertEmbedLinksInNode(
+  node: any,
+  fallbackAppId: string | null,
+): any | any[] {
   // Leaf text node — check for embed: link mark
   if (node.type === "text" && Array.isArray(node.marks)) {
     const linkMarkIndex = node.marks.findIndex(
@@ -63,24 +115,20 @@ function convertEmbedLinksInNode(node: any): any | any[] {
     if (linkMarkIndex !== -1) {
       const linkMark = node.marks[linkMarkIndex];
       const href: string = linkMark.attrs.href as string;
-      // href format: "embed:<embed_ref>"
       const embedRef = href.slice("embed:".length);
       const displayText = node.text || embedRef;
 
-      // Look up appId from the in-memory embed_ref index (synchronous Map lookup).
-      // If the embed has already arrived via WebSocket and been registered in
-      // chatSyncServiceHandlersAI.ts, this returns the app_id immediately so the
-      // badge renders with the correct gradient and icon class on the first pass.
-      // Falls back to null (grey badge) if the embed hasn't arrived yet — the
-      // NodeView will re-render when the embed finishes loading.
-      const appId = _getEmbedStore()?.resolveAppIdByRef(embedRef) ?? null;
+      // Primary: check the in-memory ref index (populated during live streaming).
+      // Fallback: use app_id from sibling embed nodes collected in Pass 1 —
+      //   always available on first parse, even on page reload, with no async work.
+      const appId =
+        _getEmbedStore()?.resolveAppIdByRef(embedRef) ?? fallbackAppId;
 
-      // Return an embedInline node — the NodeView will resolve embedRef → embedId at render time
       return {
         type: "embedInline",
         attrs: {
           embedRef,
-          embedId: null, // resolved lazily via embedStore.resolveByRef()
+          embedId: null, // resolved lazily at click time via embedStore.resolveByRef()
           displayText,
           appId,
         },
@@ -92,7 +140,7 @@ function convertEmbedLinksInNode(node: any): any | any[] {
   if (node.content && Array.isArray(node.content)) {
     const newContent: any[] = [];
     for (const child of node.content) {
-      const result = convertEmbedLinksInNode(child);
+      const result = convertEmbedLinksInNode(child, fallbackAppId);
       if (Array.isArray(result)) {
         newContent.push(...result);
       } else {
@@ -107,20 +155,23 @@ function convertEmbedLinksInNode(node: any): any | any[] {
 
 /**
  * Apply embed: link → embedInline conversion to a full TipTap document.
- * Returns a new document object (does not mutate the input).
  *
- * Fires an async warm-up of the embedStore reference on first call so that
- * subsequent (synchronous) calls to _getEmbedStore() find the cached ref.
+ * Two-pass: first collects app_id from sibling embed nodes (always available),
+ * then converts embed: links using that as a fallback for the appId gradient.
+ * Returns a new document object (does not mutate the input).
  */
 function convertEmbedLinks(doc: any): any {
   if (!doc || !doc.content) return doc;
-  // Warm up embedStore ref asynchronously (no-op if already done).
-  // The result is intentionally not awaited — this function must remain
-  // synchronous for TipTap. The ref will be ready for the next render cycle.
+  // Warm up the embedStore ref asynchronously so the live-streaming path works
+  // on subsequent renders. The result is intentionally not awaited — this function
+  // must remain synchronous. The ref will be ready for the next render cycle.
   _ensureEmbedStore().catch(() => {
     /* ignore — embedStore may not be loaded in SSR/test envs */
   });
-  return convertEmbedLinksInNode(doc);
+  // Pass 1: collect app_id from embed nodes already in the document.
+  const fallbackAppId = collectEmbedAppIds(doc);
+  // Pass 2: convert embed: links, using fallbackAppId when ref index has no entry.
+  return convertEmbedLinksInNode(doc, fallbackAppId);
 }
 // ──────────────────────────────────────────────────────────────────────────────
 

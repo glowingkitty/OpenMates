@@ -19,8 +19,6 @@ import {
   unwrapEmbedKeyWithChatKey,
   decryptWithEmbedKey,
 } from "./cryptoService";
-import { writable } from "svelte/store";
-
 // Embed store name for IndexedDB
 const EMBEDS_STORE_NAME = "embeds";
 
@@ -43,12 +41,6 @@ interface EmbedRefEntry {
   appId: string | null;
 }
 const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
-
-// Reactive version counter — incremented every time a new embed_ref is registered.
-// Components that render inline embed badges subscribe to this store so they can
-// re-parse message content (and pick up the freshly registered appId/gradient)
-// without waiting for a full embedUpdated event.
-export const embedRefRegistryVersion = writable(0);
 
 // TOON decoder (lazy-loaded to avoid circular dependencies)
 let toonDecode:
@@ -2352,10 +2344,6 @@ export class EmbedStore {
       embedId,
       appId ? `(appId: ${appId})` : "(no appId)",
     );
-    // Notify subscribers (e.g. ChatHistory) that a new ref is available.
-    // This lets messages with embed: inline badges re-parse and pick up the
-    // correct appId gradient colour without waiting for a full embedUpdated event.
-    embedRefRegistryVersion.update((v) => v + 1);
   }
 
   /**

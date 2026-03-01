@@ -10,7 +10,7 @@
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
-    import { createEventDispatcher, tick, onMount, onDestroy, untrack } from 'svelte'; // Added onDestroy, untrack
+    import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { panelState } from '../stores/panelStateStore'; // Added import
     import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
@@ -111,7 +111,6 @@
         CodeGetDocsResult
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
-    import { embedRefRegistryVersion } from '../services/embedStore'; // Reactive version counter for embed ref registry
     
     // Lightweight type aliases to keep complex event payloads and component refs explicit.
     type EventListenerCallback = (event: Event) => void;
@@ -2796,48 +2795,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
-
-    /**
-     * When a new embed_ref is registered (embedRefRegistryVersion increments), re-trigger
-     * message parsing for any assistant messages that contain inline embed: refs.
-     *
-     * Why this is needed:
-     *   - parse_message() resolves appId synchronously from the in-memory embedRefToIdIndex.
-     *   - On page reload the index is empty at parse time → badges render grey.
-     *   - IDB decryption populates the index asynchronously (seconds later).
-     *   - Bumping _embedUpdateTimestamp forces ChatHistory to call G_mapToInternalMessage
-     *     again, which calls parse_message again — now with the correct appId in the index.
-     */
-    $effect(() => {
-        // Reactively track the registry version — this is the ONLY tracked dependency.
-        // chatHistoryRef and currentMessages are read inside untrack() so mutations to
-        // them don't re-trigger this effect (avoiding infinite loops).
-        const _version = $embedRefRegistryVersion;
-        if (_version === 0) return; // skip initial run before any ref is registered
-
-        untrack(() => {
-            if (!chatHistoryRef || currentMessages.length === 0) return;
-
-            // Only update messages that contain inline embed: refs in their raw markdown
-            let touched = false;
-            const updated = currentMessages.map(msg => {
-                if (msg.role !== 'assistant') return msg;
-                const rawContent = typeof msg.content === 'string' ? msg.content : '';
-                if (!rawContent.includes('](embed:')) return msg;
-                touched = true;
-                return {
-                    ...msg,
-                    _embedUpdateTimestamp: Date.now(),
-                } as MessageWithEmbedMeta;
-            });
-
-            if (touched) {
-                currentMessages = updated as ChatMessageModel[];
-                chatHistoryRef.updateMessages(currentMessages);
-                console.debug('[ActiveChat] Re-triggered message parse for embed inline badges after ref registration (version:', _version, ')');
-            }
-        });
-    });
 
     // Decrypted active focus mode ID for the current chat (e.g. "jobs-career_insights").
     // Updated whenever the chat changes or a focus_mode_activated / focusModeDeactivated event fires.
