@@ -1620,6 +1620,30 @@ class EmbedService:
             return toon_content, None
 
     @staticmethod
+    def get_child_embed_type(app_id: str, skill_id: str) -> str:
+        """
+        Return the canonical child embed type for a given app_id + skill_id combination.
+
+        This is used by both embed creation paths (update_embed_with_results and
+        create_embeds_from_skill_results) and by main_processor.py when it needs to
+        inject embed_ref slugs into tool results before sending them to the LLM.
+
+        Returns one of: "connection", "stay", "place", "event", "website"
+        """
+        if app_id == "maps" and skill_id == "search":
+            return "place"
+        elif app_id == "travel" and skill_id == "search_connections":
+            return "connection"
+        elif app_id == "travel" and skill_id == "search_stays":
+            return "stay"
+        elif skill_id == "places_search":
+            return "place"
+        elif skill_id == "events_search":
+            return "event"
+        else:
+            return "website"  # Default: web search, news, videos, etc.
+
+    @staticmethod
     def _generate_embed_ref_slug(
         child_type: str,
         result: Dict[str, Any],
@@ -1690,20 +1714,31 @@ class EmbedService:
                 slug = _slugify(name) if name else "place"
 
             elif child_type == "connection":
-                # Flights/trains: carrier + departure time
-                carrier = (
-                    result.get("carrier")
-                    or result.get("airline")
-                    or result.get("operator")
-                    or ""
-                )
+                # Flights/trains: carrier + departure time.
+                # Flight results use "carriers" (a list) and "departure" (ISO datetime
+                # e.g. "2026-03-05T06:45:00"). Fall back to singular/alternate field
+                # names used by other providers.
+                carriers_raw = result.get("carriers") or []
+                if isinstance(carriers_raw, list) and carriers_raw:
+                    carrier = carriers_raw[0]
+                else:
+                    carrier = (
+                        result.get("carrier")
+                        or result.get("airline")
+                        or result.get("operator")
+                        or ""
+                    )
                 depart = (
-                    result.get("departure_time")
+                    result.get("departure")        # ISO datetime: "2026-03-05T06:45:00"
+                    or result.get("departure_time")
                     or result.get("departs_at")
                     or ""
                 )
                 carrier_slug = _slugify(carrier, max_words=1) if carrier else "flight"
-                # Parse "HH:MM" → "HHMM"
+                # Extract "HH:MM" from ISO datetime or plain "HH:MM" string → "HHMM"
+                if depart and "T" in depart:
+                    # ISO format: take only the time part after "T"
+                    depart = depart.split("T")[1]
                 depart_str = depart.replace(":", "").replace(" ", "")[:4] if depart else ""
                 slug = f"{carrier_slug}-{depart_str}" if depart_str else carrier_slug
 
@@ -2046,25 +2081,8 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
 
             if is_composite:
-                # Create child embeds (one per result)
-                # Maps search (app_id="maps", skill_id="search") should create "place" embeds
-                # Web search (app_id="web", skill_id="search") should create "website" embeds
-                # Travel search_connections should create "connection" embeds
-                # Travel search_stays should create "stay" embeds
-                if app_id == "maps" and skill_id == "search":
-                    child_type = "place"
-                elif app_id == "travel" and skill_id == "search_connections":
-                    child_type = "connection"
-                elif app_id == "travel" and skill_id == "search_stays":
-                    child_type = "stay"
-                elif skill_id == "search":
-                    child_type = "website"  # Web search, news search, videos search
-                elif skill_id == "places_search":
-                    child_type = "place"
-                elif skill_id == "events_search":
-                    child_type = "event"
-                else:
-                    child_type = "website"  # Default fallback
+                # Determine child embed type using canonical helper (single source of truth)
+                child_type = EmbedService.get_child_embed_type(app_id, skill_id)
 
                 for result in results:
                     # Generate embed_id for child
@@ -2079,8 +2097,15 @@ class EmbedService:
                         f"meta_url={result.get('meta_url')}"
                     )
 
+                    # Generate embed_ref slug and inject into content dict before encoding.
+                    # This mirrors create_embeds_from_skill_results() so that _filter_toon_for_llm()
+                    # can expose the embed_ref to the LLM on subsequent turns when reading from cache.
+                    child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+                    result_with_ref = dict(result)
+                    result_with_ref["embed_ref"] = child_embed_ref
+
                     # Convert result to TOON format (PLAINTEXT)
-                    flattened_result = _flatten_for_toon_tabular(result)
+                    flattened_result = _flatten_for_toon_tabular(result_with_ref)
                     
                     # DEBUG: Log the result AFTER flattening to see if thumbnail_original/meta_url_favicon exist
                     logger.info(
@@ -2803,25 +2828,8 @@ class EmbedService:
             child_embed_ids = []
             
             if is_composite:
-                # Create child embeds (one per result)
-                # Maps search (app_id="maps", skill_id="search") should create "place" embeds
-                # Web search (app_id="web", skill_id="search") should create "website" embeds
-                # Travel search_connections should create "connection" embeds
-                # Travel search_stays should create "stay" embeds
-                if app_id == "maps" and skill_id == "search":
-                    child_type = "place"
-                elif app_id == "travel" and skill_id == "search_connections":
-                    child_type = "connection"
-                elif app_id == "travel" and skill_id == "search_stays":
-                    child_type = "stay"
-                elif skill_id == "search":
-                    child_type = "website"  # Web search, news search, videos search
-                elif skill_id == "places_search":
-                    child_type = "place"
-                elif skill_id == "events_search":
-                    child_type = "event"
-                else:
-                    child_type = "website"  # Default fallback
+                # Determine child embed type using canonical helper (single source of truth)
+                child_type = EmbedService.get_child_embed_type(app_id, skill_id)
                 
                 # CRITICAL: Generate parent_embed_id FIRST so child embeds can reference it
                 # This enables key inheritance: child embeds use parent's encryption key

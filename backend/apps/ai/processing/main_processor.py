@@ -2986,20 +2986,43 @@ async def handle_main_processing(
                 # This ensures efficient encoding with tabular arrays instead of repeated field names
                 if not is_async_skill and not is_multimodal_result:
                     try:
+                        # Inject embed_ref slugs into composite skill results (web search, flights, places, etc.)
+                        # so the LLM can use [text](embed:ref) inline references in the SAME response where
+                        # the skill ran, not only in follow-up turns. This mirrors what embed_service does when
+                        # storing child embeds — the slug must match so the frontend can resolve the reference.
+                        _composite_skill_ids = {"search", "places_search", "events_search", "search_connections", "search_stays"}
+                        if skill_id in _composite_skill_ids:
+                            from backend.core.api.app.services.embed_service import EmbedService as _EmbedSvc
+                            _child_type = _EmbedSvc.get_child_embed_type(app_id, skill_id)
+                            _seen_refs: Dict[str, int] = {}
+                            results_with_refs = []
+                            for _r in results:
+                                _raw_ref = _EmbedSvc._generate_embed_ref_slug(_child_type, _r)
+                                _unique_ref = _EmbedSvc._unique_embed_ref(_raw_ref, _seen_refs)
+                                _r_with_ref = dict(_r)
+                                _r_with_ref["embed_ref"] = _unique_ref
+                                results_with_refs.append(_r_with_ref)
+                            logger.debug(
+                                f"{log_prefix} Injected embed_ref slugs into {len(results_with_refs)} "
+                                f"{_child_type} results for inline LLM references"
+                            )
+                        else:
+                            results_with_refs = results
+
                         # DEBUG: Log original JSON structure (first 15 lines)
-                        json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
+                        json_before = json.dumps(results_with_refs, indent=2) if len(results_with_refs) == 1 else json.dumps({"results": results_with_refs, "count": len(results_with_refs)}, indent=2)
                         json_lines = json_before.split('\n')
                         logger.info(f"{log_prefix} === TOON CONVERSION DEBUG (chat history) ===")
                         logger.info(f"{log_prefix} Original JSON structure (first 15 lines, {len(json_before)} chars total):")
-                        if len(results) == 1:
+                        if len(results_with_refs) == 1:
                             # Single result - flatten and encode full result as TOON for chat history
-                            flattened_result = _flatten_for_toon_tabular(results[0])
+                            flattened_result = _flatten_for_toon_tabular(results_with_refs[0])
                             tool_result_content_str = encode(flattened_result)
                         else:
                             # Multiple results - flatten each result, then combine and encode as TOON
                             # Flattening enables TOON to use tabular format for uniform objects
-                            flattened_results = [_flatten_for_toon_tabular(result) for result in results]
-                            tool_result_content_str = encode({"results": flattened_results, "count": len(results)})
+                            flattened_results = [_flatten_for_toon_tabular(result) for result in results_with_refs]
+                            tool_result_content_str = encode({"results": flattened_results, "count": len(results_with_refs)})
                         
                         logger.debug(f"{log_prefix} TOON conversion (chat history) length={len(tool_result_content_str)} chars")
                         

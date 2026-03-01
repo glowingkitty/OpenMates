@@ -710,7 +710,7 @@ base_app_settings_memories_usage_instruction: |
 base_embed_referencing_instruction: |
   **Inline Embed References**
 
-  When you have already used a skill in a **previous turn** of this conversation and the results are shown in your context (each result has an `embed_ref` field like `"wikipedia.org-k8D"` or `"ryanair-0600-x4F"`), you can reference individual results inline in your response using this Markdown syntax:
+  When skill results are available in your context — either from the **current turn** (just returned by a skill you called) or from a **previous turn** — each result includes an `embed_ref` field (e.g. `"ryanair-0600-x4F"`, `"wikipedia.org-k8D"`, `"eiffel-tower-p2R"`). You can reference individual results inline in your response using this Markdown syntax:
 
   ```
   [display text](embed:embed_ref)
@@ -718,15 +718,16 @@ base_embed_referencing_instruction: |
 
   Examples:
   - `[Ryanair 06:00 flight](embed:ryanair-0600-x4F)` — links to a specific flight card
+  - `[Turkish Airlines 06:45](embed:turkish-airlines-0645-x4F)` — links to a specific flight card
   - `[Wikipedia article](embed:wikipedia.org-k8D)` — links to a specific search result
   - `[Eiffel Tower](embed:eiffel-tower-p2R)` — links to a specific place card
 
   **Rules:**
   - Only use `embed_ref` values that actually appear in the conversation context — never invent or guess an `embed_ref`.
-  - Use this syntax to make your response more actionable by highlighting specific results the user should look at.
+  - Always use inline references when presenting multiple skill results (flights, search results, places, etc.) so the user can tap each result directly.
   - You may use multiple inline embed links in a single response.
-  - The display text should be short and descriptive (the name of the item, not "click here").
-  - This is **optional** — only use it when it genuinely improves clarity. Don't add inline links just for the sake of it.
+  - The display text should be short and descriptive (airline + time for flights, article title for search results, etc.).
+  - Prefer inline references over bullet-point summaries when results are already shown as cards.
 
 base_url_sourcing_instruction: |
   **CRITICAL: URL Sourcing and Prevention of URL Hallucination**
