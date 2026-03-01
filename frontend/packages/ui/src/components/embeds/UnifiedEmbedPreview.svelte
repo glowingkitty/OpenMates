@@ -601,9 +601,26 @@
   
   // Handle stop button click - prevent event propagation
   // Wrapper for BasicInfosBar onStop prop (it expects () => void)
+  // 
+  // OPTIMISTIC UPDATE: Immediately set localStatus = 'cancelled' so the stop button
+  // disappears and the spinner stops right away. The server will later confirm via
+  // skill_execution_status → embed_update → embedUpdated, which writes 'cancelled'
+  // again — harmless. Without this, the embed stays in "processing" state for the
+  // duration of the full network round-trip (cancel_skill WS → Redis write → skill
+  // executor checks flag → status event back to client), which can be 1–3+ seconds
+  // if the skill is in the middle of an external HTTP call.
   function handleStop() {
     if (onStop) {
       onStop();
+    }
+    // Optimistically mark as cancelled regardless of whether the call succeeded —
+    // if it failed, onStop() will have logged an error and the server won't confirm,
+    // so the embed will remain visually cancelled but won't actually be. This is
+    // acceptable: the user wanted to stop, and the worst case is a stale UI state
+    // that would resolve on next reload. No silent data loss occurs.
+    if (localStatus === 'processing') {
+      localStatus = 'cancelled';
+      console.debug(`[UnifiedEmbedPreview] Optimistically marked embed ${id} as cancelled`);
     }
   }
 </script>
