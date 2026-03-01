@@ -1255,9 +1255,10 @@
      * Default: auto height, max 350px.
      */
     let messagePanelStyle = $derived((() => {
-        if (showMaps || showCamera) {
-            return 'height: 400px; max-height: 400px;';
-        }
+        // Fullscreen checks run first so that opening maps/camera while the field
+        // is expanded does NOT collapse it back to 400px. The map/camera overlays
+        // use `position:absolute; inset:0` and fill whatever height the field has,
+        // so they work correctly inside a fullscreen container too.
         if (isFullscreen && containerRect && typeof window !== 'undefined') {
             // Narrow/medium mode: cover the chat card, leaving 20px visible at top
             // so the user can still tap outside to dismiss. Uses position:fixed anchored to
@@ -1284,6 +1285,12 @@
         if (isFullscreen) {
             // Fallback when containerRect is not yet available (initial render edge case).
             return 'height: 65dvh; max-height: 65dvh;';
+        }
+        // Maps/camera overlay open (non-fullscreen only): grow to fixed height so the
+        // overlay fills edge-to-edge. When closing, we fall through to the default below
+        // which correctly restores `height: auto` without affecting fullscreen state.
+        if (showMaps || showCamera) {
+            return 'height: 400px; max-height: 400px;';
         }
         return 'height: auto; max-height: 350px;';
     })());
