@@ -3981,7 +3981,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Determine if this is a new chat (no title yet) to decide which processing
         // steps to show later when ai_task_initiated arrives.
         const chatForNewCheck = newChat || currentChat;
-        isNewChatProcessing = !chatForNewCheck?.title_v || chatForNewCheck.title_v === 0;
+        // A chat is "new" (needs title generation) only if:
+        //   1. Its title_v is 0 or missing (server hasn't generated a title yet), AND
+        //   2. We haven't already received and decrypted a title via a prior WebSocket event.
+        //
+        // The second condition is critical: after the first message the server sends a
+        // title_updated/metadata_updated event which decrypts the title into
+        // activeChatDecryptedTitle — but does NOT reliably update currentChat.title_v to 1
+        // in the local IndexedDB record. On a follow-up message, chatForNewCheck.title_v
+        // is therefore still 0, which incorrectly triggers isNewChatProcessing=true and
+        // overwrites activeChatDecryptedTitle with '' — causing the header to flash back
+        // to the "Creating new chat…" shimmer even though a real title is already shown.
+        // Guarding on activeChatDecryptedTitle prevents this false positive.
+        isNewChatProcessing = (!chatForNewCheck?.title_v || chatForNewCheck.title_v === 0)
+            && !activeChatDecryptedTitle;
 
         // If this is a new chat, show the "Generating title..." placeholder in the chat header.
         // This is cleared once the title/category/icon arrive via a title_updated or metadata_updated event.
