@@ -9,6 +9,7 @@
 //
 // This enables offline-first chat sharing: all wrapped keys are pre-stored on server
 
+import { writable } from "svelte/store";
 import { EmbedStoreEntry, EmbedType } from "../message_parsing/types";
 import { computeSHA256, createContentId } from "../message_parsing/utils";
 import { chatDB } from "./db";
@@ -41,6 +42,17 @@ interface EmbedRefEntry {
   appId: string | null;
 }
 const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
+
+// Reactive version counter — incremented on every registerEmbedRef() call.
+// EmbedInlineLink.svelte subscribes to this Svelte store so it re-derives
+// effectiveAppId whenever new refs are registered (e.g. after a page-reload
+// cold-start or when a streaming embed arrives after the inline link was
+// already rendered in grey). This eliminates the need for a full TipTap
+// setContent() re-parse just to update the badge colour.
+//
+// Exposed as a Svelte readable store so components can subscribe via $store
+// auto-subscription (in .svelte files) or store.subscribe() (in .ts files).
+export const embedRefIndexVersion = writable(0);
 
 // TOON decoder (lazy-loaded to avoid circular dependencies)
 let toonDecode:
@@ -2391,6 +2403,11 @@ export class EmbedStore {
   ): void {
     if (!embedRef || !embedId) return;
     embedRefToIdIndex.set(embedRef, { embedId, appId: appId ?? null });
+    // Increment the reactive version store so any Svelte component that
+    // subscribes to embedRefIndexVersion will automatically re-run and pick
+    // up the new appId — e.g. EmbedInlineLink components that rendered in
+    // grey because this ref wasn't registered yet at their initial render time.
+    embedRefIndexVersion.update((n) => n + 1);
     console.debug(
       "[EmbedStore] Registered embed_ref → { embedId, appId }:",
       embedRef,

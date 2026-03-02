@@ -5,7 +5,9 @@
   //
   // Visuals (left to right):
   //   1. Small 20 px circular badge: app gradient background + white icon_rounded icon
-  //   2. Display text as a gradient-coloured clickable link
+  //   2. Display text as a solid-colour clickable link
+  //      Dark mode  → uses the gradient END colour (brighter, higher contrast on dark bg)
+  //      Light mode → uses the gradient START colour (darker, higher contrast on light bg)
   //
   // On click: dispatches a document-level "embedfullscreen" CustomEvent so
   // ActiveChat can open the fullscreen panel — same mechanism used by
@@ -16,8 +18,14 @@
   //   in-memory index in embedStore at click time.  The UUID is never exposed as
   //   a readable field — it only appears in the CustomEvent detail, which the
   //   fullscreen handler needs to look up the embed.
+  //
+  // Reliability note:
+  //   appId is resolved both from the prop (set at parse-time) AND reactively
+  //   via embedStore.refIndexVersion so the badge colour self-corrects whenever
+  //   new refs are registered — e.g. after a page-reload cold-start or when a
+  //   streaming embed card arrives after this inline link was already rendered.
 
-  import { embedStore } from '../../services/embedStore';
+  import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
 
   interface Props {
     /** Short slug from the LLM (e.g. "ryanair-0600-k8D") */
@@ -26,21 +34,61 @@
     embedId?: string | null;
     /** Human-readable text chosen by the LLM */
     displayText: string;
-    /** app_id used for gradient colour (e.g. "travel", "web", "videos") */
+    /** app_id hint from parse-time (e.g. "travel", "web", "videos") — may be
+     *  null if the ref index was empty when the message was parsed.  Always
+     *  falls back to a live lookup via embedStore.refIndexVersion. */
     appId?: string | null;
   }
 
   let { embedRef, embedId = null, displayText, appId = null }: Props = $props();
 
-  // Derive badge gradient and text gradient from appId.
-  // Falls back to a neutral grey gradient if appId is unknown.
+  // Reactively resolve the effective appId.
+  //
+  // $embedRefIndexVersion is a Svelte auto-subscription to the embedRefIndexVersion
+  // writable store. Whenever registerEmbedRef() increments this store, Svelte
+  // automatically re-runs this $derived and any other expressions that reference
+  // $embedRefIndexVersion — without requiring a full TipTap setContent() re-parse.
+  //
+  // Priority: prop appId (from parse-time two-pass fallback) > live index lookup.
+  // The prop is trusted first because it may have been resolved via sibling
+  // embed-node scanning (Pass 1), which is always correct even on cold-start.
+  // The live lookup handles the case where the prop is null but the ref has
+  // since been registered (e.g. streaming embed arrived after first render).
+  //
+  // $embedRefIndexVersion is read here purely as a reactive dependency trigger;
+  // its numeric value is unused — only the side-effect of invalidating this
+  // $derived matters.
+  let effectiveAppId = $derived.by(() => {
+    // Reading $embedRefIndexVersion registers it as a reactive dependency.
+    // Whenever registerEmbedRef() increments this store, Svelte re-runs this
+    // derived and picks up the newly available appId — no full re-parse needed.
+    void $embedRefIndexVersion;
+    return appId ?? embedStore.resolveAppIdByRef(embedRef);
+  });
+
+  // Badge gradient (circular icon background) — unchanged from original design.
+  // Falls back to neutral grey when appId is unknown.
   let gradientStyle = $derived(
-    appId ? `background: var(--color-app-${appId});` : 'background: var(--color-grey-30);',
+    effectiveAppId
+      ? `background: var(--color-app-${effectiveAppId});`
+      : 'background: var(--color-grey-30);',
   );
 
-  let textGradientStyle = $derived(
-    appId
-      ? `background: var(--color-app-${appId}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;`
+  // Solid text colour — switches between START (dark) and END (light) colours
+  // via CSS custom properties set as inline style.  The actual selection is
+  // done in CSS using the [data-theme="dark"] selector override so it responds
+  // immediately to theme changes without a JS re-render.
+  //
+  // We set both colour values as CSS custom properties on the element itself
+  // so the CSS rule can reference them without needing to know the appId.
+  //
+  //   --_link-color-light  = START colour (darker, for light backgrounds)
+  //   --_link-color-dark   = END colour   (brighter, for dark backgrounds)
+  //
+  // Fallback: var(--color-grey-60) for unknown apps (readable in both modes).
+  let textColorVarsStyle = $derived(
+    effectiveAppId
+      ? `--_link-color-light: var(--color-app-${effectiveAppId}-start); --_link-color-dark: var(--color-app-${effectiveAppId}-end);`
       : '',
   );
 
@@ -112,10 +160,10 @@
 <span class="embed-inline-link" role="link" tabindex="0" onclick={handleClick} onkeydown={(e) => { if (e.key === 'Enter') handleClick(e as unknown as MouseEvent); }}>
   <!-- Small circular app-icon badge -->
   <span class="embed-inline-badge" style={gradientStyle} aria-hidden="true">
-    <span class="icon_rounded {appId || ''}"></span>
+    <span class="icon_rounded {effectiveAppId || ''}"></span>
   </span>
-  <!-- Gradient display text -->
-  <span class="embed-inline-text" style={textGradientStyle}>{displayText}</span>
+  <!-- Solid-colour display text — colour adapts to light/dark mode via CSS -->
+  <span class="embed-inline-text" class:has-app-color={!!effectiveAppId} style={textColorVarsStyle}>{displayText}</span>
 </span>
 
 <style>
@@ -173,12 +221,31 @@
     background-size: contain !important;
   }
 
-  /* Display text — uses the same gradient-text technique as app store cards */
+  /* Display text — solid colour link.
+   *
+   * Default (light mode): use START colour (darker stop of the gradient,
+   *   better contrast against light backgrounds).
+   * Dark mode override:   use END colour   (brighter stop of the gradient,
+   *   better contrast against dark backgrounds).
+   *
+   * Both colour values are set as CSS custom properties on the element via
+   * textColorVarsStyle, so the rule below can reference them without knowing
+   * the specific app. The .has-app-color guard keeps the fallback colour
+   * active for unknown apps. */
   .embed-inline-text {
     font-size: inherit;
     font-weight: 500;
     line-height: 1;
-    /* Fallback colour if gradient is not supported */
-    color: var(--color-grey-80);
+    color: var(--color-grey-60);
+  }
+
+  .embed-inline-text.has-app-color {
+    /* Light mode: START colour (darker, readable on light background) */
+    color: var(--_link-color-light);
+  }
+
+  /* Dark mode: END colour (brighter, readable on dark background) */
+  :global([data-theme="dark"]) .embed-inline-text.has-app-color {
+    color: var(--_link-color-dark);
   }
 </style>
