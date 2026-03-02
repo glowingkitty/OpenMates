@@ -633,6 +633,24 @@ export async function checkAuth(
           "[AuthSessionActions] Cleared chatListCache and chatDB.chatKeys on session expiry",
         );
 
+        // CRITICAL: Set isAuthenticated=false IMMEDIATELY to close the auth gate.
+        // Without this, WebSocket sync events that are still in-flight (phase_2, phase_3,
+        // phasedSyncComplete) fire after userLoggingOut clears allChatsFromDB, see
+        // isAuthenticated=true in updateChatListFromDBInternal, take the full authenticated
+        // path, call chatDB.getAllChats() on the not-yet-deleted database, and repopulate
+        // allChatsFromDB with all encrypted user chats — causing the "Untitled chats" sidebar
+        // pollution visible in the screenshot after a forced logout.
+        // Setting this here (before the async cleanup) ensures all subsequent DB read calls
+        // take the non-authenticated path (shared chats only → empty set).
+        authStore.update((state) => ({
+          ...state,
+          isAuthenticated: false,
+          isInitialized: true,
+        }));
+        console.debug(
+          "[AuthSessionActions] Set isAuthenticated=false immediately to prevent sync events from repopulating chat list",
+        );
+
         // Clear shared chat keys in the background (async, non-blocking)
         clearAllSharedChatKeys().catch((e) =>
           console.warn(
