@@ -280,17 +280,27 @@
     flex-direction: column;
     gap: 16px;
     padding: 24px 16px;
-    padding-bottom: 120px;
-    max-width: 1000px;
-    margin: 0 auto;
     width: 100%;
+    box-sizing: border-box;
+    /*
+     * The parent .content-area is a flex scroll container (overflow-y: auto).
+     * We can't use height: 100% here (it resolves to the scrolled content size,
+     * not the viewport).  Instead, size the content wrapper to fill the
+     * visible embed area by subtracting the EmbedHeader banner (~196px) and our
+     * own vertical padding (48px) from the full container height.
+     * This keeps the formula bar + plot neatly within one screen-full, with the
+     * plot expanding to fill all remaining space via flex: 1 on .plot-container.
+     */
+    min-height: calc(100vh - 196px - 48px);
   }
 
   /* ── Plot container ──────────────────────────────────────────────────────── */
 
   .plot-container {
     width: 100%;
-    height: 400px;
+    /* Grow to fill whatever vertical space remains after the formula header */
+    flex: 1 1 0;
+    min-height: 200px;
     background: var(--color-grey-5, #fafafa);
     border-radius: 12px;
     overflow: hidden;
@@ -299,12 +309,24 @@
 
   :global(.plot-fullscreen-content .function-plot) {
     width: 100% !important;
+    height: 100% !important;
   }
 
-  @container fullscreen (max-width: 500px) {
-    .plot-container {
-      height: 260px;
-    }
+  /* ── Axis / tick label visibility ────────────────────────────────────────────
+     function-plot renders an SVG; by default its tick text inherits a very light
+     colour that is invisible on the light plot background.  Force it to a dark,
+     readable shade. */
+  :global(.plot-fullscreen-content .function-plot text) {
+    fill: #333333 !important;
+    font-size: 11px;
+  }
+
+  /* Axis lines and grid */
+  :global(.plot-fullscreen-content .function-plot .x.axis path),
+  :global(.plot-fullscreen-content .function-plot .x.axis line),
+  :global(.plot-fullscreen-content .function-plot .y.axis path),
+  :global(.plot-fullscreen-content .function-plot .y.axis line) {
+    stroke: #555555 !important;
   }
 
   /* ── Function formulas header (above the plot) ───────────────────────────── */
