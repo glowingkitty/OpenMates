@@ -1145,6 +1145,13 @@ async def _consume_main_processing_stream(
     url_validation_tasks: List[asyncio.Task] = []  # Track all background URL validation tasks
     all_broken_urls: List[Dict[str, Any]] = []  # Collect all broken URLs found across all paragraphs
 
+    # Leaked thought detection: Gemini thinking models can leak raw internal reasoning into the
+    # text stream when temperature < 1.0 causes an infinite reasoning loop that exhausts the token
+    # budget. The leaked chunks start with "{thought}" (a scratchpad marker Gemini writes) and
+    # continue for hundreds of chunks. Once detected we drop all subsequent text chunks.
+    # Fix 1 (temperature clamping in google_client.py) is the primary defense; this is a safety net.
+    in_leaked_thought_mode = False
+
     # Code block tracking: detect and convert code blocks to embeds in real-time
     in_code_block = False
     current_code_language = ""
@@ -1335,6 +1342,24 @@ async def _consume_main_processing_stream(
                 
                 # Skip empty chunks after stripping (the entire chunk might have been a tool_call block)
                 if not chunk:
+                    continue
+
+                # Detect leaked internal reasoning from Gemini thinking models.
+                # When the model enters an infinite reasoning loop (usually due to temperature < 1.0),
+                # it flushes its scratchpad buffer as plain text — each leaked chunk starts with
+                # "{thought}" (with optional leading whitespace). Once we see this marker, all
+                # subsequent text chunks in this task are also leaked reasoning; we drop them all.
+                # See: google_client.py _clamp_temperature_for_thinking_model (Fix 1, primary defense).
+                if in_leaked_thought_mode:
+                    logger.debug(f"{log_prefix} Dropping leaked thought chunk (seq ~{stream_chunk_count + 1}, len={len(chunk)}): preview={repr(chunk[:80])}")
+                    continue
+                if chunk.lstrip().startswith("{thought}"):
+                    logger.warning(
+                        f"{log_prefix} Detected leaked Gemini thought content at chunk ~{stream_chunk_count + 1}. "
+                        f"Activating in_leaked_thought_mode and dropping all subsequent text. "
+                        f"model={stream_model_name}, preview={repr(chunk[:120])}"
+                    )
+                    in_leaked_thought_mode = True
                     continue
 
                 # Guard: detect garbled / non-human-readable content before publishing.
