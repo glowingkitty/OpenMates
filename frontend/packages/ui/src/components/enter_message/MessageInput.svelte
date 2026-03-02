@@ -1469,6 +1469,21 @@
                                     charCount: text.length
                                 });
                                 
+                                // Re-read originalMarkdown from the editor's current state to avoid
+                                // stale-closure race conditions. When the user pastes, deletes, and
+                                // pastes again quickly, multiple async promises can complete out of order.
+                                // Each promise must base its append on the CURRENT editor content — not
+                                // on the value of originalMarkdown that was captured when the paste fired.
+                                // Also guard against duplicate embed references (idempotency).
+                                updateOriginalMarkdown(editor);
+                                
+                                // Guard against duplicate: if this embed_id is already in originalMarkdown
+                                // (e.g. a previous resolution of the same paste already wrote it), skip.
+                                if (originalMarkdown.includes(embedResult.embed_id)) {
+                                    console.debug('[MessageInput] Code embed already in originalMarkdown, skipping duplicate insertion:', embedResult.embed_id);
+                                    return;
+                                }
+                                
                                 // Update originalMarkdown with the embed reference
                                 const currentMarkdown = originalMarkdown || '';
                                 originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + embedResult.embedReference;
@@ -2167,6 +2182,10 @@
     function setupEventListeners() {
         document.addEventListener('embedclick', handleEmbedClick as EventListener);
         document.addEventListener('mateclick', handleMateClick as EventListener);
+        // Listen for right-click / long-press context menu events from UnifiedEmbedPreview
+        // inside group embeds rendered in the compose editor. The event bubbles up from the
+        // embed component and we catch it here to open PressAndHoldMenu.
+        editorElement?.addEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
         editorElement?.addEventListener('paste', handlePaste);
         editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.addEventListener('custom-sign-up-click', handleSignUpClick as EventListener); // Handle Enter key for unauthenticated users
@@ -2320,6 +2339,7 @@
         detachViewportListener();
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
+        editorElement?.removeEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
         editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.removeEventListener('custom-sign-up-click', handleSignUpClick as EventListener);
@@ -2578,6 +2598,85 @@
         } else {
             isMenuInteraction = false; showMenu = false; selectedNode = null; selectedEmbedId = null;
         }
+    }
+
+    /**
+     * Handle right-click / long-press context menu events from UnifiedEmbedPreview
+     * inside the compose editor (write mode). UnifiedEmbedPreview dispatches
+     * 'embed-context-menu' with bubbles:true but MessageInput has no listener for it,
+     * causing the native browser menu to be suppressed with nothing shown instead.
+     *
+     * This handler finds the matching TipTap node by embed ID, then opens the
+     * PressAndHoldMenu at the pointer position (relative to .message-field).
+     */
+    function handleEmbedContextMenu(event: Event) {
+        const customEvent = event as CustomEvent;
+        const { embedId, rect, x, y } = customEvent.detail ?? {};
+
+        if (!embedId || !editor || editor.isDestroyed) return;
+
+        // Stop propagation so the event doesn't re-trigger anything else
+        customEvent.stopPropagation?.();
+
+        // Find the matching TipTap node by embed ID
+        let foundNode: { node: any; pos: number } | null = null;
+        editor.state.doc.descendants((node: any, pos: number) => {
+            if (foundNode) return false;
+            // Match by id attr (used by inline embeds) or by contentRef containing embed ID
+            if (node.attrs?.id === embedId ||
+                (node.attrs?.contentRef && node.attrs.contentRef.includes(embedId))) {
+                foundNode = { node, pos };
+                return false;
+            }
+            return true;
+        });
+
+        if (!foundNode) {
+            console.warn('[MessageInput] embed-context-menu: no TipTap node found for embedId:', embedId);
+            return;
+        }
+
+        // Calculate menu position relative to .message-field container
+        const messageField = editorElement?.closest('.message-field') as HTMLElement | null;
+        if (!messageField) return;
+
+        const containerRect = messageField.getBoundingClientRect();
+
+        let calcMenuX: number;
+        let calcMenuY: number;
+
+        if (typeof x === 'number' && typeof y === 'number') {
+            // Use the actual pointer position (right-click coords) relative to the container
+            calcMenuX = x - containerRect.left;
+            calcMenuY = y - containerRect.top;
+        } else if (rect) {
+            // Fall back to the embed element rect centre if no pointer coords (e.g. long-press)
+            calcMenuX = rect.left - containerRect.left + rect.width / 2;
+            calcMenuY = rect.top - containerRect.top;
+        } else {
+            return; // Cannot position menu without coordinates
+        }
+
+        // Determine menu type from the node attrs
+        const nodeAttrs = (foundNode as { node: any; pos: number }).node.attrs ?? {};
+        let resolvedMenuType: 'default' | 'pdf' | 'web' = 'default';
+        if (nodeAttrs.type === 'website' || nodeAttrs.type === 'web') {
+            resolvedMenuType = 'web';
+        } else if (nodeAttrs.type === 'pdf') {
+            resolvedMenuType = 'pdf';
+        }
+
+        isMenuInteraction = true;
+        menuX = calcMenuX;
+        menuY = calcMenuY;
+        selectedEmbedId = embedId;
+        menuType = resolvedMenuType;
+        selectedNode = foundNode as { node: any; pos: number };
+        showMenu = true;
+
+        console.debug('[MessageInput] Opened embed context menu via embed-context-menu event:', {
+            embedId, calcMenuX, calcMenuY, menuType: resolvedMenuType
+        });
     }
     function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
     async function handlePaste(event: ClipboardEvent) {
