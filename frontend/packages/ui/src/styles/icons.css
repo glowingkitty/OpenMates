@@ -771,6 +771,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.math {
+  background: var(--color-app-math);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/math.svg");
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;
