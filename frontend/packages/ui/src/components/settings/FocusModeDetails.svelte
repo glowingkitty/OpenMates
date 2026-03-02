@@ -43,6 +43,51 @@
     let focusMode = $derived<FocusModeMetadata | undefined>(
         app?.focus_modes.find(f => f.id === focusModeId)
     );
+
+    /**
+     * Build the @mention display name for this focus mode.
+     * Matches the format used in mentionSearchService: "AppName-FocusModeName"
+     * e.g., appId="jobs", focusModeId="career_insights" → "Jobs-Career-Insights"
+     */
+    function capitalizeHyphenated(str: string): string {
+        return str.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+    }
+
+    let focusMentionDisplayName = $derived(
+        `${capitalizeHyphenated(appId)}-${capitalizeHyphenated(focusModeId.replace(/_/g, '-'))}`
+    );
+
+    /**
+     * Get "How to use" example instructions for this focus mode.
+     * Derives translation keys from the focus mode's name_translation_key by appending .how_to_use.{1|2|3}.
+     * Only includes examples where a translation exists (key doesn't resolve to itself).
+     */
+    let howToUseExamples = $derived.by(() => {
+        if (!focusMode?.name_translation_key) return [];
+        const examples: string[] = [];
+        for (let i = 1; i <= 3; i++) {
+            const key = `${focusMode.name_translation_key}.how_to_use.${i}`;
+            const translated = $text(key);
+            if (translated && translated !== key) {
+                examples.push(translated);
+            }
+        }
+        return examples;
+    });
+
+    /**
+     * Parse **word** markdown syntax into HTML with highlighted spans.
+     * Words wrapped in double asterisks (**word**) are rendered as
+     * <span class="highlight-word"> elements styled with the app's gradient color.
+     */
+    function parseHighlightedText(rawText: string): string {
+        const escaped = rawText
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        return escaped.replace(/\*\*(.+?)\*\*/g, '<span class="highlight-word">$1</span>');
+    }
     
     /**
      * System prompt text shown when this focus mode is activated.
@@ -164,6 +209,45 @@
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
+        <!-- How to use section: scrollable example prompts, only shown if translations exist -->
+        {#if howToUseExamples.length > 0}
+            <div class="section how-to-use-section">
+                <SettingsItem
+                    type="heading"
+                    icon="skill"
+                    title={$text('settings.app_store.skills.how_to_use')}
+                />
+                <!-- "Just ask your mates something like:" prefix -->
+                <p class="how-to-use-prefix">{$text('settings.app_store.focus_modes.how_to_use_prefix')}</p>
+                <div class="how-to-use-scroll-container">
+                    <div class="how-to-use-scroll">
+                        {#each howToUseExamples as example}
+                            <div
+                                class="how-to-use-card"
+                                style="--highlight-color: var(--color-app-{appId}-start, var(--color-primary-start))"
+                            >
+                                <!-- Opening quote — top-right corner -->
+                                <svg class="quote-icon quote-open" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                                </svg>
+                                <!-- How-to-use text with **word** highlight support -->
+                                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                                <p class="how-to-use-text">{@html parseHighlightedText(example)}</p>
+                                <!-- Closing quote — bottom-left corner (flipped 180°) -->
+                                <svg class="quote-icon quote-close" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                                </svg>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+                <!-- "Or mention @FocusModeName in your message..." footer -->
+                <p class="how-to-use-mention">
+                    {$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[0]}<span class="mention-name">@{focusMentionDisplayName}</span>{$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[1]}
+                </p>
+            </div>
+        {/if}
+
         <!-- Instructions section: bullet-point summary of what the focus mode does,
              plus a collapsible "Show full system prompt" button.
              Uses process_translation_key bullets when available; falls back to showing
@@ -175,6 +259,11 @@
                 title={$text('settings.app_store.focus_modes.system_prompt')}
             />
             {#if hasInstructions}
+                <!-- "An overview, over what the focus mode will do:" label -->
+                {#if processBullets.length > 0}
+                    <p class="instructions-overview">{$text('settings.app_store.focus_modes.instructions_overview')}</p>
+                {/if}
+
                 <!-- Bullet-point summary from process_translation_key -->
                 {#if processBullets.length > 0}
                     <ul class="process-bullets">
@@ -191,7 +280,7 @@
                             <svg class="quote-icon quote-icon-top" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
                             </svg>
-                            <pre class="instructions-text">{focusModeSystemPrompt}</pre>
+                            <p class="instructions-text">{focusModeSystemPrompt}</p>
                         </div>
                     {/if}
                     <button
@@ -224,6 +313,140 @@
         margin-top: 2rem;
     }
 
+    /* How to use section */
+    .how-to-use-section {
+        margin-top: 1.5rem;
+    }
+
+    /* "Just ask your mates something like:" label above example cards */
+    .how-to-use-prefix {
+        margin: 0.5rem 0 0 0;
+        padding: 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.5;
+        color: var(--color-grey-100);
+    }
+
+    /* Horizontal scroll container for how-to-use example cards */
+    .how-to-use-scroll-container {
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 0.5rem;
+        margin-top: 0.75rem;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
+        transition: scrollbar-color 0.2s ease;
+    }
+
+    .how-to-use-scroll-container:hover {
+        scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
+    }
+
+    .how-to-use-scroll-container::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .how-to-use-scroll-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .how-to-use-scroll-container::-webkit-scrollbar-thumb {
+        background-color: rgba(128, 128, 128, 0.2);
+        border-radius: 4px;
+        border: 2px solid var(--color-grey-20);
+    }
+
+    .how-to-use-scroll-container:hover::-webkit-scrollbar-thumb {
+        background-color: rgba(128, 128, 128, 0.5);
+    }
+
+    .how-to-use-scroll {
+        display: flex;
+        gap: 0.75rem;
+        padding-right: 1rem;
+        min-width: min-content;
+    }
+
+    /* Individual example card */
+    .how-to-use-card {
+        flex: 0 0 auto;
+        width: 260px;
+        padding: 1rem;
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-20);
+        border-radius: 12px;
+        display: grid;
+        grid-template-areas:
+            "text open"
+            "close .";
+        grid-template-columns: 1fr auto;
+        grid-template-rows: 1fr auto;
+        gap: 0.4rem;
+    }
+
+    .quote-open {
+        grid-area: open;
+        align-self: start;
+        justify-self: end;
+        color: var(--color-grey-40);
+        opacity: 0.5;
+        flex-shrink: 0;
+    }
+
+    .quote-close {
+        grid-area: close;
+        align-self: end;
+        justify-self: start;
+        color: var(--color-grey-40);
+        opacity: 0.5;
+        flex-shrink: 0;
+        transform: rotate(180deg);
+    }
+
+    .how-to-use-text {
+        grid-area: text;
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: var(--color-grey-100);
+        word-break: break-word;
+        align-self: center;
+    }
+
+    /* Highlighted trigger words (from **word** syntax in i18n) */
+    .how-to-use-text :global(.highlight-word) {
+        color: var(--highlight-color, var(--color-primary-start));
+        font-weight: 600;
+    }
+
+    /* "Or mention @FocusModeName in your message..." footer below example cards */
+    .how-to-use-mention {
+        margin: 0.75rem 0 0 0;
+        padding: 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.6;
+        color: var(--color-grey-100);
+        white-space: pre-line;
+    }
+
+    /* The @mention name rendered in accent color */
+    .how-to-use-mention .mention-name {
+        color: var(--color-primary-start);
+        font-weight: 600;
+    }
+
+    /* "An overview, over what the focus mode will do:" label */
+    .instructions-overview {
+        margin: 0.5rem 0 0 0;
+        padding: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        line-height: 1.5;
+        color: var(--color-grey-100);
+    }
+
     /* Bullet-point process summary list */
     .process-bullets {
         margin: 0.75rem 0 0 10px;
@@ -252,7 +475,7 @@
         line-height: 1.5;
     }
 
-    /* System prompt block — quote-style, matching SkillDetails how-to-use card style */
+    /* System prompt block — quote-style card with regular (non-monospace) text */
     .instructions-block {
         position: relative;
         margin-top: 0.75rem;
@@ -273,15 +496,16 @@
         pointer-events: none;
     }
 
+    /* Full system prompt text — regular body text (not monospace) */
     .instructions-text {
         margin: 0;
         padding: 0;
+        font-family: var(--font-family-primary);
         font-size: 0.9rem;
-        line-height: 1.5;
+        line-height: 1.6;
         white-space: pre-wrap;
         word-break: break-word;
         color: var(--color-grey-100);
-        overflow-x: auto;
     }
     
     /* Toggle button for showing/hiding the full system prompt */

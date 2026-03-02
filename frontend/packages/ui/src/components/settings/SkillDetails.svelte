@@ -128,6 +128,19 @@
     let formattedPricing = $derived(formatPricing(skill?.pricing));
     
     /**
+     * Build the @mention display name for this skill.
+     * Matches the format used in mentionSearchService: "AppName-SkillName"
+     * e.g., appId="audio", skillId="generate_transcript" → "Audio-Generate-Transcript"
+     */
+    function capitalizeHyphenated(str: string): string {
+        return str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+    }
+
+    let skillMentionDisplayName = $derived(
+        `${capitalizeHyphenated(appId)}-${capitalizeHyphenated(skillId.replace(/_/g, '-'))}`
+    );
+
+    /**
      * Get "How to use" example instructions for this skill.
      * Derives translation keys from the skill's name_translation_key by appending .how_to_use.{1|2|3}.
      * Only includes examples where a translation exists (key doesn't resolve to itself).
@@ -284,6 +297,8 @@
                     icon="skill"
                     title={$text('settings.app_store.skills.how_to_use')}
                 />
+                <!-- "Just ask your mates something like:" prefix -->
+                <p class="how-to-use-prefix">{$text('settings.app_store.skills.how_to_use_prefix')}</p>
                 <div class="how-to-use-scroll-container">
                     <div class="how-to-use-scroll">
                         {#each howToUseExamples as example}
@@ -302,12 +317,16 @@
 
                                 <!-- Closing quote — bottom-left corner (flipped 180°) -->
                                 <svg class="quote-icon quote-close" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                    <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                                    <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
                                 </svg>
                             </div>
                         {/each}
                     </div>
                 </div>
+                <!-- "Or mention @SkillName in your message..." footer -->
+                <p class="how-to-use-mention">
+                    {$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[0]}<span class="mention-name">@{skillMentionDisplayName}</span>{$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[1]}
+                </p>
             </div>
         {/if}
         
@@ -513,6 +532,33 @@
     /* How to use section styles */
     .how-to-use-section {
         margin-top: 1.5rem;
+    }
+
+    /* "Just ask your mates something like:" label above example cards */
+    .how-to-use-prefix {
+        margin: 0.5rem 0 0 0;
+        padding: 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.5;
+        color: var(--color-grey-100);
+    }
+
+    /* "Or mention @SkillName in your message..." footer below example cards */
+    .how-to-use-mention {
+        margin: 0.75rem 0 0 0;
+        padding: 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.6;
+        color: var(--color-grey-100);
+        white-space: pre-line;
+    }
+
+    /* The @mention name rendered in accent color */
+    .how-to-use-mention .mention-name {
+        color: var(--color-primary-start);
+        font-weight: 600;
     }
     
     .how-to-use-scroll-container {

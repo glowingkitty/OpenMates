@@ -429,6 +429,30 @@ skills.title:
   sv: Färdigheter
   he: מיומנויות
   verified_by_human: []
+skills.section_description:
+  context: Description text shown under the Skills section heading in app details, explaining what skills are
+  en: "Just ask your mates to do any of these things:"
+  de: "Bitte deine Mates einfach, eines dieser Dinge zu tun:"
+  zh: 只需请求你的伙伴执行以下任一操作：
+  es: "Solo pídele a tus compañeros que hagan cualquiera de estas cosas:"
+  fr: "Demandez simplement à vos compagnons de faire l'une de ces choses :"
+  pt: "Apenas peça aos seus companheiros para fazer qualquer uma dessas coisas:"
+  ru: "Просто попросите своих помощников сделать любое из этих действий:"
+  ja: mates に次のことをお願いするだけです：
+  ko: "메이트에게 다음 중 하나를 해달라고 요청하세요:"
+  it: "Chiedi semplicemente ai tuoi compagni di fare una di queste cose:"
+  tr: "Matelerinizden şunlardan herhangi birini yapmasını isteyin:"
+  vi: "Chỉ cần yêu cầu bạn đồng hành của bạn làm bất kỳ điều nào trong số này:"
+  id: "Cukup minta teman-teman Anda melakukan salah satu hal berikut:"
+  pl: "Po prostu poproś swoich towarzyszy, aby zrobili jedno z tych rzeczy:"
+  nl: "Vraag je maatjes gewoon om een van deze dingen te doen:"
+  ar: "فقط اطلب من رفاقك القيام بأي من هذه الأشياء:"
+  hi: "बस अपने साथियों से इनमें से कोई भी काम करने के लिए कहें:"
+  th: "เพียงขอให้เพื่อนของคุณทำสิ่งใดสิ่งหนึ่งเหล่านี้:"
+  cs: "Stačí požádat své spoluhráče, aby udělali jednu z těchto věcí:"
+  sv: "Be bara dina kompisar att göra någon av dessa saker:"
+  he: "פשוט בקש מהחברים שלך לעשות אחד מהדברים האלה:"
+  verified_by_human: []
 skills.how_to_use:
   context: Section title for how to use examples on skill detail page
   en: How to use
@@ -453,6 +477,54 @@ skills.how_to_use:
   sv: Hur man använder
   he: אופן השימוש
   verified_by_human: [en, de]
+skills.how_to_use_prefix:
+  context: Text shown before the how-to-use example cards on a skill detail page, inviting the user to try example prompts
+  en: "Just ask your mates something like:"
+  de: "Frag deine Mates einfach so etwas wie:"
+  zh: 只需向你的伙伴提问，例如：
+  es: "Solo pregúntale a tus compañeros algo como:"
+  fr: "Demandez simplement à vos compagnons quelque chose comme :"
+  pt: "Apenas pergunte aos seus companheiros algo como:"
+  ru: "Просто спросите своих помощников что-нибудь вроде:"
+  ja: mates に次のようなことを聞いてみてください：
+  ko: "메이트에게 이런 식으로 물어보세요:"
+  it: "Chiedi semplicemente ai tuoi compagni qualcosa come:"
+  tr: "Matelerinize şöyle bir şey sorun:"
+  vi: "Chỉ cần hỏi bạn đồng hành của bạn điều gì đó như:"
+  id: "Cukup tanyakan kepada teman-teman Anda sesuatu seperti:"
+  pl: "Po prostu zapytaj swoich towarzyszy o coś takiego:"
+  nl: "Vraag je maatjes gewoon iets als:"
+  ar: "فقط اسأل رفاقك شيئًا مثل:"
+  hi: "बस अपने साथियों से कुछ ऐसा पूछें:"
+  th: "เพียงถามเพื่อนของคุณว่า:"
+  cs: "Stačí se zeptat spoluhráčů na něco takového:"
+  sv: "Fråga bara dina kompisar något liknande:"
+  he: "פשוט שאל את החברים שלך משהו כמו:"
+  verified_by_human: []
+skills.how_to_use_mention:
+  context: Text shown after the how-to-use example cards on a skill detail page, explaining how to explicitly trigger the skill by @-mentioning it. {skillname} is replaced with the skill's @mention name (e.g., @Audio-GenerateTranscript).
+  en: "Or mention @{skillname}\nin your message to trigger the skill explicitly."
+  de: "Oder erwähne @{skillname}\nin deiner Nachricht, um den Skill explizit auszulösen."
+  zh: "或在消息中提及 @{skillname}\n以明确触发该技能。"
+  es: "O menciona @{skillname}\nen tu mensaje para activar la habilidad explícitamente."
+  fr: "Ou mentionnez @{skillname}\ndans votre message pour déclencher explicitement la compétence."
+  pt: "Ou mencione @{skillname}\nna sua mensagem para acionar a habilidade explicitamente."
+  ru: "Или упомяните @{skillname}\nв своём сообщении, чтобы явно активировать навык."
+  ja: "またはメッセージで @{skillname}\nと書いて、スキルを明示的にトリガーしてください。"
+  ko: "또는 메시지에서 @{skillname}\n을 언급하여 스킬을 명시적으로 트리거하세요."
+  it: "Oppure menziona @{skillname}\nnel tuo messaggio per attivare esplicitamente la competenza."
+  tr: "Veya beceriyi açıkça tetiklemek için mesajınızda @{skillname}\nifadesini kullanın."
+  vi: "Hoặc đề cập @{skillname}\ntrong tin nhắn của bạn để kích hoạt kỹ năng một cách rõ ràng."
+  id: "Atau sebutkan @{skillname}\ndalam pesan Anda untuk memicu keterampilan secara eksplisit."
+  pl: "Lub wspomnij @{skillname}\nw swojej wiadomości, aby jawnie uruchomić umiejętność."
+  nl: "Of vermeld @{skillname}\nin je bericht om de vaardigheid expliciet te activeren."
+  ar: "أو اذكر @{skillname}\nفي رسالتك لتشغيل المهارة صراحةً."
+  hi: "या अपने संदेश में @{skillname}\nका उल्लेख करें ताकि स्किल को स्पष्ट रूप से ट्रिगर किया जा सके।"
+  th: "หรือกล่าวถึง @{skillname}\nในข้อความของคุณเพื่อเรียกใช้ทักษะอย่างชัดเจน"
+  cs: "Nebo zmíněte @{skillname}\nve své zprávě a explicitně spusťte dovednost."
+  sv: "Eller nämn @{skillname}\ni ditt meddelande för att utlösa kompetensen explicit."
+  he: "או הזכר @{skillname}\nבהודעה שלך כדי להפעיל את המיומנות במפורש."
+  verified_by_human: []
 skills.description:
   context: Label for skill description
   en: Description
@@ -717,6 +789,102 @@ focus_modes.title:
   sv: Fok lägen
   he: מצבי ריכוז
   verified_by_human: []
+focus_modes.section_description:
+  context: Description text shown under the Focus Modes section heading in app details, explaining what focus modes are
+  en: "Ask your mates to have focused conversations to reach a goal:"
+  de: "Bitte deine Mates, fokussierte Gespräche zu führen, um ein Ziel zu erreichen:"
+  zh: 请求你的伙伴进行有针对性的对话以达成目标：
+  es: "Pídele a tus compañeros que tengan conversaciones enfocadas para alcanzar un objetivo:"
+  fr: "Demandez à vos compagnons d'avoir des conversations ciblées pour atteindre un objectif :"
+  pt: "Peça aos seus companheiros para terem conversas focadas para alcançar um objetivo:"
+  ru: "Попросите своих помощников вести целенаправленные беседы для достижения цели:"
+  ja: mates に目標を達成するための集中した会話をお願いしてください：
+  ko: "목표를 달성하기 위해 집중적인 대화를 해달라고 메이트에게 요청하세요:"
+  it: "Chiedi ai tuoi compagni di avere conversazioni mirate per raggiungere un obiettivo:"
+  tr: "Matelerinizden bir hedefe ulaşmak için odaklı konuşmalar yapmalarını isteyin:"
+  vi: "Yêu cầu bạn đồng hành của bạn có những cuộc trò chuyện tập trung để đạt được mục tiêu:"
+  id: "Minta teman-teman Anda untuk berdiskusi secara terfokus guna mencapai tujuan:"
+  pl: "Poproś swoich towarzyszy o prowadzenie skupionych rozmów w celu osiągnięcia celu:"
+  nl: "Vraag je maatjes om gerichte gesprekken te voeren om een doel te bereiken:"
+  ar: "اطلب من رفاقك إجراء محادثات مركزة لتحقيق هدف:"
+  hi: "अपने साथियों से किसी लक्ष्य तक पहुँचने के लिए केंद्रित बातचीत करने के लिए कहें:"
+  th: "ขอให้เพื่อนของคุณสนทนาอย่างมีสมาธิเพื่อบรรลุเป้าหมาย:"
+  cs: "Požádejte své spoluhráče o vedení soustředěných rozhovorů za účelem dosažení cíle:"
+  sv: "Be dina kompisar att ha fokuserade samtal för att nå ett mål:"
+  he: "בקש מהחברים שלך לנהל שיחות ממוקדות כדי להשיג מטרה:"
+  verified_by_human: []
+focus_modes.how_to_use_prefix:
+  context: Text shown before the how-to-use example cards on a focus mode detail page, inviting the user to try example prompts
+  en: "Just ask your mates something like:"
+  de: "Frag deine Mates einfach so etwas wie:"
+  zh: 只需向你的伙伴提问，例如：
+  es: "Solo pregúntale a tus compañeros algo como:"
+  fr: "Demandez simplement à vos compagnons quelque chose comme :"
+  pt: "Apenas pergunte aos seus companheiros algo como:"
+  ru: "Просто спросите своих помощников что-нибудь вроде:"
+  ja: mates に次のようなことを聞いてみてください：
+  ko: "메이트에게 이런 식으로 물어보세요:"
+  it: "Chiedi semplicemente ai tuoi compagni qualcosa come:"
+  tr: "Matelerinize şöyle bir şey sorun:"
+  vi: "Chỉ cần hỏi bạn đồng hành của bạn điều gì đó như:"
+  id: "Cukup tanyakan kepada teman-teman Anda sesuatu seperti:"
+  pl: "Po prostu zapytaj swoich towarzyszy o coś takiego:"
+  nl: "Vraag je maatjes gewoon iets als:"
+  ar: "فقط اسأل رفاقك شيئًا مثل:"
+  hi: "बस अपने साथियों से कुछ ऐसा पूछें:"
+  th: "เพียงถามเพื่อนของคุณว่า:"
+  cs: "Stačí se zeptat spoluhráčů na něco takového:"
+  sv: "Fråga bara dina kompisar något liknande:"
+  he: "פשוט שאל את החברים שלך משהו כמו:"
+  verified_by_human: []
+focus_modes.how_to_use_mention:
+  context: Text shown after the how-to-use example cards on a focus mode detail page, explaining how to explicitly trigger the focus mode by @-mentioning it. {focusname} is replaced with the focus mode's @mention name (e.g., @Jobs-CareerInsights).
+  en: "Or mention @{focusname}\nin your message to trigger the focus mode explicitly."
+  de: "Oder erwähne @{focusname}\nin deiner Nachricht, um den Fokusmodus explizit zu aktivieren."
+  zh: "或在消息中提及 @{focusname}\n以明确触发该专注模式。"
+  es: "O menciona @{focusname}\nen tu mensaje para activar el modo de enfoque explícitamente."
+  fr: "Ou mentionnez @{focusname}\ndans votre message pour déclencher explicitement le mode de concentration."
+  pt: "Ou mencione @{focusname}\nna sua mensagem para ativar o modo de foco explicitamente."
+  ru: "Или упомяните @{focusname}\nв своём сообщении, чтобы явно активировать режим фокуса."
+  ja: "またはメッセージで @{focusname}\nと書いて、フォーカスモードを明示的にトリガーしてください。"
+  ko: "또는 메시지에서 @{focusname}\n을 언급하여 포커스 모드를 명시적으로 트리거하세요."
+  it: "Oppure menziona @{focusname}\nnel tuo messaggio per attivare esplicitamente la modalità di focus."
+  tr: "Veya odak modunu açıkça tetiklemek için mesajınızda @{focusname}\nifadesini kullanın."
+  vi: "Hoặc đề cập @{focusname}\ntrong tin nhắn của bạn để kích hoạt chế độ tập trung một cách rõ ràng."
+  id: "Atau sebutkan @{focusname}\ndalam pesan Anda untuk memicu mode fokus secara eksplisit."
+  pl: "Lub wspomnij @{focusname}\nw swojej wiadomości, aby jawnie uruchomić tryb skupienia."
+  nl: "Of vermeld @{focusname}\nin je bericht om de focusmodus expliciet te activeren."
+  ar: "أو اذكر @{focusname}\nفي رسالتك لتشغيل وضع التركيز صراحةً."
+  hi: "या अपने संदेश में @{focusname}\nका उल्लेख करें ताकि फोकस मोड को स्पष्ट रूप से ट्रिगर किया जा सके।"
+  th: "หรือกล่าวถึง @{focusname}\nในข้อความของคุณเพื่อเรียกใช้โหมดโฟกัสอย่างชัดเจน"
+  cs: "Nebo zmíněte @{focusname}\nve své zprávě a explicitně aktivujte režim zaměření."
+  sv: "Eller nämn @{focusname}\ni ditt meddelande för att utlösa fokusläget explicit."
+  he: "או הזכר @{focusname}\nבהודעה שלך כדי להפעיל את מצב המיקוד במפורש."
+  verified_by_human: []
+focus_modes.instructions_overview:
+  context: Text shown above the bullet-point summary in the Instructions section of a focus mode detail page
+  en: "An overview, over what the focus mode will do:"
+  de: "Eine Übersicht darüber, was der Fokusmodus tun wird:"
+  zh: 关于专注模式将执行的操作概述：
+  es: "Una descripción general de lo que hará el modo de enfoque:"
+  fr: "Un aperçu de ce que fera le mode de concentration :"
+  pt: "Uma visão geral do que o modo de foco fará:"
+  ru: "Обзор того, что сделает режим фокуса:"
+  ja: フォーカスモードが行うことの概要：
+  ko: "포커스 모드가 수행할 작업 개요:"
+  it: "Una panoramica di cosa farà la modalità di focus:"
+  tr: "Odak modunun neler yapacağına genel bir bakış:"
+  vi: "Tổng quan về những gì chế độ tập trung sẽ làm:"
+  id: "Gambaran umum tentang apa yang akan dilakukan mode fokus:"
+  pl: "Przegląd tego, co zrobi tryb skupienia:"
+  nl: "Een overzicht van wat de focusmodus zal doen:"
+  ar: "نظرة عامة على ما سيفعله وضع التركيز:"
+  hi: "फोकस मोड क्या करेगा इसका अवलोकन:"
+  th: "ภาพรวมของสิ่งที่โหมดโฟกัสจะทำ:"
+  cs: "Přehled toho, co bude dělat režim zaměření:"
+  sv: "En översikt över vad fokusläget kommer att göra:"
+  he: "סקירה כללית של מה שמצב המיקוד יעשה:"
+  verified_by_human: []
 focus_modes.description:
   context: Label for focus mode description
   en: Description
@@ -932,6 +1100,30 @@ settings_memories.title:
   cs: Nastavení a vzpomínky
   sv: Inställningar och minnen
   he: הגדרות וזיכרונות
+  verified_by_human: []
+settings_memories.section_description:
+  context: Description text shown under the Settings & Memories section heading in app details, explaining what settings & memories are
+  en: "Your mates can request these details from you, to give you even better responses. While you stay in control over what you share & when:"
+  de: "Deine Mates können diese Details von dir anfordern, um dir noch bessere Antworten zu geben. Dabei behältst du immer die Kontrolle darüber, was du teilst und wann:"
+  zh: "你的伙伴可以向你请求这些详细信息，以便给你提供更好的回答。同时，你始终控制自己分享的内容和时间："
+  es: "Tus compañeros pueden pedirte estos detalles para darte respuestas aún mejores. Tú siempre tienes el control sobre qué compartes y cuándo:"
+  fr: "Vos compagnons peuvent vous demander ces informations pour vous donner de meilleures réponses. Vous gardez le contrôle sur ce que vous partagez et quand :"
+  pt: "Seus companheiros podem solicitar esses detalhes de você para dar respostas ainda melhores. Você mantém o controle sobre o que compartilha e quando:"
+  ru: "Ваши помощники могут запрашивать у вас эти сведения, чтобы давать ещё лучшие ответы. Вы всегда контролируете, что и когда делитесь:"
+  ja: "mates はより良い回答を提供するためにこれらの詳細を求めることがあります。何をいつ共有するかはあなたが決めます："
+  ko: "메이트가 더 나은 응답을 제공하기 위해 이 세부 정보를 요청할 수 있습니다. 공유할 내용과 시기는 항상 당신이 결정합니다:"
+  it: "I tuoi compagni possono chiederti questi dettagli per darti risposte ancora migliori. Tu mantieni sempre il controllo su cosa condividi e quando:"
+  tr: "Mateleriniz sizi daha iyi yanıtlamak için bu ayrıntıları sizden isteyebilir. Ne zaman ve ne paylaşacağınız her zaman sizin kontrolünüzde:"
+  vi: "Bạn đồng hành của bạn có thể yêu cầu những chi tiết này để cung cấp phản hồi tốt hơn. Bạn luôn kiểm soát những gì bạn chia sẻ và khi nào:"
+  id: "Teman-teman Anda dapat meminta detail ini untuk memberikan jawaban yang lebih baik. Anda selalu mengontrol apa yang Anda bagikan dan kapan:"
+  pl: "Twoi towarzysze mogą poprosić o te szczegóły, aby dawać Ci jeszcze lepsze odpowiedzi. Ty zawsze kontrolujesz, co udostępniasz i kiedy:"
+  nl: "Je maatjes kunnen om deze details vragen om je nog betere antwoorden te geven. Jij blijft altijd in controle over wat je deelt en wanneer:"
+  ar: "يمكن لرفاقك طلب هذه التفاصيل منك لإعطائك ردودًا أفضل. بينما تحتفظ بالسيطرة على ما تشارك ومتى:"
+  hi: "आपके साथी आपको और बेहतर उत्तर देने के लिए ये विवरण आपसे मांग सकते हैं। आप हमेशा यह नियंत्रित करते हैं कि आप क्या और कब साझा करते हैं:"
+  th: "เพื่อนของคุณสามารถขอข้อมูลเหล่านี้จากคุณเพื่อให้คำตอบที่ดีขึ้น คุณยังคงควบคุมสิ่งที่แบ่งปันและเมื่อใด:"
+  cs: "Vaši spoluhráči vás mohou požádat o tyto podrobnosti, aby vám dávali ještě lepší odpovědi. Vy vždy kontrolujete, co sdílíte a kdy:"
+  sv: "Dina kompisar kan be om dessa uppgifter för att ge dig ännu bättre svar. Du har alltid kontroll över vad du delar och när:"
+  he: "החברים שלך יכולים לבקש ממך פרטים אלה כדי לתת לך תשובות טובות יותר. ואתה תמיד שולט במה שאתה משתף ומתי:"
   verified_by_human: []
 settings_memories.subtitle:
   context: Subtitle showing number of settings/memories categories

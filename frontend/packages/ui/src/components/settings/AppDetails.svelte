@@ -156,6 +156,7 @@
                     icon="settings"
                     title={$text('settings.app_store.settings_memories.title')}
                 />
+                <p class="section-description">{$text('settings.app_store.settings_memories.section_description')}</p>
                 <div class="items-scroll-container">
                     <div class="items-scroll">
                         {#each memoryFields as category (category.id)}
@@ -190,6 +191,7 @@
                     icon="skill"
                     title={$text('settings.app_store.skills.title')}
                 />
+                <p class="section-description">{$text('settings.app_store.skills.section_description')}</p>
                 <div class="items-scroll-container">
                     <div class="items-scroll">
                         {#each skills as skill (skill.id)}
@@ -214,6 +216,7 @@
                     icon="focus"
                     title={$text('settings.app_store.focus_modes.title')}
                 />
+                <p class="section-description">{$text('settings.app_store.focus_modes.section_description')}</p>
                 <div class="items-scroll-container">
                     <div class="items-scroll">
                         {#each focusModes as focusMode (focusMode.id)}
@@ -278,6 +281,15 @@
     .section {
         margin-top: 2rem;
         padding-left: 0;
+    }
+
+    /* Description text shown under section headings (Skills / Focus Modes / Settings & Memories) */
+    .section-description {
+        margin: 0.35rem 0 0.5rem 0;
+        padding: 0;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: var(--color-font-secondary);
     }
     
     /* Ensure SettingsItem headings align with description text */
