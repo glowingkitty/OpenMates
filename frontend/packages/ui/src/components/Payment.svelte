@@ -277,7 +277,7 @@
                     // Transition to processing state — WebSocket will confirm completion
                     paymentState = 'processing';
                     isWaitingForConfirmation = true;
-                    dispatch('paymentStateChange', { state: paymentState });
+                    dispatch('paymentStateChange', { state: paymentState, provider: 'polar' });
 
                     // 30-second fallback timeout in case WebSocket confirmation is delayed
                     paymentConfirmationTimeoutId = setTimeout(() => {
@@ -291,6 +291,7 @@
                                     dispatch('paymentStateChange', {
                                         state: paymentState,
                                         payment_intent_id: lastOrderId,
+                                        provider: 'polar',
                                         isDelayed: true
                                     });
                                 }
@@ -624,6 +625,7 @@
                                 dispatch('paymentStateChange', { 
                                     state: paymentState,
                                     payment_intent_id: paymentIntentId, // Use stored payment_intent_id
+                                    provider: 'stripe',
                                     isDelayed: true // Flag to indicate this was a delayed confirmation
                                 });
                             }
@@ -638,7 +640,8 @@
                 // Dispatch state change with payment_intent_id for subscription setup
                 dispatch('paymentStateChange', { 
                     state: paymentState, 
-                    payment_intent_id: paymentIntentId // Use stored payment_intent_id
+                    payment_intent_id: paymentIntentId, // Use stored payment_intent_id
+                    provider: 'stripe'
                 });
             }
         } else if (paymentIntent && paymentIntent.status === 'processing') {
@@ -672,6 +675,7 @@
                             dispatch('paymentStateChange', { 
                                 state: paymentState,
                                 payment_intent_id: paymentIntentId, // Use stored payment_intent_id
+                                provider: 'stripe',
                                 isDelayed: true // Flag to indicate this was a delayed confirmation
                             });
                         }
@@ -735,7 +739,8 @@
                 
                 dispatch('paymentStateChange', { 
                     state: paymentState,
-                    payment_intent_id: intentId
+                    payment_intent_id: intentId,
+                    provider: activeProvider || 'stripe'
                 });
             }
         } else {
@@ -964,6 +969,18 @@
     {:else}
         {#if hostedInvoiceUrl}
             <div class="payment-form-overlay-wrapper">
+                <!-- Switch to Polar (non-EU card) — shown at top so it's visible on mobile without scrolling -->
+                {#if !supportContribution}
+                    <div class="provider-switch-container">
+                        <button
+                            class="provider-switch-btn"
+                            onclick={() => switchProvider('polar')}
+                            disabled={isLoading}
+                        >
+                            {$text('signup.switch_to_non_eu_card')}
+                        </button>
+                    </div>
+                {/if}
                 <PaymentForm
                     bind:this={paymentFormComponent}
                     purchasePrice={purchasePrice}
@@ -984,21 +1001,21 @@
                     clientSecret={clientSecret}
                     darkmode={darkmode}
                 />
-                <!-- Switch to Polar (non-EU card) — only for regular credit purchases, not supporter contributions -->
-                {#if !supportContribution}
-                    <div class="provider-switch-container">
-                        <button
-                            class="provider-switch-btn"
-                            onclick={() => switchProvider('polar')}
-                            disabled={isLoading}
-                        >
-                            {$text('signup.switch_to_non_eu_card')}
-                        </button>
-                    </div>
-                {/if}
             </div>
         {:else}
         <div class="payment-form-overlay-wrapper">
+            <!-- Switch to Polar (non-EU card) — shown at top so it's visible on mobile without scrolling -->
+            {#if !supportContribution}
+                <div class="provider-switch-container">
+                    <button
+                        class="provider-switch-btn"
+                        onclick={() => switchProvider('polar')}
+                        disabled={isLoading}
+                    >
+                        {$text('signup.switch_to_non_eu_card')}
+                    </button>
+                </div>
+            {/if}
             <div id="payment-element"></div>
             <PaymentForm
                 bind:this={paymentFormComponent}
@@ -1019,18 +1036,6 @@
                 clientSecret={clientSecret}
                 darkmode={darkmode}
             />
-            <!-- Switch to Polar (non-EU card) — only for regular credit purchases, not supporter contributions -->
-            {#if !supportContribution}
-                <div class="provider-switch-container">
-                    <button
-                        class="provider-switch-btn"
-                        onclick={() => switchProvider('polar')}
-                        disabled={isLoading}
-                    >
-                        {$text('signup.switch_to_non_eu_card')}
-                    </button>
-                </div>
-            {/if}
             {#if requireConsent && !hasConsentedToLimitedRefund}
                 <div class="consent-overlay" transition:fade>
                     <LimitedRefundConsent

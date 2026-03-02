@@ -953,13 +953,37 @@
                 paymentState = 'idle';
             }, 500);
         } else if (paymentState === 'success') { // Add success handling
-            console.debug("Payment successful, saving payment method...");
+            const paymentProvider = event.detail.provider || 'stripe';
+            console.debug(`[Signup] Payment successful via provider: ${paymentProvider}`);
             console.debug(`[Signup] Using selectedCreditsAmount: ${selectedCreditsAmount}, selectedPrice: ${selectedPrice}`);
             
             // Reset payment method save status
             paymentMethodSaved = false;
             paymentMethodSaveError = null;
             
+            // Credits will be updated via WebSocket 'user_credits_updated' event from backend
+            // The listener set up in onMount will handle the update automatically
+            // If WebSocket is not connected, ensure it's connected to receive the update
+            if (!webSocketService.isConnected()) {
+                console.debug("[Signup] WebSocket not connected, attempting to connect to receive credit updates...");
+                webSocketService.connect().catch(error => {
+                    console.warn("[Signup] Failed to connect WebSocket after payment:", error);
+                    // Continue anyway - credits will update when WebSocket connects or on next sync
+                });
+            }
+
+            // Polar does not support saved payment methods — they act as Merchant of Record
+            // and own the payment relationship. Auto top-up requires a stored card, so skip
+            // the auto top-up step entirely for Polar users and go straight to completion.
+            if (paymentProvider === 'polar') {
+                console.debug("[Signup] Polar payment — skipping save-payment-method and auto top-up step");
+                setTimeout(() => {
+                    goToStep(STEP_COMPLETION);
+                }, 500);
+                return;
+            }
+            
+            // Stripe flow: save payment method then show auto top-up step
             // Save payment_intent_id for later subscription creation
             paymentIntentId = event.detail.payment_intent_id;
             
@@ -1035,19 +1059,7 @@
                 );
             }
             
-            // Credits will be updated via WebSocket 'user_credits_updated' event from backend
-            // The listener set up in onMount will handle the update automatically
-            // If WebSocket is not connected, ensure it's connected to receive the update
-            if (!webSocketService.isConnected()) {
-                console.debug("[Signup] WebSocket not connected, attempting to connect to receive credit updates...");
-                webSocketService.connect().catch(error => {
-                    console.warn("[Signup] Failed to connect WebSocket after payment:", error);
-                    // Continue anyway - credits will update when WebSocket connects or on next sync
-                });
-            }
-            
-            // After payment success, go to auto top-up step
-            // Only proceed if payment method was saved successfully (or if user wants to skip)
+            // After payment success (Stripe), go to auto top-up step
             setTimeout(() => {
                 goToStep(STEP_AUTO_TOP_UP);
             }, 500); // Short delay for smooth transition
