@@ -338,3 +338,16 @@ directus_users:
       type: json
       note: "User's email notification preferences: { aiResponses: boolean }. Controls which events trigger email notifications."
       default: '{"aiResponses": true}'
+
+    # Default model preferences for AI Ask skill (cross-device sync)
+    default_ai_model_simple:
+      type: string
+      length: 256
+      nullable: true
+      note: "User's preferred default model for simple AI requests. Null = auto-select. Format: 'provider/model_id' (e.g., 'anthropic/claude-haiku-4-5-20251001'). Settable via POST /v1/settings/ai-model-defaults."
+
+    default_ai_model_complex:
+      type: string
+      length: 256
+      nullable: true
+      note: "User's preferred default model for complex AI requests. Null = auto-select. Format: 'provider/model_id' (e.g., 'anthropic/claude-opus-4-6'). Settable via POST /v1/settings/ai-model-defaults."

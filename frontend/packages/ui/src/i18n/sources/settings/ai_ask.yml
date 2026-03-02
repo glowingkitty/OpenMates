@@ -114,6 +114,131 @@ ai_ask_settings.manual_select_note:
   he: "תמיד ניתן לבחור מודל ידנית באמצעות @mention בצ'אט."
   verified_by_human: []
 
+ai_ask_settings.default_models:
+  context: Section heading for the Default Models settings block (where users pick their preferred simple/complex model)
+  en: Default Models
+  de: Standardmodelle
+  zh: 默认模型
+  es: Modelos predeterminados
+  fr: Modèles par défaut
+  pt: Modelos padrão
+  ru: Модели по умолчанию
+  ja: デフォルトモデル
+  ko: 기본 모델
+  it: Modelli predefiniti
+  tr: Varsayılan modeller
+  vi: Mô hình mặc định
+  id: Model default
+  pl: Domyślne modele
+  nl: Standaardmodellen
+  ar: النماذج الافتراضية
+  hi: डिफ़ॉल्ट मॉडल
+  th: โมเดลเริ่มต้น
+  cs: Výchozí modely
+  sv: Standardmodeller
+  he: מודלים ברירת מחדל
+  verified_by_human: []
+
+ai_ask_settings.simple_requests:
+  context: Label for the dropdown that sets the default model for simple/easy AI requests
+  en: Simple requests
+  de: Einfache Anfragen
+  zh: 简单请求
+  es: Solicitudes simples
+  fr: Requêtes simples
+  pt: Solicitações simples
+  ru: Простые запросы
+  ja: シンプルなリクエスト
+  ko: 간단한 요청
+  it: Richieste semplici
+  tr: Basit istekler
+  vi: Yêu cầu đơn giản
+  id: Permintaan sederhana
+  pl: Proste zapytania
+  nl: Eenvoudige verzoeken
+  ar: الطلبات البسيطة
+  hi: सरल अनुरोध
+  th: คำของ่าย
+  cs: Jednoduché dotazy
+  sv: Enkla förfrågningar
+  he: בקשות פשוטות
+  verified_by_human: []
+
+ai_ask_settings.complex_requests:
+  context: Label for the dropdown that sets the default model for complex/hard AI requests
+  en: Complex requests
+  de: Komplexe Anfragen
+  zh: 复杂请求
+  es: Solicitudes complejas
+  fr: Requêtes complexes
+  pt: Solicitações complexas
+  ru: Сложные запросы
+  ja: 複雑なリクエスト
+  ko: 복잡한 요청
+  it: Richieste complesse
+  tr: Karmaşık istekler
+  vi: Yêu cầu phức tạp
+  id: Permintaan kompleks
+  pl: Złożone zapytania
+  nl: Complexe verzoeken
+  ar: الطلبات المعقدة
+  hi: जटिल अनुरोध
+  th: คำขอซับซ้อน
+  cs: Složité dotazy
+  sv: Komplexa förfrågningar
+  he: בקשות מורכבות
+  verified_by_human: []
+
+ai_ask_settings.model_auto:
+  context: Option label meaning "let the system auto-select the best model" shown first in the default model dropdowns
+  en: Auto
+  de: Automatisch
+  zh: 自动
+  es: Auto
+  fr: Auto
+  pt: Automático
+  ru: Авто
+  ja: 自動
+  ko: 자동
+  it: Automatico
+  tr: Otomatik
+  vi: Tự động
+  id: Otomatis
+  pl: Automatycznie
+  nl: Automatisch
+  ar: تلقائي
+  hi: स्वचालित
+  th: อัตโนมัติ
+  cs: Automaticky
+  sv: Automatiskt
+  he: אוטומטי
+  verified_by_human: []
+
+ai_ask_settings.default_models_save_error:
+  context: Error notification shown when saving default model preferences to the server fails (optimistic save failure)
+  en: Failed to save default model preference. Please try again.
+  de: Standardmodell konnte nicht gespeichert werden. Bitte versuche es erneut.
+  zh: 保存默认模型偏好失败，请重试。
+  es: No se pudo guardar la preferencia de modelo predeterminado. Por favor, inténtalo de nuevo.
+  fr: Impossible d'enregistrer la préférence du modèle par défaut. Veuillez réessayer.
+  pt: Falha ao salvar a preferência de modelo padrão. Por favor, tente novamente.
+  ru: Не удалось сохранить настройку модели по умолчанию. Пожалуйста, попробуйте ещё раз.
+  ja: デフォルトモデルの設定を保存できませんでした。もう一度お試しください。
+  ko: 기본 모델 설정을 저장하지 못했습니다. 다시 시도해 주세요.
+  it: Impossibile salvare la preferenza del modello predefinito. Per favore riprova.
+  tr: Varsayılan model tercihi kaydedilemedi. Lütfen tekrar deneyin.
+  vi: Không thể lưu tùy chọn mô hình mặc định. Vui lòng thử lại.
+  id: Gagal menyimpan preferensi model default. Silakan coba lagi.
+  pl: Nie udało się zapisać preferencji modelu domyślnego. Spróbuj ponownie.
+  nl: Kan de voorkeur voor het standaardmodel niet opslaan. Probeer het opnieuw.
+  ar: فشل حفظ تفضيل النموذج الافتراضي. يرجى المحاولة مرة أخرى.
+  hi: डिफ़ॉल्ट मॉडल प्राथमिकता सहेजने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถบันทึกการตั้งค่าโมเดลเริ่มต้นได้ กรุณาลองอีกครั้ง
+  cs: Nepodařilo se uložit předvolbu výchozího modelu. Zkuste to prosím znovu.
+  sv: Det gick inte att spara standardmodellens inställning. Försök igen.
+  he: שמירת העדפת המודל ברירת המחדל נכשלה. אנא נסה שנית.
+  verified_by_human: []
+
 ai_ask_settings.available_models:
   context: Section heading for available models list
   en: Available Models

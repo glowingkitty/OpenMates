@@ -1468,6 +1468,26 @@ async def handle_preprocessing(
             f"{selected_llm_for_main_id} (Name: {selected_llm_for_main_name})"
         )
 
+    # --- Apply User Default Model Preference (cross-device setting, lower priority than @mention) ---
+    # This runs after @mention override check but before ModelSelector auto-selection.
+    # Priority: @mention override > user default model > auto-selection via ModelSelector.
+    if not model_override_applied:
+        user_default_key = "default_ai_model_complex" if complexity_val == "complex" else "default_ai_model_simple"
+        user_default_model = (request_data.user_preferences or {}).get(user_default_key)
+        if user_default_model and "/" in user_default_model:
+            # Resolve human-readable display name from provider config
+            provider_part, model_id_part = user_default_model.split("/", 1)
+            resolved_name = config_manager.get_model_display_name(model_id_part, provider_part)
+            selected_llm_for_main_id = user_default_model
+            selected_llm_for_main_name = resolved_name if resolved_name else model_id_part
+            model_override_applied = True
+            model_selection_reason = f"User default ({user_default_key}): {user_default_model}"
+            logger.info(
+                f"{log_prefix} USER_DEFAULT_MODEL: Applying user default model "
+                f"({user_default_key}={user_default_model}, complexity={complexity_val}). "
+                f"Name: {selected_llm_for_main_name}"
+            )
+
     # --- Use Intelligent Model Selector if no user override ---
     if not model_override_applied:
         # Check if auto model selection is enabled in skill_config

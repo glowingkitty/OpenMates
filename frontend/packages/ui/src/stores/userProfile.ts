@@ -66,6 +66,11 @@ export interface UserProfile {
   // confirms the explainer, we set this flag so the explainer is never shown again.
   // Stored in IndexedDB only — no backend sync needed (device-local UX preference).
   incognito_explainer_seen?: boolean;
+  // Default model overrides for AI Ask skill (null = auto-select).
+  // Synced cross-device via Directus + Redis cache via POST /v1/settings/ai-model-defaults.
+  // Format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
+  default_ai_model_simple?: string | null;
+  default_ai_model_complex?: string | null;
 }
 
 // Default currency is now EUR

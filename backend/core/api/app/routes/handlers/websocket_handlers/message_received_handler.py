@@ -1372,6 +1372,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_system_language = user_data_for_prefs.get("language", "en")
             user_preferences_dict["language"] = user_system_language
             logger.debug(f"Including user system language '{user_system_language}' in AI request for user {user_id}")
+            # Include user's default model preferences (cross-device synced via Directus + Redis cache).
+            # The preprocessor uses these to override auto-selection when no @mention is present.
+            default_model_simple = user_data_for_prefs.get("default_ai_model_simple")
+            if default_model_simple:
+                user_preferences_dict["default_ai_model_simple"] = default_model_simple
+                logger.debug(f"Including default simple model '{default_model_simple}' in AI request for user {user_id}")
+            default_model_complex = user_data_for_prefs.get("default_ai_model_complex")
+            if default_model_complex:
+                user_preferences_dict["default_ai_model_complex"] = default_model_complex
+                logger.debug(f"Including default complex model '{default_model_complex}' in AI request for user {user_id}")
         
         mentioned_settings_memories_cleartext = message_payload_from_client.get("mentioned_settings_memories_cleartext")
         if mentioned_settings_memories_cleartext is not None and not isinstance(mentioned_settings_memories_cleartext, dict):

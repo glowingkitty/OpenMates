@@ -140,6 +140,36 @@ def period_to_days(period: str) -> Optional[int]:
     return _PERIOD_TO_DAYS.get(period)
 
 
+# ─── AI Model Defaults ────────────────────────────────────────────────────────
+
+class AiModelDefaultsRequest(BaseModel):
+    """
+    Request body for POST /v1/settings/ai-model-defaults.
+
+    Allows the user to set a preferred default model for simple and complex AI
+    requests, which overrides auto-selection for all their future messages.
+    Setting a field to None resets it to auto-select.
+
+    Model ID format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
+    """
+    default_ai_model_simple: Optional[str] = Field(
+        default=None,
+        description="Default model for simple requests. Null = auto-select. Format: 'provider/model_id'."
+    )
+    default_ai_model_complex: Optional[str] = Field(
+        default=None,
+        description="Default model for complex requests. Null = auto-select. Format: 'provider/model_id'."
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "default_ai_model_simple": "anthropic/claude-haiku-4-5-20251001",
+                "default_ai_model_complex": "anthropic/claude-opus-4-6"
+            }
+        }
+
+
 # ─── Storage Overview ─────────────────────────────────────────────────────────
 
 class StorageCategoryBreakdown(BaseModel):

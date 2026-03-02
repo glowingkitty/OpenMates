@@ -21,7 +21,7 @@ from backend.core.api.app.routes.auth_routes.auth_utils import validate_username
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
+from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
@@ -3832,6 +3832,87 @@ async def update_auto_delete_chats(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="An error occurred while saving auto-delete setting")
+
+
+# ─── AI Model Default Preferences ────────────────────────────────────────────
+
+
+@router.post("/ai-model-defaults", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_ai_model_defaults(
+    request: Request,
+    request_data: AiModelDefaultsRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> SimpleSuccessResponse:
+    """
+    Persist the user's preferred default AI models for simple and complex requests.
+
+    These values are injected into user_preferences when a message is received and
+    take precedence over auto-selection (ModelSelector), but are overridden by an
+    explicit @mention in the message.
+
+    Model ID format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
+    Pass null (or omit) to reset a tier to auto-select.
+    """
+    user_id = current_user.id
+
+    # Validate model IDs — must be either None (auto-select) or contain a "/" separator
+    for field_name, value in [
+        ("default_ai_model_simple", request_data.default_ai_model_simple),
+        ("default_ai_model_complex", request_data.default_ai_model_complex),
+    ]:
+        if value is not None and "/" not in value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid model ID for '{field_name}': must be in 'provider/model_id' format (e.g. 'anthropic/claude-haiku-4-5-20251001')."
+            )
+
+    update_data = {
+        'default_ai_model_simple': request_data.default_ai_model_simple,
+        'default_ai_model_complex': request_data.default_ai_model_complex,
+    }
+
+    logger.info(
+        f"[AiModelDefaults] Updating default models for user {user_id}: "
+        f"simple={request_data.default_ai_model_simple!r}, "
+        f"complex={request_data.default_ai_model_complex!r}"
+    )
+
+    try:
+        # Persist to Directus (source of truth)
+        success = await directus_service.update_user(user_id, update_data)
+        if not success:
+            logger.error(
+                f"[AiModelDefaults] Failed to update Directus for user {user_id}."
+            )
+            raise HTTPException(status_code=500, detail="Failed to save default model setting")
+
+        # Mirror to cache so the WebSocket handler picks up the new values immediately
+        cache_ok = await cache_service.update_user(user_id, update_data)
+        if not cache_ok:
+            # Non-fatal: Directus is the source of truth; cache will be refreshed on next request.
+            logger.warning(
+                f"[AiModelDefaults] Cache update failed for user {user_id} after "
+                f"default model change (Directus was updated successfully)."
+            )
+        else:
+            logger.info(f"[AiModelDefaults] Cache updated for user {user_id}.")
+
+        return SimpleSuccessResponse(
+            success=True,
+            message="Default model settings saved successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[AiModelDefaults] Unexpected error updating default models for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="An error occurred while saving default model setting")
 
 
 # ─── Storage Overview ─────────────────────────────────────────────────────────

@@ -491,6 +491,7 @@ class UserDatabaseService {
         language: "en", // Initialize language
         darkmode: false, // Initialize darkmode
         currency: "", // Initialize currency
+        timezone: null, // Required by UserProfile interface
       };
 
       const currencyRequest = store.get("currency"); // Add request for currency
@@ -971,6 +972,20 @@ class UserDatabaseService {
         store.put(
           partialData.email_notification_preferences,
           "email_notification_preferences",
+        );
+      }
+
+      // Handle default AI model preferences (cross-device synced via Directus + Redis cache)
+      if (partialData.default_ai_model_simple !== undefined) {
+        store.put(
+          partialData.default_ai_model_simple,
+          "default_ai_model_simple",
+        );
+      }
+      if (partialData.default_ai_model_complex !== undefined) {
+        store.put(
+          partialData.default_ai_model_complex,
+          "default_ai_model_complex",
         );
       }
 
