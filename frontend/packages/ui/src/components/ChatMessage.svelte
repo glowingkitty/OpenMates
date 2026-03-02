@@ -1273,7 +1273,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       try {
         const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
         const embedData = await resolveEmbed(embedId);
-        if (!embedData?.content) return;
+        if (!embedData?.content) {
+          // No embed data found — clean up state so the menu closes properly
+          console.warn('[ChatMessage] No embed data found for web search embed, cannot copy');
+          showMenu = false;
+          selectedNode = null;
+          return;
+        }
 
         const decodedContent = await decodeToonContent(embedData.content);
         const query = decodedContent?.query || '';
