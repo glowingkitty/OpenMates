@@ -2951,6 +2951,65 @@ export async function handleSendEmbedDataImpl(
         return;
       }
 
+      // ============================================================
+      // DRAFT PDF EMBED: chat_id is null when OCR completes before the
+      // message has been sent (the PDF is still in the compose area).
+      // The embed cannot be persisted to IndexedDB yet because there is
+      // no chat key to wrap the embed key with. We:
+      //   1. Store the plaintext TOON in the in-memory cache so that
+      //      UnifiedEmbedPreview can decode screenshot credentials and
+      //      show the page-1 preview image.
+      //   2. Dispatch embedUpdated so MessageInput.svelte can update the
+      //      TipTap node from 'processing' → 'finished'.
+      // The embed is stored to IndexedDB normally when handleSend()
+      // serialises the message content and sends it to the server.
+      // ============================================================
+      if (!embedData.chat_id) {
+        console.info(
+          `[ChatSyncService:AI] Embed ${embedData.embed_id} has no chat_id — draft PDF (OCR completed before message sent). ` +
+            `Caching in-memory and dispatching embedUpdated for MessageInput.`,
+        );
+        // Store in memory cache (not persisted to IndexedDB) so UnifiedEmbedPreview
+        // can call resolveEmbed() → find plaintext TOON → decode screenshot credentials.
+        try {
+          const { embedStore: esForDraft } = await import("./embedStore");
+          const embedRef = `embed:${embedData.embed_id}`;
+          esForDraft.setInMemoryOnly(embedRef, {
+            embed_id: embedData.embed_id,
+            type: embedData.type,
+            status: embedData.status,
+            content: embedData.content,
+            text_preview: embedData.text_preview,
+            chat_id: null,
+            message_id: null,
+            createdAt: embedData.createdAt || Date.now(),
+            updatedAt: embedData.updatedAt || Date.now(),
+          });
+          console.debug(
+            `[ChatSyncService:AI] Cached draft PDF embed ${embedData.embed_id} in memory (no IndexedDB)`,
+          );
+        } catch (cacheErr) {
+          // Non-fatal: status will still update; only screenshot preview is affected.
+          console.warn(
+            `[ChatSyncService:AI] Failed to cache draft PDF embed in memory:`,
+            cacheErr,
+          );
+        }
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: embedData.embed_id,
+              chat_id: null,
+              message_id: null,
+              status: embedData.status,
+              child_embed_ids: embedData.embed_ids,
+              isProcessing: false,
+            },
+          }),
+        );
+        return;
+      }
+
       // Generate embed key, encrypt content, store locally, send to Directus
       console.info(
         `[ChatSyncService:AI] Embed ${embedData.embed_id} is finalized (status=${embedData.status}) - encrypting and persisting`,
