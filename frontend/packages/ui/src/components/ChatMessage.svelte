@@ -1953,7 +1953,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             <span class="upload-progress-label">{embedProg.label}</span>
             {#if embedProg.status === 'uploading'}
               <span class="upload-progress-text">
-                {$text('enter_message.upload_progress.uploading', { percent: embedProg.uploadPercent })}
+                {$text('enter_message.upload_progress.uploading', { values: { percent: embedProg.uploadPercent } })}
               </span>
               <div class="upload-progress-bar-track">
                 <div class="upload-progress-bar-fill" style="width: {embedProg.uploadPercent}%"></div>

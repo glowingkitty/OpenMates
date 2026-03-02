@@ -684,6 +684,26 @@ async function _performPdfUpload(
       },
     );
 
+    // Update the DeferredEmbedSnapshot in pendingUploadStore with the server-assigned
+    // uploadEmbedId and contentRef. This is critical for the deferred-send path: when the
+    // user pressed Send while this PDF was uploading, the snapshot had uploadEmbedId=null.
+    // Now that the upload is done, we patch the snapshot so executeDeferredSend() can
+    // look up the embed in EmbedStore using the correct contentRef.
+    try {
+      const { findPendingSendByEmbedId: findPending } =
+        await import("../../stores/pendingUploadStore");
+      const pendingInfo = findPending(localEmbedId);
+      if (pendingInfo) {
+        const snap = pendingInfo.context.embedSnapshots.get(localEmbedId);
+        if (snap) {
+          snap.uploadEmbedId = result.embed_id;
+          snap.contentRef = `embed:${result.embed_id}`;
+        }
+      }
+    } catch {
+      /* non-fatal — only needed for deferred sends */
+    }
+
     // Emit the finished event so MessageInput can check if a pending send is unblocked.
     // For fresh PDFs: uploading → processing → (WebSocket) finished.
     // For deduped PDFs: uploading → finished (immediately, no WebSocket needed).
