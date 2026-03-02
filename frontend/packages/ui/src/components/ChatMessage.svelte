@@ -1757,7 +1757,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
       return;
     }
-    // Handle other actions for legacy embed types
+    // Handle other actions for direct-type embeds (sheets-sheet, docs-doc, code-code, etc.)
+    // and legacy embed types that are not app-skill-use.
     else {
       switch (action) {
         case 'download':
@@ -1770,13 +1771,83 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             document.body.removeChild(a);
           }
           break;
-        case 'copy':
-          if (selectedNode.attrs?.url || selectedNode.attrs?.src) {
+
+        case 'copy': {
+          // Direct-type embeds store their content in EmbedStore via contentRef.
+          // Resolve and format per embed type; fall back to url/src for legacy embeds.
+          const embedType = selectedNode.attrs?.type as string | undefined;
+          const contentRef = selectedNode.attrs?.contentRef as string | undefined;
+          const embedId = contentRef?.startsWith('embed:') ? contentRef.replace('embed:', '') : null;
+
+          if (embedId) {
+            try {
+              const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+              const embedData = await resolveEmbed(embedId);
+              const decodedContent = embedData?.content
+                ? (typeof embedData.content === 'string'
+                    ? await decodeToonContent(embedData.content)
+                    : embedData.content as Record<string, unknown>)
+                : null;
+
+              let plainText = '';
+
+              if (decodedContent) {
+                if (embedType === 'sheets-sheet' || embedType === 'sheets-sheet-group') {
+                  // Convert markdown table to CSV
+                  const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
+                  if (tableContent) {
+                    const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
+                    plainText = lines.map((line: string) =>
+                      line.split('|')
+                        .map((cell: string) => cell.trim())
+                        .filter((cell: string) => cell !== '')
+                        .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
+                        .join(',')
+                    ).join('\n');
+                  }
+                } else if (embedType === 'docs-doc') {
+                  // Strip HTML to plain text
+                  const htmlContent = (decodedContent.html as string) || '';
+                  if (htmlContent) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = htmlContent;
+                    plainText = tempDiv.textContent || tempDiv.innerText || '';
+                  }
+                } else if (embedType === 'code-code' || embedType?.startsWith('code-')) {
+                  // Code content
+                  plainText = (decodedContent.code as string) || (decodedContent.content as string) || '';
+                } else {
+                  // Generic: extract readable scalar fields, skip internal keys
+                  const SKIP_KEYS = new Set(['aes_key', 'aes_nonce', 's3_key', 's3_base_url', 'iv', 'thumbnail_s3_key', 'screenshot_s3_keys', 'thumbnail_url']);
+                  plainText = Object.entries(decodedContent)
+                    .filter(([k, v]) => !SKIP_KEYS.has(k) && (typeof v === 'string' || typeof v === 'number'))
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join('\n');
+                }
+              }
+
+              if (plainText) {
+                await writeEmbedToClipboard(selectedNode.attrs, plainText);
+                const { notificationStore } = await import('../stores/notificationStore');
+                notificationStore.success('Copied to clipboard');
+              } else if (selectedNode.attrs?.url || selectedNode.attrs?.src) {
+                // Fallback to URL/src if no content could be extracted
+                await writeEmbedToClipboard(selectedNode.attrs, selectedNode.attrs.url || selectedNode.attrs.src);
+                const { notificationStore } = await import('../stores/notificationStore');
+                notificationStore.success('Copied to clipboard');
+              }
+            } catch (err) {
+              console.error('[ChatMessage] Error copying direct-type embed:', err);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.error('Failed to copy');
+            }
+          } else if (selectedNode.attrs?.url || selectedNode.attrs?.src) {
+            // Legacy embeds with no contentRef: copy url/src directly
             const fallbackText = selectedNode.attrs.url || selectedNode.attrs.src;
-            // Write embed reference (for in-app paste) + URL/src (for external paste)
             await writeEmbedToClipboard(selectedNode.attrs, fallbackText);
           }
           break;
+        }
       }
     }
 
