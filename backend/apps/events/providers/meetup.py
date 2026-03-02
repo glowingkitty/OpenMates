@@ -26,12 +26,11 @@
 #   Meetup has undocumented server-side throttling. A 1.2s polite delay is added
 #   between paginated requests. Single-page requests have no forced delay.
 
-import asyncio
 import logging
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -301,9 +300,6 @@ def search_events(
         "query": _EVENT_SEARCH_QUERY,
     }
 
-    # Build proxies dict for requests library (None = no proxy)
-    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
-
     logger.debug(
         "Meetup search: keywords=%r lat=%.4f lon=%.4f count=%d proxy=%s",
         keywords,
@@ -314,15 +310,20 @@ def search_events(
     )
     t0 = time.time()
 
+    # Use httpx instead of requests — httpx correctly handles proxy authentication
+    # for HTTPS targets via HTTP CONNECT tunnels (avoids 407 Proxy Auth Required that
+    # occurs with the requests library when using Webshare's rotating residential proxy
+    # endpoint at p.webshare.io:80).
     try:
-        resp = requests.post(
-            GRAPHQL_URL,
-            json=payload,
-            headers=_HEADERS,
-            timeout=20,
-            proxies=proxies,
-        )
-    except requests.RequestException as exc:
+        with httpx.Client(
+            proxy=proxy_url,  # httpx accepts None cleanly; handles HTTPS CONNECT auth correctly
+            timeout=20.0,
+            follow_redirects=True,
+        ) as client:
+            resp = client.post(GRAPHQL_URL, json=payload, headers=_HEADERS)
+    except httpx.ProxyError as exc:
+        raise RuntimeError(f"Proxy error connecting to Meetup: {exc}") from exc
+    except httpx.RequestError as exc:
         raise RuntimeError(f"HTTP request to Meetup failed: {exc}") from exc
 
     duration = time.time() - t0
@@ -375,32 +376,105 @@ async def search_events_async(
     proxy_url: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Async wrapper around search_events().
+    Async implementation of event search using httpx.AsyncClient.
 
-    Runs the synchronous HTTP call in a thread pool executor to avoid blocking
-    the FastAPI async event loop.
+    Uses httpx.AsyncClient directly for non-blocking async HTTP — avoids
+    spawning a thread pool executor. httpx handles HTTPS-over-proxy CONNECT
+    tunnels correctly, resolving the 407 Proxy Authentication Required error
+    that occurred with the synchronous requests library.
 
     Args:
-        proxy_url: Optional HTTP proxy URL forwarded to search_events().
+        proxy_url: Optional HTTP proxy URL (e.g. "http://user:pass@p.webshare.io:80").
                    Typically a Webshare rotating residential proxy URL.
+                   httpx correctly passes credentials in the CONNECT tunnel for HTTPS targets.
     """
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        None,
-        lambda: search_events(
-            keywords=keywords,
-            lat=lat,
-            lon=lon,
-            city=city,
-            country=country,
-            start_date=start_date,
-            end_date=end_date,
-            event_type=event_type,
-            radius_miles=radius_miles,
-            count=count,
-            proxy_url=proxy_url,
-        ),
+    count = max(1, min(count, 50))
+
+    gql_filter: Dict[str, Any] = {
+        "lat": lat,
+        "lon": lon,
+        "query": keywords,
+        "radius": radius_miles,
+        "doConsolidateEvents": False,
+    }
+    if city:
+        gql_filter["city"] = city
+    if country:
+        gql_filter["country"] = country
+    if start_date:
+        gql_filter["startDateRange"] = start_date
+    if end_date:
+        gql_filter["endDateRange"] = end_date
+    if event_type:
+        gql_filter["eventType"] = event_type
+
+    variables: Dict[str, Any] = {
+        "filter": gql_filter,
+        "sort": {"sortField": "RELEVANCE"},
+        "first": count,
+    }
+    payload = {
+        "operationName": "eventSearch",
+        "variables": variables,
+        "query": _EVENT_SEARCH_QUERY,
+    }
+
+    logger.debug(
+        "Meetup async search: keywords=%r lat=%.4f lon=%.4f count=%d proxy=%s",
+        keywords,
+        lat,
+        lon,
+        count,
+        "yes" if proxy_url else "no",
     )
+    t0 = time.time()
+
+    try:
+        async with httpx.AsyncClient(
+            proxy=proxy_url,
+            timeout=20.0,
+            follow_redirects=True,
+        ) as client:
+            resp = await client.post(GRAPHQL_URL, json=payload, headers=_HEADERS)
+    except httpx.ProxyError as exc:
+        raise RuntimeError(f"Proxy error connecting to Meetup: {exc}") from exc
+    except httpx.RequestError as exc:
+        raise RuntimeError(f"HTTP request to Meetup failed: {exc}") from exc
+
+    duration = time.time() - t0
+
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"Meetup GraphQL returned HTTP {resp.status_code} "
+            f"after {duration:.2f}s. Body: {resp.text[:300]}"
+        )
+
+    data = resp.json()
+
+    if "errors" in data:
+        import json as _json
+        raise RuntimeError(
+            f"Meetup GraphQL errors: {_json.dumps(data['errors'], indent=2)}"
+        )
+
+    event_search = data.get("data", {}).get("eventSearch")
+    if event_search is None:
+        raise ValueError(
+            "No 'eventSearch' field in Meetup GraphQL response. "
+            f"Response keys: {list(data.get('data', {}).keys())}"
+        )
+
+    edges = event_search.get("edges", [])
+    total_count = event_search.get("totalCount", 0)
+
+    logger.info(
+        "Meetup async search complete in %.2fs: %d events returned (totalCount=%d)",
+        duration,
+        len(edges),
+        total_count,
+    )
+
+    return [_normalise_event(edge.get("node", {})) for edge in edges]
 
 
 # ---------------------------------------------------------------------------
@@ -490,35 +564,34 @@ def _resolve_via_meetup_geocoder(location_str: str) -> Tuple[float, float, str, 
         "x-nextjs-data": "1",
     }
 
-    # Step 1: Fetch the main /find/ page to extract the Next.js buildId.
-    r = requests.get(
-        "https://www.meetup.com/find/",
-        headers={**headers_html, "Accept": "text/html"},
-        timeout=15,
-    )
-    build_id = r.headers.get("X-Build-Version", "")
-    if not build_id:
-        marker = '"buildId":"'
-        idx = r.text.find(marker)
-        if idx != -1:
-            end_idx = r.text.index('"', idx + len(marker))
-            build_id = r.text[idx + len(marker) : end_idx]
-
-    if not build_id:
-        raise ValueError(
-            "Could not extract Next.js buildId from Meetup /find/ page. "
-            "The page structure may have changed."
+    with httpx.Client(timeout=15.0, follow_redirects=True) as client:
+        # Step 1: Fetch the main /find/ page to extract the Next.js buildId.
+        r = client.get(
+            "https://www.meetup.com/find/",
+            headers={**headers_html, "Accept": "text/html"},
         )
+        build_id = r.headers.get("X-Build-Version", "")
+        if not build_id:
+            marker = '"buildId":"'
+            idx = r.text.find(marker)
+            if idx != -1:
+                end_idx = r.text.index('"', idx + len(marker))
+                build_id = r.text[idx + len(marker) : end_idx]
 
-    # Step 2: Query _next/data with the location string.
-    data_r = requests.get(
-        f"https://www.meetup.com/_next/data/{build_id}/find.json",
-        headers=headers_html,
-        params={"keywords": "test", "location": location_str, "source": "EVENTS"},
-        timeout=15,
-    )
-    page_props = data_r.json().get("pageProps", {})
-    loc = page_props.get("userLocation", {})
+        if not build_id:
+            raise ValueError(
+                "Could not extract Next.js buildId from Meetup /find/ page. "
+                "The page structure may have changed."
+            )
+
+        # Step 2: Query _next/data with the location string.
+        data_r = client.get(
+            f"https://www.meetup.com/_next/data/{build_id}/find.json",
+            headers=headers_html,
+            params={"keywords": "test", "location": location_str, "source": "EVENTS"},
+        )
+        page_props = data_r.json().get("pageProps", {})
+        loc = page_props.get("userLocation", {})
 
     if not loc or not loc.get("lat") or not loc.get("lon"):
         raise ValueError(

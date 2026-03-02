@@ -2145,6 +2145,67 @@ async def handle_main_processing(
                     current_message_history.append(tool_response_message)
                     # Set force_no_tools to prevent further tool calls
                     force_no_tools = True
+
+                    # === BUG FIX: Update orphaned placeholder embeds to error ===
+                    # When the budget check skips a tool call, placeholder embeds that were
+                    # already created (status=processing) are left stuck forever.
+                    # We must update them to error so the frontend shows the correct state.
+                    orphaned_placeholder = inline_placeholder_embeds.get(tool_call_id)
+                    if orphaned_placeholder and cache_service and user_vault_key_id and directus_service:
+                        try:
+                            from backend.core.api.app.services.embed_service import EmbedService
+                            _budget_embed_service = EmbedService(
+                                cache_service=cache_service,
+                                directus_service=directus_service,
+                                encryption_service=encryption_service
+                            )
+                            error_msg = "Research limit reached — this result was not fetched."
+
+                            if isinstance(orphaned_placeholder, dict) and orphaned_placeholder.get("multiple"):
+                                # Multiple placeholder embeds (multi-request tool call)
+                                for _p in orphaned_placeholder.get("placeholders", []):
+                                    _eid = _p.get("embed_id") if isinstance(_p, dict) else None
+                                    if _eid:
+                                        await _budget_embed_service.update_embed_status_to_error(
+                                            embed_id=_eid,
+                                            app_id=app_id,
+                                            skill_id=skill_id,
+                                            error_message=error_msg,
+                                            chat_id=request_data.chat_id,
+                                            message_id=request_data.message_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            task_id=task_id,
+                                            log_prefix=log_prefix
+                                        )
+                                        logger.info(
+                                            f"{log_prefix} [SKILL_BUDGET] Updated orphaned placeholder {_eid} to error"
+                                        )
+                            elif isinstance(orphaned_placeholder, dict) and "embed_id" in orphaned_placeholder:
+                                # Single placeholder embed
+                                _eid = orphaned_placeholder["embed_id"]
+                                await _budget_embed_service.update_embed_status_to_error(
+                                    embed_id=_eid,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    error_message=error_msg,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    log_prefix=log_prefix
+                                )
+                                logger.info(
+                                    f"{log_prefix} [SKILL_BUDGET] Updated orphaned placeholder {_eid} to error"
+                                )
+                        except Exception as _budget_err:
+                            logger.warning(
+                                f"{log_prefix} [SKILL_BUDGET] Failed to update orphaned placeholder to error: {_budget_err}"
+                            )
+
                     continue  # Skip to next tool call
                 
                 # === DEDUPLICATION CHECK (EXECUTION PHASE) ===

@@ -384,7 +384,12 @@ class SearchSkill(BaseSkill):
                     secret_key="proxy_password",
                 )
                 if ws_username and ws_password:
-                    proxy_url = f"http://{ws_username}:{ws_password}@p.webshare.io:80"
+                    # Webshare rotating residential proxies require the "-rotate" suffix
+                    # appended to the username (e.g. "user-rotate:pass@p.webshare.io:80/").
+                    # Without "-rotate" the proxy returns 407 Proxy Authentication Required
+                    # even when credentials are correct.  This format is documented by
+                    # WebshareProxyConfig in youtube-transcript-api and confirmed by Webshare.
+                    proxy_url = f"http://{ws_username}-rotate:{ws_password}@p.webshare.io:80/"
                     logger.debug("[events:search] Using Webshare rotating proxy for Meetup requests")
             except Exception as exc:
                 logger.warning(
