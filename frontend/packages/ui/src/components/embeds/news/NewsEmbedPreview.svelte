@@ -174,8 +174,11 @@
    * - Legacy embeds: Still works by fetching metadata as fallback
    */
   let needsMetadataFetch = $derived.by(() => {
-    // PRIMARY: If we have ANY metadata from props, use it (no fetch needed)
-    if (title || description || image) {
+    // PRIMARY: If we already have an image from props, no fetch needed.
+    // We do NOT suppress the fetch based on title/description alone — Brave News
+    // often provides title & description but no thumbnail, so we still want to
+    // attempt an OG image fetch from the preview server as a fallback.
+    if (image) {
       return false;
     }
     // If we already fetched for this URL, no need to re-fetch
@@ -408,7 +411,7 @@
           
           {#if imageUrl && !imageLoadError && !isMobileLayout}
             <!-- Preview image: full width when no description, right side when description exists -->
-            <div class="news-preview-image" class:full-width={!effectiveDescription}>
+            <div class="news-preview-image" class:full-width={!cleanedDescription}>
               <img 
                 src={imageUrl} 
                 alt={displayTitle}

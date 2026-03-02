@@ -329,6 +329,7 @@
   {embedIds}
   childEmbedTransformer={transformToNewsResult}
   legacyResults={resultsProp}
+  onChildrenLoaded={(children) => { allNewsResults = children as NewsSearchResult[]; }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -339,10 +340,6 @@
 >
   {#snippet content(ctx)}
     {@const newsResults = getNewsResults(ctx)}
-    <!-- Sync allNewsResults whenever results change (enables index-based sibling navigation) -->
-    {#if newsResults.length > 0 && newsResults !== allNewsResults}
-      {allNewsResults = newsResults}
-    {/if}
     
     {#if ctx.isLoadingChildren}
       <div class="loading-state">
