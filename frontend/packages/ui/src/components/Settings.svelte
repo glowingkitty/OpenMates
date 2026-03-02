@@ -606,6 +606,26 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     /**
+     * Aggregate capability stats for the App Store header banner.
+     * Shows total apps, skills, focus modes, and settings & memory types across all apps.
+     * Only computed when the app_store page is active to avoid unnecessary work.
+     */
+    let appStoreHeaderStats = $derived.by(() => {
+        if (activeSettingsView !== 'app_store') return [];
+        const allApps = Object.values(appSkillsStore.getState().apps);
+        const totalApps = allApps.length;
+        const totalSkills = allApps.reduce((sum, app) => sum + (app.skills?.length ?? 0), 0);
+        const totalFocusModes = allApps.reduce((sum, app) => sum + (app.focus_modes?.length ?? 0), 0);
+        const totalMemories = allApps.reduce((sum, app) => sum + (app.settings_and_memories?.length ?? 0), 0);
+        return [
+            { count: totalApps,      iconClass: 'apps' },
+            { count: totalSkills,    iconClass: 'skill' },
+            { count: totalFocusModes, iconClass: 'focus' },
+            { count: totalMemories,  iconClass: 'memory' },
+        ];
+    });
+
+    /**
      * Data needed to render the AppDetailsHeader for sub-pages (skill/focus/memories).
      * Returns the parent appId and the item-specific data (name, typeLabel, description).
      * Returns null when not on a sub-page.
@@ -2009,6 +2029,7 @@ changes to the documentation (to keep the documentation up to date).
                 title: activeSubMenuTitle,
                 icon: activeSubMenuIcon,
                 description: activeSubMenuDescription,
+                stats: appStoreHeaderStats,
             }}
         />
     {/if}

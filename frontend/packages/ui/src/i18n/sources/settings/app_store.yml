@@ -1,26 +1,26 @@
 description:
   context: Short description shown in the App Store settings page gradient banner header
-  en: Browse and manage apps and skills for your AI assistant
-  de: Apps und Skills für Ihren KI-Assistenten durchsuchen und verwalten
-  zh: 浏览和管理您的 AI 助手的应用和技能
-  es: Navega y gestiona aplicaciones y habilidades para tu asistente de IA
-  fr: Parcourez et gérez les applications et compétences de votre assistant IA
-  pt: ""
-  ru: ""
-  ja: AIアシスタントのアプリとスキルを閲覧・管理する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: تصفح وإدارة التطبيقات والمهارات لمساعدك الذكي
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: עיון וניהול של אפליקציות ומיומנויות עבור עוזר ה-AI שלך
+  en: Browse & manage the apps your mates can use.
+  de: Apps durchsuchen und verwalten, die deine Mates nutzen können.
+  zh: 浏览和管理你的伙伴可以使用的应用。
+  es: Navega y gestiona las apps que tus compañeros pueden usar.
+  fr: Parcourez et gérez les apps que vos mates peuvent utiliser.
+  pt: Navegue e gerencie os apps que seus mates podem usar.
+  ru: Просматривайте и управляйте приложениями, доступными вашим мейтам.
+  ja: mates が使えるアプリを閲覧・管理する。
+  ko: mates가 사용할 수 있는 앱을 탐색하고 관리하세요.
+  it: Sfoglia e gestisci le app che i tuoi mates possono usare.
+  tr: Mates'in kullanabileceği uygulamaları gözden geçir ve yönet.
+  vi: Duyệt và quản lý các ứng dụng mà mates của bạn có thể sử dụng.
+  id: Jelajahi dan kelola aplikasi yang dapat digunakan oleh mates Anda.
+  pl: Przeglądaj i zarządzaj aplikacjami, z których mogą korzystać twoi mates.
+  nl: Blader door en beheer de apps die jouw mates kunnen gebruiken.
+  ar: تصفح وأدر التطبيقات التي يمكن لمرافقيك استخدامها.
+  hi: उन ऐप्स को ब्राउज़ करें और प्रबंधित करें जिन्हें आपके mates उपयोग कर सकते हैं।
+  th: เรียกดูและจัดการแอปที่ mates ของคุณสามารถใช้งานได้
+  cs: Procházejte a spravujte aplikace, které mohou vaši mates používat.
+  sv: Bläddra bland och hantera de appar dina mates kan använda.
+  he: עיין ונהל את האפליקציות שחבריך יכולים להשתמש בהן.
   verified_by_human: []
 app_store:
   context: App Store settings menu item

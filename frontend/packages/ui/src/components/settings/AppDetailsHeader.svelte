@@ -65,10 +65,16 @@
    * a white mask icon via the icon_{icon} CSS class system.
    * The `app` prop is not required when settingsPage is set.
    */
+  interface SettingsPageStat {
+    count: number;            // Numeric count to display
+    iconClass: string;        // CSS class suffix for the icon (e.g. 'apps', 'skill', 'focus', 'memory')
+  }
+
   interface SettingsPage {
     title: string;           // Page title (already translated)
     icon: string;            // CSS icon name (used as `icon_{icon}` class)
     description?: string;    // Optional description text
+    stats?: SettingsPageStat[]; // Optional capability stats row (e.g. for App Store header)
   }
 
   interface Props {
@@ -212,6 +218,9 @@
   /** Description for settingsPage mode */
   let settingsPageDescription = $derived(settingsPage?.description ?? '');
 
+  /** Stats for settingsPage mode (e.g. App Store aggregate capability counts) */
+  let settingsPageStats = $derived(settingsPage?.stats ?? []);
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   /** Display name shown in the identity row */
@@ -341,9 +350,21 @@
     aria-hidden={detailsOpacity < 0.05}
   >
     {#if settingsPage}
-      <!-- Standard settings page mode: show page description only, no capability counts -->
+      <!-- Standard settings page mode: show page description and optional stats row -->
       {#if settingsPageDescription}
         <p class="app-description">{settingsPageDescription}</p>
+      {/if}
+      {#if settingsPageStats.length > 0}
+        <div class="capability-row">
+          {#each settingsPageStats as stat (stat.iconClass)}
+            {#if stat.count > 0}
+              <div class="cap-item">
+                <span class="cap-num">{stat.count}</span>
+                <span class="cap-icon settings-stat-icon {stat.iconClass}-stat-icon"></span>
+              </div>
+            {/if}
+          {/each}
+        </div>
       {/if}
     {:else if subItem}
       <!-- Sub-item mode: show item description only (type label is now inline below the title) -->
@@ -638,6 +659,56 @@
 
   /* Settings & memories */
   .memories-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
+    mask-image: url('@openmates/ui/static/icons/settings.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  /* ─── Settings page stats row icons (used in settingsPage mode, e.g. App Store) ─ */
+
+  /* Apps count — uses app.svg (the diamond/grid icon) */
+  .apps-stat-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/app.svg');
+    mask-image: url('@openmates/ui/static/icons/app.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  /* Skills count — uses skill.svg (same as top-level app skill-icon) */
+  .skill-stat-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/skill.svg');
+    mask-image: url('@openmates/ui/static/icons/skill.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  /* Focus modes count — uses insight.svg (same as top-level app focus-icon) */
+  .focus-stat-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/insight.svg');
+    mask-image: url('@openmates/ui/static/icons/insight.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  /* Settings & memory types count — uses settings.svg (same as top-level app memories-icon) */
+  .memory-stat-icon {
     -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
     mask-image: url('@openmates/ui/static/icons/settings.svg');
     -webkit-mask-size: contain;
