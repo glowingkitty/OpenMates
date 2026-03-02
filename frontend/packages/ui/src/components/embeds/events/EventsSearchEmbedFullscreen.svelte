@@ -6,16 +6,25 @@
 
   Shows:
   - Header with search query and "via {provider}" formatting
-  - List of event cards: title, date, event_type badge, location, RSVP count, link button
+  - Grid of EventEmbedPreview cards (one per event)
+  - Drill-down: clicking a card opens EventEmbedFullscreen overlay (ChildEmbedOverlay pattern)
 
   Architecture note:
   Events results are stored as SEPARATE CHILD EMBEDS (like news/web search) — NOT inline in
   the parent embed TOON. The parent embed carries `embed_ids` pointing to the individual event
   child embeds. We use embedIds + childEmbedTransformer so UnifiedEmbedFullscreen handles loading.
+
+  Drill-down pattern mirrors TravelSearchEmbedFullscreen:
+  - The events grid is ALWAYS rendered as the base layer
+  - When a card is clicked, EventEmbedFullscreen renders as an overlay (ChildEmbedOverlay)
+  - Closing the overlay reveals the events grid without re-animation or re-fetch
 -->
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
+  import EventEmbedPreview from './EventEmbedPreview.svelte';
+  import EventEmbedFullscreen from './EventEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
 
   /**
@@ -132,10 +141,47 @@
   let embedHeaderTitle    = $derived(query);
   let embedHeaderSubtitle = $derived(`${$text('embeds.via')} ${provider}`);
 
-  // Detect mobile layout via container queries (not window.innerWidth) is preferred in fullscreen,
-  // but for backwards compat with event-list class-based mobile detection we keep it minimal here.
-  let isMobile = $derived(
-    typeof window !== 'undefined' && window.innerWidth <= 500
+  // ── Drill-down state ─────────────────────────────────────────────────────────
+  /**
+   * Index of the currently selected event in the results array.
+   * -1 means no event is open in the overlay.
+   * Needed (rather than storing the EventResult object) so ← → sibling navigation works.
+   */
+  let selectedEventIndex = $state<number>(-1);
+
+  /**
+   * All loaded event results — populated via onChildrenLoaded callback.
+   * Stored separately from ctx.children to enable sibling navigation in the overlay.
+   */
+  let allEvents = $state<EventResult[]>([]);
+
+  /** Open an event's detail fullscreen overlay. */
+  function handleEventClick(index: number) {
+    selectedEventIndex = index;
+  }
+
+  /** Close the event overlay (back to results grid). */
+  function handleEventClose() {
+    selectedEventIndex = -1;
+  }
+
+  /** Navigate to the previous event in the overlay. */
+  function handleEventPrevious() {
+    if (selectedEventIndex > 0) {
+      selectedEventIndex = selectedEventIndex - 1;
+    }
+  }
+
+  /** Navigate to the next event in the overlay. */
+  function handleEventNext() {
+    if (selectedEventIndex < allEvents.length - 1) {
+      selectedEventIndex = selectedEventIndex + 1;
+    }
+  }
+
+  // The currently selected event object (undefined when overlay is closed)
+  let selectedEvent = $derived(
+    selectedEventIndex >= 0 ? allEvents[selectedEventIndex] : undefined
   );
 
   // ── Child embed transformer ──────────────────────────────────────────────────
@@ -197,22 +243,22 @@
     }
 
     return {
-      embed_id:   childEmbedId,
-      id:         content.id          as string | undefined,
-      provider:   content.provider    as string | undefined,
-      title:      content.title       as string | undefined,
-      description:content.description as string | undefined,
-      url:        content.url         as string | undefined,
-      date_start: content.date_start  as string | undefined,
-      date_end:   content.date_end    as string | undefined,
-      timezone:   content.timezone    as string | undefined,
-      event_type: content.event_type  as string | undefined,
+      embed_id:    childEmbedId,
+      id:          content.id          as string | undefined,
+      provider:    content.provider    as string | undefined,
+      title:       content.title       as string | undefined,
+      description: content.description as string | undefined,
+      url:         content.url         as string | undefined,
+      date_start:  content.date_start  as string | undefined,
+      date_end:    content.date_end    as string | undefined,
+      timezone:    content.timezone    as string | undefined,
+      event_type:  content.event_type  as string | undefined,
       venue,
       organizer,
-      rsvp_count: content.rsvp_count  as number | undefined,
-      is_paid:    content.is_paid     as boolean | undefined,
+      rsvp_count:  content.rsvp_count  as number | undefined,
+      is_paid:     content.is_paid     as boolean | undefined,
       fee,
-      image_url:  content.image_url   as string | null | undefined,
+      image_url:   content.image_url   as string | null | undefined,
     };
   }
 
@@ -227,45 +273,6 @@
     if (typeof c.provider === 'string') localProvider = c.provider;
     if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
   }
-
-  // ── Display helpers ──────────────────────────────────────────────────────────
-
-  /**
-   * Format a date_start ISO string to a readable local date+time.
-   * Returns empty string if date is missing or invalid.
-   * Example output: "Sat, Mar 15 · 7:00 PM"
-   */
-  function formatEventDate(dateStr: string | undefined): string {
-    if (!dateStr) return '';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return '';
-      return d.toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
-      }) + ' · ' + d.toLocaleTimeString(undefined, {
-        hour: 'numeric',
-        minute: '2-digit'
-      });
-    } catch {
-      return '';
-    }
-  }
-
-  /**
-   * Get a short location string for an event.
-   * Online events return "Online".
-   * Physical events return "City, Country" (or just country if city missing).
-   */
-  function getEventLocation(event: EventResult): string {
-    if (event.event_type === 'ONLINE') return 'Online';
-    if (!event.venue) return '';
-    const parts: string[] = [];
-    if (event.venue.city)    parts.push(event.venue.city);
-    if (event.venue.country) parts.push(event.venue.country);
-    return parts.join(', ');
-  }
 </script>
 
 <UnifiedEmbedFullscreen
@@ -273,12 +280,13 @@
   skillId="search"
   onClose={onClose}
   currentEmbedId={embedId}
-  skillIconName="event"
+  skillIconName="search"
   embedHeaderTitle={embedHeaderTitle}
   embedHeaderSubtitle={embedHeaderSubtitle}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToEventResult}
   onEmbedDataUpdated={handleEmbedDataUpdated}
+  onChildrenLoaded={(children) => { allEvents = children as EventResult[]; }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -303,52 +311,42 @@
         <p>{$text('embeds.no_results')}</p>
       </div>
     {:else}
-      <div class="events-list" class:mobile={isMobile}>
-        {#each events as event (event.embed_id)}
-          {@const eventLocation = getEventLocation(event)}
-          <div class="event-card">
-            <!-- Event header: title + type badge -->
-            <div class="event-header">
-              <div class="event-title">{event.title || ''}</div>
-              {#if event.event_type}
-                <span class="event-type-badge" class:online={event.event_type === 'ONLINE'}>
-                  {event.event_type === 'ONLINE' ? 'Online' : 'In Person'}
-                </span>
-              {/if}
-            </div>
-
-            <!-- Event meta: date + location -->
-            <div class="event-meta">
-              {#if event.date_start}
-                <div class="event-date">{formatEventDate(event.date_start)}</div>
-              {/if}
-              {#if eventLocation}
-                <div class="event-location">{eventLocation}</div>
-              {/if}
-            </div>
-
-            <!-- Event footer: RSVP count + link button -->
-            <div class="event-footer">
-              {#if event.rsvp_count != null && event.rsvp_count > 0}
-                <span class="event-rsvp">{event.rsvp_count.toLocaleString()} RSVPs</span>
-              {/if}
-              {#if event.url}
-                <a
-                  href={event.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="event-link-button"
-                >
-                  View Event
-                </a>
-              {/if}
-            </div>
-          </div>
+      <!--
+        Events grid: each event rendered as an EventEmbedPreview card.
+        Clicking a card opens EventEmbedFullscreen via ChildEmbedOverlay drill-down.
+        The grid stays mounted beneath the overlay — no re-animation when returning.
+      -->
+      <div class="events-grid">
+        {#each events as event, index (event.embed_id)}
+          <EventEmbedPreview
+            id={event.embed_id}
+            {event}
+            isMobile={false}
+            onFullscreen={() => handleEventClick(index)}
+          />
         {/each}
       </div>
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
+
+<!--
+  Drill-down overlay: renders the single-event fullscreen on top of the results grid.
+  The grid stays alive beneath — no re-fetch or re-animation on close.
+  Only rendered when an event card has been clicked (selectedEvent is defined).
+-->
+{#if selectedEvent}
+  <ChildEmbedOverlay>
+    <EventEmbedFullscreen
+      event={selectedEvent}
+      onClose={handleEventClose}
+      hasPreviousEmbed={selectedEventIndex > 0}
+      hasNextEmbed={selectedEventIndex < allEvents.length - 1}
+      onNavigatePrevious={handleEventPrevious}
+      onNavigateNext={handleEventNext}
+    />
+  </ChildEmbedOverlay>
+{/if}
 
 <style>
   /* ===========================================
@@ -372,154 +370,35 @@
   }
 
   /* ===========================================
-     Events List Layout
+     Events Grid
+     Responsive: single column on narrow, two-column on wide
      =========================================== */
 
-  .events-list {
-    display: flex;
-    flex-direction: column;
+  .events-grid {
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 16px;
-    width: calc(100% - 20px);
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 0 10px;
+    padding: 24px 16px;
     padding-bottom: 120px; /* Space for bottom bar + gradient */
+    max-width: 900px;
+    margin: 0 auto;
   }
 
-  /* ===========================================
-     Event Card
-     =========================================== */
-
-  .event-card {
-    background: var(--color-surface-raised, var(--color-grey-10, #1e1e1e));
-    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    transition: border-color 0.15s ease;
-  }
-
-  .event-card:hover {
-    border-color: var(--color-border-hover, rgba(255, 255, 255, 0.16));
-  }
-
-  /* ===========================================
-     Event Header: title + type badge
-     =========================================== */
-
-  .event-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    justify-content: space-between;
-  }
-
-  .event-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.4;
-    flex: 1;
-    /* Limit to 3 lines */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    word-break: break-word;
-  }
-
-  .events-list.mobile .event-title {
-    font-size: 15px;
-  }
-
-  /* Type badge: "Online" (teal) or "In Person" (warm) */
-  .event-type-badge {
-    flex-shrink: 0;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 3px 8px;
-    border-radius: 20px;
-    background: var(--color-app-events-start, #a20000);
-    color: #fff;
-    margin-top: 2px;
-  }
-
-  .event-type-badge.online {
-    background: #1a6b5a;
-  }
-
-  /* ===========================================
-     Event Meta: date + location
-     =========================================== */
-
-  .event-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .event-date {
-    font-size: 14px;
-    color: var(--color-grey-80);
-    font-weight: 500;
-  }
-
-  .event-location {
-    font-size: 13px;
-    color: var(--color-grey-60);
-  }
-
-  /* ===========================================
-     Event Footer: RSVP + link button
-     =========================================== */
-
-  .event-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 2px;
-  }
-
-  .event-rsvp {
-    font-size: 13px;
-    color: var(--color-grey-60);
-  }
-
-  .event-link-button {
-    display: inline-flex;
-    align-items: center;
-    padding: 7px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    text-decoration: none;
-    color: #fff;
-    /* Use events brand gradient */
-    background: linear-gradient(
-      135deg,
-      var(--color-app-events-start, #a20000),
-      var(--color-app-events-end, #e61b3e)
-    );
-    transition: opacity 0.15s ease;
-    white-space: nowrap;
-  }
-
-  .event-link-button:hover {
-    opacity: 0.85;
+  /* Two-column grid on wider fullscreen panels */
+  @container fullscreen (min-width: 640px) {
+    .events-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 
   /* ===========================================
      Skill Icon (EmbedHeader / BasicInfosBar)
      =========================================== */
 
-  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="event"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
-    mask-image: url('@openmates/ui/static/icons/event.svg');
+  /* Events search skill uses "search" icon (magnifying glass) in the fullscreen header.
+     Matches the convention used by WebSearch and TravelSearch. */
+  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
   }
 </style>

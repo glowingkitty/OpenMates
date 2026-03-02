@@ -235,6 +235,7 @@ def search_events(
     event_type: Optional[str] = None,
     radius_miles: float = 25.0,
     count: int = 20,
+    proxy_url: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Search Meetup.com for events matching the given criteria.
@@ -254,6 +255,10 @@ def search_events(
         event_type:   "PHYSICAL", "ONLINE", or None (both)
         radius_miles: Search radius in miles (default 25, ~40 km)
         count:        Maximum number of events to return (1–50)
+        proxy_url:    Optional HTTP proxy URL (e.g. Webshare rotating residential).
+                      Format: "http://user:pass@p.webshare.io:80"
+                      When provided, all requests are routed through this proxy
+                      to avoid Meetup IP-based rate limiting.
 
     Returns:
         List of normalised event dicts. Each dict contains:
@@ -296,12 +301,16 @@ def search_events(
         "query": _EVENT_SEARCH_QUERY,
     }
 
+    # Build proxies dict for requests library (None = no proxy)
+    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+
     logger.debug(
-        "Meetup search: keywords=%r lat=%.4f lon=%.4f count=%d",
+        "Meetup search: keywords=%r lat=%.4f lon=%.4f count=%d proxy=%s",
         keywords,
         lat,
         lon,
         count,
+        "yes" if proxy_url else "no",
     )
     t0 = time.time()
 
@@ -311,6 +320,7 @@ def search_events(
             json=payload,
             headers=_HEADERS,
             timeout=20,
+            proxies=proxies,
         )
     except requests.RequestException as exc:
         raise RuntimeError(f"HTTP request to Meetup failed: {exc}") from exc
@@ -362,12 +372,17 @@ async def search_events_async(
     event_type: Optional[str] = None,
     radius_miles: float = 25.0,
     count: int = 20,
+    proxy_url: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Async wrapper around search_events().
 
     Runs the synchronous HTTP call in a thread pool executor to avoid blocking
     the FastAPI async event loop.
+
+    Args:
+        proxy_url: Optional HTTP proxy URL forwarded to search_events().
+                   Typically a Webshare rotating residential proxy URL.
     """
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
@@ -383,6 +398,7 @@ async def search_events_async(
             event_type=event_type,
             radius_miles=radius_miles,
             count=count,
+            proxy_url=proxy_url,
         ),
     )
 

@@ -3,7 +3,7 @@ description_translation_key: events.description
 icon_image: |
   events.svg
 category: personal
-last_updated: "2026-03-01"
+last_updated: "2026-03-02"
 settings_and_memories: []
 instructions: []
 skills:
@@ -13,13 +13,19 @@ skills:
     icon_image: search.svg
     preprocessor_hint: >
       Search for local or online events, meetups, hackathons, conferences, workshops,
-      networking events, or any community gathering. Use when user asks about events
-      in a specific city, mentions wanting to attend a meetup, or asks what is happening
-      nearby on specific dates.
+      networking events, or any community gathering. Use ONLY this skill for event searches
+      — do NOT additionally call web.search or any other search skill for the same query.
+      Use when user asks about events in a specific city, mentions wanting to attend a meetup,
+      or asks what is happening nearby on specific dates.
+      When the user mentions a city or location, default to PHYSICAL (in-person) events.
+      When the user explicitly asks for online or virtual events, use ONLINE filter.
+      Always limit results to 10 (default) unless the user explicitly requests more.
     stage: production
     class_path: |
       backend.apps.events.skills.search_skill.SearchSkill
-    cost_credits: 5
+    pricing:
+      per_unit:
+        credits: 5
     providers:
       - Meetup
     # Follow-up suggestions shown to users after search results
@@ -69,7 +75,7 @@ skills:
                 description: "End of date range in ISO 8601 format (same format as start_date). If omitted, no upper bound is applied."
               event_type:
                 type: string
-                description: "Filter by event type. 'PHYSICAL' for in-person events, 'ONLINE' for virtual events. Omit for both."
+                description: "Filter by event type. Use 'PHYSICAL' when user searches for events in a city (default for location-based searches). Use 'ONLINE' when user explicitly asks for virtual/online/remote events. Omit only when user wants both types."
                 enum:
                   - "PHYSICAL"
                   - "ONLINE"
@@ -79,10 +85,10 @@ skills:
                 default: 25
               count:
                 type: integer
-                description: "Maximum number of events to return (default: 20, max: 50)."
+                description: "Maximum number of events to return (default: 10, max: 50). Use 10 unless the user asks for more results."
                 minimum: 1
                 maximum: 50
-                default: 20
+                default: 10
             required:
               - query
               - location

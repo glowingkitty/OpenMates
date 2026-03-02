@@ -2696,7 +2696,7 @@ total:
   th: ทั้งหมด
   cs: celkem
   sv: totalt
-  he: "סה\"כ"
+  he: 'סה"כ'
   verified_by_human: [en, de]
 no_stays_found:
   context: Message when no accommodation results were found
@@ -2866,6 +2866,29 @@ view_on_google_hotels:
   sv: Visa på Google Hotels
   he: צפייה ב-Google Hotels
   verified_by_human: [en, de]
+view_on_meetup:
+  context: CTA button text to open an event on Meetup.com
+  en: View on Meetup
+  de: Auf Meetup ansehen
+  zh: 在 Meetup 上查看
+  es: Ver en Meetup
+  fr: Voir sur Meetup
+  pt: Ver no Meetup
+  ru: Смотреть на Meetup
+  ja: Meetupで見る
+  ko: Meetup에서 보기
+  it: Vedi su Meetup
+  tr: Meetup'ta görüntüle
+  vi: Xem trên Meetup
+  id: Lihat di Meetup
+  pl: Zobacz na Meetup
+  nl: Bekijken op Meetup
+  ar: عرض على Meetup
+  hi: Meetup पर देखें
+  th: ดูบน Meetup
+  cs: Zobrazit na Meetup
+  sv: Visa på Meetup
+  verified_by_human: []
 focus_mode.context_menu.stop:
   context: Context menu button to stop an activated focus mode session
   en: Stop

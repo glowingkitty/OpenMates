@@ -206,6 +206,7 @@ class SearchSkill(BaseSkill):
         req: Dict[str, Any],
         request_id: Any,
         secrets_manager: SecretsManager,  # noqa: ARG002 — required by BaseSkill helper signature
+        proxy_url: Optional[str] = None,
     ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
         """
         Process a single event search request.
@@ -216,7 +217,9 @@ class SearchSkill(BaseSkill):
         Args:
             req:             Request dict with query, location/lat/lon, and optional params
             request_id:      ID for matching this request in the grouped response
-            secrets_manager: Injected by BaseSkill helper (not used — no secrets needed)
+            secrets_manager: Injected by BaseSkill helper (required by base class pattern)
+            proxy_url:       Optional Webshare rotating residential proxy URL.
+                             Passed through to meetup_provider.search_events_async().
 
         Returns:
             Tuple of (request_id, results_list, error_or_None)
@@ -288,6 +291,7 @@ class SearchSkill(BaseSkill):
                 event_type=event_type,
                 radius_miles=radius_miles,
                 count=count,
+                proxy_url=proxy_url,
             )
         except (RuntimeError, ValueError) as exc:
             error_msg = f"Meetup search failed for query {query!r}: {exc}"
@@ -365,12 +369,37 @@ class SearchSkill(BaseSkill):
         if error:
             return SearchResponse(results=[], error=error)
 
+        # Load Webshare rotating residential proxy credentials from Vault.
+        # This distributes Meetup requests across different IPs, preventing
+        # server-side rate limiting and IP bans from Meetup's CDN.
+        proxy_url: Optional[str] = None
+        if secrets_manager:
+            try:
+                ws_username = await secrets_manager.get_secret(
+                    secret_path="kv/data/providers/webshare",
+                    secret_key="proxy_username",
+                )
+                ws_password = await secrets_manager.get_secret(
+                    secret_path="kv/data/providers/webshare",
+                    secret_key="proxy_password",
+                )
+                if ws_username and ws_password:
+                    proxy_url = f"http://{ws_username}:{ws_password}@p.webshare.io:80"
+                    logger.debug("[events:search] Using Webshare rotating proxy for Meetup requests")
+            except Exception as exc:
+                logger.warning(
+                    "[events:search] Could not load proxy credentials: %s. "
+                    "Proceeding without proxy.",
+                    exc,
+                )
+
         # Process all requests in parallel
         results = await self._process_requests_in_parallel(
             requests=validated_requests,
             process_single_request_func=self._process_single_search_request,
             logger=logger,
             secrets_manager=secrets_manager,
+            proxy_url=proxy_url,
         )
 
         # Group by request ID

@@ -192,8 +192,9 @@
   // Get skill name from translations (reuse embeds.search key — "Search")
   let skillName = $derived($text('embeds.search'));
 
-  // Events skill icon name — maps to event.svg
-  const skillIconName = 'event';
+  // Use "search" icon (magnifying glass) matching WebSearch and TravelSearch conventions.
+  // The app-level icon is "event" (calendar), but the search *skill* uses "search".
+  const skillIconName = 'search';
 
   // "via {provider}" subtitle
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
@@ -342,14 +343,17 @@
      Skill Icon Styling (skill-specific)
      =========================================== */
 
-  /* Events skill icon — maps to event.svg */
-  :global(.unified-embed-preview .skill-icon[data-skill-icon="event"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
-    mask-image: url('@openmates/ui/static/icons/event.svg');
+  /* Events search skill icon — maps to search.svg (magnifying glass).
+     The "search" icon is already registered in BasicInfosBar.svelte and
+     used by WebSearch and TravelSearch. This rule ensures it also works
+     within the unified-embed-preview context for the events app. */
+  :global(.unified-embed-preview .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
   }
 
-  :global(.unified-embed-preview.mobile .skill-icon[data-skill-icon="event"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
-    mask-image: url('@openmates/ui/static/icons/event.svg');
+  :global(.unified-embed-preview.mobile .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
   }
 </style>
